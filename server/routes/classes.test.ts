@@ -90,3 +90,54 @@ describe('classes', () => {
     expect((await api.request('GET', '/api/admin/classes/abc')).status).toBe(404);
   });
 });
+
+describe('students in a class', () => {
+  it('adds pasted names, cleaned, and lists them in Romanian order', async () => {
+    const created = await createClass('10A');
+    const add = await api.request('POST', `/api/admin/classes/${created.id}/students`, {
+      names: ['2. Ștefan Ana', 'Sandu  Ion', 'Tudor Ema'],
+    });
+    expect(add.status).toBe(201);
+    expect(add.body.students.map((s: { fullName: string }) => s.fullName)).toEqual(['Ștefan Ana', 'Sandu Ion', 'Tudor Ema']);
+
+    const detail = await api.request('GET', `/api/admin/classes/${created.id}`);
+    expect(detail.body.class.studentCount).toBe(3);
+    expect(detail.body.students.map((s: { fullName: string }) => s.fullName)).toEqual(['Sandu Ion', 'Ștefan Ana', 'Tudor Ema']);
+  });
+
+  it('adds 60 names in one request', async () => {
+    const created = await createClass('10B');
+    const names = Array.from({ length: 60 }, (_, i) => `Elev ${i + 1}`);
+    const res = await api.request('POST', `/api/admin/classes/${created.id}/students`, { names });
+    expect(res.status).toBe(201);
+    expect(new Set(res.body.students.map((s: { id: number }) => s.id)).size).toBe(60);
+  });
+
+  it('marks a student as left and back, keeping the student in the list', async () => {
+    const created = await createClass('10C');
+    const add = await api.request('POST', `/api/admin/classes/${created.id}/students`, { names: ['Pop Ion'] });
+    const studentId = add.body.students[0].id;
+
+    const left = await api.request('PATCH', `/api/admin/classes/${created.id}/students/${studentId}`, { active: false });
+    expect(left.status).toBe(200);
+    expect(left.body.student).toEqual({ id: studentId, fullName: 'Pop Ion', active: false });
+
+    const detail = await api.request('GET', `/api/admin/classes/${created.id}`);
+    expect(detail.body.class.studentCount).toBe(0);
+    expect(detail.body.students).toEqual([{ id: studentId, fullName: 'Pop Ion', active: false }]);
+
+    const back = await api.request('PATCH', `/api/admin/classes/${created.id}/students/${studentId}`, { active: true });
+    expect(back.body.student.active).toBe(true);
+  });
+
+  it('refuses to add students to a class that does not exist', async () => {
+    const res = await api.request('POST', '/api/admin/classes/99999/students', { names: ['Pop Ion'] });
+    expect(res.status).toBe(404);
+  });
+
+  it('answers 404 when the student is not in that class', async () => {
+    const created = await createClass('10D');
+    const res = await api.request('PATCH', `/api/admin/classes/${created.id}/students/99999`, { active: false });
+    expect(res.status).toBe(404);
+  });
+});

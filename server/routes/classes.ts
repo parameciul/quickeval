@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
-import { createClassBody, updateClassBody } from '../../shared/api.ts';
+import { addStudentsBody, createClassBody, setEnrollmentBody, updateClassBody } from '../../shared/api.ts';
 import { isValidSchoolYear, schoolYearOf } from '../../shared/schoolYear.ts';
 import { createClass, getClass, listClasses, listClassStudents, updateClass } from '../db/classes.ts';
+import { addStudentsToClass, setEnrollmentActive } from '../db/students.ts';
 import type { AppEnv } from '../env.ts';
 import { ApiError, notFound } from '../errors.ts';
 import { nowIso, parseId, readJson } from '../http.ts';
@@ -34,6 +35,23 @@ export function classRoutes(): Hono<AppEnv> {
     const id = parseId(c.req.param('id'));
     const body = await readJson(c, updateClassBody);
     return c.json({ class: await updateClass(c.env.DB, c.var.teacher.id, id, body) });
+  });
+
+  routes.post('/:id/students', async (c) => {
+    const id = parseId(c.req.param('id'));
+    const body = await readJson(c, addStudentsBody);
+    if (!(await getClass(c.env.DB, c.var.teacher.id, id))) throw notFound();
+    const students = await addStudentsToClass(c.env.DB, c.var.teacher.id, id, body.names, nowIso());
+    return c.json({ students }, 201);
+  });
+
+  routes.patch('/:id/students/:studentId', async (c) => {
+    const id = parseId(c.req.param('id'));
+    const studentId = parseId(c.req.param('studentId'));
+    const body = await readJson(c, setEnrollmentBody);
+    const student = await setEnrollmentActive(c.env.DB, c.var.teacher.id, id, studentId, body.active);
+    if (!student) throw notFound();
+    return c.json({ student });
   });
 
   return routes;
