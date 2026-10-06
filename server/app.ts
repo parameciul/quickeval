@@ -1,10 +1,12 @@
 import { Hono } from 'hono';
 import type { AppEnv } from './env.ts';
 import { ApiError } from './errors.ts';
+import { adminRoutes } from './routes/admin.ts';
 
 // The whole API. functions/api/[[route]].ts serves it on Cloudflare Pages.
 export function createApp(): Hono<AppEnv> {
   const app = new Hono<AppEnv>().basePath('/api');
+  app.route('/admin', adminRoutes());
 
   app.notFound((c) => c.json({ error: 'not_found', message: 'Nu am găsit ce cauți.' }, 404));
   app.onError((err, c) => {

@@ -1,4 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
+import type { Teacher } from '../shared/api.ts';
 
 // Bindings and settings of the Pages project (wrangler.toml, Pages settings, .dev.vars).
 export interface Env {
@@ -11,4 +12,5 @@ export interface Env {
 
 export interface AppEnv {
   Bindings: Env;
+  Variables: { teacher: Teacher };
 }
