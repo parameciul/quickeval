@@ -111,7 +111,7 @@ Parts:
 | Robot | Node 24 TypeScript (type stripping, no build) on GitHub Actions, public repo | The teacher chose GitHub cloud. Unlimited free minutes on a public repo. |
 | AI | Claude Code CLI (`claude -p`), teacher's subscription via `CLAUDE_CODE_OAUTH_TOKEN` | Required by the spec. One-year token from `claude setup-token`. |
 | Word files | `pandoc` in the robot (DOCX to Markdown with TeX math and images) | Claude reads Markdown math well. PDFs are read directly. |
-| Tests | Vitest; jsdom + Testing Library for React; Miniflare (real local D1 and R2) for the API | The API tests run against the real local D1 and R2 engines. |
+| Tests | Vitest; jsdom + Testing Library for React; wrangler's `getPlatformProxy` (real local D1 and R2) for the API | The API tests run against the real local D1 and R2 engines. |
 
 Versions are pinned in Plan 1. On 2026-10-06 the latest were: react 19.3, vite 8.3, vitest 5.0, typescript 7.0, hono 4.13, zod 4.6, wrangler 4.147, react-router 8.4, @tanstack/react-query 5.104, pdfmake 0.3, qrcode.react 4.2.
 
@@ -155,6 +155,8 @@ quickeval/
   admin/index.html          teacher app entry
   u/index.html              student app entry
   public/                   copied as-is: _routes.json, _redirects, _headers, favicon.svg
+                            (_redirects uses the directory form "/admin/* /admin/ 200";
+                            "/admin/* /admin/index.html 200" is refused as a redirect loop)
   src/
     ui/                     brand CSS, layout, shared components, Romanian strings
     admin/                  teacher app (routes, pages, API client)
@@ -741,7 +743,7 @@ pdfmake gets a font with full Romanian letters (ă â î ș ț, comma-below form
 ## 17. Testing
 
 - `shared/`: unit tests for every pure function: codes, school year, slugs, scoring, statistics, CSV, and the schema checks.
-- `server/`: route tests through `app.request(path, init, env)`. `env` comes from Miniflare (`getD1Database`, `getR2Bucket`) with the migrations applied. Each test file gets a fresh database. The Access verifier has its own unit tests, with an RSA key made in the test.
+- `server/`: route tests through `app.request(path, init, env)`. `env` comes from wrangler's `getPlatformProxy({ persist: false })`, which reads the bindings from `wrangler.toml`, with the migrations applied. Each test file gets a fresh in-memory database. There is no direct `miniflare` dependency: its newest version changed its options format. The Access verifier has its own unit tests, with an RSA key made in the test.
 - `src/`: component and flow tests with jsdom and Testing Library, for the forms, the upload flow, and the tables. The API client is replaced by a fake.
 - `runner/`: tests with a fake API client and a fake Claude executor. They cover the pool limit N, chaining, lease loss, usage-limit stop, timeouts, and the work-folder layout.
 - Manual checks at the end of each plan, on a local dev server and then on the live site.
@@ -775,7 +777,7 @@ Operations, written down in `AGENTS.md`:
 Each plan ends with working, tested software. Each one gets its own file in `docs/superpowers/plans/`.
 
 1. **Foundation, classes, students**:
-   - repo scaffold (Vite multi-page React + TS, Hono on Pages Functions, D1 migrations, Vitest + Miniflare, CI);
+   - repo scaffold (Vite multi-page React + TS, Hono on Pages Functions, D1 migrations, Vitest + `getPlatformProxy`, CI);
    - brand shell;
    - Access login, the `/me` endpoint, and the expired-login reload (§15);
    - classes and students (API and UI, school-year switch, paste many names);
