@@ -1,0 +1,40 @@
+I want to create clear specifications for a soft named QuickEval. This soft goal is to correct automatically tests for students, in special math tests. 
+
+Features:
+1. Initialy the soft is intended just for one math teacher, but should be possible to extend it for multiple teachers in future
+2. My classes this year (2026-2027) are Clasa 6E2, Clasa 7E2, Clasa 8E2, Clasa 9R2, Clasa 11R1, but should be able to define my cleasses each year
+3. I should be able to define students for each class.
+4. I should be able to initiate a test for each class on a specific date and hour. Each tests should have an unique ID, short and easaly to retain. For example 6E2-26T1 (6E2 - class name, 26 from year 2026 when the scolar year started and T1 test number for that class). Also each test should have an folder asociated on the cloud location where tests are stored. All details about the tests should be persited in DB. 
+5. When I initiate a test should I upload the test document as doc/pdf and should I upload the marking scheme for the test, to be able for AI to give consitent result when evaluate a test.
+6. After the test is created an link will be created, asociaated with that test. The test should be visible on the platform for the test and should be persisted. The teacher will share that link with students. The scope for the link is to give ability for students to upload the test after is done. Teacher will share the link with students durring the test period. 
+7. When a student is done with the test, student will create pictures for the test or it will scan the test and create a pdf. Student will then open the link from the phone or tablet and a list with all students for the class will appear. Student will select his name and after that he will upload the pictures and the pdf/pdfs to that link. After all files will be uploaded, he will be able to preview the documents to see if if are all there and it will confirm that the  upload is done.
+8. Documents will be stored on a cloud location.
+9. Teacher should be able to see on the platform what students finished the test upload.
+10. Teacher will be able to specify when auto evaluation for that test should start on the platform. In this moment test evaluation is open.
+
+Start test evaluations:
+1. Test evaluation is made using claude code.
+2. We should have a active test verification routine in Claude Code that will check each 10 minutes if are tests on the platform that have evaluation open and verify the folder associated with that test for available tests. Under test folder should have a subfolder for each student that uploaded the test with the files the student uploaded. The routine should check all students folders under the tests that are not already evaluated (should keep track what students folders was evaluated) and create an evaluation agent for each student.
+3. The number of evaluation agnets that run in paralel should be configurable on the system, but default/initial value should be 1.
+4. When one test is evaluated succesfull a new evaluation agent agent should be trigger if there are remaining test to evaluate. If all tests are evaluated or tests have evaluation agents in execution for that test, a new agent should not be created anymore. 
+4. The active test verification routine should not do anything (not initiate new tests evaluations) if there are active evalutaion test agents in progress.
+
+Evaluate a test:
+1. An evaluation agent will evaluate a test using all files (picture or pdf) pressent in the student folder.
+2. To evaluate the test should use in his context: the test document to get the list of exercices for the test, the marking scheme for the test to know what are the correct final results and also intermediate results and how to score each exercise from the test, the picture or pdf files with solution uploaded by student. 
+3. The test evaluation for each student should contain a document with scoring for each exercise + comments and recomandaions for student.
+4. In case there are doubds about the scoring, should highlight that in the scoring evaluation to be visible for the teacher that should manually check an exercise. 
+
+Final scoring per test ID, for example for test 6E2-26T1:
+1. Should provide an final document that wll agregate the final scorings for all students. Should have in that table also scoring for each exercise for each student.
+2. Should also have some statistics and recomandations about the strong points and week points for the thematic that was evaluated for the entire class. 
+3. Teacher should be able to download the final document asociated with that test from the platform and to easaly share the document. 
+4. The teacher should be able to download and view the files uploaded by each student on the test and also also should be able to download/get the final document with scoring for each student and to easaly share the document.
+
+Tech stack:
+1. Use github as git repository
+2. Site should be deployed on Claudflare Pages under free tier
+3. Should I have persistance for students in a DB and also should mentain a history with tests results for each student of each class.
+4. Students test should also be uploaded and persisted probably to a cloud location. We should try to find best solution/tehnologies to mantain platform under free tier as long as possible. Chose DB and cloud storage for files considering the free tier limitations. 
+5. Ask me questions when are unclarities or when you have suggestions about a possible better approach. Think as an software arhitect and chose carefuly the tehnologies based on application needs and also have in mind that application should work under a free tier for the tehnologies that you chose, considering a teacher that will create a test per each class per month.
+6. Use a clean design. Maybe inspire from the design of Website project. You can take also the branding from there as the evaluation side is also created to Laura Miron branding.
