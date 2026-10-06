@@ -37,15 +37,16 @@ const RELOAD_KEY = 'quickeval.loginReloadAt';
 const RELOAD_GAP_MS = 10_000;
 
 // Reloads at most once per 10 seconds, so a broken login can never cause a reload loop.
-export function reloadForLogin(): void {
+// The parameters exist for tests; the defaults reload the real page.
+export function reloadForLogin(reload: () => void = () => window.location.reload(), now: () => number = Date.now): void {
   try {
     const last = Number(sessionStorage.getItem(RELOAD_KEY) ?? 0);
-    if (Date.now() - last < RELOAD_GAP_MS) return;
-    sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+    if (now() - last < RELOAD_GAP_MS) return;
+    sessionStorage.setItem(RELOAD_KEY, String(now()));
   } catch {
     return;
   }
-  window.location.reload();
+  reload();
 }
 
 export interface ApiClientOptions {
@@ -60,15 +61,20 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
-    const res = await fetchImpl(`/api/admin${path}`, {
-      method,
-      headers,
-      credentials: 'same-origin',
-      // An expired Access session answers with a redirect to the login page on
-      // another origin. 'manual' turns it into an opaqueredirect response here.
-      redirect: 'manual',
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
+    let res: Response;
+    try {
+      res = await fetchImpl(`/api/admin${path}`, {
+        method,
+        headers,
+        credentials: 'same-origin',
+        // An expired Access session answers with a redirect to the login page on
+        // another origin. 'manual' turns it into an opaqueredirect response here.
+        redirect: 'manual',
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    } catch {
+      throw new ApiError(0, 'network', 'Nu mă pot conecta la server. Verifică internetul și încearcă din nou.');
+    }
     const isJson = (res.headers.get('Content-Type') ?? '').includes('application/json');
     if (res.type === 'opaqueredirect' || ((res.status === 401 || res.status === 403) && !isJson)) {
       onLoginExpired();
@@ -77,7 +83,12 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     if (!isJson) {
       throw new ApiError(res.status, 'bad_response', 'Serverul nu a răspuns corect. Încearcă din nou.');
     }
-    const data = (await res.json()) as { error?: string; message?: string };
+    let data: { error?: string; message?: string };
+    try {
+      data = (await res.json()) as { error?: string; message?: string };
+    } catch {
+      throw new ApiError(res.status, 'bad_response', 'Serverul nu a răspuns corect. Încearcă din nou.');
+    }
     if (!res.ok) {
       throw new ApiError(res.status, data.error ?? 'error', data.message ?? 'A apărut o eroare. Încearcă din nou.');
     }

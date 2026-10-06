@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { ApiError, createApiClient, LoginExpiredError } from './api.ts';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError, createApiClient, LoginExpiredError, reloadForLogin } from './api.ts';
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -52,5 +52,92 @@ describe('createApiClient', () => {
     const api = createApiClient({ fetchImpl, onLoginExpired });
     await expect(api.me()).rejects.toMatchObject({ code: 'bad_response' });
     expect(onLoginExpired).not.toHaveBeenCalled();
+  });
+});
+
+describe('createApiClient failures', () => {
+  it('reports a dropped connection in Romanian', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const api = createApiClient({ fetchImpl });
+    const error = await api.me().catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({
+      status: 0,
+      code: 'network',
+      message: 'Nu mă pot conecta la server. Verifică internetul și încearcă din nou.',
+    });
+  });
+
+  it('reports a JSON answer with a broken body in Romanian', async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response('{"classes": [', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    );
+    const api = createApiClient({ fetchImpl });
+    const error = await api.listClasses(2026).catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({
+      status: 200,
+      code: 'bad_response',
+      message: 'Serverul nu a răspuns corect. Încearcă din nou.',
+    });
+  });
+
+  it.each([401, 403])('reloads for a new login on a %i answer with an HTML body', async (status) => {
+    const onLoginExpired = vi.fn();
+    const fetchImpl = vi.fn(
+      async () => new Response('<html>Sign in</html>', { status, headers: { 'Content-Type': 'text/html' } }),
+    );
+    const api = createApiClient({ fetchImpl, onLoginExpired });
+    await expect(api.me()).rejects.toBeInstanceOf(LoginExpiredError);
+    expect(onLoginExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a 401 answer with a JSON body as an ApiError', async () => {
+    const onLoginExpired = vi.fn();
+    const fetchImpl = vi.fn(async () => jsonResponse(401, { error: 'unauthorized', message: 'Nu ești autentificat.' }));
+    const api = createApiClient({ fetchImpl, onLoginExpired });
+    await expect(api.me()).rejects.toMatchObject({ status: 401, code: 'unauthorized' });
+    expect(onLoginExpired).not.toHaveBeenCalled();
+  });
+});
+
+describe('reloadForLogin', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reloads on the first call', () => {
+    const reload = vi.fn();
+    reloadForLogin(reload, () => 100_000);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reload again within 10 seconds', () => {
+    const reload = vi.fn();
+    reloadForLogin(reload, () => 100_000);
+    reloadForLogin(reload, () => 109_999);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('reloads again after 10 seconds', () => {
+    const reload = vi.fn();
+    reloadForLogin(reload, () => 100_000);
+    reloadForLogin(reload, () => 110_000);
+    expect(reload).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not reload when the storage is blocked', () => {
+    const reload = vi.fn();
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage blocked');
+    });
+    reloadForLogin(reload, () => 100_000);
+    expect(reload).not.toHaveBeenCalled();
   });
 });
