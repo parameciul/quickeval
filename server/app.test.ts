@@ -35,6 +35,13 @@ describe('test database', () => {
   });
 });
 
+describe('teachers table', () => {
+  it('refuses an email with capital letters and accepts a lowercase one', async () => {
+    await expect(api.addTeacher('Mixed@Example.com', 'X')).rejects.toThrow(/CHECK constraint failed/);
+    await expect(api.addTeacher('second@example.com', 'Y')).resolves.toEqual(expect.any(Number));
+  });
+});
+
 describe('splitSql', () => {
   it('splits on semicolons at line ends and drops comment lines', () => {
     expect(splitSql('-- note\nCREATE TABLE a (x INTEGER);\n\nCREATE INDEX a_x ON a (x);\n')).toEqual([

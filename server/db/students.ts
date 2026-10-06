@@ -60,8 +60,8 @@ export async function setEnrollmentActive(
     .first<{ student_id: number }>();
   if (!row) return null;
   const student = await db
-    .prepare('SELECT full_name FROM students WHERE id = ?')
-    .bind(studentId)
+    .prepare('SELECT full_name FROM students WHERE id = ? AND teacher_id = ?')
+    .bind(studentId, teacherId)
     .first<{ full_name: string }>();
   return { id: studentId, fullName: student!.full_name, active };
 }

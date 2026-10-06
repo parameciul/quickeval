@@ -1,6 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
+import { listClassStudents } from './classes.ts';
 import { addStudentsToClass } from './students.ts';
 
 let api: TestApi;
@@ -43,5 +44,20 @@ describe('addStudentsToClass', () => {
     });
     expect(await count('SELECT COUNT(*) AS n FROM students')).toBe(studentsBefore);
     expect(await count(`SELECT COUNT(*) AS n FROM enrollments WHERE class_id = ${classId}`)).toBe(2);
+  });
+});
+
+describe('listClassStudents', () => {
+  it('lists the students for the owning teacher and nothing for another teacher', async () => {
+    const row = await api.db
+      .prepare("INSERT INTO classes (teacher_id, name, school_year, created_at) VALUES (?, '7B', 2026, '2026-10-06') RETURNING id")
+      .bind(api.teacherId)
+      .first<{ id: number }>();
+    const otherClassId = row!.id;
+    await addStudentsToClass(api.db, api.teacherId, otherClassId, ['Zaharia Dan'], '2026-10-06T08:00:00.000Z');
+    const otherTeacherId = await api.addTeacher('other@example.com', 'Alt Profesor');
+
+    expect((await listClassStudents(api.db, api.teacherId, otherClassId)).map((s) => s.fullName)).toEqual(['Zaharia Dan']);
+    expect(await listClassStudents(api.db, otherTeacherId, otherClassId)).toEqual([]);
   });
 });

@@ -28,7 +28,7 @@ export function classRoutes(): Hono<AppEnv> {
     const id = parseId(c.req.param('id'));
     const found = await getClass(c.env.DB, c.var.teacher.id, id);
     if (!found) throw notFound();
-    return c.json({ class: found, students: await listClassStudents(c.env.DB, id) });
+    return c.json({ class: found, students: await listClassStudents(c.env.DB, c.var.teacher.id, id) });
   });
 
   routes.patch('/:id', async (c) => {

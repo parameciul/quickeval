@@ -763,7 +763,7 @@ Each step below that creates something outside this PC is done only after the te
    - bindings in `wrangler.toml`: `DB` and `FILES`;
    - Pages settings: `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `GITHUB_REPO`, `GITHUB_DISPATCH_TOKEN`.
 3. **Access**: in the Website's Zero Trust team, one self-hosted application "QuickEval admin", with the paths `/admin` and `/api/admin` and a policy that allows the teachers' emails.
-4. **First teacher**: `npx wrangler d1 execute quickeval --remote --command "INSERT INTO teachers (email, name, created_at) VALUES ('<teacher email>', 'Laura Miron', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"`. Replace `<teacher email>` with the email she uses for the Access login.
+4. **First teacher**: `npx wrangler d1 execute quickeval --remote --command "INSERT INTO teachers (email, name, created_at) VALUES (lower('<teacher email>'), 'Laura Miron', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"`. Replace `<teacher email>` with the email she uses for the Access login.
 5. **Robot**: GitHub variable `QUICKEVAL_URL`, secrets `QUICKEVAL_RUNNER_KEY` (from Setări) and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`).
 
 Operations, written down in `AGENTS.md`:

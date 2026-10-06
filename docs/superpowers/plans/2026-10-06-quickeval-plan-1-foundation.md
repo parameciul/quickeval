@@ -4479,10 +4479,10 @@ Each command asks for the value; paste the team domain and the AUD tag from Step
 Ask the user for the email the teacher uses for the Access login. Then run (replace the email):
 
 ```bash
-npx wrangler d1 execute quickeval --remote --command "INSERT INTO teachers (email, name, created_at) VALUES ('<teacher email>', 'Laura Miron', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+npx wrangler d1 execute quickeval --remote --command "INSERT INTO teachers (email, name, created_at) VALUES (lower('<teacher email>'), 'Laura Miron', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
 ```
 
-Expected: `"success": true` and `changes: 1`. The email must be lowercase.
+Expected: `"success": true` and `changes: 1`. `lower(...)` stores the email in lowercase; the database refuses an email with capital letters.
 
 - [ ] **Step 11: Check the live site with the user**
 

@@ -4,7 +4,7 @@
 
 CREATE TABLE teachers (
   id INTEGER PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL UNIQUE CHECK (email = lower(email)),
   name TEXT NOT NULL,
   created_at TEXT NOT NULL
 );

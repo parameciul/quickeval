@@ -93,14 +93,17 @@ export async function updateClass(
 }
 
 // All students ever enrolled in the class; students who left have active = false.
-export async function listClassStudents(db: D1Database, classId: number): Promise<StudentRow[]> {
+// The class must belong to the teacher; for any other class the list is empty.
+export async function listClassStudents(db: D1Database, teacherId: number, classId: number): Promise<StudentRow[]> {
   const { results } = await db
     .prepare(
       `SELECT s.id, s.full_name, e.active
-       FROM enrollments e JOIN students s ON s.id = e.student_id
+       FROM enrollments e
+       JOIN classes c ON c.id = e.class_id AND c.teacher_id = ?
+       JOIN students s ON s.id = e.student_id
        WHERE e.class_id = ?`,
     )
-    .bind(classId)
+    .bind(teacherId, classId)
     .all<{ id: number; full_name: string; active: number }>();
   return results
     .map((row) => ({ id: row.id, fullName: row.full_name, active: row.active === 1 }))
