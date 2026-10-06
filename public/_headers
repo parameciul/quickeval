@@ -1,0 +1,12 @@
+# Cloudflare Pages headers. QuickEval is a private tool: no page is indexed.
+/*
+  X-Robots-Tag: noindex, nofollow
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+# Vite puts a content hash in every file name under /assets/, so a changed
+# file is always a new URL and can be cached for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

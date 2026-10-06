@@ -1,0 +1,4 @@
+# The teacher app is a single-page app: every /admin page loads /admin/
+# (admin/index.html). Keep this directory form: wrangler refuses
+# "/admin/* /admin/index.html 200" as a redirect loop.
+/admin/* /admin/ 200

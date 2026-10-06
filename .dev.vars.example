@@ -1,0 +1,3 @@
+# Copy to .dev.vars (never committed). Local development only: the API accepts
+# this email as the logged-in teacher, and only for requests to localhost.
+DEV_TEACHER_EMAIL=profesor@example.com
