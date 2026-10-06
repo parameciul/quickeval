@@ -1,0 +1,491 @@
+/* QuickEval look, taken from the "Matematică cu Laura Miron" site
+   (D:\Projects\Website\assets\css\style.css): a Romanian squared math notebook
+   in light mode, a green chalkboard in dark mode. The dark colours are written
+   twice because CSS cannot share one block across a media query; keep the two
+   copies equal. */
+
+:root {
+  --paper: #fbfcfe;
+  --grid: #e3eaf4;
+  --sheet: #ffffff;
+  --text: #24272d;
+  --muted: #586070;
+  --ink: #1d3c8f;
+  --ink-hover: #132a69;
+  --red: #cf3a2f;
+  --marker: #fff0a0;
+  --marker-edge: #ffd94a;
+  --rule: #d4dce8;
+  --brand-marker: #fff0a0;
+  --ok-bg: #e1f2e8;
+  --ok-fg: #1b6b43;
+  --error-bg: #fbe5e2;
+  --error-fg: #a52a20;
+  --cell: 24px;
+  --margin-x: 3rem;
+  --font: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --paper: #1d2925;
+  --grid: rgba(255, 255, 255, 0.045);
+  --sheet: #22302b;
+  --text: #e8ece7;
+  --muted: #b1bab3;
+  --ink: #a9c5ff;
+  --ink-hover: #d2e0ff;
+  --red: #ff8b80;
+  --marker: rgba(255, 226, 110, 0.16);
+  --marker-edge: rgba(255, 217, 74, 0.75);
+  --rule: rgba(255, 255, 255, 0.14);
+  --brand-marker: rgba(255, 217, 74, 0.5);
+  --ok-bg: rgba(120, 210, 160, 0.16);
+  --ok-fg: #a8e6c1;
+  --error-bg: rgba(255, 139, 128, 0.16);
+  --error-fg: #ffb3ab;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1d2925;
+    --grid: rgba(255, 255, 255, 0.045);
+    --sheet: #22302b;
+    --text: #e8ece7;
+    --muted: #b1bab3;
+    --ink: #a9c5ff;
+    --ink-hover: #d2e0ff;
+    --red: #ff8b80;
+    --marker: rgba(255, 226, 110, 0.16);
+    --marker-edge: rgba(255, 217, 74, 0.75);
+    --rule: rgba(255, 255, 255, 0.14);
+    --brand-marker: rgba(255, 217, 74, 0.5);
+    --ok-bg: rgba(120, 210, 160, 0.16);
+    --ok-fg: #a8e6c1;
+    --error-bg: rgba(255, 139, 128, 0.16);
+    --error-fg: #ffb3ab;
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--text);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+}
+
+#root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+a {
+  color: var(--ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--ink-hover);
+  text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+h1 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.5rem, 1rem + 2vw, 2.2rem);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+h2 {
+  margin: 1.75rem 0 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 70rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Header */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--rule);
+  background: var(--sheet);
+}
+
+.header-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  padding-block: 0.55rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-right: auto;
+  line-height: 1.2;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.brand-mark {
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.brand-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.main-nav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.main-nav a {
+  padding: 0.35rem 0.75rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  font-family: var(--hand);
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.main-nav a[aria-current="page"] {
+  border-color: var(--red);
+}
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0;
+  border: 1.5px solid var(--rule);
+  border-radius: 999px;
+  background: var(--sheet);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.theme-btn:hover {
+  border-color: var(--ink);
+}
+
+.theme-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* Page body with the notebook's red margin line */
+
+.page {
+  position: relative;
+  padding-block: 1.25rem 2.5rem;
+  padding-left: var(--margin-x);
+}
+
+.page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--margin-x) - 1.25rem);
+  width: 2px;
+  background: var(--red);
+  opacity: 0.7;
+}
+
+@media (max-width: 40rem) {
+  :root {
+    --margin-x: 1.75rem;
+  }
+}
+
+.site-footer {
+  border-top: 1px solid var(--rule);
+  background: var(--sheet);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.site-footer p {
+  margin: 0;
+  padding-block: 0.75rem;
+}
+
+/* Buttons and forms */
+
+.button,
+.button-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.45rem 1.15rem;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button {
+  border: 0;
+  background: var(--ink);
+  color: var(--sheet);
+}
+
+.button:hover {
+  background: var(--ink-hover);
+  color: var(--sheet);
+}
+
+.button-quiet {
+  border: 1.5px solid var(--rule);
+  background: var(--sheet);
+  color: var(--ink);
+}
+
+.button-quiet:hover {
+  border-color: var(--ink);
+}
+
+.button-small {
+  min-height: 2.25rem;
+  padding: 0.2rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+label {
+  font-weight: 700;
+}
+
+input[type="text"],
+textarea,
+select {
+  min-height: 2.75rem;
+  padding: 0.45rem 0.75rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 0.5rem;
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+}
+
+input[type="text"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--ink);
+  outline: 3px solid var(--ink);
+  outline-offset: 1px;
+}
+
+textarea {
+  width: 100%;
+  max-width: 34rem;
+  min-height: 9rem;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-block: 0.75rem;
+}
+
+.form-stack {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 0.75rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.alert {
+  max-width: 40rem;
+  margin-block: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-left: 4px solid var(--error-fg);
+  border-radius: 0.35rem;
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.alert-text {
+  margin: 0;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: var(--marker);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Lists */
+
+.card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--sheet);
+}
+
+.card.is-muted {
+  opacity: 0.7;
+}
+
+.card-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.row-list {
+  max-width: 44rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: row;
+}
+
+.row-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--rule);
+  counter-increment: row;
+}
+
+.row-list > li::before {
+  content: counter(row) ".";
+  min-width: 2rem;
+  color: var(--muted);
+}
+
+.row-list .row-name {
+  margin-right: auto;
+}
+
+.row-list > li.is-muted .row-name {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* Landing page */
+
+.landing {
+  max-width: 40rem;
+}
+
+.landing .lead {
+  font-size: 1.2rem;
+}
