@@ -55,6 +55,13 @@ describe('verifyAccessJwt', () => {
     expect((await verifyAccessJwt(token, config, certsFetch)).ok).toBe(false);
   });
 
+  it('refuses a malformed token with null header', async () => {
+    expect(await verifyAccessJwt('bnVsbA.e30.AA', config, certsFetch)).toEqual({
+      ok: false,
+      message: 'Token de autentificare greșit.',
+    });
+  });
+
   it('refuses a token signed with an unknown key id', async () => {
     const token = await sign(goodPayload(), { alg: 'RS256', kid: 'other' });
     expect(await verifyAccessJwt(token, config, certsFetch)).toEqual({

@@ -49,7 +49,12 @@ function parseJwt(token: string): ParsedJwt | null {
   const [head, body, sig] = parts as [string, string, string];
   try {
     const decode = (part: string) => JSON.parse(new TextDecoder().decode(base64UrlToBytes(part)));
-    return { header: decode(head), payload: decode(body), signingInput: `${head}.${body}`, signature: base64UrlToBytes(sig) };
+    const header = decode(head);
+    const payload = decode(body);
+    // Validate that header and payload are non-null objects (not arrays)
+    if (!header || typeof header !== 'object' || Array.isArray(header)) return null;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+    return { header, payload, signingInput: `${head}.${body}`, signature: base64UrlToBytes(sig) };
   } catch {
     return null;
   }
