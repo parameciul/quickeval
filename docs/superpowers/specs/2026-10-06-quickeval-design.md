@@ -724,7 +724,7 @@ pdfmake gets a font with full Romanian letters (ă â î ș ț, comma-below form
 - **Claude** sees the test files, the barem, and the student pages with the file names replaced. The robot sends no names from the database, and the class analysis uses "Elev 1..n". Names that students write on their papers are visible to Claude, because it reads the pages.
 - **Expired teacher login**: when the Access session ends, a call to `/api/admin/*` gets a redirect to the Access login page instead of JSON. The teacher API client sends its requests with `redirect: 'manual'`. An `opaqueredirect` response, or a response that is not JSON, means "login expired": the app reloads the page, and Access shows its login.
 - **Public repo**: code and skill only. Logs show ids and counts only (§12.1).
-- **Consent**: students' handwritten work goes to Anthropic for grading and passes through GitHub's temporary machines. The school decides whether parents must agree. The landing page and the student page show one sentence about AI grading.
+- **Consent**: students' handwritten work goes to Anthropic for grading and passes through GitHub's temporary machines. The school decides whether parents must agree. No page in the app tells students that AI grades the work. This is the teacher's decision.
 - **Deletion**: deleting a test deletes its files and rows. A "left" student keeps their history.
 
 ## 16. UI and brand
