@@ -577,7 +577,7 @@ class-results.json   (class-report mode)   anonymized data from GET /tests/:id/r
 
 DOCX conversion: `pandoc <file>.docx -t gfm --extract-media=<dir>/media -o <dir>/<name>.md`. Math becomes TeX between `$`.
 
-Claude never sees a student name. The folder uses numbers, and the file names are replaced.
+The robot gives Claude no names from the database. The folder uses numbers, and the original file names are replaced. Claude does see any name that a student wrote on the paper, because it reads the pages.
 
 ### 12.4 Claude invocation
 
@@ -595,6 +595,8 @@ claude -p "/evaluate-test <mode>" \
 - The working directory is the task folder, so Claude Code finds the skill and no repo `CLAUDE.md`.
 - The environment holds `CLAUDE_CODE_OAUTH_TOKEN`. Never pass `--bare`: bare mode ignores that token. Never pass `--safe-mode`: it turns skills off.
 - The robot reads `structured_output` from the JSON on stdout and checks it with the zod schema.
+- Fallback, if the spike shows that `structured_output` stays empty when `--tools` is limited: drop `--json-schema`. The skill then asks Claude to end with one JSON block. The robot parses the `result` text and checks it with the same zod schema.
+- Local runs (the spike, tries on the teacher's PC, a manual robot run) start Claude with `CLAUDE_CONFIG_DIR` set to an empty folder and `CLAUDE_CODE_OAUTH_TOKEN` set to her token. Then her personal setup (output style, global `CLAUDE.md`, plugins) cannot change the result, and the run matches the clean GitHub machine.
 - Time limits: exercise list 10 min, grading 20 min, class report 15 min. At the limit, the robot sends SIGINT, waits 10 s, then sends SIGTERM.
 - Error types:
   - `usage_limit`: the plan limit was reached. The task is retryable, no attempt is counted, and the run stops taking new work.
@@ -674,7 +676,8 @@ Checks done by code, not by Claude:
   - Flag the item (do not guess) when the handwriting cannot be read, the page is cut, or the method is not in the barem.
   - Comments are kind, short, specific, and in Romanian, written to the student as "tu".
   - Math in comments is plain Unicode (x², √, ≤, ½), never LaTeX, because the PDFs cannot draw LaTeX.
-- The teacher can edit these files. A commit to `main` changes the robot's behavior from the next run. She can try the skill on her PC first: open Claude Code in the repo and run `/evaluate-test grade` on a sample folder.
+- The teacher can edit these files. A commit to `main` changes the robot's behavior from the next run.
+- To try the skill on her PC the same way as the robot, she runs `npm run try:skill -- <mode> <folder>`. The script (Plan 3) builds a work folder like §12.3 and starts Claude with the clean setup from §12.4. A normal interactive Claude Code session would load her personal settings, so its result can differ from the robot's.
 - The repo is public, so the skill is public. It must never contain student data.
 - Plan 3 ships a first version. The teacher can then replace or extend it.
 
@@ -718,7 +721,8 @@ pdfmake gets a font with full Romanian letters (ă â î ș ț, comma-below form
   - robot key: 256 bits, stored as a SHA-256 hash and compared in constant time.
 - **R2** has no public access. Every file read goes through the API with the right auth and an ownership check.
 - **Minimal data**: student names only. No emails, no ID numbers, no birth dates.
-- **Claude** sees the test files, the barem, and student pages with the file names replaced. It never sees names. The class analysis uses "Elev 1..n".
+- **Claude** sees the test files, the barem, and the student pages with the file names replaced. The robot sends no names from the database, and the class analysis uses "Elev 1..n". Names that students write on their papers are visible to Claude, because it reads the pages.
+- **Expired teacher login**: when the Access session ends, a call to `/api/admin/*` gets a redirect to the Access login page instead of JSON. The teacher API client sends its requests with `redirect: 'manual'`. An `opaqueredirect` response, or a response that is not JSON, means "login expired": the app reloads the page, and Access shows its login.
 - **Public repo**: code and skill only. Logs show ids and counts only (§12.1).
 - **Consent**: students' handwritten work goes to Anthropic for grading and passes through GitHub's temporary machines. The school decides whether parents must agree. The landing page and the student page show one sentence about AI grading.
 - **Deletion**: deleting a test deletes its files and rows. A "left" student keeps their history.
@@ -751,6 +755,7 @@ Each step below that creates something outside this PC is done only after the te
 1. **GitHub**: a public repo, for example `parameciul/quickeval`. The GitHub CLI on this PC is logged in as `parameciul`.
 2. **Cloudflare** (the same account as the Website):
    - a Pages project `quickeval` connected to the repo; build `npm run build`, output `dist`, Node 24 from `.node-version`;
+   - preview deployments turned off: only `main` deploys. Top-level bindings in `wrangler.toml` also apply to previews, so a preview would use the production D1 and R2 on a host that Access does not cover. If previews are needed later, they must first get their own D1 and R2 through `[env.preview]` in `wrangler.toml`;
    - D1 database `quickeval`, created with location hint `weur`;
    - R2 bucket `quickeval-files`, created with location hint `weur` (first: the one-time R2 subscription checkout);
    - bindings in `wrangler.toml`: `DB` and `FILES`;
@@ -772,7 +777,7 @@ Each plan ends with working, tested software. Each one gets its own file in `doc
 1. **Foundation, classes, students**:
    - repo scaffold (Vite multi-page React + TS, Hono on Pages Functions, D1 migrations, Vitest + Miniflare, CI);
    - brand shell;
-   - Access login and the `/me` endpoint;
+   - Access login, the `/me` endpoint, and the expired-login reload (§15);
    - classes and students (API and UI, school-year switch, paste many names);
    - deployment of the foundation.
    - Result: the teacher logs in at `/admin` and manages classes and students on the live site.
@@ -788,7 +793,7 @@ Each plan ends with working, tested software. Each one gets its own file in `doc
    - zod contracts and JSON Schemas;
    - the robot API with lease, claim, and results;
    - `runner/` with the pool, work folders, pandoc, Claude runs, checks, and scoring;
-   - the first grading skill;
+   - the first grading skill and the `npm run try:skill` script (§13);
    - `evaluate.yml`;
    - Start evaluation (now or scheduled), Evaluate now, and Setări (parallel agents, robot key, robot status).
    - Result: tests are graded automatically.
