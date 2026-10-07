@@ -667,3 +667,33 @@ table.uploads .tag {
   align-items: center;
   gap: 0.25rem 0.75rem;
 }
+
+/* A student's pages */
+
+.page-files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-files > li {
+  padding: 0.5rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--sheet);
+}
+
+.page-files img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.4rem;
+}
+
+.page-files .hint {
+  margin-top: 0.35rem;
+  overflow-wrap: anywhere;
+}
