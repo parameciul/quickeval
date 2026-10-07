@@ -165,6 +165,26 @@ describe('UploadScreen', () => {
     await waitFor(() => expect(onLost).toHaveBeenCalledWith('Încărcarea nu mai este valabilă. Alege-ți din nou numele.'));
   });
 
+  it('goes on with the next pages when one page cannot be prepared', async () => {
+    const { api } = setup();
+    keepAsIs.mockRejectedValueOnce(new Error('out of memory'));
+    await pick([jpeg('a.jpg'), jpeg('b.jpg')]);
+    await waitFor(() => expect(api.uploadFile).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Încărcat')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Încearcă din nou' })).toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('stops sending once the upload is lost', async () => {
+    const { api, onLost } = setup();
+    api.dropSession(11);
+    await pick([jpeg('a.jpg'), jpeg('b.jpg')]);
+    await waitFor(() => expect(onLost).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(api.uploadFile).toHaveBeenCalledTimes(1);
+    expect(onLost).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the pages sent before a reload, with photo previews from the server', async () => {
     const files = [
       { id: 7, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 900, position: 1 },

@@ -67,4 +67,22 @@ describe('shrinkPhoto', () => {
     expect(await shrinkPhoto(original, noCanvas.fake)).toBe(original);
     expect(noCanvas.close).toHaveBeenCalled();
   });
+
+  it('shrinks a photo that the phone gave no type, by its file name', async () => {
+    const { fake } = tools(4000, 3000, 500);
+    const result = await shrinkPhoto(photo('', 3000, 'IMG_0002.jpg'), fake);
+    expect(fake.decode).toHaveBeenCalled();
+    expect(result.size).toBe(500);
+  });
+
+  it('sends the photo as it is when the encoder fails', async () => {
+    const close = vi.fn();
+    const failing = {
+      decode: vi.fn(async () => ({ width: 4000, height: 3000, source: {} as CanvasImageSource, close })),
+      encode: vi.fn(async () => Promise.reject(new Error('out of memory'))),
+    } as unknown as PhotoTools;
+    const original = photo('image/jpeg', 3000);
+    expect(await shrinkPhoto(original, failing)).toBe(original);
+    expect(close).toHaveBeenCalled();
+  });
 });

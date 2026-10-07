@@ -79,6 +79,8 @@ export function UploadScreen({
   const sources = useRef(new Map<string, { blob: Blob; ready: boolean }>());
   const queue = useRef<Promise<void>>(Promise.resolve());
   const previews = useRef<string[]>([]);
+  // Set when the screen goes away or the upload is lost: pages still waiting are not sent.
+  const stopped = useRef(false);
 
   const update = useCallback((key: string, changes: Partial<PageItem>) => {
     setItems((current) => current.map((item) => (item.key === key ? { ...item, ...changes } : item)));
@@ -116,41 +118,52 @@ export function UploadScreen({
     [],
   );
 
+  useEffect(() => {
+    stopped.current = false;
+    return () => {
+      stopped.current = true;
+    };
+  }, []);
+
   const send = useCallback(
     async (key: string, name: string) => {
       const source = sources.current.get(key);
-      if (!source) return;
+      if (!source || stopped.current) return;
       update(key, { state: 'sending', progress: 0, error: null });
-      let { blob } = source;
-      let fileName = name;
-      if (!source.ready) {
-        const original = blob as File;
-        blob = await shrink(original);
-        if (blob !== original) fileName = jpegName(name);
-        else if (!blob.type) blob = new Blob([blob], { type: uploadTypeOf(original) });
-        const problem = blob.size === 0 ? EMPTY_FILE : blob.size > MAX_FILE_BYTES ? FILE_TOO_BIG : null;
-        if (problem) {
-          sources.current.delete(key);
-          update(key, { state: 'failed', error: problem, canRetry: false });
-          return;
-        }
-        sources.current.set(key, { blob, ready: true });
-        update(key, {
-          name: fileName,
-          size: blob.size,
-          contentType: blob.type,
-          preview: blob.type.startsWith('image/') ? previewOf(blob) : null,
-        });
-      }
       try {
+        let { blob } = source;
+        let fileName = name;
+        if (!source.ready) {
+          const original = blob as File;
+          blob = await shrink(original);
+          if (stopped.current) return;
+          if (blob !== original) fileName = jpegName(name);
+          else if (!blob.type) blob = new Blob([blob], { type: uploadTypeOf(original) });
+          const problem = blob.size === 0 ? EMPTY_FILE : blob.size > MAX_FILE_BYTES ? FILE_TOO_BIG : null;
+          if (problem) {
+            sources.current.delete(key);
+            update(key, { state: 'failed', error: problem, canRetry: false });
+            return;
+          }
+          sources.current.set(key, { blob, ready: true });
+          update(key, {
+            name: fileName,
+            size: blob.size,
+            contentType: blob.type,
+            preview: blob.type.startsWith('image/') ? previewOf(blob) : null,
+          });
+        }
         const stored = await api.uploadFile(token, session.secret, blob, fileName, (sent) => update(key, { progress: sent }));
         sources.current.delete(key);
         update(key, { state: 'sent', progress: 1, fileId: stored.id });
       } catch (err) {
+        if (stopped.current) return;
         if (err instanceof ApiError && err.status === 401) {
+          stopped.current = true;
           onLost(err.message);
           return;
         }
+        // A page that could not be prepared or sent can be tried again.
         update(key, { state: 'failed', error: messageOf(err), canRetry: true });
       }
     },
@@ -158,7 +171,8 @@ export function UploadScreen({
   );
 
   const enqueue = (key: string, name: string) => {
-    queue.current = queue.current.then(() => send(key, name));
+    // One page at a time; a page that fails never stops the pages after it.
+    queue.current = queue.current.then(() => send(key, name)).catch(() => undefined);
   };
 
   const addFiles = (event: ChangeEvent<HTMLInputElement>) => {

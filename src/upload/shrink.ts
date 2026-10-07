@@ -1,3 +1,5 @@
+import { uploadTypeOf } from '../../shared/files.ts';
+
 // Photos are made smaller on the phone before they are sent (spec §5, §10.4):
 // at most 2000 px on the long side, JPEG quality 0.85. A JPEG that would come
 // out bigger than it was is sent as it was. PDFs are sent as they are.
@@ -58,7 +60,9 @@ export const browserPhotoTools: PhotoTools = {
 
 // Returns the smaller JPEG, or the file itself when it cannot or need not change.
 export async function shrinkPhoto(file: File, tools: PhotoTools = browserPhotoTools): Promise<Blob> {
-  if (!SHRINKABLE.includes(file.type)) return file;
+  // Some phones give a picked photo no type: its file name tells it.
+  const type = uploadTypeOf(file);
+  if (!SHRINKABLE.includes(type)) return file;
   let photo: DecodedPhoto;
   try {
     photo = await tools.decode(file);
@@ -68,8 +72,10 @@ export async function shrinkPhoto(file: File, tools: PhotoTools = browserPhotoTo
   try {
     const result = await tools.encode(photo.source, fitWithin(photo.width, photo.height), JPEG_QUALITY);
     if (!result) return file;
-    if (file.type === 'image/jpeg' && result.size >= file.size) return file;
+    if (type === 'image/jpeg' && result.size >= file.size) return file;
     return result;
+  } catch {
+    return file;
   } finally {
     photo.close();
   }
