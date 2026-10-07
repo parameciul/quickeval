@@ -12,3 +12,4 @@ A test platform for Laura Miron's math classes: classes and students, tests, stu
 3. `npm run db:local`
 4. `npm run dev:api` in one terminal and `npm run dev:web` in another
 5. Open http://localhost:5173/admin/
+6. To try the student page: make a test, click **Începe testul**, and open its link (http://localhost:5173/u/&lt;token&gt;)

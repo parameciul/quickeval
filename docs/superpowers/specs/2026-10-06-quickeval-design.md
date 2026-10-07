@@ -367,7 +367,7 @@ draft ──Start test──► open ──Start evaluation (now, or when evalua
 ### 8.3 Upload window
 
 - Students can upload only while `status = 'open'`. At other times the student page shows a message.
-- Every API call that reads a test (robot check, teacher page, student page) first runs `promoteDueTests(now)`. This starts the evaluation of open tests whose `evaluation_at` has passed. So a scheduled test closes on time, even when the robot is late.
+- Every API call that reads a test (robot check, teacher page, student page) first runs `promoteDueTests(now)`. This starts the evaluation of open tests whose `evaluation_at` has passed. So a scheduled test closes on time, even when the robot is late. (Plan 3 adds it, together with scheduling: before Plan 3 nothing sets `evaluation_at`.)
 
 ### 8.4 Start evaluation (open → evaluating)
 
@@ -427,10 +427,10 @@ Mobile first, large buttons, Romanian.
    - A token exists only after Start test, so a valid link never points to a draft test.
    - Unknown token: show "Link greșit. Cere profesorului linkul nou."
    - Status `evaluating` or `done`: show "Încărcarea s-a închis."
-2. **Pick a name**: students in state `done` are shown with ✓ and cannot be picked.
+2. **Pick a name**: students in state `done` are shown with ✓ and cannot be picked. A tap on a name asks "Ești <name>?" first, because the upload then belongs to that name on this phone.
 3. **Device lock**: `POST /api/u/<token>/sessions { studentId }`.
    - If the student has no upload yet: the API makes the submission (`uploading`) and a device secret (24 random bytes, base64url). It stores only the SHA-256 hash of the secret. The browser keeps the secret in `localStorage` under `qe.session.<token>.<studentId>`.
-   - If this browser already has the secret for this student: the app goes on with it.
+   - If this browser already has the secret for this student: the app goes on with it. When the link opens on a phone that holds an upload it has not sent yet, the app goes straight back to that upload; the upload screen then offers "Nu ești <name>? Alege alt nume", for a phone that students share.
    - If another device holds the upload: 409 with the message "Încărcarea a început pe alt telefon. Roagă profesorul să o reseteze."
    - Every later call sends the header `X-Upload-Session: <secret>`.
 4. **Add files**: a "Fă o poză" button (camera) and an "Alege fișiere" button (photos and PDFs, many at once).
@@ -438,7 +438,7 @@ Mobile first, large buttons, Romanian.
    - Photos are shrunk on the phone: at most 2000 px on the long side, JPEG quality 0.85. If the result is bigger than the original JPEG, the original is kept.
    - Limits: 20 files per student, 25 MB per file.
    - Each file is sent alone (`PUT /api/u/<token>/files`), with a progress bar and a retry button.
-5. **Preview**: photos show as thumbnails. A tap opens the photo full-screen. A PDF opens in a new tab. Each file has a delete button until Confirm.
+5. **Preview**: photos show as thumbnails. A tap opens the photo full-screen. A PDF shows as a row with its name and size: the student picked the file, and a PDF made in the page cannot open reliably in a new tab (Android downloads it, and the page's security policy can block it). Each file has a delete button until Confirm. The teacher opens every file, PDFs too, from the teacher app.
 6. **Confirm**: "Am trimis tot" asks "Ești sigur? După confirmare nu mai poți schimba nimic." Then `POST /api/u/<token>/confirm`, and the status becomes `submitted`. The success screen shows the file count.
 7. **Photo tips** on the upload screen: good light, the whole page in the frame, one page per photo, pages in order.
 
