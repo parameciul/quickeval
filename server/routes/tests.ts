@@ -8,13 +8,16 @@ import {
   listTests,
   listUploads,
   renameTest,
+  reopenTest,
   requireTest,
   saveTestFile,
+  startTest,
   toTestInfo,
 } from '../db/tests.ts';
 import type { AppEnv } from '../env.ts';
 import { ApiError, notFound } from '../errors.ts';
 import { nowIso, parseSchoolYear, parseTestCode, readJson } from '../http.ts';
+import { newUploadToken } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
 
 function parseFileKind(raw: string | undefined): TestFileKind {
@@ -56,6 +59,25 @@ export function testRoutes(): Hono<AppEnv> {
     await deleteTestRow(c.env.DB, c.var.teacher.id, test.id);
     await deleteFilesQuietly(c.env.FILES, keys);
     return c.json({ deleted: true });
+  });
+
+  // Start test: draft → open. Students can upload from /u/<uploadToken>.
+  routes.post('/:code/start', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const started =
+      test.summary.status === 'draft' ? await startTest(c.env.DB, c.var.teacher.id, test.id, newUploadToken(), nowIso()) : null;
+    if (!started) throw new ApiError(409, 'already_started', 'Testul a început deja.');
+    return c.json({ status: 'open', ...started });
+  });
+
+  // Reopen uploads: evaluating or done → open.
+  routes.post('/:code/reopen', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (test.summary.status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
+    if (!(await reopenTest(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
+      throw new ApiError(409, 'already_open', 'Încărcarea este deja deschisă.');
+    }
+    return c.json({ status: 'open' });
   });
 
   // Upload or replace the test or the barem: PDF or Word, at most 25 MB.

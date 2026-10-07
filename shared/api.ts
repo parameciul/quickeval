@@ -151,3 +151,32 @@ export interface TestDetail {
   test: TestInfo;
   uploads: UploadRow[];
 }
+
+// Start test: the link is /u/<uploadToken>.
+export interface StartedTest {
+  status: TestStatus;
+  uploadToken: string;
+  startedAt: string;
+}
+
+// One uploaded page or PDF, in upload order.
+export interface SubmissionFile {
+  id: number;
+  name: string;
+  contentType: string;
+  size: number;
+  position: number;
+}
+
+export interface SubmissionDetail {
+  id: number;
+  testCode: string;
+  testTitle: string;
+  studentId: number;
+  studentName: string;
+  status: Exclude<UploadStatus, 'none'>;
+  autoSubmitted: boolean;
+  startedAt: string;
+  submittedAt: string | null;
+  files: SubmissionFile[];
+}

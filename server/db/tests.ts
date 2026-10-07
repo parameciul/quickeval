@@ -202,6 +202,41 @@ export async function renameTest(db: D1Database, teacherId: number, code: string
   return row !== null;
 }
 
+// draft → open, with a new upload link. Null when the test is no longer a draft.
+export async function startTest(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  uploadToken: string,
+  now: string,
+): Promise<{ uploadToken: string; startedAt: string } | null> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET status = 'open', upload_token = ?, started_at = ?, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND status = 'draft'
+       RETURNING upload_token, started_at`,
+    )
+    .bind(uploadToken, now, now, testId, teacherId)
+    .first<{ upload_token: string; started_at: string }>();
+  return row ? { uploadToken: row.upload_token, startedAt: row.started_at } : null;
+}
+
+// evaluating or done → open (spec §8.5). Graded results stay; a scheduled
+// evaluation is cancelled; a ready analysis is marked as possibly out of date.
+// False when the test was not closed.
+export async function reopenTest(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET status = 'open', evaluation_at = NULL, updated_at = ?,
+         analysis_stale = CASE WHEN analysis_status = 'ready' THEN 1 ELSE analysis_stale END
+       WHERE id = ? AND teacher_id = ? AND status IN ('evaluating', 'done')
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ id: number }>();
+  return row !== null;
+}
+
 // Points the test at a new test or barem file. A new barem also clears the
 // exercise list, which the robot made from the old one (spec §8.5).
 export async function saveTestFile(
