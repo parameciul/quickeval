@@ -31,6 +31,8 @@ export interface UploadRequest {
   upload: { onprogress: ((event: { loaded: number; total: number; lengthComputable: boolean }) => void) | null };
   onload: (() => void) | null;
   onerror: (() => void) | null;
+  onabort: (() => void) | null;
+  ontimeout: (() => void) | null;
   status: number;
   responseText: string;
   open(method: string, url: string): void;
@@ -76,12 +78,22 @@ export function createUploadClient(options: UploadClientOptions = {}): UploadApi
       request.upload.onprogress = (event) => {
         if (event.lengthComputable && event.total > 0) onProgress(event.loaded / event.total);
       };
-      request.onerror = () => reject(new ApiError(0, 'network', NETWORK_MESSAGE));
+      const lost = () => reject(new ApiError(0, 'network', NETWORK_MESSAGE));
+      request.onerror = lost;
+      request.onabort = lost;
+      request.ontimeout = lost;
       request.onload = () => {
-        const answer = new Response(request.responseText, {
-          status: request.status,
-          headers: { 'Content-Type': request.getResponseHeader('Content-Type') ?? '' },
-        });
+        let answer: Response;
+        try {
+          answer = new Response(request.responseText, {
+            status: request.status,
+            headers: { 'Content-Type': request.getResponseHeader('Content-Type') ?? '' },
+          });
+        } catch {
+          // A status that a Response cannot hold (0, 204, 304): the answer is lost.
+          lost();
+          return;
+        }
         readAnswer<{ file: SubmissionFile }>(answer).then((data) => resolve(data.file), reject);
       };
       request.send(file);

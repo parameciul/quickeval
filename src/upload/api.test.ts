@@ -14,6 +14,8 @@ class FakeRequest implements UploadRequest {
   upload: UploadRequest['upload'] = { onprogress: null };
   onload: (() => void) | null = null;
   onerror: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+  ontimeout: (() => void) | null = null;
   status = 0;
   responseText = '';
   method = '';
@@ -117,6 +119,19 @@ describe('createUploadClient', () => {
     const dropped = new FakeRequest();
     const second = createUploadClient({ newRequest: () => dropped }).uploadFile(TOKEN, 's', new Blob(['x']), 'a.jpg', () => {});
     dropped.fail();
+    await expect(second).rejects.toMatchObject({ code: 'network' });
+  });
+
+  it('reports a stopped upload and an answer it cannot read as a network error', async () => {
+    const stopped = new FakeRequest();
+    const first = createUploadClient({ newRequest: () => stopped }).uploadFile(TOKEN, 's', new Blob(['x']), 'a.jpg', () => {});
+    stopped.onabort?.();
+    await expect(first).rejects.toMatchObject({ code: 'network' });
+
+    const odd = new FakeRequest();
+    const second = createUploadClient({ newRequest: () => odd }).uploadFile(TOKEN, 's', new Blob(['x']), 'a.jpg', () => {});
+    odd.status = 0;
+    odd.onload?.();
     await expect(second).rejects.toMatchObject({ code: 'network' });
   });
 
