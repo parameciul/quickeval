@@ -4,6 +4,7 @@ import type { AppEnv } from '../env.ts';
 import { sameOriginWrites } from '../http.ts';
 import { classRoutes } from './classes.ts';
 import { studentRoutes } from './students.ts';
+import { testRoutes } from './tests.ts';
 
 // /api/admin: everything the teacher app calls. Every route needs a teacher login.
 export function adminRoutes(): Hono<AppEnv> {
@@ -12,5 +13,6 @@ export function adminRoutes(): Hono<AppEnv> {
   routes.get('/me', (c) => c.json({ teacher: c.var.teacher }));
   routes.route('/classes', classRoutes());
   routes.route('/students', studentRoutes());
+  routes.route('/tests', testRoutes());
   return routes;
 }

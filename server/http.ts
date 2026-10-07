@@ -1,6 +1,8 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import type { z } from 'zod';
 import { parsePositiveId } from '../shared/ids.ts';
+import { isValidSchoolYear, schoolYearOf } from '../shared/schoolYear.ts';
+import { normalizeTestCode } from '../shared/tests.ts';
 import { ApiError, notFound } from './errors.ts';
 
 // Reads a JSON body and checks it with a zod schema. The first problem becomes
@@ -28,6 +30,20 @@ export function parseId(raw: string | undefined): number {
   const id = parsePositiveId(raw);
   if (id === null) throw notFound();
   return id;
+}
+
+// Test codes in routes, in any letter case. Anything else is a page that does not exist.
+export function parseTestCode(raw: string | undefined): string {
+  const code = normalizeTestCode(raw ?? '');
+  if (code === null) throw notFound();
+  return code;
+}
+
+// The ?year= of a list; the current school year when it is missing.
+export function parseSchoolYear(raw: string | undefined): number {
+  const year = raw === undefined ? schoolYearOf(new Date()) : Number(raw);
+  if (!isValidSchoolYear(year)) throw new ApiError(400, 'invalid', 'Anul școlar nu este valid.');
+  return year;
 }
 
 // Writes must come from our own pages. A cross-site form or fetch carries

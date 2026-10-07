@@ -29,7 +29,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     getClass: vi.fn(async (classId: number) => {
       const found = data.classes.find((c) => c.id === classId);
       if (!found) throw new ApiError(404, 'not_found', 'Nu am găsit ce cauți.');
-      return { class: { ...found, studentCount: countActive(classId) }, students: [...(data.students[classId] ?? [])] };
+      return { class: { ...found, studentCount: countActive(classId) }, students: [...(data.students[classId] ?? [])], tests: [] };
     }),
     updateClass: vi.fn(async (classId: number, input: { name?: string; archived?: boolean }) => {
       const found = data.classes.find((c) => c.id === classId)!;

@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { normalizeClassName } from './classes.ts';
+import type { TestFileKind } from './files.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
+import { cleanTitle, MAX_TITLE_LENGTH, type TestStatus } from './tests.ts';
 
 // Request bodies of the teacher API. The server parses every body with these
 // schemas; the browser uses the inferred types.
@@ -54,8 +56,26 @@ export const setEnrollmentBody = z.object({ active: z.boolean() });
 
 export const renameStudentBody = z.object({ fullName: studentNameSchema });
 
+export const testTitleSchema = z
+  .string()
+  .transform(cleanTitle)
+  .pipe(
+    z
+      .string()
+      .min(1, { message: 'Scrie titlul testului.' })
+      .max(MAX_TITLE_LENGTH, { message: `Titlul are cel mult ${MAX_TITLE_LENGTH} de caractere.` }),
+  );
+
+export const createTestBody = z.object({
+  classId: z.number({ message: 'Alege clasa.' }).int({ message: 'Alege clasa.' }).positive({ message: 'Alege clasa.' }),
+  title: testTitleSchema,
+});
+
+export const renameTestBody = z.object({ title: testTitleSchema });
+
 export type CreateClassInput = z.input<typeof createClassBody>;
 export type UpdateClassInput = z.input<typeof updateClassBody>;
+export type CreateTestInput = z.input<typeof createTestBody>;
 
 // Response shapes of the teacher API.
 
@@ -82,4 +102,52 @@ export interface StudentRow {
 export interface ClassDetail {
   class: ClassSummary;
   students: StudentRow[];
+  tests: TestSummary[];
+}
+
+export interface TestSummary {
+  code: string;
+  title: string;
+  status: TestStatus;
+  classId: number;
+  className: string;
+  schoolYear: number;
+  createdAt: string;
+  // When Start test opened the uploads: the "date and hour" of the test.
+  startedAt: string | null;
+  // Active students of the class, and uploads that were sent (confirmed or included).
+  studentCount: number;
+  submittedCount: number;
+}
+
+export interface TestFileInfo {
+  name: string;
+  type: string;
+}
+
+export interface TestInfo extends TestSummary {
+  uploadToken: string | null;
+  files: Record<TestFileKind, TestFileInfo | null>;
+}
+
+// "none": the student has not started an upload.
+export type UploadStatus = 'none' | 'uploading' | 'submitted' | 'grading' | 'graded' | 'failed';
+
+// One row of the uploads table: an active student of the class, or a student
+// who left the class after starting an upload.
+export interface UploadRow {
+  studentId: number;
+  studentName: string;
+  active: boolean;
+  submissionId: number | null;
+  status: UploadStatus;
+  fileCount: number;
+  startedAt: string | null;
+  submittedAt: string | null;
+  autoSubmitted: boolean;
+}
+
+export interface TestDetail {
+  test: TestInfo;
+  uploads: UploadRow[];
 }

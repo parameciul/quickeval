@@ -1,20 +1,18 @@
 import { Hono } from 'hono';
 import { addStudentsBody, createClassBody, setEnrollmentBody, updateClassBody } from '../../shared/api.ts';
-import { isValidSchoolYear, schoolYearOf } from '../../shared/schoolYear.ts';
 import { createClass, getClass, listClasses, listClassStudents, updateClass } from '../db/classes.ts';
 import { addStudentsToClass, setEnrollmentActive } from '../db/students.ts';
+import { listClassTests } from '../db/tests.ts';
 import type { AppEnv } from '../env.ts';
-import { ApiError, notFound } from '../errors.ts';
-import { nowIso, parseId, readJson } from '../http.ts';
+import { notFound } from '../errors.ts';
+import { nowIso, parseId, parseSchoolYear, readJson } from '../http.ts';
 
 // /api/admin/classes
 export function classRoutes(): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
   routes.get('/', async (c) => {
-    const raw = c.req.query('year');
-    const year = raw === undefined ? schoolYearOf(new Date()) : Number(raw);
-    if (!isValidSchoolYear(year)) throw new ApiError(400, 'invalid', 'Anul școlar nu este valid.');
+    const year = parseSchoolYear(c.req.query('year'));
     return c.json({ classes: await listClasses(c.env.DB, c.var.teacher.id, year) });
   });
 
@@ -28,7 +26,11 @@ export function classRoutes(): Hono<AppEnv> {
     const id = parseId(c.req.param('id'));
     const found = await getClass(c.env.DB, c.var.teacher.id, id);
     if (!found) throw notFound();
-    return c.json({ class: found, students: await listClassStudents(c.env.DB, c.var.teacher.id, id) });
+    return c.json({
+      class: found,
+      students: await listClassStudents(c.env.DB, c.var.teacher.id, id),
+      tests: await listClassTests(c.env.DB, c.var.teacher.id, id),
+    });
   });
 
   routes.patch('/:id', async (c) => {
