@@ -32,6 +32,8 @@ const closed = () => new ApiError(409, 'closed', 'Încărcarea s-a închis.');
 const alreadySent = () => new ApiError(409, 'already_submitted', 'Lucrarea ta a fost deja trimisă.');
 const otherDevice = () =>
   new ApiError(409, 'other_device', 'Încărcarea a început pe alt telefon. Roagă profesorul să o reseteze.');
+const tooManyFiles = () => new ApiError(409, 'too_many_files', `Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`);
+const fileNotFound = () => new ApiError(404, 'not_found', 'Nu am găsit fișierul.');
 
 // The test behind the link in the URL.
 async function linkTest(c: Context<AppEnv>): Promise<LinkTest> {
@@ -116,7 +118,7 @@ export function uploadRoutes(): Hono<AppEnv> {
     const { test, current } = await openSession(c);
     const slots = await fileSlots(c.env.DB, current.submissionId);
     if (slots.count >= MAX_STUDENT_FILES) {
-      throw new ApiError(409, 'too_many_files', `Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`);
+      throw tooManyFiles();
     }
     const file = await readUpload(c, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE);
     const key = studentFileKey(
@@ -131,12 +133,18 @@ export function uploadRoutes(): Hono<AppEnv> {
     );
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
     const stored = { key, name: file.name, type: file.contentType, size: file.bytes.byteLength, position: slots.next };
-    let id: number;
+    let id: number | null;
     try {
       id = await addSubmissionFile(c.env.DB, current.submissionId, stored, nowIso());
     } catch (err) {
       await deleteFilesQuietly(c.env.FILES, [key]);
       throw err;
+    }
+    if (id === null) {
+      // The upload changed while the file was on its way: remove the file and say why.
+      await deleteFilesQuietly(c.env.FILES, [key]);
+      await openSession(c);
+      throw tooManyFiles();
     }
     return c.json({ file: { id, name: stored.name, contentType: stored.type, size: stored.size, position: stored.position } }, 201);
   });
@@ -146,7 +154,7 @@ export function uploadRoutes(): Hono<AppEnv> {
     const current = await session(c, test);
     const file = await findSessionFile(c.env.DB, current.submissionId, parseId(c.req.param('fileId')));
     const object = file ? await c.env.FILES.get(file.key) : null;
-    if (!file || !object) throw new ApiError(404, 'not_found', 'Nu am găsit fișierul.');
+    if (!file || !object) throw fileNotFound();
     return fileResponse(object, file.name, file.type);
   });
 
@@ -154,8 +162,11 @@ export function uploadRoutes(): Hono<AppEnv> {
     const { current } = await openSession(c);
     const fileId = parseId(c.req.param('fileId'));
     const file = await findSessionFile(c.env.DB, current.submissionId, fileId);
-    if (!file) throw new ApiError(404, 'not_found', 'Nu am găsit fișierul.');
-    await deleteSessionFile(c.env.DB, current.submissionId, fileId);
+    if (!file) throw fileNotFound();
+    if (!(await deleteSessionFile(c.env.DB, current.submissionId, fileId))) {
+      await openSession(c);
+      throw fileNotFound();
+    }
     await deleteFilesQuietly(c.env.FILES, [file.key]);
     return c.json({ deleted: true });
   });
@@ -163,10 +174,13 @@ export function uploadRoutes(): Hono<AppEnv> {
   // "Am trimis tot": uploading → submitted. Needs at least one file.
   routes.post('/:token/confirm', async (c) => {
     const { current } = await openSession(c);
-    const { count } = await fileSlots(c.env.DB, current.submissionId);
-    if (count === 0) throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
-    if (!(await confirmSubmission(c.env.DB, current.submissionId, nowIso()))) throw alreadySent();
-    return c.json({ status: 'submitted', fileCount: count });
+    const fileCount = await confirmSubmission(c.env.DB, current.submissionId, nowIso());
+    if (fileCount === null) {
+      // openSession says why when the test closed or the upload was sent meanwhile.
+      await openSession(c);
+      throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
+    }
+    return c.json({ status: 'submitted', fileCount });
   });
 
   return routes;

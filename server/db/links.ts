@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { LinkStudent, LinkStudentState, UploadStatus } from '../../shared/api.ts';
+import { MAX_STUDENT_FILES } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import type { TestStatus } from '../../shared/tests.ts';
 import type { StoredFile } from './tests.ts';
@@ -131,20 +132,29 @@ export async function fileSlots(db: D1Database, submissionId: number): Promise<{
   return { count: row?.count ?? 0, next: row?.next ?? 1 };
 }
 
+// An upload may change only while its test is open and it is not yet sent.
+// Each write checks this itself, so two requests at once cannot get past it.
+const OPEN_UPLOAD = `EXISTS (SELECT 1 FROM submissions s JOIN tests t ON t.id = s.test_id
+  WHERE s.id = ? AND s.status = 'uploading' AND t.status = 'open')`;
+
+// The new file's id, or null when the upload is closed, sent, gone, or full.
 export async function addSubmissionFile(
   db: D1Database,
   submissionId: number,
   file: StoredFile & { size: number; position: number },
   now: string,
-): Promise<number> {
+): Promise<number | null> {
   const row = await db
     .prepare(
       `INSERT INTO submission_files (submission_id, r2_key, original_name, content_type, size, position, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+       SELECT ?, ?, ?, ?, ?, ?, ?
+       WHERE ${OPEN_UPLOAD}
+         AND (SELECT COUNT(*) FROM submission_files WHERE submission_id = ?) < ?
+       RETURNING id`,
     )
-    .bind(submissionId, file.key, file.name, file.type, file.size, file.position, now)
+    .bind(submissionId, file.key, file.name, file.type, file.size, file.position, now, submissionId, submissionId, MAX_STUDENT_FILES)
     .first<{ id: number }>();
-  return row!.id;
+  return row?.id ?? null;
 }
 
 export async function findSessionFile(db: D1Database, submissionId: number, fileId: number): Promise<StoredFile | null> {
@@ -155,15 +165,30 @@ export async function findSessionFile(db: D1Database, submissionId: number, file
   return row ? { key: row.r2_key, name: row.original_name, type: row.content_type } : null;
 }
 
-export async function deleteSessionFile(db: D1Database, submissionId: number, fileId: number): Promise<void> {
-  await db.prepare('DELETE FROM submission_files WHERE id = ? AND submission_id = ?').bind(fileId, submissionId).run();
+// False when nothing was deleted: the file is gone, or the upload is closed or sent.
+export async function deleteSessionFile(db: D1Database, submissionId: number, fileId: number): Promise<boolean> {
+  const result = await db
+    .prepare(`DELETE FROM submission_files WHERE id = ? AND submission_id = ? AND ${OPEN_UPLOAD}`)
+    .bind(fileId, submissionId, submissionId)
+    .run();
+  return result.meta.changes > 0;
 }
 
-// uploading → submitted. False when the upload was already sent.
-export async function confirmSubmission(db: D1Database, submissionId: number, now: string): Promise<boolean> {
-  const row = await db
-    .prepare("UPDATE submissions SET status = 'submitted', submitted_at = ? WHERE id = ? AND status = 'uploading' RETURNING id")
-    .bind(now, submissionId)
-    .first<{ id: number }>();
-  return row !== null;
+// uploading → submitted, in one transaction with the file count. Null when
+// the upload has no files, was already sent, or its test is closed.
+export async function confirmSubmission(db: D1Database, submissionId: number, now: string): Promise<number | null> {
+  const [updated, counted] = await db.batch<Record<string, number>>([
+    db
+      .prepare(
+        `UPDATE submissions SET status = 'submitted', submitted_at = ?
+         WHERE id = ? AND status = 'uploading'
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.status = 'open')
+           AND EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)
+         RETURNING id`,
+      )
+      .bind(now, submissionId),
+    db.prepare('SELECT COUNT(*) AS count FROM submission_files WHERE submission_id = ?').bind(submissionId),
+  ]);
+  if (!updated?.results.length) return null;
+  return counted?.results[0]?.count ?? 0;
 }

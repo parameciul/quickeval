@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PDF_TYPE } from '../../shared/files.ts';
+import { addSubmissionFile, confirmSubmission, deleteSessionFile } from '../db/links.ts';
 import { makeClass, makeTest, startTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -281,5 +282,65 @@ describe('POST /api/u/:token/confirm', () => {
       fileCount: 2,
       autoSubmitted: false,
     });
+  });
+});
+
+describe('the upload writes check the rules themselves', () => {
+  const now = '2026-10-06T08:00:00.000Z';
+  const photo = (position: number) => ({ key: `k/${position}.jpg`, name: `${position}.jpg`, type: 'image/jpeg', size: 4, position });
+
+  async function submissionOf(studentId: number): Promise<number> {
+    const row = await api.db.prepare('SELECT id FROM submissions WHERE student_id = ?').bind(studentId).first<{ id: number }>();
+    return row!.id;
+  }
+
+  async function fileCount(submissionId: number): Promise<number> {
+    const row = await api.db
+      .prepare('SELECT COUNT(*) AS count FROM submission_files WHERE submission_id = ?')
+      .bind(submissionId)
+      .first<{ count: number }>();
+    return row!.count;
+  }
+
+  it('stores no file past the 20th', async () => {
+    await newSession(pop);
+    const id = await submissionOf(pop);
+    for (let position = 1; position <= 20; position++) {
+      expect(await addSubmissionFile(api.db, id, photo(position), now)).not.toBeNull();
+    }
+    expect(await addSubmissionFile(api.db, id, photo(21), now)).toBeNull();
+    expect(await fileCount(id)).toBe(20);
+  });
+
+  it('adds and deletes nothing once the upload was sent', async () => {
+    await newSession(pop);
+    const id = await submissionOf(pop);
+    const fileId = (await addSubmissionFile(api.db, id, photo(1), now))!;
+    await api.db.prepare("UPDATE submissions SET status = 'submitted' WHERE id = ?").bind(id).run();
+    expect(await addSubmissionFile(api.db, id, photo(2), now)).toBeNull();
+    expect(await deleteSessionFile(api.db, id, fileId)).toBe(false);
+    expect(await fileCount(id)).toBe(1);
+  });
+
+  it('adds and sends nothing once the test is closed', async () => {
+    await newSession(pop);
+    const id = await submissionOf(pop);
+    await addSubmissionFile(api.db, id, photo(1), now);
+    await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE code = ?").bind(code).run();
+    expect(await addSubmissionFile(api.db, id, photo(2), now)).toBeNull();
+    expect(await confirmSubmission(api.db, id, now)).toBeNull();
+    const row = await api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(id).first<{ status: string }>();
+    expect(row!.status).toBe('uploading');
+    expect(await fileCount(id)).toBe(1);
+  });
+
+  it('sends an upload with its file count, and never an empty one', async () => {
+    await newSession(pop);
+    const id = await submissionOf(pop);
+    expect(await confirmSubmission(api.db, id, now)).toBeNull();
+    await addSubmissionFile(api.db, id, photo(1), now);
+    await addSubmissionFile(api.db, id, photo(2), now);
+    expect(await confirmSubmission(api.db, id, now)).toBe(2);
+    expect(await confirmSubmission(api.db, id, now)).toBeNull();
   });
 });
