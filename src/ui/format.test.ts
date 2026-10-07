@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { studentCountLabel } from './format.ts';
+import { formatDateTime, formatFileSize, studentCountLabel, testStatusLabel, uploadStatusLabel } from './format.ts';
 
 describe('studentCountLabel', () => {
   it('uses Romanian number words', () => {
@@ -11,5 +11,31 @@ describe('studentCountLabel', () => {
     expect(studentCountLabel(28)).toBe('28 de elevi');
     expect(studentCountLabel(101)).toBe('101 elevi');
     expect(studentCountLabel(200)).toBe('200 de elevi');
+  });
+});
+
+describe('status labels', () => {
+  it('names test and upload states in Romanian', () => {
+    expect(testStatusLabel('draft')).toBe('Ciornă');
+    expect(testStatusLabel('open')).toBe('Deschis');
+    expect(uploadStatusLabel('none')).toBe('Nu a trimis');
+    expect(uploadStatusLabel('uploading')).toBe('Încarcă…');
+    expect(uploadStatusLabel('submitted')).toBe('Trimis');
+  });
+});
+
+describe('formatDateTime', () => {
+  it('shows Romania local time, in summer and in winter', () => {
+    expect(formatDateTime('2026-10-06T07:15:00.000Z')).toBe('6 oct. 2026, 10:15');
+    expect(formatDateTime('2027-01-15T07:05:00.000Z')).toBe('15 ian. 2027, 09:05');
+  });
+});
+
+describe('formatFileSize', () => {
+  it('uses KB below one megabyte and MB with one decimal above', () => {
+    expect(formatFileSize(300)).toBe('1 KB');
+    expect(formatFileSize(820 * 1024)).toBe('820 KB');
+    expect(formatFileSize(1.25 * 1024 * 1024)).toBe('1,3 MB');
+    expect(formatFileSize(25 * 1024 * 1024)).toBe('25 MB');
   });
 });

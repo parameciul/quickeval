@@ -16,9 +16,9 @@ const twoClasses = () =>
   });
 
 describe('ClassesPage', () => {
-  it('opens on the classes of the selected school year', async () => {
+  it('shows the classes of the selected school year', async () => {
     const api = twoClasses();
-    renderAdmin('/', api);
+    renderAdmin('/clase', api);
     expect(await screen.findByRole('heading', { name: 'Clase 2026-2027' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
     expect(screen.getByText('1 elev')).toBeInTheDocument();

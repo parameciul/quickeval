@@ -11,6 +11,7 @@ import { schoolYearOptions, useSchoolYear } from './SchoolYearContext.tsx';
 export function Layout() {
   const api = useApi();
   const location = useLocation();
+  const onTests = location.pathname === '/' || location.pathname.startsWith('/teste');
   const { year, setYear } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
 
@@ -26,6 +27,10 @@ export function Layout() {
             </span>
           </Link>
           <nav className="main-nav" aria-label="Meniu">
+            {/* Teste is the start page and also covers every /teste/... page. */}
+            <Link to="/" aria-current={onTests ? 'page' : undefined}>
+              Teste
+            </Link>
             <NavLink to="/clase">Clase</NavLink>
           </nav>
           <div className="header-tools">

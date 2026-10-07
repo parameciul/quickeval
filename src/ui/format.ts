@@ -1,3 +1,6 @@
+import type { UploadStatus } from '../../shared/api.ts';
+import type { TestStatus } from '../../shared/tests.ts';
+
 // Romanian counts: "1 elev", "2 elevi", "20 de elevi" (20 or more, and round
 // hundreds, take "de").
 export function studentCountLabel(count: number): string {
@@ -5,4 +8,50 @@ export function studentCountLabel(count: number): string {
   if (count === 1) return '1 elev';
   const lastTwo = count % 100;
   return lastTwo >= 20 || lastTwo === 0 ? `${count} de elevi` : `${count} elevi`;
+}
+
+const TEST_STATUS: Record<TestStatus, string> = {
+  draft: 'Ciornă',
+  open: 'Deschis',
+  evaluating: 'Se corectează',
+  done: 'Corectat',
+};
+
+export function testStatusLabel(status: TestStatus): string {
+  return TEST_STATUS[status];
+}
+
+const UPLOAD_STATUS: Record<UploadStatus, string> = {
+  none: 'Nu a trimis',
+  uploading: 'Încarcă…',
+  submitted: 'Trimis',
+  grading: 'Se corectează',
+  graded: 'Corectat',
+  failed: 'Eroare',
+};
+
+export function uploadStatusLabel(status: UploadStatus): string {
+  return UPLOAD_STATUS[status];
+}
+
+const DATE_TIME = new Intl.DateTimeFormat('ro-RO', {
+  timeZone: 'Europe/Bucharest',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+// Every time on screen is Romania's local time: "6 oct. 2026, 10:15".
+export function formatDateTime(iso: string): string {
+  return DATE_TIME.format(new Date(iso));
+}
+
+const ONE_DECIMAL = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 });
+
+// "820 KB", "1,3 MB".
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${ONE_DECIMAL.format(bytes / (1024 * 1024))} MB`;
 }

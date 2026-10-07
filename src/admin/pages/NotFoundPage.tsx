@@ -5,7 +5,7 @@ export function NotFoundPage() {
     <section>
       <h1>Pagina nu există</h1>
       <p>
-        <Link to="/clase">Mergi la clase</Link>
+        <Link to="/">Mergi la teste</Link>
       </p>
     </section>
   );

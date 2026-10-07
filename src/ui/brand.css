@@ -491,3 +491,62 @@ textarea {
 .landing .lead {
   font-size: 1.2rem;
 }
+
+/* Tests */
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.page-head h1 {
+  margin: 0;
+}
+
+.narrow {
+  max-width: 34rem;
+}
+
+.file-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+input[type="file"] {
+  max-width: 100%;
+  font: inherit;
+}
+
+/* A test's state: draft is plain, open is green, being graded is
+   highlighted, graded is blue ink. */
+.status {
+  display: inline-block;
+  padding: 0 0.6rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-open {
+  border-color: var(--ok-fg);
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.status-evaluating {
+  border-color: var(--marker-edge);
+  background: var(--marker);
+  color: var(--text);
+}
+
+.status-done {
+  border-color: var(--ink);
+  color: var(--ink);
+}

@@ -9,6 +9,7 @@ import { MAX_NAMES_PER_REQUEST, parseStudentNames } from '../../../shared/studen
 import { studentCountLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { StatusChip } from '../StatusChip.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
 export function ClassPage() {
@@ -30,7 +31,7 @@ function ClassDetails({ classId }: { classId: number }) {
   if (detail.isPending) return <p>Se încarcă…</p>;
   if (detail.error) return <ErrorMessage error={detail.error} />;
 
-  const { class: info, students } = detail.data;
+  const { class: info, students, tests } = detail.data;
   return (
     <section>
       <p>
@@ -40,6 +41,27 @@ function ClassDetails({ classId }: { classId: number }) {
         {displayClassName(info.name)} · {formatSchoolYear(info.schoolYear)}
       </h1>
       <RenameClassForm classId={classId} currentName={info.name} onDone={refresh} />
+
+      <h2>Teste</h2>
+      {tests.length === 0 ? (
+        <p className="hint">Clasa nu are încă teste.</p>
+      ) : (
+        <ol className="row-list">
+          {tests.map((test) => (
+            <li key={test.code}>
+              <Link className="row-name" to={`/teste/${test.code}`}>
+                {test.code} · {test.title}
+              </Link>
+              <StatusChip status={test.status} />
+            </li>
+          ))}
+        </ol>
+      )}
+      {!info.archived && (
+        <p>
+          <Link to={`/teste/nou?clasa=${classId}`}>Test nou pentru această clasă</Link>
+        </p>
+      )}
 
       <h2>Elevi ({studentCountLabel(info.studentCount)})</h2>
       {students.length === 0 ? (

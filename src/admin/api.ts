@@ -1,4 +1,18 @@
-import type { ClassDetail, ClassSummary, CreateClassInput, StudentRow, Teacher, UpdateClassInput } from '../../shared/api.ts';
+import type {
+  ClassDetail,
+  ClassSummary,
+  CreateClassInput,
+  CreateTestInput,
+  StartedTest,
+  StudentRow,
+  SubmissionDetail,
+  Teacher,
+  TestDetail,
+  TestFileInfo,
+  TestSummary,
+  UpdateClassInput,
+} from '../../shared/api.ts';
+import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
 
 // Everything the teacher app asks the server. Pages get it from useApi(), so
 // tests can pass a fake.
@@ -11,6 +25,26 @@ export interface AdminApi {
   addStudents(classId: number, names: string[]): Promise<StudentRow[]>;
   setStudentActive(classId: number, studentId: number, active: boolean): Promise<StudentRow>;
   renameStudent(studentId: number, fullName: string): Promise<{ id: number; fullName: string }>;
+  listTests(schoolYear: number): Promise<TestSummary[]>;
+  // Returns the code of the new test.
+  createTest(input: CreateTestInput): Promise<string>;
+  getTest(code: string): Promise<TestDetail>;
+  renameTest(code: string, title: string): Promise<{ code: string; title: string }>;
+  deleteTest(code: string): Promise<void>;
+  uploadTestFile(code: string, kind: TestFileKind, file: File): Promise<TestFileInfo>;
+  startTest(code: string): Promise<StartedTest>;
+  reopenTest(code: string): Promise<void>;
+  getSubmission(submissionId: number): Promise<SubmissionDetail>;
+  resetSubmission(submissionId: number): Promise<void>;
+}
+
+// Files open straight from the API: the browser sends the Access login cookie.
+export function testFileUrl(code: string, kind: TestFileKind): string {
+  return `/api/admin/tests/${encodeURIComponent(code)}/files/${kind}`;
+}
+
+export function submissionFileUrl(submissionId: number, fileId: number): string {
+  return `/api/admin/submissions/${submissionId}/files/${fileId}`;
 }
 
 // An error answer from the API, with its Romanian message.
@@ -58,9 +92,18 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
   const onLoginExpired = options.onLoginExpired ?? reloadForLogin;
 
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  // A JSON body, or a file sent raw with its type and URI-encoded name.
+  async function request<T>(method: string, path: string, body?: unknown, file?: File): Promise<T> {
     const headers: Record<string, string> = { Accept: 'application/json' };
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    let payload: BodyInit | undefined;
+    if (file) {
+      headers['Content-Type'] = uploadTypeOf(file) || 'application/octet-stream';
+      headers['X-File-Name'] = encodeURIComponent(file.name);
+      payload = file;
+    } else if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      payload = JSON.stringify(body);
+    }
     let res: Response;
     try {
       res = await fetchImpl(`/api/admin${path}`, {
@@ -70,7 +113,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
         // An expired Access session answers with a redirect to the login page on
         // another origin. 'manual' turns it into an opaqueredirect response here.
         redirect: 'manual',
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        ...(payload === undefined ? {} : { body: payload }),
       });
     } catch {
       throw new ApiError(0, 'network', 'Nu mă pot conecta la server. Verifică internetul și încearcă din nou.');
@@ -95,6 +138,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     return data as T;
   }
 
+  const test = (code: string) => `/tests/${encodeURIComponent(code)}`;
+
   return {
     me: async () => (await request<{ teacher: Teacher }>('GET', '/me')).teacher,
     listClasses: async (schoolYear) =>
@@ -109,5 +154,23 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<{ student: StudentRow }>('PATCH', `/classes/${classId}/students/${studentId}`, { active })).student,
     renameStudent: async (studentId, fullName) =>
       (await request<{ student: { id: number; fullName: string } }>('PATCH', `/students/${studentId}`, { fullName })).student,
+    listTests: async (schoolYear) => (await request<{ tests: TestSummary[] }>('GET', `/tests?year=${schoolYear}`)).tests,
+    createTest: async (input) => (await request<{ code: string }>('POST', '/tests', input)).code,
+    getTest: (code) => request<TestDetail>('GET', test(code)),
+    renameTest: (code, title) => request<{ code: string; title: string }>('PATCH', test(code), { title }),
+    deleteTest: async (code) => {
+      await request('DELETE', test(code));
+    },
+    uploadTestFile: async (code, kind, file) =>
+      (await request<{ file: TestFileInfo }>('PUT', `${test(code)}/files/${kind}`, undefined, file)).file,
+    startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
+    reopenTest: async (code) => {
+      await request('POST', `${test(code)}/reopen`);
+    },
+    getSubmission: async (submissionId) =>
+      (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,
+    resetSubmission: async (submissionId) => {
+      await request('POST', `/submissions/${submissionId}/reset`);
+    },
   };
 }

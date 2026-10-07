@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, createApiClient, LoginExpiredError, reloadForLogin } from './api.ts';
+import { DOCX_TYPE } from '../../shared/files.ts';
+import { ApiError, createApiClient, LoginExpiredError, reloadForLogin, submissionFileUrl, testFileUrl } from './api.ts';
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -52,6 +53,47 @@ describe('createApiClient', () => {
     const api = createApiClient({ fetchImpl, onLoginExpired });
     await expect(api.me()).rejects.toMatchObject({ code: 'bad_response' });
     expect(onLoginExpired).not.toHaveBeenCalled();
+  });
+});
+
+describe('createApiClient tests and uploads', () => {
+  it('sends a test file raw, with its type and its encoded name', async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(200, { file: { name: 'Barem ș.docx', type: DOCX_TYPE } }),
+    );
+    const api = createApiClient({ fetchImpl });
+    // A .docx on a PC without Word: the browser gives no type.
+    const file = new File(['PK'], 'Barem ș.docx', { type: '' });
+    expect(await api.uploadTestFile('6E2-26T1', 'barem', file)).toEqual({ name: 'Barem ș.docx', type: DOCX_TYPE });
+    const [url, init] = fetchImpl.mock.calls[0]!;
+    expect(url).toBe('/api/admin/tests/6E2-26T1/files/barem');
+    expect(init!.method).toBe('PUT');
+    expect(init!.body).toBe(file);
+    expect(init!.headers).toMatchObject({ 'Content-Type': DOCX_TYPE, 'X-File-Name': 'Barem%20%C8%99.docx' });
+  });
+
+  it('calls the test and upload routes', async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, { tests: [], code: 'X' }));
+    const api = createApiClient({ fetchImpl });
+    await api.listTests(2026);
+    await api.createTest({ classId: 1, title: 'Test' });
+    await api.startTest('6E2-26T1');
+    await api.reopenTest('6E2-26T1');
+    await api.deleteTest('6E2-26T1');
+    await api.resetSubmission(7);
+    expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
+      'GET /api/admin/tests?year=2026',
+      'POST /api/admin/tests',
+      'POST /api/admin/tests/6E2-26T1/start',
+      'POST /api/admin/tests/6E2-26T1/reopen',
+      'DELETE /api/admin/tests/6E2-26T1',
+      'POST /api/admin/submissions/7/reset',
+    ]);
+  });
+
+  it('builds the links that open stored files', () => {
+    expect(testFileUrl('6E2-26T1', 'test')).toBe('/api/admin/tests/6E2-26T1/files/test');
+    expect(submissionFileUrl(7, 12)).toBe('/api/admin/submissions/7/files/12');
   });
 });
 

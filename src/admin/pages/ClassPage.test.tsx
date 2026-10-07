@@ -51,6 +51,22 @@ describe('ClassPage', () => {
     expect(box).toHaveValue('');
   });
 
+  it('lists the tests of the class and offers a new one for it', async () => {
+    const api = oneClass();
+    await api.createTest({ classId: 1, title: 'Fracții' });
+    renderAdmin('/clase/1', api);
+    expect(await screen.findByRole('link', { name: '6E2-26T1 · Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
+    expect(screen.getByRole('link', { name: 'Test nou pentru această clasă' })).toHaveAttribute('href', '/teste/nou?clasa=1');
+  });
+
+  it('offers no new test for an archived class', async () => {
+    const api = oneClass();
+    await api.updateClass(1, { archived: true });
+    renderAdmin('/clase/1', api);
+    expect(await screen.findByText('Clasa nu are încă teste.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Test nou pentru această clasă' })).not.toBeInTheDocument();
+  });
+
   it('marks a student as left', async () => {
     const api = oneClass();
     renderAdmin('/clase/1', api);
