@@ -1,11 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../ui/ApiError.ts';
 import { createFakeUploadApi, LINK_TOKEN, linkInfo } from '../test/fakeUploadApi.ts';
 import { expectNoGradingWords } from '../test/gradingWords.ts';
 import { saveSecret } from './session.ts';
 import { UploadApp } from './UploadApp.tsx';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('UploadApp', () => {
   it('shows the test and the class list, with ✓ for students who already sent', async () => {
@@ -71,6 +75,33 @@ describe('UploadApp', () => {
     render(<UploadApp api={api} token={null} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Link greșit. Cere profesorului linkul nou.');
     expect(api.getLink).not.toHaveBeenCalled();
+  });
+
+  it('sends a page from start to end and says the work was sent', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(() => 'blob:preview'), configurable: true });
+    const api = createFakeUploadApi();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pop Ion' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Da, încep' }));
+    await userEvent.upload(await screen.findByLabelText('Alege fișiere'), new File(['%PDF-1.7'], 'scan.pdf', { type: 'application/pdf' }));
+    expect(await screen.findByText('Încărcat')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Am trimis tot' }));
+    expect(await screen.findByRole('heading', { name: 'Gata! Lucrarea ta a fost trimisă.' })).toBeInTheDocument();
+    expect(screen.getByText('Ai trimis un fișier.')).toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('goes back to the names, with the reason, when the teacher reset the upload', async () => {
+    const api = createFakeUploadApi();
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pop Ion' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Da, încep' }));
+    await screen.findByLabelText('Alege fișiere');
+    api.dropSession(11);
+    await userEvent.upload(screen.getByLabelText('Alege fișiere'), new File(['%PDF-1.7'], 'scan.pdf', { type: 'application/pdf' }));
+    expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
   });
 
   it('shows the server message for an unknown link', async () => {
