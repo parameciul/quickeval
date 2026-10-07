@@ -54,9 +54,11 @@ export function typeFromFileName(name: string): string | null {
   return TYPE_BY_EXTENSION[extension] ?? null;
 }
 
-// The type a picked file is sent with: its own type, or the one its extension names.
+// The type a picked file is sent with: its own type, or the one its extension
+// names when the browser gives none or only "application/octet-stream".
 export function uploadTypeOf(file: { name: string; type: string }): string {
-  return file.type || typeFromFileName(file.name) || '';
+  const own = file.type === 'application/octet-stream' ? '' : file.type;
+  return own || typeFromFileName(file.name) || '';
 }
 
 // Why a picked file cannot be sent, as a Romanian message; null when it can.

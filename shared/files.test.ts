@@ -85,6 +85,11 @@ describe('fileProblem', () => {
     expect(uploadTypeOf(pick('Barem.docx', ''))).toBe(DOCX_TYPE);
   });
 
+  it('names the type from the extension when the browser says only application/octet-stream', () => {
+    expect(uploadTypeOf(pick('scan.pdf', 'application/octet-stream'))).toBe(PDF_TYPE);
+    expect(fileProblem(pick('scan.pdf', 'application/octet-stream'), STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE)).toBeNull();
+  });
+
   it('names the problem of a file that cannot be sent', () => {
     expect(fileProblem(pick('poza.heic', 'image/heic'), STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE)).toBe('Trimite poze JPG sau PDF.');
     expect(fileProblem(pick('notes.txt', ''), TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE)).toBe('Încarcă un fișier PDF sau Word (.docx).');

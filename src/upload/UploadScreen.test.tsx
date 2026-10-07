@@ -105,6 +105,14 @@ describe('UploadScreen', () => {
     expectNoGradingWords();
   });
 
+  it('sends a PDF that the phone calls application/octet-stream as a PDF', async () => {
+    const { api } = setup();
+    const user = userEvent.setup({ applyAccept: false });
+    await user.upload(screen.getByLabelText('Alege fișiere'), new File(['%PDF-1.7'], 'scan.pdf', { type: 'application/octet-stream' }));
+    await pages(api, 1);
+    expect(api.uploadFile.mock.calls[0]![2].type).toBe('application/pdf');
+  });
+
   it('takes at most 20 pages', async () => {
     const already = Array.from({ length: 19 }, (_, i) => ({ id: i + 1, name: `p${i + 1}.pdf`, contentType: 'application/pdf', size: 5, position: i + 1 }));
     const { api } = setup(already);

@@ -138,7 +138,7 @@ export function UploadScreen({
           blob = await shrink(original);
           if (stopped.current) return;
           if (blob !== original) fileName = jpegName(name);
-          else if (!blob.type) blob = new Blob([blob], { type: uploadTypeOf(original) });
+          else if (blob.type !== uploadTypeOf(original)) blob = new Blob([blob], { type: uploadTypeOf(original) });
           const problem = blob.size === 0 ? EMPTY_FILE : blob.size > MAX_FILE_BYTES ? FILE_TOO_BIG : null;
           if (problem) {
             sources.current.delete(key);
