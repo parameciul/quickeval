@@ -29,9 +29,10 @@ export async function expectLocation(expected: string | RegExp): Promise<void> {
 }
 
 // Renders the teacher app at a path (without the /admin basename), with a fake
-// API and school year 2026-2027. `extra` is drawn inside the router, above the
-// pages; tests use it for a button that navigates.
-export function renderAdmin(path: string, api: AdminApi, extra?: ReactNode) {
+// API and school year 2026-2027. The path can carry navigation state, as a
+// page that navigates here would pass. `extra` is drawn inside the router,
+// above the pages; tests use it for a button that navigates.
+export function renderAdmin(path: string | { pathname: string; state: unknown }, api: AdminApi, extra?: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <ApiProvider api={api}>
