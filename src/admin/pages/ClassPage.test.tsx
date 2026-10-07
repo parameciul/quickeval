@@ -1,8 +1,24 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useNavigate } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { createFakeApi } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
+
+// Direct jumps between class pages, as a link from one class to another would do.
+function Jumps() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button type="button" onClick={() => navigate('/clase/1')}>
+        Mergi la clasa 1
+      </button>
+      <button type="button" onClick={() => navigate('/clase/2')}>
+        Mergi la clasa 2
+      </button>
+    </>
+  );
+}
 
 const oneClass = () =>
   createFakeApi({
@@ -69,9 +85,27 @@ describe('ClassPage', () => {
     expect(await screen.findByRole('heading', { name: 'Clasa 6E3 · 2026-2027' })).toBeInTheDocument();
   });
 
-  it('shows the not-found page for a bad class id', async () => {
-    renderAdmin('/clase/abc', oneClass());
+  it.each(['abc', '1e3', '01'])('shows the not-found page for the class id %j', async (id) => {
+    renderAdmin(`/clase/${id}`, oneClass());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
+  });
+
+  it('starts with an empty draft when it moves straight to another class', async () => {
+    const api = createFakeApi({
+      classes: [
+        { id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 },
+        { id: 2, name: '7E2', schoolYear: 2026, archived: false, studentCount: 0 },
+      ],
+      students: {},
+    });
+    // Class 2 is opened first, so later its page shows at once, without a loading step.
+    renderAdmin('/clase/2', api, <Jumps />);
+    await screen.findByRole('heading', { name: 'Clasa 7E2 · 2026-2027' });
+    await userEvent.click(screen.getByRole('button', { name: 'Mergi la clasa 1' }));
+    await userEvent.type(await screen.findByLabelText('Numele elevilor, câte unul pe rând'), 'Pop Ion');
+    await userEvent.click(screen.getByRole('button', { name: 'Mergi la clasa 2' }));
+    expect(await screen.findByRole('heading', { name: 'Clasa 7E2 · 2026-2027' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Numele elevilor, câte unul pe rând')).toHaveValue('');
   });
 
   it('shows the server message for a class that does not exist', async () => {

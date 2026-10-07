@@ -68,7 +68,7 @@ export function ClassesPage() {
               <Link className="card-title" to={`/clase/${item.id}`}>
                 {displayClassName(item.name)}
               </Link>
-              <span>{studentCountLabel(item.studentCount)}</span>
+              <span className="card-count">{studentCountLabel(item.studentCount)}</span>
               {item.archived && <span className="tag">Arhivată</span>}
               <span>
                 <button

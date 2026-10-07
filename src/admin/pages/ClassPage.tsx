@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import type { StudentRow } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
+import { parsePositiveId } from '../../../shared/ids.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { MAX_NAMES_PER_REQUEST, parseStudentNames } from '../../../shared/students.ts';
 import { studentCountLabel } from '../../ui/format.ts';
@@ -11,9 +12,10 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
 export function ClassPage() {
-  const classId = Number(useParams().id);
-  if (!Number.isSafeInteger(classId) || classId <= 0) return <NotFoundPage />;
-  return <ClassDetails classId={classId} />;
+  const classId = parsePositiveId(useParams().id);
+  if (classId === null) return <NotFoundPage />;
+  // A new key for each class: a draft or an open form never carries over to another class.
+  return <ClassDetails key={classId} classId={classId} />;
 }
 
 function ClassDetails({ classId }: { classId: number }) {

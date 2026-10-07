@@ -438,8 +438,10 @@ textarea {
   background: var(--sheet);
 }
 
-.card.is-muted {
-  opacity: 0.7;
+/* An archived card: only its text is muted, so its buttons keep full contrast. */
+.card.is-muted .card-title,
+.card.is-muted .card-count {
+  color: var(--muted);
 }
 
 .card-title {

@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, NavLink, Outlet } from 'react-router';
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { formatSchoolYear, schoolYearOf } from '../../shared/schoolYear.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
+import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
 import { useApi } from './ApiContext.tsx';
 import { ErrorMessage } from './ErrorMessage.tsx';
@@ -9,6 +10,7 @@ import { schoolYearOptions, useSchoolYear } from './SchoolYearContext.tsx';
 
 export function Layout() {
   const api = useApi();
+  const location = useLocation();
   const { year, setYear } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
 
@@ -42,7 +44,13 @@ export function Layout() {
         </div>
       </header>
       <main className="wrap page">
-        {me.error ? <ErrorMessage error={me.error} /> : <Outlet />}
+        {me.error ? (
+          <ErrorMessage error={me.error} />
+        ) : (
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
+        )}
       </main>
       <footer className="site-footer">
         <div className="wrap">
