@@ -697,3 +697,60 @@ table.uploads .tag {
   margin-top: 0.35rem;
   overflow-wrap: anywhere;
 }
+
+/* The student app: phone first, big touch targets (at least 44 px) */
+
+.upload-page {
+  max-width: 40rem;
+  padding-block: 1.25rem 2.5rem;
+}
+
+.button-big {
+  min-height: 3.25rem;
+  padding-inline: 1.5rem;
+  font-size: 1.1rem;
+}
+
+.big-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.name-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.name-button {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem 1rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.name-button:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.sent {
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.sent h2 {
+  margin-top: 0;
+}

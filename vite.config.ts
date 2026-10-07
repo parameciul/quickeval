@@ -7,17 +7,19 @@ const page = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 // `npm run dev:api` serves the API (wrangler pages dev) here.
 const API_ORIGIN = 'http://127.0.0.1:8788';
 
-// The teacher app is a single-page app under /admin/. In dev, every /admin page
-// request gets admin/index.html, the same as public/_redirects does on Pages.
-function adminFallback(): Plugin {
+// The teacher app (/admin/) and the student app (/u/) are single-page apps. In
+// dev, every page request under them gets their index.html, the same as
+// public/_redirects does on Pages.
+const APPS = ['/admin', '/u'];
+
+function appFallback(): Plugin {
   return {
-    name: 'quickeval-admin-fallback',
+    name: 'quickeval-app-fallback',
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
         const path = (req.url ?? '').split('?')[0] ?? '';
-        if (path === '/admin' || (path.startsWith('/admin/') && !path.includes('.'))) {
-          req.url = '/admin/index.html';
-        }
+        const app = APPS.find((base) => path === base || (path.startsWith(`${base}/`) && !path.includes('.')));
+        if (app) req.url = `${app}/index.html`;
         next();
       });
     },
@@ -25,7 +27,7 @@ function adminFallback(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), adminFallback()],
+  plugins: [react(), appFallback()],
   appType: 'mpa',
   build: {
     outDir: 'dist',
@@ -33,6 +35,7 @@ export default defineConfig({
       input: {
         main: page('./index.html'),
         admin: page('./admin/index.html'),
+        upload: page('./u/index.html'),
       },
     },
   },

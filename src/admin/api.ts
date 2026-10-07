@@ -13,6 +13,9 @@ import type {
   UpdateClassInput,
 } from '../../shared/api.ts';
 import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
+import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
+
+export { ApiError };
 
 // Everything the teacher app asks the server. Pages get it from useApi(), so
 // tests can pass a fake.
@@ -47,17 +50,6 @@ export function submissionFileUrl(submissionId: number, fileId: number): string 
   return `/api/admin/submissions/${submissionId}/files/${fileId}`;
 }
 
-// An error answer from the API, with its Romanian message.
-export class ApiError extends Error {
-  readonly status: number;
-  readonly code: string;
-
-  constructor(status: number, code: string, message: string) {
-    super(message);
-    this.status = status;
-    this.code = code;
-  }
-}
 
 // The Cloudflare Access login ended. The app reloads the page so Access shows
 // its login screen.
@@ -116,26 +108,14 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
         ...(payload === undefined ? {} : { body: payload }),
       });
     } catch {
-      throw new ApiError(0, 'network', 'Nu mă pot conecta la server. Verifică internetul și încearcă din nou.');
+      throw new ApiError(0, 'network', NETWORK_MESSAGE);
     }
     const isJson = (res.headers.get('Content-Type') ?? '').includes('application/json');
     if (res.type === 'opaqueredirect' || ((res.status === 401 || res.status === 403) && !isJson)) {
       onLoginExpired();
       throw new LoginExpiredError();
     }
-    if (!isJson) {
-      throw new ApiError(res.status, 'bad_response', 'Serverul nu a răspuns corect. Încearcă din nou.');
-    }
-    let data: { error?: string; message?: string };
-    try {
-      data = (await res.json()) as { error?: string; message?: string };
-    } catch {
-      throw new ApiError(res.status, 'bad_response', 'Serverul nu a răspuns corect. Încearcă din nou.');
-    }
-    if (!res.ok) {
-      throw new ApiError(res.status, data.error ?? 'error', data.message ?? 'A apărut o eroare. Încearcă din nou.');
-    }
-    return data as T;
+    return readAnswer<T>(res);
   }
 
   const test = (code: string) => `/tests/${encodeURIComponent(code)}`;
