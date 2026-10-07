@@ -55,6 +55,13 @@ export async function addSubmission(
   return submissionId;
 }
 
+// Start test through the teacher API; returns the upload token of the link.
+export async function startTest(api: TestApi, code: string): Promise<string> {
+  const res = await api.request('POST', `/api/admin/tests/${code}/start`);
+  if (res.status !== 200) throw new Error(`startTest: ${JSON.stringify(res.body)}`);
+  return res.body.uploadToken as string;
+}
+
 // A test, class, and student that belong to another teacher.
 export async function otherTeacherTest(api: TestApi, email = 'alt.profesor@example.com'): Promise<{ code: string; studentId: number }> {
   const teacherId = await api.addTeacher(email, 'Alt Profesor');

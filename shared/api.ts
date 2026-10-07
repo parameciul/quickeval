@@ -73,6 +73,14 @@ export const createTestBody = z.object({
 
 export const renameTestBody = z.object({ title: testTitleSchema });
 
+// The student app: start or resume an upload for one student of the class.
+export const startSessionBody = z.object({
+  studentId: z
+    .number({ message: 'Alege-ți numele din listă.' })
+    .int({ message: 'Alege-ți numele din listă.' })
+    .positive({ message: 'Alege-ți numele din listă.' }),
+});
+
 export type CreateClassInput = z.input<typeof createClassBody>;
 export type UpdateClassInput = z.input<typeof updateClassBody>;
 export type CreateTestInput = z.input<typeof createTestBody>;
@@ -166,6 +174,39 @@ export interface SubmissionFile {
   contentType: string;
   size: number;
   position: number;
+}
+
+// Response shapes of the student API (/api/u/<token>).
+
+// "done": the student already sent the upload and cannot pick the name again.
+export type LinkStudentState = 'none' | 'in_progress' | 'done';
+
+export interface LinkStudent {
+  id: number;
+  name: string;
+  state: LinkStudentState;
+}
+
+// The page behind an upload link. The name list is empty unless uploads are open.
+export interface LinkInfo {
+  test: { code: string; title: string; className: string; status: TestStatus };
+  students: LinkStudent[];
+}
+
+// One student's upload, as that student's phone sees it.
+export interface UploadSession {
+  submissionId: number;
+  studentId: number;
+  studentName: string;
+  status: Exclude<UploadStatus, 'none'>;
+  files: SubmissionFile[];
+}
+
+// POST /sessions: `secret` comes only with a new upload; the phone keeps it
+// and sends it as X-Upload-Session on every later call.
+export interface SessionStart {
+  secret?: string;
+  session: UploadSession;
 }
 
 export interface SubmissionDetail {
