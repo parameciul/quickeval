@@ -27,8 +27,8 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 - `npm run typecheck`: TypeScript, one strict config for everything.
 - `npm run build`: typecheck, then the Vite build into `dist/`.
 - `npm run db:local`: apply the migrations to the local D1 and add the local teacher.
-- `npm run dev:api` and `npm run dev:web` (two terminals): develop with hot reload at http://localhost:5173/admin/. A started test's student page is at http://localhost:5173/u/<token>.
-- `npm run preview`, then `npm run smoke` in a second terminal: the production build on http://127.0.0.1:8788 and its smoke test.
+- `npm run dev:api` and `npm run dev:web` (two terminals): develop with hot reload at http://localhost:5173/admin/. A started test's student page is at `http://localhost:5173/u/<token>`.
+- `npm run db:local`, then `npm run preview`, then `npm run smoke` in a second terminal: the production build on http://127.0.0.1:8788 and its smoke test. Each smoke run leaves one class with one student in the local database.
 
 ## Rules
 
@@ -36,6 +36,7 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 - No page tells students that AI grades their work. Student-app tests check every screen with `expectNoGradingWords()`.
 - Every teacher query is scoped by the teacher's id. Ids from URLs go through `parseId`, test codes through `parseTestCode`.
 - Student calls are scoped by the test of the link's token, and an upload by the hash of the phone's secret (`X-Upload-Session`) within that test. Only hashes of secrets are stored.
+- Each student write checks its own rules inside its SQL statement (`server/db/links.ts`: the test is open, the upload is not sent yet, at most 20 files; confirm is one `db.batch()`). Never turn these into a check before the write: two requests at once would get past it.
 - R2 is private: every file goes through the API with an ownership check. The database is the truth: R2 keys come from rows, never from listing R2.
 - Times are stored as ISO 8601 UTC strings and shown in Europe/Bucharest time. School year Y runs from September of Y to August of Y+1.
 - Functions do no heavy CPU work (10 ms of CPU per request on the free plan) and make at most 15 D1 queries per request. Group writes with `db.batch()`. Adding students uses a fixed number of queries, whatever the number of names; the uploads table is one query.
