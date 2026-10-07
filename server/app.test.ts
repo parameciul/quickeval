@@ -69,8 +69,60 @@ describe('test database', () => {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
       .all<{ name: string }>();
     expect(tables.results.map((table) => table.name)).toEqual(
-      expect.arrayContaining(['teachers', 'classes', 'students', 'enrollments']),
+      expect.arrayContaining(['teachers', 'classes', 'students', 'enrollments', 'tests', 'submissions', 'submission_files']),
     );
+  });
+
+  it('deletes the uploads and their file rows together with a test', async () => {
+    const db = api.db;
+    const cls = await db
+      .prepare("INSERT INTO classes (teacher_id, name, school_year, created_at) VALUES (?, 'C1', 2026, 't') RETURNING id")
+      .bind(api.teacherId)
+      .first<{ id: number }>();
+    const student = await db
+      .prepare("INSERT INTO students (teacher_id, full_name, created_at) VALUES (?, 'Pop Ion', 't') RETURNING id")
+      .bind(api.teacherId)
+      .first<{ id: number }>();
+    const test = await db
+      .prepare(
+        "INSERT INTO tests (teacher_id, class_id, number, code, title, created_at, updated_at) VALUES (?, ?, 1, 'C1-26T1', 'T', 't', 't') RETURNING id",
+      )
+      .bind(api.teacherId, cls!.id)
+      .first<{ id: number }>();
+    const submission = await db
+      .prepare("INSERT INTO submissions (test_id, student_id, status, started_at) VALUES (?, ?, 'uploading', 't') RETURNING id")
+      .bind(test!.id, student!.id)
+      .first<{ id: number }>();
+    await db
+      .prepare(
+        "INSERT INTO submission_files (submission_id, r2_key, original_name, content_type, size, position, created_at) VALUES (?, 'k', 'a.jpg', 'image/jpeg', 1, 1, 't')",
+      )
+      .bind(submission!.id)
+      .run();
+
+    await db.prepare('DELETE FROM tests WHERE id = ?').bind(test!.id).run();
+    const left = await db
+      .prepare('SELECT (SELECT COUNT(*) FROM submissions) AS submissions, (SELECT COUNT(*) FROM submission_files) AS files')
+      .first<{ submissions: number; files: number }>();
+    expect(left).toEqual({ submissions: 0, files: 0 });
+  });
+
+  it('refuses a test status outside the known ones', async () => {
+    const cls = await api.db
+      .prepare("INSERT INTO classes (teacher_id, name, school_year, created_at) VALUES (?, 'C2', 2026, 't') RETURNING id")
+      .bind(api.teacherId)
+      .first<{ id: number }>();
+    const insert = api.db
+      .prepare(
+        "INSERT INTO tests (teacher_id, class_id, number, code, title, status, created_at, updated_at) VALUES (?, ?, 1, 'C2-26T1', 'T', 'lost', 't', 't')",
+      )
+      .bind(api.teacherId, cls!.id);
+    await expect(insert.run()).rejects.toThrow(/CHECK constraint failed/);
+  });
+
+  it('has a file bucket', async () => {
+    await api.env.FILES.put('probe.txt', 'ok');
+    expect(await (await api.env.FILES.get('probe.txt'))?.text()).toBe('ok');
   });
 });
 

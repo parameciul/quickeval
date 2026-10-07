@@ -7,3 +7,7 @@ binding = "DB"
 database_name = "quickeval"
 database_id = "ef431f1d-ad8f-4e4c-9667-9cd17f0f168e"
 migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "quickeval-files"

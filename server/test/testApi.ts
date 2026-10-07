@@ -5,10 +5,10 @@ import { getPlatformProxy } from 'wrangler';
 import { createApp } from '../app.ts';
 import type { Env } from '../env.ts';
 
-// API tests run the real Hono app in Node against the local D1 engine that
-// `wrangler pages dev` also uses. getPlatformProxy reads the bindings from
+// API tests run the real Hono app in Node against the local D1 and R2 engines
+// that `wrangler pages dev` also uses. getPlatformProxy reads the bindings from
 // wrangler.toml. With persist: false, every startTestApi() call gets a new,
-// empty, in-memory database; the migrations are applied to it here.
+// empty, in-memory database and file bucket; the migrations are applied here.
 
 const MIGRATIONS_DIR = new URL('../../migrations/', import.meta.url);
 const WRANGLER_CONFIG = fileURLToPath(new URL('../../wrangler.toml', import.meta.url));
@@ -54,7 +54,7 @@ export async function applyMigrations(db: D1Database): Promise<void> {
 }
 
 export async function startTestApi(options: { env?: Partial<Env> } = {}): Promise<TestApi> {
-  const platform = await getPlatformProxy<Pick<Env, 'DB'>>({
+  const platform = await getPlatformProxy<Pick<Env, 'DB' | 'FILES'>>({
     configPath: WRANGLER_CONFIG,
     persist: false,
     remoteBindings: false,
@@ -79,7 +79,7 @@ export async function startTestApi(options: { env?: Partial<Env> } = {}): Promis
     throw err;
   }
 
-  const env: Env = { DB: db, DEV_TEACHER_EMAIL: TEACHER_EMAIL, ...options.env };
+  const env: Env = { DB: db, FILES: platform.env.FILES, DEV_TEACHER_EMAIL: TEACHER_EMAIL, ...options.env };
   const app = createApp();
   const send = (path: string, init: RequestInit = {}) => Promise.resolve(app.request(`http://localhost${path}`, init, env));
 
