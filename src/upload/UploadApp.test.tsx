@@ -80,6 +80,17 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
+  it('forgets a secret of an upload that moved to another phone, without an alert', async () => {
+    const api = createFakeUploadApi();
+    api.seedSession(11);
+    saveSecret(LINK_TOKEN, 11, 'old-secret');
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(localStorage.getItem(`qe.session.${LINK_TOKEN}.11`)).toBeNull();
+    expectNoGradingWords();
+  });
+
   it('says the uploads are closed once the test is closed', async () => {
     const api = createFakeUploadApi({ ...linkInfo({ status: 'evaluating' }), students: [] });
     render(<UploadApp api={api} token={LINK_TOKEN} />);

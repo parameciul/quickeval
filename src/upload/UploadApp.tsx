@@ -6,7 +6,7 @@ import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import type { ActiveSession, UploadApi } from './api.ts';
 import { NamePicker } from './NamePicker.tsx';
-import { loadSecret, saveSecret, savedStudent } from './session.ts';
+import { forgetSecret, loadSecret, saveSecret, savedStudent } from './session.ts';
 import { UploadScreen } from './UploadScreen.tsx';
 
 export const UNKNOWN_LINK = 'Link greșit. Cere profesorului linkul nou.';
@@ -24,9 +24,10 @@ type Phase =
 export function UploadApp({ api, token }: { api: UploadApi; token: string | null }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
 
-  // Starts or resumes the upload of one student on this phone.
+  // Starts or resumes the upload of one student on this phone. `auto` is true
+  // when the app resumes by itself on load, not after the student picked a name.
   const begin = useCallback(
-    async (linkToken: string, info: LinkInfo, student: LinkStudent) => {
+    async (linkToken: string, info: LinkInfo, student: LinkStudent, auto = false) => {
       const saved = loadSecret(linkToken, student.id);
       try {
         const started = await api.startSession(linkToken, student.id, saved);
@@ -39,6 +40,13 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           session: { studentId: student.id, studentName: started.session.studentName, secret, files: started.session.files },
         });
       } catch (err) {
+        if (auto && err instanceof ApiError && err.code === 'other_device') {
+          // The secret is left from an upload the teacher reset and the student
+          // started on another phone: this phone forgets it and shows the names.
+          forgetSecret(linkToken, student.id);
+          setPhase({ kind: 'names', info, message: null });
+          return;
+        }
         setPhase({ kind: 'names', info, message: messageOf(err) });
       }
     },
@@ -60,7 +68,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           return;
         }
         const saved = message === null ? savedStudent(token, info.students) : null;
-        if (saved) await begin(token, info, saved);
+        if (saved) await begin(token, info, saved, true);
         else setPhase({ kind: 'names', info, message });
       } catch (err) {
         if (isCurrent()) setPhase({ kind: 'failed', message: messageOf(err) });
