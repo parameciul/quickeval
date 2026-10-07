@@ -4,6 +4,7 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 
 - Design: `docs/superpowers/specs/2026-10-06-quickeval-design.md`
 - Plans: `docs/superpowers/plans/`
+- Live: https://quickeval.pages.dev/
 - Brand source: the "Matematică cu Laura Miron" site (`D:\Projects\Website`, https://lauramiron.pages.dev/)
 
 ## Structure
