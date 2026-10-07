@@ -13,9 +13,13 @@ Plan 1 was built task by task with a review after each task and a final whole-br
 - `.github/workflows/ci.yml`: `permissions: contents: read`.
 - Local dev databases made before the CHECK constraint keep the old schema. Reset with: delete `.wrangler/state`, then `npm run db:local`.
 
+## Live state after Plan 1
+
+- Live at https://quickeval.pages.dev/ since 2026-10-07. The live database has two teachers: Laura's account (empty on purpose; she creates her own classes) and a test account. The test account has classes 6E2 and 11R1, with 30 made-up students in 6E2.
+
 ## Do early in Plan 2
 
-- Add cross-teacher tests for `POST /api/admin/classes/:id/students` and `PATCH /api/admin/classes/:id/students/:studentId` (both 404 tests use id 99999 today). Do it before a second teacher exists.
+- Do this first: a second teacher already exists in the live database. Add cross-teacher tests for `POST /api/admin/classes/:id/students` and `PATCH /api/admin/classes/:id/students/:studentId` (both 404 tests use id 99999 today).
 - `addStudentsToClass` (`server/db/students.ts`): the enrollment insert does not check class ownership itself; only the route's `getClass` guards it.
 - `src/admin/pages/ClassPage.tsx`: give `ClassDetails` `key={classId}`. Without it, the add-students draft can carry over to another class once Plan 2 adds links between classes.
 - `src/ui/brand.css`: `.card.is-muted { opacity: .7 }` makes the "Scoate din arhivă" button about 4.4:1 contrast; spec §16 asks for at least 4.5:1. Mute only the title and count.
