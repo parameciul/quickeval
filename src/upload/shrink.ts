@@ -53,7 +53,16 @@ export const browserPhotoTools: PhotoTools = {
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, size.width, size.height);
       context.drawImage(source, 0, 0, size.width, size.height);
-      canvas.toBlob(resolve, 'image/jpeg', quality);
+      canvas.toBlob(
+        (blob) => {
+          // Phones limit canvas memory: free this one at once.
+          canvas.width = 0;
+          canvas.height = 0;
+          resolve(blob);
+        },
+        'image/jpeg',
+        quality,
+      );
     });
   },
 };

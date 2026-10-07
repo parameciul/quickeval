@@ -53,6 +53,16 @@ describe('SubmissionPage', () => {
     expect(screen.getByText('Pagina 2: scan.pdf · 1,5 MB')).toBeInTheDocument();
   });
 
+  it('numbers the pages in order, without a gap where a page was deleted', async () => {
+    const files = [
+      { id: 21, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 1 },
+      { id: 23, name: 'IMG_0003.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 3 },
+    ];
+    renderAdmin('/teste/6E2-26T1/elevi/5', apiWith({ ...submission, files }));
+    expect(await screen.findByRole('img', { name: 'Pagina 2' })).toHaveAttribute('src', '/api/admin/submissions/5/files/23');
+    expect(screen.getByText('Pagina 2: IMG_0003.jpg · 820 KB')).toBeInTheDocument();
+  });
+
   it('says so when the student has no files yet', async () => {
     renderAdmin('/teste/6E2-26T1/elevi/5', apiWith({ ...submission, status: 'uploading', submittedAt: null, files: [] }));
     expect(await screen.findByText('Elevul nu a încărcat încă niciun fișier.')).toBeInTheDocument();

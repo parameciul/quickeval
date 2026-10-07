@@ -58,8 +58,8 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
         <p className="hint">Elevul nu a încărcat încă niciun fișier.</p>
       ) : (
         <ol className="page-files">
-          {submission.files.map((file) => (
-            <PageFile key={file.id} submissionId={submissionId} file={file} />
+          {submission.files.map((file, index) => (
+            <PageFile key={file.id} submissionId={submissionId} file={file} number={index + 1} />
           ))}
         </ol>
       )}
@@ -81,14 +81,14 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   );
 }
 
-function PageFile({ submissionId, file }: { submissionId: number; file: SubmissionFile }) {
+function PageFile({ submissionId, file, number }: { submissionId: number; file: SubmissionFile; number: number }) {
   const url = submissionFileUrl(submissionId, file.id);
-  const caption = `Pagina ${file.position}: ${file.name} · ${formatFileSize(file.size)}`;
+  const caption = `Pagina ${number}: ${file.name} · ${formatFileSize(file.size)}`;
   if (file.contentType.startsWith('image/')) {
     return (
       <li>
         <a href={url} target="_blank" rel="noopener">
-          <img src={url} alt={`Pagina ${file.position}`} loading="lazy" />
+          <img src={url} alt={`Pagina ${number}`} loading="lazy" />
         </a>
         <p className="hint">{caption}</p>
       </li>
