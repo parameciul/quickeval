@@ -141,3 +141,34 @@ describe('students in a class', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('students of another teacher', () => {
+  it('cannot be added to or changed in that teacher class', async () => {
+    const otherId = await api.addTeacher('neighbour@example.com', 'Alt Profesor');
+    const otherClass = await api.db
+      .prepare("INSERT INTO classes (teacher_id, name, school_year, created_at) VALUES (?, '5B', 2026, '2026-10-06') RETURNING id")
+      .bind(otherId)
+      .first<{ id: number }>();
+    const otherStudent = await api.db
+      .prepare("INSERT INTO students (teacher_id, full_name, created_at) VALUES (?, 'Elev Străin', '2026-10-06') RETURNING id")
+      .bind(otherId)
+      .first<{ id: number }>();
+    await api.db.prepare('INSERT INTO enrollments (class_id, student_id) VALUES (?, ?)').bind(otherClass!.id, otherStudent!.id).run();
+
+    const add = await api.request('POST', `/api/admin/classes/${otherClass!.id}/students`, { names: ['Intrus Ion'] });
+    expect(add.status).toBe(404);
+    const leave = await api.request('PATCH', `/api/admin/classes/${otherClass!.id}/students/${otherStudent!.id}`, { active: false });
+    expect(leave.status).toBe(404);
+
+    const enrollment = await api.db
+      .prepare('SELECT active FROM enrollments WHERE class_id = ? AND student_id = ?')
+      .bind(otherClass!.id, otherStudent!.id)
+      .first<{ active: number }>();
+    expect(enrollment?.active).toBe(1);
+    const enrolled = await api.db
+      .prepare('SELECT COUNT(*) AS n FROM enrollments WHERE class_id = ?')
+      .bind(otherClass!.id)
+      .first<{ n: number }>();
+    expect(enrolled?.n).toBe(1);
+  });
+});

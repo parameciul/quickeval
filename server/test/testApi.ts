@@ -17,7 +17,8 @@ export const TEACHER_EMAIL = 'profesor@example.com';
 
 export interface TestResponse {
   status: number;
-  // The parsed JSON body. Tests read fields from it directly.
+  headers: Headers;
+  // The parsed JSON body, or null for an empty body. Tests read fields from it directly.
   body: any;
 }
 
@@ -25,7 +26,10 @@ export interface TestApi {
   env: Env;
   db: D1Database;
   teacherId: number;
+  // A JSON request to the API. A body is sent as JSON unless the headers name another type.
   request(method: string, path: string, body?: unknown, headers?: Record<string, string>): Promise<TestResponse>;
+  // The raw response, for requests whose body or answer is not JSON.
+  fetch(path: string, init?: RequestInit): Promise<Response>;
   addTeacher(email: string, name: string): Promise<number>;
   dispose(): Promise<void>;
 }
@@ -56,7 +60,6 @@ export async function startTestApi(options: { env?: Partial<Env> } = {}): Promis
     remoteBindings: false,
   });
   const db = platform.env.DB;
-  await applyMigrations(db);
 
   const addTeacher = async (email: string, name: string) => {
     const row = await db
@@ -65,10 +68,20 @@ export async function startTestApi(options: { env?: Partial<Env> } = {}): Promis
       .first<{ id: number }>();
     return row!.id;
   };
-  const teacherId = await addTeacher(TEACHER_EMAIL, 'Laura Miron');
+
+  let teacherId: number;
+  try {
+    await applyMigrations(db);
+    teacherId = await addTeacher(TEACHER_EMAIL, 'Laura Miron');
+  } catch (err) {
+    // A failed setup must not leave the local engine running.
+    await platform.dispose();
+    throw err;
+  }
 
   const env: Env = { DB: db, DEV_TEACHER_EMAIL: TEACHER_EMAIL, ...options.env };
   const app = createApp();
+  const send = (path: string, init: RequestInit = {}) => Promise.resolve(app.request(`http://localhost${path}`, init, env));
 
   return {
     env,
@@ -76,14 +89,17 @@ export async function startTestApi(options: { env?: Partial<Env> } = {}): Promis
     teacherId,
     addTeacher,
     async request(method, path, body, headers = {}) {
-      const init: RequestInit = { method, headers: { ...headers } };
+      const merged = new Headers(headers);
+      const init: RequestInit = { method, headers: merged };
       if (body !== undefined) {
-        init.headers = { 'Content-Type': 'application/json', ...headers };
+        if (!merged.has('Content-Type')) merged.set('Content-Type', 'application/json');
         init.body = JSON.stringify(body);
       }
-      const res = await app.request(`http://localhost${path}`, init, env);
-      return { status: res.status, body: await res.json() };
+      const res = await send(path, init);
+      const text = await res.text();
+      return { status: res.status, headers: res.headers, body: text === '' ? null : JSON.parse(text) };
     },
+    fetch: send,
     dispose: () => platform.dispose(),
   };
 }

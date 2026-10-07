@@ -7,7 +7,9 @@ export interface AccessConfig {
   aud: string;
 }
 
-export type AccessResult = { ok: true; email: string } | { ok: false; message: string };
+// unavailable: the token could not be checked because the team's keys could
+// not be downloaded. The caller answers 503 (try again later), not 403.
+export type AccessResult = { ok: true; email: string } | { ok: false; message: string; unavailable?: true };
 
 export type FetchLike = (url: string) => Promise<Response>;
 
@@ -61,6 +63,8 @@ function parseJwt(token: string): ParsedJwt | null {
 }
 
 // fresh: skip the cache once, because Access rotates its signing keys.
+// When the download fails, keys downloaded earlier are still used: Access
+// keeps old keys valid for a while after a rotation.
 async function accessKeys(teamDomain: string, fetchImpl: FetchLike, fresh: boolean): Promise<Jwk[]> {
   const now = Date.now();
   if (certCache.keys) {
@@ -68,12 +72,17 @@ async function accessKeys(teamDomain: string, fetchImpl: FetchLike, fresh: boole
     if (fresh && now - certCache.forcedAt < REFETCH_EVERY_MS) return certCache.keys;
   }
   if (fresh) certCache.forcedAt = now;
-  const res = await fetchImpl(`https://${teamDomain}/cdn-cgi/access/certs`);
-  if (!res.ok) throw new Error(`certs HTTP ${res.status}`);
-  const json = (await res.json()) as { keys?: Jwk[] };
-  certCache.keys = json.keys ?? [];
-  certCache.at = now;
-  return certCache.keys;
+  try {
+    const res = await fetchImpl(`https://${teamDomain}/cdn-cgi/access/certs`);
+    if (!res.ok) throw new Error(`certs HTTP ${res.status}`);
+    const json = (await res.json()) as { keys?: Jwk[] };
+    certCache.keys = json.keys ?? [];
+    certCache.at = now;
+    return certCache.keys;
+  } catch (err) {
+    if (certCache.keys) return certCache.keys;
+    throw err;
+  }
 }
 
 export async function verifyAccessJwt(
@@ -91,7 +100,7 @@ export async function verifyAccessJwt(
   try {
     jwk = (await findKey(false)) ?? (await findKey(true));
   } catch {
-    return { ok: false, message: 'Nu pot verifica autentificarea acum.' };
+    return { ok: false, message: 'Nu pot verifica autentificarea acum.', unavailable: true };
   }
   if (!jwk) return { ok: false, message: 'Cheie de autentificare necunoscută.' };
 

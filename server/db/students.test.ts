@@ -47,6 +47,18 @@ describe('addStudentsToClass', () => {
   });
 });
 
+describe('addStudentsToClass ownership', () => {
+  it('adds nothing to a class of another teacher', async () => {
+    const otherTeacherId = await api.addTeacher('owner-check@example.com', 'Alt Profesor');
+    const studentsBefore = await count('SELECT COUNT(*) AS n FROM students');
+    await expect(addStudentsToClass(api.db, otherTeacherId, classId, ['Intrus Ion'], '2026-10-06T08:00:00.000Z')).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(await count('SELECT COUNT(*) AS n FROM students')).toBe(studentsBefore);
+    expect(await count(`SELECT COUNT(*) AS n FROM enrollments WHERE class_id = ${classId}`)).toBe(2);
+  });
+});
+
 describe('listClassStudents', () => {
   it('lists the students for the owning teacher and nothing for another teacher', async () => {
     const row = await api.db

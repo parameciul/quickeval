@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { StudentRow } from '../../shared/api.ts';
-import { ApiError, isUniqueViolation } from '../errors.ts';
+import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 
 // Adds new students and enrolls them in the class with a fixed number of
 // queries, whatever the number of names: the free plan limits the queries per
@@ -8,7 +8,8 @@ import { ApiError, isUniqueViolation } from '../errors.ts';
 // enrollment insert can name them. Both inserts run in one batch, which D1 runs
 // as one transaction: either every name is added or none is. If another request
 // took one of these ids in the meantime, the batch fails on the primary key and
-// the teacher is asked to try again.
+// the teacher is asked to try again. Both inserts also check that the class
+// belongs to the teacher, so nothing is added to another teacher's class.
 export async function addStudentsToClass(
   db: D1Database,
   teacherId: number,
@@ -19,24 +20,29 @@ export async function addStudentsToClass(
   const top = await db.prepare('SELECT COALESCE(MAX(id), 0) AS max FROM students').first<{ max: number }>();
   const rows = names.map((fullName, index) => ({ id: (top?.max ?? 0) + index + 1, fullName }));
   const json = JSON.stringify(rows);
+  const ownsClass = 'EXISTS (SELECT 1 FROM classes WHERE id = ? AND teacher_id = ?)';
+  let inserted: number;
   try {
-    await db.batch([
+    const [students] = await db.batch([
       db
         .prepare(
           `INSERT INTO students (id, teacher_id, full_name, created_at)
-           SELECT json_extract(value, '$.id'), ?, json_extract(value, '$.fullName'), ? FROM json_each(?)`,
+           SELECT json_extract(value, '$.id'), ?, json_extract(value, '$.fullName'), ? FROM json_each(?)
+           WHERE ${ownsClass}`,
         )
-        .bind(teacherId, now, json),
+        .bind(teacherId, now, json, classId, teacherId),
       db
-        .prepare('INSERT INTO enrollments (class_id, student_id) SELECT ?, json_extract(value, \'$.id\') FROM json_each(?)')
-        .bind(classId, json),
+        .prepare(`INSERT INTO enrollments (class_id, student_id) SELECT ?, json_extract(value, '$.id') FROM json_each(?) WHERE ${ownsClass}`)
+        .bind(classId, json, classId, teacherId),
     ]);
+    inserted = students?.meta.changes ?? 0;
   } catch (err) {
     if (isUniqueViolation(err)) {
       throw new ApiError(409, 'busy', 'Altcineva a adăugat elevi în același timp. Încearcă din nou.');
     }
     throw err;
   }
+  if (inserted === 0) throw notFound();
   return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true }));
 }
 

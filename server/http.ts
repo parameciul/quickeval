@@ -1,5 +1,6 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import type { z } from 'zod';
+import { parsePositiveId } from '../shared/ids.ts';
 import { ApiError, notFound } from './errors.ts';
 
 // Reads a JSON body and checks it with a zod schema. The first problem becomes
@@ -24,8 +25,8 @@ export async function readJson<Schema extends z.ZodType>(c: Context, schema: Sch
 
 // Route ids are positive integers. Anything else is a page that does not exist.
 export function parseId(raw: string | undefined): number {
-  const id = Number(raw);
-  if (!Number.isSafeInteger(id) || id <= 0) throw notFound();
+  const id = parsePositiveId(raw);
+  if (id === null) throw notFound();
   return id;
 }
 

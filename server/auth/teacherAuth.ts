@@ -20,7 +20,10 @@ async function loginEmail(c: Context<AppEnv>): Promise<string> {
     throw new ApiError(500, 'access_not_configured', 'Autentificarea nu este configurată: lipsesc ACCESS_TEAM_DOMAIN sau ACCESS_AUD.');
   }
   const result = await verifyAccessJwt(c.req.header('Cf-Access-Jwt-Assertion'), { teamDomain, aud });
-  if (!result.ok) throw new ApiError(403, 'access_denied', result.message);
+  if (!result.ok) {
+    if (result.unavailable) throw new ApiError(503, 'access_unavailable', result.message);
+    throw new ApiError(403, 'access_denied', result.message);
+  }
   return result.email;
 }
 
