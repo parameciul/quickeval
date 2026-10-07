@@ -48,7 +48,9 @@ function TestDetails({ code }: { code: string }) {
   });
 
   if (detail.isPending) return <p>Se încarcă…</p>;
-  if (detail.error) return <ErrorMessage error={detail.error} />;
+  // A failed first load has nothing to show. A failed refresh keeps the page,
+  // and an open QR view with it, and says why above it.
+  if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
 
   const { test, uploads } = detail.data;
   return (
@@ -56,6 +58,7 @@ function TestDetails({ code }: { code: string }) {
       <p>
         <Link to="/">← Toate testele</Link>
       </p>
+      {detail.isRefetchError && <ErrorMessage error={detail.error} />}
       {notice && (
         <p className="alert" role="alert">
           {notice}

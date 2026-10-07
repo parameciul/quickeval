@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import { createFakeApi, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
@@ -118,6 +119,27 @@ describe('TestPage', () => {
     expect(confirm).toHaveBeenLastCalledWith('Ștergi încărcarea elevului Stan Eva? Elevul o poate lua de la capăt.');
     expect(api.resetSubmission).toHaveBeenCalledWith(6);
     expect(await within(stan).findByText('Nu a trimis')).toBeInTheDocument();
+  });
+
+  it('keeps the page when a refresh fails, and says why', async () => {
+    // Its own rows: the shared rows above were already reset by the test before.
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [
+        fakeTest({ status: 'open', uploadToken: FAKE_TOKEN }, [
+          fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1, startedAt: '2026-10-06T07:25:00.000Z' }),
+        ]),
+      ],
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin('/teste/6E2-26T1', api);
+    const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
+    vi.mocked(api.getTest).mockRejectedValue(new ApiError(503, 'unavailable', 'Serverul nu răspunde. Încearcă din nou.'));
+    await userEvent.click(within(stan).getByRole('button', { name: 'Resetează' }));
+    expect(await screen.findByText('Serverul nu răspunde. Încearcă din nou.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '6E2-26T1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arată codul QR pe tot ecranul' })).toBeInTheDocument();
   });
 
   it('reopens the uploads of a closed test', async () => {
