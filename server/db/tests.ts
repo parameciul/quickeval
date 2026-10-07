@@ -202,6 +202,25 @@ export async function renameTest(db: D1Database, teacherId: number, code: string
   return row !== null;
 }
 
+// Points the test at a new test or barem file. A new barem also clears the
+// exercise list, which the robot made from the old one (spec §8.5).
+export async function saveTestFile(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  kind: TestFileKind,
+  file: StoredFile,
+  now: string,
+): Promise<void> {
+  const sql =
+    kind === 'test'
+      ? 'UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ? WHERE id = ? AND teacher_id = ?'
+      : `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, updated_at = ?,
+           exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0
+         WHERE id = ? AND teacher_id = ?`;
+  await db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId).run();
+}
+
 // Every R2 key of a test: its test and barem files and all student files.
 export async function listTestKeys(db: D1Database, record: TestRecord): Promise<string[]> {
   const { results } = await db

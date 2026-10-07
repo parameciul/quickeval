@@ -1,10 +1,26 @@
 import { Hono } from 'hono';
 import { createTestBody, renameTestBody } from '../../shared/api.ts';
-import { createTest, deleteTestRow, listTestKeys, listTests, listUploads, renameTest, requireTest, toTestInfo } from '../db/tests.ts';
+import { isTestFileKind, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
+import {
+  createTest,
+  deleteTestRow,
+  listTestKeys,
+  listTests,
+  listUploads,
+  renameTest,
+  requireTest,
+  saveTestFile,
+  toTestInfo,
+} from '../db/tests.ts';
 import type { AppEnv } from '../env.ts';
-import { notFound } from '../errors.ts';
+import { ApiError, notFound } from '../errors.ts';
 import { nowIso, parseSchoolYear, parseTestCode, readJson } from '../http.ts';
-import { deleteFilesQuietly } from '../uploads.ts';
+import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
+
+function parseFileKind(raw: string | undefined): TestFileKind {
+  if (raw === undefined || !isTestFileKind(raw)) throw notFound();
+  return raw;
+}
 
 // /api/admin/tests
 export function testRoutes(): Hono<AppEnv> {
@@ -40,6 +56,32 @@ export function testRoutes(): Hono<AppEnv> {
     await deleteTestRow(c.env.DB, c.var.teacher.id, test.id);
     await deleteFilesQuietly(c.env.FILES, keys);
     return c.json({ deleted: true });
+  });
+
+  // Upload or replace the test or the barem: PDF or Word, at most 25 MB.
+  routes.put('/:code/files/:kind', async (c) => {
+    const kind = parseFileKind(c.req.param('kind'));
+    const teacherId = c.var.teacher.id;
+    const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
+    if (test.summary.status === 'evaluating') {
+      throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba fișierul după ce se termină corectarea.');
+    }
+    const file = await readUpload(c, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
+    const key = testFileKey(teacherId, test.summary.schoolYear, test.summary.code, kind, file.name, file.contentType);
+    await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
+    await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
+    const old = test.files[kind];
+    if (old && old.key !== key) await deleteFilesQuietly(c.env.FILES, [old.key]);
+    return c.json({ file: { name: file.name, type: file.contentType } });
+  });
+
+  routes.get('/:code/files/:kind', async (c) => {
+    const kind = parseFileKind(c.req.param('kind'));
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const stored = test.files[kind];
+    const object = stored ? await c.env.FILES.get(stored.key) : null;
+    if (!stored || !object) throw notFound();
+    return fileResponse(object, stored.name, stored.type);
   });
 
   return routes;
