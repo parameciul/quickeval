@@ -41,6 +41,7 @@ describe('UploadApp', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Nu, aleg alt nume' }));
     expect(screen.getByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
     expect(api.startSession).not.toHaveBeenCalled();
+    expectNoGradingWords();
   });
 
   it('shows the server message when another phone holds the upload', async () => {
@@ -51,6 +52,7 @@ describe('UploadApp', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Da, încep' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea a început pe alt telefon. Roagă profesorul să o reseteze.');
     expect(screen.getByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    expectNoGradingWords();
   });
 
   it('goes straight back to an upload this phone started', async () => {
@@ -60,6 +62,22 @@ describe('UploadApp', () => {
     render(<UploadApp api={api} token={LINK_TOKEN} />);
     expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
     expect(api.startSession).toHaveBeenCalledWith(LINK_TOKEN, 11, 'secret-11');
+    expectNoGradingWords();
+  });
+
+  it('lets a student on a shared phone leave an upload that is not theirs', async () => {
+    const api = createFakeUploadApi();
+    api.seedSession(11);
+    saveSecret(LINK_TOKEN, 11, 'secret-11');
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
+    expect(screen.getByText(/Nu ești Pop Ion\?/)).toBeInTheDocument();
+    expectNoGradingWords();
+    await userEvent.click(screen.getByRole('button', { name: 'Alege alt nume' }));
+    expect(screen.getByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    expect(api.startSession).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(`qe.session.${LINK_TOKEN}.11`)).toBe('secret-11');
+    expectNoGradingWords();
   });
 
   it('says the uploads are closed once the test is closed', async () => {
@@ -75,6 +93,7 @@ describe('UploadApp', () => {
     render(<UploadApp api={api} token={null} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Link greșit. Cere profesorului linkul nou.');
     expect(api.getLink).not.toHaveBeenCalled();
+    expectNoGradingWords();
   });
 
   it('sends a page from start to end and says the work was sent', async () => {
@@ -102,6 +121,7 @@ describe('UploadApp', () => {
     await userEvent.upload(screen.getByLabelText('Alege fișiere'), new File(['%PDF-1.7'], 'scan.pdf', { type: 'application/pdf' }));
     expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
+    expectNoGradingWords();
   });
 
   it('shows the server message for an unknown link', async () => {
@@ -109,5 +129,6 @@ describe('UploadApp', () => {
     api.getLink.mockRejectedValueOnce(new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.'));
     render(<UploadApp api={api} token={LINK_TOKEN} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Link greșit. Cere profesorului linkul nou.');
+    expectNoGradingWords();
   });
 });

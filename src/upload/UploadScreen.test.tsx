@@ -93,6 +93,7 @@ describe('UploadScreen', () => {
     expect(screen.getByRole('button', { name: 'Am trimis tot' })).toBeDisabled();
     finish({ id: 1, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 10, position: 1 });
     expect(await screen.findByText('Încărcat')).toBeInTheDocument();
+    expectNoGradingWords();
   });
 
   it('refuses a HEIC photo before sending anything', async () => {
@@ -101,6 +102,7 @@ describe('UploadScreen', () => {
     await user.upload(screen.getByLabelText('Alege fișiere'), new File(['x'], 'IMG.heic', { type: 'image/heic' }));
     expect(screen.getByRole('alert')).toHaveTextContent('IMG.heic: Trimite poze JPG sau PDF.');
     expect(api.uploadFile).not.toHaveBeenCalled();
+    expectNoGradingWords();
   });
 
   it('takes at most 20 pages', async () => {
@@ -110,6 +112,7 @@ describe('UploadScreen', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Poți trimite cel mult 20 de fișiere.');
     await waitFor(() => expect(api.uploadFile).toHaveBeenCalledTimes(1));
     expect(api.uploadFile.mock.calls[0]![3]).toBe('a.pdf');
+    expectNoGradingWords();
   });
 
   it('refuses a page bigger than 25 MB after the shrink step', async () => {
@@ -119,6 +122,7 @@ describe('UploadScreen', () => {
     expect(await screen.findByText('Fișierul are peste 25 MB.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Încearcă din nou' })).not.toBeInTheDocument();
     expect(api.uploadFile).not.toHaveBeenCalled();
+    expectNoGradingWords();
   });
 
   it('lets the student send a failed page again', async () => {
@@ -132,6 +136,7 @@ describe('UploadScreen', () => {
     expect(api.uploadFile).toHaveBeenCalledTimes(2);
     // The second try sends the file prepared by the first one.
     expect(keepAsIs).toHaveBeenCalledTimes(1);
+    expectNoGradingWords();
   });
 
   it('deletes a sent page on the server', async () => {

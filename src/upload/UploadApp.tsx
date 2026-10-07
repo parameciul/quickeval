@@ -115,13 +115,27 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
             />
           )}
           {phase.kind === 'upload' && token && (
-            <UploadScreen
-              api={api}
-              token={token}
-              session={phase.session}
-              onSent={(fileCount) => setPhase({ kind: 'sent', info: phase.info, fileCount })}
-              onLost={(message) => load(message)}
-            />
+            <>
+              {/* On a shared phone the app may reopen a classmate's upload: this
+                  goes back to the names and keeps that upload's secret. */}
+              <p className="hint">
+                Nu ești {phase.session.studentName}?{' '}
+                <button
+                  type="button"
+                  className="button-quiet button-small"
+                  onClick={() => setPhase({ kind: 'names', info: phase.info, message: null })}
+                >
+                  Alege alt nume
+                </button>
+              </p>
+              <UploadScreen
+                api={api}
+                token={token}
+                session={phase.session}
+                onSent={(fileCount) => setPhase({ kind: 'sent', info: phase.info, fileCount })}
+                onLost={(message) => load(message)}
+              />
+            </>
           )}
           {phase.kind === 'sent' && (
             <section className="sent">
