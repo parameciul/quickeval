@@ -49,6 +49,25 @@ async function studentPages(folder: string): Promise<TaskFile[]> {
   return Promise.all(names.map(async (name) => ({ bytes: await readFile(path.join(dir, name)), contentType: typeFromFileName(name)! })));
 }
 
+// The list that the exercise-list mode wrote, checked again: the teacher may
+// have changed it by hand.
+function readExerciseList(text: string): ExerciseList | null {
+  try {
+    const checked = checkExerciseList(JSON.parse(text));
+    return checked.ok ? checked.value.list : null;
+  } catch {
+    return null;
+  }
+}
+
+function workFolderProblem(err: unknown): string {
+  const { code, syscall } = (err ?? {}) as { code?: unknown; syscall?: unknown };
+  if (code === 'ENOENT' && typeof syscall === 'string' && syscall.includes('pandoc')) {
+    return 'Lipsește pandoc, care deschide fișierele Word. Instalează-l de pe https://pandoc.org/installing.html sau pune testul și baremul ca PDF.';
+  }
+  return 'Fișierele nu au putut fi pregătite pentru Claude. Verifică dacă fișierele Word se deschid în Word.';
+}
+
 function problemText(outcome: Exclude<ClaudeOutcome, { ok: true }>): string {
   switch (outcome.problem) {
     case 'not_logged_in':
@@ -90,7 +109,12 @@ export async function trySkill(args: string[], env: Record<string, string | unde
       print('Lipsește exercises.json. Rulează întâi: npm run try:skill -- exercise-list <dosar>');
       return 1;
     }
-    list = JSON.parse(await readFile(listFile, 'utf8')) as ExerciseList;
+    const saved = readExerciseList(await readFile(listFile, 'utf8'));
+    if (!saved) {
+      print('exercises.json nu este o listă de exerciții bună. Fă-o din nou: npm run try:skill -- exercise-list <dosar>');
+      return 1;
+    }
+    list = saved;
     pages = await studentPages(folder);
     if (pages.length === 0) {
       print(`Pune paginile elevului în ${path.join(folder, 'student')} (JPG, PNG, WebP sau PDF).`);
@@ -104,7 +128,13 @@ export async function trySkill(args: string[], env: Record<string, string | unde
     const configDir = path.join(root, 'claude-config');
     await mkdir(configDir, { recursive: true });
     const claude = options.claude ?? claudeRunner(claudeSettings(env, configDir));
-    const cwd = await makeWorkFolder(root, mode, { test, barem, exerciseList: list, pages }, options.workdir);
+    let cwd: string;
+    try {
+      cwd = await makeWorkFolder(root, mode, { test, barem, exerciseList: list, pages }, options.workdir);
+    } catch (err) {
+      print(workFolderProblem(err));
+      return 1;
+    }
     const jsonSchema = claudeJsonSchema(mode === 'grade' ? gradingResultSchema : exerciseListSchema);
     print(`Claude lucrează (${mode})…`);
     const outcome = await claude({ mode, cwd, jsonSchema });

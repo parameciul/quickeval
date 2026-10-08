@@ -109,6 +109,14 @@ describe('try:skill grade', () => {
     expect(lines).toEqual(['Lipsește exercises.json. Rulează întâi: npm run try:skill -- exercise-list <dosar>']);
   });
 
+  it('refuses an exercises.json that is not an exercise list', async () => {
+    writeFileSync(path.join(folder, 'exercises.json'), '{"exercises": "none"}');
+    const claude = scriptedClaude();
+    expect(await run('grade', claude)).toBe(1);
+    expect(claude.calls).toHaveLength(0);
+    expect(lines).toEqual(['exercises.json nu este o listă de exerciții bună. Fă-o din nou: npm run try:skill -- exercise-list <dosar>']);
+  });
+
   it('needs the pages', async () => {
     rmSync(path.join(folder, 'student'), { recursive: true });
     expect(await run('grade', scriptedClaude())).toBe(1);
@@ -127,6 +135,18 @@ describe('try:skill checks', () => {
   it('needs the Claude token: it never uses the login of this PC', async () => {
     expect(await trySkill(['exercise-list', folder], env, { print: (line) => lines.push(line) })).toBe(1);
     expect(lines).toEqual(['Lipsește CLAUDE_CODE_OAUTH_TOKEN. Fă tokenul cu „claude setup-token” și pune-l în această variabilă.']);
+  });
+
+  it('says when pandoc is missing for a Word file, and removes its work folder', async () => {
+    rmSync(path.join(folder, 'test.pdf'));
+    writeFileSync(path.join(folder, 'test.docx'), 'PK word');
+    const missing = Object.assign(new Error('spawn pandoc ENOENT'), { code: 'ENOENT', syscall: 'spawn pandoc' });
+    const claude = scriptedClaude();
+    const pandoc = async () => Promise.reject(missing);
+    expect(await trySkill(['exercise-list', folder], { RUNNER_TEMP: temp }, { claude: claude.run, workdir: { skillDir, pandoc }, print: (line) => lines.push(line) })).toBe(1);
+    expect(claude.calls).toHaveLength(0);
+    expect(lines.at(-1)).toBe('Lipsește pandoc, care deschide fișierele Word. Instalează-l de pe https://pandoc.org/installing.html sau pune testul și baremul ca PDF.');
+    expect(readdirSync(path.join(temp, 'qe'))).toEqual([]);
   });
 
   it('needs the test and the barem', async () => {
