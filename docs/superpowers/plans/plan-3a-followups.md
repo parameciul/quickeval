@@ -30,4 +30,46 @@ Plan 3a built the closing of tests (now or at a set time), the robot API, and Se
 - A student who is still uploading when a scheduled evaluation starts gets "Încărcarea s-a închis." with a retry button that cannot work; after a reload the phone says "Dacă nu ai trimis lucrarea, spune-i profesorului", although the pages with files were sent without a confirm. Fix in the student app: say that the pages were sent.
 - The robot line counts minutes from the browser's clock.
 - `runner_state.last_run_summary` keeps only the last run.
-- `createSubmission` (`server/db/links.ts`) checks the open test before its INSERT, not inside it. A session started just after the scheduled time makes an empty `uploading` row. It is harmless: nothing promotes it, and the next write says the uploads closed.
+- Starting an upload checks the open test in its route (`server/routes/upload.ts`), before `createSubmission` (`server/db/links.ts`) inserts, not inside the INSERT. A session started just after the scheduled time makes an empty `uploading` row. It is harmless: nothing promotes it, and the next write says the uploads closed.
+
+## Smaller points from the Plan 3a reviews
+
+Each one is small. Fix it when the work goes near it.
+
+Robot API and server:
+
+- The exercise-list sum check rounds to cents (about 0.005); spec §12.5 says 0.001. Rounding the points to cents (see "For Plan 3b") settles it.
+- An exercise id's length counts UTF-16 units, but `cutText` counts code points (`shared/schemas.ts`).
+- Setări's "Robotul lucrează acum" uses a strict JS time comparison, `/check` an inclusive text comparison: they disagree at exactly 15 minutes. Use `staleBefore` in both (`server/db/settings.ts`, `server/routes/runner.ts`).
+- The robot gets zod's English default message for a bad `error`, `ok`, or `stop` value; only `runIdSchema` has a Romanian message (`shared/runner.ts`).
+- The `/lease` answer is not typed as `LeaseResult` (`server/routes/runner.ts`).
+- `/release` answers 409 `lease_lost`, and `/heartbeat` 409 to any run that does not hold the lease. Spec §11.3 and the error list above do not say so.
+- `retrySubmission`'s done → evaluating statement is not gated on its failed → submitted statement. It is safe while a `done` test never has a `submitted` upload (`server/db/lifecycle.ts`).
+- "Folosește oricum" and a barem replaced during the evaluation do not ask GitHub to start the robot. The grading waits for the next check.
+- While the exercise list is `problem` or `failed`, the teacher can also replace the test file, but only a new barem makes the list again.
+- `DELETE /schedule` after the scheduled time answers "Evaluarea nu este programată.", though the evaluation started (`server/routes/tests.ts`).
+- `reopenTest` keeps `evaluation_started_at`: a reopened test's API answer shows the old start time.
+- The comment on `robot` in `shared/api.ts` does not say that it is `null` when "Pornește evaluarea acum" ends the test at once.
+
+Teacher app:
+
+- A scheduled time that is already past (the input's minimum is the current minute, and it gets old on an idle page) starts the evaluation without the confirm, and `schedule.onSuccess` ignores `answer.robot` (`EvaluationControls.tsx`).
+- `robotNotice` on the test page never clears, and its `role="status"` node is already filled when it appears (`TestPage.tsx`).
+- `.warning` repeats the `.tips` block (`src/ui/brand.css`).
+- Setări: "Salvat." stays after the choice changes again (call `save.reset()` on change).
+- Setări: the new robot key shows only after the settings are read again; a second "Fă o cheie nouă" that fails hides the first key, which still works.
+- Setări: a settings read in flight when the save succeeds can put the old value back (`cancelQueries` in `onSuccess` closes it).
+- The copy button of the robot key repeats the one in `UploadLink.tsx`.
+
+Smoke test and docs:
+
+- An interrupted smoke run leaves a test in evaluation with an upload to grade, and every later smoke run claims that upload instead of its own (`scripts/smoke.mjs`). Delete the test in a `finally`, or claim until the run gets its own upload.
+- The spec still says "Plan 3" in places where it means 3a or 3b. It does not have the rulings "a scheduled time is at most 60 days ahead, sent as UTC ISO" and "Reîncearcă and the exercise-list retry also start the robot".
+
+Test gaps:
+
+- `shared/schemas.ts`: an id over 20 characters, a total over 1000, a padded id, over 20 unreadable entries, a `reviewReason` over 500; a `round2` case that fails on the old code (for example `round2(2.135)` = 2.14).
+- Migration 0003: the `confidence` CHECK and `submission_id` UNIQUE.
+- Lifecycle: exactly 60 days ahead, a new time for a scheduled test, scheduling an `evaluating` or `done` test, "Pornește evaluarea acum" clearing the scheduled time; the student GET for an `evaluating` test; `explainRefusal` over HTTP; the dispatch timeout and headers.
+- Robot API: a `/check` requeue while another run holds a fresh lease; a refused `/lease` must not requeue the live run's uploads; a re-lease by the same run; the 15-minute boundary; `ok: false` without the lease and from another run; an R2 object that is missing; deleting an old evaluation; the foreign list retry leaves the list unchanged.
+- Teacher app: the bad-time alert; the 409 answers of start, schedule, cancel, accept, and retry; the robot key gone after a remount; the copy failing; "Teste" not marked current on Setări.

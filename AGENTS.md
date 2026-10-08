@@ -11,7 +11,7 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 
 - `index.html`: the landing page. `admin/index.html`: the teacher app entry (React, served under `/admin/`). `u/index.html`: the student app entry (served under `/u/<token>`).
 - `src/ui/`: brand CSS (colours from the Laura Miron site), brand mark, theme switch, Romanian count labels and dates, the error boundary, `ApiError.ts` (the error type and JSON answer reader of both apps), `bucharestTime.ts` (the schedule input in Romania's time).
-- `src/admin/`: the teacher app. `api.ts` is the only code that calls the API; pages get it from `useApi()`, so tests pass a fake. `testPage/` holds the parts of the test page (files, link, evaluation controls, the barem warning, the robot line, the uploads table). `pages/SettingsPage.tsx` is Setări.
+- `src/admin/`: the teacher app. `api.ts` is the only code that calls the API; pages get it from `useApi()`, so tests pass a fake. `testPage/` holds the parts of the test page (files, link, evaluation controls, the barem warning (`ExerciseListBanner.tsx`), the robot line, the uploads table). `pages/SettingsPage.tsx` is Setări.
 - `src/upload/`: the student app. `api.ts` (the only code that calls `/api/u`, with XMLHttpRequest for upload progress), `session.ts` (the phone's secret in localStorage), `shrink.ts` (photos made smaller on the phone).
 - `src/test/`: test setup, the fake APIs (`fakeApi.ts`, `fakeUploadApi.ts`), `renderAdmin()`, `expectNoGradingWords()`.
 - `functions/api/[[route]].ts`: the Cloudflare Pages entry for `/api/*`. It serves the Hono app from `server/app.ts`.
@@ -19,7 +19,7 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 - `shared/`: code for the API, the browser, and the robot: zod request schemas and response types (`api.ts`), school year, class names, student names, ids, test codes (`tests.ts`), file rules and R2 keys (`files.ts`), the robot's output contracts and their checks (`schemas.ts`), points and grades (`scoring.ts`), the robot API bodies (`runner.ts`).
 - `migrations/`: D1 SQL migrations, numbered. One statement per `;` at a line end (the test helper splits on that), and no `;` inside strings.
 - `public/`: copied as-is into `dist/`: `_routes.json` (only `/api/*` runs Functions), `_redirects`, `_headers`, `theme.js`, `favicon.svg`, `robots.txt`.
-- `scripts/`: `seed-local.sql` (the local teacher), `smoke.mjs` (checks a running local server, including one full upload).
+- `scripts/`: `seed-local.sql` (the local teacher), `smoke.mjs` (checks a running local server, including one full upload and its grading by a pretend robot).
 
 ## Commands
 
@@ -36,7 +36,7 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 - No page tells students that AI grades their work. Student-app tests check every screen with `expectNoGradingWords()`.
 - Every teacher query is scoped by the teacher's id. Ids from URLs go through `parseId`, test codes through `parseTestCode`.
 - Student calls are scoped by the test of the link's token, and an upload by the hash of the phone's secret (`X-Upload-Session`) within that test. Only hashes of secrets are stored.
-- Each student write checks its own rules inside its SQL statement (`server/db/links.ts`: the test is open and its scheduled time has not come, the upload is not sent yet, at most 20 files; confirm is one `db.batch()`). Never turn these into a check before the write: two requests at once would get past it. Starting an upload (`createSubmission`) still checks the open test before its insert (see `docs/superpowers/plans/plan-3a-followups.md`).
+- Each student write checks its own rules inside its SQL statement (`server/db/links.ts`: the test is open and its scheduled time has not come, the upload is not sent yet, at most 20 files; confirm is one `db.batch()`). Never turn these into a check before the write: two requests at once would get past it. Starting an upload still checks the open test in its route (`server/routes/upload.ts`), before `createSubmission` inserts (see `docs/superpowers/plans/plan-3a-followups.md`).
 - The same holds for the robot (`server/db/runner.ts`): a claim, an exercise list, and a result check the lease or the run inside their SQL. `/check` and `/lease` send uploads left in grading by a dead run back to the queue.
 - Robot answers carry ids, counts, and file types, never names: a student's page goes out as `file-<id>`. The robot's logs are public.
 - Every `/api/admin` and `/api/u` request first runs `promoteDueTests` (the `promoteDue` middleware), so a scheduled test closes on time. A router added under them keeps it.
@@ -68,7 +68,7 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 
 - Cloudflare Pages project `quickeval`, connected to the GitHub repo. Every push to `main` deploys. Build command `npm run build`, output `dist`, Node version from `.node-version`. Preview deployments are off: they would share the production database and bucket.
 - `wrangler.toml` is the source of truth for bindings: D1 `DB` → database `quickeval`, R2 `FILES` → bucket `quickeval-files`.
-- Settings `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` are Pages secrets: `npx wrangler pages secret put <NAME> --project-name quickeval`. A new secret applies from the next deployment. `GITHUB_REPO` and `GITHUB_DISPATCH_TOKEN` (spec §12.6) let "Pornește evaluarea" start the robot at once; without them, the robot starts at its next check.
+- Settings `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` are Pages secrets: `npx wrangler pages secret put <NAME> --project-name quickeval`. A new secret applies from the next deployment. `GITHUB_REPO` and the Pages secret `GITHUB_DISPATCH_TOKEN` (spec §12.6) let "Pornește evaluarea", "Reîncearcă" (one upload), and "Încearcă din nou" (the exercise list) start the robot at once; without them, the robot starts at its next check.
 - A new migration runs on the live database before the code that needs it: `npx wrangler d1 migrations apply quickeval --remote`. A new binding's resource (a bucket, a database) exists before the code that binds it reaches `main`.
 - Cloudflare Access ("QuickEval admin") protects only `/admin` and `/api/admin`. Student pages (`/u`, `/api/u`) and the robot (`/api/runner`) must stay outside it.
 - CI (`.github/workflows/ci.yml`) runs the typecheck, the tests, and the build on every push and pull request.
