@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatFileSize, robotStartMessage, studentCountLabel, testStatusLabel, uploadStatusLabel } from './format.ts';
+import {
+  countLabel,
+  formatDateTime,
+  formatFileSize,
+  robotStartMessage,
+  studentCountLabel,
+  testStatusLabel,
+  uploadStatusLabel,
+} from './format.ts';
 
 describe('studentCountLabel', () => {
   it('uses Romanian number words', () => {
@@ -11,6 +19,15 @@ describe('studentCountLabel', () => {
     expect(studentCountLabel(28)).toBe('28 de elevi');
     expect(studentCountLabel(101)).toBe('101 elevi');
     expect(studentCountLabel(200)).toBe('200 de elevi');
+  });
+});
+
+describe('countLabel', () => {
+  it('counts any noun the Romanian way', () => {
+    expect(countLabel(0, 'lucrare', 'lucrări')).toBe('0 lucrări');
+    expect(countLabel(1, 'lucrare', 'lucrări')).toBe('1 lucrare');
+    expect(countLabel(3, 'lucrare', 'lucrări')).toBe('3 lucrări');
+    expect(countLabel(25, 'lucrare', 'lucrări')).toBe('25 de lucrări');
   });
 });
 

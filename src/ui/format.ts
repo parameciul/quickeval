@@ -1,13 +1,16 @@
 import type { RobotStart, UploadStatus } from '../../shared/api.ts';
 import type { TestStatus } from '../../shared/tests.ts';
 
-// Romanian counts: "1 elev", "2 elevi", "20 de elevi" (20 or more, and round
-// hundreds, take "de").
-export function studentCountLabel(count: number): string {
-  if (count === 0) return 'niciun elev';
-  if (count === 1) return '1 elev';
+// Romanian counts: "1 lucrare", "2 lucrări", "20 de lucrări" (20 or more,
+// and round hundreds, take "de").
+export function countLabel(count: number, one: string, many: string): string {
+  if (count === 1) return `1 ${one}`;
   const lastTwo = count % 100;
-  return lastTwo >= 20 || lastTwo === 0 ? `${count} de elevi` : `${count} elevi`;
+  return count > 0 && (lastTwo >= 20 || lastTwo === 0) ? `${count} de ${many}` : `${count} ${many}`;
+}
+
+export function studentCountLabel(count: number): string {
+  return count === 0 ? 'niciun elev' : countLabel(count, 'elev', 'elevi');
 }
 
 const TEST_STATUS: Record<TestStatus, string> = {

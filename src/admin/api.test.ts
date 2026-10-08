@@ -79,6 +79,22 @@ describe('createApiClient evaluation', () => {
   });
 });
 
+describe('createApiClient settings', () => {
+  it('reads and changes the settings and makes a robot key', async () => {
+    const settings = { maxParallelAgents: 2 };
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, { settings, key: 'k'.repeat(43) }));
+    const api = createApiClient({ fetchImpl });
+    expect(await api.getSettings()).toEqual(settings);
+    expect(await api.updateSettings(2)).toEqual(settings);
+    expect(await api.newRobotKey()).toBe('k'.repeat(43));
+    expect(fetchImpl.mock.calls.map(([url, init]) => [init!.method, url, init!.body])).toEqual([
+      ['GET', '/api/admin/settings', undefined],
+      ['PATCH', '/api/admin/settings', '{"maxParallelAgents":2}'],
+      ['POST', '/api/admin/settings/robot-key', undefined],
+    ]);
+  });
+});
+
 describe('createApiClient tests and uploads', () => {
   it('sends a test file raw, with its type and its encoded name', async () => {
     const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>

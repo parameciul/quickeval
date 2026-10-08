@@ -5,6 +5,7 @@ import type {
   CreateTestInput,
   EvaluationStart,
   RobotStart,
+  Settings,
   StartedTest,
   StudentRow,
   SubmissionDetail,
@@ -48,6 +49,10 @@ export interface AdminApi {
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
   resetSubmission(submissionId: number): Promise<void>;
   retrySubmission(submissionId: number): Promise<RobotStart | null>;
+  getSettings(): Promise<Settings>;
+  updateSettings(maxParallelAgents: number): Promise<Settings>;
+  // A new robot key: the only time the app sees it.
+  newRobotKey(): Promise<string>;
 }
 
 // Files open straight from the API: the browser sends the Access login cookie.
@@ -172,5 +177,9 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     },
     retrySubmission: async (submissionId) =>
       (await request<{ robot: RobotStart | null }>('POST', `/submissions/${submissionId}/retry`)).robot,
+    getSettings: async () => (await request<{ settings: Settings }>('GET', '/settings')).settings,
+    updateSettings: async (maxParallelAgents) =>
+      (await request<{ settings: Settings }>('PATCH', '/settings', { maxParallelAgents })).settings,
+    newRobotKey: async () => (await request<{ key: string }>('POST', '/settings/robot-key')).key,
   };
 }

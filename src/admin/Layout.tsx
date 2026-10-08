@@ -32,6 +32,7 @@ export function Layout() {
               Teste
             </Link>
             <NavLink to="/clase">Clase</NavLink>
+            <NavLink to="/setari">Setări</NavLink>
           </nav>
           <div className="header-tools">
             <label className="sr-only" htmlFor="school-year">

@@ -3,6 +3,7 @@ import type {
   ClassSummary,
   EvaluationStart,
   RobotStart,
+  Settings,
   StudentRow,
   SubmissionDetail,
   TestDetail,
@@ -22,7 +23,21 @@ export interface FakeData {
   students: Record<number, StudentRow[]>;
   tests?: TestDetail[];
   submissions?: SubmissionDetail[];
+  settings?: Settings;
 }
+
+// The settings of a new installation, for building fake data in tests.
+export function fakeSettings(overrides: Partial<Settings> = {}): Settings {
+  return {
+    maxParallelAgents: 1,
+    hasRobotKey: false,
+    robot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
+    lastGradedAt: null,
+    ...overrides,
+  };
+}
+
+export const FAKE_ROBOT_KEY = 'fake-robot-key-0123456789abcdefghijklmnopqr';
 
 export const FAKE_TOKEN = 'abcdefghijkmnop2';
 export const FAKE_STARTED_AT = '2026-10-06T07:15:00.000Z';
@@ -82,6 +97,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
   let nextId = 1000;
   const tests = (data.tests ??= []);
   const submissions = (data.submissions ??= []);
+  const settings = (data.settings ??= fakeSettings());
   const countActive = (classId: number) => (data.students[classId] ?? []).filter((s) => s.active).length;
   const findTest = (code: string) => {
     const found = tests.find((t) => t.test.code === code);
@@ -213,6 +229,15 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         if (row) Object.assign(row, { status: 'submitted', lastError: null });
       }
       return 'next_check';
+    }),
+    getSettings: vi.fn(async () => structuredClone(settings)),
+    updateSettings: vi.fn(async (maxParallelAgents: number) => {
+      settings.maxParallelAgents = maxParallelAgents;
+      return structuredClone(settings);
+    }),
+    newRobotKey: vi.fn(async () => {
+      settings.hasRobotKey = true;
+      return FAKE_ROBOT_KEY;
     }),
   } satisfies AdminApi;
   return api;
