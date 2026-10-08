@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DOCX_TYPE } from '../shared/files.ts';
 import type { ClaimResult } from '../shared/runner.ts';
 import type { ExerciseList, GradingResult } from '../shared/schemas.ts';
 import { robotApi } from './api.ts';
@@ -145,6 +146,45 @@ describe('makeExerciseList', () => {
     await world.api.request('POST', `/api/admin/tests/${world.code}/reopen`);
     expect(await makeExerciseList(ctx, world.testId)).toBe('dropped');
     expect(claude.calls).toHaveLength(0);
+  });
+});
+
+describe('a work folder that cannot be made', () => {
+  const setTestFileType = (type: string) => world.api.db.prepare('UPDATE tests SET test_file_type = ? WHERE id = ?').bind(type, world.testId).run();
+
+  it('counts a crash when pandoc refuses a Word file, and removes the half-made folder', async () => {
+    await setTestFileType(DOCX_TYPE);
+    const claude = scriptedClaude();
+    const ctx = await context(claude);
+    ctx.workdir = { skillDir, pandoc: async () => Promise.reject(new Error('pandoc: not a Word file')) };
+    expect(await makeExerciseList(ctx, world.testId)).toBe('retry');
+    expect(claude.calls).toHaveLength(0);
+    expect(await listRow()).toEqual({ status: 'none', attempts: 1 });
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('lets a missing pandoc stop the run: the files are not to blame', async () => {
+    await setTestFileType(DOCX_TYPE);
+    const missing = Object.assign(new Error('spawn pandoc ENOENT'), { code: 'ENOENT', syscall: 'spawn pandoc' });
+    const ctx = await context(scriptedClaude());
+    ctx.workdir = { skillDir, pandoc: async () => Promise.reject(missing) };
+    await expect(makeExerciseList(ctx, world.testId)).rejects.toBe(missing);
+    expect(await listRow()).toEqual({ status: 'none', attempts: 0 });
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('counts a crash for the upload when a file of the test cannot be put in the folder', async () => {
+    await world.api.db
+      .prepare("UPDATE tests SET exercise_list_status = 'ready', exercise_list_json = ?, barem_file_type = 'application/vnd.oasis.opendocument.text' WHERE id = ?")
+      .bind(JSON.stringify(LIST), world.testId)
+      .run();
+    const claude = scriptedClaude();
+    const ctx = await context(claude);
+    const claim = (await ctx.api.claim(RUN))!;
+    expect(await gradeSubmission(ctx, claim)).toBe('retry');
+    expect(claude.calls).toHaveLength(0);
+    expect(await uploadRow()).toMatchObject({ status: 'submitted', attempts: 1 });
+    expect(readdirSync(root)).toEqual([]);
   });
 });
 

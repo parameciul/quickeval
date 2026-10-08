@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { ClaimResult, RobotError } from '../shared/runner.ts';
 import { MAX_ROBOT_BODY_BYTES } from '../shared/runner.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
@@ -111,24 +112,38 @@ async function teacherFiles(ctx: TaskContext, testId: number, files: { test: { c
   return { test: { bytes: test, contentType: files.test.contentType }, barem: { bytes: barem, contentType: files.barem.contentType } };
 }
 
-type MakeFolder = (input: WorkFolderInput) => Promise<string>;
+// Null when the files cannot be put in a work folder (a Word file that pandoc
+// refuses, a file of an unknown type): the task then counts a crash, so one
+// bad file fails after its attempts instead of stopping every run.
+type MakeFolder = (input: WorkFolderInput) => Promise<string | null>;
+
+// A program that the robot needs is missing: the machine is to blame, not
+// the files, so the run stops instead of counting attempts.
+function isMissingProgram(err: unknown): boolean {
+  const { code, syscall } = (err ?? {}) as { code?: unknown; syscall?: unknown };
+  return code === 'ENOENT' && typeof syscall === 'string' && syscall.startsWith('spawn');
+}
 
 // Runs a task that makes its work folder with `makeFolder`, and always
-// removes the folder. A 404 or a 409 while the task reads its files means
-// that the work is gone.
+// removes the folder, also one that failed halfway. A 404 or a 409 while the
+// task reads its files means that the work is gone.
 async function inWorkFolder(ctx: TaskContext, taskId: string, work: (makeFolder: MakeFolder) => Promise<TaskEnd>): Promise<TaskEnd> {
-  let folder: string | null = null;
   try {
     return await work(async (input) => {
-      folder = await makeWorkFolder(ctx.root, taskId, input, ctx.workdir);
-      return folder;
+      try {
+        return await makeWorkFolder(ctx.root, taskId, input, ctx.workdir);
+      } catch (err) {
+        if (isMissingProgram(err)) throw err;
+        log('work folder failed', { task: taskId });
+        return null;
+      }
     });
   } catch (err) {
     const kind = refusal(err);
     if (kind === 'dropped' || kind === 'lease_lost') return kind;
     throw err;
   } finally {
-    if (folder) await removeFolder(folder);
+    await removeFolder(path.join(ctx.root, taskId));
   }
 }
 
@@ -142,6 +157,7 @@ export async function makeExerciseList(ctx: TaskContext, testId: number): Promis
     const files = await teacherFiles(ctx, testId, test.files);
     if (!files) return sendOutcome({ ok: false, problem: 'crash', detail: 'missing file' }, async () => undefined, sendError);
     const cwd = await makeFolder(files);
+    if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'exercise-list', cwd, (output) => checkExerciseList(output).ok);
     return sendOutcome(outcome, (exerciseList) => ctx.api.sendExerciseList(testId, { ...post, ok: true, exerciseList }), sendError);
   });
@@ -162,6 +178,7 @@ export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Pro
       pages.push({ bytes: await ctx.api.page(submissionId, file.id), contentType: file.contentType });
     }
     const cwd = await makeFolder({ ...files, exerciseList: list, pages });
+    if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list).ok);
     return sendOutcome(outcome, (result, model) => ctx.api.sendResult(submissionId, { runId: ctx.runId, ok: true, result, model }), sendError);
   });
