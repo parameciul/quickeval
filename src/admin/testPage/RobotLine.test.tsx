@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { robotLine } from './RobotLine.tsx';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { RobotLine, robotLine } from './RobotLine.tsx';
 
 const NOW = Date.parse('2026-10-08T07:00:00.000Z');
 const ago = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('robotLine', () => {
   it('warns while the robot never checked', () => {
@@ -18,5 +23,20 @@ describe('robotLine', () => {
   it('warns after 30 minutes without a check', () => {
     expect(robotLine(ago(30), NOW)).toEqual({ text: 'Robotul a verificat acum 30 min.', late: true });
     expect(robotLine(ago(120), NOW)).toEqual({ text: 'Robotul a verificat ultima dată la 8 oct. 2026, 08:00.', late: true });
+  });
+});
+
+describe('RobotLine', () => {
+  it('moves on by itself on an open page, and warns once 30 minutes pass without a check', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(NOW);
+    render(<RobotLine lastCheckAt={ago(29)} />);
+    expect(screen.getByText('Robotul a verificat acum 29 min.')).toBeInTheDocument();
+    expect(screen.queryByText('Corectarea poate întârzia.')).not.toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByText('Robotul a verificat acum 30 min.')).toBeInTheDocument();
+    expect(screen.getByText('Corectarea poate întârzia.')).toBeInTheDocument();
   });
 });
