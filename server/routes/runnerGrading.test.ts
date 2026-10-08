@@ -261,23 +261,29 @@ describe('POST /api/runner/submissions/:id/result', () => {
     expect(await uploadRow(id)).toMatchObject({ status: 'grading', run_id: RUN });
   });
 
-  it('refuses the result of an upload whose test the teacher reopened, and grades it after the next start', async () => {
+  it('refuses the result of an upload whose test the teacher reopened, and lets a later run grade it after the next start', async () => {
     const id = await upload(0, '2026-10-07T08:10:00.000Z');
     const graded = await upload(1, '2026-10-07T08:20:00.000Z');
     await claim();
     await claim();
     await sendResult(graded, { ok: true, result: result([4, 4]), model: 'm' });
     expect((await api.request('POST', `/api/admin/tests/${code}/reopen`)).status).toBe(200);
-    expect(await uploadRow(id)).toMatchObject({ status: 'submitted', run_id: null, attempts: 0 });
+    expect(await uploadRow(id)).toMatchObject({ status: 'submitted', run_id: RUN, attempts: 0 });
     expect(await uploadRow(graded)).toMatchObject({ status: 'graded' });
+    expect((await claim()).status).toBe(204);
 
+    // The run keeps grading after the restart, but never takes the upload back:
+    // its old grading of it still sends a result, which is refused.
+    expect((await api.request('POST', `/api/admin/tests/${code}/evaluate`, {})).status).toBe(200);
+    expect((await claim()).status).toBe(204);
     const late = await sendResult(id, { ok: true, result: result([4, 4]), model: 'm' });
     expect(late.status).toBe(409);
     expect(late.body.error).toBe('taken_over');
-    expect((await claim()).status).toBe(204);
 
-    expect((await api.request('POST', `/api/admin/tests/${code}/evaluate`, {})).status).toBe(200);
-    expect((await claim()).body.submissionId).toBe(id);
+    const summary = { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, stop: 'done' };
+    expect((await robot('POST', '/release', { runId: RUN, summary })).status).toBe(200);
+    expect((await robot('POST', '/lease', { runId: OTHER_RUN })).body.granted).toBe(true);
+    expect((await claim(OTHER_RUN)).body.submissionId).toBe(id);
   });
 
   it('refuses a result from another run, for an upload not in grading, and for a deleted upload', async () => {

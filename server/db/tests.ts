@@ -245,8 +245,8 @@ export async function startTest(
 // evaluating or done → open (spec §8.5). Graded results stay; a scheduled
 // evaluation is cancelled; a ready analysis is marked as possibly out of date.
 // An upload that a run is grading goes back to the queue: that run's result is
-// then refused, and the upload is graded after the next Start evaluation, with
-// the files of that time. False when the test was not closed.
+// then refused, and a later run grades the upload after the next Start
+// evaluation, with the files of that time. False when the test was not closed.
 export async function reopenTest(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
   const [reopened] = await db.batch<{ id: number }>([
     db
@@ -258,9 +258,10 @@ export async function reopenTest(db: D1Database, teacherId: number, testId: numb
       )
       .bind(now, testId, teacherId),
     // Only an open test of this teacher: no upload is in grading while a test is open, except after a reopen.
+    // The upload keeps the id of the run it was taken from: that run never claims it again (claimSubmission).
     db
       .prepare(
-        `UPDATE submissions SET status = 'submitted', run_id = NULL
+        `UPDATE submissions SET status = 'submitted'
          WHERE test_id = ? AND status = 'grading'
            AND EXISTS (SELECT 1 FROM tests t WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open')`,
       )

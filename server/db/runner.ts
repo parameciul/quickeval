@@ -238,16 +238,21 @@ export async function holdsLease(db: D1Database, runId: string): Promise<boolean
 // Takes the upload that waits longest among those with the fewest attempts,
 // and marks it as this run's: an upload whose grading just failed waits for
 // the others. One statement, so parallel claims never take the same upload. Null when there
-// is none, or when the run does not hold the lease.
+// is none, or when the run does not hold the lease. A run never takes back an
+// upload that a reopen took from it (reopenTest keeps that run's id): the
+// run's old grading of it may still send a result, which must be refused.
 export async function claimSubmission(db: D1Database, runId: string): Promise<ClaimResult | null> {
   const claimed = await db
     .prepare(
       `UPDATE submissions SET status = 'grading', run_id = ?
-       WHERE id = (SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE} ORDER BY s.attempts, s.submitted_at, s.id LIMIT 1)
+       WHERE id = (
+           SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id
+           WHERE ${GRADABLE} AND (s.run_id IS NULL OR s.run_id <> ?)
+           ORDER BY s.attempts, s.submitted_at, s.id LIMIT 1)
          AND status = 'submitted' AND ${HOLDS_LEASE}
        RETURNING id, test_id`,
     )
-    .bind(runId, runId)
+    .bind(runId, runId, runId)
     .first<{ id: number; test_id: number }>();
   if (!claimed) return null;
   const { results } = await db
