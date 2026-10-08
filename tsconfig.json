@@ -19,5 +19,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "server", "functions", "shared", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "server", "functions", "shared", "runner", "vite.config.ts", "vitest.config.ts"]
 }

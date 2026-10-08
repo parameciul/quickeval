@@ -17,7 +17,7 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['shared/**/*.test.ts', 'server/**/*.test.ts'],
+          include: ['shared/**/*.test.ts', 'server/**/*.test.ts', 'runner/**/*.test.ts'],
           testTimeout: 20000,
           hookTimeout: 30000,
         },
