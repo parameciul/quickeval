@@ -138,6 +138,7 @@ const STOP: Record<RunSummary['stop'], string> = {
   usage_limit: 'S-a oprit la limita planului Claude; continuă mai târziu.',
   lease_lost: 'S-a oprit pentru că a pornit altă rulare.',
   claude_login: 'S-a oprit pentru că tokenul Claude nu mai merge. Fă un token nou (vezi mai jos).',
+  error: 'S-a oprit din cauza unei erori. Detaliile sunt în rularea de pe GitHub.',
 };
 
 // "Ultima rulare s-a încheiat la …: 1 listă de exerciții, 25 de lucrări corectate, 0 lucrări eșuate."

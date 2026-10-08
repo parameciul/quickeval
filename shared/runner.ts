@@ -22,8 +22,9 @@ export const runSummarySchema = z.object({
   failed: z.number().int().min(0),
   analyses: z.number().int().min(0),
   // Why the run stopped taking new work. "claude_login": Claude did not accept
-  // the token, so the run stopped before it spoiled any work.
-  stop: z.enum(['done', 'budget', 'usage_limit', 'lease_lost', 'claude_login']),
+  // the token, so the run stopped before it spoiled any work. "error": the
+  // robot API failed; the GitHub run's log says more.
+  stop: z.enum(['done', 'budget', 'usage_limit', 'lease_lost', 'claude_login', 'error']),
 });
 
 export type RunSummary = z.infer<typeof runSummarySchema>;

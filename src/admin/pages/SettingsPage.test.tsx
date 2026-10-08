@@ -111,4 +111,12 @@ describe('lastRunText', () => {
       'Ultima rulare s-a încheiat la 7 oct. 2026, 12:00: 0 liste de exerciții, 0 lucrări corectate, 0 lucrări eșuate. S-a oprit pentru că tokenul Claude nu mai merge. Fă un token nou (vezi mai jos).',
     );
   });
+
+  it('says when the run stopped because of an error', () => {
+    const robot = fakeSettings().robot;
+    const summary = { exerciseLists: 1, graded: 0, failed: 0, analyses: 0, stop: 'error' } as const;
+    expect(lastRunText({ ...robot, lastRunFinishedAt: '2026-10-07T09:00:00.000Z', lastRunSummary: summary })).toMatch(
+      /1 listă de exerciții, 0 lucrări corectate, 0 lucrări eșuate\. S-a oprit din cauza unei erori\. Detaliile sunt în rularea de pe GitHub\.$/,
+    );
+  });
 });
