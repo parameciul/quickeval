@@ -68,9 +68,10 @@ async function explainRefusal(c: Context<AppEnv>): Promise<void> {
   await openSession(c);
 }
 
+// A student sees every upload after "uploading" as sent: grading belongs to the teacher.
 async function sessionView(c: Context<AppEnv>, current: SessionRecord): Promise<UploadSession> {
   const files = await listSubmissionFiles(c.env.DB, current.submissionId);
-  return { ...current, files: files.map(publicFile) };
+  return { ...current, status: current.status === 'uploading' ? 'uploading' : 'submitted', files: files.map(publicFile) };
 }
 
 // /api/u/<token>: the student app. No login: the token in the link is the key

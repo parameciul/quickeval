@@ -132,6 +132,33 @@ describe('GET /api/runner/submissions/:id/files/:fileId', () => {
     expect(await res.text()).toBe('page one');
   });
 
+  it('serves a page only while its upload is in grading, and answers like a missing file otherwise', async () => {
+    const id = await upload(0, '2026-10-07T08:10:00.000Z');
+    await api.env.FILES.put(`fixture/${id}/1.jpg`, 'page one');
+    const row = await api.db.prepare('SELECT id FROM submission_files WHERE submission_id = ?').bind(id).first<{ id: number }>();
+    const path = `/api/runner/submissions/${id}/files/${row!.id}`;
+    const get = (url: string) => api.fetch(url, { headers: { Authorization: `Bearer ${ROBOT_KEY}` } });
+    const missing = await get(`/api/runner/submissions/${id}/files/99999`);
+    expect(missing.status).toBe(404);
+    const missingBody = await missing.json();
+    const expectMissing = async () => {
+      const res = await get(path);
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual(missingBody);
+    };
+    for (const status of ['uploading', 'submitted', 'failed']) {
+      await api.db.prepare('UPDATE submissions SET status = ? WHERE id = ?').bind(status, id).run();
+      await expectMissing();
+    }
+
+    await api.db.prepare("UPDATE submissions SET status = 'submitted' WHERE id = ?").bind(id).run();
+    await claim();
+    expect((await get(path)).status).toBe(200);
+    await sendResult(id, { ok: true, result: result([4, 2.5]), model: 'm' });
+    expect(await uploadRow(id)).toMatchObject({ status: 'graded' });
+    await expectMissing();
+  });
+
   it('answers 404 for a file of another upload', async () => {
     const id = await upload(0, '2026-10-07T08:10:00.000Z');
     const other = await upload(1, '2026-10-07T08:11:00.000Z');
@@ -279,8 +306,22 @@ describe('the student app after grading', () => {
     expect(again.body.error).toBe('already_submitted');
     const files = await api.request('GET', `/api/u/${token}/files`, undefined, { 'X-Upload-Session': 'phone-secret' });
     expect(files.status).toBe(200);
+    expect(files.body.session.status).toBe('submitted');
     for (const answer of [link.body, again.body, files.body]) {
-      expect(JSON.stringify(answer)).not.toMatch(/"grade"|Corect\.|Verifică semnul|Ai lucrat bine|Robotul|Exersează/);
+      expect(JSON.stringify(answer)).not.toMatch(/grad(e|ed|ing)|failed|Corect\.|Verifică semnul|Ai lucrat bine|Robotul|Exersează|reviewReason|needsReview/);
+    }
+  });
+
+  it('shows an upload that is being graded, or that failed, as sent', async () => {
+    await api.request('POST', `/api/admin/tests/${code}/reopen`);
+    const token = (await api.db.prepare('SELECT upload_token FROM tests WHERE id = ?').bind(testId).first<{ upload_token: string }>())!.upload_token;
+    for (const [index, status] of (['grading', 'failed'] as const).entries()) {
+      const id = await addSubmission(api, code, studentIds[index + 1]!, { status, files: 1 });
+      await api.db.prepare('UPDATE submissions SET session_hash = ? WHERE id = ?').bind(await sha256Hex(`phone-${status}`), id).run();
+      const files = await api.request('GET', `/api/u/${token}/files`, undefined, { 'X-Upload-Session': `phone-${status}` });
+      expect(files.status).toBe(200);
+      expect(files.body.session.status).toBe('submitted');
+      expect(JSON.stringify(files.body)).not.toMatch(/grad(e|ed|ing)|failed/);
     }
   });
 });

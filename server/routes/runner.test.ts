@@ -1,3 +1,4 @@
+import type { D1Database } from '@cloudflare/workers-types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { addSubmission, addTestFiles, makeClass, makeTest, ROBOT_KEY, robotRequest, setRobotKey, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
@@ -42,6 +43,25 @@ describe('robot key', () => {
     await setRobotKey(api, 'a-newer-robot-key-0123456789');
     expect((await robot('POST', '/check')).status).toBe(401);
     expect((await robotRequest(api, 'a-newer-robot-key-0123456789')('POST', '/check')).status).toBe(200);
+  });
+
+  it('refuses a request without a usable key before it reads the database', async () => {
+    const unreadable = {
+      prepare() {
+        throw new Error('the database must not be read');
+      },
+    } as unknown as D1Database;
+    const noDb = await startTestApi({ env: { DB: unreadable } });
+    try {
+      const attempts: Record<string, string>[] = [{}, { Authorization: 'Basic abc' }, { Authorization: 'Bearer short' }, { Authorization: 'Bearer wrong key 0123456789abcdef' }];
+      for (const headers of attempts) {
+        const res = await noDb.request('POST', '/api/runner/check', undefined, headers);
+        expect(res.status).toBe(401);
+        expect(res.body).toEqual({ error: 'robot_denied', message: 'Cheia robotului lipsește sau este greșită.' });
+      }
+    } finally {
+      await noDb.dispose();
+    }
   });
 
   it('refuses every key while none is stored', async () => {
@@ -241,7 +261,7 @@ describe('GET /api/runner/tasks', () => {
 describe('GET /api/runner/tests/:id', () => {
   it('gives the file types and the exercise list, without names or keys', async () => {
     const testId = await testIdOf(api, code);
-    await setTest("exercise_list_json = ?, exercise_list_status = 'ready'", JSON.stringify(LIST));
+    await setTest("status = 'evaluating', exercise_list_json = ?, exercise_list_status = 'ready'", JSON.stringify(LIST));
     const res = await robot('GET', `/tests/${testId}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
@@ -252,6 +272,7 @@ describe('GET /api/runner/tests/:id', () => {
 
   it('streams the test and the barem files', async () => {
     const testId = await testIdOf(api, code);
+    await setTest("status = 'evaluating'");
     await api.env.FILES.put(`fixture/${code}/barem.pdf`, '%PDF-1.7 barem');
     const res = await api.fetch(`/api/runner/tests/${testId}/files/barem`, { headers: { Authorization: `Bearer ${ROBOT_KEY}` } });
     expect(res.status).toBe(200);
@@ -261,9 +282,27 @@ describe('GET /api/runner/tests/:id', () => {
 
   it('answers 404 for an unknown test, kind, or missing file', async () => {
     const testId = await testIdOf(api, code);
+    await setTest("status = 'evaluating'");
     expect((await robot('GET', '/tests/99999')).status).toBe(404);
     expect((await robot('GET', `/tests/${testId}/files/answers`)).status).toBe(404);
     expect((await robot('GET', `/tests/${testId}/files/test`)).status).toBe(404);
+  });
+
+  it('answers a test that is not in evaluation like a test that does not exist', async () => {
+    const testId = await testIdOf(api, code);
+    await api.env.FILES.put(`fixture/${code}/test.pdf`, '%PDF-1.7 test');
+    await api.env.FILES.put(`fixture/${code}/barem.pdf`, '%PDF-1.7 barem');
+    await setTest("exercise_list_json = ?, exercise_list_status = 'ready'", JSON.stringify(LIST));
+    const missing = await robot('GET', '/tests/99999');
+    expect(missing.status).toBe(404);
+    for (const status of ['draft', 'open', 'done']) {
+      await setTest('status = ?', status);
+      for (const path of [`/tests/${testId}`, `/tests/${testId}/files/test`, `/tests/${testId}/files/barem`]) {
+        const res = await robot('GET', path);
+        expect(res.status).toBe(404);
+        expect(res.body).toEqual(missing.body);
+      }
+    }
   });
 });
 
@@ -336,5 +375,18 @@ describe('POST /api/runner/tests/:id/exercise-list', () => {
 
     await api.request('DELETE', `/api/admin/tests/${code}`);
     expect((await saveList({ ok: true, exerciseList: LIST })).status).toBe(404);
+  });
+
+  it('tells a reopened test from a deleted one: 409 for a run that lost the lease, 404 only when the test is gone', async () => {
+    await setTest("status = 'open'");
+    const other = await robot('POST', `/tests/${testId}/exercise-list`, { runId: OTHER_RUN, ok: true, exerciseList: LIST });
+    expect(other.status).toBe(409);
+    expect(other.body.error).toBe('lease_lost');
+    const holder = await saveList({ ok: true, exerciseList: LIST });
+    expect(holder.status).toBe(409);
+    expect(holder.body.error).toBe('not_needed');
+
+    await api.request('DELETE', `/api/admin/tests/${code}`);
+    expect((await robot('POST', `/tests/${testId}/exercise-list`, { runId: OTHER_RUN, ok: true, exerciseList: LIST })).status).toBe(404);
   });
 });

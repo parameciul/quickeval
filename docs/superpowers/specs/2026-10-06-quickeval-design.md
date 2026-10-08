@@ -512,11 +512,11 @@ Auth: `Authorization: Bearer <robot key>`. The API compares the SHA-256 of the k
 | `POST /heartbeat` `{ runId }` | Keeps the lease. 409 if the lease belongs to another run. |
 | `POST /release` `{ runId, summary }` | Frees the lease and saves the summary (counts only). |
 | `GET /tasks` | `{ exerciseLists: number[], pendingGrading: number, analyses: number[] }` (test ids). |
-| `GET /tests/:id` | Id, file types (test, barem), exercise list. |
-| `GET /tests/:id/files/:kind` | Stream the test or barem file. |
+| `GET /tests/:id` | Id, file types (test, barem), exercise list. Only while the test is `evaluating` (else 404, as for a test that does not exist). |
+| `GET /tests/:id/files/:kind` | Stream the test or barem file. Only while the test is `evaluating` (else 404). |
 | `POST /tests/:id/exercise-list` `{ runId, ok: true, exerciseList } \| { runId, ok: false, error }` | Save the list, only from the run that holds the lease (else 409 `lease_lost`) and only while the list is waited for (else 409 `not_needed`). The API validates it (a broken list: 422 `invalid_result`) and sets `ready` or `problem`. On an error it adds 1 to the attempts (none for `usage_limit`) and sets `failed` at 3. |
 | `POST /claim` `{ runId }` | Takes the oldest `submitted` submission of an `evaluating` test whose exercise list is `ready` or `accepted`, and sets it to `grading`, in one statement. Needs the lease (else 409 `lease_lost`). Returns `{ submissionId, testId, files: [{ id, contentType, position }] }`, or 204 when there is none. |
-| `GET /submissions/:id/files/:fileId` | Stream a student file. |
+| `GET /submissions/:id/files/:fileId` | Stream a page of an upload in `grading` (else 404). |
 | `POST /submissions/:id/result` `{ runId, ok: true, result, model } \| { runId, ok: false, error }` | Accepted only when the submission is `grading` and its `run_id` equals `runId`. Otherwise 409 `taken_over` (404 for a deleted submission), and the robot drops the result (another run took the work over). Save a result (§12.5): the API validates it (a broken result: 422 `invalid_result`), computes totals, and stores the evaluation and its items in one batch. `error` is `timeout`, `invalid_output`, `crash`, or `usage_limit`. On `usage_limit` the submission goes back to `submitted` with no attempt counted; else attempts + 1, and `failed` at 3. |
 | `GET /tests/:id/results` | (Plan 4.) Anonymized class data for the analysis: "Elev 1..n", items, points, comments. No names. |
 | `POST /tests/:id/analysis` `{ runId, ok: true, analysis } \| { runId, ok: false, error }` | (Plan 4.) Save the analysis (`ready`, `analysis_stale = 0`). On an error, attempts + 1, and `failed` at 3. Then the API checks whether the test is `done`. |

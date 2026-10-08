@@ -11,11 +11,11 @@ const BEARER = /^Bearer ([A-Za-z0-9_-]{20,200})$/;
 // stored key, every robot request is refused.
 export function robotAuth(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
+    const denied = () => new ApiError(401, 'robot_denied', 'Cheia robotului lipsește sau este greșită.');
     const key = BEARER.exec(c.req.header('Authorization') ?? '')?.[1];
+    if (!key) throw denied();
     const stored = await getRobotKeyHash(c.env.DB);
-    if (!key || !stored || !constantTimeEqual(await sha256Hex(key), stored)) {
-      throw new ApiError(401, 'robot_denied', 'Cheia robotului lipsește sau este greșită.');
-    }
+    if (!stored || !constantTimeEqual(await sha256Hex(key), stored)) throw denied();
     await next();
   };
 }

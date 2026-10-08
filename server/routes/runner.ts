@@ -20,6 +20,7 @@ import {
   saveExerciseList,
   saveGrading,
   takeLease,
+  testExists,
 } from '../db/runner.ts';
 import { getMaxParallel } from '../db/settings.ts';
 import type { AppEnv } from '../env.ts';
@@ -77,8 +78,10 @@ export function runnerRoutes(): Hono<AppEnv> {
 
   routes.get('/tests/:id/files/:kind', async (c) => {
     const kind = c.req.param('kind');
-    const found = await findRobotTest(c.env.DB, parseId(c.req.param('id')));
-    if (!found || !isTestFileKind(kind)) throw notFound();
+    const testId = parseId(c.req.param('id'));
+    if (!isTestFileKind(kind)) throw notFound();
+    const found = await findRobotTest(c.env.DB, testId);
+    if (!found) throw notFound();
     const key = found.keys[kind];
     const type = found.test.files[kind]?.contentType;
     const object = key ? await c.env.FILES.get(key) : null;
@@ -100,8 +103,7 @@ export function runnerRoutes(): Hono<AppEnv> {
       saved = await failExerciseList(c.env.DB, testId, body.runId, body.error, now);
     }
     if (!saved) {
-      const exists = (await findRobotTest(c.env.DB, testId)) !== null;
-      throw await refusedWrite(c, body.runId, exists, () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
+      throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
     }
     return c.json({ exerciseList: saved });
   });

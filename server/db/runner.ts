@@ -137,9 +137,14 @@ export interface RobotTestRecord {
   keys: { test: string | null; barem: string | null };
 }
 
+// A test in evaluation, the only kind the robot reads: a leaked robot key
+// shows nothing of an open test or of one that is done.
 export async function findRobotTest(db: D1Database, testId: number): Promise<RobotTestRecord | null> {
   const row = await db
-    .prepare('SELECT id, test_file_key, test_file_type, barem_file_key, barem_file_type, exercise_list_json FROM tests WHERE id = ?')
+    .prepare(
+      `SELECT id, test_file_key, test_file_type, barem_file_key, barem_file_type, exercise_list_json
+       FROM tests WHERE id = ? AND status = 'evaluating'`,
+    )
     .bind(testId)
     .first<{
       id: number;
@@ -159,6 +164,12 @@ export async function findRobotTest(db: D1Database, testId: number): Promise<Rob
     },
     keys: { test: row.test_file_key, barem: row.barem_file_key },
   };
+}
+
+// The test exists, in any status: tells a deleted test from a lost lease.
+export async function testExists(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db.prepare('SELECT 1 AS found FROM tests WHERE id = ?').bind(testId).first<{ found: number }>();
+  return row !== null;
 }
 
 // The exercise list is saved only for a test in evaluation that waits for
@@ -244,10 +255,14 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
   };
 }
 
-// A student file for the robot: its key and type, never its name.
+// A page of an upload that is being graded: its key and type, never its name.
+// Pages of any other upload stay out of the robot's reach.
 export async function findRobotFile(db: D1Database, submissionId: number, fileId: number): Promise<{ key: string; contentType: string } | null> {
   const row = await db
-    .prepare('SELECT r2_key, content_type FROM submission_files WHERE id = ? AND submission_id = ?')
+    .prepare(
+      `SELECT f.r2_key, f.content_type FROM submission_files f JOIN submissions s ON s.id = f.submission_id
+       WHERE f.id = ? AND f.submission_id = ? AND s.status = 'grading'`,
+    )
     .bind(fileId, submissionId)
     .first<{ r2_key: string; content_type: string }>();
   return row ? { key: row.r2_key, contentType: row.content_type } : null;

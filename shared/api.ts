@@ -265,7 +265,8 @@ export interface UploadSession {
   submissionId: number;
   studentId: number;
   studentName: string;
-  status: Exclude<UploadStatus, 'none'>;
+  // Whatever happens to an upload after "submitted" (grading, graded, failed) stays with the teacher.
+  status: 'uploading' | 'submitted';
   files: SubmissionFile[];
 }
 
