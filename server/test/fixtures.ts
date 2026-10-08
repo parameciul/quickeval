@@ -1,5 +1,6 @@
 import type { UploadStatus } from '../../shared/api.ts';
-import type { TestApi } from './testApi.ts';
+import { sha256Hex } from '../secrets.ts';
+import type { TestApi, TestResponse } from './testApi.ts';
 
 // Shortcuts for API tests: classes, students, and tests through the teacher
 // API; uploads straight in the database.
@@ -131,4 +132,21 @@ export async function otherTeacherTest(api: TestApi, email = 'alt.profesor@examp
     .bind(teacherId, cls!.id)
     .run();
   return { code: '9Z-26T1', studentId: student!.id };
+}
+
+export const ROBOT_KEY = 'test-robot-key-0123456789abcdef';
+
+// Stores the hash of a robot key straight in the database; returns the key.
+export async function setRobotKey(api: TestApi, key = ROBOT_KEY): Promise<string> {
+  await api.db
+    .prepare("INSERT INTO settings (key, value) VALUES ('runner_key_hash', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value")
+    .bind(await sha256Hex(key))
+    .run();
+  return key;
+}
+
+// A request to the robot API with a robot key.
+export function robotRequest(api: TestApi, key = ROBOT_KEY) {
+  return (method: string, path: string, body?: unknown): Promise<TestResponse> =>
+    api.request(method, `/api/runner${path}`, body, { Authorization: `Bearer ${key}` });
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isUploadToken } from '../shared/tests.ts';
-import { newDeviceSecret, newUploadToken, randomBase32, sha256Hex } from './secrets.ts';
+import { constantTimeEqual, newDeviceSecret, newRobotKey, newUploadToken, randomBase32, sha256Hex } from './secrets.ts';
 
 describe('secrets', () => {
   it('makes upload tokens that the student routes accept, different every time', () => {
@@ -17,6 +17,19 @@ describe('secrets', () => {
     const secret = newDeviceSecret();
     expect(secret).toMatch(/^[A-Za-z0-9_-]{32}$/);
     expect(newDeviceSecret()).not.toBe(secret);
+  });
+
+  it('makes 256-bit robot keys in base64url', () => {
+    const key = newRobotKey();
+    expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(newRobotKey()).not.toBe(key);
+  });
+
+  it('compares strings without stopping at the first difference', () => {
+    expect(constantTimeEqual('abc', 'abc')).toBe(true);
+    expect(constantTimeEqual('abc', 'abd')).toBe(false);
+    expect(constantTimeEqual('abc', 'abcd')).toBe(false);
+    expect(constantTimeEqual('', '')).toBe(true);
   });
 
   it('hashes text with SHA-256 as lowercase hex', async () => {

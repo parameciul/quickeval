@@ -34,7 +34,12 @@ const DUE = "t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_
 // are sent as they are ("Fără confirmare"); uploads without files stay. Also
 // finishes the tests that have nothing left to grade.
 export async function promoteDueTests(db: D1Database, now: string): Promise<void> {
-  await db.batch([
+  await db.batch(promoteStatements(db, now));
+}
+
+// The writes of promoteDueTests, for a batch with more writes.
+export function promoteStatements(db: D1Database, now: string): D1PreparedStatement[] {
+  return [
     db
       .prepare(
         `UPDATE submissions
@@ -52,7 +57,7 @@ export async function promoteDueTests(db: D1Database, now: string): Promise<void
       )
       .bind(now, now),
     finishTests(db, now),
-  ]);
+  ];
 }
 
 // An open test of this teacher with the test file, the barem, and at least one

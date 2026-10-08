@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { normalizeClassName } from './classes.ts';
 import type { TestFileKind } from './files.ts';
+import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
 import { cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
@@ -76,6 +77,16 @@ export const renameTestBody = z.object({ title: testTitleSchema });
 // Start evaluation: now (no `at`, or a time that has passed) or at a later time.
 export const evaluateTestBody = z.object({
   at: z.iso.datetime({ message: 'Ora aleasă nu este validă.' }).optional(),
+});
+
+const PARALLEL_MESSAGE = `Alege între 1 și ${MAX_PARALLEL_AGENTS} lucrări corectate deodată.`;
+
+export const updateSettingsBody = z.object({
+  maxParallelAgents: z
+    .number({ message: PARALLEL_MESSAGE })
+    .int({ message: PARALLEL_MESSAGE })
+    .min(1, { message: PARALLEL_MESSAGE })
+    .max(MAX_PARALLEL_AGENTS, { message: PARALLEL_MESSAGE }),
 });
 
 // The student app: start or resume an upload for one student of the class.
@@ -183,6 +194,26 @@ export interface UploadRow {
 export interface TestDetail {
   test: TestInfo;
   uploads: UploadRow[];
+  // For the robot line: when the robot last looked for work.
+  robot: { lastCheckAt: string | null };
+}
+
+// The robot as the teacher sees it on Setări.
+export interface RobotStatus {
+  // A run holds the lease and sent a heartbeat in the last 15 minutes.
+  running: boolean;
+  lastCheckAt: string | null;
+  lastRunFinishedAt: string | null;
+  lastRunSummary: RunSummary | null;
+}
+
+export interface Settings {
+  // How many uploads the robot grades at the same time.
+  maxParallelAgents: number;
+  hasRobotKey: boolean;
+  robot: RobotStatus;
+  // When one of this teacher's uploads was last graded.
+  lastGradedAt: string | null;
 }
 
 // Start test: the link is /u/<uploadToken>.

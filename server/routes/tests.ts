@@ -11,6 +11,7 @@ import {
   scheduleEvaluation,
   startEvaluationNow,
 } from '../db/lifecycle.ts';
+import { lastCheckAt } from '../db/settings.ts';
 import {
   createTest,
   deleteTestRow,
@@ -70,7 +71,11 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
 
   routes.get('/:code', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
-    return c.json({ test: toTestInfo(test), uploads: await listUploads(c.env.DB, test.id, test.summary.classId) });
+    return c.json({
+      test: toTestInfo(test),
+      uploads: await listUploads(c.env.DB, test.id, test.summary.classId),
+      robot: { lastCheckAt: await lastCheckAt(c.env.DB) },
+    });
   });
 
   routes.patch('/:code', async (c) => {

@@ -15,11 +15,28 @@ export function newUploadToken(): string {
   return randomBase32(16);
 }
 
+function randomBase64Url(bytes: number): string {
+  let binary = '';
+  for (const byte of crypto.getRandomValues(new Uint8Array(bytes))) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 // The secret that ties an upload to one phone: 24 bytes (192 bits), base64url.
 export function newDeviceSecret(): string {
-  let binary = '';
-  for (const byte of crypto.getRandomValues(new Uint8Array(24))) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return randomBase64Url(24);
+}
+
+// The robot's key: 32 bytes (256 bits), base64url. Only its hash is stored.
+export function newRobotKey(): string {
+  return randomBase64Url(32);
+}
+
+// Compares two strings in a time that does not depend on where they differ.
+export function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 export async function sha256Hex(text: string): Promise<string> {
