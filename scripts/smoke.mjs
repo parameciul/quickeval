@@ -1,7 +1,9 @@
 // Smoke test against a running local server: `npm run preview` in one
 // terminal, then `npm run smoke` in another. Checks the pages, the /admin and
-// /u rewrites, the security headers, and one full upload with the local login:
-// class, student, test, barem, start, a student's photo, confirm, and delete.
+// /u rewrites, the security headers, one full upload with the local login
+// (class, student, test, barem, start, a student's photo, confirm), and one
+// grading by a pretend robot (robot key, schedule, start evaluation, check,
+// lease, exercise list, claim, page, result, release), then deletes the test.
 // Runs every check, then exits with code 1 if any failed.
 
 const base = process.env.SMOKE_URL ?? 'http://127.0.0.1:8788';
@@ -76,6 +78,9 @@ const test = await api('POST', '/api/admin/tests', { classId, title: 'Test de pr
 const code = test.body?.code;
 check('create a test', test.status === 201 && code === `${name}-26T1`, JSON.stringify(test.body));
 
+const testFile = await api('PUT', `/api/admin/tests/${code}/files/test`, pdf, { 'Content-Type': 'application/pdf', 'X-File-Name': 'test.pdf' });
+check('upload the test file', testFile.status === 200, JSON.stringify(testFile.body));
+
 const barem = await api('PUT', `/api/admin/tests/${code}/files/barem`, pdf, { 'Content-Type': 'application/pdf', 'X-File-Name': encodeURIComponent('barem probă.pdf') });
 check('upload the barem', barem.status === 200 && barem.body?.file?.name === 'barem probă.pdf', JSON.stringify(barem.body));
 const stored = await fetch(`${base}/api/admin/tests/${code}/files/barem`);
@@ -101,6 +106,72 @@ check('the student sends the upload', sent.status === 200 && sent.body?.fileCoun
 const detail = await api('GET', `/api/admin/tests/${code}`);
 const row = detail.body?.uploads?.find((u) => u.studentId === studentId);
 check('the teacher sees the upload', row?.status === 'submitted' && row?.fileCount === 1, JSON.stringify(row));
+
+// A pretend robot grades the upload through the robot API.
+const noKey = await api('POST', '/api/runner/check');
+check('the robot API refuses a request without the key', noKey.status === 401 && noKey.body?.error === 'robot_denied', JSON.stringify(noKey.body));
+
+const keyAnswer = await api('POST', '/api/admin/settings/robot-key');
+const robotKey = keyAnswer.body?.key;
+check('make a robot key', keyAnswer.status === 201 && /^[A-Za-z0-9_-]{43}$/.test(robotKey ?? ''), JSON.stringify(keyAnswer.body));
+const robot = (method, path, body) => api(method, `/api/runner${path}`, body, { Authorization: `Bearer ${robotKey}` });
+
+const later = new Date(Date.now() + 3_600_000).toISOString();
+const scheduled = await api('POST', `/api/admin/tests/${code}/evaluate`, { at: later });
+check('schedule the evaluation', scheduled.status === 200 && scheduled.body?.evaluationAt === later, JSON.stringify(scheduled.body));
+const unscheduled = await api('DELETE', `/api/admin/tests/${code}/schedule`);
+check('cancel the schedule', unscheduled.status === 200, JSON.stringify(unscheduled.body));
+
+const evaluating = await api('POST', `/api/admin/tests/${code}/evaluate`, {});
+check('start the evaluation now', evaluating.status === 200 && evaluating.body?.status === 'evaluating', JSON.stringify(evaluating.body));
+
+const robotCheck = await robot('POST', '/check');
+check('the robot finds work', robotCheck.status === 200 && robotCheck.body?.hasWork === true, JSON.stringify(robotCheck.body));
+
+const runId = 'smoke-run-0001';
+const lease = await robot('POST', '/lease', { runId });
+check('the robot takes the lease', lease.status === 200 && lease.body?.granted === true, JSON.stringify(lease.body));
+
+const tasks = await robot('GET', '/tasks');
+const testId = tasks.body?.exerciseLists?.at(-1);
+check('the test waits for its exercise list', tasks.status === 200 && typeof testId === 'number', JSON.stringify(tasks.body));
+
+const exerciseList = {
+  totalPoints: 10,
+  officePoints: 1,
+  exercises: [{ id: 'I.1', label: 'Subiectul I, exercițiul 1', maxPoints: 9, answer: '42', scoringNotes: '', topic: 'Probă' }],
+  notes: '',
+};
+const savedList = await robot('POST', `/tests/${testId}/exercise-list`, { runId, ok: true, exerciseList });
+check('the robot saves the exercise list', savedList.body?.exerciseList?.status === 'ready', JSON.stringify(savedList.body));
+
+const claimed = await robot('POST', '/claim', { runId });
+check('the robot claims the upload', claimed.status === 200 && claimed.body?.submissionId === row?.submissionId, JSON.stringify(claimed.body));
+const fileId = claimed.body?.files?.[0]?.id;
+const robotPage = await fetch(`${base}/api/runner/submissions/${row?.submissionId}/files/${fileId}`, { headers: { Authorization: `Bearer ${robotKey}` } });
+const robotBytes = new Uint8Array(await robotPage.arrayBuffer());
+check('the robot reads the page', robotPage.status === 200 && robotBytes.length === jpeg.length, String(robotPage.status));
+
+const grading = {
+  items: [{ exerciseId: 'I.1', points: 7.5, studentAnswer: '42', comment: 'Bine.', confidence: 'high', needsReview: false, reviewReason: '' }],
+  unreadable: [],
+  summary: 'Ai lucrat bine.',
+  strengths: ['Calcul'],
+  recommendations: ['Exersează.'],
+};
+const graded = await robot('POST', `/submissions/${row?.submissionId}/result`, { runId, ok: true, result: grading, model: 'smoke' });
+check('the robot saves the grading', graded.status === 200 && graded.body?.status === 'graded', JSON.stringify(graded.body));
+
+const released = await robot('POST', '/release', { runId, summary: { exerciseLists: 1, graded: 1, failed: 0, analyses: 0, stop: 'done' } });
+check('the robot frees the lease', released.status === 200, JSON.stringify(released.body));
+
+const gradedDetail = await api('GET', `/api/admin/tests/${code}`);
+const gradedRow = gradedDetail.body?.uploads?.find((u) => u.studentId === studentId);
+check(
+  'the teacher sees the grade and a finished test',
+  gradedDetail.body?.test?.status === 'done' && gradedRow?.status === 'graded' && gradedRow?.grade === 8.5,
+  JSON.stringify({ status: gradedDetail.body?.test?.status, row: gradedRow }),
+);
 
 const removed = await api('DELETE', `/api/admin/tests/${code}`);
 check('delete the test and its files', removed.status === 200 && (await api('GET', `/api/admin/tests/${code}`)).status === 404, JSON.stringify(removed.body));

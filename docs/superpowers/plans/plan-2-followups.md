@@ -15,12 +15,12 @@ Plan 2 was built task by task with a review after each task and a final whole-br
 - `src/test/gradingWords.ts`: also catches "IA", "A.I." and "I.A." (capitals only) and the text of `aria-label`, `alt`, `title` and `placeholder`. Every student screen test calls it.
 - Spec: four edits (§8.3 `promoteDueTests` comes with Plan 3, §10.2 "Ești <name>?", §10.3 the shared-phone control, §10.5 PDFs as rows).
 
-## For Plan 3
+## For Plan 3 (done in Plan 3a)
 
-- `GET /api/u/<token>` must call `promoteDueTests` (spec §8.3).
-- Resetting an upload has no status guard: the robot must treat a result for a deleted submission as 404.
-- Until Plan 3, a started test cannot be closed: start works only from `draft`, reopen only from `evaluating` or `done`. The link keeps working until the test is deleted, and deleting the test deletes the uploads.
-- `GET /api/admin/tests/:code` does not yet return the exercise-list and analysis status or the robot line (spec §11.1).
+- Every `/api/u` request runs `promoteDueTests` (spec §8.3).
+- A result for a deleted submission answers 404, and the robot drops it.
+- A started test can be closed: Start evaluation, now or scheduled.
+- `GET /api/admin/tests/:code` returns the exercise-list status and the robot line. The analysis status comes with Plan 4.
 
 ## Still open (for Plan 4, the polish plan, unless an earlier plan needs them)
 

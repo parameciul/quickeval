@@ -367,20 +367,20 @@ draft ──Start test──► open ──Start evaluation (now, or when evalua
 ### 8.3 Upload window
 
 - Students can upload only while `status = 'open'`. At other times the student page shows a message.
-- Every API call that reads a test (robot check, teacher page, student page) first runs `promoteDueTests(now)`. This starts the evaluation of open tests whose `evaluation_at` has passed. So a scheduled test closes on time, even when the robot is late. (Plan 3 adds it, together with scheduling: before Plan 3 nothing sets `evaluation_at`.)
+- Every teacher and student API request, and the robot check, first runs `promoteDueTests(now)`. This starts the evaluation of open tests whose `evaluation_at` has passed: their uploads close at that time. So a scheduled test closes on time, even when the robot is late. It also ends the tests that have nothing left to grade (§8.5).
 
 ### 8.4 Start evaluation (open → evaluating)
 
-- Needs: a test file, a barem file, and at least one submission with at least one file. Otherwise the button is off and shows the reason.
+- Needs: a test file, a barem file, and at least one submission with at least one file. Otherwise the button is off and shows the reason. A schedule needs only the two files, because the uploads may still come. At the scheduled time the uploads close even if nobody uploaded; a test with nothing to grade then ends at once.
 - "Now": sets `status = 'evaluating'`, `evaluation_started_at = now`, and clears `evaluation_at`. Submissions in `uploading` that have at least one file become `submitted` with `auto_submitted = 1`. Uploading submissions with no files are left as they are. Then the API sends `repository_dispatch` with `event_type: "evaluate-now"`, so the robot starts in about 1 minute. If the GitHub token is missing, the robot starts at the next 10-minute check, and the UI says so.
 - "Schedule": the teacher picks a future time. It is saved in `evaluation_at`. The test stays `open` until then (§8.3).
 
 ### 8.5 During and after evaluation
 
 - The robot makes the exercise list, grades each submitted upload, then writes the class analysis (§12).
-- `evaluating → done`: no submission is `submitted` or `grading`, and `analysis_status` is `ready` or `failed`.
+- `evaluating → done`: no submission is `submitted` or `grading`, and `analysis_status` is not `requested`. (Plan 4 decides when the first class analysis is asked for.)
 - **Reopen uploads** (from evaluating or done): sets `status = 'open'` and clears `evaluation_at`. Graded results stay. New uploads get graded at the next **Start evaluation**. The analysis is then marked stale.
-- **Replace the test file or the barem**: allowed in any status except `evaluating`. A new barem clears the exercise list (`exercise_list_status = 'none'`). It does not regrade old results. The teacher uses Regrade for that.
+- **Replace the test file or the barem**: allowed in any status except `evaluating`. While evaluating, it is allowed when the exercise list is `problem` or `failed`: the robot then reads neither file. A new barem clears the exercise list (`exercise_list_status = 'none'`). It does not regrade old results. The teacher uses Regrade for that.
 - **Regrade** (one submission, or all graded submissions of the test): deletes their evaluations and sets them to `submitted`. If the test is `done`, it goes back to `evaluating`. If the test is `open`, the regrade waits for Start evaluation. The UI warns that teacher corrections will be lost.
 - **Retry** (a `failed` submission): sets it to `submitted` with 0 attempts. If the test is `done`, it goes back to `evaluating`.
 - **Analysis refresh rule**: each time a test enters `evaluating` (Start evaluation, Regrade, or Retry on a `done` test), an analysis that is `ready` or `failed` becomes `requested` with 0 attempts. So the robot writes a new analysis after the new grades. Teacher corrections only set `analysis_stale = 1`. The teacher then clicks **Regenerează** when she wants a new analysis.
@@ -416,7 +416,7 @@ A school-year switch in the header (default: the current school year) filters Te
   - `problem`: shows the message (for example "Punctajele din barem dau 9, nu 10"). Buttons: replace the barem, **Folosește oricum** (sets `accepted`).
   - `failed`: shows the message and a **Încearcă din nou** button (sets `none` and resets the attempts).
 - Uploads table, refreshed every 10 s while the status is open or evaluating. One row per active student of the class: name, status (Nu a trimis / Încarcă… / Trimis / Se corectează / Corectat / Eroare), file count, time, grade, flag count. "Fără confirmare" marks `auto_submitted`. Row actions: view files and result, **Resetează** (delete the upload so the student can start again), **Reîncearcă** (failed → submitted), **Recorectează** (regrade).
-- Robot line: "Robotul a verificat acum 3 min" from `runner_state.last_check_at`. It shows a warning after 30 min without a check.
+- Robot line: "Robotul a verificat acum 3 min" from `runner_state.last_check_at`, while the test is evaluating or has a scheduled evaluation. It shows a warning after 30 min without a check.
 - Link to the class report when at least one submission is graded.
 
 ## 10. Student app (`/u/<token>`)
@@ -463,7 +463,7 @@ Auth: the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) is checked again in 
 | `GET /students/:id/history` | The student and all graded results (test code, title, class, date, grade). |
 | `GET /tests?year=2026` | Tests list with counts. |
 | `POST /tests` `{ classId, title }` | Create a draft test; returns the code. |
-| `GET /tests/:code` | Test detail, uploads table, exercise-list and analysis status, robot line. |
+| `GET /tests/:code` | Test detail, uploads table, exercise-list status, robot line. (The analysis status comes with Plan 4.) |
 | `PATCH /tests/:code` `{ title }` | Rename. |
 | `DELETE /tests/:code` | Delete the test and its files. |
 | `PUT /tests/:code/files/:kind` (`kind` = `test` or `barem`) | Raw body. Headers `Content-Type`, `Content-Length`, `X-File-Name` (URI-encoded). PDF or DOCX, ≤ 25 MB. |
@@ -507,19 +507,19 @@ Auth: `Authorization: Bearer <robot key>`. The API compares the SHA-256 of the k
 
 | Method and path | Purpose |
 |---|---|
-| `POST /check` | Runs `promoteDueTests`, sets `last_check_at`, returns `{ hasWork, exerciseLists, pendingGrading, analyses }` (counts). |
-| `POST /lease` `{ runId }` | Takes the robot lease if it is free or stale (no heartbeat for 15 min). It then sets every `grading` submission back to `submitted`, because a stale lease means the old run died. Returns `{ granted, maxParallel }`. |
+| `POST /check` | Sends uploads left in `grading` by a run that is not alive back to `submitted`, runs `promoteDueTests`, sets `last_check_at`, returns `{ hasWork, exerciseLists, pendingGrading, analyses }` (counts). |
+| `POST /lease` `{ runId }` | Takes the robot lease if it is free, stale (no heartbeat for 15 min), or already this run's. It then sets every `grading` submission of another run back to `submitted`, because a stale lease means the old run died. Returns `{ granted, maxParallel }`. |
 | `POST /heartbeat` `{ runId }` | Keeps the lease. 409 if the lease belongs to another run. |
 | `POST /release` `{ runId, summary }` | Frees the lease and saves the summary (counts only). |
 | `GET /tasks` | `{ exerciseLists: number[], pendingGrading: number, analyses: number[] }` (test ids). |
-| `GET /tests/:id` | Code, file metadata (test, barem), exercise list. |
+| `GET /tests/:id` | Id, file types (test, barem), exercise list. |
 | `GET /tests/:id/files/:kind` | Stream the test or barem file. |
-| `POST /tests/:id/exercise-list` `{ runId, ok: true, exerciseList } \| { runId, ok: false, error }` | Save the list. The API validates it and sets `ready` or `problem`. On an error it adds 1 to the attempts and sets `failed` at 3. |
-| `POST /claim` `{ runId }` | Takes the oldest `submitted` submission of an `evaluating` test whose exercise list is `ready` or `accepted`, and sets it to `grading`. Returns `{ submissionId, testId, files: [{ id, contentType, position }] }`, or 204 when there is none. |
+| `POST /tests/:id/exercise-list` `{ runId, ok: true, exerciseList } \| { runId, ok: false, error }` | Save the list, only from the run that holds the lease (else 409 `lease_lost`) and only while the list is waited for (else 409 `not_needed`). The API validates it (a broken list: 422 `invalid_result`) and sets `ready` or `problem`. On an error it adds 1 to the attempts (none for `usage_limit`) and sets `failed` at 3. |
+| `POST /claim` `{ runId }` | Takes the oldest `submitted` submission of an `evaluating` test whose exercise list is `ready` or `accepted`, and sets it to `grading`, in one statement. Needs the lease (else 409 `lease_lost`). Returns `{ submissionId, testId, files: [{ id, contentType, position }] }`, or 204 when there is none. |
 | `GET /submissions/:id/files/:fileId` | Stream a student file. |
-| `POST /submissions/:id/result` `{ runId, ok: true, result, model } \| { runId, ok: false, error, retryable }` | Accepted only when the submission is `grading` and its `run_id` equals `runId`. Otherwise 409, and the robot drops the result (another run took the work over). Save a result (§12.5): the API validates it, computes totals, and stores the evaluation and its items in one batch. On an error: if `retryable`, the submission goes back to `submitted`; else attempts + 1, and `failed` at 3. |
-| `GET /tests/:id/results` | Anonymized class data for the analysis: "Elev 1..n", items, points, comments. No names. |
-| `POST /tests/:id/analysis` `{ runId, ok: true, analysis } \| { runId, ok: false, error }` | Save the analysis (`ready`, `analysis_stale = 0`). On an error, attempts + 1, and `failed` at 3. Then the API checks whether the test is `done`. |
+| `POST /submissions/:id/result` `{ runId, ok: true, result, model } \| { runId, ok: false, error }` | Accepted only when the submission is `grading` and its `run_id` equals `runId`. Otherwise 409 `taken_over` (404 for a deleted submission), and the robot drops the result (another run took the work over). Save a result (§12.5): the API validates it (a broken result: 422 `invalid_result`), computes totals, and stores the evaluation and its items in one batch. `error` is `timeout`, `invalid_output`, `crash`, or `usage_limit`. On `usage_limit` the submission goes back to `submitted` with no attempt counted; else attempts + 1, and `failed` at 3. |
+| `GET /tests/:id/results` | (Plan 4.) Anonymized class data for the analysis: "Elev 1..n", items, points, comments. No names. |
+| `POST /tests/:id/analysis` `{ runId, ok: true, analysis } \| { runId, ok: false, error }` | (Plan 4.) Save the analysis (`ready`, `analysis_stale = 0`). On an error, attempts + 1, and `failed` at 3. Then the API checks whether the test is `done`. |
 
 ## 12. Evaluation robot
 
@@ -661,7 +661,7 @@ Checks done by code, not by Claude:
   - `confidence = "low"` always means `needsReview = true`.
   - A non-empty `unreadable` list sets `evaluations.needs_review = 1`.
   - Code computes the total and the grade (§7.3).
-- All text fields are limited in length: comment ≤ 1000 chars, summary ≤ 1500 chars, list entries ≤ 300 chars.
+- All text fields are limited in length: comment ≤ 1000 chars, summary ≤ 1500 chars, list entries ≤ 300 chars. Code cuts a longer text (it ends with "…") instead of refusing the result, so one long comment never wastes a grading.
 
 ### 12.6 Robot key and "Evaluate now"
 
@@ -790,18 +790,12 @@ Each plan ends with working, tested software. Each one gets its own file in `doc
    - the live uploads table, file viewing, reset, reopen;
    - R2 setup.
    - Result: students upload from phones, and the teacher sees who did.
-3. **Evaluation robot**:
-   - the spike (§12.4);
-   - zod contracts and JSON Schemas;
-   - the robot API with lease, claim, and results;
-   - `runner/` with the pool, work folders, pandoc, Claude runs, checks, and scoring;
-   - the first grading skill and the `npm run try:skill` script (§13);
-   - `evaluate.yml`;
-   - Start evaluation (now or scheduled), Evaluate now, and Setări (parallel agents, robot key, robot status).
-   - Result: tests are graded automatically.
+3. **Evaluation robot**, in two plans:
+   - **3a**: zod contracts and their checks; the robot API with lease, claim, and results; Start evaluation (now or scheduled), Evaluate now, and Setări (parallel agents, robot key, robot status). Result: the teacher closes tests on time, and the API is ready for the robot.
+   - **3b**: the spike (§12.4); the JSON Schemas; `runner/` with the pool, work folders, pandoc, Claude runs, and checks; the first grading skill and the `npm run try:skill` script (§13); `evaluate.yml`. Result: tests are graded automatically.
 4. **Review and reports**:
    - the student result page (flags, corrections, Verificat, Regrade);
-   - the class analysis task in the robot;
+   - the class analysis task in the robot (the `ClassAnalysis` contract, `GET /tests/:id/results`, `POST /tests/:id/analysis`, Regenerează);
    - the class report (table, statistics, analysis);
    - PDFs (Romanian font), CSV, Share;
    - the student history page;
