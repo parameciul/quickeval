@@ -1,9 +1,17 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { ExerciseListInfo } from '../../shared/api.ts';
-import { LEASE_STALE_MS, type CheckResult, type RobotError, type RobotTest, type RunSummary, type TasksResult } from '../../shared/runner.ts';
-import type { CheckedExerciseList, ExerciseList } from '../../shared/schemas.ts';
+import {
+  LEASE_STALE_MS,
+  type CheckResult,
+  type ClaimResult,
+  type RobotError,
+  type RobotTest,
+  type RunSummary,
+  type TasksResult,
+} from '../../shared/runner.ts';
+import type { CheckedExerciseList, ExerciseList, Grading } from '../../shared/schemas.ts';
 import type { ExerciseListStatus } from '../../shared/tests.ts';
-import { promoteStatements } from './lifecycle.ts';
+import { finishTests, promoteStatements } from './lifecycle.ts';
 
 // Queries of the robot API (spec §11.3). Each write checks its own rules in
 // its SQL: runs can overlap, and parallel tasks of one run call at once.
@@ -209,4 +217,147 @@ export async function failExerciseList(
 export async function holdsLease(db: D1Database, runId: string): Promise<boolean> {
   const row = await db.prepare('SELECT 1 AS held FROM runner_state WHERE id = 1 AND run_id = ?').bind(runId).first<{ held: number }>();
   return row !== null;
+}
+
+// Takes the oldest upload that can be graded and marks it as this run's. One
+// statement, so parallel claims never take the same upload. Null when there
+// is none, or when the run does not hold the lease.
+export async function claimSubmission(db: D1Database, runId: string): Promise<ClaimResult | null> {
+  const claimed = await db
+    .prepare(
+      `UPDATE submissions SET status = 'grading', run_id = ?
+       WHERE id = (SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE} ORDER BY s.submitted_at, s.id LIMIT 1)
+         AND status = 'submitted' AND ${HOLDS_LEASE}
+       RETURNING id, test_id`,
+    )
+    .bind(runId, runId)
+    .first<{ id: number; test_id: number }>();
+  if (!claimed) return null;
+  const { results } = await db
+    .prepare('SELECT id, content_type, position FROM submission_files WHERE submission_id = ? ORDER BY position, id')
+    .bind(claimed.id)
+    .all<{ id: number; content_type: string; position: number }>();
+  return {
+    submissionId: claimed.id,
+    testId: claimed.test_id,
+    files: results.map((row) => ({ id: row.id, contentType: row.content_type, position: row.position })),
+  };
+}
+
+// A student file for the robot: its key and type, never its name.
+export async function findRobotFile(db: D1Database, submissionId: number, fileId: number): Promise<{ key: string; contentType: string } | null> {
+  const row = await db
+    .prepare('SELECT r2_key, content_type FROM submission_files WHERE id = ? AND submission_id = ?')
+    .bind(fileId, submissionId)
+    .first<{ r2_key: string; content_type: string }>();
+  return row ? { key: row.r2_key, contentType: row.content_type } : null;
+}
+
+// An upload as the result route sees it, with the exercise list of its test.
+export async function findGrading(
+  db: D1Database,
+  submissionId: number,
+): Promise<{ status: string; runId: string | null; exerciseList: ExerciseList | null } | null> {
+  const row = await db
+    .prepare('SELECT s.status, s.run_id, t.exercise_list_json FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?')
+    .bind(submissionId)
+    .first<{ status: string; run_id: string | null; exercise_list_json: string | null }>();
+  if (!row) return null;
+  const exerciseList = row.exercise_list_json ? (JSON.parse(row.exercise_list_json) as ExerciseList) : null;
+  return { status: row.status, runId: row.run_id, exerciseList };
+}
+
+// This run is grading the upload.
+const GRADED_BY_RUN = "EXISTS (SELECT 1 FROM submissions s WHERE s.id = ? AND s.status = 'grading' AND s.run_id = ?)";
+
+// Saves the grading, its items, and the graded upload in one transaction,
+// with a fixed number of queries whatever the number of items. False when
+// the upload is no longer this run's.
+export async function saveGrading(
+  db: D1Database,
+  submissionId: number,
+  runId: string,
+  grading: Grading,
+  raw: unknown,
+  model: string,
+  now: string,
+): Promise<boolean> {
+  const items = JSON.stringify(
+    grading.items.map((item) => ({ ...item, needsReview: item.needsReview ? 1 : 0 })),
+  );
+  const results = await db.batch([
+    db.prepare(`DELETE FROM evaluations WHERE submission_id = ? AND ${GRADED_BY_RUN}`).bind(submissionId, submissionId, runId),
+    db
+      .prepare(
+        `INSERT INTO evaluations (submission_id, max_total, office_points, total, grade, needs_review, summary,
+           strengths_json, recommendations_json, unreadable_json, raw_json, model, created_at, updated_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${GRADED_BY_RUN}`,
+      )
+      .bind(
+        submissionId,
+        grading.maxTotal,
+        grading.officePoints,
+        grading.total,
+        grading.grade,
+        grading.needsReview ? 1 : 0,
+        grading.summary,
+        JSON.stringify(grading.strengths),
+        JSON.stringify(grading.recommendations),
+        JSON.stringify(grading.unreadable),
+        JSON.stringify(raw),
+        model,
+        now,
+        now,
+        submissionId,
+        runId,
+      ),
+    db
+      .prepare(
+        `INSERT INTO evaluation_items (evaluation_id, exercise_id, position, label, max_points, ai_points, points,
+           student_answer, comment, confidence, needs_review, review_reason)
+         SELECT e.id, json_extract(j.value, '$.exerciseId'), json_extract(j.value, '$.position'), json_extract(j.value, '$.label'),
+           json_extract(j.value, '$.maxPoints'), json_extract(j.value, '$.points'), json_extract(j.value, '$.points'),
+           json_extract(j.value, '$.studentAnswer'), json_extract(j.value, '$.comment'), json_extract(j.value, '$.confidence'),
+           json_extract(j.value, '$.needsReview'), json_extract(j.value, '$.reviewReason')
+         FROM json_each(?) j JOIN evaluations e ON e.submission_id = ?
+         WHERE ${GRADED_BY_RUN}`,
+      )
+      .bind(items, submissionId, submissionId, runId),
+    db
+      .prepare(
+        `UPDATE submissions SET status = 'graded', graded_at = ?, run_id = NULL, last_error = NULL
+         WHERE id = ? AND status = 'grading' AND run_id = ?
+         RETURNING id`,
+      )
+      .bind(now, submissionId, runId),
+    finishTests(db, now),
+  ]);
+  return Boolean(results[3]?.results.length);
+}
+
+// The robot could not grade: the upload goes back to the queue with one more
+// attempt (none for a usage limit), and fails at MAX_ATTEMPTS with a message
+// for the teacher. Null when the upload is no longer this run's.
+export async function failGrading(
+  db: D1Database,
+  submissionId: number,
+  runId: string,
+  error: RobotError,
+  now: string,
+): Promise<'submitted' | 'failed' | null> {
+  const counted = error === 'usage_limit' ? 0 : 1;
+  const [updated] = await db.batch<{ status: 'submitted' | 'failed' }>([
+    db
+      .prepare(
+        `UPDATE submissions SET attempts = attempts + ?,
+           status = CASE WHEN attempts + ? >= ? THEN 'failed' ELSE 'submitted' END,
+           last_error = CASE WHEN attempts + ? >= ? THEN ? ELSE last_error END,
+           run_id = NULL
+         WHERE id = ? AND status = 'grading' AND run_id = ?
+         RETURNING status`,
+      )
+      .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], submissionId, runId),
+    finishTests(db, now),
+  ]);
+  return updated?.results[0]?.status ?? null;
 }

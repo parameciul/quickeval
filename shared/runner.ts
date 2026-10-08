@@ -68,3 +68,18 @@ export interface RobotTest {
   files: { test: { contentType: string } | null; barem: { contentType: string } | null };
   exerciseList: ExerciseList | null;
 }
+
+// A grading, checked by checkGrading (shared/schemas.ts), or why the robot
+// could not grade. Only a usage limit is tried again without an attempt.
+export const resultBody = z.discriminatedUnion('ok', [
+  z.object({ runId: runIdSchema, ok: z.literal(true), result: z.unknown(), model: z.string().max(100) }),
+  z.object({ runId: runIdSchema, ok: z.literal(false), error: robotErrorSchema }),
+]);
+
+// POST /claim: an upload to grade, its test, and its files in upload order.
+// No names: the robot names the pages by their order.
+export interface ClaimResult {
+  submissionId: number;
+  testId: number;
+  files: { id: number; contentType: string; position: number }[];
+}

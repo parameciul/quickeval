@@ -2,11 +2,15 @@ import type { Context } from 'hono';
 import { Hono } from 'hono';
 import type { ExerciseListInfo } from '../../shared/api.ts';
 import { isTestFileKind } from '../../shared/files.ts';
-import { exerciseListBody, releaseBody, runBody } from '../../shared/runner.ts';
-import { checkExerciseList } from '../../shared/schemas.ts';
+import { exerciseListBody, releaseBody, resultBody, runBody } from '../../shared/runner.ts';
+import { checkExerciseList, checkGrading } from '../../shared/schemas.ts';
 import { robotAuth } from '../auth/robotAuth.ts';
 import {
+  claimSubmission,
   failExerciseList,
+  failGrading,
+  findGrading,
+  findRobotFile,
   findRobotTest,
   heartbeat,
   holdsLease,
@@ -14,6 +18,7 @@ import {
   releaseLease,
   runCheck,
   saveExerciseList,
+  saveGrading,
   takeLease,
 } from '../db/runner.ts';
 import { getMaxParallel } from '../db/settings.ts';
@@ -99,6 +104,48 @@ export function runnerRoutes(): Hono<AppEnv> {
       throw await refusedWrite(c, body.runId, exists, () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
     }
     return c.json({ exerciseList: saved });
+  });
+
+  // The oldest upload that can be graded, now this run's; 204 when none.
+  routes.post('/claim', async (c) => {
+    const { runId } = await readJson(c, runBody);
+    const claimed = await claimSubmission(c.env.DB, runId);
+    if (claimed) return c.json(claimed);
+    if (!(await holdsLease(c.env.DB, runId))) throw leaseLost();
+    return c.body(null, 204);
+  });
+
+  // A student's page. Its name stays out: the student may have typed a name in it.
+  routes.get('/submissions/:id/files/:fileId', async (c) => {
+    const fileId = parseId(c.req.param('fileId'));
+    const file = await findRobotFile(c.env.DB, parseId(c.req.param('id')), fileId);
+    const object = file ? await c.env.FILES.get(file.key) : null;
+    if (!file || !object) throw notFound();
+    return fileResponse(object, `file-${fileId}`, file.contentType);
+  });
+
+  // A grading, or why the robot could not grade. Accepted only from the run
+  // that is grading the upload; otherwise 409 and the robot drops it (spec §11.3).
+  routes.post('/submissions/:id/result', async (c) => {
+    const submissionId = parseId(c.req.param('id'));
+    const body = await readJson(c, resultBody);
+    const takenOver = () => new ApiError(409, 'taken_over', 'Lucrarea nu mai este corectată de această rulare.');
+    const current = await findGrading(c.env.DB, submissionId);
+    if (!current) throw notFound();
+    if (current.status !== 'grading' || current.runId !== body.runId) throw takenOver();
+    const now = nowIso();
+    if (body.ok) {
+      if (!current.exerciseList) throw takenOver();
+      const checked = checkGrading(body.result, current.exerciseList);
+      if (!checked.ok) throw invalidResult();
+      if (!(await saveGrading(c.env.DB, submissionId, body.runId, checked.value, body.result, body.model, now))) {
+        throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();
+      }
+      return c.json({ status: 'graded' });
+    }
+    const status = await failGrading(c.env.DB, submissionId, body.runId, body.error, now);
+    if (!status) throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();
+    return c.json({ status });
   });
 
   return routes;
