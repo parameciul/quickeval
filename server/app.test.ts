@@ -69,7 +69,19 @@ describe('test database', () => {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
       .all<{ name: string }>();
     expect(tables.results.map((table) => table.name)).toEqual(
-      expect.arrayContaining(['teachers', 'classes', 'students', 'enrollments', 'tests', 'submissions', 'submission_files']),
+      expect.arrayContaining([
+        'teachers',
+        'classes',
+        'students',
+        'enrollments',
+        'tests',
+        'submissions',
+        'submission_files',
+        'evaluations',
+        'evaluation_items',
+        'settings',
+        'runner_state',
+      ]),
     );
   });
 
@@ -118,6 +130,56 @@ describe('test database', () => {
       )
       .bind(api.teacherId, cls!.id);
     await expect(insert.run()).rejects.toThrow(/CHECK constraint failed/);
+  });
+
+  it('deletes a grading and its items together with the upload', async () => {
+    const db = api.db;
+    const cls = await db
+      .prepare("INSERT INTO classes (teacher_id, name, school_year, created_at) VALUES (?, 'C3', 2026, 't') RETURNING id")
+      .bind(api.teacherId)
+      .first<{ id: number }>();
+    const student = await db
+      .prepare("INSERT INTO students (teacher_id, full_name, created_at) VALUES (?, 'Pop Ana', 't') RETURNING id")
+      .bind(api.teacherId)
+      .first<{ id: number }>();
+    const test = await db
+      .prepare(
+        "INSERT INTO tests (teacher_id, class_id, number, code, title, created_at, updated_at) VALUES (?, ?, 1, 'C3-26T1', 'T', 't', 't') RETURNING id",
+      )
+      .bind(api.teacherId, cls!.id)
+      .first<{ id: number }>();
+    const submission = await db
+      .prepare("INSERT INTO submissions (test_id, student_id, status, started_at) VALUES (?, ?, 'graded', 't') RETURNING id")
+      .bind(test!.id, student!.id)
+      .first<{ id: number }>();
+    const evaluation = await db
+      .prepare(
+        `INSERT INTO evaluations (submission_id, max_total, office_points, total, grade, needs_review, summary,
+           strengths_json, recommendations_json, unreadable_json, raw_json, created_at, updated_at)
+         VALUES (?, 10, 1, 9, 9, 0, 'S', '[]', '[]', '[]', '{}', 't', 't') RETURNING id`,
+      )
+      .bind(submission!.id)
+      .first<{ id: number }>();
+    await db
+      .prepare(
+        `INSERT INTO evaluation_items (evaluation_id, exercise_id, position, label, max_points, ai_points, points,
+           student_answer, comment, confidence, needs_review, review_reason)
+         VALUES (?, 'I.1', 1, 'L', 9, 8, 8, 'a', 'c', 'high', 0, '')`,
+      )
+      .bind(evaluation!.id)
+      .run();
+
+    await db.prepare('DELETE FROM submissions WHERE id = ?').bind(submission!.id).run();
+    const left = await db
+      .prepare('SELECT (SELECT COUNT(*) FROM evaluations) AS evaluations, (SELECT COUNT(*) FROM evaluation_items) AS items')
+      .first<{ evaluations: number; items: number }>();
+    expect(left).toEqual({ evaluations: 0, items: 0 });
+  });
+
+  it('has exactly one robot state row', async () => {
+    const rows = await api.db.prepare('SELECT id, run_id FROM runner_state').all<{ id: number; run_id: string | null }>();
+    expect(rows.results).toEqual([{ id: 1, run_id: null }]);
+    await expect(api.db.prepare('INSERT INTO runner_state (id) VALUES (2)').run()).rejects.toThrow(/CHECK constraint failed/);
   });
 
   it('has a file bucket', async () => {
