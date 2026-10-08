@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
-import type { AppEnv } from './env.ts';
+import type { AppEnv, AppOptions } from './env.ts';
 import { ApiError } from './errors.ts';
 import { adminRoutes } from './routes/admin.ts';
 import { uploadRoutes } from './routes/upload.ts';
 
 // The whole API. functions/api/[[route]].ts serves it on Cloudflare Pages.
-export function createApp(): Hono<AppEnv> {
+export function createApp(options: AppOptions = {}): Hono<AppEnv> {
   const app = new Hono<AppEnv>().basePath('/api');
 
   // public/_headers does not reach Function responses, so the API sets its own:
@@ -17,7 +17,7 @@ export function createApp(): Hono<AppEnv> {
     if (!c.res.headers.has('Cache-Control')) c.res.headers.set('Cache-Control', 'no-store');
   });
 
-  app.route('/admin', adminRoutes());
+  app.route('/admin', adminRoutes(options));
   app.route('/u', uploadRoutes());
 
   app.notFound((c) => c.json({ error: 'not_found', message: 'Nu am găsit ce cauți.' }, 404));

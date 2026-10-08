@@ -1,6 +1,9 @@
 import { Hono } from 'hono';
-import { createTestBody, renameTestBody } from '../../shared/api.ts';
+import type { D1Database } from '@cloudflare/workers-types';
+import { createTestBody, evaluateTestBody, renameTestBody, type EvaluationStart } from '../../shared/api.ts';
 import { isTestFileKind, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
+import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
+import { cancelSchedule, hasUploadedFiles, scheduleEvaluation, startEvaluationNow } from '../db/lifecycle.ts';
 import {
   createTest,
   deleteTestRow,
@@ -14,7 +17,8 @@ import {
   startTest,
   toTestInfo,
 } from '../db/tests.ts';
-import type { AppEnv } from '../env.ts';
+import { robotStarter } from '../dispatch.ts';
+import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError, notFound } from '../errors.ts';
 import { nowIso, parseSchoolYear, parseTestCode, readJson } from '../http.ts';
 import { newUploadToken } from '../secrets.ts';
@@ -25,9 +29,26 @@ function parseFileKind(raw: string | undefined): TestFileKind {
   return raw;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Why an evaluation could not start or be scheduled. Read after the write
+// changed nothing, so it describes the test as it is now.
+async function evaluationBlocker(db: D1Database, teacherId: number, code: string, needsUploads: boolean): Promise<ApiError> {
+  const test = await requireTest(db, teacherId, code);
+  if (test.summary.status === 'draft') return new ApiError(409, 'not_started', 'Testul nu a început încă.');
+  if (test.summary.status !== 'open') return new ApiError(409, 'already_evaluating', 'Evaluarea a pornit deja.');
+  if (!test.files.test) return new ApiError(409, 'missing_test_file', 'Încarcă testul înainte de evaluare.');
+  if (!test.files.barem) return new ApiError(409, 'missing_barem', 'Încarcă baremul înainte de evaluare.');
+  if (needsUploads && !(await hasUploadedFiles(db, test.id))) {
+    return new ApiError(409, 'no_uploads', 'Niciun elev nu a încărcat încă fișiere.');
+  }
+  return new ApiError(409, 'busy', 'Testul s-a schimbat între timp. Încearcă din nou.');
+}
+
 // /api/admin/tests
-export function testRoutes(): Hono<AppEnv> {
+export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
+  const startRobot = robotStarter(options);
 
   routes.get('/', async (c) => {
     const year = parseSchoolYear(c.req.query('year'));
@@ -78,6 +99,38 @@ export function testRoutes(): Hono<AppEnv> {
       throw new ApiError(409, 'already_open', 'Încărcarea este deja deschisă.');
     }
     return c.json({ status: 'open' });
+  });
+
+  // Start evaluation (spec §8.4): now, or at a later time. Now: the uploads
+  // close and the robot is asked to start at once.
+  routes.post('/:code/evaluate', async (c) => {
+    const teacherId = c.var.teacher.id;
+    const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
+    const body = await readJson(c, evaluateTestBody);
+    const now = nowIso();
+    // Stored the way nowIso() writes times, so the times compare as text.
+    const at = body.at === undefined ? null : new Date(body.at).toISOString();
+    if (at !== null && at > now) {
+      if (Date.parse(at) - Date.parse(now) > MAX_SCHEDULE_DAYS * DAY_MS) {
+        throw new ApiError(400, 'invalid', `Alege o oră din următoarele ${MAX_SCHEDULE_DAYS} de zile.`);
+      }
+      if (!(await scheduleEvaluation(c.env.DB, teacherId, test.id, at, now))) {
+        throw await evaluationBlocker(c.env.DB, teacherId, test.summary.code, false);
+      }
+      return c.json({ status: 'open', evaluationAt: at, robot: null } satisfies EvaluationStart);
+    }
+    const status = await startEvaluationNow(c.env.DB, teacherId, test.id, now);
+    if (status === null) throw await evaluationBlocker(c.env.DB, teacherId, test.summary.code, true);
+    const robot = status === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ status, evaluationAt: null, robot } satisfies EvaluationStart);
+  });
+
+  routes.delete('/:code/schedule', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (!(await cancelSchedule(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
+      throw new ApiError(409, 'not_scheduled', 'Evaluarea nu este programată.');
+    }
+    return c.json({ status: 'open', evaluationAt: null });
   });
 
   // Upload or replace the test or the barem: PDF or Word, at most 25 MB.

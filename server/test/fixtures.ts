@@ -55,6 +55,16 @@ export async function addSubmission(
   return submissionId;
 }
 
+// Marks the test file and the barem as uploaded (rows only; nothing in R2).
+export async function addTestFiles(api: TestApi, code: string, kinds: ('test' | 'barem')[] = ['test', 'barem']): Promise<void> {
+  for (const kind of kinds) {
+    await api.db
+      .prepare(`UPDATE tests SET ${kind}_file_key = ?, ${kind}_file_name = ?, ${kind}_file_type = 'application/pdf' WHERE code = ?`)
+      .bind(`fixture/${code}/${kind}.pdf`, `${kind}.pdf`, code)
+      .run();
+  }
+}
+
 // Start test through the teacher API; returns the upload token of the link.
 export async function startTest(api: TestApi, code: string): Promise<string> {
   const res = await api.request('POST', `/api/admin/tests/${code}/start`);

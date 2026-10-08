@@ -3,6 +3,8 @@ import type { z } from 'zod';
 import { parsePositiveId } from '../shared/ids.ts';
 import { isValidSchoolYear, schoolYearOf } from '../shared/schoolYear.ts';
 import { normalizeTestCode } from '../shared/tests.ts';
+import { promoteDueTests } from './db/lifecycle.ts';
+import type { AppEnv } from './env.ts';
 import { ApiError, notFound } from './errors.ts';
 
 // Reads a JSON body and checks it with a zod schema. The first problem becomes
@@ -62,3 +64,10 @@ export const sameOriginWrites: MiddlewareHandler = async (c, next) => {
 export function nowIso(): string {
   return new Date().toISOString();
 }
+
+// Teacher and student requests first start the evaluations whose scheduled
+// time has come, so every page shows a scheduled test closed on time (spec §8.3).
+export const promoteDue: MiddlewareHandler<AppEnv> = async (c, next) => {
+  await promoteDueTests(c.env.DB, nowIso());
+  await next();
+};

@@ -30,6 +30,8 @@ interface TestRow {
   school_year: number;
   created_at: string;
   started_at: string | null;
+  evaluation_at: string | null;
+  evaluation_started_at: string | null;
   upload_token: string | null;
   test_file_key: string | null;
   test_file_name: string | null;
@@ -43,7 +45,7 @@ interface TestRow {
 
 const SELECT_TEST = `
   SELECT t.id, t.code, t.title, t.status, t.class_id, c.name AS class_name, c.school_year,
-    t.created_at, t.started_at, t.upload_token,
+    t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
@@ -66,6 +68,8 @@ function toRecord(row: TestRow): TestRecord {
       schoolYear: row.school_year,
       createdAt: row.created_at,
       startedAt: row.started_at,
+      evaluationAt: row.evaluation_at,
+      evaluationStartedAt: row.evaluation_started_at,
       studentCount: row.student_count,
       submittedCount: row.submitted_count,
     },

@@ -21,7 +21,7 @@ import {
 import { listSubmissionFiles, publicFile } from '../db/submissions.ts';
 import type { AppEnv } from '../env.ts';
 import { ApiError, isUniqueViolation } from '../errors.ts';
-import { nowIso, parseId, readJson, sameOriginWrites } from '../http.ts';
+import { nowIso, parseId, promoteDue, readJson, sameOriginWrites } from '../http.ts';
 import { newDeviceSecret, randomBase32, sha256Hex } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
 
@@ -69,7 +69,7 @@ async function sessionView(c: Context<AppEnv>, current: SessionRecord): Promise<
 // to one test, and a secret kept on the phone is the key to one upload.
 export function uploadRoutes(): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
-  routes.use('*', sameOriginWrites);
+  routes.use('*', sameOriginWrites, promoteDue);
 
   routes.get('/:token', async (c) => {
     const test = await linkTest(c);

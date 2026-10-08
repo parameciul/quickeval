@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import type { D1Database } from '@cloudflare/workers-types';
 import { getPlatformProxy } from 'wrangler';
 import { createApp } from '../app.ts';
-import type { Env } from '../env.ts';
+import type { AppOptions, Env } from '../env.ts';
 
 // API tests run the real Hono app in Node against the local D1 and R2 engines
 // that `wrangler pages dev` also uses. getPlatformProxy reads the bindings from
@@ -53,7 +53,7 @@ export async function applyMigrations(db: D1Database): Promise<void> {
   }
 }
 
-export async function startTestApi(options: { env?: Partial<Env> } = {}): Promise<TestApi> {
+export async function startTestApi(options: { env?: Partial<Env>; app?: AppOptions } = {}): Promise<TestApi> {
   const platform = await getPlatformProxy<Pick<Env, 'DB' | 'FILES'>>({
     configPath: WRANGLER_CONFIG,
     persist: false,
@@ -80,7 +80,7 @@ export async function startTestApi(options: { env?: Partial<Env> } = {}): Promis
   }
 
   const env: Env = { DB: db, FILES: platform.env.FILES, DEV_TEACHER_EMAIL: TEACHER_EMAIL, ...options.env };
-  const app = createApp();
+  const app = createApp(options.app);
   const send = (path: string, init: RequestInit = {}) => Promise.resolve(app.request(`http://localhost${path}`, init, env));
 
   return {

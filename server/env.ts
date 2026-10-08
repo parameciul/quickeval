@@ -9,6 +9,16 @@ export interface Env {
   ACCESS_AUD?: string;
   // Local development only: honoured only for requests to localhost or 127.0.0.1.
   DEV_TEACHER_EMAIL?: string;
+  // "Evaluate now" (spec §12.6): the repository as owner/name, and a GitHub
+  // token that may send it a repository_dispatch event.
+  GITHUB_REPO?: string;
+  GITHUB_DISPATCH_TOKEN?: string;
+}
+
+// Parts of the app that tests replace.
+export interface AppOptions {
+  // Asks the robot to start at once; true when the request was taken.
+  dispatchRobot?: (env: Env) => Promise<boolean>;
 }
 
 export interface AppEnv {

@@ -2,6 +2,9 @@ export type TestStatus = 'draft' | 'open' | 'evaluating' | 'done';
 
 export const MAX_TITLE_LENGTH = 120;
 
+// An evaluation can be scheduled at most this many days ahead.
+export const MAX_SCHEDULE_DAYS = 60;
+
 const TEST_CODE = /^[A-Z0-9]{1,8}-\d{2}T\d{1,3}$/;
 const UPLOAD_TOKEN = /^[a-z2-7]{16}$/;
 

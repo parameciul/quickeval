@@ -44,6 +44,8 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       schoolYear: 2026,
       createdAt: '2026-10-05T08:00:00.000Z',
       startedAt: null,
+      evaluationAt: null,
+      evaluationStartedAt: null,
       studentCount: uploads.filter((row) => row.active).length,
       submittedCount: uploads.filter((row) => row.status !== 'none' && row.status !== 'uploading').length,
       uploadToken: null,

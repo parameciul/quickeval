@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DOCX_TYPE, PDF_TYPE } from '../../shared/files.ts';
-import { makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
+import { addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
 let code: string;
+let studentId: number;
 
 const pdf = (text: string) => new TextEncoder().encode(`%PDF-1.7 ${text}`);
 const docx = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00]);
@@ -19,7 +20,8 @@ function putFile(testCode: string, kind: string, body: BodyInit, type: string, n
 
 beforeEach(async () => {
   api = await startTestApi();
-  const cls = await makeClass(api, '6E2');
+  const cls = await makeClass(api, '6E2', ['Pop Ion']);
+  studentId = cls.studentIds[0]!;
   code = await makeTest(api, cls.id);
 });
 
@@ -78,6 +80,8 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
   });
 
   it('refuses a new file while the test is being graded', async () => {
+    // An upload waits for grading, so the test stays in evaluation.
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
     await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE code = ?").bind(code).run();
     const res = await putFile(code, 'test', pdf('x'), PDF_TYPE, 'test.pdf');
     expect(res.status).toBe(409);

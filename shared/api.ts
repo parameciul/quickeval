@@ -73,6 +73,11 @@ export const createTestBody = z.object({
 
 export const renameTestBody = z.object({ title: testTitleSchema });
 
+// Start evaluation: now (no `at`, or a time that has passed) or at a later time.
+export const evaluateTestBody = z.object({
+  at: z.iso.datetime({ message: 'Ora aleasă nu este validă.' }).optional(),
+});
+
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({
   studentId: z
@@ -123,6 +128,10 @@ export interface TestSummary {
   createdAt: string;
   // When Start test opened the uploads: the "date and hour" of the test.
   startedAt: string | null;
+  // While open: when the evaluation starts by itself. Null when not scheduled.
+  evaluationAt: string | null;
+  // When the uploads closed and the evaluation started.
+  evaluationStartedAt: string | null;
   // Active students of the class, and uploads that were sent (confirmed or included).
   studentCount: number;
   submittedCount: number;
@@ -165,6 +174,17 @@ export interface StartedTest {
   status: TestStatus;
   uploadToken: string;
   startedAt: string;
+}
+
+// "dispatched": the robot was asked to start at once. "next_check": it starts
+// at its next regular check.
+export type RobotStart = 'dispatched' | 'next_check';
+
+// Start evaluation: `robot` is null when the evaluation was only scheduled.
+export interface EvaluationStart {
+  status: TestStatus;
+  evaluationAt: string | null;
+  robot: RobotStart | null;
 }
 
 // One uploaded page or PDF, in upload order.

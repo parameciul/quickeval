@@ -74,9 +74,9 @@ describe('GET /api/u/:token', () => {
   });
 
   it('shows no names once the uploads are closed', async () => {
-    await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE code = ?").bind(code).run();
+    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(code).run();
     const res = await api.request('GET', `/api/u/${token}`);
-    expect(res.body).toEqual({ test: { code, title: 'Fracții', className: '6E2', status: 'evaluating' }, students: [] });
+    expect(res.body).toEqual({ test: { code, title: 'Fracții', className: '6E2', status: 'done' }, students: [] });
   });
 
   it('marks every answer as not cacheable', async () => {
