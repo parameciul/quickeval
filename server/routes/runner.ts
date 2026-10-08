@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { Hono } from 'hono';
 import type { ExerciseListInfo } from '../../shared/api.ts';
 import { isTestFileKind } from '../../shared/files.ts';
-import { exerciseListBody, releaseBody, resultBody, runBody } from '../../shared/runner.ts';
+import { exerciseListBody, type LeaseResult, MAX_ROBOT_BODY_BYTES, releaseBody, resultBody, runBody } from '../../shared/runner.ts';
 import { checkExerciseList, checkGrading } from '../../shared/schemas.ts';
 import { robotAuth } from '../auth/robotAuth.ts';
 import {
@@ -53,7 +53,8 @@ export function runnerRoutes(): Hono<AppEnv> {
   routes.post('/lease', async (c) => {
     const { runId } = await readJson(c, runBody);
     const granted = await takeLease(c.env.DB, runId, nowIso());
-    return c.json({ granted, maxParallel: await getMaxParallel(c.env.DB) });
+    const answer: LeaseResult = { granted, maxParallel: await getMaxParallel(c.env.DB) };
+    return c.json(answer);
   });
 
   routes.post('/heartbeat', async (c) => {
@@ -89,18 +90,19 @@ export function runnerRoutes(): Hono<AppEnv> {
     return fileResponse(object, kind, type);
   });
 
-  // The exercise list of a test, or why the robot could not make it.
+  // The exercise list of a test, or why the robot could not make it. A list
+  // made from files that the teacher replaced meanwhile is no longer needed.
   routes.post('/tests/:id/exercise-list', async (c) => {
     const testId = parseId(c.req.param('id'));
-    const body = await readJson(c, exerciseListBody);
+    const body = await readJson(c, exerciseListBody, MAX_ROBOT_BODY_BYTES);
     const now = nowIso();
     let saved: ExerciseListInfo | null;
     if (body.ok) {
       const checked = checkExerciseList(body.exerciseList);
       if (!checked.ok) throw invalidResult();
-      saved = await saveExerciseList(c.env.DB, testId, body.runId, checked.value, now);
+      saved = await saveExerciseList(c.env.DB, testId, body.runId, body.filesVersion, checked.value, now);
     } else {
-      saved = await failExerciseList(c.env.DB, testId, body.runId, body.error, now);
+      saved = await failExerciseList(c.env.DB, testId, body.runId, body.filesVersion, body.error, now);
     }
     if (!saved) {
       throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
@@ -130,7 +132,7 @@ export function runnerRoutes(): Hono<AppEnv> {
   // that is grading the upload; otherwise 409 and the robot drops it (spec §11.3).
   routes.post('/submissions/:id/result', async (c) => {
     const submissionId = parseId(c.req.param('id'));
-    const body = await readJson(c, resultBody);
+    const body = await readJson(c, resultBody, MAX_ROBOT_BODY_BYTES);
     const takenOver = () => new ApiError(409, 'taken_over', 'Lucrarea nu mai este corectată de această rulare.');
     const current = await findGrading(c.env.DB, submissionId);
     if (!current) throw notFound();

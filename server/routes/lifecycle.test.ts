@@ -78,9 +78,12 @@ describe('POST /api/admin/tests/:code/reopen', () => {
 
   it('answers 404 for a test of another teacher', async () => {
     const foreign = await otherTeacherTest(api);
-    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(foreign.code).run();
+    await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE code = ?").bind(foreign.code).run();
+    const grading = await addSubmission(api, foreign.code, foreign.studentId, { status: 'grading', files: 1 });
     expect((await api.request('POST', `/api/admin/tests/${foreign.code}/reopen`)).status).toBe(404);
     const row = await api.db.prepare('SELECT status FROM tests WHERE code = ?').bind(foreign.code).first<{ status: string }>();
-    expect(row?.status).toBe('done');
+    expect(row?.status).toBe('evaluating');
+    const upload = await api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(grading).first<{ status: string }>();
+    expect(upload?.status).toBe('grading');
   });
 });

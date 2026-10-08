@@ -142,12 +142,13 @@ export interface RobotTestRecord {
 export async function findRobotTest(db: D1Database, testId: number): Promise<RobotTestRecord | null> {
   const row = await db
     .prepare(
-      `SELECT id, test_file_key, test_file_type, barem_file_key, barem_file_type, exercise_list_json
+      `SELECT id, files_version, test_file_key, test_file_type, barem_file_key, barem_file_type, exercise_list_json
        FROM tests WHERE id = ? AND status = 'evaluating'`,
     )
     .bind(testId)
     .first<{
       id: number;
+      files_version: number;
       test_file_key: string | null;
       test_file_type: string | null;
       barem_file_key: string | null;
@@ -159,6 +160,7 @@ export async function findRobotTest(db: D1Database, testId: number): Promise<Rob
   return {
     test: {
       id: row.id,
+      filesVersion: row.files_version,
       files: { test: file(row.test_file_key, row.test_file_type), barem: file(row.barem_file_key, row.barem_file_type) },
       exerciseList: row.exercise_list_json ? (JSON.parse(row.exercise_list_json) as ExerciseList) : null,
     },
@@ -173,8 +175,9 @@ export async function testExists(db: D1Database, testId: number): Promise<boolea
 }
 
 // The exercise list is saved only for a test in evaluation that waits for
-// it, and only from the run that holds the lease.
-const WAITS_FOR_LIST = `id = ? AND status = 'evaluating' AND exercise_list_status = 'none' AND ${HOLDS_LEASE}`;
+// it, only from the run that holds the lease, and only when the teacher did
+// not replace a file after the robot read the test.
+const WAITS_FOR_LIST = `id = ? AND files_version = ? AND status = 'evaluating' AND exercise_list_status = 'none' AND ${HOLDS_LEASE}`;
 
 function listInfo(row: { exercise_list_status: ExerciseListStatus; exercise_list_message: string | null } | null): ExerciseListInfo | null {
   return row ? { status: row.exercise_list_status, message: row.exercise_list_message } : null;
@@ -185,6 +188,7 @@ export async function saveExerciseList(
   db: D1Database,
   testId: number,
   runId: string,
+  filesVersion: number,
   checked: CheckedExerciseList,
   now: string,
 ): Promise<ExerciseListInfo | null> {
@@ -194,7 +198,7 @@ export async function saveExerciseList(
        WHERE ${WAITS_FOR_LIST}
        RETURNING exercise_list_status, exercise_list_message`,
     )
-    .bind(JSON.stringify(checked.list), checked.status, checked.message, now, testId, runId)
+    .bind(JSON.stringify(checked.list), checked.status, checked.message, now, testId, filesVersion, runId)
     .first<{ exercise_list_status: ExerciseListStatus; exercise_list_message: string | null }>();
   return listInfo(row);
 }
@@ -206,6 +210,7 @@ export async function failExerciseList(
   db: D1Database,
   testId: number,
   runId: string,
+  filesVersion: number,
   error: RobotError,
   now: string,
 ): Promise<ExerciseListInfo | null> {
@@ -219,7 +224,7 @@ export async function failExerciseList(
        WHERE ${WAITS_FOR_LIST}
        RETURNING exercise_list_status, exercise_list_message`,
     )
-    .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], now, testId, runId)
+    .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], now, testId, filesVersion, runId)
     .first<{ exercise_list_status: ExerciseListStatus; exercise_list_message: string | null }>();
   return listInfo(row);
 }
@@ -230,14 +235,15 @@ export async function holdsLease(db: D1Database, runId: string): Promise<boolean
   return row !== null;
 }
 
-// Takes the oldest upload that can be graded and marks it as this run's. One
-// statement, so parallel claims never take the same upload. Null when there
+// Takes the upload that waits longest among those with the fewest attempts,
+// and marks it as this run's: an upload whose grading just failed waits for
+// the others. One statement, so parallel claims never take the same upload. Null when there
 // is none, or when the run does not hold the lease.
 export async function claimSubmission(db: D1Database, runId: string): Promise<ClaimResult | null> {
   const claimed = await db
     .prepare(
       `UPDATE submissions SET status = 'grading', run_id = ?
-       WHERE id = (SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE} ORDER BY s.submitted_at, s.id LIMIT 1)
+       WHERE id = (SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE} ORDER BY s.attempts, s.submitted_at, s.id LIMIT 1)
          AND status = 'submitted' AND ${HOLDS_LEASE}
        RETURNING id, test_id`,
     )

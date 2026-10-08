@@ -8,15 +8,19 @@ import type { AppEnv } from './env.ts';
 import { ApiError, notFound } from './errors.ts';
 
 // Reads a JSON body and checks it with a zod schema. The first problem becomes
-// a 400 with the schema's Romanian message.
-export async function readJson<Schema extends z.ZodType>(c: Context, schema: Schema): Promise<z.output<Schema>> {
+// a 400 with the schema's Romanian message. A body over `maxBytes` gets 413.
+export async function readJson<Schema extends z.ZodType>(c: Context, schema: Schema, maxBytes?: number): Promise<z.output<Schema>> {
   const type = c.req.header('Content-Type') ?? '';
   if (!type.toLowerCase().startsWith('application/json')) {
     throw new ApiError(415, 'bad_content_type', 'Cererea trebuie trimisă ca JSON.');
   }
+  const tooLarge = () => new ApiError(413, 'too_large', 'Cererea este prea mare.');
+  if (maxBytes !== undefined && Number(c.req.header('Content-Length') ?? 0) > maxBytes) throw tooLarge();
+  const bytes = await c.req.arrayBuffer();
+  if (maxBytes !== undefined && bytes.byteLength > maxBytes) throw tooLarge();
   let body: unknown;
   try {
-    body = await c.req.json();
+    body = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     throw new ApiError(400, 'bad_json', 'Cererea nu este JSON valid.');
   }

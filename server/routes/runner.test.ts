@@ -14,6 +14,13 @@ const setTest = (sql: string, ...params: unknown[]) =>
   api.db.prepare(`UPDATE tests SET ${sql} WHERE code = ?`).bind(...params, code).run();
 const setRunner = (sql: string, ...params: unknown[]) =>
   api.db.prepare(`UPDATE runner_state SET ${sql} WHERE id = 1`).bind(...params).run();
+// The teacher replaces the test file or the barem with a small PDF.
+const putFile = (kind: string, text: string) =>
+  api.fetch(`/api/admin/tests/${code}/files/${kind}`, {
+    method: 'PUT',
+    body: new TextEncoder().encode(`%PDF-1.7 ${text}`),
+    headers: { 'Content-Type': 'application/pdf', 'X-File-Name': `${kind}.pdf` },
+  });
 const uploadStatus = async (id: number) =>
   (await api.db.prepare('SELECT status, run_id FROM submissions WHERE id = ?').bind(id).first()) as { status: string; run_id: string | null };
 
@@ -236,6 +243,13 @@ describe('POST /api/runner/heartbeat and /release', () => {
     expect((await robot('POST', '/lease', { runId: OTHER_RUN })).body.granted).toBe(true);
   });
 
+  it('keeps the summary of a run that stopped because Claude refused the token', async () => {
+    await robot('POST', '/lease', { runId: RUN });
+    const summary = { ...SUMMARY, graded: 0, stop: 'claude_login' };
+    expect((await robot('POST', '/release', { runId: RUN, summary })).status).toBe(200);
+    expect((await runner())?.last_run_summary).toBe(JSON.stringify(summary));
+  });
+
   it('refuses a summary with more than counts', async () => {
     await robot('POST', '/lease', { runId: RUN });
     const res = await robot('POST', '/release', { runId: RUN, summary: { ...SUMMARY, stop: 'tired' } });
@@ -265,9 +279,24 @@ describe('GET /api/runner/tests/:id', () => {
     const res = await robot('GET', `/tests/${testId}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      test: { id: testId, files: { test: { contentType: 'application/pdf' }, barem: { contentType: 'application/pdf' } }, exerciseList: LIST },
+      test: {
+        id: testId,
+        filesVersion: 0,
+        files: { test: { contentType: 'application/pdf' }, barem: { contentType: 'application/pdf' } },
+        exerciseList: LIST,
+      },
     });
     expect(JSON.stringify(res.body)).not.toMatch(/Pop Ion|fixture|\.pdf"/);
+  });
+
+  it('counts each file that the teacher replaces', async () => {
+    const testId = await testIdOf(api, code);
+    for (const kind of ['test', 'barem', 'barem']) {
+      const put = await putFile(kind, 'nou');
+      expect(put.status).toBe(200);
+    }
+    await setTest("status = 'evaluating'");
+    expect((await robot('GET', `/tests/${testId}`)).body.test.filesVersion).toBe(3);
   });
 
   it('streams the test and the barem files', async () => {
@@ -308,7 +337,7 @@ describe('GET /api/runner/tests/:id', () => {
 
 describe('POST /api/runner/tests/:id/exercise-list', () => {
   let testId: number;
-  const saveList = (body: object) => robot('POST', `/tests/${testId}/exercise-list`, { runId: RUN, ...body });
+  const saveList = (body: object) => robot('POST', `/tests/${testId}/exercise-list`, { runId: RUN, filesVersion: 0, ...body });
   const listRow = () =>
     api.db.prepare('SELECT exercise_list_status, exercise_list_message, exercise_list_attempts, exercise_list_json FROM tests WHERE id = ?').bind(testId).first<{
       exercise_list_status: string;
@@ -339,6 +368,30 @@ describe('POST /api/runner/tests/:id/exercise-list', () => {
     expect((await robot('POST', '/check')).body.pendingGrading).toBe(0);
   });
 
+  it('refuses a list made from files that the teacher replaced after the robot read the test', async () => {
+    const read = await robot('GET', `/tests/${testId}`);
+    expect(read.body.test.filesVersion).toBe(0);
+    await setTest("exercise_list_status = 'problem'");
+    expect((await putFile('barem', 'corectat')).status).toBe(200);
+
+    const stale = await saveList({ ok: true, exerciseList: LIST });
+    expect(stale.status).toBe(409);
+    expect(stale.body.error).toBe('not_needed');
+    expect((await saveList({ ok: false, error: 'timeout' })).status).toBe(409);
+    expect(await listRow()).toMatchObject({ exercise_list_status: 'none', exercise_list_attempts: 0, exercise_list_json: null });
+
+    const fresh = await saveList({ filesVersion: 1, ok: true, exerciseList: LIST });
+    expect(fresh.status).toBe(200);
+    expect(fresh.body.exerciseList.status).toBe('ready');
+  });
+
+  it('refuses a body over 1 MB', async () => {
+    const res = await saveList({ ok: true, exerciseList: { ...LIST, notes: 'x'.repeat(1_000_000) } });
+    expect(res.status).toBe(413);
+    expect(res.body.error).toBe('too_large');
+    expect(await listRow()).toMatchObject({ exercise_list_status: 'none', exercise_list_json: null });
+  });
+
   it('refuses a broken list and changes nothing', async () => {
     const res = await saveList({ ok: true, exerciseList: { ...LIST, exercises: [] } });
     expect(res.status).toBe(422);
@@ -364,7 +417,7 @@ describe('POST /api/runner/tests/:id/exercise-list', () => {
   });
 
   it('refuses a run without the lease, a list no longer needed, and a deleted test', async () => {
-    const other = await robot('POST', `/tests/${testId}/exercise-list`, { runId: OTHER_RUN, ok: true, exerciseList: LIST });
+    const other = await robot('POST', `/tests/${testId}/exercise-list`, { runId: OTHER_RUN, filesVersion: 0, ok: true, exerciseList: LIST });
     expect(other.status).toBe(409);
     expect(other.body.error).toBe('lease_lost');
 
@@ -379,7 +432,7 @@ describe('POST /api/runner/tests/:id/exercise-list', () => {
 
   it('tells a reopened test from a deleted one: 409 for a run that lost the lease, 404 only when the test is gone', async () => {
     await setTest("status = 'open'");
-    const other = await robot('POST', `/tests/${testId}/exercise-list`, { runId: OTHER_RUN, ok: true, exerciseList: LIST });
+    const other = await robot('POST', `/tests/${testId}/exercise-list`, { runId: OTHER_RUN, filesVersion: 0, ok: true, exerciseList: LIST });
     expect(other.status).toBe(409);
     expect(other.body.error).toBe('lease_lost');
     const holder = await saveList({ ok: true, exerciseList: LIST });
@@ -387,6 +440,6 @@ describe('POST /api/runner/tests/:id/exercise-list', () => {
     expect(holder.body.error).toBe('not_needed');
 
     await api.request('DELETE', `/api/admin/tests/${code}`);
-    expect((await robot('POST', `/tests/${testId}/exercise-list`, { runId: OTHER_RUN, ok: true, exerciseList: LIST })).status).toBe(404);
+    expect((await robot('POST', `/tests/${testId}/exercise-list`, { runId: OTHER_RUN, filesVersion: 0, ok: true, exerciseList: LIST })).status).toBe(404);
   });
 });

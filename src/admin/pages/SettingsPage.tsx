@@ -137,6 +137,7 @@ const STOP: Record<RunSummary['stop'], string> = {
   budget: 'S-a oprit după 2 ore; continuă la următoarea verificare.',
   usage_limit: 'S-a oprit la limita planului Claude; continuă mai târziu.',
   lease_lost: 'S-a oprit pentru că a pornit altă rulare.',
+  claude_login: 'S-a oprit pentru că tokenul Claude nu mai merge. Fă un token nou (vezi mai jos).',
 };
 
 // "Ultima rulare s-a încheiat la …: 1 listă de exerciții, 25 de lucrări corectate, 0 lucrări eșuate."

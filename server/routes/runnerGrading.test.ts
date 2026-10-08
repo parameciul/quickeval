@@ -103,6 +103,15 @@ describe('POST /api/runner/claim', () => {
     expect(answers.filter((res) => res.status === 204)).toHaveLength(1);
   });
 
+  it('takes an upload whose grading failed only after the others', async () => {
+    const failing = await upload(0, '2026-10-07T08:10:00.000Z');
+    const later = await upload(1, '2026-10-07T08:20:00.000Z');
+    expect((await claim()).body.submissionId).toBe(failing);
+    await sendResult(failing, { ok: false, error: 'crash' });
+    expect((await claim()).body.submissionId).toBe(later);
+    expect((await claim()).body.submissionId).toBe(failing);
+  });
+
   it('answers 204 when nothing can be graded', async () => {
     await upload(0, '2026-10-07T08:10:00.000Z');
     await api.db.prepare("UPDATE tests SET exercise_list_status = 'problem' WHERE id = ?").bind(testId).run();
@@ -241,6 +250,34 @@ describe('POST /api/runner/submissions/:id/result', () => {
     expect(res.body.error).toBe('invalid_result');
     expect(await uploadRow(id)).toMatchObject({ status: 'grading', run_id: RUN });
     expect(await api.db.prepare('SELECT COUNT(*) AS n FROM evaluations').first()).toEqual({ n: 0 });
+  });
+
+  it('refuses a result over 1 MB and keeps the upload in grading', async () => {
+    const id = await upload(0, '2026-10-07T08:10:00.000Z');
+    await claim();
+    const res = await sendResult(id, { ok: true, result: result([4, 4], { summary: 's'.repeat(1_000_000) }), model: 'm' });
+    expect(res.status).toBe(413);
+    expect(res.body.error).toBe('too_large');
+    expect(await uploadRow(id)).toMatchObject({ status: 'grading', run_id: RUN });
+  });
+
+  it('refuses the result of an upload whose test the teacher reopened, and grades it after the next start', async () => {
+    const id = await upload(0, '2026-10-07T08:10:00.000Z');
+    const graded = await upload(1, '2026-10-07T08:20:00.000Z');
+    await claim();
+    await claim();
+    await sendResult(graded, { ok: true, result: result([4, 4]), model: 'm' });
+    expect((await api.request('POST', `/api/admin/tests/${code}/reopen`)).status).toBe(200);
+    expect(await uploadRow(id)).toMatchObject({ status: 'submitted', run_id: null, attempts: 0 });
+    expect(await uploadRow(graded)).toMatchObject({ status: 'graded' });
+
+    const late = await sendResult(id, { ok: true, result: result([4, 4]), model: 'm' });
+    expect(late.status).toBe(409);
+    expect(late.body.error).toBe('taken_over');
+    expect((await claim()).status).toBe(204);
+
+    expect((await api.request('POST', `/api/admin/tests/${code}/evaluate`, {})).status).toBe(200);
+    expect((await claim()).body.submissionId).toBe(id);
   });
 
   it('refuses a result from another run, for an upload not in grading, and for a deleted upload', async () => {

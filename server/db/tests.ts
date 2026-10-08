@@ -244,22 +244,34 @@ export async function startTest(
 
 // evaluating or done → open (spec §8.5). Graded results stay; a scheduled
 // evaluation is cancelled; a ready analysis is marked as possibly out of date.
-// False when the test was not closed.
+// An upload that a run is grading goes back to the queue: that run's result is
+// then refused, and the upload is graded after the next Start evaluation, with
+// the files of that time. False when the test was not closed.
 export async function reopenTest(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `UPDATE tests SET status = 'open', evaluation_at = NULL, updated_at = ?,
-         analysis_stale = CASE WHEN analysis_status = 'ready' THEN 1 ELSE analysis_stale END
-       WHERE id = ? AND teacher_id = ? AND status IN ('evaluating', 'done')
-       RETURNING id`,
-    )
-    .bind(now, testId, teacherId)
-    .first<{ id: number }>();
-  return row !== null;
+  const [reopened] = await db.batch<{ id: number }>([
+    db
+      .prepare(
+        `UPDATE tests SET status = 'open', evaluation_at = NULL, updated_at = ?,
+           analysis_stale = CASE WHEN analysis_status = 'ready' THEN 1 ELSE analysis_stale END
+         WHERE id = ? AND teacher_id = ? AND status IN ('evaluating', 'done')
+         RETURNING id`,
+      )
+      .bind(now, testId, teacherId),
+    // Only an open test of this teacher: no upload is in grading while a test is open, except after a reopen.
+    db
+      .prepare(
+        `UPDATE submissions SET status = 'submitted', run_id = NULL
+         WHERE test_id = ? AND status = 'grading'
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open')`,
+      )
+      .bind(testId, testId, teacherId),
+  ]);
+  return Boolean(reopened?.results.length);
 }
 
-// Points the test at a new test or barem file. A new barem also clears the
-// exercise list, which the robot made from the old one (spec §8.5).
+// Points the test at a new test or barem file, and counts the change in
+// files_version. A new barem also clears the exercise list, which the robot
+// made from the old one (spec §8.5).
 export async function saveTestFile(
   db: D1Database,
   teacherId: number,
@@ -270,8 +282,9 @@ export async function saveTestFile(
 ): Promise<void> {
   const sql =
     kind === 'test'
-      ? 'UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ? WHERE id = ? AND teacher_id = ?'
-      : `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, updated_at = ?,
+      ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1
+         WHERE id = ? AND teacher_id = ?`
+      : `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, updated_at = ?, files_version = files_version + 1,
            exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0
          WHERE id = ? AND teacher_id = ?`;
   await db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId).run();

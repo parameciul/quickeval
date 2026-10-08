@@ -103,4 +103,12 @@ describe('lastRunText', () => {
     );
     expect(lastRunText(robot)).toBeNull();
   });
+
+  it('says when the run stopped because Claude refused the token', () => {
+    const robot = fakeSettings().robot;
+    const summary = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'claude_login' } as const;
+    expect(lastRunText({ ...robot, lastRunFinishedAt: '2026-10-07T09:00:00.000Z', lastRunSummary: summary })).toBe(
+      'Ultima rulare s-a încheiat la 7 oct. 2026, 12:00: 0 liste de exerciții, 0 lucrări corectate, 0 lucrări eșuate. S-a oprit pentru că tokenul Claude nu mai merge. Fă un token nou (vezi mai jos).',
+    );
+  });
 });

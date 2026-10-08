@@ -142,7 +142,10 @@ const exerciseList = {
   exercises: [{ id: 'I.1', label: 'Subiectul I, exercițiul 1', maxPoints: 9, answer: '42', scoringNotes: '', topic: 'Probă' }],
   notes: '',
 };
-const savedList = await robot('POST', `/tests/${testId}/exercise-list`, { runId, ok: true, exerciseList });
+const robotTest = await robot('GET', `/tests/${testId}`);
+const filesVersion = robotTest.body?.test?.filesVersion;
+check('the robot reads the test', robotTest.status === 200 && typeof filesVersion === 'number', JSON.stringify(robotTest.body));
+const savedList = await robot('POST', `/tests/${testId}/exercise-list`, { runId, filesVersion, ok: true, exerciseList });
 check('the robot saves the exercise list', savedList.body?.exerciseList?.status === 'ready', JSON.stringify(savedList.body));
 
 const claimed = await robot('POST', '/claim', { runId });
