@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ExerciseList } from './schemas.ts';
 
 // The robot API (/api/runner, spec §11.3): request bodies and answers, shared
 // by the API and the robot.
@@ -27,4 +28,43 @@ export interface CheckResult {
   exerciseLists: number;
   pendingGrading: number;
   analyses: number;
+}
+
+// A run's id, made by the robot: 8-64 characters from A-Z, a-z, 0-9, "_" and "-".
+export const runIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/, { message: 'Id-ul rulării nu este valid.' });
+
+export const runBody = z.object({ runId: runIdSchema });
+
+export const releaseBody = z.object({ runId: runIdSchema, summary: runSummarySchema });
+
+// Why a robot task failed. "usage_limit": the Claude plan reached its limit;
+// the task is tried again later and counts no attempt.
+export const robotErrorSchema = z.enum(['timeout', 'invalid_output', 'crash', 'usage_limit']);
+
+export type RobotError = z.infer<typeof robotErrorSchema>;
+
+// The exercise list is checked by checkExerciseList (shared/schemas.ts).
+export const exerciseListBody = z.discriminatedUnion('ok', [
+  z.object({ runId: runIdSchema, ok: z.literal(true), exerciseList: z.unknown() }),
+  z.object({ runId: runIdSchema, ok: z.literal(false), error: robotErrorSchema }),
+]);
+
+// POST /lease.
+export interface LeaseResult {
+  granted: boolean;
+  maxParallel: number;
+}
+
+// GET /tasks: test ids, and how many uploads wait for grading.
+export interface TasksResult {
+  exerciseLists: number[];
+  pendingGrading: number;
+  analyses: number[];
+}
+
+// GET /tests/:id: what the robot needs to know of a test. No names.
+export interface RobotTest {
+  id: number;
+  files: { test: { contentType: string } | null; barem: { contentType: string } | null };
+  exerciseList: ExerciseList | null;
 }
