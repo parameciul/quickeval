@@ -1,6 +1,8 @@
 import { vi } from 'vitest';
 import type {
   ClassSummary,
+  EvaluationStart,
+  RobotStart,
   StudentRow,
   SubmissionDetail,
   TestDetail,
@@ -168,6 +170,27 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     reopenTest: vi.fn(async (code: string) => {
       findTest(code).test.status = 'open';
     }),
+    // Like the server: a time that has passed starts now.
+    evaluateTest: vi.fn(async (code: string, at?: string): Promise<EvaluationStart> => {
+      const found = findTest(code).test;
+      if (at !== undefined && at > new Date().toISOString()) {
+        found.evaluationAt = at;
+        return { status: 'open', evaluationAt: at, robot: null };
+      }
+      Object.assign(found, { status: 'evaluating', evaluationAt: null, evaluationStartedAt: new Date().toISOString() });
+      return { status: 'evaluating', evaluationAt: null, robot: 'next_check' };
+    }),
+    cancelSchedule: vi.fn(async (code: string) => {
+      findTest(code).test.evaluationAt = null;
+    }),
+    acceptExerciseList: vi.fn(async (code: string) => {
+      findTest(code).test.exerciseList.status = 'accepted';
+    }),
+    retryExerciseList: vi.fn(async (code: string): Promise<RobotStart | null> => {
+      const found = findTest(code).test;
+      found.exerciseList = { status: 'none', message: null };
+      return found.status === 'evaluating' ? 'next_check' : null;
+    }),
     getSubmission: vi.fn(async (submissionId: number) => {
       const found = submissions.find((s) => s.id === submissionId);
       if (!found) throw notFound();
@@ -183,6 +206,13 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       }
       const index = submissions.findIndex((s) => s.id === submissionId);
       if (index >= 0) submissions.splice(index, 1);
+    }),
+    retrySubmission: vi.fn(async (submissionId: number): Promise<RobotStart | null> => {
+      for (const detail of tests) {
+        const row = detail.uploads.find((u) => u.submissionId === submissionId);
+        if (row) Object.assign(row, { status: 'submitted', lastError: null });
+      }
+      return 'next_check';
     }),
   } satisfies AdminApi;
   return api;

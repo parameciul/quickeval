@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatFileSize, studentCountLabel, testStatusLabel, uploadStatusLabel } from './format.ts';
+import { formatDateTime, formatFileSize, robotStartMessage, studentCountLabel, testStatusLabel, uploadStatusLabel } from './format.ts';
 
 describe('studentCountLabel', () => {
   it('uses Romanian number words', () => {
@@ -37,5 +37,12 @@ describe('formatFileSize', () => {
     expect(formatFileSize(820 * 1024)).toBe('820 KB');
     expect(formatFileSize(1.25 * 1024 * 1024)).toBe('1,3 MB');
     expect(formatFileSize(25 * 1024 * 1024)).toBe('25 MB');
+  });
+});
+
+describe('robotStartMessage', () => {
+  it('says when the robot starts', () => {
+    expect(robotStartMessage('dispatched')).toBe('Robotul pornește în aproximativ un minut.');
+    expect(robotStartMessage('next_check')).toBe('Robotul pornește la următoarea lui verificare.');
   });
 });

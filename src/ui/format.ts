@@ -1,4 +1,4 @@
-import type { UploadStatus } from '../../shared/api.ts';
+import type { RobotStart, UploadStatus } from '../../shared/api.ts';
 import type { TestStatus } from '../../shared/tests.ts';
 
 // Romanian counts: "1 elev", "2 elevi", "20 de elevi" (20 or more, and round
@@ -54,4 +54,14 @@ const ONE_DECIMAL = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 })
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${ONE_DECIMAL.format(bytes / (1024 * 1024))} MB`;
+}
+
+const ROBOT_START: Record<RobotStart, string> = {
+  dispatched: 'Robotul pornește în aproximativ un minut.',
+  next_check: 'Robotul pornește la următoarea lui verificare.',
+};
+
+// What the teacher reads after she starts grading.
+export function robotStartMessage(robot: RobotStart): string {
+  return ROBOT_START[robot];
 }

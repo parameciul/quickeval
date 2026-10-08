@@ -56,6 +56,29 @@ describe('createApiClient', () => {
   });
 });
 
+describe('createApiClient evaluation', () => {
+  it('calls the evaluation routes', async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(200, { status: 'evaluating', evaluationAt: null, robot: 'dispatched' }),
+    );
+    const api = createApiClient({ fetchImpl });
+    expect(await api.evaluateTest('6E2-26T1')).toEqual({ status: 'evaluating', evaluationAt: null, robot: 'dispatched' });
+    await api.evaluateTest('6E2-26T1', '2026-10-20T07:15:00.000Z');
+    await api.cancelSchedule('6E2-26T1');
+    await api.acceptExerciseList('6E2-26T1');
+    expect(await api.retryExerciseList('6E2-26T1')).toBe('dispatched');
+    expect(await api.retrySubmission(5)).toBe('dispatched');
+    expect(fetchImpl.mock.calls.map(([url, init]) => [init!.method, url, init!.body])).toEqual([
+      ['POST', '/api/admin/tests/6E2-26T1/evaluate', '{}'],
+      ['POST', '/api/admin/tests/6E2-26T1/evaluate', '{"at":"2026-10-20T07:15:00.000Z"}'],
+      ['DELETE', '/api/admin/tests/6E2-26T1/schedule', undefined],
+      ['POST', '/api/admin/tests/6E2-26T1/exercise-list/accept', undefined],
+      ['POST', '/api/admin/tests/6E2-26T1/exercise-list/retry', undefined],
+      ['POST', '/api/admin/submissions/5/retry', undefined],
+    ]);
+  });
+});
+
 describe('createApiClient tests and uploads', () => {
   it('sends a test file raw, with its type and its encoded name', async () => {
     const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>

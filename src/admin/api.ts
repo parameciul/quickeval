@@ -3,6 +3,8 @@ import type {
   ClassSummary,
   CreateClassInput,
   CreateTestInput,
+  EvaluationStart,
+  RobotStart,
   StartedTest,
   StudentRow,
   SubmissionDetail,
@@ -37,8 +39,15 @@ export interface AdminApi {
   uploadTestFile(code: string, kind: TestFileKind, file: File): Promise<TestFileInfo>;
   startTest(code: string): Promise<StartedTest>;
   reopenTest(code: string): Promise<void>;
+  // Now without `at`, or at that ISO time.
+  evaluateTest(code: string, at?: string): Promise<EvaluationStart>;
+  cancelSchedule(code: string): Promise<void>;
+  acceptExerciseList(code: string): Promise<void>;
+  // The robot answers are null when the robot was not needed.
+  retryExerciseList(code: string): Promise<RobotStart | null>;
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
   resetSubmission(submissionId: number): Promise<void>;
+  retrySubmission(submissionId: number): Promise<RobotStart | null>;
 }
 
 // Files open straight from the API: the browser sends the Access login cookie.
@@ -147,10 +156,21 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     reopenTest: async (code) => {
       await request('POST', `${test(code)}/reopen`);
     },
+    evaluateTest: (code, at) => request<EvaluationStart>('POST', `${test(code)}/evaluate`, at === undefined ? {} : { at }),
+    cancelSchedule: async (code) => {
+      await request('DELETE', `${test(code)}/schedule`);
+    },
+    acceptExerciseList: async (code) => {
+      await request('POST', `${test(code)}/exercise-list/accept`);
+    },
+    retryExerciseList: async (code) =>
+      (await request<{ robot: RobotStart | null }>('POST', `${test(code)}/exercise-list/retry`)).robot,
     getSubmission: async (submissionId) =>
       (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,
     resetSubmission: async (submissionId) => {
       await request('POST', `/submissions/${submissionId}/reset`);
     },
+    retrySubmission: async (submissionId) =>
+      (await request<{ robot: RobotStart | null }>('POST', `/submissions/${submissionId}/retry`)).robot,
   };
 }

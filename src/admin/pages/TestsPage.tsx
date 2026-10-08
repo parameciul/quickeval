@@ -44,6 +44,7 @@ export function TestsPage() {
               {test.status !== 'draft' && (
                 <span className="card-count">
                   Trimise: {test.submittedCount} din {test.studentCount}
+                  {test.gradedCount > 0 && ` · corectate: ${test.gradedCount}`}
                 </span>
               )}
             </li>

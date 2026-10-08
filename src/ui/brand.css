@@ -882,3 +882,22 @@ table.uploads .tag {
   max-height: calc(100vh - 6rem);
   object-fit: contain;
 }
+
+/* Something for the teacher to look at: a highlighter mark, not an error. */
+.warning {
+  max-width: 40rem;
+  margin-block: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-left: 4px solid var(--marker-edge);
+  border-radius: 0.35rem;
+  background: var(--marker);
+  color: var(--text);
+}
+
+.warning > p {
+  margin: 0 0 0.5rem;
+}
+
+.warning > :last-child {
+  margin-bottom: 0;
+}

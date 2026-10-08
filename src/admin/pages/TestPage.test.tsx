@@ -1,6 +1,6 @@
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import { createFakeApi, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
@@ -183,5 +183,114 @@ describe('refreshInterval', () => {
     expect(refreshInterval('draft')).toBe(false);
     expect(refreshInterval('done')).toBe(false);
     expect(refreshInterval(undefined)).toBe(false);
+  });
+});
+
+describe('TestPage evaluation', () => {
+  const FILES = { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: { name: 'Barem.pdf', type: PDF_TYPE } };
+  const NOW = new Date('2026-10-08T07:00:00.000Z');
+
+  function evaluationApi(overrides: Parameters<typeof fakeTest>[0], rows = uploads) {
+    return createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, ...overrides }, structuredClone(rows))],
+    });
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('starts the evaluation now, after the teacher confirms', async () => {
+    const api = evaluationApi({});
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    renderAdmin('/teste/6E2-26T1', api);
+    const start = await screen.findByRole('button', { name: 'Pornește evaluarea acum' });
+    await userEvent.click(start);
+    expect(api.evaluateTest).not.toHaveBeenCalled();
+    await userEvent.click(start);
+    expect(confirm).toHaveBeenLastCalledWith('Pornești evaluarea acum? Elevii nu mai pot încărca după asta.');
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Robotul pornește la următoarea lui verificare.');
+    expect(screen.getByText(/^Robotul corectează lucrările trimise\. Evaluarea a pornit la 8 oct\. 2026, 10:00\.$/)).toBeInTheDocument();
+    expect(screen.getByText('Robotul nu a verificat încă dacă are lucrări de corectat.')).toBeInTheDocument();
+    expect(screen.getByText('Corectarea poate întârzia.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+  });
+
+  it('says what the evaluation still needs', async () => {
+    const empty = [fakeUpload({ studentId: 12, studentName: 'Marin Dan' })];
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ files: { test: FILES.test, barem: null } }, empty));
+    expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeDisabled();
+    expect(screen.getByText('Ca să pornești evaluarea: Încarcă baremul. Niciun elev nu a încărcat încă fișiere.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Sau pornește evaluarea automat la')).toBeDisabled();
+  });
+
+  it("schedules the evaluation in Romania's time, and cancels the schedule", async () => {
+    const api = evaluationApi({});
+    renderAdmin('/teste/6E2-26T1', api);
+    const input = await screen.findByLabelText('Sau pornește evaluarea automat la');
+    expect(input).toHaveAttribute('min', '2026-10-08T10:00');
+    expect(input).toHaveAttribute('max', '2026-12-07T09:00');
+    fireEvent.change(input, { target: { value: '2026-10-20T10:15' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Programează' }));
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', '2026-10-20T07:15:00.000Z');
+    expect(await screen.findByText(/^Evaluarea pornește automat la 20 oct\. 2026, 10:15\./)).toBeInTheDocument();
+    expect(screen.getByText('Robotul nu a verificat încă dacă are lucrări de corectat.')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Anulează programarea' }));
+    expect(api.cancelSchedule).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByLabelText('Sau pornește evaluarea automat la')).toHaveValue('');
+    expect(screen.queryByText(/Robotul nu a verificat/)).not.toBeInTheDocument();
+  });
+
+  it('shows a problem of the barem, takes a new barem, and grades anyway', async () => {
+    const message = 'Punctajele din barem dau 9, dar totalul este 10.';
+    const api = evaluationApi({ status: 'evaluating', exerciseList: { status: 'problem', message } });
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.getByLabelText('Înlocuiește baremul')).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Folosește oricum' }));
+    expect(api.acceptExerciseList).toHaveBeenCalledWith('6E2-26T1');
+    await screen.findByLabelText('Înlocuiește baremul');
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled();
+  });
+
+  it('lets the robot try the barem again', async () => {
+    const api = evaluationApi({ status: 'evaluating', exerciseList: { status: 'failed', message: 'Robotul nu a terminat la timp.' } });
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }));
+    expect(api.retryExerciseList).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByRole('status')).toHaveTextContent('Robotul pornește la următoarea lui verificare.');
+  });
+
+  it('shows the grades, the items to check, and a failed grading to try again', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 4, grade: 8.75, flagCount: 2 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'failed', fileCount: 1, lastError: 'Robotul nu a terminat la timp.' }),
+    ];
+    const api = evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByRole('heading', { name: 'Încărcări · trimise 2 din 2 · corectate 1' })).toBeInTheDocument();
+    expect(screen.getByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
+    const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
+    expect(within(pop).getByText('8,75')).toBeInTheDocument();
+    expect(within(pop).getByText('2')).toBeInTheDocument();
+    expect(within(pop).queryByRole('button', { name: 'Reîncearcă' })).not.toBeInTheDocument();
+    const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
+    expect(within(stan).getByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
+    await userEvent.click(within(stan).getByRole('button', { name: 'Reîncearcă' }));
+    expect(api.retrySubmission).toHaveBeenCalledWith(6);
+    expect(await within(stan).findByText('Trimis')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Robotul pornește la următoarea lui verificare.');
   });
 });

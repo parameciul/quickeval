@@ -10,7 +10,7 @@ const withTests = () =>
     students: {},
     tests: [
       fakeTest({ code: '6E2-26T2', title: 'Ecuații', status: 'open', startedAt: '2026-10-06T07:15:00.000Z' }, [
-        fakeUpload({ studentId: 10, studentName: 'Pop Ion', status: 'submitted', submissionId: 5 }),
+        fakeUpload({ studentId: 10, studentName: 'Pop Ion', status: 'graded', submissionId: 5, grade: 9 }),
         fakeUpload({ studentId: 11, studentName: 'Stan Eva' }),
       ]),
       fakeTest({ code: '6E2-26T1', title: 'Fracții' }),
@@ -27,7 +27,7 @@ describe('TestsPage', () => {
     expect(within(card).getByText('Ecuații')).toBeInTheDocument();
     expect(within(card).getByText('Clasa 6E2 · 6 oct. 2026, 10:15')).toBeInTheDocument();
     expect(within(card).getByText('Deschis')).toBeInTheDocument();
-    expect(within(card).getByText('Trimise: 1 din 2')).toBeInTheDocument();
+    expect(within(card).getByText('Trimise: 1 din 2 · corectate: 1')).toBeInTheDocument();
 
     const draft = screen.getByRole('link', { name: '6E2-26T1' }).closest('li')!;
     expect(within(draft).getByText('Ciornă')).toBeInTheDocument();

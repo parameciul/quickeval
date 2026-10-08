@@ -13,9 +13,11 @@ const NAMES: Record<TestFileKind, { title: string; upload: string; replace: stri
 };
 
 // The test and the barem: open them, upload them, or replace them. Not while
-// the test is being graded.
+// the robot grades with them; while their exercise list has a problem or
+// failed, the robot uses neither, and the teacher may fix them.
 export function TestFiles({ test, onChanged }: { test: TestInfo; onChanged: () => Promise<void> }) {
-  const locked = test.status === 'evaluating';
+  const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
+  const locked = test.status === 'evaluating' && !listBlocked;
   return (
     <>
       <h2>Fișiere</h2>

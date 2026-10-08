@@ -1,13 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import type { TestInfo } from '../../../shared/api.ts';
+import type { RobotStart, TestInfo } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { MAX_TITLE_LENGTH, normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
-import { formatDateTime } from '../../ui/format.ts';
+import { formatDateTime, robotStartMessage } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { StatusChip } from '../StatusChip.tsx';
+import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
+import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
+import { RobotLine } from '../testPage/RobotLine.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
 import { UploadLink } from '../testPage/UploadLink.tsx';
 import { UploadsTable } from '../testPage/UploadsTable.tsx';
@@ -30,6 +33,9 @@ function TestDetails({ code }: { code: string }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const notice = (useLocation().state as { notice?: string } | null)?.notice;
+  // When the robot starts, after the teacher started or restarted grading.
+  const [robotNotice, setRobotNotice] = useState<string | null>(null);
+  const onRobot = (robot: RobotStart | null) => setRobotNotice(robot ? robotStartMessage(robot) : null);
   const detail = useQuery({
     queryKey: ['test', code],
     queryFn: () => api.getTest(code),
@@ -52,7 +58,7 @@ function TestDetails({ code }: { code: string }) {
   // and an open QR view with it, and says why above it.
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
 
-  const { test, uploads } = detail.data;
+  const { test, uploads, robot } = detail.data;
   return (
     <section>
       <p>
@@ -79,10 +85,25 @@ function TestDetails({ code }: { code: string }) {
       <h2>Încărcarea lucrărilor</h2>
       <TestActions test={test} onChanged={refresh} />
 
+      {test.status !== 'draft' && (
+        <>
+          <h2>Evaluarea</h2>
+          <ExerciseListBanner test={test} onChanged={refresh} onRobot={onRobot} />
+          {test.status === 'open' ? (
+            <EvaluationControls test={test} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
+          ) : (
+            <EvaluationState test={test} />
+          )}
+          {robotNotice && <p role="status">{robotNotice}</p>}
+          {(test.status === 'evaluating' || test.evaluationAt) && <RobotLine lastCheckAt={robot.lastCheckAt} />}
+        </>
+      )}
+
       <h2>
         Încărcări · trimise {test.submittedCount} din {test.studentCount}
+        {test.gradedCount > 0 && ` · corectate ${test.gradedCount}`}
       </h2>
-      <UploadsTable code={code} uploads={uploads} onChanged={refresh} />
+      <UploadsTable code={code} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
 
       <h2>Șterge testul</h2>
       <p className="hint">Se șterg și toate lucrările încărcate de elevi.</p>
@@ -128,6 +149,12 @@ function TestActions({ test, onChanged }: { test: TestInfo; onChanged: () => Pro
       {reopen.error && <ErrorMessage error={reopen.error} />}
     </>
   );
+}
+
+// A test whose uploads closed: grading goes on, or has ended.
+function EvaluationState({ test }: { test: TestInfo }) {
+  const since = test.evaluationStartedAt ? ` Evaluarea a pornit la ${formatDateTime(test.evaluationStartedAt)}.` : '';
+  return <p>{test.status === 'done' ? `Corectarea s-a terminat.${since}` : `Robotul corectează lucrările trimise.${since}`}</p>;
 }
 
 function RenameTestForm({ code, currentTitle, onDone }: { code: string; currentTitle: string; onDone: () => Promise<void> }) {
