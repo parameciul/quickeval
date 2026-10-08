@@ -90,11 +90,19 @@ function cutList(list: string[], entries: number, max: number): string[] {
     .slice(0, entries);
 }
 
+// The JSON Schema that the robot gives Claude (`claude --json-schema`).
+// Claude Code accepts draft-07 schemas; it refuses zod's default draft
+// 2020-12 ("no schema with key or ref").
+export function claudeJsonSchema(schema: z.ZodType): Record<string, unknown> {
+  return z.toJSONSchema(schema, { target: 'draft-7' }) as Record<string, unknown>;
+}
+
 // Not ok: the output cannot be used, and `reason` says why (for the robot's
 // own log; it holds no student data).
 export type Checked<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 export interface CheckedExerciseList {
+  // Points rounded to cents, as the grades use them.
   list: ExerciseList;
   // "problem": the points of the exercises and "din oficiu" do not add up to the total.
   status: 'ready' | 'problem';
@@ -104,7 +112,14 @@ export interface CheckedExerciseList {
 export function checkExerciseList(raw: unknown): Checked<CheckedExerciseList> {
   const parsed = exerciseListSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, reason: 'not an exercise list' };
-  const input = parsed.data;
+  // Points are kept in cents: 0.333 × 3 + 9 must be a problem, not a total
+  // of 10 that a perfect paper never reaches.
+  const input = {
+    ...parsed.data,
+    totalPoints: round2(parsed.data.totalPoints),
+    officePoints: round2(parsed.data.officePoints),
+    exercises: parsed.data.exercises.map((exercise) => ({ ...exercise, maxPoints: round2(exercise.maxPoints) })),
+  };
   if (input.exercises.length === 0 || input.exercises.length > MAX_EXERCISES) {
     return { ok: false, reason: `needs 1 to ${MAX_EXERCISES} exercises` };
   }
@@ -117,7 +132,7 @@ export function checkExerciseList(raw: unknown): Checked<CheckedExerciseList> {
   const ids = new Set<string>();
   for (const exercise of input.exercises) {
     const id = exercise.id.trim();
-    if (id === '' || id.length > MAX_EXERCISE_ID || ids.has(id)) return { ok: false, reason: 'empty, long, or repeated exercise id' };
+    if (id === '' || Array.from(id).length > MAX_EXERCISE_ID || ids.has(id)) return { ok: false, reason: 'empty, long, or repeated exercise id' };
     if (!(exercise.maxPoints > 0)) return { ok: false, reason: 'exercise without points' };
     ids.add(id);
   }
@@ -136,7 +151,7 @@ export function checkExerciseList(raw: unknown): Checked<CheckedExerciseList> {
     notes: cutText(input.notes, TEXT_LIMITS.notes),
   };
   const sum = round2(list.exercises.reduce((total, exercise) => total + exercise.maxPoints, list.officePoints));
-  if (Math.abs(sum - list.totalPoints) > 0.001) {
+  if (sum !== list.totalPoints) {
     const message = `Punctajele din barem dau ${formatPoints(sum)}, dar totalul este ${formatPoints(list.totalPoints)}.`;
     return { ok: true, value: { list, status: 'problem', message } };
   }
@@ -191,11 +206,13 @@ export function checkGrading(raw: unknown, list: ExerciseList): Checked<Grading>
     const item = byId.get(exercise.id)!;
     const given = round2(item.points);
     const points = round2(Math.min(Math.max(given, 0), exercise.maxPoints));
+    // The code's reason comes first: a long reason from the robot is cut at
+    // the end and can never hide it.
     const reasons: string[] = [];
+    if (points !== given) reasons.push(OUT_OF_RANGE);
     if (item.needsReview || item.confidence === 'low') {
       reasons.push(item.reviewReason.trim() || (item.confidence === 'low' ? LOW_CONFIDENCE : CHECK_THIS));
     }
-    if (points !== given) reasons.push(OUT_OF_RANGE);
     return {
       exerciseId: exercise.id,
       position: index + 1,

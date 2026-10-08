@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
 import {
   CHECK_THIS,
   checkExerciseList,
   checkGrading,
+  claudeJsonSchema,
   cutText,
   type ExerciseList,
   exerciseListSchema,
@@ -67,9 +67,31 @@ describe('checkExerciseList', () => {
     expect(checked.ok && checked.value.message).toBe('Punctajele din barem dau 9,5, dar totalul este 10.');
   });
 
-  it('accepts sums inside the tolerance', () => {
+  it('rounds points to cents, so a tiny difference is no problem', () => {
     const checked = checkExerciseList({ ...LIST, exercises: [exercise('I.1', 4.0004), exercise('I.2', 2.5), exercise('II.1', 2.5)] });
     expect(checked.ok && checked.value.status).toBe('ready');
+    expect(checked.ok && checked.value.list.exercises[0]!.maxPoints).toBe(4);
+  });
+
+  it('marks thirds of a point as a problem: a perfect paper could not reach the total', () => {
+    const thirds = [exercise('I.1', 3.333), exercise('I.2', 3.333), exercise('I.3', 3.333)];
+    const checked = checkExerciseList({ ...LIST, officePoints: 0, exercises: thirds });
+    if (!checked.ok) throw new Error(checked.reason);
+    expect(checked.value.status).toBe('problem');
+    expect(checked.value.message).toBe('Punctajele din barem dau 9,99, dar totalul este 10.');
+    expect(checked.value.list.exercises.map((saved) => saved.maxPoints)).toEqual([3.33, 3.33, 3.33]);
+  });
+
+  it('rounds the total and the office points too', () => {
+    const checked = checkExerciseList({ ...LIST, totalPoints: 10.001, officePoints: 0.999 });
+    expect(checked.ok && checked.value.list).toMatchObject({ totalPoints: 10, officePoints: 1 });
+    expect(checked.ok && checked.value.status).toBe('ready');
+  });
+
+  it('counts an id in characters, not in UTF-16 units', () => {
+    const id = '𝐱'.repeat(20);
+    const checked = checkExerciseList({ ...LIST, officePoints: 0, exercises: [exercise(id, 10)] });
+    expect(checked.ok && checked.value.list.exercises[0]!.id).toBe(id);
   });
 
   it('trims ids and cuts long texts', () => {
@@ -87,6 +109,9 @@ describe('checkExerciseList', () => {
     ['a repeated id', { ...LIST, exercises: [exercise('I.1', 4.5), exercise('I.1', 4.5)] }],
     ['an empty id', { ...LIST, exercises: [exercise(' ', 9)] }],
     ['an exercise without points', { ...LIST, exercises: [exercise('I.1', 9), exercise('I.2', 0)] }],
+    ['an exercise with less than a cent', { ...LIST, exercises: [exercise('I.1', 9), exercise('I.2', 0.004)] }],
+    ['an id over 20 characters', { ...LIST, exercises: [exercise('I.'.padEnd(21, '1'), 9)] }],
+    ['a total over 1000', { ...LIST, totalPoints: 1001, officePoints: 0, exercises: [exercise('I.1', 1001)] }],
     ['a zero total', { ...LIST, totalPoints: 0 }],
     ['office points as big as the total', { ...LIST, officePoints: 10 }],
     ['negative office points', { ...LIST, officePoints: -1 }],
@@ -134,12 +159,28 @@ describe('checkGrading', () => {
     ]);
   });
 
-  it('keeps the robot reason and adds the range reason', () => {
+  it('puts the range reason before the robot reason', () => {
     const checked = checkGrading(
       grading([item('I.1', 7, { needsReview: true, reviewReason: 'Scris greu de citit' }), item('I.2', 2), item('II.1', 2)]),
       LIST,
     );
-    expect(checked.ok && checked.value.items[0]!.reviewReason).toBe(`Scris greu de citit; ${OUT_OF_RANGE}`);
+    expect(checked.ok && checked.value.items[0]!.reviewReason).toBe(`${OUT_OF_RANGE}; Scris greu de citit`);
+  });
+
+  it('cuts a long robot reason, and the range reason stays', () => {
+    const checked = checkGrading(
+      grading([item('I.1', 7, { needsReview: true, reviewReason: 'r'.repeat(600) }), item('I.2', 2), item('II.1', 2)]),
+      LIST,
+    );
+    if (!checked.ok) throw new Error(checked.reason);
+    expect(checked.value.items[0]!.reviewReason).toHaveLength(500);
+    expect(checked.value.items[0]!.reviewReason.startsWith(`${OUT_OF_RANGE}; r`)).toBe(true);
+  });
+
+  it('keeps at most 20 unreadable pages', () => {
+    const pages = Array.from({ length: 25 }, (_, i) => `student/page-${String(i + 1).padStart(2, '0')}.jpg`);
+    const checked = checkGrading(grading([item('I.1', 4), item('I.2', 2), item('II.1', 2)], { unreadable: pages }), LIST);
+    expect(checked.ok && checked.value.unreadable).toEqual(pages.slice(0, 20));
   });
 
   it('flags the whole grading when a page could not be read', () => {
@@ -175,12 +216,18 @@ describe('checkGrading', () => {
   });
 });
 
-describe('JSON Schemas for the robot', () => {
-  it('can be made from both schemas', () => {
+describe('claudeJsonSchema', () => {
+  it('makes draft-07 schemas, the version that Claude Code accepts', () => {
     for (const schema of [exerciseListSchema, gradingResultSchema]) {
-      const json = z.toJSONSchema(schema) as { type: string; required: string[] };
+      const json = claudeJsonSchema(schema);
+      expect(json.$schema).toBe('http://json-schema.org/draft-07/schema#');
       expect(json.type).toBe('object');
-      expect(json.required.length).toBeGreaterThan(0);
+      expect(json.additionalProperties).toBe(false);
     }
+  });
+
+  it('asks for every field of a grading', () => {
+    const json = claudeJsonSchema(gradingResultSchema) as { required: string[] };
+    expect(json.required).toEqual(['items', 'unreadable', 'summary', 'strengths', 'recommendations']);
   });
 });
