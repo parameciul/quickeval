@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { isUploadToken } from '../../shared/tests.ts';
-import { makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
+import { addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -59,6 +59,10 @@ describe('POST /api/admin/tests/:code/reopen', () => {
   });
 
   it('reopens a test that is being graded and cancels its schedule', async () => {
+    // An upload still to grade keeps the test in evaluation: the next request ends a test with none.
+    const test = await api.db.prepare('SELECT class_id FROM tests WHERE code = ?').bind(code).first<{ class_id: number }>();
+    const added = await api.request('POST', `/api/admin/classes/${test!.class_id}/students`, { names: ['Pop Ion'] });
+    await addSubmission(api, code, added.body.students[0].id as number, { status: 'submitted', files: 1 });
     await setState("status = 'evaluating', evaluation_at = '2026-10-07T08:00:00.000Z'");
     const res = await api.request('POST', `/api/admin/tests/${code}/reopen`);
     expect(res.status).toBe(200);

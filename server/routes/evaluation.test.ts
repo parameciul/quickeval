@@ -121,8 +121,11 @@ describe('POST /api/admin/tests/:code/evaluate (now)', () => {
     const draft = await makeTest(api, classId);
     const res = await api.request('POST', `/api/admin/tests/${draft}/evaluate`, {});
     expect(res.body).toEqual({ error: 'not_started', message: 'Testul nu a început încă.' });
+    // An upload still to grade keeps the test in evaluation: the next request ends a test with none.
+    await addSubmission(api, code, studentIds[0]!, { status: 'submitted', files: 1 });
     await setTest("status = 'evaluating'");
     expect((await evaluate()).body).toEqual({ error: 'already_evaluating', message: 'Evaluarea a pornit deja.' });
+    expect((await testRow())?.status).toBe('evaluating');
   });
 
   it('answers 404 for a test of another teacher', async () => {

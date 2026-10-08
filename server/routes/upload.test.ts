@@ -318,7 +318,7 @@ describe('the upload writes check the rules themselves', () => {
     const fileId = (await addSubmissionFile(api.db, id, photo(1), now))!;
     await api.db.prepare("UPDATE submissions SET status = 'submitted' WHERE id = ?").bind(id).run();
     expect(await addSubmissionFile(api.db, id, photo(2), now)).toBeNull();
-    expect(await deleteSessionFile(api.db, id, fileId)).toBe(false);
+    expect(await deleteSessionFile(api.db, id, fileId, now)).toBe(false);
     expect(await fileCount(id)).toBe(1);
   });
 
@@ -332,6 +332,20 @@ describe('the upload writes check the rules themselves', () => {
     const row = await api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(id).first<{ status: string }>();
     expect(row!.status).toBe('uploading');
     expect(await fileCount(id)).toBe(1);
+  });
+
+  it('adds, deletes, and sends nothing from the scheduled time on, also before a request promotes the test', async () => {
+    await newSession(pop);
+    const id = await submissionOf(pop);
+    const fileId = (await addSubmissionFile(api.db, id, photo(1), now))!;
+    await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code = ?').bind(now, code).run();
+    expect(await addSubmissionFile(api.db, id, photo(2), now)).toBeNull();
+    expect(await deleteSessionFile(api.db, id, fileId, now)).toBe(false);
+    expect(await confirmSubmission(api.db, id, now)).toBeNull();
+    expect(await fileCount(id)).toBe(1);
+    const justBefore = '2026-10-06T07:59:59.999Z';
+    expect(await addSubmissionFile(api.db, id, photo(2), justBefore)).not.toBeNull();
+    expect(await confirmSubmission(api.db, id, justBefore)).toBe(2);
   });
 
   it('sends an upload with its file count, and never an empty one', async () => {

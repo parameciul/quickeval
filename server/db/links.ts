@@ -132,10 +132,13 @@ export async function fileSlots(db: D1Database, submissionId: number): Promise<{
   return { count: row?.count ?? 0, next: row?.next ?? 1 };
 }
 
-// An upload may change only while its test is open and it is not yet sent.
-// Each write checks this itself, so two requests at once cannot get past it.
+// An upload may change only while its test is open, before the test's
+// scheduled time, and while it is not yet sent. Each write checks this itself,
+// so two requests at once cannot get past it, and a write that ends after the
+// scheduled time is refused also before a request promotes the test.
 const OPEN_UPLOAD = `EXISTS (SELECT 1 FROM submissions s JOIN tests t ON t.id = s.test_id
-  WHERE s.id = ? AND s.status = 'uploading' AND t.status = 'open')`;
+  WHERE s.id = ? AND s.status = 'uploading' AND t.status = 'open'
+    AND (t.evaluation_at IS NULL OR t.evaluation_at > ?))`;
 
 // The new file's id, or null when the upload is closed, sent, gone, or full.
 export async function addSubmissionFile(
@@ -152,7 +155,7 @@ export async function addSubmissionFile(
          AND (SELECT COUNT(*) FROM submission_files WHERE submission_id = ?) < ?
        RETURNING id`,
     )
-    .bind(submissionId, file.key, file.name, file.type, file.size, file.position, now, submissionId, submissionId, MAX_STUDENT_FILES)
+    .bind(submissionId, file.key, file.name, file.type, file.size, file.position, now, submissionId, now, submissionId, MAX_STUDENT_FILES)
     .first<{ id: number }>();
   return row?.id ?? null;
 }
@@ -166,27 +169,29 @@ export async function findSessionFile(db: D1Database, submissionId: number, file
 }
 
 // False when nothing was deleted: the file is gone, or the upload is closed or sent.
-export async function deleteSessionFile(db: D1Database, submissionId: number, fileId: number): Promise<boolean> {
+export async function deleteSessionFile(db: D1Database, submissionId: number, fileId: number, now: string): Promise<boolean> {
   const result = await db
     .prepare(`DELETE FROM submission_files WHERE id = ? AND submission_id = ? AND ${OPEN_UPLOAD}`)
-    .bind(fileId, submissionId, submissionId)
+    .bind(fileId, submissionId, submissionId, now)
     .run();
   return result.meta.changes > 0;
 }
 
 // uploading → submitted, in one transaction with the file count. Null when
-// the upload has no files, was already sent, or its test is closed.
+// the upload has no files, was already sent, or its test is closed or its
+// scheduled time has come.
 export async function confirmSubmission(db: D1Database, submissionId: number, now: string): Promise<number | null> {
   const [updated, counted] = await db.batch<Record<string, number>>([
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', submitted_at = ?
          WHERE id = ? AND status = 'uploading'
-           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.status = 'open')
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.status = 'open'
+             AND (t.evaluation_at IS NULL OR t.evaluation_at > ?))
            AND EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)
          RETURNING id`,
       )
-      .bind(now, submissionId),
+      .bind(now, submissionId, now),
     db.prepare('SELECT COUNT(*) AS count FROM submission_files WHERE submission_id = ?').bind(submissionId),
   ]);
   if (!updated?.results.length) return null;

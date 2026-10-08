@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { startSessionBody, type UploadSession } from '../../shared/api.ts';
 import { MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, studentFileKey } from '../../shared/files.ts';
 import { isUploadToken } from '../../shared/tests.ts';
+import { promoteDueTests } from '../db/lifecycle.ts';
 import {
   addSubmissionFile,
   confirmSubmission,
@@ -58,6 +59,13 @@ async function openSession(c: Context<AppEnv>): Promise<{ test: LinkTest; curren
   const current = await session(c, test);
   if (current.status !== 'uploading') throw alreadySent();
   return { test, current };
+}
+
+// After a refused write: when the scheduled time came meanwhile, start the
+// evaluation first, so that openSession says the uploads closed.
+async function explainRefusal(c: Context<AppEnv>): Promise<void> {
+  await promoteDueTests(c.env.DB, nowIso());
+  await openSession(c);
 }
 
 async function sessionView(c: Context<AppEnv>, current: SessionRecord): Promise<UploadSession> {
@@ -143,7 +151,7 @@ export function uploadRoutes(): Hono<AppEnv> {
     if (id === null) {
       // The upload changed while the file was on its way: remove the file and say why.
       await deleteFilesQuietly(c.env.FILES, [key]);
-      await openSession(c);
+      await explainRefusal(c);
       throw tooManyFiles();
     }
     return c.json({ file: { id, name: stored.name, contentType: stored.type, size: stored.size, position: stored.position } }, 201);
@@ -163,8 +171,8 @@ export function uploadRoutes(): Hono<AppEnv> {
     const fileId = parseId(c.req.param('fileId'));
     const file = await findSessionFile(c.env.DB, current.submissionId, fileId);
     if (!file) throw fileNotFound();
-    if (!(await deleteSessionFile(c.env.DB, current.submissionId, fileId))) {
-      await openSession(c);
+    if (!(await deleteSessionFile(c.env.DB, current.submissionId, fileId, nowIso()))) {
+      await explainRefusal(c);
       throw fileNotFound();
     }
     await deleteFilesQuietly(c.env.FILES, [file.key]);
@@ -176,8 +184,8 @@ export function uploadRoutes(): Hono<AppEnv> {
     const { current } = await openSession(c);
     const fileCount = await confirmSubmission(c.env.DB, current.submissionId, nowIso());
     if (fileCount === null) {
-      // openSession says why when the test closed or the upload was sent meanwhile.
-      await openSession(c);
+      // Says why when the test closed or the upload was sent meanwhile.
+      await explainRefusal(c);
       throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
     }
     return c.json({ status: 'submitted', fileCount });
