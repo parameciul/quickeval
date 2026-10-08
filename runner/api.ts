@@ -53,8 +53,9 @@ export interface RobotApiOptions {
   fetch?: Fetch;
   // How long one request may take.
   timeoutMs?: number;
-  // A network error or a 5xx answer is tried again, up to `tries` times in all,
-  // after `retryDelayMs`, then twice that.
+  // A network error, an answer that breaks off while it is read, or a 5xx
+  // answer is tried again, up to `tries` times in all, after `retryDelayMs`,
+  // then twice that.
   tries?: number;
   retryDelayMs?: number;
 }
@@ -66,50 +67,44 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
   const retryDelayMs = options.retryDelayMs ?? 5_000;
   const root = `${baseUrl.replace(/\/+$/, '')}/api/runner`;
 
-  async function send(method: string, path: string, body?: unknown): Promise<Response> {
+  // Sends a request and reads its answer with `read`, inside the time limit:
+  // a big file that breaks off while it downloads is tried again too.
+  async function send<T>(method: string, path: string, body: unknown, read: (res: Response) => Promise<T>): Promise<T> {
     const headers: Record<string, string> = { Authorization: `Bearer ${key}` };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     for (let attempt = 1; ; attempt++) {
-      let res: Response | null = null;
       try {
-        res = await fetchFn(`${root}${path}`, {
+        const res = await fetchFn(`${root}${path}`, {
           method,
           headers,
           body: body === undefined ? undefined : JSON.stringify(body),
           signal: AbortSignal.timeout(timeoutMs),
         });
-      } catch {
+        if (res.ok) return await read(res);
+        if (res.status < 500 || attempt >= tries) throw new RobotApiError(res.status, await errorCode(res));
+      } catch (err) {
+        if (err instanceof RobotApiError) throw err;
         if (attempt >= tries) throw new RobotApiError(0, 'network');
-      }
-      if (res && (res.status < 500 || attempt >= tries)) {
-        if (res.ok) return res;
-        throw new RobotApiError(res.status, await errorCode(res));
       }
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
     }
   }
 
-  const json = async <T>(method: string, path: string, body?: unknown): Promise<T> => (await (await send(method, path, body)).json()) as T;
-  const bytes = async (path: string) => new Uint8Array(await (await send('GET', path)).arrayBuffer());
+  const json = <T>(method: string, path: string, body?: unknown): Promise<T> => send(method, path, body, (res) => res.json() as Promise<T>);
+  const bytes = (path: string) => send('GET', path, undefined, async (res) => new Uint8Array(await res.arrayBuffer()));
+  const nothing = async () => undefined;
 
   return {
     check: () => json<CheckResult>('POST', '/check'),
     lease: (runId) => json<LeaseResult>('POST', '/lease', { runId }),
-    heartbeat: async (runId) => {
-      await send('POST', '/heartbeat', { runId });
-    },
-    release: async (runId, summary) => {
-      await send('POST', '/release', { runId, summary });
-    },
+    heartbeat: (runId) => send('POST', '/heartbeat', { runId }, nothing),
+    release: (runId, summary) => send('POST', '/release', { runId, summary }, nothing),
     tasks: () => json<TasksResult>('GET', '/tasks'),
     test: async (testId) => (await json<{ test: RobotTest }>('GET', `/tests/${testId}`)).test,
     testFile: (testId, kind) => bytes(`/tests/${testId}/files/${kind}`),
     sendExerciseList: async (testId, body) =>
       (await json<{ exerciseList: ExerciseListInfo }>('POST', `/tests/${testId}/exercise-list`, body)).exerciseList,
-    claim: async (runId) => {
-      const res = await send('POST', '/claim', { runId });
-      return res.status === 204 ? null : ((await res.json()) as ClaimResult);
-    },
+    claim: (runId) => send('POST', '/claim', { runId }, async (res) => (res.status === 204 ? null : ((await res.json()) as ClaimResult))),
     page: (submissionId, fileId) => bytes(`/submissions/${submissionId}/files/${fileId}`),
     sendResult: async (submissionId, body) =>
       (await json<{ status: 'graded' | 'submitted' | 'failed' }>('POST', `/submissions/${submissionId}/result`, body)).status,

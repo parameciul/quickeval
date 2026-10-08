@@ -111,6 +111,15 @@ describe('robotApi requests', () => {
     await expect(robotApi('https://site.test', 'k', { fetch: failing.fetch, retryDelayMs: 0 }).check()).rejects.toMatchObject({ status: 502, code: 'http_502' });
   });
 
+  it('tries again when the answer breaks off while it is read', async () => {
+    const broken = new Response(new ReadableStream({ start: (controller) => controller.error(new TypeError('terminated')) }));
+    const { calls, fetch } = fakeFetch(broken, new Response('page bytes'));
+    expect(text(await robotApi('https://site.test', 'k', { fetch, retryDelayMs: 0 }).page(5, 7))).toBe('page bytes');
+    expect(calls).toHaveLength(2);
+    const always = fakeFetch(...[1, 2, 3].map(() => new Response(new ReadableStream({ start: (controller) => controller.error(new TypeError('terminated')) }))));
+    await expect(robotApi('https://site.test', 'k', { fetch: always.fetch, retryDelayMs: 0 }).page(5, 7)).rejects.toMatchObject({ status: 0, code: 'network' });
+  });
+
   it('does not try a refused request again', async () => {
     const { calls, fetch } = fakeFetch(json(409, { error: 'taken_over', message: '…' }));
     const sent = robotApi('https://site.test', 'k', { fetch, retryDelayMs: 0 }).sendResult(5, { runId: RUN, ok: false, error: 'crash' });
