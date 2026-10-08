@@ -48,8 +48,10 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       evaluationStartedAt: null,
       studentCount: uploads.filter((row) => row.active).length,
       submittedCount: uploads.filter((row) => row.status !== 'none' && row.status !== 'uploading').length,
+      gradedCount: uploads.filter((row) => row.status === 'graded').length,
       uploadToken: null,
       files: { test: null, barem: null },
+      exerciseList: { status: 'none', message: null },
       ...overrides,
     },
     uploads,
@@ -66,6 +68,9 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     startedAt: null,
     submittedAt: null,
     autoSubmitted: false,
+    grade: null,
+    flagCount: 0,
+    lastError: null,
     ...overrides,
   };
 }
@@ -170,7 +175,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     resetSubmission: vi.fn(async (submissionId: number) => {
       for (const detail of tests) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
-        if (row) Object.assign(row, { submissionId: null, status: 'none', fileCount: 0, startedAt: null, submittedAt: null });
+        if (row) {
+          const cleared = { submissionId: null, status: 'none', fileCount: 0, startedAt: null, submittedAt: null, autoSubmitted: false };
+          Object.assign(row, { ...cleared, grade: null, flagCount: 0, lastError: null });
+        }
       }
       const index = submissions.findIndex((s) => s.id === submissionId);
       if (index >= 0) submissions.splice(index, 1);

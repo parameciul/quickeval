@@ -1,8 +1,8 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
+import type { ExerciseListInfo, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
 import type { TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
-import { buildTestCode, type TestStatus } from '../../shared/tests.ts';
+import { buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 
 export interface StoredFile {
@@ -18,6 +18,7 @@ export interface TestRecord {
   summary: TestSummary;
   uploadToken: string | null;
   files: Record<TestFileKind, StoredFile | null>;
+  exerciseList: ExerciseListInfo;
 }
 
 interface TestRow {
@@ -39,17 +40,21 @@ interface TestRow {
   barem_file_key: string | null;
   barem_file_name: string | null;
   barem_file_type: string | null;
+  exercise_list_status: ExerciseListStatus;
+  exercise_list_message: string | null;
   student_count: number;
   submitted_count: number;
+  graded_count: number;
 }
 
 const SELECT_TEST = `
   SELECT t.id, t.code, t.title, t.status, t.class_id, c.name AS class_name, c.school_year,
     t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
-    t.barem_file_key, t.barem_file_name, t.barem_file_type,
+    t.barem_file_key, t.barem_file_name, t.barem_file_type, t.exercise_list_status, t.exercise_list_message,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
-    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count
+    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
+    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count
   FROM tests t JOIN classes c ON c.id = t.class_id`;
 
 function storedFile(key: string | null, name: string | null, type: string | null): StoredFile | null {
@@ -72,12 +77,14 @@ function toRecord(row: TestRow): TestRecord {
       evaluationStartedAt: row.evaluation_started_at,
       studentCount: row.student_count,
       submittedCount: row.submitted_count,
+      gradedCount: row.graded_count,
     },
     uploadToken: row.upload_token,
     files: {
       test: storedFile(row.test_file_key, row.test_file_name, row.test_file_type),
       barem: storedFile(row.barem_file_key, row.barem_file_name, row.barem_file_type),
     },
+    exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
   };
 }
 
@@ -88,6 +95,7 @@ export function toTestInfo(record: TestRecord): TestInfo {
     ...record.summary,
     uploadToken: record.uploadToken,
     files: { test: info(record.files.test), barem: info(record.files.barem) },
+    exerciseList: record.exerciseList,
   };
 }
 
@@ -126,11 +134,14 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
   const { results } = await db
     .prepare(
       `SELECT st.id AS student_id, st.full_name, e.active,
-         s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted,
-         (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count
+         s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade,
+         (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
+         (SELECT COUNT(*) FROM evaluation_items i WHERE i.evaluation_id = ev.id AND i.needs_review = 1 AND i.reviewed_at IS NULL)
+           + CASE WHEN json_array_length(ev.unreadable_json) > 0 THEN 1 ELSE 0 END AS flag_count
        FROM enrollments e
        JOIN students st ON st.id = e.student_id
        LEFT JOIN submissions s ON s.test_id = ? AND s.student_id = e.student_id
+       LEFT JOIN evaluations ev ON ev.submission_id = s.id
        WHERE e.class_id = ? AND (e.active = 1 OR s.id IS NOT NULL)`,
     )
     .bind(testId, classId)
@@ -143,7 +154,10 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       started_at: string | null;
       submitted_at: string | null;
       auto_submitted: number | null;
+      last_error: string | null;
+      grade: number | null;
       file_count: number;
+      flag_count: number;
     }>();
   return results
     .map((row) => ({
@@ -156,6 +170,9 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       startedAt: row.started_at,
       submittedAt: row.submitted_at,
       autoSubmitted: row.auto_submitted === 1,
+      grade: row.grade,
+      flagCount: row.flag_count,
+      lastError: row.last_error,
     }))
     .sort((a, b) => compareStudentNames(a.studentName, b.studentName));
 }

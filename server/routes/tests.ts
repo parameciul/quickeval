@@ -3,7 +3,14 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { createTestBody, evaluateTestBody, renameTestBody, type EvaluationStart } from '../../shared/api.ts';
 import { isTestFileKind, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
-import { cancelSchedule, hasUploadedFiles, scheduleEvaluation, startEvaluationNow } from '../db/lifecycle.ts';
+import {
+  acceptExerciseList,
+  cancelSchedule,
+  hasUploadedFiles,
+  retryExerciseList,
+  scheduleEvaluation,
+  startEvaluationNow,
+} from '../db/lifecycle.ts';
 import {
   createTest,
   deleteTestRow,
@@ -133,12 +140,33 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ status: 'open', evaluationAt: null });
   });
 
+  // "Folosește oricum": grade with an exercise list whose points do not add up.
+  routes.post('/:code/exercise-list/accept', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (!(await acceptExerciseList(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
+      throw new ApiError(409, 'no_problem', 'Lista de exerciții nu are nicio problemă.');
+    }
+    return c.json({ exerciseList: { status: 'accepted', message: test.exerciseList.message } });
+  });
+
+  // "Încearcă din nou": the robot makes the exercise list again.
+  routes.post('/:code/exercise-list/retry', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const status = await retryExerciseList(c.env.DB, c.var.teacher.id, test.id, nowIso());
+    if (status === null) throw new ApiError(409, 'not_failed', 'Lista de exerciții nu a eșuat.');
+    const robot = status === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ exerciseList: { status: 'none', message: null }, robot });
+  });
+
   // Upload or replace the test or the barem: PDF or Word, at most 25 MB.
   routes.put('/:code/files/:kind', async (c) => {
     const kind = parseFileKind(c.req.param('kind'));
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
-    if (test.summary.status === 'evaluating') {
+    // While the robot grades, it reads both files. It reads neither while the
+    // exercise list has a problem or failed: the teacher may then fix the barem.
+    const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
+    if (test.summary.status === 'evaluating' && !listBlocked) {
       throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba fișierul după ce se termină corectarea.');
     }
     const file = await readUpload(c, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);

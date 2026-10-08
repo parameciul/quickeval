@@ -1,4 +1,5 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
+import type { TestStatus } from '../../shared/tests.ts';
 
 // The test lifecycle after Start test (spec §8.3-§8.5). Each write checks its
 // own rules in its SQL, so two requests at once cannot both pass a check.
@@ -124,4 +125,58 @@ export async function hasUploadedFiles(db: D1Database, testId: number): Promise<
     .bind(testId)
     .first<{ found: number }>();
   return row !== null;
+}
+
+// "Folosește oricum": the teacher accepts an exercise list whose points do
+// not add up. False when the list had no problem.
+export async function acceptExerciseList(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET exercise_list_status = 'accepted', updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND exercise_list_status = 'problem'
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ id: number }>();
+  return row !== null;
+}
+
+// Lets the robot try again to make an exercise list it failed to make.
+// Returns the test's status, or null when the list had not failed.
+export async function retryExerciseList(db: D1Database, teacherId: number, testId: number, now: string): Promise<TestStatus | null> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET exercise_list_status = 'none', exercise_list_message = NULL, exercise_list_attempts = 0, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND exercise_list_status = 'failed'
+       RETURNING status`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ status: TestStatus }>();
+  return row?.status ?? null;
+}
+
+// failed → submitted with 0 attempts, so the robot grades the upload again. A
+// finished test goes back to evaluation (spec §8.5). Returns the test's
+// status, or null when the upload had not failed.
+export async function retrySubmission(db: D1Database, teacherId: number, submissionId: number, now: string): Promise<TestStatus | null> {
+  const [retried, , test] = await db.batch<{ test_id?: number; status?: TestStatus }>([
+    db
+      .prepare(
+        `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL
+         WHERE id = ? AND status = 'failed'
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
+         RETURNING test_id`,
+      )
+      .bind(submissionId, teacherId),
+    db
+      .prepare(
+        `UPDATE tests SET status = 'evaluating', updated_at = ?, ${ASK_FOR_ANALYSIS}
+         WHERE status = 'done' AND teacher_id = ?
+           AND id = (SELECT test_id FROM submissions WHERE id = ? AND status = 'submitted')`,
+      )
+      .bind(now, teacherId, submissionId),
+    db.prepare('SELECT t.status FROM tests t JOIN submissions s ON s.test_id = t.id WHERE s.id = ?').bind(submissionId),
+  ]);
+  if (!retried?.results.length) return null;
+  return test?.results[0]?.status ?? null;
 }

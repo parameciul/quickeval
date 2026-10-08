@@ -1,13 +1,16 @@
 import { Hono } from 'hono';
+import { retrySubmission } from '../db/lifecycle.ts';
 import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission } from '../db/submissions.ts';
-import type { AppEnv } from '../env.ts';
-import { notFound } from '../errors.ts';
-import { parseId } from '../http.ts';
+import { robotStarter } from '../dispatch.ts';
+import type { AppEnv, AppOptions } from '../env.ts';
+import { ApiError, notFound } from '../errors.ts';
+import { nowIso, parseId } from '../http.ts';
 import { deleteFilesQuietly, fileResponse } from '../uploads.ts';
 
 // /api/admin/submissions: one student's upload for one test.
-export function submissionRoutes(): Hono<AppEnv> {
+export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
+  const startRobot = robotStarter(options);
 
   routes.get('/:id', async (c) => {
     const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')));
@@ -30,6 +33,16 @@ export function submissionRoutes(): Hono<AppEnv> {
     await deleteSubmissionRow(c.env.DB, found.detail.id);
     await deleteFilesQuietly(c.env.FILES, found.files.map((file) => file.key));
     return c.json({ reset: true });
+  });
+
+  // "Reîncearcă": the robot grades a failed upload again.
+  routes.post('/:id/retry', async (c) => {
+    const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')));
+    if (!found) throw notFound();
+    const testStatus = await retrySubmission(c.env.DB, c.var.teacher.id, found.detail.id, nowIso());
+    if (testStatus === null) throw new ApiError(409, 'not_failed', 'Corectarea acestei lucrări nu a eșuat.');
+    const robot = testStatus === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ status: 'submitted', robot });
   });
 
   return routes;

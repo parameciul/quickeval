@@ -3,7 +3,7 @@ import { normalizeClassName } from './classes.ts';
 import type { TestFileKind } from './files.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
-import { cleanTitle, MAX_TITLE_LENGTH, type TestStatus } from './tests.ts';
+import { cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
 
 // Request bodies of the teacher API. The server parses every body with these
 // schemas; the browser uses the inferred types.
@@ -132,9 +132,11 @@ export interface TestSummary {
   evaluationAt: string | null;
   // When the uploads closed and the evaluation started.
   evaluationStartedAt: string | null;
-  // Active students of the class, and uploads that were sent (confirmed or included).
+  // Active students of the class, uploads that were sent (confirmed or
+  // included), and uploads that were graded.
   studentCount: number;
   submittedCount: number;
+  gradedCount: number;
 }
 
 export interface TestFileInfo {
@@ -142,9 +144,16 @@ export interface TestFileInfo {
   type: string;
 }
 
+export interface ExerciseListInfo {
+  status: ExerciseListStatus;
+  // Why the list needs the teacher: points that do not add up, or an error.
+  message: string | null;
+}
+
 export interface TestInfo extends TestSummary {
   uploadToken: string | null;
   files: Record<TestFileKind, TestFileInfo | null>;
+  exerciseList: ExerciseListInfo;
 }
 
 // "none": the student has not started an upload.
@@ -162,6 +171,13 @@ export interface UploadRow {
   startedAt: string | null;
   submittedAt: string | null;
   autoSubmitted: boolean;
+  // Out of 10, once graded.
+  grade: number | null;
+  // Items to check that the teacher has not checked yet, plus one for pages
+  // that could not be read.
+  flagCount: number;
+  // Why grading failed, for the teacher.
+  lastError: string | null;
 }
 
 export interface TestDetail {

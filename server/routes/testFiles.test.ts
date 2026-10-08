@@ -79,13 +79,28 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
     expect(await res.json()).toEqual({ error: 'bad_file_type', message: 'Încarcă un fișier PDF sau Word (.docx).' });
   });
 
-  it('refuses a new file while the test is being graded', async () => {
+  it.each(['none', 'ready', 'accepted'])('refuses a new file while the robot works with an exercise list "%s"', async (list) => {
     // An upload waits for grading, so the test stays in evaluation.
     await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
-    await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE code = ?").bind(code).run();
-    const res = await putFile(code, 'test', pdf('x'), PDF_TYPE, 'test.pdf');
+    await api.db.prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = ? WHERE code = ?").bind(list, code).run();
+    const res = await putFile(code, 'barem', pdf('x'), PDF_TYPE, 'barem.pdf');
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe('evaluating');
+  });
+
+  it.each(['problem', 'failed'])('takes a new barem while the exercise list is "%s", and asks for a new list', async (list) => {
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await api.db
+      .prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = ?, exercise_list_message = 'x', exercise_list_attempts = 3 WHERE code = ?")
+      .bind(list, code)
+      .run();
+    const res = await putFile(code, 'barem', pdf('nou'), PDF_TYPE, 'barem.pdf');
+    expect(res.status).toBe(200);
+    const row = await api.db
+      .prepare('SELECT status, exercise_list_status, exercise_list_message, exercise_list_attempts FROM tests WHERE code = ?')
+      .bind(code)
+      .first();
+    expect(row).toEqual({ status: 'evaluating', exercise_list_status: 'none', exercise_list_message: null, exercise_list_attempts: 0 });
   });
 
   it('answers 404 for an unknown kind, an unknown test, and a test of another teacher', async () => {

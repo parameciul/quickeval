@@ -55,6 +55,45 @@ export async function addSubmission(
   return submissionId;
 }
 
+// A grading of an upload, straight in the database: one item per entry of
+// `items`, flagged when `needsReview`, checked by the teacher when `reviewed`.
+export async function addEvaluation(
+  api: TestApi,
+  submissionId: number,
+  options: { grade?: number; items?: { needsReview?: boolean; reviewed?: boolean }[]; unreadable?: string[] } = {},
+): Promise<number> {
+  const items = options.items ?? [{}];
+  const unreadable = options.unreadable ?? [];
+  const needsReview = unreadable.length > 0 || items.some((item) => item.needsReview);
+  const row = await api.db
+    .prepare(
+      `INSERT INTO evaluations (submission_id, max_total, office_points, total, grade, needs_review, summary,
+         strengths_json, recommendations_json, unreadable_json, raw_json, created_at, updated_at)
+       VALUES (?, 10, 1, ?, ?, ?, 'Rezumat.', '[]', '[]', ?, '{}', '2026-10-07T09:00:00.000Z', '2026-10-07T09:00:00.000Z')
+       RETURNING id`,
+    )
+    .bind(submissionId, options.grade ?? 9, options.grade ?? 9, needsReview ? 1 : 0, JSON.stringify(unreadable))
+    .first<{ id: number }>();
+  for (const [index, item] of items.entries()) {
+    await api.db
+      .prepare(
+        `INSERT INTO evaluation_items (evaluation_id, exercise_id, position, label, max_points, ai_points, points,
+           student_answer, comment, confidence, needs_review, review_reason, reviewed_at)
+         VALUES (?, ?, ?, 'Exercițiu', 1, 1, 1, 'r', 'c', 'high', ?, ?, ?)`,
+      )
+      .bind(
+        row!.id,
+        `E${index + 1}`,
+        index + 1,
+        item.needsReview ? 1 : 0,
+        item.needsReview ? 'Verifică' : '',
+        item.reviewed ? '2026-10-07T10:00:00.000Z' : null,
+      )
+      .run();
+  }
+  return row!.id;
+}
+
 // Marks the test file and the barem as uploaded (rows only; nothing in R2).
 export async function addTestFiles(api: TestApi, code: string, kinds: ('test' | 'barem')[] = ['test', 'barem']): Promise<void> {
   for (const kind of kinds) {

@@ -1,5 +1,10 @@
 export type TestStatus = 'draft' | 'open' | 'evaluating' | 'done';
 
+// The robot's list of the test's exercises (spec §12.5). "problem": the points
+// do not add up; "accepted": the teacher said to use it anyway; "failed": the
+// robot could not make it after 3 tries.
+export type ExerciseListStatus = 'none' | 'ready' | 'problem' | 'accepted' | 'failed';
+
 export const MAX_TITLE_LENGTH = 120;
 
 // An evaluation can be scheduled at most this many days ahead.

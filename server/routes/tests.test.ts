@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { addSubmission, makeClass, makeTest, otherTeacherTest, testIdOf } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -84,7 +84,7 @@ describe('GET /api/admin/tests', () => {
     const res = await api.request('GET', '/api/admin/tests?year=2026');
     expect(res.status).toBe(200);
     expect(res.body.tests.map((t: { title: string }) => t.title)).toEqual(['Al doilea', 'Primul']);
-    expect(res.body.tests[1]).toMatchObject({ code: '6E2-26T1', studentCount: 3, submittedCount: 1, startedAt: null });
+    expect(res.body.tests[1]).toMatchObject({ code: '6E2-26T1', studentCount: 3, submittedCount: 1, gradedCount: 0, startedAt: null });
   });
 
   it('refuses a bad year and hides tests of other teachers', async () => {
@@ -107,7 +107,14 @@ describe('GET /api/admin/tests/:code', () => {
 
     const res = await api.request('GET', `/api/admin/tests/${code}`);
     expect(res.status).toBe(200);
-    expect(res.body.test).toMatchObject({ code, uploadToken: null, files: { test: null, barem: null }, studentCount: 2, submittedCount: 1 });
+    expect(res.body.test).toMatchObject({
+      code,
+      uploadToken: null,
+      files: { test: null, barem: null },
+      exerciseList: { status: 'none', message: null },
+      studentCount: 2,
+      submittedCount: 1,
+    });
     expect(res.body.uploads).toEqual([
       {
         studentId: ionescu,
@@ -119,6 +126,9 @@ describe('GET /api/admin/tests/:code', () => {
         startedAt: null,
         submittedAt: null,
         autoSubmitted: false,
+        grade: null,
+        flagCount: 0,
+        lastError: null,
       },
       {
         studentId: pop,
@@ -130,9 +140,42 @@ describe('GET /api/admin/tests/:code', () => {
         startedAt: '2026-10-06T08:00:00.000Z',
         submittedAt: '2026-10-06T08:30:00.000Z',
         autoSubmitted: true,
+        grade: null,
+        flagCount: 0,
+        lastError: null,
       },
       expect.objectContaining({ studentName: 'Stan Eva', active: false, status: 'uploading', fileCount: 1 }),
     ]);
+  });
+
+  it('shows grades, the items to check, and grading errors', async () => {
+    const cls = await makeClass(api, '6E2', ['Pop Ion', 'Ionescu Ana', 'Stan Eva']);
+    const [pop, ionescu, stan] = cls.studentIds as [number, number, number];
+    const code = await makeTest(api, cls.id);
+    const graded = await addSubmission(api, code, pop, { status: 'graded', files: 1 });
+    await addEvaluation(api, graded, {
+      grade: 8.75,
+      items: [{ needsReview: true }, { needsReview: true, reviewed: true }, {}, { needsReview: true }],
+      unreadable: ['page-02.jpg'],
+    });
+    const clean = await addSubmission(api, code, ionescu, { status: 'graded', files: 1 });
+    await addEvaluation(api, clean, { grade: 10 });
+    const failed = await addSubmission(api, code, stan, { status: 'failed', files: 1 });
+    await api.db.prepare("UPDATE submissions SET last_error = 'Corectarea a durat prea mult.' WHERE id = ?").bind(failed).run();
+    await api.db
+      .prepare("UPDATE tests SET exercise_list_status = 'problem', exercise_list_message = 'Punctajele din barem dau 9, dar totalul este 10.' WHERE code = ?")
+      .bind(code)
+      .run();
+
+    const res = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(res.body.test).toMatchObject({
+      gradedCount: 2,
+      exerciseList: { status: 'problem', message: 'Punctajele din barem dau 9, dar totalul este 10.' },
+    });
+    const byName = Object.fromEntries(res.body.uploads.map((row: { studentName: string }) => [row.studentName, row]));
+    expect(byName['Pop Ion']).toMatchObject({ status: 'graded', grade: 8.75, flagCount: 3, lastError: null });
+    expect(byName['Ionescu Ana']).toMatchObject({ status: 'graded', grade: 10, flagCount: 0 });
+    expect(byName['Stan Eva']).toMatchObject({ status: 'failed', grade: null, flagCount: 0, lastError: 'Corectarea a durat prea mult.' });
   });
 
   it('reads the code in any letter case and answers 404 for unknown or foreign codes', async () => {
