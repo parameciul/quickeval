@@ -1,0 +1,16 @@
+{
+  "type": "result",
+  "subtype": "error_max_turns",
+  "is_error": true,
+  "terminal_reason": "max_turns",
+  "num_turns": 2,
+  "errors": [
+    "Reached maximum number of turns (1)"
+  ],
+  "session_id": "00000000-0000-4000-8000-000000000000",
+  "modelUsage": {
+    "claude-haiku-5-5": {
+      "outputTokens": 204
+    }
+  }
+}

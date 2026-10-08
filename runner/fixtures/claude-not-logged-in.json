@@ -1,0 +1,11 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": true,
+  "api_error_status": null,
+  "terminal_reason": "api_error",
+  "num_turns": 1,
+  "result": "Not logged in · Please run /login",
+  "session_id": "00000000-0000-4000-8000-000000000000",
+  "modelUsage": {}
+}

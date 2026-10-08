@@ -1,0 +1,70 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "api_error_status": null,
+  "terminal_reason": "completed",
+  "num_turns": 6,
+  "result": "{\"totalPoints\":10,\"officePoints\":1,\"exercises\":[{\"id\":\"I.1\",\"label\":\"Subiectul I, exercițiul 1\",\"maxPoints\":1,\"answer\":\"5/4\",\"scoringNotes\":\"\",\"topic\":\"Adunarea fracțiilor\"},{\"id\":\"I.2\",\"label\":\"Subiectul I, exercițiul 2\",\"maxPoints\":1,\"answer\":\"32 (2⁵)\",\"scoringNotes\":\"\",\"topic\":\"Puteri și reguli de calcul\"},{\"id\":\"I.3\",\"label\":\"Subiectul I, exercițiul 3\",\"maxPoints\":1,\"answer\":\"x = 5\",\"scoringNotes\":\"3x = 15: 0,5p; x = 5: 0,5p\",\"topic\":\"Ecuații de gradul I\"},{\"id\":\"II.1.a\",\"label\":\"Subiectul II, exercițiul 1.a\",\"maxPoints\":1,\"answer\":\"3/4\",\"scoringNotes\":\"\",\"topic\":\"Simplificarea fracțiilor\"},{\"id\":\"II.1.b\",\"label\":\"Subiectul II, exercițiul 1.b\",\"maxPoints\":2,\"answer\":\"21/35 și 20/35; 3/5 > 4/7\",\"scoringNotes\":\"Aducerea la același numitor (21/35 și 20/35): 1p; concluzia 3/5 > 4/7: 1p\",\"topic\":\"Compararea fracțiilor\"},{\"id\":\"II.2\",\"label\":\"Subiectul II, exercițiul 2\",\"maxPoints\":3,\"answer\":\"P = 26 cm; A = 40 cm²\",\"scoringNotes\":\"P = 2·(8 + 5) = 26 cm: 1,5p; A = 8 · 5 = 40 cm²: 1,5p\",\"topic\":\"Perimetrul și aria dreptunghiului\"}],\"notes\":\"Punctajele se adună corect: 1 + 1 + 1 + 1 + 2 + 3 = 9 puncte, plus 1 punct din oficiu = 10. Baremul scrie „împărțirea punctajului total la 1\\\", ceea ce nu schimbă nota. Testul are Subiectul I de 3 puncte și Subiectul II de 6 puncte, la fel ca în barem. Barem fără alte neclarități.\"}",
+  "structured_output": {
+    "totalPoints": 10,
+    "officePoints": 1,
+    "exercises": [
+      {
+        "id": "I.1",
+        "label": "Subiectul I, exercițiul 1",
+        "maxPoints": 1,
+        "answer": "5/4",
+        "scoringNotes": "",
+        "topic": "Adunarea fracțiilor"
+      },
+      {
+        "id": "I.2",
+        "label": "Subiectul I, exercițiul 2",
+        "maxPoints": 1,
+        "answer": "32 (2⁵)",
+        "scoringNotes": "",
+        "topic": "Puteri și reguli de calcul"
+      },
+      {
+        "id": "I.3",
+        "label": "Subiectul I, exercițiul 3",
+        "maxPoints": 1,
+        "answer": "x = 5",
+        "scoringNotes": "3x = 15: 0,5p; x = 5: 0,5p",
+        "topic": "Ecuații de gradul I"
+      },
+      {
+        "id": "II.1.a",
+        "label": "Subiectul II, exercițiul 1.a",
+        "maxPoints": 1,
+        "answer": "3/4",
+        "scoringNotes": "",
+        "topic": "Simplificarea fracțiilor"
+      },
+      {
+        "id": "II.1.b",
+        "label": "Subiectul II, exercițiul 1.b",
+        "maxPoints": 2,
+        "answer": "21/35 și 20/35; 3/5 > 4/7",
+        "scoringNotes": "Aducerea la același numitor (21/35 și 20/35): 1p; concluzia 3/5 > 4/7: 1p",
+        "topic": "Compararea fracțiilor"
+      },
+      {
+        "id": "II.2",
+        "label": "Subiectul II, exercițiul 2",
+        "maxPoints": 3,
+        "answer": "P = 26 cm; A = 40 cm²",
+        "scoringNotes": "P = 2·(8 + 5) = 26 cm: 1,5p; A = 8 · 5 = 40 cm²: 1,5p",
+        "topic": "Perimetrul și aria dreptunghiului"
+      }
+    ],
+    "notes": "Punctajele se adună corect: 1 + 1 + 1 + 1 + 2 + 3 = 9 puncte, plus 1 punct din oficiu = 10. Baremul scrie „împărțirea punctajului total la 1\", ceea ce nu schimbă nota. Testul are Subiectul I de 3 puncte și Subiectul II de 6 puncte, la fel ca în barem. Barem fără alte neclarități."
+  },
+  "session_id": "00000000-0000-4000-8000-000000000000",
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "outputTokens": 1476
+    }
+  }
+}
