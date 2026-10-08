@@ -5351,7 +5351,7 @@ git commit -m "Add the robot's GitHub workflow, and document the robot in AGENTS
 
 ### Task 10: Go live (main session)
 
-The new column exists in the live database before the code that reads it reaches `main`. Every push to `main` deploys. The robot starts grading as soon as the variable `QUICKEVAL_URL` and the secret `QUICKEVAL_RUNNER_KEY` exist: it grades **every** test in evaluation, on Laura's account too, and it cannot pick tests. So the tests that must not be graded yet are reopened or deleted before the key is set, and the robot key is the last setting.
+The new column exists in the live database before the code that reads it reaches `main`. Every push to `main` deploys. The robot starts grading as soon as the variable `QUICKEVAL_URL` and the secrets `QUICKEVAL_RUNNER_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` exist: it grades **every** test in evaluation, on Laura's account too, and it cannot pick tests. So the first grading on the live site is a made-up test, alone: the real tests in evaluation are reopened first and started again only after the made-up test was graded and its log checked. The robot key is the last setting.
 
 Ask the user before each step marked "ask first", and wait for a clear yes. Steps marked "(user)" are done by the user alone: never ask for a token or a key in the chat, and never read one. curl to the live site is denied in this environment: use `fetch` in the browser pane. Read GitHub checks and runs once each time the user asks or after other work; do not poll in a loop.
 
@@ -5362,17 +5362,22 @@ Ask the user before each step marked "ask first", and wait for a clear yes. Step
 
 Run: `git status --short`, `npm test`, `npm run build`
 Expected: a clean tree on the Plan 3b branch, all tests pass, the build ends with `✓ built in …`.
-Then run `npm run db:local`, start the `preview` server from `.claude/launch.json`, and run `npm run smoke`.
+Then run the smoke test **in the branch's checkout** (the worktree, when there is one). A smoke run against the Plan 3a code passes too, so check that the server runs the branch:
+1. If `.dev.vars` is missing in that checkout, copy it from `D:\Projects\QuickEval\.dev.vars` (git-ignored; it holds only `DEV_TEACHER_EMAIL`, the local login of the smoke test).
+2. Run `npm run db:local` in that checkout.
+3. Start its production build with `preview_start`. The `preview` entry of `.claude/launch.json` runs `npm run preview` in the session's folder. When that is not the branch's checkout, add a temporary entry `{ "name": "preview-branch", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "<the checkout's path>", "run", "preview"], "port": 8788 }`, start that one, and remove the entry afterwards.
+4. In `preview_logs`, `env.CF_PAGES_COMMIT_SHA` must start with the checkout's `git rev-parse HEAD`.
+5. Run `npm run smoke` in that checkout.
 Expected: 42 lines that start with `PASS`, then `All smoke checks passed.` Stop the preview and check that nothing listens on port 8788 (`netstat -ano | findstr :8788`; on a leftover, use the PowerShell command in `AGENTS.md`).
 
 - [ ] **Step 2: Run the Linux CI (ask first)**
 
 Push the Plan 3b branch and open a pull request into `main`, so `ci.yml` runs on Linux in UTC. Preview deployments are off, so nothing deploys. After `gh pr create`, use the ccd_pr tools (`get_status`, and `bind_pr` if needed). Wait until the check `test` passes. This is the first Linux run of the process-group code in `runner/claude.ts`: if `runner/claude.test.ts` fails there, stop and report. Without pandoc on the runner, the real-pandoc test is skipped: `Test Files  58 passed (58)`, `Tests  636 passed | 1 skipped (637)`.
 
-- [ ] **Step 3: List the tests that the robot would grade (ask first)**
+- [ ] **Step 3: Hold back the real tests (ask first)**
 
 Run: `npx wrangler d1 execute quickeval --remote --json --command "SELECT t.id, t.code, t.title, t.status, t.evaluation_at, (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status IN ('submitted', 'grading')) AS waiting FROM tests t WHERE t.status = 'evaluating' OR (t.status = 'open' AND t.evaluation_at IS NOT NULL)"`
-Show the user the list (code, title, status, scheduled time, uploads waiting). For each test, the user decides: grade it when the robot starts, or reopen it (**Redeschide încărcarea** on the test page) or delete it before the robot key is set. A scheduled test closes at its time and is graded too. The user (or Laura, for her account) does the reopening on the teacher pages; run the query again afterwards and show the new list.
+Show the user the list (code, title, status, scheduled time, uploads waiting), and write it into the ledger: these tests are started again in the last steps. Then the user (or Laura, for her account) reopens each test in evaluation (**Redeschide încărcarea** on the test page) and cancels each schedule (**Anulează programarea**). Tell the user the side effect: while a test is open, its link takes uploads again, so keep this time short. Run the query again: it must give no rows.
 
 - [ ] **Step 4: Apply the migration to the live database (ask first)**
 
@@ -5396,33 +5401,42 @@ Merge the Plan 3b branch into `main` (the finishing-a-development-branch skill),
 Run: `gh workflow run evaluate.yml`, then, a minute later, `gh run list --workflow evaluate.yml --limit 3`.
 Expected: the run passed. In `gh run view <id> --log`, the step "Check for work" shows `[robot] not set up: QUICKEVAL_URL or QUICKEVAL_RUNNER_KEY is missing` and `has_work=false`; "Install" and "Grade" were skipped.
 
-- [ ] **Step 8: The robot's GitHub settings (user, then ask first)**
+- [ ] **Step 8: The URL and the Claude token (ask first, then user)**
 
-In this order, so that no run starts without the Claude token:
 1. (ask first) `gh variable set QUICKEVAL_URL --body https://quickeval.pages.dev`
 2. (user) `gh secret set CLAUDE_CODE_OAUTH_TOKEN`, and paste the token from the password manager (made with `claude setup-token`; it lasts one year).
-3. Check that every test the user did not want graded is reopened or deleted (run the query of the listing step again).
-4. (user) On https://quickeval.pages.dev/admin/, Setări, click **Fă o cheie nouă** (it replaces the key made in Plan 3a), copy the key, and run `gh secret set QUICKEVAL_RUNNER_KEY`; paste the key when asked.
-5. `gh secret list` shows `CLAUDE_CODE_OAUTH_TOKEN` and `QUICKEVAL_RUNNER_KEY`; `gh variable list` shows `QUICKEVAL_URL`.
+3. `gh variable list` shows `QUICKEVAL_URL`; `gh secret list` shows `CLAUDE_CODE_OAUTH_TOKEN`.
+Without the robot key, every run still finds no work.
 
-From the next run on, the robot grades every test in evaluation.
-
-- [ ] **Step 9: Grade a made-up test on the live site (user)**
+- [ ] **Step 9: Make a made-up test (user)**
 
 The made-up files are in `.superpowers/tools/samples-3b/` (git-ignored): `test.docx`, `barem.pdf`, and the pages `student/1.jpg`, `student/2.png`, `student/3.pdf`. No real student. The user logs in at https://quickeval.pages.dev/admin/ with the **test account** (not Laura's account) and:
 1. Makes a test for class 6E2 with `test.docx` as the test and `barem.pdf` as the barem, and clicks **Începe testul**.
 2. Opens the student link (a phone or a private browser window), picks a student, uploads the three pages in order, and confirms.
-3. On the test page, clicks **Pornește evaluarea acum**. Expected: within about a minute, `gh run list --workflow evaluate.yml --limit 3` shows a run started by `repository_dispatch`. It installs the robot (about a minute), makes the exercise list, and grades the upload, in about 2 to 5 minutes.
-4. After the run, reloads the test page. Expected: the test shows "Corectat"; the upload has a grade near 8,5 (Opus may judge one step differently) and 1 item to check (I.2, the exponent drawn as a square); no barem warning.
-5. Opens Setări. Expected: the last run ended with 1 list and 1 graded upload, and "done".
-6. Deletes the test.
-If the run failed, read its log first (next step), then report.
+3. On the test page, clicks **Pornește evaluarea acum**. Expected: "Se corectează". Within about a minute, `gh run list --workflow evaluate.yml --limit 3` shows a run started by `repository_dispatch`: it finds no work, because the robot key is not set yet. That proves "Evaluate now".
+Run the query of "Hold back the real tests" again: the made-up test must be its only row.
 
-- [ ] **Step 10: Check that the run's log is public-safe**
+- [ ] **Step 10: The robot key, and the first grading (user, then ask first)**
 
-Save the grading run's log into the session's scratchpad directory (`gh run view <id> --log > evaluate-run.log`, run there), and read it with a Haiku subagent (the parse-logs-with-haiku skill): every `[robot]` line holds only events, ids, counts, durations, and error categories; no student name, file name, grade, or Claude text appears anywhere in the log; no line shows a token or a key (GitHub masks secrets as `***`). Report what the subagent found.
+1. (user) On https://quickeval.pages.dev/admin/, Setări, click **Fă o cheie nouă** (it replaces the key made in Plan 3a), copy the key, and run `gh secret set QUICKEVAL_RUNNER_KEY`; paste the key when asked. `gh secret list` then shows both secrets.
+2. (ask first) `gh workflow run evaluate.yml`, then `gh run list --workflow evaluate.yml --limit 3`. If a scheduled run started first, it does the work, and the manual run finds none.
+Expected: the run that found work installs the robot (about a minute; the first Linux install of Claude Code and pandoc), makes the exercise list, and grades the upload, in about 2 to 5 minutes, and passes. If it failed, read its log first (the log step below), then report.
 
-- [ ] **Step 11: Report**
+- [ ] **Step 11: Check the grading (user)**
+
+1. The user reloads the made-up test's page. Expected: the test shows "Corectat"; the upload has a grade near 8,5 (Opus may judge one step differently), and the I.2 item (the exponent drawn as a square) is among the items to check; no barem warning.
+2. Setări. Expected: the last run ended with 1 list and 1 graded upload, and "done".
+3. The user deletes the made-up test.
+
+- [ ] **Step 12: Check that the run's log is public-safe**
+
+Save the grading run's log into the session's scratchpad directory (`gh run view <id> --log > evaluate-run.log`, run there), and read it with a Haiku subagent (the parse-logs-with-haiku skill): every `[robot]` line holds only events, ids, counts, durations, and error categories; no student name, file name, grade, or Claude text appears anywhere in the log; no line shows a token or a key (GitHub masks secrets as `***`). Report what the subagent found. Stop here if anything is wrong: the real tests stay held back.
+
+- [ ] **Step 13: Start the real tests again (user)**
+
+Show the user the list from "Hold back the real tests". For each test, the user (or Laura) decides: **Pornește evaluarea acum**, a new schedule, or leave it open. From now on, the robot grades every test in evaluation.
+
+- [ ] **Step 14: Report**
 
 Tell the user what is live and what the checks showed. Tell the user and Laura:
 - The robot now grades every closed test, every 10 minutes, or about a minute after **Pornește evaluarea**. Setări shows its last run.
