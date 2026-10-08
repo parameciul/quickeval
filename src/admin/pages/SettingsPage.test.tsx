@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi, FAKE_ROBOT_KEY, fakeSettings } from '../../test/fakeApi.ts';
@@ -8,10 +8,23 @@ import { lastRunText } from './SettingsPage.tsx';
 const withSettings = (settings = fakeSettings()) => createFakeApi({ classes: [], students: {}, settings });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
 describe('SettingsPage', () => {
+  it('reads the robot state again every minute while the page is open', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const api = withSettings();
+    renderAdmin('/setari', api);
+    expect(await screen.findByText('Robotul nu a terminat încă nicio rulare.')).toBeInTheDocument();
+    expect(api.getSettings).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(api.getSettings).toHaveBeenCalledTimes(2);
+  });
+
   it('is in the menu', async () => {
     renderAdmin('/setari', withSettings());
     const menu = await screen.findByRole('navigation', { name: 'Meniu' });

@@ -8,12 +8,15 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
 
 const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) => index + 1);
+// A page left open reads the robot's state again this often (the robot checks
+// every 10 minutes, and the robot line moves on by itself).
+const REFRESH_MS = 60_000;
 
 // Setări (spec §9): how many uploads the robot grades at the same time, the
 // robot's key, and what the robot did last.
 export function SettingsPage() {
   const api = useApi();
-  const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.getSettings() });
+  const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.getSettings(), refetchInterval: REFRESH_MS });
 
   return (
     <section>
