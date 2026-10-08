@@ -16,7 +16,8 @@ import { removeFolder, runFolder } from './workdir.ts';
 // the uploads with up to maxParallel Claude runs at once, and give the lease
 // back with a summary of counts.
 
-// New work is taken for 2 hours; the GitHub job may last 150 minutes.
+// New work is taken for 2 hours; the GitHub job may last 180 minutes
+// (.github/workflows/evaluate.yml), so the last task can still finish.
 export const BUDGET_MS = 120 * 60_000;
 export const HEARTBEAT_MS = 60_000;
 

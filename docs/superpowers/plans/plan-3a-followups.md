@@ -4,6 +4,8 @@ Plan 3a built the closing of tests (now or at a set time), the robot API, and Se
 
 ## For Plan 3b
 
+Plan 3b did these. What it left open is in `plan-3b-followups.md`.
+
 - Tests that the teacher closed during Plan 3a sit in `evaluating` with `submitted` uploads. The robot grades them all as soon as it runs. Before the robot's secrets are set, list the `evaluating` tests and ask the user which ones to grade; reopen or delete the others.
 - The robot checks every output with `checkExerciseList` and `checkGrading` (`shared/schemas.ts`) before it sends it, and gives Claude `z.toJSONSchema()` of `exerciseListSchema` and `gradingResultSchema`. The API answers 422 `invalid_result` to an output those checks refuse: the robot then sends `{ ok: false, error: 'invalid_output' }` for the same work, so the attempt counts. Otherwise an output that is always broken is tried again by every run and never fails.
 - Error codes the robot handles: 409 `lease_lost` (stop taking work), 409 `taken_over` and 404 (drop the result), 409 `not_needed` (drop the exercise list), 401 `robot_denied` (stop the run).
@@ -38,12 +40,8 @@ Each one is small. Fix it when the work goes near it.
 
 Robot API and server:
 
-- The exercise-list sum check rounds to cents (about 0.005); spec §12.5 says 0.001. Rounding the points to cents (see "For Plan 3b") settles it.
-- An exercise id's length counts UTF-16 units, but `cutText` counts code points (`shared/schemas.ts`).
 - Setări's "Robotul lucrează acum" uses a strict JS time comparison, `/check` an inclusive text comparison: they disagree at exactly 15 minutes. Use `staleBefore` in both (`server/db/settings.ts`, `server/routes/runner.ts`).
 - The robot gets zod's English default message for a bad `error`, `ok`, or `stop` value; only `runIdSchema` has a Romanian message (`shared/runner.ts`).
-- The `/lease` answer is not typed as `LeaseResult` (`server/routes/runner.ts`).
-- `/release` answers 409 `lease_lost`, and `/heartbeat` 409 to any run that does not hold the lease. Spec §11.3 and the error list above do not say so.
 - `retrySubmission`'s done → evaluating statement is not gated on its failed → submitted statement. It is safe while a `done` test never has a `submitted` upload (`server/db/lifecycle.ts`).
 - "Folosește oricum" and a barem replaced during the evaluation do not ask GitHub to start the robot. The grading waits for the next check.
 - While the exercise list is `problem` or `failed`, the teacher can also replace the test file, but only a new barem makes the list again.
@@ -64,11 +62,10 @@ Teacher app:
 Smoke test and docs:
 
 - An interrupted smoke run leaves a test in evaluation with an upload to grade, and every later smoke run claims that upload instead of its own (`scripts/smoke.mjs`). Delete the test in a `finally`, or claim until the run gets its own upload.
-- The spec still says "Plan 3" in places where it means 3a or 3b. It does not have the rulings "a scheduled time is at most 60 days ahead, sent as UTC ISO" and "Reîncearcă and the exercise-list retry also start the robot".
 
 Test gaps:
 
-- `shared/schemas.ts`: an id over 20 characters, a total over 1000, a padded id, over 20 unreadable entries, a `reviewReason` over 500; a `round2` case that fails on the old code (for example `round2(2.135)` = 2.14).
+- `shared/scoring.ts`: a `round2` case that fails on the old code (for example `round2(2.135)` = 2.14).
 - Migration 0003: the `confidence` CHECK and `submission_id` UNIQUE.
 - Lifecycle: exactly 60 days ahead, a new time for a scheduled test, scheduling an `evaluating` or `done` test, "Pornește evaluarea acum" clearing the scheduled time; the student GET for an `evaluating` test; `explainRefusal` over HTTP; the dispatch timeout and headers.
 - Robot API: a `/check` requeue while another run holds a fresh lease; a refused `/lease` must not requeue the live run's uploads; a re-lease by the same run; the 15-minute boundary; `ok: false` without the lease and from another run; an R2 object that is missing; deleting an old evaluation; the foreign list retry leaves the list unchanged.

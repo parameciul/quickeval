@@ -226,6 +226,7 @@ CREATE TABLE tests (
   evaluation_started_at TEXT,
   test_file_key TEXT, test_file_name TEXT, test_file_type TEXT,
   barem_file_key TEXT, barem_file_name TEXT, barem_file_type TEXT,
+  files_version INTEGER NOT NULL DEFAULT 0,  -- +1 with each new test or barem file (§11.3)
   exercise_list_json TEXT,
   exercise_list_status TEXT NOT NULL DEFAULT 'none',  -- none | ready | problem | accepted | failed
   exercise_list_message TEXT,
@@ -320,7 +321,7 @@ CREATE TABLE runner_state (                -- exactly one row, id = 1
 );
 ```
 
-Migrations add the tables in the plan that needs them: Plan 1 adds `teachers`, `classes`, `students`, and `enrollments`. Plan 2 adds `tests`, `submissions`, and `submission_files`. Plan 3 adds `evaluations`, `evaluation_items`, `settings`, and `runner_state`.
+Migrations add the tables in the plan that needs them: Plan 1 adds `teachers`, `classes`, `students`, and `enrollments`. Plan 2 adds `tests`, `submissions`, and `submission_files`. Plan 3a adds `evaluations`, `evaluation_items`, `settings`, and `runner_state`. Plan 3b adds `tests.files_version`.
 
 ### 7.2 R2 layout (the "cloud folder" of a test)
 
@@ -373,16 +374,16 @@ draft ──Start test──► open ──Start evaluation (now, or when evalua
 
 - Needs: a test file, a barem file, and at least one submission with at least one file. Otherwise the button is off and shows the reason. A schedule needs only the two files, because the uploads may still come. At the scheduled time the uploads close even if nobody uploaded; a test with nothing to grade then ends at once.
 - "Now": sets `status = 'evaluating'`, `evaluation_started_at = now`, and clears `evaluation_at`. Submissions in `uploading` that have at least one file become `submitted` with `auto_submitted = 1`. Uploading submissions with no files are left as they are. Then the API sends `repository_dispatch` with `event_type: "evaluate-now"`, so the robot starts in about 1 minute. If the GitHub token is missing, the robot starts at the next 10-minute check, and the UI says so.
-- "Schedule": the teacher picks a future time. It is saved in `evaluation_at`. The test stays `open` until then (§8.3).
+- "Schedule": the teacher picks a future time, at most 60 days ahead; the browser sends it as a UTC ISO time. It is saved in `evaluation_at`. The test stays `open` until then (§8.3).
 
 ### 8.5 During and after evaluation
 
 - The robot makes the exercise list, grades each submitted upload, then writes the class analysis (§12).
 - `evaluating → done`: no submission is `submitted` or `grading`, and `analysis_status` is not `requested`. (Plan 4 decides when the first class analysis is asked for.)
-- **Reopen uploads** (from evaluating or done): sets `status = 'open'` and clears `evaluation_at`. Graded results stay. New uploads get graded at the next **Start evaluation**. The analysis is then marked stale.
-- **Replace the test file or the barem**: allowed in any status except `evaluating`. While evaluating, it is allowed when the exercise list is `problem` or `failed`: the robot then reads neither file. A new barem clears the exercise list (`exercise_list_status = 'none'`). It does not regrade old results. The teacher uses Regrade for that.
+- **Reopen uploads** (from evaluating or done): sets `status = 'open'` and clears `evaluation_at`. Graded results stay. New uploads get graded at the next **Start evaluation**. The analysis is then marked stale. An upload that the robot is grading goes back to `submitted`: the robot's result for it is refused, and a later robot run grades it after the next **Start evaluation**, with the files of that time.
+- **Replace the test file or the barem**: allowed in any status except `evaluating`. While evaluating, it is allowed when the exercise list is `problem` or `failed`: the robot then reads neither file. A new barem clears the exercise list (`exercise_list_status = 'none'`). It does not regrade old results. Each new file adds 1 to `files_version`, so an exercise list that the robot made from the old files is refused (§11.3). The teacher uses Regrade for that.
 - **Regrade** (one submission, or all graded submissions of the test): deletes their evaluations and sets them to `submitted`. If the test is `done`, it goes back to `evaluating`. If the test is `open`, the regrade waits for Start evaluation. The UI warns that teacher corrections will be lost.
-- **Retry** (a `failed` submission): sets it to `submitted` with 0 attempts. If the test is `done`, it goes back to `evaluating`.
+- **Retry** (a `failed` submission): sets it to `submitted` with 0 attempts. If the test is `done`, it goes back to `evaluating`. Like Start evaluation, it asks GitHub to start the robot (§12.6); so does **Încearcă din nou** on a failed exercise list.
 - **Analysis refresh rule**: each time a test enters `evaluating` (Start evaluation, Regrade, or Retry on a `done` test), an analysis that is `ready` or `failed` becomes `requested` with 0 attempts. So the robot writes a new analysis after the new grades. Teacher corrections only set `analysis_stale = 1`. The teacher then clicks **Regenerează** when she wants a new analysis.
 - **Delete test**: needs a confirmation. It deletes the R2 files under the test prefix and all its rows. A robot result for a deleted test gets 404, and the robot drops it.
 
@@ -510,16 +511,18 @@ Auth: `Authorization: Bearer <robot key>`. The API compares the SHA-256 of the k
 | `POST /check` | Sends uploads left in `grading` by a run that is not alive back to `submitted`, runs `promoteDueTests`, sets `last_check_at`, returns `{ hasWork, exerciseLists, pendingGrading, analyses }` (counts). |
 | `POST /lease` `{ runId }` | Takes the robot lease if it is free, stale (no heartbeat for 15 min), or already this run's. It then sets every `grading` submission of another run back to `submitted`, because a stale lease means the old run died. Returns `{ granted, maxParallel }`. |
 | `POST /heartbeat` `{ runId }` | Keeps the lease. 409 if the lease belongs to another run. |
-| `POST /release` `{ runId, summary }` | Frees the lease and saves the summary (counts only). |
+| `POST /release` `{ runId, summary }` | Frees the lease and saves the summary (counts only). 409 `lease_lost` if the lease belongs to another run. |
 | `GET /tasks` | `{ exerciseLists: number[], pendingGrading: number, analyses: number[] }` (test ids). |
-| `GET /tests/:id` | Id, file types (test, barem), exercise list. Only while the test is `evaluating` (else 404, as for a test that does not exist). |
+| `GET /tests/:id` | Id, `filesVersion`, file types (test, barem), exercise list. Only while the test is `evaluating` (else 404, as for a test that does not exist). The robot reads it before the files. |
 | `GET /tests/:id/files/:kind` | Stream the test or barem file. Only while the test is `evaluating` (else 404). |
-| `POST /tests/:id/exercise-list` `{ runId, ok: true, exerciseList } \| { runId, ok: false, error }` | Save the list, only from the run that holds the lease (else 409 `lease_lost`) and only while the list is waited for (else 409 `not_needed`). The API validates it (a broken list: 422 `invalid_result`) and sets `ready` or `problem`. On an error it adds 1 to the attempts (none for `usage_limit`) and sets `failed` at 3. |
-| `POST /claim` `{ runId }` | Takes the oldest `submitted` submission of an `evaluating` test whose exercise list is `ready` or `accepted`, and sets it to `grading`, in one statement. Needs the lease (else 409 `lease_lost`). Returns `{ submissionId, testId, files: [{ id, contentType, position }] }`, or 204 when there is none. |
+| `POST /tests/:id/exercise-list` `{ runId, filesVersion, ok: true, exerciseList } \| { runId, filesVersion, ok: false, error }` | Save the list, only from the run that holds the lease (else 409 `lease_lost`), only while the list is waited for, and only while `filesVersion` is still the test's (else 409 `not_needed`: the teacher replaced a file after the robot read the test). The API validates it (a broken list: 422 `invalid_result`) and sets `ready` or `problem`. On an error it adds 1 to the attempts (none for `usage_limit`) and sets `failed` at 3. |
+| `POST /claim` `{ runId }` | Takes the `submitted` submission with the fewest attempts, the oldest first, of an `evaluating` test whose exercise list is `ready` or `accepted`, and sets it to `grading`, in one statement. Needs the lease (else 409 `lease_lost`). Returns `{ submissionId, testId, files: [{ id, contentType, position }] }`, or 204 when there is none. |
 | `GET /submissions/:id/files/:fileId` | Stream a page of an upload in `grading` (else 404). |
 | `POST /submissions/:id/result` `{ runId, ok: true, result, model } \| { runId, ok: false, error }` | Accepted only when the submission is `grading` and its `run_id` equals `runId`. Otherwise 409 `taken_over` (404 for a deleted submission), and the robot drops the result (another run took the work over). Save a result (§12.5): the API validates it (a broken result: 422 `invalid_result`), computes totals, and stores the evaluation and its items in one batch. `error` is `timeout`, `invalid_output`, `crash`, or `usage_limit`. On `usage_limit` the submission goes back to `submitted` with no attempt counted; else attempts + 1, and `failed` at 3. |
 | `GET /tests/:id/results` | (Plan 4.) Anonymized class data for the analysis: "Elev 1..n", items, points, comments. No names. |
 | `POST /tests/:id/analysis` `{ runId, ok: true, analysis } \| { runId, ok: false, error }` | (Plan 4.) Save the analysis (`ready`, `analysis_stale = 0`). On an error, attempts + 1, and `failed` at 3. Then the API checks whether the test is `done`. |
+
+The body of an exercise list or a result is at most 1 MB (else 413 `too_large`), so the saved raw output stays far under D1's 2 MB row limit. The robot checks the size before it sends, and sends a bigger answer as `invalid_output`.
 
 ## 12. Evaluation robot
 
@@ -531,12 +534,13 @@ Auth: `Authorization: Bearer <robot key>`. The API compares the SHA-256 of the k
   - `repository_dispatch` with type `evaluate-now`.
   - `workflow_dispatch`.
 - `concurrency: { group: quickeval-robot, cancel-in-progress: false }`: only one robot runs at a time.
-- `timeout-minutes: 150`.
+- `timeout-minutes: 180`: the 120 minutes of taking new work, the last task (up to two Claude tries of 20 minutes), and the install.
 - Steps:
   1. Turn the schedule back on (weekly trigger only).
   2. Checkout. Set up Node 24.
-  3. `node runner/check.ts`. It needs no npm install and writes `has_work=true|false` to `$GITHUB_OUTPUT`.
-  4. Only if there is work: `npm ci`, install a pinned Claude Code version, install `pandoc`, then `node runner/run.ts`.
+  3. `node runner/check.ts`. It needs no npm install and writes `has_work=true|false` to `$GITHUB_OUTPUT`. While `QUICKEVAL_URL` or `QUICKEVAL_RUNNER_KEY` is missing, it finds no work and the run passes.
+  4. Only if there is work: `npm ci --omit=dev` (the robot needs only zod), install a pinned Claude Code version (`npm install --global @anthropic-ai/claude-code@<version>`), install `pandoc` with apt, then `node runner/run.ts`.
+- A run fails, and GitHub sends an email, when the API refuses the robot key or cannot be reached, or when Claude refuses the token. A usage limit is no failure: a later run goes on.
 - Repo settings:
   - Variable `QUICKEVAL_URL` (for example `https://quickeval.pages.dev`).
   - Secrets `QUICKEVAL_RUNNER_KEY` and `CLAUDE_CODE_OAUTH_TOKEN`.
@@ -552,21 +556,24 @@ heartbeat every 60 s           → if 409: stop taking new work, finish the curr
 budget = 120 min of taking new work
 repeat:
   tasks = GET /tasks
-  1. exercise lists: for each test id in tasks.exerciseLists, run the task "exercise-list" (one at a time)
+  1. exercise lists: for each test id in tasks.exerciseLists, run the task "exercise-list" (one at a time, each test at most once per run)
   2. grading: keep up to maxParallel "grade" tasks running.
      Each free slot does POST /claim. When a task ends, its slot claims again at once.
      When /claim returns 204 and no task is running, grading is done.
-  3. analyses: for each test id in tasks.analyses, run the task "class-report"
-  until tasks are all empty, or the budget is used, or a usage limit was hit
+  3. analyses: for each test id in tasks.analyses, run the task "class-report"  (Plan 4)
+  until a round starts no new task, the budget is used, or the run stops taking work
 release(summary)
 ```
+
+- The run stops taking work at a usage limit, when it loses the lease, when Claude refuses the token, or when the API fails. The summary's `stop` says which: `done`, `budget`, `usage_limit`, `lease_lost`, `claude_login`, or `error`. A refused token sends nothing for the task: the upload goes back to the queue at the next check, with no attempt counted.
+- An exercise list that failed waits for the next run, so one broken barem cannot use up the budget. An upload whose grading failed is claimed after the uploads with fewer attempts.
 
 - Exercise lists run before grading, because `/claim` only gives submissions of tests with a ready list.
 - "No new work while agents run" (spec): the GitHub concurrency group allows one robot at a time. The D1 lease also blocks a second runner, for example a manual local run.
 
 ### 12.3 Work folder for a task
 
-For each task, the robot makes `$RUNNER_TEMP/qe/<runId>/<task-id>/` and deletes it when the task ends.
+For each task, the robot makes `$RUNNER_TEMP/qe/<runId>/<task-id>/` (`exercise-list-<testId>` or `grade-<submissionId>`) and deletes it when the task ends. Claude's settings folder, `$RUNNER_TEMP/qe/<runId>/claude-config/`, sits next to the task folders, never inside one.
 
 ```
 .claude/skills/evaluate-test/       copy of the repo skill
@@ -577,7 +584,7 @@ student/page-01.jpg, page-02.pdf ... (grade mode)    renamed by upload order; or
 class-results.json   (class-report mode)   anonymized data from GET /tests/:id/results
 ```
 
-DOCX conversion: `pandoc <file>.docx -t gfm --extract-media=<dir>/media -o <dir>/<name>.md`. Math becomes TeX between `$`.
+DOCX conversion, run in the work folder with relative paths: `pandoc test/source.docx -t markdown --extract-media=test -o test/test.md` (the same for the barem), then the `.docx` file is removed. Pandoc's own Markdown keeps "a)" and "b)" items, which GitHub's Markdown renumbers as "1)" and "2)". Math becomes TeX between `$`. Pictures land in `test/media/`, and the Markdown links them from the work folder.
 
 The robot gives Claude no names from the database. The folder uses numbers, and the original file names are replaced. Claude does see any name that a student wrote on the paper, because it reads the pages.
 
@@ -586,9 +593,9 @@ The robot gives Claude no names from the database. The folder uses numbers, and 
 ```
 claude -p "/evaluate-test <mode>" \
   --output-format json \
-  --json-schema '<JSON Schema of the mode, made with z.toJSONSchema>' \
+  --json-schema '<draft-07 JSON Schema of the mode: claudeJsonSchema() in shared/schemas.ts>' \
   --model "$QE_MODEL" --effort "$QE_EFFORT" \
-  --tools "Read,Glob" \
+  --tools "Read,Glob" --restricted \
   --permission-mode dontAsk --permission-prompts none \
   --no-session-persistence \
   --max-turns 40
@@ -596,16 +603,19 @@ claude -p "/evaluate-test <mode>" \
 
 - The working directory is the task folder, so Claude Code finds the skill and no repo `CLAUDE.md`.
 - The environment holds `CLAUDE_CODE_OAUTH_TOKEN`. Never pass `--bare`: bare mode ignores that token. Never pass `--safe-mode`: it turns skills off.
-- The robot reads `structured_output` from the JSON on stdout and checks it with the zod schema.
-- Fallback, if the spike shows that `structured_output` stays empty when `--tools` is limited: drop `--json-schema`. The skill then asks Claude to end with one JSON block. The robot parses the `result` text and checks it with the same zod schema.
-- Local runs (the spike, tries on the teacher's PC, a manual robot run) start Claude with `CLAUDE_CONFIG_DIR` set to an empty folder and `CLAUDE_CODE_OAUTH_TOKEN` set to her token. Then her personal setup (output style, global `CLAUDE.md`, plugins) cannot change the result, and the run matches the clean GitHub machine.
-- Time limits: exercise list 10 min, grading 20 min, class report 15 min. At the limit, the robot sends SIGINT, waits 10 s, then sends SIGTERM.
+- `--json-schema` takes a draft-07 schema: Claude Code refuses zod's default (draft 2020-12).
+- `--restricted` keeps Claude's file tools inside the work folder. Without it, Read opens any file of the machine, and student pages are untrusted input.
+- The robot passes Claude only the variables it needs to start (`PATH`, `HOME`, the temp folders, the token, `CLAUDE_CONFIG_DIR`), never the robot key or an API key.
+- The robot reads the JSON on stdout. An error also prints JSON and exits with code 1; a refused login comes with `subtype: "success"` and `is_error: true`. On success, the robot takes `structured_output` and checks it with the same checks as the API (`checkExerciseList`, `checkGrading`) before it sends it.
+- Every run starts Claude with `CLAUDE_CONFIG_DIR` set to an empty folder and `CLAUDE_CODE_OAUTH_TOKEN` set to the teacher's token, on GitHub and on her PC (`npm run try:skill`, a manual robot run). Then a personal setup (output style, global `CLAUDE.md`, plugins) cannot change the result.
+- Time limits: exercise list 10 min, grading 20 min, class report 15 min. At the limit, the robot sends SIGINT to Claude's process group, then SIGTERM after 10 s, then SIGKILL after 10 s more.
 - Error types:
   - `usage_limit`: the plan limit was reached. The task is retryable, no attempt is counted, and the run stops taking new work.
   - `timeout`.
-  - `invalid_output`: one more try with the same input, then an error.
+  - `invalid_output`: no answer (also `--max-turns` reached), or an answer that the checks refuse. One more try with the same input, then an error.
   - `crash`.
-- The first task of Plan 3 is a spike. It checks this exact command on the teacher's PC and in one manual GitHub run: the skill loads, photos and PDFs are read, and `structured_output` comes back filled. The spike also finds how a usage-limit error looks in the output.
+  - A refused token is not an error of the task: the run stops (§12.2).
+- Plan 3b's spike checked this command on the teacher's PC with Claude Code 2.1.294: the skill loads with `--tools "Read,Glob"` and `--restricted`, JPEG, PNG, and PDF pages and Word pictures are read, and `structured_output` comes back filled. Its outputs are in `runner/fixtures/`. A usage-limit output could not be made: the robot finds it by HTTP 429 or by the words of Claude Code's limit messages.
 
 ### 12.5 Contracts (zod, in `shared/schemas.ts`)
 
@@ -654,10 +664,10 @@ ClassAnalysis = {
 
 Checks done by code, not by Claude:
 
-- **Exercise list**: the ids are unique and every `maxPoints` is > 0. When `Σ maxPoints + officePoints ≠ totalPoints` (tolerance 0.001), the status becomes `problem`, with the message "Punctajele din barem dau X, dar totalul este Y."
+- **Exercise list**: the points are rounded to cents first. The ids are unique and every `maxPoints` is > 0. When `Σ maxPoints + officePoints ≠ totalPoints`, the status becomes `problem`, with the message "Punctajele din barem dau X, dar totalul este Y."
 - **Grading**:
   - Every exercise id appears exactly once, and there are no unknown ids. A broken result counts as `invalid_output`.
-  - Points are rounded to 2 decimals. Points outside `[0, maxPoints]` are clamped and flagged with the reason "Punctaj în afara intervalului".
+  - Points are rounded to 2 decimals. Points outside `[0, maxPoints]` are clamped and flagged with the reason "Punctaj în afara intervalului", before the robot's own reason.
   - `confidence = "low"` always means `needsReview = true`.
   - A non-empty `unreadable` list sets `evaluations.needs_review = 1`.
   - Code computes the total and the grade (§7.3).
@@ -679,9 +689,9 @@ Checks done by code, not by Claude:
   - Comments are kind, short, specific, and in Romanian, written to the student as "tu".
   - Math in comments is plain Unicode (x², √, ≤, ½), never LaTeX, because the PDFs cannot draw LaTeX.
 - The teacher can edit these files. A commit to `main` changes the robot's behavior from the next run.
-- To try the skill on her PC the same way as the robot, she runs `npm run try:skill -- <mode> <folder>`. The script (Plan 3) builds a work folder like §12.3 and starts Claude with the clean setup from §12.4. A normal interactive Claude Code session would load her personal settings, so its result can differ from the robot's.
+- To try the skill on her PC the same way as the robot, she runs `npm run try:skill -- exercise-list <folder>`, then `npm run try:skill -- grade <folder>`, with `CLAUDE_CODE_OAUTH_TOKEN` set to her token. The folder holds `test.pdf` (or `.docx`), `barem.pdf` (or `.docx`), and the pages in `student/`, in number order (`1.jpg`, `2.jpg`, …). The script (`runner/trySkill.ts`) builds the work folder of §12.3 and runs the robot's command (§12.4) with an empty settings folder. The first mode writes `exercises.json` into the folder, the second `grading.json`, and both print the result. A normal interactive Claude Code session would load her personal settings, so its result can differ from the robot's.
 - The repo is public, so the skill is public. It must never contain student data.
-- Plan 3 ships a first version. The teacher can then replace or extend it.
+- Plan 3b ships a first version. The teacher can then replace or extend it. `runner/skill.test.ts` checks that the skill still names the files of the work folder and every field of the answers.
 
 ## 14. Reports, statistics, export
 
@@ -792,7 +802,7 @@ Each plan ends with working, tested software. Each one gets its own file in `doc
    - Result: students upload from phones, and the teacher sees who did.
 3. **Evaluation robot**, in two plans:
    - **3a**: zod contracts and their checks; the robot API with lease, claim, and results; Start evaluation (now or scheduled), Evaluate now, and Setări (parallel agents, robot key, robot status). Result: the teacher closes tests on time, and the API is ready for the robot.
-   - **3b**: the spike (§12.4); the JSON Schemas; `runner/` with the pool, work folders, pandoc, Claude runs, and checks; the first grading skill and the `npm run try:skill` script (§13); `evaluate.yml`. Result: tests are graded automatically.
+   - **3b**: the spike (§12.4); the JSON Schemas; `runner/` with the pool, work folders, pandoc, Claude runs, and checks; the first grading skill and the `npm run try:skill` script (§13); `evaluate.yml`. It also does the 3a follow-ups that the robot needs: `files_version`, a reopen sends uploads in grading back to the queue, exercise-list points in cents, and a 1 MB limit on robot bodies. Result: tests are graded automatically.
 4. **Review and reports**:
    - the student result page (flags, corrections, Verificat, Regrade);
    - the class analysis task in the robot (the `ClassAnalysis` contract, `GET /tests/:id/results`, `POST /tests/:id/analysis`, Regenerează);
@@ -809,7 +819,7 @@ Each plan ends with working, tested software. Each one gets its own file in `doc
 | Handwriting is misread | Confidence and flags, teacher review, photo tips, regrade. The robot never guesses an unreadable page. |
 | Claude plan usage limit | Parallel agents default to 1. The robot pauses and continues later, and no work is lost. |
 | GitHub schedule is late or turned off | "Evaluate now" dispatch, the weekly turn-on step, and the robot line on the test page. |
-| Claude Code flags change | Pinned CLI version in the workflow, the spike at the start of Plan 3, and deliberate updates. |
+| Claude Code flags change | Pinned CLI version in the workflow, the spike of Plan 3b, and deliberate updates. |
 | Free-tier limits change | Numbers checked on 2026-10-06. The budget keeps wide margins (§5). |
 | Public repo | No data in the repo. Logs show ids only. Secrets live only in GitHub and Cloudflare settings. |
 | Students upload for each other | Device lock, ✓ for finished names, and teacher reset. |

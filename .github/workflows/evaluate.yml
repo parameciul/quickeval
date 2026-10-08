@@ -1,0 +1,83 @@
+name: evaluate
+
+# The grading robot (spec §12). Every 10 minutes it asks the site whether
+# there is work; "Pornește evaluarea" starts it at once through
+# repository_dispatch. The repo is public, so everyone can read these logs:
+# the robot writes only ids, counts, durations, and error categories.
+#
+# GitHub runs schedule and repository_dispatch only from the workflow file on
+# main.
+
+on:
+  schedule:
+    # Every 10 minutes. A check with no work installs nothing and ends in seconds.
+    - cron: '*/10 * * * *'
+    # Once a week: also switch the schedule on again (see "Keep the schedule
+    # switched on"). Keep this line equal to the check in that step.
+    - cron: '23 4 * * 1'
+  repository_dispatch:
+    types: [evaluate-now]
+  workflow_dispatch:
+
+# One robot at a time (spec §12.2). GitHub keeps one waiting run of the group
+# and drops the others: one run takes all the work that waits.
+concurrency:
+  group: quickeval-robot
+  cancel-in-progress: false
+
+jobs:
+  robot:
+    runs-on: ubuntu-latest
+    # The run takes new work for 2 hours; its last task may ask Claude twice,
+    # for up to 20 minutes each. A killed job saves no summary.
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      # Only for "Keep the schedule switched on".
+      actions: write
+    steps:
+      # GitHub switches a schedule off after 60 days without activity in the
+      # repo, and a summer without tests makes no commit. Switching the
+      # workflow on again once a week restarts that count. If the robot ever
+      # stops anyway: GitHub, Actions, evaluate, Enable workflow.
+      - name: Keep the schedule switched on
+        if: github.event_name == 'schedule' && github.event.schedule == '23 4 * * 1'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: gh api --method PUT "repos/$REPO/actions/workflows/evaluate.yml/enable"
+
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      # Node alone: runner/check.ts loads no package. It finds no work, and
+      # fails nothing, while the variable or the secret is not set.
+      - name: Check for work
+        id: check
+        env:
+          QUICKEVAL_URL: ${{ vars.QUICKEVAL_URL }}
+          QUICKEVAL_RUNNER_KEY: ${{ secrets.QUICKEVAL_RUNNER_KEY }}
+        run: node runner/check.ts
+
+      # The robot needs only zod. Claude Code is pinned: a new version changes
+      # how the robot runs, so it comes with a commit (see AGENTS.md).
+      - name: Install
+        if: steps.check.outputs.has_work == 'true'
+        run: |
+          npm ci --omit=dev
+          npm install --global @anthropic-ai/claude-code@2.1.294
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends pandoc
+
+      - name: Grade
+        if: steps.check.outputs.has_work == 'true'
+        env:
+          QUICKEVAL_URL: ${{ vars.QUICKEVAL_URL }}
+          QUICKEVAL_RUNNER_KEY: ${{ secrets.QUICKEVAL_RUNNER_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          QE_MODEL: ${{ vars.QE_MODEL }}
+          QE_EFFORT: ${{ vars.QE_EFFORT }}
+        run: node runner/run.ts
