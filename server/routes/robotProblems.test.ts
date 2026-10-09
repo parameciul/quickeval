@@ -32,13 +32,36 @@ afterEach(async () => {
 });
 
 describe('POST /api/admin/tests/:code/exercise-list/accept', () => {
-  it('accepts a list whose points do not add up and keeps the message', async () => {
+  it('accepts a list whose points do not add up, keeps the message, and starts the robot', async () => {
     await setTest("status = 'evaluating', exercise_list_status = 'problem', exercise_list_message = 'Punctajele din barem dau 9, dar totalul este 10.'");
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    dispatchRobot.mockResolvedValueOnce(true);
+    const res = await api.request('POST', `/api/admin/tests/${code}/exercise-list/accept`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      exerciseList: { status: 'accepted', message: 'Punctajele din barem dau 9, dar totalul este 10.' },
+      robot: 'dispatched',
+    });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+    expect(await testRow()).toMatchObject({ exercise_list_status: 'accepted' });
+  });
+
+  it('says the robot starts at its next check when GitHub does not take the request', async () => {
+    await setTest("status = 'evaluating', exercise_list_status = 'problem'");
     await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
     const res = await api.request('POST', `/api/admin/tests/${code}/exercise-list/accept`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ exerciseList: { status: 'accepted', message: 'Punctajele din barem dau 9, dar totalul este 10.' } });
-    expect(await testRow()).toMatchObject({ exercise_list_status: 'accepted' });
+    expect(res.body.robot).toBe('next_check');
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start the robot for a test whose uploads are open', async () => {
+    await setTest("status = 'open', exercise_list_status = 'problem'");
+    const res = await api.request('POST', `/api/admin/tests/${code}/exercise-list/accept`);
+    expect(res.status).toBe(200);
+    expect(res.body.robot).toBeNull();
+    expect(dispatchRobot).not.toHaveBeenCalled();
+    expect(await testRow()).toMatchObject({ status: 'open', exercise_list_status: 'accepted' });
   });
 
   it('refuses a list without a problem', async () => {
@@ -46,14 +69,19 @@ describe('POST /api/admin/tests/:code/exercise-list/accept', () => {
     const res = await api.request('POST', `/api/admin/tests/${code}/exercise-list/accept`);
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('Lista de exerciții nu are nicio problemă.');
+    expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
   it('answers 404 for a test of another teacher and keeps it', async () => {
     const foreign = await otherTeacherTest(api);
-    await api.db.prepare("UPDATE tests SET exercise_list_status = 'problem' WHERE code = ?").bind(foreign.code).run();
+    await api.db
+      .prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'problem' WHERE code = ?")
+      .bind(foreign.code)
+      .run();
     expect((await api.request('POST', `/api/admin/tests/${foreign.code}/exercise-list/accept`)).status).toBe(404);
     const row = await api.db.prepare('SELECT exercise_list_status FROM tests WHERE code = ?').bind(foreign.code).first();
     expect(row).toEqual({ exercise_list_status: 'problem' });
+    expect(dispatchRobot).not.toHaveBeenCalled();
   });
 });
 

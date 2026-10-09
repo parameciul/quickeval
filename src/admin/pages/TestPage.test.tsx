@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api.ts';
@@ -259,9 +259,20 @@ describe('TestPage evaluation', () => {
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeEnabled();
     await userEvent.click(screen.getByRole('button', { name: 'Folosește oricum' }));
     expect(api.acceptExerciseList).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByRole('status')).toHaveTextContent('Robotul pornește la următoarea lui verificare.');
     await screen.findByLabelText('Înlocuiește baremul');
     expect(screen.queryByText(message)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled();
+  });
+
+  it('accepts a problem of the barem on an open test without a robot message', async () => {
+    const message = 'Punctajele din barem dau 9, dar totalul este 10.';
+    const api = evaluationApi({ exerciseList: { status: 'problem', message } });
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Folosește oricum' }));
+    expect(api.acceptExerciseList).toHaveBeenCalledWith('6E2-26T1');
+    await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('lets the robot try the barem again', async () => {

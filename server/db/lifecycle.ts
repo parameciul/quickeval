@@ -133,17 +133,17 @@ export async function hasUploadedFiles(db: D1Database, testId: number): Promise<
 }
 
 // "Folosește oricum": the teacher accepts an exercise list whose points do
-// not add up. False when the list had no problem.
-export async function acceptExerciseList(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+// not add up. Returns the test's status, or null when the list had no problem.
+export async function acceptExerciseList(db: D1Database, teacherId: number, testId: number, now: string): Promise<TestStatus | null> {
   const row = await db
     .prepare(
       `UPDATE tests SET exercise_list_status = 'accepted', updated_at = ?
        WHERE id = ? AND teacher_id = ? AND exercise_list_status = 'problem'
-       RETURNING id`,
+       RETURNING status`,
     )
     .bind(now, testId, teacherId)
-    .first<{ id: number }>();
-  return row !== null;
+    .first<{ status: TestStatus }>();
+  return row?.status ?? null;
 }
 
 // Lets the robot try again to make an exercise list it failed to make.

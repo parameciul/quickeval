@@ -4,6 +4,7 @@ import type {
   CreateClassInput,
   CreateTestInput,
   EvaluationStart,
+  ExerciseListAnswer,
   RobotStart,
   Settings,
   StartedTest,
@@ -43,8 +44,8 @@ export interface AdminApi {
   // Now without `at`, or at that ISO time.
   evaluateTest(code: string, at?: string): Promise<EvaluationStart>;
   cancelSchedule(code: string): Promise<void>;
-  acceptExerciseList(code: string): Promise<void>;
   // The robot answers are null when the robot was not needed.
+  acceptExerciseList(code: string): Promise<RobotStart | null>;
   retryExerciseList(code: string): Promise<RobotStart | null>;
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
   resetSubmission(submissionId: number): Promise<void>;
@@ -165,11 +166,10 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     cancelSchedule: async (code) => {
       await request('DELETE', `${test(code)}/schedule`);
     },
-    acceptExerciseList: async (code) => {
-      await request('POST', `${test(code)}/exercise-list/accept`);
-    },
+    acceptExerciseList: async (code) =>
+      (await request<ExerciseListAnswer>('POST', `${test(code)}/exercise-list/accept`)).robot,
     retryExerciseList: async (code) =>
-      (await request<{ robot: RobotStart | null }>('POST', `${test(code)}/exercise-list/retry`)).robot,
+      (await request<ExerciseListAnswer>('POST', `${test(code)}/exercise-list/retry`)).robot,
     getSubmission: async (submissionId) =>
       (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,
     resetSubmission: async (submissionId) => {

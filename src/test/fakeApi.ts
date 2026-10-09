@@ -199,8 +199,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     cancelSchedule: vi.fn(async (code: string) => {
       findTest(code).test.evaluationAt = null;
     }),
-    acceptExerciseList: vi.fn(async (code: string) => {
-      findTest(code).test.exerciseList.status = 'accepted';
+    acceptExerciseList: vi.fn(async (code: string): Promise<RobotStart | null> => {
+      const found = findTest(code).test;
+      found.exerciseList.status = 'accepted';
+      return found.status === 'evaluating' ? 'next_check' : null;
     }),
     retryExerciseList: vi.fn(async (code: string): Promise<RobotStart | null> => {
       const found = findTest(code).test;

@@ -65,7 +65,7 @@ describe('createApiClient evaluation', () => {
     expect(await api.evaluateTest('6E2-26T1')).toEqual({ status: 'evaluating', evaluationAt: null, robot: 'dispatched' });
     await api.evaluateTest('6E2-26T1', '2026-10-20T07:15:00.000Z');
     await api.cancelSchedule('6E2-26T1');
-    await api.acceptExerciseList('6E2-26T1');
+    expect(await api.acceptExerciseList('6E2-26T1')).toBe('dispatched');
     expect(await api.retryExerciseList('6E2-26T1')).toBe('dispatched');
     expect(await api.retrySubmission(5)).toBe('dispatched');
     expect(fetchImpl.mock.calls.map(([url, init]) => [init!.method, url, init!.body])).toEqual([

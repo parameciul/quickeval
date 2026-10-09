@@ -16,14 +16,12 @@ export function ExerciseListBanner({
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const api = useApi();
-  const accept = useMutation({ mutationFn: () => api.acceptExerciseList(test.code), onSuccess: onChanged });
-  const retry = useMutation({
-    mutationFn: () => api.retryExerciseList(test.code),
-    onSuccess: async (robot) => {
-      onRobot(robot);
-      await onChanged();
-    },
-  });
+  const onStarted = async (robot: RobotStart | null) => {
+    onRobot(robot);
+    await onChanged();
+  };
+  const accept = useMutation({ mutationFn: () => api.acceptExerciseList(test.code), onSuccess: onStarted });
+  const retry = useMutation({ mutationFn: () => api.retryExerciseList(test.code), onSuccess: onStarted });
   const { status, message } = test.exerciseList;
 
   if (status === 'problem') {

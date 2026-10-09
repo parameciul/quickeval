@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { D1Database } from '@cloudflare/workers-types';
-import { createTestBody, evaluateTestBody, renameTestBody, type EvaluationStart } from '../../shared/api.ts';
+import { createTestBody, evaluateTestBody, renameTestBody, type EvaluationStart, type ExerciseListAnswer } from '../../shared/api.ts';
 import { isTestFileKind, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
 import {
@@ -148,10 +148,10 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // "Folosește oricum": grade with an exercise list whose points do not add up.
   routes.post('/:code/exercise-list/accept', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
-    if (!(await acceptExerciseList(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
-      throw new ApiError(409, 'no_problem', 'Lista de exerciții nu are nicio problemă.');
-    }
-    return c.json({ exerciseList: { status: 'accepted', message: test.exerciseList.message } });
+    const status = await acceptExerciseList(c.env.DB, c.var.teacher.id, test.id, nowIso());
+    if (status === null) throw new ApiError(409, 'no_problem', 'Lista de exerciții nu are nicio problemă.');
+    const robot = status === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ exerciseList: { status: 'accepted', message: test.exerciseList.message }, robot } satisfies ExerciseListAnswer);
   });
 
   // "Încearcă din nou": the robot makes the exercise list again.
@@ -160,7 +160,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const status = await retryExerciseList(c.env.DB, c.var.teacher.id, test.id, nowIso());
     if (status === null) throw new ApiError(409, 'not_failed', 'Lista de exerciții nu a eșuat.');
     const robot = status === 'evaluating' ? await startRobot(c.env) : null;
-    return c.json({ exerciseList: { status: 'none', message: null }, robot });
+    return c.json({ exerciseList: { status: 'none', message: null }, robot } satisfies ExerciseListAnswer);
   });
 
   // Upload or replace the test or the barem: PDF or Word, at most 25 MB.
