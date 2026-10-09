@@ -215,6 +215,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.exerciseList = { status: 'none', message: null };
       return found.status === 'evaluating' ? 'next_check' : null;
     }),
+    startRobot: vi.fn(async (code: string): Promise<RobotStart> => {
+      if (findTest(code).test.status !== 'evaluating') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
+      return 'next_check';
+    }),
     getSubmission: vi.fn(async (submissionId: number) => {
       const found = submissions.find((s) => s.id === submissionId);
       if (!found) throw notFound();

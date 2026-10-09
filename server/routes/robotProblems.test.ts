@@ -3,7 +3,8 @@ import { addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fi
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 // The teacher's answers to what the robot reports: an exercise list with a
-// problem or an error, and an upload whose grading failed.
+// problem or an error, an upload whose grading failed, and a run that stopped
+// before the work was done.
 
 let api: TestApi;
 let dispatchRobot: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
@@ -163,5 +164,106 @@ describe('POST /api/admin/submissions/:id/retry', () => {
     const id = await addSubmission(api, foreign.code, foreign.studentId, { status: 'failed', files: 1 });
     expect((await api.request('POST', `/api/admin/submissions/${id}/retry`)).status).toBe(404);
     expect(await uploadRow(id)).toMatchObject({ status: 'failed' });
+  });
+});
+
+describe('POST /api/admin/tests/:code/robot', () => {
+  const MINUTE = 60_000;
+  const setRunner = (runId: string, heartbeatAt: string) =>
+    api.db.prepare('UPDATE runner_state SET run_id = ?, heartbeat_at = ? WHERE id = 1').bind(runId, heartbeatAt).run();
+
+  async function gradingUpload(runId: string): Promise<number> {
+    const id = await addSubmission(api, code, studentId, { status: 'grading', files: 1 });
+    await api.db.prepare('UPDATE submissions SET run_id = ? WHERE id = ?').bind(runId, id).run();
+    return id;
+  }
+
+  it('starts the robot for uploads that wait in a test in evaluation', async () => {
+    await setTest("status = 'evaluating', exercise_list_status = 'ready'");
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await addSubmission(api, code, classmateId, { status: 'graded', files: 1 });
+    dispatchRobot.mockResolvedValueOnce(true);
+    const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ robot: 'dispatched' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('says the robot starts at its next check when GitHub does not take the request', async () => {
+    await setTest("status = 'evaluating', exercise_list_status = 'accepted'");
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ robot: 'next_check' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts the robot for a test that waits for its exercise list', async () => {
+    await setTest("status = 'evaluating', exercise_list_status = 'none'");
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+    expect(res.status).toBe(200);
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts the robot for an upload left in grading by a run that stopped', async () => {
+    await setTest("status = 'evaluating', exercise_list_status = 'ready'");
+    await setRunner('run-old', new Date(Date.now() - 60 * MINUTE).toISOString());
+    await gradingUpload('run-old');
+    const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+    expect(res.status).toBe(200);
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts the robot for a class analysis that waits', async () => {
+    await setTest("status = 'evaluating', exercise_list_status = 'ready', analysis_status = 'requested'");
+    await addSubmission(api, code, studentId, { status: 'graded', files: 1 });
+    const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+    expect(res.status).toBe(200);
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses while a live run grades the last uploads', async () => {
+    await setTest("status = 'evaluating', exercise_list_status = 'ready'");
+    await setRunner('run-live', new Date().toISOString());
+    await gradingUpload('run-live');
+    const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'no_work', message: 'Nicio lucrare a acestui test nu așteaptă robotul.' });
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  it('refuses while the exercise list waits for the teacher', async () => {
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    for (const list of ['problem', 'failed']) {
+      await setTest(`status = 'evaluating', exercise_list_status = '${list}'`);
+      const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('no_work');
+    }
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  it('refuses a test that is not in evaluation', async () => {
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    const later = new Date(Date.now() + 60 * MINUTE).toISOString();
+    for (const state of ["status = 'draft'", `status = 'open', evaluation_at = '${later}'`, "status = 'done'"]) {
+      await setTest(`${state}, exercise_list_status = 'ready'`);
+      const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+      expect(res.status).toBe(409);
+      expect(res.body).toEqual({ error: 'not_evaluating', message: 'Testul nu se corectează acum.' });
+    }
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for a test of another teacher', async () => {
+    const foreign = await otherTeacherTest(api);
+    await api.db
+      .prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'ready' WHERE code = ?")
+      .bind(foreign.code)
+      .run();
+    await addSubmission(api, foreign.code, foreign.studentId, { status: 'submitted', files: 1 });
+    expect((await api.request('POST', `/api/admin/tests/${foreign.code}/robot`)).status).toBe(404);
+    expect(dispatchRobot).not.toHaveBeenCalled();
   });
 });

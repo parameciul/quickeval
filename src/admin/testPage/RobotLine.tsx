@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { formatDateTime } from '../../ui/format.ts';
 
 const LATE_MINUTES = 30;
@@ -21,7 +21,8 @@ export function robotLine(lastCheckAt: string | null, now: number): { text: stri
   return { text, late: minutes >= LATE_MINUTES };
 }
 
-export function RobotLine({ lastCheckAt }: { lastCheckAt: string | null }) {
+// `children` show only while grading may be late.
+export function RobotLine({ lastCheckAt, children }: { lastCheckAt: string | null; children?: ReactNode }) {
   const [, setTick] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setTick((tick) => tick + 1), TICK_MS);
@@ -33,6 +34,7 @@ export function RobotLine({ lastCheckAt }: { lastCheckAt: string | null }) {
     <div className="warning">
       <p>{text}</p>
       <p>Corectarea poate întârzia.</p>
+      {children}
     </div>
   );
 }

@@ -230,6 +230,11 @@ export interface StartedTest {
 // 10-minute schedule does not fire (docs/deploy.md): that run starts by hand.
 export type RobotStart = 'dispatched' | 'next_check';
 
+// "Pornește robotul" on a test in evaluation whose work waits.
+export interface RobotStartAnswer {
+  robot: RobotStart;
+}
+
 // Start evaluation: `robot` is null when the evaluation was only scheduled.
 export interface EvaluationStart {
   status: TestStatus;

@@ -11,6 +11,7 @@ import { StatusChip } from '../StatusChip.tsx';
 import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
+import { StartRobotButton, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
 import { UploadLink } from '../testPage/UploadLink.tsx';
 import { UploadsTable } from '../testPage/UploadsTable.tsx';
@@ -98,7 +99,11 @@ function TestDetails({ code }: { code: string }) {
             <EvaluationState test={test} />
           )}
           {robotText && <p role="status">{robotText}</p>}
-          {(test.status === 'evaluating' || test.evaluationAt) && <RobotLine lastCheckAt={robot.lastCheckAt} />}
+          {(test.status === 'evaluating' || test.evaluationAt) && (
+            <RobotLine lastCheckAt={robot.lastCheckAt}>
+              {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
+            </RobotLine>
+          )}
         </>
       )}
 

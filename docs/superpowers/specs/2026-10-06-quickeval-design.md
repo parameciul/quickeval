@@ -417,7 +417,7 @@ A school-year switch in the header (default: the current school year) filters Te
   - `problem`: shows the message (for example "Punctajele din barem dau 9, nu 10"). Buttons: replace the barem, **Folosește oricum** (sets `accepted`).
   - `failed`: shows the message and a **Încearcă din nou** button (sets `none` and resets the attempts).
 - Uploads table, refreshed every 10 s while the status is open or evaluating. One row per active student of the class: name, status (Nu a trimis / Încarcă… / Trimis / Se corectează / Corectat / Eroare), file count, time, grade, flag count. "Fără confirmare" marks `auto_submitted`. Row actions: view files and result, **Resetează** (delete the upload so the student can start again), **Reîncearcă** (failed → submitted), **Recorectează** (regrade).
-- Robot line: "Robotul a verificat acum 3 min" from `runner_state.last_check_at`, while the test is evaluating or has a scheduled evaluation. It shows a warning after 30 min without a check.
+- Robot line: "Robotul a verificat acum 3 min" from `runner_state.last_check_at`, while the test is evaluating or has a scheduled evaluation. It shows a warning after 30 min without a check. With the warning, a test in evaluation whose uploads wait for the robot shows "Pornește robotul": it starts the robot like "Evaluate now".
 - Link to the class report when at least one submission is graded.
 
 ## 10. Student app (`/u/<token>`)
@@ -476,6 +476,7 @@ Auth: the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) is checked again in 
 | `POST /tests/:code/regrade` | Regrade all graded submissions. |
 | `POST /tests/:code/exercise-list/accept` | problem → accepted. |
 | `POST /tests/:code/exercise-list/retry` | failed → none, attempts = 0. |
+| `POST /tests/:code/robot` | "Pornește robotul": starts the robot (§12.6) when the test is evaluating and the robot's check would find work in it. Otherwise 409. |
 | `POST /tests/:code/analysis/regenerate` | analysis_status → requested. If the test is `done`, it goes back to `evaluating`. |
 | `GET /tests/:code/report` | Rows for the class report: students, items, totals, analysis. Statistics are computed in the browser with `shared/stats.ts`. |
 | `GET /submissions/:id` | Submission, files, evaluation, and items. |
@@ -819,7 +820,7 @@ Each plan ends with working, tested software. Each one gets its own file in `doc
 |---|---|
 | Handwriting is misread | Confidence and flags, teacher review, photo tips, regrade. The robot never guesses an unreadable page. |
 | Claude plan usage limit | Parallel agents default to 1. The robot pauses and continues later, and no work is lost. |
-| GitHub schedule is late or turned off | "Evaluate now" dispatch, the weekly turn-on step, and the robot line on the test page. |
+| GitHub schedule is late or turned off | "Evaluate now" dispatch, the weekly turn-on step, and the robot line on the test page with "Pornește robotul". |
 | Claude Code flags change | Pinned CLI version in the workflow, the spike of Plan 3b, and deliberate updates. |
 | Free-tier limits change | Numbers checked on 2026-10-06. The budget keeps wide margins (§5). |
 | Public repo | No data in the repo. Logs show ids only. Secrets live only in GitHub and Cloudflare settings. |

@@ -39,4 +39,21 @@ describe('RobotLine', () => {
     expect(screen.getByText('Robotul a verificat acum 30 min.')).toBeInTheDocument();
     expect(screen.getByText('Corectarea poate întârzia.')).toBeInTheDocument();
   });
+
+  it('shows its button only while grading may be late', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+    const { rerender } = render(
+      <RobotLine lastCheckAt={ago(5)}>
+        <button type="button">Pornește robotul</button>
+      </RobotLine>,
+    );
+    expect(screen.queryByRole('button', { name: 'Pornește robotul' })).not.toBeInTheDocument();
+    rerender(
+      <RobotLine lastCheckAt={ago(45)}>
+        <button type="button">Pornește robotul</button>
+      </RobotLine>,
+    );
+    expect(screen.getByRole('button', { name: 'Pornește robotul' })).toBeInTheDocument();
+  });
 });
