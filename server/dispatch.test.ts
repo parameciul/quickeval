@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { dispatchRobot } from './dispatch.ts';
 import type { Env } from './env.ts';
 
 const ENV = { GITHUB_REPO: 'parameciul/quickeval', GITHUB_DISPATCH_TOKEN: 'secret-token' } as Env;
 
 describe('dispatchRobot', () => {
-  let warn: ReturnType<typeof vi.spyOn<Console, 'warn'>>;
+  let warn: MockInstance<typeof console.warn>;
 
   beforeEach(() => {
     warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
