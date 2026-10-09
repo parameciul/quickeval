@@ -142,8 +142,7 @@ Rules that keep us inside the limits:
 
 ```
 quickeval/
-  AGENTS.md                 project rules for agents (CLAUDE.md imports it)
-  CLAUDE.md                 "@AGENTS.md"
+  AGENTS.md                 project rules for agents (Claude Code reads it); src/, server/, runner/ have their own
   README.md
   Specifications.txt        the original request
   package.json  package-lock.json  .node-version (24)
@@ -168,6 +167,7 @@ quickeval/
   runner/                   robot: check.ts, run.ts, api.ts, claude.ts, workdir.ts, ...
   .claude/skills/evaluate-test/   grading skill: SKILL.md + references/
   .github/workflows/        ci.yml (tests), evaluate.yml (robot)
+  docs/deploy.md            deploy, secrets, the robot's GitHub settings
   docs/superpowers/         specs/ and plans/
 ```
 
@@ -602,7 +602,7 @@ claude -p "/evaluate-test <mode>" \
   --max-turns 40
 ```
 
-- The working directory is the task folder, so Claude Code finds the skill and no repo `CLAUDE.md`.
+- The working directory is the task folder, so Claude Code finds the skill and no repo `CLAUDE.md` or `AGENTS.md`.
 - The environment holds `CLAUDE_CODE_OAUTH_TOKEN`. Never pass `--bare`: bare mode ignores that token. Never pass `--safe-mode`: it turns skills off.
 - `--json-schema` takes a draft-07 schema: Claude Code refuses zod's default (draft 2020-12).
 - `--restricted` keeps Claude's file tools inside the work folder. Without it, Read opens any file of the machine, and student pages are untrusted input.
@@ -777,7 +777,7 @@ Each step below that creates something outside this PC is done only after the te
 4. **First teacher**: `npx wrangler d1 execute quickeval --remote --command "INSERT INTO teachers (email, name, created_at) VALUES (lower('<teacher email>'), 'Laura Miron', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"`. Replace `<teacher email>` with the email she uses for the Access login.
 5. **Robot**: GitHub variable `QUICKEVAL_URL`, secrets `QUICKEVAL_RUNNER_KEY` (from Setări) and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`).
 
-Operations, written down in `AGENTS.md`:
+Operations, written down in `docs/deploy.md`:
 
 - Renew `CLAUDE_CODE_OAUTH_TOKEN` every year. The Setări page shows the date of the last successful grading.
 - Each September: check R2 usage and delete old school years if needed.
@@ -810,7 +810,7 @@ Each plan ends with working, tested software. Each one gets its own file in `doc
    - the class report (table, statistics, analysis);
    - PDFs (Romanian font), CSV, Share;
    - the student history page;
-   - the operations notes in `AGENTS.md`.
+   - the operations notes in `docs/deploy.md`.
    - Result: v1 is complete.
 
 ## 20. Risks

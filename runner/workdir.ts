@@ -8,9 +8,9 @@ import type { TestFileKind } from '../shared/files.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
 
 // The work folder of one robot task (spec §12.3). It is the working directory
-// of Claude, outside the repo: Claude finds the skill and no CLAUDE.md, and
-// --restricted keeps it inside. The files hold no names: the pages are named
-// by their upload order.
+// of Claude, outside the repo: Claude finds the skill and no CLAUDE.md or
+// AGENTS.md, and --restricted keeps it inside. The files hold no names: the
+// pages are named by their upload order.
 //
 //   .claude/skills/evaluate-test/   a copy of the repo's grading skill
 //   test/test.pdf                   or test/test.md and test/media/… (from Word)

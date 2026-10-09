@@ -69,7 +69,7 @@ jobs:
         run: node runner/check.ts
 
       # The robot needs only zod. Claude Code is pinned: a new version changes
-      # how the robot runs, so it comes with a commit (see AGENTS.md).
+      # how the robot runs, so it comes with a commit (see docs/deploy.md).
       - name: Install
         if: steps.check.outputs.has_work == 'true'
         run: |
