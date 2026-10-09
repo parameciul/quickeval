@@ -109,7 +109,7 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
     expect(row).toEqual({ status: 'evaluating', exercise_list_status: 'none', exercise_list_message: null, exercise_list_attempts: 0 });
   });
 
-  it('says the robot starts at its next check when GitHub does not take the request', async () => {
+  it('says the robot did not start when GitHub does not take the request', async () => {
     await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
     await api.db.prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'problem' WHERE code = ?").bind(code).run();
     const res = await putFile(code, 'barem', pdf('nou'), PDF_TYPE, 'barem.pdf');

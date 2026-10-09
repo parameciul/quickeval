@@ -43,7 +43,6 @@ Robot API and server:
 - Setări's "Robotul lucrează acum" uses a strict JS time comparison, `/check` an inclusive text comparison: they disagree at exactly 15 minutes. Use `staleBefore` in both (`server/db/settings.ts`, `server/routes/runner.ts`).
 - The robot gets zod's English default message for a bad `error`, `ok`, or `stop` value; only `runIdSchema` has a Romanian message (`shared/runner.ts`).
 - `retrySubmission`'s done → evaluating statement is not gated on its failed → submitted statement. It is safe while a `done` test never has a `submitted` upload (`server/db/lifecycle.ts`).
-- "Folosește oricum" and a barem replaced during the evaluation do not ask GitHub to start the robot. The grading waits for the next check.
 - While the exercise list is `problem` or `failed`, the teacher can also replace the test file, but only a new barem makes the list again.
 - `DELETE /schedule` after the scheduled time answers "Evaluarea nu este programată.", though the evaluation started (`server/routes/tests.ts`).
 - `reopenTest` keeps `evaluation_started_at`: a reopened test's API answer shows the old start time.

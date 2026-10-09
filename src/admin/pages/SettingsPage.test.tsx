@@ -119,4 +119,12 @@ describe('lastRunText', () => {
       /1 listă de exerciții, 0 lucrări corectate, 0 lucrări eșuate\. S-a oprit din cauza unei erori\. Detaliile sunt în rularea de pe GitHub\.$/,
     );
   });
+
+  it('says the other uploads wait after the run stopped at its time limit', () => {
+    const robot = fakeSettings().robot;
+    const summary = { exerciseLists: 0, graded: 30, failed: 0, analyses: 0, stop: 'budget' } as const;
+    expect(lastRunText({ ...robot, lastRunFinishedAt: '2026-10-07T09:00:00.000Z', lastRunSummary: summary })).toBe(
+      'Ultima rulare s-a încheiat la 7 oct. 2026, 12:00: 0 liste de exerciții, 30 de lucrări corectate, 0 lucrări eșuate. S-a oprit după 2 ore. Restul lucrărilor așteaptă până pornește robotul din nou.',
+    );
+  });
 });

@@ -64,7 +64,7 @@ describe('POST /api/admin/tests/:code/evaluate (now)', () => {
     expect(detail.body.test).toMatchObject({ status: 'evaluating', evaluationAt: null, evaluationStartedAt: row!.evaluation_started_at });
   });
 
-  it('says when the robot starts only at its next check', async () => {
+  it('says when GitHub does not start the robot', async () => {
     await addTestFiles(api, code);
     await addSubmission(api, code, studentIds[0]!, { files: 1 });
     const res = await evaluate();
