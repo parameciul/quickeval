@@ -31,6 +31,27 @@ export const GRADABLE = `s.status = 'submitted' AND t.status = 'evaluating' AND 
 export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = 'requested'
   AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status IN ('submitted', 'grading'))`;
 
+// Whether the robot has work in this test, as its regular check counts it.
+// An upload left in grading by a run that died counts too: the check sends
+// it back to the queue.
+export async function testHasRobotWork(db: D1Database, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `SELECT 1 AS found FROM tests t WHERE t.id = ? AND (
+         (${NEEDS_EXERCISE_LIST})
+         OR (${NEEDS_ANALYSIS})
+         OR EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND ${GRADABLE})
+         OR EXISTS (
+           SELECT 1 FROM submissions s
+           WHERE s.test_id = t.id AND s.status = 'grading' AND t.status = 'evaluating'
+             AND t.exercise_list_status IN ('ready', 'accepted')
+             AND NOT EXISTS (SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = s.run_id AND r.heartbeat_at >= ?)))`,
+    )
+    .bind(testId, staleBefore(now))
+    .first<{ found: number }>();
+  return row !== null;
+}
+
 // The robot's regular check, in one transaction:
 // - an upload left in grading by a run that died or ended goes back to the
 //   queue, so no upload is lost when no new run takes the lease;

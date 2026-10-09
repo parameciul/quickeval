@@ -68,6 +68,7 @@ describe('createApiClient evaluation', () => {
     expect(await api.acceptExerciseList('6E2-26T1')).toBe('dispatched');
     expect(await api.retryExerciseList('6E2-26T1')).toBe('dispatched');
     expect(await api.retrySubmission(5)).toBe('dispatched');
+    expect(await api.startRobot('6E2-26T1')).toBe('dispatched');
     expect(fetchImpl.mock.calls.map(([url, init]) => [init!.method, url, init!.body])).toEqual([
       ['POST', '/api/admin/tests/6E2-26T1/evaluate', '{}'],
       ['POST', '/api/admin/tests/6E2-26T1/evaluate', '{"at":"2026-10-20T07:15:00.000Z"}'],
@@ -75,6 +76,7 @@ describe('createApiClient evaluation', () => {
       ['POST', '/api/admin/tests/6E2-26T1/exercise-list/accept', undefined],
       ['POST', '/api/admin/tests/6E2-26T1/exercise-list/retry', undefined],
       ['POST', '/api/admin/submissions/5/retry', undefined],
+      ['POST', '/api/admin/tests/6E2-26T1/robot', undefined],
     ]);
   });
 });

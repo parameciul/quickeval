@@ -6,6 +6,7 @@ import {
   renameTestBody,
   type EvaluationStart,
   type ExerciseListAnswer,
+  type RobotStartAnswer,
   type TestFileAnswer,
 } from '../../shared/api.ts';
 import { isTestFileKind, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
@@ -18,6 +19,7 @@ import {
   scheduleEvaluation,
   startEvaluationNow,
 } from '../db/lifecycle.ts';
+import { testHasRobotWork } from '../db/runner.ts';
 import { lastCheckAt } from '../db/settings.ts';
 import {
   createTest,
@@ -168,6 +170,17 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (status === null) throw new ApiError(409, 'not_failed', 'Lista de exerciții nu a eșuat.');
     const robot = status === 'evaluating' ? await startRobot(c.env) : null;
     return c.json({ exerciseList: { status: 'none', message: null }, robot } satisfies ExerciseListAnswer);
+  });
+
+  // "Pornește robotul": the teacher starts the robot again for work that a
+  // run left when it stopped early (a usage limit, a crash, the time limit).
+  routes.post('/:code/robot', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (test.summary.status !== 'evaluating') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
+    if (!(await testHasRobotWork(c.env.DB, test.id, nowIso()))) {
+      throw new ApiError(409, 'no_work', 'Nicio lucrare a acestui test nu așteaptă robotul.');
+    }
+    return c.json({ robot: await startRobot(c.env) } satisfies RobotStartAnswer);
   });
 
   // Upload or replace the test or the barem: PDF or Word, at most 25 MB. A new

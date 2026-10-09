@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
+import type { UploadRow } from '../../../shared/api.ts';
+import { robotStartMessage } from '../../ui/format.ts';
 import { createFakeApi, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { refreshInterval } from './TestPage.tsx';
@@ -190,11 +192,13 @@ describe('TestPage evaluation', () => {
   const FILES = { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: { name: 'Barem.pdf', type: PDF_TYPE } };
   const NOW = new Date('2026-10-08T07:00:00.000Z');
 
-  function evaluationApi(overrides: Parameters<typeof fakeTest>[0], rows = uploads) {
+  function evaluationApi(overrides: Parameters<typeof fakeTest>[0], rows = uploads, lastCheckAt: string | null = null) {
+    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, ...overrides }, structuredClone(rows));
+    detail.robot.lastCheckAt = lastCheckAt;
     return createFakeApi({
       classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
       students: {},
-      tests: [fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, ...overrides }, structuredClone(rows))],
+      tests: [detail],
     });
   }
 
@@ -326,5 +330,40 @@ describe('TestPage evaluation', () => {
     expect(api.retrySubmission).toHaveBeenCalledWith(6);
     expect(await within(stan).findByText('Trimis')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
+  });
+
+  it('starts the robot again when grading is late and work waits', async () => {
+    const api = evaluationApi({ status: 'evaluating' });
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByText('Corectarea poate întârzia.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Pornește robotul' }));
+    expect(api.startRobot).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByRole('status')).toHaveTextContent(robotStartMessage('next_check'));
+  });
+
+  it('says why the robot did not start', async () => {
+    const api = evaluationApi({ status: 'evaluating' });
+    api.startRobot.mockRejectedValueOnce(new ApiError(409, 'no_work', 'Nicio lucrare a acestui test nu așteaptă robotul.'));
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pornește robotul' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nicio lucrare a acestui test nu așteaptă robotul.');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  const graded = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 })];
+  const leftInGrading = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'grading', fileCount: 2 })];
+  const problem = { status: 'problem', message: 'Punctajele din barem dau 9, dar totalul este 10.' } as const;
+  const robotButtonCases: [string, Parameters<typeof fakeTest>[0], UploadRow[], string | null, boolean][] = [
+    ['an upload left in grading', { status: 'evaluating' }, leftInGrading, null, true],
+    ['a robot that checked 5 minutes ago', { status: 'evaluating' }, uploads, '2026-10-08T06:55:00.000Z', false],
+    ['a test with nothing left to grade', { status: 'evaluating' }, graded, null, false],
+    ['a barem that waits for the teacher', { status: 'evaluating', exerciseList: problem }, uploads, null, false],
+    ['a scheduled evaluation', { evaluationAt: '2026-10-09T07:00:00.000Z' }, uploads, null, false],
+  ];
+
+  it.each(robotButtonCases)('offers to start the robot for %s', async (_name, overrides, rows, lastCheckAt, shown) => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi(overrides, rows, lastCheckAt));
+    expect(await screen.findByText(/^Robotul (nu )?a verificat/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pornește robotul' }) !== null).toBe(shown);
   });
 });

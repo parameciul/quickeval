@@ -6,6 +6,7 @@ import type {
   EvaluationStart,
   ExerciseListAnswer,
   RobotStart,
+  RobotStartAnswer,
   Settings,
   StartedTest,
   StudentRow,
@@ -47,6 +48,8 @@ export interface AdminApi {
   // The robot answers are null when the robot was not needed.
   acceptExerciseList(code: string): Promise<RobotStart | null>;
   retryExerciseList(code: string): Promise<RobotStart | null>;
+  // "Pornește robotul": work that a stopped run left in the test.
+  startRobot(code: string): Promise<RobotStart>;
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
   resetSubmission(submissionId: number): Promise<void>;
   retrySubmission(submissionId: number): Promise<RobotStart | null>;
@@ -169,6 +172,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<ExerciseListAnswer>('POST', `${test(code)}/exercise-list/accept`)).robot,
     retryExerciseList: async (code) =>
       (await request<ExerciseListAnswer>('POST', `${test(code)}/exercise-list/retry`)).robot,
+    startRobot: async (code) => (await request<RobotStartAnswer>('POST', `${test(code)}/robot`)).robot,
     getSubmission: async (submissionId) =>
       (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,
     resetSubmission: async (submissionId) => {
