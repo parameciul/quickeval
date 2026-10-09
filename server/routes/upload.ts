@@ -3,7 +3,6 @@ import { Hono } from 'hono';
 import { startSessionBody, type UploadSession } from '../../shared/api.ts';
 import { MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, studentFileKey } from '../../shared/files.ts';
 import { isUploadToken } from '../../shared/tests.ts';
-import { promoteDueTests } from '../db/lifecycle.ts';
 import {
   addSubmissionFile,
   confirmSubmission,
@@ -20,9 +19,9 @@ import {
   type SessionRecord,
 } from '../db/links.ts';
 import { listSubmissionFiles, publicFile } from '../db/submissions.ts';
-import type { AppEnv } from '../env.ts';
+import type { AppEnv, AppOptions, Env } from '../env.ts';
 import { ApiError, isUniqueViolation } from '../errors.ts';
-import { nowIso, parseId, promoteDue, readJson, sameOriginWrites } from '../http.ts';
+import { duePromoter, nowIso, parseId, promoteDue, readJson, sameOriginWrites } from '../http.ts';
 import { newDeviceSecret, randomBase32, sha256Hex } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
 
@@ -63,8 +62,8 @@ async function openSession(c: Context<AppEnv>): Promise<{ test: LinkTest; curren
 
 // After a refused write: when the scheduled time came meanwhile, start the
 // evaluation first, so that openSession says the uploads closed.
-async function explainRefusal(c: Context<AppEnv>): Promise<void> {
-  await promoteDueTests(c.env.DB, nowIso());
+async function explainRefusal(c: Context<AppEnv>, promote: (env: Env) => Promise<void>): Promise<void> {
+  await promote(c.env);
   await openSession(c);
 }
 
@@ -76,9 +75,10 @@ async function sessionView(c: Context<AppEnv>, current: SessionRecord): Promise<
 
 // /api/u/<token>: the student app. No login: the token in the link is the key
 // to one test, and a secret kept on the phone is the key to one upload.
-export function uploadRoutes(): Hono<AppEnv> {
+export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
-  routes.use('*', sameOriginWrites, promoteDue);
+  const promote = duePromoter(options);
+  routes.use('*', sameOriginWrites, promoteDue(options));
 
   routes.get('/:token', async (c) => {
     const test = await linkTest(c);
@@ -152,7 +152,7 @@ export function uploadRoutes(): Hono<AppEnv> {
     if (id === null) {
       // The upload changed while the file was on its way: remove the file and say why.
       await deleteFilesQuietly(c.env.FILES, [key]);
-      await explainRefusal(c);
+      await explainRefusal(c, promote);
       throw tooManyFiles();
     }
     return c.json({ file: { id, name: stored.name, contentType: stored.type, size: stored.size, position: stored.position } }, 201);
@@ -173,7 +173,7 @@ export function uploadRoutes(): Hono<AppEnv> {
     const file = await findSessionFile(c.env.DB, current.submissionId, fileId);
     if (!file) throw fileNotFound();
     if (!(await deleteSessionFile(c.env.DB, current.submissionId, fileId, nowIso()))) {
-      await explainRefusal(c);
+      await explainRefusal(c, promote);
       throw fileNotFound();
     }
     await deleteFilesQuietly(c.env.FILES, [file.key]);
@@ -186,7 +186,7 @@ export function uploadRoutes(): Hono<AppEnv> {
     const fileCount = await confirmSubmission(c.env.DB, current.submissionId, nowIso());
     if (fileCount === null) {
       // Says why when the test closed or the upload was sent meanwhile.
-      await explainRefusal(c);
+      await explainRefusal(c, promote);
       throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
     }
     return c.json({ status: 'submitted', fileCount });

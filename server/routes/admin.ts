@@ -11,7 +11,7 @@ import { testRoutes } from './tests.ts';
 // /api/admin: everything the teacher app calls. Every route needs a teacher login.
 export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
-  routes.use('*', sameOriginWrites, teacherAuth(), promoteDue);
+  routes.use('*', sameOriginWrites, teacherAuth(), promoteDue(options));
   routes.get('/me', (c) => c.json({ teacher: c.var.teacher }));
   routes.route('/classes', classRoutes());
   routes.route('/students', studentRoutes());
