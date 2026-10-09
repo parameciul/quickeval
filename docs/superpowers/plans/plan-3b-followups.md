@@ -10,12 +10,18 @@ Plan 3b built the grading robot: `runner/`, the grading skill, `npm run try:skil
 ## Still open
 
 - The usage-limit output was never seen: the spike could not reach the plan's limit. `isUsageLimit` (`runner/claude.ts`) follows Claude Code's documented messages and HTTP 429. When a real one shows in a run, replace `runner/fixtures/claude-usage-limit.json` with it and check its test.
-- Claude's `--restricted` mode was never tried on Linux: only Windows ran it. The first real run shows whether Claude starts with it.
 - The signals at the time limit go to Claude's process group on Linux. Only a fake process tested them (Windows has no signals).
 - Every grading downloads the test and the barem again. Keep them per test and `filesVersion` in the run if large files make runs slow.
 - One run can try a failing upload up to 3 times, after the other uploads: three time limits use an hour of the run. When it is the only work, its 3 failures are 3 in a row: the run stops with `error` and GitHub sends an email. A fix: `failGrading` keeps the run's id on the upload. The claim already skips uploads with the run's id, so the next run tries it again.
 - An upload whose run died waits in grading until the lease is stale (15 minutes) and the next check sends it back.
 - Every run with work installs the robot again (`npm ci --omit=dev`, Claude Code, pandoc): about a minute.
+
+## From the go-live (2026-10-09)
+
+- The first real run graded one upload of a real test on Linux: the exercise list took 115 seconds and the grading 114 (`opus`, `high`). Claude started with `--restricted`. The log held only ids, counts, and durations.
+- The "Evaluate now" token had no Contents: Read and write. GitHub refused the dispatch, and the page said only "la următoarea lui verificare". `dispatchRobot` keeps GitHub's answer to itself: log its status code, so `wrangler pages deployment tail` shows why.
+- The 10-minute schedule started no run for 6 hours after the merge, also after a disable and an enable of the workflow. Manual and `repository_dispatch` runs worked. The commits on `main` had an empty author email, linked to no GitHub account; the next push used the account's noreply address. If timed runs stop again, look at the author of the last commit that changed the workflow, then ask GitHub Support (the repo, `.github/workflows/evaluate.yml`, both cron lines).
+- npm 11 warns that Claude Code's install script did not run (`npm warn install-scripts`). Claude started anyway. If a newer pinned version needs it, install it with `--allow-scripts=@anthropic-ai/claude-code`.
 
 ## From the Plan 3b reviews
 
@@ -31,7 +37,6 @@ Small points that the reviews found and left for later. None stops the robot fro
 - `runner/run.test.ts` is sensitive to load: a local engine per test, 20-second time limits. It timed out when two test suites ran at the same time. Watch it on CI.
 - Windows: `spawn('claude')` finds `claude.exe`, but not an npm `claude.cmd`.
 - `claudeRunner` calls every `ENOENT` at the start a missing program. Node also says `ENOENT` when the work folder is missing; the pandoc check also looks at `syscall`. `try:skill` prints "program missing" for every rejection of the runner.
-- In `evaluate.yml`, the comment on the weekly cron line still says "the check in that step": the check is now the `keep-on` job's `if`.
 - `try:skill` prints no comments and no summary, writes over `exercises.json` without a question, and leaves its temp folder after Ctrl+C.
 - The skill does not give the code's length limits (label 120, answer 500, comment 1000, id 20, 60 exercises), or the points for an answer it cannot read.
 - `runner/workflow.test.ts` reads the raw text of `evaluate.yml`: a line in a comment also passes.
