@@ -172,8 +172,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ exerciseList: { status: 'none', message: null }, robot } satisfies ExerciseListAnswer);
   });
 
-  // "Pornește robotul": a run that stopped early (a usage limit, a crash, the
-  // time limit) leaves work behind, and nothing else starts the robot again.
+  // "Pornește robotul": the teacher starts the robot again for work that a
+  // run left when it stopped early (a usage limit, a crash, the time limit).
   routes.post('/:code/robot', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     if (test.summary.status !== 'evaluating') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
