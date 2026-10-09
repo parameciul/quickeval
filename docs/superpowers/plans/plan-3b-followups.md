@@ -13,7 +13,7 @@ Plan 3b built the grading robot: `runner/`, the grading skill, `npm run try:skil
 - Claude's `--restricted` mode was never tried on Linux: only Windows ran it. The first real run shows whether Claude starts with it.
 - The signals at the time limit go to Claude's process group on Linux. Only a fake process tested them (Windows has no signals).
 - Every grading downloads the test and the barem again. Keep them per test and `filesVersion` in the run if large files make runs slow.
-- One run can try a failing upload up to 3 times, after the other uploads: three time limits use an hour of the run. A fix: `failGrading` keeps the run's id on the upload. The claim already skips uploads with the run's id, so the next run tries it again.
+- One run can try a failing upload up to 3 times, after the other uploads: three time limits use an hour of the run. When it is the only work, its 3 failures are 3 in a row: the run stops with `error` and GitHub sends an email. A fix: `failGrading` keeps the run's id on the upload. The claim already skips uploads with the run's id, so the next run tries it again.
 - An upload whose run died waits in grading until the lease is stale (15 minutes) and the next check sends it back.
 - Every run with work installs the robot again (`npm ci --omit=dev`, Claude Code, pandoc): about a minute.
 
@@ -30,6 +30,8 @@ Small points that the reviews found and left for later. None stops the robot fro
 - `/lease`, `/heartbeat`, `/release`, and `/claim` accept bodies of any size. Only the robot key can call them.
 - `runner/run.test.ts` is sensitive to load: a local engine per test, 20-second time limits. It timed out when two test suites ran at the same time. Watch it on CI.
 - Windows: `spawn('claude')` finds `claude.exe`, but not an npm `claude.cmd`.
+- `claudeRunner` calls every `ENOENT` at the start a missing program. Node also says `ENOENT` when the work folder is missing; the pandoc check also looks at `syscall`. `try:skill` prints "program missing" for every rejection of the runner.
+- In `evaluate.yml`, the comment on the weekly cron line still says "the check in that step": the check is now the `keep-on` job's `if`.
 - `try:skill` prints no comments and no summary, writes over `exercises.json` without a question, and leaves its temp folder after Ctrl+C.
 - The skill does not give the code's length limits (label 120, answer 500, comment 1000, id 20, 60 exercises), or the points for an answer it cannot read.
 - `runner/workflow.test.ts` reads the raw text of `evaluate.yml`: a line in a comment also passes.
