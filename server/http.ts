@@ -4,7 +4,8 @@ import { parsePositiveId } from '../shared/ids.ts';
 import { isValidSchoolYear, schoolYearOf } from '../shared/schoolYear.ts';
 import { normalizeTestCode } from '../shared/tests.ts';
 import { promoteDueTests } from './db/lifecycle.ts';
-import type { AppEnv } from './env.ts';
+import { robotStarter } from './dispatch.ts';
+import type { AppEnv, AppOptions, Env } from './env.ts';
 import { ApiError, notFound } from './errors.ts';
 
 // Reads a JSON body and checks it with a zod schema. The first problem becomes
@@ -69,9 +70,22 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
+// Starts the evaluations whose scheduled time has come (spec §8.3). When it
+// started one with work to grade, it asks GitHub for a robot run: no timer
+// starts the robot.
+export function duePromoter(options: AppOptions): (env: Env) => Promise<void> {
+  const startRobot = robotStarter(options);
+  return async (env) => {
+    if (await promoteDueTests(env.DB, nowIso())) await startRobot(env);
+  };
+}
+
 // Teacher and student requests first start the evaluations whose scheduled
 // time has come, so every page shows a scheduled test closed on time (spec §8.3).
-export const promoteDue: MiddlewareHandler<AppEnv> = async (c, next) => {
-  await promoteDueTests(c.env.DB, nowIso());
-  await next();
-};
+export function promoteDue(options: AppOptions = {}): MiddlewareHandler<AppEnv> {
+  const promote = duePromoter(options);
+  return async (c, next) => {
+    await promote(c.env);
+    await next();
+  };
+}

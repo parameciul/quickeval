@@ -19,7 +19,7 @@ export function createApp(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   app.route('/admin', adminRoutes(options));
-  app.route('/u', uploadRoutes());
+  app.route('/u', uploadRoutes(options));
   app.route('/runner', runnerRoutes());
 
   app.notFound((c) => c.json({ error: 'not_found', message: 'Nu am găsit ce cauți.' }, 404));

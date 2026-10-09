@@ -205,6 +205,7 @@ describe('a scheduled evaluation', () => {
 
     vi.setSystemTime(new Date('2026-10-07T08:29:59.999Z'));
     expect((await api.request('GET', `/api/admin/tests/${code}`)).body.test.status).toBe('open');
+    expect(dispatchRobot).not.toHaveBeenCalled();
     vi.setSystemTime(new Date('2026-10-07T08:30:00.000Z'));
     expect((await api.request('GET', `/api/admin/tests/${code}`)).body.test).toMatchObject({
       status: 'evaluating',
@@ -212,18 +213,76 @@ describe('a scheduled evaluation', () => {
       evaluationStartedAt: '2026-10-07T08:30:00.000Z',
     });
     expect(await uploadRow(upload)).toEqual({ status: 'submitted', auto_submitted: 1, submitted_at: '2026-10-07T08:30:00.000Z' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
   });
 
   it.each([
     ['the tests list', () => api.request('GET', '/api/admin/tests?year=2026')],
     ['the class page', () => api.request('GET', `/api/admin/classes/${classId}`)],
     ['the student page', () => api.request('GET', `/api/u/${token}`)],
-  ])('has started when %s is read', async (_name, read) => {
+  ])('has started, and the robot was asked to start, when %s is read', async (_name, read) => {
     await addTestFiles(api, code);
     await addSubmission(api, code, studentIds[0]!, { files: 1 });
     await setTest('evaluation_at = ?', PAST);
     await read();
     expect(await testRow()).toMatchObject({ status: 'evaluating', evaluation_at: null, evaluation_started_at: PAST });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for the robot only in the request that starts the evaluation', async () => {
+    await addTestFiles(api, code);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    await setTest('evaluation_at = ?', PAST);
+    await Promise.all([api.request('GET', `/api/admin/tests/${code}`), api.request('GET', `/api/u/${token}`)]);
+    await api.request('GET', '/api/admin/tests?year=2026');
+    expect((await testRow())?.status).toBe('evaluating');
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for the robot for a due test of another teacher too', async () => {
+    // One robot grades for every teacher: any request starts the due evaluations.
+    const foreign = await otherTeacherTest(api);
+    await addTestFiles(api, foreign.code);
+    await addSubmission(api, foreign.code, foreign.studentId, { files: 1 });
+    await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code = ?').bind(PAST, foreign.code).run();
+    await api.request('GET', `/api/u/${token}`);
+    const row = await api.db.prepare('SELECT status FROM tests WHERE code = ?').bind(foreign.code).first();
+    expect(row).toEqual({ status: 'evaluating' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for the robot when the time comes while a student sends a file', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-07T08:29:59.000Z'));
+    await addTestFiles(api, code);
+    const secret = (await api.request('POST', `/api/u/${token}/sessions`, { studentId: studentIds[0] })).body.secret as string;
+    const sendFile = () =>
+      api.fetch(`/api/u/${token}/files`, {
+        method: 'PUT',
+        body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x01]),
+        headers: { 'Content-Type': 'image/jpeg', 'X-File-Name': 'pagina.jpg', 'X-Upload-Session': secret },
+      });
+    expect((await sendFile()).status).toBe(201);
+    await setTest('evaluation_at = ?', '2026-10-07T08:30:00.000Z');
+    // The scheduled time comes while the second file is on its way to R2.
+    const bucket = api.env.FILES;
+    api.env.FILES = new Proxy(bucket, {
+      get(target, prop) {
+        if (prop === 'put') {
+          return (...args: Parameters<typeof bucket.put>) => {
+            vi.setSystemTime(new Date('2026-10-07T08:30:00.000Z'));
+            return target.put(...args);
+          };
+        }
+        const value: unknown = Reflect.get(target, prop, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const res = await sendFile();
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('closed');
+    expect(await testRow()).toMatchObject({ status: 'evaluating', evaluation_started_at: '2026-10-07T08:30:00.000Z' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
   });
 
   it('closes the uploads before a student write', async () => {
@@ -239,6 +298,7 @@ describe('a scheduled evaluation', () => {
     await setTest('evaluation_at = ?', PAST);
     await api.request('GET', `/api/admin/tests/${code}`);
     expect((await testRow())?.status).toBe('done');
+    expect(dispatchRobot).not.toHaveBeenCalled();
   });
 });
 

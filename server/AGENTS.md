@@ -7,7 +7,7 @@ The API. The root `AGENTS.md` holds the project-wide rules.
 - `routes/`: HTTP. `admin.ts` and its parts, `upload.ts` for students, `runner.ts` for the robot.
 - `db/`: D1 queries. `lifecycle.ts` starts, schedules, promotes, and ends evaluations; `links.ts` holds the student writes; `runner.ts` holds the robot's queries.
 - `auth/`: Cloudflare Access login, and `robotAuth.ts` for the robot key.
-- `http.ts` (JSON bodies, ids, codes, same-origin writes, the `promoteDue` middleware, which runs `promoteDueTests`), `errors.ts` (`ApiError`), `uploads.ts` (file bodies in and out of R2), `secrets.ts` (tokens, keys, and hashes), `dispatch.ts` ("Evaluate now": GitHub's repository_dispatch).
+- `http.ts` (JSON bodies, ids, codes, same-origin writes, the `promoteDue` middleware, which runs `promoteDueTests` and starts the robot when that started an evaluation), `errors.ts` (`ApiError`), `uploads.ts` (file bodies in and out of R2), `secrets.ts` (tokens, keys, and hashes), `dispatch.ts` ("Evaluate now": GitHub's repository_dispatch).
 - `test/`: the API test helper (`testApi.ts`) and fixtures.
 
 ## Rules

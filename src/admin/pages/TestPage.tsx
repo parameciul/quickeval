@@ -80,7 +80,7 @@ function TestDetails({ code }: { code: string }) {
       </p>
       <RenameTestForm code={code} currentTitle={test.title} onDone={refresh} />
 
-      <TestFiles test={test} onChanged={refresh} />
+      <TestFiles test={test} onChanged={refresh} onRobot={onRobot} />
 
       <h2>Încărcarea lucrărilor</h2>
       <TestActions test={test} onChanged={refresh} />

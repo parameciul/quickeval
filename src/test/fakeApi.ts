@@ -7,6 +7,7 @@ import type {
   StudentRow,
   SubmissionDetail,
   TestDetail,
+  TestFileAnswer,
   TestInfo,
   TestSummary,
   UploadRow,
@@ -173,10 +174,15 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     deleteTest: vi.fn(async (code: string) => {
       tests.splice(tests.indexOf(findTest(code)), 1);
     }),
-    uploadTestFile: vi.fn(async (code: string, kind: TestFileKind, file: File) => {
+    // Like the server: a new barem clears the exercise list, and during
+    // evaluation the robot makes it again.
+    uploadTestFile: vi.fn(async (code: string, kind: TestFileKind, file: File): Promise<TestFileAnswer> => {
+      const found = findTest(code).test;
       const info = { name: file.name, type: uploadTypeOf(file) };
-      findTest(code).test.files[kind] = info;
-      return info;
+      found.files[kind] = info;
+      if (kind === 'test') return { file: info, robot: null };
+      found.exerciseList = { status: 'none', message: null };
+      return { file: info, robot: found.status === 'evaluating' ? 'next_check' : null };
     }),
     startTest: vi.fn(async (code: string) => {
       const found = findTest(code).test;
@@ -199,8 +205,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     cancelSchedule: vi.fn(async (code: string) => {
       findTest(code).test.evaluationAt = null;
     }),
-    acceptExerciseList: vi.fn(async (code: string) => {
-      findTest(code).test.exerciseList.status = 'accepted';
+    acceptExerciseList: vi.fn(async (code: string): Promise<RobotStart | null> => {
+      const found = findTest(code).test;
+      found.exerciseList.status = 'accepted';
+      return found.status === 'evaluating' ? 'next_check' : null;
     }),
     retryExerciseList: vi.fn(async (code: string): Promise<RobotStart | null> => {
       const found = findTest(code).test;

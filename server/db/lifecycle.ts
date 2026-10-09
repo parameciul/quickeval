@@ -32,9 +32,13 @@ const DUE = "t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_
 // scheduled test closes on time even when the robot is late (spec §8.3). For
 // those tests the uploads closed at the scheduled time: uploads with files
 // are sent as they are ("Fără confirmare"); uploads without files stay. Also
-// finishes the tests that have nothing left to grade.
-export async function promoteDueTests(db: D1Database, now: string): Promise<void> {
-  await db.batch(promoteStatements(db, now));
+// finishes the tests that have nothing left to grade. True when this call
+// started an evaluation that did not end at once: the robot has work. D1 runs
+// writes one at a time, so of two calls at once only one sees that test.
+export async function promoteDueTests(db: D1Database, now: string): Promise<boolean> {
+  const [, started, finished] = await db.batch<{ id: number }>(promoteStatements(db, now));
+  const ended = new Set(finished?.results.map((row) => row.id));
+  return Boolean(started?.results.some((row) => !ended.has(row.id)));
 }
 
 // The writes of promoteDueTests, for a batch with more writes.
@@ -53,7 +57,8 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
       .prepare(
         `UPDATE tests
          SET status = 'evaluating', evaluation_started_at = evaluation_at, evaluation_at = NULL, updated_at = ?, ${ASK_FOR_ANALYSIS}
-         WHERE id IN (SELECT t.id FROM tests t WHERE ${DUE})`,
+         WHERE id IN (SELECT t.id FROM tests t WHERE ${DUE})
+         RETURNING id`,
       )
       .bind(now, now),
     finishTests(db, now),
@@ -133,17 +138,17 @@ export async function hasUploadedFiles(db: D1Database, testId: number): Promise<
 }
 
 // "Folosește oricum": the teacher accepts an exercise list whose points do
-// not add up. False when the list had no problem.
-export async function acceptExerciseList(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+// not add up. Returns the test's status, or null when the list had no problem.
+export async function acceptExerciseList(db: D1Database, teacherId: number, testId: number, now: string): Promise<TestStatus | null> {
   const row = await db
     .prepare(
       `UPDATE tests SET exercise_list_status = 'accepted', updated_at = ?
        WHERE id = ? AND teacher_id = ? AND exercise_list_status = 'problem'
-       RETURNING id`,
+       RETURNING status`,
     )
     .bind(now, testId, teacherId)
-    .first<{ id: number }>();
-  return row !== null;
+    .first<{ status: TestStatus }>();
+  return row?.status ?? null;
 }
 
 // Lets the robot try again to make an exercise list it failed to make.

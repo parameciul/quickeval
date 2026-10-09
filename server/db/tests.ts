@@ -272,7 +272,8 @@ export async function reopenTest(db: D1Database, teacherId: number, testId: numb
 
 // Points the test at a new test or barem file, and counts the change in
 // files_version. A new barem also clears the exercise list, which the robot
-// made from the old one (spec §8.5).
+// made from the old one (spec §8.5). Returns the test's status, or null when
+// the test is gone.
 export async function saveTestFile(
   db: D1Database,
   teacherId: number,
@@ -280,15 +281,18 @@ export async function saveTestFile(
   kind: TestFileKind,
   file: StoredFile,
   now: string,
-): Promise<void> {
+): Promise<TestStatus | null> {
   const sql =
     kind === 'test'
       ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1
-         WHERE id = ? AND teacher_id = ?`
+         WHERE id = ? AND teacher_id = ?
+         RETURNING status`
       : `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, updated_at = ?, files_version = files_version + 1,
            exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0
-         WHERE id = ? AND teacher_id = ?`;
-  await db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId).run();
+         WHERE id = ? AND teacher_id = ?
+         RETURNING status`;
+  const row = await db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId).first<{ status: TestStatus }>();
+  return row?.status ?? null;
 }
 
 // Every R2 key of a test: its test and barem files and all student files.

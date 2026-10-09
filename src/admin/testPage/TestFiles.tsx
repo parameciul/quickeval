@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { TestInfo } from '../../../shared/api.ts';
+import type { RobotStart, TestInfo } from '../../../shared/api.ts';
 import type { TestFileKind } from '../../../shared/files.ts';
 import { testFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
@@ -14,8 +14,17 @@ const NAMES: Record<TestFileKind, { title: string; upload: string; replace: stri
 
 // The test and the barem: open them, upload them, or replace them. Not while
 // the robot grades with them; while their exercise list has a problem or
-// failed, the robot uses neither, and the teacher may fix them.
-export function TestFiles({ test, onChanged }: { test: TestInfo; onChanged: () => Promise<void> }) {
+// failed, the robot uses neither, and the teacher may fix them. A new barem
+// during evaluation starts the robot, which makes the exercise list again.
+export function TestFiles({
+  test,
+  onChanged,
+  onRobot,
+}: {
+  test: TestInfo;
+  onChanged: () => Promise<void>;
+  onRobot: (robot: RobotStart | null) => void;
+}) {
   const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
   const locked = test.status === 'evaluating' && !listBlocked;
   return (
@@ -23,8 +32,8 @@ export function TestFiles({ test, onChanged }: { test: TestInfo; onChanged: () =
       <h2>Fișiere</h2>
       {locked && <p className="hint">Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.</p>}
       <ul className="file-list">
-        <TestFileRow code={test.code} kind="test" file={test.files.test} locked={locked} onChanged={onChanged} />
-        <TestFileRow code={test.code} kind="barem" file={test.files.barem} locked={locked} onChanged={onChanged} />
+        <TestFileRow code={test.code} kind="test" file={test.files.test} locked={locked} onChanged={onChanged} onRobot={onRobot} />
+        <TestFileRow code={test.code} kind="barem" file={test.files.barem} locked={locked} onChanged={onChanged} onRobot={onRobot} />
       </ul>
     </>
   );
@@ -36,20 +45,23 @@ function TestFileRow({
   file,
   locked,
   onChanged,
+  onRobot,
 }: {
   code: string;
   kind: TestFileKind;
   file: TestInfo['files'][TestFileKind];
   locked: boolean;
   onChanged: () => Promise<void>;
+  onRobot: (robot: RobotStart | null) => void;
 }) {
   const api = useApi();
   // A new key empties the file input after each upload.
   const [round, setRound] = useState(0);
   const upload = useMutation({
     mutationFn: (picked: File) => api.uploadTestFile(code, kind, picked),
-    onSuccess: async () => {
+    onSuccess: async (answer) => {
       setRound((value) => value + 1);
+      onRobot(answer.robot);
       await onChanged();
     },
   });
