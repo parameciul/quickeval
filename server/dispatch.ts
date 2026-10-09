@@ -1,4 +1,5 @@
 import type { RobotStart } from '../shared/api.ts';
+import { saveRobotStart } from './db/settings.ts';
 import type { AppOptions, Env } from './env.ts';
 
 const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -39,8 +40,16 @@ export async function dispatchRobot(env: Env, fetchImpl: typeof fetch = fetch): 
 }
 
 // What the teacher is told when grading (re)starts: the robot was asked to
-// start at once, or it could not be started.
+// start at once, or it could not be started. The answer is also saved for the
+// test page, because a scheduled start happens in any teacher's or student's
+// request. The time is taken before GitHub's answer: a run that checks in
+// meanwhile hides the failure.
 export function robotStarter(options: AppOptions): (env: Env) => Promise<RobotStart> {
   const dispatch = options.dispatchRobot ?? ((env: Env) => dispatchRobot(env));
-  return async (env) => ((await dispatch(env)) ? 'dispatched' : 'next_check');
+  return async (env) => {
+    const askedAt = new Date().toISOString();
+    const taken = await dispatch(env);
+    await saveRobotStart(env.DB, taken ? null : askedAt);
+    return taken ? 'dispatched' : 'next_check';
+  };
 }

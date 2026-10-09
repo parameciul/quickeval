@@ -59,6 +59,9 @@ function TestDetails({ code }: { code: string }) {
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
 
   const { test, uploads, robot } = detail.data;
+  // A failed robot start that the API kept: a scheduled start happens in any
+  // request, so only the API knows of it. A button's answer says the same.
+  const robotText = test.status === 'evaluating' && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
   return (
     <section>
       <p>
@@ -94,7 +97,7 @@ function TestDetails({ code }: { code: string }) {
           ) : (
             <EvaluationState test={test} />
           )}
-          {robotNotice && <p role="status">{robotNotice}</p>}
+          {robotText && <p role="status">{robotText}</p>}
           {(test.status === 'evaluating' || test.evaluationAt) && <RobotLine lastCheckAt={robot.lastCheckAt} />}
         </>
       )}

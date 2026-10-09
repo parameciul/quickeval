@@ -73,7 +73,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       ...overrides,
     },
     uploads,
-    robot: { lastCheckAt: null },
+    robot: { lastCheckAt: null, startFailed: false },
   };
 }
 

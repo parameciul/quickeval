@@ -327,4 +327,52 @@ describe('TestPage evaluation', () => {
     expect(await within(stan).findByText('Trimis')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
   });
+
+  const NOT_STARTED = 'Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.';
+
+  // The API says that GitHub did not take the last request to start the robot.
+  function failedStartApi(overrides: Parameters<typeof fakeTest>[0]) {
+    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, ...overrides }, structuredClone(uploads));
+    detail.robot.startFailed = true;
+    return createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [detail],
+    });
+  }
+
+  it('starts at once a schedule whose time passed before the click, and says when the robot did not start', async () => {
+    const api = evaluationApi({});
+    renderAdmin('/teste/6E2-26T1', api);
+    fireEvent.change(await screen.findByLabelText('Sau pornește evaluarea automat la'), { target: { value: '2026-10-08T10:05' } });
+    vi.setSystemTime(new Date('2026-10-08T07:06:00.000Z'));
+    await userEvent.click(screen.getByRole('button', { name: 'Programează' }));
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', '2026-10-08T07:05:00.000Z');
+    expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(NOT_STARTED);
+  });
+
+  it('says that the robot did not start for a test in evaluation, also after a reload', async () => {
+    renderAdmin('/teste/6E2-26T1', failedStartApi({ status: 'evaluating' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(NOT_STARTED);
+  });
+
+  it('says it once after a button could not start the robot either', async () => {
+    const failed = 'Robotul nu a terminat la timp.';
+    const api = failedStartApi({ status: 'evaluating', exerciseList: { status: 'failed', message: failed } });
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Încearcă din nou' }));
+    expect(api.retryExerciseList).toHaveBeenCalledWith('6E2-26T1');
+    await waitFor(() => expect(screen.queryByText(failed)).not.toBeInTheDocument());
+    expect(screen.getAllByText(NOT_STARTED)).toHaveLength(1);
+  });
+
+  it.each([
+    ['open', /^Evaluarea pornește automat la/, { evaluationAt: '2026-10-20T07:15:00.000Z' }],
+    ['done', /^Corectarea s-a terminat\./, {}],
+  ] as const)('says nothing about a robot start on a test that is %s', async (status, line, overrides) => {
+    renderAdmin('/teste/6E2-26T1', failedStartApi({ status, ...overrides }));
+    expect(await screen.findByText(line)).toBeInTheDocument();
+    expect(screen.queryByText(NOT_STARTED)).not.toBeInTheDocument();
+  });
 });

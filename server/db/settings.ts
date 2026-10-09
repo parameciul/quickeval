@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { Settings } from '../../shared/api.ts';
+import type { Settings, TestDetail } from '../../shared/api.ts';
 import { LEASE_STALE_MS, MAX_PARALLEL_AGENTS, runSummarySchema, type RunSummary } from '../../shared/runner.ts';
 
 // System-wide settings (spec §7.1). v1 has one teacher, so any teacher may
@@ -85,7 +85,23 @@ export async function setRobotKeyHash(db: D1Database, hash: string): Promise<voi
   await setValue(db, ROBOT_KEY_HASH, hash);
 }
 
-export async function lastCheckAt(db: D1Database): Promise<string | null> {
-  const row = await db.prepare('SELECT last_check_at FROM runner_state WHERE id = 1').first<{ last_check_at: string | null }>();
-  return row?.last_check_at ?? null;
+// The robot on the test page. startFailed: GitHub did not take the last
+// request to start the robot, no run checked in after it, and no run works now.
+export async function testPageRobot(db: D1Database, now: string): Promise<TestDetail['robot']> {
+  const row = await db
+    .prepare('SELECT last_check_at, start_failed_at, run_id, heartbeat_at FROM runner_state WHERE id = 1')
+    .first<{ last_check_at: string | null; start_failed_at: string | null; run_id: string | null; heartbeat_at: string | null }>();
+  const failedAt = row?.start_failed_at ?? null;
+  const lastCheckAt = row?.last_check_at ?? null;
+  // The same rule as Setări's "Robotul lucrează acum".
+  const heartbeat = row?.heartbeat_at ? Date.parse(row.heartbeat_at) : Number.NaN;
+  const running = Boolean(row?.run_id) && Date.parse(now) - heartbeat < LEASE_STALE_MS;
+  const checkedSince = lastCheckAt !== null && failedAt !== null && lastCheckAt >= failedAt;
+  return { lastCheckAt, startFailed: failedAt !== null && !checkedSince && !running };
+}
+
+// The time a request to start the robot was sent, when GitHub did not take
+// it; null when GitHub took it.
+export async function saveRobotStart(db: D1Database, failedAt: string | null): Promise<void> {
+  await db.prepare('UPDATE runner_state SET start_failed_at = ? WHERE id = 1').bind(failedAt).run();
 }

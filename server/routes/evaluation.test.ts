@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addSubmission, addTestFiles, makeClass, makeTest, otherTeacherTest, startTest } from '../test/fixtures.ts';
+import { addSubmission, addTestFiles, makeClass, makeTest, otherTeacherTest, robotRequest, setRobotKey, startTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -299,6 +299,66 @@ describe('a scheduled evaluation', () => {
     await api.request('GET', `/api/admin/tests/${code}`);
     expect((await testRow())?.status).toBe('done');
     expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+});
+
+describe('a robot start that GitHub did not take', () => {
+  const robotLine = async () => (await api.request('GET', `/api/admin/tests/${code}`)).body.robot;
+  const robot = (method: string, path: string, body?: unknown) => robotRequest(api)(method, path, body);
+  const failScheduledStart = async () => {
+    await addTestFiles(api, code);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    await setTest('evaluation_at = ?', PAST);
+    return api.request('GET', `/api/u/${token}`);
+  };
+
+  it('shows on the test page after a scheduled start, until a robot run checks in', async () => {
+    await failScheduledStart();
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+    expect(await robotLine()).toEqual({ lastCheckAt: null, startFailed: true });
+    await setRobotKey(api);
+    expect((await robot('POST', '/check')).status).toBe(200);
+    expect(await robotLine()).toMatchObject({ startFailed: false });
+  });
+
+  it('is not in the answer of the student page that started the evaluation', async () => {
+    const student = await failScheduledStart();
+    expect(student.status).toBe(200);
+    expect(JSON.stringify(student.body)).not.toMatch(/robot|startFailed/i);
+  });
+
+  it('stays after a reload when a button could not start the robot', async () => {
+    await addTestFiles(api, code);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    expect((await evaluate()).body.robot).toBe('next_check');
+    expect(await robotLine()).toMatchObject({ startFailed: true });
+  });
+
+  it('is not set when GitHub takes the request', async () => {
+    dispatchRobot.mockResolvedValue(true);
+    await failScheduledStart();
+    expect(await robotLine()).toEqual({ lastCheckAt: null, startFailed: false });
+  });
+
+  it('goes away when a later request starts the robot', async () => {
+    await failScheduledStart();
+    const second = await makeTest(api, classId, 'Al doilea test');
+    await startTest(api, second);
+    await addTestFiles(api, second);
+    await addSubmission(api, second, studentIds[1]!, { files: 1 });
+    dispatchRobot.mockResolvedValueOnce(true);
+    expect((await api.request('POST', `/api/admin/tests/${second}/evaluate`, {})).body.robot).toBe('dispatched');
+    expect(await robotLine()).toMatchObject({ startFailed: false });
+  });
+
+  it('hides while a robot run works, and shows again when the run ends with the test still waiting', async () => {
+    await failScheduledStart();
+    await setRobotKey(api);
+    expect((await robot('POST', '/lease', { runId: 'run-0001' })).body.granted).toBe(true);
+    expect(await robotLine()).toMatchObject({ startFailed: false });
+    const summary = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'budget' };
+    expect((await robot('POST', '/release', { runId: 'run-0001', summary })).status).toBe(200);
+    expect(await robotLine()).toMatchObject({ startFailed: true });
   });
 });
 

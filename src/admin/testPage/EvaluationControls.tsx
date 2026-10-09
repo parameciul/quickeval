@@ -41,10 +41,12 @@ export function EvaluationControls({
       await onChanged();
     },
   });
+  // A time that passed before the click starts the evaluation now.
   const schedule = useMutation({
     mutationFn: (at: string) => api.evaluateTest(test.code, at),
-    onSuccess: async () => {
+    onSuccess: async (answer) => {
       setWhen('');
+      onRobot(answer.robot);
       await onChanged();
     },
   });
