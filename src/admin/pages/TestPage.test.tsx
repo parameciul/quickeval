@@ -222,7 +222,7 @@ describe('TestPage evaluation', () => {
     expect(confirm).toHaveBeenLastCalledWith('Pornești evaluarea acum? Elevii nu mai pot încărca după asta.');
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1');
     expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Robotul pornește la următoarea lui verificare.');
+    expect(screen.getByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
     expect(screen.getByText(/^Robotul corectează lucrările trimise\. Evaluarea a pornit la 8 oct\. 2026, 10:00\.$/)).toBeInTheDocument();
     expect(screen.getByText('Robotul nu a verificat încă dacă are lucrări de corectat.')).toBeInTheDocument();
     expect(screen.getByText('Corectarea poate întârzia.')).toBeInTheDocument();
@@ -263,7 +263,7 @@ describe('TestPage evaluation', () => {
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeEnabled();
     await userEvent.click(screen.getByRole('button', { name: 'Folosește oricum' }));
     expect(api.acceptExerciseList).toHaveBeenCalledWith('6E2-26T1');
-    expect(await screen.findByRole('status')).toHaveTextContent('Robotul pornește la următoarea lui verificare.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
     await screen.findByLabelText('Înlocuiește baremul');
     expect(screen.queryByText(message)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled();
@@ -276,7 +276,7 @@ describe('TestPage evaluation', () => {
     const file = new File(['%PDF-1.7'], 'Barem nou.pdf', { type: PDF_TYPE });
     await userEvent.upload(await screen.findByLabelText('Înlocuiește baremul'), file);
     expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'barem', file);
-    expect(await screen.findByText('Robotul pornește la următoarea lui verificare.')).toBeInTheDocument();
+    expect(await screen.findByText('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled();
   });
@@ -308,7 +308,7 @@ describe('TestPage evaluation', () => {
     expect(await screen.findByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }));
     expect(api.retryExerciseList).toHaveBeenCalledWith('6E2-26T1');
-    expect(await screen.findByRole('status')).toHaveTextContent('Robotul pornește la următoarea lui verificare.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
   });
 
   it('shows the grades, the items to check, and a failed grading to try again', async () => {
@@ -329,7 +329,7 @@ describe('TestPage evaluation', () => {
     await userEvent.click(within(stan).getByRole('button', { name: 'Reîncearcă' }));
     expect(api.retrySubmission).toHaveBeenCalledWith(6);
     expect(await within(stan).findByText('Trimis')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Robotul pornește la următoarea lui verificare.');
+    expect(screen.getByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
   });
 
   it('starts the robot again when grading is late and work waits', async () => {

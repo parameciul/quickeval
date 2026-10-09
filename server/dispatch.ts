@@ -4,12 +4,13 @@ import type { AppOptions, Env } from './env.ts';
 const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 // "Evaluate now" (spec §12.6): asks GitHub to start the robot at once with a
-// repository_dispatch event. True when GitHub took the request. Without the
-// settings, or when GitHub does not answer in 5 seconds, the robot starts at
-// its next regular check. Never throws. When GitHub refuses or does not
-// answer, it logs one line for `wrangler pages deployment tail`: the HTTP
-// status or the error's name only. An error's message can hold the URL, and
-// the URL holds the repository.
+// repository_dispatch event. True when GitHub took the request. False without
+// the settings, or when GitHub refuses or does not answer in 5 seconds: then
+// the robot does not start, because its GitHub schedule does not fire
+// (docs/deploy.md). Never throws. When GitHub refuses or does not answer, it
+// logs one line for `wrangler pages deployment tail`: the HTTP status or the
+// error's name only. An error's message can hold the URL, and the URL holds
+// the repository.
 export async function dispatchRobot(env: Env, fetchImpl: typeof fetch = fetch): Promise<boolean> {
   const repo = env.GITHUB_REPO?.trim() ?? '';
   const token = env.GITHUB_DISPATCH_TOKEN?.trim() ?? '';
@@ -38,7 +39,7 @@ export async function dispatchRobot(env: Env, fetchImpl: typeof fetch = fetch): 
 }
 
 // What the teacher is told when grading (re)starts: the robot was asked to
-// start at once, or it starts at its next regular check.
+// start at once, or it could not be started.
 export function robotStarter(options: AppOptions): (env: Env) => Promise<RobotStart> {
   const dispatch = options.dispatchRobot ?? ((env: Env) => dispatchRobot(env));
   return async (env) => ((await dispatch(env)) ? 'dispatched' : 'next_check');

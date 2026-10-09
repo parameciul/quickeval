@@ -47,7 +47,7 @@ describe('POST /api/admin/tests/:code/exercise-list/accept', () => {
     expect(await testRow()).toMatchObject({ exercise_list_status: 'accepted' });
   });
 
-  it('says the robot starts at its next check when GitHub does not take the request', async () => {
+  it('says the robot did not start when GitHub does not take the request', async () => {
     await setTest("status = 'evaluating', exercise_list_status = 'problem'");
     await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
     const res = await api.request('POST', `/api/admin/tests/${code}/exercise-list/accept`);

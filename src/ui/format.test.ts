@@ -58,8 +58,8 @@ describe('formatFileSize', () => {
 });
 
 describe('robotStartMessage', () => {
-  it('says when the robot starts', () => {
+  it('says when the robot starts, or that it could not start it', () => {
     expect(robotStartMessage('dispatched')).toBe('Robotul pornește în aproximativ un minut.');
-    expect(robotStartMessage('next_check')).toBe('Robotul pornește la următoarea lui verificare.');
+    expect(robotStartMessage('next_check')).toBe('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
   });
 });

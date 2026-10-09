@@ -223,8 +223,9 @@ export interface StartedTest {
   startedAt: string;
 }
 
-// "dispatched": the robot was asked to start at once. "next_check": it starts
-// at its next regular check.
+// "dispatched": the robot was asked to start at once. "next_check": GitHub did
+// not take the request, and the work waits for the robot's next run. Its
+// 10-minute schedule does not fire (docs/deploy.md): that run starts by hand.
 export type RobotStart = 'dispatched' | 'next_check';
 
 // "Pornește robotul" on a test in evaluation whose work waits.
