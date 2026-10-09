@@ -47,6 +47,16 @@ describe('evaluate.yml', () => {
     expect(workflow.slice(workflow.indexOf('- name: Install'), workflow.indexOf('- name: Grade'))).not.toContain('secrets.');
   });
 
+  it('lets only the weekly job change the workflows, and keeps no token in the robot checkout', () => {
+    const keepOn = workflow.slice(workflow.indexOf('\n  keep-on:'), workflow.indexOf('\n  robot:'));
+    const robot = workflow.slice(workflow.indexOf('\n  robot:'));
+    expect(keepOn).toContain('actions: write');
+    expect(keepOn).not.toContain('actions/checkout');
+    expect(robot).not.toContain('actions: write');
+    expect(robot).toContain('persist-credentials: false');
+    expect(robot).toContain('group: quickeval-robot');
+  });
+
   it('pins the Claude Code version', () => {
     expect(workflow).toMatch(/npm install --global @anthropic-ai\/claude-code@\d+\.\d+\.\d+\n/);
   });

@@ -36,3 +36,5 @@ A page that cannot be read at all goes in `unreadable`. Then flag every exercise
 - Say what is right first, then what to fix.
 - Write math in plain Unicode: x², √, ≤, ½, ·, 3/4. Never use LaTeX ($, \frac, ^{}): the reports cannot show it.
 - Never write the student's name, and never write about the student's handwriting as a fault.
+- Never write that a program, a robot, AI, or Claude graded the work: the student reads these texts.
+- Every text you write is plain text with Unicode math, not only the comments: `answer`, `notes`, `studentAnswer`, `summary`, `strengths`, and `recommendations` too.

@@ -149,6 +149,13 @@ describe('try:skill checks', () => {
     expect(readdirSync(path.join(temp, 'qe'))).toEqual([]);
   });
 
+  it('says when Claude Code is missing', async () => {
+    const claude = scriptedClaude(() => Promise.reject(Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' })));
+    expect(await run('exercise-list', claude)).toBe(1);
+    expect(lines.at(-1)).toBe('Lipsește programul claude (Claude Code). Instalează-l pe acest calculator, apoi încearcă din nou.');
+    expect(readdirSync(path.join(temp, 'qe'))).toEqual([]);
+  });
+
   it('needs the test and the barem', async () => {
     rmSync(path.join(folder, 'barem.pdf'));
     expect(await run('exercise-list', scriptedClaude())).toBe(1);

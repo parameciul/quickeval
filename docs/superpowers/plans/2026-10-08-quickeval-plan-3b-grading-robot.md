@@ -5372,7 +5372,7 @@ Expected: 42 lines that start with `PASS`, then `All smoke checks passed.` Stop 
 
 - [ ] **Step 2: Run the Linux CI (ask first)**
 
-Push the Plan 3b branch and open a pull request into `main`, so `ci.yml` runs on Linux in UTC. Preview deployments are off, so nothing deploys. After `gh pr create`, use the ccd_pr tools (`get_status`, and `bind_pr` if needed). Wait until the check `test` passes. This is the first Linux run of the process-group code in `runner/claude.ts`: if `runner/claude.test.ts` fails there, stop and report. Without pandoc on the runner, the real-pandoc test is skipped: `Test Files  58 passed (58)`, `Tests  636 passed | 1 skipped (637)`.
+Push the Plan 3b branch and open a pull request into `main`, so `ci.yml` runs on Linux in UTC. Preview deployments are off, so nothing deploys. After `gh pr create`, use the ccd_pr tools (`get_status`, and `bind_pr` if needed). Wait until the check `test` passes. This is the first Linux run of the process-group code in `runner/claude.ts`: if `runner/claude.test.ts` fails there, stop and report. Without pandoc on the runner, the real-pandoc test is skipped: `Test Files  58 passed (58)`, `Tests  649 passed | 1 skipped (650)`.
 
 - [ ] **Step 3: Hold back the real tests (ask first)**
 

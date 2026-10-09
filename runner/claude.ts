@@ -6,8 +6,8 @@ import { spawn } from 'node:child_process';
 
 export type ClaudeMode = 'exercise-list' | 'grade';
 
-// How long one task may take. The run takes new work for 2 hours; that plus
-// the longest task stays under the GitHub job's 150 minutes.
+// How long one Claude call may take. The run takes new work for 2 hours; that
+// plus two calls of the longest task stays under the GitHub job's 180 minutes.
 export const TIME_LIMITS_MS: Record<ClaudeMode, number> = { 'exercise-list': 10 * 60_000, grade: 20 * 60_000 };
 // At the time limit Claude gets SIGINT, then SIGTERM after this, then SIGKILL.
 export const KILL_GRACE_MS = 10_000;
@@ -117,7 +117,7 @@ interface ResultMessage {
   result?: unknown;
   errors?: unknown;
   structured_output?: unknown;
-  modelUsage?: Record<string, { outputTokens?: number }>;
+  modelUsage?: Record<string, { outputTokens?: number } | null>;
 }
 
 function messageText(message: ResultMessage): string {
@@ -141,7 +141,7 @@ export function isUsageLimit(message: ResultMessage): boolean {
 
 // The model that wrote most of the answer.
 function modelOf(message: ResultMessage): string {
-  const used = Object.entries(message.modelUsage ?? {}).sort(([, a], [, b]) => (b.outputTokens ?? 0) - (a.outputTokens ?? 0));
+  const used = Object.entries(message.modelUsage ?? {}).sort(([, a], [, b]) => (b?.outputTokens ?? 0) - (a?.outputTokens ?? 0));
   return (used[0]?.[0] ?? 'unknown').slice(0, 100);
 }
 
@@ -160,7 +160,9 @@ export function readOutcome(stdout: string, exitCode: number | null, timedOut: b
     return { ok: false, problem: 'crash', detail: `exit=${exitCode} no result` };
   }
   const detail = `exit=${exitCode} subtype=${String(message.subtype)} terminal=${String(message.terminal_reason)} status=${String(message.api_error_status ?? null)}`;
-  if (message.is_error === true || exitCode !== 0) {
+  // The words of an error are read only when Claude Code reports one: the
+  // text of an answer quotes the student's page.
+  if (message.is_error === true) {
     if (isLoginProblem(message)) return { ok: false, problem: 'not_logged_in', detail };
     if (isUsageLimit(message)) return { ok: false, problem: 'usage_limit', detail };
     if (message.subtype === 'error_max_turns' || message.subtype === 'error_max_structured_output_retries') {
@@ -168,6 +170,7 @@ export function readOutcome(stdout: string, exitCode: number | null, timedOut: b
     }
     return { ok: false, problem: 'crash', detail };
   }
+  if (exitCode !== 0) return { ok: false, problem: 'crash', detail };
   if (message.subtype !== 'success' || message.structured_output === undefined || message.structured_output === null) {
     return { ok: false, problem: 'invalid_output', detail };
   }
@@ -183,6 +186,8 @@ export interface ClaudeTask {
   timeoutMs?: number;
 }
 
+// Rejects when the program is missing: the machine is to blame, not the task,
+// so the run stops instead of counting attempts.
 export type ClaudeRunner = (task: ClaudeTask) => Promise<ClaudeOutcome>;
 
 export interface ProcessControl {
@@ -209,7 +214,7 @@ export const realProcesses: ProcessControl = {
 
 export function claudeRunner(settings: ClaudeSettings, control: ProcessControl = realProcesses, killGraceMs = KILL_GRACE_MS): ClaudeRunner {
   return (task) =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       const [command, ...prefix] = settings.command;
       const child = control.spawn(command!, [...prefix, ...claudeArgs(task.mode, task.jsonSchema, settings)], {
         cwd: task.cwd,
@@ -220,11 +225,15 @@ export function claudeRunner(settings: ClaudeSettings, control: ProcessControl =
       let timedOut = false;
       let settled = false;
       const timers: NodeJS.Timeout[] = [];
-      const finish = (outcome: ClaudeOutcome) => {
-        if (settled) return;
+      // True for the first end only.
+      const end = () => {
+        if (settled) return false;
         settled = true;
         for (const timer of timers) clearTimeout(timer);
-        resolve(outcome);
+        return true;
+      };
+      const finish = (outcome: ClaudeOutcome) => {
+        if (end()) resolve(outcome);
       };
 
       child.stdout?.setEncoding('utf8');
@@ -242,7 +251,13 @@ export function claudeRunner(settings: ClaudeSettings, control: ProcessControl =
           control.signal(child, 'SIGINT');
         }, task.timeoutMs ?? TIME_LIMITS_MS[task.mode]),
       );
-      child.on('error', (err: NodeJS.ErrnoException) => finish({ ok: false, problem: 'crash', detail: `start failed: ${err.code ?? 'error'}` }));
+      child.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'ENOENT') {
+          if (end()) reject(err);
+        } else {
+          finish({ ok: false, problem: 'crash', detail: `start failed: ${err.code ?? 'error'}` });
+        }
+      });
       child.on('close', (code) => finish(readOutcome(stdout, code, timedOut)));
     });
 }

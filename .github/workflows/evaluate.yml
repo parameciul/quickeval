@@ -19,36 +19,42 @@ on:
     types: [evaluate-now]
   workflow_dispatch:
 
-# One robot at a time (spec §12.2). GitHub keeps one waiting run of the group
-# and drops the others: one run takes all the work that waits.
-concurrency:
-  group: quickeval-robot
-  cancel-in-progress: false
-
 jobs:
-  robot:
+  # GitHub switches a schedule off after 60 days without activity in the
+  # repo, and a summer without tests makes no commit. Switching the workflow
+  # on again once a week restarts that count. If the robot ever stops anyway:
+  # GitHub, Actions, evaluate, Enable workflow. Only this job may change the
+  # repo's workflows, and it checks out nothing.
+  keep-on:
+    if: github.event_name == 'schedule' && github.event.schedule == '23 4 * * 1'
     runs-on: ubuntu-latest
-    # The run takes new work for 2 hours; its last task may ask Claude twice,
-    # for up to 20 minutes each. A killed job saves no summary.
-    timeout-minutes: 180
     permissions:
-      contents: read
-      # Only for "Keep the schedule switched on".
       actions: write
     steps:
-      # GitHub switches a schedule off after 60 days without activity in the
-      # repo, and a summer without tests makes no commit. Switching the
-      # workflow on again once a week restarts that count. If the robot ever
-      # stops anyway: GitHub, Actions, evaluate, Enable workflow.
       - name: Keep the schedule switched on
-        if: github.event_name == 'schedule' && github.event.schedule == '23 4 * * 1'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: gh api --method PUT "repos/$REPO/actions/workflows/evaluate.yml/enable"
 
+  robot:
+    runs-on: ubuntu-latest
+    # One robot at a time (spec §12.2). GitHub keeps one waiting run of the
+    # group and drops the others: one run takes all the work that waits.
+    concurrency:
+      group: quickeval-robot
+      cancel-in-progress: false
+    # The run takes new work for 2 hours; its last task may ask Claude twice,
+    # for up to 20 minutes each. A killed job saves no summary.
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      # The checkout keeps no token: Claude's tasks run in this job.
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version

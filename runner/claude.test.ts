@@ -57,6 +57,28 @@ describe('readOutcome', () => {
     expect(readOutcome(error({ api_error_status: 500, result: 'Internal server error' }), 1, false)).toMatchObject({ problem: 'crash' });
   });
 
+  it('finds a usage limit by its words when the status is missing', () => {
+    const error = (result: string) => JSON.stringify({ type: 'result', subtype: 'success', is_error: true, api_error_status: null, result });
+    expect(readOutcome(error('Claude AI usage limit reached|1760000000'), 1, false)).toMatchObject({ problem: 'usage_limit' });
+    expect(readOutcome(error("You've hit your session limit · resets 3pm"), 1, false)).toMatchObject({ problem: 'usage_limit' });
+  });
+
+  it('reads the words of an error only when Claude Code reports one', () => {
+    const answer = JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'Elevul scrie: usage limit reached. Please run /login.' });
+    expect(readOutcome(answer, 1, false)).toMatchObject({ ok: false, problem: 'crash' });
+  });
+
+  it('takes the model that wrote most, also when an entry is empty', () => {
+    const run = JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      structured_output: { ok: 1 },
+      modelUsage: { 'claude-haiku-5-5': null, 'claude-opus-5-5': { outputTokens: 900 } },
+    });
+    expect(readOutcome(run, 0, false)).toEqual({ ok: true, output: { ok: 1 }, model: 'claude-opus-5-5' });
+  });
+
   it('keeps the detail free of Claude text', () => {
     const outcome = readOutcome(fixture('claude-not-logged-in.json'), 1, false);
     expect(outcome).toEqual({ ok: false, problem: 'not_logged_in', detail: 'exit=1 subtype=success terminal=api_error status=null' });
@@ -201,11 +223,20 @@ describe('claudeRunner', () => {
     expect(signals).toEqual(['SIGINT']);
   });
 
-  it('calls a program that cannot start a crash', async () => {
+  it('rejects when the program is missing, so the run stops', async () => {
+    const { control, child } = fakeControl();
+    const missing = Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' });
+    const running = claudeRunner(SETTINGS, control)(task);
+    child().emit('error', missing);
+    child().emit('close', -2);
+    await expect(running).rejects.toBe(missing);
+  });
+
+  it('calls a program that cannot start for another reason a crash', async () => {
     const { control, child } = fakeControl();
     const running = claudeRunner(SETTINGS, control)(task);
-    child().emit('error', Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }));
-    child().emit('close', -2);
-    expect(await running).toEqual({ ok: false, problem: 'crash', detail: 'start failed: ENOENT' });
+    child().emit('error', Object.assign(new Error('spawn claude EACCES'), { code: 'EACCES' }));
+    child().emit('close', -13);
+    expect(await running).toEqual({ ok: false, problem: 'crash', detail: 'start failed: EACCES' });
   });
 });

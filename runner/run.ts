@@ -20,6 +20,10 @@ import { removeFolder, runFolder } from './workdir.ts';
 // (.github/workflows/evaluate.yml), so the last task can still finish.
 export const BUDGET_MS = 120 * 60_000;
 export const HEARTBEAT_MS = 60_000;
+// Tasks in a row that each counted an attempt before the run stops: when every
+// Claude call fails (Claude cannot start its model, an outage), the run must
+// not use up the attempts of a whole class, and GitHub must send an email.
+export const FAILURES_IN_A_ROW = 3;
 
 export interface RunOptions {
   api: RobotApi;
@@ -36,7 +40,8 @@ export interface RunOptions {
 export interface RunReport {
   // Null when another run held the lease.
   summary: RunSummary | null;
-  // 1 when someone must look: Claude refused the token, or the API failed.
+  // 1 when someone must look: Claude refused the token, tasks failed in a
+  // row, a program is missing, or the API failed.
   exitCode: number;
 }
 
@@ -73,10 +78,16 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
     });
   }, options.heartbeatMs ?? HEARTBEAT_MS);
 
+  let failuresInARow = 0;
   const record = (end: TaskEnd, done: 'exerciseLists' | 'graded') => {
     if (end === 'saved') counts[done] += 1;
     else if (end === 'failed' && done === 'graded') counts.failed += 1;
     else if (end === 'usage_limit' || end === 'claude_login' || end === 'lease_lost') stopTaking(end);
+    failuresInARow = end === 'retry' || end === 'failed' ? failuresInARow + 1 : 0;
+    if (failuresInARow >= FAILURES_IN_A_ROW) {
+      log('failures in a row', { run: runId, tasks: failuresInARow });
+      stopTaking('error');
+    }
   };
 
   // Keeps up to maxParallel gradings running; a slot claims again as soon as
@@ -139,7 +150,7 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
     log('release failed', { run: runId, error: err instanceof RobotApiError ? err.code : 'unknown' });
   }
   log('run ended', { run: runId, ...summary });
-  return { summary, exitCode: failure || summary.stop === 'claude_login' ? 1 : 0 };
+  return { summary, exitCode: failure || summary.stop === 'error' || summary.stop === 'claude_login' ? 1 : 0 };
 }
 
 // A run id that the logs can tie to its GitHub run.

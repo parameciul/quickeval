@@ -169,6 +169,15 @@ describe('runRobot', () => {
     expect((await uploads()).map((row) => row.status)).toEqual(['graded', 'submitted']);
   });
 
+  it('stops after three failures in a row, so a broken Claude cannot fail a whole class', async () => {
+    await setUp(4);
+    const claude = scriptedClaude(problem('crash'), problem('crash'), problem('crash'), problem('crash'));
+    const report = await runRobot(options(claude));
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'error' }, exitCode: 1 });
+    expect(claude.calls).toHaveLength(3);
+    expect((await uploads()).map((row) => row.attempts)).toEqual([1, 1, 1, 0]);
+  });
+
   it('tries an exercise list once per run', async () => {
     await setUp(1, 1, false);
     const claude = scriptedClaude(answer({ broken: true }), answer({ broken: true }));

@@ -516,7 +516,7 @@ Auth: `Authorization: Bearer <robot key>`. The API compares the SHA-256 of the k
 | `GET /tests/:id` | Id, `filesVersion`, file types (test, barem), exercise list. Only while the test is `evaluating` (else 404, as for a test that does not exist). The robot reads it before the files. |
 | `GET /tests/:id/files/:kind` | Stream the test or barem file. Only while the test is `evaluating` (else 404). |
 | `POST /tests/:id/exercise-list` `{ runId, filesVersion, ok: true, exerciseList } \| { runId, filesVersion, ok: false, error }` | Save the list, only from the run that holds the lease (else 409 `lease_lost`), only while the list is waited for, and only while `filesVersion` is still the test's (else 409 `not_needed`: the teacher replaced a file after the robot read the test). The API validates it (a broken list: 422 `invalid_result`) and sets `ready` or `problem`. On an error it adds 1 to the attempts (none for `usage_limit`) and sets `failed` at 3. |
-| `POST /claim` `{ runId }` | Takes the `submitted` submission with the fewest attempts, the oldest first, of an `evaluating` test whose exercise list is `ready` or `accepted`, and sets it to `grading`, in one statement. Needs the lease (else 409 `lease_lost`). Returns `{ submissionId, testId, files: [{ id, contentType, position }] }`, or 204 when there is none. |
+| `POST /claim` `{ runId }` | Takes the `submitted` submission with the fewest attempts, the oldest first, of an `evaluating` test whose exercise list is `ready` or `accepted`, and sets it to `grading`, in one statement. Needs the lease (else 409 `lease_lost`). Never takes again a submission that a reopen took from this run (`reopenTest` keeps the run's id on it): the next run takes it. Returns `{ submissionId, testId, files: [{ id, contentType, position }] }`, or 204 when there is none. |
 | `GET /submissions/:id/files/:fileId` | Stream a page of an upload in `grading` (else 404). |
 | `POST /submissions/:id/result` `{ runId, ok: true, result, model } \| { runId, ok: false, error }` | Accepted only when the submission is `grading` and its `run_id` equals `runId`. Otherwise 409 `taken_over` (404 for a deleted submission), and the robot drops the result (another run took the work over). Save a result (§12.5): the API validates it (a broken result: 422 `invalid_result`), computes totals, and stores the evaluation and its items in one batch. `error` is `timeout`, `invalid_output`, `crash`, or `usage_limit`. On `usage_limit` the submission goes back to `submitted` with no attempt counted; else attempts + 1, and `failed` at 3. |
 | `GET /tests/:id/results` | (Plan 4.) Anonymized class data for the analysis: "Elev 1..n", items, points, comments. No names. |
@@ -533,14 +533,15 @@ The body of an exercise list or a result is at most 1 MB (else 413 `too_large`),
   - `schedule: "23 4 * * 1"`: weekly, it turns the schedule back on, because GitHub turns it off after 60 days without repo changes. The Website uses the same fix.
   - `repository_dispatch` with type `evaluate-now`.
   - `workflow_dispatch`.
-- `concurrency: { group: quickeval-robot, cancel-in-progress: false }`: only one robot runs at a time.
-- `timeout-minutes: 180`: the 120 minutes of taking new work, the last task (up to two Claude tries of 20 minutes), and the install.
-- Steps:
-  1. Turn the schedule back on (weekly trigger only).
-  2. Checkout. Set up Node 24.
-  3. `node runner/check.ts`. It needs no npm install and writes `has_work=true|false` to `$GITHUB_OUTPUT`. While `QUICKEVAL_URL` or `QUICKEVAL_RUNNER_KEY` is missing, it finds no work and the run passes.
-  4. Only if there is work: `npm ci --omit=dev` (the robot needs only zod), install a pinned Claude Code version (`npm install --global @anthropic-ai/claude-code@<version>`), install `pandoc` with apt, then `node runner/run.ts`.
-- A run fails, and GitHub sends an email, when the API refuses the robot key or cannot be reached, or when Claude refuses the token. A usage limit is no failure: a later run goes on.
+- Job `keep-on` (weekly trigger only): turns the schedule back on. Only this job has `actions: write`, and it checks out nothing.
+- Job `robot`, with `contents: read` only:
+  - `concurrency: { group: quickeval-robot, cancel-in-progress: false }`: only one robot runs at a time.
+  - `timeout-minutes: 180`: the 120 minutes of taking new work, the last task (up to two Claude tries of 20 minutes), and the install.
+- Steps of `robot`:
+  1. Checkout with `persist-credentials: false`: Claude's tasks run in this job, so the checkout keeps no token. Set up Node 24.
+  2. `node runner/check.ts`. It needs no npm install and writes `has_work=true|false` to `$GITHUB_OUTPUT`. While `QUICKEVAL_URL` or `QUICKEVAL_RUNNER_KEY` is missing, it finds no work and the run passes.
+  3. Only if there is work: `npm ci --omit=dev` (the robot needs only zod), install a pinned Claude Code version (`npm install --global @anthropic-ai/claude-code@<version>`), install `pandoc` with apt, then `node runner/run.ts`.
+- A run fails, and GitHub sends an email, when the API refuses the robot key or cannot be reached, when the Claude token is missing or Claude refuses it, when three tasks in a row fail (a wrong `QE_MODEL`, an outage), or when Claude Code or pandoc is missing. A usage limit is no failure: a later run goes on.
 - Repo settings:
   - Variable `QUICKEVAL_URL` (for example `https://quickeval.pages.dev`).
   - Secrets `QUICKEVAL_RUNNER_KEY` and `CLAUDE_CODE_OAUTH_TOKEN`.
@@ -565,7 +566,7 @@ repeat:
 release(summary)
 ```
 
-- The run stops taking work at a usage limit, when it loses the lease, when Claude refuses the token, or when the API fails. The summary's `stop` says which: `done`, `budget`, `usage_limit`, `lease_lost`, `claude_login`, or `error`. A refused token sends nothing for the task: the upload goes back to the queue at the next check, with no attempt counted.
+- The run stops taking work at a usage limit, when it loses the lease, when Claude refuses the token, when the API fails, when Claude Code or pandoc is missing, or after three tasks in a row that fail (each counts an attempt), so a broken Claude cannot fail a whole class. The summary's `stop` says which: `done`, `budget`, `usage_limit`, `lease_lost`, `claude_login`, or `error`. The run fails (exit 1) when `stop` is `error` or `claude_login`. A refused token sends nothing for the task: the upload goes back to the queue at the next check, with no attempt counted.
 - An exercise list that failed waits for the next run, so one broken barem cannot use up the budget. An upload whose grading failed is claimed after the uploads with fewer attempts.
 
 - Exercise lists run before grading, because `/claim` only gives submissions of tests with a ready list.

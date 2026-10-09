@@ -137,7 +137,13 @@ export async function trySkill(args: string[], env: Record<string, string | unde
     }
     const jsonSchema = claudeJsonSchema(mode === 'grade' ? gradingResultSchema : exerciseListSchema);
     print(`Claude lucrează (${mode})…`);
-    const outcome = await claude({ mode, cwd, jsonSchema });
+    let outcome: ClaudeOutcome;
+    try {
+      outcome = await claude({ mode, cwd, jsonSchema });
+    } catch {
+      print('Lipsește programul claude (Claude Code). Instalează-l pe acest calculator, apoi încearcă din nou.');
+      return 1;
+    }
     if (!outcome.ok) {
       print(problemText(outcome));
       return 1;
