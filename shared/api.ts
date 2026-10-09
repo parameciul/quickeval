@@ -194,8 +194,10 @@ export interface UploadRow {
 export interface TestDetail {
   test: TestInfo;
   uploads: UploadRow[];
-  // For the robot line: when the robot last looked for work.
-  robot: { lastCheckAt: string | null };
+  // For the robot line: when the robot last looked for work. startFailed:
+  // GitHub did not take the last request to start the robot, and no run
+  // checked in after it or works now.
+  robot: { lastCheckAt: string | null; startFailed: boolean };
 }
 
 // The robot as the teacher sees it on Setări.

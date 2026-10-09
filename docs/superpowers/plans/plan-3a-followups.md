@@ -50,7 +50,7 @@ Robot API and server:
 
 Teacher app:
 
-- A scheduled time that is already past (the input's minimum is the current minute, and it gets old on an idle page) starts the evaluation without the confirm, and `schedule.onSuccess` ignores `answer.robot` (`EvaluationControls.tsx`).
+- A scheduled time that is already past (the input's minimum is the current minute, and it gets old on an idle page) starts the evaluation without the confirm (`EvaluationControls.tsx`).
 - `robotNotice` on the test page never clears, and its `role="status"` node is already filled when it appears (`TestPage.tsx`).
 - `.warning` repeats the `.tips` block (`src/ui/brand.css`).
 - Setări: "Salvat." stays after the choice changes again (call `save.reset()` on change).
