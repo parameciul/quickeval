@@ -61,7 +61,7 @@ export function formatFileSize(bytes: number): string {
 
 const ROBOT_START: Record<RobotStart, string> = {
   dispatched: 'Robotul pornește în aproximativ un minut.',
-  next_check: 'Robotul pornește la următoarea lui verificare.',
+  next_check: 'Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.',
 };
 
 // What the teacher reads after she starts grading.

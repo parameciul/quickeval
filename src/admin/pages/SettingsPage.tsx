@@ -134,7 +134,7 @@ function RobotKey({ hasKey }: { hasKey: boolean }) {
 
 const STOP: Record<RunSummary['stop'], string> = {
   done: 'A terminat toată munca.',
-  budget: 'S-a oprit după 2 ore; continuă la următoarea verificare.',
+  budget: 'S-a oprit după 2 ore. Restul lucrărilor așteaptă până pornește robotul din nou.',
   usage_limit: 'S-a oprit la limita planului Claude; continuă mai târziu.',
   lease_lost: 'S-a oprit pentru că a pornit altă rulare.',
   claude_login: 'S-a oprit pentru că tokenul Claude nu mai merge. Fă un token nou (vezi mai jos).',
