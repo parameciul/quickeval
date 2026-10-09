@@ -265,6 +265,29 @@ describe('TestPage evaluation', () => {
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled();
   });
 
+  it('takes a new barem during evaluation and says when the robot starts', async () => {
+    const message = 'Punctajele din barem dau 9, dar totalul este 10.';
+    const api = evaluationApi({ status: 'evaluating', exerciseList: { status: 'problem', message } });
+    renderAdmin('/teste/6E2-26T1', api);
+    const file = new File(['%PDF-1.7'], 'Barem nou.pdf', { type: PDF_TYPE });
+    await userEvent.upload(await screen.findByLabelText('Înlocuiește baremul'), file);
+    expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'barem', file);
+    expect(await screen.findByText('Robotul pornește la următoarea lui verificare.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
+    expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled();
+  });
+
+  it('takes a new barem on an open test without a robot message', async () => {
+    const message = 'Punctajele din barem dau 9, dar totalul este 10.';
+    const api = evaluationApi({ exerciseList: { status: 'problem', message } });
+    renderAdmin('/teste/6E2-26T1', api);
+    const file = new File(['%PDF-1.7'], 'Barem nou.pdf', { type: PDF_TYPE });
+    await userEvent.upload(await screen.findByLabelText('Înlocuiește baremul'), file);
+    expect(await screen.findByRole('link', { name: 'Barem nou.pdf' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
+    expect(screen.queryByText(/^Robotul pornește/)).not.toBeInTheDocument();
+  });
+
   it('accepts a problem of the barem on an open test without a robot message', async () => {
     const message = 'Punctajele din barem dau 9, dar totalul este 10.';
     const api = evaluationApi({ exerciseList: { status: 'problem', message } });

@@ -241,6 +241,13 @@ export interface ExerciseListAnswer {
   robot: RobotStart | null;
 }
 
+// A new test or barem file: `robot` is set when a new barem needs a new
+// exercise list while the test is in evaluation, and null otherwise.
+export interface TestFileAnswer {
+  file: TestFileInfo;
+  robot: RobotStart | null;
+}
+
 // One uploaded page or PDF, in upload order.
 export interface SubmissionFile {
   id: number;

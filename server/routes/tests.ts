@@ -1,6 +1,13 @@
 import { Hono } from 'hono';
 import type { D1Database } from '@cloudflare/workers-types';
-import { createTestBody, evaluateTestBody, renameTestBody, type EvaluationStart, type ExerciseListAnswer } from '../../shared/api.ts';
+import {
+  createTestBody,
+  evaluateTestBody,
+  renameTestBody,
+  type EvaluationStart,
+  type ExerciseListAnswer,
+  type TestFileAnswer,
+} from '../../shared/api.ts';
 import { isTestFileKind, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
 import {
@@ -163,7 +170,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ exerciseList: { status: 'none', message: null }, robot } satisfies ExerciseListAnswer);
   });
 
-  // Upload or replace the test or the barem: PDF or Word, at most 25 MB.
+  // Upload or replace the test or the barem: PDF or Word, at most 25 MB. A new
+  // barem during evaluation needs a new exercise list: the robot starts.
   routes.put('/:code/files/:kind', async (c) => {
     const kind = parseFileKind(c.req.param('kind'));
     const teacherId = c.var.teacher.id;
@@ -177,10 +185,11 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const file = await readUpload(c, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
     const key = testFileKey(teacherId, test.summary.schoolYear, test.summary.code, kind, file.name, file.contentType);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
-    await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
+    const status = await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
     const old = test.files[kind];
     if (old && old.key !== key) await deleteFilesQuietly(c.env.FILES, [old.key]);
-    return c.json({ file: { name: file.name, type: file.contentType } });
+    const robot = kind === 'barem' && status === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ file: { name: file.name, type: file.contentType }, robot } satisfies TestFileAnswer);
   });
 
   routes.get('/:code/files/:kind', async (c) => {

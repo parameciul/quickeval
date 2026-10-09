@@ -12,7 +12,7 @@ import type {
   SubmissionDetail,
   Teacher,
   TestDetail,
-  TestFileInfo,
+  TestFileAnswer,
   TestSummary,
   UpdateClassInput,
 } from '../../shared/api.ts';
@@ -38,7 +38,7 @@ export interface AdminApi {
   getTest(code: string): Promise<TestDetail>;
   renameTest(code: string, title: string): Promise<{ code: string; title: string }>;
   deleteTest(code: string): Promise<void>;
-  uploadTestFile(code: string, kind: TestFileKind, file: File): Promise<TestFileInfo>;
+  uploadTestFile(code: string, kind: TestFileKind, file: File): Promise<TestFileAnswer>;
   startTest(code: string): Promise<StartedTest>;
   reopenTest(code: string): Promise<void>;
   // Now without `at`, or at that ISO time.
@@ -156,8 +156,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     deleteTest: async (code) => {
       await request('DELETE', test(code));
     },
-    uploadTestFile: async (code, kind, file) =>
-      (await request<{ file: TestFileInfo }>('PUT', `${test(code)}/files/${kind}`, undefined, file)).file,
+    uploadTestFile: (code, kind, file) => request<TestFileAnswer>('PUT', `${test(code)}/files/${kind}`, undefined, file),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
     reopenTest: async (code) => {
       await request('POST', `${test(code)}/reopen`);

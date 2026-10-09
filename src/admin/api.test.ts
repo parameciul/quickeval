@@ -98,12 +98,15 @@ describe('createApiClient settings', () => {
 describe('createApiClient tests and uploads', () => {
   it('sends a test file raw, with its type and its encoded name', async () => {
     const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
-      jsonResponse(200, { file: { name: 'Barem ș.docx', type: DOCX_TYPE } }),
+      jsonResponse(200, { file: { name: 'Barem ș.docx', type: DOCX_TYPE }, robot: 'dispatched' }),
     );
     const api = createApiClient({ fetchImpl });
     // A .docx on a PC without Word: the browser gives no type.
     const file = new File(['PK'], 'Barem ș.docx', { type: '' });
-    expect(await api.uploadTestFile('6E2-26T1', 'barem', file)).toEqual({ name: 'Barem ș.docx', type: DOCX_TYPE });
+    expect(await api.uploadTestFile('6E2-26T1', 'barem', file)).toEqual({
+      file: { name: 'Barem ș.docx', type: DOCX_TYPE },
+      robot: 'dispatched',
+    });
     const [url, init] = fetchImpl.mock.calls[0]!;
     expect(url).toBe('/api/admin/tests/6E2-26T1/files/barem');
     expect(init!.method).toBe('PUT');

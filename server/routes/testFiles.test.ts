@@ -1,9 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE, PDF_TYPE } from '../../shared/files.ts';
 import { addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
+let dispatchRobot: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
 let code: string;
 let studentId: number;
 
@@ -19,7 +20,8 @@ function putFile(testCode: string, kind: string, body: BodyInit, type: string, n
 }
 
 beforeEach(async () => {
-  api = await startTestApi();
+  dispatchRobot = vi.fn(async () => false);
+  api = await startTestApi({ app: { dispatchRobot } });
   const cls = await makeClass(api, '6E2', ['Pop Ion']);
   studentId = cls.studentIds[0]!;
   code = await makeTest(api, cls.id);
@@ -33,7 +35,7 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
   it('stores the test file in the test folder and shows it on the test', async () => {
     const res = await putFile(code, 'test', pdf('enunț'), PDF_TYPE, 'Test final ședința 1.pdf');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ file: { name: 'Test final ședința 1.pdf', type: PDF_TYPE } });
+    expect(await res.json()).toEqual({ file: { name: 'Test final ședința 1.pdf', type: PDF_TYPE }, robot: null });
 
     const key = `t/${api.teacherId}/2026/${code}/test/test-final-sedinta-1.pdf`;
     expect(await (await api.env.FILES.get(key))?.text()).toBe('%PDF-1.7 enunț');
@@ -86,21 +88,52 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
     const res = await putFile(code, 'barem', pdf('x'), PDF_TYPE, 'barem.pdf');
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe('evaluating');
+    expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
-  it.each(['problem', 'failed'])('takes a new barem while the exercise list is "%s", and asks for a new list', async (list) => {
+  it.each(['problem', 'failed'])('takes a new barem while the exercise list is "%s", asks for a new list, and starts the robot', async (list) => {
     await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
     await api.db
       .prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = ?, exercise_list_message = 'x', exercise_list_attempts = 3 WHERE code = ?")
       .bind(list, code)
       .run();
+    dispatchRobot.mockResolvedValueOnce(true);
     const res = await putFile(code, 'barem', pdf('nou'), PDF_TYPE, 'barem.pdf');
     expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ file: { name: 'barem.pdf', type: PDF_TYPE }, robot: 'dispatched' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
     const row = await api.db
       .prepare('SELECT status, exercise_list_status, exercise_list_message, exercise_list_attempts FROM tests WHERE code = ?')
       .bind(code)
       .first();
     expect(row).toEqual({ status: 'evaluating', exercise_list_status: 'none', exercise_list_message: null, exercise_list_attempts: 0 });
+  });
+
+  it('says the robot starts at its next check when GitHub does not take the request', async () => {
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await api.db.prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'problem' WHERE code = ?").bind(code).run();
+    const res = await putFile(code, 'barem', pdf('nou'), PDF_TYPE, 'barem.pdf');
+    expect(res.status).toBe(200);
+    expect((await res.json()).robot).toBe('next_check');
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start the robot for a new test file while the exercise list has a problem', async () => {
+    // The list keeps its problem: the robot has nothing new to do.
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await api.db.prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'problem' WHERE code = ?").bind(code).run();
+    const res = await putFile(code, 'test', pdf('nou'), PDF_TYPE, 'test.pdf');
+    expect(res.status).toBe(200);
+    expect((await res.json()).robot).toBeNull();
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  it('does not start the robot for a new barem on a test whose uploads are open', async () => {
+    await api.db.prepare("UPDATE tests SET status = 'open', exercise_list_status = 'problem' WHERE code = ?").bind(code).run();
+    const res = await putFile(code, 'barem', pdf('nou'), PDF_TYPE, 'barem.pdf');
+    expect(res.status).toBe(200);
+    expect((await res.json()).robot).toBeNull();
+    expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
   it('answers 404 for an unknown kind, an unknown test, and a test of another teacher', async () => {
@@ -109,6 +142,18 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
     const foreign = await otherTeacherTest(api);
     expect((await putFile(foreign.code, 'test', pdf('x'), PDF_TYPE, 'a.pdf')).status).toBe(404);
     expect((await api.env.FILES.list()).objects).toEqual([]);
+  });
+
+  it('answers 404 for a new barem on a test of another teacher in evaluation, and starts no robot', async () => {
+    const foreign = await otherTeacherTest(api);
+    await api.db
+      .prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'problem' WHERE code = ?")
+      .bind(foreign.code)
+      .run();
+    expect((await putFile(foreign.code, 'barem', pdf('x'), PDF_TYPE, 'barem.pdf')).status).toBe(404);
+    expect(dispatchRobot).not.toHaveBeenCalled();
+    const row = await api.db.prepare('SELECT exercise_list_status FROM tests WHERE code = ?').bind(foreign.code).first();
+    expect(row).toEqual({ exercise_list_status: 'problem' });
   });
 
   it('refuses an upload sent from another site', async () => {
