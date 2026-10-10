@@ -5,7 +5,7 @@ The API. The root `AGENTS.md` holds the project-wide rules.
 ## Structure
 
 - `routes/`: HTTP. `admin.ts` and its parts, `upload.ts` for students, `runner.ts` for the robot.
-- `db/`: D1 queries. `lifecycle.ts` starts, schedules, promotes, and ends evaluations; `links.ts` holds the student writes; `runner.ts` holds the robot's queries.
+- `db/`: D1 queries. `lifecycle.ts` starts, schedules, promotes, and ends evaluations, and regrades; `links.ts` holds the student writes; `runner.ts` holds the robot's queries; `evaluations.ts` reads graded results and holds the teacher's corrections (`flagCountSql` counts the items to check the same way everywhere).
 - `auth/`: Cloudflare Access login, and `robotAuth.ts` for the robot key.
 - `http.ts` (JSON bodies, ids, codes, same-origin writes, the `promoteDue` middleware, which runs `promoteDueTests` and starts the robot when that started an evaluation), `errors.ts` (`ApiError`), `uploads.ts` (file bodies in and out of R2), `secrets.ts` (tokens, keys, and hashes), `dispatch.ts` ("Evaluate now": GitHub's repository_dispatch).
 - `test/`: the API test helper (`testApi.ts`) and fixtures.
@@ -15,6 +15,7 @@ The API. The root `AGENTS.md` holds the project-wide rules.
 - Student calls are scoped by the test of the link's token, and an upload by the hash of the phone's secret (`X-Upload-Session`) within that test. Only hashes of secrets are stored.
 - Each student write checks its own rules inside its SQL statement (`db/links.ts`: the test is open and its scheduled time has not come, the upload is not sent yet, at most 20 files; confirm is one `db.batch()`). Never turn these into a check before the write: two requests at once would get past it. Starting an upload still checks the open test in its route (`routes/upload.ts`), before `createSubmission` inserts (see `docs/superpowers/plans/plan-3a-followups.md`).
 - The same holds for the robot (`db/runner.ts`): a claim, an exercise list, and a result check the lease or the run inside their SQL. `/check` and `/lease` send uploads left in grading by a dead run back to the queue. An exercise list is saved only while the test's `files_version` is the one the robot read before the files. A run never claims again an upload that a reopen took from it (`reopenTest` keeps that run's id): the next run grades it.
+- The teacher's corrections and Regrade check in their SQL that the upload is graded and the test is the teacher's: a regrade can delete a result at any time. A correction sums the total again from all items, so two corrections at once leave the right total. The grade comes from `gradeSql`, which a test compares with `gradeOf` for every amount in cents.
 - The database is the truth: R2 keys come from rows, never from listing R2.
 - Functions do no heavy CPU work (10 ms of CPU per request on the free plan) and make at most 15 D1 queries per request. Adding students uses a fixed number of queries, whatever the number of names; the uploads table is one query.
 

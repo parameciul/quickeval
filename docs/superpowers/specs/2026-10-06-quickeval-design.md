@@ -280,6 +280,7 @@ CREATE TABLE evaluations (                 -- one per graded submission
   strengths_json TEXT NOT NULL,            -- string[]
   recommendations_json TEXT NOT NULL,      -- string[]
   unreadable_json TEXT NOT NULL,           -- string[] of work-dir file names
+  pages_reviewed_at TEXT,                  -- set when the teacher checked the unreadable pages
   raw_json TEXT NOT NULL,                  -- the AI output as received
   model TEXT,
   created_at TEXT NOT NULL,
@@ -321,7 +322,7 @@ CREATE TABLE runner_state (                -- exactly one row, id = 1
 );
 ```
 
-Migrations add the tables in the plan that needs them: Plan 1 adds `teachers`, `classes`, `students`, and `enrollments`. Plan 2 adds `tests`, `submissions`, and `submission_files`. Plan 3a adds `evaluations`, `evaluation_items`, `settings`, and `runner_state`. Plan 3b adds `tests.files_version`.
+Migrations add the tables in the plan that needs them: Plan 1 adds `teachers`, `classes`, `students`, and `enrollments`. Plan 2 adds `tests`, `submissions`, and `submission_files`. Plan 3a adds `evaluations`, `evaluation_items`, `settings`, and `runner_state`. Plan 3b adds `tests.files_version`. Plan 4a adds `evaluations.pages_reviewed_at`.
 
 ### 7.2 R2 layout (the "cloud folder" of a test)
 
@@ -379,10 +380,10 @@ draft ──Start test──► open ──Start evaluation (now, or when evalua
 ### 8.5 During and after evaluation
 
 - The robot makes the exercise list, grades each submitted upload, then writes the class analysis (§12).
-- `evaluating → done`: no submission is `submitted` or `grading`, and `analysis_status` is not `requested`. (Plan 4 decides when the first class analysis is asked for.)
+- `evaluating → done`: no submission is `submitted` or `grading`, and `analysis_status` is not `requested`. (Plan 4b decides when the first class analysis is asked for.)
 - **Reopen uploads** (from evaluating or done): sets `status = 'open'` and clears `evaluation_at`. Graded results stay. New uploads get graded at the next **Start evaluation**. The analysis is then marked stale. An upload that the robot is grading goes back to `submitted`: the robot's result for it is refused, and a later robot run grades it after the next **Start evaluation**, with the files of that time.
 - **Replace the test file or the barem**: allowed in any status except `evaluating`. While evaluating, it is allowed when the exercise list is `problem` or `failed`: the robot then reads neither file. A new barem clears the exercise list (`exercise_list_status = 'none'`). It does not regrade old results. Each new file adds 1 to `files_version`, so an exercise list that the robot made from the old files is refused (§11.3). The teacher uses Regrade for that.
-- **Regrade** (one submission, or all graded submissions of the test): deletes their evaluations and sets them to `submitted`. If the test is `done`, it goes back to `evaluating`. If the test is `open`, the regrade waits for Start evaluation. The UI warns that teacher corrections will be lost.
+- **Regrade** (one graded submission, or all of a test: every graded submission and every failed one): deletes their evaluations and sets them to `submitted` with 0 attempts. If the test is `done`, it goes back to `evaluating`. While the test is `evaluating`, the API asks GitHub to start the robot (§12.6). If the test is `open`, the regrade waits for Start evaluation. The UI warns that teacher corrections will be lost.
 - **Retry** (a `failed` submission): sets it to `submitted` with 0 attempts. If the test is `done`, it goes back to `evaluating`. Like Start evaluation, it asks GitHub to start the robot (§12.6); so does **Încearcă din nou** on a failed exercise list.
 - **Analysis refresh rule**: each time a test enters `evaluating` (Start evaluation, Regrade, or Retry on a `done` test), an analysis that is `ready` or `failed` becomes `requested` with 0 attempts. So the robot writes a new analysis after the new grades. Teacher corrections only set `analysis_stale = 1`. The teacher then clicks **Regenerează** when she wants a new analysis.
 - **Delete test**: needs a confirmation. It deletes the R2 files under the test prefix and all its rows. A robot result for a deleted test gets 404, and the robot drops it.
@@ -399,7 +400,7 @@ All screens are in Romanian. Routes use the teacher's base path `/admin`.
 | `/admin/teste/:code/elevi/:submissionId` | Lucrarea elevului | Student files and the graded result (§14.1). |
 | `/admin/teste/:code/raport` | Raport clasă | Class report (§14.2). |
 | `/admin/clase` | Clase | Classes of the selected school year. Add a class (name, school year). Archive a class. |
-| `/admin/clase/:id` | Clasa | Students: add one, paste many (one name per line), rename, mark as left. Tests of the class. |
+| `/admin/clase/:id` | Clasa | Students: add one, paste many (one name per line), rename, mark as left. Each name links to the student's history. Tests of the class. |
 | `/admin/elevi/:id` | Elev | History: every graded test of this student in every class and year, with grade and link. |
 | `/admin/setari` | Setări | Parallel agents (1-4, default 1). Robot key: create or replace, shown once. Robot status. |
 
@@ -412,11 +413,12 @@ A school-year switch in the header (default: the current school year) filters Te
 - Actions, shown by status:
   - draft: **Începe testul** (Start test).
   - open: link with Copy button, QR code (full-screen view), **Pornește evaluarea** (now), **Programează** (pick a time), cancel the schedule.
-  - evaluating/done: **Redeschide încărcarea** (Reopen uploads), **Recorectează tot** (Regrade all).
+  - evaluating/done: **Redeschide încărcarea** (Reopen uploads).
+  - any status with a graded or failed upload: **Recorectează tot** (Regrade all).
 - Exercise-list banner, only when there is a problem:
   - `problem`: shows the message (for example "Punctajele din barem dau 9, nu 10"). Buttons: replace the barem, **Folosește oricum** (sets `accepted`).
   - `failed`: shows the message and a **Încearcă din nou** button (sets `none` and resets the attempts).
-- Uploads table, refreshed every 10 s while the status is open or evaluating. One row per active student of the class: name, status (Nu a trimis / Încarcă… / Trimis / Se corectează / Corectat / Eroare), file count, time, grade, flag count. "Fără confirmare" marks `auto_submitted`. Row actions: view files and result, **Resetează** (delete the upload so the student can start again), **Reîncearcă** (failed → submitted), **Recorectează** (regrade).
+- Uploads table, refreshed every 10 s while the status is open or evaluating. One row per active student of the class: name, status (Nu a trimis / Încarcă… / Trimis / Se corectează / Corectat / Eroare), file count, time, grade, flag count. "Fără confirmare" marks `auto_submitted`. Row actions: **Vezi lucrarea** (files and result), **Resetează** (delete the upload so the student can start again), **Reîncearcă** (failed → submitted), **Recorectează** (regrade a graded upload).
 - Robot line: "Robotul a verificat acum 3 min" from `runner_state.last_check_at`, while the test is evaluating or has a scheduled evaluation. It shows a warning after 30 min without a check. With the warning, a test in evaluation whose uploads wait for the robot shows "Pornește robotul": it starts the robot like "Evaluate now".
 - Link to the class report when at least one submission is graded.
 
@@ -461,10 +463,10 @@ Auth: the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) is checked again in 
 | `POST /classes/:id/students` `{ names: string[] }` | Add students (1-60 names, each 1-80 chars after trimming; empty lines skipped). |
 | `PATCH /classes/:id/students/:studentId` `{ active }` | Mark a student as left, or back. |
 | `PATCH /students/:id` `{ fullName }` | Rename a student. |
-| `GET /students/:id/history` | The student and all graded results (test code, title, class, date, grade). |
+| `GET /students/:id/history` | The student, the student's classes, and all graded results, newest first (test code, title, class, date, grade, items to check). |
 | `GET /tests?year=2026` | Tests list with counts. |
 | `POST /tests` `{ classId, title }` | Create a draft test; returns the code. |
-| `GET /tests/:code` | Test detail, uploads table, exercise-list status, robot line. (The analysis status comes with Plan 4.) |
+| `GET /tests/:code` | Test detail, uploads table, exercise-list status, robot line. (The analysis status comes with Plan 4b.) |
 | `PATCH /tests/:code` `{ title }` | Rename. |
 | `DELETE /tests/:code` | Delete the test and its files. |
 | `PUT /tests/:code/files/:kind` (`kind` = `test` or `barem`) | Raw body. Headers `Content-Type`, `Content-Length`, `X-File-Name` (URI-encoded). PDF or DOCX, ≤ 25 MB. |
@@ -473,18 +475,19 @@ Auth: the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) is checked again in 
 | `POST /tests/:code/evaluate` `{ at?: string }` | No `at`, or `at` in the past: start now. Future `at`: schedule. |
 | `DELETE /tests/:code/schedule` | Cancel the schedule. |
 | `POST /tests/:code/reopen` | Reopen uploads. |
-| `POST /tests/:code/regrade` | Regrade all graded submissions. |
+| `POST /tests/:code/regrade` | Regrade every graded and every failed submission (§8.5). 409 when there is none. |
 | `POST /tests/:code/exercise-list/accept` | problem → accepted. |
 | `POST /tests/:code/exercise-list/retry` | failed → none, attempts = 0. |
 | `POST /tests/:code/robot` | "Pornește robotul": starts the robot (§12.6) when the test is evaluating and the robot's check would find work in it. Otherwise 409. |
 | `POST /tests/:code/analysis/regenerate` | analysis_status → requested. If the test is `done`, it goes back to `evaluating`. |
 | `GET /tests/:code/report` | Rows for the class report: students, items, totals, analysis. Statistics are computed in the browser with `shared/stats.ts`. |
-| `GET /submissions/:id` | Submission, files, evaluation, and items. |
+| `GET /submissions/:id` | Submission, test status, last error, files, evaluation, and items. |
+| `PATCH /submissions/:id/evaluation` `{ pagesReviewed }` | The teacher checked the pages that the robot could not read: they stop counting as an item to check. Only for a graded submission. |
 | `GET /submissions/:id/files/:fileId` | Stream a student file. |
 | `POST /submissions/:id/reset` | Delete the files, the evaluation, and the row, so the student can start again. |
 | `POST /submissions/:id/retry` | failed → submitted, attempts = 0. A `done` test goes back to `evaluating` (§8.5). |
 | `POST /submissions/:id/regrade` | Regrade one submission. A `done` test goes back to `evaluating` (§8.5). |
-| `PATCH /evaluation-items/:id` `{ points?, comment?, reviewed? }` | Teacher correction. `0 ≤ points ≤ max_points`, in steps of 0.05. Sets `changed_by_teacher`, recomputes the total and grade, and sets `analysis_stale = 1` when the analysis is ready. |
+| `PATCH /evaluation-items/:id` `{ points?, comment?, reviewed? }` | Teacher correction of a graded submission. `0 ≤ points ≤ max_points`, in steps of 0.05, or exactly `max_points` (a barem can give 0.33). New points or a new comment set `changed_by_teacher`, recompute the total from all items and the grade in the same write, and set `analysis_stale = 1` when the analysis is ready. `reviewed` sets or clears the check. Answers with the whole submission. |
 | `GET /settings` | Parallel agents, whether a robot key exists, `runner_state`, and the time of the last successful grading (`MAX(submissions.graded_at)`). |
 | `PATCH /settings` `{ maxParallelAgents }` | An integer from 1 to 4. |
 | `POST /settings/robot-key` | Makes a new robot key, shows it once, and stores its SHA-256 hash. |
@@ -520,8 +523,8 @@ Auth: `Authorization: Bearer <robot key>`. The API compares the SHA-256 of the k
 | `POST /claim` `{ runId }` | Takes the `submitted` submission with the fewest attempts, the oldest first, of an `evaluating` test whose exercise list is `ready` or `accepted`, and sets it to `grading`, in one statement. Needs the lease (else 409 `lease_lost`). Never takes again a submission that a reopen took from this run (`reopenTest` keeps the run's id on it): the next run takes it. Returns `{ submissionId, testId, files: [{ id, contentType, position }] }`, or 204 when there is none. |
 | `GET /submissions/:id/files/:fileId` | Stream a page of an upload in `grading` (else 404). |
 | `POST /submissions/:id/result` `{ runId, ok: true, result, model } \| { runId, ok: false, error }` | Accepted only when the submission is `grading` and its `run_id` equals `runId`. Otherwise 409 `taken_over` (404 for a deleted submission), and the robot drops the result (another run took the work over). Save a result (§12.5): the API validates it (a broken result: 422 `invalid_result`), computes totals, and stores the evaluation and its items in one batch. `error` is `timeout`, `invalid_output`, `crash`, or `usage_limit`. On `usage_limit` the submission goes back to `submitted` with no attempt counted; else attempts + 1, and `failed` at 3. |
-| `GET /tests/:id/results` | (Plan 4.) Anonymized class data for the analysis: "Elev 1..n", items, points, comments. No names. |
-| `POST /tests/:id/analysis` `{ runId, ok: true, analysis } \| { runId, ok: false, error }` | (Plan 4.) Save the analysis (`ready`, `analysis_stale = 0`). On an error, attempts + 1, and `failed` at 3. Then the API checks whether the test is `done`. |
+| `GET /tests/:id/results` | (Plan 4b.) Anonymized class data for the analysis: "Elev 1..n", items, points, comments. No names. |
+| `POST /tests/:id/analysis` `{ runId, ok: true, analysis } \| { runId, ok: false, error }` | (Plan 4b.) Save the analysis (`ready`, `analysis_stale = 0`). On an error, attempts + 1, and `failed` at 3. Then the API checks whether the test is `done`. |
 
 The body of an exercise list or a result is at most 1 MB (else 413 `too_large`), so the saved raw output stays far under D1's 2 MB row limit. The robot checks the size before it sends, and sends a bigger answer as `invalid_output`.
 
@@ -562,7 +565,7 @@ repeat:
   2. grading: keep up to maxParallel "grade" tasks running.
      Each free slot does POST /claim. When a task ends, its slot claims again at once.
      When /claim returns 204 and no task is running, grading is done.
-  3. analyses: for each test id in tasks.analyses, run the task "class-report"  (Plan 4)
+  3. analyses: for each test id in tasks.analyses, run the task "class-report"  (Plan 4b)
   until a round starts no new task, the budget is used, or the run stops taking work
 release(summary)
 ```
@@ -699,13 +702,14 @@ Checks done by code, not by Claude:
 
 ### 14.1 Student result (`/admin/teste/:code/elevi/:submissionId`)
 
-- Left (on a phone: top): the student's files. Photos show inline with zoom. PDFs show in a frame, with a download link.
-- Right: a table of the exercises (label, max, AI points, final points, student answer, comment, confidence). A flagged row has a yellow highlighter background, the review reason, an input to change the points, and a **Verificat** button. The total and the grade update after each change.
+- Left (on a phone: top; on a wide screen it stays in view while the page scrolls): the student's files, numbered in upload order as the robot numbers them. Photos show inline; a click opens one full size, to zoom. PDFs show in a frame, with a link that opens them.
+- Right: the grade, the total, and the items to check; then a table of the exercises (label, final points out of the maximum, the robot's points when the teacher changed them, student answer, comment, the robot's confidence). A flagged row that is not checked yet has a yellow highlighter background, the review reason, and a **Verificat** button. **Modifică** opens the points (steps of 0.05) and the comment; saving a flagged row also checks it. The total and the grade update after each change.
+- Pages that the robot could not read are named above the table ("Pagina 2"). They count as one item to check until the teacher clicks **Am verificat paginile**.
 - Below: summary, strengths, recommendations.
 - Buttons:
-  - **Descarcă PDF** (pdfmake, in the browser).
-  - **Trimite**: Web Share API with the PDF file. If sharing is not possible, the PDF is downloaded.
-  - **Recorectează**.
+  - **Descarcă PDF** (pdfmake, in the browser). (Plan 4b.)
+  - **Trimite**: Web Share API with the PDF file. If sharing is not possible, the PDF is downloaded. (Plan 4b.)
+  - **Recorectează**, for a graded submission. A failed one shows its error and **Reîncearcă**.
 - The student PDF contains: test code and title, student name, date, grade, exercise table, summary, strengths, and recommendations. An item that is flagged and not yet checked shows "în verificare". Review reasons are for the teacher only and never go into the PDF.
 
 ### 14.2 Class report (`/admin/teste/:code/raport`)
@@ -723,7 +727,7 @@ Checks done by code, not by Claude:
 
 ### 14.3 PDF fonts
 
-pdfmake gets a font with full Romanian letters (ă â î ș ț, comma-below forms U+0219 and U+021B). Plan 4 checks this with a test that builds a PDF with these letters.
+pdfmake gets a font with full Romanian letters (ă â î ș ț, comma-below forms U+0219 and U+021B). Plan 4b checks this with a test that builds a PDF with these letters.
 
 ## 15. Security and privacy
 
@@ -805,14 +809,9 @@ Each plan ends with working, tested software. Each one gets its own file in `doc
 3. **Evaluation robot**, in two plans:
    - **3a**: zod contracts and their checks; the robot API with lease, claim, and results; Start evaluation (now or scheduled), Evaluate now, and Setări (parallel agents, robot key, robot status). Result: the teacher closes tests on time, and the API is ready for the robot.
    - **3b**: the spike (§12.4); the JSON Schemas; `runner/` with the pool, work folders, pandoc, Claude runs, and checks; the first grading skill and the `npm run try:skill` script (§13); `evaluate.yml`. It also does the 3a follow-ups that the robot needs: `files_version`, a reopen sends uploads in grading back to the queue, exercise-list points in cents, and a 1 MB limit on robot bodies. Result: tests are graded automatically.
-4. **Review and reports**:
-   - the student result page (flags, corrections, Verificat, Regrade);
-   - the class analysis task in the robot (the `ClassAnalysis` contract, `GET /tests/:id/results`, `POST /tests/:id/analysis`, Regenerează);
-   - the class report (table, statistics, analysis);
-   - PDFs (Romanian font), CSV, Share;
-   - the student history page;
-   - the operations notes in `docs/deploy.md`.
-   - Result: v1 is complete.
+4. **Review and reports**, in two plans:
+   - **4a**: the student result page (flags, corrections, Verificat, the check of unreadable pages, Regrade one or all), the student history page, and the items to check on Teste. It changes no robot code. Result: the teacher checks and corrects the grades.
+   - **4b**: the class analysis task in the robot (the `ClassAnalysis` contract, `GET /tests/:id/results`, `POST /tests/:id/analysis`, Regenerează); the class report (table, statistics, analysis); PDFs (Romanian font), CSV, Share; the operations notes in `docs/deploy.md`. Result: v1 is complete.
 
 ## 20. Risks
 

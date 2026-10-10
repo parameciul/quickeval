@@ -3,7 +3,9 @@
 // /u rewrites, the security headers, one full upload with the local login
 // (class, student, test, barem, start, a student's photo, confirm), and one
 // grading by a pretend robot (robot key, schedule, start evaluation, check,
-// lease, exercise list, claim, page, result, release), then deletes the test.
+// lease, exercise list, claim, page, result, release), the teacher's review
+// (read the result, correct a point, the student's history, regrade all),
+// then deletes the test.
 // Runs every check, then exits with code 1 if any failed.
 
 const base = process.env.SMOKE_URL ?? 'http://127.0.0.1:8788';
@@ -175,6 +177,17 @@ check(
   gradedDetail.body?.test?.status === 'done' && gradedRow?.status === 'graded' && gradedRow?.grade === 8.5,
   JSON.stringify({ status: gradedDetail.body?.test?.status, row: gradedRow }),
 );
+
+// The teacher reviews the result: reads it, corrects the points, and grades the test again.
+const result = await api('GET', `/api/admin/submissions/${row?.submissionId}`);
+const item = result.body?.submission?.evaluation?.items?.[0];
+check('the teacher reads the result', result.status === 200 && item?.exerciseId === 'I.1' && item?.points === 7.5, JSON.stringify(result.body));
+const corrected = await api('PATCH', `/api/admin/evaluation-items/${item?.id}`, { points: 8, reviewed: true });
+check('the teacher corrects the points', corrected.status === 200 && corrected.body?.submission?.evaluation?.grade === 9, JSON.stringify(corrected.body));
+const history = await api('GET', `/api/admin/students/${studentId}/history`);
+check('the student page lists the grade', history.status === 200 && history.body?.results?.[0]?.grade === 9, JSON.stringify(history.body));
+const regraded = await api('POST', `/api/admin/tests/${code}/regrade`);
+check('regrade the test', regraded.status === 200 && regraded.body?.count === 1 && regraded.body?.testStatus === 'evaluating', JSON.stringify(regraded.body));
 
 const removed = await api('DELETE', `/api/admin/tests/${code}`);
 check('delete the test and its files', removed.status === 200 && (await api('GET', `/api/admin/tests/${code}`)).status === 404, JSON.stringify(removed.body));

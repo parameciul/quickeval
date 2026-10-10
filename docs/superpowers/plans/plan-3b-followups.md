@@ -2,7 +2,7 @@
 
 Plan 3b built the grading robot: `runner/`, the grading skill, `npm run try:skill`, and `evaluate.yml`. Older open points are in `plan-3a-followups.md`. Write Plan 4 from the repo and the spec.
 
-## For Plan 4
+## For Plan 4b
 
 - The class analysis in the robot: a third task in `runner/tasks.ts`, a `class-report` mode in the skill, and `claudeJsonSchema()` of the `ClassAnalysis` contract. Today `runner/run.ts` ignores `tasks.analyses`: a round that starts nothing else ends the run.
 - The summary of a run counts `analyses: 0` until then.
