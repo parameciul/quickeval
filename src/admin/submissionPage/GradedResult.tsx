@@ -186,8 +186,11 @@ function ItemForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const value = parsePoints(points);
-    if (value === null || !isValidCorrection(value, item.maxPoints)) {
+    // Points the teacher did not change are not checked: the robot's points
+    // can be off the 0,05 steps.
+    const changed = points !== formatPoints(item.points);
+    const value = changed ? parsePoints(points) : item.points;
+    if (value === null || (changed && !isValidCorrection(value, item.maxPoints))) {
       setProblem(`Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
       return;
     }

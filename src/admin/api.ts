@@ -60,7 +60,7 @@ export interface AdminApi {
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
   resetSubmission(submissionId: number): Promise<void>;
   retrySubmission(submissionId: number): Promise<RobotStart | null>;
-  regradeSubmission(submissionId: number): Promise<RegradeAnswer>;
+  regradeSubmission(submissionId: number, gradedAt: string): Promise<RegradeAnswer>;
   // The teacher's corrections answer with the whole upload: new total and grade.
   correctItem(submissionId: number, itemId: number, correction: ItemCorrection): Promise<SubmissionDetail>;
   reviewPages(submissionId: number, review: PagesReview): Promise<SubmissionDetail>;
@@ -193,7 +193,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     },
     retrySubmission: async (submissionId) =>
       (await request<{ robot: RobotStart | null }>('POST', `/submissions/${submissionId}/retry`)).robot,
-    regradeSubmission: (submissionId) => request<RegradeAnswer>('POST', `/submissions/${submissionId}/regrade`),
+    regradeSubmission: (submissionId, gradedAt) => request<RegradeAnswer>('POST', `/submissions/${submissionId}/regrade`, { gradedAt }),
     correctItem: async (submissionId, itemId, correction) =>
       (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/items/${itemId}`, correction)).submission,
     reviewPages: async (submissionId, review) =>

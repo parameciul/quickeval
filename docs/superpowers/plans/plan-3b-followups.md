@@ -1,6 +1,6 @@
 # Plan 3b follow-ups
 
-Plan 3b built the grading robot: `runner/`, the grading skill, `npm run try:skill`, and `evaluate.yml`. Older open points are in `plan-3a-followups.md`. Write Plan 4 from the repo and the spec.
+Plan 3b built the grading robot: `runner/`, the grading skill, `npm run try:skill`, and `evaluate.yml`. Older open points are in `plan-3a-followups.md`. Write Plan 4b from the repo and the spec.
 
 ## For Plan 4b
 
@@ -35,7 +35,7 @@ Small points that the reviews found and left for later. None stops the robot fro
 - Machine faults other than a missing program (a full disk, a missing skill folder) use up attempts. The Node error code (`ENOSPC`, `EACCES`) is safe to log; today a missing program logs `error=unknown`.
 - The robot API tries a POST again when its answer was lost (claim, result, exercise list, release). A claim tried again takes a second upload; the next check sends it back.
 - `/lease`, `/heartbeat`, `/release`, and `/claim` accept bodies of any size. Only the robot key can call them.
-- `runner/run.test.ts` is sensitive to load: a local engine per test, 20-second time limits. It timed out when two test suites ran at the same time. Watch it on CI.
+- `runner/run.test.ts` is sensitive to load: a local engine per test, 20-second time limits. It timed out when two test suites ran at the same time. Watch it on CI. In Plan 4a, "stops taking work when the heartbeat finds another run" (a beat every 20 ms) also timed out in a full run on a busy PC, and passed alone in 2.6 s.
 - Windows: `spawn('claude')` finds `claude.exe`, but not an npm `claude.cmd`.
 - `claudeRunner` calls every `ENOENT` at the start a missing program. Node also says `ENOENT` when the work folder is missing; the pandoc check also looks at `syscall`. `try:skill` prints "program missing" for every rejection of the runner.
 - `try:skill` prints no comments and no summary, writes over `exercises.json` without a question, and leaves its temp folder after Ctrl+C.

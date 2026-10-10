@@ -24,8 +24,9 @@ export function RegradeAllButton({
 }) {
   const api = useApi();
   // An open test grades the uploads after Start evaluation: the page says so
-  // until the evaluation starts.
+  // until the evaluation starts, and not again if the test opens again.
   const [regradedOpen, setRegradedOpen] = useState(false);
+  if (regradedOpen && testStatus !== 'open') setRegradedOpen(false);
   const regrade = useMutation({
     mutationFn: () => api.regradeTest(code),
     onSuccess: async (answer) => {

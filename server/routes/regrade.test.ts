@@ -16,6 +16,11 @@ const uploadRow = (id: number) =>
 const evaluationCount = async (id: number) =>
   (await api.db.prepare('SELECT COUNT(*) AS n FROM evaluations WHERE submission_id = ?').bind(id).first<{ n: number }>())!.n;
 
+// When addEvaluation() wrote the result; the page names it.
+const GRADED_AT = '2026-10-07T09:00:00.000Z';
+const regrade = (id: number | string, body: unknown = { gradedAt: GRADED_AT }) =>
+  api.request('POST', `/api/admin/submissions/${id}/regrade`, body);
+
 // A graded upload with a result that the teacher checked.
 async function graded(index: number): Promise<number> {
   const id = await addSubmission(api, code, studentIds[index]!, { status: 'graded', files: 1 });
@@ -42,7 +47,7 @@ describe('POST /api/admin/submissions/:id/regrade', () => {
     await setTest("status = 'done', exercise_list_status = 'ready', analysis_status = 'ready'");
     dispatchRobot.mockResolvedValueOnce(true);
 
-    const res = await api.request('POST', `/api/admin/submissions/${id}/regrade`);
+    const res = await regrade(id);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ count: 1, testStatus: 'evaluating', robot: 'dispatched' });
     expect(dispatchRobot).toHaveBeenCalledTimes(1);
@@ -63,14 +68,14 @@ describe('POST /api/admin/submissions/:id/regrade', () => {
     const id = await graded(0);
     await addSubmission(api, code, studentIds[1]!, { status: 'submitted', files: 1 });
     await setTest("status = 'evaluating'");
-    const res = await api.request('POST', `/api/admin/submissions/${id}/regrade`);
+    const res = await regrade(id);
     expect(res.body).toEqual({ count: 1, testStatus: 'evaluating', robot: 'next_check' });
   });
 
   it('leaves an open test open: the upload is graded after Start evaluation', async () => {
     const id = await graded(0);
     await setTest("status = 'open'");
-    const res = await api.request('POST', `/api/admin/submissions/${id}/regrade`);
+    const res = await regrade(id);
     expect(res.body).toEqual({ count: 1, testStatus: 'open', robot: null });
     expect(dispatchRobot).not.toHaveBeenCalled();
     expect(await uploadRow(id)).toMatchObject({ status: 'submitted' });
@@ -80,20 +85,49 @@ describe('POST /api/admin/submissions/:id/regrade', () => {
     await setTest("status = 'done'");
     const failed = await addSubmission(api, code, studentIds[0]!, { status: 'failed', files: 1 });
     await api.db.prepare("UPDATE submissions SET attempts = 3, last_error = 'Robotul s-a oprit cu o eroare.' WHERE id = ?").bind(failed).run();
-    const res = await api.request('POST', `/api/admin/submissions/${failed}/regrade`);
+    const res = await regrade(failed);
     expect(res.status).toBe(409);
-    expect(res.body).toEqual({ error: 'not_graded', message: 'Lucrarea nu este corectată acum.' });
+    expect(res.body).toEqual({ error: 'not_graded', message: 'Lucrarea se corectează din nou. Reîncarcă pagina.' });
     expect(await uploadRow(failed)).toMatchObject({ status: 'failed', attempts: 3 });
     expect(await testRow()).toMatchObject({ status: 'done' });
     expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
+  it('answers 409 when a new grading or another upload took the id the page shows, and changes nothing', async () => {
+    await setTest("status = 'done'");
+    const id = await graded(0);
+    const later = '2026-10-08T09:00:00.000Z';
+    // A reset of the newest upload: the next upload, here of another student,
+    // gets the same id, and a newer grading.
+    expect((await api.request('POST', `/api/admin/submissions/${id}/reset`)).status).toBe(200);
+    expect(await graded(1)).toBe(id);
+    await api.db.prepare('UPDATE evaluations SET created_at = ? WHERE submission_id = ?').bind(later, id).run();
+    const res = await regrade(id);
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'not_graded', message: 'Lucrarea se corectează din nou. Reîncarcă pagina.' });
+    expect(await uploadRow(id)).toMatchObject({ status: 'graded', attempts: 1 });
+    expect(await evaluationCount(id)).toBe(1);
+    expect(await testRow()).toMatchObject({ status: 'done' });
+    expect(dispatchRobot).not.toHaveBeenCalled();
+    // The page that shows the new grading regrades it.
+    expect((await regrade(id, { gradedAt: later })).status).toBe(200);
+    expect(await evaluationCount(id)).toBe(0);
+  });
+
+  it('refuses a body without the grading the page shows', async () => {
+    const id = await graded(0);
+    const res = await regrade(id, {});
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ message: 'Reîncarcă pagina.' });
+    expect(await uploadRow(id)).toMatchObject({ status: 'graded' });
+  });
+
   it('answers 404 for an unknown upload and for an upload of another teacher', async () => {
-    expect((await api.request('POST', '/api/admin/submissions/99999/regrade')).status).toBe(404);
+    expect((await regrade(99999)).status).toBe(404);
     const foreign = await otherTeacherTest(api);
     const foreignId = await addSubmission(api, foreign.code, foreign.studentId, { status: 'graded', files: 1 });
     await addEvaluation(api, foreignId);
-    expect((await api.request('POST', `/api/admin/submissions/${foreignId}/regrade`)).status).toBe(404);
+    expect((await regrade(foreignId)).status).toBe(404);
     expect(await uploadRow(foreignId)).toMatchObject({ status: 'graded' });
     expect(await evaluationCount(foreignId)).toBe(1);
   });

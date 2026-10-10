@@ -15,3 +15,7 @@ Plan 4a built the review of the grades: the result page (corrections, Verificat,
 - The API can take a check back (`reviewed: false`, `pagesReviewed: false`); the page has no button for it.
 - "Recorectează" on a row of the uploads table says nothing when the test is open; the row shows "Trimis". The result page and "Recorectează tot" say that the grading waits for Start evaluation.
 - On a phone, the test page is a little wider than the screen: the file field of the test files list does not shrink (from Plan 2).
+- An old page's "Resetează" acts by the upload id alone. Ids of deleted rows come back (no `AUTOINCREMENT`): after a reset of the newest upload, the next upload (of any student) can get its id, and a Resetează from a page opened before deletes that upload and its files. Fix it first in Plan 4b: the page names what it showed, as Recorectează names `gradedAt`, or the tables get `AUTOINCREMENT` (a table rebuild). "Reîncearcă" acts by the id too; it only sends a failed upload to the robot again.
+- The item form on the result page: the focus does not move to the form or to its error, the error is not tied to the field, and a save says nothing to a screen reader.
+- The teacher app loads zod: `GradedResult.tsx` imports `TEXT_LIMITS` from `shared/schemas.ts`.
+- A correction is two writes: the item, then the total and the grade. If the second fails, the total and the grade wait for the next change of points or comment.

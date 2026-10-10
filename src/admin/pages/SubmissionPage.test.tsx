@@ -204,6 +204,26 @@ describe('SubmissionPage', () => {
     expect(api.correctItem).not.toHaveBeenCalled();
   });
 
+  it('saves a comment, or checks an item, when the robot gave points off the 0.05 steps', async () => {
+    const offGrid = structuredClone(graded);
+    offGrid.evaluation!.items[0]!.points = 2.33;
+    offGrid.evaluation!.items[1]!.points = 0.33;
+    const api = apiWith(offGrid);
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifică Subiectul I, ex. 1' }));
+    expect(screen.getByLabelText('Puncte pentru Subiectul I, ex. 1 (din 4,5)')).toHaveValue('2,33');
+    const comment = screen.getByLabelText('Comentariul pentru elev');
+    await userEvent.clear(comment);
+    await userEvent.type(comment, 'Calculul este bun.');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
+    expect(api.correctItem).toHaveBeenCalledWith(5, 31, { gradedAt: GRADED_AT, comment: 'Calculul este bun.' });
+    // Salvează on a flagged item checks it.
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifică Subiectul II, ex. 1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
+    expect(api.correctItem).toHaveBeenLastCalledWith(5, 32, { gradedAt: GRADED_AT, reviewed: true });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('closes the form without a request on Renunță, or when nothing changed', async () => {
     const api = apiWith(graded);
     renderAdmin(page, api);
@@ -240,7 +260,7 @@ describe('SubmissionPage', () => {
     renderAdmin(page, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Recorectează' }));
     expect(confirm).toHaveBeenCalledWith('Recorectezi lucrarea elevului Pop Ion? Corecturile tale se pierd.');
-    expect(api.regradeSubmission).toHaveBeenCalledWith(5);
+    expect(api.regradeSubmission).toHaveBeenCalledWith(5, GRADED_AT);
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul.');
     expect(await screen.findByText('Lucrarea așteaptă robotul.')).toBeInTheDocument();
     expect(screen.queryByText(/Nota/)).not.toBeInTheDocument();

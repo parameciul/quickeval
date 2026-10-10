@@ -62,7 +62,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
     },
   });
   const regrade = useMutation({
-    mutationFn: () => api.regradeSubmission(submissionId),
+    mutationFn: (gradedAt: string) => api.regradeSubmission(submissionId, gradedAt),
     onSuccess: (answer) =>
       gradeAgain(answer.robot ? robotStartMessage(answer.robot) : 'Lucrarea se corectează din nou după ce pornești evaluarea.'),
   });
@@ -79,6 +79,8 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   if (submission.testCode !== code) return <NotFoundPage />;
   // The news after Recorectează or Reîncearcă holds only until the result is back.
   const showNotice = notice !== null && (submission.status === 'submitted' || submission.status === 'grading');
+  // Recorectează names the grading the page shows.
+  const gradedAt = submission.status === 'graded' ? (submission.evaluation?.gradedAt ?? null) : null;
 
   return (
     <section>
@@ -123,7 +125,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
         </div>
       </div>
 
-      {submission.status === 'graded' && (
+      {gradedAt !== null && (
         <>
           <h2>Recorectează</h2>
           <p className="hint">Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.</p>
@@ -132,7 +134,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
             className="button-quiet"
             disabled={regrade.isPending}
             onClick={() => {
-              if (window.confirm(`Recorectezi lucrarea elevului ${submission.studentName}? Corecturile tale se pierd.`)) regrade.mutate();
+              if (window.confirm(`Recorectezi lucrarea elevului ${submission.studentName}? Corecturile tale se pierd.`)) regrade.mutate(gradedAt);
             }}
           >
             Recorectează

@@ -364,6 +364,10 @@ describe('TestPage evaluation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
     expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
     expect(screen.queryByText('Lucrările se corectează din nou după ce pornești evaluarea.')).not.toBeInTheDocument();
+    // Nor after the uploads open again.
+    await userEvent.click(screen.getByRole('button', { name: 'Redeschide încărcarea' }));
+    expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeInTheDocument();
+    expect(screen.queryByText('Lucrările se corectează din nou după ce pornești evaluarea.')).not.toBeInTheDocument();
   });
 
   it('offers no regrade while nothing is graded', async () => {
@@ -381,7 +385,7 @@ describe('TestPage evaluation', () => {
     expect(within(screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!).queryByRole('button', { name: 'Recorectează' })).toBeNull();
     await userEvent.click(within(pop).getByRole('button', { name: 'Recorectează' }));
     expect(confirm).toHaveBeenCalledWith('Recorectezi lucrarea elevului Pop Ion? Corecturile tale se pierd.');
-    expect(api.regradeSubmission).toHaveBeenCalledWith(5);
+    expect(api.regradeSubmission).toHaveBeenCalledWith(5, '2026-10-07T09:00:00.000Z');
     expect(await within(pop).findByText('Trimis')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent(robotStartMessage('next_check'));
   });

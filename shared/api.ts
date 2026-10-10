@@ -124,6 +124,9 @@ export const reviewPagesBody = z.object({ gradedAt: shownGrading, pagesReviewed:
 
 export type PagesReview = z.output<typeof reviewPagesBody>;
 
+// "Recorectează" on one upload: the grading the page shows goes.
+export const regradeBody = z.object({ gradedAt: shownGrading });
+
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({
   studentId: z
@@ -252,6 +255,8 @@ export interface UploadRow {
   autoSubmitted: boolean;
   // Out of 10, once graded.
   grade: number | null;
+  // The grading the row shows (`EvaluationInfo.gradedAt`), once graded.
+  gradedAt: string | null;
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;

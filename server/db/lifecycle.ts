@@ -1,5 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type { TestStatus } from '../../shared/tests.ts';
+import type { ShownResult } from './evaluations.ts';
 
 // The test lifecycle after Start test (spec §8.3-§8.5). Each write checks its
 // own rules in its SQL, so two requests at once cannot both pass a check.
@@ -185,14 +186,32 @@ function backToEvaluation(db: D1Database, teacherId: number, submissionId: numbe
 }
 
 // "Recorectează" (spec §8.5): the robot grades a graded upload again. Its
-// result goes, with the teacher's corrections. A finished test goes back to
-// evaluation; an open test grades it after Start evaluation. Returns the
-// test's status, or null when the upload was not graded.
-export async function regradeSubmission(db: D1Database, teacherId: number, submissionId: number, now: string): Promise<TestStatus | null> {
-  const GRADED = `id = ? AND status = 'graded' AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)`;
-  const [, regraded, , test] = await db.batch<{ test_id?: number; status?: TestStatus }>([
-    db.prepare(`DELETE FROM evaluations WHERE submission_id IN (SELECT id FROM submissions WHERE ${GRADED})`).bind(submissionId, teacherId),
-    db.prepare(`UPDATE submissions SET ${GRADE_AGAIN} WHERE ${GRADED} RETURNING test_id`).bind(submissionId, teacherId),
+// result goes, with the teacher's corrections. The upload must still hold the
+// grading the page shows: ids come back after a reset, so a page opened before
+// must not regrade another upload. A finished test goes back to evaluation; an
+// open test grades it after Start evaluation. Returns the test's status, or
+// null when the upload does not hold that grading.
+export async function regradeSubmission(db: D1Database, shown: ShownResult, now: string): Promise<TestStatus | null> {
+  const { teacherId, submissionId, gradedAt } = shown;
+  const [regraded, , , test] = await db.batch<{ test_id?: number; status?: TestStatus }>([
+    db
+      .prepare(
+        `UPDATE submissions SET ${GRADE_AGAIN}
+         WHERE id = ? AND status = 'graded'
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
+           AND EXISTS (SELECT 1 FROM evaluations ev WHERE ev.submission_id = submissions.id AND ev.created_at = ?)
+         RETURNING test_id`,
+      )
+      .bind(submissionId, teacherId, gradedAt),
+    // After the UPDATE, so its check still sees the result. An upload that
+    // waits for the robot has no result to keep: its next grading replaces it.
+    db
+      .prepare(
+        `DELETE FROM evaluations WHERE submission_id IN (
+           SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id
+           WHERE s.id = ? AND s.status = 'submitted' AND t.teacher_id = ?)`,
+      )
+      .bind(submissionId, teacherId),
     ...backToEvaluation(db, teacherId, submissionId, now),
   ]);
   if (!regraded?.results.length) return null;

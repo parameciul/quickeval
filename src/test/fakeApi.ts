@@ -97,6 +97,7 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     submittedAt: null,
     autoSubmitted: false,
     grade: null,
+    gradedAt: overrides.status === 'graded' ? '2026-10-07T09:00:00.000Z' : null,
     flagCount: 0,
     lastError: null,
     ...overrides,
@@ -300,7 +301,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const again = (status: string) => status === 'graded' || status === 'failed';
       const rows = found.uploads.filter((row) => again(row.status));
       if (rows.length === 0) throw new ApiError(409, 'nothing_to_regrade', 'Testul nu are lucrări corectate.');
-      for (const row of rows) Object.assign(row, { status: 'submitted', grade: null, flagCount: 0, lastError: null });
+      for (const row of rows) Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0, lastError: null });
       if (found.test.status === 'done') found.test.status = 'evaluating';
       for (const detail of submissions) {
         if (detail.testCode === code && again(detail.status)) {
@@ -319,7 +320,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) {
           const cleared = { submissionId: null, status: 'none', fileCount: 0, startedAt: null, submittedAt: null, autoSubmitted: false };
-          Object.assign(row, { ...cleared, grade: null, flagCount: 0, lastError: null });
+          Object.assign(row, { ...cleared, grade: null, gradedAt: null, flagCount: 0, lastError: null });
         }
       }
       const index = submissions.findIndex((s) => s.id === submissionId);
@@ -334,19 +335,23 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       if (found) Object.assign(found, { status: 'submitted', lastError: null });
       return 'next_check';
     }),
-    // Like the server: a finished test goes back to evaluation. The upload is
-    // a row of a test's uploads table, a detailed upload, or both.
-    regradeSubmission: vi.fn(async (submissionId: number): Promise<RegradeAnswer> => {
+    // Like the server: the upload must hold the grading the page shows, and a
+    // finished test goes back to evaluation. The upload is a row of a test's
+    // uploads table, a detailed upload, or both.
+    regradeSubmission: vi.fn(async (submissionId: number, gradedAt: string): Promise<RegradeAnswer> => {
       const found = submissions.find((s) => s.id === submissionId);
       const test = tests.find((t) => t.uploads.some((u) => u.submissionId === submissionId) || t.test.code === found?.testCode);
       const row = test?.uploads.find((u) => u.submissionId === submissionId);
       const status = found?.status ?? row?.status;
       if (status === undefined) throw notFound();
-      if (status !== 'graded') throw new ApiError(409, 'not_graded', 'Lucrarea nu este corectată acum.');
+      const shown = found ? found.evaluation?.gradedAt : row?.gradedAt;
+      if (status !== 'graded' || shown !== gradedAt) {
+        throw new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
+      }
       const before = test?.test.status ?? found!.testStatus;
       const testStatus = before === 'done' ? 'evaluating' : before;
       if (found) Object.assign(found, { status: 'submitted', testStatus, evaluation: null });
-      if (row) Object.assign(row, { status: 'submitted', grade: null, flagCount: 0 });
+      if (row) Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0 });
       if (test) test.test.status = testStatus;
       return { count: 1, testStatus, robot: testStatus === 'evaluating' ? 'next_check' : null };
     }),

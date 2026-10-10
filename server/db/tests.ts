@@ -139,7 +139,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
   const { results } = await db
     .prepare(
       `SELECT st.id AS student_id, st.full_name, e.active,
-         s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade,
+         s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.created_at AS graded_at,
          (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
          ${flagCountSql('ev')} AS flag_count
        FROM enrollments e
@@ -160,6 +160,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       auto_submitted: number | null;
       last_error: string | null;
       grade: number | null;
+      graded_at: string | null;
       file_count: number;
       flag_count: number;
     }>();
@@ -175,6 +176,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       submittedAt: row.submitted_at,
       autoSubmitted: row.auto_submitted === 1,
       grade: row.grade,
+      gradedAt: row.graded_at,
       flagCount: row.flag_count,
       lastError: row.last_error,
     }))

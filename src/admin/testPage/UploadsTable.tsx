@@ -71,7 +71,7 @@ function UploadTableRow({
     },
   });
   const regrade = useMutation({
-    mutationFn: (submissionId: number) => api.regradeSubmission(submissionId),
+    mutationFn: ({ submissionId, gradedAt }: { submissionId: number; gradedAt: string }) => api.regradeSubmission(submissionId, gradedAt),
     onSuccess: async (answer) => {
       onRobot(answer.robot);
       await onChanged();
@@ -79,6 +79,7 @@ function UploadTableRow({
   });
   const time = row.submittedAt ?? row.startedAt;
   const submissionId = row.submissionId;
+  const gradedAt = row.status === 'graded' ? row.gradedAt : null;
 
   return (
     <tr className={row.status === 'none' ? 'is-muted' : undefined}>
@@ -104,14 +105,14 @@ function UploadTableRow({
                 Reîncearcă
               </button>
             )}
-            {row.status === 'graded' && (
+            {gradedAt !== null && (
               <button
                 type="button"
                 className="button-quiet button-small"
                 disabled={regrade.isPending}
                 onClick={() => {
                   if (window.confirm(`Recorectezi lucrarea elevului ${row.studentName}? Corecturile tale se pierd.`)) {
-                    regrade.mutate(submissionId);
+                    regrade.mutate({ submissionId, gradedAt });
                   }
                 }}
               >
