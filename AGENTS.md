@@ -34,7 +34,7 @@ Details and the remaining rules are in the nested `AGENTS.md` files.
 - All user-facing text is Romanian. The API reports errors as `{ error, message }`; the UI shows `message`.
 - No page tells students that AI grades their work. Student-app tests check every screen with `expectNoGradingWords()`.
 - Every teacher query is scoped by the teacher's id. Ids from URLs go through `parseId`, test codes through `parseTestCode`.
-- Student and robot writes check their own rules inside their SQL statement (`server/db/links.ts`, `server/db/runner.ts`), never in a check before the write.
+- Student and robot writes, and the teacher's corrections, check their own rules inside their SQL statement (`server/db/links.ts`, `server/db/runner.ts`, `server/db/evaluations.ts`), never in a check before the write.
 - Every `/api/admin` and `/api/u` request first runs the `promoteDue` middleware. A router added under them keeps it.
 - R2 is private: every file goes through the API with an ownership check. R2 keys come from rows, never from listing R2.
 - Functions: at most 10 ms of CPU and 15 D1 queries per request. Group writes with `db.batch()`.

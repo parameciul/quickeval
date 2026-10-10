@@ -17,6 +17,12 @@ export function notFound(): ApiError {
   return new ApiError(404, 'not_found', 'Nu am găsit ce cauți.');
 }
 
+// The teacher may not change a result while the robot grades the upload
+// again, nor a result that a regrade replaced after the page was opened.
+export function notGraded(): ApiError {
+  return new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
+}
+
 export function isUniqueViolation(err: unknown): boolean {
   return /UNIQUE constraint failed/i.test(String(err instanceof Error ? err.message : err));
 }

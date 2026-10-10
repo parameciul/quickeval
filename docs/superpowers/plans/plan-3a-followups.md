@@ -22,9 +22,11 @@ Plan 3b did these. What it left open is in `plan-3b-followups.md`.
 
 ## For Plan 4
 
+Plan 4a did the result page and the flag count on Teste. The class analysis is Plan 4b (`plan-4a-followups.md`).
+
 - The class analysis: the `ClassAnalysis` contract, `GET /api/runner/tests/:id/results`, `POST /api/runner/tests/:id/analysis`, Regenerează, and when the first analysis is asked for (today only a ready or failed analysis is asked for again).
-- The result page: the items, corrections, Verificat, and Regrade (one upload, or all of a test).
-- The flag count on the Teste list (spec §9: "uploaded/class size, graded, flags"). Plan 3a shows the graded count there; the flags show per upload in the uploads table.
+- Done in Plan 4a: the result page: the items, corrections, Verificat, and Regrade (one upload, or all of a test).
+- Done in Plan 4a: the flag count on the Teste list (spec §9: "uploaded/class size, graded, flags"). Plan 3a shows the graded count there; the flags show per upload in the uploads table.
 
 ## Still open
 

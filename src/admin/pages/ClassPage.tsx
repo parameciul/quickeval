@@ -165,7 +165,9 @@ function StudentItem({ classId, student, onChanged }: { classId: number; student
 
   return (
     <li className={student.active ? undefined : 'is-muted'}>
-      <span className="row-name">{student.fullName}</span>
+      <Link className="row-name" to={`/elevi/${student.id}`}>
+        {student.fullName}
+      </Link>
       {!student.active && <span className="tag">a plecat</span>}
       <button type="button" className="button-quiet button-small" onClick={() => setEditing(true)}>
         Redenumește

@@ -5,10 +5,14 @@ import type {
   CreateTestInput,
   EvaluationStart,
   ExerciseListAnswer,
+  ItemCorrection,
+  PagesReview,
+  RegradeAnswer,
   RobotStart,
   RobotStartAnswer,
   Settings,
   StartedTest,
+  StudentHistory,
   StudentRow,
   SubmissionDetail,
   Teacher,
@@ -33,6 +37,7 @@ export interface AdminApi {
   addStudents(classId: number, names: string[]): Promise<StudentRow[]>;
   setStudentActive(classId: number, studentId: number, active: boolean): Promise<StudentRow>;
   renameStudent(studentId: number, fullName: string): Promise<{ id: number; fullName: string }>;
+  getStudentHistory(studentId: number): Promise<StudentHistory>;
   listTests(schoolYear: number): Promise<TestSummary[]>;
   // Returns the code of the new test.
   createTest(input: CreateTestInput): Promise<string>;
@@ -50,9 +55,15 @@ export interface AdminApi {
   retryExerciseList(code: string): Promise<RobotStart | null>;
   // "Pornește robotul": work that a stopped run left in the test.
   startRobot(code: string): Promise<RobotStart>;
+  // "Recorectează tot": graded and failed uploads wait for the robot again.
+  regradeTest(code: string): Promise<RegradeAnswer>;
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
   resetSubmission(submissionId: number): Promise<void>;
   retrySubmission(submissionId: number): Promise<RobotStart | null>;
+  regradeSubmission(submissionId: number, gradedAt: string): Promise<RegradeAnswer>;
+  // The teacher's corrections answer with the whole upload: new total and grade.
+  correctItem(submissionId: number, itemId: number, correction: ItemCorrection): Promise<SubmissionDetail>;
+  reviewPages(submissionId: number, review: PagesReview): Promise<SubmissionDetail>;
   getSettings(): Promise<Settings>;
   updateSettings(maxParallelAgents: number): Promise<Settings>;
   // A new robot key: the only time the app sees it.
@@ -152,6 +163,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<{ student: StudentRow }>('PATCH', `/classes/${classId}/students/${studentId}`, { active })).student,
     renameStudent: async (studentId, fullName) =>
       (await request<{ student: { id: number; fullName: string } }>('PATCH', `/students/${studentId}`, { fullName })).student,
+    getStudentHistory: (studentId) => request<StudentHistory>('GET', `/students/${studentId}/history`),
     listTests: async (schoolYear) => (await request<{ tests: TestSummary[] }>('GET', `/tests?year=${schoolYear}`)).tests,
     createTest: async (input) => (await request<{ code: string }>('POST', '/tests', input)).code,
     getTest: (code) => request<TestDetail>('GET', test(code)),
@@ -173,6 +185,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     retryExerciseList: async (code) =>
       (await request<ExerciseListAnswer>('POST', `${test(code)}/exercise-list/retry`)).robot,
     startRobot: async (code) => (await request<RobotStartAnswer>('POST', `${test(code)}/robot`)).robot,
+    regradeTest: (code) => request<RegradeAnswer>('POST', `${test(code)}/regrade`),
     getSubmission: async (submissionId) =>
       (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,
     resetSubmission: async (submissionId) => {
@@ -180,6 +193,11 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     },
     retrySubmission: async (submissionId) =>
       (await request<{ robot: RobotStart | null }>('POST', `/submissions/${submissionId}/retry`)).robot,
+    regradeSubmission: (submissionId, gradedAt) => request<RegradeAnswer>('POST', `/submissions/${submissionId}/regrade`, { gradedAt }),
+    correctItem: async (submissionId, itemId, correction) =>
+      (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/items/${itemId}`, correction)).submission,
+    reviewPages: async (submissionId, review) =>
+      (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/evaluation`, review)).submission,
     getSettings: async () => (await request<{ settings: Settings }>('GET', '/settings')).settings,
     updateSettings: async (maxParallelAgents) =>
       (await request<{ settings: Settings }>('PATCH', '/settings', { maxParallelAgents })).settings,

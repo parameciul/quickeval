@@ -1,9 +1,15 @@
 import { vi } from 'vitest';
 import type {
   ClassSummary,
+  EvaluationInfo,
+  EvaluationItemInfo,
   EvaluationStart,
+  ItemCorrection,
+  PagesReview,
+  RegradeAnswer,
   RobotStart,
   Settings,
+  StudentHistory,
   StudentRow,
   SubmissionDetail,
   TestDetail,
@@ -14,6 +20,7 @@ import type {
 } from '../../shared/api.ts';
 import { normalizeClassName } from '../../shared/classes.ts';
 import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
+import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
 import { buildTestCode } from '../../shared/tests.ts';
 import { ApiError, type AdminApi } from '../admin/api.ts';
 
@@ -25,6 +32,7 @@ export interface FakeData {
   tests?: TestDetail[];
   submissions?: SubmissionDetail[];
   settings?: Settings;
+  histories?: StudentHistory[];
 }
 
 // The settings of a new installation, for building fake data in tests.
@@ -67,6 +75,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       studentCount: uploads.filter((row) => row.active).length,
       submittedCount: uploads.filter((row) => row.status !== 'none' && row.status !== 'uploading').length,
       gradedCount: uploads.filter((row) => row.status === 'graded').length,
+      flagCount: uploads.reduce((sum, row) => sum + row.flagCount, 0),
       uploadToken: null,
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
@@ -88,10 +97,58 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     submittedAt: null,
     autoSubmitted: false,
     grade: null,
+    gradedAt: overrides.status === 'graded' ? '2026-10-07T09:00:00.000Z' : null,
     flagCount: 0,
     lastError: null,
     ...overrides,
   };
+}
+
+// One graded item, for building fake data in tests.
+export function fakeItem(overrides: Partial<EvaluationItemInfo> & Pick<EvaluationItemInfo, 'id' | 'exerciseId'>): EvaluationItemInfo {
+  return {
+    label: `Exercițiul ${overrides.exerciseId}`,
+    maxPoints: 4.5,
+    aiPoints: overrides.points ?? 4.5,
+    points: 4.5,
+    studentAnswer: '3/4',
+    comment: 'Corect.',
+    confidence: 'high',
+    needsReview: false,
+    reviewReason: '',
+    reviewed: false,
+    changedByTeacher: false,
+    ...overrides,
+  };
+}
+
+// Like the server: the total, the grade, and the items to check follow the items.
+function recount(evaluation: EvaluationInfo): EvaluationInfo {
+  evaluation.total = round2(evaluation.items.reduce((sum, item) => sum + item.points, 0) + evaluation.officePoints);
+  evaluation.grade = gradeOf(evaluation.total, evaluation.maxTotal);
+  evaluation.flagCount =
+    evaluation.items.filter((item) => item.needsReview && !item.reviewed).length +
+    (evaluation.unreadable.length > 0 && !evaluation.pagesReviewed ? 1 : 0);
+  return evaluation;
+}
+
+// A graded result out of 10 with 1 point "din oficiu", for building fake data in tests.
+export function fakeEvaluation(items: EvaluationItemInfo[], overrides: Partial<EvaluationInfo> = {}): EvaluationInfo {
+  return recount({
+    gradedAt: '2026-10-07T09:00:00.000Z',
+    maxTotal: 10,
+    officePoints: 1,
+    total: 0,
+    grade: 0,
+    summary: 'Ai lucrat bine.',
+    strengths: [],
+    recommendations: [],
+    unreadable: [],
+    pagesReviewed: false,
+    flagCount: 0,
+    items,
+    ...overrides,
+  });
 }
 
 export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
@@ -100,6 +157,24 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
   const submissions = (data.submissions ??= []);
   const settings = (data.settings ??= fakeSettings());
   const countActive = (classId: number) => (data.students[classId] ?? []).filter((s) => s.active).length;
+  const findSubmission = (submissionId: number) => {
+    const found = submissions.find((s) => s.id === submissionId);
+    if (!found) throw notFound();
+    return found;
+  };
+  // The uploads table shows the grade and the items to check of the upload.
+  const syncRow = (submission: SubmissionDetail) => {
+    for (const detail of tests) {
+      const row = detail.uploads.find((u) => u.submissionId === submission.id);
+      if (row) {
+        Object.assign(row, {
+          status: submission.status,
+          grade: submission.evaluation?.grade ?? null,
+          flagCount: submission.evaluation?.flagCount ?? 0,
+        });
+      }
+    }
+  };
   const findTest = (code: string) => {
     const found = tests.find((t) => t.test.code === code);
     if (!found) throw notFound();
@@ -149,6 +224,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         if (student) student.fullName = fullName;
       }
       return { id: studentId, fullName };
+    }),
+    getStudentHistory: vi.fn(async (studentId: number) => {
+      const found = data.histories?.find((history) => history.student.id === studentId);
+      if (!found) throw notFound();
+      return structuredClone(found);
     }),
     listTests: vi.fn(async (schoolYear: number) =>
       tests.filter((t) => t.test.schoolYear === schoolYear).map((t) => summaryOf(t.test)),
@@ -215,21 +295,32 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.exerciseList = { status: 'none', message: null };
       return found.status === 'evaluating' ? 'next_check' : null;
     }),
+    // Like the server: graded and failed uploads wait for the robot again.
+    regradeTest: vi.fn(async (code: string): Promise<RegradeAnswer> => {
+      const found = findTest(code);
+      const again = (status: string) => status === 'graded' || status === 'failed';
+      const rows = found.uploads.filter((row) => again(row.status));
+      if (rows.length === 0) throw new ApiError(409, 'nothing_to_regrade', 'Testul nu are lucrări corectate.');
+      for (const row of rows) Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0, lastError: null });
+      if (found.test.status === 'done') found.test.status = 'evaluating';
+      for (const detail of submissions) {
+        if (detail.testCode === code && again(detail.status)) {
+          Object.assign(detail, { status: 'submitted', testStatus: found.test.status, evaluation: null, lastError: null });
+        }
+      }
+      return { count: rows.length, testStatus: found.test.status, robot: found.test.status === 'evaluating' ? 'next_check' : null };
+    }),
     startRobot: vi.fn(async (code: string): Promise<RobotStart> => {
       if (findTest(code).test.status !== 'evaluating') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
       return 'next_check';
     }),
-    getSubmission: vi.fn(async (submissionId: number) => {
-      const found = submissions.find((s) => s.id === submissionId);
-      if (!found) throw notFound();
-      return structuredClone(found);
-    }),
+    getSubmission: vi.fn(async (submissionId: number) => structuredClone(findSubmission(submissionId))),
     resetSubmission: vi.fn(async (submissionId: number) => {
       for (const detail of tests) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) {
           const cleared = { submissionId: null, status: 'none', fileCount: 0, startedAt: null, submittedAt: null, autoSubmitted: false };
-          Object.assign(row, { ...cleared, grade: null, flagCount: 0, lastError: null });
+          Object.assign(row, { ...cleared, grade: null, gradedAt: null, flagCount: 0, lastError: null });
         }
       }
       const index = submissions.findIndex((s) => s.id === submissionId);
@@ -240,7 +331,54 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) Object.assign(row, { status: 'submitted', lastError: null });
       }
+      const found = submissions.find((s) => s.id === submissionId);
+      if (found) Object.assign(found, { status: 'submitted', lastError: null });
       return 'next_check';
+    }),
+    // Like the server: the upload must hold the grading the page shows, and a
+    // finished test goes back to evaluation. The upload is a row of a test's
+    // uploads table, a detailed upload, or both.
+    regradeSubmission: vi.fn(async (submissionId: number, gradedAt: string): Promise<RegradeAnswer> => {
+      const found = submissions.find((s) => s.id === submissionId);
+      const test = tests.find((t) => t.uploads.some((u) => u.submissionId === submissionId) || t.test.code === found?.testCode);
+      const row = test?.uploads.find((u) => u.submissionId === submissionId);
+      const status = found?.status ?? row?.status;
+      if (status === undefined) throw notFound();
+      const shown = found ? found.evaluation?.gradedAt : row?.gradedAt;
+      if (status !== 'graded' || shown !== gradedAt) {
+        throw new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
+      }
+      const before = test?.test.status ?? found!.testStatus;
+      const testStatus = before === 'done' ? 'evaluating' : before;
+      if (found) Object.assign(found, { status: 'submitted', testStatus, evaluation: null });
+      if (row) Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0 });
+      if (test) test.test.status = testStatus;
+      return { count: 1, testStatus, robot: testStatus === 'evaluating' ? 'next_check' : null };
+    }),
+    // Like the server: the item must be in the result of the upload.
+    correctItem: vi.fn(async (submissionId: number, itemId: number, change: ItemCorrection) => {
+      const found = findSubmission(submissionId);
+      const shown = found.evaluation?.gradedAt === change.gradedAt ? found.evaluation : undefined;
+      const item = shown?.items.find((i) => i.id === itemId);
+      if (!found.evaluation || !item) throw new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
+      if (change.points !== undefined && !isValidCorrection(change.points, item.maxPoints)) {
+        throw new ApiError(400, 'invalid_points', `Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
+      }
+      if (change.points !== undefined) item.points = change.points;
+      if (change.comment !== undefined) item.comment = change.comment;
+      if (change.points !== undefined || change.comment !== undefined) item.changedByTeacher = true;
+      if (change.reviewed !== undefined) item.reviewed = change.reviewed;
+      recount(found.evaluation);
+      syncRow(found);
+      return structuredClone(found);
+    }),
+    reviewPages: vi.fn(async (submissionId: number, review: PagesReview) => {
+      const found = findSubmission(submissionId);
+      if (found.evaluation?.gradedAt !== review.gradedAt) throw new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
+      found.evaluation.pagesReviewed = review.pagesReviewed;
+      recount(found.evaluation);
+      syncRow(found);
+      return structuredClone(found);
     }),
     getSettings: vi.fn(async () => structuredClone(settings)),
     updateSettings: vi.fn(async (maxParallelAgents: number) => {

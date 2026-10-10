@@ -45,6 +45,7 @@ export function TestsPage() {
                 <span className="card-count">
                   Trimise: {test.submittedCount} din {test.studentCount}
                   {test.gradedCount > 0 && ` · corectate: ${test.gradedCount}`}
+                  {test.flagCount > 0 && ` · de verificat: ${test.flagCount}`}
                 </span>
               )}
             </li>

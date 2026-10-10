@@ -6,6 +6,7 @@ import {
   renameTestBody,
   type EvaluationStart,
   type ExerciseListAnswer,
+  type RegradeAnswer,
   type RobotStartAnswer,
   type TestFileAnswer,
 } from '../../shared/api.ts';
@@ -15,6 +16,7 @@ import {
   acceptExerciseList,
   cancelSchedule,
   hasUploadedFiles,
+  regradeTest,
   retryExerciseList,
   scheduleEvaluation,
   startEvaluationNow,
@@ -120,6 +122,17 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       throw new ApiError(409, 'already_open', 'Încărcarea este deja deschisă.');
     }
     return c.json({ status: 'open' });
+  });
+
+  // "Recorectează tot": the robot grades every graded upload again, and every
+  // upload whose grading failed; results and corrections go.
+  routes.post('/:code/regrade', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const regraded = await regradeTest(c.env.DB, c.var.teacher.id, test.id, nowIso());
+    if (!regraded) throw notFound();
+    if (regraded.count === 0) throw new ApiError(409, 'nothing_to_regrade', 'Testul nu are lucrări corectate.');
+    const robot = regraded.status === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ count: regraded.count, testStatus: regraded.status, robot } satisfies RegradeAnswer);
   });
 
   // Start evaluation (spec §8.4): now, or at a later time. Now: the uploads

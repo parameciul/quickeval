@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { normalizeClassName } from './classes.ts';
 import type { TestFileKind } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
+import { TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
 import { cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
@@ -89,6 +90,43 @@ export const updateSettingsBody = z.object({
     .max(MAX_PARALLEL_AGENTS, { message: PARALLEL_MESSAGE }),
 });
 
+const POINTS_MESSAGE = 'Scrie punctajul ca număr, de exemplu 2,5.';
+
+// The grading that the teacher's page shows (`EvaluationInfo.gradedAt`). Ids of
+// deleted rows come back, so a write from a page opened before a regrade or a
+// reset names the grading it means, and changes nothing if it is gone.
+const shownGrading = z.string({ message: 'Reîncarcă pagina.' });
+
+// The teacher's correction of one graded item (spec §14.1). The server checks
+// the points against the item's maximum with isValidCorrection().
+export const correctItemBody = z
+  .object({
+    gradedAt: shownGrading,
+    points: z.number({ message: POINTS_MESSAGE }).optional(),
+    comment: z
+      .string()
+      .transform((raw) => raw.trim())
+      .pipe(z.string().max(TEXT_LIMITS.comment, { message: `Comentariul are cel mult ${TEXT_LIMITS.comment} de caractere.` }))
+      .optional(),
+    // True: the teacher checked the item. False takes the check back.
+    reviewed: z.boolean().optional(),
+  })
+  .refine((body) => body.points !== undefined || body.comment !== undefined || body.reviewed !== undefined, {
+    message: 'Nu ai schimbat nimic.',
+  });
+
+export type ItemCorrection = z.output<typeof correctItemBody>;
+// What a correction changes, without the grading it names.
+export type ItemChange = Omit<ItemCorrection, 'gradedAt'>;
+
+// The teacher checked the pages that the robot could not read (or takes it back).
+export const reviewPagesBody = z.object({ gradedAt: shownGrading, pagesReviewed: z.boolean() });
+
+export type PagesReview = z.output<typeof reviewPagesBody>;
+
+// "Recorectează" on one upload: the grading the page shows goes.
+export const regradeBody = z.object({ gradedAt: shownGrading });
+
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({
   studentId: z
@@ -129,6 +167,37 @@ export interface ClassDetail {
   tests: TestSummary[];
 }
 
+// A class the student is in, or was in (`active` false: the student left).
+export interface StudentClass {
+  id: number;
+  name: string;
+  schoolYear: number;
+  active: boolean;
+}
+
+// One graded test of a student.
+export interface StudentResult {
+  submissionId: number;
+  testCode: string;
+  testTitle: string;
+  className: string;
+  schoolYear: number;
+  // The date and hour of the test.
+  date: string;
+  // Out of 10.
+  grade: number;
+  // Items of the result that the teacher has not checked yet.
+  flagCount: number;
+}
+
+// The student page (spec §9): every graded test of the student, in every
+// class and school year, newest first.
+export interface StudentHistory {
+  student: { id: number; fullName: string };
+  classes: StudentClass[];
+  results: StudentResult[];
+}
+
 export interface TestSummary {
   code: string;
   title: string;
@@ -148,6 +217,8 @@ export interface TestSummary {
   studentCount: number;
   submittedCount: number;
   gradedCount: number;
+  // Items to check in all graded uploads, counted as in the uploads table.
+  flagCount: number;
 }
 
 export interface TestFileInfo {
@@ -184,6 +255,8 @@ export interface UploadRow {
   autoSubmitted: boolean;
   // Out of 10, once graded.
   grade: number | null;
+  // The grading the row shows (`EvaluationInfo.gradedAt`), once graded.
+  gradedAt: string | null;
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;
@@ -249,6 +322,14 @@ export interface ExerciseListAnswer {
   robot: RobotStart | null;
 }
 
+// "Recorectează": how many uploads wait for the robot again. `robot` is null
+// while the test is open: they are graded after Start evaluation.
+export interface RegradeAnswer {
+  count: number;
+  testStatus: TestStatus;
+  robot: RobotStart | null;
+}
+
 // A new test or barem file: `robot` is set when a new barem needs a new
 // exercise list while the test is in evaluation, and null otherwise.
 export interface TestFileAnswer {
@@ -299,15 +380,62 @@ export interface SessionStart {
   session: UploadSession;
 }
 
+// One exercise of a graded upload. `aiPoints` are the robot's points;
+// `points` are the final points, which the teacher may change.
+export interface EvaluationItemInfo {
+  id: number;
+  exerciseId: string;
+  label: string;
+  maxPoints: number;
+  aiPoints: number;
+  points: number;
+  studentAnswer: string;
+  comment: string;
+  confidence: Confidence;
+  // The robot asked the teacher to check this item, and why.
+  needsReview: boolean;
+  reviewReason: string;
+  // The teacher marked the item as checked.
+  reviewed: boolean;
+  changedByTeacher: boolean;
+}
+
+// The graded result of an upload (spec §14.1).
+export interface EvaluationInfo {
+  // When the robot wrote this result. The teacher's corrections send it back.
+  gradedAt: string;
+  maxTotal: number;
+  officePoints: number;
+  total: number;
+  // Out of 10.
+  grade: number;
+  summary: string;
+  strengths: string[];
+  recommendations: string[];
+  // Pages the robot could not read, as the robot named them ("student/page-02.jpg").
+  unreadable: string[];
+  // The teacher checked those pages.
+  pagesReviewed: boolean;
+  // Items to check that the teacher has not checked yet, plus one for pages
+  // that could not be read and are not checked yet.
+  flagCount: number;
+  items: EvaluationItemInfo[];
+}
+
 export interface SubmissionDetail {
   id: number;
   testCode: string;
   testTitle: string;
+  testStatus: TestStatus;
   studentId: number;
   studentName: string;
   status: Exclude<UploadStatus, 'none'>;
   autoSubmitted: boolean;
   startedAt: string;
   submittedAt: string | null;
+  // Why grading failed, for the teacher.
+  lastError: string | null;
   files: SubmissionFile[];
+  // Null until the upload is graded.
+  evaluation: EvaluationInfo | null;
 }

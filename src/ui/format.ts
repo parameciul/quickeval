@@ -1,4 +1,5 @@
 import type { RobotStart, UploadStatus } from '../../shared/api.ts';
+import type { Confidence } from '../../shared/schemas.ts';
 import type { TestStatus } from '../../shared/tests.ts';
 
 // Romanian counts: "1 lucrare", "2 lucrări", "20 de lucrări" (20 or more,
@@ -67,4 +68,24 @@ const ROBOT_START: Record<RobotStart, string> = {
 // What the teacher reads after she starts grading.
 export function robotStartMessage(robot: RobotStart): string {
   return ROBOT_START[robot];
+}
+
+const CONFIDENCE: Record<Confidence, string> = { high: 'Mare', medium: 'Medie', low: 'Mică' };
+
+// How sure the robot is of an item's points.
+export function confidenceLabel(confidence: Confidence): string {
+  return CONFIDENCE[confidence];
+}
+
+// The robot names the pages of an upload "student/page-02.jpg", in upload
+// order, as the result page numbers them: "Pagina 2".
+export function pageLabel(name: string): string {
+  const match = /page-(\d+)\.[a-z]+$/.exec(name);
+  return match ? `Pagina ${Number(match[1])}` : name;
+}
+
+// Points as the teacher types them: "2,5" or "2.5". Null for anything else.
+export function parsePoints(raw: string): number | null {
+  const text = raw.trim().replace(',', '.');
+  return /^\d+(\.\d+)?$/.test(text) ? Number(text) : null;
 }

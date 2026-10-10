@@ -1,6 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { StudentRow } from '../../shared/api.ts';
+import type { StudentClass, StudentHistory, StudentResult, StudentRow } from '../../shared/api.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
+import { flagCountSql } from './evaluations.ts';
 
 // Adds new students and enrolls them in the class with a fixed number of
 // queries, whatever the number of names: the free plan limits the queries per
@@ -83,4 +84,62 @@ export async function renameStudent(
     .bind(fullName, studentId, teacherId)
     .first<{ id: number }>();
   return row ? { id: row.id, fullName } : null;
+}
+
+// The student page: the student, the student's classes, and every graded test,
+// newest first. Null when the student is not the teacher's.
+export async function getStudentHistory(db: D1Database, teacherId: number, studentId: number): Promise<StudentHistory | null> {
+  const [student, classes, results] = await db.batch<Record<string, unknown>>([
+    db.prepare('SELECT id, full_name FROM students WHERE id = ? AND teacher_id = ?').bind(studentId, teacherId),
+    db
+      .prepare(
+        `SELECT c.id, c.name, c.school_year, e.active FROM enrollments e JOIN classes c ON c.id = e.class_id
+         WHERE e.student_id = ? AND c.teacher_id = ?
+         ORDER BY c.school_year DESC, c.name`,
+      )
+      .bind(studentId, teacherId),
+    db
+      .prepare(
+        `SELECT s.id AS submission_id, t.code, t.title, c.name AS class_name, c.school_year,
+           COALESCE(t.started_at, t.created_at) AS date, ev.grade, ${flagCountSql('ev')} AS flag_count
+         FROM submissions s
+         JOIN tests t ON t.id = s.test_id
+         JOIN classes c ON c.id = t.class_id
+         JOIN evaluations ev ON ev.submission_id = s.id
+         WHERE s.student_id = ? AND t.teacher_id = ? AND s.status = 'graded'
+         ORDER BY date DESC, t.id DESC`,
+      )
+      .bind(studentId, teacherId),
+  ]);
+  const row = student?.results[0] as { id: number; full_name: string } | undefined;
+  if (!row) return null;
+  return {
+    student: { id: row.id, fullName: row.full_name },
+    classes: ((classes?.results ?? []) as { id: number; name: string; school_year: number; active: number }[]).map(
+      (cls): StudentClass => ({ id: cls.id, name: cls.name, schoolYear: cls.school_year, active: cls.active === 1 }),
+    ),
+    results: (
+      (results?.results ?? []) as {
+        submission_id: number;
+        code: string;
+        title: string;
+        class_name: string;
+        school_year: number;
+        date: string;
+        grade: number;
+        flag_count: number;
+      }[]
+    ).map(
+      (result): StudentResult => ({
+        submissionId: result.submission_id,
+        testCode: result.code,
+        testTitle: result.title,
+        className: result.class_name,
+        schoolYear: result.school_year,
+        date: result.date,
+        grade: result.grade,
+        flagCount: result.flag_count,
+      }),
+    ),
+  };
 }

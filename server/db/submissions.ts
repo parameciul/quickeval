@@ -1,5 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { SubmissionDetail, SubmissionFile, UploadStatus } from '../../shared/api.ts';
+import type { TestStatus } from '../../shared/tests.ts';
+import { getEvaluation } from './evaluations.ts';
 import type { StoredFile } from './tests.ts';
 
 interface FileRow {
@@ -33,8 +35,8 @@ export async function listSubmissionFiles(db: D1Database, submissionId: number):
   return results.map(toFile);
 }
 
-// One upload as the teacher sees it, with its files. Null when it is not an
-// upload of one of the teacher's tests.
+// One upload as the teacher sees it, with its files and its graded result.
+// Null when it is not an upload of one of the teacher's tests.
 export async function getTeacherSubmission(
   db: D1Database,
   teacherId: number,
@@ -42,7 +44,8 @@ export async function getTeacherSubmission(
 ): Promise<{ detail: SubmissionDetail; files: SubmissionFileRecord[] } | null> {
   const row = await db
     .prepare(
-      `SELECT s.id, s.status, s.auto_submitted, s.started_at, s.submitted_at, s.student_id, st.full_name, t.code, t.title
+      `SELECT s.id, s.status, s.auto_submitted, s.started_at, s.submitted_at, s.last_error, s.student_id, st.full_name,
+         t.code, t.title, t.status AS test_status
        FROM submissions s
        JOIN tests t ON t.id = s.test_id
        JOIN students st ON st.id = s.student_id
@@ -55,10 +58,12 @@ export async function getTeacherSubmission(
       auto_submitted: number;
       started_at: string;
       submitted_at: string | null;
+      last_error: string | null;
       student_id: number;
       full_name: string;
       code: string;
       title: string;
+      test_status: TestStatus;
     }>();
   if (!row) return null;
   const files = await listSubmissionFiles(db, row.id);
@@ -67,13 +72,16 @@ export async function getTeacherSubmission(
       id: row.id,
       testCode: row.code,
       testTitle: row.title,
+      testStatus: row.test_status,
       studentId: row.student_id,
       studentName: row.full_name,
       status: row.status,
       autoSubmitted: row.auto_submitted === 1,
       startedAt: row.started_at,
       submittedAt: row.submitted_at,
+      lastError: row.last_error,
       files: files.map(publicFile),
+      evaluation: await getEvaluation(db, row.id),
     },
     files,
   };

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -35,16 +35,94 @@ describe('GET /api/admin/submissions/:id', () => {
       id: submissionId,
       testCode: code,
       testTitle: 'Fracții',
+      testStatus: 'draft',
       studentId,
       studentName: 'Pop Ion',
       status: 'submitted',
       autoSubmitted: false,
       startedAt: '2026-10-06T08:00:00.000Z',
       submittedAt: '2026-10-06T08:30:00.000Z',
+      lastError: null,
       files: [
         { id: first, name: 'poza1.jpg', contentType: 'image/jpeg', size: 100, position: 1 },
         { id: second, name: 'poza2.jpg', contentType: 'image/jpeg', size: 100, position: 2 },
       ],
+      evaluation: null,
+    });
+  });
+
+  it('returns the graded result with its items in barem order', async () => {
+    await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(submissionId).run();
+    const evaluationId = await addEvaluation(api, submissionId, {
+      grade: 8.5,
+      items: [{ needsReview: true }, { needsReview: true, reviewed: true }, {}],
+      unreadable: ['student/page-02.jpg'],
+    });
+    await api.db
+      .prepare(`UPDATE evaluations SET strengths_json = '["Fracții"]', recommendations_json = '["Exersează ecuațiile."]' WHERE id = ?`)
+      .bind(evaluationId)
+      .run();
+    // The first item moves to the end of the barem.
+    await api.db
+      .prepare("UPDATE evaluation_items SET position = 9, points = 0.5, changed_by_teacher = 1 WHERE evaluation_id = ? AND exercise_id = 'E1'")
+      .bind(evaluationId)
+      .run();
+    const itemId = async (exerciseId: string) =>
+      (await api.db.prepare('SELECT id FROM evaluation_items WHERE exercise_id = ?').bind(exerciseId).first<{ id: number }>())!.id;
+    const item = { label: 'Exercițiu', maxPoints: 1, aiPoints: 1, points: 1, studentAnswer: 'r', comment: 'c', confidence: 'high' };
+
+    const res = await api.request('GET', `/api/admin/submissions/${submissionId}`);
+    expect(res.body.submission.status).toBe('graded');
+    expect(res.body.submission.evaluation).toEqual({
+      gradedAt: '2026-10-07T09:00:00.000Z',
+      maxTotal: 10,
+      officePoints: 1,
+      total: 8.5,
+      grade: 8.5,
+      summary: 'Rezumat.',
+      strengths: ['Fracții'],
+      recommendations: ['Exersează ecuațiile.'],
+      unreadable: ['student/page-02.jpg'],
+      pagesReviewed: false,
+      // E1 is not checked yet, and the unreadable page counts once.
+      flagCount: 2,
+      items: [
+        { ...item, id: await itemId('E2'), exerciseId: 'E2', needsReview: true, reviewReason: 'Verifică', reviewed: true, changedByTeacher: false },
+        { ...item, id: await itemId('E3'), exerciseId: 'E3', needsReview: false, reviewReason: '', reviewed: false, changedByTeacher: false },
+        {
+          ...item,
+          id: await itemId('E1'),
+          exerciseId: 'E1',
+          points: 0.5,
+          needsReview: true,
+          reviewReason: 'Verifică',
+          reviewed: false,
+          changedByTeacher: true,
+        },
+      ],
+    });
+  });
+
+  it('stops counting the unreadable pages once the teacher checked them', async () => {
+    await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(submissionId).run();
+    const evaluationId = await addEvaluation(api, submissionId, { unreadable: ['student/page-01.jpg'] });
+    await api.db.prepare("UPDATE evaluations SET pages_reviewed_at = '2026-10-08T10:00:00.000Z' WHERE id = ?").bind(evaluationId).run();
+    const res = await api.request('GET', `/api/admin/submissions/${submissionId}`);
+    expect(res.body.submission.evaluation).toMatchObject({ pagesReviewed: true, flagCount: 0 });
+  });
+
+  it('gives the test status and the error of a failed grading', async () => {
+    await api.db
+      .prepare("UPDATE submissions SET status = 'failed', last_error = 'Robotul nu a terminat la timp.' WHERE id = ?")
+      .bind(submissionId)
+      .run();
+    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(code).run();
+    const res = await api.request('GET', `/api/admin/submissions/${submissionId}`);
+    expect(res.body.submission).toMatchObject({
+      status: 'failed',
+      testStatus: 'done',
+      lastError: 'Robotul nu a terminat la timp.',
+      evaluation: null,
     });
   });
 

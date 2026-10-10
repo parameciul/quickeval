@@ -1,16 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import type { SubmissionFile } from '../../../shared/api.ts';
+import type { SubmissionDetail } from '../../../shared/api.ts';
 import { parsePositiveId } from '../../../shared/ids.ts';
 import { normalizeTestCode } from '../../../shared/tests.ts';
-import { formatDateTime, formatFileSize, uploadStatusLabel } from '../../ui/format.ts';
-import { submissionFileUrl } from '../api.ts';
+import { formatDateTime, robotStartMessage, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { GradedResult } from '../submissionPage/GradedResult.tsx';
+import { PageFiles } from '../submissionPage/PageFiles.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
-// /teste/:code/elevi/:submissionId: one student's pages, in upload order.
-// Plan 4 adds the graded result next to them.
+// While the robot grades the upload, the page asks for news every 10 seconds.
+export function resultRefreshInterval(submission: SubmissionDetail | undefined): number | false {
+  if (!submission) return false;
+  const waits = submission.status === 'grading' || (submission.status === 'submitted' && submission.testStatus === 'evaluating');
+  return waits ? 10_000 : false;
+}
+
+// /teste/:code/elevi/:submissionId: one student's pages and the graded result
+// (spec §14.1). On a wide screen the pages stand left of the result.
 export function SubmissionPage() {
   const params = useParams();
   const code = normalizeTestCode(params.code ?? '');
@@ -23,27 +32,66 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   const api = useApi();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const detail = useQuery({ queryKey: ['submission', submissionId], queryFn: () => api.getSubmission(submissionId) });
+  // What happened after Recorectează or Reîncearcă.
+  const [notice, setNotice] = useState<string | null>(null);
+  const detail = useQuery({
+    queryKey: ['submission', submissionId],
+    queryFn: () => api.getSubmission(submissionId),
+    refetchInterval: (query) => resultRefreshInterval(query.state.data),
+  });
+  // The test page and the test list count grades and items to check.
+  const refreshLists = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['test', code] });
+    await queryClient.invalidateQueries({ queryKey: ['tests'] });
+  };
+  const saved = async (submission: SubmissionDetail) => {
+    queryClient.setQueryData(['submission', submissionId], submission);
+    await refreshLists();
+  };
+  const gradeAgain = async (message: string | null) => {
+    setNotice(message);
+    await queryClient.invalidateQueries({ queryKey: ['submission', submissionId] });
+    await refreshLists();
+  };
   const reset = useMutation({
     mutationFn: () => api.resetSubmission(submissionId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['test', code] });
+      queryClient.removeQueries({ queryKey: ['submission', submissionId] });
+      await refreshLists();
       navigate(`/teste/${code}`);
     },
   });
+  const regrade = useMutation({
+    mutationFn: (gradedAt: string) => api.regradeSubmission(submissionId, gradedAt),
+    onSuccess: (answer) =>
+      gradeAgain(answer.robot ? robotStartMessage(answer.robot) : 'Lucrarea se corectează din nou după ce pornești evaluarea.'),
+  });
+  const retry = useMutation({
+    mutationFn: () => api.retrySubmission(submissionId),
+    onSuccess: (robot) => gradeAgain(robot ? robotStartMessage(robot) : null),
+  });
 
   if (detail.isPending) return <p>Se încarcă…</p>;
-  if (detail.error) return <ErrorMessage error={detail.error} />;
+  // A failed refresh keeps the page and says why above it.
+  if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
   const submission = detail.data;
   // The address names another test than the upload belongs to.
   if (submission.testCode !== code) return <NotFoundPage />;
+  // The news after Recorectează or Reîncearcă holds only until the result is back.
+  const showNotice = notice !== null && (submission.status === 'submitted' || submission.status === 'grading');
+  // Recorectează names the grading the page shows.
+  const gradedAt = submission.status === 'graded' ? (submission.evaluation?.gradedAt ?? null) : null;
 
   return (
     <section>
       <p>
         <Link to={`/teste/${code}`}>← {code}</Link>
       </p>
+      {detail.isRefetchError && <ErrorMessage error={detail.error} />}
       <h1>{submission.studentName}</h1>
+      <p>
+        <Link to={`/elevi/${submission.studentId}`}>Toate notele elevului</Link>
+      </p>
       <p className="lead-line">
         {submission.testCode} · {submission.testTitle} · {uploadStatusLabel(submission.status)}
         {submission.autoSubmitted && <span className="tag">Fără confirmare</span>}
@@ -52,16 +100,47 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
         Început {formatDateTime(submission.startedAt)}
         {submission.submittedAt && ` · trimis ${formatDateTime(submission.submittedAt)}`}
       </p>
+      {showNotice && <p role="status">{notice}</p>}
 
-      <h2>Fișiere ({submission.files.length})</h2>
-      {submission.files.length === 0 ? (
-        <p className="hint">Elevul nu a încărcat încă niciun fișier.</p>
-      ) : (
-        <ol className="page-files">
-          {submission.files.map((file, index) => (
-            <PageFile key={file.id} submissionId={submissionId} file={file} number={index + 1} />
-          ))}
-        </ol>
+      <div className="result-layout">
+        <div className="result-files">
+          <h2>Fișiere ({submission.files.length})</h2>
+          <PageFiles submissionId={submissionId} files={submission.files} />
+        </div>
+        <div>
+          <h2>Rezultatul</h2>
+          {submission.status === 'graded' && submission.evaluation ? (
+            <GradedResult submissionId={submissionId} evaluation={submission.evaluation} onSaved={saved} />
+          ) : submission.status === 'failed' ? (
+            <div className="warning">
+              <p>Corectarea a eșuat. {submission.lastError}</p>
+              <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
+                Reîncearcă
+              </button>
+              {retry.error && <ErrorMessage error={retry.error} />}
+            </div>
+          ) : (
+            <p className="hint">{waitingText(submission)}</p>
+          )}
+        </div>
+      </div>
+
+      {gradedAt !== null && (
+        <>
+          <h2>Recorectează</h2>
+          <p className="hint">Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.</p>
+          <button
+            type="button"
+            className="button-quiet"
+            disabled={regrade.isPending}
+            onClick={() => {
+              if (window.confirm(`Recorectezi lucrarea elevului ${submission.studentName}? Corecturile tale se pierd.`)) regrade.mutate(gradedAt);
+            }}
+          >
+            Recorectează
+          </button>
+          {regrade.error && <ErrorMessage error={regrade.error} />}
+        </>
       )}
 
       <h2>Resetează încărcarea</h2>
@@ -81,25 +160,10 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   );
 }
 
-function PageFile({ submissionId, file, number }: { submissionId: number; file: SubmissionFile; number: number }) {
-  const url = submissionFileUrl(submissionId, file.id);
-  const caption = `Pagina ${number}: ${file.name} · ${formatFileSize(file.size)}`;
-  if (file.contentType.startsWith('image/')) {
-    return (
-      <li>
-        <a href={url} target="_blank" rel="noopener">
-          <img src={url} alt={`Pagina ${number}`} loading="lazy" />
-        </a>
-        <p className="hint">{caption}</p>
-      </li>
-    );
-  }
-  return (
-    <li>
-      <a href={url} target="_blank" rel="noopener">
-        Deschide PDF-ul
-      </a>
-      <p className="hint">{caption}</p>
-    </li>
-  );
+// Where an upload without a result is.
+function waitingText(submission: SubmissionDetail): string {
+  if (submission.status === 'uploading') return 'Elevul nu a trimis încă lucrarea.';
+  if (submission.status === 'grading') return 'Robotul corectează acum lucrarea.';
+  if (submission.testStatus === 'evaluating') return 'Lucrarea așteaptă robotul.';
+  return 'Lucrarea se corectează după ce pornești evaluarea.';
 }
