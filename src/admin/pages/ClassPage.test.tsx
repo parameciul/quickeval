@@ -36,6 +36,7 @@ describe('ClassPage', () => {
     renderAdmin('/clase/1', oneClass());
     expect(await screen.findByRole('heading', { name: 'Clasa 6E2 · 2026-2027' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Elevi (1 elev)' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Pop Ion' })).toHaveAttribute('href', '/elevi/10');
     const left = screen.getByText('Ionescu Ana').closest('li')!;
     expect(within(left).getByText('a plecat')).toBeInTheDocument();
   });

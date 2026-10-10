@@ -5,6 +5,7 @@ import { ClassPage } from './pages/ClassPage.tsx';
 import { NewTestPage } from './pages/NewTestPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
+import { StudentPage } from './pages/StudentPage.tsx';
 import { SubmissionPage } from './pages/SubmissionPage.tsx';
 import { TestPage } from './pages/TestPage.tsx';
 import { TestsPage } from './pages/TestsPage.tsx';
@@ -20,6 +21,7 @@ export function AppRoutes() {
         <Route path="teste/:code/elevi/:submissionId" element={<SubmissionPage />} />
         <Route path="clase" element={<ClassesPage />} />
         <Route path="clase/:id" element={<ClassPage />} />
+        <Route path="elevi/:id" element={<StudentPage />} />
         <Route path="setari" element={<SettingsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

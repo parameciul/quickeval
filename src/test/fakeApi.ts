@@ -8,6 +8,7 @@ import type {
   RegradeAnswer,
   RobotStart,
   Settings,
+  StudentHistory,
   StudentRow,
   SubmissionDetail,
   TestDetail,
@@ -30,6 +31,7 @@ export interface FakeData {
   tests?: TestDetail[];
   submissions?: SubmissionDetail[];
   settings?: Settings;
+  histories?: StudentHistory[];
 }
 
 // The settings of a new installation, for building fake data in tests.
@@ -219,6 +221,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         if (student) student.fullName = fullName;
       }
       return { id: studentId, fullName };
+    }),
+    getStudentHistory: vi.fn(async (studentId: number) => {
+      const found = data.histories?.find((history) => history.student.id === studentId);
+      if (!found) throw notFound();
+      return structuredClone(found);
     }),
     listTests: vi.fn(async (schoolYear: number) =>
       tests.filter((t) => t.test.schoolYear === schoolYear).map((t) => summaryOf(t.test)),

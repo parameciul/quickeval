@@ -11,6 +11,7 @@ import type {
   RobotStartAnswer,
   Settings,
   StartedTest,
+  StudentHistory,
   StudentRow,
   SubmissionDetail,
   Teacher,
@@ -35,6 +36,7 @@ export interface AdminApi {
   addStudents(classId: number, names: string[]): Promise<StudentRow[]>;
   setStudentActive(classId: number, studentId: number, active: boolean): Promise<StudentRow>;
   renameStudent(studentId: number, fullName: string): Promise<{ id: number; fullName: string }>;
+  getStudentHistory(studentId: number): Promise<StudentHistory>;
   listTests(schoolYear: number): Promise<TestSummary[]>;
   // Returns the code of the new test.
   createTest(input: CreateTestInput): Promise<string>;
@@ -160,6 +162,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<{ student: StudentRow }>('PATCH', `/classes/${classId}/students/${studentId}`, { active })).student,
     renameStudent: async (studentId, fullName) =>
       (await request<{ student: { id: number; fullName: string } }>('PATCH', `/students/${studentId}`, { fullName })).student,
+    getStudentHistory: (studentId) => request<StudentHistory>('GET', `/students/${studentId}/history`),
     listTests: async (schoolYear) => (await request<{ tests: TestSummary[] }>('GET', `/tests?year=${schoolYear}`)).tests,
     createTest: async (input) => (await request<{ code: string }>('POST', '/tests', input)).code,
     getTest: (code) => request<TestDetail>('GET', test(code)),

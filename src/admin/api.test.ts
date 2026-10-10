@@ -93,11 +93,13 @@ describe('createApiClient results', () => {
     expect(await api.reviewPages(5, true)).toEqual(submission);
     expect(await api.regradeSubmission(5)).toEqual(regraded);
     expect(await api.regradeTest('6E2-26T1')).toEqual(regraded);
+    expect(await api.getStudentHistory(10)).toEqual({ submission });
     expect(fetchImpl.mock.calls.map(([url, init]) => [init!.method, url, init!.body])).toEqual([
       ['PATCH', '/api/admin/evaluation-items/31', '{"points":3.5,"reviewed":true}'],
       ['PATCH', '/api/admin/submissions/5/evaluation', '{"pagesReviewed":true}'],
       ['POST', '/api/admin/submissions/5/regrade', undefined],
       ['POST', '/api/admin/tests/6E2-26T1/regrade', undefined],
+      ['GET', '/api/admin/students/10/history', undefined],
     ]);
   });
 });

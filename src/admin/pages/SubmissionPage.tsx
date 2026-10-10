@@ -85,6 +85,9 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
       </p>
       {detail.isRefetchError && <ErrorMessage error={detail.error} />}
       <h1>{submission.studentName}</h1>
+      <p>
+        <Link to={`/elevi/${submission.studentId}`}>Toate notele elevului</Link>
+      </p>
       <p className="lead-line">
         {submission.testCode} · {submission.testTitle} · {uploadStatusLabel(submission.status)}
         {submission.autoSubmitted && <span className="tag">Fără confirmare</span>}

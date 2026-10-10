@@ -82,6 +82,7 @@ describe('SubmissionPage', () => {
     expect(screen.getByText(/6E2-26T1 · Fracții · Trimis/)).toBeInTheDocument();
     expect(screen.getByText('Început 6 oct. 2026, 10:20 · trimis 6 oct. 2026, 10:40')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '← 6E2-26T1' })).toHaveAttribute('href', '/teste/6E2-26T1');
+    expect(screen.getByRole('link', { name: 'Toate notele elevului' })).toHaveAttribute('href', '/elevi/10');
   });
 
   it('shows photos inline and PDFs in a frame with a link, in upload order', async () => {
