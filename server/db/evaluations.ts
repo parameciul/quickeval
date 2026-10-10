@@ -113,22 +113,24 @@ export async function getEvaluation(db: D1Database, submissionId: number): Promi
   };
 }
 
-// An item of a graded result of the teacher: its upload and its maximum,
-// which never changes. Null when it is not the teacher's.
+// An item of the result of the teacher's upload, with its maximum, which
+// never changes. It does not check that the upload is graded: correctItem()
+// does that in its write. Null when the item is not in that upload's result.
 export async function findTeacherItem(
   db: D1Database,
   teacherId: number,
+  submissionId: number,
   itemId: number,
-): Promise<{ submissionId: number; maxPoints: number } | null> {
+): Promise<{ maxPoints: number } | null> {
   const row = await db
     .prepare(
-      `SELECT ev.submission_id, i.max_points FROM evaluation_items i
+      `SELECT i.max_points FROM evaluation_items i
        JOIN evaluations ev ON ev.id = i.evaluation_id JOIN submissions s ON s.id = ev.submission_id JOIN tests t ON t.id = s.test_id
-       WHERE i.id = ? AND t.teacher_id = ?`,
+       WHERE i.id = ? AND ev.submission_id = ? AND t.teacher_id = ?`,
     )
-    .bind(itemId, teacherId)
-    .first<{ submission_id: number; max_points: number }>();
-  return row ? { submissionId: row.submission_id, maxPoints: row.max_points } : null;
+    .bind(itemId, submissionId, teacherId)
+    .first<{ max_points: number }>();
+  return row ? { maxPoints: row.max_points } : null;
 }
 
 // The teacher's correction: new points or a new comment, and the check mark.
@@ -136,8 +138,16 @@ export async function findTeacherItem(
 // the total, the grade, and the freshness of the class analysis follow. The
 // total is summed again from the items, so two corrections at once still
 // leave the right total. The points must be checked first with
-// isValidCorrection(). False when the upload is no longer graded.
-export async function correctItem(db: D1Database, teacherId: number, itemId: number, change: ItemCorrection, now: string): Promise<boolean> {
+// isValidCorrection(). False when the upload is no longer graded, or when
+// the item is not in its result: item ids come back after a delete.
+export async function correctItem(
+  db: D1Database,
+  teacherId: number,
+  submissionId: number,
+  itemId: number,
+  change: ItemCorrection,
+  now: string,
+): Promise<boolean> {
   const changed = change.points !== undefined || change.comment !== undefined;
   const reviewed = change.reviewed === undefined ? null : change.reviewed ? 1 : 0;
   const item = await db
@@ -145,7 +155,8 @@ export async function correctItem(db: D1Database, teacherId: number, itemId: num
       `UPDATE evaluation_items SET points = COALESCE(?, points), comment = COALESCE(?, comment),
          changed_by_teacher = CASE WHEN ? = 1 THEN 1 ELSE changed_by_teacher END,
          reviewed_at = CASE WHEN ? IS NULL THEN reviewed_at WHEN ? = 1 THEN COALESCE(reviewed_at, ?) ELSE NULL END
-       WHERE id = ? AND evaluation_id IN (${TEACHERS_GRADED})
+       WHERE id = ? AND evaluation_id IN (SELECT id FROM evaluations WHERE submission_id = ?)
+         AND evaluation_id IN (${TEACHERS_GRADED})
        RETURNING evaluation_id`,
     )
     .bind(
@@ -156,6 +167,7 @@ export async function correctItem(db: D1Database, teacherId: number, itemId: num
       reviewed,
       now,
       itemId,
+      submissionId,
       teacherId,
     )
     .first<{ evaluation_id: number }>();

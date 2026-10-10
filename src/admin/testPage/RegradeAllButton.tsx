@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { RobotStart, UploadRow } from '../../../shared/api.ts';
+import type { TestStatus } from '../../../shared/tests.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -10,26 +11,30 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 // teacher's corrections go, so the button asks first.
 export function RegradeAllButton({
   code,
+  testStatus,
   uploads,
   onChanged,
   onRobot,
 }: {
   code: string;
+  testStatus: TestStatus;
   uploads: UploadRow[];
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const api = useApi();
-  // An open test grades the uploads after Start evaluation.
-  const [waits, setWaits] = useState(false);
+  // An open test grades the uploads after Start evaluation: the page says so
+  // until the evaluation starts.
+  const [regradedOpen, setRegradedOpen] = useState(false);
   const regrade = useMutation({
     mutationFn: () => api.regradeTest(code),
     onSuccess: async (answer) => {
       onRobot(answer.robot);
-      setWaits(answer.robot === null);
+      setRegradedOpen(answer.robot === null);
       await onChanged();
     },
   });
+  const waits = regradedOpen && testStatus === 'open';
   const count = uploads.filter((row) => row.status === 'graded' || row.status === 'failed').length;
   if (count === 0 && !waits) return null;
 

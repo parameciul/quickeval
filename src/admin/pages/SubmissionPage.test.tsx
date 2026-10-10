@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SubmissionDetail } from '../../../shared/api.ts';
@@ -72,6 +72,7 @@ const page = '/teste/6E2-26T1/elevi/5';
 const row = (label: string) => screen.getByRole('row', { name: new RegExp(label) });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -144,7 +145,7 @@ describe('SubmissionPage', () => {
     const api = apiWith(graded);
     renderAdmin(page, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' }));
-    expect(api.correctItem).toHaveBeenCalledWith(32, { reviewed: true });
+    expect(api.correctItem).toHaveBeenCalledWith(5, 32, { reviewed: true });
     expect(await within(row('Subiectul II, ex. 1')).findByText('Verificat')).toBeInTheDocument();
     expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-flagged');
     expect(screen.getByText('De verificat: 1')).toBeInTheDocument();
@@ -162,7 +163,7 @@ describe('SubmissionPage', () => {
     await userEvent.clear(comment);
     await userEvent.type(comment, 'Bine, dar verifică semnul.');
     await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
-    expect(api.correctItem).toHaveBeenCalledWith(32, { points: 3.5, comment: 'Bine, dar verifică semnul.', reviewed: true });
+    expect(api.correctItem).toHaveBeenCalledWith(5, 32, { points: 3.5, comment: 'Bine, dar verifică semnul.', reviewed: true });
     expect(await screen.findByText(/Nota/)).toHaveTextContent('Nota 9 · 9 puncte din 10');
     const changed = row('Subiectul II, ex. 1');
     expect(within(changed).getByText('3,5 din 4,5')).toBeInTheDocument();
@@ -178,7 +179,7 @@ describe('SubmissionPage', () => {
     await userEvent.clear(points);
     await userEvent.type(points, '4');
     await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
-    expect(api.correctItem).toHaveBeenCalledWith(31, { points: 4 });
+    expect(api.correctItem).toHaveBeenCalledWith(5, 31, { points: 4 });
   });
 
   it('refuses points off the 0.05 steps or above the maximum without asking the server', async () => {
@@ -235,6 +236,22 @@ describe('SubmissionPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul.');
     expect(await screen.findByText('Lucrarea așteaptă robotul.')).toBeInTheDocument();
     expect(screen.queryByText(/Nota/)).not.toBeInTheDocument();
+  });
+
+  it('drops the news about the robot once the new result is back', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const api = apiWith(graded);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul.');
+    // The robot graded the upload again; the page asks for news every 10 seconds.
+    api.getSubmission.mockResolvedValueOnce(structuredClone(graded));
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(await screen.findByText(/Nota/)).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('keeps the result when the teacher does not confirm the regrade', async () => {

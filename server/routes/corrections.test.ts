@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { EvaluationItemInfo } from '../../shared/api.ts';
 import { gradeOf } from '../../shared/scoring.ts';
-import { gradeSql } from '../db/evaluations.ts';
+import { correctItem, gradeSql } from '../db/evaluations.ts';
 import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
 let code: string;
+let studentIds: number[];
 let submissionId: number;
 let items: Record<string, number>;
 
@@ -45,7 +46,8 @@ async function gradedUpload(studentId: number): Promise<{ submissionId: number; 
   return { submissionId: id, items: ids };
 }
 
-const correct = (itemId: number, body: unknown) => api.request('PATCH', `/api/admin/evaluation-items/${itemId}`, body);
+const correct = (itemId: number, body: unknown, upload = submissionId) =>
+  api.request('PATCH', `/api/admin/submissions/${upload}/items/${itemId}`, body);
 const itemOf = (body: { submission: { evaluation: { items: EvaluationItemInfo[] } } }, exerciseId: string) =>
   body.submission.evaluation.items.find((item) => item.exerciseId === exerciseId)!;
 const evaluationRow = () =>
@@ -59,14 +61,15 @@ beforeEach(async () => {
   api = await startTestApi();
   const cls = await makeClass(api, '6E2', ['Pop Ion', 'Stan Eva']);
   code = await makeTest(api, cls.id, 'Fracții');
-  ({ submissionId, items } = await gradedUpload(cls.studentIds[0]!));
+  studentIds = cls.studentIds;
+  ({ submissionId, items } = await gradedUpload(studentIds[0]!));
 });
 
 afterEach(async () => {
   await api.dispose();
 });
 
-describe('PATCH /api/admin/evaluation-items/:id', () => {
+describe('PATCH /api/admin/submissions/:id/items/:itemId', () => {
   it('changes the points, and the total and the grade follow', async () => {
     const res = await correct(items['II.1']!, { points: 3.5 });
     expect(res.status).toBe(200);
@@ -143,8 +146,8 @@ describe('PATCH /api/admin/evaluation-items/:id', () => {
     });
   });
 
-  it('answers 404 for an unknown item and for an item of another teacher', async () => {
-    expect((await correct(99999, { points: 1 })).status).toBe(404);
+  it('answers 404 for an unknown upload and for an upload of another teacher', async () => {
+    expect((await correct(items['I.1']!, { points: 1 }, 99999)).status).toBe(404);
     const foreign = await otherTeacherTest(api);
     const foreignUpload = await addSubmission(api, foreign.code, foreign.studentId, { status: 'graded', files: 1 });
     const foreignEvaluation = await addEvaluation(api, foreignUpload);
@@ -152,9 +155,26 @@ describe('PATCH /api/admin/evaluation-items/:id', () => {
       .prepare('SELECT id FROM evaluation_items WHERE evaluation_id = ?')
       .bind(foreignEvaluation)
       .first<{ id: number }>();
-    expect((await correct(foreignItem!.id, { points: 0 })).status).toBe(404);
+    expect((await correct(foreignItem!.id, { points: 0 }, foreignUpload)).status).toBe(404);
     const row = await api.db.prepare('SELECT points FROM evaluation_items WHERE id = ?').bind(foreignItem!.id).first();
     expect(row).toEqual({ points: 1 });
+  });
+
+  it('answers 409 for an item that is not in the result of the upload, and changes nothing', async () => {
+    // A page opened before a regrade or a reset can send an item id that
+    // now belongs to another upload: ids of deleted rows come back.
+    const other = await gradedUpload(studentIds[1]!);
+    const res = await correct(other.items['II.1']!, { points: 3.5, reviewed: true });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'not_graded', message: 'Lucrarea se corectează din nou. Reîncarcă pagina.' });
+    expect((await correct(99999, { points: 1 })).status).toBe(409);
+    // The write itself checks the upload, not only the read before it.
+    const test = await api.db.prepare('SELECT teacher_id FROM tests WHERE code = ?').bind(code).first<{ teacher_id: number }>();
+    expect(await correctItem(api.db, test!.teacher_id, submissionId, other.items['II.1']!, { points: 3.5 }, GRADED_AT)).toBe(false);
+    const row = await api.db.prepare('SELECT points, reviewed_at FROM evaluation_items WHERE id = ?').bind(other.items['II.1']).first();
+    expect(row).toEqual({ points: 2, reviewed_at: null });
+    const otherResult = await api.db.prepare('SELECT total, grade FROM evaluations WHERE submission_id = ?').bind(other.submissionId).first();
+    expect(otherResult).toEqual({ total: 7, grade: 7 });
   });
 
   it('answers 409 when the upload is not graded any more', async () => {
@@ -164,6 +184,12 @@ describe('PATCH /api/admin/evaluation-items/:id', () => {
     expect(res.body).toEqual({ error: 'not_graded', message: 'Lucrarea se corectează din nou. Reîncarcă pagina.' });
     const row = await api.db.prepare('SELECT points FROM evaluation_items WHERE id = ?').bind(items['I.1']).first();
     expect(row).toEqual({ points: 4 });
+    // A regrade deleted the result: the page's item is gone.
+    await api.db.prepare('DELETE FROM evaluations WHERE submission_id = ?').bind(submissionId).run();
+    expect((await correct(items['I.1']!, { points: 3 })).body).toEqual({
+      error: 'not_graded',
+      message: 'Lucrarea se corectează din nou. Reîncarcă pagina.',
+    });
   });
 
   it('marks a ready class analysis as out of date when points or comments change', async () => {

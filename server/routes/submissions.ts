@@ -1,14 +1,14 @@
 import { Hono } from 'hono';
-import { reviewPagesBody, type RegradeAnswer } from '../../shared/api.ts';
-import { reviewPages } from '../db/evaluations.ts';
+import { correctItemBody, reviewPagesBody, type RegradeAnswer } from '../../shared/api.ts';
+import { formatPoints, isValidCorrection } from '../../shared/scoring.ts';
+import { correctItem, findTeacherItem, reviewPages } from '../db/evaluations.ts';
 import { regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
 import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission } from '../db/submissions.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
-import { ApiError, notFound } from '../errors.ts';
+import { ApiError, notFound, notGraded } from '../errors.ts';
 import { nowIso, parseId, readJson } from '../http.ts';
 import { deleteFilesQuietly, fileResponse } from '../uploads.ts';
-import { notGraded } from './evaluations.ts';
 
 // /api/admin/submissions: one student's upload for one test.
 export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
@@ -18,6 +18,27 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.get('/:id', async (c) => {
     const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')));
     if (!found) throw notFound();
+    return c.json({ submission: found.detail });
+  });
+
+  // The teacher's correction of one item of the graded result (spec §14.1).
+  // The item must be in the result of the upload in the path: item ids come
+  // back after a reset or a regrade deletes the newest results, so a page
+  // opened before must not change another student's item. Answers with the
+  // whole upload, so the page shows the new total and grade.
+  routes.patch('/:id/items/:itemId', async (c) => {
+    const teacherId = c.var.teacher.id;
+    const submissionId = parseId(c.req.param('id'));
+    const itemId = parseId(c.req.param('itemId'));
+    const body = await readJson(c, correctItemBody);
+    const item = await findTeacherItem(c.env.DB, teacherId, submissionId, itemId);
+    if (item && body.points !== undefined && !isValidCorrection(body.points, item.maxPoints)) {
+      throw new ApiError(400, 'invalid_points', `Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
+    }
+    const corrected = item !== null && (await correctItem(c.env.DB, teacherId, submissionId, itemId, body, nowIso()));
+    const found = await getTeacherSubmission(c.env.DB, teacherId, submissionId);
+    if (!found) throw notFound();
+    if (!corrected) throw notGraded();
     return c.json({ submission: found.detail });
   });
 

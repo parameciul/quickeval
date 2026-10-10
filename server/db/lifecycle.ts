@@ -168,6 +168,22 @@ export async function retryExerciseList(db: D1Database, teacherId: number, testI
 // A regraded upload waits for the robot again, as if just sent.
 const GRADE_AGAIN = "status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, graded_at = NULL";
 
+// The end of a batch that made one upload wait for the robot again: a
+// finished test goes back to evaluation (spec §8.5), then the test's status
+// is read.
+function backToEvaluation(db: D1Database, teacherId: number, submissionId: number, now: string): D1PreparedStatement[] {
+  return [
+    db
+      .prepare(
+        `UPDATE tests SET status = 'evaluating', updated_at = ?, ${ASK_FOR_ANALYSIS}
+         WHERE status = 'done' AND teacher_id = ?
+           AND id = (SELECT test_id FROM submissions WHERE id = ? AND status = 'submitted')`,
+      )
+      .bind(now, teacherId, submissionId),
+    db.prepare('SELECT t.status FROM tests t JOIN submissions s ON s.test_id = t.id WHERE s.id = ?').bind(submissionId),
+  ];
+}
+
 // "Recorectează" (spec §8.5): the robot grades a graded upload again. Its
 // result goes, with the teacher's corrections. A finished test goes back to
 // evaluation; an open test grades it after Start evaluation. Returns the
@@ -177,14 +193,7 @@ export async function regradeSubmission(db: D1Database, teacherId: number, submi
   const [, regraded, , test] = await db.batch<{ test_id?: number; status?: TestStatus }>([
     db.prepare(`DELETE FROM evaluations WHERE submission_id IN (SELECT id FROM submissions WHERE ${GRADED})`).bind(submissionId, teacherId),
     db.prepare(`UPDATE submissions SET ${GRADE_AGAIN} WHERE ${GRADED} RETURNING test_id`).bind(submissionId, teacherId),
-    db
-      .prepare(
-        `UPDATE tests SET status = 'evaluating', updated_at = ?, ${ASK_FOR_ANALYSIS}
-         WHERE status = 'done' AND teacher_id = ?
-           AND id = (SELECT test_id FROM submissions WHERE id = ? AND status = 'submitted')`,
-      )
-      .bind(now, teacherId, submissionId),
-    db.prepare('SELECT t.status FROM tests t JOIN submissions s ON s.test_id = t.id WHERE s.id = ?').bind(submissionId),
+    ...backToEvaluation(db, teacherId, submissionId, now),
   ]);
   if (!regraded?.results.length) return null;
   return test?.results[0]?.status ?? null;
@@ -230,14 +239,7 @@ export async function retrySubmission(db: D1Database, teacherId: number, submiss
          RETURNING test_id`,
       )
       .bind(submissionId, teacherId),
-    db
-      .prepare(
-        `UPDATE tests SET status = 'evaluating', updated_at = ?, ${ASK_FOR_ANALYSIS}
-         WHERE status = 'done' AND teacher_id = ?
-           AND id = (SELECT test_id FROM submissions WHERE id = ? AND status = 'submitted')`,
-      )
-      .bind(now, teacherId, submissionId),
-    db.prepare('SELECT t.status FROM tests t JOIN submissions s ON s.test_id = t.id WHERE s.id = ?').bind(submissionId),
+    ...backToEvaluation(db, teacherId, submissionId, now),
   ]);
   if (!retried?.results.length) return null;
   return test?.results[0]?.status ?? null;

@@ -40,7 +40,7 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
           </thead>
           <tbody>
             {evaluation.items.map((item) => (
-              <ItemRow key={item.id} item={item} onSaved={onSaved} />
+              <ItemRow key={item.id} submissionId={submissionId} item={item} onSaved={onSaved} />
             ))}
           </tbody>
         </table>
@@ -91,10 +91,10 @@ function UnreadablePages({ submissionId, evaluation, onSaved }: { submissionId: 
   );
 }
 
-function ItemRow({ item, onSaved }: { item: EvaluationItemInfo; onSaved: Saved }) {
+function ItemRow({ submissionId, item, onSaved }: { submissionId: number; item: EvaluationItemInfo; onSaved: Saved }) {
   const api = useApi();
   const [editing, setEditing] = useState(false);
-  const check = useMutation({ mutationFn: () => api.correctItem(item.id, { reviewed: true }), onSuccess: onSaved });
+  const check = useMutation({ mutationFn: () => api.correctItem(submissionId, item.id, { reviewed: true }), onSuccess: onSaved });
   const toCheck = item.needsReview && !item.reviewed;
 
   return (
@@ -143,6 +143,7 @@ function ItemRow({ item, onSaved }: { item: EvaluationItemInfo; onSaved: Saved }
         <tr className="edit-row">
           <td colSpan={6}>
             <ItemForm
+              submissionId={submissionId}
               item={item}
               onCancel={() => setEditing(false)}
               onDone={async (submission) => {
@@ -159,12 +160,22 @@ function ItemRow({ item, onSaved }: { item: EvaluationItemInfo; onSaved: Saved }
 
 // New points or a new comment for one item. Saving an item that waits for a
 // check also checks it: the teacher has looked at it.
-function ItemForm({ item, onCancel, onDone }: { item: EvaluationItemInfo; onCancel: () => void; onDone: Saved }) {
+function ItemForm({
+  submissionId,
+  item,
+  onCancel,
+  onDone,
+}: {
+  submissionId: number;
+  item: EvaluationItemInfo;
+  onCancel: () => void;
+  onDone: Saved;
+}) {
   const api = useApi();
   const [points, setPoints] = useState(formatPoints(item.points));
   const [comment, setComment] = useState(item.comment);
   const [problem, setProblem] = useState<string | null>(null);
-  const save = useMutation({ mutationFn: (change: ItemCorrection) => api.correctItem(item.id, change), onSuccess: onDone });
+  const save = useMutation({ mutationFn: (change: ItemCorrection) => api.correctItem(submissionId, item.id, change), onSuccess: onDone });
   const id = `item-${item.id}`;
 
   const submit = (event: FormEvent) => {

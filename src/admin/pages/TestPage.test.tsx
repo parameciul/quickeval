@@ -360,6 +360,10 @@ describe('TestPage evaluation', () => {
     renderAdmin('/teste/6E2-26T1', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Recorectează tot' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Lucrările se corectează din nou după ce pornești evaluarea.');
+    // Once the evaluation starts, the words are not true any more.
+    await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
+    expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
+    expect(screen.queryByText('Lucrările se corectează din nou după ce pornești evaluarea.')).not.toBeInTheDocument();
   });
 
   it('offers no regrade while nothing is graded', async () => {

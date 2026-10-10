@@ -105,7 +105,7 @@ function TestDetails({ code }: { code: string }) {
               {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
             </RobotLine>
           )}
-          <RegradeAllButton code={code} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
+          <RegradeAllButton code={code} testStatus={test.status} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
         </>
       )}
 

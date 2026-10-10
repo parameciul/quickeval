@@ -77,6 +77,8 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   const submission = detail.data;
   // The address names another test than the upload belongs to.
   if (submission.testCode !== code) return <NotFoundPage />;
+  // The news after Recorectează or Reîncearcă holds only until the result is back.
+  const showNotice = notice !== null && (submission.status === 'submitted' || submission.status === 'grading');
 
   return (
     <section>
@@ -96,7 +98,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
         Început {formatDateTime(submission.startedAt)}
         {submission.submittedAt && ` · trimis ${formatDateTime(submission.submittedAt)}`}
       </p>
-      {notice && <p role="status">{notice}</p>}
+      {showNotice && <p role="status">{notice}</p>}
 
       <div className="result-layout">
         <div className="result-files">

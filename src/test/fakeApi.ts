@@ -348,10 +348,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       if (test) test.test.status = testStatus;
       return { count: 1, testStatus, robot: testStatus === 'evaluating' ? 'next_check' : null };
     }),
-    correctItem: vi.fn(async (itemId: number, change: ItemCorrection) => {
-      const found = submissions.find((s) => s.evaluation?.items.some((item) => item.id === itemId));
-      if (!found?.evaluation) throw notFound();
-      const item = found.evaluation.items.find((i) => i.id === itemId)!;
+    // Like the server: the item must be in the result of the upload.
+    correctItem: vi.fn(async (submissionId: number, itemId: number, change: ItemCorrection) => {
+      const found = findSubmission(submissionId);
+      const item = found.evaluation?.items.find((i) => i.id === itemId);
+      if (!found.evaluation || !item) throw new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
       if (change.points !== undefined && !isValidCorrection(change.points, item.maxPoints)) {
         throw new ApiError(400, 'invalid_points', `Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
       }
