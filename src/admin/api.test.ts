@@ -81,6 +81,25 @@ describe('createApiClient evaluation', () => {
   });
 });
 
+describe('createApiClient results', () => {
+  it('calls the result routes', async () => {
+    const submission = { id: 5, status: 'graded' };
+    const regraded = { count: 1, testStatus: 'evaluating', robot: 'dispatched' };
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(200, String(url).endsWith('/regrade') ? regraded : { submission }),
+    );
+    const api = createApiClient({ fetchImpl });
+    expect(await api.correctItem(31, { points: 3.5, reviewed: true })).toEqual(submission);
+    expect(await api.reviewPages(5, true)).toEqual(submission);
+    expect(await api.regradeSubmission(5)).toEqual(regraded);
+    expect(fetchImpl.mock.calls.map(([url, init]) => [init!.method, url, init!.body])).toEqual([
+      ['PATCH', '/api/admin/evaluation-items/31', '{"points":3.5,"reviewed":true}'],
+      ['PATCH', '/api/admin/submissions/5/evaluation', '{"pagesReviewed":true}'],
+      ['POST', '/api/admin/submissions/5/regrade', undefined],
+    ]);
+  });
+});
+
 describe('createApiClient settings', () => {
   it('reads and changes the settings and makes a robot key', async () => {
     const settings = { maxParallelAgents: 2 };

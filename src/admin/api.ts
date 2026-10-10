@@ -5,6 +5,8 @@ import type {
   CreateTestInput,
   EvaluationStart,
   ExerciseListAnswer,
+  ItemCorrection,
+  RegradeAnswer,
   RobotStart,
   RobotStartAnswer,
   Settings,
@@ -53,6 +55,10 @@ export interface AdminApi {
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
   resetSubmission(submissionId: number): Promise<void>;
   retrySubmission(submissionId: number): Promise<RobotStart | null>;
+  regradeSubmission(submissionId: number): Promise<RegradeAnswer>;
+  // The teacher's corrections answer with the whole upload: new total and grade.
+  correctItem(itemId: number, change: ItemCorrection): Promise<SubmissionDetail>;
+  reviewPages(submissionId: number, pagesReviewed: boolean): Promise<SubmissionDetail>;
   getSettings(): Promise<Settings>;
   updateSettings(maxParallelAgents: number): Promise<Settings>;
   // A new robot key: the only time the app sees it.
@@ -180,6 +186,11 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     },
     retrySubmission: async (submissionId) =>
       (await request<{ robot: RobotStart | null }>('POST', `/submissions/${submissionId}/retry`)).robot,
+    regradeSubmission: (submissionId) => request<RegradeAnswer>('POST', `/submissions/${submissionId}/regrade`),
+    correctItem: async (itemId, change) =>
+      (await request<{ submission: SubmissionDetail }>('PATCH', `/evaluation-items/${itemId}`, change)).submission,
+    reviewPages: async (submissionId, pagesReviewed) =>
+      (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/evaluation`, { pagesReviewed })).submission,
     getSettings: async () => (await request<{ settings: Settings }>('GET', '/settings')).settings,
     updateSettings: async (maxParallelAgents) =>
       (await request<{ settings: Settings }>('PATCH', '/settings', { maxParallelAgents })).settings,

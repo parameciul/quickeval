@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  confidenceLabel,
   countLabel,
   formatDateTime,
   formatFileSize,
+  pageLabel,
+  parsePoints,
   robotStartMessage,
   studentCountLabel,
   testStatusLabel,
@@ -61,5 +64,34 @@ describe('robotStartMessage', () => {
   it('says when the robot starts, or that it could not start it', () => {
     expect(robotStartMessage('dispatched')).toBe('Robotul pornește în aproximativ un minut.');
     expect(robotStartMessage('next_check')).toBe('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
+  });
+});
+
+describe('result labels', () => {
+  it('names how sure the robot is', () => {
+    expect(confidenceLabel('high')).toBe('Mare');
+    expect(confidenceLabel('medium')).toBe('Medie');
+    expect(confidenceLabel('low')).toBe('Mică');
+  });
+
+  it('names the pages that the robot could not read as the page numbers them', () => {
+    expect(pageLabel('student/page-02.jpg')).toBe('Pagina 2');
+    expect(pageLabel('page-11.pdf')).toBe('Pagina 11');
+    expect(pageLabel('ceva.jpg')).toBe('ceva.jpg');
+  });
+});
+
+describe('parsePoints', () => {
+  it('reads points with a comma or a point', () => {
+    expect(parsePoints('2,5')).toBe(2.5);
+    expect(parsePoints(' 3.25 ')).toBe(3.25);
+    expect(parsePoints('0')).toBe(0);
+  });
+
+  it('refuses anything that is not a number', () => {
+    expect(parsePoints('')).toBeNull();
+    expect(parsePoints('-1')).toBeNull();
+    expect(parsePoints('2,5,1')).toBeNull();
+    expect(parsePoints('doi')).toBeNull();
   });
 });
