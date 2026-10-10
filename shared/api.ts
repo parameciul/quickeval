@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { normalizeClassName } from './classes.ts';
 import type { TestFileKind } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
+import type { Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
 import { cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
@@ -148,6 +149,8 @@ export interface TestSummary {
   studentCount: number;
   submittedCount: number;
   gradedCount: number;
+  // Items to check in all graded uploads, counted as in the uploads table.
+  flagCount: number;
 }
 
 export interface TestFileInfo {
@@ -299,15 +302,60 @@ export interface SessionStart {
   session: UploadSession;
 }
 
+// One exercise of a graded upload. `aiPoints` are the robot's points;
+// `points` are the final points, which the teacher may change.
+export interface EvaluationItemInfo {
+  id: number;
+  exerciseId: string;
+  label: string;
+  maxPoints: number;
+  aiPoints: number;
+  points: number;
+  studentAnswer: string;
+  comment: string;
+  confidence: Confidence;
+  // The robot asked the teacher to check this item, and why.
+  needsReview: boolean;
+  reviewReason: string;
+  // The teacher marked the item as checked.
+  reviewed: boolean;
+  changedByTeacher: boolean;
+}
+
+// The graded result of an upload (spec §14.1).
+export interface EvaluationInfo {
+  maxTotal: number;
+  officePoints: number;
+  total: number;
+  // Out of 10.
+  grade: number;
+  summary: string;
+  strengths: string[];
+  recommendations: string[];
+  // Pages the robot could not read, as the robot named them ("student/page-02.jpg").
+  unreadable: string[];
+  // The teacher checked those pages.
+  pagesReviewed: boolean;
+  // Items to check that the teacher has not checked yet, plus one for pages
+  // that could not be read and are not checked yet.
+  flagCount: number;
+  items: EvaluationItemInfo[];
+}
+
 export interface SubmissionDetail {
   id: number;
   testCode: string;
   testTitle: string;
+  testStatus: TestStatus;
   studentId: number;
   studentName: string;
   status: Exclude<UploadStatus, 'none'>;
   autoSubmitted: boolean;
   startedAt: string;
   submittedAt: string | null;
+  // Why grading failed, for the teacher.
+  lastError: string | null;
   files: SubmissionFile[];
+  // Null until the upload is graded.
+  evaluation: EvaluationInfo | null;
 }

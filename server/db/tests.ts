@@ -4,6 +4,7 @@ import type { TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
+import { flagCountSql } from './evaluations.ts';
 
 export interface StoredFile {
   key: string;
@@ -45,6 +46,7 @@ interface TestRow {
   student_count: number;
   submitted_count: number;
   graded_count: number;
+  flag_count: number;
 }
 
 const SELECT_TEST = `
@@ -54,7 +56,9 @@ const SELECT_TEST = `
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.exercise_list_status, t.exercise_list_message,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
-    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count
+    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
+    (SELECT COALESCE(SUM(${flagCountSql('ev')}), 0)
+       FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = t.id) AS flag_count
   FROM tests t JOIN classes c ON c.id = t.class_id`;
 
 function storedFile(key: string | null, name: string | null, type: string | null): StoredFile | null {
@@ -78,6 +82,7 @@ function toRecord(row: TestRow): TestRecord {
       studentCount: row.student_count,
       submittedCount: row.submitted_count,
       gradedCount: row.graded_count,
+      flagCount: row.flag_count,
     },
     uploadToken: row.upload_token,
     files: {
@@ -136,8 +141,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       `SELECT st.id AS student_id, st.full_name, e.active,
          s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade,
          (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
-         (SELECT COUNT(*) FROM evaluation_items i WHERE i.evaluation_id = ev.id AND i.needs_review = 1 AND i.reviewed_at IS NULL)
-           + CASE WHEN json_array_length(ev.unreadable_json) > 0 THEN 1 ELSE 0 END AS flag_count
+         ${flagCountSql('ev')} AS flag_count
        FROM enrollments e
        JOIN students st ON st.id = e.student_id
        LEFT JOIN submissions s ON s.test_id = ? AND s.student_id = e.student_id

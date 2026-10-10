@@ -67,6 +67,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       studentCount: uploads.filter((row) => row.active).length,
       submittedCount: uploads.filter((row) => row.status !== 'none' && row.status !== 'uploading').length,
       gradedCount: uploads.filter((row) => row.status === 'graded').length,
+      flagCount: uploads.reduce((sum, row) => sum + row.flagCount, 0),
       uploadToken: null,
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },

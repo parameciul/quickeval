@@ -9,16 +9,19 @@ const submission: SubmissionDetail = {
   id: 5,
   testCode: '6E2-26T1',
   testTitle: 'Fracții',
+  testStatus: 'open',
   studentId: 10,
   studentName: 'Pop Ion',
   status: 'submitted',
   autoSubmitted: false,
   startedAt: '2026-10-06T07:20:00.000Z',
   submittedAt: '2026-10-06T07:40:00.000Z',
+  lastError: null,
   files: [
     { id: 21, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 1 },
     { id: 22, name: 'scan.pdf', contentType: 'application/pdf', size: 1.5 * 1024 * 1024, position: 2 },
   ],
+  evaluation: null,
 };
 
 const apiWith = (detail: SubmissionDetail = submission) =>
