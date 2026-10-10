@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import type { EvaluationInfo, EvaluationItemInfo, ItemCorrection, SubmissionDetail } from '../../../shared/api.ts';
+import type { EvaluationInfo, EvaluationItemInfo, ItemChange, SubmissionDetail } from '../../../shared/api.ts';
 import { TEXT_LIMITS } from '../../../shared/schemas.ts';
 import { formatPoints, isValidCorrection } from '../../../shared/scoring.ts';
 import { confidenceLabel, pageLabel, parsePoints } from '../../ui/format.ts';
@@ -8,12 +8,17 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 type Saved = (submission: SubmissionDetail) => Promise<void>;
+type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>;
 
 // The graded result of an upload (spec §14.1): the grade, the pages the robot
 // could not read, the points of each exercise with the items to check, and
 // the robot's words to the student. Each change answers with the whole
-// upload, so the total and the grade follow at once.
+// upload, so the total and the grade follow at once. Each change names the
+// grading it was made on, so a change from an old page cannot reach a newer
+// result.
 export function GradedResult({ submissionId, evaluation, onSaved }: { submissionId: number; evaluation: EvaluationInfo; onSaved: Saved }) {
+  const api = useApi();
+  const correct: Correct = (itemId, change) => api.correctItem(submissionId, itemId, { ...change, gradedAt: evaluation.gradedAt });
   return (
     <>
       <p className="grade-line">
@@ -40,7 +45,7 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
           </thead>
           <tbody>
             {evaluation.items.map((item) => (
-              <ItemRow key={item.id} submissionId={submissionId} item={item} onSaved={onSaved} />
+              <ItemRow key={item.id} item={item} correct={correct} onSaved={onSaved} />
             ))}
           </tbody>
         </table>
@@ -76,7 +81,10 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
 // teacher has looked at them.
 function UnreadablePages({ submissionId, evaluation, onSaved }: { submissionId: number; evaluation: EvaluationInfo; onSaved: Saved }) {
   const api = useApi();
-  const review = useMutation({ mutationFn: () => api.reviewPages(submissionId, true), onSuccess: onSaved });
+  const review = useMutation({
+    mutationFn: () => api.reviewPages(submissionId, { pagesReviewed: true, gradedAt: evaluation.gradedAt }),
+    onSuccess: onSaved,
+  });
   if (evaluation.unreadable.length === 0) return null;
   const pages = evaluation.unreadable.map(pageLabel).join(', ');
   if (evaluation.pagesReviewed) return <p className="hint">Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.</p>;
@@ -91,10 +99,9 @@ function UnreadablePages({ submissionId, evaluation, onSaved }: { submissionId: 
   );
 }
 
-function ItemRow({ submissionId, item, onSaved }: { submissionId: number; item: EvaluationItemInfo; onSaved: Saved }) {
-  const api = useApi();
+function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct: Correct; onSaved: Saved }) {
   const [editing, setEditing] = useState(false);
-  const check = useMutation({ mutationFn: () => api.correctItem(submissionId, item.id, { reviewed: true }), onSuccess: onSaved });
+  const check = useMutation({ mutationFn: () => correct(item.id, { reviewed: true }), onSuccess: onSaved });
   const toCheck = item.needsReview && !item.reviewed;
 
   return (
@@ -143,8 +150,8 @@ function ItemRow({ submissionId, item, onSaved }: { submissionId: number; item: 
         <tr className="edit-row">
           <td colSpan={6}>
             <ItemForm
-              submissionId={submissionId}
               item={item}
+              correct={correct}
               onCancel={() => setEditing(false)}
               onDone={async (submission) => {
                 setEditing(false);
@@ -161,21 +168,20 @@ function ItemRow({ submissionId, item, onSaved }: { submissionId: number; item: 
 // New points or a new comment for one item. Saving an item that waits for a
 // check also checks it: the teacher has looked at it.
 function ItemForm({
-  submissionId,
   item,
+  correct,
   onCancel,
   onDone,
 }: {
-  submissionId: number;
   item: EvaluationItemInfo;
+  correct: Correct;
   onCancel: () => void;
   onDone: Saved;
 }) {
-  const api = useApi();
   const [points, setPoints] = useState(formatPoints(item.points));
   const [comment, setComment] = useState(item.comment);
   const [problem, setProblem] = useState<string | null>(null);
-  const save = useMutation({ mutationFn: (change: ItemCorrection) => api.correctItem(submissionId, item.id, change), onSuccess: onDone });
+  const save = useMutation({ mutationFn: (change: ItemChange) => correct(item.id, change), onSuccess: onDone });
   const id = `item-${item.id}`;
 
   const submit = (event: FormEvent) => {
@@ -186,7 +192,7 @@ function ItemForm({
       return;
     }
     setProblem(null);
-    const change: ItemCorrection = {};
+    const change: ItemChange = {};
     if (value !== item.points) change.points = value;
     if (comment.trim() !== item.comment) change.comment = comment.trim();
     if (item.needsReview && !item.reviewed) change.reviewed = true;

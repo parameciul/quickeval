@@ -16,7 +16,7 @@ const GRADED_AT = '2026-10-07T09:00:00.000Z';
 // A graded upload of a test out of 10 with 1 point "din oficiu": I.1 is worth
 // 4.5 (the robot gave 4), II.1 4.17 (gave 2, and asks the teacher to check
 // it), III.1 0.33 (gave 0). Total 7, grade 7.
-async function gradedUpload(studentId: number): Promise<{ submissionId: number; items: Record<string, number> }> {
+async function gradedUpload(studentId: number, gradedAt = GRADED_AT): Promise<{ submissionId: number; items: Record<string, number> }> {
   const id = await addSubmission(api, code, studentId, { status: 'graded', files: 1 });
   const evaluation = await api.db
     .prepare(
@@ -24,7 +24,7 @@ async function gradedUpload(studentId: number): Promise<{ submissionId: number; 
          strengths_json, recommendations_json, unreadable_json, raw_json, created_at, updated_at)
        VALUES (?, 10, 1, 7, 7, 1, 'Rezumat.', '[]', '[]', '[]', '{}', ?, ?) RETURNING id`,
     )
-    .bind(id, GRADED_AT, GRADED_AT)
+    .bind(id, gradedAt, gradedAt)
     .first<{ id: number }>();
   const rows: [string, number, number, number, string][] = [
     ['I.1', 4.5, 4, 0, ''],
@@ -46,8 +46,9 @@ async function gradedUpload(studentId: number): Promise<{ submissionId: number; 
   return { submissionId: id, items: ids };
 }
 
-const correct = (itemId: number, body: unknown, upload = submissionId) =>
-  api.request('PATCH', `/api/admin/submissions/${upload}/items/${itemId}`, body);
+// A correction from a page that shows the result graded at GRADED_AT.
+const correct = (itemId: number, body: object, upload = submissionId) =>
+  api.request('PATCH', `/api/admin/submissions/${upload}/items/${itemId}`, { gradedAt: GRADED_AT, ...body });
 const itemOf = (body: { submission: { evaluation: { items: EvaluationItemInfo[] } } }, exerciseId: string) =>
   body.submission.evaluation.items.find((item) => item.exerciseId === exerciseId)!;
 const evaluationRow = () =>
@@ -144,6 +145,8 @@ describe('PATCH /api/admin/submissions/:id/items/:itemId', () => {
       error: 'invalid',
       message: 'Comentariul are cel mult 1000 de caractere.',
     });
+    const unnamed = await api.request('PATCH', `/api/admin/submissions/${submissionId}/items/${items['I.1']}`, { points: 1 });
+    expect(unnamed.body).toEqual({ error: 'invalid', message: 'Reîncarcă pagina.' });
   });
 
   it('answers 404 for an unknown upload and for an upload of another teacher', async () => {
@@ -170,11 +173,28 @@ describe('PATCH /api/admin/submissions/:id/items/:itemId', () => {
     expect((await correct(99999, { points: 1 })).status).toBe(409);
     // The write itself checks the upload, not only the read before it.
     const test = await api.db.prepare('SELECT teacher_id FROM tests WHERE code = ?').bind(code).first<{ teacher_id: number }>();
-    expect(await correctItem(api.db, test!.teacher_id, submissionId, other.items['II.1']!, { points: 3.5 }, GRADED_AT)).toBe(false);
+    const shown = { teacherId: test!.teacher_id, submissionId, gradedAt: GRADED_AT };
+    expect(await correctItem(api.db, shown, other.items['II.1']!, { points: 3.5 }, GRADED_AT)).toBe(false);
     const row = await api.db.prepare('SELECT points, reviewed_at FROM evaluation_items WHERE id = ?').bind(other.items['II.1']).first();
     expect(row).toEqual({ points: 2, reviewed_at: null });
     const otherResult = await api.db.prepare('SELECT total, grade FROM evaluations WHERE submission_id = ?').bind(other.submissionId).first();
     expect(otherResult).toEqual({ total: 7, grade: 7 });
+  });
+
+  it('answers 409 when a new grading or another upload took the ids the page shows, and changes nothing', async () => {
+    const later = '2026-10-08T09:00:00.000Z';
+    // A regrade of the same upload: its new result can get the same item ids.
+    await api.db.prepare('UPDATE evaluations SET created_at = ? WHERE submission_id = ?').bind(later, submissionId).run();
+    expect((await correct(items['II.1']!, { points: 3.5 })).status).toBe(409);
+    // A reset of the newest upload: the next upload, here of another student,
+    // gets the same upload id and, once graded, the same item ids.
+    expect((await api.request('POST', `/api/admin/submissions/${submissionId}/reset`)).status).toBe(200);
+    expect(await gradedUpload(studentIds[1]!, later)).toEqual({ submissionId, items });
+    const res = await correct(items['II.1']!, { points: 3.5, reviewed: true });
+    expect(res.body).toEqual({ error: 'not_graded', message: 'Lucrarea se corectează din nou. Reîncarcă pagina.' });
+    const row = await api.db.prepare('SELECT points, reviewed_at FROM evaluation_items WHERE id = ?').bind(items['II.1']).first();
+    expect(row).toEqual({ points: 2, reviewed_at: null });
+    expect(await evaluationRow()).toMatchObject({ total: 7, grade: 7 });
   });
 
   it('answers 409 when the upload is not graded any more', async () => {
@@ -216,7 +236,8 @@ describe('PATCH /api/admin/submissions/:id/items/:itemId', () => {
 });
 
 describe('PATCH /api/admin/submissions/:id/evaluation', () => {
-  const reviewPages = (id: number, body: unknown) => api.request('PATCH', `/api/admin/submissions/${id}/evaluation`, body);
+  const reviewPages = (id: number, body: object) =>
+    api.request('PATCH', `/api/admin/submissions/${id}/evaluation`, { gradedAt: GRADED_AT, ...body });
 
   it('marks the unreadable pages as checked, and takes the check back', async () => {
     await api.db.prepare(`UPDATE evaluations SET unreadable_json = '["student/page-01.jpg"]' WHERE submission_id = ?`).bind(submissionId).run();
@@ -228,8 +249,12 @@ describe('PATCH /api/admin/submissions/:id/evaluation', () => {
     expect(back.body.submission.evaluation).toMatchObject({ pagesReviewed: false, flagCount: 2 });
   });
 
-  it('refuses a bad body, an upload that is not graded, and uploads of other teachers', async () => {
+  it('refuses a bad body, a result the page does not show, an upload that is not graded, and uploads of other teachers', async () => {
     expect((await reviewPages(submissionId, { pagesReviewed: 'da' })).status).toBe(400);
+    expect((await reviewPages(submissionId, { pagesReviewed: true, gradedAt: '2026-10-08T09:00:00.000Z' })).body).toEqual({
+      error: 'not_graded',
+      message: 'Lucrarea se corectează din nou. Reîncarcă pagina.',
+    });
     const cls = await makeClass(api, '7E2', ['Marin Dan']);
     const otherCode = await makeTest(api, cls.id);
     const waiting = await addSubmission(api, otherCode, cls.studentIds[0]!, { status: 'submitted', files: 1 });

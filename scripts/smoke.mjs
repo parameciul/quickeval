@@ -182,7 +182,8 @@ check(
 const result = await api('GET', `/api/admin/submissions/${row?.submissionId}`);
 const item = result.body?.submission?.evaluation?.items?.[0];
 check('the teacher reads the result', result.status === 200 && item?.exerciseId === 'I.1' && item?.points === 7.5, JSON.stringify(result.body));
-const corrected = await api('PATCH', `/api/admin/submissions/${row?.submissionId}/items/${item?.id}`, { points: 8, reviewed: true });
+const gradedAt = result.body?.submission?.evaluation?.gradedAt;
+const corrected = await api('PATCH', `/api/admin/submissions/${row?.submissionId}/items/${item?.id}`, { gradedAt, points: 8, reviewed: true });
 check('the teacher corrects the points', corrected.status === 200 && corrected.body?.submission?.evaluation?.grade === 9, JSON.stringify(corrected.body));
 const history = await api('GET', `/api/admin/students/${studentId}/history`);
 check('the student page lists the grade', history.status === 200 && history.body?.results?.[0]?.grade === 9, JSON.stringify(history.body));

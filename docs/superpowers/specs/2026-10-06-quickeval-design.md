@@ -481,13 +481,13 @@ Auth: the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) is checked again in 
 | `POST /tests/:code/robot` | "Pornește robotul": starts the robot (§12.6) when the test is evaluating and the robot's check would find work in it. Otherwise 409. |
 | `POST /tests/:code/analysis/regenerate` | analysis_status → requested. If the test is `done`, it goes back to `evaluating`. |
 | `GET /tests/:code/report` | Rows for the class report: students, items, totals, analysis. Statistics are computed in the browser with `shared/stats.ts`. |
-| `GET /submissions/:id` | Submission, test status, last error, files, evaluation, and items. |
-| `PATCH /submissions/:id/evaluation` `{ pagesReviewed }` | The teacher checked the pages that the robot could not read: they stop counting as an item to check. Only for a graded submission. |
+| `GET /submissions/:id` | Submission, test status, last error, files, evaluation (with `gradedAt`, the time the robot wrote it), and items. |
+| `PATCH /submissions/:id/evaluation` `{ gradedAt, pagesReviewed }` | The teacher checked the pages that the robot could not read: they stop counting as an item to check. Only for the graded result of `gradedAt`, else 409. |
 | `GET /submissions/:id/files/:fileId` | Stream a student file. |
 | `POST /submissions/:id/reset` | Delete the files, the evaluation, and the row, so the student can start again. |
 | `POST /submissions/:id/retry` | failed → submitted, attempts = 0. A `done` test goes back to `evaluating` (§8.5). |
 | `POST /submissions/:id/regrade` | Regrade one submission. A `done` test goes back to `evaluating` (§8.5). |
-| `PATCH /submissions/:id/items/:itemId` `{ points?, comment?, reviewed? }` | Teacher correction of an item of a graded submission. `0 ≤ points ≤ max_points`, in steps of 0.05, or exactly `max_points` (a barem can give 0.33). New points or a new comment set `changed_by_teacher`, recompute the total from all items and the grade in the same write, and set `analysis_stale = 1` when the analysis is ready. `reviewed` sets or clears the check. The write checks that the item is in this submission's result: item ids come back after a delete, so a page opened before a regrade or a reset gets 409 instead of changing another submission. Answers with the whole submission. |
+| `PATCH /submissions/:id/items/:itemId` `{ gradedAt, points?, comment?, reviewed? }` | Teacher correction of an item of a graded submission. `0 ≤ points ≤ max_points`, in steps of 0.05, or exactly `max_points` (a barem can give 0.33). New points or a new comment set `changed_by_teacher`, recompute the total from all items and the grade in the same write, and set `analysis_stale = 1` when the analysis is ready. `reviewed` sets or clears the check. The write checks that the item is in the result the page shows: this submission's grading of `gradedAt`. Ids of deleted rows come back, so a page opened before a regrade or a reset gets 409 instead of changing a newer result. Answers with the whole submission. |
 | `GET /settings` | Parallel agents, whether a robot key exists, `runner_state`, and the time of the last successful grading (`MAX(submissions.graded_at)`). |
 | `PATCH /settings` `{ maxParallelAgents }` | An integer from 1 to 4. |
 | `POST /settings/robot-key` | Makes a new robot key, shows it once, and stores its SHA-256 hash. |

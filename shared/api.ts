@@ -92,10 +92,16 @@ export const updateSettingsBody = z.object({
 
 const POINTS_MESSAGE = 'Scrie punctajul ca număr, de exemplu 2,5.';
 
+// The grading that the teacher's page shows (`EvaluationInfo.gradedAt`). Ids of
+// deleted rows come back, so a write from a page opened before a regrade or a
+// reset names the grading it means, and changes nothing if it is gone.
+const shownGrading = z.string({ message: 'Reîncarcă pagina.' });
+
 // The teacher's correction of one graded item (spec §14.1). The server checks
 // the points against the item's maximum with isValidCorrection().
 export const correctItemBody = z
   .object({
+    gradedAt: shownGrading,
     points: z.number({ message: POINTS_MESSAGE }).optional(),
     comment: z
       .string()
@@ -110,9 +116,13 @@ export const correctItemBody = z
   });
 
 export type ItemCorrection = z.output<typeof correctItemBody>;
+// What a correction changes, without the grading it names.
+export type ItemChange = Omit<ItemCorrection, 'gradedAt'>;
 
 // The teacher checked the pages that the robot could not read (or takes it back).
-export const reviewPagesBody = z.object({ pagesReviewed: z.boolean() });
+export const reviewPagesBody = z.object({ gradedAt: shownGrading, pagesReviewed: z.boolean() });
+
+export type PagesReview = z.output<typeof reviewPagesBody>;
 
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({
@@ -387,6 +397,8 @@ export interface EvaluationItemInfo {
 
 // The graded result of an upload (spec §14.1).
 export interface EvaluationInfo {
+  // When the robot wrote this result. The teacher's corrections send it back.
+  gradedAt: string;
   maxTotal: number;
   officePoints: number;
   total: number;

@@ -1,16 +1,29 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { EvaluationInfo, EvaluationItemInfo, ItemCorrection } from '../../shared/api.ts';
+import type { EvaluationInfo, EvaluationItemInfo, ItemChange } from '../../shared/api.ts';
 import type { Confidence } from '../../shared/schemas.ts';
 import { round2 } from '../../shared/scoring.ts';
 
 // Graded results and the teacher's checks of them (spec §14.1). Each write
-// checks in its SQL that the upload is graded and belongs to the teacher: a
-// regrade can delete the evaluation at any time.
+// checks in its SQL that it changes the result the teacher's page shows: a
+// regrade or a reset can delete a result at any time, and SQLite gives the
+// ids of deleted rows to new rows (no AUTOINCREMENT), so an upload id or an
+// item id from an old page can name another student's result.
 
-// Evaluations that the teacher may change: of graded uploads of the teacher's tests.
-const TEACHERS_GRADED = `SELECT ev.id FROM evaluations ev
+// The result that the teacher's page shows.
+export interface ShownResult {
+  teacherId: number;
+  submissionId: number;
+  // EvaluationInfo.gradedAt: when the robot wrote the result.
+  gradedAt: string;
+}
+
+// The evaluation of that result, while its upload is graded. Binds the
+// upload, the grading time, and the teacher (shownBinds).
+const SHOWN = `SELECT ev.id FROM evaluations ev
   JOIN submissions s ON s.id = ev.submission_id JOIN tests t ON t.id = s.test_id
-  WHERE s.status = 'graded' AND t.teacher_id = ?`;
+  WHERE ev.submission_id = ? AND ev.created_at = ? AND s.status = 'graded' AND t.teacher_id = ?`;
+
+const shownBinds = (shown: ShownResult) => [shown.submissionId, shown.gradedAt, shown.teacherId];
 
 // The grade in SQL, for amounts in cents: total * 10 / maximum in whole
 // hundredths, rounded half up, as gradeOf() does.
@@ -29,6 +42,7 @@ export function flagCountSql(ev: string): string {
 
 interface EvaluationRow {
   id: number;
+  created_at: string;
   max_total: number;
   office_points: number;
   total: number;
@@ -81,7 +95,7 @@ export async function getEvaluation(db: D1Database, submissionId: number): Promi
   const [evaluations, items] = await db.batch<EvaluationRow | ItemRow>([
     db
       .prepare(
-        `SELECT ev.id, ev.max_total, ev.office_points, ev.total, ev.grade, ev.summary, ev.strengths_json,
+        `SELECT ev.id, ev.created_at, ev.max_total, ev.office_points, ev.total, ev.grade, ev.summary, ev.strengths_json,
            ev.recommendations_json, ev.unreadable_json, ev.pages_reviewed_at, ${flagCountSql('ev')} AS flag_count
          FROM evaluations ev WHERE ev.submission_id = ?`,
       )
@@ -99,6 +113,7 @@ export async function getEvaluation(db: D1Database, submissionId: number): Promi
   const row = evaluations?.results[0] as EvaluationRow | undefined;
   if (!row) return null;
   return {
+    gradedAt: row.created_at,
     maxTotal: row.max_total,
     officePoints: row.office_points,
     total: row.total,
@@ -113,22 +128,13 @@ export async function getEvaluation(db: D1Database, submissionId: number): Promi
   };
 }
 
-// An item of the result of the teacher's upload, with its maximum, which
-// never changes. It does not check that the upload is graded: correctItem()
-// does that in its write. Null when the item is not in that upload's result.
-export async function findTeacherItem(
-  db: D1Database,
-  teacherId: number,
-  submissionId: number,
-  itemId: number,
-): Promise<{ maxPoints: number } | null> {
+// An item of the result the page shows, with its maximum, which never
+// changes. Null when the item is not in that result, or the result is gone.
+// correctItem() checks the same again in its write.
+export async function findTeacherItem(db: D1Database, shown: ShownResult, itemId: number): Promise<{ maxPoints: number } | null> {
   const row = await db
-    .prepare(
-      `SELECT i.max_points FROM evaluation_items i
-       JOIN evaluations ev ON ev.id = i.evaluation_id JOIN submissions s ON s.id = ev.submission_id JOIN tests t ON t.id = s.test_id
-       WHERE i.id = ? AND ev.submission_id = ? AND t.teacher_id = ?`,
-    )
-    .bind(itemId, submissionId, teacherId)
+    .prepare(`SELECT max_points FROM evaluation_items WHERE id = ? AND evaluation_id IN (${SHOWN})`)
+    .bind(itemId, ...shownBinds(shown))
     .first<{ max_points: number }>();
   return row ? { maxPoints: row.max_points } : null;
 }
@@ -138,16 +144,9 @@ export async function findTeacherItem(
 // the total, the grade, and the freshness of the class analysis follow. The
 // total is summed again from the items, so two corrections at once still
 // leave the right total. The points must be checked first with
-// isValidCorrection(). False when the upload is no longer graded, or when
-// the item is not in its result: item ids come back after a delete.
-export async function correctItem(
-  db: D1Database,
-  teacherId: number,
-  submissionId: number,
-  itemId: number,
-  change: ItemCorrection,
-  now: string,
-): Promise<boolean> {
+// isValidCorrection(). False when the item is not in the result the page
+// shows, or that result is gone or no longer graded.
+export async function correctItem(db: D1Database, shown: ShownResult, itemId: number, change: ItemChange, now: string): Promise<boolean> {
   const changed = change.points !== undefined || change.comment !== undefined;
   const reviewed = change.reviewed === undefined ? null : change.reviewed ? 1 : 0;
   const item = await db
@@ -155,8 +154,7 @@ export async function correctItem(
       `UPDATE evaluation_items SET points = COALESCE(?, points), comment = COALESCE(?, comment),
          changed_by_teacher = CASE WHEN ? = 1 THEN 1 ELSE changed_by_teacher END,
          reviewed_at = CASE WHEN ? IS NULL THEN reviewed_at WHEN ? = 1 THEN COALESCE(reviewed_at, ?) ELSE NULL END
-       WHERE id = ? AND evaluation_id IN (SELECT id FROM evaluations WHERE submission_id = ?)
-         AND evaluation_id IN (${TEACHERS_GRADED})
+       WHERE id = ? AND evaluation_id IN (${SHOWN})
        RETURNING evaluation_id`,
     )
     .bind(
@@ -167,8 +165,7 @@ export async function correctItem(
       reviewed,
       now,
       itemId,
-      submissionId,
-      teacherId,
+      ...shownBinds(shown),
     )
     .first<{ evaluation_id: number }>();
   if (!item) return false;
@@ -195,15 +192,16 @@ export async function correctItem(
 }
 
 // The teacher checked the pages that the robot could not read: they no
-// longer count as an item to check. False when the upload is not graded.
-export async function reviewPages(db: D1Database, teacherId: number, submissionId: number, reviewed: boolean, now: string): Promise<boolean> {
+// longer count as an item to check. False when the result the page shows is
+// gone or no longer graded.
+export async function reviewPages(db: D1Database, shown: ShownResult, reviewed: boolean, now: string): Promise<boolean> {
   const row = await db
     .prepare(
       `UPDATE evaluations SET pages_reviewed_at = CASE WHEN ? = 1 THEN COALESCE(pages_reviewed_at, ?) ELSE NULL END
-       WHERE submission_id = ? AND id IN (${TEACHERS_GRADED})
+       WHERE id IN (${SHOWN})
        RETURNING id`,
     )
-    .bind(reviewed ? 1 : 0, now, submissionId, teacherId)
+    .bind(reviewed ? 1 : 0, now, ...shownBinds(shown))
     .first<{ id: number }>();
   return row !== null;
 }

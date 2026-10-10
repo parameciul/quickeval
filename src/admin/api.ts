@@ -6,6 +6,7 @@ import type {
   EvaluationStart,
   ExerciseListAnswer,
   ItemCorrection,
+  PagesReview,
   RegradeAnswer,
   RobotStart,
   RobotStartAnswer,
@@ -61,8 +62,8 @@ export interface AdminApi {
   retrySubmission(submissionId: number): Promise<RobotStart | null>;
   regradeSubmission(submissionId: number): Promise<RegradeAnswer>;
   // The teacher's corrections answer with the whole upload: new total and grade.
-  correctItem(submissionId: number, itemId: number, change: ItemCorrection): Promise<SubmissionDetail>;
-  reviewPages(submissionId: number, pagesReviewed: boolean): Promise<SubmissionDetail>;
+  correctItem(submissionId: number, itemId: number, correction: ItemCorrection): Promise<SubmissionDetail>;
+  reviewPages(submissionId: number, review: PagesReview): Promise<SubmissionDetail>;
   getSettings(): Promise<Settings>;
   updateSettings(maxParallelAgents: number): Promise<Settings>;
   // A new robot key: the only time the app sees it.
@@ -193,10 +194,10 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     retrySubmission: async (submissionId) =>
       (await request<{ robot: RobotStart | null }>('POST', `/submissions/${submissionId}/retry`)).robot,
     regradeSubmission: (submissionId) => request<RegradeAnswer>('POST', `/submissions/${submissionId}/regrade`),
-    correctItem: async (submissionId, itemId, change) =>
-      (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/items/${itemId}`, change)).submission,
-    reviewPages: async (submissionId, pagesReviewed) =>
-      (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/evaluation`, { pagesReviewed })).submission,
+    correctItem: async (submissionId, itemId, correction) =>
+      (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/items/${itemId}`, correction)).submission,
+    reviewPages: async (submissionId, review) =>
+      (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/evaluation`, review)).submission,
     getSettings: async () => (await request<{ settings: Settings }>('GET', '/settings')).settings,
     updateSettings: async (maxParallelAgents) =>
       (await request<{ settings: Settings }>('PATCH', '/settings', { maxParallelAgents })).settings,

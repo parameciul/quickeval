@@ -89,14 +89,15 @@ describe('createApiClient results', () => {
       jsonResponse(200, String(url).endsWith('/regrade') ? regraded : { submission }),
     );
     const api = createApiClient({ fetchImpl });
-    expect(await api.correctItem(5, 31, { points: 3.5, reviewed: true })).toEqual(submission);
-    expect(await api.reviewPages(5, true)).toEqual(submission);
+    const gradedAt = '2026-10-07T09:00:00.000Z';
+    expect(await api.correctItem(5, 31, { gradedAt, points: 3.5, reviewed: true })).toEqual(submission);
+    expect(await api.reviewPages(5, { gradedAt, pagesReviewed: true })).toEqual(submission);
     expect(await api.regradeSubmission(5)).toEqual(regraded);
     expect(await api.regradeTest('6E2-26T1')).toEqual(regraded);
     expect(await api.getStudentHistory(10)).toEqual({ submission });
     expect(fetchImpl.mock.calls.map(([url, init]) => [init!.method, url, init!.body])).toEqual([
-      ['PATCH', '/api/admin/submissions/5/items/31', '{"points":3.5,"reviewed":true}'],
-      ['PATCH', '/api/admin/submissions/5/evaluation', '{"pagesReviewed":true}'],
+      ['PATCH', '/api/admin/submissions/5/items/31', '{"gradedAt":"2026-10-07T09:00:00.000Z","points":3.5,"reviewed":true}'],
+      ['PATCH', '/api/admin/submissions/5/evaluation', '{"gradedAt":"2026-10-07T09:00:00.000Z","pagesReviewed":true}'],
       ['POST', '/api/admin/submissions/5/regrade', undefined],
       ['POST', '/api/admin/tests/6E2-26T1/regrade', undefined],
       ['GET', '/api/admin/students/10/history', undefined],

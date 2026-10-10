@@ -15,4 +15,3 @@ Plan 4a built the review of the grades: the result page (corrections, Verificat,
 - The API can take a check back (`reviewed: false`, `pagesReviewed: false`); the page has no button for it.
 - "Recorectează" on a row of the uploads table says nothing when the test is open; the row shows "Trimis". The result page and "Recorectează tot" say that the grading waits for Start evaluation.
 - On a phone, the test page is a little wider than the screen: the file field of the test files list does not shrink (from Plan 2).
-- A result page stays as it was loaded (the teacher app does not refetch on window focus). After a regrade of the same upload, its new items can get the same ids again, so a correction from a page opened before lands on the new grading of that upload. It is the same student, and the answer shows the new result at once. A correction can never reach another upload.

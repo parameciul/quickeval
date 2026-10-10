@@ -26,6 +26,9 @@ const submission: SubmissionDetail = {
   evaluation: null,
 };
 
+// When the robot wrote the result of fakeEvaluation(); each change names it.
+const GRADED_AT = '2026-10-07T09:00:00.000Z';
+
 // A graded upload: I.1 full points; II.1 flagged by the robot; the second
 // page could not be read. Total 6,5 of 10 (4,5 + 1 + 1 din oficiu).
 const graded: SubmissionDetail = {
@@ -145,7 +148,7 @@ describe('SubmissionPage', () => {
     const api = apiWith(graded);
     renderAdmin(page, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' }));
-    expect(api.correctItem).toHaveBeenCalledWith(5, 32, { reviewed: true });
+    expect(api.correctItem).toHaveBeenCalledWith(5, 32, { gradedAt: GRADED_AT, reviewed: true });
     expect(await within(row('Subiectul II, ex. 1')).findByText('Verificat')).toBeInTheDocument();
     expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-flagged');
     expect(screen.getByText('De verificat: 1')).toBeInTheDocument();
@@ -163,7 +166,12 @@ describe('SubmissionPage', () => {
     await userEvent.clear(comment);
     await userEvent.type(comment, 'Bine, dar verifică semnul.');
     await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
-    expect(api.correctItem).toHaveBeenCalledWith(5, 32, { points: 3.5, comment: 'Bine, dar verifică semnul.', reviewed: true });
+    expect(api.correctItem).toHaveBeenCalledWith(5, 32, {
+      gradedAt: GRADED_AT,
+      points: 3.5,
+      comment: 'Bine, dar verifică semnul.',
+      reviewed: true,
+    });
     expect(await screen.findByText(/Nota/)).toHaveTextContent('Nota 9 · 9 puncte din 10');
     const changed = row('Subiectul II, ex. 1');
     expect(within(changed).getByText('3,5 din 4,5')).toBeInTheDocument();
@@ -179,7 +187,7 @@ describe('SubmissionPage', () => {
     await userEvent.clear(points);
     await userEvent.type(points, '4');
     await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
-    expect(api.correctItem).toHaveBeenCalledWith(5, 31, { points: 4 });
+    expect(api.correctItem).toHaveBeenCalledWith(5, 31, { gradedAt: GRADED_AT, points: 4 });
   });
 
   it('refuses points off the 0.05 steps or above the maximum without asking the server', async () => {
@@ -221,7 +229,7 @@ describe('SubmissionPage', () => {
     renderAdmin(page, api);
     expect(await screen.findByText(/Robotul nu a putut citi: Pagina 2\./)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Am verificat paginile' }));
-    expect(api.reviewPages).toHaveBeenCalledWith(5, true);
+    expect(api.reviewPages).toHaveBeenCalledWith(5, { gradedAt: GRADED_AT, pagesReviewed: true });
     expect(await screen.findByText('Robotul nu a putut citi: Pagina 2. Ai verificat aceste pagini.')).toBeInTheDocument();
     expect(screen.getByText('De verificat: 1')).toBeInTheDocument();
   });

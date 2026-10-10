@@ -5,6 +5,7 @@ import type {
   EvaluationItemInfo,
   EvaluationStart,
   ItemCorrection,
+  PagesReview,
   RegradeAnswer,
   RobotStart,
   Settings,
@@ -133,6 +134,7 @@ function recount(evaluation: EvaluationInfo): EvaluationInfo {
 // A graded result out of 10 with 1 point "din oficiu", for building fake data in tests.
 export function fakeEvaluation(items: EvaluationItemInfo[], overrides: Partial<EvaluationInfo> = {}): EvaluationInfo {
   return recount({
+    gradedAt: '2026-10-07T09:00:00.000Z',
     maxTotal: 10,
     officePoints: 1,
     total: 0,
@@ -351,7 +353,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     // Like the server: the item must be in the result of the upload.
     correctItem: vi.fn(async (submissionId: number, itemId: number, change: ItemCorrection) => {
       const found = findSubmission(submissionId);
-      const item = found.evaluation?.items.find((i) => i.id === itemId);
+      const shown = found.evaluation?.gradedAt === change.gradedAt ? found.evaluation : undefined;
+      const item = shown?.items.find((i) => i.id === itemId);
       if (!found.evaluation || !item) throw new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
       if (change.points !== undefined && !isValidCorrection(change.points, item.maxPoints)) {
         throw new ApiError(400, 'invalid_points', `Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
@@ -364,10 +367,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       syncRow(found);
       return structuredClone(found);
     }),
-    reviewPages: vi.fn(async (submissionId: number, pagesReviewed: boolean) => {
+    reviewPages: vi.fn(async (submissionId: number, review: PagesReview) => {
       const found = findSubmission(submissionId);
-      if (!found.evaluation) throw new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
-      found.evaluation.pagesReviewed = pagesReviewed;
+      if (found.evaluation?.gradedAt !== review.gradedAt) throw new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
+      found.evaluation.pagesReviewed = review.pagesReviewed;
       recount(found.evaluation);
       syncRow(found);
       return structuredClone(found);

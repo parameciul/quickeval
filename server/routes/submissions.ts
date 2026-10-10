@@ -22,32 +22,34 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   // The teacher's correction of one item of the graded result (spec §14.1).
-  // The item must be in the result of the upload in the path: item ids come
-  // back after a reset or a regrade deletes the newest results, so a page
-  // opened before must not change another student's item. Answers with the
-  // whole upload, so the page shows the new total and grade.
+  // The item must be in the result the page shows: the upload in the path,
+  // and the grading the body names. Ids come back after a reset or a regrade
+  // deletes the newest rows, so a page opened before must not change another
+  // result. Answers with the whole upload, so the page shows the new total
+  // and grade.
   routes.patch('/:id/items/:itemId', async (c) => {
-    const teacherId = c.var.teacher.id;
     const submissionId = parseId(c.req.param('id'));
     const itemId = parseId(c.req.param('itemId'));
-    const body = await readJson(c, correctItemBody);
-    const item = await findTeacherItem(c.env.DB, teacherId, submissionId, itemId);
-    if (item && body.points !== undefined && !isValidCorrection(body.points, item.maxPoints)) {
+    const { gradedAt, ...change } = await readJson(c, correctItemBody);
+    const shown = { teacherId: c.var.teacher.id, submissionId, gradedAt };
+    const item = await findTeacherItem(c.env.DB, shown, itemId);
+    if (item && change.points !== undefined && !isValidCorrection(change.points, item.maxPoints)) {
       throw new ApiError(400, 'invalid_points', `Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
     }
-    const corrected = item !== null && (await correctItem(c.env.DB, teacherId, submissionId, itemId, body, nowIso()));
-    const found = await getTeacherSubmission(c.env.DB, teacherId, submissionId);
+    const corrected = item !== null && (await correctItem(c.env.DB, shown, itemId, change, nowIso()));
+    const found = await getTeacherSubmission(c.env.DB, shown.teacherId, submissionId);
     if (!found) throw notFound();
     if (!corrected) throw notGraded();
     return c.json({ submission: found.detail });
   });
 
-  // The teacher checked the pages that the robot could not read.
+  // The teacher checked the pages that the robot could not read, on the
+  // result the page shows.
   routes.patch('/:id/evaluation', async (c) => {
     const teacherId = c.var.teacher.id;
     const submissionId = parseId(c.req.param('id'));
-    const body = await readJson(c, reviewPagesBody);
-    const reviewed = await reviewPages(c.env.DB, teacherId, submissionId, body.pagesReviewed, nowIso());
+    const { gradedAt, pagesReviewed } = await readJson(c, reviewPagesBody);
+    const reviewed = await reviewPages(c.env.DB, { teacherId, submissionId, gradedAt }, pagesReviewed, nowIso());
     const found = await getTeacherSubmission(c.env.DB, teacherId, submissionId);
     if (!found) throw notFound();
     if (!reviewed) throw notGraded();

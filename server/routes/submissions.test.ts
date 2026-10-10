@@ -74,6 +74,7 @@ describe('GET /api/admin/submissions/:id', () => {
     const res = await api.request('GET', `/api/admin/submissions/${submissionId}`);
     expect(res.body.submission.status).toBe('graded');
     expect(res.body.submission.evaluation).toEqual({
+      gradedAt: '2026-10-07T09:00:00.000Z',
       maxTotal: 10,
       officePoints: 1,
       total: 8.5,
