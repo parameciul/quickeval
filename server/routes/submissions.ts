@@ -1,11 +1,14 @@
 import { Hono } from 'hono';
+import { reviewPagesBody } from '../../shared/api.ts';
+import { reviewPages } from '../db/evaluations.ts';
 import { retrySubmission } from '../db/lifecycle.ts';
 import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission } from '../db/submissions.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError, notFound } from '../errors.ts';
-import { nowIso, parseId } from '../http.ts';
+import { nowIso, parseId, readJson } from '../http.ts';
 import { deleteFilesQuietly, fileResponse } from '../uploads.ts';
+import { notGraded } from './evaluations.ts';
 
 // /api/admin/submissions: one student's upload for one test.
 export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
@@ -15,6 +18,18 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.get('/:id', async (c) => {
     const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')));
     if (!found) throw notFound();
+    return c.json({ submission: found.detail });
+  });
+
+  // The teacher checked the pages that the robot could not read.
+  routes.patch('/:id/evaluation', async (c) => {
+    const teacherId = c.var.teacher.id;
+    const submissionId = parseId(c.req.param('id'));
+    const body = await readJson(c, reviewPagesBody);
+    const reviewed = await reviewPages(c.env.DB, teacherId, submissionId, body.pagesReviewed, nowIso());
+    const found = await getTeacherSubmission(c.env.DB, teacherId, submissionId);
+    if (!found) throw notFound();
+    if (!reviewed) throw notGraded();
     return c.json({ submission: found.detail });
   });
 

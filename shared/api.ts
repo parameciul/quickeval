@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { normalizeClassName } from './classes.ts';
 import type { TestFileKind } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
-import type { Confidence } from './schemas.ts';
+import { TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
 import { cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
@@ -89,6 +89,30 @@ export const updateSettingsBody = z.object({
     .min(1, { message: PARALLEL_MESSAGE })
     .max(MAX_PARALLEL_AGENTS, { message: PARALLEL_MESSAGE }),
 });
+
+const POINTS_MESSAGE = 'Scrie punctajul ca număr, de exemplu 2,5.';
+
+// The teacher's correction of one graded item (spec §14.1). The server checks
+// the points against the item's maximum with isValidCorrection().
+export const correctItemBody = z
+  .object({
+    points: z.number({ message: POINTS_MESSAGE }).optional(),
+    comment: z
+      .string()
+      .transform((raw) => raw.trim())
+      .pipe(z.string().max(TEXT_LIMITS.comment, { message: `Comentariul are cel mult ${TEXT_LIMITS.comment} de caractere.` }))
+      .optional(),
+    // True: the teacher checked the item. False takes the check back.
+    reviewed: z.boolean().optional(),
+  })
+  .refine((body) => body.points !== undefined || body.comment !== undefined || body.reviewed !== undefined, {
+    message: 'Nu ai schimbat nimic.',
+  });
+
+export type ItemCorrection = z.output<typeof correctItemBody>;
+
+// The teacher checked the pages that the robot could not read (or takes it back).
+export const reviewPagesBody = z.object({ pagesReviewed: z.boolean() });
 
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({

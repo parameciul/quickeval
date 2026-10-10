@@ -3,6 +3,7 @@ import { teacherAuth } from '../auth/teacherAuth.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { promoteDue, sameOriginWrites } from '../http.ts';
 import { classRoutes } from './classes.ts';
+import { evaluationItemRoutes } from './evaluations.ts';
 import { settingsRoutes } from './settings.ts';
 import { studentRoutes } from './students.ts';
 import { submissionRoutes } from './submissions.ts';
@@ -17,6 +18,7 @@ export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.route('/students', studentRoutes());
   routes.route('/tests', testRoutes(options));
   routes.route('/submissions', submissionRoutes(options));
+  routes.route('/evaluation-items', evaluationItemRoutes());
   routes.route('/settings', settingsRoutes());
   return routes;
 }
