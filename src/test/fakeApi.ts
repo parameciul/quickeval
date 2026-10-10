@@ -285,6 +285,21 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.exerciseList = { status: 'none', message: null };
       return found.status === 'evaluating' ? 'next_check' : null;
     }),
+    // Like the server: graded and failed uploads wait for the robot again.
+    regradeTest: vi.fn(async (code: string): Promise<RegradeAnswer> => {
+      const found = findTest(code);
+      const again = (status: string) => status === 'graded' || status === 'failed';
+      const rows = found.uploads.filter((row) => again(row.status));
+      if (rows.length === 0) throw new ApiError(409, 'nothing_to_regrade', 'Testul nu are lucrări corectate.');
+      for (const row of rows) Object.assign(row, { status: 'submitted', grade: null, flagCount: 0, lastError: null });
+      if (found.test.status === 'done') found.test.status = 'evaluating';
+      for (const detail of submissions) {
+        if (detail.testCode === code && again(detail.status)) {
+          Object.assign(detail, { status: 'submitted', testStatus: found.test.status, evaluation: null, lastError: null });
+        }
+      }
+      return { count: rows.length, testStatus: found.test.status, robot: found.test.status === 'evaluating' ? 'next_check' : null };
+    }),
     startRobot: vi.fn(async (code: string): Promise<RobotStart> => {
       if (findTest(code).test.status !== 'evaluating') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
       return 'next_check';
@@ -310,16 +325,21 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       if (found) Object.assign(found, { status: 'submitted', lastError: null });
       return 'next_check';
     }),
-    // Like the server: a finished test goes back to evaluation.
+    // Like the server: a finished test goes back to evaluation. The upload is
+    // a row of a test's uploads table, a detailed upload, or both.
     regradeSubmission: vi.fn(async (submissionId: number): Promise<RegradeAnswer> => {
-      const found = findSubmission(submissionId);
-      if (found.status !== 'graded') throw new ApiError(409, 'not_graded', 'Lucrarea nu este corectată acum.');
-      if (found.testStatus === 'done') found.testStatus = 'evaluating';
-      Object.assign(found, { status: 'submitted', evaluation: null });
-      syncRow(found);
-      const test = tests.find((t) => t.test.code === found.testCode);
-      if (test) test.test.status = found.testStatus;
-      return { count: 1, testStatus: found.testStatus, robot: found.testStatus === 'evaluating' ? 'next_check' : null };
+      const found = submissions.find((s) => s.id === submissionId);
+      const test = tests.find((t) => t.uploads.some((u) => u.submissionId === submissionId) || t.test.code === found?.testCode);
+      const row = test?.uploads.find((u) => u.submissionId === submissionId);
+      const status = found?.status ?? row?.status;
+      if (status === undefined) throw notFound();
+      if (status !== 'graded') throw new ApiError(409, 'not_graded', 'Lucrarea nu este corectată acum.');
+      const before = test?.test.status ?? found!.testStatus;
+      const testStatus = before === 'done' ? 'evaluating' : before;
+      if (found) Object.assign(found, { status: 'submitted', testStatus, evaluation: null });
+      if (row) Object.assign(row, { status: 'submitted', grade: null, flagCount: 0 });
+      if (test) test.test.status = testStatus;
+      return { count: 1, testStatus, robot: testStatus === 'evaluating' ? 'next_check' : null };
     }),
     correctItem: vi.fn(async (itemId: number, change: ItemCorrection) => {
       const found = submissions.find((s) => s.evaluation?.items.some((item) => item.id === itemId));

@@ -52,6 +52,8 @@ export interface AdminApi {
   retryExerciseList(code: string): Promise<RobotStart | null>;
   // "Pornește robotul": work that a stopped run left in the test.
   startRobot(code: string): Promise<RobotStart>;
+  // "Recorectează tot": graded and failed uploads wait for the robot again.
+  regradeTest(code: string): Promise<RegradeAnswer>;
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
   resetSubmission(submissionId: number): Promise<void>;
   retrySubmission(submissionId: number): Promise<RobotStart | null>;
@@ -179,6 +181,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     retryExerciseList: async (code) =>
       (await request<ExerciseListAnswer>('POST', `${test(code)}/exercise-list/retry`)).robot,
     startRobot: async (code) => (await request<RobotStartAnswer>('POST', `${test(code)}/robot`)).robot,
+    regradeTest: (code) => request<RegradeAnswer>('POST', `${test(code)}/regrade`),
     getSubmission: async (submissionId) =>
       (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,
     resetSubmission: async (submissionId) => {

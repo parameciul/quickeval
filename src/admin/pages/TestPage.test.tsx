@@ -104,7 +104,7 @@ describe('TestPage', () => {
     expect(within(pop).getByText('Trimis')).toBeInTheDocument();
     expect(within(pop).getByText('Fără confirmare')).toBeInTheDocument();
     expect(within(pop).getByText('6 oct. 2026, 10:40')).toBeInTheDocument();
-    expect(within(pop).getByRole('link', { name: 'Vezi fișierele' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
+    expect(within(pop).getByRole('link', { name: 'Vezi lucrarea' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
     const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
     expect(within(marin).getByText('Nu a trimis')).toBeInTheDocument();
     expect(within(marin).queryByRole('button', { name: 'Resetează' })).not.toBeInTheDocument();
@@ -318,7 +318,7 @@ describe('TestPage evaluation', () => {
     ];
     const api = evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
     renderAdmin('/teste/6E2-26T1', api);
-    expect(await screen.findByRole('heading', { name: 'Încărcări · trimise 2 din 2 · corectate 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Încărcări · trimise 2 din 2 · corectate 1 · de verificat 2' })).toBeInTheDocument();
     expect(screen.getByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('8,75')).toBeInTheDocument();
@@ -330,6 +330,56 @@ describe('TestPage evaluation', () => {
     expect(api.retrySubmission).toHaveBeenCalledWith(6);
     expect(await within(stan).findByText('Trimis')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
+  });
+
+  const gradedAndFailed = () => [
+    fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 4, grade: 8.75, flagCount: 2 }),
+    fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'failed', fileCount: 1, lastError: 'Robotul nu a terminat la timp.' }),
+    fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+  ];
+
+  it('regrades every graded and failed upload after the teacher confirms', async () => {
+    const api = evaluationApi({ status: 'done' }, gradedAndFailed());
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează tot' }));
+    expect(api.regradeTest).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Recorectează tot' }));
+    expect(confirm).toHaveBeenLastCalledWith('Recorectezi 2 lucrări? Punctajele și comentariile schimbate de tine se pierd.');
+    expect(api.regradeTest).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByRole('status')).toHaveTextContent(robotStartMessage('next_check'));
+    const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
+    expect(await within(pop).findByText('Trimis')).toBeInTheDocument();
+    expect(within(screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!).getByText('Trimis')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Recorectează tot' })).not.toBeInTheDocument();
+  });
+
+  it('says that an open test grades the uploads again after Start evaluation', async () => {
+    const api = evaluationApi({ status: 'open' }, gradedAndFailed());
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează tot' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Lucrările se corectează din nou după ce pornești evaluarea.');
+  });
+
+  it('offers no regrade while nothing is graded', async () => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'evaluating' }));
+    expect(await screen.findByRole('heading', { name: 'Evaluarea' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Recorectează tot' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Recorectează' })).not.toBeInTheDocument();
+  });
+
+  it('regrades one graded upload from its row', async () => {
+    const api = evaluationApi({ status: 'done' }, gradedAndFailed());
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin('/teste/6E2-26T1', api);
+    const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
+    expect(within(screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!).queryByRole('button', { name: 'Recorectează' })).toBeNull();
+    await userEvent.click(within(pop).getByRole('button', { name: 'Recorectează' }));
+    expect(confirm).toHaveBeenCalledWith('Recorectezi lucrarea elevului Pop Ion? Corecturile tale se pierd.');
+    expect(api.regradeSubmission).toHaveBeenCalledWith(5);
+    expect(await within(pop).findByText('Trimis')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(robotStartMessage('next_check'));
   });
 
   const NOT_STARTED = 'Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.';

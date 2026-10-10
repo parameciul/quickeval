@@ -10,6 +10,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { StatusChip } from '../StatusChip.tsx';
 import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
+import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
 import { StartRobotButton, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
@@ -104,12 +105,14 @@ function TestDetails({ code }: { code: string }) {
               {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
             </RobotLine>
           )}
+          <RegradeAllButton code={code} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
         </>
       )}
 
       <h2>
         Încărcări · trimise {test.submittedCount} din {test.studentCount}
         {test.gradedCount > 0 && ` · corectate ${test.gradedCount}`}
+        {test.flagCount > 0 && ` · de verificat ${test.flagCount}`}
       </h2>
       <UploadsTable code={code} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
 

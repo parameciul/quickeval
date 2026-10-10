@@ -70,6 +70,13 @@ function UploadTableRow({
       await onChanged();
     },
   });
+  const regrade = useMutation({
+    mutationFn: (submissionId: number) => api.regradeSubmission(submissionId),
+    onSuccess: async (answer) => {
+      onRobot(answer.robot);
+      await onChanged();
+    },
+  });
   const time = row.submittedAt ?? row.startedAt;
   const submissionId = row.submissionId;
 
@@ -91,10 +98,24 @@ function UploadTableRow({
       <td>
         {submissionId !== null && (
           <span className="row-actions">
-            <Link to={`/teste/${code}/elevi/${submissionId}`}>Vezi fișierele</Link>
+            <Link to={`/teste/${code}/elevi/${submissionId}`}>Vezi lucrarea</Link>
             {row.status === 'failed' && (
               <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate(submissionId)}>
                 Reîncearcă
+              </button>
+            )}
+            {row.status === 'graded' && (
+              <button
+                type="button"
+                className="button-quiet button-small"
+                disabled={regrade.isPending}
+                onClick={() => {
+                  if (window.confirm(`Recorectezi lucrarea elevului ${row.studentName}? Corecturile tale se pierd.`)) {
+                    regrade.mutate(submissionId);
+                  }
+                }}
+              >
+                Recorectează
               </button>
             )}
             <button
@@ -113,6 +134,7 @@ function UploadTableRow({
         )}
         {reset.error && <ErrorMessage error={reset.error} />}
         {retry.error && <ErrorMessage error={retry.error} />}
+        {regrade.error && <ErrorMessage error={regrade.error} />}
       </td>
     </tr>
   );
