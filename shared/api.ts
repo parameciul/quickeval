@@ -276,6 +276,14 @@ export interface ExerciseListAnswer {
   robot: RobotStart | null;
 }
 
+// "Recorectează": how many uploads wait for the robot again. `robot` is null
+// while the test is open: they are graded after Start evaluation.
+export interface RegradeAnswer {
+  count: number;
+  testStatus: TestStatus;
+  robot: RobotStart | null;
+}
+
 // A new test or barem file: `robot` is set when a new barem needs a new
 // exercise list while the test is in evaluation, and null otherwise.
 export interface TestFileAnswer {

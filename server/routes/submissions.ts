@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { reviewPagesBody } from '../../shared/api.ts';
+import { reviewPagesBody, type RegradeAnswer } from '../../shared/api.ts';
 import { reviewPages } from '../db/evaluations.ts';
-import { retrySubmission } from '../db/lifecycle.ts';
+import { regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
 import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission } from '../db/submissions.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
@@ -58,6 +58,17 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (testStatus === null) throw new ApiError(409, 'not_failed', 'Corectarea acestei lucrări nu a eșuat.');
     const robot = testStatus === 'evaluating' ? await startRobot(c.env) : null;
     return c.json({ status: 'submitted', robot });
+  });
+
+  // "Recorectează": the robot grades a graded upload again; its result and the
+  // teacher's corrections go.
+  routes.post('/:id/regrade', async (c) => {
+    const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')));
+    if (!found) throw notFound();
+    const testStatus = await regradeSubmission(c.env.DB, c.var.teacher.id, found.detail.id, nowIso());
+    if (testStatus === null) throw new ApiError(409, 'not_graded', 'Lucrarea nu este corectată acum.');
+    const robot = testStatus === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ count: 1, testStatus, robot } satisfies RegradeAnswer);
   });
 
   return routes;

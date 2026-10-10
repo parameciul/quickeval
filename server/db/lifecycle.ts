@@ -165,6 +165,58 @@ export async function retryExerciseList(db: D1Database, teacherId: number, testI
   return row?.status ?? null;
 }
 
+// A regraded upload waits for the robot again, as if just sent.
+const GRADE_AGAIN = "status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, graded_at = NULL";
+
+// "Recorectează" (spec §8.5): the robot grades a graded upload again. Its
+// result goes, with the teacher's corrections. A finished test goes back to
+// evaluation; an open test grades it after Start evaluation. Returns the
+// test's status, or null when the upload was not graded.
+export async function regradeSubmission(db: D1Database, teacherId: number, submissionId: number, now: string): Promise<TestStatus | null> {
+  const GRADED = `id = ? AND status = 'graded' AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)`;
+  const [, regraded, , test] = await db.batch<{ test_id?: number; status?: TestStatus }>([
+    db.prepare(`DELETE FROM evaluations WHERE submission_id IN (SELECT id FROM submissions WHERE ${GRADED})`).bind(submissionId, teacherId),
+    db.prepare(`UPDATE submissions SET ${GRADE_AGAIN} WHERE ${GRADED} RETURNING test_id`).bind(submissionId, teacherId),
+    db
+      .prepare(
+        `UPDATE tests SET status = 'evaluating', updated_at = ?, ${ASK_FOR_ANALYSIS}
+         WHERE status = 'done' AND teacher_id = ?
+           AND id = (SELECT test_id FROM submissions WHERE id = ? AND status = 'submitted')`,
+      )
+      .bind(now, teacherId, submissionId),
+    db.prepare('SELECT t.status FROM tests t JOIN submissions s ON s.test_id = t.id WHERE s.id = ?').bind(submissionId),
+  ]);
+  if (!regraded?.results.length) return null;
+  return test?.results[0]?.status ?? null;
+}
+
+// "Recorectează tot": every graded upload of the test, and every upload whose
+// grading failed, waits for the robot again. Results and corrections go. A
+// finished test goes back to evaluation. Returns how many uploads wait, and
+// the test's status; null when the test is gone.
+export async function regradeTest(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  now: string,
+): Promise<{ count: number; status: TestStatus } | null> {
+  const AGAIN = `test_id = ? AND status IN ('graded', 'failed') AND EXISTS (SELECT 1 FROM tests t WHERE t.id = ? AND t.teacher_id = ?)`;
+  const [, regraded, , test] = await db.batch<{ id?: number; status?: TestStatus }>([
+    db.prepare(`DELETE FROM evaluations WHERE submission_id IN (SELECT id FROM submissions WHERE ${AGAIN})`).bind(testId, testId, teacherId),
+    db.prepare(`UPDATE submissions SET ${GRADE_AGAIN} WHERE ${AGAIN} RETURNING id`).bind(testId, testId, teacherId),
+    db
+      .prepare(
+        `UPDATE tests SET status = 'evaluating', updated_at = ?, ${ASK_FOR_ANALYSIS}
+         WHERE id = ? AND teacher_id = ? AND status = 'done'
+           AND EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND s.status = 'submitted')`,
+      )
+      .bind(now, testId, teacherId),
+    db.prepare('SELECT status FROM tests WHERE id = ? AND teacher_id = ?').bind(testId, teacherId),
+  ]);
+  const status = test?.results[0]?.status;
+  return status ? { count: regraded?.results.length ?? 0, status } : null;
+}
+
 // failed → submitted with 0 attempts, so the robot grades the upload again. A
 // finished test goes back to evaluation (spec §8.5). Returns the test's
 // status, or null when the upload had not failed.
