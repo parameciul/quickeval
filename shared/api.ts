@@ -154,6 +154,37 @@ export interface ClassDetail {
   tests: TestSummary[];
 }
 
+// A class the student is in, or was in (`active` false: the student left).
+export interface StudentClass {
+  id: number;
+  name: string;
+  schoolYear: number;
+  active: boolean;
+}
+
+// One graded test of a student.
+export interface StudentResult {
+  submissionId: number;
+  testCode: string;
+  testTitle: string;
+  className: string;
+  schoolYear: number;
+  // The date and hour of the test.
+  date: string;
+  // Out of 10.
+  grade: number;
+  // Items of the result that the teacher has not checked yet.
+  flagCount: number;
+}
+
+// The student page (spec §9): every graded test of the student, in every
+// class and school year, newest first.
+export interface StudentHistory {
+  student: { id: number; fullName: string };
+  classes: StudentClass[];
+  results: StudentResult[];
+}
+
 export interface TestSummary {
   code: string;
   title: string;
