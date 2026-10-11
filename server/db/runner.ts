@@ -163,7 +163,7 @@ export interface RobotTestRecord {
 export async function findRobotTest(db: D1Database, testId: number): Promise<RobotTestRecord | null> {
   const row = await db
     .prepare(
-      `SELECT id, files_version, test_file_key, test_file_type, barem_file_key, barem_file_type, exercise_list_json
+      `SELECT id, files_version, test_file_key, test_file_type, barem_file_key, barem_file_type, barem_notes, exercise_list_json
        FROM tests WHERE id = ? AND status = 'evaluating'`,
     )
     .bind(testId)
@@ -174,6 +174,7 @@ export async function findRobotTest(db: D1Database, testId: number): Promise<Rob
       test_file_type: string | null;
       barem_file_key: string | null;
       barem_file_type: string | null;
+      barem_notes: string | null;
       exercise_list_json: string | null;
     }>();
   if (!row) return null;
@@ -184,6 +185,7 @@ export async function findRobotTest(db: D1Database, testId: number): Promise<Rob
       filesVersion: row.files_version,
       files: { test: file(row.test_file_key, row.test_file_type), barem: file(row.barem_file_key, row.barem_file_type) },
       exerciseList: row.exercise_list_json ? (JSON.parse(row.exercise_list_json) as ExerciseList) : null,
+      baremNotes: row.barem_notes ?? '',
     },
     keys: { test: row.test_file_key, barem: row.barem_file_key },
   };

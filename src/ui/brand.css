@@ -277,7 +277,7 @@ h2 {
 
 .page {
   position: relative;
-  padding-block: 1.25rem 2.5rem;
+  padding-block: 0.75rem 2.5rem;
   padding-left: var(--margin-x);
 }
 
@@ -522,6 +522,20 @@ textarea {
   margin: 0;
 }
 
+/* The back link at the top of a page: tight, so the page starts higher. */
+.back-link {
+  margin: 0 0 0.5rem;
+}
+
+/* Right-aligned actions on the same row as a heading (test name, QR code). */
+.head-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
 .narrow {
   max-width: 34rem;
 }
@@ -609,6 +623,24 @@ input[type="file"] {
   width: 200px;
   height: 200px;
   margin-top: 0.5rem;
+}
+
+/* The QR code with its full-screen button on the same row, right aligned. */
+.qr-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  max-width: 44rem;
+  margin-top: 0.5rem;
+}
+
+.qr-row .qr {
+  margin-top: 0;
+}
+
+.qr-row .qr-full {
+  margin-left: auto;
 }
 
 .qr-overlay {

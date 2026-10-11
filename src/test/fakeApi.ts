@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type {
+  BaremNotesAnswer,
   ClassSummary,
   EvaluationInfo,
   EvaluationItemInfo,
@@ -79,6 +80,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       uploadToken: null,
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
+      baremNotes: '',
       ...overrides,
     },
     uploads,
@@ -264,6 +266,14 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.exerciseList = { status: 'none', message: null };
       return { file: info, robot: found.status === 'evaluating' ? 'next_check' : null };
     }),
+    // Like the server: new barem comments clear the exercise list, and during
+    // evaluation the robot makes it again.
+    saveBaremNotes: vi.fn(async (code: string, notes: string): Promise<BaremNotesAnswer> => {
+      const found = findTest(code).test;
+      found.baremNotes = notes.trim();
+      found.exerciseList = { status: 'none', message: null };
+      return { baremNotes: found.baremNotes, robot: found.status === 'evaluating' ? 'next_check' : null };
+    }),
     startTest: vi.fn(async (code: string) => {
       const found = findTest(code).test;
       Object.assign(found, { status: 'open', uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT });
@@ -272,12 +282,25 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     reopenTest: vi.fn(async (code: string) => {
       findTest(code).test.status = 'open';
     }),
-    // Like the server: a time that has passed starts now.
-    evaluateTest: vi.fn(async (code: string, at?: string): Promise<EvaluationStart> => {
-      const found = findTest(code).test;
+    // Like the server: a time that has passed starts now. With submissionIds,
+    // unselected uploads with files stay uploading for a later evaluation.
+    evaluateTest: vi.fn(async (code: string, at?: string, submissionIds?: number[]): Promise<EvaluationStart> => {
+      const detail = findTest(code);
+      const found = detail.test;
       if (at !== undefined && at > new Date().toISOString()) {
         found.evaluationAt = at;
         return { status: 'open', evaluationAt: at, robot: null };
+      }
+      if (submissionIds !== undefined) {
+        for (const row of detail.uploads) {
+          if (row.submissionId === null) continue;
+          const selected = submissionIds.includes(row.submissionId);
+          if (!selected && row.status === 'submitted') {
+            Object.assign(row, { status: 'uploading', submittedAt: null, autoSubmitted: false });
+          } else if (selected && row.status === 'uploading' && row.fileCount > 0) {
+            Object.assign(row, { status: 'submitted', submittedAt: new Date().toISOString(), autoSubmitted: true });
+          }
+        }
       }
       Object.assign(found, { status: 'evaluating', evaluationAt: null, evaluationStartedAt: new Date().toISOString() });
       return { status: 'evaluating', evaluationAt: null, robot: 'next_check' };

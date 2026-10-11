@@ -162,6 +162,63 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
   });
 });
 
+describe('PUT /api/admin/tests/:code/barem-notes', () => {
+  const notesOf = () =>
+    api.db.prepare('SELECT barem_notes, exercise_list_status, files_version FROM tests WHERE code = ?').bind(code).first();
+  const saveNotes = (body: unknown) => api.request('PUT', `/api/admin/tests/${code}/barem-notes`, body);
+
+  it('saves the notes and shows them on the test', async () => {
+    const res = await saveNotes({ notes: '  Acceptă și metoda cu proporții.  ' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ baremNotes: 'Acceptă și metoda cu proporții.', robot: null });
+    expect(await notesOf()).toMatchObject({ barem_notes: 'Acceptă și metoda cu proporții.', exercise_list_status: 'none' });
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test.baremNotes).toBe('Acceptă și metoda cu proporții.');
+  });
+
+  it('clears the exercise list like a new barem', async () => {
+    await api.db
+      .prepare("UPDATE tests SET exercise_list_status = 'ready', exercise_list_json = '{}', files_version = 4 WHERE code = ?")
+      .bind(code)
+      .run();
+    expect((await saveNotes({ notes: 'Verifică raționamentul.' })).status).toBe(200);
+    expect(await notesOf()).toEqual({ barem_notes: 'Verifică raționamentul.', exercise_list_status: 'none', files_version: 5 });
+  });
+
+  it('refuses while the robot works with the files', async () => {
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await api.db.prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'ready' WHERE code = ?").bind(code).run();
+    const res = await saveNotes({ notes: 'Ceva.' });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('evaluating');
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  it('takes new notes while the exercise list has a problem and starts the robot', async () => {
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await api.db
+      .prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'problem', exercise_list_message = 'x' WHERE code = ?")
+      .bind(code)
+      .run();
+    dispatchRobot.mockResolvedValueOnce(true);
+    const res = await saveNotes({ notes: 'Acceptă tot.' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ baremNotes: 'Acceptă tot.', robot: 'dispatched' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses notes that are too long', async () => {
+    const res = await saveNotes({ notes: 'x'.repeat(2001) });
+    expect(res.status).toBe(400);
+    expect(await notesOf()).toMatchObject({ barem_notes: '' });
+  });
+
+  it('answers 404 for a test of another teacher', async () => {
+    const foreign = await otherTeacherTest(api);
+    expect((await api.request('PUT', `/api/admin/tests/${foreign.code}/barem-notes`, { notes: 'x' })).status).toBe(404);
+  });
+});
+
 describe('GET /api/admin/tests/:code/files/:kind', () => {
   it('streams the stored file under its original name', async () => {
     await putFile(code, 'test', pdf('enunț'), PDF_TYPE, 'Test (final).pdf');

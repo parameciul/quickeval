@@ -64,6 +64,7 @@ describe('createApiClient evaluation', () => {
     const api = createApiClient({ fetchImpl });
     expect(await api.evaluateTest('6E2-26T1')).toEqual({ status: 'evaluating', evaluationAt: null, robot: 'dispatched' });
     await api.evaluateTest('6E2-26T1', '2026-10-20T07:15:00.000Z');
+    await api.evaluateTest('6E2-26T1', undefined, [5, 6]);
     await api.cancelSchedule('6E2-26T1');
     expect(await api.acceptExerciseList('6E2-26T1')).toBe('dispatched');
     expect(await api.retryExerciseList('6E2-26T1')).toBe('dispatched');
@@ -72,6 +73,7 @@ describe('createApiClient evaluation', () => {
     expect(fetchImpl.mock.calls.map(([url, init]) => [init!.method, url, init!.body])).toEqual([
       ['POST', '/api/admin/tests/6E2-26T1/evaluate', '{}'],
       ['POST', '/api/admin/tests/6E2-26T1/evaluate', '{"at":"2026-10-20T07:15:00.000Z"}'],
+      ['POST', '/api/admin/tests/6E2-26T1/evaluate', '{"submissionIds":[5,6]}'],
       ['DELETE', '/api/admin/tests/6E2-26T1/schedule', undefined],
       ['POST', '/api/admin/tests/6E2-26T1/exercise-list/accept', undefined],
       ['POST', '/api/admin/tests/6E2-26T1/exercise-list/retry', undefined],

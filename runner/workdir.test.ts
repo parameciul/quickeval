@@ -86,6 +86,19 @@ describe('makeWorkFolder', () => {
     ]);
   });
 
+  it('writes the teacher comments for the barem as part of it, or nothing without them', async () => {
+    const folder = await makeWorkFolder(
+      root,
+      'exercise-list-notes',
+      { test: pdf('test'), barem: pdf('barem'), baremNotes: '  Acceptă și metoda cu proporții.  ' },
+      { skillDir },
+    );
+    expect(filesIn(folder)).toContain('barem/notes.md');
+    expect(readFileSync(path.join(folder, 'barem', 'notes.md'), 'utf8')).toBe('Acceptă și metoda cu proporții.\n');
+    const plain = await makeWorkFolder(root, 'exercise-list-plain', { test: pdf('test'), barem: pdf('barem') }, { skillDir });
+    expect(filesIn(plain)).not.toContain('barem/notes.md');
+  });
+
   it('turns a Word file into Markdown with pandoc, in the work folder, and removes the Word file', async () => {
     const calls: { args: string[]; cwd: string }[] = [];
     const pandoc: Pandoc = async (args, cwd) => {

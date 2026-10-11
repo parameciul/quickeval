@@ -7,25 +7,53 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // Who uploaded what: one row per student of the class, with the grade once
-// the robot graded it.
+// the robot graded it. While the uploads are open, the teacher selects the
+// uploads to grade now: one checkbox per row with files, and one in the header
+// for all of them.
 export function UploadsTable({
   code,
   uploads,
+  selectable,
+  selected,
+  onSelect,
   onChanged,
   onRobot,
 }: {
   code: string;
   uploads: UploadRow[];
+  // True while the test is open: the checkboxes choose the next evaluation.
+  selectable: boolean;
+  // The selected uploads (submission ids).
+  selected: number[];
+  onSelect: (ids: number[]) => void;
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
 }) {
   if (uploads.length === 0) return <p className="hint">Clasa nu are elevi. Adaugă-i din pagina clasei.</p>;
+  const eligible = selectable ? uploads.filter((row) => canSelect(row)) : [];
+  const eligibleIds = eligible.map((row) => row.submissionId!);
+  const allChecked = eligibleIds.length > 0 && eligibleIds.every((id) => selected.includes(id));
+  const someChecked = eligibleIds.some((id) => selected.includes(id));
   return (
     <div className="table-wrap">
       <table className="uploads">
         <caption className="sr-only">Încărcările elevilor</caption>
         <thead>
           <tr>
+            {selectable && (
+              <th scope="col">
+                <input
+                  type="checkbox"
+                  aria-label="Selectează toate lucrările cu fișiere"
+                  checked={allChecked}
+                  ref={(input) => {
+                    if (input) input.indeterminate = !allChecked && someChecked;
+                  }}
+                  disabled={eligibleIds.length === 0}
+                  onChange={(event) => onSelect(event.target.checked ? eligibleIds : [])}
+                />
+              </th>
+            )}
             <th scope="col">Elev</th>
             <th scope="col">Stare</th>
             <th scope="col">Fișiere</th>
@@ -39,7 +67,16 @@ export function UploadsTable({
         </thead>
         <tbody>
           {uploads.map((row) => (
-            <UploadTableRow key={row.studentId} code={code} row={row} onChanged={onChanged} onRobot={onRobot} />
+            <UploadTableRow
+              key={row.studentId}
+              code={code}
+              row={row}
+              selectable={selectable}
+              checked={row.submissionId !== null && selected.includes(row.submissionId)}
+              onToggle={(id, checked) => onSelect(checked ? [...selected, id] : selected.filter((kept) => kept !== id))}
+              onChanged={onChanged}
+              onRobot={onRobot}
+            />
           ))}
         </tbody>
       </table>
@@ -47,14 +84,26 @@ export function UploadsTable({
   );
 }
 
+// Only an upload with files that still waits for grading can be selected:
+// graded uploads are done, failed ones need Reîncearcă.
+function canSelect(row: UploadRow): boolean {
+  return row.submissionId !== null && row.fileCount > 0 && (row.status === 'uploading' || row.status === 'submitted');
+}
+
 function UploadTableRow({
   code,
   row,
+  selectable,
+  checked,
+  onToggle,
   onChanged,
   onRobot,
 }: {
   code: string;
   row: UploadRow;
+  selectable: boolean;
+  checked: boolean;
+  onToggle: (submissionId: number, checked: boolean) => void;
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
 }) {
@@ -83,6 +132,18 @@ function UploadTableRow({
 
   return (
     <tr className={row.status === 'none' ? 'is-muted' : undefined}>
+      {selectable && (
+        <td>
+          {row.submissionId !== null && canSelect(row) ? (
+            <input
+              type="checkbox"
+              aria-label={`Selectează lucrarea elevului ${row.studentName}`}
+              checked={checked}
+              onChange={(event) => onToggle(row.submissionId!, event.target.checked)}
+            />
+          ) : null}
+        </td>
+      )}
       <th scope="row">
         {row.studentName}
         {!row.active && <span className="tag">a plecat</span>}

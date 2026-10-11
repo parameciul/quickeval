@@ -132,6 +132,41 @@ describe('POST /api/admin/tests/:code/evaluate (now)', () => {
     const foreign = await otherTeacherTest(api);
     expect((await api.request('POST', `/api/admin/tests/${foreign.code}/evaluate`, {})).status).toBe(404);
   });
+
+  it('grades only the selected uploads and keeps the rest for later', async () => {
+    await addTestFiles(api, code);
+    const first = await addSubmission(api, code, studentIds[0]!, { status: 'submitted', files: 2 });
+    const second = await addSubmission(api, code, studentIds[1]!, { status: 'submitted', files: 1 });
+    const third = await addSubmission(api, code, studentIds[2]!, { files: 1 });
+    dispatchRobot.mockResolvedValueOnce(true);
+
+    const res = await evaluate({ submissionIds: [first] });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'evaluating', evaluationAt: null, robot: 'dispatched' });
+    expect(await uploadRow(first)).toMatchObject({ status: 'submitted' });
+    // A confirmed upload that was not selected waits for a later evaluation.
+    expect(await uploadRow(second)).toEqual({ status: 'uploading', auto_submitted: 0, submitted_at: null });
+    expect(await uploadRow(third)).toMatchObject({ status: 'uploading' });
+    expect((await testRow())?.status).toBe('evaluating');
+  });
+
+  it('refuses a selection without files and changes nothing', async () => {
+    await addTestFiles(api, code);
+    const empty = await addSubmission(api, code, studentIds[0]!);
+    const res = await evaluate({ submissionIds: [empty] });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'no_selection', message: 'Selectează cel puțin o lucrare cu fișiere.' });
+    expect((await testRow())?.status).toBe('open');
+    expect((await uploadRow(empty))?.status).toBe('uploading');
+  });
+
+  it('refuses an empty selection', async () => {
+    await addTestFiles(api, code);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    const res = await evaluate({ submissionIds: [] });
+    expect(res.status).toBe(400);
+    expect((await testRow())?.status).toBe('open');
+  });
 });
 
 describe('POST /api/admin/tests/:code/evaluate (scheduled)', () => {
@@ -168,6 +203,15 @@ describe('POST /api/admin/tests/:code/evaluate (scheduled)', () => {
     const res = await evaluate({ at: new Date(Date.now() + 3_600_000).toISOString() });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('Încarcă baremul înainte de evaluare.');
+    expect((await testRow())?.evaluation_at).toBeNull();
+  });
+
+  it('refuses a scheduled evaluation with a selection', async () => {
+    await addTestFiles(api, code);
+    const upload = await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    const res = await evaluate({ at: new Date(Date.now() + 3_600_000).toISOString(), submissionIds: [upload] });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'invalid', message: 'Evaluarea programată corectează toate lucrările.' });
     expect((await testRow())?.evaluation_at).toBeNull();
   });
 });

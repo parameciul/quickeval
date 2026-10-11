@@ -14,7 +14,8 @@ import type { ExerciseList } from '../shared/schemas.ts';
 //
 //   .claude/skills/evaluate-test/   a copy of the repo's grading skill
 //   test/test.pdf                   or test/test.md and test/media/… (from Word)
-//   barem/barem.pdf                 or barem/barem.md and barem/media/…
+//   barem/barem.pdf                 or barem/barem.md and barem/media/… (from Word)
+//   barem/notes.md                  (when the teacher added comments to the barem)
 //   exercises.json                  (grade) the exercise list
 //   student/page-01.jpg, …          (grade) the pages, in upload order
 
@@ -28,6 +29,8 @@ export interface TaskFile {
 export interface WorkFolderInput {
   test: TaskFile;
   barem: TaskFile;
+  // Extra teacher comments for the barem, as part of it.
+  baremNotes?: string;
   // Grade mode: the test's exercise list and the student's pages, in upload order.
   exerciseList?: ExerciseList;
   pages?: TaskFile[];
@@ -59,6 +62,9 @@ export async function makeWorkFolder(root: string, taskId: string, input: WorkFo
   const pandoc = options.pandoc ?? realPandoc;
   await writeTeacherFile(folder, 'test', input.test, pandoc);
   await writeTeacherFile(folder, 'barem', input.barem, pandoc);
+  if (input.baremNotes) {
+    await writeFile(path.join(folder, 'barem', 'notes.md'), `${input.baremNotes.trim()}\n`);
+  }
   if (input.exerciseList) {
     await writeFile(path.join(folder, 'exercises.json'), `${JSON.stringify(input.exerciseList, null, 2)}\n`);
   }

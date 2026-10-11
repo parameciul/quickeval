@@ -73,13 +73,18 @@ const READY = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
   AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id WHERE s.test_id = t.id)`;
 
 // open → evaluating now. Null when the test is not ready; "done" when it has
-// nothing to grade (every upload was graded before).
+// nothing to grade (every upload was graded before). With `submissionIds`,
+// only the selected uploads are sent to grading: uploads with files that were
+// not selected stay uploading, so the robot ignores them until the teacher
+// reopens and evaluates them.
 export async function startEvaluationNow(
   db: D1Database,
   teacherId: number,
   testId: number,
   now: string,
+  submissionIds?: number[],
 ): Promise<'evaluating' | 'done' | null> {
+  if (submissionIds !== undefined) return startSelectiveEvaluation(db, teacherId, testId, now, submissionIds);
   const [, started, finished] = await db.batch<{ id: number }>([
     db
       .prepare(
@@ -96,6 +101,70 @@ export async function startEvaluationNow(
          RETURNING id`,
       )
       .bind(now, now, testId, teacherId),
+    finishTests(db, now),
+  ]);
+  if (!started?.results.length) return null;
+  return finished?.results.some((row) => row.id === testId) ? 'done' : 'evaluating';
+}
+
+// Whether any of the selected uploads has a file.
+export async function selectedHaveFiles(db: D1Database, testId: number, submissionIds: number[]): Promise<boolean> {
+  if (submissionIds.length === 0) return false;
+  const placeholders = submissionIds.map(() => '?').join(',');
+  const row = await db
+    .prepare(
+      `SELECT 1 AS found FROM submissions s JOIN submission_files f ON f.submission_id = s.id
+       WHERE s.test_id = ? AND s.id IN (${placeholders}) LIMIT 1`,
+    )
+    .bind(testId, ...submissionIds)
+    .first<{ found: number }>();
+  return row !== null;
+}
+
+// open → evaluating now for the selected uploads only. Unselected uploads
+// that were confirmed go back to uploading (their files stay), so the robot
+// grades only the selection. The teacher reopens the test and evaluates the
+// rest. Null when the test is not ready.
+async function startSelectiveEvaluation(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  now: string,
+  submissionIds: number[],
+): Promise<'evaluating' | 'done' | null> {
+  if (submissionIds.length === 0) return null;
+  const placeholders = submissionIds.map(() => '?').join(',');
+  const READY_SELECTED = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
+    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL
+    AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id
+      WHERE s.test_id = t.id AND s.id IN (${placeholders}))`;
+  const OPEN_WITH_FILES = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
+    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL`;
+  const [, , started, finished] = await db.batch<{ id: number }>([
+    // Unselected confirmed uploads wait for a later evaluation.
+    db
+      .prepare(
+        `UPDATE submissions SET status = 'uploading', auto_submitted = 0, submitted_at = NULL
+         WHERE status = 'submitted' AND test_id = ? AND id NOT IN (${placeholders})
+           AND EXISTS (SELECT 1 FROM tests t WHERE ${OPEN_WITH_FILES})`,
+      )
+      .bind(testId, ...submissionIds, testId, teacherId),
+    db
+      .prepare(
+        `UPDATE submissions SET status = 'submitted', auto_submitted = 1, submitted_at = ?
+         WHERE status = 'uploading' AND ${HAS_FILES}
+           AND id IN (${placeholders}) AND test_id = ?
+           AND EXISTS (SELECT 1 FROM tests t WHERE ${OPEN_WITH_FILES})`,
+      )
+      .bind(now, ...submissionIds, testId, testId, teacherId),
+    db
+      .prepare(
+        `UPDATE tests
+         SET status = 'evaluating', evaluation_started_at = ?, evaluation_at = NULL, updated_at = ?, ${ASK_FOR_ANALYSIS}
+         WHERE id IN (SELECT t.id FROM tests t WHERE ${READY_SELECTED})
+         RETURNING id`,
+      )
+      .bind(now, now, testId, teacherId, ...submissionIds),
     finishTests(db, now),
   ]);
   if (!started?.results.length) return null;

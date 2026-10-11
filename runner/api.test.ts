@@ -45,6 +45,7 @@ describe('robotApi with the real API', () => {
       filesVersion: 0,
       files: { test: { contentType: 'application/pdf' }, barem: { contentType: 'application/pdf' } },
       exerciseList: null,
+      baremNotes: '',
     });
     expect(text(await robot.testFile(testId, 'barem'))).toBe('%PDF-1.7 barem');
     expect(await robot.sendExerciseList(testId, { runId: RUN, filesVersion: 0, ok: true, exerciseList: LIST })).toEqual({ status: 'ready', message: null });

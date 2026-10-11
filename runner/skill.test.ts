@@ -21,7 +21,7 @@ describe('the grading skill', () => {
   });
 
   it('names every file of the work folder', () => {
-    for (const file of ['test/test.pdf', 'test/test.md', 'test/media/', 'barem/barem.pdf', 'barem/barem.md', 'barem/media/', 'exercises.json', 'student/', 'page-01.jpg']) {
+    for (const file of ['test/test.pdf', 'test/test.md', 'test/media/', 'barem/barem.pdf', 'barem/barem.md', 'barem/media/', 'barem/notes.md', 'exercises.json', 'student/', 'page-01.jpg']) {
       expect(skill).toContain(`\`${file}\``);
     }
   });

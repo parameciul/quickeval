@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
-import type { RobotStart, TestInfo } from '../../../shared/api.ts';
+import { useState, type FormEvent } from 'react';
+import { MAX_BAREM_NOTES_LENGTH, type RobotStart, type TestInfo } from '../../../shared/api.ts';
 import type { TestFileKind } from '../../../shared/files.ts';
 import { testFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
@@ -33,7 +33,15 @@ export function TestFiles({
       {locked && <p className="hint">Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.</p>}
       <ul className="file-list">
         <TestFileRow code={test.code} kind="test" file={test.files.test} locked={locked} onChanged={onChanged} onRobot={onRobot} />
-        <TestFileRow code={test.code} kind="barem" file={test.files.barem} locked={locked} onChanged={onChanged} onRobot={onRobot} />
+        <TestFileRow
+          code={test.code}
+          kind="barem"
+          file={test.files.barem}
+          locked={locked}
+          onChanged={onChanged}
+          onRobot={onRobot}
+          baremNotes={test.baremNotes}
+        />
       </ul>
     </>
   );
@@ -46,6 +54,7 @@ function TestFileRow({
   locked,
   onChanged,
   onRobot,
+  baremNotes,
 }: {
   code: string;
   kind: TestFileKind;
@@ -53,6 +62,7 @@ function TestFileRow({
   locked: boolean;
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
+  baremNotes?: string;
 }) {
   const api = useApi();
   // A new key empties the file input after each upload.
@@ -88,6 +98,85 @@ function TestFileRow({
       />
       {upload.isPending && <p role="status">Se încarcă…</p>}
       {upload.error && <ErrorMessage error={upload.error} />}
+      {kind === 'barem' && (
+        <BaremNotesEditor code={code} notes={baremNotes ?? ''} locked={locked} onChanged={onChanged} onRobot={onRobot} />
+      )}
     </li>
+  );
+}
+
+// Extra teacher comments for the barem: the robot reads them as part of the
+// barem, so the teacher need not replace the barem file. Like a new barem,
+// saving them clears the exercise list and starts the robot during evaluation.
+function BaremNotesEditor({
+  code,
+  notes,
+  locked,
+  onChanged,
+  onRobot,
+}: {
+  code: string;
+  notes: string;
+  locked: boolean;
+  onChanged: () => Promise<void>;
+  onRobot: (robot: RobotStart | null) => void;
+}) {
+  const api = useApi();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(notes);
+  const save = useMutation({
+    mutationFn: () => api.saveBaremNotes(code, text),
+    onSuccess: async (answer) => {
+      setOpen(false);
+      onRobot(answer.robot);
+      await onChanged();
+    },
+  });
+
+  if (!open) {
+    return (
+      <>
+        {notes && <p className="hint">Comentarii la barem: {notes}</p>}
+        <button
+          type="button"
+          className="button-quiet button-small"
+          disabled={locked}
+          onClick={() => {
+            setText(notes);
+            setOpen(true);
+          }}
+        >
+          {notes ? 'Editează comentariile' : 'Adaugă comentarii'}
+        </button>
+      </>
+    );
+  }
+  return (
+    <form
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        save.mutate();
+      }}
+    >
+      <label htmlFor="barem-notes">Comentarii la barem</label>
+      <textarea
+        id="barem-notes"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        maxLength={MAX_BAREM_NOTES_LENGTH}
+        rows={4}
+        placeholder="De exemplu: la exercițiul 2 acceptă și metoda cu proporții."
+      />
+      <p className="hint">Robotul le citește ca parte din barem.</p>
+      <span className="row-actions">
+        <button className="button button-small" type="submit" disabled={save.isPending}>
+          Salvează comentariile
+        </button>
+        <button type="button" className="button-quiet button-small" onClick={() => setOpen(false)}>
+          Renunță
+        </button>
+      </span>
+      {save.error && <ErrorMessage error={save.error} />}
+    </form>
   );
 }

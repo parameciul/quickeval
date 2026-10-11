@@ -1,4 +1,5 @@
 import type {
+  BaremNotesAnswer,
   ClassDetail,
   ClassSummary,
   CreateClassInput,
@@ -45,10 +46,13 @@ export interface AdminApi {
   renameTest(code: string, title: string): Promise<{ code: string; title: string }>;
   deleteTest(code: string): Promise<void>;
   uploadTestFile(code: string, kind: TestFileKind, file: File): Promise<TestFileAnswer>;
+  // Extra teacher comments for the barem, read by the robot as part of it.
+  saveBaremNotes(code: string, notes: string): Promise<BaremNotesAnswer>;
   startTest(code: string): Promise<StartedTest>;
   reopenTest(code: string): Promise<void>;
-  // Now without `at`, or at that ISO time.
-  evaluateTest(code: string, at?: string): Promise<EvaluationStart>;
+  // Now without `at`, or at that ISO time. With `submissionIds`, now only
+  // the selected uploads are graded.
+  evaluateTest(code: string, at?: string, submissionIds?: number[]): Promise<EvaluationStart>;
   cancelSchedule(code: string): Promise<void>;
   // The robot answers are null when the robot was not needed.
   acceptExerciseList(code: string): Promise<RobotStart | null>;
@@ -172,11 +176,17 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       await request('DELETE', test(code));
     },
     uploadTestFile: (code, kind, file) => request<TestFileAnswer>('PUT', `${test(code)}/files/${kind}`, undefined, file),
+    saveBaremNotes: (code, notes) => request<BaremNotesAnswer>('PUT', `${test(code)}/barem-notes`, { notes }),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
     reopenTest: async (code) => {
       await request('POST', `${test(code)}/reopen`);
     },
-    evaluateTest: (code, at) => request<EvaluationStart>('POST', `${test(code)}/evaluate`, at === undefined ? {} : { at }),
+    evaluateTest: (code, at, submissionIds) =>
+      request<EvaluationStart>(
+        'POST',
+        `${test(code)}/evaluate`,
+        at === undefined && submissionIds === undefined ? {} : { ...(at === undefined ? {} : { at }), ...(submissionIds === undefined ? {} : { submissionIds }) },
+      ),
     cancelSchedule: async (code) => {
       await request('DELETE', `${test(code)}/schedule`);
     },

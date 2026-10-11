@@ -33,12 +33,12 @@ export function UploadLink({ token }: { token: string }) {
         {copied === 'yes' && <span role="status">Copiat!</span>}
         {copied === 'failed' && <span role="status">Nu am putut copia. Selectează linkul și copiază-l de mână.</span>}
       </div>
-      <QRCodeSVG value={url} size={200} marginSize={4} title="Codul QR al linkului" className="qr" />
-      <p>
-        <button type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
+      <div className="qr-row">
+        <QRCodeSVG value={url} size={200} marginSize={4} title="Codul QR al linkului" className="qr" />
+        <button type="button" className="button-quiet button-small qr-full" onClick={() => setFullScreen(true)}>
           Arată codul QR pe tot ecranul
         </button>
-      </p>
+      </div>
       {fullScreen && <QrOverlay url={url} onClose={() => setFullScreen(false)} />}
     </div>
   );

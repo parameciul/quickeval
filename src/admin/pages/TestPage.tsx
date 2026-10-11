@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import type { RobotStart, TestInfo } from '../../../shared/api.ts';
+import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { MAX_TITLE_LENGTH, normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
 import { formatDateTime, robotStartMessage } from '../../ui/format.ts';
@@ -38,6 +38,11 @@ function TestDetails({ code }: { code: string }) {
   // When the robot starts, after the teacher started or restarted grading.
   const [robotNotice, setRobotNotice] = useState<string | null>(null);
   const onRobot = (robot: RobotStart | null) => setRobotNotice(robot ? robotStartMessage(robot) : null);
+  // The rename form opens below the title; its button stays in the title row.
+  const [renameOpen, setRenameOpen] = useState(false);
+  // The uploads to grade at the next Start evaluation (submission ids).
+  // Empty at first, so the start button stays off until the teacher selects.
+  const [selected, setSelected] = useState<number[]>([]);
   const detail = useQuery({
     queryKey: ['test', code],
     queryFn: () => api.getTest(code),
@@ -66,7 +71,7 @@ function TestDetails({ code }: { code: string }) {
   const robotText = test.status === 'evaluating' && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
   return (
     <section>
-      <p>
+      <p className="back-link">
         <Link to="/">← Toate testele</Link>
       </p>
       {detail.isRefetchError && <ErrorMessage error={detail.error} />}
@@ -77,13 +82,20 @@ function TestDetails({ code }: { code: string }) {
       )}
       <div className="page-head">
         <h1>{test.code}</h1>
-        <StatusChip status={test.status} />
+        <span className="head-actions">
+          <StatusChip status={test.status} />
+          {!renameOpen && (
+            <button type="button" className="button-quiet button-small" onClick={() => setRenameOpen(true)}>
+              Redenumește testul
+            </button>
+          )}
+        </span>
       </div>
       <p className="lead-line">
         {test.title} · <Link to={`/clase/${test.classId}`}>{displayClassName(test.className)}</Link>
         {test.startedAt && ` · început ${formatDateTime(test.startedAt)}`}
       </p>
-      <RenameTestForm code={code} currentTitle={test.title} onDone={refresh} />
+      {renameOpen && <RenameTestForm code={code} currentTitle={test.title} onDone={refresh} onClose={() => setRenameOpen(false)} />}
 
       <TestFiles test={test} onChanged={refresh} onRobot={onRobot} />
 
@@ -95,10 +107,18 @@ function TestDetails({ code }: { code: string }) {
           <h2>Evaluarea</h2>
           <ExerciseListBanner test={test} onChanged={refresh} onRobot={onRobot} />
           {test.status === 'open' ? (
-            <EvaluationControls test={test} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
+            <EvaluationControls
+              test={test}
+              uploads={uploads}
+              selected={selected}
+              onChanged={refresh}
+              onStarted={() => setSelected([])}
+              onRobot={onRobot}
+            />
           ) : (
             <EvaluationState test={test} />
           )}
+          {test.status === 'done' && <PartialEvaluationNotice uploads={uploads} />}
           {robotText && <p role="status">{robotText}</p>}
           {(test.status === 'evaluating' || test.evaluationAt) && (
             <RobotLine lastCheckAt={robot.lastCheckAt}>
@@ -114,21 +134,32 @@ function TestDetails({ code }: { code: string }) {
         {test.gradedCount > 0 && ` · corectate ${test.gradedCount}`}
         {test.flagCount > 0 && ` · de verificat ${test.flagCount}`}
       </h2>
-      <UploadsTable code={code} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
+      <UploadsTable
+        code={code}
+        uploads={uploads}
+        selectable={test.status === 'open'}
+        selected={selected}
+        onSelect={setSelected}
+        onChanged={refresh}
+        onRobot={onRobot}
+      />
 
-      <h2>Șterge testul</h2>
-      <p className="hint">Se șterg și toate lucrările încărcate de elevi.</p>
-      <button
-        type="button"
-        className="button-quiet button-danger"
-        disabled={remove.isPending}
-        onClick={() => {
-          if (window.confirm(`Ștergi testul ${code}? Se șterg și toate lucrările încărcate.`)) remove.mutate();
-        }}
-      >
-        Șterge testul
-      </button>
-      {remove.error && <ErrorMessage error={remove.error} />}
+      <div className="final-actions">
+        <div className="final-row">
+          <button
+            type="button"
+            className="button-quiet button-small button-danger"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (window.confirm(`Ștergi testul ${code}? Se șterg și toate lucrările încărcate.`)) remove.mutate();
+            }}
+          >
+            Șterge testul
+          </button>
+          <p className="hint">Se șterg și toate lucrările încărcate de elevi.</p>
+          {remove.error && <ErrorMessage error={remove.error} />}
+        </div>
+      </div>
     </section>
   );
 }
@@ -168,32 +199,41 @@ function EvaluationState({ test }: { test: TestInfo }) {
   return <p>{test.status === 'done' ? `Corectarea s-a terminat.${since}` : `Robotul corectează lucrările trimise.${since}`}</p>;
 }
 
-function RenameTestForm({ code, currentTitle, onDone }: { code: string; currentTitle: string; onDone: () => Promise<void> }) {
+// After a finished evaluation with uploads that still wait for grading.
+function PartialEvaluationNotice({ uploads }: { uploads: UploadRow[] }) {
+  const pending = uploads.filter((row) => row.fileCount > 0 && (row.status === 'uploading' || row.status === 'submitted'));
+  if (pending.length === 0) return null;
+  const what = pending.length === 1 ? '1 lucrare cu fișiere nu a fost corectată' : `${pending.length} lucrări cu fișiere nu au fost corectate`;
+  return (
+    <div className="warning" role="status">
+      <p>
+        <strong>Evaluare parțială.</strong> {what}. Redeschide încărcarea și pornește evaluarea pentru ele.
+      </p>
+    </div>
+  );
+}
+
+function RenameTestForm({
+  code,
+  currentTitle,
+  onDone,
+  onClose,
+}: {
+  code: string;
+  currentTitle: string;
+  onDone: () => Promise<void>;
+  onClose: () => void;
+}) {
   const api = useApi();
-  const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(currentTitle);
   const rename = useMutation({
     mutationFn: () => api.renameTest(code, title),
     onSuccess: async () => {
-      setOpen(false);
+      onClose();
       await onDone();
     },
   });
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="button-quiet button-small"
-        onClick={() => {
-          setTitle(currentTitle);
-          setOpen(true);
-        }}
-      >
-        Redenumește testul
-      </button>
-    );
-  }
   return (
     <form
       className="form-row"
@@ -207,7 +247,7 @@ function RenameTestForm({ code, currentTitle, onDone }: { code: string; currentT
       <button className="button button-small" type="submit" disabled={rename.isPending}>
         Salvează
       </button>
-      <button type="button" className="button-quiet button-small" onClick={() => setOpen(false)}>
+      <button type="button" className="button-quiet button-small" onClick={onClose}>
         Renunță
       </button>
       {rename.error && <ErrorMessage error={rename.error} />}

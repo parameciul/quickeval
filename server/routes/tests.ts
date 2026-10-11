@@ -1,9 +1,11 @@
 import { Hono } from 'hono';
 import type { D1Database } from '@cloudflare/workers-types';
 import {
+  baremNotesBody,
   createTestBody,
   evaluateTestBody,
   renameTestBody,
+  type BaremNotesAnswer,
   type EvaluationStart,
   type ExerciseListAnswer,
   type RegradeAnswer,
@@ -19,6 +21,7 @@ import {
   regradeTest,
   retryExerciseList,
   scheduleEvaluation,
+  selectedHaveFiles,
   startEvaluationNow,
 } from '../db/lifecycle.ts';
 import { testHasRobotWork } from '../db/runner.ts';
@@ -32,6 +35,7 @@ import {
   renameTest,
   reopenTest,
   requireTest,
+  saveBaremNotes,
   saveTestFile,
   startTest,
   toTestInfo,
@@ -96,6 +100,23 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ code, title: body.title });
   });
 
+  // Extra teacher comments for the barem: saved as part of the test, read by
+  // the robot as part of the barem. Like a new barem file: the exercise list
+  // is cleared and the robot makes it again during evaluation.
+  routes.put('/:code/barem-notes', async (c) => {
+    const teacherId = c.var.teacher.id;
+    const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
+    const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
+    if (test.summary.status === 'evaluating' && !listBlocked) {
+      throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba comentariile după ce se termină corectarea.');
+    }
+    const body = await readJson(c, baremNotesBody);
+    const status = await saveBaremNotes(c.env.DB, teacherId, test.id, body.notes, nowIso());
+    if (status === null) throw notFound();
+    const robot = status === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ baremNotes: body.notes, robot } satisfies BaremNotesAnswer);
+  });
+
   // The rows go first, so the test is gone at once; then its files.
   routes.delete('/:code', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
@@ -136,7 +157,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   // Start evaluation (spec §8.4): now, or at a later time. Now: the uploads
-  // close and the robot is asked to start at once.
+  // close and the robot is asked to start at once. Now with `submissionIds`:
+  // only the selected uploads are graded; the rest wait for a later evaluation.
   routes.post('/:code/evaluate', async (c) => {
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
@@ -145,6 +167,9 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     // Stored the way nowIso() writes times, so the times compare as text.
     const at = body.at === undefined ? null : new Date(body.at).toISOString();
     if (at !== null && at > now) {
+      if (body.submissionIds !== undefined) {
+        throw new ApiError(400, 'invalid', 'Evaluarea programată corectează toate lucrările.');
+      }
       if (Date.parse(at) - Date.parse(now) > MAX_SCHEDULE_DAYS * DAY_MS) {
         throw new ApiError(400, 'invalid', `Alege o oră din următoarele ${MAX_SCHEDULE_DAYS} de zile.`);
       }
@@ -153,7 +178,10 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       }
       return c.json({ status: 'open', evaluationAt: at, robot: null } satisfies EvaluationStart);
     }
-    const status = await startEvaluationNow(c.env.DB, teacherId, test.id, now);
+    if (body.submissionIds !== undefined && !(await selectedHaveFiles(c.env.DB, test.id, body.submissionIds))) {
+      throw new ApiError(409, 'no_selection', 'Selectează cel puțin o lucrare cu fișiere.');
+    }
+    const status = await startEvaluationNow(c.env.DB, teacherId, test.id, now, body.submissionIds);
     if (status === null) throw await evaluationBlocker(c.env.DB, teacherId, test.summary.code, true);
     const robot = status === 'evaluating' ? await startRobot(c.env) : null;
     return c.json({ status, evaluationAt: null, robot } satisfies EvaluationStart);

@@ -75,9 +75,31 @@ export const createTestBody = z.object({
 
 export const renameTestBody = z.object({ title: testTitleSchema });
 
+// Extra teacher comments for the barem: the robot reads them as part of the
+// barem, so the teacher need not replace the barem file.
+export const MAX_BAREM_NOTES_LENGTH = 2000;
+
+export const baremNotesBody = z.object({
+  notes: z
+    .string()
+    .transform((raw) => raw.trim())
+    .pipe(
+      z
+        .string()
+        .max(MAX_BAREM_NOTES_LENGTH, { message: `Comentariile au cel mult ${MAX_BAREM_NOTES_LENGTH} de caractere.` }),
+    ),
+});
+
 // Start evaluation: now (no `at`, or a time that has passed) or at a later time.
+// `submissionIds` starts now only the selected uploads: the teacher grades
+// 1-2 first, then the rest after reopening.
 export const evaluateTestBody = z.object({
   at: z.iso.datetime({ message: 'Ora aleasă nu este validă.' }).optional(),
+  submissionIds: z
+    .array(z.number({ message: 'Alege lucrările din listă.' }).int().positive({ message: 'Alege lucrările din listă.' }))
+    .min(1, { message: 'Selectează cel puțin o lucrare.' })
+    .max(500, { message: 'Selectează cel mult 500 de lucrări.' })
+    .optional(),
 });
 
 const PARALLEL_MESSAGE = `Alege între 1 și ${MAX_PARALLEL_AGENTS} lucrări corectate deodată.`;
@@ -279,6 +301,8 @@ export interface TestInfo extends TestSummary {
   uploadToken: string | null;
   files: Record<TestFileKind, TestFileInfo | null>;
   exerciseList: ExerciseListInfo;
+  // Extra teacher comments for the barem, read by the robot as part of it.
+  baremNotes: string;
 }
 
 // "none": the student has not started an upload.
@@ -370,6 +394,13 @@ export interface ExerciseListAnswer {
 export interface RegradeAnswer {
   count: number;
   testStatus: TestStatus;
+  robot: RobotStart | null;
+}
+
+// New barem comments: `robot` is set when new notes need a new exercise
+// list while the test is in evaluation, and null otherwise.
+export interface BaremNotesAnswer {
+  baremNotes: string;
   robot: RobotStart | null;
 }
 

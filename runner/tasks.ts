@@ -156,7 +156,7 @@ export async function makeExerciseList(ctx: TaskContext, testId: number): Promis
     const sendError = async (error: RobotError) => (await ctx.api.sendExerciseList(testId, { ...post, ok: false, error })).status === 'failed';
     const files = await teacherFiles(ctx, testId, test.files);
     if (!files) return sendOutcome({ ok: false, problem: 'crash', detail: 'missing file' }, async () => undefined, sendError);
-    const cwd = await makeFolder(files);
+    const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'exercise-list', cwd, (output) => checkExerciseList(output).ok);
     return sendOutcome(outcome, (exerciseList) => ctx.api.sendExerciseList(testId, { ...post, ok: true, exerciseList }), sendError);
@@ -177,7 +177,7 @@ export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Pro
     for (const file of [...claim.files].sort((a, b) => a.position - b.position)) {
       pages.push({ bytes: await ctx.api.page(submissionId, file.id), contentType: file.contentType });
     }
-    const cwd = await makeFolder({ ...files, exerciseList: list, pages });
+    const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes, exerciseList: list, pages });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list).ok);
     return sendOutcome(outcome, (result, model) => ctx.api.sendResult(submissionId, { runId: ctx.runId, ok: true, result, model }), sendError);

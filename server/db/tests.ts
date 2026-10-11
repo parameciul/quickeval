@@ -20,6 +20,7 @@ export interface TestRecord {
   uploadToken: string | null;
   files: Record<TestFileKind, StoredFile | null>;
   exerciseList: ExerciseListInfo;
+  baremNotes: string;
 }
 
 interface TestRow {
@@ -41,6 +42,7 @@ interface TestRow {
   barem_file_key: string | null;
   barem_file_name: string | null;
   barem_file_type: string | null;
+  barem_notes: string | null;
   exercise_list_status: ExerciseListStatus;
   exercise_list_message: string | null;
   student_count: number;
@@ -53,7 +55,7 @@ const SELECT_TEST = `
   SELECT t.id, t.code, t.title, t.status, t.class_id, c.name AS class_name, c.school_year,
     t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
-    t.barem_file_key, t.barem_file_name, t.barem_file_type, t.exercise_list_status, t.exercise_list_message,
+    t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
@@ -90,6 +92,7 @@ function toRecord(row: TestRow): TestRecord {
       barem: storedFile(row.barem_file_key, row.barem_file_name, row.barem_file_type),
     },
     exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
+    baremNotes: row.barem_notes ?? '',
   };
 }
 
@@ -101,6 +104,7 @@ export function toTestInfo(record: TestRecord): TestInfo {
     uploadToken: record.uploadToken,
     files: { test: info(record.files.test), barem: info(record.files.barem) },
     exerciseList: record.exerciseList,
+    baremNotes: record.baremNotes,
   };
 }
 
@@ -298,6 +302,29 @@ export async function saveTestFile(
          WHERE id = ? AND teacher_id = ?
          RETURNING status`;
   const row = await db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId).first<{ status: TestStatus }>();
+  return row?.status ?? null;
+}
+
+// Points the test at new barem comments, as if the barem file changed (spec
+// §8.5): the exercise list is cleared and files_version goes up, so a list the
+// robot made from the old notes is refused. Returns the test's status, or null
+// when the test is gone.
+export async function saveBaremNotes(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  notes: string,
+  now: string,
+): Promise<TestStatus | null> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET barem_notes = ?, updated_at = ?, files_version = files_version + 1,
+         exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0
+       WHERE id = ? AND teacher_id = ?
+       RETURNING status`,
+    )
+    .bind(notes, now, testId, teacherId)
+    .first<{ status: TestStatus }>();
   return row?.status ?? null;
 }
 

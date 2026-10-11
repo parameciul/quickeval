@@ -75,11 +75,13 @@ export interface TasksResult {
 // GET /tests/:id: what the robot needs to know of a test. No names.
 export interface RobotTest {
   id: number;
-  // Goes up by 1 each time the teacher replaces the test file or the barem.
-  // The robot sends it back with the exercise list.
+  // Goes up by 1 each time the teacher replaces the test file or the barem
+  // (or its comments). The robot sends it back with the exercise list.
   filesVersion: number;
   files: { test: { contentType: string } | null; barem: { contentType: string } | null };
   exerciseList: ExerciseList | null;
+  // Extra teacher comments for the barem, as part of it.
+  baremNotes: string;
 }
 
 // A grading, checked by checkGrading (shared/schemas.ts), or why the robot

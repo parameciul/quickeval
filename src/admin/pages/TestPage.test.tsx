@@ -211,22 +211,106 @@ describe('TestPage evaluation', () => {
     vi.useRealTimers();
   });
 
-  it('starts the evaluation now, after the teacher confirms', async () => {
+  it('starts the evaluation now for the selected uploads, after the teacher confirms', async () => {
     const api = evaluationApi({});
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin('/teste/6E2-26T1', api);
     const start = await screen.findByRole('button', { name: 'Pornește evaluarea acum' });
+    // Nothing selected yet: the button stays off.
+    expect(start).toBeDisabled();
+    expect(screen.getByText('Selectează cel puțin o lucrare cu fișiere din tabel.')).toBeInTheDocument();
+    // Select one upload with files (its row checkbox, not the shared header).
+    const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
+    await userEvent.click(within(pop).getByLabelText('Selectează lucrarea elevului Pop Ion'));
+    expect(start).toBeEnabled();
     await userEvent.click(start);
     expect(api.evaluateTest).not.toHaveBeenCalled();
     await userEvent.click(start);
-    expect(confirm).toHaveBeenLastCalledWith('Pornești evaluarea acum? Elevii nu mai pot încărca după asta.');
-    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1');
+    expect(confirm).toHaveBeenLastCalledWith(
+      'Pornești evaluarea acum pentru 1 lucrare? Elevii nu mai pot încărca după asta. Lucrările neselectate cu fișiere așteaptă o evaluare ulterioară.',
+    );
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5]);
     expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
     expect(screen.getByText(/^Robotul corectează lucrările trimise\. Evaluarea a pornit la 8 oct\. 2026, 10:00\.$/)).toBeInTheDocument();
     expect(screen.getByText('Robotul nu a verificat încă dacă are lucrări de corectat.')).toBeInTheDocument();
     expect(screen.getByText('Corectarea poate întârzia.')).toBeInTheDocument();
     expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+  });
+
+  it('selects only the uploads with files for the evaluation', async () => {
+    const rows = [
+      fakeUpload({
+        studentId: 10,
+        studentName: 'Pop Ion',
+        submissionId: 5,
+        status: 'submitted',
+        fileCount: 3,
+        startedAt: '2026-10-06T07:20:00.000Z',
+        submittedAt: '2026-10-06T07:40:00.000Z',
+      }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1, startedAt: '2026-10-06T07:25:00.000Z' }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    renderAdmin('/teste/6E2-26T1', evaluationApi({}, rows));
+    const start = await screen.findByRole('button', { name: 'Pornește evaluarea acum' });
+    expect(start).toBeDisabled();
+    // The student without files has no checkbox; the graded one cannot be picked.
+    const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
+    expect(within(marin).queryByRole('checkbox')).not.toBeInTheDocument();
+    // The header checkbox selects every upload with files, and clears them again.
+    await userEvent.click(screen.getByLabelText('Selectează toate lucrările cu fișiere'));
+    expect(start).toBeEnabled();
+    await userEvent.click(screen.getByLabelText('Selectează toate lucrările cu fișiere'));
+    expect(start).toBeDisabled();
+    // One row at a time works too.
+    const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
+    await userEvent.click(within(pop).getByLabelText('Selectează lucrarea elevului Pop Ion'));
+    expect(start).toBeEnabled();
+  });
+
+  it('leaves the graded uploads out of the selection', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1 }),
+    ];
+    const api = evaluationApi({ status: 'open' }, rows);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin('/teste/6E2-26T1', api);
+    const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
+    expect(within(pop).queryByRole('checkbox')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText('Selectează toate lucrările cu fișiere'));
+    await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [6]);
+  });
+
+  it('saves extra comments for the barem', async () => {
+    const api = evaluationApi({});
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Adaugă comentarii' }));
+    expect(screen.getByText('Robotul le citește ca parte din barem.')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Comentarii la barem'), 'Acceptă și metoda cu proporții.');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează comentariile' }));
+    expect(api.saveBaremNotes).toHaveBeenCalledWith('6E2-26T1', 'Acceptă și metoda cu proporții.');
+    expect(await screen.findByText(/Acceptă și metoda cu proporții/)).toBeInTheDocument();
+  });
+
+  it('says when the finished evaluation was partial', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1 }),
+    ];
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows));
+    expect(await screen.findByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
+    expect(screen.getByText('Evaluare parțială.')).toBeInTheDocument();
+    expect(screen.getByText(/1 lucrare cu fișiere nu a fost corectată/)).toBeInTheDocument();
+  });
+
+  it('says nothing partial when every upload with files was graded', async () => {
+    const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 })];
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows));
+    expect(await screen.findByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
+    expect(screen.queryByText('Evaluare parțială.')).not.toBeInTheDocument();
   });
 
   it('says what the evaluation still needs', async () => {
@@ -329,7 +413,9 @@ describe('TestPage evaluation', () => {
     await userEvent.click(within(stan).getByRole('button', { name: 'Reîncearcă' }));
     expect(api.retrySubmission).toHaveBeenCalledWith(6);
     expect(await within(stan).findByText('Trimis')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
+    expect(screen.getByText('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.')).toBeInTheDocument();
+    expect(screen.getByText('Evaluare parțială.')).toBeInTheDocument();
+    expect(screen.getByText(/1 lucrare cu fișiere nu a fost corectată/)).toBeInTheDocument();
   });
 
   const gradedAndFailed = () => [
@@ -360,8 +446,11 @@ describe('TestPage evaluation', () => {
     renderAdmin('/teste/6E2-26T1', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Recorectează tot' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Lucrările se corectează din nou după ce pornești evaluarea.');
+    // The regraded uploads wait for grading: select them first.
+    await userEvent.click(screen.getByLabelText('Selectează toate lucrările cu fișiere'));
     // Once the evaluation starts, the words are not true any more.
     await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5, 6]);
     expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
     expect(screen.queryByText('Lucrările se corectează din nou după ce pornești evaluarea.')).not.toBeInTheDocument();
     // Nor after the uploads open again.
