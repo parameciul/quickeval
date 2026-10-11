@@ -811,6 +811,12 @@ table.items tr.edit-row > td {
   font-weight: 700;
 }
 
+/* A checked item: green state under the Modifică button, not in Comentariu. */
+.review-state {
+  font-weight: 700;
+  color: var(--conf-5);
+}
+
 .points-input {
   max-width: 8rem;
 }

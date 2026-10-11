@@ -208,15 +208,15 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
               onChange={(event) => setComment(event.target.value)}
               maxLength={TEXT_LIMITS.comment}
             />
-            {item.needsReview && (
-              <span className="item-note review-reason">{item.reviewed ? 'Verificat' : `De verificat: ${item.reviewReason}`}</span>
+            {item.needsReview && !item.reviewed && (
+              <span className="item-note review-reason">{`De verificat: ${item.reviewReason}`}</span>
             )}
           </>
         ) : (
           <>
             {item.comment}
-            {item.needsReview && (
-              <span className="item-note review-reason">{item.reviewed ? 'Verificat' : `De verificat: ${item.reviewReason}`}</span>
+            {item.needsReview && !item.reviewed && (
+              <span className="item-note review-reason">{`De verificat: ${item.reviewReason}`}</span>
             )}
           </>
         )}
@@ -258,6 +258,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
             </button>
           </span>
         )}
+        {item.needsReview && item.reviewed && <span className="item-note review-state">Verificat</span>}
         {check.error && <ErrorMessage error={check.error} />}
         {save.error && <ErrorMessage error={save.error} />}
       </td>
