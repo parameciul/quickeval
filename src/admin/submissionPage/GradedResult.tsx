@@ -10,6 +10,15 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 type Saved = (submission: SubmissionDetail) => Promise<void>;
 type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>;
 
+// Rows so the whole comment is visible without manual enlarging: one row
+// per ~45 characters of each line (the comment column is narrow), at least
+// 5 rows and at most 14. Grows while typing.
+function commentRows(text: string): number {
+  let rows = 0;
+  for (const line of text.split('\n')) rows += Math.max(1, Math.ceil(line.length / 45));
+  return Math.min(14, Math.max(5, rows + 1));
+}
+
 // The graded result of an upload (spec §14.1): the grade, the pages the robot
 // could not read, the points of each exercise with the items to check, and
 // the robot's words to the student. Each change answers with the whole
@@ -193,7 +202,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
             </label>
             <textarea
               id={`${id}-comment`}
-              rows={3}
+              rows={commentRows(comment)}
               className="cell-area"
               value={comment}
               onChange={(event) => setComment(event.target.value)}
