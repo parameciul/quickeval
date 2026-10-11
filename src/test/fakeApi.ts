@@ -375,7 +375,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     reviewPages: vi.fn(async (submissionId: number, review: PagesReview) => {
       const found = findSubmission(submissionId);
       if (found.evaluation?.gradedAt !== review.gradedAt) throw new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
-      found.evaluation.pagesReviewed = review.pagesReviewed;
+      if (review.pagesReviewed !== undefined) found.evaluation.pagesReviewed = review.pagesReviewed;
+      if (review.summary !== undefined) found.evaluation.summary = review.summary;
+      if (review.strengths !== undefined) found.evaluation.strengths = [...review.strengths];
+      if (review.recommendations !== undefined) found.evaluation.recommendations = [...review.recommendations];
       recount(found.evaluation);
       syncRow(found);
       return structuredClone(found);

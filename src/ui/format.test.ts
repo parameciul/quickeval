@@ -6,6 +6,7 @@ import {
   formatFileSize,
   pageLabel,
   parsePoints,
+  pointsLevel,
   robotStartMessage,
   studentCountLabel,
   testStatusLabel,
@@ -68,10 +69,23 @@ describe('robotStartMessage', () => {
 });
 
 describe('result labels', () => {
-  it('names how sure the robot is', () => {
+  it('names how sure the robot is, in 5 steps', () => {
+    expect(confidenceLabel('very_high')).toBe('Foarte mare');
     expect(confidenceLabel('high')).toBe('Mare');
     expect(confidenceLabel('medium')).toBe('Medie');
     expect(confidenceLabel('low')).toBe('Mică');
+    expect(confidenceLabel('very_low')).toBe('Foarte mică');
+  });
+
+  it('colours points from green (full) to red (empty)', () => {
+    expect(pointsLevel(6, 6)).toBe(5);
+    expect(pointsLevel(5.5, 6)).toBe(5);
+    expect(pointsLevel(4.5, 6)).toBe(4);
+    expect(pointsLevel(3, 6)).toBe(3);
+    expect(pointsLevel(2, 6)).toBe(2);
+    expect(pointsLevel(1, 6)).toBe(1);
+    expect(pointsLevel(0, 6)).toBe(1);
+    expect(pointsLevel(0, 0)).toBe(0);
   });
 
   it('names the pages that the robot could not read as the page numbers them', () => {

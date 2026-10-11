@@ -159,6 +159,20 @@ describe('checkGrading', () => {
     ]);
   });
 
+  it('flags very_low like low, and accepts very_high like high', () => {
+    const checked = checkGrading(
+      grading([
+        item('I.1', 4, { confidence: 'very_low' }),
+        item('I.2', 2, { confidence: 'very_high' }),
+        item('II.1', 2, { confidence: 'medium' }),
+      ]),
+      LIST,
+    );
+    if (!checked.ok) throw new Error(checked.reason);
+    expect(checked.value.items.map((graded) => graded.needsReview)).toEqual([true, false, false]);
+    expect(checked.value.items[0]!.reviewReason).toBe(LOW_CONFIDENCE);
+  });
+
   it('puts the range reason before the robot reason', () => {
     const checked = checkGrading(
       grading([item('I.1', 7, { needsReview: true, reviewReason: 'Scris greu de citit' }), item('I.2', 2), item('II.1', 2)]),

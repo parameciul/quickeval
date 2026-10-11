@@ -91,6 +91,7 @@ describe('SubmissionPage', () => {
 
   it('shows photos inline and PDFs in a frame with a link, in upload order', async () => {
     renderAdmin(page, apiWith());
+    await userEvent.click(await screen.findByRole('button', { name: 'Arată fișierele' }));
     const photo = await screen.findByRole('img', { name: 'Pagina 1' });
     expect(photo).toHaveAttribute('src', '/api/admin/submissions/5/files/21');
     expect(screen.getByText('Pagina 1: IMG_0001.jpg · 820 KB')).toBeInTheDocument();
@@ -105,12 +106,14 @@ describe('SubmissionPage', () => {
       { id: 23, name: 'IMG_0003.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 3 },
     ];
     renderAdmin(page, apiWith({ ...submission, files }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Arată fișierele' }));
     expect(await screen.findByRole('img', { name: 'Pagina 2' })).toHaveAttribute('src', '/api/admin/submissions/5/files/23');
     expect(screen.getByText('Pagina 2: IMG_0003.jpg · 820 KB')).toBeInTheDocument();
   });
 
   it('says where an upload without a result is', async () => {
     const { unmount } = renderAdmin(page, apiWith({ ...submission, status: 'uploading', submittedAt: null, files: [] }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Arată fișierele' }));
     expect(await screen.findByText('Elevul nu a încărcat încă niciun fișier.')).toBeInTheDocument();
     expect(screen.getByText('Elevul nu a trimis încă lucrarea.')).toBeInTheDocument();
     unmount();
@@ -329,5 +332,63 @@ describe('SubmissionPage', () => {
   it('shows the server message for an upload that does not exist', async () => {
     renderAdmin('/teste/6E2-26T1/elevi/99', apiWith());
     expect(await screen.findByRole('alert')).toHaveTextContent('Nu am găsit ce cauți.');
+  });
+
+  it('hides the files by default and starts their scroll at the top when opened', async () => {
+    renderAdmin(page, apiWith(graded));
+    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Pagina 1' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arată fișierele' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
+    expect(await screen.findByRole('img', { name: 'Pagina 1' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ascunde fișierele' }));
+    expect(screen.queryByRole('img', { name: 'Pagina 1' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
+    expect(await screen.findByRole('img', { name: 'Pagina 1' })).toBeInTheDocument();
+  });
+
+  it('shows the robot confidence as 5 bars with colours, and points coloured by ratio', async () => {
+    renderAdmin(page, apiWith(graded));
+    expect(await screen.findByText(/Nota/)).toBeInTheDocument();
+    const flagged = row('Subiectul II, ex. 1');
+    const bars = within(flagged).getByRole('img', { name: /Siguranța robotului/ });
+    expect(bars).toHaveClass('conf-2');
+    expect(bars.querySelectorAll('.conf-bar.is-on')).toHaveLength(2);
+    expect(bars.querySelectorAll('.conf-bar')).toHaveLength(5);
+    expect(within(row('Subiectul I, ex. 1')).getByText('4,5 din 4,5')).toHaveClass('points-5');
+    expect(within(flagged).getByText('1 din 4,5')).toHaveClass('points-1');
+  });
+
+  it('edits points and comments in the same row, without a separate edit row', async () => {
+    const api = apiWith(graded);
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifică Subiectul I, ex. 1' }));
+    // The inputs sit in the same table row as the exercise.
+    const tableRow = row('Subiectul I, ex. 1');
+    expect(within(tableRow).getByLabelText('Puncte pentru Subiectul I, ex. 1 (din 4,5)')).toBeInTheDocument();
+    expect(within(tableRow).getByLabelText('Comentariul pentru elev')).toBeInTheDocument();
+    expect(within(tableRow).getByRole('button', { name: 'Salvează' })).toBeInTheDocument();
+    expect(document.querySelector('tr.edit-row')).toBeNull();
+  });
+
+  it('changes the summary and the final lists', async () => {
+    const api = apiWith(graded);
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifică rezumatul' }));
+    const summary = screen.getByLabelText('Rezumatul pentru elev');
+    await userEvent.clear(summary);
+    await userEvent.type(summary, 'Rezumat nou.');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
+    expect(api.reviewPages).toHaveBeenCalledWith(5, { gradedAt: GRADED_AT, summary: 'Rezumat nou.' });
+    expect(await screen.findByText('Rezumat nou.')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Modifică ce a lucrat bine' }));
+    const strengths = screen.getByLabelText('Ce a lucrat bine, câte unul pe rând');
+    await userEvent.clear(strengths);
+    await userEvent.type(strengths, 'Fracții\nCalcule');
+    // Two Salvează buttons could exist if both editors were open; only one is.
+    const saveButtons = screen.getAllByRole('button', { name: 'Salvează' });
+    await userEvent.click(saveButtons[0]!);
+    expect(api.reviewPages).toHaveBeenCalledWith(5, { gradedAt: GRADED_AT, strengths: ['Fracții', 'Calcule'] });
   });
 });

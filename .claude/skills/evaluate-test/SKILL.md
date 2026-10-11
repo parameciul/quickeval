@@ -51,7 +51,7 @@ Read `exercises.json`, the test, the barem, and every page in `student/`. Then g
   - `points`: the points for this exercise, from 0 to its `maxPoints`, as the barem allows. Give 0 to an exercise the student did not answer.
   - `studentAnswer`: what the student wrote as the final answer, short and in plain text; "" if nothing.
   - `comment`: to the student, in Romanian, as "tu": what is right, what is wrong, and why. One to three short sentences.
-  - `confidence`: "high", "medium", or "low": how sure you are of the points.
+  - `confidence`: "very_high", "high", "medium", "low", or "very_low": how sure you are of the points, from 5 (very sure) to 1 (a guess).
   - `needsReview`: true when the teacher must check this item (see the rules).
   - `reviewReason`: to the teacher, in Romanian: why to check it; "" when `needsReview` is false.
 - `unreadable`: the names of the pages that you could not read, for example `["student/page-02.jpg"]`; `[]` if none.

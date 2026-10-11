@@ -270,4 +270,28 @@ describe('PATCH /api/admin/submissions/:id/evaluation', () => {
     const row = await api.db.prepare('SELECT pages_reviewed_at FROM evaluations WHERE submission_id = ?').bind(foreignUpload).first();
     expect(row).toEqual({ pages_reviewed_at: null });
   });
+
+  it('changes the summary, the strengths, and the recommendations', async () => {
+    const res = await reviewPages(submissionId, { summary: '  Rezumat nou.  ' });
+    expect(res.status).toBe(200);
+    expect(res.body.submission.evaluation).toMatchObject({ summary: 'Rezumat nou.' });
+
+    const lists = await reviewPages(submissionId, { strengths: ['Fracții', 'Calcule'], recommendations: ['Exersează.'] });
+    expect(lists.status).toBe(200);
+    expect(lists.body.submission.evaluation).toMatchObject({ strengths: ['Fracții', 'Calcule'], recommendations: ['Exersează.'] });
+
+    const stored = await api.db
+      .prepare('SELECT summary, strengths_json, recommendations_json FROM evaluations WHERE submission_id = ?')
+      .bind(submissionId)
+      .first<{ summary: string; strengths_json: string; recommendations_json: string }>();
+    expect(stored).toEqual({ summary: 'Rezumat nou.', strengths_json: '["Fracții","Calcule"]', recommendations_json: '["Exersează."]' });
+  });
+
+  it('refuses empty feedback and lists that are too long', async () => {
+    expect((await reviewPages(submissionId, {})).body).toEqual({ error: 'invalid', message: 'Nu ai schimbat nimic.' });
+    expect((await reviewPages(submissionId, { summary: '   ' })).status).toBe(400);
+    expect((await reviewPages(submissionId, { summary: 'x'.repeat(1501) })).status).toBe(400);
+    expect((await reviewPages(submissionId, { strengths: ['a', 'b', 'c', 'd', 'e', 'f'] })).status).toBe(400);
+    expect((await reviewPages(submissionId, { strengths: [''] })).status).toBe(400);
+  });
 });

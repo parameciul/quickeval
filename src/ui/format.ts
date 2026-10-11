@@ -70,11 +70,29 @@ export function robotStartMessage(robot: RobotStart): string {
   return ROBOT_START[robot];
 }
 
-const CONFIDENCE: Record<Confidence, string> = { high: 'Mare', medium: 'Medie', low: 'Mică' };
+const CONFIDENCE: Record<Confidence, string> = {
+  very_high: 'Foarte mare',
+  high: 'Mare',
+  medium: 'Medie',
+  low: 'Mică',
+  very_low: 'Foarte mică',
+};
 
 // How sure the robot is of an item's points.
 export function confidenceLabel(confidence: Confidence): string {
   return CONFIDENCE[confidence];
+}
+
+// Points as a share of the maximum, from green (full) to red (empty): 6 din
+// 6 is 5, 1 din 6 is 1. A zero maximum is 0.
+export function pointsLevel(points: number, maxPoints: number): number {
+  if (!(maxPoints > 0)) return 0;
+  const ratio = points / maxPoints;
+  if (ratio >= 0.9) return 5;
+  if (ratio >= 0.7) return 4;
+  if (ratio >= 0.5) return 3;
+  if (ratio >= 0.25) return 2;
+  return 1;
 }
 
 // The robot names the pages of an upload "student/page-02.jpg", in upload

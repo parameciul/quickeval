@@ -21,6 +21,11 @@
   --ok-fg: #1b6b43;
   --error-bg: #fbe5e2;
   --error-fg: #a52a20;
+  --conf-5: #1b6b43;
+  --conf-4: #2f9e44;
+  --conf-3: #8a6d00;
+  --conf-2: #b85c00;
+  --conf-1: #cf3a2f;
   --cell: 24px;
   --margin-x: 3rem;
   --font: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
@@ -45,6 +50,11 @@
   --ok-fg: #a8e6c1;
   --error-bg: rgba(255, 139, 128, 0.16);
   --error-fg: #ffb3ab;
+  --conf-5: #7ddba3;
+  --conf-4: #6fce85;
+  --conf-3: #ffd94a;
+  --conf-2: #ffa94d;
+  --conf-1: #ff8b80;
   color-scheme: dark;
 }
 
@@ -66,6 +76,11 @@
     --ok-fg: #a8e6c1;
     --error-bg: rgba(255, 139, 128, 0.16);
     --error-fg: #ffb3ab;
+    --conf-5: #7ddba3;
+    --conf-4: #6fce85;
+    --conf-3: #ffd94a;
+    --conf-2: #ffa94d;
+    --conf-1: #ff8b80;
     color-scheme: dark;
   }
 }
@@ -718,7 +733,9 @@ table.uploads .tag {
   gap: 0 2rem;
 }
 
-/* The pages stay in view while the teacher checks the exercises. */
+/* The pages stay in view while the teacher checks the exercises. Only the
+   list scrolls: the files head with the count and the collapse button stays
+   outside the scroll. */
 @media (min-width: 64rem) {
   .result-layout {
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
@@ -729,7 +746,16 @@ table.uploads .tag {
     position: sticky;
     top: 0.75rem;
     max-height: calc(100vh - 1.5rem);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .result-files-scroll {
+    min-height: 0;
     overflow-y: auto;
+    padding-right: 0.25rem;
   }
 }
 
@@ -783,6 +809,200 @@ table.items tr.edit-row > td {
 
 .points-input {
   max-width: 8rem;
+}
+
+/* Points coloured by how much of the maximum they are (5 green, 1 red). */
+.points {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.points-5 {
+  color: var(--conf-5);
+}
+
+.points-4 {
+  color: var(--conf-4);
+}
+
+.points-3 {
+  color: var(--conf-3);
+}
+
+.points-2 {
+  color: var(--conf-2);
+}
+
+.points-1 {
+  color: var(--conf-1);
+}
+
+/* The robot's confidence as 1 to 5 bars, green to red, not as text. */
+.conf-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  vertical-align: middle;
+}
+
+.conf-bar {
+  width: 6px;
+  border-radius: 2px;
+  background: var(--rule);
+}
+
+.conf-bar:nth-child(1) {
+  height: 6px;
+}
+
+.conf-bar:nth-child(2) {
+  height: 10px;
+}
+
+.conf-bar:nth-child(3) {
+  height: 14px;
+}
+
+.conf-bar:nth-child(4) {
+  height: 18px;
+}
+
+.conf-bar:nth-child(5) {
+  height: 22px;
+}
+
+.conf-bars.conf-5 .conf-bar.is-on {
+  background: var(--conf-5);
+}
+
+.conf-bars.conf-4 .conf-bar.is-on {
+  background: var(--conf-4);
+}
+
+.conf-bars.conf-3 .conf-bar.is-on {
+  background: var(--conf-3);
+}
+
+.conf-bars.conf-2 .conf-bar.is-on {
+  background: var(--conf-2);
+}
+
+.conf-bars.conf-1 .conf-bar.is-on {
+  background: var(--conf-1);
+}
+
+/* Points and comments edited in place, in the same row. */
+.cell-input {
+  width: 100%;
+  max-width: 7rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 0.4rem;
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+}
+
+.cell-area {
+  width: 100%;
+  min-width: 10rem;
+  min-height: 4.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 0.4rem;
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.cell-error {
+  margin: 0.25rem 0 0;
+  color: var(--error-fg);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* The files head with its collapse button. It stays outside the scroll. */
+.files-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding-bottom: 0.5rem;
+}
+
+.files-head h2 {
+  margin: 0;
+  margin-right: auto;
+}
+
+/* Collapsed files: a single compact row, with the result right below it. */
+.result-layout.is-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.result-files.is-collapsed {
+  position: static;
+  max-height: none;
+  display: block;
+  overflow: visible;
+}
+
+.result-layout.is-collapsed .files-head {
+  padding-bottom: 0;
+  justify-content: flex-start;
+}
+
+.result-layout.is-collapsed .files-head h2 {
+  margin-right: 0;
+}
+
+.result-layout.is-collapsed .result-main > h2:first-child {
+  margin-top: 0.5rem;
+}
+
+/* The final feedback sections with their edit buttons. */
+.feedback-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.feedback-head h3 {
+  margin: 0;
+  margin-right: auto;
+}
+
+.feedback-edit {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 0.5rem;
+  max-width: 40rem;
+}
+
+/* Recorectează and Resetează: one row each, button plus a short note. */
+.final-actions {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  max-width: 60rem;
+}
+
+.final-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.final-row .hint {
+  flex: 1 1 20rem;
+  min-width: 0;
 }
 
 /* The student app: phone first, big touch targets (at least 44 px) */

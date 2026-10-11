@@ -195,13 +195,47 @@ export async function correctItem(db: D1Database, shown: ShownResult, itemId: nu
 // longer count as an item to check. False when the result the page shows is
 // gone or no longer graded.
 export async function reviewPages(db: D1Database, shown: ShownResult, reviewed: boolean, now: string): Promise<boolean> {
+  return correctEvaluation(db, shown, { pagesReviewed: reviewed }, now);
+}
+
+export interface EvaluationCorrection {
+  pagesReviewed?: boolean;
+  summary?: string;
+  strengths?: string[];
+  recommendations?: string[];
+}
+
+// The teacher's correction of the final sections (Rezumat, Ce a lucrat bine,
+// Recomandări) and of the unreadable-pages check, on the result the page
+// shows. New texts mark the result as updated. False when that result is gone
+// or no longer graded.
+export async function correctEvaluation(
+  db: D1Database,
+  shown: ShownResult,
+  change: EvaluationCorrection,
+  now: string,
+): Promise<boolean> {
+  const reviewed = change.pagesReviewed === undefined ? null : change.pagesReviewed ? 1 : 0;
+  const textsChanged = change.summary !== undefined || change.strengths !== undefined || change.recommendations !== undefined ? 1 : 0;
   const row = await db
     .prepare(
-      `UPDATE evaluations SET pages_reviewed_at = CASE WHEN ? = 1 THEN COALESCE(pages_reviewed_at, ?) ELSE NULL END
+      `UPDATE evaluations SET pages_reviewed_at = CASE WHEN ? IS NULL THEN pages_reviewed_at WHEN ? = 1 THEN COALESCE(pages_reviewed_at, ?) ELSE NULL END,
+        summary = COALESCE(?, summary), strengths_json = COALESCE(?, strengths_json), recommendations_json = COALESCE(?, recommendations_json),
+        updated_at = CASE WHEN ? = 1 THEN ? ELSE updated_at END
        WHERE id IN (${SHOWN})
        RETURNING id`,
     )
-    .bind(reviewed ? 1 : 0, now, ...shownBinds(shown))
+    .bind(
+      reviewed,
+      reviewed,
+      now,
+      change.summary ?? null,
+      change.strengths === undefined ? null : JSON.stringify(change.strengths),
+      change.recommendations === undefined ? null : JSON.stringify(change.recommendations),
+      textsChanged,
+      now,
+      ...shownBinds(shown),
+    )
     .first<{ id: number }>();
   return row !== null;
 }

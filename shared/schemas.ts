@@ -27,6 +27,8 @@ export const exerciseListSchema = z.object({
 export type ExerciseList = z.infer<typeof exerciseListSchema>;
 
 // Mode "grade": one student's work, graded against the exercise list.
+export const CONFIDENCE_LEVELS = ['very_low', 'low', 'medium', 'high', 'very_high'] as const;
+
 export const gradingResultSchema = z.object({
   items: z.array(
     z.object({
@@ -34,7 +36,7 @@ export const gradingResultSchema = z.object({
       points: z.number(),
       studentAnswer: z.string(),
       comment: z.string(),
-      confidence: z.enum(['high', 'medium', 'low']),
+      confidence: z.enum(CONFIDENCE_LEVELS),
       needsReview: z.boolean(),
       reviewReason: z.string(),
     }),
@@ -47,6 +49,20 @@ export const gradingResultSchema = z.object({
 
 export type GradingResult = z.infer<typeof gradingResultSchema>;
 export type Confidence = GradingResult['items'][number]['confidence'];
+
+// The robot's confidence in 5 steps, 1 (very_low) to 5 (very_high). The three
+// old values stay valid, so gradings made before keep working.
+export const CONFIDENCE_LEVEL: Record<Confidence, number> = {
+  very_low: 1,
+  low: 2,
+  medium: 3,
+  high: 4,
+  very_high: 5,
+};
+
+export function confidenceLevel(confidence: Confidence): number {
+  return CONFIDENCE_LEVEL[confidence];
+}
 
 export const MAX_EXERCISES = 60;
 const MAX_EXERCISE_ID = 20;
@@ -187,8 +203,8 @@ export interface Grading {
 }
 
 // Checks one student's grading against the exercise list: every exercise
-// exactly once, points inside [0, max] (outside: clamped and flagged), low
-// confidence always flagged. Code computes the total and the grade.
+// exactly once, points inside [0, max] (outside: clamped and flagged), very
+// low and low confidence always flagged. Code computes the total and the grade.
 export function checkGrading(raw: unknown, list: ExerciseList): Checked<Grading> {
   const parsed = gradingResultSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, reason: 'not a grading result' };
@@ -210,8 +226,9 @@ export function checkGrading(raw: unknown, list: ExerciseList): Checked<Grading>
     // the end and can never hide it.
     const reasons: string[] = [];
     if (points !== given) reasons.push(OUT_OF_RANGE);
-    if (item.needsReview || item.confidence === 'low') {
-      reasons.push(item.reviewReason.trim() || (item.confidence === 'low' ? LOW_CONFIDENCE : CHECK_THIS));
+    const unsure = item.confidence === 'low' || item.confidence === 'very_low';
+    if (item.needsReview || unsure) {
+      reasons.push(item.reviewReason.trim() || (unsure ? LOW_CONFIDENCE : CHECK_THIS));
     }
     return {
       exerciseId: exercise.id,

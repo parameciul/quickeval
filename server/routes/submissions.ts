@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { correctItemBody, regradeBody, reviewPagesBody, type RegradeAnswer } from '../../shared/api.ts';
 import { formatPoints, isValidCorrection } from '../../shared/scoring.ts';
-import { correctItem, findTeacherItem, reviewPages } from '../db/evaluations.ts';
+import { correctItem, correctEvaluation, findTeacherItem } from '../db/evaluations.ts';
 import { regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
 import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission } from '../db/submissions.ts';
 import { robotStarter } from '../dispatch.ts';
@@ -43,13 +43,14 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ submission: found.detail });
   });
 
-  // The teacher checked the pages that the robot could not read, on the
+  // The teacher checked the pages that the robot could not read, or corrected
+  // the final sections (Rezumat, Ce a lucrat bine, Recomandări), on the
   // result the page shows.
   routes.patch('/:id/evaluation', async (c) => {
     const teacherId = c.var.teacher.id;
     const submissionId = parseId(c.req.param('id'));
-    const { gradedAt, pagesReviewed } = await readJson(c, reviewPagesBody);
-    const reviewed = await reviewPages(c.env.DB, { teacherId, submissionId, gradedAt }, pagesReviewed, nowIso());
+    const { gradedAt, ...change } = await readJson(c, reviewPagesBody);
+    const reviewed = await correctEvaluation(c.env.DB, { teacherId, submissionId, gradedAt }, change, nowIso());
     const found = await getTeacherSubmission(c.env.DB, teacherId, submissionId);
     if (!found) throw notFound();
     if (!reviewed) throw notGraded();

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { parsePositiveId } from '../../../shared/ids.ts';
@@ -34,6 +34,13 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   const queryClient = useQueryClient();
   // What happened after Recorectează or Reîncearcă.
   const [notice, setNotice] = useState<string | null>(null);
+  // The files start hidden, leaving the full width to the result. Opening
+  // them always starts the list at the top.
+  const [filesOpen, setFilesOpen] = useState(false);
+  const filesScroll = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (filesOpen && filesScroll.current) filesScroll.current.scrollTop = 0;
+  }, [filesOpen, submissionId]);
   const detail = useQuery({
     queryKey: ['submission', submissionId],
     queryFn: () => api.getSubmission(submissionId),
@@ -102,12 +109,26 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
       </p>
       {showNotice && <p role="status">{notice}</p>}
 
-      <div className="result-layout">
-        <div className="result-files">
-          <h2>Fișiere ({submission.files.length})</h2>
-          <PageFiles submissionId={submissionId} files={submission.files} />
+      <div className={filesOpen ? 'result-layout' : 'result-layout is-collapsed'}>
+        <div className={filesOpen ? 'result-files' : 'result-files is-collapsed'}>
+          <div className="files-head">
+            <h2>Fișiere ({submission.files.length})</h2>
+            <button
+              type="button"
+              className="button-quiet button-small"
+              aria-expanded={filesOpen}
+              onClick={() => setFilesOpen(!filesOpen)}
+            >
+              {filesOpen ? 'Ascunde fișierele' : 'Arată fișierele'}
+            </button>
+          </div>
+          {filesOpen && (
+            <div className="result-files-scroll" ref={filesScroll}>
+              <PageFiles submissionId={submissionId} files={submission.files} />
+            </div>
+          )}
         </div>
-        <div>
+        <div className="result-main">
           <h2>Rezultatul</h2>
           {submission.status === 'graded' && submission.evaluation ? (
             <GradedResult submissionId={submissionId} evaluation={submission.evaluation} onSaved={saved} />
@@ -125,37 +146,39 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
         </div>
       </div>
 
-      {gradedAt !== null && (
-        <>
-          <h2>Recorectează</h2>
-          <p className="hint">Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.</p>
+      <div className="final-actions">
+        {gradedAt !== null && (
+          <div className="final-row">
+            <button
+              type="button"
+              className="button-quiet button-small"
+              disabled={regrade.isPending}
+              onClick={() => {
+                if (window.confirm(`Recorectezi lucrarea elevului ${submission.studentName}? Corecturile tale se pierd.`)) regrade.mutate(gradedAt);
+              }}
+            >
+              Recorectează
+            </button>
+            <p className="hint">Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.</p>
+            {regrade.error && <ErrorMessage error={regrade.error} />}
+          </div>
+        )}
+
+        <div className="final-row">
           <button
             type="button"
-            className="button-quiet"
-            disabled={regrade.isPending}
+            className="button-quiet button-small button-danger"
+            disabled={reset.isPending}
             onClick={() => {
-              if (window.confirm(`Recorectezi lucrarea elevului ${submission.studentName}? Corecturile tale se pierd.`)) regrade.mutate(gradedAt);
+              if (window.confirm(`Ștergi încărcarea elevului ${submission.studentName}? Elevul o poate lua de la capăt.`)) reset.mutate();
             }}
           >
-            Recorectează
+            Resetează
           </button>
-          {regrade.error && <ErrorMessage error={regrade.error} />}
-        </>
-      )}
-
-      <h2>Resetează încărcarea</h2>
-      <p className="hint">Se șterg fișierele, iar elevul poate lua încărcarea de la capăt, și de pe alt telefon.</p>
-      <button
-        type="button"
-        className="button-quiet button-danger"
-        disabled={reset.isPending}
-        onClick={() => {
-          if (window.confirm(`Ștergi încărcarea elevului ${submission.studentName}? Elevul o poate lua de la capăt.`)) reset.mutate();
-        }}
-      >
-        Resetează
-      </button>
-      {reset.error && <ErrorMessage error={reset.error} />}
+          <p className="hint">Se șterg fișierele, iar elevul poate lua încărcarea de la capăt, și de pe alt telefon.</p>
+          {reset.error && <ErrorMessage error={reset.error} />}
+        </div>
+      </div>
     </section>
   );
 }

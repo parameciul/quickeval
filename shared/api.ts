@@ -119,8 +119,51 @@ export type ItemCorrection = z.output<typeof correctItemBody>;
 // What a correction changes, without the grading it names.
 export type ItemChange = Omit<ItemCorrection, 'gradedAt'>;
 
-// The teacher checked the pages that the robot could not read (or takes it back).
-export const reviewPagesBody = z.object({ gradedAt: shownGrading, pagesReviewed: z.boolean() });
+// The teacher checked the pages that the robot could not read (or takes it
+// back), and the teacher's corrections of the final sections (Rezumat, Ce a
+// lucrat bine, Recomandări). At least one field changes.
+const feedbackEntry = (emptyMessage: string) =>
+  z
+    .string()
+    .transform((raw) => raw.trim())
+    .pipe(
+      z
+        .string()
+        .min(1, { message: emptyMessage })
+        .max(TEXT_LIMITS.listEntry, { message: `Fiecare punct are cel mult ${TEXT_LIMITS.listEntry} de caractere.` }),
+    );
+
+export const reviewPagesBody = z
+  .object({
+    gradedAt: shownGrading,
+    pagesReviewed: z.boolean().optional(),
+    summary: z
+      .string()
+      .transform((raw) => raw.trim())
+      .pipe(
+        z
+          .string()
+          .min(1, { message: 'Scrie rezumatul.' })
+          .max(TEXT_LIMITS.summary, { message: `Rezumatul are cel mult ${TEXT_LIMITS.summary} de caractere.` }),
+      )
+      .optional(),
+    strengths: z
+      .array(feedbackEntry('Scrie punctul forte sau șterge rândul gol.'))
+      .max(5, { message: 'Scrie cel mult 5 puncte la „Ce a lucrat bine”.' })
+      .optional(),
+    recommendations: z
+      .array(feedbackEntry('Scrie recomandarea sau șterge rândul gol.'))
+      .max(5, { message: 'Scrie cel mult 5 recomandări.' })
+      .optional(),
+  })
+  .refine(
+    (body) =>
+      body.pagesReviewed !== undefined ||
+      body.summary !== undefined ||
+      body.strengths !== undefined ||
+      body.recommendations !== undefined,
+    { message: 'Nu ai schimbat nimic.' },
+  );
 
 export type PagesReview = z.output<typeof reviewPagesBody>;
 

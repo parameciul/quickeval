@@ -26,7 +26,7 @@ Flag the item, and do not guess, when:
 - the barem is not clear for this answer;
 - you are not sure which exercise an answer belongs to.
 
-A flagged item gets your best points, `confidence` "low" or "medium", and a `reviewReason` that tells the teacher what to look at.
+A flagged item gets your best points, `confidence` "very_low", "low", or "medium", and a `reviewReason` that tells the teacher what to look at.
 
 A page that cannot be read at all goes in `unreadable`. Then flag every exercise whose answer can be on that page.
 
