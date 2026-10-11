@@ -22,7 +22,9 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
   return (
     <>
       <p className="grade-line">
-        Nota <strong>{formatPoints(evaluation.grade)}</strong> · {formatPoints(evaluation.total)} puncte din {formatPoints(evaluation.maxTotal)}
+        Nota{' '}
+        <strong className={`points points-${pointsLevel(evaluation.grade, 10)}`}>{formatPoints(evaluation.grade)}</strong> ·{' '}
+        {formatPoints(evaluation.total)} puncte din {formatPoints(evaluation.maxTotal)}
         {evaluation.officePoints > 0 && `, cu ${formatPoints(evaluation.officePoints)} din oficiu`}
       </p>
       {evaluation.flagCount > 0 && <p className="hint">De verificat: {evaluation.flagCount}</p>}
