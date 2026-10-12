@@ -45,6 +45,7 @@ interface TestRow {
   barem_notes: string | null;
   exercise_list_status: ExerciseListStatus;
   exercise_list_message: string | null;
+  results_open: number;
   student_count: number;
   submitted_count: number;
   graded_count: number;
@@ -56,6 +57,7 @@ const SELECT_TEST = `
     t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
+    t.results_open,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
@@ -85,6 +87,7 @@ function toRecord(row: TestRow): TestRecord {
       submittedCount: row.submitted_count,
       gradedCount: row.graded_count,
       flagCount: row.flag_count,
+      resultsOpen: row.results_open === 1,
     },
     uploadToken: row.upload_token,
     files: {
@@ -144,6 +147,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
     .prepare(
       `SELECT st.id AS student_id, st.full_name, e.active,
          s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.created_at AS graded_at,
+         s.result_token,
          (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
          ${flagCountSql('ev')} AS flag_count
        FROM enrollments e
@@ -165,6 +169,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       last_error: string | null;
       grade: number | null;
       graded_at: string | null;
+      result_token: string | null;
       file_count: number;
       flag_count: number;
     }>();
@@ -181,6 +186,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       autoSubmitted: row.auto_submitted === 1,
       grade: row.grade,
       gradedAt: row.graded_at,
+      resultToken: row.result_token,
       flagCount: row.flag_count,
       lastError: row.last_error,
     }))

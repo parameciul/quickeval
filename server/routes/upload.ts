@@ -1,8 +1,8 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
-import { startSessionBody, type UploadSession } from '../../shared/api.ts';
+import { startSessionBody, type ConfirmAnswer, type UploadSession } from '../../shared/api.ts';
 import { MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, studentFileKey } from '../../shared/files.ts';
-import { isUploadToken } from '../../shared/tests.ts';
+import { isResultToken, isUploadToken } from '../../shared/tests.ts';
 import {
   addSubmissionFile,
   confirmSubmission,
@@ -18,11 +18,12 @@ import {
   type LinkTest,
   type SessionRecord,
 } from '../db/links.ts';
+import { confirmResultToken, findResultByToken, findResultFile, resultsOpenByToken } from '../db/results.ts';
 import { listSubmissionFiles, publicFile } from '../db/submissions.ts';
 import type { AppEnv, AppOptions, Env } from '../env.ts';
 import { ApiError, isUniqueViolation } from '../errors.ts';
 import { duePromoter, nowIso, parseId, promoteDue, readJson, sameOriginWrites } from '../http.ts';
-import { newDeviceSecret, randomBase32, sha256Hex } from '../secrets.ts';
+import { newDeviceSecret, newResultToken, randomBase32, sha256Hex } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
 
 const SESSION_HEADER = 'X-Upload-Session';
@@ -105,14 +106,23 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       return c.json({ session: await sessionView(c, resumed) });
     }
 
+    // A result_token collision (120-bit, effectively never) must not look
+    // like another phone: only (test_id, student_id) means that. Retry with
+    // a fresh token, then report a generic error if it keeps colliding.
     const secret = newDeviceSecret();
-    let submissionId: number;
-    try {
-      submissionId = await createSubmission(c.env.DB, test.id, studentId, await sha256Hex(secret), nowIso());
-    } catch (err) {
-      if (isUniqueViolation(err)) throw otherDevice();
-      throw err;
+    const sessionHash = await sha256Hex(secret);
+    let submissionId: number | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        submissionId = await createSubmission(c.env.DB, test.id, studentId, sessionHash, newResultToken(), nowIso());
+        break;
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+        if (!String(err instanceof Error ? err.message : err).includes('result_token')) throw otherDevice();
+        if (attempt === 2) throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
+      }
     }
+    if (submissionId === null) throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
     const created: UploadSession = { submissionId, studentId, studentName: student.fullName, status: 'uploading', files: [] };
     return c.json({ secret, session: created }, 201);
   });
@@ -180,7 +190,8 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ deleted: true });
   });
 
-  // "Am trimis tot": uploading → submitted. Needs at least one file.
+  // "Am trimis tot": uploading → submitted. Needs at least one file. Answers
+  // with the secret link to the student's result page: the phone keeps it.
   routes.post('/:token/confirm', async (c) => {
     const { current } = await openSession(c);
     const fileCount = await confirmSubmission(c.env.DB, current.submissionId, nowIso());
@@ -189,7 +200,36 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       await explainRefusal(c, promote);
       throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
     }
-    return c.json({ status: 'submitted', fileCount });
+    const resultToken = await confirmResultToken(c.env.DB, current.submissionId);
+    // confirmSubmission already sent the upload, so files exist: a missing
+    // token means the teacher reset the upload in between. Back to the names,
+    // not "add at least a photo".
+    if (!resultToken) throw new ApiError(401, 'no_session', 'Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
+    return c.json({ status: 'submitted', fileCount, resultToken } satisfies { status: string } & ConfirmAnswer);
+  });
+
+  // A student's result page by its secret link. Only while the teacher keeps
+  // the results of the test open; the files go through the same check.
+  routes.get('/rezultat/:resultToken', async (c) => {
+    const resultToken = c.req.param('resultToken') ?? '';
+    const found = isResultToken(resultToken) ? await findResultByToken(c.env.DB, resultToken) : null;
+    if (!found) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    if (!found.resultsOpen) throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
+    return c.json({ result: found.result });
+  });
+
+  routes.get('/rezultat/:resultToken/files/:fileId', async (c) => {
+    const resultToken = c.req.param('resultToken') ?? '';
+    if (!isResultToken(resultToken)) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    const file = await findResultFile(c.env.DB, resultToken, parseId(c.req.param('fileId')));
+    if (file) {
+      const object = await c.env.FILES.get(file.key);
+      if (object) return fileResponse(object, file.name, file.type);
+    }
+    const open = await resultsOpenByToken(c.env.DB, resultToken);
+    if (open === null) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    if (!open) throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
+    throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
   });
 
   return routes;

@@ -284,6 +284,8 @@ export interface TestSummary {
   gradedCount: number;
   // Items to check in all graded uploads, counted as in the uploads table.
   flagCount: number;
+  // Whether students can open their result pages for this test.
+  resultsOpen: boolean;
 }
 
 export interface TestFileInfo {
@@ -324,6 +326,9 @@ export interface UploadRow {
   grade: number | null;
   // The grading the row shows (`EvaluationInfo.gradedAt`), once graded.
   gradedAt: string | null;
+  // The secret of the student's result page. Null until the upload has one
+  // (older uploads get it when the teacher asks for the link).
+  resultToken: string | null;
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;
@@ -454,6 +459,13 @@ export interface SessionStart {
   session: UploadSession;
 }
 
+// "Am trimis tot": how many files were sent, and the secret of the student's
+// result page. The phone keeps the result link and shows it to the student.
+export interface ConfirmAnswer {
+  fileCount: number;
+  resultToken: string;
+}
+
 // One exercise of a graded upload. `aiPoints` are the robot's points;
 // `points` are the final points, which the teacher may change.
 export interface EvaluationItemInfo {
@@ -512,4 +524,57 @@ export interface SubmissionDetail {
   files: SubmissionFile[];
   // Null until the upload is graded.
   evaluation: EvaluationInfo | null;
+  // The secret of the student's result page. Null until the upload has one.
+  resultToken: string | null;
+  // Whether students can open their result pages for this test.
+  resultsOpen: boolean;
+}
+
+// One exercise as the student sees it: no grading internals.
+export interface StudentResultItem {
+  exerciseId: string;
+  label: string;
+  maxPoints: number;
+  points: number;
+  studentAnswer: string;
+  comment: string;
+}
+
+// The graded result as the student sees it: no confidence, no checks.
+export interface StudentEvaluation {
+  maxTotal: number;
+  officePoints: number;
+  total: number;
+  // Out of 10.
+  grade: number;
+  summary: string;
+  strengths: string[];
+  recommendations: string[];
+  items: StudentResultItem[];
+}
+
+// One student's result page. `evaluation` is null until the upload is graded.
+export interface StudentResultView {
+  testCode: string;
+  testTitle: string;
+  className: string;
+  studentName: string;
+  status: Exclude<UploadStatus, 'none'>;
+  files: SubmissionFile[];
+  evaluation: StudentEvaluation | null;
+}
+
+// The teacher's link to one student's result page.
+export interface ResultLinkAnswer {
+  resultToken: string;
+}
+
+// Opening or closing the result pages of a test for all students.
+export interface ResultsOpenAnswer {
+  resultsOpen: boolean;
+}
+
+// The path of a student's result page, under the student app.
+export function studentResultPath(resultToken: string): string {
+  return `/u/rezultat/${resultToken}`;
 }

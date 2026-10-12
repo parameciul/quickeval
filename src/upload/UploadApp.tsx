@@ -6,6 +6,7 @@ import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import type { ActiveSession, UploadApi } from './api.ts';
 import { NamePicker } from './NamePicker.tsx';
+import { loadResultLinks, resultPageUrl, saveResultLink, type SavedResultLink } from './resultLinks.ts';
 import { forgetSecret, loadSecret, saveSecret, savedStudent } from './session.ts';
 import { UploadScreen } from './UploadScreen.tsx';
 
@@ -17,10 +18,11 @@ type Phase =
   | { kind: 'closed'; info: LinkInfo }
   | { kind: 'names'; info: LinkInfo; message: string | null }
   | { kind: 'upload'; info: LinkInfo; session: ActiveSession }
-  | { kind: 'sent'; info: LinkInfo; fileCount: number };
+  | { kind: 'sent'; info: LinkInfo; fileCount: number; resultToken: string; studentName: string };
 
 // The student app at /u/<token>: pick your name, add the pages, send them.
-// `token` is null when the address holds no valid upload token.
+// After sending, the phone keeps the secret link to the student's result
+// page; opening the same upload link again shows the kept link.
 export function UploadApp({ api, token }: { api: UploadApi; token: string | null }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
 
@@ -107,20 +109,24 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
             </p>
           )}
           {phase.kind !== 'loading' && phase.kind !== 'failed' && <TestTitle info={phase.info} />}
-          {phase.kind === 'closed' && (
+          {phase.kind === 'closed' && token && (
             <>
               <p className="alert" role="alert">
                 Încărcarea s-a închis.
               </p>
+              <KeptResultLinks uploadToken={token} />
               <p className="hint">Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
             </>
           )}
           {phase.kind === 'names' && token && (
-            <NamePicker
-              students={phase.info.students}
-              message={phase.message}
-              onPick={(student) => begin(token, phase.info, student)}
-            />
+            <>
+              <KeptResultLinks uploadToken={token} />
+              <NamePicker
+                students={phase.info.students}
+                message={phase.message}
+                onPick={(student) => begin(token, phase.info, student)}
+              />
+            </>
           )}
           {phase.kind === 'upload' && token && (
             <>
@@ -140,7 +146,10 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
                 api={api}
                 token={token}
                 session={phase.session}
-                onSent={(fileCount) => setPhase({ kind: 'sent', info: phase.info, fileCount })}
+                onSent={(fileCount, resultToken) => {
+                  saveResultLink(token, phase.session.studentId, resultToken, phase.session.studentName);
+                  setPhase({ kind: 'sent', info: phase.info, fileCount, resultToken, studentName: phase.session.studentName });
+                }}
                 onLost={(message) => load(message)}
               />
             </>
@@ -149,6 +158,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
             <section className="sent">
               <h2>Gata! Lucrarea ta a fost trimisă.</h2>
               <p>{phase.fileCount === 1 ? 'Ai trimis un fișier.' : `Ai trimis ${phase.fileCount} fișiere.`}</p>
+              <ResultLinkBox resultToken={phase.resultToken} studentName={phase.studentName} fresh />
             </section>
           )}
         </ErrorBoundary>
@@ -159,6 +169,61 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
         </div>
       </footer>
     </>
+  );
+}
+
+// The result links this phone kept for one upload link (the same QR code).
+// Shown on the upload page, so a student who did not keep the link gets it
+// back on the same phone.
+function KeptResultLinks({ uploadToken }: { uploadToken: string }) {
+  const [links] = useState<SavedResultLink[]>(() => loadResultLinks(uploadToken));
+  if (links.length === 0) return null;
+  return (
+    <section aria-label="Linkurile tale cu rezultate">
+      {links.map((link) => (
+        <ResultLinkBox key={link.studentId} resultToken={link.resultToken} studentName={link.studentName} />
+      ))}
+    </section>
+  );
+}
+
+// One kept result link, with a copy button. After sending it also says the
+// result comes only after the teacher opens the results.
+export function ResultLinkBox({ resultToken, studentName, fresh = false }: { resultToken: string; studentName: string; fresh?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const url = resultPageUrl(resultToken);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <div className="result-link-box">
+      <p>
+        {fresh ? (
+          <>
+            Păstrează linkul cu rezultatul{studentName ? ` pentru ${studentName}` : ''}:
+          </>
+        ) : (
+          <>
+            Linkul cu rezultatul{studentName ? ` pentru ${studentName}` : ''}:
+          </>
+        )}
+      </p>
+      <p>
+        <a href={url}>Vezi rezultatul</a>
+      </p>
+      <div className="form-row">
+        <input type="text" readOnly value={url} aria-label={`Linkul cu rezultatul${studentName ? ` pentru ${studentName}` : ''}`} />
+        <button type="button" className="button-quiet button-small" onClick={copy}>
+          {copied ? 'Copiat!' : 'Copiază linkul'}
+        </button>
+      </div>
+      {fresh && <p className="hint">Rezultatul apare aici după ce profesorul publică rezultatele.</p>}
+    </div>
   );
 }
 

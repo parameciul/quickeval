@@ -561,4 +561,53 @@ describe('TestPage evaluation', () => {
     expect(await screen.findByText(/^Robotul (nu )?a verificat/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pornește robotul' }) !== null).toBe(shown);
   });
+
+  it('publishes the student results and stops them again', async () => {
+    const api = apiWith({ status: 'done' });
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Publică rezultatele' }));
+    expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);
+    expect(await screen.findByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Oprește accesul la rezultate' }));
+    expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', false);
+    expect(await screen.findByRole('button', { name: 'Publică rezultatele' })).toBeInTheDocument();
+  });
+
+  it('shows a result link per upload, with copy and WhatsApp share', async () => {
+    // Fresh rows: earlier tests reset the shared uploads above.
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+    ];
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 2 }],
+      students: {},
+      tests: [fakeTest({ status: 'done' }, rows)],
+    });
+    renderAdmin('/teste/6E2-26T1', api);
+    const links = await screen.findAllByRole('button', { name: 'Link rezultat' });
+    expect(links).toHaveLength(2);
+    await userEvent.click(links[0]!);
+    expect(api.getResultLink).toHaveBeenCalledWith(5);
+    const url = `${window.location.origin}/u/rezultat/result-token-5`;
+    expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
+      'href',
+      `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul 6E2-26T1: ${url}`)}`,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Copiază' }));
+    expect(await navigator.clipboard.readText()).toBe(url);
+  });
+
+  it('hides the result link while the upload is still on the phone', async () => {
+    // Pop Ion sent the upload, Stan Eva still uploads, Marin Dan did not start.
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [fakeTest({ status: 'done' }, uploads)],
+    });
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByRole('heading', { name: '6E2-26T1' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Link rezultat' })).toHaveLength(1);
+  });
 });

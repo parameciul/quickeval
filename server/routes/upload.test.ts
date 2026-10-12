@@ -272,7 +272,7 @@ describe('POST /api/u/:token/confirm', () => {
     await putFile(secret, pdf, PDF_TYPE, 'scan.pdf');
     const res = await api.request('POST', `/api/u/${token}/confirm`, undefined, session(secret));
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'submitted', fileCount: 2 });
+    expect(res.body).toEqual({ status: 'submitted', fileCount: 2, resultToken: expect.stringMatching(/^[a-z2-7]{24}$/) });
     expect((await api.request('POST', `/api/u/${token}/confirm`, undefined, session(secret))).status).toBe(409);
 
     const detail = await api.request('GET', `/api/admin/tests/${code}`);

@@ -48,6 +48,8 @@ describe('GET /api/admin/submissions/:id', () => {
         { id: second, name: 'poza2.jpg', contentType: 'image/jpeg', size: 100, position: 2 },
       ],
       evaluation: null,
+      resultToken: null,
+      resultsOpen: false,
     });
   });
 

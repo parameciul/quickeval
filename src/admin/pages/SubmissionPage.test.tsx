@@ -24,6 +24,8 @@ const submission: SubmissionDetail = {
     { id: 22, name: 'scan.pdf', contentType: 'application/pdf', size: 1.5 * 1024 * 1024, position: 2 },
   ],
   evaluation: null,
+  resultToken: 'abcdefghijkmnop2abcdefcd',
+  resultsOpen: false,
 };
 
 // When the robot wrote the result of fakeEvaluation(); each change names it.
@@ -155,6 +157,16 @@ describe('SubmissionPage', () => {
     expect(await within(row('Subiectul II, ex. 1')).findByText('Verificat')).toBeInTheDocument();
     expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-flagged');
     expect(screen.getByText('De verificat: 1')).toBeInTheDocument();
+  });
+
+  it('scopes the bottom-aligned check layout to the check cell', async () => {
+    renderAdmin(page, apiWith(graded));
+    const check = await screen.findByRole('button', { name: 'Modifică Subiectul II, ex. 1' });
+    expect(check.closest('td')).toHaveClass('item-check');
+    // While editing, the same cell holds Salvează and Renunță side by side.
+    await userEvent.click(check);
+    expect(await screen.findByRole('button', { name: 'Salvează' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Salvează' }).closest('td')).not.toHaveClass('item-check');
   });
 
   it('changes the points and the comment of an item, and checks it', async () => {
@@ -319,6 +331,26 @@ describe('SubmissionPage', () => {
     await expectLocation('/teste/6E2-26T1');
   });
 
+  it('shows the student result link with copy and WhatsApp share', async () => {
+    const api = apiWith(graded);
+    renderAdmin(page, api);
+    expect(await screen.findByText(/Rezultatele nu sunt publicate încă/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Link rezultat' }));
+    // The upload already has a link, so no new request is needed.
+    expect(api.getResultLink).not.toHaveBeenCalled();
+    const url = `${window.location.origin}/u/rezultat/abcdefghijkmnop2abcdefcd`;
+    expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
+      'href',
+      `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul 6E2-26T1: ${url}`)}`,
+    );
+  });
+  it('hides the result link while the upload is still on the phone', async () => {
+    renderAdmin(page, apiWith({ ...submission, status: 'uploading', submittedAt: null }));
+    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Link rezultat' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Linkul cu rezultatul/)).not.toBeInTheDocument();
+  });
   it('shows the not-found page for an upload id that is not a number', async () => {
     renderAdmin('/teste/6E2-26T1/elevi/abc', apiWith());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();

@@ -5,6 +5,7 @@ import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDateTime, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { ResultLink } from './ResultLink.tsx';
 
 // Who uploaded what: one row per student of the class, with the grade once
 // the robot graded it. While the uploads are open, the teacher selects the
@@ -161,6 +162,9 @@ function UploadTableRow({
         {submissionId !== null && (
           <span className="row-actions">
             <Link to={`/teste/${code}/elevi/${submissionId}`}>Vezi lucrarea</Link>
+            {row.status !== 'uploading' && (
+              <ResultLink submissionId={submissionId} resultToken={row.resultToken} testCode={code} studentName={row.studentName} />
+            )}
             {row.status === 'failed' && (
               <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate(submissionId)}>
                 Reîncearcă

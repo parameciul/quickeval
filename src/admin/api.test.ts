@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE } from '../../shared/files.ts';
-import { ApiError, createApiClient, LoginExpiredError, reloadForLogin, submissionFileUrl, testFileUrl } from './api.ts';
+import { ApiError, createApiClient, LoginExpiredError, reloadForLogin, studentResultUrl, submissionFileUrl, testFileUrl } from './api.ts';
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -161,9 +161,23 @@ describe('createApiClient tests and uploads', () => {
     ]);
   });
 
+  it('opens and closes the student results and reads one result link', async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(200, String(url).endsWith('/result-link') ? { resultToken: 'abcdefghijkmnop2abcdefcd' } : { resultsOpen: true }),
+    );
+    const api = createApiClient({ fetchImpl });
+    expect(await api.setResultsOpen('6E2-26T1', true)).toBe(true);
+    expect(await api.getResultLink(5)).toBe('abcdefghijkmnop2abcdefcd');
+    expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
+      'POST /api/admin/tests/6E2-26T1/results/open',
+      'GET /api/admin/submissions/5/result-link',
+    ]);
+  });
+
   it('builds the links that open stored files', () => {
     expect(testFileUrl('6E2-26T1', 'test')).toBe('/api/admin/tests/6E2-26T1/files/test');
     expect(submissionFileUrl(7, 12)).toBe('/api/admin/submissions/7/files/12');
+    expect(studentResultUrl('abcdefghijkmnop2abcdefcd')).toBe(`${window.location.origin}/u/rezultat/abcdefghijkmnop2abcdefcd`);
   });
 });
 

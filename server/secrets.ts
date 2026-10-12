@@ -15,6 +15,11 @@ export function newUploadToken(): string {
   return randomBase32(16);
 }
 
+// The secret part of a student's result link: 24 characters, 120 bits.
+export function newResultToken(): string {
+  return randomBase32(24);
+}
+
 function randomBase64Url(bytes: number): string {
   let binary = '';
   for (const byte of crypto.getRandomValues(new Uint8Array(bytes))) binary += String.fromCharCode(byte);

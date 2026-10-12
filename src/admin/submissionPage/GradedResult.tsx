@@ -224,7 +224,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
       <td>
         <ConfidenceBars confidence={item.confidence} />
       </td>
-      <td>
+      <td className={editing ? undefined : 'item-check'}>
         {editing ? (
           <span className="row-actions">
             <button type="button" className="button button-small" disabled={save.isPending} onClick={saveEditing}>
@@ -236,17 +236,6 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
           </span>
         ) : (
           <span className="row-actions">
-            {toCheck && (
-              <button
-                type="button"
-                className="button-quiet button-small"
-                aria-label={`Verificat ${item.label}`}
-                disabled={check.isPending}
-                onClick={() => check.mutate()}
-              >
-                Verificat
-              </button>
-            )}
             <button
               type="button"
               className="button-quiet button-small"
@@ -256,6 +245,17 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
             >
               Modifică
             </button>
+            {toCheck && (
+              <button
+                type="button"
+                className="button-quiet button-small verificat-btn"
+                aria-label={`Verificat ${item.label}`}
+                disabled={check.isPending}
+                onClick={() => check.mutate()}
+              >
+                Verificat
+              </button>
+            )}
           </span>
         )}
         {item.needsReview && item.reviewed && <span className="item-note review-state">Verificat</span>}
