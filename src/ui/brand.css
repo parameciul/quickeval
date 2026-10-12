@@ -720,9 +720,10 @@ table.uploads .tag {
 /* The actions of a graded exercise: Modifică stays at the top of the row,
    Verificat sits at the bottom, both left aligned and in the same style.
    Scoped to the teacher's check cell, so the edit buttons (Salvează/Renunță)
-   and the student's table keep their layout. */
+   and the student's table keep their layout. Verificat is pinned with
+   absolute positioning (no percentage heights: those are unreliable on table
+   cells); rows without it keep their normal height. */
 table.items td.item-check {
-  height: 100%;
   vertical-align: top;
 }
 
@@ -732,12 +733,19 @@ table.items td.item-check .row-actions {
   align-items: flex-start;
   justify-content: flex-start;
   gap: 0.5rem;
-  height: 100%;
   min-height: 3.5rem;
 }
 
+table.items td.item-check:has(.verificat-btn) {
+  position: relative;
+  padding-bottom: 2.75rem;
+}
+
 table.items td.item-check .verificat-btn {
-  margin-top: auto;
+  position: absolute;
+  bottom: 0.45rem;
+  left: 0.6rem;
+  margin-top: 0;
 }
 
 /* One student's result link, next to the row actions. */

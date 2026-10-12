@@ -345,6 +345,12 @@ describe('SubmissionPage', () => {
       `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul 6E2-26T1: ${url}`)}`,
     );
   });
+  it('hides the result link while the upload is still on the phone', async () => {
+    renderAdmin(page, apiWith({ ...submission, status: 'uploading', submittedAt: null }));
+    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Link rezultat' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Linkul cu rezultatul/)).not.toBeInTheDocument();
+  });
   it('shows the not-found page for an upload id that is not a number', async () => {
     renderAdmin('/teste/6E2-26T1/elevi/abc', apiWith());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();

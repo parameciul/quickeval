@@ -108,16 +108,20 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
         Început {formatDateTime(submission.startedAt)}
         {submission.submittedAt && ` · trimis ${formatDateTime(submission.submittedAt)}`}
       </p>
-      <p className="hint">
-        Linkul cu rezultatul elevului:{' '}
-        <ResultLink
-          submissionId={submission.id}
-          resultToken={submission.resultToken}
-          testCode={submission.testCode}
-          studentName={submission.studentName}
-        />
-        {submission.resultsOpen ? ' Rezultatele sunt publicate.' : ' Rezultatele nu sunt publicate încă.'}
-      </p>
+      {/* The result link only once the student sent the upload, like the
+          uploads table: while uploading there is nothing to share yet. */}
+      {submission.status !== 'uploading' && (
+        <p className="hint">
+          Linkul cu rezultatul elevului:{' '}
+          <ResultLink
+            submissionId={submission.id}
+            resultToken={submission.resultToken}
+            testCode={submission.testCode}
+            studentName={submission.studentName}
+          />
+          {submission.resultsOpen ? ' Rezultatele sunt publicate.' : ' Rezultatele nu sunt publicate încă.'}
+        </p>
+      )}
       {showNotice && <p role="status">{notice}</p>}
 
       <div className={filesOpen ? 'result-layout' : 'result-layout is-collapsed'}>

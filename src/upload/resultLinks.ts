@@ -4,8 +4,9 @@ import { studentResultPath } from '../../shared/api.ts';
 // upload (spec: like the theme choice, in localStorage). After "Am trimis
 // tot" the upload secret is forgotten and only this link stays. When the
 // student opens the same upload link again (the same QR code), the page shows
-// the kept link instead of the name list, so a lost link comes back on the
-// same phone.
+// the kept link above the name list on an open test (so classmates can still
+// upload on a shared phone), and only the kept link once the uploads closed,
+// so a lost link comes back on the same phone.
 
 export interface SavedResultLink {
   studentId: number;

@@ -106,14 +106,23 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       return c.json({ session: await sessionView(c, resumed) });
     }
 
+    // A result_token collision (120-bit, effectively never) must not look
+    // like another phone: only (test_id, student_id) means that. Retry with
+    // a fresh token, then report a generic error if it keeps colliding.
     const secret = newDeviceSecret();
-    let submissionId: number;
-    try {
-      submissionId = await createSubmission(c.env.DB, test.id, studentId, await sha256Hex(secret), newResultToken(), nowIso());
-    } catch (err) {
-      if (isUniqueViolation(err)) throw otherDevice();
-      throw err;
+    const sessionHash = await sha256Hex(secret);
+    let submissionId: number | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        submissionId = await createSubmission(c.env.DB, test.id, studentId, sessionHash, newResultToken(), nowIso());
+        break;
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+        if (!String(err instanceof Error ? err.message : err).includes('result_token')) throw otherDevice();
+        if (attempt === 2) throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
+      }
     }
+    if (submissionId === null) throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
     const created: UploadSession = { submissionId, studentId, studentName: student.fullName, status: 'uploading', files: [] };
     return c.json({ secret, session: created }, 201);
   });
@@ -192,7 +201,10 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
     }
     const resultToken = await confirmResultToken(c.env.DB, current.submissionId);
-    if (!resultToken) throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
+    // confirmSubmission already sent the upload, so files exist: a missing
+    // token means the teacher reset the upload in between. Back to the names,
+    // not "add at least a photo".
+    if (!resultToken) throw new ApiError(401, 'no_session', 'Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
     return c.json({ status: 'submitted', fileCount, resultToken } satisfies { status: string } & ConfirmAnswer);
   });
 
