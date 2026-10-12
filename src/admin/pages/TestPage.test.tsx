@@ -598,4 +598,16 @@ describe('TestPage evaluation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Copiază' }));
     expect(await navigator.clipboard.readText()).toBe(url);
   });
+
+  it('hides the result link while the upload is still on the phone', async () => {
+    // Pop Ion sent the upload, Stan Eva still uploads, Marin Dan did not start.
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [fakeTest({ status: 'done' }, uploads)],
+    });
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByRole('heading', { name: '6E2-26T1' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Link rezultat' })).toHaveLength(1);
+  });
 });

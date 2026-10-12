@@ -224,7 +224,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
       <td>
         <ConfidenceBars confidence={item.confidence} />
       </td>
-      <td>
+      <td className={editing ? undefined : 'item-check'}>
         {editing ? (
           <span className="row-actions">
             <button type="button" className="button button-small" disabled={save.isPending} onClick={saveEditing}>

@@ -1,11 +1,16 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { StudentResultView } from '../../shared/api.ts';
 import { ApiError } from '../ui/ApiError.ts';
 import { createFakeUploadApi } from '../test/fakeUploadApi.ts';
 import { expectNoGradingWords } from '../test/gradingWords.ts';
 import { ResultApp } from './ResultApp.tsx';
+import { loadResultLinks, saveResultLink } from './resultLinks.ts';
+
+afterEach(() => {
+  localStorage.clear();
+});
 
 const graded: StudentResultView = {
   testCode: '6E2-26T1',
@@ -89,6 +94,16 @@ describe('ResultApp', () => {
     render(<ResultApp api={api} resultToken={null} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Link greșit. Cere profesorului linkul nou.');
     expect(api.getResult).not.toHaveBeenCalled();
+    expectNoGradingWords();
+  });
+
+  it('forgets the kept link when the server says the upload is gone', async () => {
+    saveResultLink('abcdefghijkmnop2', 10, 'deadresulttoken000000001', 'Pop Ion');
+    const api = createFakeUploadApi();
+    api.getResult.mockRejectedValueOnce(new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.'));
+    render(<ResultApp api={api} resultToken="deadresulttoken000000001" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Link greșit. Cere profesorului linkul nou.');
+    expect(loadResultLinks('abcdefghijkmnop2')).toEqual([]);
     expectNoGradingWords();
   });
 

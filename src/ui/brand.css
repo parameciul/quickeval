@@ -718,12 +718,15 @@ table.uploads .tag {
 }
 
 /* The actions of a graded exercise: Modifică stays at the top of the row,
-   Verificat sits at the bottom, both left aligned and in the same style. */
-table.items td:last-child {
+   Verificat sits at the bottom, both left aligned and in the same style.
+   Scoped to the teacher's check cell, so the edit buttons (Salvează/Renunță)
+   and the student's table keep their layout. */
+table.items td.item-check {
   height: 100%;
+  vertical-align: top;
 }
 
-table.items td:last-child .row-actions {
+table.items td.item-check .row-actions {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -733,7 +736,7 @@ table.items td:last-child .row-actions {
   min-height: 3.5rem;
 }
 
-table.items .verificat-btn {
+table.items td.item-check .verificat-btn {
   margin-top: auto;
 }
 

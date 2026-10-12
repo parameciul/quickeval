@@ -70,6 +70,30 @@ export function loadResultLink(uploadToken: string, studentId: number): SavedRes
   }
 }
 
+// Forgets every kept link with this result token, from any upload link. The
+// result page calls it when the server answers 404: the upload is gone, so
+// the kept link must not come back on the upload page.
+export function forgetResultLinkByToken(resultToken: string): void {
+  try {
+    const doomed: string[] = [];
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith('qe.result.')) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw) as { resultToken?: unknown };
+        if (parsed.resultToken === resultToken) doomed.push(key);
+      } catch {
+        continue;
+      }
+    }
+    for (const key of doomed) localStorage.removeItem(key);
+  } catch {
+    // Blocked storage: nothing to forget.
+  }
+}
+
 // The address to keep and to share, for one result page.
 export function resultPageUrl(resultToken: string): string {
   return `${window.location.origin}${studentResultPath(resultToken)}`;

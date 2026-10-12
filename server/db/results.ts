@@ -110,7 +110,9 @@ interface ResultRow {
 }
 
 // One student's result page by its secret link. Null for an unknown link. The
-// caller refuses the page while `resultsOpen` is false.
+// caller refuses the page while `resultsOpen` is false. While closed the
+// answer carries no files and no grading, so polling an unpublished link costs
+// one query.
 export async function findResultByToken(
   db: D1Database,
   resultToken: string,
@@ -128,6 +130,18 @@ export async function findResultByToken(
     .bind(resultToken)
     .first<ResultRow>();
   if (!row) return null;
+  if (row.results_open !== 1) {
+    const result: StudentResultView = {
+      testCode: row.code,
+      testTitle: row.title,
+      className: row.class_name,
+      studentName: row.student_name,
+      status: row.status,
+      files: [],
+      evaluation: null,
+    };
+    return { result, resultsOpen: false };
+  }
   const files = (await listSubmissionFiles(db, row.submission_id)).map(publicFile);
   const evaluation = await getEvaluation(db, row.submission_id);
   const result: StudentResultView = {

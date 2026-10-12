@@ -27,8 +27,6 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // older uploads that have none yet.
   routes.get('/:id/result-link', async (c) => {
     const submissionId = parseId(c.req.param('id'));
-    const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, submissionId);
-    if (!found) throw notFound();
     const resultToken = await teacherResultToken(c.env.DB, c.var.teacher.id, submissionId);
     if (!resultToken) throw notFound();
     return c.json({ resultToken });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadResultLink, loadResultLinks, saveResultLink } from './resultLinks.ts';
+import { forgetResultLinkByToken, loadResultLink, loadResultLinks, saveResultLink } from './resultLinks.ts';
 
 const TOKEN = 'abcdefghijkmnop2';
 
@@ -37,5 +37,25 @@ describe('result links kept on the phone', () => {
     });
     expect(loadResultLink(TOKEN, 10)).toBeNull();
     expect(loadResultLinks(TOKEN)).toEqual([]);
+  });
+
+  it('forgets every kept link with a dead result token', () => {
+    saveResultLink(TOKEN, 10, 'rt-dead', 'Pop Ion');
+    saveResultLink(TOKEN, 11, 'rt-alive', 'Ionescu Ana');
+    saveResultLink('otherlinktoken22', 12, 'rt-dead', 'Stan Eva');
+    forgetResultLinkByToken('rt-dead');
+    expect(loadResultLink(TOKEN, 10)).toBeNull();
+    expect(loadResultLink(TOKEN, 11)).toEqual({ studentId: 11, studentName: 'Ionescu Ana', resultToken: 'rt-alive' });
+    expect(loadResultLinks('otherlinktoken22')).toEqual([]);
+  });
+
+  it('keeps every link when the dead token is unknown, even with blocked storage', () => {
+    saveResultLink(TOKEN, 10, 'rt-10', 'Pop Ion');
+    expect(() => forgetResultLinkByToken('rt-missing')).not.toThrow();
+    expect(loadResultLink(TOKEN, 10)).toEqual({ studentId: 10, studentName: 'Pop Ion', resultToken: 'rt-10' });
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(() => forgetResultLinkByToken('rt-10')).not.toThrow();
   });
 });

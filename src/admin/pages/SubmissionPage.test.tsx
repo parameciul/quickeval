@@ -159,6 +159,16 @@ describe('SubmissionPage', () => {
     expect(screen.getByText('De verificat: 1')).toBeInTheDocument();
   });
 
+  it('scopes the bottom-aligned check layout to the check cell', async () => {
+    renderAdmin(page, apiWith(graded));
+    const check = await screen.findByRole('button', { name: 'Modifică Subiectul II, ex. 1' });
+    expect(check.closest('td')).toHaveClass('item-check');
+    // While editing, the same cell holds Salvează and Renunță side by side.
+    await userEvent.click(check);
+    expect(await screen.findByRole('button', { name: 'Salvează' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Salvează' }).closest('td')).not.toHaveClass('item-check');
+  });
+
   it('changes the points and the comment of an item, and checks it', async () => {
     const api = apiWith(graded);
     renderAdmin(page, api);
