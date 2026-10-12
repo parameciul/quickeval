@@ -9,6 +9,8 @@ import type {
   ItemCorrection,
   PagesReview,
   RegradeAnswer,
+  ResultsOpenAnswer,
+  ResultLinkAnswer,
   RobotStart,
   RobotStartAnswer,
   Settings,
@@ -23,6 +25,7 @@ import type {
   UpdateClassInput,
 } from '../../shared/api.ts';
 import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
+import { studentResultPath } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
 
 export { ApiError };
@@ -50,6 +53,8 @@ export interface AdminApi {
   saveBaremNotes(code: string, notes: string): Promise<BaremNotesAnswer>;
   startTest(code: string): Promise<StartedTest>;
   reopenTest(code: string): Promise<void>;
+  // Opens or closes the students' result pages of a test.
+  setResultsOpen(code: string, open: boolean): Promise<boolean>;
   // Now without `at`, or at that ISO time. With `submissionIds`, now only
   // the selected uploads are graded.
   evaluateTest(code: string, at?: string, submissionIds?: number[]): Promise<EvaluationStart>;
@@ -62,6 +67,8 @@ export interface AdminApi {
   // "Recorectează tot": graded and failed uploads wait for the robot again.
   regradeTest(code: string): Promise<RegradeAnswer>;
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
+  // The teacher's link to one student's result page, for sharing.
+  getResultLink(submissionId: number): Promise<string>;
   resetSubmission(submissionId: number): Promise<void>;
   retrySubmission(submissionId: number): Promise<RobotStart | null>;
   regradeSubmission(submissionId: number, gradedAt: string): Promise<RegradeAnswer>;
@@ -81,6 +88,11 @@ export function testFileUrl(code: string, kind: TestFileKind): string {
 
 export function submissionFileUrl(submissionId: number, fileId: number): string {
   return `/api/admin/submissions/${submissionId}/files/${fileId}`;
+}
+
+// The address to share with a student for one result page.
+export function studentResultUrl(resultToken: string): string {
+  return `${window.location.origin}${studentResultPath(resultToken)}`;
 }
 
 
@@ -178,6 +190,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     uploadTestFile: (code, kind, file) => request<TestFileAnswer>('PUT', `${test(code)}/files/${kind}`, undefined, file),
     saveBaremNotes: (code, notes) => request<BaremNotesAnswer>('PUT', `${test(code)}/barem-notes`, { notes }),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
+    setResultsOpen: async (code, open) =>
+      (await request<ResultsOpenAnswer>('POST', `${test(code)}/results/${open ? 'open' : 'close'}`)).resultsOpen,
     reopenTest: async (code) => {
       await request('POST', `${test(code)}/reopen`);
     },
@@ -198,6 +212,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     regradeTest: (code) => request<RegradeAnswer>('POST', `${test(code)}/regrade`),
     getSubmission: async (submissionId) =>
       (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,
+    getResultLink: async (submissionId) =>
+      (await request<ResultLinkAnswer>('GET', `/submissions/${submissionId}/result-link`)).resultToken,
     resetSubmission: async (submissionId) => {
       await request('POST', `/submissions/${submissionId}/reset`);
     },

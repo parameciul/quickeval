@@ -24,6 +24,8 @@ const submission: SubmissionDetail = {
     { id: 22, name: 'scan.pdf', contentType: 'application/pdf', size: 1.5 * 1024 * 1024, position: 2 },
   ],
   evaluation: null,
+  resultToken: 'abcdefghijkmnop2abcdefcd',
+  resultsOpen: false,
 };
 
 // When the robot wrote the result of fakeEvaluation(); each change names it.
@@ -319,6 +321,20 @@ describe('SubmissionPage', () => {
     await expectLocation('/teste/6E2-26T1');
   });
 
+  it('shows the student result link with copy and WhatsApp share', async () => {
+    const api = apiWith(graded);
+    renderAdmin(page, api);
+    expect(await screen.findByText(/Rezultatele nu sunt publicate încă/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Link rezultat' }));
+    // The upload already has a link, so no new request is needed.
+    expect(api.getResultLink).not.toHaveBeenCalled();
+    const url = `${window.location.origin}/u/rezultat/abcdefghijkmnop2abcdefcd`;
+    expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
+      'href',
+      `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul 6E2-26T1: ${url}`)}`,
+    );
+  });
   it('shows the not-found page for an upload id that is not a number', async () => {
     renderAdmin('/teste/6E2-26T1/elevi/abc', apiWith());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();

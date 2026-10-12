@@ -9,6 +9,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { GradedResult } from '../submissionPage/GradedResult.tsx';
 import { PageFiles } from '../submissionPage/PageFiles.tsx';
+import { ResultLink } from '../testPage/ResultLink.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
 // While the robot grades the upload, the page asks for news every 10 seconds.
@@ -106,6 +107,16 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
       <p className="hint">
         Început {formatDateTime(submission.startedAt)}
         {submission.submittedAt && ` · trimis ${formatDateTime(submission.submittedAt)}`}
+      </p>
+      <p className="hint">
+        Linkul cu rezultatul elevului:{' '}
+        <ResultLink
+          submissionId={submission.id}
+          resultToken={submission.resultToken}
+          testCode={submission.testCode}
+          studentName={submission.studentName}
+        />
+        {submission.resultsOpen ? ' Rezultatele sunt publicate.' : ' Rezultatele nu sunt publicate încă.'}
       </p>
       {showNotice && <p role="status">{notice}</p>}
 

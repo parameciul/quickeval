@@ -3,6 +3,7 @@ import { correctItemBody, regradeBody, reviewPagesBody, type RegradeAnswer } fro
 import { formatPoints, isValidCorrection } from '../../shared/scoring.ts';
 import { correctItem, correctEvaluation, findTeacherItem } from '../db/evaluations.ts';
 import { regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
+import { teacherResultToken } from '../db/results.ts';
 import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission } from '../db/submissions.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
@@ -19,6 +20,18 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')));
     if (!found) throw notFound();
     return c.json({ submission: found.detail });
+  });
+
+  // The teacher's link to one student's result page, to share when the student
+  // lost the link kept after sending or uses another phone. Makes the link for
+  // older uploads that have none yet.
+  routes.get('/:id/result-link', async (c) => {
+    const submissionId = parseId(c.req.param('id'));
+    const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, submissionId);
+    if (!found) throw notFound();
+    const resultToken = await teacherResultToken(c.env.DB, c.var.teacher.id, submissionId);
+    if (!resultToken) throw notFound();
+    return c.json({ resultToken });
   });
 
   // The teacher's correction of one item of the graded result (spec §14.1).

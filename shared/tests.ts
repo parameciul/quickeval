@@ -12,6 +12,7 @@ export const MAX_SCHEDULE_DAYS = 60;
 
 const TEST_CODE = /^[A-Z0-9]{1,8}-\d{2}T\d{1,3}$/;
 const UPLOAD_TOKEN = /^[a-z2-7]{16}$/;
+const RESULT_TOKEN = /^[a-z2-7]{24}$/;
 
 // Class "6E2" in school year 2026, test number 1: "6E2-26T1".
 export function buildTestCode(className: string, schoolYear: number, number: number): string {
@@ -28,6 +29,12 @@ export function normalizeTestCode(raw: string): string | null {
 // The secret part of a student upload link: 16 characters from a-z and 2-7.
 export function isUploadToken(raw: string): boolean {
   return UPLOAD_TOKEN.test(raw);
+}
+
+// The secret part of a student's result link: 24 characters from a-z and 2-7,
+// longer than an upload token so the two cannot be confused.
+export function isResultToken(raw: string): boolean {
+  return RESULT_TOKEN.test(raw);
 }
 
 // Joins inner whitespace into single spaces and trims.

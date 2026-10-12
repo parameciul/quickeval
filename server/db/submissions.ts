@@ -45,7 +45,7 @@ export async function getTeacherSubmission(
   const row = await db
     .prepare(
       `SELECT s.id, s.status, s.auto_submitted, s.started_at, s.submitted_at, s.last_error, s.student_id, st.full_name,
-         t.code, t.title, t.status AS test_status
+         s.result_token, t.code, t.title, t.status AS test_status, t.results_open
        FROM submissions s
        JOIN tests t ON t.id = s.test_id
        JOIN students st ON st.id = s.student_id
@@ -61,9 +61,11 @@ export async function getTeacherSubmission(
       last_error: string | null;
       student_id: number;
       full_name: string;
+      result_token: string | null;
       code: string;
       title: string;
       test_status: TestStatus;
+      results_open: number;
     }>();
   if (!row) return null;
   const files = await listSubmissionFiles(db, row.id);
@@ -82,6 +84,8 @@ export async function getTeacherSubmission(
       lastError: row.last_error,
       files: files.map(publicFile),
       evaluation: await getEvaluation(db, row.id),
+      resultToken: row.result_token,
+      resultsOpen: row.results_open === 1,
     },
     files,
   };

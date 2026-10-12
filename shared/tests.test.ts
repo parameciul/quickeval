@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTestCode, cleanTitle, isUploadToken, normalizeTestCode } from './tests.ts';
+import { buildTestCode, cleanTitle, isResultToken, isUploadToken, normalizeTestCode } from './tests.ts';
 
 describe('buildTestCode', () => {
   it('joins the class, the last two digits of the school year, and the number', () => {
@@ -26,6 +26,15 @@ describe('isUploadToken', () => {
     expect(isUploadToken('abcdefghijklmn2')).toBe(false);
     expect(isUploadToken('abcdefghijklmn28')).toBe(false);
     expect(isUploadToken('ABCDEFGHIJKLMN27')).toBe(false);
+  });
+});
+
+describe('isResultToken', () => {
+  it('accepts 24 characters from a-z and 2-7 only, so no upload token matches', () => {
+    expect(isResultToken('abcdefghijkmnop2abcdefcd')).toBe(true);
+    expect(isResultToken('abcdefghijkmnop2')).toBe(false);
+    expect(isResultToken('abcdefghijkmnop2abcdefc8')).toBe(false);
+    expect(isResultToken('abcdefghijkmnop2abcdefcD')).toBe(false);
   });
 });
 

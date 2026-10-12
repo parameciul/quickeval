@@ -103,10 +103,17 @@ export async function findStudentSubmission(
 
 // Returns the new upload's id. Throws a UNIQUE error when another phone
 // started this student's upload first.
-export async function createSubmission(db: D1Database, testId: number, studentId: number, sessionHash: string, now: string): Promise<number> {
+export async function createSubmission(
+  db: D1Database,
+  testId: number,
+  studentId: number,
+  sessionHash: string,
+  resultToken: string,
+  now: string,
+): Promise<number> {
   const row = await db
-    .prepare("INSERT INTO submissions (test_id, student_id, status, session_hash, started_at) VALUES (?, ?, 'uploading', ?, ?) RETURNING id")
-    .bind(testId, studentId, sessionHash, now)
+    .prepare("INSERT INTO submissions (test_id, student_id, status, session_hash, result_token, started_at) VALUES (?, ?, 'uploading', ?, ?, ?) RETURNING id")
+    .bind(testId, studentId, sessionHash, resultToken, now)
     .first<{ id: number }>();
   return row!.id;
 }

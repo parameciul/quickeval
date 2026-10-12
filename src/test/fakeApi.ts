@@ -77,6 +77,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       submittedCount: uploads.filter((row) => row.status !== 'none' && row.status !== 'uploading').length,
       gradedCount: uploads.filter((row) => row.status === 'graded').length,
       flagCount: uploads.reduce((sum, row) => sum + row.flagCount, 0),
+      resultsOpen: false,
       uploadToken: null,
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
@@ -100,6 +101,7 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     autoSubmitted: false,
     grade: null,
     gradedAt: overrides.status === 'graded' ? '2026-10-07T09:00:00.000Z' : null,
+    resultToken: null,
     flagCount: 0,
     lastError: null,
     ...overrides,
@@ -279,6 +281,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       Object.assign(found, { status: 'open', uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT });
       return { status: found.status, uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT };
     }),
+    setResultsOpen: vi.fn(async (code: string, open: boolean) => {
+      findTest(code).test.resultsOpen = open;
+      return open;
+    }),
     reopenTest: vi.fn(async (code: string) => {
       findTest(code).test.status = 'open';
     }),
@@ -338,6 +344,21 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       return 'next_check';
     }),
     getSubmission: vi.fn(async (submissionId: number) => structuredClone(findSubmission(submissionId))),
+    getResultLink: vi.fn(async (submissionId: number) => {
+      const found = submissions.find((s) => s.id === submissionId);
+      if (found) {
+        if (!found.resultToken) found.resultToken = `result-token-${submissionId}`;
+        return found.resultToken;
+      }
+      for (const detail of tests) {
+        const row = detail.uploads.find((u) => u.submissionId === submissionId);
+        if (row) {
+          if (!row.resultToken) row.resultToken = `result-token-${submissionId}`;
+          return row.resultToken;
+        }
+      }
+      throw notFound();
+    }),
     resetSubmission: vi.fn(async (submissionId: number) => {
       for (const detail of tests) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);

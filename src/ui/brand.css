@@ -717,6 +717,49 @@ table.uploads .tag {
   gap: 0.25rem 0.75rem;
 }
 
+/* The actions of a graded exercise: Modifică stays at the top of the row,
+   Verificat sits at the bottom, both left aligned and in the same style. */
+table.items td:last-child {
+  height: 100%;
+}
+
+table.items td:last-child .row-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  height: 100%;
+  min-height: 3.5rem;
+}
+
+table.items .verificat-btn {
+  margin-top: auto;
+}
+
+/* One student's result link, next to the row actions. */
+.result-share {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.result-share-box {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.result-share-box input[type="text"] {
+  width: 16rem;
+  max-width: 100%;
+  min-height: 2.25rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.85rem;
+}
+
 /* A student's pages */
 
 .page-files {
@@ -1106,6 +1149,24 @@ table.items tr.edit-row > td {
 
 .sent h2 {
   margin-top: 0;
+}
+
+/* A kept link to a student's result page, on the phone that sent the upload. */
+.result-link-box {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--sheet);
+}
+
+.result-link-box p {
+  margin: 0 0 0.5rem;
+}
+
+.result-link-box input[type="text"] {
+  flex: 1 1 16rem;
+  min-width: 0;
 }
 
 .tips {

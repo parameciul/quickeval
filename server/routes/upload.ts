@@ -1,8 +1,8 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
-import { startSessionBody, type UploadSession } from '../../shared/api.ts';
+import { startSessionBody, type ConfirmAnswer, type UploadSession } from '../../shared/api.ts';
 import { MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, studentFileKey } from '../../shared/files.ts';
-import { isUploadToken } from '../../shared/tests.ts';
+import { isResultToken, isUploadToken } from '../../shared/tests.ts';
 import {
   addSubmissionFile,
   confirmSubmission,
@@ -18,11 +18,12 @@ import {
   type LinkTest,
   type SessionRecord,
 } from '../db/links.ts';
+import { confirmResultToken, findResultByToken, findResultFile, resultLinkExists } from '../db/results.ts';
 import { listSubmissionFiles, publicFile } from '../db/submissions.ts';
 import type { AppEnv, AppOptions, Env } from '../env.ts';
 import { ApiError, isUniqueViolation } from '../errors.ts';
 import { duePromoter, nowIso, parseId, promoteDue, readJson, sameOriginWrites } from '../http.ts';
-import { newDeviceSecret, randomBase32, sha256Hex } from '../secrets.ts';
+import { newDeviceSecret, newResultToken, randomBase32, sha256Hex } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
 
 const SESSION_HEADER = 'X-Upload-Session';
@@ -108,7 +109,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const secret = newDeviceSecret();
     let submissionId: number;
     try {
-      submissionId = await createSubmission(c.env.DB, test.id, studentId, await sha256Hex(secret), nowIso());
+      submissionId = await createSubmission(c.env.DB, test.id, studentId, await sha256Hex(secret), newResultToken(), nowIso());
     } catch (err) {
       if (isUniqueViolation(err)) throw otherDevice();
       throw err;
@@ -180,7 +181,8 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ deleted: true });
   });
 
-  // "Am trimis tot": uploading → submitted. Needs at least one file.
+  // "Am trimis tot": uploading → submitted. Needs at least one file. Answers
+  // with the secret link to the student's result page: the phone keeps it.
   routes.post('/:token/confirm', async (c) => {
     const { current } = await openSession(c);
     const fileCount = await confirmSubmission(c.env.DB, current.submissionId, nowIso());
@@ -189,7 +191,33 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       await explainRefusal(c, promote);
       throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
     }
-    return c.json({ status: 'submitted', fileCount });
+    const resultToken = await confirmResultToken(c.env.DB, current.submissionId);
+    if (!resultToken) throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
+    return c.json({ status: 'submitted', fileCount, resultToken } satisfies { status: string } & ConfirmAnswer);
+  });
+
+  // A student's result page by its secret link. Only while the teacher keeps
+  // the results of the test open; the files go through the same check.
+  routes.get('/rezultat/:resultToken', async (c) => {
+    const resultToken = c.req.param('resultToken') ?? '';
+    const found = isResultToken(resultToken) ? await findResultByToken(c.env.DB, resultToken) : null;
+    if (!found) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    if (!found.resultsOpen) throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
+    return c.json({ result: found.result });
+  });
+
+  routes.get('/rezultat/:resultToken/files/:fileId', async (c) => {
+    const resultToken = c.req.param('resultToken') ?? '';
+    if (!isResultToken(resultToken)) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    const file = await findResultFile(c.env.DB, resultToken, parseId(c.req.param('fileId')));
+    if (file) {
+      const object = await c.env.FILES.get(file.key);
+      if (object) return fileResponse(object, file.name, file.type);
+    }
+    if (await resultLinkExists(c.env.DB, resultToken)) {
+      throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
+    }
+    throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
   });
 
   return routes;

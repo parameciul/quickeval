@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../ui/ApiError.ts';
-import { createUploadClient, type UploadRequest } from './api.ts';
+import { createUploadClient, resultFileUrl, type UploadRequest } from './api.ts';
 
 const TOKEN = 'abcdefghijkmnop2';
 
@@ -146,6 +146,15 @@ describe('createUploadClient', () => {
       `DELETE /api/u/${TOKEN}/files/7`,
       `POST /api/u/${TOKEN}/confirm`,
     ]);
+  });
+
+  it('reads one result page and downloads its files by the secret link', async () => {
+    const result = { testCode: '6E2-26T1' };
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, { result }));
+    const client = createUploadClient({ fetchImpl });
+    expect(await client.getResult('abcdefghijkmnop2abcdefcd')).toEqual(result);
+    expect(fetchImpl.mock.calls[0]![0]).toBe('/api/u/rezultat/abcdefghijkmnop2abcdefcd');
+    expect(resultFileUrl('abcdefghijkmnop2abcdefcd', 7)).toBe('/api/u/rezultat/abcdefghijkmnop2abcdefcd/files/7');
   });
 
   it('downloads a sent file with the session secret', async () => {

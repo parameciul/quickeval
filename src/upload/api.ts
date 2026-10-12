@@ -1,4 +1,4 @@
-import type { LinkInfo, SessionStart, SubmissionFile, UploadSession } from '../../shared/api.ts';
+import type { ConfirmAnswer, LinkInfo, SessionStart, StudentResultView, SubmissionFile, UploadSession } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
 
 // Everything the student app asks the server. The page gets it as a prop, so
@@ -11,9 +11,13 @@ export interface UploadApi {
   // onProgress gets the sent share of the file, from 0 to 1.
   uploadFile(token: string, secret: string, file: Blob, name: string, onProgress: (sent: number) => void): Promise<SubmissionFile>;
   deleteFile(token: string, secret: string, fileId: number): Promise<void>;
-  confirm(token: string, secret: string): Promise<{ fileCount: number }>;
+  confirm(token: string, secret: string): Promise<ConfirmAnswer>;
   // A file already sent, for its preview after a page reload.
   fileBlob(token: string, secret: string, fileId: number): Promise<Blob>;
+  // One student's result page by its secret link.
+  getResult(resultToken: string): Promise<StudentResultView>;
+  // A file of that result page, for its preview.
+  resultFileBlob(resultToken: string, fileId: number): Promise<Blob>;
 }
 
 // The student's upload on this phone: who it is, the secret, and the files sent so far.
@@ -25,6 +29,12 @@ export interface ActiveSession {
 }
 
 const SESSION_HEADER = 'X-Upload-Session';
+
+// A file of a student's result page opens straight from the API: the secret
+// link is the key, and the teacher's open results are the gate.
+export function resultFileUrl(resultToken: string, fileId: number): string {
+  return `/api/u/rezultat/${encodeURIComponent(resultToken)}/files/${fileId}`;
+}
 
 // The parts of XMLHttpRequest the upload uses. Tests pass a fake.
 export interface UploadRequest {
@@ -108,9 +118,16 @@ export function createUploadClient(options: UploadClientOptions = {}): UploadApi
     deleteFile: async (token, secret, fileId) => {
       await json('DELETE', `${base(token)}/files/${fileId}`, secret);
     },
-    confirm: (token, secret) => json<{ fileCount: number }>('POST', `${base(token)}/confirm`, secret),
+    confirm: (token, secret) => json<ConfirmAnswer>('POST', `${base(token)}/confirm`, secret),
     fileBlob: async (token, secret, fileId) => {
       const res = await send(`${base(token)}/files/${fileId}`, { headers: { [SESSION_HEADER]: secret } });
+      if (!res.ok) await readAnswer(res);
+      return res.blob();
+    },
+    getResult: async (resultToken) =>
+      (await json<{ result: StudentResultView }>('GET', `/api/u/rezultat/${encodeURIComponent(resultToken)}`, null)).result,
+    resultFileBlob: async (resultToken, fileId) => {
+      const res = await send(`/api/u/rezultat/${encodeURIComponent(resultToken)}/files/${fileId}`, {});
       if (!res.ok) await readAnswer(res);
       return res.blob();
     },

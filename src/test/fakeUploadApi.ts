@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { LinkInfo, SubmissionFile } from '../../shared/api.ts';
+import type { LinkInfo, StudentResultView, SubmissionFile } from '../../shared/api.ts';
 import { ApiError } from '../ui/ApiError.ts';
 import type { UploadApi } from '../upload/api.ts';
 
@@ -24,6 +24,7 @@ interface FakeSession {
   secret: string;
   files: SubmissionFile[];
   sent: boolean;
+  resultToken: string;
 }
 
 export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
@@ -56,7 +57,7 @@ export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
         }
         return { session: view(existing) };
       }
-      const created = { studentId, secret: `secret-${studentId}`, files: [], sent: false };
+      const created = { studentId, secret: `secret-${studentId}`, files: [], sent: false, resultToken: `result-token-${studentId}` };
       sessions.push(created);
       student.state = 'in_progress';
       return { secret: created.secret, session: view(created) };
@@ -78,12 +79,22 @@ export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
       session.sent = true;
       const student = info.students.find((s) => s.id === session.studentId);
       if (student) student.state = 'done';
-      return { fileCount: session.files.length };
+      return { fileCount: session.files.length, resultToken: session.resultToken };
     }),
     fileBlob: vi.fn(async (_token: string, _secret: string, _fileId: number) => new Blob(['jpeg'], { type: 'image/jpeg' })),
+    getResult: vi.fn(async (_resultToken: string): Promise<StudentResultView> => ({
+      testCode: info.test.code,
+      testTitle: info.test.title,
+      className: info.test.className,
+      studentName: 'Pop Ion',
+      status: 'graded',
+      files: [],
+      evaluation: null,
+    })),
+    resultFileBlob: vi.fn(async (_resultToken: string, _fileId: number) => new Blob(['jpeg'], { type: 'image/jpeg' })),
     // Test helper: an upload this phone started before (for example before a reload).
     seedSession(studentId: number, files: SubmissionFile[] = []) {
-      sessions.push({ studentId, secret: `secret-${studentId}`, files, sent: false });
+      sessions.push({ studentId, secret: `secret-${studentId}`, files, sent: false, resultToken: `result-token-${studentId}` });
       const student = info.students.find((s) => s.id === studentId);
       if (student) student.state = 'in_progress';
     },

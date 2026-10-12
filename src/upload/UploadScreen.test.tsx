@@ -167,7 +167,7 @@ describe('UploadScreen', () => {
     expect(api.confirm).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Am trimis tot' }));
     expect(confirm).toHaveBeenLastCalledWith('Ești sigur? După confirmare nu mai poți schimba nimic.');
-    await waitFor(() => expect(onSent).toHaveBeenCalledWith(2));
+    await waitFor(() => expect(onSent).toHaveBeenCalledWith(2, 'result-token-11'));
     expect(localStorage.getItem(`qe.session.${LINK_TOKEN}.11`)).toBeNull();
   });
 

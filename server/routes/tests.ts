@@ -14,8 +14,7 @@ import {
 } from '../../shared/api.ts';
 import { isTestFileKind, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
-import {
-  acceptExerciseList,
+import { acceptExerciseList,
   cancelSchedule,
   hasUploadedFiles,
   regradeTest,
@@ -24,6 +23,7 @@ import {
   selectedHaveFiles,
   startEvaluationNow,
 } from '../db/lifecycle.ts';
+import { setResultsOpen } from '../db/results.ts';
 import { testHasRobotWork } from '../db/runner.ts';
 import { testPageRobot } from '../db/settings.ts';
 import {
@@ -143,6 +143,25 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       throw new ApiError(409, 'already_open', 'Încărcarea este deja deschisă.');
     }
     return c.json({ status: 'open' });
+  });
+
+  // Opens the result pages of a test for all students. Students open their
+  // own page from the link they kept after sending, or from the link the
+  // teacher shares with them.
+  routes.post('/:code/results/open', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const resultsOpen = await setResultsOpen(c.env.DB, c.var.teacher.id, test.id, true, nowIso());
+    if (resultsOpen === null) throw notFound();
+    return c.json({ resultsOpen });
+  });
+
+  // Closes the result pages of a test for all students. Their files through
+  // the result links stop opening too.
+  routes.post('/:code/results/close', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const resultsOpen = await setResultsOpen(c.env.DB, c.var.teacher.id, test.id, false, nowIso());
+    if (resultsOpen === null) throw notFound();
+    return c.json({ resultsOpen });
   });
 
   // "Recorectează tot": the robot grades every graded upload again, and every

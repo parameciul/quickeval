@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../ui/ApiError.ts';
 import { createFakeUploadApi, LINK_TOKEN, linkInfo } from '../test/fakeUploadApi.ts';
 import { expectNoGradingWords } from '../test/gradingWords.ts';
+import { saveResultLink } from './resultLinks.ts';
 import { saveSecret } from './session.ts';
 import { UploadApp } from './UploadApp.tsx';
 
@@ -140,6 +141,35 @@ describe('UploadApp', () => {
     api.getLink.mockRejectedValueOnce(new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.'));
     render(<UploadApp api={api} token={LINK_TOKEN} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Link greșit. Cere profesorului linkul nou.');
+    expectNoGradingWords();
+  });
+
+  it('keeps the result link after sending and shows it on the sent screen', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(() => 'blob:preview'), configurable: true });
+    const api = createFakeUploadApi();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pop Ion' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Da, încep' }));
+    await userEvent.upload(await screen.findByLabelText('Alege fișiere'), new File(['%PDF-1.7'], 'scan.pdf', { type: 'application/pdf' }));
+    expect(await screen.findByText('Încărcat')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Am trimis tot' }));
+    expect(await screen.findByRole('heading', { name: 'Gata! Lucrarea ta a fost trimisă.' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
+    expect(screen.getByText('Rezultatul apare aici după ce profesorul publică rezultatele.')).toBeInTheDocument();
+    expect(localStorage.getItem(`qe.result.${LINK_TOKEN}.11`)).toContain('result-token-11');
+    expectNoGradingWords();
+  });
+
+  it('shows the kept result link when the same upload link opens again after closing', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'evaluating' }), students: [] });
+    saveSecret(LINK_TOKEN, 11, 'secret-11');
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion');
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
+    expect(screen.getByText(/Linkul cu rezultatul pentru Pop Ion/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
     expectNoGradingWords();
   });
 });

@@ -11,6 +11,7 @@ import { StatusChip } from '../StatusChip.tsx';
 import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
+import { ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
 import { StartRobotButton, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
@@ -128,6 +129,8 @@ function TestDetails({ code }: { code: string }) {
           <RegradeAllButton code={code} testStatus={test.status} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
         </>
       )}
+
+      {test.status !== 'draft' && <ResultsAccess test={test} onChanged={refresh} />}
 
       <h2>
         Încărcări · trimise {test.submittedCount} din {test.studentCount}
