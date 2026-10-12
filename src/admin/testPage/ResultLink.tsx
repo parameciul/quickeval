@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { studentResultUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -9,6 +9,7 @@ export function ResultLink({ submissionId, resultToken, testCode, studentName }:
   const api = useApi();
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(resultToken);
+  useEffect(() => setToken(resultToken), [resultToken]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [copied, setCopied] = useState(false);

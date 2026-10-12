@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { StudentEvaluation, StudentResultView, SubmissionFile, UploadStatus } from '../../shared/api.ts';
+import { isUniqueViolation } from '../errors.ts';
 import { newResultToken } from '../secrets.ts';
 import { getEvaluation } from './evaluations.ts';
 import { listSubmissionFiles, publicFile } from './submissions.ts';
@@ -38,15 +39,20 @@ export async function teacherResultToken(db: D1Database, teacherId: number, subm
   if (row.result_token) return row.result_token;
   for (let attempt = 0; attempt < 3; attempt++) {
     const token = newResultToken();
-    const set = await db
-      .prepare(
-        `UPDATE submissions SET result_token = ?
-         WHERE id = ? AND result_token IS NULL
-           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
-         RETURNING result_token`,
-      )
-      .bind(token, submissionId, teacherId)
-      .first<{ result_token: string }>();
+    let set: { result_token: string } | null = null;
+    try {
+      set = await db
+        .prepare(
+          `UPDATE submissions SET result_token = ?
+           WHERE id = ? AND result_token IS NULL
+             AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
+           RETURNING result_token`,
+        )
+        .bind(token, submissionId, teacherId)
+        .first<{ result_token: string }>();
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+    }
     if (set) return set.result_token;
     const again = await db
       .prepare(
@@ -73,10 +79,15 @@ export async function confirmResultToken(db: D1Database, submissionId: number): 
   if (row.result_token) return row.result_token;
   for (let attempt = 0; attempt < 3; attempt++) {
     const token = newResultToken();
-    const set = await db
-      .prepare('UPDATE submissions SET result_token = ? WHERE id = ? AND result_token IS NULL RETURNING result_token')
-      .bind(token, submissionId)
-      .first<{ result_token: string }>();
+    let set: { result_token: string } | null = null;
+    try {
+      set = await db
+        .prepare('UPDATE submissions SET result_token = ? WHERE id = ? AND result_token IS NULL RETURNING result_token')
+        .bind(token, submissionId)
+        .first<{ result_token: string }>();
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+    }
     if (set) return set.result_token;
     const again = await db
       .prepare('SELECT result_token FROM submissions WHERE id = ?')
@@ -176,9 +187,17 @@ export async function findResultFile(db: D1Database, resultToken: string, fileId
   return row ? { key: row.r2_key, name: row.original_name, type: row.content_type } : null;
 }
 
-// Whether a result link names an upload whose test closed its results. True
-// for an unknown link too: the file route then answers 404 either way.
-export async function resultLinkExists(db: D1Database, resultToken: string): Promise<boolean> {
-  const row = await db.prepare('SELECT 1 AS found FROM submissions WHERE result_token = ?').bind(resultToken).first<{ found: number }>();
-  return row !== null;
+// Whether the test behind a result link keeps its results open. Null for an
+// unknown link, so the file route can answer 404 for unknown links and
+// unknown files, and 403 only while the results are closed.
+export async function resultsOpenByToken(db: D1Database, resultToken: string): Promise<boolean | null> {
+  const row = await db
+    .prepare(
+      `SELECT t.results_open
+       FROM submissions s JOIN tests t ON t.id = s.test_id
+       WHERE s.result_token = ?`,
+    )
+    .bind(resultToken)
+    .first<{ results_open: number }>();
+  return row ? row.results_open === 1 : null;
 }

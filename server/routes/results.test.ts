@@ -111,6 +111,9 @@ describe('student result links', () => {
     const open = await api.fetch(`/api/u/rezultat/${resultToken}/files/${fileId}`);
     expect(open.status).toBe(200);
     expect(new Uint8Array(await open.arrayBuffer()).slice(0, 4)).toEqual(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]));
+    const missing = await api.fetch(`/api/u/rezultat/${resultToken}/files/${fileId + 999999}`);
+    expect(missing.status).toBe(404);
+    expect((await missing.json()).error).toBe('unknown_link');
     await api.request('POST', `/api/admin/tests/${code}/results/close`);
     const shut = await api.fetch(`/api/u/rezultat/${resultToken}/files/${fileId}`);
     expect(shut.status).toBe(403);

@@ -18,7 +18,7 @@ import {
   type LinkTest,
   type SessionRecord,
 } from '../db/links.ts';
-import { confirmResultToken, findResultByToken, findResultFile, resultLinkExists } from '../db/results.ts';
+import { confirmResultToken, findResultByToken, findResultFile, resultsOpenByToken } from '../db/results.ts';
 import { listSubmissionFiles, publicFile } from '../db/submissions.ts';
 import type { AppEnv, AppOptions, Env } from '../env.ts';
 import { ApiError, isUniqueViolation } from '../errors.ts';
@@ -214,9 +214,9 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       const object = await c.env.FILES.get(file.key);
       if (object) return fileResponse(object, file.name, file.type);
     }
-    if (await resultLinkExists(c.env.DB, resultToken)) {
-      throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
-    }
+    const open = await resultsOpenByToken(c.env.DB, resultToken);
+    if (open === null) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    if (!open) throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
     throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
   });
 
