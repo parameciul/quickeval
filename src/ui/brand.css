@@ -942,13 +942,13 @@ table.items tr.edit-row > td {
   font-weight: 700;
 }
 
-/* A checked exercise: a green check after its label, where it marks the
-   whole row (points and comment), on desktop and in stacked cards alike. */
+/* A checked exercise: a green check under its number, so the number column
+   stays as narrow as the longest number. On desktop and in stacked cards
+   alike it marks the whole row (points and comment). */
 .review-check {
-  display: inline-flex;
-  margin-left: 0.4rem;
+  display: flex;
+  margin-top: 0.15rem;
   color: var(--conf-5);
-  vertical-align: baseline;
 }
 
 .review-check svg {
@@ -1265,6 +1265,15 @@ table.items tr.edit-row > td {
 
   .result-main table.items .cell-area {
     min-width: 0;
+  }
+
+  /* In a stacked card the check stays on the title line, next to the
+     number: the card is already narrow, so nothing is saved below it. */
+  .result-main table.items th[scope="row"] .review-check {
+    display: inline-flex;
+    margin-top: 0;
+    margin-left: 0.4rem;
+    vertical-align: baseline;
   }
 }
 
