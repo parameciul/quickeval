@@ -46,13 +46,13 @@ export function StudentResult({ result, resultToken }: { result: StudentResultVi
                 {evaluation.items.map((item) => (
                   <tr key={item.exerciseId}>
                     <th scope="row">{item.label}</th>
-                    <td>
+                    <td data-label="Puncte">
                       <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
                         {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
                       </span>
                     </td>
-                    <td>{item.studentAnswer}</td>
-                    <td>{item.comment}</td>
+                    <td data-label="Răspunsul tău">{item.studentAnswer}</td>
+                    <td data-label="Comentariu">{item.comment}</td>
                   </tr>
                 ))}
               </tbody>

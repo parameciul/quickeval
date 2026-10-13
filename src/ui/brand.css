@@ -1112,6 +1112,78 @@ table.items tr.edit-row > td {
   padding-block: 1.25rem 2.5rem;
 }
 
+/* The student's result page holds the same wide exercises table as the
+   teacher's result page, so it uses the teacher's width instead of the
+   narrow phone-first upload width. */
+.upload-page.result-page {
+  max-width: 70rem;
+}
+
+.result-page table.items {
+  min-width: 0;
+}
+
+.result-page table.items th,
+.result-page table.items td {
+  overflow-wrap: anywhere;
+}
+
+/* On a narrow screen the exercises table becomes one card per exercise, so
+   the answer and the comment wrap in full instead of scrolling sideways. */
+@media (max-width: 48rem) {
+  .result-page .table-wrap {
+    overflow-x: visible;
+  }
+
+  .result-page table.items,
+  .result-page table.items tbody,
+  .result-page table.items tr,
+  .result-page table.items th,
+  .result-page table.items td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .result-page table.items thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .result-page table.items tr {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1.5px solid var(--rule);
+    border-radius: 0.75rem;
+    background: var(--sheet);
+  }
+
+  .result-page table.items th[scope="row"] {
+    border-bottom: 0;
+    font-size: 1.05rem;
+  }
+
+  .result-page table.items td {
+    border-bottom: 0;
+    padding-top: 0.25rem;
+  }
+
+  .result-page table.items td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+}
+
 .button-big {
   min-height: 3.25rem;
   padding-inline: 1.5rem;

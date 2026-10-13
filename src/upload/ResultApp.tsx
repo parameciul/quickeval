@@ -50,7 +50,7 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
           </span>
         </div>
       </header>
-      <main className="wrap upload-page">
+      <main className="wrap upload-page result-page">
         <ErrorBoundary>
           {phase.kind === 'loading' && <p>Se încarcă…</p>}
           {phase.kind === 'failed' && (
