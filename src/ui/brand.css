@@ -903,21 +903,32 @@ table.items tr.edit-row > td {
   margin-top: 0.3rem;
 }
 
-/* The robot's points before a teacher correction: the old value struck
-   through (like an old price) with a robot mark instead of words. */
+/* The robot's points before a teacher correction: the old value in gray
+   with a robot mark instead of words. */
 .ai-points {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
 }
 
-.ai-points svg {
-  width: 1em;
-  height: 1em;
+/* The robot mark wherever the robot is the subject. Large enough to read
+   as a robot at a glance, in the old-points note and the table header. */
+.robot-mark {
+  width: 1.4em;
+  height: 1.4em;
+  vertical-align: -0.3em;
 }
 
-.ai-points del {
-  text-decoration-thickness: 1px;
+/* An icon-only button: the picture replaces the text, while the tooltip
+   and the accessible name keep the words. */
+.icon-button {
+  padding-inline: 0.55rem;
+}
+
+.icon-button svg {
+  display: block;
+  width: 1.15em;
+  height: 1.15em;
 }
 
 .review-reason {

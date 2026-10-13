@@ -45,7 +45,9 @@ export function StudentResult({ result, resultToken }: { result: StudentResultVi
               <tbody>
                 {evaluation.items.map((item) => (
                   <tr key={item.exerciseId}>
-                    <th scope="row">{item.label}</th>
+                    <th scope="row" title={item.label}>
+                      {item.exerciseId} <span className="sr-only">{item.label}</span>
+                    </th>
                     <td data-label="Puncte">
                       <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
                         {formatPoints(item.points)} din {formatPoints(item.maxPoints)}

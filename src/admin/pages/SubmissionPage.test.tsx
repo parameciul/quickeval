@@ -191,7 +191,7 @@ describe('SubmissionPage', () => {
     const changed = row('Subiectul II, ex. 1');
     expect(within(changed).getByText('3,5 din 4,5')).toBeInTheDocument();
     expect(within(changed).getByText(/Punctajul robotului înainte de corectura ta:/)).toBeInTheDocument();
-    expect(changed.querySelector('del')).toHaveTextContent('1');
+    expect(changed.querySelector('.ai-value')).toHaveTextContent('1');
     expect(screen.queryByLabelText('Comentariul pentru elev')).not.toBeInTheDocument();
   });
 

@@ -48,7 +48,10 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
               <th scope="col">Puncte</th>
               <th scope="col">Răspunsul elevului</th>
               <th scope="col">Comentariu</th>
-              <th scope="col">Siguranța robotului</th>
+                  <th scope="col" title="Siguranța robotului">
+                    <span className="sr-only">Siguranța robotului</span>
+                    <RobotMark />
+                  </th>
               <th scope="col">
                 <span className="sr-only">Acțiuni</span>
               </th>
@@ -163,8 +166,8 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
 
   return (
     <tr className={toCheck ? 'is-flagged' : undefined}>
-      <th scope="row">
-        {item.label}
+      <th scope="row" title={item.label}>
+        {item.exerciseId} <span className="sr-only">{item.label}</span>
         {checked && <ReviewCheck />}
       </th>
       <td data-label="Puncte">
@@ -242,12 +245,22 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
           <span className="row-actions">
             <button
               type="button"
-              className="button-quiet button-small"
+              className="button-quiet button-small icon-button"
               aria-label={`Modifică ${item.label}`}
               aria-expanded={editing}
+              title={`Modifică ${item.label}`}
               onClick={startEditing}
             >
-              Modifică
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M4 20l1-4L16.5 4.5a2.12 2.12 0 013 3L8 19l-4 1z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+                <path d="M14.5 6.5l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
             </button>
             {toCheck && (
               <button
@@ -269,25 +282,33 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
   );
 }
 
-// The robot's points before the teacher corrected them: the old value struck
-// through (like an old price) next to a robot mark, so the history needs no
-// words. The hidden words say what the picture means for screen readers, and
-// the title says it for a sighted teacher on hover.
+// The robot's points before the teacher corrected them: the old value in
+// gray next to a robot mark, so the history needs no words. The hidden words
+// say what the picture means for screen readers, and the title says it for
+// a sighted teacher on hover.
 function RobotPoints({ points }: { points: number }) {
   const meaning = 'Punctajul robotului înainte de corectura ta';
   return (
     <span className="hint item-note ai-points" title={meaning}>
       <span className="sr-only">{`${meaning}: `}</span>
-      <del>{formatPoints(points)}</del>
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="5" y="9" width="14" height="11" rx="3.5" fill="none" stroke="currentColor" strokeWidth="2" />
-        <path d="M12 9V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="12" cy="4.5" r="1.3" fill="currentColor" />
-        <circle cx="10" cy="14" r="1.3" fill="currentColor" />
-        <circle cx="14" cy="14" r="1.3" fill="currentColor" />
-        <path d="M10 17.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
+      <span className="ai-value">{formatPoints(points)}</span>
+      <RobotMark />
     </span>
+  );
+}
+
+// The robot mark used wherever the robot is the subject: the old-points note
+// and the confidence column header. One picture, one meaning.
+function RobotMark() {
+  return (
+    <svg className="robot-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="5" y="9" width="14" height="11" rx="3.5" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 9V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="4.5" r="1.3" fill="currentColor" />
+      <circle cx="10" cy="14" r="1.3" fill="currentColor" />
+      <circle cx="14" cy="14" r="1.3" fill="currentColor" />
+      <path d="M10 17.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
   );
 }
 
