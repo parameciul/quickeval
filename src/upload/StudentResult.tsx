@@ -36,7 +36,10 @@ export function StudentResult({ result, resultToken }: { result: StudentResultVi
               <caption className="sr-only">Punctajele pe exerciții</caption>
               <thead>
                 <tr>
-                  <th scope="col">Exercițiul</th>
+                  <th scope="col" title="Exercițiul">
+                    <span className="sr-only">Exercițiul</span>
+                    <span aria-hidden="true">#</span>
+                  </th>
                   <th scope="col">Puncte</th>
                   <th scope="col">Răspunsul tău</th>
                   <th scope="col">Comentariu</th>

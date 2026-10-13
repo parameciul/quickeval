@@ -44,7 +44,10 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
           <caption className="sr-only">Punctajele pe exerciții</caption>
           <thead>
             <tr>
-              <th scope="col">Exercițiul</th>
+                  <th scope="col" title="Exercițiul">
+                    <span className="sr-only">Exercițiul</span>
+                    <span aria-hidden="true">#</span>
+                  </th>
               <th scope="col">Puncte</th>
               <th scope="col">Răspunsul elevului</th>
               <th scope="col">Comentariu</th>
@@ -234,11 +237,30 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
       <td className={editing ? undefined : 'item-check'}>
         {editing ? (
           <span className="row-actions">
-            <button type="button" className="button button-small" disabled={save.isPending} onClick={saveEditing}>
-              Salvează
+            <button
+              type="button"
+              className="button button-small icon-button"
+              disabled={save.isPending}
+              aria-label="Salvează"
+              title="Salvează"
+              onClick={saveEditing}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M5 4h11l3 3v13H5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M8 4v5h7V4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M8 20v-6h8v6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+              </svg>
             </button>
-            <button type="button" className="button-quiet button-small" onClick={cancelEditing}>
-              Renunță
+            <button
+              type="button"
+              className="button-quiet button-small icon-button"
+              aria-label="Renunță"
+              title="Renunță"
+              onClick={cancelEditing}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
             </button>
           </span>
         ) : (
@@ -248,7 +270,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
               className="button-quiet button-small icon-button"
               aria-label={`Modifică ${item.label}`}
               aria-expanded={editing}
-              title={`Modifică ${item.label}`}
+              title="Modifică"
               onClick={startEditing}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">

@@ -889,6 +889,13 @@ table.items thead th {
   font-size: 0.9rem;
 }
 
+/* The exercise number column fits its longest number (even III.3.b) instead
+   of wrapping it: the cells hold only the compact id and a check mark. */
+table.items th[scope="row"] {
+  white-space: nowrap;
+  width: 1%;
+}
+
 /* An item to check: a highlighter mark */
 table.items tr.is-flagged > * {
   background: var(--marker);
