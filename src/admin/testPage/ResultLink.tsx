@@ -54,6 +54,9 @@ export function ResultLink({ submissionId, resultToken, testCode, studentName }:
           {url ? (
             <>
               <input type="text" readOnly value={url} aria-label={`Linkul cu rezultatul elevului ${studentName}`} />
+              <a className="button-quiet button-small" href={url} target="_blank" rel="noopener">
+                Deschide
+              </a>
               <button type="button" className="button-quiet button-small" onClick={copy}>
                 {copied ? 'Copiat!' : 'Copiază'}
               </button>

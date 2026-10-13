@@ -128,6 +128,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
     },
   });
   const toCheck = item.needsReview && !item.reviewed;
+  const checked = item.needsReview && item.reviewed;
   const id = `item-${item.id}`;
 
   const startEditing = () => {
@@ -162,8 +163,11 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
 
   return (
     <tr className={toCheck ? 'is-flagged' : undefined}>
-      <th scope="row">{item.label}</th>
-      <td>
+      <th scope="row">
+        {item.label}
+        {checked && <ReviewCheck />}
+      </th>
+      <td data-label="Puncte">
         {editing ? (
           <>
             <label className="sr-only" htmlFor={`${id}-points`}>
@@ -189,12 +193,12 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
             <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
               {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
             </span>
-            {item.points !== item.aiPoints && <span className="hint item-note">Robotul: {formatPoints(item.aiPoints)}</span>}
+            {item.points !== item.aiPoints && <RobotPoints points={item.aiPoints} />}
           </>
         )}
       </td>
-      <td>{item.studentAnswer}</td>
-      <td>
+      <td data-label="Răspunsul elevului">{item.studentAnswer}</td>
+      <td data-label="Comentariu">
         {editing ? (
           <>
             <label className="sr-only" htmlFor={`${id}-comment`}>
@@ -221,7 +225,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
           </>
         )}
       </td>
-      <td>
+      <td data-label="Siguranța robotului">
         <ConfidenceBars confidence={item.confidence} />
       </td>
       <td className={editing ? undefined : 'item-check'}>
@@ -258,11 +262,47 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
             )}
           </span>
         )}
-        {item.needsReview && item.reviewed && <span className="item-note review-state">Verificat</span>}
         {check.error && <ErrorMessage error={check.error} />}
         {save.error && <ErrorMessage error={save.error} />}
       </td>
     </tr>
+  );
+}
+
+// The robot's points before the teacher corrected them: the old value struck
+// through (like an old price) next to a robot mark, so the history needs no
+// words. The hidden words say what the picture means for screen readers, and
+// the title says it for a sighted teacher on hover.
+function RobotPoints({ points }: { points: number }) {
+  const meaning = 'Punctajul robotului înainte de corectura ta';
+  return (
+    <span className="hint item-note ai-points" title={meaning}>
+      <span className="sr-only">{`${meaning}: `}</span>
+      <del>{formatPoints(points)}</del>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="5" y="9" width="14" height="11" rx="3.5" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M12 9V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="12" cy="4.5" r="1.3" fill="currentColor" />
+        <circle cx="10" cy="14" r="1.3" fill="currentColor" />
+        <circle cx="14" cy="14" r="1.3" fill="currentColor" />
+        <path d="M10 17.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+
+// A checked exercise: a green check after the exercise label, not the word
+// "Verificat" in the actions column. The label cell owns the whole row, so
+// one mark there says the teacher agrees with both the points and the
+// comment. The sr-only word keeps the state readable by screen readers.
+function ReviewCheck() {
+  return (
+    <span className="review-check" title="Verificat">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span className="sr-only">Verificat</span>
+    </span>
   );
 }
 

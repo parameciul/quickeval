@@ -111,16 +111,16 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
       {/* The result link only once the student sent the upload, like the
           uploads table: while uploading there is nothing to share yet. */}
       {submission.status !== 'uploading' && (
-        <p className="hint">
-          Linkul cu rezultatul elevului:{' '}
+        <div className="result-link-row hint">
+          <span>Linkul cu rezultatul elevului:</span>
           <ResultLink
             submissionId={submission.id}
             resultToken={submission.resultToken}
             testCode={submission.testCode}
             studentName={submission.studentName}
           />
-          {submission.resultsOpen ? ' Rezultatele sunt publicate.' : ' Rezultatele nu sunt publicate încă.'}
-        </p>
+          <span>{submission.resultsOpen ? 'Rezultatele sunt publicate.' : 'Rezultatele nu sunt publicate încă.'}</span>
+        </div>
       )}
       {showNotice && <p role="status">{notice}</p>}
 

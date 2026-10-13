@@ -190,7 +190,8 @@ describe('SubmissionPage', () => {
     expect(await screen.findByText(/Nota/)).toHaveTextContent('Nota 9 · 9 puncte din 10');
     const changed = row('Subiectul II, ex. 1');
     expect(within(changed).getByText('3,5 din 4,5')).toBeInTheDocument();
-    expect(within(changed).getByText('Robotul: 1')).toBeInTheDocument();
+    expect(within(changed).getByText(/Punctajul robotului înainte de corectura ta:/)).toBeInTheDocument();
+    expect(changed.querySelector('del')).toHaveTextContent('1');
     expect(screen.queryByLabelText('Comentariul pentru elev')).not.toBeInTheDocument();
   });
 
@@ -340,6 +341,8 @@ describe('SubmissionPage', () => {
     expect(api.getResultLink).not.toHaveBeenCalled();
     const url = `${window.location.origin}/u/rezultat/abcdefghijkmnop2abcdefcd`;
     expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('href', url);
+    expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
       'href',
       `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul 6E2-26T1: ${url}`)}`,

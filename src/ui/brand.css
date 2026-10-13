@@ -748,6 +748,16 @@ table.items td.item-check .verificat-btn {
   margin-top: 0;
 }
 
+/* The student result link on the submission page: its own row with air
+   above and below, wrapping onto more lines on a narrow screen. */
+.result-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-block: 0.75rem;
+}
+
 /* One student's result link, next to the row actions. */
 .result-share {
   display: inline-flex;
@@ -893,14 +903,39 @@ table.items tr.edit-row > td {
   margin-top: 0.3rem;
 }
 
+/* The robot's points before a teacher correction: the old value struck
+   through (like an old price) with a robot mark instead of words. */
+.ai-points {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ai-points svg {
+  width: 1em;
+  height: 1em;
+}
+
+.ai-points del {
+  text-decoration-thickness: 1px;
+}
+
 .review-reason {
   font-weight: 700;
 }
 
-/* A checked item: green state under the Modifică button, not in Comentariu. */
-.review-state {
-  font-weight: 700;
+/* A checked exercise: a green check after its label, where it marks the
+   whole row (points and comment), on desktop and in stacked cards alike. */
+.review-check {
+  display: inline-flex;
+  margin-left: 0.4rem;
   color: var(--conf-5);
+  vertical-align: baseline;
+}
+
+.review-check svg {
+  width: 1.1em;
+  height: 1.1em;
 }
 
 .points-input {
@@ -1119,19 +1154,25 @@ table.items tr.edit-row > td {
   max-width: 70rem;
 }
 
-.result-page table.items {
+.result-page table.items,
+.result-main table.items {
   min-width: 0;
 }
 
 .result-page table.items th,
-.result-page table.items td {
+.result-page table.items td,
+.result-main table.items th,
+.result-main table.items td {
   overflow-wrap: anywhere;
 }
 
-/* On a narrow screen the exercises table becomes one card per exercise, so
-   the answer and the comment wrap in full instead of scrolling sideways. */
+/* On a narrow screen each exercises table (the student's and the teacher's)
+   becomes one card per exercise, so the answer and the comment wrap in full
+   instead of scrolling sideways. The teacher's action cell has no data label,
+   so only labelled cells get a caption. */
 @media (max-width: 48rem) {
-  .result-page .table-wrap {
+  .result-page .table-wrap,
+  .result-main .table-wrap {
     overflow-x: visible;
   }
 
@@ -1139,13 +1180,19 @@ table.items tr.edit-row > td {
   .result-page table.items tbody,
   .result-page table.items tr,
   .result-page table.items th,
-  .result-page table.items td {
+  .result-page table.items td,
+  .result-main table.items,
+  .result-main table.items tbody,
+  .result-main table.items tr,
+  .result-main table.items th,
+  .result-main table.items td {
     display: block;
     width: 100%;
     min-width: 0;
   }
 
-  .result-page table.items thead {
+  .result-page table.items thead,
+  .result-main table.items thead {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1157,7 +1204,8 @@ table.items tr.edit-row > td {
     border: 0;
   }
 
-  .result-page table.items tr {
+  .result-page table.items tr,
+  .result-main table.items tr {
     margin-bottom: 0.75rem;
     padding: 0.5rem 0.75rem;
     border: 1.5px solid var(--rule);
@@ -1165,22 +1213,40 @@ table.items tr.edit-row > td {
     background: var(--sheet);
   }
 
-  .result-page table.items th[scope="row"] {
+  .result-page table.items th[scope="row"],
+  .result-main table.items th[scope="row"] {
     border-bottom: 0;
     font-size: 1.05rem;
   }
 
-  .result-page table.items td {
+  .result-page table.items td,
+  .result-main table.items td {
     border-bottom: 0;
     padding-top: 0.25rem;
   }
 
-  .result-page table.items td::before {
+  .result-page table.items td[data-label]::before,
+  .result-main table.items td[data-label]::before {
     content: attr(data-label);
     display: block;
     color: var(--muted);
     font-size: 0.85rem;
     font-weight: 700;
+  }
+
+  /* A stacked card has no room for the pinned bottom check button: the
+     actions flow under the confidence bars instead. */
+  .result-main table.items td.item-check:has(.verificat-btn) {
+    position: static;
+    padding-bottom: 0.45rem;
+  }
+
+  .result-main table.items td.item-check .verificat-btn {
+    position: static;
+  }
+
+  .result-main table.items .cell-area {
+    min-width: 0;
   }
 }
 
