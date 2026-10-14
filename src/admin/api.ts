@@ -57,6 +57,9 @@ export interface AdminApi {
   createMultiUploadLink(code: string): Promise<string>;
   // Opens or closes the students' result pages of a test.
   setResultsOpen(code: string, open: boolean): Promise<boolean>;
+  // Publishes one student's result page, or takes it back, while the rest of
+  // the class stays as it is.
+  setSubmissionResultsOpen(submissionId: number, open: boolean): Promise<boolean>;
   // Now without `at`, or at that ISO time. With `submissionIds`, now only
   // the selected uploads are graded.
   evaluateTest(code: string, at?: string, submissionIds?: number[]): Promise<EvaluationStart>;
@@ -196,6 +199,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<{ multiUploadToken: string }>('POST', `${test(code)}/multi-link`)).multiUploadToken,
     setResultsOpen: async (code, open) =>
       (await request<ResultsOpenAnswer>('POST', `${test(code)}/results/${open ? 'open' : 'close'}`)).resultsOpen,
+    setSubmissionResultsOpen: async (submissionId, open) =>
+      (await request<ResultsOpenAnswer>('POST', `/submissions/${submissionId}/results/${open ? 'open' : 'close'}`)).resultsOpen,
     reopenTest: async (code) => {
       await request('POST', `${test(code)}/reopen`);
     },

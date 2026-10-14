@@ -104,6 +104,7 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     grade: null,
     gradedAt: overrides.status === 'graded' ? '2026-10-07T09:00:00.000Z' : null,
     resultToken: null,
+    resultsOpen: false,
     flagCount: 0,
     lastError: null,
     ...overrides,
@@ -290,8 +291,39 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       return found.multiUploadToken;
     }),
     setResultsOpen: vi.fn(async (code: string, open: boolean) => {
-      findTest(code).test.resultsOpen = open;
+      const detail = findTest(code);
+      detail.test.resultsOpen = open;
+      // Like the server: opening publishes every page, closing takes back
+      // every page, including the ones published alone.
+      for (const row of detail.uploads) {
+        if (row.submissionId !== null) row.resultsOpen = open;
+      }
+      for (const sub of submissions) {
+        if (sub.testCode === code) sub.resultsOpen = open;
+      }
       return open;
+    }),
+    // Like the server: the page opens when the test is open for all, or its
+    // own upload is published.
+    setSubmissionResultsOpen: vi.fn(async (submissionId: number, open: boolean) => {
+      for (const detail of tests) {
+        const row = detail.uploads.find((u) => u.submissionId === submissionId);
+        if (row) {
+          const effective = open || detail.test.resultsOpen;
+          row.resultsOpen = effective;
+          const found = submissions.find((s) => s.id === submissionId);
+          if (found) found.resultsOpen = effective;
+          return effective;
+        }
+      }
+      const found = submissions.find((s) => s.id === submissionId);
+      if (found) {
+        const test = tests.find((t) => t.test.code === found.testCode);
+        const effective = open || (test?.test.resultsOpen ?? false);
+        found.resultsOpen = effective;
+        return effective;
+      }
+      throw notFound();
     }),
     reopenTest: vi.fn(async (code: string) => {
       findTest(code).test.status = 'open';
@@ -372,7 +404,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) {
           const cleared = { submissionId: null, status: 'none', fileCount: 0, startedAt: null, submittedAt: null, autoSubmitted: false };
-          Object.assign(row, { ...cleared, grade: null, gradedAt: null, flagCount: 0, lastError: null });
+          Object.assign(row, { ...cleared, grade: null, gradedAt: null, resultsOpen: false, flagCount: 0, lastError: null });
         }
       }
       const index = submissions.findIndex((s) => s.id === submissionId);

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
@@ -130,7 +130,7 @@ function TestDetails({ code }: { code: string }) {
         </>
       )}
 
-      {test.status !== 'draft' && <ResultsAccess test={test} onChanged={refresh} />}
+      {test.status !== 'draft' && <ResultsAccess test={test} uploads={uploads} onChanged={refresh} />}
 
       <h2>
         Încărcări · trimise {test.submittedCount} din {test.studentCount}
@@ -145,6 +145,7 @@ function TestDetails({ code }: { code: string }) {
         onSelect={setSelected}
         onChanged={refresh}
         onRobot={onRobot}
+        resultsOpen={test.resultsOpen}
       />
 
       <div className="final-actions">
@@ -167,11 +168,40 @@ function TestDetails({ code }: { code: string }) {
   );
 }
 
+// Whether the upload links of a test show in this browser. Visible unless the
+// teacher hid them; the choice survives a reload.
+function linksStorageKey(code: string): string {
+  return `qe.uploadLinksVisible.${code}`;
+}
+
+function readLinksVisible(code: string): boolean {
+  try {
+    return localStorage.getItem(linksStorageKey(code)) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function writeLinksVisible(code: string, visible: boolean): void {
+  try {
+    localStorage.setItem(linksStorageKey(code), visible ? '1' : '0');
+  } catch {
+    // A browser without storage keeps the links as they are.
+  }
+}
+
 // What the teacher can do next, by the state of the test.
 function TestActions({ test, onChanged }: { test: TestInfo; onChanged: () => Promise<void> }) {
   const api = useApi();
   const start = useMutation({ mutationFn: () => api.startTest(test.code), onSuccess: onChanged });
   const reopen = useMutation({ mutationFn: () => api.reopenTest(test.code), onSuccess: onChanged });
+  // The upload links stay visible while the class uploads, and the teacher
+  // hides them for a cleaner page once the files are in. Kept per test in
+  // this browser, so a reload keeps the page as the teacher left it.
+  const [linksVisible, setLinksVisible] = useState(() => readLinksVisible(test.code));
+  useEffect(() => {
+    writeLinksVisible(test.code, linksVisible);
+  }, [test.code, linksVisible]);
 
   if (test.status === 'draft') {
     return (
@@ -187,8 +217,22 @@ function TestActions({ test, onChanged }: { test: TestInfo; onChanged: () => Pro
   if (test.status === 'open' && test.uploadToken)
     return (
       <>
-        <UploadLink token={test.uploadToken} />
-        <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />
+        <p>
+          <button
+            type="button"
+            className="button-quiet button-small"
+            aria-expanded={linksVisible}
+            onClick={() => setLinksVisible((visible) => !visible)}
+          >
+            {linksVisible ? 'Ascunde linkurile' : 'Arată linkurile'}
+          </button>
+        </p>
+        {linksVisible && (
+          <>
+            <UploadLink token={test.uploadToken} />
+            <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />
+          </>
+        )}
       </>
     );
   return (
