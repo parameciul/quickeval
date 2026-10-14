@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { addEvaluation, makeClass, makeTest, otherTeacherTest, startTest } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, startTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
 let code: string;
 let token: string;
 let pop: number;
+let ana: number;
 
 const jpeg = (text = 'photo') => new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new TextEncoder().encode(text)]);
 const RESULT_TOKEN = /^[a-z2-7]{24}$/;
@@ -34,7 +35,7 @@ async function submissionIdOf(studentId: number): Promise<number> {
 beforeEach(async () => {
   api = await startTestApi();
   const cls = await makeClass(api, '6E2', ['Pop Ion', 'Ionescu Ana']);
-  [pop] = cls.studentIds as [number, number];
+  [pop, ana] = cls.studentIds as [number, number];
   code = await makeTest(api, cls.id, 'Fracții');
   token = await startTest(api, code);
 });
@@ -160,5 +161,77 @@ describe('teacher result links', () => {
     expect(otherSubmission).toBeNull();
     expect((await api.request('POST', `/api/admin/tests/${foreign.code}/results/open`)).status).toBe(404);
     expect((await api.request('GET', `/api/u/rezultat/${resultToken}`)).status).toBe(403);
+  });
+});
+
+describe('individual result publishing', () => {
+  it('publishes one student while the rest stays unpublished, then takes it back', async () => {
+    const popLink = await uploadAndConfirm(pop);
+    const anaLink = await uploadAndConfirm(ana);
+    const popSubmission = await submissionIdOf(pop);
+    const anaSubmission = await submissionIdOf(ana);
+
+    expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(403);
+    expect((await api.request('GET', `/api/u/rezultat/${anaLink.resultToken}`)).status).toBe(403);
+
+    const opened = await api.request('POST', `/api/admin/submissions/${popSubmission}/results/open`);
+    expect(opened.status).toBe(200);
+    expect(opened.body).toEqual({ resultsOpen: true });
+
+    expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(200);
+    expect((await api.request('GET', `/api/u/rezultat/${anaLink.resultToken}`)).status).toBe(403);
+
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    const rowOf = (studentId: number) => detail.body.uploads.find((u: { studentId: number }) => u.studentId === studentId);
+    expect(rowOf(pop).resultsOpen).toBe(true);
+    expect(rowOf(ana).resultsOpen).toBe(false);
+    expect((await api.request('GET', `/api/admin/submissions/${popSubmission}`)).body.submission.resultsOpen).toBe(true);
+    expect((await api.request('GET', `/api/admin/submissions/${anaSubmission}`)).body.submission.resultsOpen).toBe(false);
+
+    const popFile = await api.db
+      .prepare('SELECT id FROM submission_files WHERE submission_id = ?')
+      .bind(popSubmission)
+      .first<{ id: number }>();
+    const anaFile = await api.db
+      .prepare('SELECT id FROM submission_files WHERE submission_id = ?')
+      .bind(anaSubmission)
+      .first<{ id: number }>();
+    expect((await api.fetch(`/api/u/rezultat/${popLink.resultToken}/files/${popFile!.id}`)).status).toBe(200);
+    expect((await api.fetch(`/api/u/rezultat/${anaLink.resultToken}/files/${anaFile!.id}`)).status).toBe(403);
+
+    const closed = await api.request('POST', `/api/admin/submissions/${popSubmission}/results/close`);
+    expect(closed.status).toBe(200);
+    expect(closed.body).toEqual({ resultsOpen: false });
+    expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(403);
+  });
+
+  it('keeps every page open after a global publish, and stopping access takes back single pages too', async () => {
+    const popLink = await uploadAndConfirm(pop);
+    const anaLink = await uploadAndConfirm(ana);
+    const popSubmission = await submissionIdOf(pop);
+
+    await api.request('POST', `/api/admin/submissions/${popSubmission}/results/open`);
+    await api.request('POST', `/api/admin/tests/${code}/results/open`);
+    expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(200);
+    expect((await api.request('GET', `/api/u/rezultat/${anaLink.resultToken}`)).status).toBe(200);
+
+    // Taking back one page changes nothing while the test publishes all.
+    expect((await api.request('POST', `/api/admin/submissions/${popSubmission}/results/close`)).body).toEqual({ resultsOpen: true });
+    expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(200);
+
+    await api.request('POST', `/api/admin/tests/${code}/results/close`);
+    expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(403);
+    expect((await api.request('GET', `/api/u/rezultat/${anaLink.resultToken}`)).status).toBe(403);
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.uploads.every((u: { resultsOpen: boolean }) => u.resultsOpen === false)).toBe(true);
+  });
+
+  it('answers 404 for unknown uploads and for uploads of another teacher', async () => {
+    expect((await api.request('POST', '/api/admin/submissions/99999/results/open')).status).toBe(404);
+    expect((await api.request('POST', '/api/admin/submissions/99999/results/close')).status).toBe(404);
+    const foreign = await otherTeacherTest(api);
+    const foreignSubmission = await addSubmission(api, foreign.code, foreign.studentId, { status: 'submitted' });
+    expect((await api.request('POST', `/api/admin/submissions/${foreignSubmission}/results/open`)).status).toBe(404);
+    expect((await api.request('POST', `/api/admin/submissions/${foreignSubmission}/results/close`)).status).toBe(404);
   });
 });

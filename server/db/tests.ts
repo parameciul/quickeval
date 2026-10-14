@@ -151,7 +151,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
     .prepare(
       `SELECT st.id AS student_id, st.full_name, e.active,
          s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.created_at AS graded_at,
-         s.result_token,
+         s.result_token, s.results_open AS submission_open, (SELECT t.results_open FROM tests t WHERE t.id = ?) AS test_open,
          (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
          ${flagCountSql('ev')} AS flag_count
        FROM enrollments e
@@ -160,7 +160,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
        LEFT JOIN evaluations ev ON ev.submission_id = s.id
        WHERE e.class_id = ? AND (e.active = 1 OR s.id IS NOT NULL)`,
     )
-    .bind(testId, classId)
+    .bind(testId, testId, classId)
     .all<{
       student_id: number;
       full_name: string;
@@ -174,6 +174,8 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       grade: number | null;
       graded_at: string | null;
       result_token: string | null;
+      submission_open: number | null;
+      test_open: number;
       file_count: number;
       flag_count: number;
     }>();
@@ -191,6 +193,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       grade: row.grade,
       gradedAt: row.graded_at,
       resultToken: row.result_token,
+      resultsOpen: row.submission_id !== null && (row.test_open === 1 || row.submission_open === 1),
       flagCount: row.flag_count,
       lastError: row.last_error,
     }))

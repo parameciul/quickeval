@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import { correctItemBody, regradeBody, reviewPagesBody, type RegradeAnswer } from '../../shared/api.ts';
+import { correctItemBody, regradeBody, reviewPagesBody, type RegradeAnswer, type ResultsOpenAnswer } from '../../shared/api.ts';
 import { formatPoints, isValidCorrection } from '../../shared/scoring.ts';
 import { correctItem, correctEvaluation, findTeacherItem } from '../db/evaluations.ts';
 import { regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
-import { teacherResultToken } from '../db/results.ts';
+import { setSubmissionResultsOpen, teacherResultToken } from '../db/results.ts';
 import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission } from '../db/submissions.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
@@ -30,6 +30,23 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const resultToken = await teacherResultToken(c.env.DB, c.var.teacher.id, submissionId);
     if (!resultToken) throw notFound();
     return c.json({ resultToken });
+  });
+
+  // Publishes one student's result page while the rest of the class stays
+  // unpublished. The page opens when the test keeps results open for all, or
+  // its own upload is published.
+  routes.post('/:id/results/open', async (c) => {
+    const resultsOpen = await setSubmissionResultsOpen(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), true);
+    if (resultsOpen === null) throw notFound();
+    return c.json({ resultsOpen } satisfies ResultsOpenAnswer);
+  });
+
+  // Takes back one student's result page. When the test keeps results open for
+  // all, the page stays open until the teacher stops access for the test.
+  routes.post('/:id/results/close', async (c) => {
+    const resultsOpen = await setSubmissionResultsOpen(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), false);
+    if (resultsOpen === null) throw notFound();
+    return c.json({ resultsOpen } satisfies ResultsOpenAnswer);
   });
 
   // The teacher's correction of one item of the graded result (spec §14.1).

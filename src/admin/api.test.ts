@@ -167,9 +167,11 @@ describe('createApiClient tests and uploads', () => {
     );
     const api = createApiClient({ fetchImpl });
     expect(await api.setResultsOpen('6E2-26T1', true)).toBe(true);
+    expect(await api.setSubmissionResultsOpen(5, true)).toBe(true);
     expect(await api.getResultLink(5)).toBe('abcdefghijkmnop2abcdefcd');
     expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
       'POST /api/admin/tests/6E2-26T1/results/open',
+      'POST /api/admin/submissions/5/results/open',
       'GET /api/admin/submissions/5/result-link',
     ]);
   });

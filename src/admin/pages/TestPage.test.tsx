@@ -33,6 +33,7 @@ function apiWith(overrides: Parameters<typeof fakeTest>[0] = {}) {
 }
 
 afterEach(() => {
+  localStorage.clear();
   vi.restoreAllMocks();
 });
 
@@ -194,6 +195,24 @@ describe('TestPage', () => {
     expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
     expect(screen.getByLabelText('Linkul pentru mai multe încărcări')).toHaveValue(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
     expect(screen.queryByRole('button', { name: 'Creează linkul pentru mai multe încărcări' })).not.toBeInTheDocument();
+  });
+
+  it('hides the upload links for a cleaner page and keeps them hidden after a reload', async () => {
+    const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN, multiUploadToken: FAKE_MULTI_TOKEN });
+    const { unmount } = renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByLabelText('Linkul pentru elevi')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ascunde linkurile' }));
+    expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Linkul pentru mai multe încărcări')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arată linkurile' })).toHaveAttribute('aria-expanded', 'false');
+
+    // A reload keeps the page as the teacher left it.
+    unmount();
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByRole('button', { name: 'Arată linkurile' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată linkurile' }));
+    expect(await screen.findByLabelText('Linkul pentru elevi')).toBeInTheDocument();
   });
 });
 
@@ -590,6 +609,55 @@ describe('TestPage evaluation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Oprește accesul la rezultate' }));
     expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', false);
     expect(await screen.findByRole('button', { name: 'Publică rezultatele' })).toBeInTheDocument();
+  });
+
+  it('publishes one result while the rest stays unpublished', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+    ];
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 2 }],
+      students: {},
+      tests: [fakeTest({ status: 'done' }, rows)],
+    });
+    renderAdmin('/teste/6E2-26T1', api);
+    await screen.findByRole('heading', { name: '6E2-26T1' });
+    expect(await screen.findAllByRole('button', { name: 'Publică' })).toHaveLength(2);
+    expect(screen.queryByText(/publicat individual/)).not.toBeInTheDocument();
+
+    const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
+    await userEvent.click(within(pop).getByRole('button', { name: 'Publică' }));
+    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, true);
+    expect(await within(pop).findByRole('button', { name: 'Oprește publicarea' })).toBeInTheDocument();
+    expect(within(pop).getByText('Publicat')).toBeInTheDocument();
+    expect(screen.getByText('1 rezultat publicat individual.')).toBeInTheDocument();
+    const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
+    expect(within(stan).getByRole('button', { name: 'Publică' })).toBeInTheDocument();
+
+    await userEvent.click(within(pop).getByRole('button', { name: 'Oprește publicarea' }));
+    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, false);
+    expect(await within(pop).findByRole('button', { name: 'Publică' })).toBeInTheDocument();
+    expect(screen.queryByText(/publicat individual/)).not.toBeInTheDocument();
+  });
+
+  it('hides the single publish buttons once every result is published', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, resultsOpen: true }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8, resultsOpen: true }),
+    ];
+    renderAdmin(
+      '/teste/6E2-26T1',
+      createFakeApi({
+        classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 2 }],
+        students: {},
+        tests: [fakeTest({ status: 'done', resultsOpen: true }, rows)],
+      }),
+    );
+    await screen.findByRole('heading', { name: '6E2-26T1' });
+    expect(screen.queryByRole('button', { name: 'Publică' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Oprește publicarea' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Publicat')).toHaveLength(2);
   });
 
   it('shows a result link per upload, with copy and WhatsApp share', async () => {

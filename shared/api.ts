@@ -330,6 +330,9 @@ export interface UploadRow {
   // The secret of the student's result page. Null until the upload has one
   // (older uploads get it when the teacher asks for the link).
   resultToken: string | null;
+  // Whether this student can open the result page: the test keeps results
+  // open for all, or the teacher published this upload alone.
+  resultsOpen: boolean;
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;
