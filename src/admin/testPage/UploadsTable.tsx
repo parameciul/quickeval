@@ -40,7 +40,7 @@ export function UploadsTable({
   const allChecked = eligibleIds.length > 0 && eligibleIds.every((id) => selected.includes(id));
   const someChecked = eligibleIds.some((id) => selected.includes(id));
   return (
-    <div className="table-wrap">
+    <div className="table-wrap uploads-wrap">
       <table className={`uploads${selectable ? ' is-selectable' : ''}`}>
         <caption className="sr-only">Încărcările elevilor</caption>
         <thead>
@@ -98,6 +98,16 @@ function canSelect(row: UploadRow): boolean {
   return row.submissionId !== null && row.fileCount > 0 && (row.status === 'uploading' || row.status === 'submitted');
 }
 
+// Row classes for the narrow-screen cards, read from the markup instead of
+// CSS :has(): has-select puts the checkbox next to the name. Older phone
+// browsers that miss :has() would stack the box over the name instead.
+function rowClassName(row: UploadRow, selectable: boolean): string | undefined {
+  const classes = [];
+  if (row.status === 'none') classes.push('is-muted');
+  if (selectable && canSelect(row)) classes.push('has-select');
+  return classes.length > 0 ? classes.join(' ') : undefined;
+}
+
 function UploadTableRow({
   code,
   row,
@@ -147,7 +157,7 @@ function UploadTableRow({
   const gradedAt = row.status === 'graded' ? row.gradedAt : null;
 
   return (
-    <tr className={row.status === 'none' ? 'is-muted' : undefined}>
+    <tr className={rowClassName(row, selectable)}>
       {selectable && (
         <td className="select-cell">
           {row.submissionId !== null && canSelect(row) ? (

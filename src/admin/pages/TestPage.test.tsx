@@ -131,6 +131,16 @@ describe('TestPage', () => {
     expect(labels).toEqual([null, 'Stare', 'Fișiere', 'Ora', 'Nota', 'De verificat', null]);
   });
 
+  it('marks only the selectable rows for the narrow-screen layout', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
+    expect(pop).toHaveClass('has-select');
+    const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
+    expect(stan).toHaveClass('has-select');
+    const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
+    expect(marin).not.toHaveClass('has-select');
+  });
+
   it('resets an upload only after the teacher confirms', async () => {
     const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);

@@ -85,7 +85,7 @@ export function EvaluationControls({
       <p className="hint">
         După ce pornește evaluarea, elevii nu mai pot încărca. {selectedCount > 0 ? 'Se corectează numai lucrările selectate din tabel.' : 'Selectează din tabel lucrările de corectat.'}
       </p>
-      <p>
+      <p className="form-row">
         <button
           type="button"
           className="button"
@@ -96,9 +96,9 @@ export function EvaluationControls({
         >
           Pornește evaluarea acum
         </button>
+        {needsSelection && <span className="hint">Selectează cel puțin o lucrare cu fișiere din tabel.</span>}
       </p>
       {startSteps.length > 0 && <p className="hint">Ca să pornești evaluarea: {startSteps.join(' ')}</p>}
-      {needsSelection && <p className="hint">Selectează cel puțin o lucrare cu fișiere din tabel.</p>}
       {start.error && <ErrorMessage error={start.error} />}
 
       {test.evaluationAt ? (

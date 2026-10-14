@@ -732,7 +732,7 @@ table.uploads .tag {
    and the actions keep full width. While the uploads are open the header
    turns into a select-all toolbar above the cards. */
 @media (max-width: 48rem) {
-  .table-wrap:has(table.uploads) {
+  .table-wrap.uploads-wrap {
     overflow-x: visible;
   }
 
@@ -850,7 +850,7 @@ table.uploads .tag {
     padding-top: 0.55rem;
   }
 
-  table.uploads.is-selectable tbody td.select-cell:not(:has(> input)) {
+  table.uploads.is-selectable tbody tr:not(.has-select) > td.select-cell {
     display: none;
   }
 
@@ -859,7 +859,9 @@ table.uploads .tag {
     grid-row: 1;
   }
 
-  table.uploads.is-selectable tbody tr:has(> td.select-cell:has(> input)) th[scope="row"] {
+  /* The row owns its checkbox state in the markup (has-select), not in
+     :has(): older phone browsers stack the box over the name otherwise. */
+  table.uploads.is-selectable tbody tr.has-select > th[scope="row"] {
     grid-column: 2;
   }
 
