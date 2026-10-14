@@ -111,6 +111,26 @@ describe('TestPage', () => {
     expect(within(marin).queryByRole('button', { name: 'Resetează' })).not.toBeInTheDocument();
   });
 
+  it('marks the uploads table selectable only while the test is open', async () => {
+    const { unmount } = renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    const openTable = await screen.findByRole('table', { name: 'Încărcările elevilor' });
+    expect(openTable).toHaveClass('uploads', 'is-selectable');
+    unmount();
+    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'done' }));
+    const doneTable = await screen.findByRole('table', { name: 'Încărcările elevilor' });
+    expect(doneTable).toHaveClass('uploads');
+    expect(doneTable).not.toHaveClass('is-selectable');
+  });
+
+  it('labels the upload cells with the column names for narrow screens', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
+    const labels = within(pop)
+      .getAllByRole('cell')
+      .map((cell) => cell.getAttribute('data-label'));
+    expect(labels).toEqual([null, 'Stare', 'Fișiere', 'Ora', 'Nota', 'De verificat', null]);
+  });
+
   it('resets an upload only after the teacher confirms', async () => {
     const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);

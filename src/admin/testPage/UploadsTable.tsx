@@ -41,22 +41,24 @@ export function UploadsTable({
   const someChecked = eligibleIds.some((id) => selected.includes(id));
   return (
     <div className="table-wrap">
-      <table className="uploads">
+      <table className={`uploads${selectable ? ' is-selectable' : ''}`}>
         <caption className="sr-only">Încărcările elevilor</caption>
         <thead>
           <tr>
             {selectable && (
-              <th scope="col">
-                <input
-                  type="checkbox"
-                  aria-label="Selectează toate lucrările cu fișiere"
-                  checked={allChecked}
-                  ref={(input) => {
-                    if (input) input.indeterminate = !allChecked && someChecked;
-                  }}
-                  disabled={eligibleIds.length === 0}
-                  onChange={(event) => onSelect(event.target.checked ? eligibleIds : [])}
-                />
+              <th scope="col" className="select-col">
+                <label className="select-all">
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    ref={(input) => {
+                      if (input) input.indeterminate = !allChecked && someChecked;
+                    }}
+                    disabled={eligibleIds.length === 0}
+                    onChange={(event) => onSelect(event.target.checked ? eligibleIds : [])}
+                  />
+                  <span className="sr-only select-all-text">Selectează toate lucrările cu fișiere</span>
+                </label>
               </th>
             )}
             <th scope="col">Elev</th>
@@ -147,7 +149,7 @@ function UploadTableRow({
   return (
     <tr className={row.status === 'none' ? 'is-muted' : undefined}>
       {selectable && (
-        <td>
+        <td className="select-cell">
           {row.submissionId !== null && canSelect(row) ? (
             <input
               type="checkbox"
@@ -162,17 +164,17 @@ function UploadTableRow({
         {row.studentName}
         {!row.active && <span className="tag">a plecat</span>}
       </th>
-      <td>
+      <td data-label="Stare">
         {uploadStatusLabel(row.status)}
         {row.autoSubmitted && <span className="tag">Fără confirmare</span>}
         {row.resultsOpen && <span className="tag">Publicat</span>}
         {row.status === 'failed' && row.lastError && <p className="hint">{row.lastError}</p>}
       </td>
-      <td>{row.fileCount}</td>
-      <td>{time ? formatDateTime(time) : '—'}</td>
-      <td>{row.grade === null ? '—' : formatPoints(row.grade)}</td>
-      <td>{row.flagCount > 0 ? row.flagCount : '—'}</td>
-      <td>
+      <td data-label="Fișiere">{row.fileCount}</td>
+      <td data-label="Ora">{time ? formatDateTime(time) : '—'}</td>
+      <td data-label="Nota">{row.grade === null ? '—' : formatPoints(row.grade)}</td>
+      <td data-label="De verificat">{row.flagCount > 0 ? row.flagCount : '—'}</td>
+      <td className="actions-cell">
         {submissionId !== null && (
           <span className="row-actions">
             <Link to={`/teste/${code}/elevi/${submissionId}`}>Vezi lucrarea</Link>

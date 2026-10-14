@@ -717,6 +717,164 @@ table.uploads .tag {
   gap: 0.25rem 0.75rem;
 }
 
+/* The select-all checkbox in the uploads header: only the box shows, the
+   words stay for screen readers. On a narrow screen the header becomes a
+   toolbar above the cards and the words show. */
+.select-all {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* On a narrow screen the uploads table becomes one card per student, so the
+   time and the actions wrap in full instead of scrolling sideways. Labelled
+   cells get a caption from data-label; the checkbox sits next to the name
+   and the actions keep full width. While the uploads are open the header
+   turns into a select-all toolbar above the cards. */
+@media (max-width: 48rem) {
+  .table-wrap:has(table.uploads) {
+    overflow-x: visible;
+  }
+
+  table.uploads,
+  table.uploads tbody,
+  table.uploads tr,
+  table.uploads th,
+  table.uploads td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  table.uploads:not(.is-selectable) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  table.uploads tbody tr {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1.5px solid var(--rule);
+    border-radius: 0.75rem;
+    background: var(--sheet);
+  }
+
+  table.uploads tbody th[scope="row"] {
+    border-bottom: 0;
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+  }
+
+  table.uploads tbody td {
+    border-bottom: 0;
+    padding-top: 0.25rem;
+    overflow-wrap: anywhere;
+  }
+
+  table.uploads tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  table.uploads.is-selectable thead {
+    display: block;
+  }
+
+  table.uploads.is-selectable thead tr {
+    border: 0;
+    background: transparent;
+  }
+
+  /* The other column names stay announced for screen readers while only
+     the select-all toolbar shows. */
+  table.uploads.is-selectable thead th:not(.select-col) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  table.uploads.is-selectable thead th.select-col {
+    padding: 0 0 0.5rem;
+    border-bottom: 0;
+  }
+
+  table.uploads .select-all {
+    gap: 0.5rem;
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  table.uploads .select-all-text {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  table.uploads input[type="checkbox"] {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  table.uploads.is-selectable tbody tr {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 0.5rem;
+  }
+
+  table.uploads.is-selectable tbody td.select-cell {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    width: auto;
+    padding-top: 0.55rem;
+  }
+
+  table.uploads.is-selectable tbody td.select-cell:not(:has(> input)) {
+    display: none;
+  }
+
+  table.uploads.is-selectable tbody th[scope="row"] {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  table.uploads.is-selectable tbody tr:has(> td.select-cell:has(> input)) th[scope="row"] {
+    grid-column: 2;
+  }
+
+  table.uploads.is-selectable tbody td[data-label],
+  table.uploads.is-selectable tbody td.actions-cell {
+    grid-column: 1 / -1;
+  }
+
+  /* A row without a submission has no actions: no empty block at the foot
+     of its card. */
+  table.uploads tbody td.actions-cell:empty {
+    display: none;
+  }
+}
+
 /* The actions of a graded exercise: Modifică stays at the top of the row,
    Verificat sits at the bottom, both left aligned and in the same style.
    Scoped to the teacher's check cell, so the edit buttons (Salvează/Renunță)
