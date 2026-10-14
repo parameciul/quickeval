@@ -301,6 +301,7 @@ export interface ExerciseListInfo {
 
 export interface TestInfo extends TestSummary {
   uploadToken: string | null;
+  multiUploadToken: string | null;
   files: Record<TestFileKind, TestFileInfo | null>;
   exerciseList: ExerciseListInfo;
   // Extra teacher comments for the barem, read by the robot as part of it.
@@ -370,6 +371,11 @@ export interface StartedTest {
   startedAt: string;
 }
 
+// The link that uploads for many students on one phone: /u/<multiUploadToken>.
+export interface MultiUploadLink {
+  multiUploadToken: string;
+}
+
 // "dispatched": the robot was asked to start at once. "next_check": GitHub did
 // not take the request, and the work waits for the robot's next run. Its
 // 10-minute schedule does not fire (docs/deploy.md): that run starts by hand.
@@ -437,9 +443,12 @@ export interface LinkStudent {
 }
 
 // The page behind an upload link. The name list is empty unless uploads are open.
+// `multi` is true for the link that uploads for many students on one phone:
+// it never locks after one upload. The default link locks after one upload.
 export interface LinkInfo {
   test: { code: string; title: string; className: string; status: TestStatus };
   students: LinkStudent[];
+  multi: boolean;
 }
 
 // One student's upload, as that student's phone sees it.

@@ -6,7 +6,14 @@ import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import type { ActiveSession, UploadApi } from './api.ts';
 import { NamePicker } from './NamePicker.tsx';
-import { loadResultLinks, resultPageUrl, saveResultLink, type SavedResultLink } from './resultLinks.ts';
+import {
+  loadResultLinks,
+  pruneStaleResultLinks,
+  resultPageUrl,
+  saveResultLink,
+  singleUploadLocked,
+  type SavedResultLink,
+} from './resultLinks.ts';
 import { forgetSecret, loadSecret, saveSecret, savedStudent } from './session.ts';
 import { UploadScreen } from './UploadScreen.tsx';
 
@@ -18,11 +25,15 @@ type Phase =
   | { kind: 'closed'; info: LinkInfo }
   | { kind: 'names'; info: LinkInfo; message: string | null }
   | { kind: 'upload'; info: LinkInfo; session: ActiveSession }
-  | { kind: 'sent'; info: LinkInfo; fileCount: number; resultToken: string; studentName: string };
+  | { kind: 'sent'; info: LinkInfo; fileCount: number; resultToken: string; studentName: string }
+  | { kind: 'locked'; info: LinkInfo };
 
 // The student app at /u/<token>: pick your name, add the pages, send them.
-// After sending, the phone keeps the secret link to the student's result
-// page; opening the same upload link again shows the kept link.
+// The default link sends one upload from this phone and then locks: opening
+// the same link again shows only the kept result link, so a student cannot
+// send for a classmate by mistake or on purpose. The link for many uploads
+// (made by the teacher on demand) keeps the name list after each sent upload,
+// so one phone can send for several students in turn.
 export function UploadApp({ api, token }: { api: UploadApi; token: string | null }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
 
@@ -30,6 +41,14 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
   // when the app resumes by itself on load, not after the student picked a name.
   const begin = useCallback(
     async (linkToken: string, info: LinkInfo, student: LinkStudent, auto = false) => {
+      // The default link locks after one sent upload on this phone.
+      if (!info.multi) {
+        pruneStaleResultLinks(linkToken, info.students);
+        if (singleUploadLocked(linkToken)) {
+          setPhase({ kind: 'locked', info });
+          return;
+        }
+      }
       const saved = loadSecret(linkToken, student.id);
       try {
         const started = await api.startSession(linkToken, student.id, saved);
@@ -67,6 +86,12 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
         if (!isCurrent()) return;
         if (info.test.status !== 'open') {
           setPhase({ kind: 'closed', info });
+          return;
+        }
+        pruneStaleResultLinks(token, info.students);
+        // The default link shows only the kept result link after one upload.
+        if (!info.multi && singleUploadLocked(token)) {
+          setPhase({ kind: 'locked', info });
           return;
         }
         const saved = message === null ? savedStudent(token, info.students) : null;
@@ -128,6 +153,15 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
               />
             </>
           )}
+          {phase.kind === 'locked' && token && (
+            <>
+              <KeptResultLinks uploadToken={token} />
+              <p className="hint">
+                Ai trimis deja lucrarea de pe acest telefon. Cu acest link nu mai poți încărca alte lucrări, nici pentru alt elev.
+              </p>
+              <p className="hint">Dacă trebuie să trimiți pentru alt elev, cere profesorului linkul pentru mai multe încărcări.</p>
+            </>
+          )}
           {phase.kind === 'upload' && token && (
             <>
               {/* On a shared phone the app may reopen a classmate's upload: this
@@ -154,11 +188,19 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
               />
             </>
           )}
-          {phase.kind === 'sent' && (
+          {phase.kind === 'sent' && token && (
             <section className="sent">
               <h2>Gata! Lucrarea ta a fost trimisă.</h2>
               <p>{phase.fileCount === 1 ? 'Ai trimis un fișier.' : `Ai trimis ${phase.fileCount} fișiere.`}</p>
               <ResultLinkBox resultToken={phase.resultToken} studentName={phase.studentName} fresh />
+              {phase.info.multi && (
+                <>
+                  <p className="hint">Poți trimite acum lucrarea altui elev, cu același link.</p>
+                  <button type="button" className="button button-big" onClick={() => load(null)}>
+                    Trimite pentru alt elev
+                  </button>
+                </>
+              )}
             </section>
           )}
         </ErrorBoundary>

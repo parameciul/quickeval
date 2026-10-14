@@ -17,6 +17,8 @@ export interface LinkTest {
   status: TestStatus;
   className: string;
   schoolYear: number;
+  // True for the link that uploads for many students on one phone.
+  multi: boolean;
 }
 
 // An upload, found by the hash of the phone's secret.
@@ -30,11 +32,12 @@ export interface SessionRecord {
 export async function findTestByToken(db: D1Database, token: string): Promise<LinkTest | null> {
   const row = await db
     .prepare(
-      `SELECT t.id, t.teacher_id, t.class_id, t.code, t.title, t.status, c.name AS class_name, c.school_year
+      `SELECT t.id, t.teacher_id, t.class_id, t.code, t.title, t.status, c.name AS class_name, c.school_year,
+        t.upload_token, t.multi_upload_token
        FROM tests t JOIN classes c ON c.id = t.class_id
-       WHERE t.upload_token = ?`,
+       WHERE t.upload_token = ? OR t.multi_upload_token = ?`,
     )
-    .bind(token)
+    .bind(token, token)
     .first<{
       id: number;
       teacher_id: number;
@@ -44,6 +47,8 @@ export async function findTestByToken(db: D1Database, token: string): Promise<Li
       status: TestStatus;
       class_name: string;
       school_year: number;
+      upload_token: string | null;
+      multi_upload_token: string | null;
     }>();
   if (!row) return null;
   return {
@@ -55,6 +60,7 @@ export async function findTestByToken(db: D1Database, token: string): Promise<Li
     status: row.status,
     className: row.class_name,
     schoolYear: row.school_year,
+    multi: row.multi_upload_token === token,
   };
 }
 

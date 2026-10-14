@@ -28,6 +28,7 @@ import { testHasRobotWork } from '../db/runner.ts';
 import { testPageRobot } from '../db/settings.ts';
 import {
   createTest,
+  createMultiUploadToken,
   deleteTestRow,
   listTestKeys,
   listTests,
@@ -42,7 +43,7 @@ import {
 } from '../db/tests.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
-import { ApiError, notFound } from '../errors.ts';
+import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { nowIso, parseSchoolYear, parseTestCode, readJson } from '../http.ts';
 import { newUploadToken } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
@@ -133,6 +134,26 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       test.summary.status === 'draft' ? await startTest(c.env.DB, c.var.teacher.id, test.id, newUploadToken(), nowIso()) : null;
     if (!started) throw new ApiError(409, 'already_started', 'Testul a început deja.');
     return c.json({ status: 'open', ...started });
+  });
+
+  // The link that uploads for many students on one phone (/u/<multiUploadToken>).
+  // Made only when the teacher asks for it, on a test that already started.
+  // Answers with the kept link when it already exists.
+  routes.post('/:code/multi-link', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (test.summary.status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
+    if (test.multiUploadToken) return c.json({ multiUploadToken: test.multiUploadToken });
+    const now = nowIso();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const created = await createMultiUploadToken(c.env.DB, c.var.teacher.id, test.id, newUploadToken(), now);
+        if (!created) throw notFound();
+        return c.json(created, 201);
+      } catch (err) {
+        if (!isUniqueViolation(err) || attempt === 2) throw err;
+      }
+    }
+    throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
   });
 
   // Reopen uploads: evaluating or done → open.

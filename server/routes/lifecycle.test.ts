@@ -87,3 +87,39 @@ describe('POST /api/admin/tests/:code/reopen', () => {
     expect(upload?.status).toBe('grading');
   });
 });
+
+describe('POST /api/admin/tests/:code/multi-link', () => {
+  it('refuses a test that did not start yet', async () => {
+    const res = await api.request('POST', `/api/admin/tests/${code}/multi-link`);
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe('Testul nu a început încă.');
+  });
+
+  it('makes the multi-upload link on demand and keeps it on the second call', async () => {
+    await api.request('POST', `/api/admin/tests/${code}/start`);
+    const first = await api.request('POST', `/api/admin/tests/${code}/multi-link`);
+    expect(first.status).toBe(201);
+    expect(isUploadToken(first.body.multiUploadToken)).toBe(true);
+
+    const second = await api.request('POST', `/api/admin/tests/${code}/multi-link`);
+    expect(second.status).toBe(200);
+    expect(second.body.multiUploadToken).toBe(first.body.multiUploadToken);
+
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test.multiUploadToken).toBe(first.body.multiUploadToken);
+    expect(detail.body.test.multiUploadToken).not.toBe(detail.body.test.uploadToken);
+  });
+
+  it('makes the link while the uploads are closed', async () => {
+    await api.request('POST', `/api/admin/tests/${code}/start`);
+    await setState("status = 'evaluating'");
+    const res = await api.request('POST', `/api/admin/tests/${code}/multi-link`);
+    expect(res.status).toBe(201);
+    expect(isUploadToken(res.body.multiUploadToken)).toBe(true);
+  });
+
+  it('answers 404 for a test of another teacher', async () => {
+    const foreign = await otherTeacherTest(api);
+    expect((await api.request('POST', `/api/admin/tests/${foreign.code}/multi-link`)).status).toBe(404);
+  });
+});

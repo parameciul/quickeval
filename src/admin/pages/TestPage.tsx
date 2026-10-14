@@ -15,7 +15,7 @@ import { ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
 import { StartRobotButton, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
-import { UploadLink } from '../testPage/UploadLink.tsx';
+import { MultiUploadLink, UploadLink } from '../testPage/UploadLink.tsx';
 import { UploadsTable } from '../testPage/UploadsTable.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
@@ -184,7 +184,13 @@ function TestActions({ test, onChanged }: { test: TestInfo; onChanged: () => Pro
       </>
     );
   }
-  if (test.status === 'open' && test.uploadToken) return <UploadLink token={test.uploadToken} />;
+  if (test.status === 'open' && test.uploadToken)
+    return (
+      <>
+        <UploadLink token={test.uploadToken} />
+        <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />
+      </>
+    );
   return (
     <>
       <p className="hint">Încărcarea este închisă. Dacă o redeschizi, elevii care nu au trimis pot încărca acum.</p>

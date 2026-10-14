@@ -18,6 +18,7 @@ export interface TestRecord {
   id: number;
   summary: TestSummary;
   uploadToken: string | null;
+  multiUploadToken: string | null;
   files: Record<TestFileKind, StoredFile | null>;
   exerciseList: ExerciseListInfo;
   baremNotes: string;
@@ -36,6 +37,7 @@ interface TestRow {
   evaluation_at: string | null;
   evaluation_started_at: string | null;
   upload_token: string | null;
+  multi_upload_token: string | null;
   test_file_key: string | null;
   test_file_name: string | null;
   test_file_type: string | null;
@@ -54,7 +56,7 @@ interface TestRow {
 
 const SELECT_TEST = `
   SELECT t.id, t.code, t.title, t.status, t.class_id, c.name AS class_name, c.school_year,
-    t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token,
+    t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token, t.multi_upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
     t.results_open,
@@ -90,6 +92,7 @@ function toRecord(row: TestRow): TestRecord {
       resultsOpen: row.results_open === 1,
     },
     uploadToken: row.upload_token,
+    multiUploadToken: row.multi_upload_token,
     files: {
       test: storedFile(row.test_file_key, row.test_file_name, row.test_file_type),
       barem: storedFile(row.barem_file_key, row.barem_file_name, row.barem_file_type),
@@ -105,6 +108,7 @@ export function toTestInfo(record: TestRecord): TestInfo {
   return {
     ...record.summary,
     uploadToken: record.uploadToken,
+    multiUploadToken: record.multiUploadToken,
     files: { test: info(record.files.test), barem: info(record.files.barem) },
     exerciseList: record.exerciseList,
     baremNotes: record.baremNotes,
@@ -256,6 +260,33 @@ export async function startTest(
     .bind(uploadToken, now, now, testId, teacherId)
     .first<{ upload_token: string; started_at: string }>();
   return row ? { uploadToken: row.upload_token, startedAt: row.started_at } : null;
+}
+
+// The link that uploads for many students on one phone. Made only when the
+// teacher asks for it, on a test that already started. Returns the kept link
+// when it already exists, so the button stays safe to press twice.
+export async function createMultiUploadToken(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  uploadToken: string,
+  now: string,
+): Promise<{ multiUploadToken: string } | null> {
+  const kept = await db
+    .prepare('SELECT multi_upload_token FROM tests WHERE id = ? AND teacher_id = ? AND status <> ?')
+    .bind(testId, teacherId, 'draft')
+    .first<{ multi_upload_token: string | null }>();
+  if (!kept) return null;
+  if (kept.multi_upload_token) return { multiUploadToken: kept.multi_upload_token };
+  const row = await db
+    .prepare(
+      `UPDATE tests SET multi_upload_token = ?, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND status <> ? AND multi_upload_token IS NULL
+       RETURNING multi_upload_token`,
+    )
+    .bind(uploadToken, now, testId, teacherId, 'draft')
+    .first<{ multi_upload_token: string }>();
+  return row ? { multiUploadToken: row.multi_upload_token } : null;
 }
 
 // evaluating or done → open (spec §8.5). Graded results stay; a scheduled
