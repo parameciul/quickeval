@@ -58,6 +58,7 @@ describe('GET /api/u/:token', () => {
         { id: ionescu, name: 'Ionescu Ana', state: 'none' },
         { id: pop, name: 'Pop Ion', state: 'in_progress' },
       ],
+      multi: false,
     });
     await putFile(secret, jpeg(), 'image/jpeg');
     await api.request('POST', `/api/u/${token}/confirm`, undefined, session(secret));
@@ -76,7 +77,7 @@ describe('GET /api/u/:token', () => {
   it('shows no names once the uploads are closed', async () => {
     await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(code).run();
     const res = await api.request('GET', `/api/u/${token}`);
-    expect(res.body).toEqual({ test: { code, title: 'Fracții', className: '6E2', status: 'done' }, students: [] });
+    expect(res.body).toEqual({ test: { code, title: 'Fracții', className: '6E2', status: 'done' }, students: [], multi: false });
   });
 
   it('marks every answer as not cacheable', async () => {
@@ -356,5 +357,59 @@ describe('the upload writes check the rules themselves', () => {
     await addSubmissionFile(api.db, id, photo(2), now);
     expect(await confirmSubmission(api.db, id, now)).toBe(2);
     expect(await confirmSubmission(api.db, id, now)).toBeNull();
+  });
+});
+
+describe('the multi-upload link', () => {
+  async function multiToken(): Promise<string> {
+    const res = await api.request('POST', `/api/admin/tests/${code}/multi-link`);
+    expect(res.status).toBe(201);
+    return res.body.multiUploadToken as string;
+  }
+
+  function multiSession(multi: string, studentId: number, secret?: string) {
+    return api.request('POST', `/api/u/${multi}/sessions`, { studentId }, session(secret));
+  }
+
+  function multiPut(multi: string, secret: string, body: BodyInit, type: string, name = 'pagina.jpg') {
+    return putFile(secret, body, type, name, multi);
+  }
+
+  it('shows the same test with multi:true', async () => {
+    const multi = await multiToken();
+    expect(multi).not.toBe(token);
+    const res = await api.request('GET', `/api/u/${multi}`);
+    expect(res.status).toBe(200);
+    expect(res.body.test).toEqual({ code, title: 'Fracții', className: '6E2', status: 'open' });
+    expect(res.body.students).toEqual([
+      { id: ionescu, name: 'Ionescu Ana', state: 'none' },
+      { id: pop, name: 'Pop Ion', state: 'none' },
+    ]);
+    expect(res.body.multi).toBe(true);
+  });
+
+  it('sends uploads for two students in turn with the same link', async () => {
+    const multi = await multiToken();
+    for (const studentId of [pop, ionescu]) {
+      const started = await multiSession(multi, studentId);
+      expect(started.status).toBe(201);
+      const secret = started.body.secret as string;
+      const uploaded = await multiPut(multi, secret, jpeg(`work-${studentId}`), 'image/jpeg');
+      expect(uploaded.status).toBe(201);
+      const confirmed = await api.request('POST', `/api/u/${multi}/confirm`, undefined, session(secret));
+      expect(confirmed.status).toBe(200);
+      expect(confirmed.body.resultToken).toMatch(/^[a-z2-7]{24}$/);
+    }
+    const after = await api.request('GET', `/api/u/${multi}`);
+    expect(after.body.students).toEqual([
+      { id: ionescu, name: 'Ionescu Ana', state: 'done' },
+      { id: pop, name: 'Pop Ion', state: 'done' },
+    ]);
+  });
+
+  it('answers an unknown multi link with a Romanian 404', async () => {
+    const res = await api.request('GET', '/api/u/bbbbbbbbbbbbbbbb');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'unknown_link', message: 'Link greșit. Cere profesorului linkul nou.' });
   });
 });

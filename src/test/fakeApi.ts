@@ -50,12 +50,13 @@ export function fakeSettings(overrides: Partial<Settings> = {}): Settings {
 export const FAKE_ROBOT_KEY = 'fake-robot-key-0123456789abcdefghijklmnopqr';
 
 export const FAKE_TOKEN = 'abcdefghijkmnop2';
+export const FAKE_MULTI_TOKEN = 'bbbbbbbbbbbbbbbb';
 export const FAKE_STARTED_AT = '2026-10-06T07:15:00.000Z';
 
 const notFound = () => new ApiError(404, 'not_found', 'Nu am găsit ce cauți.');
 
 function summaryOf(test: TestInfo): TestSummary {
-  const { uploadToken: _token, files: _files, ...summary } = test;
+  const { uploadToken: _token, multiUploadToken: _multi, files: _files, ...summary } = test;
   return summary;
 }
 
@@ -79,6 +80,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       flagCount: uploads.reduce((sum, row) => sum + row.flagCount, 0),
       resultsOpen: false,
       uploadToken: null,
+      multiUploadToken: null,
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
       baremNotes: '',
@@ -280,6 +282,12 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = findTest(code).test;
       Object.assign(found, { status: 'open', uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT });
       return { status: found.status, uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT };
+    }),
+    createMultiUploadLink: vi.fn(async (code: string) => {
+      const found = findTest(code).test;
+      if (!found.uploadToken) throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
+      if (!found.multiUploadToken) found.multiUploadToken = FAKE_MULTI_TOKEN;
+      return found.multiUploadToken;
     }),
     setResultsOpen: vi.fn(async (code: string, open: boolean) => {
       findTest(code).test.resultsOpen = open;

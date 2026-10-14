@@ -172,4 +172,69 @@ describe('UploadApp', () => {
     expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
     expectNoGradingWords();
   });
+
+  it('locks the default link after one upload on this phone', async () => {
+    const api = createFakeUploadApi();
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion');
+    // The server still shows the upload as sent.
+    const info = linkInfo();
+    info.students.find((s) => s.id === 11)!.state = 'done';
+    api.getLink.mockResolvedValue(structuredClone(info));
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute(
+      'href',
+      `${window.location.origin}/u/rezultat/result-token-11`,
+    );
+    expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Ai trimis deja lucrarea de pe acest telefon/)).toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('unlocks the default link again after the teacher reset the upload', async () => {
+    const api = createFakeUploadApi();
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion');
+    // The teacher reset the upload: the student is back in the list.
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Vezi rezultatul' })).not.toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('keeps the name list on the multi-upload link after one upload', async () => {
+    const api = createFakeUploadApi(linkInfo({ multi: true }));
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion');
+    const info = linkInfo({ multi: true });
+    info.students.find((s) => s.id === 11)!.state = 'done';
+    api.getLink.mockResolvedValue(structuredClone(info));
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute(
+      'href',
+      `${window.location.origin}/u/rezultat/result-token-11`,
+    );
+    // The sent student cannot be picked again, but another one can.
+    expect(screen.getByRole('button', { name: 'Pop Ion, a trimis' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Ionescu Ana' })).toBeEnabled();
+    expectNoGradingWords();
+  });
+
+  it('offers another upload after sending with the multi-upload link', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(() => 'blob:preview'), configurable: true });
+    const api = createFakeUploadApi(linkInfo({ multi: true }));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pop Ion' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Da, încep' }));
+    await userEvent.upload(await screen.findByLabelText('Alege fișiere'), new File(['%PDF-1.7'], 'scan.pdf', { type: 'application/pdf' }));
+    expect(await screen.findByText('Încărcat')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Am trimis tot' }));
+    expect(await screen.findByRole('heading', { name: 'Gata! Lucrarea ta a fost trimisă.' })).toBeInTheDocument();
+    expectNoGradingWords();
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite pentru alt elev' }));
+    expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    // Both the just-sent link and the name list are there for the next student.
+    expect(screen.getAllByRole('link', { name: 'Vezi rezultatul' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Ionescu Ana' })).toBeEnabled();
+    expectNoGradingWords();
+  });
 });

@@ -5,7 +5,7 @@ import { ApiError } from '../api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import type { UploadRow } from '../../../shared/api.ts';
 import { robotStartMessage } from '../../ui/format.ts';
-import { createFakeApi, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { refreshInterval } from './TestPage.tsx';
 
@@ -175,6 +175,25 @@ describe('TestPage', () => {
   it('shows the notice that the new-test page passed along', async () => {
     renderAdmin({ pathname: '/teste/6E2-26T1', state: { notice: 'Testul a fost creat, dar fișierul Test.pdf nu s-a încărcat.' } }, apiWith());
     expect(await screen.findByRole('alert')).toHaveTextContent('Testul a fost creat, dar fișierul Test.pdf nu s-a încărcat.');
+  });
+
+  it('creates the multi-upload link on demand and then shows it', async () => {
+    const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN });
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(screen.queryByLabelText('Linkul pentru mai multe încărcări')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Creează linkul pentru mai multe încărcări' }));
+    expect(api.createMultiUploadLink).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByLabelText('Linkul pentru mai multe încărcări')).toHaveValue(
+      `${window.location.origin}/u/${FAKE_MULTI_TOKEN}`,
+    );
+  });
+
+  it('shows both upload links when the multi-upload link already exists', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN, multiUploadToken: FAKE_MULTI_TOKEN }));
+    expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(screen.getByLabelText('Linkul pentru mai multe încărcări')).toHaveValue(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
+    expect(screen.queryByRole('button', { name: 'Creează linkul pentru mai multe încărcări' })).not.toBeInTheDocument();
   });
 });
 

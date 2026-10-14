@@ -55,7 +55,7 @@ export function NewTestPage() {
 
   return (
     <section>
-      <p>
+      <p className="back-link">
         <Link to="/">← Toate testele</Link>
       </p>
       <h1>Test nou</h1>

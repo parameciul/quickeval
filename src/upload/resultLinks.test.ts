@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { forgetResultLinkByToken, loadResultLink, loadResultLinks, saveResultLink } from './resultLinks.ts';
+import {
+  forgetResultLinkByToken,
+  loadResultLink,
+  loadResultLinks,
+  pruneStaleResultLinks,
+  saveResultLink,
+  singleUploadLocked,
+} from './resultLinks.ts';
 
 const TOKEN = 'abcdefghijkmnop2';
 
@@ -57,5 +64,29 @@ describe('result links kept on the phone', () => {
       throw new Error('blocked');
     });
     expect(() => forgetResultLinkByToken('rt-10')).not.toThrow();
+  });
+
+  it('locks the default link after one kept link', () => {
+    expect(singleUploadLocked(TOKEN)).toBe(false);
+    saveResultLink(TOKEN, 10, 'rt-10', 'Pop Ion');
+    expect(singleUploadLocked(TOKEN)).toBe(true);
+  });
+
+  it('drops the kept links of uploads the teacher reset', () => {
+    saveResultLink(TOKEN, 10, 'rt-10', 'Pop Ion');
+    saveResultLink(TOKEN, 11, 'rt-11', 'Ionescu Ana');
+    saveResultLink(TOKEN, 12, 'rt-12', 'Stan Eva');
+    pruneStaleResultLinks(TOKEN, [
+      { id: 10, name: 'Pop Ion', state: 'none' },
+      { id: 11, name: 'Ionescu Ana', state: 'in_progress' },
+      { id: 12, name: 'Stan Eva', state: 'done' },
+    ]);
+    // The reset uploads unlock; the sent one still locks. A student who left
+    // the class is not in the list, so their link stays.
+    expect(loadResultLinks(TOKEN)).toEqual([{ studentId: 12, studentName: 'Stan Eva', resultToken: 'rt-12' }]);
+    expect(singleUploadLocked(TOKEN)).toBe(true);
+    pruneStaleResultLinks(TOKEN, [{ id: 12, name: 'Stan Eva', state: 'none' }]);
+    expect(loadResultLinks(TOKEN)).toEqual([]);
+    expect(singleUploadLocked(TOKEN)).toBe(false);
   });
 });

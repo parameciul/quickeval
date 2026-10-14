@@ -1,12 +1,14 @@
-import { studentResultPath } from '../../shared/api.ts';
+import { studentResultPath, type LinkStudent } from '../../shared/api.ts';
 
 // The secret link to a student's result page, kept on the phone that sent the
 // upload (spec: like the theme choice, in localStorage). After "Am trimis
-// tot" the upload secret is forgotten and only this link stays. When the
-// student opens the same upload link again (the same QR code), the page shows
-// the kept link above the name list on an open test (so classmates can still
-// upload on a shared phone), and only the kept link once the uploads closed,
-// so a lost link comes back on the same phone.
+// tot" the upload secret is forgotten and only this link stays. On the link
+// for many uploads the page shows the kept links above the name list, so one
+// phone can send for several students in turn. On the default link the phone
+// locks after one sent upload (see singleUploadLocked): the page shows only
+// the kept link, so a student cannot send for a classmate by mistake or on
+// purpose. Once the uploads closed, the page shows only the kept link, so a
+// lost link comes back on the same phone.
 
 export interface SavedResultLink {
   studentId: number;
@@ -93,6 +95,34 @@ export function forgetResultLinkByToken(resultToken: string): void {
   } catch {
     // Blocked storage: nothing to forget.
   }
+}
+
+// Drops the kept links whose upload the teacher reset: the student is back in
+// the name list (`none` or `in_progress`), so the old result link is stale.
+// Links of students who left the class stay: they still prove this phone sent.
+export function pruneStaleResultLinks(uploadToken: string, students: LinkStudent[]): void {
+  try {
+    for (const link of loadResultLinks(uploadToken)) {
+      const student = students.find((item) => item.id === link.studentId);
+      if (student && student.state !== 'done') {
+        try {
+          localStorage.removeItem(keyOf(uploadToken, link.studentId));
+        } catch {
+          // Blocked storage: nothing to forget.
+        }
+      }
+    }
+  } catch {
+    // Blocked storage: nothing to forget.
+  }
+}
+
+// Whether the default (single-upload) link on this phone already sent an
+// upload that still counts: at least one kept result link whose student
+// already sent (or left the class after sending). Callers first prune the
+// stale links, so a reset upload unlocks the phone again.
+export function singleUploadLocked(uploadToken: string): boolean {
+  return loadResultLinks(uploadToken).length > 0;
 }
 
 // The address to keep and to share, for one result page.

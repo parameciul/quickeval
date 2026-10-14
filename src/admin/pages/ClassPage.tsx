@@ -34,7 +34,7 @@ function ClassDetails({ classId }: { classId: number }) {
   const { class: info, students, tests } = detail.data;
   return (
     <section>
-      <p>
+      <p className="back-link">
         <Link to="/clase">← Toate clasele</Link>
       </p>
       <h1>

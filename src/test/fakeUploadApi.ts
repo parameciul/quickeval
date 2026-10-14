@@ -8,14 +8,16 @@ import type { UploadApi } from '../upload/api.ts';
 
 export const LINK_TOKEN = 'abcdefghijkmnop2';
 
-export function linkInfo(overrides: Partial<LinkInfo['test']> = {}): LinkInfo {
+export function linkInfo(overrides: Partial<LinkInfo['test']> & { multi?: boolean } = {}): LinkInfo {
+  const { multi, ...testOverrides } = overrides;
   return {
-    test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'open', ...overrides },
+    test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'open', ...testOverrides },
     students: [
       { id: 10, name: 'Ionescu Ana', state: 'none' },
       { id: 11, name: 'Pop Ion', state: 'none' },
       { id: 12, name: 'Stan Eva', state: 'done' },
     ],
+    multi: multi ?? false,
   };
 }
 

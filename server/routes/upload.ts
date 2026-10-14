@@ -86,6 +86,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({
       test: { code: test.code, title: test.title, className: test.className, status: test.status },
       students: test.status === 'open' ? await listLinkStudents(c.env.DB, test) : [],
+      multi: test.multi,
     });
   });
 

@@ -92,7 +92,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
 
   return (
     <section>
-      <p>
+      <p className="back-link">
         <Link to={`/teste/${code}`}>← {code}</Link>
       </p>
       {detail.isRefetchError && <ErrorMessage error={detail.error} />}

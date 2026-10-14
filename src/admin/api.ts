@@ -53,6 +53,8 @@ export interface AdminApi {
   saveBaremNotes(code: string, notes: string): Promise<BaremNotesAnswer>;
   startTest(code: string): Promise<StartedTest>;
   reopenTest(code: string): Promise<void>;
+  // The link that uploads for many students on one phone, made only on demand.
+  createMultiUploadLink(code: string): Promise<string>;
   // Opens or closes the students' result pages of a test.
   setResultsOpen(code: string, open: boolean): Promise<boolean>;
   // Now without `at`, or at that ISO time. With `submissionIds`, now only
@@ -190,6 +192,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     uploadTestFile: (code, kind, file) => request<TestFileAnswer>('PUT', `${test(code)}/files/${kind}`, undefined, file),
     saveBaremNotes: (code, notes) => request<BaremNotesAnswer>('PUT', `${test(code)}/barem-notes`, { notes }),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
+    createMultiUploadLink: async (code) =>
+      (await request<{ multiUploadToken: string }>('POST', `${test(code)}/multi-link`)).multiUploadToken,
     setResultsOpen: async (code, open) =>
       (await request<ResultsOpenAnswer>('POST', `${test(code)}/results/${open ? 'open' : 'close'}`)).resultsOpen,
     reopenTest: async (code) => {
