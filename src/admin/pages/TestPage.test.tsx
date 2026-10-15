@@ -620,6 +620,7 @@ describe('TestPage evaluation', () => {
     ['an upload left in grading', { status: 'evaluating' }, leftInGrading, null, true],
     ['a robot that checked 5 minutes ago', { status: 'evaluating' }, uploads, '2026-10-08T06:55:00.000Z', false],
     ['a test with nothing left to grade', { status: 'evaluating' }, graded, null, false],
+    ['a class analysis that waits', { status: 'evaluating', analysis: { status: 'requested', stale: false } }, graded, null, true],
     ['a barem that waits for the teacher', { status: 'evaluating', exerciseList: problem }, uploads, null, false],
     ['a scheduled evaluation', { evaluationAt: '2026-10-09T07:00:00.000Z' }, uploads, null, false],
   ];
@@ -628,6 +629,25 @@ describe('TestPage evaluation', () => {
     renderAdmin('/teste/6E2-26T1', evaluationApi(overrides, rows, lastCheckAt));
     expect(await screen.findByText(/^Robotul (nu )?a verificat/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pornește robotul' }) !== null).toBe(shown);
+  });
+
+  it('says that the robot writes the class analysis, and links to the class report', async () => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'evaluating', analysis: { status: 'requested', stale: false } }, graded));
+    expect(await screen.findByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Raportul clasei' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+  });
+
+  it('shows the link to the class report only when something is graded', async () => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'evaluating' }, leftInGrading));
+    expect(await screen.findByText(/^Robotul (nu )?a verificat/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Raportul clasei' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).not.toBeInTheDocument();
+  });
+
+  it('says when the class analysis failed', async () => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'done', analysis: { status: 'failed', stale: false } }, graded));
+    expect(await screen.findByText('Robotul nu a putut scrie analiza clasei.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Raportul clasei' })).toBeInTheDocument();
   });
 
   it('publishes the student results and stops them again', async () => {

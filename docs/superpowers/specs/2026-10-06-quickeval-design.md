@@ -428,6 +428,7 @@ A school-year switch in the header (default: the current school year) filters Te
   - `failed`: shows the message and a **Încearcă din nou** button (sets `none` and resets the attempts).
 - Uploads table, refreshed every 10 s while the status is open or evaluating. One row per active student of the class: name, status (Nu a trimis / Încarcă… / Trimis / Se corectează / Corectat / Eroare), file count, time, grade, flag count. "Fără confirmare" marks `auto_submitted`. Row actions: **Vezi lucrarea** (files and result), **Resetează** (delete the upload so the student can start again), **Reîncearcă** (failed → submitted), **Recorectează** (regrade a graded upload).
 - Robot line: "Robotul a verificat acum 3 min" from `runner_state.last_check_at`, while the test is evaluating or has a scheduled evaluation. It shows a warning after 30 min without a check. With the warning, a test in evaluation whose uploads wait for the robot shows "Pornește robotul": it starts the robot like "Evaluate now".
+- Class analysis, in the evaluation block: while the test is `evaluating` with the analysis `requested` and a graded upload, the page says that the robot writes it, and "Pornește robotul" counts it as work (the GitHub schedule does not fire, so a waiting analysis must be startable). A `failed` analysis shows a warning that points to the report.
 - Link to the class report when at least one submission is graded.
 
 ## 10. Student app (`/u/<token>`)
@@ -746,6 +747,8 @@ Checks done by code, not by Claude:
   - per exercise: average points, average % of max, and how many students got full, partial, or zero points;
   - number of flagged items not yet checked.
 - AI analysis: overview, strengths, weaknesses, common mistakes, recommendations. When `analysis_stale = 1`, the page shows "Analiza poate fi depășită" and a **Regenerează** button.
+- The table keeps one column for each exercise and scrolls inside its box, with the student's name in view. A flagged cell has the highlighter background and a screen-reader note. Each name links to the student's result page.
+- The analysis block shows the four lists, or its state: not made yet (**Fă analiza clasei**), being written (the page refreshes every 10 s), failed, or out of date (**Regenerează**).
 - Buttons: **Descarcă PDF** (landscape: table, statistics, analysis), **Descarcă CSV**, **Trimite** (the PDF).
 - CSV for Romanian Excel: UTF-8 with BOM, `;` as the separator, and a decimal comma.
 

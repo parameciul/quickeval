@@ -9,6 +9,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { StatusChip } from '../StatusChip.tsx';
 import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
+import { AnalysisState } from '../testPage/AnalysisState.tsx';
 import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
 import { ResultsAccess } from '../testPage/ResultsAccess.tsx';
@@ -127,6 +128,7 @@ function TestDetails({ code }: { code: string }) {
             </RobotLine>
           )}
           <RegradeAllButton code={code} testStatus={test.status} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
+          <AnalysisState test={test} />
         </>
       )}
 
