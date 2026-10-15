@@ -149,6 +149,18 @@ describe('SubmissionPage', () => {
     expect(screen.getByText('Exersează ecuațiile.')).toBeInTheDocument();
   });
 
+  it('has the PDF buttons only for a graded result', async () => {
+    const { unmount } = renderAdmin(page, apiWith(graded));
+    expect(await screen.findByRole('button', { name: 'Descarcă PDF' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trimite' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Descarcă CSV' })).not.toBeInTheDocument();
+    unmount();
+    renderAdmin(page, apiWith());
+    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Descarcă PDF' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Trimite' })).not.toBeInTheDocument();
+  });
+
   it('marks an item as checked', async () => {
     const api = apiWith(graded);
     renderAdmin(page, api);

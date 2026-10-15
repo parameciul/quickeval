@@ -9,6 +9,8 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { GradedResult } from '../submissionPage/GradedResult.tsx';
 import { PageFiles } from '../submissionPage/PageFiles.tsx';
+import { PdfActions } from '../pdf/PdfActions.tsx';
+import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentPdf.ts';
 import { ResultLink } from '../testPage/ResultLink.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
@@ -88,6 +90,8 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   if (submission.testCode !== code) return <NotFoundPage />;
   // The news after Recorectează or Reîncearcă holds only until the result is back.
   const showNotice = notice !== null && (submission.status === 'submitted' || submission.status === 'grading');
+  // The student's PDF, only for a graded result.
+  const pdfInput = studentPdfInput(submission);
   // Recorectează names the grading the page shows.
   const gradedAt = submission.status === 'graded' ? (submission.evaluation?.gradedAt ?? null) : null;
 
@@ -123,6 +127,15 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
           />
           <span>{submission.resultsOpen ? 'Rezultatele sunt publicate.' : 'Rezultatele nu sunt publicate încă.'}</span>
         </div>
+      )}
+      {pdfInput && (
+        <PdfActions
+          pdf={{
+            build: () => studentPdf(pdfInput),
+            fileName: studentPdfFileName(pdfInput),
+            title: `${pdfInput.testCode} · ${pdfInput.studentName}`,
+          }}
+        />
       )}
       {showNotice && <p role="status">{notice}</p>}
 

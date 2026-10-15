@@ -88,6 +88,20 @@ describe('ReportPage', () => {
     expect(within(missing).getByText('· Nu a trimis')).toBeInTheDocument();
   });
 
+  it('has the buttons for the PDF, the CSV, and sharing, only when something is graded', async () => {
+    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    expect(await screen.findByRole('button', { name: 'Descarcă PDF' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Descarcă CSV' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trimite' })).toBeInTheDocument();
+  });
+
+  it('has no buttons for a class with nothing graded', async () => {
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ rows: [] })));
+    expect(await screen.findByText('Nicio lucrare nu este corectată încă', { exact: false })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Descarcă PDF' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Descarcă CSV' })).not.toBeInTheDocument();
+  });
+
   it('shows the grade groups and the statistics of each exercise', async () => {
     renderAdmin('/teste/6E2-26T1/raport', apiWith());
     const groups = await screen.findByRole('table', { name: 'Notele pe grupe' });

@@ -750,11 +750,14 @@ Checks done by code, not by Claude:
 - The table keeps one column for each exercise and scrolls inside its box, with the student's name in view. A flagged cell has the highlighter background and a screen-reader note. Each name links to the student's result page.
 - The analysis block shows the four lists, or its state: not made yet (**Fă analiza clasei**), being written (the page refreshes every 10 s), failed, or out of date (**Regenerează**).
 - Buttons: **Descarcă PDF** (landscape: table, statistics, analysis), **Descarcă CSV**, **Trimite** (the PDF).
-- CSV for Romanian Excel: UTF-8 with BOM, `;` as the separator, and a decimal comma.
+- CSV for Romanian Excel: UTF-8 with BOM, `;` as the separator, a decimal comma, and CR LF line ends. Columns: Elev, one for each exercise, Total, Nota, Observații (items to check, or why a student has no result). Numbers are numbers. A text cell (names, exercise ids, the words of Observații) that starts with `=`, `+`, `-`, `@`, a tab, or a carriage return gets an apostrophe in front, so a spreadsheet never runs it as a formula: the texts come from students and from Claude.
+- **Trimite** opens the share sheet with the PDF file (Web Share API). When the browser cannot share files, or refuses because the tap is too old (a slow PDF), the PDF is downloaded and the page says so. Closing the share sheet does nothing.
 
 ### 14.3 PDF fonts
 
-pdfmake gets a font with full Romanian letters (ă â î ș ț, comma-below forms U+0219 and U+021B). Plan 4b checks this with a test that builds a PDF with these letters.
+pdfmake gets a font with full Romanian letters (ă â î ș ț, comma-below forms U+0219 and U+021B). The Roboto that pdfmake carries holds all of them, and the cedilla forms ş ţ (U+015F, U+0163) that old texts and barems use, so no font file is added. A test reads the font's character map and checks that every character of both PDFs has a glyph, and a test makes a real PDF with these letters.
+
+The PDFs are made in the browser, in a chunk that loads only when a PDF is asked for (pdfmake and its font: about 1.8 MB, 0.8 MB compressed): the app itself does not grow. The student's PDF is made from a narrow input (`StudentPdfInput`) that has no confidence and no review reason, so they cannot reach it. The class PDF puts the exercises in blocks of 12 columns, each block repeating the student's name, because no page holds 60 columns.
 
 ## 15. Security and privacy
 

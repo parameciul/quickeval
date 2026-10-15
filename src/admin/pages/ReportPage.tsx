@@ -6,6 +6,10 @@ import { classStats } from '../../../shared/stats.ts';
 import { normalizeTestCode } from '../../../shared/tests.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { classCsv } from '../../../shared/csv.ts';
+import { uploadStatusLabel } from '../../ui/format.ts';
+import { classPdf, classPdfFileName } from '../pdf/classPdf.ts';
+import { PdfActions } from '../pdf/PdfActions.tsx';
 import { AnalysisSection } from '../reportPage/AnalysisSection.tsx';
 import { ExerciseStatsTable, MissingList, ResultsTable, StatsSummary } from '../reportPage/ReportTables.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
@@ -51,6 +55,10 @@ function ReportView({ code }: { code: string }) {
         <p className="hint">Nicio lucrare nu este corectată încă. Raportul apare după prima corectare.</p>
       ) : (
         <>
+          <PdfActions
+            pdf={{ build: () => classPdf(report), fileName: classPdfFileName(report), title: `Raportul clasei · ${report.test.code}` }}
+            csv={{ build: () => classCsv(report, uploadStatusLabel), fileName: `${report.test.code}-raport.csv` }}
+          />
           <StatsSummary stats={stats} />
           <h2>Rezultatele elevilor</h2>
           <ResultsTable code={code} report={report} />
