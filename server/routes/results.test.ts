@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, startTest } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, startTest, startedAtOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -136,23 +136,23 @@ describe('teacher result links', () => {
   it('returns the same link twice, and makes one for older uploads', async () => {
     const { resultToken } = await uploadAndConfirm(pop);
     const submissionId = await submissionIdOf(pop);
-    const first = await api.request('GET', `/api/admin/submissions/${submissionId}/result-link`);
+    const first = await api.request('GET', `/api/admin/submissions/${submissionId}/result-link?startedAt=${encodeURIComponent(await startedAtOf(api, submissionId))}`);
     expect(first.status).toBe(200);
     expect(first.body).toEqual({ resultToken });
-    expect((await api.request('GET', `/api/admin/submissions/${submissionId}/result-link`)).body).toEqual({ resultToken });
+    expect((await api.request('GET', `/api/admin/submissions/${submissionId}/result-link?startedAt=${encodeURIComponent(await startedAtOf(api, submissionId))}`)).body).toEqual({ resultToken });
 
     // An upload from before result links existed has none yet.
     await api.db.prepare('UPDATE submissions SET result_token = NULL WHERE id = ?').bind(submissionId).run();
-    const made = await api.request('GET', `/api/admin/submissions/${submissionId}/result-link`);
+    const made = await api.request('GET', `/api/admin/submissions/${submissionId}/result-link?startedAt=${encodeURIComponent(await startedAtOf(api, submissionId))}`);
     expect(made.body.resultToken).toMatch(RESULT_TOKEN);
-    expect((await api.request('GET', `/api/admin/submissions/${submissionId}/result-link`)).body).toEqual(made.body);
+    expect((await api.request('GET', `/api/admin/submissions/${submissionId}/result-link?startedAt=${encodeURIComponent(await startedAtOf(api, submissionId))}`)).body).toEqual(made.body);
   });
 
   it('hides the links and the results switch of other teachers', async () => {
     const { resultToken } = await uploadAndConfirm(pop);
     const submissionId = await submissionIdOf(pop);
     const foreign = await otherTeacherTest(api);
-    expect((await api.request('GET', `/api/admin/submissions/${submissionId}/result-link`)).status).toBe(200);
+    expect((await api.request('GET', `/api/admin/submissions/${submissionId}/result-link?startedAt=${encodeURIComponent(await startedAtOf(api, submissionId))}`)).status).toBe(200);
     // The foreign teacher's own upload is unknown to this teacher.
     const otherSubmission = await api.db
       .prepare('SELECT id FROM submissions WHERE test_id = (SELECT id FROM tests WHERE code = ?)')
@@ -174,7 +174,7 @@ describe('individual result publishing', () => {
     expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(403);
     expect((await api.request('GET', `/api/u/rezultat/${anaLink.resultToken}`)).status).toBe(403);
 
-    const opened = await api.request('POST', `/api/admin/submissions/${popSubmission}/results/open`);
+    const opened = await api.request('POST', `/api/admin/submissions/${popSubmission}/results/open`, { startedAt: await startedAtOf(api, popSubmission) });
     expect(opened.status).toBe(200);
     expect(opened.body).toEqual({ resultsOpen: true });
 
@@ -199,7 +199,7 @@ describe('individual result publishing', () => {
     expect((await api.fetch(`/api/u/rezultat/${popLink.resultToken}/files/${popFile!.id}`)).status).toBe(200);
     expect((await api.fetch(`/api/u/rezultat/${anaLink.resultToken}/files/${anaFile!.id}`)).status).toBe(403);
 
-    const closed = await api.request('POST', `/api/admin/submissions/${popSubmission}/results/close`);
+    const closed = await api.request('POST', `/api/admin/submissions/${popSubmission}/results/close`, { startedAt: await startedAtOf(api, popSubmission) });
     expect(closed.status).toBe(200);
     expect(closed.body).toEqual({ resultsOpen: false });
     expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(403);
@@ -210,13 +210,13 @@ describe('individual result publishing', () => {
     const anaLink = await uploadAndConfirm(ana);
     const popSubmission = await submissionIdOf(pop);
 
-    await api.request('POST', `/api/admin/submissions/${popSubmission}/results/open`);
+    await api.request('POST', `/api/admin/submissions/${popSubmission}/results/open`, { startedAt: await startedAtOf(api, popSubmission) });
     await api.request('POST', `/api/admin/tests/${code}/results/open`);
     expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(200);
     expect((await api.request('GET', `/api/u/rezultat/${anaLink.resultToken}`)).status).toBe(200);
 
     // Taking back one page changes nothing while the test publishes all.
-    expect((await api.request('POST', `/api/admin/submissions/${popSubmission}/results/close`)).body).toEqual({ resultsOpen: true });
+    expect((await api.request('POST', `/api/admin/submissions/${popSubmission}/results/close`, { startedAt: await startedAtOf(api, popSubmission) })).body).toEqual({ resultsOpen: true });
     expect((await api.request('GET', `/api/u/rezultat/${popLink.resultToken}`)).status).toBe(200);
 
     await api.request('POST', `/api/admin/tests/${code}/results/close`);
@@ -227,11 +227,11 @@ describe('individual result publishing', () => {
   });
 
   it('answers 404 for unknown uploads and for uploads of another teacher', async () => {
-    expect((await api.request('POST', '/api/admin/submissions/99999/results/open')).status).toBe(404);
-    expect((await api.request('POST', '/api/admin/submissions/99999/results/close')).status).toBe(404);
+    expect((await api.request('POST', '/api/admin/submissions/99999/results/open', { startedAt: 'x' })).status).toBe(404);
+    expect((await api.request('POST', '/api/admin/submissions/99999/results/close', { startedAt: 'x' })).status).toBe(404);
     const foreign = await otherTeacherTest(api);
     const foreignSubmission = await addSubmission(api, foreign.code, foreign.studentId, { status: 'submitted' });
-    expect((await api.request('POST', `/api/admin/submissions/${foreignSubmission}/results/open`)).status).toBe(404);
-    expect((await api.request('POST', `/api/admin/submissions/${foreignSubmission}/results/close`)).status).toBe(404);
+    expect((await api.request('POST', `/api/admin/submissions/${foreignSubmission}/results/open`, { startedAt: await startedAtOf(api, foreignSubmission) })).status).toBe(404);
+    expect((await api.request('POST', `/api/admin/submissions/${foreignSubmission}/results/close`, { startedAt: await startedAtOf(api, foreignSubmission) })).status).toBe(404);
   });
 });

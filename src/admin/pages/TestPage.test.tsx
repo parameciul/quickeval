@@ -5,7 +5,7 @@ import { ApiError } from '../api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import type { UploadRow } from '../../../shared/api.ts';
 import { robotStartMessage } from '../../ui/format.ts';
-import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { refreshInterval } from './TestPage.tsx';
 
@@ -150,7 +150,7 @@ describe('TestPage', () => {
     expect(api.resetSubmission).not.toHaveBeenCalled();
     await userEvent.click(within(stan).getByRole('button', { name: 'Resetează' }));
     expect(confirm).toHaveBeenLastCalledWith('Ștergi încărcarea elevului Stan Eva? Elevul o poate lua de la capăt.');
-    expect(api.resetSubmission).toHaveBeenCalledWith(6);
+    expect(api.resetSubmission).toHaveBeenCalledWith(6, '2026-10-06T07:25:00.000Z');
     expect(await within(stan).findByText('Nu a trimis')).toBeInTheDocument();
   });
 
@@ -479,7 +479,7 @@ describe('TestPage evaluation', () => {
     const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
     expect(within(stan).getByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
     await userEvent.click(within(stan).getByRole('button', { name: 'Reîncearcă' }));
-    expect(api.retrySubmission).toHaveBeenCalledWith(6);
+    expect(api.retrySubmission).toHaveBeenCalledWith(6, FAKE_STARTED_AT);
     expect(await within(stan).findByText('Trimis')).toBeInTheDocument();
     expect(screen.getByText('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.')).toBeInTheDocument();
     expect(screen.getByText('Evaluare parțială.')).toBeInTheDocument();
@@ -658,7 +658,7 @@ describe('TestPage evaluation', () => {
 
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     await userEvent.click(within(pop).getByRole('button', { name: 'Publică' }));
-    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, true);
+    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, FAKE_STARTED_AT, true);
     expect(await within(pop).findByRole('button', { name: 'Oprește publicarea' })).toBeInTheDocument();
     expect(within(pop).getByText('Publicat')).toBeInTheDocument();
     expect(screen.getByText('1 rezultat publicat individual.')).toBeInTheDocument();
@@ -666,7 +666,7 @@ describe('TestPage evaluation', () => {
     expect(within(stan).getByRole('button', { name: 'Publică' })).toBeInTheDocument();
 
     await userEvent.click(within(pop).getByRole('button', { name: 'Oprește publicarea' }));
-    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, false);
+    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, FAKE_STARTED_AT, false);
     expect(await within(pop).findByRole('button', { name: 'Publică' })).toBeInTheDocument();
     expect(screen.queryByText(/publicat individual/)).not.toBeInTheDocument();
   });
@@ -705,7 +705,7 @@ describe('TestPage evaluation', () => {
     const links = await screen.findAllByRole('button', { name: 'Link rezultat' });
     expect(links).toHaveLength(2);
     await userEvent.click(links[0]!);
-    expect(api.getResultLink).toHaveBeenCalledWith(5);
+    expect(api.getResultLink).toHaveBeenCalledWith(5, FAKE_STARTED_AT);
     const url = `${window.location.origin}/u/rezultat/result-token-5`;
     expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(

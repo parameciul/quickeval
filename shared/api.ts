@@ -192,6 +192,15 @@ export type PagesReview = z.output<typeof reviewPagesBody>;
 // "Recorectează" on one upload: the grading the page shows goes.
 export const regradeBody = z.object({ gradedAt: shownGrading });
 
+// An action on one upload that does not need its grading (Resetează,
+// Reîncearcă, publish or take back its result page, its result link): the
+// page names the upload it shows by the time the upload started. That time is
+// written once, and a new upload that got the id of a deleted one has a
+// later time, so an old page changes nothing of another student.
+export const shownUpload = z.object({ startedAt: z.string({ message: 'Reîncarcă pagina.' }) });
+
+export type ShownUploadBody = z.output<typeof shownUpload>;
+
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({
   studentId: z

@@ -59,7 +59,7 @@ export interface AdminApi {
   setResultsOpen(code: string, open: boolean): Promise<boolean>;
   // Publishes one student's result page, or takes it back, while the rest of
   // the class stays as it is.
-  setSubmissionResultsOpen(submissionId: number, open: boolean): Promise<boolean>;
+  setSubmissionResultsOpen(submissionId: number, startedAt: string, open: boolean): Promise<boolean>;
   // Now without `at`, or at that ISO time. With `submissionIds`, now only
   // the selected uploads are graded.
   evaluateTest(code: string, at?: string, submissionIds?: number[]): Promise<EvaluationStart>;
@@ -73,9 +73,11 @@ export interface AdminApi {
   regradeTest(code: string): Promise<RegradeAnswer>;
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
   // The teacher's link to one student's result page, for sharing.
-  getResultLink(submissionId: number): Promise<string>;
-  resetSubmission(submissionId: number): Promise<void>;
-  retrySubmission(submissionId: number): Promise<RobotStart | null>;
+  getResultLink(submissionId: number, startedAt: string): Promise<string>;
+  // The actions on an upload name the upload the page shows by the time it
+  // started (`startedAt`): an old page changes nothing of another student.
+  resetSubmission(submissionId: number, startedAt: string): Promise<void>;
+  retrySubmission(submissionId: number, startedAt: string): Promise<RobotStart | null>;
   regradeSubmission(submissionId: number, gradedAt: string): Promise<RegradeAnswer>;
   // The teacher's corrections answer with the whole upload: new total and grade.
   correctItem(submissionId: number, itemId: number, correction: ItemCorrection): Promise<SubmissionDetail>;
@@ -199,8 +201,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<{ multiUploadToken: string }>('POST', `${test(code)}/multi-link`)).multiUploadToken,
     setResultsOpen: async (code, open) =>
       (await request<ResultsOpenAnswer>('POST', `${test(code)}/results/${open ? 'open' : 'close'}`)).resultsOpen,
-    setSubmissionResultsOpen: async (submissionId, open) =>
-      (await request<ResultsOpenAnswer>('POST', `/submissions/${submissionId}/results/${open ? 'open' : 'close'}`)).resultsOpen,
+    setSubmissionResultsOpen: async (submissionId, startedAt, open) =>
+      (await request<ResultsOpenAnswer>('POST', `/submissions/${submissionId}/results/${open ? 'open' : 'close'}`, { startedAt })).resultsOpen,
     reopenTest: async (code) => {
       await request('POST', `${test(code)}/reopen`);
     },
@@ -221,13 +223,13 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     regradeTest: (code) => request<RegradeAnswer>('POST', `${test(code)}/regrade`),
     getSubmission: async (submissionId) =>
       (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,
-    getResultLink: async (submissionId) =>
-      (await request<ResultLinkAnswer>('GET', `/submissions/${submissionId}/result-link`)).resultToken,
-    resetSubmission: async (submissionId) => {
-      await request('POST', `/submissions/${submissionId}/reset`);
+    getResultLink: async (submissionId, startedAt) =>
+      (await request<ResultLinkAnswer>('GET', `/submissions/${submissionId}/result-link?startedAt=${encodeURIComponent(startedAt)}`)).resultToken,
+    resetSubmission: async (submissionId, startedAt) => {
+      await request('POST', `/submissions/${submissionId}/reset`, { startedAt });
     },
-    retrySubmission: async (submissionId) =>
-      (await request<{ robot: RobotStart | null }>('POST', `/submissions/${submissionId}/retry`)).robot,
+    retrySubmission: async (submissionId, startedAt) =>
+      (await request<{ robot: RobotStart | null }>('POST', `/submissions/${submissionId}/retry`, { startedAt })).robot,
     regradeSubmission: (submissionId, gradedAt) => request<RegradeAnswer>('POST', `/submissions/${submissionId}/regrade`, { gradedAt }),
     correctItem: async (submissionId, itemId, correction) =>
       (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/items/${itemId}`, correction)).submission,

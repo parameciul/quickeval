@@ -23,6 +23,12 @@ export function notGraded(): ApiError {
   return new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.');
 }
 
+// A page opened before its upload was reset names an upload that is gone;
+// the id may belong to a new upload of another student by now.
+export function uploadChanged(): ApiError {
+  return new ApiError(409, 'upload_changed', 'Încărcarea s-a schimbat. Reîncarcă pagina.');
+}
+
 export function isUniqueViolation(err: unknown): boolean {
   return /UNIQUE constraint failed/i.test(String(err instanceof Error ? err.message : err));
 }

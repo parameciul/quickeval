@@ -319,7 +319,7 @@ describe('SubmissionPage', () => {
     renderAdmin(page, api);
     expect(await screen.findByText('Corectarea a eșuat. Robotul nu a terminat la timp.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Reîncearcă' }));
-    expect(api.retrySubmission).toHaveBeenCalledWith(5);
+    expect(api.retrySubmission).toHaveBeenCalledWith(5, '2026-10-06T07:20:00.000Z');
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul.');
   });
 
@@ -328,7 +328,7 @@ describe('SubmissionPage', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(page, api, <LocationProbe />);
     await userEvent.click(await screen.findByRole('button', { name: 'Resetează' }));
-    expect(api.resetSubmission).toHaveBeenCalledWith(5);
+    expect(api.resetSubmission).toHaveBeenCalledWith(5, '2026-10-06T07:20:00.000Z');
     await expectLocation('/teste/6E2-26T1');
   });
 

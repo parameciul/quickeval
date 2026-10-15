@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
+import { addSubmission, makeClass, makeTest, otherTeacherTest, startedAtOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 // The teacher's answers to what the robot reports: an exercise list with a
@@ -128,7 +128,7 @@ describe('POST /api/admin/submissions/:id/retry', () => {
     await setTest("status = 'evaluating'");
     const id = await failedUpload();
     await addSubmission(api, code, classmateId, { status: 'submitted', files: 1 });
-    const res = await api.request('POST', `/api/admin/submissions/${id}/retry`);
+    const res = await api.request('POST', `/api/admin/submissions/${id}/retry`, { startedAt: await startedAtOf(api, id) });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'submitted', robot: 'next_check' });
     expect(dispatchRobot).toHaveBeenCalledTimes(1);
@@ -138,7 +138,7 @@ describe('POST /api/admin/submissions/:id/retry', () => {
   it('takes a finished test back to evaluation and asks again for its class analysis', async () => {
     await setTest("status = 'done', analysis_status = 'ready'");
     const id = await failedUpload();
-    const res = await api.request('POST', `/api/admin/submissions/${id}/retry`);
+    const res = await api.request('POST', `/api/admin/submissions/${id}/retry`, { startedAt: await startedAtOf(api, id) });
     expect(res.body.status).toBe('submitted');
     expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'requested' });
   });
@@ -146,14 +146,14 @@ describe('POST /api/admin/submissions/:id/retry', () => {
   it('leaves an open test open and does not start the robot', async () => {
     await setTest("status = 'open'");
     const id = await failedUpload();
-    const res = await api.request('POST', `/api/admin/submissions/${id}/retry`);
+    const res = await api.request('POST', `/api/admin/submissions/${id}/retry`, { startedAt: await startedAtOf(api, id) });
     expect(res.body).toEqual({ status: 'submitted', robot: null });
     expect(await testRow()).toMatchObject({ status: 'open' });
   });
 
   it('refuses an upload that did not fail', async () => {
     const id = await addSubmission(api, code, studentId, { status: 'graded', files: 1 });
-    const res = await api.request('POST', `/api/admin/submissions/${id}/retry`);
+    const res = await api.request('POST', `/api/admin/submissions/${id}/retry`, { startedAt: await startedAtOf(api, id) });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('Corectarea acestei lucrări nu a eșuat.');
     expect(await uploadRow(id)).toMatchObject({ status: 'graded' });
@@ -162,7 +162,7 @@ describe('POST /api/admin/submissions/:id/retry', () => {
   it('answers 404 for an upload of another teacher and keeps it', async () => {
     const foreign = await otherTeacherTest(api);
     const id = await addSubmission(api, foreign.code, foreign.studentId, { status: 'failed', files: 1 });
-    expect((await api.request('POST', `/api/admin/submissions/${id}/retry`)).status).toBe(404);
+    expect((await api.request('POST', `/api/admin/submissions/${id}/retry`, { startedAt: await startedAtOf(api, id) })).status).toBe(404);
     expect(await uploadRow(id)).toMatchObject({ status: 'failed' });
   });
 });

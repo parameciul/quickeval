@@ -107,7 +107,40 @@ export async function findTeacherFile(db: D1Database, teacherId: number, submiss
   return row ? { key: row.r2_key, name: row.original_name, type: row.content_type } : null;
 }
 
-// Deletes an upload; its file rows go with it (ON DELETE CASCADE).
-export async function deleteSubmissionRow(db: D1Database, submissionId: number): Promise<void> {
-  await db.prepare('DELETE FROM submissions WHERE id = ?').bind(submissionId).run();
+// The upload a teacher's page shows: its id, and the time it started
+// (`submissions.started_at`, written once). Ids of deleted rows come back, so a
+// write from a page opened before a reset names both and changes nothing when
+// the upload now at that id started at another time.
+export interface ShownUpload {
+  teacherId: number;
+  submissionId: number;
+  startedAt: string;
+}
+
+// When the upload started, or null when it is not an upload of one of the
+// teacher's tests.
+export async function uploadStartedAt(db: D1Database, teacherId: number, submissionId: number): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `SELECT s.started_at FROM submissions s JOIN tests t ON t.id = s.test_id
+       WHERE s.id = ? AND t.teacher_id = ?`,
+    )
+    .bind(submissionId, teacherId)
+    .first<{ started_at: string }>();
+  return row?.started_at ?? null;
+}
+
+// Deletes the upload the page shows; its file rows go with it (ON DELETE
+// CASCADE). False when that upload is gone, or is another one now.
+export async function deleteSubmissionRow(db: D1Database, shown: ShownUpload): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `DELETE FROM submissions
+       WHERE id = ? AND started_at = ?
+         AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
+       RETURNING id`,
+    )
+    .bind(shown.submissionId, shown.startedAt, shown.teacherId)
+    .first<{ id: number }>();
+  return row !== null;
 }

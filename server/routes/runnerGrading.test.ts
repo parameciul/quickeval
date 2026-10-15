@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ExerciseList } from '../../shared/schemas.ts';
-import { addSubmission, addTestFiles, makeClass, makeTest, ROBOT_KEY, robotRequest, setRobotKey, startTest, testIdOf } from '../test/fixtures.ts';
+import { addSubmission, addTestFiles, makeClass, makeTest, ROBOT_KEY, robotRequest, setRobotKey, startTest, testIdOf, startedAtOf } from '../test/fixtures.ts';
 import { sha256Hex } from '../secrets.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -295,7 +295,7 @@ describe('POST /api/runner/submissions/:id/result', () => {
     expect(other.body.error).toBe('taken_over');
     expect((await sendResult(waiting, { ok: true, result: result([4, 4]), model: 'm' })).status).toBe(409);
 
-    await api.request('POST', `/api/admin/submissions/${id}/reset`);
+    await api.request('POST', `/api/admin/submissions/${id}/reset`, { startedAt: await startedAtOf(api, id) });
     expect((await sendResult(id, { ok: true, result: result([4, 4]), model: 'm' })).status).toBe(404);
   });
 

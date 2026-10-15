@@ -61,8 +61,9 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
     await queryClient.invalidateQueries({ queryKey: ['submission', submissionId] });
     await refreshLists();
   };
+  // Resetează and Reîncearcă name the upload the page shows (`startedAt`).
   const reset = useMutation({
-    mutationFn: () => api.resetSubmission(submissionId),
+    mutationFn: (startedAt: string) => api.resetSubmission(submissionId, startedAt),
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['submission', submissionId] });
       await refreshLists();
@@ -75,7 +76,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
       gradeAgain(answer.robot ? robotStartMessage(answer.robot) : 'Lucrarea se corectează din nou după ce pornești evaluarea.'),
   });
   const retry = useMutation({
-    mutationFn: () => api.retrySubmission(submissionId),
+    mutationFn: (startedAt: string) => api.retrySubmission(submissionId, startedAt),
     onSuccess: (robot) => gradeAgain(robot ? robotStartMessage(robot) : null),
   });
 
@@ -115,6 +116,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
           <span>Linkul cu rezultatul elevului:</span>
           <ResultLink
             submissionId={submission.id}
+            startedAt={submission.startedAt}
             resultToken={submission.resultToken}
             testCode={submission.testCode}
             studentName={submission.studentName}
@@ -150,7 +152,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
           ) : submission.status === 'failed' ? (
             <div className="warning">
               <p>Corectarea a eșuat. {submission.lastError}</p>
-              <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
+              <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate(submission.startedAt)}>
                 Reîncearcă
               </button>
               {retry.error && <ErrorMessage error={retry.error} />}
@@ -185,7 +187,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
             className="button-quiet button-small button-danger"
             disabled={reset.isPending}
             onClick={() => {
-              if (window.confirm(`Ștergi încărcarea elevului ${submission.studentName}? Elevul o poate lua de la capăt.`)) reset.mutate();
+              if (window.confirm(`Ștergi încărcarea elevului ${submission.studentName}? Elevul o poate lua de la capăt.`)) reset.mutate(submission.startedAt);
             }}
           >
             Resetează

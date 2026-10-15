@@ -1,6 +1,7 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type { TestStatus } from '../../shared/tests.ts';
 import type { ShownResult } from './evaluations.ts';
+import type { ShownUpload } from './submissions.ts';
 
 // The test lifecycle after Start test (spec §8.3-§8.5). Each write checks its
 // own rules in its SQL, so two requests at once cannot both pass a check.
@@ -316,17 +317,19 @@ export async function regradeTest(
 
 // failed → submitted with 0 attempts, so the robot grades the upload again. A
 // finished test goes back to evaluation (spec §8.5). Returns the test's
-// status, or null when the upload had not failed.
-export async function retrySubmission(db: D1Database, teacherId: number, submissionId: number, now: string): Promise<TestStatus | null> {
+// status, or null when the upload the page shows had not failed (or is
+// another upload now: ids of deleted rows come back).
+export async function retrySubmission(db: D1Database, shown: ShownUpload, now: string): Promise<TestStatus | null> {
+  const { teacherId, submissionId, startedAt } = shown;
   const [retried, , test] = await db.batch<{ test_id?: number; status?: TestStatus }>([
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL
-         WHERE id = ? AND status = 'failed'
+         WHERE id = ? AND started_at = ? AND status = 'failed'
            AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
          RETURNING test_id`,
       )
-      .bind(submissionId, teacherId),
+      .bind(submissionId, startedAt, teacherId),
     ...backToEvaluation(db, teacherId, submissionId, now),
   ]);
   if (!retried?.results.length) return null;
