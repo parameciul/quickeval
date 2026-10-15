@@ -6,13 +6,14 @@ import { round2 } from './scoring.ts';
 // CR LF. Numbers are written as numbers, so Excel can add them.
 //
 // Texts come from students' names and from Claude: a cell of text that starts
-// with "=", "+", "-", "@", a tab, or a carriage return would run as a formula
-// in a spreadsheet, so it gets an apostrophe in front. Numbers are never
-// changed: a negative number is still a number.
+// with "=", "+", "-", "@" (also the fullwidth forms, and after spaces or tabs),
+// a tab, or a carriage return would run as a formula in a spreadsheet, so it
+// gets an apostrophe in front. Numbers are never changed: a negative number is
+// still a number.
 
-const BOM = '﻿';
+const BOM = '\uFEFF';
 const SEPARATOR = ';';
-const FORMULA_START = /^[=+\-@\t\r]/;
+const FORMULA_START = /^[\t\r]|^[ \t]*[=+\-@\uFF1D\uFF0B\uFF0D\uFF20]/;
 
 // A number as Romanian Excel reads it: "7,5".
 export function csvNumber(value: number): string {

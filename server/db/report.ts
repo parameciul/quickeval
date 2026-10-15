@@ -14,14 +14,15 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     db
       .prepare(
         `SELECT t.code, t.title, t.status, t.started_at, t.class_id, c.name AS class_name, t.exercise_list_json,
-           t.analysis_status, t.analysis_stale, t.analysis_json
+           t.analysis_status, t.analysis_stale, t.analysis_attempts, t.analysis_json
          FROM tests t JOIN classes c ON c.id = t.class_id WHERE t.id = ? AND t.teacher_id = ?`,
       )
       .bind(testId, teacherId),
     db
       .prepare(
         `SELECT s.id AS submission_id, st.id AS student_id, st.full_name, ev.total, ev.max_total, ev.grade,
-           ${flagCountSql('ev')} AS flag_count
+           ${flagCountSql('ev')} AS flag_count,
+           EXISTS (SELECT 1 FROM enrollments e WHERE e.class_id = t.class_id AND e.student_id = st.id AND e.active = 1) AS active
          FROM submissions s
          JOIN tests t ON t.id = s.test_id
          JOIN students st ON st.id = s.student_id
@@ -63,6 +64,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
         exercise_list_json: string | null;
         analysis_status: AnalysisStatus;
         analysis_stale: number;
+        analysis_attempts: number;
         analysis_json: string | null;
       }
     | undefined;
@@ -102,12 +104,14 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     max_total: number;
     grade: number;
     flag_count: number;
+    active: number;
   }[])
     .map(
       (row): ReportRow => ({
         submissionId: row.submission_id,
         studentId: row.student_id,
         studentName: row.full_name,
+        active: row.active === 1,
         total: row.total,
         maxTotal: row.max_total,
         grade: row.grade,
@@ -128,6 +132,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     analysis: {
       status: head.analysis_status,
       stale: head.analysis_stale === 1,
+      attempts: head.analysis_attempts,
       content: head.analysis_status === 'ready' && head.analysis_json ? (JSON.parse(head.analysis_json) as ClassAnalysis) : null,
     },
   };

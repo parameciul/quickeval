@@ -11,7 +11,7 @@ function row(id: number, grade: number, points: [number, number], flagCount = 0)
   return {
     submissionId: id,
     studentId: id,
-    studentName: `Elev ${id}`,
+    studentName: `Elev ${id}`, active: true,
     total: grade,
     maxTotal: 10,
     grade,
@@ -85,5 +85,15 @@ describe('classStats', () => {
       ],
     });
     expect(stats).toMatchObject({ gradedCount: 1, activeCount: 3 });
+  });
+
+  it('does not count a graded student who left the class among the active students', () => {
+    const left = { ...row(2, 9, [4, 5]), active: false };
+    const stats = classStats({
+      exercises,
+      rows: [row(1, 8, [3, 3]), left],
+      missing: [{ studentId: 3, studentName: 'Stan Eva', status: 'none' }],
+    });
+    expect(stats).toMatchObject({ gradedCount: 1, activeCount: 2, average: 8.5 });
   });
 });

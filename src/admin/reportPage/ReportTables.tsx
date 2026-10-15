@@ -63,7 +63,7 @@ export function StatsSummary({ stats }: { stats: ClassStats }) {
 export function ResultsTable({ code, report }: { code: string; report: ClassReport }) {
   return (
     <div className="table-wrap">
-      <table className="report-table">
+      <table className="report-table results-table">
         <caption className="sr-only">Punctajele elevilor pe exerciții</caption>
         <thead>
           <tr>

@@ -28,8 +28,10 @@ export interface ExerciseStats {
 }
 
 export interface ClassStats {
+  // Graded students that are still active in the class.
   gradedCount: number;
-  // Graded students and the active students that have no result.
+  // The active students: the graded ones that are active, and the active
+  // students that have no result.
   activeCount: number;
   average: number | null;
   median: number | null;
@@ -71,9 +73,10 @@ export function classStats(report: Pick<ClassReport, 'exercises' | 'rows' | 'mis
       zero: cents.filter((value) => value <= 0).length,
     };
   });
+  const activeGraded = report.rows.filter((row) => row.active).length;
   return {
-    gradedCount: report.rows.length,
-    activeCount: report.rows.length + report.missing.length,
+    gradedCount: activeGraded,
+    activeCount: activeGraded + report.missing.length,
     average: grades.length === 0 ? null : round2(sum / grades.length),
     median: median(grades),
     min: grades[0] ?? null,

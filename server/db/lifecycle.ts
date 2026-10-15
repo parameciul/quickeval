@@ -9,10 +9,12 @@ import type { ShownUpload } from './submissions.ts';
 
 // Entering an evaluation asks for a class analysis, the first one too: the
 // analysis is asked for when the status is none, ready, or failed (spec §8.5).
-// One already requested stays as it is.
+// One already requested stays requested. The attempts start again in every
+// case, so a failed attempt from before a reopen does not count against the
+// new analysis.
 const ASK_FOR_ANALYSIS = `
   analysis_status = CASE WHEN analysis_status IN ('none', 'ready', 'failed') THEN 'requested' ELSE analysis_status END,
-  analysis_attempts = CASE WHEN analysis_status IN ('none', 'ready', 'failed') THEN 0 ELSE analysis_attempts END`;
+  analysis_attempts = 0`;
 
 const HAS_FILES = 'EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)';
 
@@ -334,11 +336,11 @@ export async function requestAnalysis(db: D1Database, teacherId: number, testId:
          status = CASE WHEN status = 'done' THEN 'evaluating' ELSE status END
        WHERE id = ? AND teacher_id = ? AND status IN ('evaluating', 'done')
          AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded')
-       RETURNING analysis_status, analysis_stale`,
+       RETURNING analysis_status, analysis_stale, analysis_attempts`,
     )
     .bind(now, testId, teacherId)
-    .first<{ analysis_status: AnalysisStatus; analysis_stale: number }>();
-  return row ? { status: row.analysis_status, stale: row.analysis_stale === 1 } : null;
+    .first<{ analysis_status: AnalysisStatus; analysis_stale: number; analysis_attempts: number }>();
+  return row ? { status: row.analysis_status, stale: row.analysis_stale === 1, attempts: row.analysis_attempts } : null;
 }
 
 // failed → submitted with 0 attempts, so the robot grades the upload again. A

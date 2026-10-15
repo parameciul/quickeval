@@ -1718,3 +1718,28 @@ table.report-table th:first-child {
 table.report-table td.flagged-cell {
   background: var(--marker);
 }
+
+/* The students' table has one narrow column for each exercise, so many of
+   them fit: points are centred with little padding, and a name stays on one
+   line. */
+table.results-table {
+  font-size: 0.9rem;
+}
+
+table.results-table th,
+table.results-table td {
+  padding: 0.35rem 0.4rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+table.results-table th:first-child {
+  padding-right: 0.75rem;
+  padding-left: 0.5rem;
+  text-align: left;
+}
+
+table.results-table td:nth-last-child(-n + 2) {
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
+}

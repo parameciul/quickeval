@@ -51,6 +51,7 @@ interface TestRow {
   results_open: number;
   analysis_status: AnalysisStatus;
   analysis_stale: number;
+  analysis_attempts: number;
   student_count: number;
   submitted_count: number;
   graded_count: number;
@@ -62,7 +63,7 @@ const SELECT_TEST = `
     t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token, t.multi_upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
-    t.results_open, t.analysis_status, t.analysis_stale,
+    t.results_open, t.analysis_status, t.analysis_stale, t.analysis_attempts,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
@@ -102,7 +103,7 @@ function toRecord(row: TestRow): TestRecord {
     },
     exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
     baremNotes: row.barem_notes ?? '',
-    analysis: { status: row.analysis_status, stale: row.analysis_stale === 1 },
+    analysis: { status: row.analysis_status, stale: row.analysis_stale === 1, attempts: row.analysis_attempts },
   };
 }
 

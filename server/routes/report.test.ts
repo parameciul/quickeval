@@ -63,12 +63,25 @@ describe('GET /api/admin/tests/:code/report', () => {
     ]);
   });
 
+  it('marks a graded student who left the class as not active', async () => {
+    const pop = await addSubmission(api, code, studentIds[2]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, pop, { grade: 8, items: [{}, {}] });
+    const avram = await addSubmission(api, code, studentIds[1]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, avram, { grade: 9, items: [{}, {}] });
+    await api.db.prepare('UPDATE enrollments SET active = 0 WHERE student_id = ?').bind(studentIds[1]).run();
+    const res = await report();
+    expect(res.body.report.rows.map((row: { studentName: string; active: boolean }) => [row.studentName, row.active])).toEqual([
+      ['Avram Dan', false],
+      ['Pop Ion', true],
+    ]);
+  });
+
   it('has no rows for a test without a graded upload', async () => {
     const res = await report();
     expect(res.status).toBe(200);
     expect(res.body.report.rows).toEqual([]);
     expect(res.body.report.missing).toHaveLength(4);
-    expect(res.body.report.analysis).toEqual({ status: 'none', stale: false, content: null });
+    expect(res.body.report.analysis).toEqual({ status: 'none', stale: false, attempts: 0, content: null });
   });
 
   it('carries the analysis and whether it is out of date', async () => {
@@ -78,7 +91,13 @@ describe('GET /api/admin/tests/:code/report', () => {
       .bind(JSON.stringify(analysis), testId)
       .run();
     const res = await report();
-    expect(res.body.report.analysis).toEqual({ status: 'ready', stale: true, content: analysis });
+    expect(res.body.report.analysis).toEqual({ status: 'ready', stale: true, attempts: 0, content: analysis });
+  });
+
+  it('carries the failed attempts of the analysis', async () => {
+    await api.db.prepare("UPDATE tests SET analysis_status = 'requested', analysis_attempts = 2 WHERE id = ?").bind(testId).run();
+    const res = await report();
+    expect(res.body.report.analysis).toEqual({ status: 'requested', stale: false, attempts: 2, content: null });
   });
 
   it('carries no analysis content unless the analysis is ready', async () => {
@@ -89,7 +108,7 @@ describe('GET /api/admin/tests/:code/report', () => {
         .bind(status, JSON.stringify(analysis), testId)
         .run();
       const res = await report();
-      expect(res.body.report.analysis).toEqual({ status, stale: false, content: null });
+      expect(res.body.report.analysis).toEqual({ status, stale: false, attempts: 0, content: null });
     }
   });
 

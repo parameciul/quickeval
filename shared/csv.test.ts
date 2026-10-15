@@ -15,7 +15,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
       {
         submissionId: 5,
         studentId: 10,
-        studentName: 'Ștefănescu Ana',
+        studentName: 'Ștefănescu Ana', active: true,
         total: 7.25,
         maxTotal: 10,
         grade: 7.25,
@@ -27,7 +27,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
       },
     ],
     missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none' }],
-    analysis: { status: 'none', stale: false, content: null },
+    analysis: { status: 'none', stale: false, attempts: 0, content: null },
     ...overrides,
   };
 }
@@ -35,6 +35,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
 describe('classCsv', () => {
   it('starts with the byte order mark and uses ";" and a decimal comma, with CR LF line ends', () => {
     const csv = classCsv(report(), label);
+    expect(csv.charCodeAt(0)).toBe(0xfeff);
     expect(csv.startsWith('﻿')).toBe(true);
     expect(csv).toBe(
       '﻿Elev;I.1;II.1;Total;Nota;Observații\r\n' + 'Ștefănescu Ana;4,5;1,75;7,25;7,25;\r\n' + 'Stan Eva;;;;;Nu a trimis\r\n',
@@ -65,6 +66,15 @@ describe('classCsv', () => {
     expect(lines[5]!.startsWith("'\tx;")).toBe(true);
     // A carriage return is quoted, so the line stays one record.
     expect(classCsv(report({ rows: [rows[5]!], missing: [] }), label)).toContain("\"'\rx\";4,5");
+  });
+
+  it('also guards a fullwidth sign and a sign after leading spaces or tabs, and leaves an inner hyphen alone', () => {
+    for (const text of ['＝1', '＋1', '－1', '＠x', ' =1', '  +1', ' 	-1', '	 @x', ' ＝1']) {
+      expect(csvText(text), JSON.stringify(text)).toBe(`'${text}`);
+    }
+    for (const text of ['Popescu-Ionescu Ana', ' Ana', 'a=b', 'Ion - Vasile']) {
+      expect(csvText(text), JSON.stringify(text)).toBe(text);
+    }
   });
 
   it('puts the formula guard on the exercise ids and the status words too', () => {

@@ -29,7 +29,8 @@ export function AnalysisSection({ code, report }: { code: string; report: ClassR
     },
   });
   if (report.rows.length === 0) return null;
-  const { status, stale, content } = report.analysis;
+  const { status, stale, attempts, content } = report.analysis;
+  const retrying = status === 'requested' && attempts > 0;
 
   // The robot analyzes only tests in evaluation (or done): an open test gets
   // its analysis after the next evaluation.
@@ -44,7 +45,13 @@ export function AnalysisSection({ code, report }: { code: string; report: ClassR
   return (
     <section aria-label="Analiza clasei">
       <h2>Analiza clasei</h2>
-      {status === 'requested' && canAsk && <p role="status">Robotul scrie analiza clasei. Pagina se reînnoiește singură.</p>}
+      {status === 'requested' && canAsk && !retrying && <p role="status">Robotul scrie analiza clasei. Pagina se reînnoiește singură.</p>}
+      {retrying && canAsk && (
+        <div className="warning" role="status">
+          <p>Ultima încercare a eșuat. Robotul va încerca din nou la următoarea rulare.</p>
+          {button('Regenerează')}
+        </div>
+      )}
       {status === 'requested' && !canAsk && <p className="hint">Analiza se scrie după ce testul este corectat din nou.</p>}
       {status === 'none' && (
         <>

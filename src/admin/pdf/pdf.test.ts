@@ -174,13 +174,14 @@ function report(exerciseCount: number): ClassReport {
     test: { code: '6E2-26T1', title: 'Fracții și ecuații', className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
     exercises,
     rows: [
-      { submissionId: 5, studentId: 10, studentName: 'Ștefănescu Țicu', total: 12, maxTotal: exerciseCount, grade: 8, flagCount: 1, items: items(1) },
-      { submissionId: 6, studentId: 11, studentName: 'Avram Dan', total: 10, maxTotal: exerciseCount, grade: 7, flagCount: 0, items: items(-1) },
+      { submissionId: 5, studentId: 10, studentName: 'Ștefănescu Țicu', active: true, total: 12, maxTotal: exerciseCount, grade: 8, flagCount: 1, items: items(1) },
+      { submissionId: 6, studentId: 11, studentName: 'Avram Dan', active: true, total: 10, maxTotal: exerciseCount, grade: 7, flagCount: 0, items: items(-1) },
     ],
     missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none' }],
     analysis: {
       status: 'ready',
       stale: true,
+      attempts: 0,
       content: { overview: `Clasa a lucrat bine. ${ROMANIAN}`, strengths: ['Fracții'], weaknesses: [], commonMistakes: ['Semnul'], recommendations: ['Exersați'] },
     },
   };
@@ -236,14 +237,14 @@ describe('classPdf', () => {
   });
 
   it('prints no analysis section when the report carries no analysis content', () => {
-    const noContent = { ...report(2), analysis: { status: 'requested' as const, stale: false, content: null } };
+    const noContent = { ...report(2), analysis: { status: 'requested' as const, stale: false, attempts: 0, content: null } };
     const text = textsOf(classPdf(noContent).content).join('\n');
     expect(text).toContain('Corectate');
     expect(text).not.toContain('Analiza clasei');
   });
 
   it('is a document of its own when nothing is graded', () => {
-    const empty = { ...report(2), rows: [], analysis: { status: 'none' as const, stale: false, content: null } };
+    const empty = { ...report(2), rows: [], analysis: { status: 'none' as const, stale: false, attempts: 0, content: null } };
     const text = textsOf(classPdf(empty).content).join('\n');
     expect(text).toContain('Corectate 0 din 1 elevi');
     expect(text).not.toContain('Analiza clasei');
