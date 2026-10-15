@@ -588,7 +588,7 @@ repeat:
   2. grading: keep up to maxParallel "grade" tasks running.
      Each free slot does POST /claim. When a task ends, its slot claims again at once.
      When /claim returns 204 and no task is running, grading is done.
-  3. analyses: for each test id in tasks.analyses, run the task "class-report"  (Plan 4b)
+  3. analyses: read GET /tasks again (the gradings of this round may have finished a test), and for each test id in tasks.analyses run the task "class-report" (one at a time, each test at most once per run)
   until a round starts no new task, the budget is used, or the run stops taking work
 release(summary)
 ```
@@ -610,7 +610,7 @@ barem/barem.pdf      or barem/barem.md + barem/media/...
 barem/notes.md       (when the teacher added comments to the barem)
 exercises.json       (grade mode)    the exercise list
 student/page-01.jpg, page-02.pdf ... (grade mode)    renamed by upload order; original names are never used
-class-results.json   (class-report mode)   anonymized data from GET /tests/:id/results
+class-results.json   (class-report mode)   anonymized data from GET /tests/:id/results; no test, no barem, no pages
 ```
 
 DOCX conversion, run in the work folder with relative paths: `pandoc test/source.docx -t markdown --extract-media=test -o test/test.md` (the same for the barem), then the `.docx` file is removed. Pandoc's own Markdown keeps "a)" and "b)" items, which GitHub's Markdown renumbers as "1)" and "2)". Math becomes TeX between `$`. Pictures land in `test/media/`, and the Markdown links them from the work folder.

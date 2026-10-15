@@ -4,7 +4,7 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 
 ## Structure
 
-- `check.ts` (is there work?), `run.ts` (one run: lease, heartbeat, exercise lists, parallel gradings), `tasks.ts` (make an exercise list, grade one upload), `claude.ts` (starts Claude Code and reads its answer), `workdir.ts` (a task's work folder; Word files through pandoc), `api.ts` (the only code that calls `/api/runner`), `log.ts`, `trySkill.ts` (`npm run try:skill`).
+- `check.ts` (is there work?), `run.ts` (one run: lease, heartbeat, exercise lists, parallel gradings), `tasks.ts` (make an exercise list, grade one upload, write the class analysis), `claude.ts` (starts Claude Code and reads its answer), `workdir.ts` (a task's work folder; Word files through pandoc), `api.ts` (the only code that calls `/api/runner`), `log.ts`, `trySkill.ts` (`npm run try:skill`).
 - `fixtures/`: real Claude outputs. `test/`: the API in-process, a scripted Claude.
 - `.claude/skills/evaluate-test/` (repo root): the grading skill (spec §13). The teacher may change its words; the robot copies it into every work folder. `skill.test.ts` checks the file and field names that the code needs.
 
@@ -16,6 +16,7 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 
 - The robot's Claude reads only its work folder (`--tools "Read,Glob" --restricted`) and gets only the variables it needs to start (`claudeEnv` in `claude.ts`): never the robot key, never an API key. Student pages are untrusted input.
 - `check.ts` runs before `npm ci`, and `run.ts` after `npm ci --omit=dev`: check.ts loads no package, and run.ts loads only zod. Import types from `shared/` with `import type`: an import with only `{ type X }` still loads its module. `check.test.ts` and `run.test.ts` prove both.
+- The class analysis (`analyzeClass`) reads `GET /tests/:id/results` (students are "Elev 1" … "Elev n") and sends back the `version` of the grades it read, so an analysis made from grades that changed meanwhile is saved as out of date. Its work folder holds the skill and `class-results.json` only. A run tries an analysis once per test.
 - Robot answers carry ids, counts, and file types, never names: a student's page goes out as `file-<id>`. The robot's logs are public: it logs through `log.ts` only ids, counts, durations, and error categories, never Claude's text or messages.
 
 ## Gotchas

@@ -1,7 +1,7 @@
 ---
 name: evaluate-test
-description: Grades a Romanian math test for QuickEval. Modes "exercise-list" (read the test and the barem, list the exercises) and "grade" (grade one student's pages).
-argument-hint: exercise-list | grade
+description: Grades a Romanian math test for QuickEval. Modes "exercise-list" (read the test and the barem, list the exercises), "grade" (grade one student's pages), and "class-report" (analyze the graded class).
+argument-hint: exercise-list | grade | class-report
 ---
 
 # Evaluate a math test
@@ -61,3 +61,20 @@ Read `exercises.json`, the test, the barem, and every page in `student/`. Then g
 - `recommendations`: 1 to 5 short Romanian phrases: what the student should practice.
 
 Do not add up the points, and do not give a grade: the platform does that.
+
+## Mode `class-report`
+
+Files:
+
+- `class-results.json`: the graded class, without names. It holds:
+  - `exercises`: the exercise list: `id`, `label`, `maxPoints`, `topic`, `answer`, and `scoringNotes` of each exercise;
+  - `maxTotal` and `officePoints`;
+  - `students`: one entry for each graded student, named "Elev 1", "Elev 2", …, with `total`, `grade`, and `items`. Each item has the `exerciseId`, the final `points`, the `studentAnswer`, and the `comment` that the student got.
+
+There are no pages and no test files in this mode. Read `class-results.json` and write the analysis for the teacher. Base every statement on the data: do not invent a mistake that no student made. Name an exercise by its `label` or its `topic`, and say how many students (or about what share of them) it concerns. Do not name or describe a single student, and do not write "Elev 3": write "mai mulți elevi" or "doi elevi".
+
+- `overview`: 2 to 5 sentences in Romanian about the class: how the test went, the spread of the grades, and the strongest and the weakest part.
+- `strengths`: 0 to 8 short Romanian phrases: topics that most students did well.
+- `weaknesses`: 0 to 8 short Romanian phrases: topics where many students lost points.
+- `commonMistakes`: 0 to 8 short Romanian phrases: the same mistake made by several students, with the exercise.
+- `recommendations`: 0 to 8 short Romanian phrases: what to practice next with the whole class.

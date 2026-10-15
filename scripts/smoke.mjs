@@ -167,15 +167,32 @@ const grading = {
 const graded = await robot('POST', `/submissions/${row?.submissionId}/result`, { runId, ok: true, result: grading, model: 'smoke' });
 check('the robot saves the grading', graded.status === 200 && graded.body?.status === 'graded', JSON.stringify(graded.body));
 
-const released = await robot('POST', '/release', { runId, summary: { exerciseLists: 1, graded: 1, failed: 0, analyses: 0, stop: 'done' } });
+// The test waits for its class analysis, which the robot writes from the anonymized results.
+const analysisTasks = await robot('GET', '/tasks');
+check('the test waits for its class analysis', analysisTasks.body?.analyses?.includes(testId), JSON.stringify(analysisTasks.body));
+const classResults = await robot('GET', `/tests/${testId}/results`);
+const results = classResults.body?.results;
+check(
+  'the robot reads the graded class without names',
+  classResults.status === 200 && results?.students?.length === 1 && results.students[0].label === 'Elev 1' && results.students[0].items[0].points === 7.5,
+  JSON.stringify(classResults.body),
+);
+const analysis = { overview: 'Clasa a lucrat bine.', strengths: ['Calcul'], weaknesses: [], commonMistakes: [], recommendations: ['Exersați.'] };
+const savedAnalysis = await robot('POST', `/tests/${testId}/analysis`, { runId, ok: true, version: results?.version, analysis });
+check('the robot saves the class analysis', savedAnalysis.status === 200 && savedAnalysis.body?.status === 'ready', JSON.stringify(savedAnalysis.body));
+
+const released = await robot('POST', '/release', { runId, summary: { exerciseLists: 1, graded: 1, failed: 0, analyses: 1, stop: 'done' } });
 check('the robot frees the lease', released.status === 200, JSON.stringify(released.body));
 
 const gradedDetail = await api('GET', `/api/admin/tests/${code}`);
 const gradedRow = gradedDetail.body?.uploads?.find((u) => u.studentId === studentId);
 check(
-  'the teacher sees the grade and a finished test',
-  gradedDetail.body?.test?.status === 'done' && gradedRow?.status === 'graded' && gradedRow?.grade === 8.5,
-  JSON.stringify({ status: gradedDetail.body?.test?.status, row: gradedRow }),
+  'the teacher sees the grade, the analysis, and a finished test',
+  gradedDetail.body?.test?.status === 'done' &&
+    gradedDetail.body?.test?.analysis?.status === 'ready' &&
+    gradedRow?.status === 'graded' &&
+    gradedRow?.grade === 8.5,
+  JSON.stringify({ status: gradedDetail.body?.test?.status, analysis: gradedDetail.body?.test?.analysis, row: gradedRow }),
 );
 
 // The teacher reviews the result: reads it, corrects the points, and grades the test again.

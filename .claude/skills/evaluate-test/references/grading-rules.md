@@ -38,3 +38,9 @@ A page that cannot be read at all goes in `unreadable`. Then flag every exercise
 - Never write the student's name, and never write about the student's handwriting as a fault.
 - Never write that a program, a robot, AI, or Claude graded the work: the student reads these texts.
 - Every text you write is plain text with Unicode math, not only the comments: `answer`, `notes`, `studentAnswer`, `summary`, `strengths`, and `recommendations` too.
+
+## The class analysis
+
+- It is written for the teacher, in Romanian, as short plain statements. The teacher may share it, so it never names a student.
+- Use only what the data shows. A mistake that one student made is not "common".
+- The texts of the analysis are plain text with Unicode math too: `overview`, `strengths`, `weaknesses`, `commonMistakes`, and `recommendations`.

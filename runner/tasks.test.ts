@@ -4,9 +4,9 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DOCX_TYPE } from '../shared/files.ts';
 import type { ClaimResult } from '../shared/runner.ts';
-import type { ExerciseList, GradingResult } from '../shared/schemas.ts';
+import type { ClassAnalysis, ExerciseList, GradingResult } from '../shared/schemas.ts';
 import { robotApi } from './api.ts';
-import { gradeSubmission, makeExerciseList, type TaskContext } from './tasks.ts';
+import { analyzeClass, gradeSubmission, makeExerciseList, type TaskContext } from './tasks.ts';
 import { API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
 import { answer, problem, scriptedClaude } from './test/scriptedClaude.ts';
 
@@ -272,6 +272,110 @@ describe('gradeSubmission', () => {
       return answer(GRADING);
     });
     await expect(gradeSubmission(await claimed(claude), claim)).rejects.toMatchObject({ status: 401, code: 'robot_denied' });
+    expect(readdirSync(root)).toEqual([]);
+  });
+});
+
+describe('analyzeClass', () => {
+  const ANALYSIS: ClassAnalysis = {
+    overview: 'Clasa a lucrat bine.',
+    strengths: ['Fracții'],
+    weaknesses: ['Ecuații'],
+    commonMistakes: ['Semnul'],
+    recommendations: ['Exersați ecuațiile.'],
+  };
+
+  const testRow = () =>
+    world.api.db
+      .prepare('SELECT status, analysis_status, analysis_stale, analysis_attempts, analysis_json FROM tests WHERE id = ?')
+      .bind(world.testId)
+      .first<{ status: string; analysis_status: string; analysis_stale: number; analysis_attempts: number; analysis_json: string | null }>();
+
+  // The only upload is graded, as the robot would have done, and the analysis is asked for.
+  async function graded(claude: ReturnType<typeof scriptedClaude>): Promise<TaskContext> {
+    await world.api.db
+      .prepare("UPDATE tests SET exercise_list_status = 'ready', exercise_list_json = ?, analysis_status = 'requested' WHERE id = ?")
+      .bind(JSON.stringify(LIST), world.testId)
+      .run();
+    const ctx = await context(claude);
+    const claim = (await ctx.api.claim(RUN))!;
+    claude.add(answer(GRADING));
+    expect(await gradeSubmission(ctx, claim)).toBe('saved');
+    claude.calls.length = 0;
+    return ctx;
+  }
+
+  it('saves the analysis that Claude wrote from the anonymized results, and removes the work folder', async () => {
+    const claude = scriptedClaude();
+    const ctx = await graded(claude);
+    claude.add((task) => {
+      const results = JSON.parse(readFileSync(path.join(task.cwd, 'class-results.json'), 'utf8'));
+      expect(results.students).toHaveLength(1);
+      expect(results.students[0].label).toBe('Elev 1');
+      expect(JSON.stringify(results)).not.toMatch(/Pop|Ionescu|Stan|Dinu/);
+      return answer(ANALYSIS);
+    });
+    expect(await analyzeClass(ctx, world.testId)).toBe('saved');
+    expect(claude.calls[0]!.task.mode).toBe('class-report');
+    expect(claude.calls[0]!.task.jsonSchema).toMatchObject({ $schema: 'http://json-schema.org/draft-07/schema#' });
+    expect(claude.calls[0]!.files).toEqual([...SKILL_FILES, 'class-results.json']);
+    const row = await testRow();
+    expect(row).toMatchObject({ status: 'done', analysis_status: 'ready', analysis_stale: 0 });
+    expect(JSON.parse(row!.analysis_json!)).toEqual(ANALYSIS);
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('sends the version of the grades it read, so an analysis of changed grades is out of date', async () => {
+    const claude = scriptedClaude();
+    const ctx = await graded(claude);
+    claude.add(async () => {
+      await world.api.db.prepare("UPDATE evaluations SET updated_at = '2026-10-09T10:00:00.000Z'").run();
+      return answer(ANALYSIS);
+    });
+    expect(await analyzeClass(ctx, world.testId)).toBe('saved');
+    expect(await testRow()).toMatchObject({ analysis_status: 'ready', analysis_stale: 1 });
+  });
+
+  it('asks once more after an answer that the checks refuse, then counts an invalid output', async () => {
+    const claude = scriptedClaude();
+    const ctx = await graded(claude);
+    claude.add(answer({ ...ANALYSIS, overview: '' }), answer({ nothing: true }));
+    expect(await analyzeClass(ctx, world.testId)).toBe('retry');
+    expect(claude.calls).toHaveLength(2);
+    expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'requested', analysis_attempts: 1 });
+  });
+
+  it('says when the analysis failed for good at the third attempt, and the test ends', async () => {
+    const claude = scriptedClaude();
+    const ctx = await graded(claude);
+    await world.api.db.prepare('UPDATE tests SET analysis_attempts = 2 WHERE id = ?').bind(world.testId).run();
+    claude.add(problem('timeout'));
+    expect(await analyzeClass(ctx, world.testId)).toBe('failed');
+    expect(await testRow()).toMatchObject({ status: 'done', analysis_status: 'failed', analysis_attempts: 3 });
+  });
+
+  it('sends a usage limit, which counts no attempt', async () => {
+    const claude = scriptedClaude();
+    const ctx = await graded(claude);
+    claude.add(problem('usage_limit'));
+    expect(await analyzeClass(ctx, world.testId)).toBe('usage_limit');
+    expect(await testRow()).toMatchObject({ analysis_status: 'requested', analysis_attempts: 0 });
+  });
+
+  it('sends nothing when Claude refuses the token', async () => {
+    const claude = scriptedClaude();
+    const ctx = await graded(claude);
+    claude.add(problem('not_logged_in'));
+    expect(await analyzeClass(ctx, world.testId)).toBe('claude_login');
+    expect(await testRow()).toMatchObject({ analysis_status: 'requested', analysis_attempts: 0 });
+  });
+
+  it('drops the work when the test left the evaluation before the robot read the results', async () => {
+    const claude = scriptedClaude();
+    const ctx = await graded(claude);
+    await world.api.db.prepare("UPDATE tests SET status = 'open' WHERE id = ?").bind(world.testId).run();
+    expect(await analyzeClass(ctx, world.testId)).toBe('dropped');
+    expect(claude.calls).toHaveLength(0);
     expect(readdirSync(root)).toEqual([]);
   });
 });
