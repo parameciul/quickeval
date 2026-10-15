@@ -14,6 +14,7 @@ import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
 import { ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
+import { RobotSettingsLine } from '../testPage/RobotSettingsLine.tsx';
 import { StartRobotButton, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
 import { MultiUploadLink, UploadLink } from '../testPage/UploadLink.tsx';
@@ -127,6 +128,7 @@ function TestDetails({ code }: { code: string }) {
               {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
             </RobotLine>
           )}
+          <RobotSettingsLine robot={test.robot} />
           <RegradeAllButton code={code} testStatus={test.status} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
           <AnalysisState test={test} uploads={uploads} />
         </>

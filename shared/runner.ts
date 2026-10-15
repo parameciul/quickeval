@@ -64,7 +64,11 @@ export const exerciseListBody = z.discriminatedUnion('ok', [
 // grade changed meanwhile, the analysis is saved as out of date. The analysis
 // is checked by checkClassAnalysis (shared/schemas.ts).
 export const analysisBody = z.discriminatedUnion('ok', [
-  z.object({ runId: runIdSchema, ok: z.literal(true), version: z.string().max(100), analysis: z.unknown() }),
+  z.object({ runId: runIdSchema, ok: z.literal(true), version: z.string().max(100), analysis: z.unknown(),
+    // The model and effort that wrote it; an older robot sends neither.
+    model: z.string().max(100).optional(),
+    effort: z.string().max(100).optional(),
+  }),
   z.object({ runId: runIdSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
 
@@ -113,7 +117,7 @@ export interface RobotTest {
 // A grading, checked by checkGrading (shared/schemas.ts), or why the robot
 // could not grade. Only a usage limit is tried again without an attempt.
 export const resultBody = z.discriminatedUnion('ok', [
-  z.object({ runId: runIdSchema, ok: z.literal(true), result: z.unknown(), model: z.string().max(100) }),
+  z.object({ runId: runIdSchema, ok: z.literal(true), result: z.unknown(), model: z.string().max(100), effort: z.string().max(100).optional() }),
   z.object({ runId: runIdSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
 

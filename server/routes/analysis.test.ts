@@ -169,6 +169,22 @@ describe('POST /api/runner/tests/:id/analysis', () => {
     expect(JSON.parse(row!.analysis_json!)).toEqual(ANALYSIS);
   });
 
+  it('keeps the model and effort of the analysis, and shows them to the teacher', async () => {
+    await graded(0);
+    const version = await resultsVersion();
+    const res = await robot('POST', `/tests/${testId}/analysis`, { runId: RUN, ok: true, version, analysis: ANALYSIS, model: 'claude-opus', effort: 'high' });
+    expect(res.status).toBe(200);
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test.robot).toMatchObject({ analysisModel: 'claude-opus', analysisEffort: 'high' });
+  });
+
+  it('saves an analysis of an older robot with no model or effort', async () => {
+    await graded(0);
+    expect((await saveAnalysis(await resultsVersion())).status).toBe(200);
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test.robot).toMatchObject({ analysisModel: null, analysisEffort: null });
+  });
+
   it('saves it as out of date when a grade changed after the robot read the results', async () => {
     const id = await graded(0);
     const version = await resultsVersion();

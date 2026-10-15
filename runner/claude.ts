@@ -109,7 +109,7 @@ export function claudeEnv(settings: ClaudeSettings, base: Record<string, string 
 export type ClaudeProblem = 'timeout' | 'usage_limit' | 'not_logged_in' | 'invalid_output' | 'crash';
 
 // `detail` is for the public log: categories and codes, never Claude's text.
-export type ClaudeOutcome = { ok: true; output: unknown; model: string } | { ok: false; problem: ClaudeProblem; detail: string };
+export type ClaudeOutcome = { ok: true; output: unknown; model: string; effort?: string } | { ok: false; problem: ClaudeProblem; detail: string };
 
 // The fields of Claude Code's JSON result that the robot reads.
 interface ResultMessage {
@@ -262,6 +262,9 @@ export function claudeRunner(settings: ClaudeSettings, control: ProcessControl =
           finish({ ok: false, problem: 'crash', detail: `start failed: ${err.code ?? 'error'}` });
         }
       });
-      child.on('close', (code) => finish(readOutcome(stdout, code, timedOut)));
+      child.on('close', (code) => {
+        const outcome = readOutcome(stdout, code, timedOut);
+        finish(outcome.ok ? { ...outcome, effort: settings.effort.slice(0, 100) } : outcome);
+      });
     });
 }

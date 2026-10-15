@@ -7,7 +7,7 @@ import type { ClaudeOutcome, ClaudeProblem, ClaudeRunner, ClaudeTask } from '../
 
 export type ScriptedAnswer = ClaudeOutcome | ((task: ClaudeTask) => ClaudeOutcome | Promise<ClaudeOutcome>);
 
-export const answer = (output: unknown): ClaudeOutcome => ({ ok: true, output, model: 'claude-test' });
+export const answer = (output: unknown): ClaudeOutcome => ({ ok: true, output, model: 'claude-test', effort: 'test-effort' });
 export const problem = (kind: ClaudeProblem): ClaudeOutcome => ({ ok: false, problem: kind, detail: 'scripted' });
 
 // Every file under the folder, with "/" between the parts, sorted.

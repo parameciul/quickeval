@@ -222,8 +222,8 @@ describe('gradeSubmission', () => {
     ]);
     expect(secondPage).toBe(`jpeg ${id}-2`);
     expect(await uploadRow()).toMatchObject({ status: 'graded', run_id: null });
-    const saved = await world.api.db.prepare('SELECT total, grade, model FROM evaluations WHERE submission_id = ?').bind(id).first();
-    expect(saved).toEqual({ total: 7.5, grade: 7.5, model: 'claude-test' });
+    const saved = await world.api.db.prepare('SELECT total, grade, model, effort FROM evaluations WHERE submission_id = ?').bind(id).first();
+    expect(saved).toEqual({ total: 7.5, grade: 7.5, model: 'claude-test', effort: 'test-effort' });
     expect(readdirSync(root)).toEqual([]);
   });
 
@@ -322,6 +322,11 @@ describe('analyzeClass', () => {
     const row = await testRow();
     expect(row).toMatchObject({ status: 'done', analysis_status: 'ready', analysis_stale: 0 });
     expect(JSON.parse(row!.analysis_json!)).toEqual(ANALYSIS);
+    const robotSettings = await world.api.db
+      .prepare('SELECT analysis_model, analysis_effort FROM tests WHERE id = ?')
+      .bind(world.testId)
+      .first();
+    expect(robotSettings).toEqual({ analysis_model: 'claude-test', analysis_effort: 'test-effort' });
     expect(readdirSync(root)).toEqual([]);
   });
 

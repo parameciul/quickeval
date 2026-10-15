@@ -131,7 +131,8 @@ export function runnerRoutes(): Hono<AppEnv> {
     if (body.ok) {
       const checked = checkClassAnalysis(body.analysis);
       if (!checked.ok) throw invalidResult();
-      status = (await saveAnalysis(c.env.DB, testId, body.runId, body.version, checked.value, now)) ? 'ready' : null;
+      const robot = { model: body.model ?? null, effort: body.effort ?? null };
+      status = (await saveAnalysis(c.env.DB, testId, body.runId, body.version, checked.value, now, robot)) ? 'ready' : null;
     } else {
       status = await failAnalysis(c.env.DB, testId, body.runId, body.error, now);
     }
@@ -173,7 +174,7 @@ export function runnerRoutes(): Hono<AppEnv> {
       if (!current.exerciseList) throw takenOver();
       const checked = checkGrading(body.result, current.exerciseList);
       if (!checked.ok) throw invalidResult();
-      if (!(await saveGrading(c.env.DB, submissionId, body.runId, checked.value, body.result, body.model, now))) {
+      if (!(await saveGrading(c.env.DB, submissionId, body.runId, checked.value, body.result, body.model, now, body.effort ?? null))) {
         throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();
       }
       return c.json({ status: 'graded' });

@@ -208,7 +208,7 @@ describe('claudeRunner', () => {
     child().stdout.end(fixture('claude-grade.json'));
     await new Promise((resolve) => setImmediate(resolve));
     child().emit('close', 0);
-    expect(await running).toMatchObject({ ok: true, model: 'claude-opus-5-5' });
+    expect(await running).toMatchObject({ ok: true, model: 'claude-opus-5-5', effort: 'high' });
   });
 
   it('stops a run at its time limit: SIGINT, then SIGTERM, then SIGKILL', async () => {
