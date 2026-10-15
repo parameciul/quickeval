@@ -841,7 +841,7 @@ Each plan ends with working, tested software. Each one gets its own file in `doc
    - **3b**: the spike (§12.4); the JSON Schemas; `runner/` with the pool, work folders, pandoc, Claude runs, and checks; the first grading skill and the `npm run try:skill` script (§13); `evaluate.yml`. It also does the 3a follow-ups that the robot needs: `files_version`, a reopen sends uploads in grading back to the queue, exercise-list points in cents, and a 1 MB limit on robot bodies. Result: tests are graded automatically.
 4. **Review and reports**, in two plans:
    - **4a**: the student result page (flags, corrections, Verificat, the check of unreadable pages, Regrade one or all), the student history page, and the items to check on Teste. It changes no robot code. Result: the teacher checks and corrects the grades.
-   - **4b**: the class analysis task in the robot (the `ClassAnalysis` contract, `GET /tests/:id/results`, `POST /tests/:id/analysis`, Regenerează); the class report (table, statistics, analysis); PDFs (Romanian font), CSV, Share; the operations notes in `docs/deploy.md`. Result: v1 is complete.
+   - **4b** (built): the class analysis task in the robot (the `ClassAnalysis` contract, `GET /tests/:id/results`, `POST /tests/:id/analysis`, Regenerează); the class report (table, statistics, analysis); PDFs (Romanian font), CSV, Share; the operations notes in `docs/deploy.md`. Result: v1 is complete.
 
 ## 20. Risks
 

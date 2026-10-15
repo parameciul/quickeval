@@ -1,14 +1,10 @@
 # Plan 4a follow-ups
 
-Plan 4a built the review of the grades: the result page (corrections, Verificat, the check of unreadable pages, Recorectează), Recorectează tot, the student history page, and the items to check on Teste. Plan 4 is cut in two (spec §19). Older open points are in `plan-3b-followups.md`. Write Plan 4b from the repo and the spec.
+Plan 4a built the review of the grades: the result page (corrections, Verificat, the check of unreadable pages, Recorectează), Recorectează tot, the student history page, and the items to check on Teste. Plan 4 is cut in two (spec §19). Older open points are in `plan-3b-followups.md`. Plan 4b is built.
 
-## For Plan 4b
+## Done in Plan 4b
 
-- The class analysis: the `ClassAnalysis` contract, the robot's third task (`runner/tasks.ts`), the `class-report` mode of the skill, `GET /api/runner/tests/:id/results`, `POST /api/runner/tests/:id/analysis`, Regenerează, and when the first analysis is asked for. Today only a `ready` or `failed` analysis is asked for again, and nothing makes one: `analysis_status` stays `none`.
-- The GitHub schedule does not fire (`docs/deploy.md`): every new path that makes work for the robot must start it, and "Pornește robotul" (`testHasRobotWork`) must count a waiting analysis. The test page must show the analysis state, or a test waits in "Se corectează" with every upload graded and no reason shown.
-- The class report (spec §14.2) with `shared/stats.ts`, and its link from the test page.
-- PDFs (student and class), CSV, Share. The student PDF never names the robot or AI, and never shows review reasons. CSV cells that start with `=`, `+`, `-`, or `@` are escaped: the texts come from Claude.
-- The operations notes in `docs/deploy.md`.
+The class analysis (the robot's third task, the `class-report` mode, its API, and Regenerează), the class report with `shared/stats.ts`, the PDFs, the CSV, Trimite, the operations notes in `docs/deploy.md`, and the Resetează fix (Reset, Retry, publishing a result page, and the result link name the upload by `startedAt`). What Plan 4b leaves open is in `plan-4b-followups.md`.
 
 ## Still open
 
