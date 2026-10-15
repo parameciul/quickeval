@@ -234,6 +234,13 @@ describe('classPdf', () => {
     expect(new TextDecoder().decode(new Uint8Array(await blob.arrayBuffer()).slice(0, 5))).toBe('%PDF-');
   });
 
+  it('prints no analysis section when the report carries no analysis content', () => {
+    const noContent = { ...report(2), analysis: { status: 'requested' as const, stale: false, content: null } };
+    const text = textsOf(classPdf(noContent).content).join('\n');
+    expect(text).toContain('Corectate');
+    expect(text).not.toContain('Analiza clasei');
+  });
+
   it('is a document of its own when nothing is graded', () => {
     const empty = { ...report(2), rows: [], analysis: { status: 'none' as const, stale: false, content: null } };
     const text = textsOf(classPdf(empty).content).join('\n');

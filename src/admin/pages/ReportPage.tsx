@@ -16,7 +16,9 @@ import { NotFoundPage } from './NotFoundPage.tsx';
 
 // While the robot writes the analysis, the page asks for news every 10 seconds.
 export function reportRefreshInterval(report: ClassReport | undefined): number | false {
-  return report?.analysis.status === 'requested' ? 10_000 : false;
+  if (report === undefined) return false;
+  const robotCanWrite = report.test.status === 'evaluating' || report.test.status === 'done';
+  return report.analysis.status === 'requested' && robotCanWrite ? 10_000 : false;
 }
 
 // /teste/:code/raport: the class report (spec §14.2): the table of the graded

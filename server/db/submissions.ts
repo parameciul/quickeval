@@ -133,14 +133,27 @@ export async function uploadStartedAt(db: D1Database, teacherId: number, submiss
 // Deletes the upload the page shows; its file rows go with it (ON DELETE
 // CASCADE). False when that upload is gone, or is another one now.
 export async function deleteSubmissionRow(db: D1Database, shown: ShownUpload): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `DELETE FROM submissions
-       WHERE id = ? AND started_at = ?
-         AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
-       RETURNING id`,
-    )
-    .bind(shown.submissionId, shown.startedAt, shown.teacherId)
-    .first<{ id: number }>();
-  return row !== null;
+  // The guarded UPDATE runs first: its subquery reads the row that the DELETE
+  // removes. A graded upload that goes makes a ready analysis out of date.
+  const [, deleted] = await db.batch([
+    db
+      .prepare(
+        `UPDATE tests SET analysis_stale = 1
+         WHERE analysis_status = 'ready'
+           AND id = (SELECT s.test_id FROM submissions s
+                     WHERE s.id = ? AND s.started_at = ?
+                       AND EXISTS (SELECT 1 FROM evaluations ev WHERE ev.submission_id = s.id))
+           AND teacher_id = ?`,
+      )
+      .bind(shown.submissionId, shown.startedAt, shown.teacherId),
+    db
+      .prepare(
+        `DELETE FROM submissions
+         WHERE id = ? AND started_at = ?
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
+         RETURNING id`,
+      )
+      .bind(shown.submissionId, shown.startedAt, shown.teacherId),
+  ]);
+  return (deleted?.results.length ?? 0) > 0;
 }

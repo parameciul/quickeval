@@ -1,12 +1,13 @@
 import { Link } from 'react-router';
-import type { TestInfo } from '../../../shared/api.ts';
+import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 
 // The class analysis on the test page (spec §9): the robot writes it after the
 // grading, so a test can wait in "Se corectează" with every upload graded. The
 // link to the class report shows as soon as one upload is graded.
-export function AnalysisState({ test }: { test: TestInfo }) {
+export function AnalysisState({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
   const { status } = test.analysis;
-  const waiting = test.status === 'evaluating' && status === 'requested';
+  const uploadWaits = uploads.some((row) => row.status === 'submitted' || row.status === 'grading');
+  const waiting = test.status === 'evaluating' && status === 'requested' && !uploadWaits;
   return (
     <>
       {waiting && test.gradedCount > 0 && (

@@ -81,6 +81,18 @@ describe('GET /api/admin/tests/:code/report', () => {
     expect(res.body.report.analysis).toEqual({ status: 'ready', stale: true, content: analysis });
   });
 
+  it('carries no analysis content unless the analysis is ready', async () => {
+    const analysis = { overview: 'Veche.', strengths: [], weaknesses: [], commonMistakes: [], recommendations: [] };
+    for (const status of ['requested', 'failed']) {
+      await api.db
+        .prepare('UPDATE tests SET analysis_status = ?, analysis_json = ? WHERE id = ?')
+        .bind(status, JSON.stringify(analysis), testId)
+        .run();
+      const res = await report();
+      expect(res.body.report.analysis).toEqual({ status, stale: false, content: null });
+    }
+  });
+
   it('leaves out a student who left the class, unless a result exists', async () => {
     await api.db.prepare('UPDATE enrollments SET active = 0 WHERE student_id = ?').bind(studentIds[0]).run();
     const left = await addSubmission(api, code, studentIds[0]!, { status: 'graded', files: 1 });

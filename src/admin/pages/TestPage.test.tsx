@@ -637,6 +637,16 @@ describe('TestPage evaluation', () => {
     expect(screen.getByRole('link', { name: 'Raportul clasei' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
   });
 
+  it('does not say that the work is graded while an upload still waits', async () => {
+    const mixed = [...graded, fakeUpload({ studentId: 11, studentName: 'Avram Dan', submissionId: 6, status: 'submitted', fileCount: 1 })];
+    renderAdmin(
+      '/teste/6E2-26T1',
+      evaluationApi({ status: 'evaluating', gradedCount: 1, analysis: { status: 'requested', stale: false } }, mixed),
+    );
+    expect(await screen.findByRole('link', { name: 'Raportul clasei' })).toBeInTheDocument();
+    expect(screen.queryByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).not.toBeInTheDocument();
+  });
+
   it('shows the link to the class report only when something is graded', async () => {
     renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'evaluating' }, leftInGrading));
     expect(await screen.findByText(/^Robotul (nu )?a verificat/)).toBeInTheDocument();

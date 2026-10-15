@@ -107,7 +107,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     analysis: {
       status: head.analysis_status,
       stale: head.analysis_stale === 1,
-      content: head.analysis_json ? (JSON.parse(head.analysis_json) as ClassAnalysis) : null,
+      content: head.analysis_status === 'ready' && head.analysis_json ? (JSON.parse(head.analysis_json) as ClassAnalysis) : null,
     },
   };
 }

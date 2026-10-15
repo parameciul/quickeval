@@ -31,7 +31,11 @@ export function AnalysisSection({ code, report }: { code: string; report: ClassR
   if (report.rows.length === 0) return null;
   const { status, stale, content } = report.analysis;
 
-  const button = (label: string) => (
+  // The robot analyzes only tests in evaluation (or done): an open test gets
+  // its analysis after the next evaluation.
+  const canAsk = report.test.status === 'evaluating' || report.test.status === 'done';
+  const button = (label: string) =>
+    !canAsk ? null : (
     <button type="button" className="button-quiet button-small" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>
       {label}
     </button>
@@ -40,7 +44,8 @@ export function AnalysisSection({ code, report }: { code: string; report: ClassR
   return (
     <section aria-label="Analiza clasei">
       <h2>Analiza clasei</h2>
-      {status === 'requested' && <p role="status">Robotul scrie analiza clasei. Pagina se reînnoiește singură.</p>}
+      {status === 'requested' && canAsk && <p role="status">Robotul scrie analiza clasei. Pagina se reînnoiește singură.</p>}
+      {status === 'requested' && !canAsk && <p className="hint">Analiza se scrie după ce testul este corectat din nou.</p>}
       {status === 'none' && (
         <>
           <p className="hint">Analiza clasei nu a fost făcută încă.</p>

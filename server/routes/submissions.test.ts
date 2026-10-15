@@ -172,6 +172,40 @@ describe('POST /api/admin/submissions/:id/reset', () => {
     expect(detail.body.uploads[0]).toMatchObject({ studentName: 'Pop Ion', status: 'none', submissionId: null, fileCount: 0 });
   });
 
+  describe('and the class analysis', () => {
+    const analysisStale = async () =>
+      (await api.db.prepare('SELECT analysis_stale AS stale FROM tests WHERE code = ?').bind(code).first<{ stale: number }>())?.stale;
+    const setAnalysis = (status: string) =>
+      api.db.prepare('UPDATE tests SET analysis_status = ?, analysis_stale = 0 WHERE code = ?').bind(status, code).run();
+
+    it('marks a ready analysis out of date when a graded upload is reset', async () => {
+      await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(submissionId).run();
+      await addEvaluation(api, submissionId, { grade: 8, items: [{}] });
+      await setAnalysis('ready');
+      const res = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: await startedAtOf(api, submissionId) });
+      expect(res.status).toBe(200);
+      expect(await analysisStale()).toBe(1);
+    });
+
+    it('leaves a test without a ready analysis as it is', async () => {
+      await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(submissionId).run();
+      await addEvaluation(api, submissionId, { grade: 8, items: [{}] });
+      await setAnalysis('requested');
+      const res = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: await startedAtOf(api, submissionId) });
+      expect(res.status).toBe(200);
+      expect(await analysisStale()).toBe(0);
+    });
+
+    it('changes nothing when the page names another start time', async () => {
+      await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(submissionId).run();
+      await addEvaluation(api, submissionId, { grade: 8, items: [{}] });
+      await setAnalysis('ready');
+      const res = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: '2020-01-01T00:00:00.000Z' });
+      expect(res.status).toBe(409);
+      expect(await analysisStale()).toBe(0);
+    });
+  });
+
   it('answers 404 for an upload of another teacher and keeps it', async () => {
     const foreign = await otherTeacherTest(api);
     const foreignId = await addSubmission(api, foreign.code, foreign.studentId, { files: 1 });

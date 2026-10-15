@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { ClassReport } from '../../../shared/api.ts';
 import { createFakeApi, fakeTest } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
+import { reportRefreshInterval } from './ReportPage.tsx';
 
 const ANALYSIS = {
   overview: 'Clasa a lucrat bine la fracții.',
@@ -144,6 +145,29 @@ describe('ReportPage', () => {
     renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ analysis: { status: 'requested', stale: false, content: null } })));
     expect(await screen.findByText('Robotul scrie analiza clasei.', { exact: false })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Regenerează' })).not.toBeInTheDocument();
+  });
+
+  it('says that the analysis waits for the next evaluation of a reopened test, with no buttons and no refresh', async () => {
+    const reopened = report({
+      test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'open', startedAt: '2026-10-06T07:15:00.000Z' },
+      analysis: { status: 'requested', stale: false, content: null },
+    });
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(reopened));
+    expect(await screen.findByText('Analiza se scrie după ce testul este corectat din nou.')).toBeInTheDocument();
+    expect(screen.queryByText('Robotul scrie analiza clasei.', { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Regenerează' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fă analiza clasei' })).not.toBeInTheDocument();
+    expect(reportRefreshInterval(reopened)).toBe(false);
+  });
+
+  it('refreshes every 10 seconds only while the robot can write the analysis', () => {
+    const requested = { status: 'requested', stale: false, content: null } as const;
+    const withStatus = (status: ClassReport['test']['status']) =>
+      report({ test: { ...report().test, status }, analysis: requested });
+    expect(reportRefreshInterval(withStatus('evaluating'))).toBe(10_000);
+    expect(reportRefreshInterval(withStatus('done'))).toBe(10_000);
+    expect(reportRefreshInterval(withStatus('open'))).toBe(false);
+    expect(reportRefreshInterval(undefined)).toBe(false);
   });
 
   it('offers the first analysis of a test graded before analyses existed', async () => {

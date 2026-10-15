@@ -396,6 +396,14 @@ textarea {
   margin-block: 0.75rem;
 }
 
+.pdf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-block: 0.75rem;
+}
+
 .form-stack {
   display: grid;
   gap: 0.5rem;

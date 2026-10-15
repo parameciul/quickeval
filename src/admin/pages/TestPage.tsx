@@ -128,7 +128,7 @@ function TestDetails({ code }: { code: string }) {
             </RobotLine>
           )}
           <RegradeAllButton code={code} testStatus={test.status} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
-          <AnalysisState test={test} />
+          <AnalysisState test={test} uploads={uploads} />
         </>
       )}
 
