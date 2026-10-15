@@ -219,7 +219,7 @@ describe('POST /api/runner/submissions/:id/result', () => {
     expect(detail.body.uploads.find((row: { submissionId: number }) => row.submissionId === id)).toMatchObject({ grade: 7.5, flagCount: 1 });
   });
 
-  it('saves a grading of an older robot without an effort, and shows the model of the latest grading', async () => {
+  it('saves a grading of an older robot without an effort, and shows the model of the last saved grading', async () => {
     const first = await upload(0, '2026-10-07T08:10:00.000Z');
     const second = await upload(1, '2026-10-07T08:11:00.000Z');
     await claim();
@@ -230,7 +230,63 @@ describe('POST /api/runner/submissions/:id/result', () => {
     expect(row).toEqual({ effort: null });
     await api.db.prepare("UPDATE evaluations SET updated_at = '2099-01-01T00:00:00.000Z' WHERE submission_id = ?").bind(first).run();
     const settings = await api.request('GET', '/api/admin/settings');
-    expect(settings.body.settings.lastModels).toMatchObject({ gradingModel: 'old-model', gradingEffort: 'low' });
+    expect(settings.body.settings.lastModels).toMatchObject({ gradingModel: 'new-model', gradingEffort: null });
+  });
+
+  describe('the model of the last grading kept for Setări', () => {
+    const kept = async () => {
+      const rows = await api.db.prepare("SELECT key, value FROM settings WHERE key LIKE 'last_grading_%' ORDER BY key").all<{ key: string; value: string }>();
+      return Object.fromEntries(rows.results.map((row) => [row.key, row.value]));
+    };
+
+    it('is set by a saved grading, replaced by the next one, and loses its effort when the next has none', async () => {
+      const first = await upload(0, '2026-10-07T08:10:00.000Z');
+      const second = await upload(1, '2026-10-07T08:11:00.000Z');
+      await claim();
+      await sendResult(first, { ok: true, result: result([4, 2.5]), model: 'old-model', effort: 'low' });
+      expect(await kept()).toEqual({ last_grading_model: 'old-model', last_grading_effort: 'low' });
+      await claim();
+      await sendResult(second, { ok: true, result: result([4, 2.5]), model: 'new-model' });
+      expect(await kept()).toEqual({ last_grading_model: 'new-model' });
+      const settings = await api.request('GET', '/api/admin/settings');
+      expect(settings.body.settings.lastModels).toMatchObject({ gradingModel: 'new-model', gradingEffort: null });
+    });
+
+    it('is left alone by a refused save', async () => {
+      const first = await upload(0, '2026-10-07T08:10:00.000Z');
+      const second = await upload(1, '2026-10-07T08:11:00.000Z');
+      await claim();
+      await sendResult(first, { ok: true, result: result([4, 2.5]), model: 'kept-model', effort: 'high' });
+      await claim();
+      const other = await robot('POST', `/submissions/${second}/result`, { runId: OTHER_RUN, ok: true, result: result([4, 4]), model: 'other', effort: 'low' });
+      expect(other.status).toBe(409);
+      expect(await kept()).toEqual({ last_grading_model: 'kept-model', last_grading_effort: 'high' });
+    });
+
+    it('is not changed by a correction of the teacher', async () => {
+      const first = await upload(0, '2026-10-07T08:10:00.000Z');
+      await claim();
+      await sendResult(first, { ok: true, result: result([4, 2.5]), model: 'graded-with', effort: 'medium' });
+      const evaluation = await api.db
+        .prepare('SELECT e.created_at, i.id AS item_id FROM evaluations e JOIN evaluation_items i ON i.evaluation_id = e.id WHERE e.submission_id = ? ORDER BY i.position')
+        .bind(first)
+        .first<{ created_at: string; item_id: number }>();
+      const res = await api.request('PATCH', `/api/admin/submissions/${first}/items/${evaluation!.item_id}`, {
+        gradedAt: evaluation!.created_at,
+        points: 1,
+      });
+      expect(res.status).toBe(200);
+      expect(await kept()).toEqual({ last_grading_model: 'graded-with', last_grading_effort: 'medium' });
+    });
+
+    it('is not used by Setări before it exists: the latest grading stands in', async () => {
+      const first = await upload(0, '2026-10-07T08:10:00.000Z');
+      await claim();
+      await sendResult(first, { ok: true, result: result([4, 2.5]), model: 'row-model', effort: 'low' });
+      await api.db.prepare("DELETE FROM settings WHERE key LIKE 'last_grading_%'").run();
+      const settings = await api.request('GET', '/api/admin/settings');
+      expect(settings.body.settings.lastModels).toMatchObject({ gradingModel: 'row-model', gradingEffort: 'low' });
+    });
   });
 
   it('saves a grading of 60 exercises', async () => {

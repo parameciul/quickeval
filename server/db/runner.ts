@@ -1,4 +1,4 @@
-import type { D1Database } from '@cloudflare/workers-types';
+import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type { ExerciseListInfo } from '../../shared/api.ts';
 import {
   LEASE_STALE_MS,
@@ -386,6 +386,34 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
 // regrade that came meanwhile makes the robot write it again afterwards.
 const WAITS_FOR_ANALYSIS = `id = ? AND status = 'evaluating' AND analysis_status = 'requested' AND ${HOLDS_LEASE}`;
 
+// What saveAnalysis checks, as the one condition of its UPDATE and of the
+// settings it writes with it.
+const ANALYSIS_SAVABLE = `${WAITS_FOR_ANALYSIS}
+  AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND s.status IN ('submitted', 'grading'))
+  AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded')`;
+
+// The model and effort of the last grading or analysis the robot saved, kept
+// in the settings table for Setări. Written in the same batch as the save and
+// under the save's own condition, so a refused save leaves them. No effort (or
+// no model) removes its key, so Setări never shows an older one.
+export function lastModelStatements(
+  db: D1Database,
+  prefix: 'grading' | 'analysis',
+  condition: string,
+  conditionBinds: unknown[],
+  robot: { model: string | null; effort: string | null },
+): D1PreparedStatement[] {
+  const one = (name: 'model' | 'effort', value: string | null) => {
+    const key = `last_${prefix}_${name}`;
+    return value === null
+      ? db.prepare(`DELETE FROM settings WHERE key = ? AND ${condition}`).bind(key, ...conditionBinds)
+      : db
+          .prepare(`INSERT INTO settings (key, value) SELECT ?, ? WHERE ${condition} ON CONFLICT (key) DO UPDATE SET value = excluded.value`)
+          .bind(key, value, ...conditionBinds);
+  };
+  return [one('model', robot.model), one('effort', robot.effort)];
+}
+
 // Saves the analysis and ends the test when nothing else waits, in one batch.
 // An analysis made from grades that changed since the robot read them is saved
 // as out of date. False when it was not saved.
@@ -398,15 +426,14 @@ export async function saveAnalysis(
   now: string,
   robot: { model: string | null; effort: string | null } = { model: null, effort: null },
 ): Promise<boolean> {
-  const [saved] = await db.batch<{ id: number }>([
+  const [, , saved] = await db.batch<{ id: number }>([
+    ...lastModelStatements(db, 'analysis', `EXISTS (SELECT 1 FROM tests WHERE ${ANALYSIS_SAVABLE})`, [testId, runId], robot),
     db
       .prepare(
         `UPDATE tests SET analysis_json = ?, analysis_status = 'ready', updated_at = ?,
            analysis_model = ?, analysis_effort = ?,
            analysis_stale = CASE WHEN ? = ${gradesVersionSql('tests')} THEN 0 ELSE 1 END
-         WHERE ${WAITS_FOR_ANALYSIS}
-           AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND s.status IN ('submitted', 'grading'))
-           AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded')
+         WHERE ${ANALYSIS_SAVABLE}
          RETURNING id`,
       )
       .bind(JSON.stringify(analysis), now, robot.model, robot.effort, version, testId, runId),
@@ -526,6 +553,7 @@ export async function saveGrading(
          WHERE ${GRADED_BY_RUN}`,
       )
       .bind(items, submissionId, submissionId, runId),
+    ...lastModelStatements(db, 'grading', GRADED_BY_RUN, [submissionId, runId], { model, effort }),
     db
       .prepare(
         `UPDATE submissions SET status = 'graded', graded_at = ?, run_id = NULL, last_error = NULL
@@ -535,7 +563,7 @@ export async function saveGrading(
       .bind(now, submissionId, runId),
     finishTests(db, now),
   ]);
-  return Boolean(results[3]?.results.length);
+  return Boolean(results[5]?.results.length);
 }
 
 // The robot could not grade: the upload goes back to the queue with one more

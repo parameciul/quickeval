@@ -48,7 +48,11 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
          (SELECT t.analysis_model FROM tests t WHERE t.teacher_id = ? AND t.analysis_model IS NOT NULL
             ORDER BY t.updated_at DESC, t.id DESC LIMIT 1) AS analysis_model,
          (SELECT t.analysis_effort FROM tests t WHERE t.teacher_id = ? AND t.analysis_model IS NOT NULL
-            ORDER BY t.updated_at DESC, t.id DESC LIMIT 1) AS analysis_effort
+            ORDER BY t.updated_at DESC, t.id DESC LIMIT 1) AS analysis_effort,
+         (SELECT value FROM settings WHERE key = 'last_grading_model') AS kept_grading_model,
+         (SELECT value FROM settings WHERE key = 'last_grading_effort') AS kept_grading_effort,
+         (SELECT value FROM settings WHERE key = 'last_analysis_model') AS kept_analysis_model,
+         (SELECT value FROM settings WHERE key = 'last_analysis_effort') AS kept_analysis_effort
        FROM runner_state r WHERE r.id = 1`,
     )
     .bind(PARALLEL, ROBOT_KEY_HASH, teacherId, SHOW_MODEL, teacherId, teacherId, teacherId, teacherId)
@@ -66,6 +70,10 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
       grading_effort: string | null;
       analysis_model: string | null;
       analysis_effort: string | null;
+      kept_grading_model: string | null;
+      kept_grading_effort: string | null;
+      kept_analysis_model: string | null;
+      kept_analysis_effort: string | null;
     }>();
   const heartbeat = row?.heartbeat_at ? Date.parse(row.heartbeat_at) : Number.NaN;
   return {
@@ -79,10 +87,12 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
     },
     lastGradedAt: row?.last_graded_at ?? null,
     lastModels: {
-      gradingModel: row?.grading_model ?? null,
-      gradingEffort: row?.grading_effort ?? null,
-      analysisModel: row?.analysis_model ?? null,
-      analysisEffort: row?.analysis_effort ?? null,
+      // The kept values are those of the last save; before they existed, the
+      // latest rows stand in.
+      gradingModel: row?.kept_grading_model ?? row?.grading_model ?? null,
+      gradingEffort: row?.kept_grading_model ? (row.kept_grading_effort ?? null) : (row?.grading_effort ?? null),
+      analysisModel: row?.kept_analysis_model ?? row?.analysis_model ?? null,
+      analysisEffort: row?.kept_analysis_model ? (row.kept_analysis_effort ?? null) : (row?.analysis_effort ?? null),
     },
     showModelColumn: row?.show_model === '1',
   };
