@@ -107,15 +107,19 @@ const PARALLEL_MESSAGE = `Alege între 1 și ${MAX_PARALLEL_AGENTS} lucrări cor
 const SHOW_MODEL_MESSAGE = 'Alege dacă se arată coloana Model.';
 
 // Each field is optional: a request changes the settings it names.
-export const updateSettingsBody = z.object({
-  maxParallelAgents: z
-    .number({ message: PARALLEL_MESSAGE })
-    .int({ message: PARALLEL_MESSAGE })
-    .min(1, { message: PARALLEL_MESSAGE })
-    .max(MAX_PARALLEL_AGENTS, { message: PARALLEL_MESSAGE })
-    .optional(),
-  showModelColumn: z.boolean({ message: SHOW_MODEL_MESSAGE }).optional(),
-});
+export const updateSettingsBody = z
+  .object({
+    maxParallelAgents: z
+      .number({ message: PARALLEL_MESSAGE })
+      .int({ message: PARALLEL_MESSAGE })
+      .min(1, { message: PARALLEL_MESSAGE })
+      .max(MAX_PARALLEL_AGENTS, { message: PARALLEL_MESSAGE })
+      .optional(),
+    showModelColumn: z.boolean({ message: SHOW_MODEL_MESSAGE }).optional(),
+  })
+  // A body with no known field changes nothing: it is refused like a missing
+  // number of uploads at a time.
+  .refine((body) => body.maxParallelAgents !== undefined || body.showModelColumn !== undefined, { message: PARALLEL_MESSAGE });
 
 const POINTS_MESSAGE = 'Scrie punctajul ca număr, de exemplu 2,5.';
 

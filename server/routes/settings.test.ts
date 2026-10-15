@@ -71,6 +71,18 @@ describe('PATCH /api/admin/settings', () => {
     expect((await api.request('GET', '/api/admin/settings')).body.settings.maxParallelAgents).toBe(3);
   });
 
+  it.each([{}, { other: 1 }])('refuses a body with no known field: %j', async (body) => {
+    const res = await api.request('PATCH', '/api/admin/settings', body);
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Alege între 1 și 4 lucrări corectate deodată.');
+  });
+
+  it('accepts a body with only the Model column field', async () => {
+    const res = await api.request('PATCH', '/api/admin/settings', { showModelColumn: true });
+    expect(res.status).toBe(200);
+    expect(res.body.settings).toMatchObject({ maxParallelAgents: 1, showModelColumn: true });
+  });
+
   it.each([0, 5, 1.5, '2'])('refuses %j', async (value) => {
     const res = await api.request('PATCH', '/api/admin/settings', { maxParallelAgents: value });
     expect(res.status).toBe(400);
