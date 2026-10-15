@@ -73,7 +73,11 @@ export async function testHasRobotWork(db: D1Database, testId: number, now: stri
 // - scheduled evaluations whose time has come start, and finished tests end;
 // - the time of the check is saved for the robot line;
 // - the counts say whether a run has work.
-export async function runCheck(db: D1Database, now: string): Promise<CheckResult> {
+export async function runCheck(
+  db: D1Database,
+  now: string,
+  configured: { model?: string; effort?: string } = {},
+): Promise<CheckResult> {
   const results = await db.batch<{ exercise_lists: number; pending_grading: number; analyses: number }>([
     db
       .prepare(
@@ -84,6 +88,7 @@ export async function runCheck(db: D1Database, now: string): Promise<CheckResult
       .bind(staleBefore(now)),
     ...promoteStatements(db, now),
     db.prepare('UPDATE runner_state SET last_check_at = ? WHERE id = 1').bind(now),
+    ...configuredStatements(db, now, configured),
     db.prepare(
       `SELECT (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_EXERCISE_LIST}) AS exercise_lists,
          (SELECT COUNT(*) FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}) AS pending_grading,
@@ -95,6 +100,20 @@ export async function runCheck(db: D1Database, now: string): Promise<CheckResult
   const pendingGrading = counts?.pending_grading ?? 0;
   const analyses = counts?.analyses ?? 0;
   return { hasWork: exerciseLists + pendingGrading + analyses > 0, exerciseLists, pendingGrading, analyses };
+}
+
+// The model and effort the robot is set to use, kept for Setări. A robot that
+// names neither (an older one) leaves what is kept; one that names a model
+// without an effort removes the old effort.
+function configuredStatements(db: D1Database, now: string, configured: { model?: string; effort?: string }) {
+  if (configured.model === undefined && configured.effort === undefined) return [];
+  const put = (key: string, value: string | undefined) =>
+    value === undefined
+      ? db.prepare('DELETE FROM settings WHERE key = ?').bind(key)
+      : db
+          .prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value')
+          .bind(key, value);
+  return [put('robot_model', configured.model), put('robot_effort', configured.effort), put('robot_settings_at', now)];
 }
 
 // The run holds the lease.

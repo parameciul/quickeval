@@ -9,6 +9,13 @@ const TICK_MS = 30_000;
 // When the robot last looked for work (spec §9). The robot checks every 10
 // minutes, but GitHub can run the check late or stop it: after 30 minutes
 // without a check, grading may be late.
+// "acum 32 min" for the first hour, then the date and time.
+export function agoText(at: string, now: number): string {
+  const minutes = Math.floor((now - Date.parse(at)) / 60_000);
+  if (minutes < 1) return 'acum mai puțin de un minut';
+  return minutes < 60 ? `acum ${minutes} min` : `la ${formatDateTime(at)}`;
+}
+
 export function robotLine(lastCheckAt: string | null, now: number): { text: string; late: boolean } {
   if (lastCheckAt === null) return { text: 'Robotul nu a verificat încă dacă are lucrări de corectat.', late: true };
   const minutes = Math.floor((now - Date.parse(lastCheckAt)) / 60_000);

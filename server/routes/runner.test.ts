@@ -88,6 +88,41 @@ describe('robot key', () => {
   });
 });
 
+describe('POST /api/runner/check: the configured model and effort', () => {
+  const settings = async () => (await api.request('GET', '/api/admin/settings')).body.settings;
+
+  it('saves the model, the effort, and the time, and Setări returns them', async () => {
+    expect(await settings()).toMatchObject({ configuredModel: null, configuredEffort: null, configuredAt: null });
+    expect((await robot('POST', '/check', { model: 'opus', effort: 'high' })).status).toBe(200);
+    const body = await settings();
+    expect(body).toMatchObject({ configuredModel: 'opus', configuredEffort: 'high' });
+    expect(Date.parse(body.configuredAt)).not.toBeNaN();
+  });
+
+  it('keeps the old values when an older robot sends nothing, and still works', async () => {
+    await robot('POST', '/check', { model: 'sonnet', effort: 'medium' });
+    const res = await robot('POST', '/check');
+    expect(res.status).toBe(200);
+    expect(await settings()).toMatchObject({ configuredModel: 'sonnet', configuredEffort: 'medium' });
+  });
+
+  it('removes the old effort when the robot names a model only', async () => {
+    await robot('POST', '/check', { model: 'opus', effort: 'high' });
+    await robot('POST', '/check', { model: 'sonnet' });
+    expect(await settings()).toMatchObject({ configuredModel: 'sonnet', configuredEffort: null });
+  });
+
+  it('saves nothing when the key is wrong', async () => {
+    const res = await robotRequest(api, 'a-wrong-robot-key-0123456789')('POST', '/check', { model: 'opus', effort: 'high' });
+    expect(res.status).toBe(401);
+    expect(await settings()).toMatchObject({ configuredModel: null, configuredEffort: null, configuredAt: null });
+  });
+
+  it('refuses a model longer than 100 characters', async () => {
+    expect((await robot('POST', '/check', { model: 'x'.repeat(101) })).status).toBe(400);
+  });
+});
+
 describe('POST /api/runner/check', () => {
   it('says there is no work and saves the time of the check', async () => {
     const res = await robot('POST', '/check');

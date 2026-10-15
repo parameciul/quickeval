@@ -464,6 +464,10 @@ export interface Settings {
   lastModels: RobotSettings;
   // Whether the students' table of the class report has the Model column.
   showModelColumn: boolean;
+  // The model and effort the robot said it is set to use, and when it said so.
+  configuredModel: string | null;
+  configuredEffort: string | null;
+  configuredAt: string | null;
 }
 
 // Start test: the link is /u/<uploadToken>.

@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { Hono } from 'hono';
 import type { ExerciseListInfo } from '../../shared/api.ts';
 import { isTestFileKind } from '../../shared/files.ts';
-import { analysisBody, exerciseListBody, type LeaseResult, MAX_ROBOT_BODY_BYTES, releaseBody, resultBody, runBody } from '../../shared/runner.ts';
+import { analysisBody, checkBody, exerciseListBody, type LeaseResult, MAX_ROBOT_BODY_BYTES, releaseBody, resultBody, runBody } from '../../shared/runner.ts';
 import { checkClassAnalysis, checkExerciseList, checkGrading } from '../../shared/schemas.ts';
 import { robotAuth } from '../auth/robotAuth.ts';
 import {
@@ -50,7 +50,11 @@ export function runnerRoutes(): Hono<AppEnv> {
   routes.use('*', robotAuth());
 
   // The 10-minute check: is there work for a run?
-  routes.post('/check', async (c) => c.json(await runCheck(c.env.DB, nowIso())));
+  // An older robot sends no body; a newer one names its model and effort.
+  routes.post('/check', async (c) => {
+    const configured = (c.req.header('Content-Type') ?? '').toLowerCase().startsWith('application/json') ? await readJson(c, checkBody) : {};
+    return c.json(await runCheck(c.env.DB, nowIso(), configured));
+  });
 
   // Only one run works at a time (spec §12.2).
   routes.post('/lease', async (c) => {
