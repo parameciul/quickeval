@@ -5,6 +5,11 @@ export type TestStatus = 'draft' | 'open' | 'evaluating' | 'done';
 // robot could not make it after 3 tries.
 export type ExerciseListStatus = 'none' | 'ready' | 'problem' | 'accepted' | 'failed';
 
+// The class analysis (spec §8.5): "none": not asked for yet, or the test has no
+// graded upload; "requested": the robot writes it; "ready"; "failed": the robot
+// could not write it after 3 tries.
+export type AnalysisStatus = 'none' | 'requested' | 'ready' | 'failed';
+
 export const MAX_TITLE_LENGTH = 120;
 
 // An evaluation can be scheduled at most this many days ahead.

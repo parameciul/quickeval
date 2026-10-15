@@ -64,11 +64,23 @@ export function confidenceLevel(confidence: Confidence): number {
   return CONFIDENCE_LEVEL[confidence];
 }
 
+// Mode "class-report": the whole class, anonymized (spec §12.5).
+export const classAnalysisSchema = z.object({
+  overview: z.string(),
+  strengths: z.array(z.string()),
+  weaknesses: z.array(z.string()),
+  commonMistakes: z.array(z.string()),
+  recommendations: z.array(z.string()),
+});
+
+export type ClassAnalysis = z.infer<typeof classAnalysisSchema>;
+
 export const MAX_EXERCISES = 60;
 const MAX_EXERCISE_ID = 20;
 const MAX_TOTAL_POINTS = 1000;
 const MAX_LIST_ENTRIES = 5;
 const MAX_UNREADABLE = 20;
+const MAX_ANALYSIS_ENTRIES = 8;
 
 // Longest texts, in characters. A longer text is cut and ends with "…".
 export const TEXT_LIMITS = {
@@ -81,6 +93,7 @@ export const TEXT_LIMITS = {
   comment: 1000,
   reviewReason: 500,
   summary: 1500,
+  overview: 2000,
   listEntry: 300,
   fileName: 100,
 } as const;
@@ -172,6 +185,25 @@ export function checkExerciseList(raw: unknown): Checked<CheckedExerciseList> {
     return { ok: true, value: { list, status: 'problem', message } };
   }
   return { ok: true, value: { list, status: 'ready', message: null } };
+}
+
+// Checks the class analysis: it needs an overview, and the lists are cut to
+// 8 entries of at most 300 characters, so one long answer is never thrown away.
+export function checkClassAnalysis(raw: unknown): Checked<ClassAnalysis> {
+  const parsed = classAnalysisSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, reason: 'not a class analysis' };
+  const overview = cutText(parsed.data.overview, TEXT_LIMITS.overview);
+  if (overview === '') return { ok: false, reason: 'empty overview' };
+  return {
+    ok: true,
+    value: {
+      overview,
+      strengths: cutList(parsed.data.strengths, MAX_ANALYSIS_ENTRIES, TEXT_LIMITS.listEntry),
+      weaknesses: cutList(parsed.data.weaknesses, MAX_ANALYSIS_ENTRIES, TEXT_LIMITS.listEntry),
+      commonMistakes: cutList(parsed.data.commonMistakes, MAX_ANALYSIS_ENTRIES, TEXT_LIMITS.listEntry),
+      recommendations: cutList(parsed.data.recommendations, MAX_ANALYSIS_ENTRIES, TEXT_LIMITS.listEntry),
+    },
+  };
 }
 
 export interface GradedItem {

@@ -5,6 +5,7 @@ import {
   createTestBody,
   evaluateTestBody,
   renameTestBody,
+  type AnalysisAnswer,
   type BaremNotesAnswer,
   type EvaluationStart,
   type ExerciseListAnswer,
@@ -18,6 +19,7 @@ import { acceptExerciseList,
   cancelSchedule,
   hasUploadedFiles,
   regradeTest,
+  requestAnalysis,
   retryExerciseList,
   scheduleEvaluation,
   selectedHaveFiles,
@@ -262,6 +264,18 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       throw new ApiError(409, 'no_work', 'Nicio lucrare a acestui test nu așteaptă robotul.');
     }
     return c.json({ robot: await startRobot(c.env) } satisfies RobotStartAnswer);
+  });
+
+  // "Regenerează": the robot writes the class analysis again (spec §8.5).
+  routes.post('/:code/analysis/regenerate', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (test.summary.status !== 'evaluating' && test.summary.status !== 'done') {
+      throw new ApiError(409, 'not_evaluated', 'Analiza se face după ce testul a fost corectat.');
+    }
+    if (test.summary.gradedCount === 0) throw new ApiError(409, 'no_results', 'Testul nu are lucrări corectate.');
+    const analysis = await requestAnalysis(c.env.DB, c.var.teacher.id, test.id, nowIso());
+    if (!analysis) throw new ApiError(409, 'busy', 'Testul s-a schimbat între timp. Încearcă din nou.');
+    return c.json({ analysis, robot: await startRobot(c.env) } satisfies AnalysisAnswer);
   });
 
   // Upload or replace the test or the barem: PDF or Word, at most 25 MB. A new

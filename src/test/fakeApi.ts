@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type {
+  AnalysisAnswer,
   BaremNotesAnswer,
   ClassSummary,
   EvaluationInfo,
@@ -85,6 +86,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
       baremNotes: '',
+      analysis: { status: 'none', stale: false },
       ...overrides,
     },
     uploads,
@@ -395,6 +397,18 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     startRobot: vi.fn(async (code: string): Promise<RobotStart> => {
       if (findTest(code).test.status !== 'evaluating') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
       return 'next_check';
+    }),
+    // Like the server: only a test in evaluation or done with a graded upload;
+    // a finished test goes back to evaluation.
+    regenerateAnalysis: vi.fn(async (code: string): Promise<AnalysisAnswer> => {
+      const found = findTest(code);
+      if (found.test.status !== 'evaluating' && found.test.status !== 'done') {
+        throw new ApiError(409, 'not_evaluated', 'Analiza se face după ce testul a fost corectat.');
+      }
+      if (found.test.gradedCount === 0) throw new ApiError(409, 'no_results', 'Testul nu are lucrări corectate.');
+      found.test.analysis = { status: 'requested', stale: found.test.analysis.stale };
+      if (found.test.status === 'done') found.test.status = 'evaluating';
+      return { analysis: found.test.analysis, robot: 'next_check' };
     }),
     getSubmission: vi.fn(async (submissionId: number) => structuredClone(findSubmission(submissionId))),
     getResultLink: vi.fn(async (submissionId: number, startedAt: string) => {

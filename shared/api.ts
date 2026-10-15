@@ -5,7 +5,7 @@ import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
 import { TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
-import { cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
+import { type AnalysisStatus, cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
 
 // Request bodies of the teacher API. The server parses every body with these
 // schemas; the browser uses the inferred types.
@@ -308,6 +308,20 @@ export interface ExerciseListInfo {
   message: string | null;
 }
 
+// The class analysis as the test page sees it. `stale`: grades changed after
+// the analysis was written.
+export interface AnalysisInfo {
+  status: AnalysisStatus;
+  stale: boolean;
+}
+
+// "Regenerează": the analysis is asked for again. `robot` says whether the
+// robot was started.
+export interface AnalysisAnswer {
+  analysis: AnalysisInfo;
+  robot: RobotStart;
+}
+
 export interface TestInfo extends TestSummary {
   uploadToken: string | null;
   multiUploadToken: string | null;
@@ -315,6 +329,7 @@ export interface TestInfo extends TestSummary {
   exerciseList: ExerciseListInfo;
   // Extra teacher comments for the barem, read by the robot as part of it.
   baremNotes: string;
+  analysis: AnalysisInfo;
 }
 
 // "none": the student has not started an upload.
