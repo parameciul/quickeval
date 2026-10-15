@@ -13,6 +13,7 @@ import {
 import type { CheckedExerciseList, ClassAnalysis, ExerciseList, Grading } from '../../shared/schemas.ts';
 import type { ExerciseListStatus } from '../../shared/tests.ts';
 import { finishTests, promoteStatements } from './lifecycle.ts';
+import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
 
 // Queries of the robot API (spec §11.3). Each write checks its own rules in
 // its SQL: runs can overlap, and parallel tasks of one run call at once.
@@ -310,6 +311,13 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
     exercise_list_json?: string | null;
     version?: string;
     exercise_id?: string;
+    label?: string;
+    max_points?: number;
+    position?: number;
+    evaluation_id?: number;
+    graded_at?: string;
+    max_total?: number;
+    office_points?: number;
     submission_id?: number;
     total?: number;
     grade?: number;
@@ -322,7 +330,9 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
       .bind(testId),
     db
       .prepare(
-        `SELECT s.id AS submission_id, ev.total, ev.grade, i.exercise_id, i.points, i.student_answer, i.comment
+        `SELECT s.id AS submission_id, ev.total, ev.grade, ev.id AS evaluation_id, ev.created_at AS graded_at,
+           ev.max_total, ev.office_points, i.exercise_id, i.label, i.max_points, i.position, i.points,
+           i.student_answer, i.comment
          FROM submissions s
          JOIN evaluations ev ON ev.submission_id = s.id
          JOIN evaluation_items i ON i.evaluation_id = ev.id
@@ -335,8 +345,21 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   if (!head) return null;
   const list = head.exercise_list_json ? (JSON.parse(head.exercise_list_json) as ExerciseList) : null;
   const students: ClassResults['students'] = [];
+  const stored: StoredItem[] = [];
+  let latest: { gradedAt: string; evaluationId: number; maxTotal: number; officePoints: number } | null = null;
   let current = -1;
   for (const row of rows?.results ?? []) {
+    stored.push({
+      evaluationId: row.evaluation_id!,
+      gradedAt: row.graded_at!,
+      exerciseId: row.exercise_id!,
+      label: row.label!,
+      maxPoints: row.max_points!,
+      position: row.position!,
+    });
+    if (!latest || row.graded_at! > latest.gradedAt || (row.graded_at! === latest.gradedAt && row.evaluation_id! > latest.evaluationId)) {
+      latest = { gradedAt: row.graded_at!, evaluationId: row.evaluation_id!, maxTotal: row.max_total!, officePoints: row.office_points! };
+    }
     if (row.submission_id !== current) {
       current = row.submission_id!;
       students.push({ label: `Elev ${students.length + 1}`, total: row.total!, grade: row.grade!, items: [] });
@@ -351,16 +374,9 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   return {
     testId,
     version: head.version!,
-    maxTotal: list?.totalPoints ?? 0,
-    officePoints: list?.officePoints ?? 0,
-    exercises: (list?.exercises ?? []).map(({ id, label, maxPoints, topic, answer, scoringNotes }) => ({
-      id,
-      label,
-      maxPoints,
-      topic,
-      answer,
-      scoringNotes,
-    })),
+    maxTotal: list?.totalPoints ?? latest?.maxTotal ?? 0,
+    officePoints: list?.officePoints ?? latest?.officePoints ?? 0,
+    exercises: exerciseColumns(list, stored),
     students,
   };
 }

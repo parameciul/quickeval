@@ -108,4 +108,43 @@ describe('GET /api/admin/tests/:code/report', () => {
     expect((await report('9Z-26T99')).status).toBe(404);
     expect((await report('x')).status).toBe(404);
   });
+  describe('after a barem change cleared the exercise list', () => {
+    beforeEach(async () => {
+      await api.db.prepare('UPDATE tests SET exercise_list_json = NULL WHERE id = ?').bind(testId).run();
+    });
+
+    it('builds the exercise columns from the stored items', async () => {
+      const pop = await addSubmission(api, code, studentIds[2]!, { status: 'graded', files: 1 });
+      await addEvaluation(api, pop, { grade: 8, items: [{}, {}] });
+      await api.db.prepare("UPDATE evaluation_items SET label = 'Exercițiul 2', max_points = 4.5 WHERE exercise_id = 'E2'").run();
+      const res = await report();
+      expect(res.body.report.exercises).toEqual([
+        { id: 'E1', label: 'Exercițiu', maxPoints: 1 },
+        { id: 'E2', label: 'Exercițiul 2', maxPoints: 4.5 },
+      ]);
+      expect(res.body.report.rows[0].items).toHaveLength(2);
+    });
+
+    it('lets the newest evaluation name an exercise and keeps every item of older ones', async () => {
+      const old = await addSubmission(api, code, studentIds[2]!, { status: 'graded', files: 1 });
+      await addEvaluation(api, old, { grade: 8, items: [{}, {}] });
+      const fresh = await addSubmission(api, code, studentIds[1]!, { status: 'graded', files: 1 });
+      const evaluation = await addEvaluation(api, fresh, { grade: 9, items: [{}, {}] });
+      await api.db.prepare("UPDATE evaluations SET created_at = '2026-10-08T09:00:00.000Z' WHERE id = ?").bind(evaluation).run();
+      await api.db
+        .prepare("UPDATE evaluation_items SET label = 'Nou 1', max_points = 2 WHERE evaluation_id = ? AND exercise_id = 'E1'")
+        .bind(evaluation)
+        .run();
+      await api.db
+        .prepare("UPDATE evaluation_items SET exercise_id = 'E3', label = 'Nou 3', max_points = 3, position = 2 WHERE evaluation_id = ? AND exercise_id = 'E2'")
+        .bind(evaluation)
+        .run();
+      const res = await report();
+      expect(res.body.report.exercises).toEqual([
+        { id: 'E1', label: 'Nou 1', maxPoints: 2 },
+        { id: 'E3', label: 'Nou 3', maxPoints: 3 },
+        { id: 'E2', label: 'Exercițiu', maxPoints: 1 },
+      ]);
+    });
+  });
 });

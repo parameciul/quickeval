@@ -4,6 +4,7 @@ import type { ClassAnalysis, ExerciseList } from '../../shared/schemas.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import type { AnalysisStatus, TestStatus } from '../../shared/tests.ts';
 import { flagCountSql } from './evaluations.ts';
+import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
 
 // The rows of the class report (spec §14.2), in four queries whatever the size
 // of the class: the test, the graded results, their items, and the active
@@ -30,7 +31,8 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
       .bind(testId, teacherId),
     db
       .prepare(
-        `SELECT s.id AS submission_id, i.exercise_id, i.points, i.max_points,
+        `SELECT s.id AS submission_id, i.exercise_id, i.points, i.max_points, i.label, i.position,
+           ev.id AS evaluation_id, ev.created_at AS graded_at,
            CASE WHEN i.needs_review = 1 AND i.reviewed_at IS NULL THEN 1 ELSE 0 END AS flagged
          FROM submissions s
          JOIN tests t ON t.id = s.test_id
@@ -68,7 +70,26 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
   const list = head.exercise_list_json ? (JSON.parse(head.exercise_list_json) as ExerciseList) : null;
 
   const itemsBySubmission = new Map<number, ReportRow['items']>();
-  for (const row of (items?.results ?? []) as { submission_id: number; exercise_id: string; points: number; max_points: number; flagged: number }[]) {
+  const storedItems: StoredItem[] = [];
+  for (const row of (items?.results ?? []) as {
+    submission_id: number;
+    exercise_id: string;
+    points: number;
+    max_points: number;
+    label: string;
+    position: number;
+    evaluation_id: number;
+    graded_at: string;
+    flagged: number;
+  }[]) {
+    storedItems.push({
+      evaluationId: row.evaluation_id,
+      gradedAt: row.graded_at,
+      exerciseId: row.exercise_id,
+      label: row.label,
+      maxPoints: row.max_points,
+      position: row.position,
+    });
     const own = itemsBySubmission.get(row.submission_id) ?? [];
     own.push({ exerciseId: row.exercise_id, points: row.points, maxPoints: row.max_points, flagged: row.flagged === 1 });
     itemsBySubmission.set(row.submission_id, own);
@@ -101,7 +122,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
 
   return {
     test: { code: head.code, title: head.title, className: head.class_name, status: head.status, startedAt: head.started_at },
-    exercises: (list?.exercises ?? []).map(({ id, label, maxPoints }) => ({ id, label, maxPoints })),
+    exercises: exerciseColumns(list, storedItems).map(({ id, label, maxPoints }) => ({ id, label, maxPoints })),
     rows,
     missing: notGraded,
     analysis: {

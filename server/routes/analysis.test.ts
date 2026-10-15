@@ -103,6 +103,19 @@ describe('GET /api/runner/tests/:id/results', () => {
     expect(JSON.stringify(res.body)).not.toMatch(/Pop|Ionescu|Stan|poza/);
   });
 
+  it('still gives the exercises and the maximum after the exercise list was cleared', async () => {
+    await graded(0, 8);
+    await setTest('exercise_list_json = NULL');
+    const res = await robot('GET', `/tests/${testId}/results`);
+    expect(res.status).toBe(200);
+    expect(res.body.results).toMatchObject({ maxTotal: 10, officePoints: 1 });
+    expect(res.body.results.exercises).toEqual([
+      { id: 'E1', label: 'Exercițiu', maxPoints: 1, topic: '', answer: '', scoringNotes: '' },
+      { id: 'E2', label: 'Exercițiu', maxPoints: 1, topic: '', answer: '', scoringNotes: '' },
+    ]);
+    expect(res.body.results.students[0].items).toHaveLength(2);
+  });
+
   it('answers 404 for a test that is not in evaluation', async () => {
     await graded(0);
     await setTest("status = 'done'");
