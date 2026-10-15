@@ -25,7 +25,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
       {
         submissionId: 5,
         studentId: 10,
-        studentName: 'Avram Dan',
+        studentName: 'Avram Dan', active: true,
         total: 10,
         maxTotal: 10,
         grade: 10,
@@ -38,7 +38,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
       {
         submissionId: 6,
         studentId: 11,
-        studentName: 'Pop Ion',
+        studentName: 'Pop Ion', active: true,
         total: 5.5,
         maxTotal: 10,
         grade: 5.5,
@@ -200,7 +200,7 @@ describe('ReportPage', () => {
         {
           submissionId: 5,
           studentId: 10,
-          studentName: 'Avram Dan',
+          studentName: 'Avram Dan', active: true,
           total: 40,
           maxTotal: 40,
           grade: 10,

@@ -317,11 +317,14 @@ export interface ReportItem {
   flagged: boolean;
 }
 
-// One graded student in the class report (spec §14.2).
+// One graded student in the class report (spec §14.2). `active`: the student
+// is still an active student of the class; a graded student who left the class
+// keeps the row, but is not counted among the class's students.
 export interface ReportRow {
   submissionId: number;
   studentId: number;
   studentName: string;
+  active: boolean;
   total: number;
   maxTotal: number;
   // Out of 10.

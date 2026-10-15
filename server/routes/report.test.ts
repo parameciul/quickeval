@@ -63,6 +63,19 @@ describe('GET /api/admin/tests/:code/report', () => {
     ]);
   });
 
+  it('marks a graded student who left the class as not active', async () => {
+    const pop = await addSubmission(api, code, studentIds[2]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, pop, { grade: 8, items: [{}, {}] });
+    const avram = await addSubmission(api, code, studentIds[1]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, avram, { grade: 9, items: [{}, {}] });
+    await api.db.prepare('UPDATE enrollments SET active = 0 WHERE student_id = ?').bind(studentIds[1]).run();
+    const res = await report();
+    expect(res.body.report.rows.map((row: { studentName: string; active: boolean }) => [row.studentName, row.active])).toEqual([
+      ['Avram Dan', false],
+      ['Pop Ion', true],
+    ]);
+  });
+
   it('has no rows for a test without a graded upload', async () => {
     const res = await report();
     expect(res.status).toBe(200);

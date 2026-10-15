@@ -21,7 +21,8 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     db
       .prepare(
         `SELECT s.id AS submission_id, st.id AS student_id, st.full_name, ev.total, ev.max_total, ev.grade,
-           ${flagCountSql('ev')} AS flag_count
+           ${flagCountSql('ev')} AS flag_count,
+           EXISTS (SELECT 1 FROM enrollments e WHERE e.class_id = t.class_id AND e.student_id = st.id AND e.active = 1) AS active
          FROM submissions s
          JOIN tests t ON t.id = s.test_id
          JOIN students st ON st.id = s.student_id
@@ -103,12 +104,14 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     max_total: number;
     grade: number;
     flag_count: number;
+    active: number;
   }[])
     .map(
       (row): ReportRow => ({
         submissionId: row.submission_id,
         studentId: row.student_id,
         studentName: row.full_name,
+        active: row.active === 1,
         total: row.total,
         maxTotal: row.max_total,
         grade: row.grade,

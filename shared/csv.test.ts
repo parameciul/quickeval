@@ -15,7 +15,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
       {
         submissionId: 5,
         studentId: 10,
-        studentName: 'Ștefănescu Ana',
+        studentName: 'Ștefănescu Ana', active: true,
         total: 7.25,
         maxTotal: 10,
         grade: 7.25,
