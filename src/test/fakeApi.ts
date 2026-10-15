@@ -48,6 +48,9 @@ export function fakeSettings(overrides: Partial<Settings> = {}): Settings {
     robot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
     lastModels: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
     showModelColumn: false,
+    configuredModel: null,
+    configuredEffort: null,
+    configuredAt: null,
     lastGradedAt: null,
     ...overrides,
   };

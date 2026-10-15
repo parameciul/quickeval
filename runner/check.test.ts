@@ -42,6 +42,24 @@ describe('runner/check.ts', () => {
     expect(state?.last_check_at).not.toBeNull();
   });
 
+  it('tells the API the model and effort it is set to use, from the environment or the defaults', async () => {
+    world = await evaluatingTest();
+    const base = { QUICKEVAL_URL: API_URL, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, GITHUB_OUTPUT: output };
+    const state = async () =>
+      (await world!.api.db.prepare("SELECT key, value FROM settings WHERE key IN ('robot_model', 'robot_effort') ORDER BY key").all<{ key: string; value: string }>())
+        .results;
+    expect(await main(base, { fetch: fetchFrom(world.api) })).toBe(0);
+    expect(await state()).toEqual([
+      { key: 'robot_effort', value: 'high' },
+      { key: 'robot_model', value: 'opus' },
+    ]);
+    expect(await main({ ...base, QE_MODEL: 'sonnet', QE_EFFORT: 'medium' }, { fetch: fetchFrom(world.api) })).toBe(0);
+    expect(await state()).toEqual([
+      { key: 'robot_effort', value: 'medium' },
+      { key: 'robot_model', value: 'sonnet' },
+    ]);
+  });
+
   it('finds no work when nothing waits', async () => {
     world = await evaluatingTest({ uploads: 0 });
     const env = { QUICKEVAL_URL: API_URL, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, GITHUB_OUTPUT: output };

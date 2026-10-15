@@ -52,7 +52,10 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
          (SELECT value FROM settings WHERE key = 'last_grading_model') AS kept_grading_model,
          (SELECT value FROM settings WHERE key = 'last_grading_effort') AS kept_grading_effort,
          (SELECT value FROM settings WHERE key = 'last_analysis_model') AS kept_analysis_model,
-         (SELECT value FROM settings WHERE key = 'last_analysis_effort') AS kept_analysis_effort
+         (SELECT value FROM settings WHERE key = 'last_analysis_effort') AS kept_analysis_effort,
+         (SELECT value FROM settings WHERE key = 'robot_model') AS configured_model,
+         (SELECT value FROM settings WHERE key = 'robot_effort') AS configured_effort,
+         (SELECT value FROM settings WHERE key = 'robot_settings_at') AS configured_at
        FROM runner_state r WHERE r.id = 1`,
     )
     .bind(PARALLEL, ROBOT_KEY_HASH, teacherId, SHOW_MODEL, teacherId, teacherId, teacherId, teacherId)
@@ -74,6 +77,9 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
       kept_grading_effort: string | null;
       kept_analysis_model: string | null;
       kept_analysis_effort: string | null;
+      configured_model: string | null;
+      configured_effort: string | null;
+      configured_at: string | null;
     }>();
   const heartbeat = row?.heartbeat_at ? Date.parse(row.heartbeat_at) : Number.NaN;
   return {
@@ -95,6 +101,9 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
       analysisEffort: row?.kept_analysis_model ? (row.kept_analysis_effort ?? null) : (row?.analysis_effort ?? null),
     },
     showModelColumn: row?.show_model === '1',
+    configuredModel: row?.configured_model ?? null,
+    configuredEffort: row?.configured_effort ?? null,
+    configuredAt: row?.configured_at ?? null,
   };
 }
 

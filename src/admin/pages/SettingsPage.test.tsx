@@ -58,6 +58,26 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Ultima analiză a clasei: claude-sonnet-5-5')).toBeInTheDocument();
   });
 
+  it('shows the model and effort the robot is set to use, with the age', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-10T12:32:00.000Z'));
+    const configured = { configuredModel: 'opus', configuredEffort: 'high', configuredAt: '2026-10-10T12:00:00.000Z' };
+    renderAdmin('/setari', withSettings(fakeSettings(configured)));
+    expect(await screen.findByText('Setat pentru robot: opus, efort high (la ultima verificare, acum 32 min)')).toBeInTheDocument();
+  });
+
+  it('shows the configured model alone when there is no effort, and nothing when it is unknown', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-10T12:05:00.000Z'));
+    const configured = { configuredModel: 'sonnet', configuredEffort: null, configuredAt: '2026-10-10T12:00:00.000Z' };
+    const first = renderAdmin('/setari', withSettings(fakeSettings(configured)));
+    expect(await screen.findByText('Setat pentru robot: sonnet (la ultima verificare, acum 5 min)')).toBeInTheDocument();
+    first.unmount();
+    renderAdmin('/setari', withSettings());
+    await screen.findByText('Robotul nu a terminat încă nicio rulare.');
+    expect(screen.queryByText(/Setat pentru robot/)).not.toBeInTheDocument();
+  });
+
   it('has the Model column checkbox off by default, and saves it', async () => {
     const user = userEvent.setup();
     const api = withSettings();

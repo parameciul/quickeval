@@ -8,6 +8,7 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 - `fixtures/`: real Claude outputs. `test/`: the API in-process, a scripted Claude.
 - `.claude/skills/evaluate-test/` (repo root): the grading skill (spec §13). The teacher may change its words; the robot copies it into every work folder. `skill.test.ts` checks the file and field names that the code needs.
 
+- Each check (`check.ts`) sends `model` and `effort` from `claudeSettings()` with `POST /check`; the API keeps them for Setări (`robot_model`, `robot_effort`, `robot_settings_at`).
 - Every grading and the class analysis go back with the model and the effort used (`modelOf()`, `QE_EFFORT`); the test page shows them to the teacher.
 
 ## Try the skill

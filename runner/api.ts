@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type { ExerciseListInfo } from '../shared/api.ts';
 import type {
   analysisBody,
+  CheckBody,
   CheckResult,
   ClaimResult,
   ClassResults,
@@ -37,7 +38,8 @@ export class RobotApiError extends Error {
 }
 
 export interface RobotApi {
-  check(): Promise<CheckResult>;
+  // `configured`: the model and effort this robot is set to use.
+  check(configured?: CheckBody): Promise<CheckResult>;
   lease(runId: string): Promise<LeaseResult>;
   // Throws RobotApiError 409 "lease_lost" when another run holds the lease.
   heartbeat(runId: string): Promise<void>;
@@ -103,7 +105,7 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
   const nothing = async () => undefined;
 
   return {
-    check: () => json<CheckResult>('POST', '/check'),
+    check: (configured) => json<CheckResult>('POST', '/check', configured),
     lease: (runId) => json<LeaseResult>('POST', '/lease', { runId }),
     heartbeat: (runId) => send('POST', '/heartbeat', { runId }, nothing),
     release: (runId, summary) => send('POST', '/release', { runId, summary }, nothing),

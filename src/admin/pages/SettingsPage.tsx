@@ -5,7 +5,7 @@ import { MAX_PARALLEL_AGENTS, type RunSummary } from '../../../shared/runner.ts'
 import { countLabel, formatDateTime } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { RobotLine } from '../testPage/RobotLine.tsx';
+import { agoText, RobotLine } from '../testPage/RobotLine.tsx';
 
 const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) => index + 1);
 // A page left open reads the robot's state again this often (the robot checks
@@ -198,6 +198,13 @@ function RobotState({ settings }: { settings: Settings }) {
       <h2>Starea robotului</h2>
       {settings.robot.running && <p>Robotul lucrează acum.</p>}
       <RobotLine lastCheckAt={settings.robot.lastCheckAt} />
+      {settings.configuredModel !== null && (
+        <p>
+          Setat pentru robot: {settings.configuredModel}
+          {settings.configuredEffort ? `, efort ${settings.configuredEffort}` : ''}
+          {settings.configuredAt ? ` (la ultima verificare, ${agoText(settings.configuredAt, Date.now())})` : ''}
+        </p>
+      )}
       <p>{lastRun ?? 'Robotul nu a terminat încă nicio rulare.'}</p>
       <p>
         {settings.lastGradedAt

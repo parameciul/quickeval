@@ -6,6 +6,13 @@ const LATE_MINUTES = 30;
 // moves on by itself this often, and the warning shows without a reload.
 const TICK_MS = 30_000;
 
+// "acum 32 min" for the first hour, then the date and time.
+export function agoText(at: string, now: number): string {
+  const minutes = Math.floor((now - Date.parse(at)) / 60_000);
+  if (minutes < 1) return 'acum mai puțin de un minut';
+  return minutes < 60 ? `acum ${minutes} min` : `la ${formatDateTime(at)}`;
+}
+
 // When the robot last looked for work (spec §9). The robot checks every 10
 // minutes, but GitHub can run the check late or stop it: after 30 minutes
 // without a check, grading may be late.

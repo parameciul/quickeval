@@ -28,6 +28,9 @@ describe('GET /api/admin/settings', () => {
         lastGradedAt: null,
         lastModels: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
         showModelColumn: false,
+        configuredModel: null,
+        configuredEffort: null,
+        configuredAt: null,
       },
     });
   });

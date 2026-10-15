@@ -1,6 +1,7 @@
 import { appendFileSync } from 'node:fs';
 import type { RobotApiOptions } from './api.ts';
 import { RobotApiError, robotApiFromEnv } from './api.ts';
+import { claudeSettings } from './claude.ts';
 import { log } from './log.ts';
 
 // The first step of every GitHub run (spec §12.1): is there work for the
@@ -18,7 +19,9 @@ export async function checkForWork(env: Record<string, string | undefined>, opti
     return { hasWork: false, exitCode: 0 };
   }
   try {
-    const counts = await api.check();
+    // The check also tells the API which model and effort the next run will use.
+    const { model, effort } = claudeSettings(env, '');
+    const counts = await api.check({ model, effort });
     log('check', { exerciseLists: counts.exerciseLists, pendingGrading: counts.pendingGrading, analyses: counts.analyses });
     return { hasWork: counts.hasWork, exitCode: 0 };
   } catch (err) {

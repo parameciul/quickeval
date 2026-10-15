@@ -409,7 +409,7 @@ All screens are in Romanian. Routes use the teacher's base path `/admin`.
 | `/admin/clase` | Clase | Classes of the selected school year. Add a class (name, school year). Archive a class. |
 | `/admin/clase/:id` | Clasa | Students: add one, paste many (one name per line), rename, mark as left. Each name links to the student's history. Tests of the class. |
 | `/admin/elevi/:id` | Elev | History: every graded test of this student in every class and year, with grade and link. |
-| `/admin/setari` | Setări | Parallel agents (1-4, default 1). Robot key: create or replace, shown once. Robot status, with the model and effort of the latest grading and class analysis. Checkbox "Arată coloana Model în tabelul elevilor" (`show_model_column`, one setting for all tests, off by default). |
+| `/admin/setari` | Setări | Parallel agents (1-4, default 1). Robot key: create or replace, shown once. Robot status, with the model and effort of the latest grading and class analysis, and a line "Setat pentru robot" with the model and effort the robot said at its last check it is set to use (`robot_model`, `robot_effort`, `robot_settings_at`, sent with `POST /check`; hidden until a robot has sent them). Checkbox "Arată coloana Model în tabelul elevilor" (`show_model_column`, one setting for all tests, off by default). |
 
 A school-year switch in the header (default: the current school year) filters Teste and Clase.
 

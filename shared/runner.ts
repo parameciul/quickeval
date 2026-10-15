@@ -42,6 +42,15 @@ export const runIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/, { message: 
 
 export const runBody = z.object({ runId: runIdSchema });
 
+// POST /check: the model and effort the robot is set to use. An older robot
+// sends no body at all.
+export const checkBody = z.object({
+  model: z.string().max(100).optional(),
+  effort: z.string().max(100).optional(),
+});
+
+export type CheckBody = z.input<typeof checkBody>;
+
 export const releaseBody = z.object({ runId: runIdSchema, summary: runSummarySchema });
 
 // Why a robot task failed. "usage_limit": the Claude plan reached its limit;
