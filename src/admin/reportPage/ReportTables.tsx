@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import type { ClassReport } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import type { ClassStats } from '../../../shared/stats.ts';
-import { pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
+import { modelCell, pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
 
 const dash = '—';
 const grade = (value: number | null) => (value === null ? dash : formatPoints(value));
@@ -56,12 +56,6 @@ export function StatsSummary({ stats }: { stats: ClassStats }) {
       </div>
     </section>
   );
-}
-
-// "claude-opus-5-5 · high"; the model alone for a grading with no effort.
-export function modelCell(model: string | null, effort: string | null): string {
-  if (!model) return dash;
-  return effort ? `${model} · ${effort}` : model;
 }
 
 // One row for each graded student, one column for each exercise, then the

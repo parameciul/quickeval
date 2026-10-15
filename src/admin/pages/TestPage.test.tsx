@@ -131,6 +131,32 @@ describe('TestPage', () => {
     expect(labels).toEqual([null, 'Stare', 'Fișiere', 'Ora', 'Nota', 'De verificat', null]);
   });
 
+  it('has no Model column unless the setting is on', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    await screen.findByRole('rowheader', { name: 'Pop Ion' });
+    expect(screen.queryByRole('columnheader', { name: 'Model' })).not.toBeInTheDocument();
+  });
+
+  it('shows the model and effort of each grading after Nota when the setting is on', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, model: 'claude-opus-5-5', effort: 'medium' }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 2, grade: 7, model: 'sonnet', effort: null }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    const detail = fakeTest({ status: 'done' }, rows);
+    renderAdmin('/teste/6E2-26T1', createFakeApi({ classes: [], students: {}, tests: [{ ...detail, showModel: true }] }));
+    const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
+    const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
+    expect(headers.indexOf('Model')).toBe(headers.indexOf('Nota') + 1);
+    expect(headers.indexOf('De verificat')).toBe(headers.indexOf('Model') + 1);
+    const cell = within(pop).getByText('claude-opus-5-5 · medium');
+    expect(cell).toHaveAttribute('data-label', 'Model');
+    const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
+    expect(within(stan).getByText('sonnet')).toHaveAttribute('data-label', 'Model');
+    const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
+    expect(marin.querySelector('[data-label="Model"]')).toHaveTextContent('—');
+  });
+
   it('marks only the selectable rows for the narrow-screen layout', async () => {
     renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
     const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;

@@ -156,7 +156,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
   const { results } = await db
     .prepare(
       `SELECT st.id AS student_id, st.full_name, e.active,
-         s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.created_at AS graded_at,
+         s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.created_at AS graded_at, ev.model, ev.effort,
          s.result_token, s.results_open AS submission_open, (SELECT t.results_open FROM tests t WHERE t.id = ?) AS test_open,
          (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
          ${flagCountSql('ev')} AS flag_count
@@ -179,6 +179,8 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       last_error: string | null;
       grade: number | null;
       graded_at: string | null;
+      model: string | null;
+      effort: string | null;
       result_token: string | null;
       submission_open: number | null;
       test_open: number;
@@ -198,6 +200,8 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       autoSubmitted: row.auto_submitted === 1,
       grade: row.grade,
       gradedAt: row.graded_at,
+      model: row.model,
+      effort: row.effort,
       resultToken: row.result_token,
       resultsOpen: row.submission_id !== null && (row.test_open === 1 || row.submission_open === 1),
       flagCount: row.flag_count,

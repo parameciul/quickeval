@@ -67,7 +67,7 @@ function TestDetails({ code }: { code: string }) {
   // and an open QR view with it, and says why above it.
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
 
-  const { test, uploads, robot } = detail.data;
+  const { test, uploads, robot, showModel } = detail.data;
   // A failed robot start that the API kept: a scheduled start happens in any
   // request, so only the API knows of it. A button's answer says the same.
   const robotText = test.status === 'evaluating' && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
@@ -142,6 +142,7 @@ function TestDetails({ code }: { code: string }) {
       <UploadsTable
         code={code}
         uploads={uploads}
+        showModel={showModel}
         selectable={test.status === 'open'}
         selected={selected}
         onSelect={setSelected}

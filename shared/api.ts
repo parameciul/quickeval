@@ -431,6 +431,9 @@ export interface UploadRow {
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;
+  // The model and effort of this upload's grading; null while it has none.
+  model: string | null;
+  effort: string | null;
   // Why grading failed, for the teacher.
   lastError: string | null;
 }
@@ -438,6 +441,8 @@ export interface UploadRow {
 export interface TestDetail {
   test: TestInfo;
   uploads: UploadRow[];
+  // The Setări checkbox: the uploads table shows its Model column.
+  showModel: boolean;
   // For the robot line: when the robot last looked for work. startFailed:
   // GitHub did not take the last request to start the robot, and no run
   // checked in after it or works now.

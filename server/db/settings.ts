@@ -122,6 +122,11 @@ export async function setShowModel(db: D1Database, show: boolean): Promise<void>
   await setValue(db, SHOW_MODEL, show ? '1' : '0');
 }
 
+export async function getShowModel(db: D1Database): Promise<boolean> {
+  const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(SHOW_MODEL).first<{ value: string }>();
+  return row?.value === '1';
+}
+
 export async function getRobotKeyHash(db: D1Database): Promise<string | null> {
   const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(ROBOT_KEY_HASH).first<{ value: string }>();
   return row?.value ?? null;
