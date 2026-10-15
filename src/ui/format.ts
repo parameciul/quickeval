@@ -52,6 +52,13 @@ export function formatDateTime(iso: string): string {
   return DATE_TIME.format(new Date(iso));
 }
 
+const DATE = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', day: 'numeric', month: 'long', year: 'numeric' });
+
+// A day in Romania's local time: "6 octombrie 2026".
+export function formatDate(iso: string): string {
+  return DATE.format(new Date(iso));
+}
+
 const ONE_DECIMAL = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 });
 
 // "820 KB", "1,3 MB".
