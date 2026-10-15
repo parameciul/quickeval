@@ -28,7 +28,7 @@ import { acceptExerciseList,
 import { getClassReport } from '../db/report.ts';
 import { setResultsOpen } from '../db/results.ts';
 import { testHasRobotWork } from '../db/runner.ts';
-import { testPageRobot } from '../db/settings.ts';
+import { getShowModel, testPageRobot } from '../db/settings.ts';
 import {
   createTest,
   createMultiUploadToken,
@@ -93,6 +93,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({
       test: toTestInfo(test),
       uploads: await listUploads(c.env.DB, test.id, test.summary.classId),
+      showModel: await getShowModel(c.env.DB),
       robot: await testPageRobot(c.env.DB, nowIso()),
     });
   });

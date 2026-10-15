@@ -341,10 +341,6 @@ export interface ReportRow {
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;
-  // The model and effort that graded this student (teacher only). Null for a
-  // grading that did not keep them.
-  model: string | null;
-  effort: string | null;
   items: ReportItem[];
 }
 
@@ -361,8 +357,6 @@ export interface ClassReport {
   test: { code: string; title: string; className: string; status: TestStatus; startedAt: string | null };
   // The exercises of the test, in barem order.
   exercises: { id: string; label: string; maxPoints: number }[];
-  // The teacher's setting: whether the page shows the Model column.
-  showModel: boolean;
   rows: ReportRow[];
   missing: ReportMissing[];
   analysis: AnalysisInfo & { content: ClassAnalysis | null };
@@ -431,6 +425,9 @@ export interface UploadRow {
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;
+  // The model and effort of this upload's grading; null while it has none.
+  model: string | null;
+  effort: string | null;
   // Why grading failed, for the teacher.
   lastError: string | null;
 }
@@ -438,6 +435,8 @@ export interface UploadRow {
 export interface TestDetail {
   test: TestInfo;
   uploads: UploadRow[];
+  // The Setări checkbox: the uploads table shows its Model column.
+  showModel: boolean;
   // For the robot line: when the robot last looked for work. startFailed:
   // GitHub did not take the last request to start the robot, and no run
   // checked in after it or works now.
@@ -462,7 +461,7 @@ export interface Settings {
   lastGradedAt: string | null;
   // Over all this teacher's tests.
   lastModels: RobotSettings;
-  // Whether the students' table of the class report has the Model column.
+  // Whether the uploads table of the test page has the Model column.
   showModelColumn: boolean;
   // The model and effort the robot said it is set to use, and when it said so.
   configuredModel: string | null;

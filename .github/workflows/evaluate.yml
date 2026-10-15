@@ -60,12 +60,16 @@ jobs:
           node-version-file: .node-version
 
       # Node alone: runner/check.ts loads no package. It finds no work, and
-      # fails nothing, while the variable or the secret is not set.
+      # fails nothing, while the variable or the secret is not set. It carries
+      # QE_MODEL and QE_EFFORT (plain variables, no secrets) so that Setări
+      # shows the model and effort the Grade step will really use.
       - name: Check for work
         id: check
         env:
           QUICKEVAL_URL: ${{ vars.QUICKEVAL_URL }}
           QUICKEVAL_RUNNER_KEY: ${{ secrets.QUICKEVAL_RUNNER_KEY }}
+          QE_MODEL: ${{ vars.QE_MODEL }}
+          QE_EFFORT: ${{ vars.QE_EFFORT }}
         run: node runner/check.ts
 
       # The robot needs only zod. Claude Code is pinned: a new version changes

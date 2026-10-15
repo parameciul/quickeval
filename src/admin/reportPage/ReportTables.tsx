@@ -58,12 +58,6 @@ export function StatsSummary({ stats }: { stats: ClassStats }) {
   );
 }
 
-// "claude-opus-5-5 · high"; the model alone for a grading with no effort.
-export function modelCell(model: string | null, effort: string | null): string {
-  if (!model) return dash;
-  return effort ? `${model} · ${effort}` : model;
-}
-
 // One row for each graded student, one column for each exercise, then the
 // total and the grade. An item that waits for the teacher's check is marked.
 export function ResultsTable({ code, report }: { code: string; report: ClassReport }) {
@@ -81,7 +75,6 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
             ))}
             <th scope="col">Total</th>
             <th scope="col">Nota</th>
-            {report.showModel && <th scope="col">Model</th>}
           </tr>
         </thead>
         <tbody>
@@ -107,7 +100,6 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
                 <strong>{formatPoints(row.grade)}</strong>
                 {row.flagCount > 0 && <span className="tag">de verificat {row.flagCount}</span>}
               </td>
-              {report.showModel && <td>{modelCell(row.model, row.effort)}</td>}
             </tr>
           ))}
         </tbody>

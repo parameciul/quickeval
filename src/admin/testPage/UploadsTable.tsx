@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import type { RobotStart, UploadRow } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
-import { formatDateTime, uploadStatusLabel } from '../../ui/format.ts';
+import { formatDateTime, modelCell, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ResultLink } from './ResultLink.tsx';
@@ -15,6 +15,7 @@ import { ResultLink } from './ResultLink.tsx';
 export function UploadsTable({
   code,
   uploads,
+  showModel,
   selectable,
   selected,
   onSelect,
@@ -24,6 +25,8 @@ export function UploadsTable({
 }: {
   code: string;
   uploads: UploadRow[];
+  // The Setări checkbox: show the model and effort of each grading.
+  showModel: boolean;
   // True while the test is open: the checkboxes choose the next evaluation.
   selectable: boolean;
   // The selected uploads (submission ids).
@@ -66,6 +69,7 @@ export function UploadsTable({
             <th scope="col">Fișiere</th>
             <th scope="col">Ora</th>
             <th scope="col">Nota</th>
+            {showModel && <th scope="col">Model</th>}
             <th scope="col">De verificat</th>
             <th scope="col">
               <span className="sr-only">Acțiuni</span>
@@ -78,6 +82,7 @@ export function UploadsTable({
               key={row.studentId}
               code={code}
               row={row}
+              showModel={showModel}
               selectable={selectable}
               checked={row.submissionId !== null && selected.includes(row.submissionId)}
               onToggle={(id, checked) => onSelect(checked ? [...selected, id] : selected.filter((kept) => kept !== id))}
@@ -111,6 +116,7 @@ function rowClassName(row: UploadRow, selectable: boolean): string | undefined {
 function UploadTableRow({
   code,
   row,
+  showModel,
   selectable,
   checked,
   onToggle,
@@ -120,6 +126,7 @@ function UploadTableRow({
 }: {
   code: string;
   row: UploadRow;
+  showModel: boolean;
   selectable: boolean;
   checked: boolean;
   onToggle: (submissionId: number, checked: boolean) => void;
@@ -186,6 +193,7 @@ function UploadTableRow({
       <td data-label="Fișiere">{row.fileCount}</td>
       <td data-label="Ora">{time ? formatDateTime(time) : '—'}</td>
       <td data-label="Nota">{row.grade === null ? '—' : formatPoints(row.grade)}</td>
+      {showModel && <td data-label="Model">{modelCell(row.model, row.effort)}</td>}
       <td data-label="De verificat">{row.flagCount > 0 ? row.flagCount : '—'}</td>
       <td className="actions-cell">
         {submissionId !== null && startedAt !== null && (

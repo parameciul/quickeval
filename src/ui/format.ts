@@ -10,6 +10,13 @@ export function countLabel(count: number, one: string, many: string): string {
   return count > 0 && (lastTwo >= 20 || lastTwo === 0) ? `${count} de ${many}` : `${count} ${many}`;
 }
 
+// "claude-opus-5-5 · high"; the model alone for a grading with no effort, and
+// a dash for no grading.
+export function modelCell(model: string | null, effort: string | null): string {
+  if (!model) return '—';
+  return effort ? `${model} · ${effort}` : model;
+}
+
 export function studentCountLabel(count: number): string {
   return count === 0 ? 'niciun elev' : countLabel(count, 'elev', 'elevi');
 }

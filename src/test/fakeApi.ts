@@ -98,6 +98,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       ...overrides,
     },
     uploads,
+    showModel: false,
     robot: { lastCheckAt: null, startFailed: false },
   };
 }
@@ -119,6 +120,8 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     resultToken: null,
     resultsOpen: false,
     flagCount: 0,
+    model: null,
+    effort: null,
     lastError: null,
     ...overrides,
   };

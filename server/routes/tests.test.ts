@@ -153,6 +153,8 @@ describe('GET /api/admin/tests/:code', () => {
         resultToken: null,
         resultsOpen: false,
         flagCount: 0,
+        model: null,
+        effort: null,
         lastError: null,
       },
       {
@@ -170,10 +172,36 @@ describe('GET /api/admin/tests/:code', () => {
         resultToken: null,
         resultsOpen: false,
         flagCount: 0,
+        model: null,
+        effort: null,
         lastError: null,
       },
       expect.objectContaining({ studentName: 'Stan Eva', active: false, status: 'uploading', fileCount: 1 }),
     ]);
+  });
+
+  it('sends the model and effort of each grading, and the Model column setting', async () => {
+    const cls = await makeClass(api, '6E2', ['Pop Ion', 'Ionescu Ana', 'Stan Eva']);
+    const [pop, ionescu] = cls.studentIds as [number, number, number];
+    const code = await makeTest(api, cls.id);
+    const first = await addSubmission(api, code, pop, { status: 'graded', files: 1 });
+    await addEvaluation(api, first);
+    const second = await addSubmission(api, code, ionescu, { status: 'graded', files: 1 });
+    await addEvaluation(api, second);
+    await api.db.prepare("UPDATE evaluations SET model = 'claude-opus-5-5', effort = 'medium' WHERE submission_id = ?").bind(first).run();
+    await api.db.prepare("UPDATE evaluations SET model = 'sonnet', effort = NULL WHERE submission_id = ?").bind(second).run();
+
+    const off = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(off.body.showModel).toBe(false);
+    const byName = (body: { uploads: { studentName: string; model: string | null; effort: string | null }[] }) =>
+      body.uploads.map((row) => [row.studentName, row.model, row.effort]);
+    expect(byName(off.body)).toEqual([
+      ['Ionescu Ana', 'sonnet', null],
+      ['Pop Ion', 'claude-opus-5-5', 'medium'],
+      ['Stan Eva', null, null],
+    ]);
+    await api.request('PATCH', '/api/admin/settings', { showModelColumn: true });
+    expect((await api.request('GET', `/api/admin/tests/${code}`)).body.showModel).toBe(true);
   });
 
   it('shows grades, the items to check, and grading errors', async () => {

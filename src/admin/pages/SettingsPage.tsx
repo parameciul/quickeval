@@ -184,7 +184,7 @@ function ShowModelColumn({ checked }: { checked: boolean }) {
           disabled={save.isPending}
           onChange={(event) => save.mutate(event.target.checked)}
         />
-        <label htmlFor="show-model">Arată coloana Model în tabelul elevilor</label>
+        <label htmlFor="show-model">Arată coloana Model în tabelul Încărcări</label>
       </div>
       {save.error && <ErrorMessage error={save.error} />}
     </>

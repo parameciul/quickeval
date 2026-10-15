@@ -63,21 +63,16 @@ describe('GET /api/admin/tests/:code/report', () => {
     ]);
   });
 
-  it('carries the model and effort of each grading, and whether the Model column is on', async () => {
-    const pop = await addSubmission(api, code, studentIds[2]!, { status: 'graded', files: 1 });
-    await addEvaluation(api, pop, { grade: 8, items: [{}, {}] });
+  it('carries no model, effort, or Model setting, even when the setting is on', async () => {
     const avram = await addSubmission(api, code, studentIds[1]!, { status: 'graded', files: 1 });
     await addEvaluation(api, avram, { grade: 9, items: [{}, {}] });
     await api.db.prepare("UPDATE evaluations SET model = 'claude-opus-5-5', effort = 'high' WHERE submission_id = ?").bind(avram).run();
-    await api.db.prepare("UPDATE evaluations SET model = NULL, effort = NULL WHERE submission_id = ?").bind(pop).run();
-    const off = (await report()).body.report;
-    expect(off.showModel).toBe(false);
-    expect(off.rows.map((row: { model: string | null; effort: string | null }) => [row.model, row.effort])).toEqual([
-      ['claude-opus-5-5', 'high'],
-      [null, null],
-    ]);
     await api.request('PATCH', '/api/admin/settings', { showModelColumn: true });
-    expect((await report()).body.report.showModel).toBe(true);
+    const body = (await report()).body.report;
+    expect(body).not.toHaveProperty('showModel');
+    expect(body.rows).toHaveLength(1);
+    expect(body.rows[0]).not.toHaveProperty('model');
+    expect(body.rows[0]).not.toHaveProperty('effort');
   });
 
   it('marks a graded student who left the class as not active', async () => {
