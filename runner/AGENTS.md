@@ -8,6 +8,8 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 - `fixtures/`: real Claude outputs. `test/`: the API in-process, a scripted Claude.
 - `.claude/skills/evaluate-test/` (repo root): the grading skill (spec §13). The teacher may change its words; the robot copies it into every work folder. `skill.test.ts` checks the file and field names that the code needs.
 
+- Every grading and the class analysis go back with the model and the effort used (`modelOf()`, `QE_EFFORT`); the test page shows them to the teacher.
+
 ## Try the skill
 
 `npm run try:skill -- exercise-list <folder>`, then `npm run try:skill -- grade <folder>`: try the grading skill on this PC exactly as the robot runs it (spec §13). It needs `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in the environment and never uses this PC's Claude login. The folder holds `test.pdf` or `test.docx`, `barem.pdf` or `barem.docx`, and the pages in `student/` (`1.jpg`, `2.jpg`, …); it gets `exercises.json` and `grading.json`. Keep the folder outside the repo: it holds a student's pages.

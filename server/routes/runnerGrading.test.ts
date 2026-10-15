@@ -180,7 +180,7 @@ describe('POST /api/runner/submissions/:id/result', () => {
   it('saves the grading, computes the grade, and shows it to the teacher', async () => {
     const id = await upload(0, '2026-10-07T08:10:00.000Z');
     await claim();
-    const res = await sendResult(id, { ok: true, result: result([4, 2.5]), model: 'claude-opus' });
+    const res = await sendResult(id, { ok: true, result: result([4, 2.5]), model: 'claude-opus', effort: 'high' });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'graded' });
 
@@ -214,7 +214,22 @@ describe('POST /api/runner/submissions/:id/result', () => {
 
     const detail = await api.request('GET', `/api/admin/tests/${code}`);
     expect(detail.body.test).toMatchObject({ status: 'done', gradedCount: 1 });
+    expect(detail.body.test.robot).toEqual({ gradingModel: 'claude-opus', gradingEffort: 'high', analysisModel: null, analysisEffort: null });
     expect(detail.body.uploads.find((row: { submissionId: number }) => row.submissionId === id)).toMatchObject({ grade: 7.5, flagCount: 1 });
+  });
+
+  it('saves a grading of an older robot without an effort, and shows the model of the latest grading', async () => {
+    const first = await upload(0, '2026-10-07T08:10:00.000Z');
+    const second = await upload(1, '2026-10-07T08:11:00.000Z');
+    await claim();
+    await sendResult(first, { ok: true, result: result([4, 2.5]), model: 'old-model', effort: 'low' });
+    await claim();
+    expect((await sendResult(second, { ok: true, result: result([4, 2.5]), model: 'new-model' })).status).toBe(200);
+    const row = await api.db.prepare('SELECT effort FROM evaluations WHERE submission_id = ?').bind(second).first();
+    expect(row).toEqual({ effort: null });
+    await api.db.prepare("UPDATE evaluations SET updated_at = '2099-01-01T00:00:00.000Z' WHERE submission_id = ?").bind(first).run();
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test.robot).toMatchObject({ gradingModel: 'old-model', gradingEffort: 'low' });
   });
 
   it('saves a grading of 60 exercises', async () => {

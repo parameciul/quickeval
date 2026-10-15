@@ -89,12 +89,12 @@ function refusal(err: unknown): 'dropped' | 'lease_lost' | 'invalid' | null {
 // `sendError` tells whether the work failed for good.
 async function sendOutcome(
   outcome: ClaudeOutcome,
-  sendAnswer: (output: unknown, model: string) => Promise<unknown>,
+  sendAnswer: (output: unknown, model: string, effort: string) => Promise<unknown>,
   sendError: (error: RobotError) => Promise<boolean>,
 ): Promise<TaskEnd> {
   try {
     if (outcome.ok) {
-      await sendAnswer(outcome.output, outcome.model);
+      await sendAnswer(outcome.output, outcome.model, outcome.effort ?? '');
       return 'saved';
     }
     const { problem } = outcome;
@@ -188,7 +188,8 @@ export async function analyzeClass(ctx: TaskContext, testId: number): Promise<Ta
     const outcome = await askClaude(ctx, 'class-report', cwd, (output) => checkClassAnalysis(output).ok);
     return sendOutcome(
       outcome,
-      (analysis) => ctx.api.sendAnalysis(testId, { runId: ctx.runId, ok: true, version: classResults.version, analysis }),
+      (analysis, model, effort) =>
+        ctx.api.sendAnalysis(testId, { runId: ctx.runId, ok: true, version: classResults.version, analysis, model, effort }),
       sendError,
     );
   });
@@ -211,7 +212,9 @@ export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Pro
     const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes, exerciseList: list, pages });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list).ok);
-    return sendOutcome(outcome, (result, model) => ctx.api.sendResult(submissionId, { runId: ctx.runId, ok: true, result, model }), sendError);
+    return sendOutcome(outcome, (result, model, effort) => ctx.api.sendResult(submissionId, { runId: ctx.runId, ok: true, result, model, effort }),
+      sendError,
+    );
   });
   log('grade', { submission: submissionId, test: testId, pages: claim.files.length, end });
   return end;

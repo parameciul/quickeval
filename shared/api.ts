@@ -377,6 +377,16 @@ export interface TestInfo extends TestSummary {
   // Extra teacher comments for the barem, read by the robot as part of it.
   baremNotes: string;
   analysis: AnalysisInfo;
+  // What the robot used, for the teacher's page. Null: not graded yet, or
+  // graded before the settings were kept.
+  robot: RobotSettings;
+}
+
+export interface RobotSettings {
+  gradingModel: string | null;
+  gradingEffort: string | null;
+  analysisModel: string | null;
+  analysisEffort: string | null;
 }
 
 // "none": the student has not started an upload.

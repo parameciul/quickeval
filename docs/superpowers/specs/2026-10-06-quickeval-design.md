@@ -573,7 +573,7 @@ The body of an exercise list or a result is at most 1 MB (else 413 `too_large`),
 - Repo settings:
   - Variable `QUICKEVAL_URL` (for example `https://quickeval.pages.dev`).
   - Secrets `QUICKEVAL_RUNNER_KEY` and `CLAUDE_CODE_OAUTH_TOKEN`.
-  - Optional variables `QE_MODEL` (default `opus`) and `QE_EFFORT` (default `high`).
+  - Optional variables `QE_MODEL` (default `opus`) and `QE_EFFORT` (default `high`). The robot sends the model and effort it used with every grading and with the class analysis; the test page shows them to the teacher (never to students).
 - **Public logs**: the robot prints only run ids, numeric test and submission ids, counts, durations, and error categories. It never prints names, file names, grades, Claude output, or file content.
 
 ### 12.2 Run algorithm (`runner/run.ts`)

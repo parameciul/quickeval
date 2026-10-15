@@ -396,18 +396,20 @@ export async function saveAnalysis(
   version: string,
   analysis: ClassAnalysis,
   now: string,
+  robot: { model: string | null; effort: string | null } = { model: null, effort: null },
 ): Promise<boolean> {
   const [saved] = await db.batch<{ id: number }>([
     db
       .prepare(
         `UPDATE tests SET analysis_json = ?, analysis_status = 'ready', updated_at = ?,
+           analysis_model = ?, analysis_effort = ?,
            analysis_stale = CASE WHEN ? = ${gradesVersionSql('tests')} THEN 0 ELSE 1 END
          WHERE ${WAITS_FOR_ANALYSIS}
            AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND s.status IN ('submitted', 'grading'))
            AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded')
          RETURNING id`,
       )
-      .bind(JSON.stringify(analysis), now, version, testId, runId),
+      .bind(JSON.stringify(analysis), now, robot.model, robot.effort, version, testId, runId),
     finishTests(db, now),
   ]);
   return Boolean(saved?.results.length);
@@ -480,6 +482,7 @@ export async function saveGrading(
   raw: unknown,
   model: string,
   now: string,
+  effort: string | null = null,
 ): Promise<boolean> {
   const items = JSON.stringify(
     grading.items.map((item) => ({ ...item, needsReview: item.needsReview ? 1 : 0 })),
@@ -489,8 +492,8 @@ export async function saveGrading(
     db
       .prepare(
         `INSERT INTO evaluations (submission_id, max_total, office_points, total, grade, needs_review, summary,
-           strengths_json, recommendations_json, unreadable_json, raw_json, model, created_at, updated_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${GRADED_BY_RUN}`,
+           strengths_json, recommendations_json, unreadable_json, raw_json, model, effort, created_at, updated_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${GRADED_BY_RUN}`,
       )
       .bind(
         submissionId,
@@ -505,6 +508,7 @@ export async function saveGrading(
         JSON.stringify(grading.unreadable),
         JSON.stringify(raw),
         model,
+        effort,
         now,
         now,
         submissionId,

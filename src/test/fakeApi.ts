@@ -90,6 +90,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       exerciseList: { status: 'none', message: null },
       baremNotes: '',
       analysis: { status: 'none', stale: false, attempts: 0 },
+      robot: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
       ...overrides,
     },
     uploads,
