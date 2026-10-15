@@ -43,6 +43,34 @@ describe('SettingsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Salvat.');
   });
 
+  it('shows the model and effort of the latest grading and class analysis, and nothing when there are none', async () => {
+    const none = withSettings();
+    renderAdmin('/setari', none);
+    await screen.findByText('Robotul nu a terminat încă nicio rulare.');
+    expect(screen.queryByText(/Ultima corectare/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ultima analiză a clasei/)).not.toBeInTheDocument();
+  });
+
+  it('shows the latest grading, and the analysis model without an effort', async () => {
+    const lastModels = { gradingModel: 'claude-opus-5-5', gradingEffort: 'high', analysisModel: 'claude-sonnet-5-5', analysisEffort: null };
+    renderAdmin('/setari', withSettings(fakeSettings({ lastModels })));
+    expect(await screen.findByText('Ultima corectare: claude-opus-5-5, efort high')).toBeInTheDocument();
+    expect(screen.getByText('Ultima analiză a clasei: claude-sonnet-5-5')).toBeInTheDocument();
+  });
+
+  it('has the Model column checkbox off by default, and saves it', async () => {
+    const user = userEvent.setup();
+    const api = withSettings();
+    renderAdmin('/setari', api);
+    const box = await screen.findByRole('checkbox', { name: 'Arată coloana Model în tabelul elevilor' });
+    expect(box).not.toBeChecked();
+    await user.click(box);
+    expect(api.setShowModelColumn).toHaveBeenCalledWith(true);
+    expect(await screen.findByRole('checkbox', { name: 'Arată coloana Model în tabelul elevilor' })).toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: 'Arată coloana Model în tabelul elevilor' }));
+    expect(api.setShowModelColumn).toHaveBeenLastCalledWith(false);
+  });
+
   it('makes the first robot key and shows it once, to copy', async () => {
     const user = userEvent.setup();
     const api = withSettings();

@@ -173,9 +173,10 @@ function report(exerciseCount: number): ClassReport {
   return {
     test: { code: '6E2-26T1', title: 'Fracții și ecuații', className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
     exercises,
+    showModel: true,
     rows: [
-      { submissionId: 5, studentId: 10, studentName: 'Ștefănescu Țicu', active: true, total: 12, maxTotal: exerciseCount, grade: 8, flagCount: 1, items: items(1) },
-      { submissionId: 6, studentId: 11, studentName: 'Avram Dan', active: true, total: 10, maxTotal: exerciseCount, grade: 7, flagCount: 0, items: items(-1) },
+      { submissionId: 5, studentId: 10, studentName: 'Ștefănescu Țicu', active: true, total: 12, maxTotal: exerciseCount, grade: 8, flagCount: 1, model: 'claude-opus-5-5', effort: 'high', items: items(1) },
+      { submissionId: 6, studentId: 11, studentName: 'Avram Dan', active: true, total: 10, maxTotal: exerciseCount, grade: 7, flagCount: 0, model: null, effort: null, items: items(-1) },
     ],
     missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none' }],
     analysis: {

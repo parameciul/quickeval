@@ -312,7 +312,7 @@ CREATE TABLE evaluation_items (            -- one per exercise per graded submis
 );
 
 CREATE TABLE settings (                    -- system-wide
-  key TEXT PRIMARY KEY,                    -- max_parallel_agents | runner_key_hash
+  key TEXT PRIMARY KEY,                    -- max_parallel_agents | runner_key_hash | show_model_column
   value TEXT NOT NULL
 );
 
@@ -409,7 +409,7 @@ All screens are in Romanian. Routes use the teacher's base path `/admin`.
 | `/admin/clase` | Clase | Classes of the selected school year. Add a class (name, school year). Archive a class. |
 | `/admin/clase/:id` | Clasa | Students: add one, paste many (one name per line), rename, mark as left. Each name links to the student's history. Tests of the class. |
 | `/admin/elevi/:id` | Elev | History: every graded test of this student in every class and year, with grade and link. |
-| `/admin/setari` | Setări | Parallel agents (1-4, default 1). Robot key: create or replace, shown once. Robot status. |
+| `/admin/setari` | Setări | Parallel agents (1-4, default 1). Robot key: create or replace, shown once. Robot status, with the model and effort of the latest grading and class analysis. Checkbox "Arată coloana Model în tabelul elevilor" (`show_model_column`, one setting for all tests, off by default). |
 
 A school-year switch in the header (default: the current school year) filters Teste and Clase.
 
@@ -748,6 +748,7 @@ Checks done by code, not by Claude:
   - number of flagged items not yet checked.
 - AI analysis: overview, strengths, weaknesses, common mistakes, recommendations. When `analysis_stale = 1`, the page shows "Analiza poate fi depășită" and a **Regenerează** button.
 - The table keeps one column for each exercise and scrolls inside its box, with the student's name in view. A flagged cell has the highlighter background and a screen-reader note. Each name links to the student's result page.
+- The **Model** column (the model and effort that graded the student, `claude-opus-5-5 · high`) shows only when the Setări checkbox is on. The report API sends `showModel` and each row's `model` and `effort`; the CSV and the PDFs never carry them.
 - The analysis block shows the four lists, or its state: not made yet (**Fă analiza clasei**), being written (the page refreshes every 10 s), failed, or out of date (**Regenerează**).
 - Buttons: **Descarcă PDF** (landscape: table, statistics, analysis), **Descarcă CSV**, **Trimite** (the PDF).
 - CSV for Romanian Excel: UTF-8 with BOM, `;` as the separator, a decimal comma, and CR LF line ends. Columns: Elev, one for each exercise, Total, Nota, Observații (items to check, or why a student has no result). Numbers are numbers. A text cell (names, exercise ids, the words of Observații) that starts with `=`, `+`, `-`, `@`, a tab, or a carriage return gets an apostrophe in front, so a spreadsheet never runs it as a formula: the texts come from students and from Claude.

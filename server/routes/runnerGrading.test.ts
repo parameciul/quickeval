@@ -214,7 +214,8 @@ describe('POST /api/runner/submissions/:id/result', () => {
 
     const detail = await api.request('GET', `/api/admin/tests/${code}`);
     expect(detail.body.test).toMatchObject({ status: 'done', gradedCount: 1 });
-    expect(detail.body.test.robot).toEqual({ gradingModel: 'claude-opus', gradingEffort: 'high', analysisModel: null, analysisEffort: null });
+    const settings = await api.request('GET', '/api/admin/settings');
+    expect(settings.body.settings.lastModels).toEqual({ gradingModel: 'claude-opus', gradingEffort: 'high', analysisModel: null, analysisEffort: null });
     expect(detail.body.uploads.find((row: { submissionId: number }) => row.submissionId === id)).toMatchObject({ grade: 7.5, flagCount: 1 });
   });
 
@@ -228,8 +229,8 @@ describe('POST /api/runner/submissions/:id/result', () => {
     const row = await api.db.prepare('SELECT effort FROM evaluations WHERE submission_id = ?').bind(second).first();
     expect(row).toEqual({ effort: null });
     await api.db.prepare("UPDATE evaluations SET updated_at = '2099-01-01T00:00:00.000Z' WHERE submission_id = ?").bind(first).run();
-    const detail = await api.request('GET', `/api/admin/tests/${code}`);
-    expect(detail.body.test.robot).toMatchObject({ gradingModel: 'old-model', gradingEffort: 'low' });
+    const settings = await api.request('GET', '/api/admin/settings');
+    expect(settings.body.settings.lastModels).toMatchObject({ gradingModel: 'old-model', gradingEffort: 'low' });
   });
 
   it('saves a grading of 60 exercises', async () => {

@@ -14,13 +14,14 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     db
       .prepare(
         `SELECT t.code, t.title, t.status, t.started_at, t.class_id, c.name AS class_name, t.exercise_list_json,
-           t.analysis_status, t.analysis_stale, t.analysis_attempts, t.analysis_json
+           t.analysis_status, t.analysis_stale, t.analysis_attempts, t.analysis_json,
+           (SELECT value FROM settings WHERE key = 'show_model_column') AS show_model
          FROM tests t JOIN classes c ON c.id = t.class_id WHERE t.id = ? AND t.teacher_id = ?`,
       )
       .bind(testId, teacherId),
     db
       .prepare(
-        `SELECT s.id AS submission_id, st.id AS student_id, st.full_name, ev.total, ev.max_total, ev.grade,
+        `SELECT s.id AS submission_id, st.id AS student_id, st.full_name, ev.total, ev.max_total, ev.grade, ev.model, ev.effort,
            ${flagCountSql('ev')} AS flag_count,
            EXISTS (SELECT 1 FROM enrollments e WHERE e.class_id = t.class_id AND e.student_id = st.id AND e.active = 1) AS active
          FROM submissions s
@@ -66,6 +67,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
         analysis_stale: number;
         analysis_attempts: number;
         analysis_json: string | null;
+        show_model: string | null;
       }
     | undefined;
   if (!head) return null;
@@ -103,6 +105,8 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     total: number;
     max_total: number;
     grade: number;
+    model: string | null;
+    effort: string | null;
     flag_count: number;
     active: number;
   }[])
@@ -116,6 +120,8 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
         maxTotal: row.max_total,
         grade: row.grade,
         flagCount: row.flag_count,
+        model: row.model,
+        effort: row.effort,
         items: itemsBySubmission.get(row.submission_id) ?? [],
       }),
     )
@@ -127,6 +133,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
   return {
     test: { code: head.code, title: head.title, className: head.class_name, status: head.status, startedAt: head.started_at },
     exercises: exerciseColumns(list, storedItems).map(({ id, label, maxPoints }) => ({ id, label, maxPoints })),
+    showModel: head.show_model === '1',
     rows,
     missing: notGraded,
     analysis: {

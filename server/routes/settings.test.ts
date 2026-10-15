@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sha256Hex } from '../secrets.ts';
-import { addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -26,6 +26,8 @@ describe('GET /api/admin/settings', () => {
         hasRobotKey: false,
         robot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
         lastGradedAt: null,
+        lastModels: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
+        showModelColumn: false,
       },
     });
   });
@@ -73,6 +75,68 @@ describe('PATCH /api/admin/settings', () => {
     const res = await api.request('PATCH', '/api/admin/settings', { maxParallelAgents: value });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('Alege între 1 și 4 lucrări corectate deodată.');
+  });
+});
+
+describe('model settings', () => {
+  const setModel = (submissionId: number, model: string | null, effort: string | null, at: string) =>
+    api.db
+      .prepare('UPDATE evaluations SET model = ?, effort = ?, updated_at = ? WHERE submission_id = ?')
+      .bind(model, effort, at, submissionId)
+      .run();
+
+  it("shows the model of the teacher's latest grading and latest analysis, and none of another teacher's", async () => {
+    const cls = await makeClass(api, '6E2', ['Pop Ion', 'Ionescu Ana']);
+    const code = await makeTest(api, cls.id);
+    const first = await addSubmission(api, code, cls.studentIds[0]!, { status: 'graded', files: 1 });
+    const second = await addSubmission(api, code, cls.studentIds[1]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, first, { grade: 8, items: [{}] });
+    await addEvaluation(api, second, { grade: 9, items: [{}] });
+    await setModel(first, 'older', 'low', '2026-10-07T08:00:00.000Z');
+    await setModel(second, 'newer', null, '2026-10-08T08:00:00.000Z');
+    await api.db
+      .prepare("UPDATE tests SET analysis_model = 'analyst', analysis_effort = 'medium', updated_at = '2026-10-09T08:00:00.000Z' WHERE code = ?")
+      .bind(code)
+      .run();
+    const foreign = await otherTeacherTest(api);
+    const foreignId = await addSubmission(api, foreign.code, foreign.studentId, { status: 'graded', files: 1 });
+    await addEvaluation(api, foreignId, { grade: 5, items: [{}] });
+    await setModel(foreignId, 'foreign', 'max', '2026-12-01T08:00:00.000Z');
+    await api.db
+      .prepare("UPDATE tests SET analysis_model = 'foreign-analyst', analysis_effort = 'max', updated_at = '2026-12-01T08:00:00.000Z' WHERE code = ?")
+      .bind(foreign.code)
+      .run();
+    const res = await api.request('GET', '/api/admin/settings');
+    expect(res.body.settings.lastModels).toEqual({
+      gradingModel: 'newer',
+      gradingEffort: null,
+      analysisModel: 'analyst',
+      analysisEffort: 'medium',
+    });
+  });
+
+  it('keeps the Model column setting off until it is turned on, in the settings table, with no migration', async () => {
+    expect((await api.request('GET', '/api/admin/settings')).body.settings.showModelColumn).toBe(false);
+    const on = await api.request('PATCH', '/api/admin/settings', { showModelColumn: true });
+    expect(on.status).toBe(200);
+    expect(on.body.settings.showModelColumn).toBe(true);
+    expect(await api.db.prepare("SELECT value FROM settings WHERE key = 'show_model_column'").first()).toEqual({ value: '1' });
+    expect((await api.request('PATCH', '/api/admin/settings', { showModelColumn: false })).body.settings.showModelColumn).toBe(false);
+    expect(await api.db.prepare("SELECT value FROM settings WHERE key = 'show_model_column'").first()).toEqual({ value: '0' });
+  });
+
+  it('changes one setting without touching the other', async () => {
+    await api.request('PATCH', '/api/admin/settings', { maxParallelAgents: 3 });
+    const res = await api.request('PATCH', '/api/admin/settings', { showModelColumn: true });
+    expect(res.body.settings).toMatchObject({ maxParallelAgents: 3, showModelColumn: true });
+    const again = await api.request('PATCH', '/api/admin/settings', { maxParallelAgents: 2 });
+    expect(again.body.settings).toMatchObject({ maxParallelAgents: 2, showModelColumn: true });
+  });
+
+  it.each(['1', 1, null])('refuses %j for the Model column', async (value) => {
+    const res = await api.request('PATCH', '/api/admin/settings', { showModelColumn: value });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Alege dacă se arată coloana Model.');
   });
 });
 
