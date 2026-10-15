@@ -50,7 +50,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
       },
     ],
     missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none' }],
-    analysis: { status: 'ready', stale: false, content: ANALYSIS },
+    analysis: { status: 'ready', stale: false, attempts: 0, content: ANALYSIS },
     ...overrides,
   };
 }
@@ -132,7 +132,7 @@ describe('ReportPage', () => {
   });
 
   it('says that an analysis may be out of date, and asks for a new one', async () => {
-    const api = apiWith(report({ analysis: { status: 'ready', stale: true, content: ANALYSIS } }));
+    const api = apiWith(report({ analysis: { status: 'ready', stale: true, attempts: 0, content: ANALYSIS } }));
     renderAdmin('/teste/6E2-26T1/raport', api);
     expect(await screen.findByText('Analiza poate fi depășită', { exact: false })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Regenerează' })).toHaveLength(1);
@@ -142,15 +142,24 @@ describe('ReportPage', () => {
   });
 
   it('says when the robot writes the analysis, and when it could not', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ analysis: { status: 'requested', stale: false, content: null } })));
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ analysis: { status: 'requested', stale: false, attempts: 0, content: null } })));
     expect(await screen.findByText('Robotul scrie analiza clasei.', { exact: false })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Regenerează' })).not.toBeInTheDocument();
+  });
+
+  it('says that the last attempt failed and keeps the Regenerează button, when an attempt failed and the analysis is still requested', async () => {
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ analysis: { status: 'requested', stale: false, attempts: 1, content: null } })));
+    expect(
+      await screen.findByText('Ultima încercare a eșuat. Robotul va încerca din nou la următoarea rulare.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Robotul scrie analiza clasei.', { exact: false })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Regenerează' })).toBeInTheDocument();
   });
 
   it('says that the analysis waits for the next evaluation of a reopened test, with no buttons and no refresh', async () => {
     const reopened = report({
       test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'open', startedAt: '2026-10-06T07:15:00.000Z' },
-      analysis: { status: 'requested', stale: false, content: null },
+      analysis: { status: 'requested', stale: false, attempts: 0, content: null },
     });
     renderAdmin('/teste/6E2-26T1/raport', apiWith(reopened));
     expect(await screen.findByText('Analiza se scrie după ce testul este corectat din nou.')).toBeInTheDocument();
@@ -161,7 +170,7 @@ describe('ReportPage', () => {
   });
 
   it('refreshes every 10 seconds only while the robot can write the analysis', () => {
-    const requested = { status: 'requested', stale: false, content: null } as const;
+    const requested = { status: 'requested', stale: false, attempts: 0, content: null } as const;
     const withStatus = (status: ClassReport['test']['status']) =>
       report({ test: { ...report().test, status }, analysis: requested });
     expect(reportRefreshInterval(withStatus('evaluating'))).toBe(10_000);
@@ -171,14 +180,14 @@ describe('ReportPage', () => {
   });
 
   it('offers the first analysis of a test graded before analyses existed', async () => {
-    const api = apiWith(report({ analysis: { status: 'none', stale: false, content: null } }));
+    const api = apiWith(report({ analysis: { status: 'none', stale: false, attempts: 0, content: null } }));
     renderAdmin('/teste/6E2-26T1/raport', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Fă analiza clasei' }));
     expect(api.regenerateAnalysis).toHaveBeenCalledWith('6E2-26T1');
   });
 
   it('offers a new try after a failed analysis', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ analysis: { status: 'failed', stale: false, content: null } })));
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ analysis: { status: 'failed', stale: false, attempts: 0, content: null } })));
     expect(await screen.findByText('Robotul nu a putut scrie analiza clasei.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Regenerează' })).toBeInTheDocument();
   });
@@ -208,7 +217,7 @@ describe('ReportPage', () => {
   });
 
   it('says that nothing is graded yet, without tables', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ rows: [], analysis: { status: 'none', stale: false, content: null } })));
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ rows: [], analysis: { status: 'none', stale: false, attempts: 0, content: null } })));
     expect(await screen.findByText('Nicio lucrare nu este corectată încă', { exact: false })).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fă analiza clasei' })).not.toBeInTheDocument();

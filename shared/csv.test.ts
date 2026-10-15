@@ -27,7 +27,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
       },
     ],
     missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none' }],
-    analysis: { status: 'none', stale: false, content: null },
+    analysis: { status: 'none', stale: false, attempts: 0, content: null },
     ...overrides,
   };
 }

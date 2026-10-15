@@ -336,11 +336,11 @@ export async function requestAnalysis(db: D1Database, teacherId: number, testId:
          status = CASE WHEN status = 'done' THEN 'evaluating' ELSE status END
        WHERE id = ? AND teacher_id = ? AND status IN ('evaluating', 'done')
          AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded')
-       RETURNING analysis_status, analysis_stale`,
+       RETURNING analysis_status, analysis_stale, analysis_attempts`,
     )
     .bind(now, testId, teacherId)
-    .first<{ analysis_status: AnalysisStatus; analysis_stale: number }>();
-  return row ? { status: row.analysis_status, stale: row.analysis_stale === 1 } : null;
+    .first<{ analysis_status: AnalysisStatus; analysis_stale: number; analysis_attempts: number }>();
+  return row ? { status: row.analysis_status, stale: row.analysis_stale === 1, attempts: row.analysis_attempts } : null;
 }
 
 // failed → submitted with 0 attempts, so the robot grades the upload again. A

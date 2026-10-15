@@ -181,6 +181,7 @@ function report(exerciseCount: number): ClassReport {
     analysis: {
       status: 'ready',
       stale: true,
+      attempts: 0,
       content: { overview: `Clasa a lucrat bine. ${ROMANIAN}`, strengths: ['Fracții'], weaknesses: [], commonMistakes: ['Semnul'], recommendations: ['Exersați'] },
     },
   };
@@ -236,14 +237,14 @@ describe('classPdf', () => {
   });
 
   it('prints no analysis section when the report carries no analysis content', () => {
-    const noContent = { ...report(2), analysis: { status: 'requested' as const, stale: false, content: null } };
+    const noContent = { ...report(2), analysis: { status: 'requested' as const, stale: false, attempts: 0, content: null } };
     const text = textsOf(classPdf(noContent).content).join('\n');
     expect(text).toContain('Corectate');
     expect(text).not.toContain('Analiza clasei');
   });
 
   it('is a document of its own when nothing is graded', () => {
-    const empty = { ...report(2), rows: [], analysis: { status: 'none' as const, stale: false, content: null } };
+    const empty = { ...report(2), rows: [], analysis: { status: 'none' as const, stale: false, attempts: 0, content: null } };
     const text = textsOf(classPdf(empty).content).join('\n');
     expect(text).toContain('Corectate 0 din 1 elevi');
     expect(text).not.toContain('Analiza clasei');

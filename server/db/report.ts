@@ -14,7 +14,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     db
       .prepare(
         `SELECT t.code, t.title, t.status, t.started_at, t.class_id, c.name AS class_name, t.exercise_list_json,
-           t.analysis_status, t.analysis_stale, t.analysis_json
+           t.analysis_status, t.analysis_stale, t.analysis_attempts, t.analysis_json
          FROM tests t JOIN classes c ON c.id = t.class_id WHERE t.id = ? AND t.teacher_id = ?`,
       )
       .bind(testId, teacherId),
@@ -63,6 +63,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
         exercise_list_json: string | null;
         analysis_status: AnalysisStatus;
         analysis_stale: number;
+        analysis_attempts: number;
         analysis_json: string | null;
       }
     | undefined;
@@ -128,6 +129,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     analysis: {
       status: head.analysis_status,
       stale: head.analysis_stale === 1,
+      attempts: head.analysis_attempts,
       content: head.analysis_status === 'ready' && head.analysis_json ? (JSON.parse(head.analysis_json) as ClassAnalysis) : null,
     },
   };

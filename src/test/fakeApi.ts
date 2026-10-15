@@ -89,7 +89,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
       baremNotes: '',
-      analysis: { status: 'none', stale: false },
+      analysis: { status: 'none', stale: false, attempts: 0 },
       ...overrides,
     },
     uploads,
@@ -409,7 +409,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         throw new ApiError(409, 'not_evaluated', 'Analiza se face după ce testul a fost corectat.');
       }
       if (found.test.gradedCount === 0) throw new ApiError(409, 'no_results', 'Testul nu are lucrări corectate.');
-      found.test.analysis = { status: 'requested', stale: found.test.analysis.stale };
+      found.test.analysis = { status: 'requested', stale: found.test.analysis.stale, attempts: 0 };
       if (found.test.status === 'done') found.test.status = 'evaluating';
       return { analysis: found.test.analysis, robot: 'next_check' };
     }),

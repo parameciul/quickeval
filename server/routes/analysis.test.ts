@@ -259,7 +259,7 @@ describe('POST /api/admin/tests/:code/analysis/regenerate', () => {
     dispatchRobot.mockResolvedValueOnce(true);
     const res = await regenerate();
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ analysis: { status: 'requested', stale: true }, robot: 'dispatched' });
+    expect(res.body).toEqual({ analysis: { status: 'requested', stale: true, attempts: 0 }, robot: 'dispatched' });
     expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'requested', analysis_attempts: 0 });
   });
 
@@ -276,7 +276,7 @@ describe('POST /api/admin/tests/:code/analysis/regenerate', () => {
     await graded(0);
     await setTest("status = 'done', analysis_status = 'ready', analysis_stale = 1");
     const detail = await api.request('GET', `/api/admin/tests/${code}`);
-    expect(detail.body.test.analysis).toEqual({ status: 'ready', stale: true });
+    expect(detail.body.test.analysis).toEqual({ status: 'ready', stale: true, attempts: 0 });
   });
 
   it('refuses a test that is open or has nothing graded', async () => {

@@ -351,10 +351,12 @@ export interface ClassReport {
 }
 
 // The class analysis as the test page sees it. `stale`: grades changed after
-// the analysis was written.
+// the analysis was written. `attempts`: failed attempts of the robot so far; a
+// requested analysis with attempts left waits for the next run.
 export interface AnalysisInfo {
   status: AnalysisStatus;
   stale: boolean;
+  attempts: number;
 }
 
 // "Regenerează": the analysis is asked for again. `robot` says whether the
