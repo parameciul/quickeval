@@ -105,6 +105,14 @@ describe('POST /api/admin/tests/:code/evaluate (now)', () => {
     expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'requested', analysis_attempts: 0 });
   });
 
+  it('starts the attempts again for an analysis that is still requested', async () => {
+    await addTestFiles(api, code);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    await setTest("analysis_status = 'requested', analysis_attempts = 2");
+    await evaluate();
+    expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'requested', analysis_attempts: 0 });
+  });
+
   it.each([
     ['the test file', ['barem'] as const, 'Încarcă testul înainte de evaluare.'],
     ['the barem', ['test'] as const, 'Încarcă baremul înainte de evaluare.'],

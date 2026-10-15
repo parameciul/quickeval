@@ -9,10 +9,12 @@ import type { ShownUpload } from './submissions.ts';
 
 // Entering an evaluation asks for a class analysis, the first one too: the
 // analysis is asked for when the status is none, ready, or failed (spec §8.5).
-// One already requested stays as it is.
+// One already requested stays requested. The attempts start again in every
+// case, so a failed attempt from before a reopen does not count against the
+// new analysis.
 const ASK_FOR_ANALYSIS = `
   analysis_status = CASE WHEN analysis_status IN ('none', 'ready', 'failed') THEN 'requested' ELSE analysis_status END,
-  analysis_attempts = CASE WHEN analysis_status IN ('none', 'ready', 'failed') THEN 0 ELSE analysis_attempts END`;
+  analysis_attempts = 0`;
 
 const HAS_FILES = 'EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)';
 
