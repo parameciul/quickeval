@@ -3,6 +3,7 @@ import type { SubmissionDetail } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDate } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
+import { pdfText } from './pdfSymbols.ts';
 
 // The student's PDF (spec §14.1): test code and title, the student's name,
 // the date, the grade, the table of exercises, the summary, what went well,
@@ -72,7 +73,27 @@ export function studentPdfFileName(input: StudentPdfInput): string {
 const list = (title: string, entries: string[]): Content[] =>
   entries.length === 0 ? [] : [{ text: title, style: 'h2' }, { ul: entries, margin: [0, 0, 0, 4] }];
 
-export function studentPdf(input: StudentPdfInput): TDocumentDefinitions {
+// The one place where the free texts of the input become PDF text: the symbols
+// that the font lacks are written as words here (pdfSymbols.ts). Names stay.
+function drawable(input: StudentPdfInput): StudentPdfInput {
+  return {
+    ...input,
+    testTitle: pdfText(input.testTitle),
+    summary: pdfText(input.summary),
+    strengths: input.strengths.map(pdfText),
+    recommendations: input.recommendations.map(pdfText),
+    items: input.items.map((item) => ({
+      ...item,
+      exerciseId: pdfText(item.exerciseId),
+      label: pdfText(item.label),
+      studentAnswer: pdfText(item.studentAnswer),
+      comment: pdfText(item.comment),
+    })),
+  };
+}
+
+export function studentPdf(source: StudentPdfInput): TDocumentDefinitions {
+  const input = drawable(source);
   const pending = input.items.some((item) => item.pending);
   const header = ['Exercițiul', 'Puncte', 'Răspunsul tău', 'Comentariu'].map((text) => ({ text, style: 'th' }));
   const rows = input.items.map((item) => [

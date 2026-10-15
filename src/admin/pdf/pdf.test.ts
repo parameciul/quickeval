@@ -5,6 +5,7 @@ import { expectNoGradingWords } from '../../test/gradingWords.ts';
 import { fakeItem } from '../../test/fakeApi.ts';
 import { BLOCK, classPdf, classPdfFileName } from './classPdf.ts';
 import { pdfFileName } from './fileName.ts';
+import { PDF_SYMBOLS, pdfText } from './pdfSymbols.ts';
 import { renderPdf } from './renderPdf.ts';
 import { studentPdf, studentPdfFileName, studentPdfInput } from './studentPdf.ts';
 
@@ -246,5 +247,50 @@ describe('classPdf', () => {
     const text = textsOf(classPdf(empty).content).join('\n');
     expect(text).toContain('Corectate 0 din 1 elevi');
     expect(text).not.toContain('Analiza clasei');
+  });
+});
+
+describe('pdfText', () => {
+  const LACKING = '∈∉ℝℕℤℚ⇒⇔→∠⊥∪∩∥⊂∅∡';
+
+  it('maps every symbol that the font lacks to text that the font draws', () => {
+    const has = glyphChecker();
+    for (const symbol of LACKING) {
+      expect(has(symbol.codePointAt(0)!)).toBe(false);
+      expect(PDF_SYMBOLS[symbol], symbol).toBeDefined();
+      const out = pdfText(`a ${symbol} b`);
+      expect(out).not.toContain(symbol);
+      expect([...out].filter((char) => !has(char.codePointAt(0)!))).toEqual([]);
+    }
+    expect(Object.keys(PDF_SYMBOLS).sort().join('')).toBe([...LACKING].sort().join(''));
+  });
+
+  it('writes the symbols as words or letters, with spaces where they would stick', () => {
+    expect(pdfText('x ∈ ℕ')).toBe('x aparține N');
+    expect(pdfText('AB ⊥ CD')).toBe('AB perpendicular pe CD');
+    expect(pdfText('∠ABC')).toBe('unghiul ABC');
+    expect(pdfText('A⇒B, B⇔C, f: ℝ→ℝ')).toBe('A=>B, B<=>C, f: R->R');
+  });
+
+  it('returns a text without these symbols unchanged', () => {
+    const text = `${ROMANIAN} x² ≤ 4, √9 = 3, ½ „da” – 5·2`;
+    expect(pdfText(text)).toBe(text);
+  });
+
+  it('keeps the symbols out of the student PDF and the class PDF', () => {
+    const has = glyphChecker();
+    const detail = submission();
+    detail.evaluation!.items[0] = { ...detail.evaluation!.items[0]!, studentAnswer: 'x ∈ ℕ', comment: 'AB ⊥ CD' };
+    detail.evaluation!.summary = 'A ⇒ B';
+    const studentText = textsOf(studentPdf(studentPdfInput(detail)!).content).join('');
+    expect(studentText).toContain('x aparține N');
+    expect(studentText).toContain('AB perpendicular pe CD');
+    expect([...studentText].filter((char) => !has(char.codePointAt(0)!) && !/\s/.test(char))).toEqual([]);
+
+    const base = report(2);
+    const withSymbols = { ...base, analysis: { ...base.analysis, content: { ...base.analysis.content!, overview: 'x ∈ ℝ, A ∩ B = ∅' } } };
+    const classText = textsOf(classPdf(withSymbols).content).join('');
+    expect(classText).toContain('x aparține R, A intersectat cu B = mulțimea vidă');
+    expect([...classText].filter((char) => !has(char.codePointAt(0)!) && !/\s/.test(char))).toEqual([]);
   });
 });

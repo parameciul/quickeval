@@ -5,6 +5,7 @@ import { formatPoints } from '../../../shared/scoring.ts';
 import { classStats } from '../../../shared/stats.ts';
 import { formatDate, uploadStatusLabel } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
+import { pdfText } from './pdfSymbols.ts';
 
 // The class PDF (spec §14.2): landscape, with the table of results, the
 // statistics, and the analysis. A test can have 60 exercises, which no page
@@ -63,7 +64,31 @@ function resultsTable(report: ClassReport, exerciseIds: string[], last: boolean)
 const list = (title: string, entries: string[]): Content[] =>
   entries.length === 0 ? [] : [{ text: title, style: 'h3' }, { ul: entries, margin: [0, 0, 0, 4] }];
 
-export function classPdf(report: ClassReport): TDocumentDefinitions {
+// The one place where the free texts of the report become PDF text: the
+// symbols that the font lacks are written as words here (pdfSymbols.ts).
+// Student names stay as they are.
+function drawable(source: ClassReport): ClassReport {
+  const { content } = source.analysis;
+  return {
+    ...source,
+    test: { ...source.test, title: pdfText(source.test.title) },
+    exercises: source.exercises.map((exercise) => ({ ...exercise, id: pdfText(exercise.id), label: pdfText(exercise.label) })),
+    rows: source.rows.map((row) => ({ ...row, items: row.items.map((item) => ({ ...item, exerciseId: pdfText(item.exerciseId) })) })),
+    analysis: {
+      ...source.analysis,
+      content: content && {
+        overview: pdfText(content.overview),
+        strengths: content.strengths.map(pdfText),
+        weaknesses: content.weaknesses.map(pdfText),
+        commonMistakes: content.commonMistakes.map(pdfText),
+        recommendations: content.recommendations.map(pdfText),
+      },
+    },
+  };
+}
+
+export function classPdf(source: ClassReport): TDocumentDefinitions {
+  const report = drawable(source);
   const stats = classStats(report);
   const blocks = chunks(
     report.exercises.map((exercise) => exercise.id),
