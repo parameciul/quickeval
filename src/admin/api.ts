@@ -2,6 +2,7 @@ import type {
   AnalysisAnswer,
   BaremNotesAnswer,
   ClassDetail,
+  ClassReport,
   ClassSummary,
   CreateClassInput,
   CreateTestInput,
@@ -72,6 +73,8 @@ export interface AdminApi {
   startRobot(code: string): Promise<RobotStart>;
   // "Regenerează": the class analysis is written again.
   regenerateAnalysis(code: string): Promise<AnalysisAnswer>;
+  // The rows of the class report.
+  getReport(code: string): Promise<ClassReport>;
   // "Recorectează tot": graded and failed uploads wait for the robot again.
   regradeTest(code: string): Promise<RegradeAnswer>;
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
@@ -224,6 +227,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<ExerciseListAnswer>('POST', `${test(code)}/exercise-list/retry`)).robot,
     startRobot: async (code) => (await request<RobotStartAnswer>('POST', `${test(code)}/robot`)).robot,
     regenerateAnalysis: (code) => request<AnalysisAnswer>('POST', `${test(code)}/analysis/regenerate`),
+    getReport: async (code) => (await request<{ report: ClassReport }>('GET', `${test(code)}/report`)).report,
     regradeTest: (code) => request<RegradeAnswer>('POST', `${test(code)}/regrade`),
     getSubmission: async (submissionId) =>
       (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,

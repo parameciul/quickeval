@@ -25,6 +25,7 @@ import { acceptExerciseList,
   selectedHaveFiles,
   startEvaluationNow,
 } from '../db/lifecycle.ts';
+import { getClassReport } from '../db/report.ts';
 import { setResultsOpen } from '../db/results.ts';
 import { testHasRobotWork } from '../db/runner.ts';
 import { testPageRobot } from '../db/settings.ts';
@@ -264,6 +265,15 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       throw new ApiError(409, 'no_work', 'Nicio lucrare a acestui test nu așteaptă robotul.');
     }
     return c.json({ robot: await startRobot(c.env) } satisfies RobotStartAnswer);
+  });
+
+  // The rows of the class report (spec §14.2). The statistics are made in the
+  // browser from these rows.
+  routes.get('/:code/report', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const report = await getClassReport(c.env.DB, c.var.teacher.id, test.id);
+    if (!report) throw notFound();
+    return c.json({ report });
   });
 
   // "Regenerează": the robot writes the class analysis again (spec §8.5).

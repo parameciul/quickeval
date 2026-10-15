@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import type {
   AnalysisAnswer,
   BaremNotesAnswer,
+  ClassReport,
   ClassSummary,
   EvaluationInfo,
   EvaluationItemInfo,
@@ -35,6 +36,8 @@ export interface FakeData {
   submissions?: SubmissionDetail[];
   settings?: Settings;
   histories?: StudentHistory[];
+  // The class reports, by test code.
+  reports?: Record<string, ClassReport>;
 }
 
 // The settings of a new installation, for building fake data in tests.
@@ -409,6 +412,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.test.analysis = { status: 'requested', stale: found.test.analysis.stale };
       if (found.test.status === 'done') found.test.status = 'evaluating';
       return { analysis: found.test.analysis, robot: 'next_check' };
+    }),
+    getReport: vi.fn(async (code: string) => {
+      const report = data.reports?.[code];
+      if (!report) throw notFound();
+      return structuredClone(report);
     }),
     getSubmission: vi.fn(async (submissionId: number) => structuredClone(findSubmission(submissionId))),
     getResultLink: vi.fn(async (submissionId: number, startedAt: string) => {

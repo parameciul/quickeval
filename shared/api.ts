@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { normalizeClassName } from './classes.ts';
 import type { TestFileKind } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
-import { TEXT_LIMITS, type Confidence } from './schemas.ts';
+import { type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
 import { type AnalysisStatus, cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
@@ -306,6 +306,48 @@ export interface ExerciseListInfo {
   status: ExerciseListStatus;
   // Why the list needs the teacher: points that do not add up, or an error.
   message: string | null;
+}
+
+// One exercise of a graded student in the class report.
+export interface ReportItem {
+  exerciseId: string;
+  points: number;
+  maxPoints: number;
+  // An item to check that the teacher has not checked yet.
+  flagged: boolean;
+}
+
+// One graded student in the class report (spec §14.2).
+export interface ReportRow {
+  submissionId: number;
+  studentId: number;
+  studentName: string;
+  total: number;
+  maxTotal: number;
+  // Out of 10.
+  grade: number;
+  // Items to check that the teacher has not checked yet, plus one for pages
+  // that could not be read.
+  flagCount: number;
+  items: ReportItem[];
+}
+
+// An active student of the class with no graded result, and why.
+export interface ReportMissing {
+  studentId: number;
+  studentName: string;
+  status: UploadStatus;
+}
+
+// The class report of a test (spec §14.2). The statistics come from
+// `classStats` (shared/stats.ts), in the browser.
+export interface ClassReport {
+  test: { code: string; title: string; className: string; status: TestStatus; startedAt: string | null };
+  // The exercises of the test, in barem order.
+  exercises: { id: string; label: string; maxPoints: number }[];
+  rows: ReportRow[];
+  missing: ReportMissing[];
+  analysis: AnalysisInfo & { content: ClassAnalysis | null };
 }
 
 // The class analysis as the test page sees it. `stale`: grades changed after
