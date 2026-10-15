@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHECK_THIS,
+  checkClassAnalysis,
   checkExerciseList,
   checkGrading,
+  classAnalysisSchema,
   claudeJsonSchema,
   cutText,
   type ExerciseList,
@@ -232,7 +234,7 @@ describe('checkGrading', () => {
 
 describe('claudeJsonSchema', () => {
   it('makes draft-07 schemas, the version that Claude Code accepts', () => {
-    for (const schema of [exerciseListSchema, gradingResultSchema]) {
+    for (const schema of [classAnalysisSchema, exerciseListSchema, gradingResultSchema]) {
       const json = claudeJsonSchema(schema);
       expect(json.$schema).toBe('http://json-schema.org/draft-07/schema#');
       expect(json.type).toBe('object');
@@ -243,5 +245,44 @@ describe('claudeJsonSchema', () => {
   it('asks for every field of a grading', () => {
     const json = claudeJsonSchema(gradingResultSchema) as { required: string[] };
     expect(json.required).toEqual(['items', 'unreadable', 'summary', 'strengths', 'recommendations']);
+  });
+});
+
+describe('checkClassAnalysis', () => {
+  const analysis = {
+    overview: ' Clasa a lucrat bine. ',
+    strengths: ['Fracții', '  '],
+    weaknesses: ['Ecuații'],
+    commonMistakes: ['Semnul'],
+    recommendations: ['Exersați'],
+  };
+
+  it('trims the texts and drops empty entries', () => {
+    const checked = checkClassAnalysis(analysis);
+    expect(checked).toEqual({
+      ok: true,
+      value: { ...analysis, overview: 'Clasa a lucrat bine.', strengths: ['Fracții'] },
+    });
+  });
+
+  it('refuses an empty overview and a wrong shape', () => {
+    expect(checkClassAnalysis({ ...analysis, overview: '  ' }).ok).toBe(false);
+    expect(checkClassAnalysis({ overview: 'x' }).ok).toBe(false);
+    expect(checkClassAnalysis(null).ok).toBe(false);
+  });
+
+  it('cuts the lists to 8 entries and the entries to 300 characters', () => {
+    const checked = checkClassAnalysis({
+      ...analysis,
+      strengths: Array.from({ length: 12 }, (_, index) => `punct ${index}`),
+      weaknesses: ['x'.repeat(400)],
+    });
+    expect(checked.ok && checked.value.strengths).toHaveLength(8);
+    expect(checked.ok && Array.from(checked.value.weaknesses[0]!)).toHaveLength(300);
+  });
+
+  it('has a JSON Schema that asks for every field', () => {
+    const json = claudeJsonSchema(classAnalysisSchema) as { required: string[] };
+    expect(json.required).toEqual(['overview', 'strengths', 'weaknesses', 'commonMistakes', 'recommendations']);
   });
 });

@@ -3,7 +3,7 @@ import type { StudentEvaluation, StudentResultView, SubmissionFile, UploadStatus
 import { isUniqueViolation } from '../errors.ts';
 import { newResultToken } from '../secrets.ts';
 import { getEvaluation } from './evaluations.ts';
-import { listSubmissionFiles, publicFile } from './submissions.ts';
+import { listSubmissionFiles, publicFile, type ShownUpload } from './submissions.ts';
 import type { StoredFile } from './tests.ts';
 
 // Student result pages. Each upload has its own secret link; the teacher opens
@@ -43,20 +43,19 @@ export async function setResultsOpen(
 
 // Publishes or takes back the result page of a single upload of one of the
 // teacher's tests. Returns whether that student can open the page now (the
-// test may keep results open for all), or null when the upload is gone.
-export async function setSubmissionResultsOpen(
-  db: D1Database,
-  teacherId: number,
-  submissionId: number,
-  open: boolean,
-): Promise<boolean | null> {
+// test may keep results open for all), or null when the upload the page shows
+// is gone or is another upload now (ids of deleted rows come back, and a
+// result page must never open for another student).
+export async function setSubmissionResultsOpen(db: D1Database, shown: ShownUpload, open: boolean): Promise<boolean | null> {
+  const { teacherId, submissionId, startedAt } = shown;
   const updated = await db
     .prepare(
       `UPDATE submissions SET results_open = ?
-        WHERE id = ? AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
+        WHERE id = ? AND started_at = ?
+          AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
         RETURNING test_id`,
     )
-    .bind(open ? 1 : 0, submissionId, teacherId)
+    .bind(open ? 1 : 0, submissionId, startedAt, teacherId)
     .first<{ test_id: number }>();
   if (!updated) return null;
   const row = await db
@@ -72,14 +71,16 @@ export async function setSubmissionResultsOpen(
 }
 
 // The result link of an upload, making one for older uploads that have none
-// yet. Null when the upload is not in one of the teacher's tests.
-export async function teacherResultToken(db: D1Database, teacherId: number, submissionId: number): Promise<string | null> {
+// yet. Null when the upload the page shows is not in one of the teacher's
+// tests, or is another upload now.
+export async function teacherResultToken(db: D1Database, shown: ShownUpload): Promise<string | null> {
+  const { teacherId, submissionId, startedAt } = shown;
   const row = await db
     .prepare(
       `SELECT s.result_token FROM submissions s JOIN tests t ON t.id = s.test_id
-       WHERE s.id = ? AND t.teacher_id = ?`,
+       WHERE s.id = ? AND s.started_at = ? AND t.teacher_id = ?`,
     )
-    .bind(submissionId, teacherId)
+    .bind(submissionId, startedAt, teacherId)
     .first<{ result_token: string | null }>();
   if (!row) return null;
   if (row.result_token) return row.result_token;
@@ -90,11 +91,11 @@ export async function teacherResultToken(db: D1Database, teacherId: number, subm
       set = await db
         .prepare(
           `UPDATE submissions SET result_token = ?
-           WHERE id = ? AND result_token IS NULL
+           WHERE id = ? AND started_at = ? AND result_token IS NULL
              AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
            RETURNING result_token`,
         )
-        .bind(token, submissionId, teacherId)
+        .bind(token, submissionId, startedAt, teacherId)
         .first<{ result_token: string }>();
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
@@ -103,9 +104,9 @@ export async function teacherResultToken(db: D1Database, teacherId: number, subm
     const again = await db
       .prepare(
         `SELECT s.result_token FROM submissions s JOIN tests t ON t.id = s.test_id
-         WHERE s.id = ? AND t.teacher_id = ?`,
+         WHERE s.id = ? AND s.started_at = ? AND t.teacher_id = ?`,
       )
-      .bind(submissionId, teacherId)
+      .bind(submissionId, startedAt, teacherId)
       .first<{ result_token: string | null }>();
     if (!again) return null;
     if (again.result_token) return again.result_token;

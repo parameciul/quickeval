@@ -1,8 +1,8 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { ExerciseListInfo, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
+import type { AnalysisInfo, ExerciseListInfo, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
 import type { TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
-import { buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
+import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { flagCountSql } from './evaluations.ts';
 
@@ -22,6 +22,7 @@ export interface TestRecord {
   files: Record<TestFileKind, StoredFile | null>;
   exerciseList: ExerciseListInfo;
   baremNotes: string;
+  analysis: AnalysisInfo;
 }
 
 interface TestRow {
@@ -48,6 +49,8 @@ interface TestRow {
   exercise_list_status: ExerciseListStatus;
   exercise_list_message: string | null;
   results_open: number;
+  analysis_status: AnalysisStatus;
+  analysis_stale: number;
   student_count: number;
   submitted_count: number;
   graded_count: number;
@@ -59,7 +62,7 @@ const SELECT_TEST = `
     t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token, t.multi_upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
-    t.results_open,
+    t.results_open, t.analysis_status, t.analysis_stale,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
@@ -99,6 +102,7 @@ function toRecord(row: TestRow): TestRecord {
     },
     exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
     baremNotes: row.barem_notes ?? '',
+    analysis: { status: row.analysis_status, stale: row.analysis_stale === 1 },
   };
 }
 
@@ -112,6 +116,7 @@ export function toTestInfo(record: TestRecord): TestInfo {
     files: { test: info(record.files.test), barem: info(record.files.barem) },
     exerciseList: record.exerciseList,
     baremNotes: record.baremNotes,
+    analysis: record.analysis,
   };
 }
 

@@ -6,7 +6,16 @@ import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { claudeArgs, claudeEnv, claudeRunner, claudeSettings, type ClaudeSettings, type ProcessControl, readOutcome } from './claude.ts';
+import {
+  claudeArgs,
+  claudeEnv,
+  claudeRunner,
+  claudeSettings,
+  type ClaudeSettings,
+  type ProcessControl,
+  readOutcome,
+  TIME_LIMITS_MS,
+} from './claude.ts';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 const FAKE_CLAUDE = fileURLToPath(new URL('./test/fakeClaude.mjs', import.meta.url));
@@ -109,6 +118,13 @@ describe('claudeArgs', () => {
       '--max-turns',
       '40',
     ]);
+  });
+});
+
+describe('the class analysis task', () => {
+  it('runs the same skill in its own mode, with 15 minutes', () => {
+    expect(claudeArgs('class-report', {}, SETTINGS)[1]).toBe('/evaluate-test class-report');
+    expect(TIME_LIMITS_MS['class-report']).toBe(15 * 60_000);
   });
 });
 

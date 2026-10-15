@@ -78,6 +78,70 @@ const runner = () =>
   world!.api.db.prepare('SELECT run_id, last_run_summary FROM runner_state WHERE id = 1').first<{ run_id: string | null; last_run_summary: string | null }>();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const grades = (count: number): ScriptedAnswer[] => Array.from({ length: count }, () => answer(GRADING));
+const ANALYSIS = {
+  overview: 'Clasa a lucrat bine.',
+  strengths: ['Fracții'],
+  weaknesses: [],
+  commonMistakes: [],
+  recommendations: ['Exersați.'],
+};
+const askForAnalysis = () =>
+  world!.api.db.prepare("UPDATE tests SET analysis_status = 'requested' WHERE id = ?").bind(world!.testId).run();
+const testRow = () =>
+  world!.api.db
+    .prepare('SELECT status, analysis_status, analysis_attempts FROM tests WHERE id = ?')
+    .bind(world!.testId)
+    .first<{ status: string; analysis_status: string; analysis_attempts: number }>();
+
+describe('runRobot and the class analysis', () => {
+  it('writes the class analysis after the gradings, in the same run', async () => {
+    await setUp(2, 1);
+    await askForAnalysis();
+    const claude = scriptedClaude(...grades(2), answer(ANALYSIS));
+    const report = await runRobot(options(claude));
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 2, failed: 0, analyses: 1, stop: 'done' }, exitCode: 0 });
+    expect(claude.calls.map((call) => call.task.mode)).toEqual(['grade', 'grade', 'class-report']);
+    expect(await testRow()).toMatchObject({ status: 'done', analysis_status: 'ready' });
+  });
+
+  it('writes only the analysis when everything is graded already', async () => {
+    await setUp(1, 1);
+    await world!.api.db.prepare("UPDATE submissions SET status = 'graded' WHERE test_id = ?").bind(world!.testId).run();
+    await world!.api.db
+      .prepare(
+        `INSERT INTO evaluations (submission_id, max_total, office_points, total, grade, needs_review, summary, strengths_json,
+           recommendations_json, unreadable_json, raw_json, created_at, updated_at)
+         SELECT id, 10, 1, 9, 9, 0, 's', '[]', '[]', '[]', '{}', '2026-10-07T09:00:00.000Z', '2026-10-07T09:00:00.000Z'
+         FROM submissions WHERE test_id = ?`,
+      )
+      .bind(world!.testId)
+      .run();
+    await askForAnalysis();
+    const claude = scriptedClaude(answer(ANALYSIS));
+    const report = await runRobot(options(claude));
+    expect(report.summary).toMatchObject({ graded: 0, analyses: 1, stop: 'done' });
+    expect(await testRow()).toMatchObject({ status: 'done', analysis_status: 'ready' });
+  });
+
+  it('tries a failing analysis once per run, and the test stays in evaluation for the next run', async () => {
+    await setUp(1, 1);
+    await askForAnalysis();
+    const claude = scriptedClaude(answer(GRADING), problem('crash'));
+    const report = await runRobot(options(claude));
+    expect(report.summary).toMatchObject({ graded: 1, analyses: 0, stop: 'done' });
+    expect(claude.calls.map((call) => call.task.mode)).toEqual(['grade', 'class-report']);
+    expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'requested', analysis_attempts: 1 });
+  });
+
+  it('stops at a usage limit during the analysis', async () => {
+    await setUp(1, 1);
+    await askForAnalysis();
+    const claude = scriptedClaude(answer(GRADING), problem('usage_limit'));
+    const report = await runRobot(options(claude));
+    expect(report.summary).toMatchObject({ graded: 1, stop: 'usage_limit' });
+    expect(await testRow()).toMatchObject({ analysis_status: 'requested', analysis_attempts: 0 });
+  });
+});
 
 describe('runRobot', () => {
   it('makes the exercise list, grades every upload, and gives the lease back with the counts', async () => {

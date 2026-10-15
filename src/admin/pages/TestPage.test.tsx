@@ -5,7 +5,7 @@ import { ApiError } from '../api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import type { UploadRow } from '../../../shared/api.ts';
 import { robotStartMessage } from '../../ui/format.ts';
-import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { refreshInterval } from './TestPage.tsx';
 
@@ -150,7 +150,7 @@ describe('TestPage', () => {
     expect(api.resetSubmission).not.toHaveBeenCalled();
     await userEvent.click(within(stan).getByRole('button', { name: 'Resetează' }));
     expect(confirm).toHaveBeenLastCalledWith('Ștergi încărcarea elevului Stan Eva? Elevul o poate lua de la capăt.');
-    expect(api.resetSubmission).toHaveBeenCalledWith(6);
+    expect(api.resetSubmission).toHaveBeenCalledWith(6, '2026-10-06T07:25:00.000Z');
     expect(await within(stan).findByText('Nu a trimis')).toBeInTheDocument();
   });
 
@@ -479,7 +479,7 @@ describe('TestPage evaluation', () => {
     const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
     expect(within(stan).getByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
     await userEvent.click(within(stan).getByRole('button', { name: 'Reîncearcă' }));
-    expect(api.retrySubmission).toHaveBeenCalledWith(6);
+    expect(api.retrySubmission).toHaveBeenCalledWith(6, FAKE_STARTED_AT);
     expect(await within(stan).findByText('Trimis')).toBeInTheDocument();
     expect(screen.getByText('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.')).toBeInTheDocument();
     expect(screen.getByText('Evaluare parțială.')).toBeInTheDocument();
@@ -620,6 +620,7 @@ describe('TestPage evaluation', () => {
     ['an upload left in grading', { status: 'evaluating' }, leftInGrading, null, true],
     ['a robot that checked 5 minutes ago', { status: 'evaluating' }, uploads, '2026-10-08T06:55:00.000Z', false],
     ['a test with nothing left to grade', { status: 'evaluating' }, graded, null, false],
+    ['a class analysis that waits', { status: 'evaluating', analysis: { status: 'requested', stale: false } }, graded, null, true],
     ['a barem that waits for the teacher', { status: 'evaluating', exerciseList: problem }, uploads, null, false],
     ['a scheduled evaluation', { evaluationAt: '2026-10-09T07:00:00.000Z' }, uploads, null, false],
   ];
@@ -628,6 +629,35 @@ describe('TestPage evaluation', () => {
     renderAdmin('/teste/6E2-26T1', evaluationApi(overrides, rows, lastCheckAt));
     expect(await screen.findByText(/^Robotul (nu )?a verificat/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pornește robotul' }) !== null).toBe(shown);
+  });
+
+  it('says that the robot writes the class analysis, and links to the class report', async () => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'evaluating', analysis: { status: 'requested', stale: false } }, graded));
+    expect(await screen.findByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Raportul clasei' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+  });
+
+  it('does not say that the work is graded while an upload still waits', async () => {
+    const mixed = [...graded, fakeUpload({ studentId: 11, studentName: 'Avram Dan', submissionId: 6, status: 'submitted', fileCount: 1 })];
+    renderAdmin(
+      '/teste/6E2-26T1',
+      evaluationApi({ status: 'evaluating', gradedCount: 1, analysis: { status: 'requested', stale: false } }, mixed),
+    );
+    expect(await screen.findByRole('link', { name: 'Raportul clasei' })).toBeInTheDocument();
+    expect(screen.queryByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).not.toBeInTheDocument();
+  });
+
+  it('shows the link to the class report only when something is graded', async () => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'evaluating' }, leftInGrading));
+    expect(await screen.findByText(/^Robotul (nu )?a verificat/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Raportul clasei' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).not.toBeInTheDocument();
+  });
+
+  it('says when the class analysis failed', async () => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'done', analysis: { status: 'failed', stale: false } }, graded));
+    expect(await screen.findByText('Robotul nu a putut scrie analiza clasei.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Raportul clasei' })).toBeInTheDocument();
   });
 
   it('publishes the student results and stops them again', async () => {
@@ -658,7 +688,7 @@ describe('TestPage evaluation', () => {
 
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     await userEvent.click(within(pop).getByRole('button', { name: 'Publică' }));
-    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, true);
+    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, FAKE_STARTED_AT, true);
     expect(await within(pop).findByRole('button', { name: 'Oprește publicarea' })).toBeInTheDocument();
     expect(within(pop).getByText('Publicat')).toBeInTheDocument();
     expect(screen.getByText('1 rezultat publicat individual.')).toBeInTheDocument();
@@ -666,7 +696,7 @@ describe('TestPage evaluation', () => {
     expect(within(stan).getByRole('button', { name: 'Publică' })).toBeInTheDocument();
 
     await userEvent.click(within(pop).getByRole('button', { name: 'Oprește publicarea' }));
-    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, false);
+    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, FAKE_STARTED_AT, false);
     expect(await within(pop).findByRole('button', { name: 'Publică' })).toBeInTheDocument();
     expect(screen.queryByText(/publicat individual/)).not.toBeInTheDocument();
   });
@@ -705,7 +735,7 @@ describe('TestPage evaluation', () => {
     const links = await screen.findAllByRole('button', { name: 'Link rezultat' });
     expect(links).toHaveLength(2);
     await userEvent.click(links[0]!);
-    expect(api.getResultLink).toHaveBeenCalledWith(5);
+    expect(api.getResultLink).toHaveBeenCalledWith(5, FAKE_STARTED_AT);
     const url = `${window.location.origin}/u/rezultat/result-token-5`;
     expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(

@@ -8,13 +8,13 @@ import type { ClaudeRunner } from './claude.ts';
 import { claudeRunner, claudeSettings } from './claude.ts';
 import { log } from './log.ts';
 import type { TaskContext, TaskEnd } from './tasks.ts';
-import { gradeSubmission, makeExerciseList } from './tasks.ts';
+import { analyzeClass, gradeSubmission, makeExerciseList } from './tasks.ts';
 import type { WorkFolderOptions } from './workdir.ts';
 import { removeFolder, runFolder } from './workdir.ts';
 
 // One robot run (spec §12.2): take the lease, make the exercise lists, grade
-// the uploads with up to maxParallel Claude runs at once, and give the lease
-// back with a summary of counts.
+// the uploads with up to maxParallel Claude runs at once, write the class
+// analyses, and give the lease back with a summary of counts.
 
 // New work is taken for 2 hours; the GitHub job may last 180 minutes
 // (.github/workflows/evaluate.yml), so the last task can still finish.
@@ -56,7 +56,7 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
   log('run started', { run: runId, maxParallel: lease.maxParallel });
 
   const ctx: TaskContext = { api, claude: options.claude, runId, root: options.root, workdir: options.workdir };
-  const counts = { exerciseLists: 0, graded: 0, failed: 0 };
+  const counts = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0 };
   let stop: RunSummary['stop'] | null = null;
   // The first reason to stop wins.
   const stopTaking = (reason: RunSummary['stop']) => {
@@ -79,7 +79,7 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
   }, options.heartbeatMs ?? HEARTBEAT_MS);
 
   let failuresInARow = 0;
-  const record = (end: TaskEnd, done: 'exerciseLists' | 'graded') => {
+  const record = (end: TaskEnd, done: 'exerciseLists' | 'graded' | 'analyses') => {
     if (end === 'saved') counts[done] += 1;
     else if (end === 'failed' && done === 'graded') counts.failed += 1;
     else if (end === 'usage_limit' || end === 'claude_login' || end === 'lease_lost') stopTaking(end);
@@ -119,6 +119,8 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
     // An exercise list is tried once per run: a list that failed waits for
     // the next run, so one broken barem cannot use up the budget.
     const listsTried = new Set<number>();
+    // The same for an analysis: one try per test and run.
+    const analysesTried = new Set<number>();
     while (canTake()) {
       const tasks = await api.tasks();
       let started = 0;
@@ -129,7 +131,17 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
         record(await makeExerciseList(ctx, testId), 'exerciseLists');
       }
       if (canTake()) started += await gradeAll();
-      // Nothing new to start: the work is done. (Class analyses come with Plan 4.)
+      // A test whose uploads are all graded now waits for its analysis: the
+      // list of tasks is read again, after the gradings.
+      if (canTake()) {
+        for (const testId of (await api.tasks()).analyses) {
+          if (analysesTried.has(testId) || !canTake()) continue;
+          analysesTried.add(testId);
+          started += 1;
+          record(await analyzeClass(ctx, testId), 'analyses');
+        }
+      }
+      // Nothing new to start: the work is done.
       if (started === 0) break;
     }
   } catch (err) {
@@ -143,7 +155,7 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
     clearInterval(heartbeat);
   }
 
-  const summary: RunSummary = { ...counts, analyses: 0, stop: stop ?? 'done' };
+  const summary: RunSummary = { ...counts, stop: stop ?? 'done' };
   try {
     await api.release(runId, summary);
   } catch (err) {

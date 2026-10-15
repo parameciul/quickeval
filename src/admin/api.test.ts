@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE } from '../../shared/files.ts';
 import { ApiError, createApiClient, LoginExpiredError, reloadForLogin, studentResultUrl, submissionFileUrl, testFileUrl } from './api.ts';
 
+// The time the upload on the page started.
+const STARTED = '2026-10-06T07:15:00.000Z';
+
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
@@ -68,7 +71,7 @@ describe('createApiClient evaluation', () => {
     await api.cancelSchedule('6E2-26T1');
     expect(await api.acceptExerciseList('6E2-26T1')).toBe('dispatched');
     expect(await api.retryExerciseList('6E2-26T1')).toBe('dispatched');
-    expect(await api.retrySubmission(5)).toBe('dispatched');
+    expect(await api.retrySubmission(5, STARTED)).toBe('dispatched');
     expect(await api.startRobot('6E2-26T1')).toBe('dispatched');
     expect(fetchImpl.mock.calls.map(([url, init]) => [init!.method, url, init!.body])).toEqual([
       ['POST', '/api/admin/tests/6E2-26T1/evaluate', '{}'],
@@ -77,7 +80,7 @@ describe('createApiClient evaluation', () => {
       ['DELETE', '/api/admin/tests/6E2-26T1/schedule', undefined],
       ['POST', '/api/admin/tests/6E2-26T1/exercise-list/accept', undefined],
       ['POST', '/api/admin/tests/6E2-26T1/exercise-list/retry', undefined],
-      ['POST', '/api/admin/submissions/5/retry', undefined],
+      ['POST', '/api/admin/submissions/5/retry', JSON.stringify({ startedAt: STARTED })],
       ['POST', '/api/admin/tests/6E2-26T1/robot', undefined],
     ]);
   });
@@ -150,7 +153,7 @@ describe('createApiClient tests and uploads', () => {
     await api.startTest('6E2-26T1');
     await api.reopenTest('6E2-26T1');
     await api.deleteTest('6E2-26T1');
-    await api.resetSubmission(7);
+    await api.resetSubmission(7, STARTED);
     expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
       'GET /api/admin/tests?year=2026',
       'POST /api/admin/tests',
@@ -163,17 +166,19 @@ describe('createApiClient tests and uploads', () => {
 
   it('opens and closes the student results and reads one result link', async () => {
     const fetchImpl = vi.fn(async (url: RequestInfo | URL, _init?: RequestInit) =>
-      jsonResponse(200, String(url).endsWith('/result-link') ? { resultToken: 'abcdefghijkmnop2abcdefcd' } : { resultsOpen: true }),
+      jsonResponse(200, String(url).includes('/result-link') ? { resultToken: 'abcdefghijkmnop2abcdefcd' } : { resultsOpen: true }),
     );
     const api = createApiClient({ fetchImpl });
     expect(await api.setResultsOpen('6E2-26T1', true)).toBe(true);
-    expect(await api.setSubmissionResultsOpen(5, true)).toBe(true);
-    expect(await api.getResultLink(5)).toBe('abcdefghijkmnop2abcdefcd');
+    expect(await api.setSubmissionResultsOpen(5, STARTED, true)).toBe(true);
+    expect(await api.getResultLink(5, STARTED)).toBe('abcdefghijkmnop2abcdefcd');
     expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
       'POST /api/admin/tests/6E2-26T1/results/open',
       'POST /api/admin/submissions/5/results/open',
-      'GET /api/admin/submissions/5/result-link',
+      `GET /api/admin/submissions/5/result-link?startedAt=${encodeURIComponent(STARTED)}`,
     ]);
+    // The actions on one upload name the upload the page shows.
+    expect(fetchImpl.mock.calls[1]![1]!.body).toBe(JSON.stringify({ startedAt: STARTED }));
   });
 
   it('builds the links that open stored files', () => {

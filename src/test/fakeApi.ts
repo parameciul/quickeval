@@ -1,6 +1,8 @@
 import { vi } from 'vitest';
 import type {
+  AnalysisAnswer,
   BaremNotesAnswer,
+  ClassReport,
   ClassSummary,
   EvaluationInfo,
   EvaluationItemInfo,
@@ -34,6 +36,8 @@ export interface FakeData {
   submissions?: SubmissionDetail[];
   settings?: Settings;
   histories?: StudentHistory[];
+  // The class reports, by test code.
+  reports?: Record<string, ClassReport>;
 }
 
 // The settings of a new installation, for building fake data in tests.
@@ -54,6 +58,7 @@ export const FAKE_MULTI_TOKEN = 'bbbbbbbbbbbbbbbb';
 export const FAKE_STARTED_AT = '2026-10-06T07:15:00.000Z';
 
 const notFound = () => new ApiError(404, 'not_found', 'Nu am găsit ce cauți.');
+const uploadChanged = () => new ApiError(409, 'upload_changed', 'Încărcarea s-a schimbat. Reîncarcă pagina.');
 
 function summaryOf(test: TestInfo): TestSummary {
   const { uploadToken: _token, multiUploadToken: _multi, files: _files, ...summary } = test;
@@ -84,6 +89,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
       baremNotes: '',
+      analysis: { status: 'none', stale: false },
       ...overrides,
     },
     uploads,
@@ -98,7 +104,9 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     submissionId: null,
     status: 'none',
     fileCount: 0,
-    startedAt: null,
+    // An upload that exists started at some time; the row of a student who
+    // has not started has none.
+    startedAt: overrides.submissionId == null ? null : FAKE_STARTED_AT,
     submittedAt: null,
     autoSubmitted: false,
     grade: null,
@@ -168,6 +176,15 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     const found = submissions.find((s) => s.id === submissionId);
     if (!found) throw notFound();
     return found;
+  };
+  // Like the server: an action names the upload the page shows by the time it
+  // started, and an upload that started at another time is not that upload.
+  const requireShown = (submissionId: number, startedAt: string) => {
+    const detail = submissions.find((s) => s.id === submissionId);
+    const row = tests.flatMap((t) => t.uploads).find((u) => u.submissionId === submissionId);
+    const current = detail?.startedAt ?? row?.startedAt ?? null;
+    if (current === null) throw notFound();
+    if (current !== startedAt) throw uploadChanged();
   };
   // The uploads table shows the grade and the items to check of the upload.
   const syncRow = (submission: SubmissionDetail) => {
@@ -305,7 +322,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     }),
     // Like the server: the page opens when the test is open for all, or its
     // own upload is published.
-    setSubmissionResultsOpen: vi.fn(async (submissionId: number, open: boolean) => {
+    setSubmissionResultsOpen: vi.fn(async (submissionId: number, startedAt: string, open: boolean) => {
+      requireShown(submissionId, startedAt);
       for (const detail of tests) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) {
@@ -383,8 +401,26 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       if (findTest(code).test.status !== 'evaluating') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
       return 'next_check';
     }),
+    // Like the server: only a test in evaluation or done with a graded upload;
+    // a finished test goes back to evaluation.
+    regenerateAnalysis: vi.fn(async (code: string): Promise<AnalysisAnswer> => {
+      const found = findTest(code);
+      if (found.test.status !== 'evaluating' && found.test.status !== 'done') {
+        throw new ApiError(409, 'not_evaluated', 'Analiza se face după ce testul a fost corectat.');
+      }
+      if (found.test.gradedCount === 0) throw new ApiError(409, 'no_results', 'Testul nu are lucrări corectate.');
+      found.test.analysis = { status: 'requested', stale: found.test.analysis.stale };
+      if (found.test.status === 'done') found.test.status = 'evaluating';
+      return { analysis: found.test.analysis, robot: 'next_check' };
+    }),
+    getReport: vi.fn(async (code: string) => {
+      const report = data.reports?.[code];
+      if (!report) throw notFound();
+      return structuredClone(report);
+    }),
     getSubmission: vi.fn(async (submissionId: number) => structuredClone(findSubmission(submissionId))),
-    getResultLink: vi.fn(async (submissionId: number) => {
+    getResultLink: vi.fn(async (submissionId: number, startedAt: string) => {
+      requireShown(submissionId, startedAt);
       const found = submissions.find((s) => s.id === submissionId);
       if (found) {
         if (!found.resultToken) found.resultToken = `result-token-${submissionId}`;
@@ -399,7 +435,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       }
       throw notFound();
     }),
-    resetSubmission: vi.fn(async (submissionId: number) => {
+    resetSubmission: vi.fn(async (submissionId: number, startedAt: string) => {
+      requireShown(submissionId, startedAt);
       for (const detail of tests) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) {
@@ -410,7 +447,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const index = submissions.findIndex((s) => s.id === submissionId);
       if (index >= 0) submissions.splice(index, 1);
     }),
-    retrySubmission: vi.fn(async (submissionId: number): Promise<RobotStart | null> => {
+    retrySubmission: vi.fn(async (submissionId: number, startedAt: string): Promise<RobotStart | null> => {
+      requireShown(submissionId, startedAt);
       for (const detail of tests) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) Object.assign(row, { status: 'submitted', lastError: null });

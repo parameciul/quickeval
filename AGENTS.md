@@ -39,6 +39,8 @@ Details and the remaining rules are in the nested `AGENTS.md` files.
 - R2 is private: every file goes through the API with an ownership check. R2 keys come from rows, never from listing R2.
 - Functions: at most 10 ms of CPU and 15 D1 queries per request. Group writes with `db.batch()`.
 - The robot's Claude reads only its work folder and gets no robot key and no API key. Robot answers and logs carry no names.
+- The PDFs and the CSV are made in the browser (`src/admin/pdf/`, `shared/csv.ts`). The student's PDF is made from `StudentPdfInput`, which has no confidence and no review reason; the CSV guards every text cell against formulas.
+- Every path that makes work for the robot starts it (`startRobot`): the GitHub schedule does not fire. This includes "Regenerează" (the class analysis).
 - Times are stored as ISO 8601 UTC strings (`nowIso()` or `new Date(x).toISOString()`: SQL compares them as text) and shown in Europe/Bucharest time. School year Y runs from September of Y to August of Y+1.
 - Relative imports name the `.ts` or `.tsx` file. TypeScript runs with `erasableSyntaxOnly`: no enums, no namespaces, no constructor parameter properties.
 - A new migration runs on the live database before the code that needs it reaches `main` (`docs/deploy.md`).

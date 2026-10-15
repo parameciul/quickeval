@@ -56,6 +56,12 @@ export async function addSubmission(
   return submissionId;
 }
 
+// The time an upload started: what a teacher's page sends to name it.
+export async function startedAtOf(api: TestApi, submissionId: number): Promise<string> {
+  const row = await api.db.prepare('SELECT started_at FROM submissions WHERE id = ?').bind(submissionId).first<{ started_at: string }>();
+  return row!.started_at;
+}
+
 // A grading of an upload, straight in the database: one item per entry of
 // `items`, flagged when `needsReview`, checked by the teacher when `reviewed`.
 export async function addEvaluation(

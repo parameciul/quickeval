@@ -2,10 +2,10 @@ import { z } from 'zod';
 import { normalizeClassName } from './classes.ts';
 import type { TestFileKind } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
-import { TEXT_LIMITS, type Confidence } from './schemas.ts';
+import { type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
-import { cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
+import { type AnalysisStatus, cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
 
 // Request bodies of the teacher API. The server parses every body with these
 // schemas; the browser uses the inferred types.
@@ -192,6 +192,15 @@ export type PagesReview = z.output<typeof reviewPagesBody>;
 // "Recorectează" on one upload: the grading the page shows goes.
 export const regradeBody = z.object({ gradedAt: shownGrading });
 
+// An action on one upload that does not need its grading (Resetează,
+// Reîncearcă, publish or take back its result page, its result link): the
+// page names the upload it shows by the time the upload started. That time is
+// written once, and a new upload that got the id of a deleted one has a
+// later time, so an old page changes nothing of another student.
+export const shownUpload = z.object({ startedAt: z.string({ message: 'Reîncarcă pagina.' }) });
+
+export type ShownUploadBody = z.output<typeof shownUpload>;
+
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({
   studentId: z
@@ -299,6 +308,62 @@ export interface ExerciseListInfo {
   message: string | null;
 }
 
+// One exercise of a graded student in the class report.
+export interface ReportItem {
+  exerciseId: string;
+  points: number;
+  maxPoints: number;
+  // An item to check that the teacher has not checked yet.
+  flagged: boolean;
+}
+
+// One graded student in the class report (spec §14.2).
+export interface ReportRow {
+  submissionId: number;
+  studentId: number;
+  studentName: string;
+  total: number;
+  maxTotal: number;
+  // Out of 10.
+  grade: number;
+  // Items to check that the teacher has not checked yet, plus one for pages
+  // that could not be read.
+  flagCount: number;
+  items: ReportItem[];
+}
+
+// An active student of the class with no graded result, and why.
+export interface ReportMissing {
+  studentId: number;
+  studentName: string;
+  status: UploadStatus;
+}
+
+// The class report of a test (spec §14.2). The statistics come from
+// `classStats` (shared/stats.ts), in the browser.
+export interface ClassReport {
+  test: { code: string; title: string; className: string; status: TestStatus; startedAt: string | null };
+  // The exercises of the test, in barem order.
+  exercises: { id: string; label: string; maxPoints: number }[];
+  rows: ReportRow[];
+  missing: ReportMissing[];
+  analysis: AnalysisInfo & { content: ClassAnalysis | null };
+}
+
+// The class analysis as the test page sees it. `stale`: grades changed after
+// the analysis was written.
+export interface AnalysisInfo {
+  status: AnalysisStatus;
+  stale: boolean;
+}
+
+// "Regenerează": the analysis is asked for again. `robot` says whether the
+// robot was started.
+export interface AnalysisAnswer {
+  analysis: AnalysisInfo;
+  robot: RobotStart;
+}
+
 export interface TestInfo extends TestSummary {
   uploadToken: string | null;
   multiUploadToken: string | null;
@@ -306,6 +371,7 @@ export interface TestInfo extends TestSummary {
   exerciseList: ExerciseListInfo;
   // Extra teacher comments for the barem, read by the robot as part of it.
   baremNotes: string;
+  analysis: AnalysisInfo;
 }
 
 // "none": the student has not started an upload.

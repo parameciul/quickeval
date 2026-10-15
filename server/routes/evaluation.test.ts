@@ -79,13 +79,22 @@ describe('POST /api/admin/tests/:code/evaluate (now)', () => {
     expect((await testRow())?.evaluation_at).toBeNull();
   });
 
-  it('ends at once a test with nothing new to grade', async () => {
+  it('keeps a test with only graded uploads in evaluation until its first class analysis is written', async () => {
     await addTestFiles(api, code);
     await addSubmission(api, code, studentIds[0]!, { status: 'graded', files: 1 });
+    dispatchRobot.mockResolvedValueOnce(true);
+    const res = await evaluate();
+    expect(res.body).toEqual({ status: 'evaluating', evaluationAt: null, robot: 'dispatched' });
+    expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'requested', analysis_attempts: 0 });
+  });
+
+  it('ends at once a test with nothing to grade and nothing to analyze', async () => {
+    await addTestFiles(api, code);
+    await addSubmission(api, code, studentIds[0]!, { status: 'failed', files: 1 });
     const res = await evaluate();
     expect(res.body).toEqual({ status: 'done', evaluationAt: null, robot: null });
     expect(dispatchRobot).not.toHaveBeenCalled();
-    expect((await testRow())?.status).toBe('done');
+    expect(await testRow()).toMatchObject({ status: 'done', analysis_status: 'none' });
   });
 
   it('asks again for a class analysis that was ready', async () => {

@@ -2,7 +2,15 @@ import path from 'node:path';
 import type { ClaimResult, RobotError } from '../shared/runner.ts';
 import { MAX_ROBOT_BODY_BYTES } from '../shared/runner.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
-import { checkExerciseList, checkGrading, claudeJsonSchema, exerciseListSchema, gradingResultSchema } from '../shared/schemas.ts';
+import {
+  checkClassAnalysis,
+  checkExerciseList,
+  checkGrading,
+  claudeJsonSchema,
+  classAnalysisSchema,
+  exerciseListSchema,
+  gradingResultSchema,
+} from '../shared/schemas.ts';
 import type { RobotApi } from './api.ts';
 import { RobotApiError } from './api.ts';
 import type { ClaudeMode, ClaudeOutcome, ClaudeRunner } from './claude.ts';
@@ -10,9 +18,10 @@ import { log } from './log.ts';
 import type { TaskFile, WorkFolderInput, WorkFolderOptions } from './workdir.ts';
 import { makeWorkFolder, removeFolder } from './workdir.ts';
 
-// The robot's two tasks (spec §12.2): make the exercise list of a test, and
-// grade one upload. Each one builds its work folder, runs Claude, checks the
-// answer with the API's own checks, and sends it.
+// The robot's three tasks (spec §12.2): make the exercise list of a test,
+// grade one upload, and write the analysis of a graded class. Each one builds
+// its work folder, runs Claude, checks the answer with the API's own checks,
+// and sends it.
 
 // How a task ended, for the run loop:
 // - saved: the API kept the answer;
@@ -38,6 +47,7 @@ export interface TaskContext {
 const JSON_SCHEMAS: Record<ClaudeMode, object> = {
   'exercise-list': claudeJsonSchema(exerciseListSchema),
   grade: claudeJsonSchema(gradingResultSchema),
+  'class-report': claudeJsonSchema(classAnalysisSchema),
 };
 
 // Room for the rest of the body around Claude's answer.
@@ -162,6 +172,27 @@ export async function makeExerciseList(ctx: TaskContext, testId: number): Promis
     return sendOutcome(outcome, (exerciseList) => ctx.api.sendExerciseList(testId, { ...post, ok: true, exerciseList }), sendError);
   });
   log('exercise list', { test: testId, end });
+  return end;
+}
+
+// The class analysis of a test whose uploads are all graded. The results are
+// read with a version that goes back with the analysis, so the API can tell
+// an analysis made from grades that changed meanwhile.
+export async function analyzeClass(ctx: TaskContext, testId: number): Promise<TaskEnd> {
+  const end = await inWorkFolder(ctx, `class-report-${testId}`, async (makeFolder) => {
+    const sendError = async (error: RobotError) =>
+      (await ctx.api.sendAnalysis(testId, { runId: ctx.runId, ok: false, error })) === 'failed';
+    const classResults = await ctx.api.classResults(testId);
+    const cwd = await makeFolder({ classResults });
+    if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
+    const outcome = await askClaude(ctx, 'class-report', cwd, (output) => checkClassAnalysis(output).ok);
+    return sendOutcome(
+      outcome,
+      (analysis) => ctx.api.sendAnalysis(testId, { runId: ctx.runId, ok: true, version: classResults.version, analysis }),
+      sendError,
+    );
+  });
+  log('class report', { test: testId, end });
   return end;
 }
 

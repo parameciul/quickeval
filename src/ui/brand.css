@@ -396,6 +396,14 @@ textarea {
   margin-block: 0.75rem;
 }
 
+.pdf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-block: 0.75rem;
+}
+
 .form-stack {
   display: grid;
   gap: 0.5rem;
@@ -1650,4 +1658,63 @@ table.items tr.edit-row > td {
 
 .warning > :last-child {
   margin-bottom: 0;
+}
+
+/* The class report (spec §14.2) */
+
+.stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.stats-grid > div {
+  min-width: 7rem;
+}
+
+.stats-grid dt {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.stats-grid dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* The report tables keep their columns on a phone: the table scrolls inside
+   its box, and the student's name stays in view. */
+table.report-table {
+  min-width: 20rem;
+  border-collapse: collapse;
+  background: var(--sheet);
+}
+
+table.report-table th,
+table.report-table td {
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: middle;
+}
+
+table.report-table thead th {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+table.report-table tbody th {
+  font-weight: 700;
+}
+
+table.report-table th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--sheet);
+}
+
+table.report-table td.flagged-cell {
+  background: var(--marker);
 }

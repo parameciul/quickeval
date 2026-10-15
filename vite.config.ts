@@ -31,6 +31,8 @@ export default defineConfig({
   appType: 'mpa',
   build: {
     outDir: 'dist',
+    // pdfmake and its font (each under 1 MB) load only when a PDF is asked for.
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       input: {
         main: page('./index.html'),

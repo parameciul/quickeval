@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, startedAtOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -162,7 +162,7 @@ describe('GET /api/admin/submissions/:id/files/:fileId', () => {
 
 describe('POST /api/admin/submissions/:id/reset', () => {
   it('deletes the upload and its files, so the student can start again', async () => {
-    const res = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`);
+    const res = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: await startedAtOf(api, submissionId) });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ reset: true });
 
@@ -172,11 +172,103 @@ describe('POST /api/admin/submissions/:id/reset', () => {
     expect(detail.body.uploads[0]).toMatchObject({ studentName: 'Pop Ion', status: 'none', submissionId: null, fileCount: 0 });
   });
 
+  describe('and the class analysis', () => {
+    const analysisStale = async () =>
+      (await api.db.prepare('SELECT analysis_stale AS stale FROM tests WHERE code = ?').bind(code).first<{ stale: number }>())?.stale;
+    const setAnalysis = (status: string) =>
+      api.db.prepare('UPDATE tests SET analysis_status = ?, analysis_stale = 0 WHERE code = ?').bind(status, code).run();
+
+    it('marks a ready analysis out of date when a graded upload is reset', async () => {
+      await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(submissionId).run();
+      await addEvaluation(api, submissionId, { grade: 8, items: [{}] });
+      await setAnalysis('ready');
+      const res = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: await startedAtOf(api, submissionId) });
+      expect(res.status).toBe(200);
+      expect(await analysisStale()).toBe(1);
+    });
+
+    it('leaves a test without a ready analysis as it is', async () => {
+      await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(submissionId).run();
+      await addEvaluation(api, submissionId, { grade: 8, items: [{}] });
+      await setAnalysis('requested');
+      const res = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: await startedAtOf(api, submissionId) });
+      expect(res.status).toBe(200);
+      expect(await analysisStale()).toBe(0);
+    });
+
+    it('changes nothing when the page names another start time', async () => {
+      await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(submissionId).run();
+      await addEvaluation(api, submissionId, { grade: 8, items: [{}] });
+      await setAnalysis('ready');
+      const res = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: '2020-01-01T00:00:00.000Z' });
+      expect(res.status).toBe(409);
+      expect(await analysisStale()).toBe(0);
+    });
+  });
+
   it('answers 404 for an upload of another teacher and keeps it', async () => {
     const foreign = await otherTeacherTest(api);
     const foreignId = await addSubmission(api, foreign.code, foreign.studentId, { files: 1 });
-    expect((await api.request('POST', `/api/admin/submissions/${foreignId}/reset`)).status).toBe(404);
+    expect((await api.request('POST', `/api/admin/submissions/${foreignId}/reset`, { startedAt: await startedAtOf(api, foreignId) })).status).toBe(404);
     const row = await api.db.prepare('SELECT COUNT(*) AS n FROM submission_files WHERE submission_id = ?').bind(foreignId).first<{ n: number }>();
     expect(row?.n).toBe(1);
+  });
+});
+
+describe('a page opened before its upload was reset', () => {
+  // Ids of deleted rows come back: the next upload of another student gets the
+  // id of the reset one, and the old page must change nothing of it.
+  async function reusedId(): Promise<{ oldStartedAt: string; mate: number }> {
+    const oldStartedAt = await startedAtOf(api, submissionId);
+    const reset = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: oldStartedAt });
+    expect(reset.status).toBe(200);
+    const other = await makeClass(api, '7A', ['Dan Ana']);
+    const otherCode = await makeTest(api, other.id, 'Alt test');
+    const mate = await addSubmission(api, otherCode, other.studentIds[0]!, {
+      status: 'failed',
+      files: 1,
+      startedAt: '2026-10-06T09:00:00.000Z',
+    });
+    expect(mate).toBe(submissionId);
+    return { oldStartedAt, mate };
+  }
+
+  const uploadRow = (id: number) =>
+    api.db.prepare('SELECT status, results_open, result_token FROM submissions WHERE id = ?').bind(id).first();
+
+  it('does not reset the upload that took its id', async () => {
+    const { oldStartedAt, mate } = await reusedId();
+    const res = await api.request('POST', `/api/admin/submissions/${mate}/reset`, { startedAt: oldStartedAt });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('upload_changed');
+    expect(await uploadRow(mate)).toMatchObject({ status: 'failed' });
+    expect((await fileIds(mate)).length).toBe(1);
+  });
+
+  it('does not retry it', async () => {
+    const { oldStartedAt, mate } = await reusedId();
+    const res = await api.request('POST', `/api/admin/submissions/${mate}/retry`, { startedAt: oldStartedAt });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('upload_changed');
+    expect(await uploadRow(mate)).toMatchObject({ status: 'failed' });
+  });
+
+  it('does not publish or take back its result page, and makes no link for it', async () => {
+    const { oldStartedAt, mate } = await reusedId();
+    const open = await api.request('POST', `/api/admin/submissions/${mate}/results/open`, { startedAt: oldStartedAt });
+    expect(open.status).toBe(409);
+    const close = await api.request('POST', `/api/admin/submissions/${mate}/results/close`, { startedAt: oldStartedAt });
+    expect(close.status).toBe(409);
+    const link = await api.request('GET', `/api/admin/submissions/${mate}/result-link?startedAt=${encodeURIComponent(oldStartedAt)}`);
+    expect(link.status).toBe(409);
+    expect(await uploadRow(mate)).toMatchObject({ results_open: 0, result_token: null });
+  });
+
+  it('answers 400 when the page names no upload start', async () => {
+    expect((await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, {})).status).toBe(400);
+    expect((await api.request('POST', `/api/admin/submissions/${submissionId}/retry`, {})).status).toBe(400);
+    expect((await api.request('POST', `/api/admin/submissions/${submissionId}/results/open`, {})).status).toBe(400);
+    expect((await api.request('GET', `/api/admin/submissions/${submissionId}/result-link`)).status).toBe(400);
+    expect(await uploadRow(submissionId)).toMatchObject({ status: 'submitted' });
   });
 });

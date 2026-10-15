@@ -4,14 +4,16 @@ import {
   LEASE_STALE_MS,
   type CheckResult,
   type ClaimResult,
+  type ClassResults,
   type RobotError,
   type RobotTest,
   type RunSummary,
   type TasksResult,
 } from '../../shared/runner.ts';
-import type { CheckedExerciseList, ExerciseList, Grading } from '../../shared/schemas.ts';
+import type { CheckedExerciseList, ClassAnalysis, ExerciseList, Grading } from '../../shared/schemas.ts';
 import type { ExerciseListStatus } from '../../shared/tests.ts';
 import { finishTests, promoteStatements } from './lifecycle.ts';
+import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
 
 // Queries of the robot API (spec §11.3). Each write checks its own rules in
 // its SQL: runs can overlap, and parallel tasks of one run call at once.
@@ -27,9 +29,22 @@ export const NEEDS_EXERCISE_LIST = `t.status = 'evaluating' AND t.exercise_list_
   AND EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status = 'submitted')`;
 // An upload (s) that can be graded: its test (t) is in evaluation with a usable exercise list.
 export const GRADABLE = `s.status = 'submitted' AND t.status = 'evaluating' AND t.exercise_list_status IN ('ready', 'accepted')`;
-// A test whose class analysis was asked for, with nothing left to grade.
+// A test whose class analysis was asked for, with nothing left to grade and at
+// least one graded upload to analyze.
 export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = 'requested'
-  AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status IN ('submitted', 'grading'))`;
+  AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status IN ('submitted', 'grading'))
+  AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = t.id AND g.status = 'graded')`;
+
+// The state of the grades of a test: how many graded results there are and
+// when the last one changed (a correction writes `evaluations.updated_at`, a
+// regrade makes a new result). The robot reads it with the results and sends
+// it back with the analysis, so an analysis made from grades that changed
+// meanwhile is saved as out of date.
+function gradesVersionSql(test: string): string {
+  return `(SELECT COUNT(*) || ':' || COALESCE(MAX(ev.updated_at), '')
+     FROM evaluations ev JOIN submissions gs ON gs.id = ev.submission_id
+     WHERE gs.test_id = ${test}.id AND gs.status = 'graded')`;
+}
 
 // Whether the robot has work in this test, as its regular check counts it.
 // An upload left in grading by a run that died counts too: the check sends
@@ -287,6 +302,141 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
     testId: claimed.test_id,
     files: results.map((row) => ({ id: row.id, contentType: row.content_type, position: row.position })),
   };
+}
+
+// The graded class for the analysis (spec §11.3). Null unless the test is in
+// evaluation, like the rest of what the robot reads.
+export async function findClassResults(db: D1Database, testId: number): Promise<ClassResults | null> {
+  const [test, rows] = await db.batch<{
+    exercise_list_json?: string | null;
+    version?: string;
+    exercise_id?: string;
+    label?: string;
+    max_points?: number;
+    position?: number;
+    evaluation_id?: number;
+    graded_at?: string;
+    max_total?: number;
+    office_points?: number;
+    submission_id?: number;
+    total?: number;
+    grade?: number;
+    points?: number;
+    student_answer?: string;
+    comment?: string;
+  }>([
+    db
+      .prepare(`SELECT t.exercise_list_json, ${gradesVersionSql('t')} AS version FROM tests t WHERE t.id = ? AND t.status = 'evaluating'`)
+      .bind(testId),
+    db
+      .prepare(
+        `SELECT s.id AS submission_id, ev.total, ev.grade, ev.id AS evaluation_id, ev.created_at AS graded_at,
+           ev.max_total, ev.office_points, i.exercise_id, i.label, i.max_points, i.position, i.points,
+           i.student_answer, i.comment
+         FROM submissions s
+         JOIN evaluations ev ON ev.submission_id = s.id
+         JOIN evaluation_items i ON i.evaluation_id = ev.id
+         WHERE s.test_id = ? AND s.status = 'graded'
+         ORDER BY s.graded_at, s.id, i.position`,
+      )
+      .bind(testId),
+  ]);
+  const head = test?.results[0];
+  if (!head) return null;
+  const list = head.exercise_list_json ? (JSON.parse(head.exercise_list_json) as ExerciseList) : null;
+  const students: ClassResults['students'] = [];
+  const stored: StoredItem[] = [];
+  let latest: { gradedAt: string; evaluationId: number; maxTotal: number; officePoints: number } | null = null;
+  let current = -1;
+  for (const row of rows?.results ?? []) {
+    stored.push({
+      evaluationId: row.evaluation_id!,
+      gradedAt: row.graded_at!,
+      exerciseId: row.exercise_id!,
+      label: row.label!,
+      maxPoints: row.max_points!,
+      position: row.position!,
+    });
+    if (!latest || row.graded_at! > latest.gradedAt || (row.graded_at! === latest.gradedAt && row.evaluation_id! > latest.evaluationId)) {
+      latest = { gradedAt: row.graded_at!, evaluationId: row.evaluation_id!, maxTotal: row.max_total!, officePoints: row.office_points! };
+    }
+    if (row.submission_id !== current) {
+      current = row.submission_id!;
+      students.push({ label: `Elev ${students.length + 1}`, total: row.total!, grade: row.grade!, items: [] });
+    }
+    students.at(-1)!.items.push({
+      exerciseId: row.exercise_id!,
+      points: row.points!,
+      studentAnswer: row.student_answer!,
+      comment: row.comment!,
+    });
+  }
+  return {
+    testId,
+    version: head.version!,
+    maxTotal: list?.totalPoints ?? latest?.maxTotal ?? 0,
+    officePoints: list?.officePoints ?? latest?.officePoints ?? 0,
+    exercises: exerciseColumns(list, stored),
+    students,
+  };
+}
+
+// The analysis is saved only for a test in evaluation that waits for it, only
+// from the run that holds the lease, and only when every upload is graded: a
+// regrade that came meanwhile makes the robot write it again afterwards.
+const WAITS_FOR_ANALYSIS = `id = ? AND status = 'evaluating' AND analysis_status = 'requested' AND ${HOLDS_LEASE}`;
+
+// Saves the analysis and ends the test when nothing else waits, in one batch.
+// An analysis made from grades that changed since the robot read them is saved
+// as out of date. False when it was not saved.
+export async function saveAnalysis(
+  db: D1Database,
+  testId: number,
+  runId: string,
+  version: string,
+  analysis: ClassAnalysis,
+  now: string,
+): Promise<boolean> {
+  const [saved] = await db.batch<{ id: number }>([
+    db
+      .prepare(
+        `UPDATE tests SET analysis_json = ?, analysis_status = 'ready', updated_at = ?,
+           analysis_stale = CASE WHEN ? = ${gradesVersionSql('tests')} THEN 0 ELSE 1 END
+         WHERE ${WAITS_FOR_ANALYSIS}
+           AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND s.status IN ('submitted', 'grading'))
+           AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded')
+         RETURNING id`,
+      )
+      .bind(JSON.stringify(analysis), now, version, testId, runId),
+    finishTests(db, now),
+  ]);
+  return Boolean(saved?.results.length);
+}
+
+// The robot could not write the analysis: one more attempt is counted (none
+// for a usage limit), and at MAX_ATTEMPTS the analysis fails and the test
+// ends without one. Null when nothing was saved.
+export async function failAnalysis(
+  db: D1Database,
+  testId: number,
+  runId: string,
+  error: RobotError,
+  now: string,
+): Promise<'requested' | 'failed' | null> {
+  const counted = error === 'usage_limit' ? 0 : 1;
+  const [failed] = await db.batch<{ analysis_status: 'requested' | 'failed' }>([
+    db
+      .prepare(
+        `UPDATE tests SET analysis_attempts = analysis_attempts + ?,
+           analysis_status = CASE WHEN analysis_attempts + ? >= ? THEN 'failed' ELSE 'requested' END,
+           updated_at = ?
+         WHERE ${WAITS_FOR_ANALYSIS}
+         RETURNING analysis_status`,
+      )
+      .bind(counted, counted, MAX_ATTEMPTS, now, testId, runId),
+    finishTests(db, now),
+  ]);
+  return failed?.results[0]?.analysis_status ?? null;
 }
 
 // A page of an upload that is being graded: its key and type, never its name.

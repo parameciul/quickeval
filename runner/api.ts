@@ -1,8 +1,10 @@
 import type { z } from 'zod';
 import type { ExerciseListInfo } from '../shared/api.ts';
 import type {
+  analysisBody,
   CheckResult,
   ClaimResult,
+  ClassResults,
   exerciseListBody,
   LeaseResult,
   resultBody,
@@ -18,6 +20,7 @@ export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
 export type ExerciseListPost = z.input<typeof exerciseListBody>;
 export type ResultPost = z.input<typeof resultBody>;
+export type AnalysisPost = z.input<typeof analysisBody>;
 
 // A refused request: `code` is the API's error code ("lease_lost",
 // "taken_over", …), "network" when the API could not be reached, or
@@ -47,6 +50,11 @@ export interface RobotApi {
   claim(runId: string): Promise<ClaimResult | null>;
   page(submissionId: number, fileId: number): Promise<Uint8Array>;
   sendResult(submissionId: number, body: ResultPost): Promise<'graded' | 'submitted' | 'failed'>;
+  // The graded class, anonymized, for the class analysis.
+  classResults(testId: number): Promise<ClassResults>;
+  // "ready": saved. "requested": an error was counted and the analysis waits
+  // for another try. "failed": the last attempt failed.
+  sendAnalysis(testId: number, body: AnalysisPost): Promise<'ready' | 'requested' | 'failed'>;
 }
 
 export interface RobotApiOptions {
@@ -108,6 +116,9 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
     page: (submissionId, fileId) => bytes(`/submissions/${submissionId}/files/${fileId}`),
     sendResult: async (submissionId, body) =>
       (await json<{ status: 'graded' | 'submitted' | 'failed' }>('POST', `/submissions/${submissionId}/result`, body)).status,
+    classResults: async (testId) => (await json<{ results: ClassResults }>('GET', `/tests/${testId}/results`)).results,
+    sendAnalysis: async (testId, body) =>
+      (await json<{ status: 'ready' | 'requested' | 'failed' }>('POST', `/tests/${testId}/analysis`, body)).status,
   };
 }
 

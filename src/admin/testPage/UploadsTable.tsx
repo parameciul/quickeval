@@ -128,12 +128,13 @@ function UploadTableRow({
   testResultsOpen: boolean;
 }) {
   const api = useApi();
+  // Each action on the upload names the upload the row shows (`startedAt`).
   const reset = useMutation({
-    mutationFn: (submissionId: number) => api.resetSubmission(submissionId),
+    mutationFn: ({ submissionId, startedAt }: { submissionId: number; startedAt: string }) => api.resetSubmission(submissionId, startedAt),
     onSuccess: onChanged,
   });
   const retry = useMutation({
-    mutationFn: (submissionId: number) => api.retrySubmission(submissionId),
+    mutationFn: ({ submissionId, startedAt }: { submissionId: number; startedAt: string }) => api.retrySubmission(submissionId, startedAt),
     onSuccess: async (robot) => {
       onRobot(robot);
       await onChanged();
@@ -149,11 +150,13 @@ function UploadTableRow({
   // One student's result page, while the class stays unpublished. Hidden once
   // the test publishes every result: then every page is open anyway.
   const publish = useMutation({
-    mutationFn: ({ submissionId, open }: { submissionId: number; open: boolean }) => api.setSubmissionResultsOpen(submissionId, open),
+    mutationFn: ({ submissionId, startedAt, open }: { submissionId: number; startedAt: string; open: boolean }) =>
+      api.setSubmissionResultsOpen(submissionId, startedAt, open),
     onSuccess: onChanged,
   });
   const time = row.submittedAt ?? row.startedAt;
   const submissionId = row.submissionId;
+  const startedAt = row.startedAt;
   const gradedAt = row.status === 'graded' ? row.gradedAt : null;
 
   return (
@@ -185,14 +188,25 @@ function UploadTableRow({
       <td data-label="Nota">{row.grade === null ? '—' : formatPoints(row.grade)}</td>
       <td data-label="De verificat">{row.flagCount > 0 ? row.flagCount : '—'}</td>
       <td className="actions-cell">
-        {submissionId !== null && (
+        {submissionId !== null && startedAt !== null && (
           <span className="row-actions">
             <Link to={`/teste/${code}/elevi/${submissionId}`}>Vezi lucrarea</Link>
             {row.status !== 'uploading' && (
-              <ResultLink submissionId={submissionId} resultToken={row.resultToken} testCode={code} studentName={row.studentName} />
+              <ResultLink
+                submissionId={submissionId}
+                startedAt={startedAt}
+                resultToken={row.resultToken}
+                testCode={code}
+                studentName={row.studentName}
+              />
             )}
             {row.status === 'failed' && (
-              <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate(submissionId)}>
+              <button
+                type="button"
+                className="button-quiet button-small"
+                disabled={retry.isPending}
+                onClick={() => retry.mutate({ submissionId, startedAt })}
+              >
                 Reîncearcă
               </button>
             )}
@@ -210,12 +224,12 @@ function UploadTableRow({
                 Recorectează
               </button>
             )}
-            {submissionId !== null && !testResultsOpen && row.status !== 'uploading' && (
+            {!testResultsOpen && row.status !== 'uploading' && (
               <button
                 type="button"
                 className="button-quiet button-small"
                 disabled={publish.isPending}
-                onClick={() => publish.mutate({ submissionId, open: !row.resultsOpen })}
+                onClick={() => publish.mutate({ submissionId, startedAt, open: !row.resultsOpen })}
               >
                 {row.resultsOpen ? 'Oprește publicarea' : 'Publică'}
               </button>
@@ -226,7 +240,7 @@ function UploadTableRow({
               disabled={reset.isPending}
               onClick={() => {
                 if (window.confirm(`Ștergi încărcarea elevului ${row.studentName}? Elevul o poate lua de la capăt.`)) {
-                  reset.mutate(submissionId);
+                  reset.mutate({ submissionId, startedAt });
                 }
               }}
             >

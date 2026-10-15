@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, robotRequest, setRobotKey } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, robotRequest, setRobotKey, startedAtOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 // "Recorectează" (spec §8.5): one graded upload, or all of a test.
@@ -99,7 +99,7 @@ describe('POST /api/admin/submissions/:id/regrade', () => {
     const later = '2026-10-08T09:00:00.000Z';
     // A reset of the newest upload: the next upload, here of another student,
     // gets the same id, and a newer grading.
-    expect((await api.request('POST', `/api/admin/submissions/${id}/reset`)).status).toBe(200);
+    expect((await api.request('POST', `/api/admin/submissions/${id}/reset`, { startedAt: await startedAtOf(api, id) })).status).toBe(200);
     expect(await graded(1)).toBe(id);
     await api.db.prepare('UPDATE evaluations SET created_at = ? WHERE submission_id = ?').bind(later, id).run();
     const res = await regrade(id);

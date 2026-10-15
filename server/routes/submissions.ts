@@ -1,15 +1,27 @@
+import type { D1Database } from '@cloudflare/workers-types';
 import { Hono } from 'hono';
-import { correctItemBody, regradeBody, reviewPagesBody, type RegradeAnswer, type ResultsOpenAnswer } from '../../shared/api.ts';
+import { correctItemBody, regradeBody, reviewPagesBody, shownUpload, type RegradeAnswer, type ResultsOpenAnswer } from '../../shared/api.ts';
 import { formatPoints, isValidCorrection } from '../../shared/scoring.ts';
 import { correctItem, correctEvaluation, findTeacherItem } from '../db/evaluations.ts';
 import { regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
 import { setSubmissionResultsOpen, teacherResultToken } from '../db/results.ts';
-import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission } from '../db/submissions.ts';
+import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission, type ShownUpload, uploadStartedAt } from '../db/submissions.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
-import { ApiError, notFound, notGraded } from '../errors.ts';
+import { ApiError, notFound, notGraded, uploadChanged } from '../errors.ts';
 import { nowIso, parseId, readJson } from '../http.ts';
 import { deleteFilesQuietly, fileResponse } from '../uploads.ts';
+
+// The upload a page names: an unknown upload is 404, and an upload that
+// started at another time is 409. Ids of deleted rows come back, so the id
+// alone may now name another student's upload. Each write also checks the
+// time in its own SQL, for a reset that comes between this read and the write.
+async function requireShown(db: D1Database, teacherId: number, submissionId: number, startedAt: string): Promise<ShownUpload> {
+  const current = await uploadStartedAt(db, teacherId, submissionId);
+  if (current === null) throw notFound();
+  if (current !== startedAt) throw uploadChanged();
+  return { teacherId, submissionId, startedAt };
+}
 
 // /api/admin/submissions: one student's upload for one test.
 export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
@@ -27,8 +39,11 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // older uploads that have none yet.
   routes.get('/:id/result-link', async (c) => {
     const submissionId = parseId(c.req.param('id'));
-    const resultToken = await teacherResultToken(c.env.DB, c.var.teacher.id, submissionId);
-    if (!resultToken) throw notFound();
+    const query = shownUpload.safeParse({ startedAt: c.req.query('startedAt') });
+    if (!query.success) throw new ApiError(400, 'invalid', 'Reîncarcă pagina.');
+    const shown = await requireShown(c.env.DB, c.var.teacher.id, submissionId, query.data.startedAt);
+    const resultToken = await teacherResultToken(c.env.DB, shown);
+    if (!resultToken) throw uploadChanged();
     return c.json({ resultToken });
   });
 
@@ -36,16 +51,20 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // unpublished. The page opens when the test keeps results open for all, or
   // its own upload is published.
   routes.post('/:id/results/open', async (c) => {
-    const resultsOpen = await setSubmissionResultsOpen(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), true);
-    if (resultsOpen === null) throw notFound();
+    const { startedAt } = await readJson(c, shownUpload);
+    const shown = await requireShown(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), startedAt);
+    const resultsOpen = await setSubmissionResultsOpen(c.env.DB, shown, true);
+    if (resultsOpen === null) throw uploadChanged();
     return c.json({ resultsOpen } satisfies ResultsOpenAnswer);
   });
 
   // Takes back one student's result page. When the test keeps results open for
   // all, the page stays open until the teacher stops access for the test.
   routes.post('/:id/results/close', async (c) => {
-    const resultsOpen = await setSubmissionResultsOpen(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), false);
-    if (resultsOpen === null) throw notFound();
+    const { startedAt } = await readJson(c, shownUpload);
+    const shown = await requireShown(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), startedAt);
+    const resultsOpen = await setSubmissionResultsOpen(c.env.DB, shown, false);
+    if (resultsOpen === null) throw uploadChanged();
     return c.json({ resultsOpen } satisfies ResultsOpenAnswer);
   });
 
@@ -92,21 +111,23 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return fileResponse(object, file.name, file.type);
   });
 
-  // Deletes the upload and its files, so the student can start again
-  // (for example on another phone).
+  // Deletes the upload the page shows and its files, so the student can
+  // start again (for example on another phone).
   routes.post('/:id/reset', async (c) => {
-    const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')));
-    if (!found) throw notFound();
-    await deleteSubmissionRow(c.env.DB, found.detail.id);
+    const { startedAt } = await readJson(c, shownUpload);
+    const shown = await requireShown(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), startedAt);
+    const found = await getTeacherSubmission(c.env.DB, shown.teacherId, shown.submissionId);
+    if (!found || found.detail.startedAt !== startedAt) throw uploadChanged();
+    if (!(await deleteSubmissionRow(c.env.DB, shown))) throw uploadChanged();
     await deleteFilesQuietly(c.env.FILES, found.files.map((file) => file.key));
     return c.json({ reset: true });
   });
 
   // "Reîncearcă": the robot grades a failed upload again.
   routes.post('/:id/retry', async (c) => {
-    const found = await getTeacherSubmission(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')));
-    if (!found) throw notFound();
-    const testStatus = await retrySubmission(c.env.DB, c.var.teacher.id, found.detail.id, nowIso());
+    const { startedAt } = await readJson(c, shownUpload);
+    const shown = await requireShown(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), startedAt);
+    const testStatus = await retrySubmission(c.env.DB, shown, nowIso());
     if (testStatus === null) throw new ApiError(409, 'not_failed', 'Corectarea acestei lucrări nu a eșuat.');
     const robot = testStatus === 'evaluating' ? await startRobot(c.env) : null;
     return c.json({ status: 'submitted', robot });

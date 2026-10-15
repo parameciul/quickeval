@@ -2,13 +2,15 @@ import type { Context } from 'hono';
 import { Hono } from 'hono';
 import type { ExerciseListInfo } from '../../shared/api.ts';
 import { isTestFileKind } from '../../shared/files.ts';
-import { exerciseListBody, type LeaseResult, MAX_ROBOT_BODY_BYTES, releaseBody, resultBody, runBody } from '../../shared/runner.ts';
-import { checkExerciseList, checkGrading } from '../../shared/schemas.ts';
+import { analysisBody, exerciseListBody, type LeaseResult, MAX_ROBOT_BODY_BYTES, releaseBody, resultBody, runBody } from '../../shared/runner.ts';
+import { checkClassAnalysis, checkExerciseList, checkGrading } from '../../shared/schemas.ts';
 import { robotAuth } from '../auth/robotAuth.ts';
 import {
   claimSubmission,
+  failAnalysis,
   failExerciseList,
   failGrading,
+  findClassResults,
   findGrading,
   findRobotFile,
   findRobotTest,
@@ -17,6 +19,7 @@ import {
   listTasks,
   releaseLease,
   runCheck,
+  saveAnalysis,
   saveExerciseList,
   saveGrading,
   takeLease,
@@ -108,6 +111,34 @@ export function runnerRoutes(): Hono<AppEnv> {
       throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
     }
     return c.json({ exerciseList: saved });
+  });
+
+  // The graded class, anonymized, for the analysis. Only while the test is
+  // in evaluation.
+  routes.get('/tests/:id/results', async (c) => {
+    const results = await findClassResults(c.env.DB, parseId(c.req.param('id')));
+    if (!results) throw notFound();
+    return c.json({ results });
+  });
+
+  // The class analysis, or why the robot could not write it. Accepted only
+  // from the run that holds the lease, for a test that waits for it.
+  routes.post('/tests/:id/analysis', async (c) => {
+    const testId = parseId(c.req.param('id'));
+    const body = await readJson(c, analysisBody, MAX_ROBOT_BODY_BYTES);
+    const now = nowIso();
+    let status: 'ready' | 'requested' | 'failed' | null;
+    if (body.ok) {
+      const checked = checkClassAnalysis(body.analysis);
+      if (!checked.ok) throw invalidResult();
+      status = (await saveAnalysis(c.env.DB, testId, body.runId, body.version, checked.value, now)) ? 'ready' : null;
+    } else {
+      status = await failAnalysis(c.env.DB, testId, body.runId, body.error, now);
+    }
+    if (!status) {
+      throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Analiza clasei nu mai este cerută.'));
+    }
+    return c.json({ status });
   });
 
   // The oldest upload that can be graded, now this run's; 204 when none.

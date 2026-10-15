@@ -4,11 +4,13 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // Work waits for the robot: the test is in evaluation, its exercise list does
-// not wait for the teacher, and an upload waits or was left in grading.
+// not wait for the teacher, and an upload waits or was left in grading, or
+// every upload is graded and the class analysis waits.
 export function waitsForRobot(test: TestInfo, uploads: UploadRow[]): boolean {
   if (test.status !== 'evaluating') return false;
   if (test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed') return false;
-  return uploads.some((row) => row.status === 'submitted' || row.status === 'grading');
+  if (uploads.some((row) => row.status === 'submitted' || row.status === 'grading')) return true;
+  return test.analysis.status === 'requested' && test.gradedCount > 0;
 }
 
 // "Pornește robotul": the teacher starts the robot again for work that a run

@@ -1,25 +1,33 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import type { TestStatus } from '../../shared/tests.ts';
+import type { AnalysisInfo } from '../../shared/api.ts';
+import type { AnalysisStatus, TestStatus } from '../../shared/tests.ts';
 import type { ShownResult } from './evaluations.ts';
+import type { ShownUpload } from './submissions.ts';
 
 // The test lifecycle after Start test (spec §8.3-§8.5). Each write checks its
 // own rules in its SQL, so two requests at once cannot both pass a check.
 
-// Entering an evaluation asks for a new class analysis when the old one is
-// ready or failed (spec §8.5).
+// Entering an evaluation asks for a class analysis, the first one too: the
+// analysis is asked for when the status is none, ready, or failed (spec §8.5).
+// One already requested stays as it is.
 const ASK_FOR_ANALYSIS = `
-  analysis_status = CASE WHEN analysis_status IN ('ready', 'failed') THEN 'requested' ELSE analysis_status END,
-  analysis_attempts = CASE WHEN analysis_status IN ('ready', 'failed') THEN 0 ELSE analysis_attempts END`;
+  analysis_status = CASE WHEN analysis_status IN ('none', 'ready', 'failed') THEN 'requested' ELSE analysis_status END,
+  analysis_attempts = CASE WHEN analysis_status IN ('none', 'ready', 'failed') THEN 0 ELSE analysis_attempts END`;
 
 const HAS_FILES = 'EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)';
 
 // evaluating → done: no upload waits for grading or is being graded, and no
-// class analysis is waiting (spec §8.5). Returns the ids of the finished tests.
+// class analysis is waiting (spec §8.5). A test with no graded upload has
+// nothing to analyze: it ends, and its analysis is not asked for. Returns the
+// ids of the finished tests.
 export function finishTests(db: D1Database, now: string): D1PreparedStatement {
   return db
     .prepare(
-      `UPDATE tests SET status = 'done', updated_at = ?
-       WHERE status = 'evaluating' AND analysis_status <> 'requested'
+      `UPDATE tests SET status = 'done', updated_at = ?,
+         analysis_status = CASE WHEN analysis_status = 'requested' THEN 'none' ELSE analysis_status END
+       WHERE status = 'evaluating'
+         AND (analysis_status <> 'requested'
+              OR NOT EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded'))
          AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND s.status IN ('submitted', 'grading'))
        RETURNING id`,
     )
@@ -314,19 +322,40 @@ export async function regradeTest(
   return status ? { count: regraded?.results.length ?? 0, status } : null;
 }
 
+// "Regenerează": the class analysis is asked for again, from any analysis
+// state (also the first one of a test that was graded before analyses
+// existed). A finished test goes back to evaluation, where the robot writes it.
+// Null when the test is not the teacher's, is not in evaluation or done, or
+// has no graded upload.
+export async function requestAnalysis(db: D1Database, teacherId: number, testId: number, now: string): Promise<AnalysisInfo | null> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET analysis_status = 'requested', analysis_attempts = 0, updated_at = ?,
+         status = CASE WHEN status = 'done' THEN 'evaluating' ELSE status END
+       WHERE id = ? AND teacher_id = ? AND status IN ('evaluating', 'done')
+         AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded')
+       RETURNING analysis_status, analysis_stale`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ analysis_status: AnalysisStatus; analysis_stale: number }>();
+  return row ? { status: row.analysis_status, stale: row.analysis_stale === 1 } : null;
+}
+
 // failed → submitted with 0 attempts, so the robot grades the upload again. A
 // finished test goes back to evaluation (spec §8.5). Returns the test's
-// status, or null when the upload had not failed.
-export async function retrySubmission(db: D1Database, teacherId: number, submissionId: number, now: string): Promise<TestStatus | null> {
+// status, or null when the upload the page shows had not failed (or is
+// another upload now: ids of deleted rows come back).
+export async function retrySubmission(db: D1Database, shown: ShownUpload, now: string): Promise<TestStatus | null> {
+  const { teacherId, submissionId, startedAt } = shown;
   const [retried, , test] = await db.batch<{ test_id?: number; status?: TestStatus }>([
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL
-         WHERE id = ? AND status = 'failed'
+         WHERE id = ? AND started_at = ? AND status = 'failed'
            AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
          RETURNING test_id`,
       )
-      .bind(submissionId, teacherId),
+      .bind(submissionId, startedAt, teacherId),
     ...backToEvaluation(db, teacherId, submissionId, now),
   ]);
   if (!retried?.results.length) return null;

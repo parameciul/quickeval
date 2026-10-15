@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DOCX_TYPE, extensionFor, PDF_TYPE } from '../shared/files.ts';
 import type { TestFileKind } from '../shared/files.ts';
+import type { ClassResults } from '../shared/runner.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
 
 // The work folder of one robot task (spec §12.3). It is the working directory
@@ -18,6 +19,7 @@ import type { ExerciseList } from '../shared/schemas.ts';
 //   barem/notes.md                  (when the teacher added comments to the barem)
 //   exercises.json                  (grade) the exercise list
 //   student/page-01.jpg, …          (grade) the pages, in upload order
+//   class-results.json              (class-report) the graded class, anonymized; no test, no barem
 
 export const SKILL_DIR = fileURLToPath(new URL('../.claude/skills/evaluate-test/', import.meta.url));
 
@@ -27,13 +29,16 @@ export interface TaskFile {
 }
 
 export interface WorkFolderInput {
-  test: TaskFile;
-  barem: TaskFile;
+  // Not for the class analysis: the exercise list in its results holds what it needs.
+  test?: TaskFile;
+  barem?: TaskFile;
   // Extra teacher comments for the barem, as part of it.
   baremNotes?: string;
   // Grade mode: the test's exercise list and the student's pages, in upload order.
   exerciseList?: ExerciseList;
   pages?: TaskFile[];
+  // Class-report mode: the graded class, anonymized.
+  classResults?: ClassResults;
 }
 
 // Runs pandoc with these arguments in this folder.
@@ -60,13 +65,16 @@ export async function makeWorkFolder(root: string, taskId: string, input: WorkFo
   await mkdir(folder, { recursive: true });
   await cp(options.skillDir ?? SKILL_DIR, path.join(folder, '.claude', 'skills', 'evaluate-test'), { recursive: true });
   const pandoc = options.pandoc ?? realPandoc;
-  await writeTeacherFile(folder, 'test', input.test, pandoc);
-  await writeTeacherFile(folder, 'barem', input.barem, pandoc);
-  if (input.baremNotes) {
+  if (input.test) await writeTeacherFile(folder, 'test', input.test, pandoc);
+  if (input.barem) await writeTeacherFile(folder, 'barem', input.barem, pandoc);
+  if (input.baremNotes && input.barem) {
     await writeFile(path.join(folder, 'barem', 'notes.md'), `${input.baremNotes.trim()}\n`);
   }
   if (input.exerciseList) {
     await writeFile(path.join(folder, 'exercises.json'), `${JSON.stringify(input.exerciseList, null, 2)}\n`);
+  }
+  if (input.classResults) {
+    await writeFile(path.join(folder, 'class-results.json'), `${JSON.stringify(input.classResults, null, 2)}\n`);
   }
   if (input.pages) {
     await mkdir(path.join(folder, 'student'));

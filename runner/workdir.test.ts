@@ -69,6 +69,24 @@ describe('makeWorkFolder', () => {
     expect(readFileSync(path.join(folder, 'barem', 'barem.pdf'), 'utf8')).toBe('%PDF-1.7 barem');
   });
 
+  it('lays out a class analysis: the skill and the anonymized results, with no test and no barem', async () => {
+    const classResults = {
+      testId: 3,
+      version: '2:2026-10-07T09:00:00.000Z',
+      maxTotal: 10,
+      officePoints: 1,
+      exercises: [],
+      students: [{ label: 'Elev 1', total: 8, grade: 8, items: [] }],
+    };
+    const folder = await makeWorkFolder(root, 'class-report-3', { classResults }, { skillDir });
+    expect(filesIn(folder)).toEqual([
+      '.claude/skills/evaluate-test/SKILL.md',
+      '.claude/skills/evaluate-test/references/grading-rules.md',
+      'class-results.json',
+    ]);
+    expect(JSON.parse(readFileSync(path.join(folder, 'class-results.json'), 'utf8'))).toEqual(classResults);
+  });
+
   it('numbers pages with two digits', async () => {
     const pages = Array.from({ length: 11 }, (_, i) => ({ bytes: bytes(`page ${i + 1}`), contentType: 'image/jpeg' }));
     const folder = await makeWorkFolder(root, 'grade-8', { test: pdf('t'), barem: pdf('b'), exerciseList: LIST, pages }, { skillDir });

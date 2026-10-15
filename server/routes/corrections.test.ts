@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { EvaluationItemInfo } from '../../shared/api.ts';
 import { gradeOf } from '../../shared/scoring.ts';
 import { correctItem, gradeSql } from '../db/evaluations.ts';
-import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, startedAtOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -188,7 +188,7 @@ describe('PATCH /api/admin/submissions/:id/items/:itemId', () => {
     expect((await correct(items['II.1']!, { points: 3.5 })).status).toBe(409);
     // A reset of the newest upload: the next upload, here of another student,
     // gets the same upload id and, once graded, the same item ids.
-    expect((await api.request('POST', `/api/admin/submissions/${submissionId}/reset`)).status).toBe(200);
+    expect((await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: await startedAtOf(api, submissionId) })).status).toBe(200);
     expect(await gradedUpload(studentIds[1]!, later)).toEqual({ submissionId, items });
     const res = await correct(items['II.1']!, { points: 3.5, reviewed: true });
     expect(res.body).toEqual({ error: 'not_graded', message: 'Lucrarea se corectează din nou. Reîncarcă pagina.' });

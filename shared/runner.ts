@@ -59,6 +59,32 @@ export const exerciseListBody = z.discriminatedUnion('ok', [
   z.object({ runId: runIdSchema, filesVersion: filesVersionSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
 
+// The class analysis, or why the robot could not make it. `version` is the
+// state of the grades that the robot read with GET /tests/:id/results: when a
+// grade changed meanwhile, the analysis is saved as out of date. The analysis
+// is checked by checkClassAnalysis (shared/schemas.ts).
+export const analysisBody = z.discriminatedUnion('ok', [
+  z.object({ runId: runIdSchema, ok: z.literal(true), version: z.string().max(100), analysis: z.unknown() }),
+  z.object({ runId: runIdSchema, ok: z.literal(false), error: robotErrorSchema }),
+]);
+
+// GET /tests/:id/results: the graded class, anonymized for the analysis
+// (spec §11.3). Students are "Elev 1" … "Elev n" in grading order: no names, and
+// the points are the final ones, with the teacher's corrections.
+export interface ClassResults {
+  testId: number;
+  version: string;
+  maxTotal: number;
+  officePoints: number;
+  exercises: { id: string; label: string; maxPoints: number; topic: string; answer: string; scoringNotes: string }[];
+  students: {
+    label: string;
+    total: number;
+    grade: number;
+    items: { exerciseId: string; points: number; studentAnswer: string; comment: string }[];
+  }[];
+}
+
 // POST /lease.
 export interface LeaseResult {
   granted: boolean;

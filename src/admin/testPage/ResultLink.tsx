@@ -5,7 +5,20 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // One student's result link, with copy and WhatsApp share. When the upload
 // has no link yet (an older upload), the first opening makes it.
-export function ResultLink({ submissionId, resultToken, testCode, studentName }: { submissionId: number; resultToken: string | null; testCode: string; studentName: string }) {
+export function ResultLink({
+  submissionId,
+  startedAt,
+  resultToken,
+  testCode,
+  studentName,
+}: {
+  submissionId: number;
+  // The upload the page shows: a link is never made for another upload.
+  startedAt: string;
+  resultToken: string | null;
+  testCode: string;
+  studentName: string;
+}) {
   const api = useApi();
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(resultToken);
@@ -24,7 +37,7 @@ export function ResultLink({ submissionId, resultToken, testCode, studentName }:
     setBusy(true);
     setError(null);
     try {
-      setToken(await api.getResultLink(submissionId));
+      setToken(await api.getResultLink(submissionId, startedAt));
     } catch (err) {
       setError(err);
     } finally {
