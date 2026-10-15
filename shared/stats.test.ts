@@ -16,6 +16,8 @@ function row(id: number, grade: number, points: [number, number], flagCount = 0)
     maxTotal: 10,
     grade,
     flagCount,
+    model: null,
+    effort: null,
     items: [
       { exerciseId: 'E1', points: points[0], maxPoints: 4, flagged: false },
       { exerciseId: 'E2', points: points[1], maxPoints: 5, flagged: false },

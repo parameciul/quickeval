@@ -11,6 +11,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
       { id: 'I.1', label: 'Exercițiul 1', maxPoints: 4.5 },
       { id: 'II.1', label: 'Exercițiul 2', maxPoints: 4.5 },
     ],
+    showModel: true,
     rows: [
       {
         submissionId: 5,
@@ -20,6 +21,8 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
         maxTotal: 10,
         grade: 7.25,
         flagCount: 0,
+        model: null,
+        effort: null,
         items: [
           { exerciseId: 'I.1', points: 4.5, maxPoints: 4.5, flagged: false },
           { exerciseId: 'II.1', points: 1.75, maxPoints: 4.5, flagged: false },
@@ -33,6 +36,13 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
 }
 
 describe('classCsv', () => {
+  it('has no model or effort column', () => {
+    const base = report();
+    const csv = classCsv(report({ rows: [{ ...base.rows[0]!, model: 'claude-opus-5-5', effort: 'high' }] }), label);
+    expect(csv).not.toContain('claude-opus-5-5');
+    expect(csv).not.toContain('Model');
+  });
+
   it('starts with the byte order mark and uses ";" and a decimal comma, with CR LF line ends', () => {
     const csv = classCsv(report(), label);
     expect(csv.charCodeAt(0)).toBe(0xfeff);

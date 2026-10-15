@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import type { RobotStatus, Settings } from '../../../shared/api.ts';
+import type { RobotSettings, RobotStatus, Settings } from '../../../shared/api.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from '../../../shared/runner.ts';
 import { countLabel, formatDateTime } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
@@ -154,6 +154,43 @@ export function lastRunText(robot: RobotStatus): string | null {
   return `Ultima rulare s-a încheiat la ${formatDateTime(robot.lastRunFinishedAt)}: ${parts.join(', ')}. ${STOP[summary.stop]}`;
 }
 
+function modelLine(label: string, model: string | null, effort: string | null): string | null {
+  if (!model) return null;
+  return effort ? `${label}: ${model}, efort ${effort}` : `${label}: ${model}`;
+}
+
+// The model and effort of the latest grading and class analysis.
+export function modelLines(models: RobotSettings): string[] {
+  return [
+    modelLine('Ultima corectare', models.gradingModel, models.gradingEffort),
+    modelLine('Ultima analiză a clasei', models.analysisModel, models.analysisEffort),
+  ].filter((text): text is string => text !== null);
+}
+
+function ShowModelColumn({ checked }: { checked: boolean }) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: (show: boolean) => api.setShowModelColumn(show),
+    onSuccess: (saved) => queryClient.setQueryData(['settings'], saved),
+  });
+  return (
+    <>
+      <div className="form-row">
+        <input
+          id="show-model"
+          type="checkbox"
+          checked={checked}
+          disabled={save.isPending}
+          onChange={(event) => save.mutate(event.target.checked)}
+        />
+        <label htmlFor="show-model">Arată coloana Model în tabelul elevilor</label>
+      </div>
+      {save.error && <ErrorMessage error={save.error} />}
+    </>
+  );
+}
+
 function RobotState({ settings }: { settings: Settings }) {
   const lastRun = lastRunText(settings.robot);
   return (
@@ -167,6 +204,10 @@ function RobotState({ settings }: { settings: Settings }) {
           ? `Ultima lucrare corectată: ${formatDateTime(settings.lastGradedAt)}.`
           : 'Nicio lucrare nu a fost corectată încă.'}
       </p>
+      {modelLines(settings.lastModels).map((text) => (
+        <p key={text}>{text}</p>
+      ))}
+      <ShowModelColumn checked={settings.showModelColumn} />
       <p className="hint">
         Robotul corectează cu planul Claude prin tokenul din secretul GitHub <code>CLAUDE_CODE_OAUTH_TOKEN</code>. Tokenul ține un an: dacă
         lucrările nu se mai corectează, fă unul nou.

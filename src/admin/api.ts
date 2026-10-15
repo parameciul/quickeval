@@ -90,6 +90,8 @@ export interface AdminApi {
   reviewPages(submissionId: number, review: PagesReview): Promise<SubmissionDetail>;
   getSettings(): Promise<Settings>;
   updateSettings(maxParallelAgents: number): Promise<Settings>;
+  // The Model column of the class report, for all tests.
+  setShowModelColumn(show: boolean): Promise<Settings>;
   // A new robot key: the only time the app sees it.
   newRobotKey(): Promise<string>;
 }
@@ -246,6 +248,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     getSettings: async () => (await request<{ settings: Settings }>('GET', '/settings')).settings,
     updateSettings: async (maxParallelAgents) =>
       (await request<{ settings: Settings }>('PATCH', '/settings', { maxParallelAgents })).settings,
+    setShowModelColumn: async (showModelColumn) =>
+      (await request<{ settings: Settings }>('PATCH', '/settings', { showModelColumn })).settings,
     newRobotKey: async () => (await request<{ key: string }>('POST', '/settings/robot-key')).key,
   };
 }

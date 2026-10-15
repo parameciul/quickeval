@@ -169,20 +169,69 @@ describe('POST /api/runner/tests/:id/analysis', () => {
     expect(JSON.parse(row!.analysis_json!)).toEqual(ANALYSIS);
   });
 
-  it('keeps the model and effort of the analysis, and shows them to the teacher', async () => {
+  it('keeps the model and effort of the analysis, and shows them on Setări', async () => {
     await graded(0);
     const version = await resultsVersion();
     const res = await robot('POST', `/tests/${testId}/analysis`, { runId: RUN, ok: true, version, analysis: ANALYSIS, model: 'claude-opus', effort: 'high' });
     expect(res.status).toBe(200);
-    const detail = await api.request('GET', `/api/admin/tests/${code}`);
-    expect(detail.body.test.robot).toMatchObject({ analysisModel: 'claude-opus', analysisEffort: 'high' });
+    const detail = await api.request('GET', '/api/admin/settings');
+    expect(detail.body.settings.lastModels).toMatchObject({ analysisModel: 'claude-opus', analysisEffort: 'high' });
+  });
+
+  describe('the model of the last analysis kept for Setări', () => {
+    const kept = async () => {
+      const rows = await api.db.prepare("SELECT key, value FROM settings WHERE key LIKE 'last_analysis_%' ORDER BY key").all<{ key: string; value: string }>();
+      return Object.fromEntries(rows.results.map((row) => [row.key, row.value]));
+    };
+    const sendWith = (version: string, extra: object, runId = RUN) =>
+      robot('POST', `/tests/${testId}/analysis`, { runId, ok: true, version, analysis: ANALYSIS, ...extra });
+
+    it('follows the last analysis save and drops the effort when there is none', async () => {
+      await graded(0);
+      expect((await sendWith(await resultsVersion(), { model: 'first', effort: 'high' })).status).toBe(200);
+      expect(await kept()).toEqual({ last_analysis_model: 'first', last_analysis_effort: 'high' });
+      await setTest("status = 'evaluating', analysis_status = 'requested'");
+      expect((await sendWith(await resultsVersion(), { model: 'second' })).status).toBe(200);
+      expect(await kept()).toEqual({ last_analysis_model: 'second' });
+    });
+
+    it('is not moved by a test that was only touched, and stays after a refused save', async () => {
+      await graded(0);
+      await sendWith(await resultsVersion(), { model: 'real', effort: 'low' });
+      const foreign = await otherTeacherTest(api);
+      await api.db
+        .prepare("UPDATE tests SET analysis_model = 'touched', analysis_effort = 'max', updated_at = '2099-01-01T00:00:00.000Z' WHERE code = ?")
+        .bind(foreign.code)
+        .run();
+      await setTest("updated_at = '2098-01-01T00:00:00.000Z', analysis_model = 'touched-too'");
+      let settings = await api.request('GET', '/api/admin/settings');
+      expect(settings.body.settings.lastModels).toMatchObject({ analysisModel: 'real', analysisEffort: 'low' });
+
+      await setTest("status = 'evaluating', analysis_status = 'requested'");
+      const stale = await sendWith('1:x', { model: 'lost', effort: 'max' }, 'run-0002');
+      expect(stale.body.error).toBe('lease_lost');
+      await addSubmission(api, code, studentIds[1]!, { status: 'submitted', files: 1 });
+      const notNeeded = await sendWith(await resultsVersion(), { model: 'not-needed', effort: 'max' });
+      expect(notNeeded.body.error).toBe('not_needed');
+      expect(await kept()).toEqual({ last_analysis_model: 'real', last_analysis_effort: 'low' });
+      settings = await api.request('GET', '/api/admin/settings');
+      expect(settings.body.settings.lastModels).toMatchObject({ analysisModel: 'real', analysisEffort: 'low' });
+    });
+
+    it('falls back to the latest analysed test when no key exists', async () => {
+      await graded(0);
+      await sendWith(await resultsVersion(), { model: 'row-model', effort: 'medium' });
+      await api.db.prepare("DELETE FROM settings WHERE key LIKE 'last_analysis_%'").run();
+      const settings = await api.request('GET', '/api/admin/settings');
+      expect(settings.body.settings.lastModels).toMatchObject({ analysisModel: 'row-model', analysisEffort: 'medium' });
+    });
   });
 
   it('saves an analysis of an older robot with no model or effort', async () => {
     await graded(0);
     expect((await saveAnalysis(await resultsVersion())).status).toBe(200);
-    const detail = await api.request('GET', `/api/admin/tests/${code}`);
-    expect(detail.body.test.robot).toMatchObject({ analysisModel: null, analysisEffort: null });
+    const detail = await api.request('GET', '/api/admin/settings');
+    expect(detail.body.settings.lastModels).toMatchObject({ analysisModel: null, analysisEffort: null });
   });
 
   it('saves it as out of date when a grade changed after the robot read the results', async () => {

@@ -104,13 +104,22 @@ export const evaluateTestBody = z.object({
 
 const PARALLEL_MESSAGE = `Alege între 1 și ${MAX_PARALLEL_AGENTS} lucrări corectate deodată.`;
 
-export const updateSettingsBody = z.object({
-  maxParallelAgents: z
-    .number({ message: PARALLEL_MESSAGE })
-    .int({ message: PARALLEL_MESSAGE })
-    .min(1, { message: PARALLEL_MESSAGE })
-    .max(MAX_PARALLEL_AGENTS, { message: PARALLEL_MESSAGE }),
-});
+const SHOW_MODEL_MESSAGE = 'Alege dacă se arată coloana Model.';
+
+// Each field is optional: a request changes the settings it names.
+export const updateSettingsBody = z
+  .object({
+    maxParallelAgents: z
+      .number({ message: PARALLEL_MESSAGE })
+      .int({ message: PARALLEL_MESSAGE })
+      .min(1, { message: PARALLEL_MESSAGE })
+      .max(MAX_PARALLEL_AGENTS, { message: PARALLEL_MESSAGE })
+      .optional(),
+    showModelColumn: z.boolean({ message: SHOW_MODEL_MESSAGE }).optional(),
+  })
+  // A body with no known field changes nothing: it is refused like a missing
+  // number of uploads at a time.
+  .refine((body) => body.maxParallelAgents !== undefined || body.showModelColumn !== undefined, { message: PARALLEL_MESSAGE });
 
 const POINTS_MESSAGE = 'Scrie punctajul ca număr, de exemplu 2,5.';
 
@@ -332,6 +341,10 @@ export interface ReportRow {
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;
+  // The model and effort that graded this student (teacher only). Null for a
+  // grading that did not keep them.
+  model: string | null;
+  effort: string | null;
   items: ReportItem[];
 }
 
@@ -348,6 +361,8 @@ export interface ClassReport {
   test: { code: string; title: string; className: string; status: TestStatus; startedAt: string | null };
   // The exercises of the test, in barem order.
   exercises: { id: string; label: string; maxPoints: number }[];
+  // The teacher's setting: whether the page shows the Model column.
+  showModel: boolean;
   rows: ReportRow[];
   missing: ReportMissing[];
   analysis: AnalysisInfo & { content: ClassAnalysis | null };
@@ -377,11 +392,10 @@ export interface TestInfo extends TestSummary {
   // Extra teacher comments for the barem, read by the robot as part of it.
   baremNotes: string;
   analysis: AnalysisInfo;
-  // What the robot used, for the teacher's page. Null: not graded yet, or
-  // graded before the settings were kept.
-  robot: RobotSettings;
 }
 
+// The model and effort of the latest grading and of the latest class
+// analysis. Null: none yet, or made before the settings were kept.
 export interface RobotSettings {
   gradingModel: string | null;
   gradingEffort: string | null;
@@ -446,6 +460,10 @@ export interface Settings {
   robot: RobotStatus;
   // When one of this teacher's uploads was last graded.
   lastGradedAt: string | null;
+  // Over all this teacher's tests.
+  lastModels: RobotSettings;
+  // Whether the students' table of the class report has the Model column.
+  showModelColumn: boolean;
 }
 
 // Start test: the link is /u/<uploadToken>.

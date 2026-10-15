@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { AnalysisInfo, ExerciseListInfo, RobotSettings, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
+import type { AnalysisInfo, ExerciseListInfo, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
 import type { TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
@@ -23,7 +23,6 @@ export interface TestRecord {
   exerciseList: ExerciseListInfo;
   baremNotes: string;
   analysis: AnalysisInfo;
-  robot: RobotSettings;
 }
 
 interface TestRow {
@@ -53,10 +52,6 @@ interface TestRow {
   analysis_status: AnalysisStatus;
   analysis_stale: number;
   analysis_attempts: number;
-  analysis_model: string | null;
-  analysis_effort: string | null;
-  grading_model: string | null;
-  grading_effort: string | null;
   student_count: number;
   submitted_count: number;
   graded_count: number;
@@ -69,11 +64,6 @@ const SELECT_TEST = `
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
     t.results_open, t.analysis_status, t.analysis_stale, t.analysis_attempts,
-    t.analysis_model, t.analysis_effort,
-    (SELECT ev.model FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id
-       WHERE s.test_id = t.id AND s.status = 'graded' ORDER BY ev.updated_at DESC, ev.id DESC LIMIT 1) AS grading_model,
-    (SELECT ev.effort FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id
-       WHERE s.test_id = t.id AND s.status = 'graded' ORDER BY ev.updated_at DESC, ev.id DESC LIMIT 1) AS grading_effort,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
@@ -114,12 +104,6 @@ function toRecord(row: TestRow): TestRecord {
     exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
     baremNotes: row.barem_notes ?? '',
     analysis: { status: row.analysis_status, stale: row.analysis_stale === 1, attempts: row.analysis_attempts },
-    robot: {
-      gradingModel: row.grading_model,
-      gradingEffort: row.grading_effort,
-      analysisModel: row.analysis_model,
-      analysisEffort: row.analysis_effort,
-    },
   };
 }
 
@@ -134,7 +118,6 @@ export function toTestInfo(record: TestRecord): TestInfo {
     exerciseList: record.exerciseList,
     baremNotes: record.baremNotes,
     analysis: record.analysis,
-    robot: record.robot,
   };
 }
 

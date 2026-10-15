@@ -46,6 +46,8 @@ export function fakeSettings(overrides: Partial<Settings> = {}): Settings {
     maxParallelAgents: 1,
     hasRobotKey: false,
     robot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
+    lastModels: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
+    showModelColumn: false,
     lastGradedAt: null,
     ...overrides,
   };
@@ -90,7 +92,6 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       exerciseList: { status: 'none', message: null },
       baremNotes: '',
       analysis: { status: 'none', stale: false, attempts: 0 },
-      robot: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
       ...overrides,
     },
     uploads,
@@ -509,6 +510,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     getSettings: vi.fn(async () => structuredClone(settings)),
     updateSettings: vi.fn(async (maxParallelAgents: number) => {
       settings.maxParallelAgents = maxParallelAgents;
+      return structuredClone(settings);
+    }),
+    setShowModelColumn: vi.fn(async (show: boolean) => {
+      settings.showModelColumn = show;
       return structuredClone(settings);
     }),
     newRobotKey: vi.fn(async () => {
