@@ -60,6 +60,19 @@ describe('runner/check.ts', () => {
     ]);
   });
 
+  it('uses the defaults when the variables are empty, as GitHub passes an unset variable', async () => {
+    world = await evaluatingTest();
+    const env = { QUICKEVAL_URL: API_URL, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, GITHUB_OUTPUT: output, QE_MODEL: '', QE_EFFORT: '  ' };
+    expect(await main(env, { fetch: fetchFrom(world.api) })).toBe(0);
+    const rows = await world.api.db
+      .prepare("SELECT key, value FROM settings WHERE key IN ('robot_model', 'robot_effort') ORDER BY key")
+      .all<{ key: string; value: string }>();
+    expect(rows.results).toEqual([
+      { key: 'robot_effort', value: 'high' },
+      { key: 'robot_model', value: 'opus' },
+    ]);
+  });
+
   it('finds no work when nothing waits', async () => {
     world = await evaluatingTest({ uploads: 0 });
     const env = { QUICKEVAL_URL: API_URL, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, GITHUB_OUTPUT: output };
