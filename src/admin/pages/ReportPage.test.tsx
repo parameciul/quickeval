@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { ClassReport } from '../../../shared/api.ts';
-import { createFakeApi, fakeTest } from '../../test/fakeApi.ts';
+import { createFakeApi, fakeSettings, fakeTest } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import { reportRefreshInterval } from './ReportPage.tsx';
 
@@ -21,7 +21,6 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
       { id: 'I.1', label: 'Subiectul I, exercițiul 1', maxPoints: 4.5 },
       { id: 'II.1', label: 'Subiectul II, exercițiul 1', maxPoints: 4.5 },
     ],
-    showModel: false,
     rows: [
       {
         submissionId: 5,
@@ -31,8 +30,6 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
         maxTotal: 10,
         grade: 10,
         flagCount: 0,
-        model: 'claude-opus-5-5',
-        effort: 'high',
         items: [
           { exerciseId: 'I.1', points: 4.5, maxPoints: 4.5, flagged: false },
           { exerciseId: 'II.1', points: 4.5, maxPoints: 4.5, flagged: false },
@@ -46,8 +43,6 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
         maxTotal: 10,
         grade: 5.5,
         flagCount: 2,
-        model: 'claude-sonnet-5-5',
-        effort: null,
         items: [
           { exerciseId: 'I.1', points: 4.5, maxPoints: 4.5, flagged: false },
           { exerciseId: 'II.1', points: 0, maxPoints: 4.5, flagged: true },
@@ -94,24 +89,18 @@ describe('ReportPage', () => {
     expect(within(missing).getByText('· Nu a trimis')).toBeInTheDocument();
   });
 
-  it('hides the Model column while the setting is off', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+  it('has no Model column, even when the Model setting is on', async () => {
+    const api = createFakeApi({
+      classes: [],
+      students: {},
+      tests: [{ ...fakeTest({ status: 'done', gradedCount: 2 }), showModel: true }],
+      reports: { '6E2-26T1': report() },
+      settings: fakeSettings({ showModelColumn: true }),
+    });
+    renderAdmin('/teste/6E2-26T1/raport', api);
     const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
     expect(within(table).queryByRole('columnheader', { name: 'Model' })).not.toBeInTheDocument();
-    expect(screen.queryByText('claude-opus-5-5 · high')).not.toBeInTheDocument();
-  });
-
-  it('shows the model and effort of each student, the model alone without an effort, and a dash without a model', async () => {
-    const base = report();
-    const rows = [...base.rows, { ...base.rows[0]!, submissionId: 7, studentId: 13, studentName: 'Zaharia Ana', model: null, effort: null }];
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ showModel: true, rows })));
-    const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
-    expect(within(table).getByRole('columnheader', { name: 'Model' })).toBeInTheDocument();
-    const cells = within(table)
-      .getAllByRole('row')
-      .slice(1)
-      .map((row) => within(row).getAllByRole('cell').at(-1)!.textContent);
-    expect(cells).toEqual(['claude-opus-5-5 · high', 'claude-sonnet-5-5', '—']);
+    expect(screen.queryByText(/claude-/)).not.toBeInTheDocument();
   });
 
   it('has the buttons for the PDF, the CSV, and sharing, only when something is graded', async () => {
@@ -230,8 +219,6 @@ describe('ReportPage', () => {
           maxTotal: 40,
           grade: 10,
           flagCount: 0,
-        model: null,
-        effort: null,
           items: exercises.map((exercise) => ({ exerciseId: exercise.id, points: 1, maxPoints: 1, flagged: false })),
         },
       ],

@@ -14,7 +14,7 @@ The two browser apps. The root `AGENTS.md` holds the project-wide rules.
 - A PDF never carries what is for the teacher only: `studentPdfInput()` is the only way into the student's PDF, and its type has no confidence and no review reason. Keep it so, and keep no word about how the work was graded in it. CSV cells that hold text go through `csvText()` (`shared/csv.ts`), which guards against formulas.
 - The class PDF and the report page have one column for each exercise (up to 60): the page table scrolls in its `.table-wrap` and uses `report-table`, not the `uploads` table that turns into cards on a phone.
 
-- The Model column of the class report and of the uploads table on the test page (`TestDetail.showModel`), and the model lines on Setări, are for the teacher only: the global setting `show_model_column` (the `settings` table, off by default) turns the column on. Student PDFs, the CSV, the class PDF and student pages never carry the model or effort.
+- The Model column of the uploads table on the test page (`TestDetail.showModel`; the class report has none), and the model lines on Setări, are for the teacher only: the global setting `show_model_column` (the `settings` table, off by default) turns the column on. Student PDFs, the CSV, the class PDF and student pages never carry the model or effort.
 - The schedule input takes Romania's time (`ui/bucharestTime.ts`).
 - The Vite dev proxy keeps the Host header (`changeOrigin: false`). Otherwise the API refuses every write as cross-site.
 - Page tests that check a navigation use `expectLocation()`: it waits, because the navigation follows the API answer.

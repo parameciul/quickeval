@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import type { ClassReport } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import type { ClassStats } from '../../../shared/stats.ts';
-import { modelCell, pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
+import { pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
 
 const dash = '—';
 const grade = (value: number | null) => (value === null ? dash : formatPoints(value));
@@ -75,7 +75,6 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
             ))}
             <th scope="col">Total</th>
             <th scope="col">Nota</th>
-            {report.showModel && <th scope="col">Model</th>}
           </tr>
         </thead>
         <tbody>
@@ -101,7 +100,6 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
                 <strong>{formatPoints(row.grade)}</strong>
                 {row.flagCount > 0 && <span className="tag">de verificat {row.flagCount}</span>}
               </td>
-              {report.showModel && <td>{modelCell(row.model, row.effort)}</td>}
             </tr>
           ))}
         </tbody>

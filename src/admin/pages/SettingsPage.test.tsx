@@ -82,12 +82,12 @@ describe('SettingsPage', () => {
     const user = userEvent.setup();
     const api = withSettings();
     renderAdmin('/setari', api);
-    const box = await screen.findByRole('checkbox', { name: 'Arată coloana Model în tabelul elevilor' });
+    const box = await screen.findByRole('checkbox', { name: 'Arată coloana Model în tabelul Încărcări' });
     expect(box).not.toBeChecked();
     await user.click(box);
     expect(api.setShowModelColumn).toHaveBeenCalledWith(true);
-    expect(await screen.findByRole('checkbox', { name: 'Arată coloana Model în tabelul elevilor' })).toBeChecked();
-    await user.click(screen.getByRole('checkbox', { name: 'Arată coloana Model în tabelul elevilor' }));
+    expect(await screen.findByRole('checkbox', { name: 'Arată coloana Model în tabelul Încărcări' })).toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: 'Arată coloana Model în tabelul Încărcări' }));
     expect(api.setShowModelColumn).toHaveBeenLastCalledWith(false);
   });
 
