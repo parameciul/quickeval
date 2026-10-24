@@ -21,9 +21,10 @@ import type {
   TestSummary,
   UploadRow,
 } from '../../shared/api.ts';
-import { normalizeClassName } from '../../shared/classes.ts';
+import { displayClassName, normalizeClassName } from '../../shared/classes.ts';
 import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
+import { studentNameKey } from '../../shared/students.ts';
 import { buildTestCode } from '../../shared/tests.ts';
 import { ApiError, type AdminApi } from '../admin/api.ts';
 
@@ -240,7 +241,19 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       if (input.archived !== undefined) found.archived = input.archived;
       return { ...found };
     }),
+    // Like the server: a name already in the class (students who left count,
+    // letter case does not) refuses the whole list.
     addStudents: vi.fn(async (classId: number, names: string[]) => {
+      const taken = new Set((data.students[classId] ?? []).map((s) => studentNameKey(s.fullName)));
+      const clashes = names.filter((name) => taken.has(studentNameKey(name)));
+      if (clashes.length > 0) {
+        const quoted = clashes.slice(0, 3).map((name) => `„${name}”`);
+        const message =
+          clashes.length === 1
+            ? `Elevul ${quoted[0]} este deja în clasă.`
+            : `Elevii ${quoted.join(', ')}${clashes.length > 3 ? ` și încă ${clashes.length - 3}` : ''} sunt deja în clasă.`;
+        throw new ApiError(409, 'student_exists', message);
+      }
       const added = names.map((fullName) => ({ id: nextId++, fullName, active: true }));
       data.students[classId] = [...(data.students[classId] ?? []), ...added];
       return added;
@@ -250,7 +263,18 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       student.active = active;
       return { ...student };
     }),
+    // Like the server: another student of one of the same classes may not have
+    // the name, but a student may change the case of their own.
     renameStudent: vi.fn(async (studentId: number, fullName: string) => {
+      const key = studentNameKey(fullName);
+      for (const [classId, list] of Object.entries(data.students)) {
+        if (!list.some((s) => s.id === studentId)) continue;
+        if (list.some((s) => s.id !== studentId && studentNameKey(s.fullName) === key)) {
+          const cls = data.classes.find((c) => c.id === Number(classId));
+          const where = cls ? displayClassName(cls.name) : 'clasă';
+          throw new ApiError(409, 'student_exists', `Există deja un elev cu numele „${fullName}” în ${where}.`);
+        }
+      }
       for (const list of Object.values(data.students)) {
         const student = list.find((s) => s.id === studentId);
         if (student) student.fullName = fullName;

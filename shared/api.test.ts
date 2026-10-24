@@ -36,6 +36,18 @@ describe('addStudentsBody', () => {
   });
 });
 
+describe('addStudentsBody duplicates', () => {
+  it('refuses a name twice in one list, whatever its case', () => {
+    const result = addStudentsBody.safeParse({ names: ['Pop Ion', 'POP  ION'] });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe('Numele „POP ION” apare de două ori în listă.');
+  });
+
+  it('accepts names that differ by a diacritic', () => {
+    expect(addStudentsBody.safeParse({ names: ['Stefan Ana', 'Ștefan Ana'] }).success).toBe(true);
+  });
+});
+
 describe('renameStudentBody', () => {
   it('refuses a name longer than 80 characters', () => {
     expect(renameStudentBody.safeParse({ fullName: 'a'.repeat(81) }).success).toBe(false);

@@ -142,6 +142,74 @@ describe('students in a class', () => {
   });
 });
 
+describe('duplicate student names in a class', () => {
+  const addTo = (classId: number, names: string[]) => api.request('POST', `/api/admin/classes/${classId}/students`, { names });
+
+  it('refuses a name already in the class, whatever its case', async () => {
+    const created = await createClass('11A');
+    expect((await addTo(created.id, ['Ștefan Ana'])).status).toBe(201);
+    const res = await addTo(created.id, ['Marin Dan', 'ȘTEFAN ANA']);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('student_exists');
+    expect(res.body.message).toBe('Elevul „ȘTEFAN ANA” este deja în clasă.');
+    const detail = await api.request('GET', `/api/admin/classes/${created.id}`);
+    expect(detail.body.students.map((s: { fullName: string }) => s.fullName)).toEqual(['Ștefan Ana']);
+    const orphans = await api.db
+      .prepare("SELECT COUNT(*) AS n FROM students WHERE full_name = 'Marin Dan'")
+      .first<{ n: number }>();
+    expect(orphans?.n).toBe(0);
+  });
+
+  it('names every duplicate of a list, at most three, then counts the rest', async () => {
+    const created = await createClass('11B');
+    await addTo(created.id, ['A Unu', 'B Doi', 'C Trei', 'D Patru', 'E Cinci']);
+    const two = await addTo(created.id, ['a unu', 'Nou Elev', 'b doi']);
+    expect(two.status).toBe(409);
+    expect(two.body.message).toBe('Elevii „a unu”, „b doi” sunt deja în clasă.');
+    const five = await addTo(created.id, ['a unu', 'b doi', 'c trei', 'd patru', 'e cinci']);
+    expect(five.body.message).toBe('Elevii „a unu”, „b doi”, „c trei” și încă 2 sunt deja în clasă.');
+  });
+
+  it('refuses a name of a student who left', async () => {
+    const created = await createClass('11C');
+    const add = await addTo(created.id, ['Pop Ion']);
+    await api.request('PATCH', `/api/admin/classes/${created.id}/students/${add.body.students[0].id}`, { active: false });
+    const res = await addTo(created.id, ['Pop Ion']);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('student_exists');
+  });
+
+  it('allows the same name in another class', async () => {
+    const first = await createClass('11D');
+    const second = await createClass('11E');
+    await addTo(first.id, ['Pop Ion']);
+    expect((await addTo(second.id, ['Pop Ion'])).status).toBe(201);
+  });
+
+  it('refuses a cedilla twin', async () => {
+    const created = await createClass('11F');
+    await addTo(created.id, ['Șerban Ion']);
+    const res = await addTo(created.id, ['Şerban Ion']);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('student_exists');
+  });
+
+  it('keeps names that differ by a diacritic apart', async () => {
+    const created = await createClass('11G');
+    await addTo(created.id, ['Stefan Ana']);
+    expect((await addTo(created.id, ['Ștefan Ana'])).status).toBe(201);
+  });
+
+  it('answers 404 for another teacher class even when the name would clash', async () => {
+    const otherId = await api.addTeacher('dup-neighbour@example.com', 'Alt Profesor');
+    const otherClass = await api.db
+      .prepare("INSERT INTO classes (teacher_id, name, school_year, created_at) VALUES (?, '5C', 2026, '2026-10-06') RETURNING id")
+      .bind(otherId)
+      .first<{ id: number }>();
+    expect((await addTo(otherClass!.id, ['Pop Ion'])).status).toBe(404);
+  });
+});
+
 describe('students of another teacher', () => {
   it('cannot be added to or changed in that teacher class', async () => {
     const otherId = await api.addTeacher('neighbour@example.com', 'Alt Profesor');

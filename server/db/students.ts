@@ -1,5 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { StudentClass, StudentHistory, StudentResult, StudentRow } from '../../shared/api.ts';
+import { displayClassName } from '../../shared/classes.ts';
+import { studentNameKey, studentNameKeySql } from '../../shared/students.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { flagCountSql } from './evaluations.ts';
 
@@ -10,7 +12,10 @@ import { flagCountSql } from './evaluations.ts';
 // as one transaction: either every name is added or none is. If another request
 // took one of these ids in the meantime, the batch fails on the primary key and
 // the teacher is asked to try again. Both inserts also check that the class
-// belongs to the teacher, so nothing is added to another teacher's class.
+// belongs to the teacher, so nothing is added to another teacher's class. Both
+// also carry the same name guard: when any name of the list is already in the
+// class (same name key, students who left included), neither inserts, so
+// nothing is added. The read after a refused write only builds the message.
 export async function addStudentsToClass(
   db: D1Database,
   teacherId: number,
@@ -19,9 +24,18 @@ export async function addStudentsToClass(
   now: string,
 ): Promise<StudentRow[]> {
   const top = await db.prepare('SELECT COALESCE(MAX(id), 0) AS max FROM students').first<{ max: number }>();
-  const rows = names.map((fullName, index) => ({ id: (top?.max ?? 0) + index + 1, fullName }));
+  const rows = names.map((fullName, index) => ({
+    id: (top?.max ?? 0) + index + 1,
+    fullName,
+    key: studentNameKey(fullName),
+  }));
   const json = JSON.stringify(rows);
   const ownsClass = 'EXISTS (SELECT 1 FROM classes WHERE id = ? AND teacher_id = ?)';
+  const noClash = `NOT EXISTS (
+    SELECT 1 FROM json_each(?) n
+    JOIN enrollments e ON e.class_id = ?
+    JOIN students s ON s.id = e.student_id
+    WHERE ${studentNameKeySql('s.full_name')} = json_extract(n.value, '$.key'))`;
   let inserted: number;
   try {
     const [students] = await db.batch([
@@ -29,12 +43,16 @@ export async function addStudentsToClass(
         .prepare(
           `INSERT INTO students (id, teacher_id, full_name, created_at)
            SELECT json_extract(value, '$.id'), ?, json_extract(value, '$.fullName'), ? FROM json_each(?)
-           WHERE ${ownsClass}`,
+           WHERE ${ownsClass} AND ${noClash}`,
         )
-        .bind(teacherId, now, json, classId, teacherId),
+        .bind(teacherId, now, json, classId, teacherId, json, classId),
       db
-        .prepare(`INSERT INTO enrollments (class_id, student_id) SELECT ?, json_extract(value, '$.id') FROM json_each(?) WHERE ${ownsClass}`)
-        .bind(classId, json, classId, teacherId),
+        .prepare(
+          `INSERT INTO enrollments (class_id, student_id)
+           SELECT ?, json_extract(value, '$.id') FROM json_each(?)
+           WHERE ${ownsClass} AND ${noClash}`,
+        )
+        .bind(classId, json, classId, teacherId, json, classId),
     ]);
     inserted = students?.meta.changes ?? 0;
   } catch (err) {
@@ -43,8 +61,25 @@ export async function addStudentsToClass(
     }
     throw err;
   }
-  if (inserted === 0) throw notFound();
+  if (inserted === 0) throw await refusedAdd(db, teacherId, classId, names);
   return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true }));
+}
+
+// Why an add changed nothing: the class is not the teacher's (404), or names of
+// the list are already in it (409). This read never decides whether to write.
+async function refusedAdd(db: D1Database, teacherId: number, classId: number, names: string[]): Promise<ApiError> {
+  const [owned, existing] = await db.batch<{ full_name: string }>([
+    db.prepare('SELECT id AS full_name FROM classes WHERE id = ? AND teacher_id = ?').bind(classId, teacherId),
+    db.prepare('SELECT s.full_name FROM enrollments e JOIN students s ON s.id = e.student_id WHERE e.class_id = ?').bind(classId),
+  ]);
+  if (!owned || owned.results.length === 0) return notFound();
+  const taken = new Set((existing?.results ?? []).map((row) => studentNameKey(row.full_name)));
+  const clashes = names.filter((name) => taken.has(studentNameKey(name)));
+  if (clashes.length === 0) return new ApiError(409, 'busy', 'Altcineva a adăugat elevi în același timp. Încearcă din nou.');
+  const quoted = clashes.slice(0, 3).map((name) => `„${name}”`);
+  if (clashes.length === 1) return new ApiError(409, 'student_exists', `Elevul ${quoted[0]} este deja în clasă.`);
+  const rest = clashes.length > 3 ? ` și încă ${clashes.length - 3}` : '';
+  return new ApiError(409, 'student_exists', `Elevii ${quoted.join(', ')}${rest} sunt deja în clasă.`);
 }
 
 // Marks a student as left (active = false) or back in the class. The class must
@@ -73,17 +108,58 @@ export async function setEnrollmentActive(
   return { id: studentId, fullName: student!.full_name, active };
 }
 
+// Renames a student unless another student of one of the same classes has the
+// same name key (the student's own name may change case). Returns null when the
+// student is not the teacher's, and 'duplicate' when the name is taken.
 export async function renameStudent(
   db: D1Database,
   teacherId: number,
   studentId: number,
   fullName: string,
-): Promise<{ id: number; fullName: string } | null> {
+): Promise<{ id: number; fullName: string } | null | 'duplicate'> {
   const row = await db
-    .prepare('UPDATE students SET full_name = ? WHERE id = ? AND teacher_id = ? RETURNING id')
-    .bind(fullName, studentId, teacherId)
+    .prepare(
+      `UPDATE students SET full_name = ?
+       WHERE id = ? AND teacher_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM enrollments mine
+           JOIN enrollments other ON other.class_id = mine.class_id
+           JOIN students s ON s.id = other.student_id
+           WHERE mine.student_id = ? AND s.id <> ? AND ${studentNameKeySql('s.full_name')} = ?)
+       RETURNING id`,
+    )
+    .bind(fullName, studentId, teacherId, studentId, studentId, studentNameKey(fullName))
     .first<{ id: number }>();
-  return row ? { id: row.id, fullName } : null;
+  if (row) return { id: row.id, fullName };
+  const exists = await db
+    .prepare('SELECT id FROM students WHERE id = ? AND teacher_id = ?')
+    .bind(studentId, teacherId)
+    .first<{ id: number }>();
+  return exists ? 'duplicate' : null;
+}
+
+// The message for a refused rename: it names the first class that holds the name.
+export async function renameClashMessage(
+  db: D1Database,
+  teacherId: number,
+  studentId: number,
+  fullName: string,
+): Promise<string> {
+  const cls = await db
+    .prepare(
+      `SELECT c.name FROM enrollments mine
+       JOIN classes c ON c.id = mine.class_id AND c.teacher_id = ?
+       JOIN enrollments other ON other.class_id = mine.class_id
+       JOIN students s ON s.id = other.student_id
+       WHERE mine.student_id = ? AND s.id <> ? AND ${studentNameKeySql('s.full_name')} = ?
+       ORDER BY c.school_year DESC, c.name
+       LIMIT 1`,
+    )
+    .bind(teacherId, studentId, studentId, studentNameKey(fullName))
+    .first<{ name: string }>();
+  return cls
+    ? `Există deja un elev cu numele „${fullName}” în ${displayClassName(cls.name)}.`
+    : `Există deja un elev cu numele „${fullName}” în clasă.`;
 }
 
 // The student page: the student, the student's classes, and every graded test,

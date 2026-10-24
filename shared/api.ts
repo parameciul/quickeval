@@ -4,7 +4,7 @@ import type { TestFileKind } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
 import { type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
-import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST } from './students.ts';
+import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST, studentNameKey } from './students.ts';
 import { type AnalysisStatus, cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
 
 // Request bodies of the teacher API. The server parses every body with these
@@ -51,7 +51,18 @@ export const addStudentsBody = z.object({
   names: z
     .array(studentNameSchema)
     .min(1, { message: 'Scrie cel puțin un nume.' })
-    .max(MAX_NAMES_PER_REQUEST, { message: `Adaugă cel mult ${MAX_NAMES_PER_REQUEST} de nume odată.` }),
+    .max(MAX_NAMES_PER_REQUEST, { message: `Adaugă cel mult ${MAX_NAMES_PER_REQUEST} de nume odată.` })
+    .superRefine((names, ctx) => {
+      const seen = new Set<string>();
+      for (const name of names) {
+        const key = studentNameKey(name);
+        if (seen.has(key)) {
+          ctx.addIssue({ code: 'custom', message: `Numele „${name}” apare de două ori în listă.` });
+          return;
+        }
+        seen.add(key);
+      }
+    }),
 });
 
 export const setEnrollmentBody = z.object({ active: z.boolean() });
