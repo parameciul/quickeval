@@ -1,6 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { StudentClass, StudentHistory, StudentResult, StudentRow } from '../../shared/api.ts';
-import { displayClassName } from '../../shared/classes.ts';
 import { studentNameKey, studentNameKeySql } from '../../shared/students.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { flagCountSql } from './evaluations.ts';
@@ -158,7 +157,7 @@ export async function renameClashMessage(
     .bind(teacherId, studentId, studentId, studentNameKey(fullName))
     .first<{ name: string }>();
   return cls
-    ? `Există deja un elev cu numele „${fullName}” în ${displayClassName(cls.name)}.`
+    ? `Există deja un elev cu numele „${fullName}” în clasa ${cls.name}.`
     : `Există deja un elev cu numele „${fullName}” în clasă.`;
 }
 

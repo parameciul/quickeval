@@ -21,7 +21,7 @@ import type {
   TestSummary,
   UploadRow,
 } from '../../shared/api.ts';
-import { displayClassName, normalizeClassName } from '../../shared/classes.ts';
+import { normalizeClassName } from '../../shared/classes.ts';
 import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
 import { studentNameKey } from '../../shared/students.ts';
@@ -271,7 +271,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         if (!list.some((s) => s.id === studentId)) continue;
         if (list.some((s) => s.id !== studentId && studentNameKey(s.fullName) === key)) {
           const cls = data.classes.find((c) => c.id === Number(classId));
-          const where = cls ? displayClassName(cls.name) : 'clasă';
+          const where = cls ? `clasa ${cls.name}` : 'clasă';
           throw new ApiError(409, 'student_exists', `Există deja un elev cu numele „${fullName}” în ${where}.`);
         }
       }

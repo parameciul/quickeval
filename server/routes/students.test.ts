@@ -35,7 +35,7 @@ describe('PATCH /api/admin/students/:id', () => {
     const res = await api.request('PATCH', `/api/admin/students/${evaId}`, { fullName: 'DAN ANA' });
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('student_exists');
-    expect(res.body.message).toBe('Există deja un elev cu numele „DAN ANA” în Clasa 7A.');
+    expect(res.body.message).toBe('Există deja un elev cu numele „DAN ANA” în clasa 7A.');
     const kept = await api.db.prepare('SELECT full_name FROM students WHERE id = ?').bind(evaId).first<{ full_name: string }>();
     expect(kept?.full_name).toBe('Dan Eva');
   });
