@@ -223,6 +223,7 @@ CREATE TABLE tests (
   upload_token TEXT UNIQUE,                -- made by Start test
   multi_upload_token TEXT UNIQUE,          -- the link for many students on one phone; made only when the teacher asks
   results_open INTEGER NOT NULL DEFAULT 0, -- 1: every student's result page is open (§10.1)
+  archived INTEGER NOT NULL DEFAULT 0,     -- 1: hidden from Teste and the grade table unless shown (migration 0013); only a done test; every change away from done clears it
   started_at TEXT,
   evaluation_at TEXT,                      -- scheduled evaluation start, while open
   evaluation_started_at TEXT,
@@ -327,7 +328,7 @@ CREATE TABLE runner_state (                -- exactly one row, id = 1
 );
 ```
 
-Migrations add the tables in the plan that needs them: Plan 1 adds `teachers`, `classes`, `students`, and `enrollments`. Plan 2 adds `tests`, `submissions`, and `submission_files`. Plan 3a adds `evaluations`, `evaluation_items`, `settings`, and `runner_state`. Plan 3b adds `tests.files_version`. Plan 4a adds `evaluations.pages_reviewed_at`. Five later migrations came with the teacher's own changes: 0007 (confidence in five steps), 0008 (`tests.barem_notes`), 0009 (`tests.results_open`, `submissions.result_token`), 0010 (`tests.multi_upload_token`), and 0011 (`submissions.results_open`).
+Migrations add the tables in the plan that needs them: Plan 1 adds `teachers`, `classes`, `students`, and `enrollments`. Plan 2 adds `tests`, `submissions`, and `submission_files`. Plan 3a adds `evaluations`, `evaluation_items`, `settings`, and `runner_state`. Plan 3b adds `tests.files_version`. Plan 4a adds `evaluations.pages_reviewed_at`. Five later migrations came with the teacher's own changes: 0007 (confidence in five steps), 0008 (`tests.barem_notes`), 0009 (`tests.results_open`, `submissions.result_token`), 0010 (`tests.multi_upload_token`), and 0011 (`submissions.results_open`). Plan 5 adds 0013 (`tests.archived`). Only a `done` test is archived: every status change away from `done` (Start, Reopen, Recorectează tot, the regrade or retry of one upload, Regenerează) clears the mark, so an archived test is never open or being graded. Archiving does not change published results.
 
 ### 7.2 R2 layout (the "cloud folder" of a test)
 
@@ -401,17 +402,27 @@ All screens are in Romanian. Routes use the teacher's base path `/admin`.
 
 | Route | Screen | Main content |
 |---|---|---|
-| `/admin/` | Teste | Tests of the selected school year, newest first. Status chip, class, counts (uploaded/class size, graded, flags). Button "Test nou". |
+| `/admin/` | Teste | Tests of the selected school year, newest first. Status chip, class, counts (uploaded/class size, graded, flags). Button "Test nou". A class filter (`?clasa=<id>`) and the checkbox "Arată și testele arhivate" (`?arhivate=1`; archived tests are hidden otherwise, §7.1). A colour stripe on each row marks the class (`classId % 8`, the same colour on the class page). A results line with "Publică rezultatele" / "Oprește accesul", and a "Raportul clasei" link when a result is graded. |
 | `/admin/teste/nou` | Test nou | Class list, title, optional test file and barem upload. |
 | `/admin/teste/:code` | Test | See below. |
 | `/admin/teste/:code/elevi/:submissionId` | Lucrarea elevului | Student files and the graded result (§14.1). |
 | `/admin/teste/:code/raport` | Raport clasă | Class report (§14.2). |
 | `/admin/clase` | Clase | Classes of the selected school year. Add a class (name, school year). Archive a class. |
-| `/admin/clase/:id` | Clasa | Students: add one, paste many (one name per line), rename, mark as left. Each name links to the student's history. Tests of the class. |
+| `/admin/clase/:id` | Clasa | The grade table: one row per active student, one column per test, newest on the left (archived tests are hidden unless shown); a draft or open test keeps a column with its status chip. Each student name links to the student's history, each test heading to the test. Buttons "Redenumește clasa", "Elevii clasei", "Test nou pentru această clasă". |
+| `/admin/clase/:id/elevi` | Elevii clasei | Add students (one, or paste many, one name per line), rename, "A plecat" / "Revine în clasă", "Șterge" (see below). |
 | `/admin/elevi/:id` | Elev | History: every graded test of this student in every class and year, with grade and link. |
 | `/admin/setari` | Setări | Parallel agents (1-4, default 1). Robot key: create or replace, shown once. Robot status, with the model and effort of the latest grading and class analysis, and a line "Setat pentru robot" with the model and effort the robot said at its last check it is set to use (`robot_model`, `robot_effort`, `robot_settings_at`, sent with `POST /check`; hidden until a robot has sent them). Checkbox "Arată coloana Model în tabelul Încărcări" (`show_model_column`, one setting for all tests, off by default). |
 
 A school-year switch in the header (default: the current school year) filters Teste and Clase.
+
+**Class page** (`/admin/clase/:id`):
+
+- The grade table has one row per student (active students first, then those who left, muted, with the tag "a plecat") and one column per test, newest test on the left. A graded cell shows the grade out of 10 and links to the student's result; an upload that is not graded shows its state; no upload shows a dash. Draft and open tests have no grades but keep a column with the status chip, so the page still leads to them. A column heading links to the test and, when a result is graded, to its class report. Archived tests (§7.1) are hidden unless the page shows them ("Arată și testele arhivate"). The table scrolls inside its `.table-wrap` and the name column stays in view on a phone.
+
+**Students page** (`/admin/clase/:id/elevi`):
+
+- Add students one by one or paste many (one name per line). A name that is already in the class is refused with 409 `student_exists`: the check is on the cleaned name, ignoring letter case (the Romanian letters Ă Â Î Ș Ț too, and the cedilla forms Ş Ţ count as Ș Ț), and diacritics still count ("Stefan" and "Ștefan" are two names). Students who left count. A paste that holds one duplicate adds nothing, and the message names the duplicate. Rename follows the same rule.
+- **Șterge** removes the student from this class. It is refused while the student has an upload in a test of this class that is `submitted`, `grading` or `graded`. The student's `uploading` and `failed` uploads in this class go with the student (rows and R2 files), and so does this class's enrollment. The `students` row is never deleted: ids of deleted rows come back (no `AUTOINCREMENT`), and a stale page that names a student by id must never act on another child. The route takes no body.
 
 **Test page** (`/admin/teste/:code`):
 
@@ -423,13 +434,14 @@ A school-year switch in the header (default: the current school year) filters Te
   - any status after Start test: **Publică rezultatele** opens the result pages of all students (**Oprește accesul la rezultate** closes them, and takes back the results published one by one). In the uploads table, **Publică** and **Oprește publicarea** open or close one student's page, and **Link rezultat** shows the link to share (copy, WhatsApp).
   - evaluating/done: **Redeschide încărcarea** (Reopen uploads).
   - any status with a graded or failed upload: **Recorectează tot** (Regrade all).
+  - done: **Arhivează testul**; for an archived test, **Scoate din arhivă**.
 - Exercise-list banner, only when there is a problem:
   - `problem`: shows the message (for example "Punctajele din barem dau 9, nu 10"). Buttons: replace the barem, **Folosește oricum** (sets `accepted`).
   - `failed`: shows the message and a **Încearcă din nou** button (sets `none` and resets the attempts).
 - Uploads table, refreshed every 10 s while the status is open or evaluating. One row per active student of the class: name, status (Nu a trimis / Încarcă… / Trimis / Se corectează / Corectat / Eroare), file count, time, grade, flag count. "Fără confirmare" marks `auto_submitted`. Row actions: **Vezi lucrarea** (files and result), **Resetează** (delete the upload so the student can start again), **Reîncearcă** (failed → submitted), **Recorectează** (regrade a graded upload).
 - Robot line: "Robotul a verificat acum 3 min" from `runner_state.last_check_at`, while the test is evaluating or has a scheduled evaluation. It shows a warning after 30 min without a check. With the warning, a test in evaluation whose uploads wait for the robot shows "Pornește robotul": it starts the robot like "Evaluate now".
 - Class analysis, in the evaluation block: while the test is `evaluating` with the analysis `requested` and a graded upload, the page says that the robot writes it, and "Pornește robotul" counts it as work (the GitHub schedule does not fire, so a waiting analysis must be startable). A `failed` analysis shows a warning that points to the report.
-- Link to the class report when at least one submission is graded.
+- Header: a **Raportul clasei** button when at least one submission is graded.
 
 ## 10. Student app (`/u/<token>`)
 
@@ -475,19 +487,21 @@ Auth: the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) is checked again in 
 | `GET /me` | The teacher (id, name, email). |
 | `GET /classes?year=2026` | Classes of a school year, with active student counts. |
 | `POST /classes` `{ name, schoolYear }` | Create a class. |
-| `GET /classes/:id` | A class with its students (including inactive ones). |
+| `GET /classes/:id` | A class with its students (including inactive ones), its tests (archived ones too), and `grades`: each student's upload in each test with its state, grade and items to check, for the grade table. |
 | `PATCH /classes/:id` `{ name?, archived? }` | Rename or archive. |
-| `POST /classes/:id/students` `{ names: string[] }` | Add students (1-60 names, each 1-80 chars after trimming; empty lines skipped). |
+| `POST /classes/:id/students` `{ names: string[] }` | Add students (1-60 names, each 1-80 chars after trimming; empty lines skipped). A name already in the class (or twice in the list) gets 409 `student_exists` and nothing is added. |
 | `PATCH /classes/:id/students/:studentId` `{ active }` | Mark a student as left, or back. |
-| `PATCH /students/:id` `{ fullName }` | Rename a student. |
+| `DELETE /classes/:id/students/:studentId` | Remove the student from this class: the enrollment, and the student's `uploading` and `failed` uploads in this class (rows and R2 files). Never the `students` row. No body. 409 while an upload of the student in this class is `submitted`, `grading` or `graded`. |
+| `PATCH /students/:id` `{ fullName }` | Rename a student. A name already in a class of the student gets 409 `student_exists`. |
 | `GET /students/:id/history` | The student, the student's classes, and all graded results, newest first (test code, title, class, date, grade, items to check). |
-| `GET /tests?year=2026` | Tests list with counts. |
+| `GET /tests?year=2026` | Tests list with counts, `archived`, and `publishedCount` (uploads published one by one); archived tests are in the list, and the page hides them. |
 | `POST /tests` `{ classId, title }` | Create a draft test; returns the code. |
 | `GET /tests/:code` | Test detail, uploads table, exercise-list status, analysis status (`analysis: { status, stale }`), robot line. |
 | `PATCH /tests/:code` `{ title }` | Rename. |
 | `PUT /tests/:code/barem-notes` `{ notes }` | The teacher's comments for the barem (max 2000 chars). Like a new barem file: allowed in any status except `evaluating` (while evaluating, only when the exercise list is `problem` or `failed`); `files_version` goes up by 1 and the exercise list is made again. Answers `{ baremNotes, robot }`. |
 | `POST /tests/:code/multi-link` | The second upload link, for many students on one phone. 409 `not_started` for a draft test; answers the kept link when there is one. |
 | `POST /tests/:code/results/open`, `POST /tests/:code/results/close` | Opens or closes the result pages of the whole test. Closing also takes back the pages published one by one. Answers `{ resultsOpen }`. |
+| `POST /tests/:code/archive`, `POST /tests/:code/unarchive` | Archives or restores a test (§7.1). Archive needs a `done` test: otherwise 409 `not_done`. Answers `{ archived }`. |
 | `DELETE /tests/:code` | Delete the test and its files. |
 | `PUT /tests/:code/files/:kind` (`kind` = `test` or `barem`) | Raw body. Headers `Content-Type`, `Content-Length`, `X-File-Name` (URI-encoded). PDF or DOCX, ≤ 25 MB. |
 | `GET /tests/:code/files/:kind` | Stream the file. |
@@ -739,7 +753,7 @@ Checks done by code, not by Claude:
 
 ### 14.2 Class report (`/admin/teste/:code/raport`)
 
-- Table: one row per graded student, one column per exercise, then total and grade. Flagged cells are marked. Students who did not upload are listed below the table.
+- Table (the page): Elev, Nota, Total, then one column per exercise. One row per graded student. Flagged cells are marked. The class PDF and the CSV keep their own order (exercises, Total, Nota). Students who did not upload are listed below the table.
 - Statistics (`shared/stats.ts`, pure functions):
   - graded count / active students;
   - average, median, minimum, and maximum grade;
