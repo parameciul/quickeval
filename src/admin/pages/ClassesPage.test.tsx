@@ -12,7 +12,7 @@ const twoClasses = () =>
       { id: 2, name: '9R2', schoolYear: 2026, archived: true, studentCount: 0 },
       { id: 3, name: '5A', schoolYear: 2027, archived: false, studentCount: 0 },
     ],
-    students: { 1: [{ id: 10, fullName: 'Pop Ion', active: true }] },
+    students: { 1: [{ id: 10, fullName: 'Pop Ion', active: true, canDelete: true }] },
   });
 
 describe('ClassesPage', () => {

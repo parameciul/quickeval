@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
+import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
 
 let api: TestApi;
 
@@ -120,11 +121,11 @@ describe('students in a class', () => {
 
     const left = await api.request('PATCH', `/api/admin/classes/${created.id}/students/${studentId}`, { active: false });
     expect(left.status).toBe(200);
-    expect(left.body.student).toEqual({ id: studentId, fullName: 'Pop Ion', active: false });
+    expect(left.body.student).toEqual({ id: studentId, fullName: 'Pop Ion', active: false, canDelete: true });
 
     const detail = await api.request('GET', `/api/admin/classes/${created.id}`);
     expect(detail.body.class.studentCount).toBe(0);
-    expect(detail.body.students).toEqual([{ id: studentId, fullName: 'Pop Ion', active: false }]);
+    expect(detail.body.students).toEqual([{ id: studentId, fullName: 'Pop Ion', active: false, canDelete: true }]);
 
     const back = await api.request('PATCH', `/api/admin/classes/${created.id}/students/${studentId}`, { active: true });
     expect(back.body.student.active).toBe(true);
@@ -238,5 +239,124 @@ describe('students of another teacher', () => {
       .bind(otherClass!.id)
       .first<{ n: number }>();
     expect(enrolled?.n).toBe(1);
+  });
+});
+
+describe('delete student', () => {
+  const GONE = 'Elevul are lucrări trimise sau corectate în această clasă. Îl poți marca „A plecat”.';
+  const del = (classId: number, studentId: number) => api.request('DELETE', `/api/admin/classes/${classId}/students/${studentId}`);
+  const count = async (sql: string, ...binds: unknown[]) =>
+    (await api.db.prepare(sql).bind(...binds).first<{ n: number }>())!.n;
+
+  it('lists canDelete for each student', async () => {
+    const cls = await makeClass(api, 'D1A', ['Ana Graded', 'Bia New']);
+    const code = await makeTest(api, cls.id);
+    const sub = await addSubmission(api, code, cls.studentIds[0]!, { status: 'graded' });
+    await addEvaluation(api, sub);
+    const detail = await api.request('GET', `/api/admin/classes/${cls.id}`);
+    const byName = Object.fromEntries(detail.body.students.map((s: { fullName: string; canDelete: boolean }) => [s.fullName, s.canDelete]));
+    expect(byName).toEqual({ 'Ana Graded': false, 'Bia New': true });
+  });
+
+  it('fills canDelete when students are added and marked as left', async () => {
+    const cls = await makeClass(api, 'D1B');
+    const add = await api.request('POST', `/api/admin/classes/${cls.id}/students`, { names: ['Pop Ion'] });
+    expect(add.body.students[0].canDelete).toBe(true);
+    const left = await api.request('PATCH', `/api/admin/classes/${cls.id}/students/${add.body.students[0].id}`, { active: false });
+    expect(left.body.student).toMatchObject({ active: false, canDelete: true });
+  });
+
+  it('deletes a student with no uploads', async () => {
+    const cls = await makeClass(api, 'D2', ['Ana Unu', 'Bia Doi']);
+    const res = await del(cls.id, cls.studentIds[0]!);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ deleted: true });
+    const detail = await api.request('GET', `/api/admin/classes/${cls.id}`);
+    expect(detail.body.students.map((s: { fullName: string }) => s.fullName)).toEqual(['Bia Doi']);
+    expect(detail.body.class.studentCount).toBe(1);
+    expect(await count('SELECT COUNT(*) AS n FROM enrollments WHERE class_id = ? AND student_id = ?', cls.id, cls.studentIds[0])).toBe(0);
+  });
+
+  it('deletes a student who left', async () => {
+    const cls = await makeClass(api, 'D3', ['Pop Ion']);
+    await api.request('PATCH', `/api/admin/classes/${cls.id}/students/${cls.studentIds[0]}`, { active: false });
+    expect((await del(cls.id, cls.studentIds[0]!)).status).toBe(200);
+  });
+
+  it('deletes the unsent and failed uploads of the student with them', async () => {
+    const cls = await makeClass(api, 'D4', ['Ana Unu']);
+    const studentId = cls.studentIds[0]!;
+    const first = await makeTest(api, cls.id, 'Primul');
+    const second = await makeTest(api, cls.id, 'Al doilea');
+    const unsent = await addSubmission(api, first, studentId, { status: 'uploading', files: 2 });
+    const failed = await addSubmission(api, second, studentId, { status: 'failed', files: 1 });
+    const res = await del(cls.id, studentId);
+    expect(res.status).toBe(200);
+    for (const id of [unsent, failed]) {
+      expect(await count('SELECT COUNT(*) AS n FROM submissions WHERE id = ?', id)).toBe(0);
+      expect(await count('SELECT COUNT(*) AS n FROM submission_files WHERE submission_id = ?', id)).toBe(0);
+    }
+  });
+
+  it.each(['submitted', 'grading', 'graded'] as const)('refuses a student with a %s upload', async (status) => {
+    const cls = await makeClass(api, `D5${status.slice(0, 4).toUpperCase()}${status.length}`, ['Ana Unu']);
+    const studentId = cls.studentIds[0]!;
+    const unsentTest = await makeTest(api, cls.id, 'Neterminat');
+    const code = await makeTest(api, cls.id, 'Terminat');
+    const unsent = await addSubmission(api, unsentTest, studentId, { status: 'uploading', files: 1 });
+    const sub = await addSubmission(api, code, studentId, { status, files: 1 });
+    if (status === 'graded') await addEvaluation(api, sub);
+    const res = await del(cls.id, studentId);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('student_has_work');
+    expect(res.body.message).toBe(GONE);
+    expect(await count('SELECT COUNT(*) AS n FROM enrollments WHERE class_id = ? AND student_id = ?', cls.id, studentId)).toBe(1);
+    expect(await count('SELECT COUNT(*) AS n FROM submissions WHERE id IN (?, ?)', sub, unsent)).toBe(2);
+  });
+
+  it('keeps the student in another class', async () => {
+    const first = await makeClass(api, 'D6A', ['Pop Ion']);
+    const second = await makeClass(api, 'D6B');
+    await api.db.prepare('INSERT INTO enrollments (class_id, student_id) VALUES (?, ?)').bind(second.id, first.studentIds[0]).run();
+    const code = await makeTest(api, second.id);
+    const elsewhere = await addSubmission(api, code, first.studentIds[0]!, { status: 'graded' });
+    await addEvaluation(api, elsewhere);
+    expect((await del(first.id, first.studentIds[0]!)).status).toBe(200);
+    const detail = await api.request('GET', `/api/admin/classes/${second.id}`);
+    expect(detail.body.students.map((s: { fullName: string }) => s.fullName)).toEqual(['Pop Ion']);
+    expect(await count('SELECT COUNT(*) AS n FROM submissions WHERE id = ?', elsewhere)).toBe(1);
+  });
+
+  it('never gives the id of a deleted student to a new student', async () => {
+    const cls = await makeClass(api, 'D7');
+    const newest = await api.db.prepare('SELECT MAX(id) AS id FROM students').first<{ id: number }>();
+    const added = await api.request('POST', `/api/admin/classes/${cls.id}/students`, { names: ['Ultimul Elev'] });
+    const lastId = added.body.students[0].id as number;
+    expect(lastId).toBeGreaterThan(newest!.id);
+    expect((await del(cls.id, lastId)).status).toBe(200);
+    const next = await api.request('POST', `/api/admin/classes/${cls.id}/students`, { names: ['Noul Elev'] });
+    expect(next.body.students[0].id).toBeGreaterThan(lastId);
+  });
+
+  it('answers 404 for a student who is not in the class, also on a second delete', async () => {
+    const cls = await makeClass(api, 'D8', ['Pop Ion']);
+    expect((await del(cls.id, 99999)).status).toBe(404);
+    expect((await del(cls.id, cls.studentIds[0]!)).status).toBe(200);
+    expect((await del(cls.id, cls.studentIds[0]!)).status).toBe(404);
+  });
+
+  it('answers 404 for a class that is not a number', async () => {
+    expect((await del(99999, 1)).status).toBe(404);
+    expect((await api.request('DELETE', '/api/admin/classes/abc/students/1')).status).toBe(404);
+  });
+
+  it('answers 404 for the class of another teacher and keeps the student', async () => {
+    const other = await otherTeacherTest(api, 'delete-neighbour@example.com');
+    const row = await api.db
+      .prepare('SELECT class_id FROM enrollments WHERE student_id = ?')
+      .bind(other.studentId)
+      .first<{ class_id: number }>();
+    expect((await del(row!.class_id, other.studentId)).status).toBe(404);
+    expect(await count('SELECT COUNT(*) AS n FROM enrollments WHERE class_id = ? AND student_id = ?', row!.class_id, other.studentId)).toBe(1);
   });
 });

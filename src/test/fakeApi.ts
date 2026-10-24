@@ -254,7 +254,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
             : `Elevii ${quoted.join(', ')}${clashes.length > 3 ? ` și încă ${clashes.length - 3}` : ''} sunt deja în clasă.`;
         throw new ApiError(409, 'student_exists', message);
       }
-      const added = names.map((fullName) => ({ id: nextId++, fullName, active: true }));
+      const added = names.map((fullName) => ({ id: nextId++, fullName, active: true, canDelete: true }));
       data.students[classId] = [...(data.students[classId] ?? []), ...added];
       return added;
     }),
@@ -262,6 +262,21 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const student = data.students[classId]!.find((s) => s.id === studentId)!;
       student.active = active;
       return { ...student };
+    }),
+    // Like the server: a student with a sent, grading or graded upload in a test
+    // of the class stays; any other leaves the class.
+    deleteStudent: vi.fn(async (classId: number, studentId: number) => {
+      const list = data.students[classId] ?? [];
+      if (!list.some((s) => s.id === studentId)) throw notFound();
+      const hasWork = tests.some(
+        (t) =>
+          t.test.classId === classId &&
+          t.uploads.some((u) => u.studentId === studentId && ['submitted', 'grading', 'graded'].includes(u.status)),
+      );
+      if (hasWork) {
+        throw new ApiError(409, 'student_has_work', 'Elevul are lucrări trimise sau corectate în această clasă. Îl poți marca „A plecat”.');
+      }
+      data.students[classId] = list.filter((s) => s.id !== studentId);
     }),
     // Like the server: another student of one of the same classes may not have
     // the name, but a student may change the case of their own.

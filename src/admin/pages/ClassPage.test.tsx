@@ -25,8 +25,8 @@ const oneClass = () =>
     classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
     students: {
       1: [
-        { id: 10, fullName: 'Pop Ion', active: true },
-        { id: 11, fullName: 'Ionescu Ana', active: false },
+        { id: 10, fullName: 'Pop Ion', active: true, canDelete: true },
+        { id: 11, fullName: 'Ionescu Ana', active: false, canDelete: true },
       ],
     },
   });

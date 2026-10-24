@@ -253,6 +253,9 @@ export interface StudentRow {
   id: number;
   fullName: string;
   active: boolean;
+  // False when the student has a sent, grading or graded upload in this class's
+  // tests: such a student can be marked as left but not deleted.
+  canDelete: boolean;
 }
 
 export interface ClassDetail {

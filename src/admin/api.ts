@@ -42,6 +42,8 @@ export interface AdminApi {
   updateClass(classId: number, input: UpdateClassInput): Promise<ClassSummary>;
   addStudents(classId: number, names: string[]): Promise<StudentRow[]>;
   setStudentActive(classId: number, studentId: number, active: boolean): Promise<StudentRow>;
+  // Removes the student from the class; refused when the student has sent or graded work there.
+  deleteStudent(classId: number, studentId: number): Promise<void>;
   renameStudent(studentId: number, fullName: string): Promise<{ id: number; fullName: string }>;
   getStudentHistory(studentId: number): Promise<StudentHistory>;
   listTests(schoolYear: number): Promise<TestSummary[]>;
@@ -192,6 +194,9 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<{ students: StudentRow[] }>('POST', `/classes/${classId}/students`, { names })).students,
     setStudentActive: async (classId, studentId, active) =>
       (await request<{ student: StudentRow }>('PATCH', `/classes/${classId}/students/${studentId}`, { active })).student,
+    deleteStudent: async (classId, studentId) => {
+      await request('DELETE', `/classes/${classId}/students/${studentId}`);
+    },
     renameStudent: async (studentId, fullName) =>
       (await request<{ student: { id: number; fullName: string } }>('PATCH', `/students/${studentId}`, { fullName })).student,
     getStudentHistory: (studentId) => request<StudentHistory>('GET', `/students/${studentId}/history`),

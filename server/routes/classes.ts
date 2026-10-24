@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
 import { addStudentsBody, createClassBody, setEnrollmentBody, updateClassBody } from '../../shared/api.ts';
 import { createClass, getClass, listClasses, listClassStudents, updateClass } from '../db/classes.ts';
-import { addStudentsToClass, setEnrollmentActive } from '../db/students.ts';
+import { addStudentsToClass, deleteStudentFromClass, setEnrollmentActive } from '../db/students.ts';
 import { listClassTests } from '../db/tests.ts';
 import type { AppEnv } from '../env.ts';
-import { notFound } from '../errors.ts';
+import { ApiError, notFound } from '../errors.ts';
 import { nowIso, parseId, parseSchoolYear, readJson } from '../http.ts';
+import { deleteFilesQuietly } from '../uploads.ts';
 
 // /api/admin/classes
 export function classRoutes(): Hono<AppEnv> {
@@ -54,6 +55,18 @@ export function classRoutes(): Hono<AppEnv> {
     const student = await setEnrollmentActive(c.env.DB, c.var.teacher.id, id, studentId, body.active);
     if (!student) throw notFound();
     return c.json({ student });
+  });
+
+  routes.delete('/:id/students/:studentId', async (c) => {
+    const id = parseId(c.req.param('id'));
+    const studentId = parseId(c.req.param('studentId'));
+    const result = await deleteStudentFromClass(c.env.DB, c.var.teacher.id, id, studentId);
+    if (result === 'not_found') throw notFound();
+    if (result === 'has_work') {
+      throw new ApiError(409, 'student_has_work', 'Elevul are lucrări trimise sau corectate în această clasă. Îl poți marca „A plecat”.');
+    }
+    await deleteFilesQuietly(c.env.FILES, result.keys);
+    return c.json({ deleted: true });
   });
 
   return routes;

@@ -4,6 +4,7 @@ import { compareClassNames, displayClassName } from '../../shared/classes.ts';
 import { formatSchoolYear } from '../../shared/schoolYear.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
+import { noWorkSql } from './students.ts';
 
 interface ClassRow {
   id: number;
@@ -97,15 +98,16 @@ export async function updateClass(
 export async function listClassStudents(db: D1Database, teacherId: number, classId: number): Promise<StudentRow[]> {
   const { results } = await db
     .prepare(
-      `SELECT s.id, s.full_name, e.active
+      `SELECT s.id, s.full_name, e.active,
+         ${noWorkSql('s.id', 'e.class_id')} AS can_delete
        FROM enrollments e
        JOIN classes c ON c.id = e.class_id AND c.teacher_id = ?
        JOIN students s ON s.id = e.student_id
        WHERE e.class_id = ?`,
     )
     .bind(teacherId, classId)
-    .all<{ id: number; full_name: string; active: number }>();
+    .all<{ id: number; full_name: string; active: number; can_delete: number }>();
   return results
-    .map((row) => ({ id: row.id, fullName: row.full_name, active: row.active === 1 }))
+    .map((row) => ({ id: row.id, fullName: row.full_name, active: row.active === 1, canDelete: row.can_delete === 1 }))
     .sort((a, b) => compareStudentNames(a.fullName, b.fullName));
 }

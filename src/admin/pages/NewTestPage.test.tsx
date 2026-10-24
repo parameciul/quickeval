@@ -13,7 +13,7 @@ const classes = () =>
       { id: 2, name: '7E2', schoolYear: 2026, archived: false, studentCount: 0 },
       { id: 3, name: '9R2', schoolYear: 2026, archived: true, studentCount: 0 },
     ],
-    students: { 1: [{ id: 10, fullName: 'Pop Ion', active: true }] },
+    students: { 1: [{ id: 10, fullName: 'Pop Ion', active: true, canDelete: true }] },
   });
 
 const pdf = (name: string) => new File(['%PDF-1.7'], name, { type: PDF_TYPE });

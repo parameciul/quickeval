@@ -61,7 +61,7 @@ export async function addStudentsToClass(
     throw err;
   }
   if (inserted === 0) throw await refusedAdd(db, teacherId, classId, names);
-  return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true }));
+  return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true, canDelete: true }));
 }
 
 // Why an add changed nothing: the class is not the teacher's (404), or names of
@@ -101,10 +101,69 @@ export async function setEnrollmentActive(
     .first<{ student_id: number }>();
   if (!row) return null;
   const student = await db
-    .prepare('SELECT full_name FROM students WHERE id = ? AND teacher_id = ?')
-    .bind(studentId, teacherId)
-    .first<{ full_name: string }>();
-  return { id: studentId, fullName: student!.full_name, active };
+    .prepare(`SELECT st.full_name, ${noWorkSql('st.id', '?')} AS can_delete FROM students st WHERE st.id = ? AND st.teacher_id = ?`)
+    .bind(classId, studentId, teacherId)
+    .first<{ full_name: string; can_delete: number }>();
+  return { id: studentId, fullName: student!.full_name, active, canDelete: student!.can_delete === 1 };
+}
+
+// True when the student has no sent, grading or graded upload in the tests of
+// the class: the two arguments are SQL expressions for the student id and the
+// class id.
+export function noWorkSql(studentId: string, classId: string): string {
+  return `NOT EXISTS (
+    SELECT 1 FROM submissions sw JOIN tests tw ON tw.id = sw.test_id
+    WHERE sw.student_id = ${studentId} AND tw.class_id = ${classId}
+      AND sw.status IN ('submitted', 'grading', 'graded'))`;
+}
+
+// Deletes a student from a class: this class's enrollment and the student's
+// unsent and failed uploads in this class's tests. The students row stays:
+// ids come from MAX(id) + 1, so a deleted row would hand its id to the next
+// student, and a page that still shows the old student would act on the new
+// one. Both statements carry the same guard (the class is the teacher's and
+// the student has no sent, grading or graded upload there), and the uploads go
+// first because the guard of the enrollment statement reads uploads the first
+// one never deletes. Returns the R2 keys of the deleted files, to remove after
+// the batch. The read after a refused delete only tells 404 from 409.
+export async function deleteStudentFromClass(
+  db: D1Database,
+  teacherId: number,
+  classId: number,
+  studentId: number,
+): Promise<{ keys: string[] } | 'not_found' | 'has_work'> {
+  const { results: files } = await db
+    .prepare(
+      `SELECT f.r2_key FROM submission_files f
+       JOIN submissions s ON s.id = f.submission_id
+       JOIN tests t ON t.id = s.test_id
+       WHERE s.student_id = ? AND t.class_id = ? AND t.teacher_id = ?`,
+    )
+    .bind(studentId, classId, teacherId)
+    .all<{ r2_key: string }>();
+  const guard = `EXISTS (SELECT 1 FROM classes WHERE id = ? AND teacher_id = ?)
+    AND ${noWorkSql('?', '?')}`;
+  const guardBinds = [classId, teacherId, studentId, classId];
+  const [, enrollment] = await db.batch<{ student_id: number }>([
+    db
+      .prepare(
+        `DELETE FROM submissions
+         WHERE student_id = ? AND test_id IN (SELECT id FROM tests WHERE class_id = ?) AND ${guard}`,
+      )
+      .bind(studentId, classId, ...guardBinds),
+    db
+      .prepare(`DELETE FROM enrollments WHERE class_id = ? AND student_id = ? AND ${guard} RETURNING student_id`)
+      .bind(classId, studentId, ...guardBinds),
+  ]);
+  if (enrollment && enrollment.results.length > 0) return { keys: files.map((file) => file.r2_key) };
+  const enrolled = await db
+    .prepare(
+      `SELECT 1 AS found FROM enrollments e JOIN classes c ON c.id = e.class_id AND c.teacher_id = ?
+       WHERE e.class_id = ? AND e.student_id = ?`,
+    )
+    .bind(teacherId, classId, studentId)
+    .first<{ found: number }>();
+  return enrolled ? 'has_work' : 'not_found';
 }
 
 // Renames a student unless another student of one of the same classes has the

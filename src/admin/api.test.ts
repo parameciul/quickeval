@@ -154,6 +154,7 @@ describe('createApiClient tests and uploads', () => {
     await api.reopenTest('6E2-26T1');
     await api.deleteTest('6E2-26T1');
     await api.resetSubmission(7, STARTED);
+    await api.deleteStudent(1, 10);
     expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
       'GET /api/admin/tests?year=2026',
       'POST /api/admin/tests',
@@ -161,6 +162,7 @@ describe('createApiClient tests and uploads', () => {
       'POST /api/admin/tests/6E2-26T1/reopen',
       'DELETE /api/admin/tests/6E2-26T1',
       'POST /api/admin/submissions/7/reset',
+      'DELETE /api/admin/classes/1/students/10',
     ]);
   });
 
