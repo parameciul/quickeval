@@ -208,6 +208,40 @@ describe('TestPage', () => {
     expect(api.reopenTest).toHaveBeenCalledWith('6E2-26T1');
   });
 
+  it('archives a finished test and offers to take it out of the archive', async () => {
+    const api = apiWith({ status: 'done' });
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByText('Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.')).toBeInTheDocument();
+    expect(screen.queryByText('Arhivat')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arhivează testul' }));
+    expect(api.setTestArchived).toHaveBeenCalledWith('6E2-26T1', true);
+    expect(await screen.findByText('Arhivat')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Arhivează testul' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scoate din arhivă' }));
+    expect(api.setTestArchived).toHaveBeenLastCalledWith('6E2-26T1', false);
+    expect(await screen.findByRole('button', { name: 'Arhivează testul' })).toBeInTheDocument();
+    expect(screen.queryByText('Arhivat')).not.toBeInTheDocument();
+  });
+
+  it('offers no archive while the test is not finished', async () => {
+    for (const status of ['draft', 'open', 'evaluating'] as const) {
+      const view = renderAdmin('/teste/6E2-26T1', apiWith({ status }));
+      expect(await screen.findByRole('button', { name: 'Șterge testul' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Arhivează testul' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Scoate din arhivă' })).not.toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it('says why the archive was refused', async () => {
+    const api = apiWith({ status: 'done' });
+    vi.mocked(api.setTestArchived).mockRejectedValueOnce(new ApiError(409, 'not_done', 'Poți arhiva un test după ce s-a terminat corectarea.'));
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Arhivează testul' }));
+    expect(await screen.findByText('Poți arhiva un test după ce s-a terminat corectarea.')).toBeInTheDocument();
+  });
+
   it('renames the test', async () => {
     const api = apiWith();
     renderAdmin('/teste/6E2-26T1', api);

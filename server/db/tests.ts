@@ -49,6 +49,8 @@ interface TestRow {
   exercise_list_status: ExerciseListStatus;
   exercise_list_message: string | null;
   results_open: number;
+  archived: number;
+  published_count: number;
   analysis_status: AnalysisStatus;
   analysis_stale: number;
   analysis_attempts: number;
@@ -63,10 +65,11 @@ const SELECT_TEST = `
     t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token, t.multi_upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
-    t.results_open, t.analysis_status, t.analysis_stale, t.analysis_attempts,
+    t.results_open, t.archived, t.analysis_status, t.analysis_stale, t.analysis_attempts,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
+    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.results_open = 1) AS published_count,
     (SELECT COALESCE(SUM(${flagCountSql('ev')}), 0)
        FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = t.id) AS flag_count
   FROM tests t JOIN classes c ON c.id = t.class_id`;
@@ -94,6 +97,8 @@ function toRecord(row: TestRow): TestRecord {
       gradedCount: row.graded_count,
       flagCount: row.flag_count,
       resultsOpen: row.results_open === 1,
+      publishedCount: row.published_count,
+      archived: row.archived === 1,
     },
     uploadToken: row.upload_token,
     multiUploadToken: row.multi_upload_token,
@@ -266,7 +271,7 @@ export async function startTest(
 ): Promise<{ uploadToken: string; startedAt: string } | null> {
   const row = await db
     .prepare(
-      `UPDATE tests SET status = 'open', upload_token = ?, started_at = ?, updated_at = ?
+      `UPDATE tests SET status = 'open', archived = 0, upload_token = ?, started_at = ?, updated_at = ?
        WHERE id = ? AND teacher_id = ? AND status = 'draft'
        RETURNING upload_token, started_at`,
     )
@@ -304,6 +309,7 @@ export async function createMultiUploadToken(
 
 // evaluating or done → open (spec §8.5). Graded results stay; a scheduled
 // evaluation is cancelled; a ready analysis is marked as possibly out of date.
+// A test that leaves done also leaves the archive.
 // An upload that a run is grading goes back to the queue: that run's result is
 // then refused, and a later run grades the upload after the next Start
 // evaluation, with the files of that time. False when the test was not closed.
@@ -311,7 +317,7 @@ export async function reopenTest(db: D1Database, teacherId: number, testId: numb
   const [reopened] = await db.batch<{ id: number }>([
     db
       .prepare(
-        `UPDATE tests SET status = 'open', evaluation_at = NULL, updated_at = ?,
+        `UPDATE tests SET status = 'open', archived = 0, evaluation_at = NULL, updated_at = ?,
            analysis_stale = CASE WHEN analysis_status = 'ready' THEN 1 ELSE analysis_stale END
          WHERE id = ? AND teacher_id = ? AND status IN ('evaluating', 'done')
          RETURNING id`,
@@ -328,6 +334,24 @@ export async function reopenTest(db: D1Database, teacherId: number, testId: numb
       .bind(testId, testId, teacherId),
   ]);
   return Boolean(reopened?.results.length);
+}
+
+// Archives a finished test, or takes any test out of the archive. The archive
+// accepts only a done test, checked in the statement itself. Returns the new
+// mark, or null when nothing changed: the test is gone, is not the teacher's,
+// or (to archive) is not done.
+export async function setTestArchived(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  archived: boolean,
+  now: string,
+): Promise<boolean | null> {
+  const sql = archived
+    ? "UPDATE tests SET archived = 1, updated_at = ? WHERE id = ? AND teacher_id = ? AND status = 'done' RETURNING archived"
+    : 'UPDATE tests SET archived = 0, updated_at = ? WHERE id = ? AND teacher_id = ? RETURNING archived';
+  const row = await db.prepare(sql).bind(now, testId, teacherId).first<{ archived: number }>();
+  return row ? row.archived === 1 : null;
 }
 
 // Points the test at a new test or barem file, and counts the change in

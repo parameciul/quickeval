@@ -62,6 +62,11 @@ function TestDetails({ code }: { code: string }) {
     },
   });
 
+  const archive = useMutation({
+    mutationFn: (archived: boolean) => api.setTestArchived(code, archived),
+    onSuccess: refresh,
+  });
+
   if (detail.isPending) return <p>Se încarcă…</p>;
   // A failed first load has nothing to show. A failed refresh keeps the page,
   // and an open QR view with it, and says why above it.
@@ -86,6 +91,7 @@ function TestDetails({ code }: { code: string }) {
         <h1>{test.code}</h1>
         <span className="head-actions">
           <StatusChip status={test.status} />
+          {test.archived && <span className="tag">Arhivat</span>}
           {!renameOpen && (
             <button type="button" className="button-quiet button-small" onClick={() => setRenameOpen(true)}>
               Redenumește testul
@@ -152,6 +158,23 @@ function TestDetails({ code }: { code: string }) {
       />
 
       <div className="final-actions">
+        {(test.archived || test.status === 'done') && (
+          <div className="final-row">
+            {test.archived ? (
+              <button type="button" className="button-quiet button-small" disabled={archive.isPending} onClick={() => archive.mutate(false)}>
+                Scoate din arhivă
+              </button>
+            ) : (
+              <>
+                <button type="button" className="button-quiet button-small" disabled={archive.isPending} onClick={() => archive.mutate(true)}>
+                  Arhivează testul
+                </button>
+                <p className="hint">Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.</p>
+              </>
+            )}
+            {archive.error && <ErrorMessage error={archive.error} />}
+          </div>
+        )}
         <div className="final-row">
           <button
             type="button"

@@ -90,6 +90,8 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       gradedCount: uploads.filter((row) => row.status === 'graded').length,
       flagCount: uploads.reduce((sum, row) => sum + row.flagCount, 0),
       resultsOpen: false,
+      publishedCount: 0,
+      archived: false,
       uploadToken: null,
       multiUploadToken: null,
       files: { test: null, barem: null },
@@ -391,7 +393,18 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       throw notFound();
     }),
     reopenTest: vi.fn(async (code: string) => {
-      findTest(code).test.status = 'open';
+      const found = findTest(code).test;
+      found.status = 'open';
+      found.archived = false;
+    }),
+    // Like the server: only a finished test goes in the archive.
+    setTestArchived: vi.fn(async (code: string, archived: boolean) => {
+      const found = findTest(code).test;
+      if (archived && found.status !== 'done') {
+        throw new ApiError(409, 'not_done', 'Poți arhiva un test după ce s-a terminat corectarea.');
+      }
+      found.archived = archived;
+      return archived;
     }),
     // Like the server: a time that has passed starts now. With submissionIds,
     // unselected uploads with files stay uploading for a later evaluation.

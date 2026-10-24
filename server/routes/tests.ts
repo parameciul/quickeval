@@ -41,6 +41,7 @@ import {
   requireTest,
   saveBaremNotes,
   saveTestFile,
+  setTestArchived,
   startTest,
   toTestInfo,
 } from '../db/tests.ts';
@@ -168,6 +169,21 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       throw new ApiError(409, 'already_open', 'Încărcarea este deja deschisă.');
     }
     return c.json({ status: 'open' });
+  });
+
+  // Archives a finished test: it leaves the class table and the test list.
+  routes.post('/:code/archive', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const archived = await setTestArchived(c.env.DB, c.var.teacher.id, test.id, true, nowIso());
+    if (archived === null) throw new ApiError(409, 'not_done', 'Poți arhiva un test după ce s-a terminat corectarea.');
+    return c.json({ archived });
+  });
+
+  routes.post('/:code/unarchive', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const archived = await setTestArchived(c.env.DB, c.var.teacher.id, test.id, false, nowIso());
+    if (archived === null) throw notFound();
+    return c.json({ archived });
   });
 
   // Opens the result pages of a test for all students. Students open their

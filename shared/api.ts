@@ -318,6 +318,10 @@ export interface TestSummary {
   flagCount: number;
   // Whether students can open their result pages for this test.
   resultsOpen: boolean;
+  // Uploads whose result page the teacher published one by one.
+  publishedCount: number;
+  // A finished test the teacher put away; only a done test can be archived.
+  archived: boolean;
 }
 
 export interface TestFileInfo {

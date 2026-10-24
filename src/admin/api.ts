@@ -57,6 +57,8 @@ export interface AdminApi {
   saveBaremNotes(code: string, notes: string): Promise<BaremNotesAnswer>;
   startTest(code: string): Promise<StartedTest>;
   reopenTest(code: string): Promise<void>;
+  // Puts a finished test in the archive, or takes it out. Resolves to the new mark.
+  setTestArchived(code: string, archived: boolean): Promise<boolean>;
   // The link that uploads for many students on one phone, made only on demand.
   createMultiUploadLink(code: string): Promise<string>;
   // Opens or closes the students' result pages of a test.
@@ -219,6 +221,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     reopenTest: async (code) => {
       await request('POST', `${test(code)}/reopen`);
     },
+    setTestArchived: async (code, archived) =>
+      (await request<{ archived: boolean }>('POST', `${test(code)}/${archived ? 'archive' : 'unarchive'}`)).archived,
     evaluateTest: (code, at, submissionIds) =>
       request<EvaluationStart>(
         'POST',

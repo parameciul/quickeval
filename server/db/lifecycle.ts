@@ -255,7 +255,7 @@ function backToEvaluation(db: D1Database, teacherId: number, submissionId: numbe
   return [
     db
       .prepare(
-        `UPDATE tests SET status = 'evaluating', updated_at = ?, ${ASK_FOR_ANALYSIS}
+        `UPDATE tests SET status = 'evaluating', archived = 0, updated_at = ?, ${ASK_FOR_ANALYSIS}
          WHERE status = 'done' AND teacher_id = ?
            AND id = (SELECT test_id FROM submissions WHERE id = ? AND status = 'submitted')`,
       )
@@ -313,7 +313,7 @@ export async function regradeTest(
     db.prepare(`UPDATE submissions SET ${GRADE_AGAIN} WHERE ${AGAIN} RETURNING id`).bind(testId, testId, teacherId),
     db
       .prepare(
-        `UPDATE tests SET status = 'evaluating', updated_at = ?, ${ASK_FOR_ANALYSIS}
+        `UPDATE tests SET status = 'evaluating', archived = 0, updated_at = ?, ${ASK_FOR_ANALYSIS}
          WHERE id = ? AND teacher_id = ? AND status = 'done'
            AND EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND s.status = 'submitted')`,
       )
@@ -332,7 +332,7 @@ export async function regradeTest(
 export async function requestAnalysis(db: D1Database, teacherId: number, testId: number, now: string): Promise<AnalysisInfo | null> {
   const row = await db
     .prepare(
-      `UPDATE tests SET analysis_status = 'requested', analysis_attempts = 0, updated_at = ?,
+      `UPDATE tests SET analysis_status = 'requested', analysis_attempts = 0, updated_at = ?, archived = 0,
          status = CASE WHEN status = 'done' THEN 'evaluating' ELSE status END
        WHERE id = ? AND teacher_id = ? AND status IN ('evaluating', 'done')
          AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded')
