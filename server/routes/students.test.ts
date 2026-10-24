@@ -40,6 +40,37 @@ describe('PATCH /api/admin/students/:id', () => {
     expect(kept?.full_name).toBe('Dan Eva');
   });
 
+  it('refuses a rename to the name of a student who left the class', async () => {
+    const cls = await api.request('POST', '/api/admin/classes', { name: '7E', schoolYear: 2026 });
+    const classId = cls.body.class.id;
+    const added = await api.request('POST', `/api/admin/classes/${classId}/students`, { names: ['Lup Sorin', 'Lup Sorina'] });
+    const [leftId, otherId] = [added.body.students[0].id, added.body.students[1].id];
+    await api.request('PATCH', `/api/admin/classes/${classId}/students/${leftId}`, { active: false });
+    const res = await api.request('PATCH', `/api/admin/students/${otherId}`, { fullName: 'Lup Sorin' });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('student_exists');
+    const kept = await api.db.prepare('SELECT full_name FROM students WHERE id = ?').bind(otherId).first<{ full_name: string }>();
+    expect(kept?.full_name).toBe('Lup Sorina');
+  });
+
+  it('refuses a rename to a name held in the second class of the student', async () => {
+    const first = await api.request('POST', '/api/admin/classes', { name: '7F', schoolYear: 2026 });
+    const second = await api.request('POST', '/api/admin/classes', { name: '7G', schoolYear: 2026 });
+    const added = await api.request('POST', `/api/admin/classes/${first.body.class.id}/students`, { names: ['Moga Dan'] });
+    const movingId = added.body.students[0].id;
+    await api.request('POST', `/api/admin/classes/${second.body.class.id}/students`, { names: ['Moga Daniel'] });
+    await api.db
+      .prepare("INSERT INTO enrollments (class_id, student_id, active) VALUES (?, ?, 1)")
+      .bind(second.body.class.id, movingId)
+      .run();
+    const res = await api.request('PATCH', `/api/admin/students/${movingId}`, { fullName: 'MOGA DANIEL' });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('student_exists');
+    expect(res.body.message).toContain('7G');
+    const kept = await api.db.prepare('SELECT full_name FROM students WHERE id = ?').bind(movingId).first<{ full_name: string }>();
+    expect(kept?.full_name).toBe('Moga Dan');
+  });
+
   it('allows a student to change the case of their own name', async () => {
     const cls = await api.request('POST', '/api/admin/classes', { name: '7B', schoolYear: 2026 });
     const added = await api.request('POST', `/api/admin/classes/${cls.body.class.id}/students`, { names: ['Rus Mara'] });

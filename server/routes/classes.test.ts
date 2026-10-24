@@ -401,6 +401,14 @@ describe('grades of a class', () => {
     expect((await detailOf(cls.id)).grades).toMatchObject([{ testCode: code, submissionId: sub, grade: 8 }]);
   });
 
+  it('lists the tests of the class newest first', async () => {
+    const cls = await makeClass(api, 'G4', ['Ana Unu']);
+    const older = await makeTest(api, cls.id, 'Mai vechi');
+    const newer = await makeTest(api, cls.id, 'Mai nou');
+    const { tests } = await detailOf(cls.id);
+    expect(tests.map((t: { code: string }) => t.code)).toEqual([newer, older]);
+  });
+
   it('does not mix in the uploads of another class', async () => {
     const one = await makeClass(api, 'G3A', ['Ana Unu']);
     const two = await makeClass(api, 'G3B', ['Bia Doi']);

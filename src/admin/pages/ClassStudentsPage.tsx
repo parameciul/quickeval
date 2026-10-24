@@ -77,6 +77,8 @@ function StudentItem({ classId, student, onChanged }: { classId: number; student
   const remove = useMutation({
     mutationFn: () => api.deleteStudent(classId, student.id),
     onSuccess: onChanged,
+    // A refusal means the page was out of date: read the class again.
+    onError: onChanged,
   });
 
   if (editing) {

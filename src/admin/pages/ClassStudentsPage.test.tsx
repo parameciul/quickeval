@@ -160,6 +160,8 @@ describe('ClassStudentsPage', () => {
     await userEvent.click(within(row).getByRole('button', { name: 'Șterge' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Elevul are lucrări trimise sau corectate în această clasă. Îl poți marca „A plecat”.');
     expect(screen.getByText('Pop Ion')).toBeInTheDocument();
+    // The class is read again, so a stale delete button can go away.
+    await vi.waitFor(() => expect(api.getClass).toHaveBeenCalledTimes(2));
   });
 
   it('shows the message of the fake API when the student has graded work', async () => {
