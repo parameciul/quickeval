@@ -378,6 +378,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     setResultsOpen: vi.fn(async (code: string, open: boolean) => {
       const detail = findTest(code);
       detail.test.resultsOpen = open;
+      // Like the server: closing takes back the single publishes too.
+      detail.test.publishedCount = open ? detail.uploads.filter((row) => row.submissionId !== null).length : 0;
       // Like the server: opening publishes every page, closing takes back
       // every page, including the ones published alone.
       for (const row of detail.uploads) {

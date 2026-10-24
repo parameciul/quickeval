@@ -71,6 +71,14 @@ describe('ClassesPage', () => {
     expect(await within(card).findByRole('button', { name: 'Scoate din arhivă' })).toBeInTheDocument();
   });
 
+  it('colours each class card', async () => {
+    renderAdmin('/clase', twoClasses());
+    const first = (await screen.findByRole('link', { name: 'Clasa 6E2' })).closest('li')!;
+    const second = screen.getByRole('link', { name: 'Clasa 9R2' }).closest('li')!;
+    expect(first).toHaveClass('card', 'has-tone', 'class-tone-1');
+    expect(second).toHaveClass('card', 'has-tone', 'class-tone-2');
+  });
+
   it('says so when the year has no classes', async () => {
     renderAdmin('/clase', createFakeApi());
     expect(await screen.findByText('Nu ai nicio clasă în acest an școlar.')).toBeInTheDocument();
