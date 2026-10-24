@@ -2,6 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 import { listClassStudents } from './classes.ts';
+import { studentNameKey, studentNameKeySql } from '../../shared/students.ts';
 import { addStudentsToClass } from './students.ts';
 
 let api: TestApi;
@@ -72,4 +73,14 @@ describe('listClassStudents', () => {
     expect((await listClassStudents(api.db, api.teacherId, otherClassId)).map((s) => s.fullName)).toEqual(['Zaharia Dan']);
     expect(await listClassStudents(api.db, otherTeacherId, otherClassId)).toEqual([]);
   });
+});
+
+describe('studentNameKeySql', () => {
+  it.each(['ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'ĂÂÎȘȚŞŢ', 'ăâîșțşţ', 'BANU G.A. DANIEL', 'Ștefan-Țuțu'])(
+    'gives the same key as studentNameKey for %s',
+    async (name) => {
+      const row = await api.db.prepare(`SELECT ${studentNameKeySql('?1')} AS key`).bind(name).first<{ key: string }>();
+      expect(row!.key).toBe(studentNameKey(name));
+    },
+  );
 });

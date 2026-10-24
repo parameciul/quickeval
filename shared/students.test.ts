@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanStudentName, compareStudentNames, parseStudentNames } from './students.ts';
+import { cleanStudentName, compareStudentNames, parseStudentNames, studentNameKey } from './students.ts';
 
 describe('cleanStudentName', () => {
   it('trims and joins inner spaces', () => {
@@ -44,4 +44,25 @@ describe('compareStudentNames', () => {
       'Tudor Ema',
     ]);
   });
+});
+
+describe('studentNameKey', () => {
+  it('ignores case, also for Romanian letters', () => {
+    expect(studentNameKey('ȘTEFAN ĂNA ÎON ȚICU ÂRON')).toBe(studentNameKey('ștefan ăna îon țicu âron'));
+    expect(studentNameKey('Pop Ion')).toBe('pop ion');
+  });
+
+  it('treats the cedilla letters as comma letters', () => {
+    expect(studentNameKey('Şerban Ţuţu')).toBe(studentNameKey('Șerban Țuțu'));
+  });
+
+  it('keeps diacritics apart from plain letters', () => {
+    expect(studentNameKey('Stefan')).not.toBe(studentNameKey('Ștefan'));
+  });
+});
+
+it('cleanStudentName joins a decomposed letter into one', () => {
+  // "S" followed by a combining comma below.
+  expect(cleanStudentName('S\u0326tefan')).toBe('\u0218tefan');
+  expect(cleanStudentName('\u0218tefan')).toBe('\u0218tefan');
 });
