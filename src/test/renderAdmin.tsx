@@ -34,7 +34,7 @@ export async function expectLocation(expected: string | RegExp): Promise<void> {
 // above the pages; tests use it for a button that navigates.
 export function renderAdmin(path: string | { pathname: string; state: unknown }, api: AdminApi, extra?: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(
+  const result = render(
     <ApiProvider api={api}>
       <QueryClientProvider client={queryClient}>
         <SchoolYearProvider initialYear={2026}>
@@ -46,4 +46,5 @@ export function renderAdmin(path: string | { pathname: string; state: unknown },
       </QueryClientProvider>
     </ApiProvider>,
   );
+  return { ...result, queryClient };
 }

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import type { TestSummary } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
@@ -20,10 +21,19 @@ export function TestsPage() {
   const tests = useQuery({ queryKey: ['tests', year], queryFn: () => api.listTests(year) });
   const classes = useQuery({ queryKey: ['classes', year], queryFn: () => api.listClasses(year) });
 
-  // A class that is not one of the year's counts as all classes.
   const requested = Number(params.get('clasa'));
   const chosenClass = classes.data?.find((item) => item.id === requested)?.id ?? null;
   const showArchived = params.get('arhivate') === '1';
+
+  // A class that is not one of the year's (an old link, or another school year)
+  // leaves the address, so the select and the address agree.
+  const staleClass = classes.data !== undefined && params.has('clasa') && chosenClass === null;
+  useEffect(() => {
+    if (!staleClass) return;
+    const next = new URLSearchParams(params);
+    next.delete('clasa');
+    setParams(next, { replace: true });
+  }, [staleClass, params, setParams]);
 
   const change = (key: string, value: string | null) => {
     const next = new URLSearchParams(params);

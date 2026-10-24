@@ -10,8 +10,7 @@ Plan 5 built the class grade table, the "Elevii clasei" page (add, rename, "A pl
 
 ## Still open
 
-- Tests not written: R2 deletion on a student delete, the `['test', code]` invalidation after a publish from the list, the body order of the report table.
-- An old `?clasa=` stays in the address after a change of school year (it counts as all classes).
+Nothing from Plan 5.
 
 ## Done after the build
 
@@ -23,6 +22,7 @@ Plan 5 built the class grade table, the "Elevii clasei" page (add, rename, "A pl
 - The student delete confirm says that unfinished and failed uploads go too.
 - Capitals outside the Romanian letters (É, Ö, Ł, ...) fold in the name key.
 - The archived grade column header uses the muted text colour, not `opacity`.
+- The three missing tests are written (R2 deletion on a student delete, the `['test', code]` invalidation after a publish, the report row cells). An unknown `?clasa=` leaves the address.
 - "Elevii clasei": a name already in the class is listed once; the row buttons name the student.
 
 ## Rulings made during the build

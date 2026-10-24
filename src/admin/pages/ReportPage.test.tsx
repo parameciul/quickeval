@@ -98,6 +98,7 @@ describe('ReportPage', () => {
     expect(cells[0]).toHaveTextContent('5,5');
     expect(cells[0]).toHaveTextContent('de verificat 2');
     expect(cells[1]).toHaveTextContent('5,5 / 10');
+    expect(cells).toHaveLength(4);
   });
 
   it('has no Model column, even when the Model setting is on', async () => {

@@ -98,10 +98,11 @@ describe('TestsPage filters', () => {
   });
 
   it('shows all tests when the class in the address is not a class of the year', async () => {
-    renderAdmin('/?clasa=99', withManyClasses());
+    renderAdmin('/?clasa=99&arhivate=1', withManyClasses(), <LocationProbe />);
     expect(await screen.findByRole('link', { name: '6E2-26T1' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '6E3-26T1' })).toBeInTheDocument();
     expect(screen.getByLabelText('Clasa')).toHaveValue('');
+    await expectLocation('/?arhivate=1');
   });
 
   it('hides archived tests until asked', async () => {
@@ -177,6 +178,17 @@ describe('TestsPage results', () => {
     expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);
     expect(await within(card).findByText('Rezultate publicate')).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: /^Oprește accesul/ })).toBeInTheDocument();
+  });
+
+  it('refreshes the test page data after a publish from the list', async () => {
+    const api = withPublishing();
+    const { queryClient } = renderAdmin('/', api);
+    await screen.findByRole('link', { name: '6E2-26T1' });
+    queryClient.setQueryData(['test', '6E2-26T1'], { stale: true });
+    const card = screen.getByRole('link', { name: '6E2-26T1' }).closest('li')!;
+    await userEvent.click(within(card).getByRole('button', { name: /^Publică rezultatele/ }));
+    await within(card).findByText('Rezultate publicate');
+    expect(queryClient.getQueryState(['test', '6E2-26T1'])?.isInvalidated).toBe(true);
   });
 
   it('stops access from the list', async () => {

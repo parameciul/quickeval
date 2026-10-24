@@ -298,6 +298,20 @@ describe('delete student', () => {
     }
   });
 
+  it('removes the R2 files of the deleted uploads and no others', async () => {
+    const cls = await makeClass(api, 'D4R', ['Ana Unu', 'Bob Doi']);
+    const [ana, bob] = cls.studentIds as [number, number];
+    const code = await makeTest(api, cls.id, 'Primul');
+    const anaUpload = await addSubmission(api, code, ana, { status: 'uploading', files: 2 });
+    const bobUpload = await addSubmission(api, code, bob, { status: 'uploading', files: 1 });
+    const keys = [`fixture/${anaUpload}/1.jpg`, `fixture/${anaUpload}/2.jpg`, `fixture/${bobUpload}/1.jpg`];
+    for (const key of keys) await api.env.FILES.put(key, new Uint8Array([1, 2, 3]));
+    expect((await del(cls.id, ana)).status).toBe(200);
+    expect(await api.env.FILES.head(keys[0]!)).toBeNull();
+    expect(await api.env.FILES.head(keys[1]!)).toBeNull();
+    expect(await api.env.FILES.head(keys[2]!)).not.toBeNull();
+  });
+
   it.each(['submitted', 'grading', 'graded'] as const)('refuses a student with a %s upload', async (status) => {
     const cls = await makeClass(api, `D5${status.slice(0, 4).toUpperCase()}${status.length}`, ['Ana Unu']);
     const studentId = cls.studentIds[0]!;
