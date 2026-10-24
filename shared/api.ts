@@ -258,10 +258,22 @@ export interface StudentRow {
   canDelete: boolean;
 }
 
+// One upload of a student in a test of the class, for the class grade table.
+export interface ClassGrade {
+  studentId: number;
+  testCode: string;
+  submissionId: number;
+  status: Exclude<UploadStatus, 'none'>;
+  // Out of 10, once graded.
+  grade: number | null;
+  flagCount: number;
+}
+
 export interface ClassDetail {
   class: ClassSummary;
   students: StudentRow[];
   tests: TestSummary[];
+  grades: ClassGrade[];
 }
 
 // A class the student is in, or was in (`active` false: the student left).

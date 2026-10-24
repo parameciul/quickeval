@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { addStudentsBody, createClassBody, setEnrollmentBody, updateClassBody } from '../../shared/api.ts';
-import { createClass, getClass, listClasses, listClassStudents, updateClass } from '../db/classes.ts';
+import { createClass, getClass, listClassGrades, listClasses, listClassStudents, updateClass } from '../db/classes.ts';
 import { addStudentsToClass, deleteStudentFromClass, setEnrollmentActive } from '../db/students.ts';
 import { listClassTests } from '../db/tests.ts';
 import type { AppEnv } from '../env.ts';
@@ -31,6 +31,7 @@ export function classRoutes(): Hono<AppEnv> {
       class: found,
       students: await listClassStudents(c.env.DB, c.var.teacher.id, id),
       tests: await listClassTests(c.env.DB, c.var.teacher.id, id),
+      grades: await listClassGrades(c.env.DB, c.var.teacher.id, id),
     });
   });
 

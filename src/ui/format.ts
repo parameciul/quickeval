@@ -66,6 +66,13 @@ export function formatDate(iso: string): string {
   return DATE.format(new Date(iso));
 }
 
+const DAY_MONTH = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', day: '2-digit', month: '2-digit' });
+
+// A day in Romania's local time, short: "06.10".
+export function formatDayMonth(iso: string): string {
+  return DAY_MONTH.format(new Date(iso));
+}
+
 const ONE_DECIMAL = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 });
 
 // "820 KB", "1,3 MB".

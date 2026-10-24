@@ -3,6 +3,7 @@ import {
   confidenceLabel,
   countLabel,
   formatDateTime,
+  formatDayMonth,
   formatFileSize,
   pageLabel,
   parsePoints,
@@ -107,5 +108,14 @@ describe('parsePoints', () => {
     expect(parsePoints('-1')).toBeNull();
     expect(parsePoints('2,5,1')).toBeNull();
     expect(parsePoints('doi')).toBeNull();
+  });
+});
+
+describe('formatDayMonth', () => {
+  it('shows the day in the local time of Romania, with two digits', () => {
+    expect(formatDayMonth('2026-10-06T07:15:00.000Z')).toBe('06.10');
+    // 22:30 UTC on 5 October is already 6 October in Romania.
+    expect(formatDayMonth('2026-10-05T22:30:00.000Z')).toBe('06.10');
+    expect(formatDayMonth('2026-12-31T23:30:00.000Z')).toBe('01.01');
   });
 });

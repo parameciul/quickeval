@@ -360,3 +360,54 @@ describe('delete student', () => {
     expect(await count('SELECT COUNT(*) AS n FROM enrollments WHERE class_id = ? AND student_id = ?', row!.class_id, other.studentId)).toBe(1);
   });
 });
+
+describe('grades of a class', () => {
+  const detailOf = async (classId: number) => (await api.request('GET', `/api/admin/classes/${classId}`)).body;
+
+  it('has no grades for a class without uploads', async () => {
+    const cls = await makeClass(api, 'G0', ['Pop Ion']);
+    await makeTest(api, cls.id);
+    expect((await detailOf(cls.id)).grades).toEqual([]);
+  });
+
+  it('holds one row for each upload of the class, with the grade and the items to check', async () => {
+    const cls = await makeClass(api, 'G1', ['Ana Unu', 'Bia Doi', 'Cora Trei', 'Dan Patru']);
+    const first = await makeTest(api, cls.id, 'Primul');
+    const second = await makeTest(api, cls.id, 'Al doilea');
+    const graded = await addSubmission(api, first, cls.studentIds[0]!, { status: 'graded' });
+    await addEvaluation(api, graded, { grade: 9 });
+    const flagged = await addSubmission(api, first, cls.studentIds[1]!, { status: 'graded' });
+    await addEvaluation(api, flagged, { grade: 7, items: [{ needsReview: true }, {}] });
+    const uploading = await addSubmission(api, second, cls.studentIds[0]!, { status: 'uploading', files: 1 });
+    const grading = await addSubmission(api, second, cls.studentIds[2]!, { status: 'grading' });
+
+    const { grades } = await detailOf(cls.id);
+    const sorted = [...grades].sort((a: { submissionId: number }, b: { submissionId: number }) => a.submissionId - b.submissionId);
+    expect(sorted).toEqual([
+      { studentId: cls.studentIds[0], testCode: first, submissionId: graded, status: 'graded', grade: 9, flagCount: 0 },
+      { studentId: cls.studentIds[1], testCode: first, submissionId: flagged, status: 'graded', grade: 7, flagCount: 1 },
+      { studentId: cls.studentIds[0], testCode: second, submissionId: uploading, status: 'uploading', grade: null, flagCount: 0 },
+      { studentId: cls.studentIds[2], testCode: second, submissionId: grading, status: 'grading', grade: null, flagCount: 0 },
+    ]);
+  });
+
+  it('keeps the grades of an archived test and of a student who left', async () => {
+    const cls = await makeClass(api, 'G2', ['Ana Unu']);
+    const code = await makeTest(api, cls.id);
+    const sub = await addSubmission(api, code, cls.studentIds[0]!, { status: 'graded' });
+    await addEvaluation(api, sub, { grade: 8 });
+    await api.db.prepare("UPDATE tests SET status = 'done', archived = 1 WHERE code = ?").bind(code).run();
+    await api.request('PATCH', `/api/admin/classes/${cls.id}/students/${cls.studentIds[0]}`, { active: false });
+    expect((await detailOf(cls.id)).grades).toMatchObject([{ testCode: code, submissionId: sub, grade: 8 }]);
+  });
+
+  it('does not mix in the uploads of another class', async () => {
+    const one = await makeClass(api, 'G3A', ['Ana Unu']);
+    const two = await makeClass(api, 'G3B', ['Bia Doi']);
+    await addSubmission(api, await makeTest(api, one.id), one.studentIds[0]!, { status: 'submitted' });
+    await addSubmission(api, await makeTest(api, two.id), two.studentIds[0]!, { status: 'submitted' });
+    const { grades } = await detailOf(one.id);
+    expect(grades).toHaveLength(1);
+    expect(grades[0].studentId).toBe(one.studentIds[0]);
+  });
+});

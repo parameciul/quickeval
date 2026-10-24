@@ -1,9 +1,10 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { ClassSummary, StudentRow } from '../../shared/api.ts';
+import type { ClassGrade, ClassSummary, StudentRow, UploadStatus } from '../../shared/api.ts';
 import { compareClassNames, displayClassName } from '../../shared/classes.ts';
 import { formatSchoolYear } from '../../shared/schoolYear.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
+import { flagCountSql } from './evaluations.ts';
 import { noWorkSql } from './students.ts';
 
 interface ClassRow {
@@ -110,4 +111,35 @@ export async function listClassStudents(db: D1Database, teacherId: number, class
   return results
     .map((row) => ({ id: row.id, fullName: row.full_name, active: row.active === 1, canDelete: row.can_delete === 1 }))
     .sort((a, b) => compareStudentNames(a.fullName, b.fullName));
+}
+
+// Every upload in the tests of the class, archived tests included, in one
+// query. The class must belong to the teacher; for any other class the list is
+// empty. The flag count is 0 until the upload is graded.
+export async function listClassGrades(db: D1Database, teacherId: number, classId: number): Promise<ClassGrade[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT s.student_id, t.code AS test_code, s.id AS submission_id, s.status, ev.grade,
+         CASE WHEN ev.id IS NULL THEN 0 ELSE ${flagCountSql('ev')} END AS flag_count
+       FROM submissions s
+       JOIN tests t ON t.id = s.test_id AND t.class_id = ? AND t.teacher_id = ?
+       LEFT JOIN evaluations ev ON ev.submission_id = s.id AND s.status = 'graded'`,
+    )
+    .bind(classId, teacherId)
+    .all<{
+      student_id: number;
+      test_code: string;
+      submission_id: number;
+      status: Exclude<UploadStatus, 'none'>;
+      grade: number | null;
+      flag_count: number;
+    }>();
+  return results.map((row) => ({
+    studentId: row.student_id,
+    testCode: row.test_code,
+    submissionId: row.submission_id,
+    status: row.status,
+    grade: row.grade,
+    flagCount: row.flag_count,
+  }));
 }

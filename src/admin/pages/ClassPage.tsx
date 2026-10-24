@@ -6,7 +6,8 @@ import { parsePositiveId } from '../../../shared/ids.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { StatusChip } from '../StatusChip.tsx';
+import { studentCountLabel } from '../../ui/format.ts';
+import { GradesTable } from '../classPage/GradesTable.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
 export function ClassPage() {
@@ -19,6 +20,7 @@ export function ClassPage() {
 function ClassDetails({ classId }: { classId: number }) {
   const api = useApi();
   const queryClient = useQueryClient();
+  const [showArchived, setShowArchived] = useState(false);
   const detail = useQuery({ queryKey: ['class', classId], queryFn: () => api.getClass(classId) });
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['class', classId] });
@@ -28,7 +30,8 @@ function ClassDetails({ classId }: { classId: number }) {
   if (detail.isPending) return <p>Se încarcă…</p>;
   if (detail.error) return <ErrorMessage error={detail.error} />;
 
-  const { class: info, tests } = detail.data;
+  const { class: info, students, tests, grades } = detail.data;
+  const archivedCount = tests.filter((test) => test.archived).length;
   return (
     <section>
       <p className="back-link">
@@ -37,31 +40,25 @@ function ClassDetails({ classId }: { classId: number }) {
       <h1>
         {displayClassName(info.name)} · {formatSchoolYear(info.schoolYear)}
       </h1>
-      <div className="form-row">
+      <div className="head-actions">
         <RenameClassForm classId={classId} currentName={info.name} onDone={refresh} />
         <Link className="button-quiet button-small" to={`/clase/${classId}/elevi`}>
           Elevii clasei
         </Link>
+        {!info.archived && (
+          <Link className="button button-small" to={`/teste/nou?clasa=${classId}`}>
+            Test nou pentru această clasă
+          </Link>
+        )}
       </div>
 
-      <h2>Teste</h2>
-      {tests.length === 0 ? (
-        <p className="hint">Clasa nu are încă teste.</p>
-      ) : (
-        <ol className="row-list">
-          {tests.map((test) => (
-            <li key={test.code}>
-              <Link className="row-name" to={`/teste/${test.code}`}>
-                {test.code} · {test.title}
-              </Link>
-              <StatusChip status={test.status} />
-            </li>
-          ))}
-        </ol>
-      )}
-      {!info.archived && (
+      <h2>Note ({studentCountLabel(info.studentCount)})</h2>
+      <GradesTable classId={classId} students={students} tests={tests} grades={grades} showArchived={showArchived} />
+      {archivedCount > 0 && (
         <p>
-          <Link to={`/teste/nou?clasa=${classId}`}>Test nou pentru această clasă</Link>
+          <button type="button" className="button-quiet button-small" aria-pressed={showArchived} onClick={() => setShowArchived(!showArchived)}>
+            {showArchived ? 'Ascunde testele arhivate' : `Arată și testele arhivate (${archivedCount})`}
+          </button>
         </p>
       )}
     </section>

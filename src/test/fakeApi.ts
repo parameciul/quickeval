@@ -235,6 +235,25 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         class: { ...found, studentCount: countActive(classId) },
         students: [...(data.students[classId] ?? [])],
         tests: tests.filter((t) => t.test.classId === classId).map((t) => summaryOf(t.test)),
+        // One entry for each upload of the class's tests, like the server.
+        grades: tests
+          .filter((t) => t.test.classId === classId)
+          .flatMap((t) =>
+            t.uploads.flatMap((row) =>
+              row.submissionId === null || row.status === 'none'
+                ? []
+                : [
+                    {
+                      studentId: row.studentId,
+                      testCode: t.test.code,
+                      submissionId: row.submissionId,
+                      status: row.status,
+                      grade: row.grade,
+                      flagCount: row.status === 'graded' ? row.flagCount : 0,
+                    },
+                  ],
+            ),
+          ),
       };
     }),
     updateClass: vi.fn(async (classId: number, input: { name?: string; archived?: boolean }) => {

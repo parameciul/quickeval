@@ -1743,3 +1743,46 @@ table.results-table td:nth-last-child(-n + 2) {
   padding-left: 0.6rem;
   padding-right: 0.6rem;
 }
+
+/* The class grade table: narrow centred cells like the students' table, the
+   name column left-aligned, and a header that stacks the test code, its date
+   (or status) and the report link. */
+table.grades-table {
+  font-size: 0.9rem;
+}
+
+table.grades-table th,
+table.grades-table td {
+  padding: 0.35rem 0.4rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+table.grades-table th:first-child {
+  padding-right: 0.75rem;
+  padding-left: 0.5rem;
+  text-align: left;
+}
+
+table.grades-table thead th a,
+table.grades-table thead th .grade-head-line {
+  display: block;
+}
+
+table.grades-table thead th .grade-head-line {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+table.grades-table thead th.is-muted {
+  opacity: 0.7;
+}
+
+table.grades-table tr.is-muted th,
+table.grades-table tr.is-muted td {
+  color: var(--muted);
+}
+
+table.grades-table tbody .tag {
+  margin-left: 0.4rem;
+}
