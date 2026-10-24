@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useNavigate } from 'react-router';
 import { describe, expect, it } from 'vitest';
@@ -32,24 +32,21 @@ const oneClass = () =>
   });
 
 describe('ClassPage', () => {
-  it('shows the class and its students, with students who left marked', async () => {
+  it('shows the class name and year', async () => {
     renderAdmin('/clase/1', oneClass());
     expect(await screen.findByRole('heading', { name: 'Clasa 6E2 · 2026-2027' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Elevi (1 elev)' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Pop Ion' })).toHaveAttribute('href', '/elevi/10');
-    const left = screen.getByText('Ionescu Ana').closest('li')!;
-    expect(within(left).getByText('a plecat')).toBeInTheDocument();
   });
 
-  it('adds pasted names, one per line, without list numbers', async () => {
-    const api = oneClass();
-    renderAdmin('/clase/1', api);
-    const box = await screen.findByLabelText('Numele elevilor, câte unul pe rând');
-    await userEvent.type(box, '1. Marin Dan{Enter}{Enter}2) Stan Eva');
-    await userEvent.click(screen.getByRole('button', { name: 'Adaugă 2 elevi' }));
-    expect(api.addStudents).toHaveBeenCalledWith(1, ['Marin Dan', 'Stan Eva']);
-    expect(await screen.findByText('Marin Dan')).toBeInTheDocument();
-    expect(box).toHaveValue('');
+  it('links to the students page', async () => {
+    renderAdmin('/clase/1', oneClass());
+    expect(await screen.findByRole('link', { name: 'Elevii clasei' })).toHaveAttribute('href', '/clase/1/elevi');
+  });
+
+  it('no longer lists or adds students itself', async () => {
+    renderAdmin('/clase/1', oneClass());
+    await screen.findByRole('heading', { name: 'Clasa 6E2 · 2026-2027' });
+    expect(screen.queryByRole('heading', { name: /^Elevi \(/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Numele elevilor, câte unul pe rând')).not.toBeInTheDocument();
   });
 
   it('lists the tests of the class and offers a new one for it', async () => {
@@ -66,28 +63,6 @@ describe('ClassPage', () => {
     renderAdmin('/clase/1', api);
     expect(await screen.findByText('Clasa nu are încă teste.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Test nou pentru această clasă' })).not.toBeInTheDocument();
-  });
-
-  it('marks a student as left', async () => {
-    const api = oneClass();
-    renderAdmin('/clase/1', api);
-    const row = (await screen.findByText('Pop Ion')).closest('li')!;
-    await userEvent.click(within(row).getByRole('button', { name: 'A plecat' }));
-    expect(api.setStudentActive).toHaveBeenCalledWith(1, 10, false);
-    expect(await within(row).findByRole('button', { name: 'Revine în clasă' })).toBeInTheDocument();
-  });
-
-  it('renames a student', async () => {
-    const api = oneClass();
-    renderAdmin('/clase/1', api);
-    const row = (await screen.findByText('Pop Ion')).closest('li')!;
-    await userEvent.click(within(row).getByRole('button', { name: 'Redenumește' }));
-    const input = screen.getByLabelText('Numele elevului');
-    await userEvent.clear(input);
-    await userEvent.type(input, 'Pop Ioan');
-    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
-    expect(api.renameStudent).toHaveBeenCalledWith(10, 'Pop Ioan');
-    expect(await screen.findByText('Pop Ioan')).toBeInTheDocument();
   });
 
   it('renames the class', async () => {
@@ -107,7 +82,7 @@ describe('ClassPage', () => {
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
   });
 
-  it('starts with an empty draft when it moves straight to another class', async () => {
+  it('starts with a closed rename form when it moves straight to another class', async () => {
     const api = createFakeApi({
       classes: [
         { id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 },
@@ -119,10 +94,12 @@ describe('ClassPage', () => {
     renderAdmin('/clase/2', api, <Jumps />);
     await screen.findByRole('heading', { name: 'Clasa 7E2 · 2026-2027' });
     await userEvent.click(screen.getByRole('button', { name: 'Mergi la clasa 1' }));
-    await userEvent.type(await screen.findByLabelText('Numele elevilor, câte unul pe rând'), 'Pop Ion');
+    await userEvent.click(await screen.findByRole('button', { name: 'Redenumește clasa' }));
+    await userEvent.type(screen.getByLabelText('Nume nou'), 'X');
     await userEvent.click(screen.getByRole('button', { name: 'Mergi la clasa 2' }));
     expect(await screen.findByRole('heading', { name: 'Clasa 7E2 · 2026-2027' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Numele elevilor, câte unul pe rând')).toHaveValue('');
+    expect(screen.queryByLabelText('Nume nou')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Redenumește clasa' })).toBeInTheDocument();
   });
 
   it('shows the server message for a class that does not exist', async () => {

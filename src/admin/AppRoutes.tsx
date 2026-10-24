@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router';
 import { Layout } from './Layout.tsx';
 import { ClassesPage } from './pages/ClassesPage.tsx';
 import { ClassPage } from './pages/ClassPage.tsx';
+import { ClassStudentsPage } from './pages/ClassStudentsPage.tsx';
 import { NewTestPage } from './pages/NewTestPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { ReportPage } from './pages/ReportPage.tsx';
@@ -23,6 +24,7 @@ export function AppRoutes() {
         <Route path="teste/:code/raport" element={<ReportPage />} />
         <Route path="clase" element={<ClassesPage />} />
         <Route path="clase/:id" element={<ClassPage />} />
+        <Route path="clase/:id/elevi" element={<ClassStudentsPage />} />
         <Route path="elevi/:id" element={<StudentPage />} />
         <Route path="setari" element={<SettingsPage />} />
         <Route path="*" element={<NotFoundPage />} />
