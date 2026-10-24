@@ -191,6 +191,34 @@ describe('TestsPage results', () => {
     expect(queryClient.getQueryState(['test', '6E2-26T1'])?.isInvalidated).toBe(true);
   });
 
+  it('marks a test with unchecked grades with a "de verificat" label', async () => {
+    renderAdmin('/', withPublishing({ flagCount: 3 }));
+    const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
+    expect(within(card).getByText('de verificat')).toHaveClass('tag');
+  });
+
+  it('shows no "de verificat" label when nothing waits for a check', async () => {
+    renderAdmin('/', withPublishing({ flagCount: 0 }));
+    const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
+    expect(within(card).queryByText('de verificat')).not.toBeInTheDocument();
+  });
+
+  it('shows the publish state as a label, grey when unpublished, and keeps it with the actions at the foot', async () => {
+    renderAdmin('/', withPublishing());
+    const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
+    const label = within(card).getByText('Rezultate nepublicate');
+    expect(label).toHaveClass('tag', 'tag-muted');
+    const foot = label.closest('.card-foot')!;
+    expect(within(foot as HTMLElement).getByRole('button', { name: /^Publică rezultatele/ })).toBeInTheDocument();
+    expect(within(foot as HTMLElement).getByRole('link', { name: 'Raportul clasei' })).toBeInTheDocument();
+  });
+
+  it('shows published results as a green label', async () => {
+    renderAdmin('/', withPublishing({ resultsOpen: true }));
+    const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
+    expect(within(card).getByText('Rezultate publicate')).toHaveClass('tag', 'tag-ok');
+  });
+
   it('stops access from the list', async () => {
     const api = withPublishing({ resultsOpen: true });
     renderAdmin('/', api);

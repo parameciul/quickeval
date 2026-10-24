@@ -115,6 +115,7 @@ function TestCard({ test }: { test: TestSummary }) {
       </span>
       <span className="card-meta">
         <StatusChip status={test.status} />
+        {test.flagCount > 0 && <span className="tag">de verificat</span>}
         {test.archived && <span className="tag">Arhivat</span>}
       </span>
       {test.status !== 'draft' && (
@@ -124,35 +125,37 @@ function TestCard({ test }: { test: TestSummary }) {
           {test.flagCount > 0 && ` · de verificat: ${test.flagCount}`}
         </span>
       )}
-      {hasResults && (
-        <span className="results-line">
-          {test.resultsOpen ? (
-            <span className="tag">Rezultate publicate</span>
-          ) : test.publishedCount > 0 ? (
-            <span className="card-count">Publicate pentru {countLabel(test.publishedCount, 'elev', 'elevi')}</span>
-          ) : (
-            <span className="card-count">Rezultate nepublicate</span>
-          )}
-        </span>
-      )}
       {(hasResults || test.gradedCount > 0) && (
-        <span className="card-actions">
+        <span className="card-foot">
           {hasResults && (
-            <button
-              type="button"
-              className="button-quiet button-small"
-              disabled={publish.isPending}
-              aria-label={`${publishLabel} · ${test.code}`}
-              onClick={() => publish.mutate()}
-            >
-              {publishLabel}
-            </button>
+            <span className="results-line">
+              {test.resultsOpen ? (
+                <span className="tag tag-ok">Rezultate publicate</span>
+              ) : test.publishedCount > 0 ? (
+                <span className="tag tag-muted">Publicate pentru {countLabel(test.publishedCount, 'elev', 'elevi')}</span>
+              ) : (
+                <span className="tag tag-muted">Rezultate nepublicate</span>
+              )}
+            </span>
           )}
-          {test.gradedCount > 0 && (
-            <Link className="button-quiet button-small" to={`/teste/${test.code}/raport`}>
-              Raportul clasei
-            </Link>
-          )}
+          <span className="card-actions">
+            {hasResults && (
+              <button
+                type="button"
+                className="button-quiet button-small"
+                disabled={publish.isPending}
+                aria-label={`${publishLabel} · ${test.code}`}
+                onClick={() => publish.mutate()}
+              >
+                {publishLabel}
+              </button>
+            )}
+            {test.gradedCount > 0 && (
+              <Link className="button-quiet button-small" to={`/teste/${test.code}/raport`}>
+                Raportul clasei
+              </Link>
+            )}
+          </span>
         </span>
       )}
       {publish.error && <ErrorMessage error={publish.error} />}
