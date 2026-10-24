@@ -722,6 +722,23 @@ describe('TestPage evaluation', () => {
     expect(screen.queryByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).not.toBeInTheDocument();
   });
 
+  it('shows the class report button in the head once a result is graded', async () => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'done' }, graded));
+    const heading = await screen.findByRole('heading', { name: '6E2-26T1' });
+    const head = heading.parentElement!;
+    const link = within(head).getByRole('link', { name: 'Raportul clasei' });
+    expect(link).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+    expect(link).toHaveClass('button', 'button-small');
+    expect(screen.getAllByRole('link', { name: 'Raportul clasei' })).toHaveLength(1);
+  });
+
+  it('has no report button before any grading', async () => {
+    renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'evaluating' }, leftInGrading));
+    expect(await screen.findByRole('heading', { name: '6E2-26T1' })).toBeInTheDocument();
+    expect(await screen.findByText(/^Robotul (nu )?a verificat/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Raportul clasei' })).not.toBeInTheDocument();
+  });
+
   it('says when the class analysis failed', async () => {
     renderAdmin('/teste/6E2-26T1', evaluationApi({ status: 'done', analysis: { status: 'failed', stale: false, attempts: 0 } }, graded));
     expect(await screen.findByText('Robotul nu a putut scrie analiza clasei.')).toBeInTheDocument();

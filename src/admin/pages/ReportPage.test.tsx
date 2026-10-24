@@ -89,6 +89,17 @@ describe('ReportPage', () => {
     expect(within(missing).getByText('· Nu a trimis')).toBeInTheDocument();
   });
 
+  it('puts the grade right after the name', async () => {
+    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Elev', 'Nota', 'Total', 'I.1', 'II.1']);
+    const row = within(table).getAllByRole('row')[2]!;
+    const cells = within(row).getAllByRole('cell');
+    expect(cells[0]).toHaveTextContent('5,5');
+    expect(cells[0]).toHaveTextContent('de verificat 2');
+    expect(cells[1]).toHaveTextContent('5,5 / 10');
+  });
+
   it('has no Model column, even when the Model setting is on', async () => {
     const api = createFakeApi({
       classes: [],

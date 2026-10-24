@@ -1739,7 +1739,8 @@ table.results-table th:first-child {
   text-align: left;
 }
 
-table.results-table td:nth-last-child(-n + 2) {
+table.results-table td:nth-child(2),
+table.results-table td:nth-child(3) {
   padding-left: 0.6rem;
   padding-right: 0.6rem;
 }

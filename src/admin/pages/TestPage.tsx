@@ -92,6 +92,11 @@ function TestDetails({ code }: { code: string }) {
         <span className="head-actions">
           <StatusChip status={test.status} />
           {test.archived && <span className="tag">Arhivat</span>}
+          {test.gradedCount > 0 && (
+            <Link className="button button-small" to={`/teste/${test.code}/raport`}>
+              Raportul clasei
+            </Link>
+          )}
           {!renameOpen && (
             <button type="button" className="button-quiet button-small" onClick={() => setRenameOpen(true)}>
               Redenumește testul

@@ -58,8 +58,9 @@ export function StatsSummary({ stats }: { stats: ClassStats }) {
   );
 }
 
-// One row for each graded student, one column for each exercise, then the
-// total and the grade. An item that waits for the teacher's check is marked.
+// One row for each graded student: the grade and the total right after the
+// name, then one column for each exercise. An item that waits for the
+// teacher's check is marked.
 export function ResultsTable({ code, report }: { code: string; report: ClassReport }) {
   return (
     <div className="table-wrap">
@@ -68,13 +69,13 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
         <thead>
           <tr>
             <th scope="col">Elev</th>
+            <th scope="col">Nota</th>
+            <th scope="col">Total</th>
             {report.exercises.map((exercise) => (
               <th key={exercise.id} scope="col" title={`${exercise.label}, ${formatPoints(exercise.maxPoints)} puncte`}>
                 {exercise.id}
               </th>
             ))}
-            <th scope="col">Total</th>
-            <th scope="col">Nota</th>
           </tr>
         </thead>
         <tbody>
@@ -83,6 +84,13 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
               <th scope="row">
                 <Link to={`/teste/${code}/elevi/${row.submissionId}`}>{row.studentName}</Link>
               </th>
+              <td>
+                <strong>{formatPoints(row.grade)}</strong>
+                {row.flagCount > 0 && <span className="tag">de verificat {row.flagCount}</span>}
+              </td>
+              <td>
+                {formatPoints(row.total)} / {formatPoints(row.maxTotal)}
+              </td>
               {report.exercises.map((exercise) => {
                 const item = row.items.find((candidate) => candidate.exerciseId === exercise.id);
                 if (!item) return <td key={exercise.id}>{dash}</td>;
@@ -93,13 +101,6 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
                   </td>
                 );
               })}
-              <td>
-                {formatPoints(row.total)} / {formatPoints(row.maxTotal)}
-              </td>
-              <td>
-                <strong>{formatPoints(row.grade)}</strong>
-                {row.flagCount > 0 && <span className="tag">de verificat {row.flagCount}</span>}
-              </td>
             </tr>
           ))}
         </tbody>
