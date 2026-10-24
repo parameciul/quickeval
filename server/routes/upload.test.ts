@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PDF_TYPE } from '../../shared/files.ts';
-import { addSubmissionFile, confirmSubmission, deleteSessionFile } from '../db/links.ts';
+import { addSubmissionFile, confirmSubmission, createSubmission, deleteSessionFile } from '../db/links.ts';
 import { makeClass, makeTest, startTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -122,6 +122,12 @@ describe('POST /api/u/:token/sessions', () => {
     const res = await startSession(pop, secret);
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('Lucrarea ta a fost deja trimisă.');
+  });
+
+  it('inserts no upload for a student who left, even after the route check', async () => {
+    const test = await api.db.prepare('SELECT id FROM tests WHERE code = ?').bind(code).first<{ id: number }>();
+    expect(await createSubmission(api.db, test!.id, stan, 'hash-left', 'token-left', new Date().toISOString())).toBeNull();
+    expect(await createSubmission(api.db, test!.id, pop, 'hash-pop', 'token-pop', new Date().toISOString())).toEqual(expect.any(Number));
   });
 
   it('refuses a student who left the class or is not in it', async () => {

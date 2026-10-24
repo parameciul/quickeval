@@ -107,7 +107,9 @@ export async function findStudentSubmission(
   return row ? { id: row.id, status: row.status, sessionHash: row.session_hash } : null;
 }
 
-// Returns the new upload's id. Throws a UNIQUE error when another phone
+// Returns the new upload's id, or null when the student is not an active
+// student of the test's class (checked in the INSERT, so a student removed a
+// moment ago starts nothing). Throws a UNIQUE error when another phone
 // started this student's upload first.
 export async function createSubmission(
   db: D1Database,
@@ -116,12 +118,18 @@ export async function createSubmission(
   sessionHash: string,
   resultToken: string,
   now: string,
-): Promise<number> {
+): Promise<number | null> {
   const row = await db
-    .prepare("INSERT INTO submissions (test_id, student_id, status, session_hash, result_token, started_at) VALUES (?, ?, 'uploading', ?, ?, ?) RETURNING id")
-    .bind(testId, studentId, sessionHash, resultToken, now)
+    .prepare(
+      `INSERT INTO submissions (test_id, student_id, status, session_hash, result_token, started_at)
+       SELECT t.id, ?, 'uploading', ?, ?, ?
+       FROM tests t JOIN enrollments e ON e.class_id = t.class_id AND e.student_id = ? AND e.active = 1
+       WHERE t.id = ?
+       RETURNING id`,
+    )
+    .bind(studentId, sessionHash, resultToken, now, studentId, testId)
     .first<{ id: number }>();
-  return row!.id;
+  return row ? row.id : null;
 }
 
 export async function findSession(db: D1Database, testId: number, sessionHash: string): Promise<SessionRecord | null> {

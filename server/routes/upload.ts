@@ -116,6 +116,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         submissionId = await createSubmission(c.env.DB, test.id, studentId, sessionHash, newResultToken(), nowIso());
+        if (submissionId === null) throw new ApiError(404, 'unknown_student', 'Nu am găsit numele tău în listă.');
         break;
       } catch (err) {
         if (!isUniqueViolation(err)) throw err;

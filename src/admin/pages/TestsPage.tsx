@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import type { TestSummary } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
-import { classToneClass } from '../../ui/classTone.ts';
+import { classToneClass, classToneStyle } from '../../ui/classTone.ts';
 import { countLabel, formatDateTime } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -90,10 +90,11 @@ function TestCard({ test }: { test: TestSummary }) {
     },
   });
 
-  const className = ['card', 'has-tone', classToneClass(test.classId), test.archived ? 'is-muted' : ''].filter(Boolean).join(' ');
+  const className = ['card', 'has-tone', classToneClass(), test.archived ? 'is-muted' : ''].filter(Boolean).join(' ');
   const hasResults = test.status !== 'draft' && test.gradedCount > 0;
+  const publishLabel = test.resultsOpen ? 'Oprește accesul' : test.publishedCount > 0 ? 'Publică pentru toți' : 'Publică rezultatele';
   return (
-    <li className={className}>
+    <li className={className} style={classToneStyle(test.classId)}>
       <Link className="card-title" to={`/teste/${test.code}`}>
         {test.code}
       </Link>
@@ -122,14 +123,26 @@ function TestCard({ test }: { test: TestSummary }) {
           ) : (
             <span className="card-count">Rezultate nepublicate</span>
           )}
-          <button type="button" className="button-quiet button-small" disabled={publish.isPending} onClick={() => publish.mutate()}>
-            {test.resultsOpen ? 'Oprește accesul' : test.publishedCount > 0 ? 'Publică pentru toți' : 'Publică rezultatele'}
-          </button>
         </span>
       )}
-      {test.gradedCount > 0 && (
-        <span>
-          <Link to={`/teste/${test.code}/raport`}>Raportul clasei</Link>
+      {(hasResults || test.gradedCount > 0) && (
+        <span className="card-actions">
+          {hasResults && (
+            <button
+              type="button"
+              className="button-quiet button-small"
+              disabled={publish.isPending}
+              aria-label={`${publishLabel} · ${test.code}`}
+              onClick={() => publish.mutate()}
+            >
+              {publishLabel}
+            </button>
+          )}
+          {test.gradedCount > 0 && (
+            <Link className="button-quiet button-small" to={`/teste/${test.code}/raport`}>
+              Raportul clasei
+            </Link>
+          )}
         </span>
       )}
       {publish.error && <ErrorMessage error={publish.error} />}

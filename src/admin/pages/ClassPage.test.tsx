@@ -228,6 +228,29 @@ describe('ClassPage grade table', () => {
     expect(table.queryByRole('link', { name: '6E2-26T1 · Fracții' })).not.toBeInTheDocument();
   });
 
+  it('puts the archived toggle with the actions at the top', async () => {
+    const api = gradedClass();
+    await api.setTestArchived('6E2-26T1', true);
+    renderAdmin('/clase/1', api);
+    await tableOf();
+    const toggle = screen.getByRole('button', { name: 'Arată și testele arhivate (1)' });
+    expect(toggle.parentElement).toHaveClass('head-actions');
+    expect(within(toggle.parentElement!).getByRole('link', { name: 'Elevii clasei' })).toBeInTheDocument();
+  });
+
+  it('says so when every test is archived and the toggle is off', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
+      students: { 1: [{ id: 10, fullName: 'Pop Ion', active: true, canDelete: false }] },
+      tests: [fakeTest({ code: '6E2-26T1', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' }, [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 501, status: 'graded', grade: 9 })])],
+    });
+    await api.setTestArchived('6E2-26T1', true);
+    renderAdmin('/clase/1', api);
+    expect(await screen.findByText(/Toate testele clasei sunt arhivate/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Arată și testele arhivate/ }));
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+  });
+
   it('offers no toggle when no test is archived', async () => {
     renderAdmin('/clase/1', gradedClass());
     await tableOf();

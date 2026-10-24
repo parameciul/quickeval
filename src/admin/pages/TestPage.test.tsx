@@ -43,7 +43,7 @@ describe('TestPage', () => {
     expect(await screen.findByRole('heading', { name: '6E2-26T1' })).toBeInTheDocument();
     expect(screen.getByText('Deschis')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
-    expect(screen.getByRole('link', { name: 'Clasa 6E2' })).toHaveClass('class-badge', 'class-tone-1');
+    expect(screen.getByRole('link', { name: 'Clasa 6E2' })).toHaveClass('class-badge', 'class-tone');
     expect(screen.getByText(/început 6 oct\. 2026, 10:15/)).toBeInTheDocument();
   });
 

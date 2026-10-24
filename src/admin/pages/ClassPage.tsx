@@ -45,6 +45,11 @@ function ClassDetails({ classId }: { classId: number }) {
         <Link className="button-quiet button-small" to={`/clase/${classId}/elevi`}>
           Elevii clasei
         </Link>
+        {archivedCount > 0 && (
+          <button type="button" className="button-quiet button-small" aria-pressed={showArchived} onClick={() => setShowArchived(!showArchived)}>
+            {showArchived ? 'Ascunde testele arhivate' : `Arată și testele arhivate (${archivedCount})`}
+          </button>
+        )}
         {!info.archived && (
           <Link className="button button-small" to={`/teste/nou?clasa=${classId}`}>
             Test nou pentru această clasă
@@ -54,13 +59,6 @@ function ClassDetails({ classId }: { classId: number }) {
 
       <h2>Note ({studentCountLabel(info.studentCount)})</h2>
       <GradesTable classId={classId} students={students} tests={tests} grades={grades} showArchived={showArchived} />
-      {archivedCount > 0 && (
-        <p>
-          <button type="button" className="button-quiet button-small" aria-pressed={showArchived} onClick={() => setShowArchived(!showArchived)}>
-            {showArchived ? 'Ascunde testele arhivate' : `Arată și testele arhivate (${archivedCount})`}
-          </button>
-        </p>
-      )}
     </section>
   );
 }

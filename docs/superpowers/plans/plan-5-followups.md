@@ -10,15 +10,20 @@ Plan 5 built the class grade table, the "Elevii clasei" page (add, rename, "A pl
 
 ## Still open
 
-- An upload can start for a student who was just removed from the class: `routes/upload.ts` checks `findActiveStudent`, then `createSubmission` inserts. The upload then shows nowhere, but the robot grades it once sent. The same window exists for "A plecat". Fix: check the enrollment inside the `createSubmission` INSERT … SELECT.
-- On a phone (375 px), the test page is 438 px wide while the test or barem file is missing: the file inputs in `TestFiles` are wider than the screen. Older than Plan 5.
-- A student's `failed` uploads in the class are deleted with the student. The confirm text does not say so.
-- Capital letters outside the Romanian fold table (É, Ö, …) are not folded, so "Éva" and "éva" count as two names.
-- When every test of a class is archived and the toggle is off, the grade table shows only the Elev column, with no hint.
-- The archived column header fades its link and chip together (`opacity: 0.7`); a muted text colour would keep the contrast.
-- On the Teste page, every card's publish button has the same accessible name; an old `?clasa=` stays in the address after a change of school year (it counts as all classes).
-- On "Elevii clasei": a name already in the class pasted twice is listed twice in "Sunt deja în clasă"; the row buttons have no per-student accessible name.
 - Tests not written: R2 deletion on a student delete, the `['test', code]` invalidation after a publish from the list, the body order of the report table.
+- An old `?clasa=` stays in the address after a change of school year (it counts as all classes).
+
+## Done after the build
+
+- The class page's archived toggle sits with the other actions at the top; when every test is archived, the table says so.
+- Cards: a label is a flat tinted block (`.tag`, `.status`, `.class-badge`); "Publică rezultatele" and "Raportul clasei" are both outlined buttons in `.card-actions`. The publish button's accessible name ends with the test code.
+- Class colours: one hue for each class id (golden angle), with three lightness levels.
+- `createSubmission` checks the active enrollment inside its INSERT.
+- Phone width of the test page: the file inputs no longer widen the grid.
+- The student delete confirm says that unfinished and failed uploads go too.
+- Capitals outside the Romanian letters (É, Ö, Ł, ...) fold in the name key.
+- The archived grade column header uses the muted text colour, not `opacity`.
+- "Elevii clasei": a name already in the class is listed once; the row buttons name the student.
 
 ## Rulings made during the build
 

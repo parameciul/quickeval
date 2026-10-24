@@ -56,6 +56,10 @@ describe('studentNameKey', () => {
     expect(studentNameKey('Şerban Ţuţu')).toBe(studentNameKey('Șerban Țuțu'));
   });
 
+  it('ignores case for capitals outside the Romanian letters', () => {
+    expect(studentNameKey('Éva Ömer Çelik Łukasz')).toBe(studentNameKey('éva ömer çelik łukasz'));
+  });
+
   it('keeps diacritics apart from plain letters', () => {
     expect(studentNameKey('Stefan')).not.toBe(studentNameKey('Ștefan'));
   });

@@ -21,10 +21,14 @@ export function parseStudentNames(text: string): string[] {
 }
 
 // Uppercase letters that SQLite's lower() does not fold, with their key form,
-// and the cedilla forms that Romanian lists still use for ș and ț.
+// and the cedilla forms that Romanian lists still use for ș and ț. The Romanian
+// letters come first; the others are the capitals of names from other
+// languages (É, Ö, Ü, Č, Ł, ...), each of which has a one-letter lowercase.
+const FOREIGN_CAPITALS = 'ÁÀÄÅÃÇČĆÉÈÊËÍÌÏÓÒÔÖÕŐŠÚÙÛÜŰÝŽŁÑ';
 const NAME_KEY_FOLDS: readonly (readonly [string, string])[] = [
   ['Ă', 'ă'], ['Â', 'â'], ['Î', 'î'], ['Ș', 'ș'], ['Ț', 'ț'],
   ['Ş', 'ș'], ['ş', 'ș'], ['Ţ', 'ț'], ['ţ', 'ț'],
+  ...Array.from(FOREIGN_CAPITALS, (letter): readonly [string, string] => [letter, letter.toLowerCase()]),
 ];
 
 // The key two names must not share inside one class: the name with letters

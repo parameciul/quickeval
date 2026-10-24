@@ -150,8 +150,10 @@ describe('TestsPage filters', () => {
     renderAdmin('/', withManyClasses());
     const first = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
     const second = screen.getByRole('link', { name: '6E3-26T1' }).closest('li')!;
-    expect(first).toHaveClass('card', 'has-tone', 'class-tone-1');
-    expect(second).toHaveClass('card', 'has-tone', 'class-tone-2');
+    expect(first).toHaveClass('card', 'has-tone', 'class-tone');
+    expect(second).toHaveClass('card', 'has-tone', 'class-tone');
+    expect(first.getAttribute('style')).toContain('--tone-hue');
+    expect(first.getAttribute('style')).not.toBe(second.getAttribute('style'));
     expect(within(first).getByText('Clasa 6E2')).toHaveClass('class-badge');
   });
 });
@@ -171,10 +173,10 @@ describe('TestsPage results', () => {
     renderAdmin('/', api);
     const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
     expect(within(card).getByText('Rezultate nepublicate')).toBeInTheDocument();
-    await userEvent.click(within(card).getByRole('button', { name: 'Publică rezultatele' }));
+    await userEvent.click(within(card).getByRole('button', { name: /^Publică rezultatele/ }));
     expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);
     expect(await within(card).findByText('Rezultate publicate')).toBeInTheDocument();
-    expect(within(card).getByRole('button', { name: 'Oprește accesul' })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: /^Oprește accesul/ })).toBeInTheDocument();
   });
 
   it('stops access from the list', async () => {
@@ -182,7 +184,7 @@ describe('TestsPage results', () => {
     renderAdmin('/', api);
     const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
     expect(within(card).getByText('Rezultate publicate')).toBeInTheDocument();
-    await userEvent.click(within(card).getByRole('button', { name: 'Oprește accesul' }));
+    await userEvent.click(within(card).getByRole('button', { name: /^Oprește accesul/ }));
     expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', false);
     expect(await within(card).findByText('Rezultate nepublicate')).toBeInTheDocument();
   });
@@ -193,7 +195,7 @@ describe('TestsPage results', () => {
     const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
     expect(within(card).getByText('Publicate pentru 2 elevi')).toBeInTheDocument();
     expect(within(card).queryByText('Rezultate nepublicate')).not.toBeInTheDocument();
-    await userEvent.click(within(card).getByRole('button', { name: 'Publică pentru toți' }));
+    await userEvent.click(within(card).getByRole('button', { name: /^Publică pentru toți/ }));
     expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);
     expect(await within(card).findByText('Rezultate publicate')).toBeInTheDocument();
   });
@@ -232,7 +234,7 @@ describe('TestsPage results', () => {
     api.setResultsOpen.mockRejectedValueOnce(new ApiError(409, 'busy', 'Nu am putut publica rezultatele.'));
     renderAdmin('/', api);
     const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
-    await userEvent.click(within(card).getByRole('button', { name: 'Publică rezultatele' }));
+    await userEvent.click(within(card).getByRole('button', { name: /^Publică rezultatele/ }));
     expect(await within(card).findByRole('alert')).toHaveTextContent('Nu am putut publica rezultatele.');
     expect(within(card).getByText('Rezultate nepublicate')).toBeInTheDocument();
   });

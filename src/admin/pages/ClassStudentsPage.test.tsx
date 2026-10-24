@@ -95,16 +95,16 @@ describe('ClassStudentsPage', () => {
     const api = oneClass();
     renderAdmin('/clase/1/elevi', api);
     const row = (await screen.findByText('Pop Ion')).closest('li')!;
-    await userEvent.click(within(row).getByRole('button', { name: 'A plecat' }));
+    await userEvent.click(within(row).getByRole('button', { name: /^A plecat/ }));
     expect(api.setStudentActive).toHaveBeenCalledWith(1, 10, false);
-    expect(await within(row).findByRole('button', { name: 'Revine în clasă' })).toBeInTheDocument();
+    expect(await within(row).findByRole('button', { name: /^Revine în clasă/ })).toBeInTheDocument();
   });
 
   it('renames a student', async () => {
     const api = oneClass();
     renderAdmin('/clase/1/elevi', api);
     const row = (await screen.findByText('Pop Ion')).closest('li')!;
-    await userEvent.click(within(row).getByRole('button', { name: 'Redenumește' }));
+    await userEvent.click(within(row).getByRole('button', { name: /^Redenumește/ }));
     const input = screen.getByLabelText('Numele elevului');
     await userEvent.clear(input);
     await userEvent.type(input, 'Pop Ioan');
@@ -118,8 +118,8 @@ describe('ClassStudentsPage', () => {
     const api = oneClass();
     renderAdmin('/clase/1/elevi', api);
     const row = (await screen.findByText('Pop Ion')).closest('li')!;
-    await userEvent.click(within(row).getByRole('button', { name: 'Șterge' }));
-    expect(confirm).toHaveBeenCalledWith('Ștergi elevul Pop Ion din clasă?');
+    await userEvent.click(within(row).getByRole('button', { name: /^Șterge/ }));
+    expect(confirm).toHaveBeenCalledWith('Ștergi elevul Pop Ion din clasă? Lucrările neterminate sau eșuate ale elevului se șterg și ele.');
     expect(api.deleteStudent).toHaveBeenCalledWith(1, 10);
     await vi.waitFor(() => expect(screen.queryByText('Pop Ion')).not.toBeInTheDocument());
   });
@@ -129,7 +129,7 @@ describe('ClassStudentsPage', () => {
     const api = oneClass();
     renderAdmin('/clase/1/elevi', api);
     const row = (await screen.findByText('Pop Ion')).closest('li')!;
-    await userEvent.click(within(row).getByRole('button', { name: 'Șterge' }));
+    await userEvent.click(within(row).getByRole('button', { name: /^Șterge/ }));
     expect(api.deleteStudent).not.toHaveBeenCalled();
     expect(screen.getByText('Pop Ion')).toBeInTheDocument();
   });
@@ -143,9 +143,9 @@ describe('ClassStudentsPage', () => {
       ]),
     );
     const kept = (await screen.findByText('Pop Ion')).closest('li')!;
-    expect(within(kept).queryByRole('button', { name: 'Șterge' })).not.toBeInTheDocument();
+    expect(within(kept).queryByRole('button', { name: /^Șterge/ })).not.toBeInTheDocument();
     const other = screen.getByText('Stan Eva').closest('li')!;
-    expect(within(other).getByRole('button', { name: 'Șterge' })).toBeInTheDocument();
+    expect(within(other).getByRole('button', { name: /^Șterge/ })).toBeInTheDocument();
   });
 
   it('shows a refused delete', async () => {
@@ -157,7 +157,7 @@ describe('ClassStudentsPage', () => {
     );
     renderAdmin('/clase/1/elevi', api);
     const row = (await screen.findByText('Pop Ion')).closest('li')!;
-    await userEvent.click(within(row).getByRole('button', { name: 'Șterge' }));
+    await userEvent.click(within(row).getByRole('button', { name: /^Șterge/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Elevul are lucrări trimise sau corectate în această clasă. Îl poți marca „A plecat”.');
     expect(screen.getByText('Pop Ion')).toBeInTheDocument();
     // The class is read again, so a stale delete button can go away.
@@ -173,7 +173,7 @@ describe('ClassStudentsPage', () => {
     });
     renderAdmin('/clase/1/elevi', api);
     const row = (await screen.findByText('Pop Ion')).closest('li')!;
-    await userEvent.click(within(row).getByRole('button', { name: 'Șterge' }));
+    await userEvent.click(within(row).getByRole('button', { name: /^Șterge/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Elevul are lucrări trimise sau corectate');
   });
 

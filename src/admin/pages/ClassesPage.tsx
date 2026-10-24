@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import type { ClassSummary } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
-import { classToneClass } from '../../ui/classTone.ts';
+import { classToneClass, classToneStyle } from '../../ui/classTone.ts';
 import { studentCountLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -65,7 +65,7 @@ export function ClassesPage() {
       {classes.data && classes.data.length > 0 && (
         <ul className="card-list">
           {classes.data.map((item) => (
-            <li key={item.id} className={`card has-tone ${classToneClass(item.id)}${item.archived ? ' is-muted' : ''}`}>
+            <li key={item.id} className={`card has-tone ${classToneClass()}${item.archived ? ' is-muted' : ''}`} style={classToneStyle(item.id)}>
               <Link className="card-title" to={`/clase/${item.id}`}>
                 {displayClassName(item.name)}
               </Link>

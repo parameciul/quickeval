@@ -113,18 +113,25 @@ function StudentItem({ classId, student, onChanged }: { classId: number; student
         {student.fullName}
       </Link>
       {!student.active && <span className="tag">a plecat</span>}
-      <button type="button" className="button-quiet button-small" onClick={() => setEditing(true)}>
+      <button type="button" className="button-quiet button-small" aria-label={`Redenumește ${student.fullName}`} onClick={() => setEditing(true)}>
         Redenumește
       </button>
-      <button type="button" className="button-quiet button-small" onClick={() => toggle.mutate()} disabled={toggle.isPending}>
+      <button
+        type="button"
+        className="button-quiet button-small"
+        aria-label={`${student.active ? 'A plecat' : 'Revine în clasă'}: ${student.fullName}`}
+        onClick={() => toggle.mutate()}
+        disabled={toggle.isPending}
+      >
         {student.active ? 'A plecat' : 'Revine în clasă'}
       </button>
       {student.canDelete && (
         <button
           type="button"
           className="button-quiet button-small"
+          aria-label={`Șterge ${student.fullName}`}
           onClick={() => {
-            if (window.confirm(`Ștergi elevul ${student.fullName} din clasă?`)) remove.mutate();
+            if (window.confirm(`Ștergi elevul ${student.fullName} din clasă? Lucrările neterminate sau eșuate ale elevului se șterg și ele.`)) remove.mutate();
           }}
           disabled={remove.isPending}
         >
@@ -149,7 +156,7 @@ function duplicateNames(names: string[], students: StudentRow[]): { inClass: str
   for (const name of names) {
     const key = studentNameKey(name);
     if (inClassKeys.has(key)) {
-      inClass.push(name);
+      if (!seen.has(key)) inClass.push(name);
     } else if (seen.has(key)) {
       if (!twiceKeys.has(key)) twice.push(name);
       twiceKeys.add(key);

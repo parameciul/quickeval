@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { MAX_TITLE_LENGTH, normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
-import { classToneClass } from '../../ui/classTone.ts';
+import { classToneClass, classToneStyle } from '../../ui/classTone.ts';
 import { formatDateTime, robotStartMessage } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -107,7 +107,7 @@ function TestDetails({ code }: { code: string }) {
       </div>
       <p className="lead-line">
         {test.title} ·{' '}
-        <Link className={`class-badge ${classToneClass(test.classId)}`} to={`/clase/${test.classId}`}>
+        <Link className={`class-badge ${classToneClass()}`} style={classToneStyle(test.classId)} to={`/clase/${test.classId}`}>
           {displayClassName(test.className)}
         </Link>
         {test.startedAt && ` · început ${formatDateTime(test.startedAt)}`}

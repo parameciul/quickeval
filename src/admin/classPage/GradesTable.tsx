@@ -90,6 +90,9 @@ export function GradesTable({
   }
 
   const shown = tests.filter((test) => showArchived || !test.archived);
+  if (shown.length === 0) {
+    return <p className="hint">Toate testele clasei sunt arhivate. Apasă „Arată și testele arhivate”.</p>;
+  }
   const byCell = new Map(grades.map((grade) => [gradeKey(grade.studentId, grade.testCode), grade]));
   return (
     <div className="table-wrap">
