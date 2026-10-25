@@ -127,8 +127,11 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
     const listsTried = new Set<number>();
     // The same for an analysis: one try per test and run.
     const analysesTried = new Set<number>();
-    // The same for a print PDF. When the image cannot be built, the run makes
-    // no print PDF at all.
+    // A print PDF that failed but has attempts left is tried again in the next
+    // round (the API fails it for good after 3 attempts): a slow first
+    // LibreOffice start must not leave the teacher waiting for the next run.
+    // Any other end is tried once per run. When the image cannot be built,
+    // the run makes no print PDF at all.
     const printsTried = new Set<number>();
     const print = options.print;
     let printsOff = false;
@@ -136,12 +139,14 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
       const tasks = await api.tasks();
       let started = 0;
       // The print PDFs first: the teacher waits for them, and they are quick.
-      for (const testId of tasks.prints) {
+      // An older API sends no print jobs.
+      for (const testId of tasks.prints ?? []) {
         if (!print || printsOff || printsTried.has(testId) || !canTake()) continue;
-        printsTried.add(testId);
         started += 1;
         try {
-          record(await makePrint(ctx, print, testId), 'prints');
+          const end = await makePrint(ctx, print, testId);
+          if (end !== 'retry') printsTried.add(testId);
+          record(end, 'prints');
         } catch (err) {
           if (!(err instanceof PrintSetupError)) throw err;
           failure = true;

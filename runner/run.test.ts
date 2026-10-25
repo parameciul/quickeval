@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { runIdSchema } from '../shared/runner.ts';
+import { runIdSchema, type TasksResult } from '../shared/runner.ts';
 import type { ExerciseList, GradingResult } from '../shared/schemas.ts';
-import { robotApi } from './api.ts';
+import { type RobotApi, robotApi } from './api.ts';
 import { PrintSetupError } from './printTask.ts';
 import { main, newRunId, type RunOptions, runRobot } from './run.ts';
 import { addOpenTest, API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
@@ -355,6 +355,57 @@ describe('runRobot and the print PDFs', () => {
     const tools = { prepare: async () => undefined, run: () => Promise.reject({ kind: 'failed' }) };
     const { run } = recorded({ print: { tools, siteUrl: API_URL } });
     const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' }, exitCode: 0 });
+  });
+
+  it('tries a failed print again in the same run, until it fails for good', async () => {
+    await setUp(1, 1);
+    const open = await addOpenTest(world!.api, 'pdf');
+    let runs = 0;
+    const tools = {
+      prepare: async () => undefined,
+      run: () => {
+        runs += 1;
+        return Promise.reject({ kind: 'failed' });
+      },
+    };
+    const { run } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' }, exitCode: 0 });
+    expect(runs).toBe(3);
+    expect(await printRow(open.testId)).toEqual({ print_status: 'failed', print_attempts: 3 });
+  });
+
+  it('makes a print that failed once in the next round of the same run', async () => {
+    await setUp(1, 1);
+    const open = await addOpenTest(world!.api, 'pdf');
+    let runs = 0;
+    const tools = {
+      prepare: async () => undefined,
+      run: async (_args: string[], dir: string) => {
+        runs += 1;
+        if (runs === 1) throw { kind: 'timeout' };
+        writeFileSync(path.join(dir, 'out.pdf'), '%PDF-1.7 stamped');
+      },
+    };
+    const { run } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 1, stop: 'done' }, exitCode: 0 });
+    expect(await printRow(open.testId)).toEqual({ print_status: 'ready', print_attempts: 1 });
+  });
+
+  it('runs against an API that sends no print jobs', async () => {
+    await setUp(1, 1);
+    await addOpenTest(world!.api, 'pdf');
+    const { run } = recorded({ print: { tools: fakeTools(), siteUrl: API_URL } });
+    const older: RobotApi = {
+      ...run.api,
+      tasks: async () => {
+        const { prints: _prints, ...rest } = await run.api.tasks();
+        return rest as TasksResult;
+      },
+    };
+    const report = await runRobot({ ...run, api: older });
     expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' }, exitCode: 0 });
   });
 });
