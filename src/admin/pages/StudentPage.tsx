@@ -24,6 +24,9 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
   if (history.isPending) return <p>Se încarcă…</p>;
   if (history.error) return <ErrorMessage error={history.error} />;
   const { student, classes, results } = history.data;
+  // The class column shows only when the tests come from more than one class
+  // (a student who moved up): with one class, the line under the name says it.
+  const manyClasses = new Set(results.map((result) => `${result.className}|${result.schoolYear}`)).size > 1;
 
   return (
     <section>
@@ -52,7 +55,7 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
             <thead>
               <tr>
                 <th scope="col">Testul</th>
-                <th scope="col">Clasa</th>
+                {manyClasses && <th scope="col">Clasa</th>}
                 <th scope="col">Data</th>
                 <th scope="col">Nota</th>
                 <th scope="col">De verificat</th>
@@ -66,9 +69,11 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
                       {result.testCode} · {result.testTitle}
                     </Link>
                   </th>
-                  <td>
-                    {displayClassName(result.className)}, {formatSchoolYear(result.schoolYear)}
-                  </td>
+                  {manyClasses && (
+                    <td>
+                      {displayClassName(result.className)}, {formatSchoolYear(result.schoolYear)}
+                    </td>
+                  )}
                   <td>{formatDateTime(result.date)}</td>
                   <td>{formatPoints(result.grade)}</td>
                   <td>{result.flagCount > 0 ? result.flagCount : '—'}</td>

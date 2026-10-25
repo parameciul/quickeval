@@ -51,11 +51,20 @@ describe('StudentPage', () => {
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual(['7E2-27T1 · Funcții', '6E2-26T1 · Fracții']);
     const first = rows[1]!;
     expect(within(first).getByRole('link', { name: '6E2-26T1 · Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
+    expect(screen.getByRole('columnheader', { name: 'Clasa' })).toBeInTheDocument();
     expect(within(first).getByText('Clasa 6E2, 2026-2027')).toBeInTheDocument();
     expect(within(first).getByText('6 oct. 2026, 10:15')).toBeInTheDocument();
     expect(within(first).getByText('7,5')).toBeInTheDocument();
     expect(within(first).getByText('2')).toBeInTheDocument();
     expect(within(rows[0]!).getByText('9,25')).toBeInTheDocument();
+  });
+
+  it('leaves out the class column when every test is from the same class', async () => {
+    const one: StudentHistory = { ...history, classes: [history.classes[1]!], results: [history.results[1]!] };
+    renderAdmin('/elevi/10', apiWith([one]));
+    await screen.findByRole('rowheader', { name: '6E2-26T1 · Fracții' });
+    expect(screen.queryByRole('columnheader', { name: 'Clasa' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Clasa 6E2, 2026-2027')).toHaveLength(1);
   });
 
   it('says so when the student has no graded test', async () => {
