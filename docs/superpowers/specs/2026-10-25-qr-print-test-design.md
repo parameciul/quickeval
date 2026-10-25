@@ -144,4 +144,4 @@ A block "Testul pentru tipărit" on the test page, next to the student link, onl
 - The exact strip-emptiness check (PyMuPDF's text blocks, drawings, and images), with a full-page background box ignored.
 - Whether the container image is cached between runs.
 - Spec updates (§7, §8.2, §11.1, §11.3, §12) as the plan's first task.
-- The spike's files are in the git-ignored folder `.superpowers/qr-print-spike/` (`stamp.py`, `Dockerfile.tdf`, `decode.py`, `run11.sh`); the plan copies what it keeps.
+- The spike's files are in the untracked folder `.superpowers/qr-print-spike/` (`stamp.py`, `Dockerfile.tdf`, `decode.py`, `run11.sh`); the plan copies what it keeps.
