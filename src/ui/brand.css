@@ -1904,8 +1904,21 @@ table.grades-table tbody .tag {
   margin-top: 1rem;
 }
 
+.file-title {
+  margin: 0;
+}
+
+/* The test with the QR code: its own part of the test's card, set off by a rule. */
 .print-test {
-  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--rule);
+}
+
+.print-test > * {
+  margin: 0;
 }
 
 .busy-line {

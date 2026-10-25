@@ -85,14 +85,16 @@ function TestFileRow({
 
   return (
     <li>
-      <strong>{names.title}:</strong>{' '}
-      {file ? (
-        <a href={testFileUrl(code, kind)} target="_blank" rel="noopener">
-          {file.name}
-        </a>
-      ) : (
-        <span className="hint">lipsește</span>
-      )}
+      <p className="file-title">
+        <strong>{names.title}:</strong>{' '}
+        {file ? (
+          <a href={testFileUrl(code, kind)} target="_blank" rel="noopener">
+            {file.name}
+          </a>
+        ) : (
+          <span className="hint">lipsește</span>
+        )}
+      </p>
       <TestFileInput
         key={round}
         id={`file-${kind}`}
