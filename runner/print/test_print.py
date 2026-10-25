@@ -141,14 +141,35 @@ class StampTest(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), 'pages=1')
 
 
+# Every sign that broke in the spike sits inside the Word equation (m:oMath),
+# where LibreOffice's math font draws it: "sup", the set difference A∖B, and
+# ℕ with a superscript *. Plain text around them would let the test pass on the
+# text font alone.
 DOCUMENT = (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
     ' xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">'
-    '<w:body><w:p><w:r><w:t>A∖B si ℕ* :</w:t></w:r>'
+    '<w:body><w:p><w:r><w:t>Fie multimile:</w:t></w:r>'
     '<m:oMath><m:func><m:fName><m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t>sup</m:t></m:r></m:fName>'
-    '<m:e><m:r><m:t>A</m:t></m:r></m:e></m:func><m:r><m:t>=ℝ</m:t></m:r></m:oMath></w:p></w:body></w:document>'
+    '<m:e><m:r><m:t>A</m:t></m:r></m:e></m:func><m:r><m:t>=ℝ,</m:t></m:r>'
+    '<m:r><m:t>A∖B,</m:t></m:r>'
+    '<m:sSup><m:e><m:r><m:t>ℕ</m:t></m:r></m:e><m:sup><m:r><m:t>*</m:t></m:r></m:sup></m:sSup>'
+    '</m:oMath></w:p></w:body></w:document>'
 )
+# The font that the spike's broken conversions used for "∖": its glyph prints
+# like a divides sign.
+BAD_FONT = 'DejaVuSans'
+
+
+def fonts_of(page, sign):
+    """The fonts of the text spans of the page that hold `sign`."""
+    found = []
+    for block in page.get_text('dict')['blocks']:
+        for line in block.get('lines', []):
+            for span in line['spans']:
+                if sign in span['text']:
+                    found.append(span['font'])
+    return found
 CONTENT_TYPES = (
     '<?xml version="1.0" encoding="UTF-8"?>'
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
@@ -178,10 +199,15 @@ class ConvertTest(unittest.TestCase):
                 [sys.executable, '/app/docx_to_pdf.py', docx, '-o', pdf], capture_output=True, text=True
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            text = pymupdf.open(pdf)[0].get_text()
+            page = pymupdf.open(pdf)[0]
+            text = page.get_text()
             for wanted in ('sup', 'ℕ', '∖', 'ℝ'):
                 self.assertIn(wanted, text)
             self.assertNotIn('¿', text)
+            fonts = fonts_of(page, '∖')
+            self.assertTrue(fonts, 'no text span holds the set difference sign')
+            for font in fonts:
+                self.assertNotIn(BAD_FONT, font)
 
 
 if __name__ == '__main__':

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { crc32 } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { dockerTools } from '../printTask.ts';
+import { CONVERT_MS, dockerTools, STAMP_MS } from '../printTask.ts';
 
 const FOLDER = path.resolve(import.meta.dirname);
 const IMAGE = 'quickeval-print-test';
@@ -88,15 +88,19 @@ describe.skipIf(process.env.QE_PRINT_IMAGE_TESTS !== '1')('print container', () 
     expect(run.status, run.stdout + run.stderr).toBe(0);
   });
 
-  it('has no DejaVu or Noto font in the system font folders', { timeout: 15 * 60_000 }, () => {
+  it('has no DejaVu or Noto font outside LibreOffice', { timeout: 15 * 60_000 }, () => {
     const build = spawnSync('docker', ['build', '-t', IMAGE, FOLDER], { encoding: 'utf8', timeout: 15 * 60_000 });
     expect(build.status, build.stderr).toBe(0);
     const list = spawnSync('docker', ['run', '--rm', IMAGE, 'fc-list', ':', 'file'], { encoding: 'utf8', timeout: 60_000 });
     expect(list.status, list.stderr).toBe(0);
-    // LibreOffice's own fonts under /opt may include either family; they are not the system's.
-    const system = list.stdout.split('\n').filter((line) => line.startsWith('/usr/share/fonts/'));
-    expect(system.some((line) => /liberation/i.test(line))).toBe(true);
-    expect(system.filter((line) => /dejavu|noto/i.test(line))).toEqual([]);
+    // LibreOffice's own fonts under /opt/libreoffice<version>/ may include
+    // either family; every other font that fontconfig finds is checked.
+    const fonts = list.stdout
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('/opt/libreoffice'));
+    expect(fonts.some((line) => /liberation/i.test(line))).toBe(true);
+    expect(fonts.filter((line) => /dejavu|noto/i.test(line))).toEqual([]);
   });
 
   it('converts and stamps a Word file exactly as the robot runs the container', { timeout: 15 * 60_000 }, async () => {
@@ -105,9 +109,10 @@ describe.skipIf(process.env.QE_PRINT_IMAGE_TESTS !== '1')('print container', () 
     const folder = mkdtempSync(path.join(tmpdir(), 'qe-print-container-'));
     try {
       writeFileSync(path.join(folder, 'in.docx'), storedZip(WORD_PARTS));
-      await tools.run(['python3', '/app/docx_to_pdf.py', '/work/in.docx', '-o', '/work/converted.pdf'], folder, 3 * 60_000);
+      // The robot's own limits: a cold container must convert in time.
+      await tools.run(['python3', '/app/docx_to_pdf.py', '/work/in.docx', '-o', '/work/converted.pdf'], folder, CONVERT_MS);
       const link = 'https://quickeval.test/u/abcdefghijklmnop';
-      await tools.run(['python3', '/app/stamp_qr.py', '/work/converted.pdf', '/work/out.pdf', link, 'quickeval.test/u/abcdefghijklmnop'], folder, 60_000);
+      await tools.run(['python3', '/app/stamp_qr.py', '/work/converted.pdf', '/work/out.pdf', link, 'quickeval.test/u/abcdefghijklmnop'], folder, STAMP_MS);
       const out = path.join(folder, 'out.pdf');
       expect(readFileSync(out).subarray(0, 5).toString('latin1')).toBe('%PDF-');
       // On Linux the container wrote as this user, so the robot can remove it.
