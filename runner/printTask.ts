@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DOCX_TYPE, PDF_TYPE } from '../shared/files.ts';
 import type { RobotError } from '../shared/runner.ts';
+import { RobotApiError } from './api.ts';
 import { log } from './log.ts';
 import type { TaskContext, TaskEnd } from './tasks.ts';
 import { refusal } from './tasks.ts';
@@ -16,7 +17,10 @@ import { removeFolder } from './workdir.ts';
 
 export const PRINT_IMAGE = 'quickeval-print';
 const BUILD_MS = 10 * 60_000;
-const STEP_MS = 60_000;
+// The Word conversion can start LibreOffice twice (docx_to_pdf.py tries again
+// with a fresh profile), each time with a cold /tmp in a new container.
+export const CONVERT_MS = 180_000;
+export const STAMP_MS = 60_000;
 const KILL_MS = 30_000;
 // LibreOffice and the image build can print a lot; the output is never read.
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
@@ -37,10 +41,13 @@ export class PrintSetupError extends Error {}
 // command holds the student link.
 class PrintStepError extends Error {
   readonly kind: 'timeout' | 'failed';
+  // execFile stopped the docker client (a timeout, or too much output).
+  readonly killed: boolean;
 
-  constructor(kind: 'timeout' | 'failed') {
+  constructor(kind: 'timeout' | 'failed', killed = false) {
     super(`print step: ${kind}`);
     this.kind = kind;
+    this.killed = killed;
   }
 }
 
@@ -49,8 +56,9 @@ function docker(args: string[], timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile('docker', args, { timeout: timeoutMs, maxBuffer: MAX_OUTPUT_BYTES, windowsHide: true }, (err) => {
       if (!err) return resolve();
-      const timedOut = err.killed === true && err.code !== 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER';
-      reject(new PrintStepError(timedOut ? 'timeout' : 'failed'));
+      const killed = err.killed === true;
+      const timedOut = killed && err.code !== 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER';
+      reject(new PrintStepError(timedOut ? 'timeout' : 'failed', killed));
     });
   });
 }
@@ -75,7 +83,7 @@ export function dockerTools(contextDir: string = fileURLToPath(new URL('./print/
         await docker(['run', '--rm', '--name', name, '--network', 'none', ...user, '-v', `${path.resolve(folder)}:/work`, PRINT_IMAGE, ...args], timeoutMs);
       } catch (err) {
         // Stopping the docker client leaves the container running.
-        if (err instanceof PrintStepError && err.kind === 'timeout') await docker(['kill', name], KILL_MS).catch(() => undefined);
+        if (err instanceof PrintStepError && err.killed) await docker(['kill', name], KILL_MS).catch(() => undefined);
         throw err instanceof PrintStepError ? err : new PrintStepError('failed');
       }
     },
@@ -83,6 +91,9 @@ export function dockerTools(contextDir: string = fileURLToPath(new URL('./print/
 }
 
 const isTimeout = (err: unknown) => typeof err === 'object' && err !== null && (err as { kind?: unknown }).kind === 'timeout';
+// The answers to an upload that only the print PDF's bytes can explain, on top
+// of refusal()'s 413 and 422.
+const refusedPdf = (err: unknown) => err instanceof RobotApiError && (err.status === 400 || err.status === 415);
 
 // Makes the print PDF of a test and sends it, or sends why it failed. A
 // PrintSetupError goes up to the run loop, with nothing sent.
@@ -111,10 +122,10 @@ export async function makePrint(ctx: TaskContext, print: { tools: PrintTools; si
       try {
         let input = '/work/in.pdf';
         if (fileType === 'docx') {
-          await print.tools.run(['python3', '/app/docx_to_pdf.py', '/work/in.docx', '-o', '/work/converted.pdf'], folder, STEP_MS);
+          await print.tools.run(['python3', '/app/docx_to_pdf.py', '/work/in.docx', '-o', '/work/converted.pdf'], folder, CONVERT_MS);
           input = '/work/converted.pdf';
         }
-        await print.tools.run(['python3', '/app/stamp_qr.py', input, '/work/out.pdf', link, label], folder, STEP_MS);
+        await print.tools.run(['python3', '/app/stamp_qr.py', input, '/work/out.pdf', link, label], folder, STAMP_MS);
         pdf = await readFile(path.join(folder, 'out.pdf'));
       } catch (err) {
         // The error is never logged: a script's message holds the link.
@@ -124,9 +135,10 @@ export async function makePrint(ctx: TaskContext, print: { tools: PrintTools; si
         await ctx.api.sendPrint(testId, ctx.runId, job.filesVersion, pdf);
         return 'saved';
       } catch (err) {
-        // A PDF that the API refuses counts an attempt, so it fails in the end
-        // instead of being made by every run.
-        if (refusal(err) === 'invalid') return sendError('crash');
+        // A PDF that the API refuses (a bad request, not a PDF, too large,
+        // invalid) counts an attempt, so it fails in the end instead of
+        // being made by every run.
+        if (refusal(err) === 'invalid' || refusedPdf(err)) return sendError('crash');
         throw err;
       }
     })();

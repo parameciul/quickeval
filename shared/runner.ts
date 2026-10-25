@@ -115,8 +115,8 @@ export interface TasksResult {
   prints: number[];
 }
 
-// One print PDF to make: the test file, and the one-time token that uploads
-// the result.
+// One print PDF to make: the test file's type and version, and the students'
+// upload token of the test, which the QR link holds (<site>/u/<uploadToken>).
 export interface PrintJob {
   testId: number;
   filesVersion: number;

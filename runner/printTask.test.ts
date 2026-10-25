@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RobotApi } from './api.ts';
-import { robotApi } from './api.ts';
+import { robotApi, RobotApiError } from './api.ts';
 import { makePrint, PrintSetupError, type PrintTools } from './printTask.ts';
 import type { TaskContext } from './tasks.ts';
 import { API_URL, fetchFrom, type OpenTest, openTestWithFile, ROBOT_KEY, SOURCE_BYTES } from './test/robotWorld.ts';
@@ -110,7 +110,8 @@ describe('makePrint', () => {
       ['python3', '/app/docx_to_pdf.py', '/work/in.docx', '-o', '/work/converted.pdf'],
       ['python3', '/app/stamp_qr.py', '/work/converted.pdf', '/work/out.pdf', `https://quickeval.test/u/${open.uploadToken}`, `quickeval.test/u/${open.uploadToken}`],
     ]);
-    expect(tools.calls.map((call) => call.timeoutMs)).toEqual([60_000, 60_000]);
+    // The conversion may start LibreOffice twice, each time with a cold profile.
+    expect(tools.calls.map((call) => call.timeoutMs)).toEqual([180_000, 60_000]);
     expect(await printRow()).toMatchObject({ print_status: 'ready' });
   });
 
@@ -144,6 +145,31 @@ describe('makePrint', () => {
     expect(await makePrint(empty.ctx, empty.print, open.testId)).toBe('failed');
     expect(await printRow()).toMatchObject({ print_status: 'failed', print_attempts: 3 });
     expect(errors).toEqual(['crash', 'timeout', 'crash']);
+  });
+
+  it.each([400, 413, 415, 422])('counts a PDF that the API refuses with %i as a crash', async (status) => {
+    await setUp('pdf');
+    const errors: string[] = [];
+    const refusing = (robot: RobotApi): RobotApi => ({
+      ...robot,
+      sendPrint: () => Promise.reject(new RobotApiError(status, 'invalid')),
+      sendPrintFailed: (testId, body) => {
+        errors.push(body.error);
+        return robot.sendPrintFailed(testId, body);
+      },
+    });
+    const { ctx, print } = context(fakeTools(), refusing);
+    expect(await makePrint(ctx, print, open.testId)).toBe('retry');
+    expect(errors).toEqual(['crash']);
+    expect(await printRow()).toMatchObject({ print_status: 'none', print_attempts: 1 });
+  });
+
+  it('stops the run when the API fails otherwise', async () => {
+    await setUp('pdf');
+    const down = (robot: RobotApi): RobotApi => ({ ...robot, sendPrint: () => Promise.reject(new RobotApiError(500, 'internal')) });
+    const { ctx, print } = context(fakeTools(), down);
+    await expect(makePrint(ctx, print, open.testId)).rejects.toBeInstanceOf(RobotApiError);
+    expect(await printRow()).toMatchObject({ print_status: 'none', print_attempts: 0 });
   });
 
   it('drops a print whose test file changed', async () => {
