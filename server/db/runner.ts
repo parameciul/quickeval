@@ -5,6 +5,7 @@ import {
   type CheckResult,
   type ClaimResult,
   type ClassResults,
+  type PrintJob,
   type RobotError,
   type RobotTest,
   type RunSummary,
@@ -58,6 +59,7 @@ export async function testHasRobotWork(db: D1Database, testId: number, now: stri
       `SELECT 1 AS found FROM tests t WHERE t.id = ? AND (
          (${NEEDS_EXERCISE_LIST})
          OR (${NEEDS_ANALYSIS})
+         OR (${NEEDS_PRINT})
          OR EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND ${GRADABLE})
          OR EXISTS (
            SELECT 1 FROM submissions s
@@ -81,7 +83,7 @@ export async function runCheck(
   now: string,
   configured: { model?: string; effort?: string } = {},
 ): Promise<CheckResult> {
-  const results = await db.batch<{ exercise_lists: number; pending_grading: number; analyses: number }>([
+  const results = await db.batch<{ exercise_lists: number; pending_grading: number; analyses: number; prints: number }>([
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', run_id = NULL
@@ -95,14 +97,16 @@ export async function runCheck(
     db.prepare(
       `SELECT (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_EXERCISE_LIST}) AS exercise_lists,
          (SELECT COUNT(*) FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}) AS pending_grading,
-         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_ANALYSIS}) AS analyses`,
+         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_ANALYSIS}) AS analyses,
+         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_PRINT}) AS prints`,
     ),
   ]);
   const counts = results.at(-1)?.results[0];
   const exerciseLists = counts?.exercise_lists ?? 0;
   const pendingGrading = counts?.pending_grading ?? 0;
   const analyses = counts?.analyses ?? 0;
-  return { hasWork: exerciseLists + pendingGrading + analyses > 0, exerciseLists, pendingGrading, analyses, prints: 0 };
+  const prints = counts?.prints ?? 0;
+  return { hasWork: exerciseLists + pendingGrading + analyses + prints > 0, exerciseLists, pendingGrading, analyses, prints };
 }
 
 // The model and effort the robot is set to use, kept for Setări. A robot that
@@ -180,13 +184,14 @@ export async function releaseLease(db: D1Database, runId: string, summary: RunSu
 }
 
 export async function listTasks(db: D1Database): Promise<TasksResult> {
-  const [lists, grading, analyses] = await db.batch<{ id?: number; count?: number }>([
+  const [lists, grading, analyses, prints] = await db.batch<{ id?: number; count?: number }>([
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
     db.prepare(`SELECT COUNT(*) AS count FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}`),
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_ANALYSIS} ORDER BY t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_PRINT} ORDER BY t.started_at, t.id`),
   ]);
   const ids = (rows: { id?: number }[] | undefined) => (rows ?? []).map((row) => row.id!);
-  return { exerciseLists: ids(lists?.results), pendingGrading: grading?.results[0]?.count ?? 0, analyses: ids(analyses?.results), prints: [] };
+  return { exerciseLists: ids(lists?.results), pendingGrading: grading?.results[0]?.count ?? 0, analyses: ids(analyses?.results), prints: ids(prints?.results) };
 }
 
 export interface RobotTestRecord {
@@ -287,6 +292,93 @@ export async function failExerciseList(
     .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], now, testId, filesVersion, runId)
     .first<{ exercise_list_status: ExerciseListStatus; exercise_list_message: string | null }>();
   return listInfo(row);
+}
+
+// The print job of a test that waits for its print PDF, with what the route
+// needs to read the test file and name the result. Null for any other test:
+// the robot sees an open test only through this job.
+export async function findPrintJob(
+  db: D1Database,
+  testId: number,
+): Promise<{ job: PrintJob; testFileKey: string; teacherId: number; schoolYear: number; code: string; testFileName: string } | null> {
+  const row = await db
+    .prepare(
+      `SELECT t.id, t.files_version, t.test_file_key, t.test_file_type, t.test_file_name, t.upload_token, t.teacher_id, t.code, c.school_year
+       FROM tests t JOIN classes c ON c.id = t.class_id
+       WHERE t.id = ? AND ${NEEDS_PRINT}`,
+    )
+    .bind(testId)
+    .first<{
+      id: number;
+      files_version: number;
+      test_file_key: string;
+      test_file_type: string | null;
+      test_file_name: string | null;
+      upload_token: string;
+      teacher_id: number;
+      code: string;
+      school_year: number;
+    }>();
+  if (!row || !row.test_file_type || !row.test_file_name) return null;
+  return {
+    job: { testId: row.id, filesVersion: row.files_version, contentType: row.test_file_type, uploadToken: row.upload_token },
+    testFileKey: row.test_file_key,
+    teacherId: row.teacher_id,
+    schoolYear: row.school_year,
+    code: row.code,
+    testFileName: row.test_file_name,
+  };
+}
+
+// A print PDF is saved or failed only for a test that still waits for it,
+// only from the run that holds the lease, and only when the teacher did not
+// replace the test file after the robot read it.
+// The local engine refuses `UPDATE tests AS t`, so the writes name the table:
+// the shared condition is used with `tests.` for its `t.`.
+const WAITS_FOR_PRINT = `tests.id = ? AND tests.files_version = ? AND ${NEEDS_PRINT.replace(/\bt\./g, 'tests.')} AND ${HOLDS_LEASE}`;
+
+// False when nothing was saved.
+export async function savePrint(db: D1Database, testId: number, runId: string, filesVersion: number, key: string, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET print_status = 'ready', print_file_key = ?, updated_at = ?
+       WHERE ${WAITS_FOR_PRINT}
+       RETURNING id`,
+    )
+    .bind(key, now, testId, filesVersion, runId)
+    .first<{ id: number }>();
+  return row !== null;
+}
+
+// Whether the test's print PDF is stored under this key.
+export async function printKeyIs(db: D1Database, testId: number, key: string): Promise<boolean> {
+  const row = await db.prepare('SELECT 1 AS found FROM tests WHERE id = ? AND print_file_key = ?').bind(testId, key).first<{ found: number }>();
+  return row !== null;
+}
+
+// The robot could not make the PDF: one more attempt is counted (none for a
+// usage limit), and at MAX_ATTEMPTS the print fails and the teacher can try
+// again. Null when nothing was saved.
+export async function failPrint(
+  db: D1Database,
+  testId: number,
+  runId: string,
+  filesVersion: number,
+  error: RobotError,
+  now: string,
+): Promise<'none' | 'failed' | null> {
+  const counted = error === 'usage_limit' ? 0 : 1;
+  const row = await db
+    .prepare(
+      `UPDATE tests SET print_attempts = print_attempts + ?,
+         print_status = CASE WHEN print_attempts + ? >= ? THEN 'failed' ELSE 'none' END,
+         updated_at = ?
+       WHERE ${WAITS_FOR_PRINT}
+       RETURNING print_status`,
+    )
+    .bind(counted, counted, MAX_ATTEMPTS, now, testId, filesVersion, runId)
+    .first<{ print_status: 'none' | 'failed' }>();
+  return row?.print_status ?? null;
 }
 
 // Whether the run holds the lease now.

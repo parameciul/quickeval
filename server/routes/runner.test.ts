@@ -125,6 +125,8 @@ describe('POST /api/runner/check: the configured model and effort', () => {
 
 describe('POST /api/runner/check', () => {
   it('says there is no work and saves the time of the check', async () => {
+    // The open test has a test file: its print PDF is made, so no print job waits.
+    await setTest("print_status = 'ready', print_file_key = 'fixture/print.pdf'");
     const res = await robot('POST', '/check');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ hasWork: false, exerciseLists: 0, pendingGrading: 0, analyses: 0, prints: 0 });
