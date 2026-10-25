@@ -2,9 +2,6 @@ import { vi } from 'vitest';
 import type {
   AnalysisAnswer,
   BaremNotesAnswer,
-  PrintRetryAnswer,
-  StartedTest,
-  ReopenAnswer,
   ClassReport,
   ClassSummary,
   EvaluationInfo,
@@ -12,9 +9,12 @@ import type {
   EvaluationStart,
   ItemCorrection,
   PagesReview,
+  PrintRetryAnswer,
   RegradeAnswer,
+  ReopenAnswer,
   RobotStart,
   Settings,
+  StartedTest,
   StudentHistory,
   StudentRow,
   SubmissionDetail,
@@ -432,7 +432,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     // Like the server: only a failed print PDF is made again, by the robot.
     retryPrint: vi.fn(async (code: string): Promise<PrintRetryAnswer> => {
       const found = findTest(code).test;
-      if (found.print.status !== 'failed') throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu a eșuat.');
+      if (found.print.status !== 'failed') throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu poate fi încercat din nou.');
       found.print = { status: 'none', fromWord: found.print.fromWord };
       return { print: found.print, robot: 'dispatched' };
     }),

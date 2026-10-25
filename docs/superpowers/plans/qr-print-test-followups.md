@@ -4,16 +4,14 @@ Left open after the build of feature/qr-print-test (2026-10-25). None blocks the
 
 ## Small items
 
-- Task 1: server/db/tests.ts:2 type import order
-- Task 2: routes/tests.ts:495 nested ternary readability; db/tests.ts:79 comment wrap; retry 409 message covers not-open too; import order in src/admin/api.ts and fakeApi
-- Task 2: routes/tests.ts:493 a robot print saved between the route's read and saveTestFile is orphaned in R2 (row key reset to NULL) — R2 orphan only
-- Task 3: no test covers savePrint fail + printKeyIs true path
-- Task 3: robot-key-vs-admin test pins the unconfigured 500; configured-Access 403 path would prove more
-- Task 4: docx_to_pdf.py stale profile comment + dead Windows paths; no test for an image in the strip or the 90% boundary; stamp() mid-render failure exits 1 with traceback (Task 5 must not log stderr); readable_pages leaves doc open on None; dark full-page fill ignored as background
-- Task 5: no unit test that dockerTools errors drop the command line; the 180 s Word conversion limit is unverified on a cold GitHub runner (check on the first real run)
-- Task 6: TestPage tests use unscoped role=status, fixed by setting fixture print 'ready' (scope the queries instead); useMutation formatting in TestPage; import order
-- Final: waitsForPrint and fake printWaits omit upload_token IS NOT NULL (an open test always has one)
-- Final: RobotLine texts say "Corectarea…" also for a waiting print PDF
+Fixed on 2026-10-25: import order, the nested ternary, the comment wrap, the retry 409 message, the print PDF that a robot saves between the route's read and `saveTestFile` (the key now comes from the same batch as the write), the tests for `savePrint`/`printKeyIs` and for the configured-Access 403, the `docx_to_pdf.py` comment and Windows paths, the tests for an image in the strip and the 90% boundary, the stamp failure (exit 4, no traceback), `readable_pages` closing the document, a dark full-page fill counting as content, the test that `dockerTools` errors drop the command line, the `useMutation` formatting, and the RobotLine text for a waiting print PDF.
+
+Still open:
+
+- Task 5: the 180 s Word conversion limit is unverified on a cold GitHub runner (check on the first real run).
+- Task 6: TestPage tests use unscoped role=status, worked around by setting the fixture print to 'ready' (scope the queries instead).
+
+Accepted, no change: `waitsForPrint` and the fake `printWaits` omit `upload_token IS NOT NULL` (the browser has no token field; an open test always has one).
 
 ## Decisions taken during the build
 

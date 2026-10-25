@@ -3,8 +3,10 @@
 Runs inside the print image (runner/print/Dockerfile), where soffice is on PATH.
 Usage: python3 /app/docx_to_pdf.py SOURCE.docx -o OUT.pdf
 
-Converts with a private profile under the temp folder, so a stale profile cannot
-break a run, and moves the result to -o.
+Converts with a private profile kept under the temp folder (it keeps font
+subsets identical from one run to the next). When that conversion fails, it
+tries once more with a fresh profile, since a stale one can break after an
+upgrade. Moves the result to -o.
 """
 import argparse
 import os
@@ -33,13 +35,7 @@ def find_soffice():
     found = shutil.which('soffice')
     if found:
         return found
-    candidates = [
-        Path(r'C:\Program Files\LibreOffice\program\soffice.exe'),
-        Path(r'C:\Program Files (x86)\LibreOffice\program\soffice.exe'),
-        Path('/usr/bin/soffice'),
-        Path('/usr/bin/libreoffice'),
-    ]
-    for candidate in candidates:
+    for candidate in (Path('/usr/bin/soffice'), Path('/usr/bin/libreoffice')):
         if candidate.is_file():
             return str(candidate)
     return None
@@ -49,18 +45,14 @@ def convert(source, output, soffice=None, timeout=CONVERT_TIMEOUT):
     """Convert source DOCX to output PDF. Returns the output path."""
     exe = soffice or find_soffice()
     if not exe:
-        raise FileNotFoundError(
-            'LibreOffice not found. Install it: winget install --id TheDocumentFoundation.LibreOffice'
-        )
+        raise FileNotFoundError('LibreOffice not found: set SOFFICE or put soffice on PATH')
     source = Path(source)
     output = Path(output)
     attempts = [profile_dir(), None]  # persistent profile, then a fresh one
     last_error = None
     for profile in attempts:
         with tempfile.TemporaryDirectory(prefix='docx-to-pdf-') as tmp:
-            # A private profile: a LibreOffice window the teacher already has
-            # open cannot block the run. Forward slashes: the file:/// URL
-            # needs them also on Windows.
+            # Forward slashes: the file:/// URL needs them.
             if profile is None:
                 profile_arg = (Path(tmp) / 'loprofile').as_posix()
             else:

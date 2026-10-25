@@ -9,8 +9,8 @@ import { formatDateTime, robotStartMessage } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { StatusChip } from '../StatusChip.tsx';
-import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { AnalysisState } from '../testPage/AnalysisState.tsx';
+import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
 import { PrintTest } from '../testPage/PrintTest.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
@@ -141,7 +141,7 @@ function TestDetails({ code }: { code: string }) {
           {test.status === 'done' && <PartialEvaluationNotice uploads={uploads} />}
           {robotText && <p role="status">{robotText}</p>}
           {(test.status === 'evaluating' || test.evaluationAt || printWaits) && (
-            <RobotLine lastCheckAt={robot.lastCheckAt}>
+            <RobotLine lastCheckAt={robot.lastCheckAt} lateText={printWaits ? 'Testul cu cod QR poate întârzia.' : undefined}>
               {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
             </RobotLine>
           )}
@@ -239,13 +239,15 @@ function TestActions({
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const api = useApi();
-  const start = useMutation({ mutationFn: () => api.startTest(test.code),
+  const start = useMutation({
+    mutationFn: () => api.startTest(test.code),
     onSuccess: async (started) => {
       onRobot(started.robot);
       await onChanged();
     },
   });
-  const reopen = useMutation({ mutationFn: () => api.reopenTest(test.code),
+  const reopen = useMutation({
+    mutationFn: () => api.reopenTest(test.code),
     onSuccess: async (reopened) => {
       onRobot(reopened.robot);
       await onChanged();

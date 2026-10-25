@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PDF_TYPE, printFileKey } from '../../shared/files.ts';
+import { createApp } from '../app.ts';
+import { printKeyIs, savePrint } from '../db/runner.ts';
 import { addSubmission, addTestFiles, makeClass, makeTest, ROBOT_KEY, robotRequest, setRobotKey, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -238,5 +240,33 @@ describe('the robot key and the teacher routes', () => {
     } finally {
       await outside.dispose();
     }
+  });
+
+  it('answers 403 to the robot key once Access is configured', async () => {
+    const guarded = await startTestApi({ env: { ACCESS_TEAM_DOMAIN: 'school.cloudflareaccess.com', ACCESS_AUD: 'aud' } });
+    try {
+      await setRobotKey(guarded);
+      const denied = await createApp().request(
+        `https://quickeval.pages.dev/api/admin/tests/${code}/print`,
+        { headers: { Authorization: `Bearer ${ROBOT_KEY}` } },
+        guarded.env,
+      );
+      expect(denied.status).toBe(403);
+    } finally {
+      await guarded.dispose();
+    }
+  });
+});
+
+describe('savePrint and printKeyIs', () => {
+  it('saves nothing for a print that is already ready, and then names the stored key', async () => {
+    await lease();
+    const key = printFileKey(teacherId, 2026, code, 'test.pdf', 0);
+    expect(await savePrint(api.db, testId, RUN, 0, key, '2026-10-25T08:00:00.000Z')).toBe(true);
+    expect(await printKeyIs(api.db, testId, key)).toBe(true);
+    // The route keeps the object in this case: a second run made the same version.
+    expect(await savePrint(api.db, testId, RUN, 0, key, '2026-10-25T08:01:00.000Z')).toBe(false);
+    expect(await printKeyIs(api.db, testId, key)).toBe(true);
+    expect(await printKeyIs(api.db, testId, 'other-key')).toBe(false);
   });
 });

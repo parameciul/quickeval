@@ -47,6 +47,14 @@ describe('dockerTools', () => {
     expect(kills()).toEqual([]);
   });
 
+  it('rejects with an error that holds no command line', async () => {
+    docker.answer = (args) => (args[0] === 'run' ? execError({ code: 1 }) : null);
+    const failed = await dockerTools('/print').run(['python3', '/app/stamp_qr.py', '/work/in.pdf', '/work/out.pdf', 'https://quickeval.test/u/secret'], '/work', 1_000).catch((err) => err);
+    expect(failed.message).toBe('print step: failed');
+    expect(String(failed.stack)).not.toContain('stamp_qr');
+    expect(String(failed.stack)).not.toContain('secret');
+  });
+
   it('runs the step without network, with the folder at /work', async () => {
     await dockerTools('/print').run(['python3', '/app/stamp_qr.py'], '/work', 1_000);
     const args = docker.calls[0]!;

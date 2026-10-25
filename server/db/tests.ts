@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { AnalysisInfo, PrintStatus, ExerciseListInfo, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
+import type { AnalysisInfo, ExerciseListInfo, PrintStatus, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
 import { DOCX_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
@@ -363,9 +363,11 @@ export async function setTestArchived(
 
 // Points the test at a new test or barem file, and counts the change in
 // files_version. A new test file also clears the print PDF made from the old
-// one (the caller deletes its object). A new barem also clears the exercise list, which the robot
-// made from the old one (spec §8.5). Returns the test's status, or null when
-// the test is gone.
+// one. A new barem also clears the exercise list, which the robot made from
+// the old one (spec §8.5). Returns the test's status and the key of the print
+// PDF the change cleared (the caller deletes its object), or null when the
+// test is gone. The key is read in the same batch as the write, so a print
+// the robot saves meanwhile is not left in R2.
 export async function saveTestFile(
   db: D1Database,
   teacherId: number,
@@ -373,7 +375,7 @@ export async function saveTestFile(
   kind: TestFileKind,
   file: StoredFile,
   now: string,
-): Promise<TestStatus | null> {
+): Promise<{ status: TestStatus; clearedPrintKey: string | null } | null> {
   const sql =
     kind === 'test'
       ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1,
@@ -384,8 +386,13 @@ export async function saveTestFile(
            exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0
          WHERE id = ? AND teacher_id = ?
          RETURNING status`;
-  const row = await db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId).first<{ status: TestStatus }>();
-  return row?.status ?? null;
+  const [before, written] = await db.batch<{ print_file_key?: string | null; status?: TestStatus }>([
+    db.prepare('SELECT print_file_key FROM tests WHERE id = ? AND teacher_id = ?').bind(testId, teacherId),
+    db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId),
+  ]);
+  const status = written?.results[0]?.status;
+  if (!status) return null;
+  return { status, clearedPrintKey: kind === 'test' ? (before?.results[0]?.print_file_key ?? null) : null };
 }
 
 // Points the test at new barem comments, as if the barem file changed (spec

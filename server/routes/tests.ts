@@ -10,8 +10,8 @@ import {
   type EvaluationStart,
   type ExerciseListAnswer,
   type PrintRetryAnswer,
-  type ReopenAnswer,
   type RegradeAnswer,
+  type ReopenAnswer,
   type RobotStartAnswer,
   type TestFileAnswer,
 } from '../../shared/api.ts';
@@ -189,7 +189,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.post('/:code/print/retry', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     if (!(await retryPrint(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
-      throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu a eșuat.');
+      throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu poate fi încercat din nou.');
     }
     return c.json({ print: { status: 'none', fromWord: test.print.fromWord }, robot: await startRobot(c.env) } satisfies PrintRetryAnswer);
   });
@@ -347,12 +347,14 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const file = await readUpload(c, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
     const key = testFileKey(teacherId, test.summary.schoolYear, test.summary.code, kind, file.name, file.contentType);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
-    const status = await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
+    const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
     const old = test.files[kind];
-    const stale = [old && old.key !== key ? old.key : null, kind === 'test' ? test.print.key : null].filter((k) => k !== null);
+    const stale = [old && old.key !== key ? old.key : null, saved?.clearedPrintKey ?? null].filter((k) => k !== null);
     if (stale.length > 0) await deleteFilesQuietly(c.env.FILES, stale);
-    const robot =
-      kind === 'barem' ? (status === 'evaluating' ? await startRobot(c.env) : null) : (await needsPrint(c.env.DB, test.id)) ? await startRobot(c.env) : null;
+    let robotWork = false;
+    if (kind === 'barem') robotWork = saved?.status === 'evaluating';
+    else robotWork = await needsPrint(c.env.DB, test.id);
+    const robot = robotWork ? await startRobot(c.env) : null;
     return c.json({ file: { name: file.name, type: file.contentType }, robot } satisfies TestFileAnswer);
   });
 

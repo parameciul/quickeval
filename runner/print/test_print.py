@@ -100,6 +100,45 @@ class StampTest(unittest.TestCase):
         doc.save(src)
         self.assertTrue(stamp_qr.strip_is_empty(pymupdf.open(src)[0], strip_of(*A4)))
 
+    def background_page(self, fill, share):
+        """A page with a fill of `share` of its area, reaching the bottom edge."""
+        src = self.path('bg.pdf')
+        doc = pymupdf.open()
+        page = doc.new_page(width=A4[0], height=A4[1])
+        page.draw_rect(pymupdf.Rect(0, A4[1] * (1 - share), A4[0], A4[1]), fill=fill, color=None)
+        doc.save(src)
+        return pymupdf.open(src)[0]
+
+    def test_a_fill_below_ninety_percent_of_the_page_is_content(self):
+        page = self.background_page((0.95, 0.95, 0.95), 0.89)
+        self.assertFalse(stamp_qr.strip_is_empty(page, strip_of(*A4)))
+
+    def test_a_fill_of_ninety_percent_of_the_page_is_background(self):
+        page = self.background_page((0.95, 0.95, 0.95), 0.91)
+        self.assertTrue(stamp_qr.strip_is_empty(page, strip_of(*A4)))
+
+    def test_a_dark_full_page_fill_is_content(self):
+        page = self.background_page((0.1, 0.1, 0.2), 1.0)
+        self.assertFalse(stamp_qr.strip_is_empty(page, strip_of(*A4)))
+
+    def test_an_image_in_the_strip_is_content(self):
+        src = self.path('in.pdf')
+        doc = pymupdf.open()
+        page = doc.new_page(width=A4[0], height=A4[1])
+        pixmap = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 20, 20))
+        pixmap.clear_with(200)
+        page.insert_image(pymupdf.Rect(50, 790, 150, 830), pixmap=pixmap)
+        doc.save(src)
+        self.assertFalse(stamp_qr.strip_is_empty(pymupdf.open(src)[0], strip_of(*A4)))
+
+    def test_a_failing_stamp_exits_4_without_a_traceback(self):
+        src = self.path('in.pdf')
+        make_pdf(src, [(A4[0], A4[1], [(100, 'Text')])])
+        result = self.run_script(src, self.path('missing-folder') + '/out.pdf')
+        self.assertEqual(result.returncode, 4)
+        self.assertEqual(result.stdout, '')
+        self.assertNotIn('Traceback', result.stderr)
+
     def test_a_drawing_in_the_strip_is_content(self):
         src = self.path('in.pdf')
         doc = pymupdf.open()

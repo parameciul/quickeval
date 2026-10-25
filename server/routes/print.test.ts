@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PDF_TYPE, printFileKey } from '../../shared/files.ts';
-import { addSubmission, addTestFiles, makeClass, makeTest, otherTeacherTest, startTest } from '../test/fixtures.ts';
+import { saveTestFile } from '../db/tests.ts';
+import { addSubmission, addTestFiles, makeClass, makeTest, otherTeacherTest, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -103,6 +104,17 @@ describe('a new test or barem file and the print PDF', () => {
     const after = await printRow();
     expect(after).toMatchObject({ print_status: 'none', print_file_key: null, files_version: before + 1 });
     expect(await api.env.FILES.get(key)).toBeNull();
+  });
+
+  it('names the print PDF that the write itself cleared, whatever the route read before', async () => {
+    await startTest(api, code);
+    await setTest("print_status = 'ready', print_file_key = 'late-key'");
+    const file = { key: 'new-key', name: 'test.pdf', type: PDF_TYPE };
+    const saved = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'test', file, '2026-10-25T08:00:00.000Z');
+    expect(saved).toEqual({ status: 'open', clearedPrintKey: 'late-key' });
+    expect(await printRow()).toMatchObject({ print_status: 'none', print_file_key: null });
+    const barem = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'barem', file, '2026-10-25T08:00:00.000Z');
+    expect(barem).toEqual({ status: 'open', clearedPrintKey: null });
   });
 
   it('a new barem does not touch the print PDF', async () => {

@@ -6,7 +6,8 @@ A page whose bottom strip holds no text, drawing or image keeps its size. Any
 other page is shown a little smaller, centered at the top, so the QR code never
 covers content. Pages stay vectors. Prints "pages=<n>" on success. Exit codes:
 2 for a file that is not a readable, unencrypted PDF (nothing is printed), 3
-when the result does not have the page count of the source.
+when the result does not have the page count of the source, 4 when the stamping
+itself fails (nothing is printed: the arguments hold the student link).
 """
 import sys
 
@@ -31,6 +32,19 @@ def touches(rect, strip):
     return rect.x0 <= strip.x1 and rect.x1 >= strip.x0 and rect.y0 <= strip.y1 and rect.y1 >= strip.y0
 
 
+def is_light_background(drawing, rect, page_area):
+    """A light fill over (nearly) the whole page: paper, not content. A dark one
+    would hide the black QR code, so it counts as content."""
+    fill = drawing.get('fill')
+    if fill is None or rect.width * rect.height < BACKGROUND_SHARE * page_area:
+        return False
+    if len(fill) == 3:
+        luminance = 0.299 * fill[0] + 0.587 * fill[1] + 0.114 * fill[2]
+    else:
+        luminance = sum(fill) / len(fill)
+    return luminance >= 0.5
+
+
 def strip_is_empty(page, strip):
     """True when no text, drawing, or image of the page reaches the strip."""
     page_area = page.rect.width * page.rect.height
@@ -39,7 +53,7 @@ def strip_is_empty(page, strip):
             return False
     for drawing in page.get_drawings():
         rect = pymupdf.Rect(drawing['rect'])
-        if drawing.get('fill') is not None and rect.width * rect.height >= BACKGROUND_SHARE * page_area:
+        if is_light_background(drawing, rect, page_area):
             continue
         if touches(rect, strip):
             return False
@@ -82,15 +96,17 @@ def stamp(src, out, url, label):
 
 def readable_pages(src):
     """The page count of src, or None when it is not a readable, unencrypted PDF."""
+    document = None
     try:
         document = pymupdf.open(src)
         if document.needs_pass or document.is_encrypted or not document.is_pdf or len(document) == 0:
             return None
-        count = len(document)
-        document.close()
-        return count
+        return len(document)
     except Exception:
         return None
+    finally:
+        if document is not None:
+            document.close()
 
 
 def main(argv):
@@ -99,7 +115,10 @@ def main(argv):
     src, out, url, label = argv[1:5]
     if readable_pages(src) is None:
         return 2
-    count = stamp(src, out, url, label)
+    try:
+        count = stamp(src, out, url, label)
+    except Exception:
+        return 4
     if readable_pages(out) != count:
         return 3
     print(f'pages={count}')
