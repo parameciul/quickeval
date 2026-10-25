@@ -157,6 +157,15 @@ describe('TestsPage filters', () => {
     expect(first.getAttribute('style')).not.toBe(second.getAttribute('style'));
     expect(within(first).getByText('Clasa 6E2')).toHaveClass('class-badge');
   });
+
+  it('puts the class on the first line, next to the code, as a link to the class', async () => {
+    renderAdmin('/', withManyClasses());
+    const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
+    const badge = within(card).getByRole('link', { name: 'Clasa 6E2' });
+    expect(badge).toHaveClass('class-badge');
+    expect(badge).toHaveAttribute('href', '/clase/1');
+    expect(badge.parentElement).toContainElement(within(card).getByRole('link', { name: '6E2-26T1' }));
+  });
 });
 
 const gradedUpload = () => fakeUpload({ studentId: 10, studentName: 'Pop Ion', status: 'graded', submissionId: 5, grade: 9 });

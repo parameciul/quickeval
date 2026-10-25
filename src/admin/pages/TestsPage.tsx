@@ -106,14 +106,16 @@ function TestCard({ test }: { test: TestSummary }) {
   const publishLabel = test.resultsOpen ? 'Oprește accesul' : test.publishedCount > 0 ? 'Publică pentru toți' : 'Publică rezultatele';
   return (
     <li className={className} style={classToneStyle(test.classId)}>
-      <Link className="card-title" to={`/teste/${test.code}`}>
-        {test.code}
-      </Link>
-      <span>{test.title}</span>
       <span className="card-meta">
-        <span className="class-badge">{displayClassName(test.className)}</span>
-        {test.startedAt && <span className="card-count">{formatDateTime(test.startedAt)}</span>}
+        <Link className="card-title" to={`/teste/${test.code}`}>
+          {test.code}
+        </Link>
+        <Link className="class-badge" to={`/clase/${test.classId}`}>
+          {displayClassName(test.className)}
+        </Link>
       </span>
+      <span>{test.title}</span>
+      {test.startedAt && <span className="card-count">{formatDateTime(test.startedAt)}</span>}
       <span className="card-meta">
         <StatusChip status={test.status} />
         {test.flagCount > 0 && <span className="tag">de verificat</span>}
