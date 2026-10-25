@@ -87,8 +87,8 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
     if (end === 'saved') counts[done] += 1;
     else if (end === 'failed' && done === 'graded') counts.failed += 1;
     else if (end === 'usage_limit' || end === 'claude_login' || end === 'lease_lost') stopTaking(end);
-    // The limit guards Claude's attempts: a print PDF neither counts nor resets it.
-    if (done === 'prints') return;
+    // The limit guards Claude's attempts: a failed print PDF does not count.
+    if (done === 'prints' && (end === 'retry' || end === 'failed')) return;
     failuresInARow = end === 'retry' || end === 'failed' ? failuresInARow + 1 : 0;
     if (failuresInARow >= FAILURES_IN_A_ROW) {
       log('failures in a row', { run: runId, tasks: failuresInARow });
