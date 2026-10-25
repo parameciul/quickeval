@@ -16,6 +16,7 @@ import type {
   RobotStart,
   RobotStartAnswer,
   Settings,
+  PrintRetryAnswer,
   ReopenAnswer,
   StartedTest,
   StudentHistory,
@@ -58,6 +59,8 @@ export interface AdminApi {
   saveBaremNotes(code: string, notes: string): Promise<BaremNotesAnswer>;
   startTest(code: string): Promise<StartedTest>;
   reopenTest(code: string): Promise<ReopenAnswer>;
+  // "Încearcă din nou" on a print PDF that failed.
+  retryPrint(code: string): Promise<PrintRetryAnswer>;
   // Puts a finished test in the archive, or takes it out. Resolves to the new mark.
   setTestArchived(code: string, archived: boolean): Promise<boolean>;
   // The link that uploads for many students on one phone, made only on demand.
@@ -104,6 +107,11 @@ export interface AdminApi {
 // Files open straight from the API: the browser sends the Access login cookie.
 export function testFileUrl(code: string, kind: TestFileKind): string {
   return `/api/admin/tests/${encodeURIComponent(code)}/files/${kind}`;
+}
+
+// The test with the QR code, made for printing.
+export function printFileUrl(code: string): string {
+  return `/api/admin/tests/${encodeURIComponent(code)}/print`;
 }
 
 export function submissionFileUrl(submissionId: number, fileId: number): string {
@@ -220,6 +228,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     setSubmissionResultsOpen: async (submissionId, startedAt, open) =>
       (await request<ResultsOpenAnswer>('POST', `/submissions/${submissionId}/results/${open ? 'open' : 'close'}`, { startedAt })).resultsOpen,
     reopenTest: (code) => request<ReopenAnswer>('POST', `${test(code)}/reopen`),
+    retryPrint: (code) => request<PrintRetryAnswer>('POST', `${test(code)}/print/retry`),
     setTestArchived: async (code, archived) =>
       (await request<{ archived: boolean }>('POST', `${test(code)}/${archived ? 'archive' : 'unarchive'}`)).archived,
     evaluateTest: (code, at, submissionIds) =>

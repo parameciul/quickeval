@@ -1878,3 +1878,7 @@ table.grades-table tr.is-muted td {
 table.grades-table tbody .tag {
   margin-left: 0.4rem;
 }
+
+.print-test {
+  margin-top: 1.25rem;
+}

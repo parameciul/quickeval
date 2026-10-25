@@ -2,6 +2,8 @@ import { vi } from 'vitest';
 import type {
   AnalysisAnswer,
   BaremNotesAnswer,
+  PrintRetryAnswer,
+  StartedTest,
   ReopenAnswer,
   ClassReport,
   ClassSummary,
@@ -366,10 +368,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.exerciseList = { status: 'none', message: null };
       return { baremNotes: found.baremNotes, robot: found.status === 'evaluating' ? 'next_check' : null };
     }),
-    startTest: vi.fn(async (code: string) => {
+    startTest: vi.fn(async (code: string): Promise<StartedTest> => {
       const found = findTest(code).test;
       Object.assign(found, { status: 'open', uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT });
-      return { status: found.status, uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT, robot: null };
+      // Like the server: a test file makes the print PDF, which is work for the robot.
+      return { status: found.status, uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT, robot: found.files.test ? 'dispatched' : null };
     }),
     createMultiUploadLink: vi.fn(async (code: string) => {
       const found = findTest(code).test;
@@ -421,6 +424,13 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.status = 'open';
       found.archived = false;
       return { status: 'open', robot: null };
+    }),
+    // Like the server: only a failed print PDF is made again, by the robot.
+    retryPrint: vi.fn(async (code: string): Promise<PrintRetryAnswer> => {
+      const found = findTest(code).test;
+      if (found.print.status !== 'failed') throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu a eșuat.');
+      found.print = { status: 'none', fromWord: found.print.fromWord };
+      return { print: found.print, robot: 'dispatched' };
     }),
     // Like the server: only a finished test goes in the archive.
     setTestArchived: vi.fn(async (code: string, archived: boolean) => {

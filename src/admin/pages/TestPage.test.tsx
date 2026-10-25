@@ -66,6 +66,22 @@ describe('TestPage', () => {
     expect(screen.getByTitle('Codul QR al linkului')).toBeInTheDocument();
   });
 
+  it('shows the print block only while the test is open', async () => {
+    const { unmount } = renderAdmin('/teste/6E2-26T1', apiWith());
+    await screen.findByRole('heading', { name: '6E2-26T1' });
+    expect(screen.queryByRole('heading', { name: 'Testul pentru tipărit' })).not.toBeInTheDocument();
+    unmount();
+    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'evaluating' }));
+    await screen.findByRole('heading', { name: '6E2-26T1' });
+    expect(screen.queryByRole('heading', { name: 'Testul pentru tipărit' })).not.toBeInTheDocument();
+  });
+
+  it('says the robot started after Start test', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null } }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Începe testul' }));
+    expect(await screen.findByText(robotStartMessage('dispatched'))).toBeInTheDocument();
+  });
+
   it('copies the link', async () => {
     const user = userEvent.setup();
     renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
@@ -322,7 +338,7 @@ describe('TestPage evaluation', () => {
   const NOW = new Date('2026-10-08T07:00:00.000Z');
 
   function evaluationApi(overrides: Parameters<typeof fakeTest>[0], rows = uploads, lastCheckAt: string | null = null) {
-    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, ...overrides }, structuredClone(rows));
+    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, print: { status: 'ready', fromWord: false }, ...overrides }, structuredClone(rows));
     detail.robot.lastCheckAt = lastCheckAt;
     return createFakeApi({
       classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],

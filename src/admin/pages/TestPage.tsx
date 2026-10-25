@@ -12,6 +12,7 @@ import { StatusChip } from '../StatusChip.tsx';
 import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { AnalysisState } from '../testPage/AnalysisState.tsx';
 import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
+import { PrintTest } from '../testPage/PrintTest.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
 import { ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
@@ -117,7 +118,7 @@ function TestDetails({ code }: { code: string }) {
       <TestFiles test={test} onChanged={refresh} onRobot={onRobot} />
 
       <h2>Încărcarea lucrărilor</h2>
-      <TestActions test={test} onChanged={refresh} />
+      <TestActions test={test} onChanged={refresh} onRobot={onRobot} />
 
       {test.status !== 'draft' && (
         <>
@@ -226,10 +227,28 @@ function writeLinksVisible(code: string, visible: boolean): void {
 }
 
 // What the teacher can do next, by the state of the test.
-function TestActions({ test, onChanged }: { test: TestInfo; onChanged: () => Promise<void> }) {
+function TestActions({
+  test,
+  onChanged,
+  onRobot,
+}: {
+  test: TestInfo;
+  onChanged: () => Promise<void>;
+  onRobot: (robot: RobotStart | null) => void;
+}) {
   const api = useApi();
-  const start = useMutation({ mutationFn: () => api.startTest(test.code), onSuccess: onChanged });
-  const reopen = useMutation({ mutationFn: () => api.reopenTest(test.code), onSuccess: onChanged });
+  const start = useMutation({ mutationFn: () => api.startTest(test.code),
+    onSuccess: async (started) => {
+      onRobot(started.robot);
+      await onChanged();
+    },
+  });
+  const reopen = useMutation({ mutationFn: () => api.reopenTest(test.code),
+    onSuccess: async (reopened) => {
+      onRobot(reopened.robot);
+      await onChanged();
+    },
+  });
   // The upload links stay visible while the class uploads, and the teacher
   // hides them for a cleaner page once the files are in. Kept per test in
   // this browser, so a reload keeps the page as the teacher left it.
@@ -268,6 +287,7 @@ function TestActions({ test, onChanged }: { test: TestInfo; onChanged: () => Pro
             <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />
           </>
         )}
+        <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />
       </>
     );
   return (

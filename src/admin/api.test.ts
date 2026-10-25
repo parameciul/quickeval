@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE } from '../../shared/files.ts';
-import { ApiError, createApiClient, LoginExpiredError, reloadForLogin, studentResultUrl, submissionFileUrl, testFileUrl } from './api.ts';
+import { ApiError, createApiClient, LoginExpiredError, printFileUrl, reloadForLogin, studentResultUrl, submissionFileUrl, testFileUrl } from './api.ts';
 
 // The time the upload on the page started.
 const STARTED = '2026-10-06T07:15:00.000Z';
@@ -152,6 +152,7 @@ describe('createApiClient tests and uploads', () => {
     await api.createTest({ classId: 1, title: 'Test' });
     await api.startTest('6E2-26T1');
     await api.reopenTest('6E2-26T1');
+    await api.retryPrint('6E2-26T1');
     await api.deleteTest('6E2-26T1');
     await api.resetSubmission(7, STARTED);
     await api.deleteStudent(1, 10);
@@ -160,6 +161,7 @@ describe('createApiClient tests and uploads', () => {
       'POST /api/admin/tests',
       'POST /api/admin/tests/6E2-26T1/start',
       'POST /api/admin/tests/6E2-26T1/reopen',
+      'POST /api/admin/tests/6E2-26T1/print/retry',
       'DELETE /api/admin/tests/6E2-26T1',
       'POST /api/admin/submissions/7/reset',
       'DELETE /api/admin/classes/1/students/10',
@@ -185,6 +187,7 @@ describe('createApiClient tests and uploads', () => {
 
   it('builds the links that open stored files', () => {
     expect(testFileUrl('6E2-26T1', 'test')).toBe('/api/admin/tests/6E2-26T1/files/test');
+    expect(printFileUrl('6E2-26T1')).toBe('/api/admin/tests/6E2-26T1/print');
     expect(submissionFileUrl(7, 12)).toBe('/api/admin/submissions/7/files/12');
     expect(studentResultUrl('abcdefghijkmnop2abcdefcd')).toBe(`${window.location.origin}/u/rezultat/abcdefghijkmnop2abcdefcd`);
   });
