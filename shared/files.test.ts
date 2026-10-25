@@ -7,6 +7,7 @@ import {
   looksLike,
   MAX_FILE_BYTES,
   PDF_TYPE,
+  printFileKey,
   slugify,
   STUDENT_FILE_TYPES,
   STUDENT_WRONG_TYPE,
@@ -47,6 +48,11 @@ describe('keys', () => {
     expect(testFolder(1, 2026, '6E2-26T1')).toBe('t/1/2026/6E2-26T1/');
     expect(testFileKey(1, 2026, '6E2-26T1', 'barem', 'Barem final.PDF', PDF_TYPE)).toBe('t/1/2026/6E2-26T1/barem/barem-final.pdf');
     expect(testFileKey(1, 2026, '6E2-26T1', 'test', 'Test.docx', DOCX_TYPE)).toBe('t/1/2026/6E2-26T1/test/test.docx');
+  });
+
+  it('names the print PDF after the test file and its files version', () => {
+    expect(printFileKey(1, 2026, '6E2-26T1', 'Test final.docx', 3)).toBe('t/1/2026/6E2-26T1/print/test-final-v3-qr.pdf');
+    expect(printFileKey(1, 2026, '6E2-26T1', 'Test final.pdf', 4)).toBe('t/1/2026/6E2-26T1/print/test-final-v4-qr.pdf');
   });
 
   it('builds a student file key from the type, not from the original name', () => {

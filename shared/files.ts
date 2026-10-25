@@ -116,6 +116,12 @@ export function testFolder(teacherId: number, schoolYear: number, code: string):
   return `t/${teacherId}/${schoolYear}/${code}/`;
 }
 
+// t/1/2026/6E2-26T1/print/test-final-v3-qr.pdf: the test file with the QR code,
+// named after the test file and the files version it was made from.
+export function printFileKey(teacherId: number, schoolYear: number, code: string, testFileName: string, filesVersion: number): string {
+  return `${testFolder(teacherId, schoolYear, code)}print/${slugify(withoutExtension(testFileName))}-v${filesVersion}-qr.pdf`;
+}
+
 // t/1/2026/6E2-26T1/barem/barem-final.pdf
 export function testFileKey(
   teacherId: number,

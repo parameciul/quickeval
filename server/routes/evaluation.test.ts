@@ -417,7 +417,7 @@ describe('a robot start that GitHub did not take', () => {
     await setRobotKey(api);
     expect((await robot('POST', '/lease', { runId: 'run-0001' })).body.granted).toBe(true);
     expect(await robotLine()).toMatchObject({ startFailed: false });
-    const summary = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'budget' };
+    const summary = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'budget' };
     expect((await robot('POST', '/release', { runId: 'run-0001', summary })).status).toBe(200);
     expect(await robotLine()).toMatchObject({ startFailed: true });
   });

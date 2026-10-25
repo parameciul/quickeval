@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { AnalysisInfo, ExerciseListInfo, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
-import type { TestFileKind } from '../../shared/files.ts';
+import type { AnalysisInfo, PrintStatus, ExerciseListInfo, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
+import { DOCX_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
@@ -23,6 +23,7 @@ export interface TestRecord {
   exerciseList: ExerciseListInfo;
   baremNotes: string;
   analysis: AnalysisInfo;
+  print: { status: PrintStatus; key: string | null; fromWord: boolean };
 }
 
 interface TestRow {
@@ -54,6 +55,8 @@ interface TestRow {
   analysis_status: AnalysisStatus;
   analysis_stale: number;
   analysis_attempts: number;
+  print_status: PrintStatus;
+  print_file_key: string | null;
   student_count: number;
   submitted_count: number;
   graded_count: number;
@@ -66,6 +69,7 @@ const SELECT_TEST = `
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
     t.results_open, t.archived, t.analysis_status, t.analysis_stale, t.analysis_attempts,
+    t.print_status, t.print_file_key,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
@@ -109,6 +113,7 @@ function toRecord(row: TestRow): TestRecord {
     exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
     baremNotes: row.barem_notes ?? '',
     analysis: { status: row.analysis_status, stale: row.analysis_stale === 1, attempts: row.analysis_attempts },
+    print: { status: row.print_status, key: row.print_file_key, fromWord: row.test_file_type === DOCX_TYPE },
   };
 }
 
@@ -123,6 +128,7 @@ export function toTestInfo(record: TestRecord): TestInfo {
     exerciseList: record.exerciseList,
     baremNotes: record.baremNotes,
     analysis: record.analysis,
+    print: { status: record.print.status, fromWord: record.print.fromWord },
   };
 }
 

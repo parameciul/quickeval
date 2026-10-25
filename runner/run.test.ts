@@ -99,7 +99,7 @@ describe('runRobot and the class analysis', () => {
     await askForAnalysis();
     const claude = scriptedClaude(...grades(2), answer(ANALYSIS));
     const report = await runRobot(options(claude));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 2, failed: 0, analyses: 1, stop: 'done' }, exitCode: 0 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 2, failed: 0, analyses: 1, prints: 0, stop: 'done' }, exitCode: 0 });
     expect(claude.calls.map((call) => call.task.mode)).toEqual(['grade', 'grade', 'class-report']);
     expect(await testRow()).toMatchObject({ status: 'done', analysis_status: 'ready' });
   });
@@ -149,7 +149,7 @@ describe('runRobot', () => {
     const claude = scriptedClaude(answer(LIST), ...grades(3));
     const run = options(claude);
     const report = await runRobot(run);
-    const summary = { exerciseLists: 1, graded: 3, failed: 0, analyses: 0, stop: 'done' };
+    const summary = { exerciseLists: 1, graded: 3, failed: 0, analyses: 0, prints: 0, stop: 'done' };
     expect(report).toEqual({ summary, exitCode: 0 });
     expect(claude.calls.map((call) => call.task.mode)).toEqual(['exercise-list', 'grade', 'grade', 'grade']);
     expect((await uploads()).map((row) => row.status)).toEqual(['graded', 'graded', 'graded']);
@@ -194,7 +194,7 @@ describe('runRobot', () => {
     await setUp(3);
     const claude = scriptedClaude(problem('usage_limit'));
     const report = await runRobot(options(claude));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'usage_limit' }, exitCode: 0 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'usage_limit' }, exitCode: 0 });
     expect(claude.calls).toHaveLength(1);
     expect(await uploads()).toEqual([
       { status: 'submitted', attempts: 0 },
@@ -207,7 +207,7 @@ describe('runRobot', () => {
     await setUp(1, 1, false);
     const claude = scriptedClaude(problem('not_logged_in'));
     const report = await runRobot(options(claude));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'claude_login' }, exitCode: 1 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'claude_login' }, exitCode: 1 });
     const list = await world!.api.db.prepare('SELECT exercise_list_status, exercise_list_attempts FROM tests WHERE id = ?').bind(world!.testId).first();
     expect(list).toEqual({ exercise_list_status: 'none', exercise_list_attempts: 0 });
     expect((await runner())?.run_id).toBeNull();
@@ -218,7 +218,7 @@ describe('runRobot', () => {
     await world!.api.db.prepare('UPDATE submissions SET attempts = 2 WHERE id = ?').bind(world!.submissionIds[0]).run();
     const claude = scriptedClaude(answer(GRADING), problem('crash'));
     const report = await runRobot(options(claude));
-    expect(report.summary).toEqual({ exerciseLists: 0, graded: 1, failed: 1, analyses: 0, stop: 'done' });
+    expect(report.summary).toEqual({ exerciseLists: 0, graded: 1, failed: 1, analyses: 0, prints: 0, stop: 'done' });
   });
 
   it('stops taking work when the heartbeat finds another run', async () => {
@@ -229,7 +229,7 @@ describe('runRobot', () => {
       return answer(GRADING);
     });
     const report = await runRobot(options(claude, { heartbeatMs: 20 }));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, stop: 'lease_lost' }, exitCode: 0 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'lease_lost' }, exitCode: 0 });
     expect((await uploads()).map((row) => row.status)).toEqual(['graded', 'submitted']);
   });
 
@@ -237,7 +237,7 @@ describe('runRobot', () => {
     await setUp(4);
     const claude = scriptedClaude(problem('crash'), problem('crash'), problem('crash'), problem('crash'));
     const report = await runRobot(options(claude));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'error' }, exitCode: 1 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'error' }, exitCode: 1 });
     expect(claude.calls).toHaveLength(3);
     expect((await uploads()).map((row) => row.attempts)).toEqual([1, 1, 1, 0]);
   });
@@ -246,7 +246,7 @@ describe('runRobot', () => {
     await setUp(1, 1, false);
     const claude = scriptedClaude(answer({ broken: true }), answer({ broken: true }));
     const report = await runRobot(options(claude));
-    expect(report.summary).toEqual({ exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'done' });
+    expect(report.summary).toEqual({ exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'done' });
     expect(claude.calls).toHaveLength(2);
     const list = await world!.api.db.prepare('SELECT exercise_list_status, exercise_list_attempts FROM tests WHERE id = ?').bind(world!.testId).first();
     expect(list).toEqual({ exercise_list_status: 'none', exercise_list_attempts: 1 });
@@ -260,7 +260,7 @@ describe('runRobot', () => {
       return answer(GRADING);
     });
     const report = await runRobot(options(claude, { now: () => clock, budgetMs: 1_000 }));
-    expect(report.summary).toEqual({ exerciseLists: 0, graded: 1, failed: 0, analyses: 0, stop: 'budget' });
+    expect(report.summary).toEqual({ exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'budget' });
     expect((await uploads()).map((row) => row.status)).toEqual(['graded', 'submitted']);
   });
 
@@ -278,7 +278,7 @@ describe('runRobot', () => {
     );
     const run = options(claude);
     const report = await runRobot(run);
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'error' }, exitCode: 1 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'error' }, exitCode: 1 });
     expect(claude.calls).toHaveLength(2);
     expect(readdirSync(run.root)).toEqual([]);
   });

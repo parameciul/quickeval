@@ -138,7 +138,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const started =
       test.summary.status === 'draft' ? await startTest(c.env.DB, c.var.teacher.id, test.id, newUploadToken(), nowIso()) : null;
     if (!started) throw new ApiError(409, 'already_started', 'Testul a început deja.');
-    return c.json({ status: 'open', ...started });
+    return c.json({ status: 'open', ...started, robot: null });
   });
 
   // The link that uploads for many students on one phone (/u/<multiUploadToken>).

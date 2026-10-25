@@ -98,6 +98,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       exerciseList: { status: 'none', message: null },
       baremNotes: '',
       analysis: { status: 'none', stale: false, attempts: 0 },
+      print: { status: 'none', fromWord: false },
       ...overrides,
     },
     uploads,
@@ -367,7 +368,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     startTest: vi.fn(async (code: string) => {
       const found = findTest(code).test;
       Object.assign(found, { status: 'open', uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT });
-      return { status: found.status, uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT };
+      return { status: found.status, uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT, robot: null };
     }),
     createMultiUploadLink: vi.fn(async (code: string) => {
       const found = findTest(code).test;

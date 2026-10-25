@@ -119,7 +119,7 @@ describe('SettingsPage', () => {
         running: true,
         lastCheckAt: new Date(Date.now() - 3 * 60_000).toISOString(),
         lastRunFinishedAt: '2026-10-07T09:00:00.000Z',
-        lastRunSummary: { exerciseLists: 1, graded: 25, failed: 0, analyses: 0, stop: 'usage_limit' },
+        lastRunSummary: { exerciseLists: 1, graded: 25, failed: 0, analyses: 0, prints: 0, stop: 'usage_limit' },
       },
       lastGradedAt: '2026-10-07T08:55:00.000Z',
     });
@@ -145,7 +145,7 @@ describe('SettingsPage', () => {
 describe('lastRunText', () => {
   it('counts the class analyses only when there were some', () => {
     const robot = fakeSettings().robot;
-    const summary = { exerciseLists: 0, graded: 2, failed: 1, analyses: 1, stop: 'done' } as const;
+    const summary = { exerciseLists: 0, graded: 2, failed: 1, analyses: 1, prints: 0, stop: 'done' } as const;
     expect(lastRunText({ ...robot, lastRunFinishedAt: '2026-10-07T09:00:00.000Z', lastRunSummary: summary })).toBe(
       'Ultima rulare s-a încheiat la 7 oct. 2026, 12:00: 0 liste de exerciții, 2 lucrări corectate, 1 lucrare eșuată, 1 analiză de clasă. A terminat toată munca.',
     );
@@ -154,7 +154,7 @@ describe('lastRunText', () => {
 
   it('says when the run stopped because Claude refused the token', () => {
     const robot = fakeSettings().robot;
-    const summary = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'claude_login' } as const;
+    const summary = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'claude_login' } as const;
     expect(lastRunText({ ...robot, lastRunFinishedAt: '2026-10-07T09:00:00.000Z', lastRunSummary: summary })).toBe(
       'Ultima rulare s-a încheiat la 7 oct. 2026, 12:00: 0 liste de exerciții, 0 lucrări corectate, 0 lucrări eșuate. S-a oprit pentru că tokenul Claude nu mai merge. Fă un token nou (vezi mai jos).',
     );
@@ -162,7 +162,7 @@ describe('lastRunText', () => {
 
   it('says when the run stopped because of an error', () => {
     const robot = fakeSettings().robot;
-    const summary = { exerciseLists: 1, graded: 0, failed: 0, analyses: 0, stop: 'error' } as const;
+    const summary = { exerciseLists: 1, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'error' } as const;
     expect(lastRunText({ ...robot, lastRunFinishedAt: '2026-10-07T09:00:00.000Z', lastRunSummary: summary })).toMatch(
       /1 listă de exerciții, 0 lucrări corectate, 0 lucrări eșuate\. S-a oprit din cauza unei erori\. Detaliile sunt în rularea de pe GitHub\.$/,
     );
@@ -170,7 +170,7 @@ describe('lastRunText', () => {
 
   it('says the other uploads wait after the run stopped at its time limit', () => {
     const robot = fakeSettings().robot;
-    const summary = { exerciseLists: 0, graded: 30, failed: 0, analyses: 0, stop: 'budget' } as const;
+    const summary = { exerciseLists: 0, graded: 30, failed: 0, analyses: 0, prints: 0, stop: 'budget' } as const;
     expect(lastRunText({ ...robot, lastRunFinishedAt: '2026-10-07T09:00:00.000Z', lastRunSummary: summary })).toBe(
       'Ultima rulare s-a încheiat la 7 oct. 2026, 12:00: 0 liste de exerciții, 30 de lucrări corectate, 0 lucrări eșuate. S-a oprit după 2 ore. Restul lucrărilor așteaptă până pornește robotul din nou.',
     );

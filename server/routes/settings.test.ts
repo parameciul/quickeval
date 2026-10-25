@@ -44,7 +44,7 @@ describe('GET /api/admin/settings', () => {
   });
 
   it('shows the summary of the last run, and none for a broken one', async () => {
-    const summary = { exerciseLists: 1, graded: 25, failed: 2, analyses: 0, stop: 'done' };
+    const summary = { exerciseLists: 1, graded: 25, failed: 2, analyses: 0, prints: 0, stop: 'done' };
     await setRunner("last_run_finished_at = '2026-10-07T09:00:00.000Z', last_run_summary = ?", JSON.stringify(summary));
     const robot = (await api.request('GET', '/api/admin/settings')).body.settings.robot;
     expect(robot).toMatchObject({ lastRunFinishedAt: '2026-10-07T09:00:00.000Z', lastRunSummary: summary });

@@ -352,7 +352,7 @@ describe('POST /api/runner/submissions/:id/result', () => {
     expect(late.status).toBe(409);
     expect(late.body.error).toBe('taken_over');
 
-    const summary = { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, stop: 'done' };
+    const summary = { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' };
     expect((await robot('POST', '/release', { runId: RUN, summary })).status).toBe(200);
     expect((await robot('POST', '/lease', { runId: OTHER_RUN })).body.granted).toBe(true);
     expect((await claim(OTHER_RUN)).body.submissionId).toBe(id);

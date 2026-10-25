@@ -99,7 +99,7 @@ export async function runCheck(
   const exerciseLists = counts?.exercise_lists ?? 0;
   const pendingGrading = counts?.pending_grading ?? 0;
   const analyses = counts?.analyses ?? 0;
-  return { hasWork: exerciseLists + pendingGrading + analyses > 0, exerciseLists, pendingGrading, analyses };
+  return { hasWork: exerciseLists + pendingGrading + analyses > 0, exerciseLists, pendingGrading, analyses, prints: 0 };
 }
 
 // The model and effort the robot is set to use, kept for Setări. A robot that
@@ -183,7 +183,7 @@ export async function listTasks(db: D1Database): Promise<TasksResult> {
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_ANALYSIS} ORDER BY t.id`),
   ]);
   const ids = (rows: { id?: number }[] | undefined) => (rows ?? []).map((row) => row.id!);
-  return { exerciseLists: ids(lists?.results), pendingGrading: grading?.results[0]?.count ?? 0, analyses: ids(analyses?.results) };
+  return { exerciseLists: ids(lists?.results), pendingGrading: grading?.results[0]?.count ?? 0, analyses: ids(analyses?.results), prints: [] };
 }
 
 export interface RobotTestRecord {

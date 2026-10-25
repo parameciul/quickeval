@@ -56,7 +56,7 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
   log('run started', { run: runId, maxParallel: lease.maxParallel });
 
   const ctx: TaskContext = { api, claude: options.claude, runId, root: options.root, workdir: options.workdir };
-  const counts = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0 };
+  const counts = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0 };
   let stop: RunSummary['stop'] | null = null;
   // The first reason to stop wins.
   const stopTaking = (reason: RunSummary['stop']) => {

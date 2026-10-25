@@ -21,6 +21,8 @@ export const runSummarySchema = z.object({
   graded: z.number().int().min(0),
   failed: z.number().int().min(0),
   analyses: z.number().int().min(0),
+  // Print PDFs made. Default 0: an older robot's summary has no such count.
+  prints: z.number().int().min(0).default(0),
   // Why the run stopped taking new work. "claude_login": Claude did not accept
   // the token, so the run stopped before it spoiled any work. "error": the
   // robot API failed; the GitHub run's log says more.
@@ -35,6 +37,7 @@ export interface CheckResult {
   exerciseLists: number;
   pendingGrading: number;
   analyses: number;
+  prints: number;
 }
 
 // A run's id, made by the robot: 8-64 characters from A-Z, a-z, 0-9, "_" and "-".
@@ -109,7 +112,19 @@ export interface TasksResult {
   exerciseLists: number[];
   pendingGrading: number;
   analyses: number[];
+  prints: number[];
 }
+
+// One print PDF to make: the test file, and the one-time token that uploads
+// the result.
+export interface PrintJob {
+  testId: number;
+  filesVersion: number;
+  contentType: string;
+  uploadToken: string;
+}
+
+export const printFailedBody = z.object({ runId: runIdSchema, filesVersion: z.number().int().min(0), error: robotErrorSchema });
 
 // GET /tests/:id: what the robot needs to know of a test. No names.
 export interface RobotTest {

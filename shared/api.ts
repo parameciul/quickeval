@@ -408,6 +408,9 @@ export interface AnalysisAnswer {
   robot: RobotStart;
 }
 
+// The printable test PDF with a QR code. "none": not made yet.
+export type PrintStatus = 'none' | 'ready' | 'failed';
+
 export interface TestInfo extends TestSummary {
   uploadToken: string | null;
   multiUploadToken: string | null;
@@ -416,6 +419,8 @@ export interface TestInfo extends TestSummary {
   // Extra teacher comments for the barem, read by the robot as part of it.
   baremNotes: string;
   analysis: AnalysisInfo;
+  // fromWord: the test file is a Word file, so the PDF is made from it.
+  print: { status: PrintStatus; fromWord: boolean };
 }
 
 // The model and effort of the latest grading and of the latest class
@@ -504,6 +509,8 @@ export interface StartedTest {
   status: TestStatus;
   uploadToken: string;
   startedAt: string;
+  // Set when starting the test made work for the robot (the print PDF).
+  robot: RobotStart | null;
 }
 
 // The link that uploads for many students on one phone: /u/<multiUploadToken>.
@@ -515,6 +522,19 @@ export interface MultiUploadLink {
 // not take the request, and the work waits for the robot's next run. Its
 // 10-minute schedule does not fire (docs/deploy.md): that run starts by hand.
 export type RobotStart = 'dispatched' | 'next_check';
+
+// Reopen uploads: the test is open again, and the robot was started when that
+// made work for it.
+export interface ReopenAnswer {
+  status: TestStatus;
+  robot: RobotStart | null;
+}
+
+// "Încearcă din nou" on a print PDF that failed.
+export interface PrintRetryAnswer {
+  print: { status: PrintStatus; fromWord: boolean };
+  robot: RobotStart;
+}
 
 // "Pornește robotul" on a test in evaluation whose work waits.
 export interface RobotStartAnswer {
