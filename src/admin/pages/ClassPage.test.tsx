@@ -126,6 +126,15 @@ describe('ClassPage', () => {
     expect(screen.getByRole('button', { name: 'Redenumește clasa' })).toBeInTheDocument();
   });
 
+  it('shows the class average of each test, students who left included, and a dash when nothing is graded', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    const row = (await screen.findByRole('rowheader', { name: 'Media clasei' })).closest('tr')!;
+    const cells = within(row).getAllByRole('cell');
+    // Newest test on the left: T2 is open, T1 has 9, 6 and 5.
+    expect(cells[0]).toHaveTextContent('—');
+    expect(cells[1]).toHaveTextContent('6,67');
+  });
+
   it('shows the server message for a class that does not exist', async () => {
     renderAdmin('/clase/999', oneClass());
     expect(await screen.findByRole('alert')).toHaveTextContent('Nu am găsit ce cauți.');
@@ -204,7 +213,7 @@ describe('ClassPage grade table', () => {
     renderAdmin('/clase/1', gradedClass());
     const table = await tableOf();
     const names = table.getAllByRole('rowheader').map((cell) => cell.textContent);
-    expect(names).toEqual(['Albu Dan', 'Pop Ion', 'Ionescu Ana a plecat']);
+    expect(names).toEqual(['Albu Dan', 'Pop Ion', 'Ionescu Ana a plecat', 'Media clasei']);
     const leftRow = table.getByRole('link', { name: 'Ionescu Ana' }).closest('tr')!;
     expect(leftRow).toHaveClass('is-muted');
     expect(within(leftRow).getByText('a plecat')).toHaveClass('tag');

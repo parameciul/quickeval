@@ -107,7 +107,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
       </p>
       <p className="lead-line">
         {submission.testCode} · {submission.testTitle} · {uploadStatusLabel(submission.status)}
-        {submission.autoSubmitted && <span className="tag">Fără confirmare</span>}
+        {submission.autoSubmitted && submission.status !== 'graded' && <span className="tag">Fără confirmare</span>}
       </p>
       <p className="hint">
         Început {formatDateTime(submission.startedAt)}

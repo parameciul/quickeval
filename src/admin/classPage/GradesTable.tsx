@@ -64,6 +64,23 @@ function GradeCell({ grade }: { grade: ClassGrade | undefined }) {
   );
 }
 
+// The mean of the graded results of one test, students who left included; null
+// when nothing is graded yet.
+function testAverage(grades: ClassGrade[], testCode: string): number | null {
+  const graded = grades.filter((grade) => grade.testCode === testCode && grade.status === 'graded' && grade.grade !== null);
+  if (graded.length === 0) return null;
+  return graded.reduce((total, grade) => total + grade.grade!, 0) / graded.length;
+}
+
+function AverageCell({ average }: { average: number | null }) {
+  if (average === null) return <td>—</td>;
+  return (
+    <td>
+      <span className={`points points-${pointsLevel(average, 10)}`}>{formatPoints(average)}</span>
+    </td>
+  );
+}
+
 // The class page's grade table: a row for each student, a column for each test,
 // the newest test on the left (`tests` arrive newest first). Draft and open
 // tests keep a column, with their status, so the page still leads to them.
@@ -124,6 +141,14 @@ export function GradesTable({
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">Media clasei</th>
+            {shown.map((test) => (
+              <AverageCell key={test.code} average={testAverage(grades, test.code)} />
+            ))}
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
