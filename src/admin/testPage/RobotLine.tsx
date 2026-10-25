@@ -28,8 +28,16 @@ export function robotLine(lastCheckAt: string | null, now: number): { text: stri
   return { text, late: minutes >= LATE_MINUTES };
 }
 
-// `children` show only while grading may be late.
-export function RobotLine({ lastCheckAt, children }: { lastCheckAt: string | null; children?: ReactNode }) {
+// `children` and `lateText` show only while the robot's work may be late.
+export function RobotLine({
+  lastCheckAt,
+  lateText = 'Corectarea poate întârzia.',
+  children,
+}: {
+  lastCheckAt: string | null;
+  lateText?: string;
+  children?: ReactNode;
+}) {
   const [, setTick] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setTick((tick) => tick + 1), TICK_MS);
@@ -40,7 +48,7 @@ export function RobotLine({ lastCheckAt, children }: { lastCheckAt: string | nul
   return (
     <div className="warning">
       <p>{text}</p>
-      <p>Corectarea poate întârzia.</p>
+      <p>{lateText}</p>
       {children}
     </div>
   );

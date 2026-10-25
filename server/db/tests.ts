@@ -1,10 +1,11 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { AnalysisInfo, ExerciseListInfo, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
-import type { TestFileKind } from '../../shared/files.ts';
+import type { AnalysisInfo, ExerciseListInfo, PrintStatus, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
+import { DOCX_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { flagCountSql } from './evaluations.ts';
+import { NEEDS_PRINT } from './runner.ts';
 
 export interface StoredFile {
   key: string;
@@ -23,6 +24,7 @@ export interface TestRecord {
   exerciseList: ExerciseListInfo;
   baremNotes: string;
   analysis: AnalysisInfo;
+  print: { status: PrintStatus; key: string | null; fromWord: boolean };
 }
 
 interface TestRow {
@@ -54,6 +56,8 @@ interface TestRow {
   analysis_status: AnalysisStatus;
   analysis_stale: number;
   analysis_attempts: number;
+  print_status: PrintStatus;
+  print_file_key: string | null;
   student_count: number;
   submitted_count: number;
   graded_count: number;
@@ -66,6 +70,7 @@ const SELECT_TEST = `
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
     t.results_open, t.archived, t.analysis_status, t.analysis_stale, t.analysis_attempts,
+    t.print_status, t.print_file_key,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
@@ -109,6 +114,7 @@ function toRecord(row: TestRow): TestRecord {
     exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
     baremNotes: row.barem_notes ?? '',
     analysis: { status: row.analysis_status, stale: row.analysis_stale === 1, attempts: row.analysis_attempts },
+    print: { status: row.print_status, key: row.print_file_key, fromWord: row.test_file_type === DOCX_TYPE },
   };
 }
 
@@ -123,6 +129,7 @@ export function toTestInfo(record: TestRecord): TestInfo {
     exerciseList: record.exerciseList,
     baremNotes: record.baremNotes,
     analysis: record.analysis,
+    print: { status: record.print.status, fromWord: record.print.fromWord },
   };
 }
 
@@ -355,9 +362,12 @@ export async function setTestArchived(
 }
 
 // Points the test at a new test or barem file, and counts the change in
-// files_version. A new barem also clears the exercise list, which the robot
-// made from the old one (spec §8.5). Returns the test's status, or null when
-// the test is gone.
+// files_version. A new test file also clears the print PDF made from the old
+// one. A new barem also clears the exercise list, which the robot made from
+// the old one (spec §8.5). Returns the test's status and the key of the print
+// PDF the change cleared (the caller deletes its object), or null when the
+// test is gone. The key is read in the same batch as the write, so a print
+// the robot saves meanwhile is not left in R2.
 export async function saveTestFile(
   db: D1Database,
   teacherId: number,
@@ -365,18 +375,24 @@ export async function saveTestFile(
   kind: TestFileKind,
   file: StoredFile,
   now: string,
-): Promise<TestStatus | null> {
+): Promise<{ status: TestStatus; clearedPrintKey: string | null } | null> {
   const sql =
     kind === 'test'
-      ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1
+      ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1,
+           print_status = 'none', print_attempts = 0, print_file_key = NULL
          WHERE id = ? AND teacher_id = ?
          RETURNING status`
       : `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, updated_at = ?, files_version = files_version + 1,
            exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0
          WHERE id = ? AND teacher_id = ?
          RETURNING status`;
-  const row = await db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId).first<{ status: TestStatus }>();
-  return row?.status ?? null;
+  const [before, written] = await db.batch<{ print_file_key?: string | null; status?: TestStatus }>([
+    db.prepare('SELECT print_file_key FROM tests WHERE id = ? AND teacher_id = ?').bind(testId, teacherId),
+    db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId),
+  ]);
+  const status = written?.results[0]?.status;
+  if (!status) return null;
+  return { status, clearedPrintKey: kind === 'test' ? (before?.results[0]?.print_file_key ?? null) : null };
 }
 
 // Points the test at new barem comments, as if the barem file changed (spec
@@ -410,7 +426,28 @@ export async function listTestKeys(db: D1Database, record: TestRecord): Promise<
     .all<{ r2_key: string }>();
   const keys = results.map((row) => row.r2_key);
   for (const file of [record.files.test, record.files.barem]) if (file) keys.push(file.key);
+  if (record.print.key) keys.push(record.print.key);
   return keys;
+}
+
+// True when the test still waits for its print PDF.
+export async function needsPrint(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db.prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND ${NEEDS_PRINT}`).bind(testId).first();
+  return row !== null;
+}
+
+// "Încearcă din nou": a failed print PDF goes back to the queue. False when the
+// test is gone, is not the teacher's, is not open, or the print did not fail.
+export async function retryPrint(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET print_status = 'none', print_attempts = 0, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND status = 'open' AND print_status = 'failed'
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ id: number }>();
+  return row !== null;
 }
 
 // Deletes the test row; its uploads and file rows go with it (ON DELETE CASCADE).

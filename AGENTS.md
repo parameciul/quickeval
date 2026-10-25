@@ -17,6 +17,7 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 - `public/`: copied as-is into `dist/` (`_routes.json`: only `/api/*` runs Functions; `_redirects`, `_headers`, `theme.js`, `favicon.svg`, `robots.txt`). `_redirects` must use the directory form `/admin/* /admin/ 200` and `/u/* /u/ 200`: Wrangler refuses `/admin/* /admin/index.html 200` as a redirect loop.
 - `scripts/`: `seed-local.sql` (the local teacher), `smoke.mjs` (checks a running local server, with one full upload graded by a pretend robot).
 - `runner/`: the grading robot (spec §12), run by `.github/workflows/evaluate.yml`. `.claude/skills/evaluate-test/`: its grading skill (spec §13).
+- `runner/print/`: the print container (pinned LibreOffice and the QR stamp) that makes the test's print PDF.
 
 ## Commands
 
@@ -41,6 +42,7 @@ Details and the remaining rules are in the nested `AGENTS.md` files.
 - The robot's Claude reads only its work folder and gets no robot key and no API key. Robot answers and logs carry no names.
 - The PDFs and the CSV are made in the browser (`src/admin/pdf/`, `shared/csv.ts`). The student's PDF is made from `StudentPdfInput`, which has no confidence and no review reason; the CSV guards every text cell against formulas.
 - Every path that makes work for the robot starts it (`startRobot`): the GitHub schedule does not fire. This includes "Regenerează" (the class analysis).
+- A print job is an open test with a test file and no print PDF; every path that makes one starts the robot.
 - Times are stored as ISO 8601 UTC strings (`nowIso()` or `new Date(x).toISOString()`: SQL compares them as text) and shown in Europe/Bucharest time. School year Y runs from September of Y to August of Y+1.
 - Relative imports name the `.ts` or `.tsx` file. TypeScript runs with `erasableSyntaxOnly`: no enums, no namespaces, no constructor parameter properties.
 - A new migration runs on the live database before the code that needs it reaches `main` (`docs/deploy.md`).

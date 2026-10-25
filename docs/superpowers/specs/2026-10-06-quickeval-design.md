@@ -328,13 +328,14 @@ CREATE TABLE runner_state (                -- exactly one row, id = 1
 );
 ```
 
-Migrations add the tables in the plan that needs them: Plan 1 adds `teachers`, `classes`, `students`, and `enrollments`. Plan 2 adds `tests`, `submissions`, and `submission_files`. Plan 3a adds `evaluations`, `evaluation_items`, `settings`, and `runner_state`. Plan 3b adds `tests.files_version`. Plan 4a adds `evaluations.pages_reviewed_at`. Six later migrations came with the teacher's own changes: 0007 (confidence in five steps), 0008 (`tests.barem_notes`), 0009 (`tests.results_open`, `submissions.result_token`), 0010 (`tests.multi_upload_token`), 0011 (`submissions.results_open`), and 0012 (`robot_settings`). Plan 5 adds 0013 (`tests.archived`). Only a `done` test is archived: every status change away from `done` (Start, Reopen, Recorectează tot, the regrade or retry of one upload, Regenerează) clears the mark, so an archived test is never open or being graded. Archiving does not change published results.
+Migrations add the tables in the plan that needs them: Plan 1 adds `teachers`, `classes`, `students`, and `enrollments`. Plan 2 adds `tests`, `submissions`, and `submission_files`. Plan 3a adds `evaluations`, `evaluation_items`, `settings`, and `runner_state`. Plan 3b adds `tests.files_version`. Plan 4a adds `evaluations.pages_reviewed_at`. Six later migrations came with the teacher's own changes: 0007 (confidence in five steps), 0008 (`tests.barem_notes`), 0009 (`tests.results_open`, `submissions.result_token`), 0010 (`tests.multi_upload_token`), 0011 (`submissions.results_open`), and 0012 (`robot_settings`). Plan 5 adds 0013 (`tests.archived`). The printable test adds 0014: `tests.print_status` (`none`, `ready`, or `failed`), `tests.print_file_key`, and `tests.print_attempts` (the failed tries for the current `files_version`); see `docs/superpowers/specs/2026-10-25-qr-print-test-design.md` §4.2. Only a `done` test is archived: every status change away from `done` (Start, Reopen, Recorectează tot, the regrade or retry of one upload, Regenerează) clears the mark, so an archived test is never open or being graded. Archiving does not change published results.
 
 ### 7.2 R2 layout (the "cloud folder" of a test)
 
 ```
 t/<teacherId>/<schoolYear>/<testCode>/test/<safe-name>.<ext>
 t/<teacherId>/<schoolYear>/<testCode>/barem/<safe-name>.<ext>
+t/<teacherId>/<schoolYear>/<testCode>/print/<test-file-slug>-v<filesVersion>-qr.pdf
 t/<teacherId>/<schoolYear>/<testCode>/students/<studentId>-<name-slug>/<nn>-<random8>.<ext>
 ```
 
@@ -371,6 +372,7 @@ draft ──Start test──► open ──Start evaluation (now, or when evalua
 - Makes `upload_token`: 16 random chars from `a-z2-7` (80 bits).
 - Sets `started_at` to now. This is the "date and hour" of the test.
 - The test page then shows the link `https://<host>/u/<upload_token>`, a Copy button, and a QR code. A full-screen QR view works for the class projector.
+- When the test file is a Word or PDF file, starting the test makes a print job for the robot (a PDF of the test with the QR code), and the route starts the robot, as it does for other work; the answer carries `robot`. See `docs/superpowers/specs/2026-10-25-qr-print-test-design.md` §4.3.
 
 ### 8.3 Upload window
 
@@ -528,6 +530,8 @@ Auth: the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) is checked again in 
 | `PATCH /settings` `{ maxParallelAgents }` | An integer from 1 to 4. |
 | `POST /settings/robot-key` | Makes a new robot key, shows it once, and stores its SHA-256 hash. |
 
+Printable test (see `docs/superpowers/specs/2026-10-25-qr-print-test-design.md` §4.3): `GET /tests/:code/print` downloads the PDF with the QR code, and `POST /tests/:code/print/retry` sets a failed print back to `none` with 0 attempts and starts the robot. Reopening uploads and replacing the test file can also make a print job, so their answers carry `robot`.
+
 ### 11.2 Student: `/api/u/:token/*`
 
 No login. The token must match a test. Calls that change data also need status `open` and a valid `X-Upload-Session`.
@@ -546,6 +550,8 @@ No login. The token must match a test. Calls that change data also need status `
 
 ### 11.3 Robot: `/api/runner/*`
 
+Four routes serve the print job (see `docs/superpowers/specs/2026-10-25-qr-print-test-design.md` §4.3): `GET /tests/:id/print-job`, `GET /tests/:id/print-job/file`, `PUT /tests/:id/print`, and `POST /tests/:id/print-failed`. `/check` and `/tasks` also count the waiting print jobs (`prints`).
+
 Auth: `Authorization: Bearer <robot key>`. The API compares the SHA-256 of the key with `settings.runner_key_hash`, using a constant-time compare. Test and submission ids are numbers, never names.
 
 | Method and path | Purpose |
@@ -554,7 +560,7 @@ Auth: `Authorization: Bearer <robot key>`. The API compares the SHA-256 of the k
 | `POST /lease` `{ runId }` | Takes the robot lease if it is free, stale (no heartbeat for 15 min), or already this run's. It then sets every `grading` submission of another run back to `submitted`, because a stale lease means the old run died. Returns `{ granted, maxParallel }`. |
 | `POST /heartbeat` `{ runId }` | Keeps the lease. 409 if the lease belongs to another run. |
 | `POST /release` `{ runId, summary }` | Frees the lease and saves the summary (counts only). 409 `lease_lost` if the lease belongs to another run. |
-| `GET /tasks` | `{ exerciseLists: number[], pendingGrading: number, analyses: number[] }` (test ids). |
+| `GET /tasks` | `{ exerciseLists: number[], pendingGrading: number, analyses: number[], prints: number[] }` (test ids). |
 | `GET /tests/:id` | Id, `filesVersion`, file types (test, barem), the exercise list, and `baremNotes` (the teacher's comments for the barem; "" when none). Only while the test is `evaluating` (else 404, as for a test that does not exist). The robot reads it before the files. |
 | `GET /tests/:id/files/:kind` | Stream the test or barem file. Only while the test is `evaluating` (else 404). |
 | `POST /tests/:id/exercise-list` `{ runId, filesVersion, ok: true, exerciseList } \| { runId, filesVersion, ok: false, error }` | Save the list, only from the run that holds the lease (else 409 `lease_lost`), only while the list is waited for, and only while `filesVersion` is still the test's (else 409 `not_needed`: the teacher replaced a file after the robot read the test). The API validates it (a broken list: 422 `invalid_result`) and sets `ready` or `problem`. On an error it adds 1 to the attempts (none for `usage_limit`) and sets `failed` at 3. |
@@ -567,6 +573,8 @@ Auth: `Authorization: Bearer <robot key>`. The API compares the SHA-256 of the k
 The body of an exercise list or a result is at most 1 MB (else 413 `too_large`), so the saved raw output stays far under D1's 2 MB row limit. The robot checks the size before it sends, and sends a bigger answer as `invalid_output`.
 
 ## 12. Evaluation robot
+
+Print jobs come first in a run: the robot makes the PDFs with the QR code before it lists exercises or grades, in a container that holds a pinned LibreOffice for Word files (see `docs/superpowers/specs/2026-10-25-qr-print-test-design.md` §4.3 and §5). A run's summary counts them in `prints`.
 
 ### 12.1 GitHub workflow `.github/workflows/evaluate.yml`
 

@@ -3,9 +3,9 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from './check.ts';
-import { API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
+import { API_URL, evaluatingTest, fetchFrom, openTestWithFile, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const HOOK = new URL('./test/refusePackages.mjs', import.meta.url).href;
@@ -40,6 +40,23 @@ describe('runner/check.ts', () => {
     expect(written()).toBe('has_work=true\n');
     const state = await world.api.db.prepare('SELECT last_check_at FROM runner_state WHERE id = 1').first<{ last_check_at: string | null }>();
     expect(state?.last_check_at).not.toBeNull();
+  });
+
+  it('finds work when only a print PDF waits, and logs the count', async () => {
+    const open = await openTestWithFile('pdf');
+    world = { api: open.api, code: open.code, testId: open.testId, submissionIds: [] };
+    const env = { QUICKEVAL_URL: API_URL, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, GITHUB_OUTPUT: output };
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((line: string) => {
+      lines.push(line);
+    });
+    try {
+      expect(await main(env, { fetch: fetchFrom(open.api) })).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(written()).toBe('has_work=true\n');
+    expect(lines).toEqual(['[robot] check exerciseLists=0 pendingGrading=0 analyses=0 prints=1']);
   });
 
   it('tells the API the model and effort it is set to use, from the environment or the defaults', async () => {

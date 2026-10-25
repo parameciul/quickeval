@@ -56,4 +56,12 @@ describe('RobotLine', () => {
     );
     expect(screen.getByRole('button', { name: 'Pornește robotul' })).toBeInTheDocument();
   });
+
+  it('names the work that may be late', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+    render(<RobotLine lastCheckAt={ago(45)} lateText="Testul cu cod QR poate întârzia." />);
+    expect(screen.getByText('Testul cu cod QR poate întârzia.')).toBeInTheDocument();
+    expect(screen.queryByText('Corectarea poate întârzia.')).not.toBeInTheDocument();
+  });
 });

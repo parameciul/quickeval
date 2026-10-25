@@ -1,8 +1,19 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
 import type { ExerciseListInfo } from '../../shared/api.ts';
-import { isTestFileKind } from '../../shared/files.ts';
-import { analysisBody, checkBody, exerciseListBody, type LeaseResult, MAX_ROBOT_BODY_BYTES, releaseBody, resultBody, runBody } from '../../shared/runner.ts';
+import { isTestFileKind, PDF_TYPE, printFileKey } from '../../shared/files.ts';
+import {
+  analysisBody,
+  checkBody,
+  exerciseListBody,
+  type LeaseResult,
+  MAX_ROBOT_BODY_BYTES,
+  printFailedBody,
+  releaseBody,
+  resultBody,
+  runBody,
+  runIdSchema,
+} from '../../shared/runner.ts';
 import { checkClassAnalysis, checkExerciseList, checkGrading } from '../../shared/schemas.ts';
 import { robotAuth } from '../auth/robotAuth.ts';
 import {
@@ -10,18 +21,22 @@ import {
   failAnalysis,
   failExerciseList,
   failGrading,
+  failPrint,
   findClassResults,
   findGrading,
+  findPrintJob,
   findRobotFile,
   findRobotTest,
   heartbeat,
   holdsLease,
   listTasks,
+  printKeyIs,
   releaseLease,
   runCheck,
   saveAnalysis,
   saveExerciseList,
   saveGrading,
+  savePrint,
   takeLease,
   testExists,
 } from '../db/runner.ts';
@@ -29,11 +44,12 @@ import { getMaxParallel } from '../db/settings.ts';
 import type { AppEnv } from '../env.ts';
 import { ApiError, notFound } from '../errors.ts';
 import { nowIso, parseId, readJson } from '../http.ts';
-import { fileResponse } from '../uploads.ts';
+import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
 
 const leaseLost = () => new ApiError(409, 'lease_lost', 'Altă rulare a robotului lucrează acum.');
 // A broken output: the robot counts it as invalid_output.
 const invalidResult = () => new ApiError(422, 'invalid_result', 'Rezultatul robotului nu poate fi folosit.');
+const printNotNeeded = () => new ApiError(409, 'not_needed', 'Testul cu cod QR nu mai este cerut.');
 
 // Why a robot write changed nothing: the test is gone (404, the robot drops
 // the result), another run holds the lease, or the work is no longer needed.
@@ -95,6 +111,56 @@ export function runnerRoutes(): Hono<AppEnv> {
     const object = key ? await c.env.FILES.get(key) : null;
     if (!object || !type) throw notFound();
     return fileResponse(object, kind, type);
+  });
+
+  // The print job of an open test: all the robot reads of a test before its
+  // evaluation. 404 unless the test waits for its print PDF.
+  routes.get('/tests/:id/print-job', async (c) => {
+    const found = await findPrintJob(c.env.DB, parseId(c.req.param('id')));
+    if (!found) throw notFound();
+    return c.json({ job: found.job });
+  });
+
+  routes.get('/tests/:id/print-job/file', async (c) => {
+    const found = await findPrintJob(c.env.DB, parseId(c.req.param('id')));
+    const object = found ? await c.env.FILES.get(found.testFileKey) : null;
+    if (!found || !object) throw notFound();
+    return fileResponse(object, 'test', found.job.contentType);
+  });
+
+  // The test with the QR code. The object is written first, then the row; a
+  // refused row write deletes the object, unless the row already names it
+  // (two runs that made the same version).
+  routes.put('/tests/:id/print', async (c) => {
+    const testId = parseId(c.req.param('id'));
+    const runId = runIdSchema.safeParse(c.req.header('X-Run-Id'));
+    if (!runId.success) throw new ApiError(400, 'invalid', runId.error.issues[0]?.message ?? 'Datele trimise nu sunt valide.');
+    const versionText = c.req.header('X-Files-Version') ?? '';
+    const version = Number(versionText);
+    if (!/^\d+$/.test(versionText) || !Number.isSafeInteger(version)) throw new ApiError(400, 'invalid', 'Versiunea fișierelor nu este validă.');
+    const found = await findPrintJob(c.env.DB, testId);
+    if (!found) throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), printNotNeeded);
+    // The key is shared by every run that made this version: a run without the
+    // lease, or one that read an older file, must not touch the object.
+    if (found.job.filesVersion !== version) throw printNotNeeded();
+    if (!(await holdsLease(c.env.DB, runId.data))) throw leaseLost();
+    const file = await readUpload(c, [PDF_TYPE], 'Fișierul trebuie să fie un PDF.');
+    const key = printFileKey(found.teacherId, found.schoolYear, found.code, found.testFileName, version);
+    await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: PDF_TYPE } });
+    if (!(await savePrint(c.env.DB, testId, runId.data, version, key, nowIso()))) {
+      if (!(await printKeyIs(c.env.DB, testId, key))) await deleteFilesQuietly(c.env.FILES, [key]);
+      throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), printNotNeeded);
+    }
+    return c.json({ status: 'ready' });
+  });
+
+  // The robot could not make the PDF.
+  routes.post('/tests/:id/print-failed', async (c) => {
+    const testId = parseId(c.req.param('id'));
+    const body = await readJson(c, printFailedBody);
+    const status = await failPrint(c.env.DB, testId, body.runId, body.filesVersion, body.error, nowIso());
+    if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), printNotNeeded);
+    return c.json({ status });
   });
 
   // The exercise list of a test, or why the robot could not make it. A list

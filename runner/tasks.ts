@@ -15,6 +15,7 @@ import type { RobotApi } from './api.ts';
 import { RobotApiError } from './api.ts';
 import type { ClaudeMode, ClaudeOutcome, ClaudeRunner } from './claude.ts';
 import { log } from './log.ts';
+import type { PrintTools } from './printTask.ts';
 import type { TaskFile, WorkFolderInput, WorkFolderOptions } from './workdir.ts';
 import { makeWorkFolder, removeFolder } from './workdir.ts';
 
@@ -42,6 +43,9 @@ export interface TaskContext {
   // The run's folder (runner/workdir.ts runFolder).
   root: string;
   workdir?: WorkFolderOptions;
+  // The container that makes the print PDFs, and the site address of the QR
+  // link. A run without it makes no print PDF.
+  print?: { tools: PrintTools; siteUrl: string };
 }
 
 const JSON_SCHEMAS: Record<ClaudeMode, object> = {
@@ -74,7 +78,7 @@ async function askClaude(ctx: TaskContext, mode: ClaudeMode, cwd: string, usable
 
 // What an API refusal means for the task. Anything else (a refused robot key,
 // an API that cannot be reached) stops the run: it goes up to the run loop.
-function refusal(err: unknown): 'dropped' | 'lease_lost' | 'invalid' | null {
+export function refusal(err: unknown): 'dropped' | 'lease_lost' | 'invalid' | null {
   if (!(err instanceof RobotApiError)) return null;
   if (err.status === 409 && err.code === 'lease_lost') return 'lease_lost';
   if (err.status === 404 || (err.status === 409 && (err.code === 'taken_over' || err.code === 'not_needed'))) return 'dropped';

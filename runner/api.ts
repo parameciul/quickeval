@@ -8,6 +8,8 @@ import type {
   ClassResults,
   exerciseListBody,
   LeaseResult,
+  PrintJob,
+  printFailedBody,
   resultBody,
   RobotTest,
   RunSummary,
@@ -22,6 +24,7 @@ export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 export type ExerciseListPost = z.input<typeof exerciseListBody>;
 export type ResultPost = z.input<typeof resultBody>;
 export type AnalysisPost = z.input<typeof analysisBody>;
+export type PrintFailedPost = z.input<typeof printFailedBody>;
 
 // A refused request: `code` is the API's error code ("lease_lost",
 // "taken_over", …), "network" when the API could not be reached, or
@@ -57,6 +60,13 @@ export interface RobotApi {
   // "ready": saved. "requested": an error was counted and the analysis waits
   // for another try. "failed": the last attempt failed.
   sendAnalysis(testId: number, body: AnalysisPost): Promise<'ready' | 'requested' | 'failed'>;
+  // An open test that waits for its print PDF; 404 for any other test.
+  printJob(testId: number): Promise<PrintJob>;
+  printSource(testId: number): Promise<Uint8Array>;
+  // The test with the QR code, made from the test file of `filesVersion`.
+  sendPrint(testId: number, runId: string, filesVersion: number, pdf: Uint8Array): Promise<void>;
+  // "failed": the last attempt failed. "none": the print waits for another try.
+  sendPrintFailed(testId: number, body: PrintFailedPost): Promise<'none' | 'failed'>;
 }
 
 export interface RobotApiOptions {
@@ -78,16 +88,18 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
   const root = `${baseUrl.replace(/\/+$/, '')}/api/runner`;
 
   // Sends a request and reads its answer with `read`, inside the time limit:
-  // a big file that breaks off while it downloads is tried again too.
+  // a big file that breaks off while it downloads is tried again too. A body
+  // goes as JSON, or as it is when it is a file (`Raw`).
   async function send<T>(method: string, path: string, body: unknown, read: (res: Response) => Promise<T>): Promise<T> {
     const headers: Record<string, string> = { Authorization: `Bearer ${key}` };
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (body instanceof Raw) Object.assign(headers, body.headers);
+    else if (body !== undefined) headers['Content-Type'] = 'application/json';
     for (let attempt = 1; ; attempt++) {
       try {
         const res = await fetchFn(`${root}${path}`, {
           method,
           headers,
-          body: body === undefined ? undefined : JSON.stringify(body),
+          body: body instanceof Raw ? body.bytes : body === undefined ? undefined : JSON.stringify(body),
           signal: AbortSignal.timeout(timeoutMs),
         });
         if (res.ok) return await read(res);
@@ -121,7 +133,30 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
     classResults: async (testId) => (await json<{ results: ClassResults }>('GET', `/tests/${testId}/results`)).results,
     sendAnalysis: async (testId, body) =>
       (await json<{ status: 'ready' | 'requested' | 'failed' }>('POST', `/tests/${testId}/analysis`, body)).status,
+    printJob: async (testId) => (await json<{ job: PrintJob }>('GET', `/tests/${testId}/print-job`)).job,
+    printSource: (testId) => bytes(`/tests/${testId}/print-job/file`),
+    sendPrint: (testId, runId, filesVersion, pdf) =>
+      send(
+        'PUT',
+        `/tests/${testId}/print`,
+        new Raw(pdf, { 'Content-Type': 'application/pdf', 'X-Run-Id': runId, 'X-Files-Version': String(filesVersion) }),
+        nothing,
+      ),
+    sendPrintFailed: async (testId, body) =>
+      (await json<{ status: 'none' | 'failed' }>('POST', `/tests/${testId}/print-failed`, body)).status,
   };
+}
+
+// A request body sent as it is, with its own headers.
+class Raw {
+  readonly bytes: Uint8Array<ArrayBuffer>;
+  readonly headers: Record<string, string>;
+
+  constructor(bytes: Uint8Array, headers: Record<string, string>) {
+    // The robot's files are never in shared memory, the one kind fetch refuses.
+    this.bytes = bytes as Uint8Array<ArrayBuffer>;
+    this.headers = headers;
+  }
 }
 
 async function errorCode(res: Response): Promise<string> {

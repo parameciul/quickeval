@@ -9,13 +9,14 @@ import { formatDateTime, robotStartMessage } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { StatusChip } from '../StatusChip.tsx';
-import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { AnalysisState } from '../testPage/AnalysisState.tsx';
+import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
+import { PrintTest } from '../testPage/PrintTest.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
 import { ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
-import { StartRobotButton, waitsForRobot } from '../testPage/StartRobotButton.tsx';
+import { StartRobotButton, waitsForPrint, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
 import { MultiUploadLink, UploadLink } from '../testPage/UploadLink.tsx';
 import { UploadsTable } from '../testPage/UploadsTable.tsx';
@@ -76,7 +77,9 @@ function TestDetails({ code }: { code: string }) {
   const { test, uploads, robot, showModel } = detail.data;
   // A failed robot start that the API kept: a scheduled start happens in any
   // request, so only the API knows of it. A button's answer says the same.
-  const robotText = test.status === 'evaluating' && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
+  // An open test waits for the robot only for its print PDF.
+  const printWaits = waitsForPrint(test);
+  const robotText = (test.status === 'evaluating' || printWaits) && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
   return (
     <section>
       <p className="back-link">
@@ -117,7 +120,7 @@ function TestDetails({ code }: { code: string }) {
       <TestFiles test={test} onChanged={refresh} onRobot={onRobot} />
 
       <h2>Încărcarea lucrărilor</h2>
-      <TestActions test={test} onChanged={refresh} />
+      <TestActions test={test} onChanged={refresh} onRobot={onRobot} />
 
       {test.status !== 'draft' && (
         <>
@@ -137,8 +140,8 @@ function TestDetails({ code }: { code: string }) {
           )}
           {test.status === 'done' && <PartialEvaluationNotice uploads={uploads} />}
           {robotText && <p role="status">{robotText}</p>}
-          {(test.status === 'evaluating' || test.evaluationAt) && (
-            <RobotLine lastCheckAt={robot.lastCheckAt}>
+          {(test.status === 'evaluating' || test.evaluationAt || printWaits) && (
+            <RobotLine lastCheckAt={robot.lastCheckAt} lateText={printWaits ? 'Testul cu cod QR poate întârzia.' : undefined}>
               {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
             </RobotLine>
           )}
@@ -226,10 +229,30 @@ function writeLinksVisible(code: string, visible: boolean): void {
 }
 
 // What the teacher can do next, by the state of the test.
-function TestActions({ test, onChanged }: { test: TestInfo; onChanged: () => Promise<void> }) {
+function TestActions({
+  test,
+  onChanged,
+  onRobot,
+}: {
+  test: TestInfo;
+  onChanged: () => Promise<void>;
+  onRobot: (robot: RobotStart | null) => void;
+}) {
   const api = useApi();
-  const start = useMutation({ mutationFn: () => api.startTest(test.code), onSuccess: onChanged });
-  const reopen = useMutation({ mutationFn: () => api.reopenTest(test.code), onSuccess: onChanged });
+  const start = useMutation({
+    mutationFn: () => api.startTest(test.code),
+    onSuccess: async (started) => {
+      onRobot(started.robot);
+      await onChanged();
+    },
+  });
+  const reopen = useMutation({
+    mutationFn: () => api.reopenTest(test.code),
+    onSuccess: async (reopened) => {
+      onRobot(reopened.robot);
+      await onChanged();
+    },
+  });
   // The upload links stay visible while the class uploads, and the teacher
   // hides them for a cleaner page once the files are in. Kept per test in
   // this browser, so a reload keeps the page as the teacher left it.
@@ -268,6 +291,7 @@ function TestActions({ test, onChanged }: { test: TestInfo; onChanged: () => Pro
             <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />
           </>
         )}
+        <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />
       </>
     );
   return (

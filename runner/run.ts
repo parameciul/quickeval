@@ -7,12 +7,14 @@ import { RobotApiError, robotApiFromEnv } from './api.ts';
 import type { ClaudeRunner } from './claude.ts';
 import { claudeRunner, claudeSettings } from './claude.ts';
 import { log } from './log.ts';
+import type { PrintTools } from './printTask.ts';
+import { dockerTools, makePrint, PrintSetupError } from './printTask.ts';
 import type { TaskContext, TaskEnd } from './tasks.ts';
 import { analyzeClass, gradeSubmission, makeExerciseList } from './tasks.ts';
 import type { WorkFolderOptions } from './workdir.ts';
 import { removeFolder, runFolder } from './workdir.ts';
 
-// One robot run (spec §12.2): take the lease, make the exercise lists, grade
+// One robot run (spec §12.2): take the lease, make the print PDFs and the exercise lists, grade
 // the uploads with up to maxParallel Claude runs at once, write the class
 // analyses, and give the lease back with a summary of counts.
 
@@ -32,6 +34,8 @@ export interface RunOptions {
   // The run's folder: the task folders go in it.
   root: string;
   workdir?: WorkFolderOptions;
+  // The container and the site address for the print PDFs; none without it.
+  print?: { tools: PrintTools; siteUrl: string };
   now?: () => number;
   budgetMs?: number;
   heartbeatMs?: number;
@@ -55,8 +59,8 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
   }
   log('run started', { run: runId, maxParallel: lease.maxParallel });
 
-  const ctx: TaskContext = { api, claude: options.claude, runId, root: options.root, workdir: options.workdir };
-  const counts = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0 };
+  const ctx: TaskContext = { api, claude: options.claude, runId, root: options.root, workdir: options.workdir, print: options.print };
+  const counts = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0 };
   let stop: RunSummary['stop'] | null = null;
   // The first reason to stop wins.
   const stopTaking = (reason: RunSummary['stop']) => {
@@ -79,10 +83,12 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
   }, options.heartbeatMs ?? HEARTBEAT_MS);
 
   let failuresInARow = 0;
-  const record = (end: TaskEnd, done: 'exerciseLists' | 'graded' | 'analyses') => {
+  const record = (end: TaskEnd, done: 'exerciseLists' | 'graded' | 'analyses' | 'prints') => {
     if (end === 'saved') counts[done] += 1;
     else if (end === 'failed' && done === 'graded') counts.failed += 1;
     else if (end === 'usage_limit' || end === 'claude_login' || end === 'lease_lost') stopTaking(end);
+    // The limit guards Claude's attempts: a failed print PDF does not count.
+    if (done === 'prints' && (end === 'retry' || end === 'failed')) return;
     failuresInARow = end === 'retry' || end === 'failed' ? failuresInARow + 1 : 0;
     if (failuresInARow >= FAILURES_IN_A_ROW) {
       log('failures in a row', { run: runId, tasks: failuresInARow });
@@ -121,9 +127,33 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
     const listsTried = new Set<number>();
     // The same for an analysis: one try per test and run.
     const analysesTried = new Set<number>();
+    // A print PDF that failed but has attempts left is tried again in the next
+    // round (the API fails it for good after 3 attempts): a slow first
+    // LibreOffice start must not leave the teacher waiting for the next run.
+    // Any other end is tried once per run. When the image cannot be built,
+    // the run makes no print PDF at all.
+    const printsTried = new Set<number>();
+    const print = options.print;
+    let printsOff = false;
     while (canTake()) {
       const tasks = await api.tasks();
       let started = 0;
+      // The print PDFs first: the teacher waits for them, and they are quick.
+      // An older API sends no print jobs.
+      for (const testId of tasks.prints ?? []) {
+        if (!print || printsOff || printsTried.has(testId) || !canTake()) continue;
+        started += 1;
+        try {
+          const end = await makePrint(ctx, print, testId);
+          if (end !== 'retry') printsTried.add(testId);
+          record(end, 'prints');
+        } catch (err) {
+          if (!(err instanceof PrintSetupError)) throw err;
+          failure = true;
+          printsOff = true;
+          log('print setup failed', { run: runId });
+        }
+      }
       for (const testId of tasks.exerciseLists) {
         if (listsTried.has(testId) || !canTake()) continue;
         listsTried.add(testId);
@@ -172,9 +202,10 @@ export function newRunId(env: Record<string, string | undefined>): string {
 }
 
 export interface MainOptions extends RobotApiOptions {
-  // Tests replace Claude and the skill folder.
+  // Tests replace Claude, the skill folder, and the print container.
   claude?: ClaudeRunner;
   workdir?: WorkFolderOptions;
+  printTools?: PrintTools;
 }
 
 // The robot step of the GitHub workflow: `node runner/run.ts`.
@@ -195,7 +226,9 @@ export async function main(env: Record<string, string | undefined>, options: Mai
   await mkdir(configDir, { recursive: true });
   try {
     const claude = options.claude ?? claudeRunner(claudeSettings(env, configDir));
-    const report = await runRobot({ api, claude, runId, root, workdir: options.workdir });
+    // robotApiFromEnv found QUICKEVAL_URL; the image is built only when a print job waits.
+    const print = { tools: options.printTools ?? dockerTools(), siteUrl: env.QUICKEVAL_URL!.trim() };
+    const report = await runRobot({ api, claude, runId, root, workdir: options.workdir, print });
     return report.exitCode;
   } catch (err) {
     // The lease request failed: the API cannot be reached, or refused the key.

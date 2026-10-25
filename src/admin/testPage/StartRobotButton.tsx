@@ -3,10 +3,18 @@ import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
-// Work waits for the robot: the test is in evaluation, its exercise list does
-// not wait for the teacher, and an upload waits or was left in grading, or
-// every upload is graded and the class analysis waits.
+// The print PDF of an open test waits for the robot: the test has its file,
+// and the PDF is neither made nor failed.
+export function waitsForPrint(test: TestInfo): boolean {
+  return test.status === 'open' && test.files.test !== null && test.print.status === 'none';
+}
+
+// Work waits for the robot: the print PDF of an open test waits, or the test
+// is in evaluation, its exercise list does not wait for the teacher, and an
+// upload waits or was left in grading, or every upload is graded and the
+// class analysis waits.
 export function waitsForRobot(test: TestInfo, uploads: UploadRow[]): boolean {
+  if (waitsForPrint(test)) return true;
   if (test.status !== 'evaluating') return false;
   if (test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed') return false;
   if (uploads.some((row) => row.status === 'submitted' || row.status === 'grading')) return true;
@@ -14,7 +22,8 @@ export function waitsForRobot(test: TestInfo, uploads: UploadRow[]): boolean {
 }
 
 // "Pornește robotul": the teacher starts the robot again for work that a run
-// left when it stopped early (a usage limit, a crash, the time limit).
+// left when it stopped early (a usage limit, a crash, the time limit), or for
+// a print PDF when the robot did not start.
 export function StartRobotButton({
   code,
   onChanged,

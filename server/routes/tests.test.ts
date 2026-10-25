@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DOCX_TYPE } from '../../shared/files.ts';
 import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -178,6 +179,17 @@ describe('GET /api/admin/tests/:code', () => {
       },
       expect.objectContaining({ studentName: 'Stan Eva', active: false, status: 'uploading', fileCount: 1 }),
     ]);
+  });
+
+  it('shows the print state of a test', async () => {
+    const cls = await makeClass(api, '6E2', ['Pop Ion']);
+    const code = await makeTest(api, cls.id);
+    await api.db
+      .prepare("UPDATE tests SET test_file_key = 'k', test_file_name = 'Test.docx', test_file_type = ? WHERE code = ?")
+      .bind(DOCX_TYPE, code)
+      .run();
+    const res = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(res.body.test.print).toEqual({ status: 'none', fromWord: true });
   });
 
   it('sends the model and effort of each grading, and the Model column setting', async () => {

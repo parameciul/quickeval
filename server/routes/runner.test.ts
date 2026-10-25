@@ -125,9 +125,11 @@ describe('POST /api/runner/check: the configured model and effort', () => {
 
 describe('POST /api/runner/check', () => {
   it('says there is no work and saves the time of the check', async () => {
+    // The open test has a test file: its print PDF is made, so no print job waits.
+    await setTest("print_status = 'ready', print_file_key = 'fixture/print.pdf'");
     const res = await robot('POST', '/check');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ hasWork: false, exerciseLists: 0, pendingGrading: 0, analyses: 0 });
+    expect(res.body).toEqual({ hasWork: false, exerciseLists: 0, pendingGrading: 0, analyses: 0, prints: 0 });
     const detail = await api.request('GET', `/api/admin/tests/${code}`);
     expect(Date.parse(detail.body.robot.lastCheckAt)).not.toBeNaN();
   });
@@ -135,15 +137,15 @@ describe('POST /api/runner/check', () => {
   it('counts the exercise lists, the uploads to grade, and the analyses that wait', async () => {
     await addSubmission(api, code, studentIds[0]!, { status: 'submitted', files: 1 });
     await setTest("status = 'evaluating'");
-    expect((await robot('POST', '/check')).body).toEqual({ hasWork: true, exerciseLists: 1, pendingGrading: 0, analyses: 0 });
+    expect((await robot('POST', '/check')).body).toEqual({ hasWork: true, exerciseLists: 1, pendingGrading: 0, analyses: 0, prints: 0 });
 
     await setTest("exercise_list_status = 'ready'");
     await addSubmission(api, code, studentIds[1]!, { status: 'submitted', files: 1 });
-    expect((await robot('POST', '/check')).body).toEqual({ hasWork: true, exerciseLists: 0, pendingGrading: 2, analyses: 0 });
+    expect((await robot('POST', '/check')).body).toEqual({ hasWork: true, exerciseLists: 0, pendingGrading: 2, analyses: 0, prints: 0 });
 
     await api.db.prepare("UPDATE submissions SET status = 'graded'").run();
     await setTest("analysis_status = 'requested'");
-    expect((await robot('POST', '/check')).body).toEqual({ hasWork: true, exerciseLists: 0, pendingGrading: 0, analyses: 1 });
+    expect((await robot('POST', '/check')).body).toEqual({ hasWork: true, exerciseLists: 0, pendingGrading: 0, analyses: 1, prints: 0 });
   });
 
   it('gives no work from a test whose exercise list has a problem or failed', async () => {
@@ -183,7 +185,7 @@ describe('POST /api/runner/check', () => {
     const id = await addSubmission(api, code, studentIds[0]!, { status: 'grading', files: 1 });
     await api.db.prepare("UPDATE submissions SET run_id = 'run-1' WHERE id = ?").bind(id).run();
     await setRunner("run_id = 'run-1', heartbeat_at = ?", new Date().toISOString());
-    expect((await robot('POST', '/check')).body).toEqual({ hasWork: false, exerciseLists: 0, pendingGrading: 0, analyses: 0 });
+    expect((await robot('POST', '/check')).body).toEqual({ hasWork: false, exerciseLists: 0, pendingGrading: 0, analyses: 0, prints: 0 });
     expect(await uploadStatus(id)).toEqual({ status: 'grading', run_id: 'run-1' });
   });
 
@@ -198,7 +200,7 @@ describe('POST /api/runner/check', () => {
 
 const RUN = 'run-0001';
 const OTHER_RUN = 'run-0002';
-const SUMMARY = { exerciseLists: 1, graded: 3, failed: 0, analyses: 0, stop: 'done' };
+const SUMMARY = { exerciseLists: 1, graded: 3, failed: 0, analyses: 0, prints: 0, stop: 'done' };
 
 const LIST = {
   totalPoints: 10,
@@ -303,7 +305,7 @@ describe('GET /api/runner/tasks', () => {
     await setTest("status = 'evaluating'");
     const res = await robot('GET', '/tasks');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ exerciseLists: [await testIdOf(api, code)], pendingGrading: 1, analyses: [] });
+    expect(res.body).toEqual({ exerciseLists: [await testIdOf(api, code)], pendingGrading: 1, analyses: [], prints: [] });
   });
 });
 

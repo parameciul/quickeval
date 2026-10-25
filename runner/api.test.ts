@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ExerciseList, GradingResult } from '../shared/schemas.ts';
 import { RobotApiError, robotApi, robotApiFromEnv } from './api.ts';
-import { API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
+import { API_URL, evaluatingTest, fetchFrom, openTestWithFile, ROBOT_KEY, type RobotWorld, SOURCE_BYTES } from './test/robotWorld.ts';
 
 const RUN = 'run-api-0001';
 
@@ -36,10 +36,10 @@ describe('robotApi with the real API', () => {
     const [submissionId] = world.submissionIds;
     const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(world.api) });
 
-    expect(await robot.check()).toEqual({ hasWork: true, exerciseLists: 1, pendingGrading: 0, analyses: 0 });
+    expect(await robot.check()).toEqual({ hasWork: true, exerciseLists: 1, pendingGrading: 0, analyses: 0, prints: 0 });
     expect(await robot.lease(RUN)).toEqual({ granted: true, maxParallel: 1 });
     await robot.heartbeat(RUN);
-    expect(await robot.tasks()).toEqual({ exerciseLists: [testId], pendingGrading: 0, analyses: [] });
+    expect(await robot.tasks()).toEqual({ exerciseLists: [testId], pendingGrading: 0, analyses: [], prints: [] });
     expect(await robot.test(testId)).toEqual({
       id: testId,
       filesVersion: 0,
@@ -59,8 +59,20 @@ describe('robotApi with the real API', () => {
     expect(text(await robot.page(submissionId!, claimed!.files[1]!.id))).toBe(`jpeg ${submissionId}-2`);
     expect(await robot.sendResult(submissionId!, { runId: RUN, ok: true, result: GRADING, model: 'claude-test' })).toBe('graded');
     expect(await robot.claim(RUN)).toBeNull();
-    await robot.release(RUN, { exerciseLists: 1, graded: 1, failed: 0, analyses: 0, stop: 'done' });
+    await robot.release(RUN, { exerciseLists: 1, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' });
     expect((await robot.lease('run-api-0002')).granted).toBe(true);
+  });
+
+  it('reads a print job and its file, and sends the print PDF or its failure', async () => {
+    const open = await openTestWithFile('pdf', RUN);
+    world = { api: open.api, code: open.code, testId: open.testId, submissionIds: [] };
+    const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(open.api) });
+    expect(await robot.printJob(open.testId)).toEqual({ testId: open.testId, filesVersion: 0, contentType: 'application/pdf', uploadToken: open.uploadToken });
+    expect(text(await robot.printSource(open.testId))).toBe(SOURCE_BYTES.pdf);
+    expect(await robot.sendPrintFailed(open.testId, { runId: RUN, filesVersion: 0, error: 'crash' })).toBe('none');
+    await expect(robot.sendPrint(open.testId, RUN, 1, new TextEncoder().encode('%PDF-1.7 cu cod'))).rejects.toMatchObject({ status: 409, code: 'not_needed' });
+    await robot.sendPrint(open.testId, RUN, 0, new TextEncoder().encode('%PDF-1.7 cu cod'));
+    await expect(robot.printJob(open.testId)).rejects.toMatchObject({ status: 404 });
   });
 
   it('turns refusals into errors with the API codes', async () => {
@@ -87,7 +99,7 @@ describe('robotApi requests', () => {
     return { calls, fetch };
   }
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-  const COUNTS = { hasWork: false, exerciseLists: 0, pendingGrading: 0, analyses: 0 };
+  const COUNTS = { hasWork: false, exerciseLists: 0, pendingGrading: 0, analyses: 0, prints: 0 };
 
   it('sends the key, JSON bodies, and a time limit', async () => {
     const { calls, fetch } = fakeFetch(json(200, { granted: true, maxParallel: 2 }));
@@ -96,6 +108,16 @@ describe('robotApi requests', () => {
     expect(calls[0]!.init).toMatchObject({ method: 'POST', body: JSON.stringify({ runId: RUN }) });
     expect(calls[0]!.init.headers).toEqual({ Authorization: 'Bearer k3y', 'Content-Type': 'application/json' });
     expect(calls[0]!.init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('sends the print PDF as bytes, with the run and the files version in headers', async () => {
+    const { calls, fetch } = fakeFetch(json(200, { status: 'ready' }));
+    const pdf = new TextEncoder().encode('%PDF-1.7');
+    await robotApi('https://site.test', 'k3y', { fetch }).sendPrint(12, RUN, 3, pdf);
+    expect(calls[0]!.url).toBe('https://site.test/api/runner/tests/12/print');
+    expect(calls[0]!.init.method).toBe('PUT');
+    expect(calls[0]!.init.body).toBe(pdf);
+    expect(calls[0]!.init.headers).toEqual({ Authorization: 'Bearer k3y', 'Content-Type': 'application/pdf', 'X-Run-Id': RUN, 'X-Files-Version': '3' });
   });
 
   it('tries again after a network error or a server error', async () => {

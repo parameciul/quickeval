@@ -4,11 +4,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { runIdSchema } from '../shared/runner.ts';
+import { runIdSchema, type TasksResult } from '../shared/runner.ts';
 import type { ExerciseList, GradingResult } from '../shared/schemas.ts';
-import { robotApi } from './api.ts';
+import { type RobotApi, robotApi } from './api.ts';
+import { PrintSetupError } from './printTask.ts';
 import { main, newRunId, type RunOptions, runRobot } from './run.ts';
-import { API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
+import { addOpenTest, API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
 import { answer, problem, scriptedClaude, type ScriptedAnswer } from './test/scriptedClaude.ts';
 
 const RUN = 'run-loop-0001';
@@ -99,7 +100,7 @@ describe('runRobot and the class analysis', () => {
     await askForAnalysis();
     const claude = scriptedClaude(...grades(2), answer(ANALYSIS));
     const report = await runRobot(options(claude));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 2, failed: 0, analyses: 1, stop: 'done' }, exitCode: 0 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 2, failed: 0, analyses: 1, prints: 0, stop: 'done' }, exitCode: 0 });
     expect(claude.calls.map((call) => call.task.mode)).toEqual(['grade', 'grade', 'class-report']);
     expect(await testRow()).toMatchObject({ status: 'done', analysis_status: 'ready' });
   });
@@ -149,7 +150,7 @@ describe('runRobot', () => {
     const claude = scriptedClaude(answer(LIST), ...grades(3));
     const run = options(claude);
     const report = await runRobot(run);
-    const summary = { exerciseLists: 1, graded: 3, failed: 0, analyses: 0, stop: 'done' };
+    const summary = { exerciseLists: 1, graded: 3, failed: 0, analyses: 0, prints: 0, stop: 'done' };
     expect(report).toEqual({ summary, exitCode: 0 });
     expect(claude.calls.map((call) => call.task.mode)).toEqual(['exercise-list', 'grade', 'grade', 'grade']);
     expect((await uploads()).map((row) => row.status)).toEqual(['graded', 'graded', 'graded']);
@@ -194,7 +195,7 @@ describe('runRobot', () => {
     await setUp(3);
     const claude = scriptedClaude(problem('usage_limit'));
     const report = await runRobot(options(claude));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'usage_limit' }, exitCode: 0 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'usage_limit' }, exitCode: 0 });
     expect(claude.calls).toHaveLength(1);
     expect(await uploads()).toEqual([
       { status: 'submitted', attempts: 0 },
@@ -207,7 +208,7 @@ describe('runRobot', () => {
     await setUp(1, 1, false);
     const claude = scriptedClaude(problem('not_logged_in'));
     const report = await runRobot(options(claude));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'claude_login' }, exitCode: 1 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'claude_login' }, exitCode: 1 });
     const list = await world!.api.db.prepare('SELECT exercise_list_status, exercise_list_attempts FROM tests WHERE id = ?').bind(world!.testId).first();
     expect(list).toEqual({ exercise_list_status: 'none', exercise_list_attempts: 0 });
     expect((await runner())?.run_id).toBeNull();
@@ -218,7 +219,7 @@ describe('runRobot', () => {
     await world!.api.db.prepare('UPDATE submissions SET attempts = 2 WHERE id = ?').bind(world!.submissionIds[0]).run();
     const claude = scriptedClaude(answer(GRADING), problem('crash'));
     const report = await runRobot(options(claude));
-    expect(report.summary).toEqual({ exerciseLists: 0, graded: 1, failed: 1, analyses: 0, stop: 'done' });
+    expect(report.summary).toEqual({ exerciseLists: 0, graded: 1, failed: 1, analyses: 0, prints: 0, stop: 'done' });
   });
 
   it('stops taking work when the heartbeat finds another run', async () => {
@@ -229,7 +230,7 @@ describe('runRobot', () => {
       return answer(GRADING);
     });
     const report = await runRobot(options(claude, { heartbeatMs: 20 }));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, stop: 'lease_lost' }, exitCode: 0 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'lease_lost' }, exitCode: 0 });
     expect((await uploads()).map((row) => row.status)).toEqual(['graded', 'submitted']);
   });
 
@@ -237,7 +238,7 @@ describe('runRobot', () => {
     await setUp(4);
     const claude = scriptedClaude(problem('crash'), problem('crash'), problem('crash'), problem('crash'));
     const report = await runRobot(options(claude));
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'error' }, exitCode: 1 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'error' }, exitCode: 1 });
     expect(claude.calls).toHaveLength(3);
     expect((await uploads()).map((row) => row.attempts)).toEqual([1, 1, 1, 0]);
   });
@@ -246,7 +247,7 @@ describe('runRobot', () => {
     await setUp(1, 1, false);
     const claude = scriptedClaude(answer({ broken: true }), answer({ broken: true }));
     const report = await runRobot(options(claude));
-    expect(report.summary).toEqual({ exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'done' });
+    expect(report.summary).toEqual({ exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'done' });
     expect(claude.calls).toHaveLength(2);
     const list = await world!.api.db.prepare('SELECT exercise_list_status, exercise_list_attempts FROM tests WHERE id = ?').bind(world!.testId).first();
     expect(list).toEqual({ exercise_list_status: 'none', exercise_list_attempts: 1 });
@@ -260,7 +261,7 @@ describe('runRobot', () => {
       return answer(GRADING);
     });
     const report = await runRobot(options(claude, { now: () => clock, budgetMs: 1_000 }));
-    expect(report.summary).toEqual({ exerciseLists: 0, graded: 1, failed: 0, analyses: 0, stop: 'budget' });
+    expect(report.summary).toEqual({ exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'budget' });
     expect((await uploads()).map((row) => row.status)).toEqual(['graded', 'submitted']);
   });
 
@@ -278,9 +279,134 @@ describe('runRobot', () => {
     );
     const run = options(claude);
     const report = await runRobot(run);
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, stop: 'error' }, exitCode: 1 });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'error' }, exitCode: 1 });
     expect(claude.calls).toHaveLength(2);
     expect(readdirSync(run.root)).toEqual([]);
+  });
+});
+
+describe('runRobot and the print PDFs', () => {
+  // A container that writes the stamped PDF; `prepare` fails when `broken`.
+  function fakeTools(broken = false) {
+    const tools = {
+      prepared: 0,
+      runs: 0,
+      prepare: async () => {
+        tools.prepared += 1;
+        if (broken) throw new PrintSetupError('docker build failed');
+      },
+      run: async (args: string[], dir: string) => {
+        tools.runs += 1;
+        if (args[1] === '/app/stamp_qr.py') writeFileSync(path.join(dir, 'out.pdf'), '%PDF-1.7 stamped');
+      },
+    };
+    return tools;
+  }
+
+  // The robot's requests, as "METHOD /path", in the order they were sent.
+  function recorded(extra: Partial<RunOptions>): { run: RunOptions; requests: string[] } {
+    const requests: string[] = [];
+    const inner = fetchFrom(world!.api);
+    const api = robotApi(API_URL, ROBOT_KEY, {
+      fetch: (url, init) => {
+        requests.push(`${init.method} ${url.slice(`${API_URL}/api/runner`.length)}`);
+        return inner(url, init);
+      },
+      retryDelayMs: 0,
+    });
+    return { run: { ...options(scriptedClaude(answer(GRADING)), extra), api }, requests };
+  }
+
+  const printRow = (testId: number) =>
+    world!.api.db.prepare('SELECT print_status, print_attempts FROM tests WHERE id = ?').bind(testId).first<{ print_status: string; print_attempts: number }>();
+
+  it('makes the print PDF first, then grades', async () => {
+    await setUp(1, 1);
+    const open = await addOpenTest(world!.api, 'pdf');
+    const tools = fakeTools();
+    const { run, requests } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 1, stop: 'done' }, exitCode: 0 });
+    const printed = requests.indexOf(`PUT /tests/${open.testId}/print`);
+    expect(printed).toBeGreaterThan(-1);
+    expect(printed).toBeLessThan(requests.indexOf('POST /claim'));
+    expect(await printRow(open.testId)).toEqual({ print_status: 'ready', print_attempts: 0 });
+    expect(readdirSync(run.root)).toEqual([]);
+  });
+
+  it('stops making prints when the image cannot be built, and exits 1', async () => {
+    await setUp(1, 1);
+    const first = await addOpenTest(world!.api, 'pdf');
+    const second = await addOpenTest(world!.api, 'docx', '7B2');
+    const tools = fakeTools(true);
+    const { run, requests } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' }, exitCode: 1 });
+    expect(tools.prepared).toBe(1);
+    expect(tools.runs).toBe(0);
+    expect(requests.filter((request) => request.includes('print-failed'))).toEqual([]);
+    expect(await printRow(first.testId)).toEqual({ print_status: 'none', print_attempts: 0 });
+    expect(await printRow(second.testId)).toEqual({ print_status: 'none', print_attempts: 0 });
+  });
+
+  it('does not count failed prints as failures in a row', async () => {
+    await setUp(1, 1);
+    for (const name of ['7B1', '7B2', '7B3']) await addOpenTest(world!.api, 'pdf', name);
+    const tools = { prepare: async () => undefined, run: () => Promise.reject({ kind: 'failed' }) };
+    const { run } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' }, exitCode: 0 });
+  });
+
+  it('tries a failed print again in the same run, until it fails for good', async () => {
+    await setUp(1, 1);
+    const open = await addOpenTest(world!.api, 'pdf');
+    let runs = 0;
+    const tools = {
+      prepare: async () => undefined,
+      run: () => {
+        runs += 1;
+        return Promise.reject({ kind: 'failed' });
+      },
+    };
+    const { run } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' }, exitCode: 0 });
+    expect(runs).toBe(3);
+    expect(await printRow(open.testId)).toEqual({ print_status: 'failed', print_attempts: 3 });
+  });
+
+  it('makes a print that failed once in the next round of the same run', async () => {
+    await setUp(1, 1);
+    const open = await addOpenTest(world!.api, 'pdf');
+    let runs = 0;
+    const tools = {
+      prepare: async () => undefined,
+      run: async (_args: string[], dir: string) => {
+        runs += 1;
+        if (runs === 1) throw { kind: 'timeout' };
+        writeFileSync(path.join(dir, 'out.pdf'), '%PDF-1.7 stamped');
+      },
+    };
+    const { run } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 1, stop: 'done' }, exitCode: 0 });
+    expect(await printRow(open.testId)).toEqual({ print_status: 'ready', print_attempts: 1 });
+  });
+
+  it('runs against an API that sends no print jobs', async () => {
+    await setUp(1, 1);
+    await addOpenTest(world!.api, 'pdf');
+    const { run } = recorded({ print: { tools: fakeTools(), siteUrl: API_URL } });
+    const older: RobotApi = {
+      ...run.api,
+      tasks: async () => {
+        const { prints: _prints, ...rest } = await run.api.tasks();
+        return rest as TasksResult;
+      },
+    };
+    const report = await runRobot({ ...run, api: older });
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' }, exitCode: 0 });
   });
 });
 
@@ -305,6 +431,24 @@ describe('main', () => {
     expect(claude.calls[0]!.task.cwd.startsWith(path.join(temp, 'qe', 'gh-42-1-'))).toBe(true);
     expect(readdirSync(path.join(temp, 'qe'))).toEqual([]);
     expect(JSON.parse((await runner())!.last_run_summary!)).toMatchObject({ graded: 1, stop: 'done' });
+  });
+
+  it('makes the print PDFs with the link of QUICKEVAL_URL', async () => {
+    await setUp(1);
+    const open = await addOpenTest(world!.api, 'pdf');
+    const env = { QUICKEVAL_URL: ` ${API_URL} `, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, RUNNER_TEMP: folder('qe-runner-temp-') };
+    const links: string[] = [];
+    const printTools = {
+      prepare: async () => undefined,
+      run: async (args: string[], dir: string) => {
+        links.push(args[4]!);
+        writeFileSync(path.join(dir, 'out.pdf'), '%PDF-1.7 stamped');
+      },
+    };
+    const claude = scriptedClaude(answer(GRADING));
+    expect(await main(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claude: claude.run, workdir: { skillDir: skill() }, printTools })).toBe(0);
+    expect(links).toEqual([`${API_URL}/u/${open.uploadToken}`]);
+    expect(JSON.parse((await runner())!.last_run_summary!)).toMatchObject({ graded: 1, prints: 1, stop: 'done' });
   });
 
   it('fails when the API cannot be reached', async () => {
