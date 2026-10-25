@@ -664,7 +664,8 @@ describe('TestPage evaluation', () => {
   });
 
   it.each([
-    ['open', /^Evaluarea pornește automat la/, { evaluationAt: '2026-10-20T07:15:00.000Z' }],
+    // The print PDF is ready: a print PDF that waits would be robot work on an open test.
+    ['open', /^Evaluarea pornește automat la/, { evaluationAt: '2026-10-20T07:15:00.000Z', print: { status: 'ready', fromWord: false } }],
     ['done', /^Corectarea s-a terminat\./, {}],
   ] as const)('says nothing about a robot start on a test that is %s', async (status, line, overrides) => {
     renderAdmin('/teste/6E2-26T1', failedStartApi({ status, ...overrides }));
