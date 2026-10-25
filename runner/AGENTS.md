@@ -6,6 +6,7 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 
 - `check.ts` (is there work?), `run.ts` (one run: lease, heartbeat, exercise lists, parallel gradings), `tasks.ts` (make an exercise list, grade one upload, write the class analysis), `claude.ts` (starts Claude Code and reads its answer), `workdir.ts` (a task's work folder; Word files through pandoc), `api.ts` (the only code that calls `/api/runner`), `log.ts`, `trySkill.ts` (`npm run try:skill`).
 - `fixtures/`: real Claude outputs. `test/`: the API in-process, a scripted Claude.
+- `printTask.ts` makes the print PDF through the Docker image in `print/`. The image pins LibreOffice and installs only Liberation, Carlito, and Caladea fonts: other fonts (Noto, DejaVu) change "∖" into "∣" and move the layout. `QE_PRINT_IMAGE_TESTS=1` runs the container tests (`print/container.test.ts`, slow the first time). Never log the upload token or a script's output.
 - `.claude/skills/evaluate-test/` (repo root): the grading skill (spec §13). The teacher may change its words; the robot copies it into every work folder. `skill.test.ts` checks the file and field names that the code needs.
 
 - Each check (`check.ts`) sends `model` and `effort` from `claudeSettings()` with `POST /check`; the API keeps them for Setări (`robot_model`, `robot_effort`, `robot_settings_at`).
