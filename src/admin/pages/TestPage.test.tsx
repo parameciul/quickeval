@@ -32,6 +32,9 @@ function apiWith(overrides: Parameters<typeof fakeTest>[0] = {}) {
   });
 }
 
+// The upload links start hidden.
+const showLinks = async () => userEvent.click(await screen.findByRole('button', { name: 'Arată linkurile' }));
+
 afterEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
@@ -62,6 +65,7 @@ describe('TestPage', () => {
     renderAdmin('/teste/6E2-26T1', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Începe testul' }));
     expect(api.startTest).toHaveBeenCalledWith('6E2-26T1');
+    await showLinks();
     expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
     expect(screen.getByTitle('Codul QR al linkului')).toBeInTheDocument();
   });
@@ -69,11 +73,11 @@ describe('TestPage', () => {
   it('shows the print block only while the test is open', async () => {
     const { unmount } = renderAdmin('/teste/6E2-26T1', apiWith());
     await screen.findByRole('heading', { name: '6E2-26T1' });
-    expect(screen.queryByRole('heading', { name: 'Testul pentru tipărit' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Testul pentru tipărit:')).not.toBeInTheDocument();
     unmount();
     renderAdmin('/teste/6E2-26T1', apiWith({ status: 'evaluating' }));
     await screen.findByRole('heading', { name: '6E2-26T1' });
-    expect(screen.queryByRole('heading', { name: 'Testul pentru tipărit' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Testul pentru tipărit:')).not.toBeInTheDocument();
   });
 
   it('says the robot started after Start test', async () => {
@@ -85,6 +89,7 @@ describe('TestPage', () => {
   it('copies the link', async () => {
     const user = userEvent.setup();
     renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    await showLinks();
     await user.click(await screen.findByRole('button', { name: 'Copiază linkul' }));
     expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/${FAKE_TOKEN}`);
     expect(screen.getByRole('status')).toHaveTextContent('Copiat!');
@@ -92,6 +97,7 @@ describe('TestPage', () => {
 
   it('shows the QR code on the whole screen and closes it with Escape', async () => {
     renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    await showLinks();
     await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
     const dialog = screen.getByRole('dialog', { name: 'Codul QR pentru elevi' });
     expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
@@ -227,7 +233,7 @@ describe('TestPage', () => {
     await userEvent.click(within(stan).getByRole('button', { name: 'Resetează' }));
     expect(await screen.findByText('Serverul nu răspunde. Încearcă din nou.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '6E2-26T1' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Arată codul QR pe tot ecranul' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arată linkurile' })).toBeInTheDocument();
   });
 
   it('reopens the uploads of a closed test', async () => {
@@ -300,6 +306,7 @@ describe('TestPage', () => {
   it('creates the multi-upload link on demand and then shows it', async () => {
     const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN });
     renderAdmin('/teste/6E2-26T1', api);
+    await showLinks();
     expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
     expect(screen.queryByLabelText('Linkul pentru mai multe încărcări')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Creează linkul pentru mai multe încărcări' }));
@@ -311,27 +318,30 @@ describe('TestPage', () => {
 
   it('shows both upload links when the multi-upload link already exists', async () => {
     renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open', uploadToken: FAKE_TOKEN, multiUploadToken: FAKE_MULTI_TOKEN }));
+    await showLinks();
     expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
     expect(screen.getByLabelText('Linkul pentru mai multe încărcări')).toHaveValue(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
     expect(screen.queryByRole('button', { name: 'Creează linkul pentru mai multe încărcări' })).not.toBeInTheDocument();
   });
 
-  it('hides the upload links for a cleaner page and keeps them hidden after a reload', async () => {
+  it('starts with the upload links hidden, shows them on request, and keeps the choice after a reload', async () => {
     const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN, multiUploadToken: FAKE_MULTI_TOKEN });
     const { unmount } = renderAdmin('/teste/6E2-26T1', api);
-    expect(await screen.findByLabelText('Linkul pentru elevi')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Ascunde linkurile' }));
+    const toggle = await screen.findByRole('button', { name: 'Arată linkurile' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Linkul pentru mai multe încărcări')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Arată linkurile' })).toHaveAttribute('aria-expanded', 'false');
+    // The button sits on the row of the heading.
+    expect(toggle.parentElement).toContainElement(screen.getByRole('heading', { name: 'Încărcarea lucrărilor' }));
+    await userEvent.click(toggle);
+    expect(await screen.findByLabelText('Linkul pentru elevi')).toBeInTheDocument();
+    expect(screen.getByLabelText('Linkul pentru mai multe încărcări')).toBeInTheDocument();
 
     // A reload keeps the page as the teacher left it.
     unmount();
     renderAdmin('/teste/6E2-26T1', api);
-    expect(await screen.findByRole('button', { name: 'Arată linkurile' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Arată linkurile' }));
     expect(await screen.findByLabelText('Linkul pentru elevi')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ascunde linkurile' }));
+    expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
   });
 });
 

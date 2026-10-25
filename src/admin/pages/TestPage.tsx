@@ -12,7 +12,6 @@ import { StatusChip } from '../StatusChip.tsx';
 import { AnalysisState } from '../testPage/AnalysisState.tsx';
 import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
-import { PrintTest } from '../testPage/PrintTest.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
 import { ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
@@ -119,7 +118,6 @@ function TestDetails({ code }: { code: string }) {
 
       <TestFiles test={test} onChanged={refresh} onRobot={onRobot} />
 
-      <h2>Încărcarea lucrărilor</h2>
       <TestActions test={test} onChanged={refresh} onRobot={onRobot} />
 
       {test.status !== 'draft' && (
@@ -206,17 +204,18 @@ function TestDetails({ code }: { code: string }) {
   );
 }
 
-// Whether the upload links of a test show in this browser. Visible unless the
-// teacher hid them; the choice survives a reload.
+// Whether the upload links of a test show in this browser. Hidden unless the
+// teacher showed them (the QR code on the printed test is the usual way in);
+// the choice survives a reload.
 function linksStorageKey(code: string): string {
   return `qe.uploadLinksVisible.${code}`;
 }
 
 function readLinksVisible(code: string): boolean {
   try {
-    return localStorage.getItem(linksStorageKey(code)) !== '0';
+    return localStorage.getItem(linksStorageKey(code)) === '1';
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -253,17 +252,20 @@ function TestActions({
       await onChanged();
     },
   });
-  // The upload links stay visible while the class uploads, and the teacher
-  // hides them for a cleaner page once the files are in. Kept per test in
-  // this browser, so a reload keeps the page as the teacher left it.
+  // The upload links start hidden: students come in by the QR code of the
+  // printed test. The teacher shows them for a student who has no printout.
+  // Kept per test in this browser, so a reload keeps the page as left.
   const [linksVisible, setLinksVisible] = useState(() => readLinksVisible(test.code));
   useEffect(() => {
     writeLinksVisible(test.code, linksVisible);
   }, [test.code, linksVisible]);
 
+  const heading = <h2>Încărcarea lucrărilor</h2>;
+
   if (test.status === 'draft') {
     return (
       <>
+        {heading}
         <p className="hint">Elevii pot încărca lucrările după ce începi testul. Atunci apar linkul și codul QR.</p>
         <button type="button" className="button" disabled={start.isPending} onClick={() => start.mutate()}>
           Începe testul
@@ -275,7 +277,8 @@ function TestActions({
   if (test.status === 'open' && test.uploadToken)
     return (
       <>
-        <p>
+        <div className="section-head">
+          {heading}
           <button
             type="button"
             className="button-quiet button-small"
@@ -284,18 +287,18 @@ function TestActions({
           >
             {linksVisible ? 'Ascunde linkurile' : 'Arată linkurile'}
           </button>
-        </p>
+        </div>
         {linksVisible && (
           <>
             <UploadLink token={test.uploadToken} />
             <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />
           </>
         )}
-        <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />
       </>
     );
   return (
     <>
+      {heading}
       <p className="hint">Încărcarea este închisă. Dacă o redeschizi, elevii care nu au trimis pot încărca acum.</p>
       <button type="button" className="button-quiet" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
         Redeschide încărcarea

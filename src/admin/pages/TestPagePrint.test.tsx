@@ -45,7 +45,7 @@ describe('TestPage and the print PDF', () => {
     ['has no test file yet', { files: { test: null, barem: null } }],
   ] as const)('shows no robot line while the print PDF %s', async (_name, overrides) => {
     renderAdmin('/teste/6E2-26T1', apiWith(overrides, true));
-    expect(await screen.findByRole('heading', { name: 'Testul pentru tipărit' })).toBeInTheDocument();
+    expect(await screen.findByText('Testul pentru tipărit:')).toBeInTheDocument();
     expect(screen.queryByText(NEVER_CHECKED)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pornește robotul' })).not.toBeInTheDocument();
     expect(screen.queryByText(robotStartMessage('next_check'))).not.toBeInTheDocument();

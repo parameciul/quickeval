@@ -1,11 +1,12 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { MAX_BAREM_NOTES_LENGTH, type RobotStart, type TestInfo } from '../../../shared/api.ts';
 import type { TestFileKind } from '../../../shared/files.ts';
 import { testFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { TestFileInput } from '../TestFileInput.tsx';
+import { PrintTest } from './PrintTest.tsx';
 
 const NAMES: Record<TestFileKind, { title: string; upload: string; replace: string }> = {
   test: { title: 'Testul', upload: 'Încarcă testul', replace: 'Înlocuiește testul' },
@@ -16,6 +17,7 @@ const NAMES: Record<TestFileKind, { title: string; upload: string; replace: stri
 // the robot grades with them; while their exercise list has a problem or
 // failed, the robot uses neither, and the teacher may fix them. A new barem
 // during evaluation starts the robot, which makes the exercise list again.
+// While the test is open, the test with the QR code shows under the test file.
 export function TestFiles({
   test,
   onChanged,
@@ -32,7 +34,9 @@ export function TestFiles({
       <h2>Fișiere</h2>
       {locked && <p className="hint">Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.</p>}
       <ul className="file-list">
-        <TestFileRow code={test.code} kind="test" file={test.files.test} locked={locked} onChanged={onChanged} onRobot={onRobot} />
+        <TestFileRow code={test.code} kind="test" file={test.files.test} locked={locked} onChanged={onChanged} onRobot={onRobot}>
+          {test.status === 'open' && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
+        </TestFileRow>
         <TestFileRow
           code={test.code}
           kind="barem"
@@ -55,6 +59,7 @@ function TestFileRow({
   onChanged,
   onRobot,
   baremNotes,
+  children,
 }: {
   code: string;
   kind: TestFileKind;
@@ -63,6 +68,7 @@ function TestFileRow({
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
   baremNotes?: string;
+  children?: ReactNode;
 }) {
   const api = useApi();
   // A new key empties the file input after each upload.
@@ -101,6 +107,7 @@ function TestFileRow({
       {kind === 'barem' && (
         <BaremNotesEditor code={code} notes={baremNotes ?? ''} locked={locked} onChanged={onChanged} onRobot={onRobot} />
       )}
+      {children}
     </li>
   );
 }

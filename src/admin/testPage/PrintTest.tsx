@@ -5,7 +5,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // The test with the QR code in the corner of every page, made by the robot
-// from the test file, for the teacher to print.
+// from the test file, for the teacher to print. It shows under the test file.
 export function PrintTest({
   test,
   onChanged,
@@ -27,11 +27,14 @@ export function PrintTest({
 
   return (
     <div className="print-test">
-      <h3>Testul pentru tipărit</h3>
+      <strong>Testul pentru tipărit:</strong>
       {test.files.test === null ? (
         <p className="hint">Încarcă testul ca să primești varianta cu cod QR.</p>
       ) : status === 'none' ? (
-        <p role="status">Se pregătește testul cu cod QR…</p>
+        <p role="status" className="busy-line">
+          <span className="spinner" aria-hidden="true" />
+          Se pregătește testul cu cod QR…
+        </p>
       ) : status === 'ready' ? (
         <>
           <p>

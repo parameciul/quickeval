@@ -19,7 +19,7 @@ function openApi(overrides: Partial<TestInfo> = {}) {
 describe('PrintTest', () => {
   it('asks for the test file first', async () => {
     renderAdmin('/teste/6E2-26T1', openApi({ files: { test: null, barem: null } }));
-    expect(await screen.findByRole('heading', { name: 'Testul pentru tipărit' })).toBeInTheDocument();
+    expect(await screen.findByText('Testul pentru tipărit:')).toBeInTheDocument();
     expect(screen.getByText('Încarcă testul ca să primești varianta cu cod QR.')).toBeInTheDocument();
   });
 
@@ -56,9 +56,23 @@ describe('PrintTest', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Încearcă din nou' })).not.toBeInTheDocument());
   });
 
-  it('shows the block also while the upload links are hidden', async () => {
+  it('shows the block in the files section, under the test file, whatever the links do', async () => {
     renderAdmin('/teste/6E2-26T1', openApi());
-    await userEvent.click(await screen.findByRole('button', { name: 'Ascunde linkurile' }));
-    expect(screen.getByRole('heading', { name: 'Testul pentru tipărit' })).toBeInTheDocument();
+    const block = (await screen.findByText('Testul pentru tipărit:')).closest('.print-test')!;
+    const row = block.closest('li')!;
+    expect(row).toHaveTextContent('Testul:');
+    expect(row).toContainElement(screen.getByRole('link', { name: 'Test.pdf' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Arată linkurile' }));
+    expect(screen.getByText('Testul pentru tipărit:')).toBeInTheDocument();
+  });
+
+  it('turns a spinner while the PDF is being made, and not after', async () => {
+    const { unmount } = renderAdmin('/teste/6E2-26T1', openApi());
+    const status = await screen.findByRole('status');
+    expect(status.querySelector('.spinner')).not.toBeNull();
+    unmount();
+    renderAdmin('/teste/6E2-26T1', openApi({ print: { status: 'ready', fromWord: false } }));
+    await screen.findByRole('link', { name: 'Descarcă testul cu cod QR' });
+    expect(document.querySelector('.spinner')).toBeNull();
   });
 });
