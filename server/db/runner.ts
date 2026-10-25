@@ -36,7 +36,8 @@ export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = '
   AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status IN ('submitted', 'grading'))
   AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = t.id AND g.status = 'graded')`;
 // A started test with a test file whose print PDF (the test with the QR code)
-// is not made yet.
+// is not made yet. Keep it a flat condition on the alias t: the print writes
+// rewrite t. to tests.
 export const NEEDS_PRINT = "t.status = 'open' AND t.upload_token IS NOT NULL AND t.test_file_key IS NOT NULL AND t.print_status = 'none'";
 
 // The state of the grades of a test: how many graded results there are and

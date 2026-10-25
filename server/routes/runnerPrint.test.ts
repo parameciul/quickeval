@@ -201,6 +201,30 @@ describe('POST /tests/:id/print-failed', () => {
   });
 });
 
+describe('the shared print object', () => {
+  it('leaves the object of the lease holder untouched when a run without the lease writes', async () => {
+    await lease();
+    const key = printFileKey(teacherId, 2026, code, 'test.pdf', 0);
+    await api.env.FILES.put(key, pdfBody('holder'));
+    const loser = await putPrint(pdfBody('loser'), { 'X-Run-Id': OTHER_RUN });
+    expect(loser.status).toBe(409);
+    expect(new Uint8Array(await (await api.env.FILES.get(key))!.arrayBuffer())).toEqual(pdfBody('holder'));
+    const stale = await putPrint(pdfBody('stale'), { 'X-Files-Version': '5' });
+    expect(stale.status).toBe(409);
+    expect(new Uint8Array(await (await api.env.FILES.get(key))!.arrayBuffer())).toEqual(pdfBody('holder'));
+    expect((await putPrint(pdfBody('holder'))).status).toBe(200);
+    expect(await api.env.FILES.get(key)).not.toBeNull();
+    expect(await row()).toMatchObject({ print_status: 'ready', print_file_key: key });
+  });
+
+  it('refuses a missing or non-numeric files version with 400', async () => {
+    await lease();
+    for (const value of ['', 'abc', '-1', '1.5']) {
+      expect((await putPrint(pdfBody(), { 'X-Files-Version': value })).status, value).toBe(400);
+    }
+  });
+});
+
 describe('the robot key and the teacher routes', () => {
   it('keeps the robot key away from the teacher routes', async () => {
     const res = await api.request('GET', `/api/admin/tests/${code}/print`, undefined, { Authorization: `Bearer ${ROBOT_KEY}` });
@@ -209,8 +233,8 @@ describe('the robot key and the teacher routes', () => {
     try {
       await setRobotKey(outside);
       const denied = await outside.request('GET', `/api/admin/tests/${code}/print`, undefined, { Authorization: `Bearer ${ROBOT_KEY}` });
-      expect(denied.status).toBeGreaterThanOrEqual(401);
-      expect(denied.status).not.toBe(200);
+      // No teacher session and no dev login: admin auth answers 500 whatever the key (as in runner.test.ts).
+      expect(denied.status).toBe(500);
     } finally {
       await outside.dispose();
     }

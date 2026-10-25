@@ -135,10 +135,15 @@ export function runnerRoutes(): Hono<AppEnv> {
     const testId = parseId(c.req.param('id'));
     const runId = runIdSchema.safeParse(c.req.header('X-Run-Id'));
     if (!runId.success) throw new ApiError(400, 'invalid', runId.error.issues[0]?.message ?? 'Datele trimise nu sunt valide.');
-    const version = Number(c.req.header('X-Files-Version'));
-    if (!Number.isInteger(version) || version < 0) throw new ApiError(400, 'invalid', 'Versiunea fișierelor nu este validă.');
+    const versionText = c.req.header('X-Files-Version') ?? '';
+    const version = Number(versionText);
+    if (!/^\d+$/.test(versionText) || !Number.isSafeInteger(version)) throw new ApiError(400, 'invalid', 'Versiunea fișierelor nu este validă.');
     const found = await findPrintJob(c.env.DB, testId);
     if (!found) throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), printNotNeeded);
+    // The key is shared by every run that made this version: a run without the
+    // lease, or one that read an older file, must not touch the object.
+    if (found.job.filesVersion !== version) throw printNotNeeded();
+    if (!(await holdsLease(c.env.DB, runId.data))) throw leaseLost();
     const file = await readUpload(c, [PDF_TYPE], 'Fișierul trebuie să fie un PDF.');
     const key = printFileKey(found.teacherId, found.schoolYear, found.code, found.testFileName, version);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: PDF_TYPE } });
