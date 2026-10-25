@@ -69,6 +69,9 @@ export const FAKE_STARTED_AT = '2026-10-06T07:15:00.000Z';
 const notFound = () => new ApiError(404, 'not_found', 'Nu am găsit ce cauți.');
 const uploadChanged = () => new ApiError(409, 'upload_changed', 'Încărcarea s-a schimbat. Reîncarcă pagina.');
 
+// An open test with a test file whose print PDF is not made yet.
+const printWaits = (test: TestInfo) => test.status === 'open' && test.files.test !== null && test.print.status === 'none';
+
 function summaryOf(test: TestInfo): TestSummary {
   const { uploadToken: _token, multiUploadToken: _multi, files: _files, ...summary } = test;
   return summary;
@@ -423,7 +426,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = findTest(code).test;
       found.status = 'open';
       found.archived = false;
-      return { status: 'open', robot: null };
+      // Like the server: a print PDF that waits is work for the robot.
+      return { status: 'open', robot: printWaits(found) ? 'dispatched' : null };
     }),
     // Like the server: only a failed print PDF is made again, by the robot.
     retryPrint: vi.fn(async (code: string): Promise<PrintRetryAnswer> => {
@@ -492,8 +496,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       }
       return { count: rows.length, testStatus: found.test.status, robot: found.test.status === 'evaluating' ? 'next_check' : null };
     }),
+    // Like the server: an open test only while its print PDF waits.
     startRobot: vi.fn(async (code: string): Promise<RobotStart> => {
-      if (findTest(code).test.status !== 'evaluating') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
+      const found = findTest(code).test;
+      if (found.status !== 'evaluating' && found.status !== 'open') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
+      if (found.status === 'open' && !printWaits(found)) throw new ApiError(409, 'no_work', 'Nicio lucrare a acestui test nu așteaptă robotul.');
       return 'next_check';
     }),
     // Like the server: only a test in evaluation or done with a graded upload;

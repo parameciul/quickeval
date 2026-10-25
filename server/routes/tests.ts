@@ -297,10 +297,14 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   // "Pornește robotul": the teacher starts the robot again for work that a
-  // run left when it stopped early (a usage limit, a crash, the time limit).
+  // run left when it stopped early (a usage limit, a crash, the time limit),
+  // or for the print PDF of an open test when the robot did not start.
   routes.post('/:code/robot', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
-    if (test.summary.status !== 'evaluating') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
+    // An open test has robot work only while its print PDF waits; testHasRobotWork decides.
+    if (test.summary.status !== 'evaluating' && test.summary.status !== 'open') {
+      throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
+    }
     if (!(await testHasRobotWork(c.env.DB, test.id, nowIso()))) {
       throw new ApiError(409, 'no_work', 'Nicio lucrare a acestui test nu așteaptă robotul.');
     }

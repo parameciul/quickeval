@@ -244,14 +244,41 @@ describe('POST /api/admin/tests/:code/robot', () => {
     expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
-  it('refuses a test that is not in evaluation', async () => {
+  it('refuses a test that is not open or in evaluation', async () => {
     await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
-    const later = new Date(Date.now() + 60 * MINUTE).toISOString();
-    for (const state of ["status = 'draft'", `status = 'open', evaluation_at = '${later}'`, "status = 'done'"]) {
+    for (const state of ["status = 'draft'", "status = 'done'"]) {
       await setTest(`${state}, exercise_list_status = 'ready'`);
       const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
       expect(res.status).toBe(409);
       expect(res.body).toEqual({ error: 'not_evaluating', message: 'Testul nu se corectează acum.' });
+    }
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  const OPEN = "status = 'open', upload_token = 'abcdefghijkmnop2'";
+
+  it('starts the robot for an open test that waits for its print PDF', async () => {
+    await setTest(`${OPEN}, test_file_key = 'k/test.pdf', print_status = 'none'`);
+    dispatchRobot.mockResolvedValueOnce(true);
+    const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ robot: 'dispatched' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses an open test whose print PDF does not wait, uploads or not', async () => {
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    const later = new Date(Date.now() + 60 * MINUTE).toISOString();
+    for (const state of [
+      "test_file_key = 'k/test.pdf', print_status = 'ready'",
+      "test_file_key = 'k/test.pdf', print_status = 'failed'",
+      'test_file_key = NULL',
+      `test_file_key = NULL, evaluation_at = '${later}'`,
+    ]) {
+      await setTest(`${OPEN}, exercise_list_status = 'ready', ${state}`);
+      const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('no_work');
     }
     expect(dispatchRobot).not.toHaveBeenCalled();
   });

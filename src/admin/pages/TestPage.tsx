@@ -16,7 +16,7 @@ import { PrintTest } from '../testPage/PrintTest.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
 import { ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
-import { StartRobotButton, waitsForRobot } from '../testPage/StartRobotButton.tsx';
+import { StartRobotButton, waitsForPrint, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
 import { MultiUploadLink, UploadLink } from '../testPage/UploadLink.tsx';
 import { UploadsTable } from '../testPage/UploadsTable.tsx';
@@ -77,7 +77,9 @@ function TestDetails({ code }: { code: string }) {
   const { test, uploads, robot, showModel } = detail.data;
   // A failed robot start that the API kept: a scheduled start happens in any
   // request, so only the API knows of it. A button's answer says the same.
-  const robotText = test.status === 'evaluating' && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
+  // An open test waits for the robot only for its print PDF.
+  const printWaits = waitsForPrint(test);
+  const robotText = (test.status === 'evaluating' || printWaits) && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
   return (
     <section>
       <p className="back-link">
@@ -138,7 +140,7 @@ function TestDetails({ code }: { code: string }) {
           )}
           {test.status === 'done' && <PartialEvaluationNotice uploads={uploads} />}
           {robotText && <p role="status">{robotText}</p>}
-          {(test.status === 'evaluating' || test.evaluationAt) && (
+          {(test.status === 'evaluating' || test.evaluationAt || printWaits) && (
             <RobotLine lastCheckAt={robot.lastCheckAt}>
               {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
             </RobotLine>
