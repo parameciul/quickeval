@@ -7,8 +7,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { runIdSchema } from '../shared/runner.ts';
 import type { ExerciseList, GradingResult } from '../shared/schemas.ts';
 import { robotApi } from './api.ts';
+import { PrintSetupError } from './printTask.ts';
 import { main, newRunId, type RunOptions, runRobot } from './run.ts';
-import { API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
+import { addOpenTest, API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
 import { answer, problem, scriptedClaude, type ScriptedAnswer } from './test/scriptedClaude.ts';
 
 const RUN = 'run-loop-0001';
@@ -284,6 +285,80 @@ describe('runRobot', () => {
   });
 });
 
+describe('runRobot and the print PDFs', () => {
+  // A container that writes the stamped PDF; `prepare` fails when `broken`.
+  function fakeTools(broken = false) {
+    const tools = {
+      prepared: 0,
+      runs: 0,
+      prepare: async () => {
+        tools.prepared += 1;
+        if (broken) throw new PrintSetupError('docker build failed');
+      },
+      run: async (args: string[], dir: string) => {
+        tools.runs += 1;
+        if (args[1] === '/app/stamp_qr.py') writeFileSync(path.join(dir, 'out.pdf'), '%PDF-1.7 stamped');
+      },
+    };
+    return tools;
+  }
+
+  // The robot's requests, as "METHOD /path", in the order they were sent.
+  function recorded(extra: Partial<RunOptions>): { run: RunOptions; requests: string[] } {
+    const requests: string[] = [];
+    const inner = fetchFrom(world!.api);
+    const api = robotApi(API_URL, ROBOT_KEY, {
+      fetch: (url, init) => {
+        requests.push(`${init.method} ${url.slice(`${API_URL}/api/runner`.length)}`);
+        return inner(url, init);
+      },
+      retryDelayMs: 0,
+    });
+    return { run: { ...options(scriptedClaude(answer(GRADING)), extra), api }, requests };
+  }
+
+  const printRow = (testId: number) =>
+    world!.api.db.prepare('SELECT print_status, print_attempts FROM tests WHERE id = ?').bind(testId).first<{ print_status: string; print_attempts: number }>();
+
+  it('makes the print PDF first, then grades', async () => {
+    await setUp(1, 1);
+    const open = await addOpenTest(world!.api, 'pdf');
+    const tools = fakeTools();
+    const { run, requests } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 1, stop: 'done' }, exitCode: 0 });
+    const printed = requests.indexOf(`PUT /tests/${open.testId}/print`);
+    expect(printed).toBeGreaterThan(-1);
+    expect(printed).toBeLessThan(requests.indexOf('POST /claim'));
+    expect(await printRow(open.testId)).toEqual({ print_status: 'ready', print_attempts: 0 });
+    expect(readdirSync(run.root)).toEqual([]);
+  });
+
+  it('stops making prints when the image cannot be built, and exits 1', async () => {
+    await setUp(1, 1);
+    const first = await addOpenTest(world!.api, 'pdf');
+    const second = await addOpenTest(world!.api, 'docx', '7B2');
+    const tools = fakeTools(true);
+    const { run, requests } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' }, exitCode: 1 });
+    expect(tools.prepared).toBe(1);
+    expect(tools.runs).toBe(0);
+    expect(requests.filter((request) => request.includes('print-failed'))).toEqual([]);
+    expect(await printRow(first.testId)).toEqual({ print_status: 'none', print_attempts: 0 });
+    expect(await printRow(second.testId)).toEqual({ print_status: 'none', print_attempts: 0 });
+  });
+
+  it('does not count failed prints as failures in a row', async () => {
+    await setUp(1, 1);
+    for (const name of ['7B1', '7B2', '7B3']) await addOpenTest(world!.api, 'pdf', name);
+    const tools = { prepare: async () => undefined, run: () => Promise.reject({ kind: 'failed' }) };
+    const { run } = recorded({ print: { tools, siteUrl: API_URL } });
+    const report = await runRobot(run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' }, exitCode: 0 });
+  });
+});
+
 describe('main', () => {
   it('does nothing while the robot is not set up', async () => {
     expect(await main({})).toBe(0);
@@ -305,6 +380,24 @@ describe('main', () => {
     expect(claude.calls[0]!.task.cwd.startsWith(path.join(temp, 'qe', 'gh-42-1-'))).toBe(true);
     expect(readdirSync(path.join(temp, 'qe'))).toEqual([]);
     expect(JSON.parse((await runner())!.last_run_summary!)).toMatchObject({ graded: 1, stop: 'done' });
+  });
+
+  it('makes the print PDFs with the link of QUICKEVAL_URL', async () => {
+    await setUp(1);
+    const open = await addOpenTest(world!.api, 'pdf');
+    const env = { QUICKEVAL_URL: ` ${API_URL} `, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, RUNNER_TEMP: folder('qe-runner-temp-') };
+    const links: string[] = [];
+    const printTools = {
+      prepare: async () => undefined,
+      run: async (args: string[], dir: string) => {
+        links.push(args[4]!);
+        writeFileSync(path.join(dir, 'out.pdf'), '%PDF-1.7 stamped');
+      },
+    };
+    const claude = scriptedClaude(answer(GRADING));
+    expect(await main(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claude: claude.run, workdir: { skillDir: skill() }, printTools })).toBe(0);
+    expect(links).toEqual([`${API_URL}/u/${open.uploadToken}`]);
+    expect(JSON.parse((await runner())!.last_run_summary!)).toMatchObject({ graded: 1, prints: 1, stop: 'done' });
   });
 
   it('fails when the API cannot be reached', async () => {

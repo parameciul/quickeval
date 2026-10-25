@@ -22,7 +22,7 @@ export async function checkForWork(env: Record<string, string | undefined>, opti
     // The check also tells the API which model and effort the next run will use.
     const { model, effort } = claudeSettings(env, '');
     const counts = await api.check({ model, effort });
-    log('check', { exerciseLists: counts.exerciseLists, pendingGrading: counts.pendingGrading, analyses: counts.analyses });
+    log('check', { exerciseLists: counts.exerciseLists, pendingGrading: counts.pendingGrading, analyses: counts.analyses, prints: counts.prints });
     return { hasWork: counts.hasWork, exitCode: 0 };
   } catch (err) {
     log('check failed', { error: err instanceof RobotApiError ? err.code : 'unknown' });
