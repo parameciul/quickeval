@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import type {
   AnalysisAnswer,
   BaremNotesAnswer,
+  ReopenAnswer,
   ClassReport,
   ClassSummary,
   EvaluationInfo,
@@ -415,10 +416,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       }
       throw notFound();
     }),
-    reopenTest: vi.fn(async (code: string) => {
+    reopenTest: vi.fn(async (code: string): Promise<ReopenAnswer> => {
       const found = findTest(code).test;
       found.status = 'open';
       found.archived = false;
+      return { status: 'open', robot: null };
     }),
     // Like the server: only a finished test goes in the archive.
     setTestArchived: vi.fn(async (code: string, archived: boolean) => {

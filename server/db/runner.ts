@@ -34,6 +34,9 @@ export const GRADABLE = `s.status = 'submitted' AND t.status = 'evaluating' AND 
 export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = 'requested'
   AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status IN ('submitted', 'grading'))
   AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = t.id AND g.status = 'graded')`;
+// A started test with a test file whose print PDF (the test with the QR code)
+// is not made yet.
+export const NEEDS_PRINT = "t.status = 'open' AND t.upload_token IS NOT NULL AND t.test_file_key IS NOT NULL AND t.print_status = 'none'";
 
 // The state of the grades of a test: how many graded results there are and
 // when the last one changed (a correction writes `evaluations.updated_at`, a

@@ -16,6 +16,7 @@ import type {
   RobotStart,
   RobotStartAnswer,
   Settings,
+  ReopenAnswer,
   StartedTest,
   StudentHistory,
   StudentRow,
@@ -56,7 +57,7 @@ export interface AdminApi {
   // Extra teacher comments for the barem, read by the robot as part of it.
   saveBaremNotes(code: string, notes: string): Promise<BaremNotesAnswer>;
   startTest(code: string): Promise<StartedTest>;
-  reopenTest(code: string): Promise<void>;
+  reopenTest(code: string): Promise<ReopenAnswer>;
   // Puts a finished test in the archive, or takes it out. Resolves to the new mark.
   setTestArchived(code: string, archived: boolean): Promise<boolean>;
   // The link that uploads for many students on one phone, made only on demand.
@@ -218,9 +219,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<ResultsOpenAnswer>('POST', `${test(code)}/results/${open ? 'open' : 'close'}`)).resultsOpen,
     setSubmissionResultsOpen: async (submissionId, startedAt, open) =>
       (await request<ResultsOpenAnswer>('POST', `/submissions/${submissionId}/results/${open ? 'open' : 'close'}`, { startedAt })).resultsOpen,
-    reopenTest: async (code) => {
-      await request('POST', `${test(code)}/reopen`);
-    },
+    reopenTest: (code) => request<ReopenAnswer>('POST', `${test(code)}/reopen`),
     setTestArchived: async (code, archived) =>
       (await request<{ archived: boolean }>('POST', `${test(code)}/${archived ? 'archive' : 'unarchive'}`)).archived,
     evaluateTest: (code, at, submissionIds) =>

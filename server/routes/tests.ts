@@ -9,11 +9,13 @@ import {
   type BaremNotesAnswer,
   type EvaluationStart,
   type ExerciseListAnswer,
+  type PrintRetryAnswer,
+  type ReopenAnswer,
   type RegradeAnswer,
   type RobotStartAnswer,
   type TestFileAnswer,
 } from '../../shared/api.ts';
-import { isTestFileKind, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
+import { isTestFileKind, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
 import { acceptExerciseList,
   cancelSchedule,
@@ -36,9 +38,11 @@ import {
   listTestKeys,
   listTests,
   listUploads,
+  needsPrint,
   renameTest,
   reopenTest,
   requireTest,
+  retryPrint,
   saveBaremNotes,
   saveTestFile,
   setTestArchived,
@@ -138,7 +142,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const started =
       test.summary.status === 'draft' ? await startTest(c.env.DB, c.var.teacher.id, test.id, newUploadToken(), nowIso()) : null;
     if (!started) throw new ApiError(409, 'already_started', 'Testul a început deja.');
-    return c.json({ status: 'open', ...started, robot: null });
+    const robot = (await needsPrint(c.env.DB, test.id)) ? await startRobot(c.env) : null;
+    return c.json({ status: 'open', ...started, robot });
   });
 
   // The link that uploads for many students on one phone (/u/<multiUploadToken>).
@@ -168,7 +173,25 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (!(await reopenTest(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
       throw new ApiError(409, 'already_open', 'Încărcarea este deja deschisă.');
     }
-    return c.json({ status: 'open' });
+    const robot = (await needsPrint(c.env.DB, test.id)) ? await startRobot(c.env) : null;
+    return c.json({ status: 'open', robot } satisfies ReopenAnswer);
+  });
+
+  // The test file with the QR code, once the robot has made it.
+  routes.get('/:code/print', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const object = test.print.status === 'ready' && test.print.key ? await c.env.FILES.get(test.print.key) : null;
+    if (!object) throw notFound();
+    return fileResponse(object, `${test.summary.code}-cu-cod-qr.pdf`, PDF_TYPE);
+  });
+
+  // "Încearcă din nou": the robot makes the print PDF again.
+  routes.post('/:code/print/retry', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (!(await retryPrint(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
+      throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu a eșuat.');
+    }
+    return c.json({ print: { status: 'none', fromWord: test.print.fromWord }, robot: await startRobot(c.env) } satisfies PrintRetryAnswer);
   });
 
   // Archives a finished test: it leaves the class table and the test list.
@@ -322,8 +345,10 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
     const status = await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
     const old = test.files[kind];
-    if (old && old.key !== key) await deleteFilesQuietly(c.env.FILES, [old.key]);
-    const robot = kind === 'barem' && status === 'evaluating' ? await startRobot(c.env) : null;
+    const stale = [old && old.key !== key ? old.key : null, kind === 'test' ? test.print.key : null].filter((k) => k !== null);
+    if (stale.length > 0) await deleteFilesQuietly(c.env.FILES, stale);
+    const robot =
+      kind === 'barem' ? (status === 'evaluating' ? await startRobot(c.env) : null) : (await needsPrint(c.env.DB, test.id)) ? await startRobot(c.env) : null;
     return c.json({ file: { name: file.name, type: file.contentType }, robot } satisfies TestFileAnswer);
   });
 

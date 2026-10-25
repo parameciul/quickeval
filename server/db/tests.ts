@@ -5,6 +5,7 @@ import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { flagCountSql } from './evaluations.ts';
+import { NEEDS_PRINT } from './runner.ts';
 
 export interface StoredFile {
   key: string;
@@ -361,7 +362,8 @@ export async function setTestArchived(
 }
 
 // Points the test at a new test or barem file, and counts the change in
-// files_version. A new barem also clears the exercise list, which the robot
+// files_version. A new test file also clears the print PDF made from the old
+// one (the caller deletes its object). A new barem also clears the exercise list, which the robot
 // made from the old one (spec §8.5). Returns the test's status, or null when
 // the test is gone.
 export async function saveTestFile(
@@ -374,7 +376,8 @@ export async function saveTestFile(
 ): Promise<TestStatus | null> {
   const sql =
     kind === 'test'
-      ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1
+      ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1,
+           print_status = 'none', print_attempts = 0, print_file_key = NULL
          WHERE id = ? AND teacher_id = ?
          RETURNING status`
       : `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, updated_at = ?, files_version = files_version + 1,
@@ -416,7 +419,28 @@ export async function listTestKeys(db: D1Database, record: TestRecord): Promise<
     .all<{ r2_key: string }>();
   const keys = results.map((row) => row.r2_key);
   for (const file of [record.files.test, record.files.barem]) if (file) keys.push(file.key);
+  if (record.print.key) keys.push(record.print.key);
   return keys;
+}
+
+// True when the test still waits for its print PDF.
+export async function needsPrint(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db.prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND ${NEEDS_PRINT}`).bind(testId).first();
+  return row !== null;
+}
+
+// "Încearcă din nou": a failed print PDF goes back to the queue. False when the
+// test is gone, is not the teacher's, is not open, or the print did not fail.
+export async function retryPrint(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET print_status = 'none', print_attempts = 0, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND status = 'open' AND print_status = 'failed'
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ id: number }>();
+  return row !== null;
 }
 
 // Deletes the test row; its uploads and file rows go with it (ON DELETE CASCADE).

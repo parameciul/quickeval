@@ -66,7 +66,7 @@ describe('POST /api/admin/tests/:code/reopen', () => {
     await setState("status = 'evaluating', evaluation_at = '2026-10-07T08:00:00.000Z'");
     const res = await api.request('POST', `/api/admin/tests/${code}/reopen`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'open' });
+    expect(res.body).toEqual({ status: 'open', robot: null });
     expect(await state()).toEqual({ status: 'open', evaluation_at: null, analysis_stale: 0 });
   });
 
