@@ -1,6 +1,6 @@
 import type { R2Bucket, R2ObjectBody } from '@cloudflare/workers-types';
 import type { Context } from 'hono';
-import { EMPTY_FILE, FILE_TOO_BIG, looksLike, MAX_FILE_BYTES } from '../shared/files.ts';
+import { DOCX_TYPE, EMPTY_FILE, FILE_TOO_BIG, looksLike, MAX_FILE_BYTES } from '../shared/files.ts';
 import { ApiError } from './errors.ts';
 
 export interface UploadedFile {
@@ -53,13 +53,15 @@ function encodeHeaderValue(value: string): string {
 }
 
 // Streams a stored file to the browser under its original name. Only our own
-// pages may show it in a frame, and it is never cached.
+// pages may show it in a frame, and it is never cached. A Word file is sent as
+// a download: shown inline, a browser may open it in a viewer (Google Docs)
+// that lays it out differently from the original.
 export function fileResponse(object: R2ObjectBody, name: string, contentType: string): Response {
   return new Response(object.body as unknown as ReadableStream, {
     headers: {
       'Content-Type': contentType,
       'Content-Length': String(object.size),
-      'Content-Disposition': `inline; filename*=UTF-8''${encodeHeaderValue(name)}`,
+      'Content-Disposition': `${contentType === DOCX_TYPE ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeHeaderValue(name)}`,
       'Cache-Control': 'private, no-store',
       'X-Frame-Options': 'SAMEORIGIN',
     },

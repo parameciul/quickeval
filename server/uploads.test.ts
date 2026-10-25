@@ -1,7 +1,7 @@
 import type { R2Bucket, R2ObjectBody } from '@cloudflare/workers-types';
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
-import { MAX_FILE_BYTES, PDF_TYPE, TEACHER_FILE_TYPES } from '../shared/files.ts';
+import { DOCX_TYPE, MAX_FILE_BYTES, PDF_TYPE, TEACHER_FILE_TYPES } from '../shared/files.ts';
 import { ApiError } from './errors.ts';
 import { deleteFiles, deleteFilesQuietly, fileNameHeader, fileResponse, readUpload } from './uploads.ts';
 
@@ -88,6 +88,12 @@ describe('fileResponse', () => {
     expect(res.headers.get('Cache-Control')).toBe('private, no-store');
     expect(res.headers.get('X-Frame-Options')).toBe('SAMEORIGIN');
     expect(await res.text()).toBe('%PDF-1.7');
+  });
+
+  it('sends a Word file as a download, so no viewer lays it out again', () => {
+    const object = { body: new Blob(['PK']).stream(), size: 2 } as unknown as R2ObjectBody;
+    const res = fileResponse(object, 'Test - Permutări.docx', DOCX_TYPE);
+    expect(res.headers.get('Content-Disposition')).toBe("attachment; filename*=UTF-8''Test%20-%20Permut%C4%83ri.docx");
   });
 });
 
