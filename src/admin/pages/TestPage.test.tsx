@@ -94,6 +94,18 @@ describe('TestPage', () => {
     expect(screen.getByLabelText('Înlocuiește testul')).toBeInTheDocument();
   });
 
+  it('drops "Fără confirmare" once the upload is graded', async () => {
+    const graded = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', grade: 8, autoSubmitted: true })];
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 1 }],
+      students: {},
+      tests: [fakeTest({ status: 'done' }, graded)],
+    });
+    renderAdmin('/teste/6E2-26T1', api);
+    const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
+    expect(within(pop).queryByText('Fără confirmare')).not.toBeInTheDocument();
+  });
+
   it('locks the files while the test is being graded', async () => {
     renderAdmin('/teste/6E2-26T1', apiWith({ status: 'evaluating' }));
     expect(await screen.findByLabelText('Încarcă baremul')).toBeDisabled();

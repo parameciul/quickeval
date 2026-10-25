@@ -54,6 +54,13 @@ export function runFolder(env: Record<string, string | undefined>, runId: string
   return path.join(env.RUNNER_TEMP || tmpdir(), 'qe', runId);
 }
 
+// The rules every barem carries, on top of the teacher's own comments for one
+// test. They are the first lines of barem/notes.md.
+export const DEFAULT_BAREM_NOTES = [
+  'Nu puncta rezolvările care nu se bazează pe ipoteza problemei sau care nu au legătură cu cerințele problemei.',
+  'Punctează și rezolvările corecte, parțiale sau totale, care nu se potrivesc cu rezultatele parțiale din barem.',
+].join('\n');
+
 export interface WorkFolderOptions {
   skillDir?: string;
   pandoc?: Pandoc;
@@ -67,8 +74,10 @@ export async function makeWorkFolder(root: string, taskId: string, input: WorkFo
   const pandoc = options.pandoc ?? realPandoc;
   if (input.test) await writeTeacherFile(folder, 'test', input.test, pandoc);
   if (input.barem) await writeTeacherFile(folder, 'barem', input.barem, pandoc);
-  if (input.baremNotes && input.barem) {
-    await writeFile(path.join(folder, 'barem', 'notes.md'), `${input.baremNotes.trim()}\n`);
+  if (input.barem) {
+    const teacherNotes = input.baremNotes?.trim();
+    const notes = teacherNotes ? `${DEFAULT_BAREM_NOTES}\n${teacherNotes}` : DEFAULT_BAREM_NOTES;
+    await writeFile(path.join(folder, 'barem', 'notes.md'), `${notes}\n`);
   }
   if (input.exerciseList) {
     await writeFile(path.join(folder, 'exercises.json'), `${JSON.stringify(input.exerciseList, null, 2)}\n`);

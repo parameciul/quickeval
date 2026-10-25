@@ -57,7 +57,7 @@ describe('try:skill exercise-list', () => {
     expect(await run('exercise-list', claude)).toBe(0);
     expect(claude.calls[0]!.task.mode).toBe('exercise-list');
     expect(claude.calls[0]!.task.cwd.startsWith(path.join(temp, 'qe', 'try-'))).toBe(true);
-    expect(claude.calls[0]!.files).toEqual(['.claude/skills/evaluate-test/SKILL.md', 'barem/barem.pdf', 'test/test.pdf']);
+    expect(claude.calls[0]!.files).toEqual(['.claude/skills/evaluate-test/SKILL.md', 'barem/barem.pdf', 'barem/notes.md', 'test/test.pdf']);
     expect(JSON.parse(readFileSync(path.join(folder, 'exercises.json'), 'utf8'))).toEqual(LIST);
     expect(lines).toContain('2 exerciții, 10 puncte, din oficiu 1.');
     expect(lines).toContain('Lista de exerciții este bună.');

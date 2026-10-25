@@ -20,7 +20,7 @@ Files:
 
 - the test: `test/test.pdf`, or `test/test.md` with its pictures in `test/media/`;
 - the barem: `barem/barem.pdf`, or `barem/barem.md` with its pictures in `barem/media/`;
-- `barem/notes.md` (when it exists): extra comments the teacher added to the barem. Read them as part of the barem.
+- `barem/notes.md`: general rules for every barem, then any extra comments the teacher added for this test. Read them as part of the barem, rules first.
 
 Read both. A Markdown file shows math as TeX between `$` signs, and links its pictures: open every picture that an exercise needs. Make the list of the exercises that get points, in barem order.
 
@@ -41,7 +41,7 @@ Do not fix the barem. When its points do not add up to the total, write the poin
 
 Files:
 
-- the test and the barem, as in the mode `exercise-list` (including `barem/notes.md` when it exists: the teacher's extra comments, as part of the barem);
+- the test and the barem, as in the mode `exercise-list` (including `barem/notes.md`: the general rules and the teacher's extra comments, as part of the barem; follow them when you grade);
 - `exercises.json`: the exercise list of this test (the shape above);
 - `student/`: the student's pages, in order: `page-01.jpg`, `page-02.pdf`, …
 

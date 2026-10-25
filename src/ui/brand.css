@@ -1795,8 +1795,15 @@ table.report-table thead th {
   font-size: 0.9rem;
 }
 
-table.report-table tbody th {
+table.report-table tbody th,
+table.report-table tfoot th,
+table.report-table tfoot td {
   font-weight: 700;
+}
+
+table.grades-table tfoot th,
+table.grades-table tfoot td {
+  border-top: 2px solid var(--ink);
 }
 
 table.report-table th:first-child {

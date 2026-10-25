@@ -186,7 +186,7 @@ function UploadTableRow({
       </th>
       <td data-label="Stare">
         {uploadStatusLabel(row.status)}
-        {row.autoSubmitted && <span className="tag">Fără confirmare</span>}
+        {row.autoSubmitted && row.status !== 'graded' && <span className="tag">Fără confirmare</span>}
         {row.resultsOpen && <span className="tag">Publicat</span>}
         {row.status === 'failed' && row.lastError && <p className="hint">{row.lastError}</p>}
       </td>

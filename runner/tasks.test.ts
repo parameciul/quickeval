@@ -79,7 +79,7 @@ describe('makeExerciseList', () => {
     expect(await listRow()).toEqual({ status: 'ready', attempts: 0 });
     expect(claude.calls[0]!.task.mode).toBe('exercise-list');
     expect(claude.calls[0]!.task.jsonSchema).toMatchObject({ $schema: 'http://json-schema.org/draft-07/schema#' });
-    expect(claude.calls[0]!.files).toEqual([...SKILL_FILES, 'barem/barem.pdf', 'test/test.pdf']);
+    expect(claude.calls[0]!.files).toEqual([...SKILL_FILES, 'barem/barem.pdf', 'barem/notes.md', 'test/test.pdf']);
     expect(readdirSync(root)).toEqual([]);
   });
 
@@ -215,6 +215,7 @@ describe('gradeSubmission', () => {
     expect(claude.calls[0]!.files).toEqual([
       ...SKILL_FILES,
       'barem/barem.pdf',
+      'barem/notes.md',
       'exercises.json',
       'student/page-01.jpg',
       'student/page-02.jpg',

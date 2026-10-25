@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DOCX_TYPE, PDF_TYPE } from '../shared/files.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
-import { makeWorkFolder, type Pandoc, removeFolder, runFolder } from './workdir.ts';
+import { DEFAULT_BAREM_NOTES, makeWorkFolder, type Pandoc, removeFolder, runFolder } from './workdir.ts';
 
 const LIST: ExerciseList = {
   totalPoints: 10,
@@ -57,6 +57,7 @@ describe('makeWorkFolder', () => {
       '.claude/skills/evaluate-test/SKILL.md',
       '.claude/skills/evaluate-test/references/grading-rules.md',
       'barem/barem.pdf',
+      'barem/notes.md',
       'exercises.json',
       'student/page-01.jpg',
       'student/page-02.png',
@@ -100,6 +101,7 @@ describe('makeWorkFolder', () => {
       '.claude/skills/evaluate-test/SKILL.md',
       '.claude/skills/evaluate-test/references/grading-rules.md',
       'barem/barem.pdf',
+      'barem/notes.md',
       'test/test.pdf',
     ]);
   });
@@ -112,9 +114,11 @@ describe('makeWorkFolder', () => {
       { skillDir },
     );
     expect(filesIn(folder)).toContain('barem/notes.md');
-    expect(readFileSync(path.join(folder, 'barem', 'notes.md'), 'utf8')).toBe('Acceptă și metoda cu proporții.\n');
+    expect(readFileSync(path.join(folder, 'barem', 'notes.md'), 'utf8')).toBe(`${DEFAULT_BAREM_NOTES}\nAcceptă și metoda cu proporții.\n`);
     const plain = await makeWorkFolder(root, 'exercise-list-plain', { test: pdf('test'), barem: pdf('barem') }, { skillDir });
-    expect(filesIn(plain)).not.toContain('barem/notes.md');
+    expect(readFileSync(path.join(plain, 'barem', 'notes.md'), 'utf8')).toBe(`${DEFAULT_BAREM_NOTES}\n`);
+    const noBarem = await makeWorkFolder(root, 'no-barem', { test: pdf('test') }, { skillDir });
+    expect(filesIn(noBarem)).not.toContain('barem/notes.md');
   });
 
   it('turns a Word file into Markdown with pandoc, in the work folder, and removes the Word file', async () => {
