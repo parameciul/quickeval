@@ -169,6 +169,17 @@ const withPublishing = (overrides: Parameters<typeof fakeTest>[0] = {}) =>
   });
 
 describe('TestsPage results', () => {
+  it('shows no publish button on a test with nothing graded, as the test page does', async () => {
+    renderAdmin('/', createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
+      students: {},
+      tests: [fakeTest({ code: '6E2-26T1', status: 'open' })],
+    }));
+    const card = (await screen.findByRole('link', { name: '6E2-26T1' })).closest('li')!;
+    expect(within(card).queryByRole('button', { name: /^Publică rezultatele/ })).not.toBeInTheDocument();
+    expect(within(card).queryByText('Rezultate nepublicate')).not.toBeInTheDocument();
+  });
+
   it('publishes results from the list', async () => {
     const api = withPublishing();
     renderAdmin('/', api);

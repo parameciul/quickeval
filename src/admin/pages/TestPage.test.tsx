@@ -785,8 +785,17 @@ describe('TestPage evaluation', () => {
     expect(screen.getByRole('link', { name: 'Raportul clasei' })).toBeInTheDocument();
   });
 
+  it('shows no publish button before anything is graded, and keeps the stop button once results are open', async () => {
+    const { unmount } = renderAdmin('/teste/6E2-26T1', apiWith({ status: 'done' }));
+    expect(await screen.findByRole('heading', { name: '6E2-26T1' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Publică rezultatele' })).not.toBeInTheDocument();
+    unmount();
+    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'done', resultsOpen: true }));
+    expect(await screen.findByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
+  });
+
   it('publishes the student results and stops them again', async () => {
-    const api = apiWith({ status: 'done' });
+    const api = apiWith({ status: 'done', gradedCount: 1 });
     renderAdmin('/teste/6E2-26T1', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Publică rezultatele' }));
     expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);

@@ -4,6 +4,13 @@ import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
+// Whether a test has results to publish or to stop: something is graded, or
+// results are already open (for all, or for single uploads). Before that the
+// teacher has nothing to decide, so the page and the test card show no button.
+export function hasResultsToManage(test: Pick<TestInfo, 'status' | 'gradedCount' | 'resultsOpen' | 'publishedCount'>): boolean {
+  return test.status !== 'draft' && (test.gradedCount > 0 || test.resultsOpen || test.publishedCount > 0);
+}
+
 // Opening and closing the students' result pages of a test, for all
 // students at once, or one upload at a time from the uploads table. While
 // open, each student reads their own page from the link kept after sending

@@ -13,7 +13,7 @@ import { AnalysisState } from '../testPage/AnalysisState.tsx';
 import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
 import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
-import { ResultsAccess } from '../testPage/ResultsAccess.tsx';
+import { hasResultsToManage, ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
 import { StartRobotButton, waitsForPrint, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
@@ -148,7 +148,7 @@ function TestDetails({ code }: { code: string }) {
         </>
       )}
 
-      {test.status !== 'draft' && <ResultsAccess test={test} uploads={uploads} onChanged={refresh} />}
+      {hasResultsToManage(test) && <ResultsAccess test={test} uploads={uploads} onChanged={refresh} />}
 
       <h2>
         Încărcări · trimise {test.submittedCount} din {test.studentCount}

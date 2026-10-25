@@ -10,6 +10,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { StatusChip } from '../StatusChip.tsx';
+import { hasResultsToManage } from '../testPage/ResultsAccess.tsx';
 
 // The start page: the tests of the selected school year, newest first. The
 // class and the archived choice live in the address, so a link or a reload
@@ -101,7 +102,7 @@ function TestCard({ test }: { test: TestSummary }) {
   });
 
   const className = ['card', 'has-tone', classToneClass(), test.archived ? 'is-muted' : ''].filter(Boolean).join(' ');
-  const hasResults = test.status !== 'draft' && test.gradedCount > 0;
+  const hasResults = hasResultsToManage(test);
   const publishLabel = test.resultsOpen ? 'Oprește accesul' : test.publishedCount > 0 ? 'Publică pentru toți' : 'Publică rezultatele';
   return (
     <li className={className} style={classToneStyle(test.classId)}>
