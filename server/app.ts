@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv, AppOptions } from './env.ts';
 import { ApiError } from './errors.ts';
 import { adminRoutes } from './routes/admin.ts';
+import { paymentWebhookRoutes } from './routes/payments.ts';
 import { runnerRoutes } from './routes/runner.ts';
 import { uploadRoutes } from './routes/upload.ts';
 
@@ -21,6 +22,7 @@ export function createApp(options: AppOptions = {}): Hono<AppEnv> {
   app.route('/admin', adminRoutes(options));
   app.route('/u', uploadRoutes(options));
   app.route('/runner', runnerRoutes());
+  app.route('/payments', paymentWebhookRoutes());
 
   app.notFound((c) => c.json({ error: 'not_found', message: 'Nu am găsit ce cauți.' }, 404));
   app.onError((err, c) => {

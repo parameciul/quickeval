@@ -1,4 +1,5 @@
 import type { ConfirmAnswer, LinkInfo, SessionStart, StudentResultView, SubmissionFile, UploadSession } from '../../shared/api.ts';
+import type { CheckoutAnswer, CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
 
 // Everything the student app asks the server. The page gets it as a prop, so
@@ -18,6 +19,10 @@ export interface UploadApi {
   getResult(resultToken: string): Promise<StudentResultView>;
   // A file of that result page, for its preview.
   resultFileBlob(resultToken: string, fileId: number): Promise<Blob>;
+  // The student's payments for this test and for the whole account.
+  listPayments(token: string, secret: string): Promise<PaymentRow[]>;
+  // Resolves to the Stripe payment page. The test is the one of the link.
+  startCheckout(token: string, secret: string, input: Omit<CheckoutInput, 'testCode'>): Promise<string>;
 }
 
 // The student's upload on this phone: who it is, the secret, and the files sent so far.
@@ -131,5 +136,8 @@ export function createUploadClient(options: UploadClientOptions = {}): UploadApi
       if (!res.ok) await readAnswer(res);
       return res.blob();
     },
+    listPayments: async (token, secret) => (await json<{ payments: PaymentRow[] }>('GET', `${base(token)}/payments`, secret)).payments,
+    startCheckout: async (token, secret, input) =>
+      (await json<CheckoutAnswer>('POST', `${base(token)}/payments/checkout`, secret, input)).url,
   };
 }

@@ -1,3 +1,6 @@
 # Copy to .dev.vars (never committed). Local development only: the API accepts
 # this email as the logged-in teacher, and only for requests to localhost.
 DEV_TEACHER_EMAIL=profesor@example.com
+# Stripe test-mode keys (docs/payments.md). Leave empty: payments then answer 503.
+# STRIPE_SECRET_KEY=sk_test_...
+# STRIPE_WEBHOOK_SECRET=whsec_...

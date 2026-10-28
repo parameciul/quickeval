@@ -13,6 +13,7 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 - `functions/api/[[route]].ts`: the Cloudflare Pages entry for `/api/*`; it serves the Hono app from `server/app.ts`.
 - `server/`: the API (routes, D1 queries, auth, R2 files, secrets).
 - `shared/`: code for the API, the browser, and the robot: zod request schemas and response types (`api.ts`), school year, class and student names, ids, test codes (`tests.ts`), file rules and R2 keys (`files.ts`), the robot's output contracts and their JSON Schemas (`schemas.ts`), points and grades (`scoring.ts`), robot API bodies (`runner.ts`).
+- Payments with Stripe Checkout: `docs/payments.md`.
 - `migrations/`: D1 SQL migrations, numbered. One statement per `;` at a line end (the test helper splits on that), and no `;` inside strings.
 - `public/`: copied as-is into `dist/` (`_routes.json`: only `/api/*` runs Functions; `_redirects`, `_headers`, `theme.js`, `favicon.svg`, `robots.txt`). `_redirects` must use the directory form `/admin/* /admin/ 200` and `/u/* /u/ 200`: Wrangler refuses `/admin/* /admin/index.html 200` as a redirect loop.
 - `scripts/`: `seed-local.sql` (the local teacher), `smoke.mjs` (checks a running local server, with one full upload graded by a pretend robot).

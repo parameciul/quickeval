@@ -1,0 +1,46 @@
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import { expectNoGradingWords } from '../test/gradingWords.ts';
+import { ApiError } from './ApiError.ts';
+import { PayButton, PaymentReturnNotice } from './PayButton.tsx';
+
+describe('PayButton', () => {
+  it('opens the payment page that the API gives', async () => {
+    const goTo = vi.fn();
+    const startCheckout = vi.fn(async () => 'https://checkout.stripe.test/1');
+    render(<PayButton label="Plătește" startCheckout={startCheckout} goTo={goTo} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Plătește' }));
+    expect(startCheckout).toHaveBeenCalledTimes(1);
+    expect(goTo).toHaveBeenCalledWith('https://checkout.stripe.test/1');
+    expect(screen.getByRole('button')).toBeDisabled();
+  });
+
+  it("shows the API's Romanian message and lets the user try again", async () => {
+    const goTo = vi.fn();
+    const startCheckout = vi.fn().mockRejectedValueOnce(new ApiError(503, 'payments_off', 'Plățile nu sunt încă active.'));
+    render(<PayButton label="Plătește" startCheckout={startCheckout} goTo={goTo} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Plătește' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Plățile nu sunt încă active.');
+    expect(goTo).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Plătește' })).toBeEnabled();
+  });
+
+  it('shows a generic message for an error that is not from the API', async () => {
+    render(<PayButton label="Plătește" startCheckout={() => Promise.reject(new Error('boom'))} goTo={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('A apărut o eroare. Încearcă din nou.');
+  });
+});
+
+describe('PaymentReturnNotice', () => {
+  it('says what happened on the payment page, and nothing without it', () => {
+    const { rerender } = render(<PaymentReturnNotice search="?plata=reusita&session_id=cs_1" />);
+    expect(screen.getByRole('status')).toHaveTextContent('Plata a fost primită.');
+    expectNoGradingWords();
+    rerender(<PaymentReturnNotice search="?plata=anulata" />);
+    expect(screen.getByRole('status')).toHaveTextContent('Plata a fost anulată.');
+    rerender(<PaymentReturnNotice search="" />);
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+});

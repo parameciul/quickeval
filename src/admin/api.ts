@@ -29,6 +29,7 @@ import type {
   UpdateClassInput,
 } from '../../shared/api.ts';
 import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
+import type { CheckoutAnswer, CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { studentResultPath } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
 
@@ -102,6 +103,10 @@ export interface AdminApi {
   setShowModelColumn(show: boolean): Promise<Settings>;
   // A new robot key: the only time the app sees it.
   newRobotKey(): Promise<string>;
+  // The teacher's own payments, newest first.
+  listPayments(): Promise<PaymentRow[]>;
+  // Resolves to the Stripe payment page for one feature of the catalog.
+  startCheckout(input: CheckoutInput): Promise<string>;
 }
 
 // Files open straight from the API: the browser sends the Access login cookie.
@@ -268,5 +273,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     setShowModelColumn: async (showModelColumn) =>
       (await request<{ settings: Settings }>('PATCH', '/settings', { showModelColumn })).settings,
     newRobotKey: async () => (await request<{ key: string }>('POST', '/settings/robot-key')).key,
+    listPayments: async () => (await request<{ payments: PaymentRow[] }>('GET', '/payments')).payments,
+    startCheckout: async (input) => (await request<CheckoutAnswer>('POST', '/payments/checkout', input)).url,
   };
 }
