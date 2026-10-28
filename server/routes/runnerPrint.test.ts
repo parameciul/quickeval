@@ -253,15 +253,15 @@ describe('the robot key and the teacher routes', () => {
     try {
       await setRobotKey(outside);
       const denied = await outside.request('GET', `/api/admin/tests/${code}/print`, undefined, { Authorization: `Bearer ${ROBOT_KEY}` });
-      // No teacher session and no dev login: admin auth answers 500 whatever the key (as in runner.test.ts).
-      expect(denied.status).toBe(500);
+      // No teacher login: admin auth answers 401 whatever the key (as in runner.test.ts).
+      expect(denied.status).toBe(401);
     } finally {
       await outside.dispose();
     }
   });
 
-  it('answers 403 to the robot key once Access is configured', async () => {
-    const guarded = await startTestApi({ env: { ACCESS_TEAM_DOMAIN: 'school.cloudflareaccess.com', ACCESS_AUD: 'aud' } });
+  it('answers 401 to the robot key on a real host', async () => {
+    const guarded = await startTestApi();
     try {
       await setRobotKey(guarded);
       const denied = await createApp().request(
@@ -269,7 +269,7 @@ describe('the robot key and the teacher routes', () => {
         { headers: { Authorization: `Bearer ${ROBOT_KEY}` } },
         guarded.env,
       );
-      expect(denied.status).toBe(403);
+      expect(denied.status).toBe(401);
     } finally {
       await guarded.dispose();
     }

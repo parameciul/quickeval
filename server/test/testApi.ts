@@ -30,7 +30,8 @@ export interface TestApi {
   request(method: string, path: string, body?: unknown, headers?: Record<string, string>): Promise<TestResponse>;
   // The raw response, for requests whose body or answer is not JSON.
   fetch(path: string, init?: RequestInit): Promise<Response>;
-  addTeacher(email: string, name: string): Promise<number>;
+  // An active teacher account (not an administrator, not demo) unless `options` say otherwise.
+  addTeacher(email: string, name: string, options?: { role?: 'admin' | 'teacher'; demo?: boolean }): Promise<number>;
   dispose(): Promise<void>;
 }
 
@@ -61,10 +62,10 @@ export async function startTestApi(options: { env?: Partial<Env>; app?: AppOptio
   });
   const db = platform.env.DB;
 
-  const addTeacher = async (email: string, name: string) => {
+  const addTeacher = async (email: string, name: string, options: { role?: 'admin' | 'teacher'; demo?: boolean } = {}) => {
     const row = await db
-      .prepare('INSERT INTO teachers (email, name, created_at) VALUES (?, ?, ?) RETURNING id')
-      .bind(email, name, '2026-10-06T08:00:00.000Z')
+      .prepare('INSERT INTO teachers (email, name, created_at, role, demo) VALUES (?, ?, ?, ?, ?) RETURNING id')
+      .bind(email, name, '2026-10-06T08:00:00.000Z', options.role ?? 'teacher', options.demo ? 1 : 0)
       .first<{ id: number }>();
     return row!.id;
   };
@@ -72,7 +73,8 @@ export async function startTestApi(options: { env?: Partial<Env>; app?: AppOptio
   let teacherId: number;
   try {
     await applyMigrations(db);
-    teacherId = await addTeacher(TEACHER_EMAIL, 'Laura Miron');
+    // The teacher of the tests is an administrator, as Laura is.
+    teacherId = await addTeacher(TEACHER_EMAIL, 'Laura Miron', { role: 'admin' });
   } catch (err) {
     // A failed setup must not leave the local engine running.
     await platform.dispose();

@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router';
 import { Layout } from './Layout.tsx';
+import { AccountPage } from './pages/AccountPage.tsx';
 import { ClassesPage } from './pages/ClassesPage.tsx';
 import { ClassPage } from './pages/ClassPage.tsx';
 import { ClassStudentsPage } from './pages/ClassStudentsPage.tsx';
@@ -27,6 +28,7 @@ export function AppRoutes() {
         <Route path="clase/:id/elevi" element={<ClassStudentsPage />} />
         <Route path="elevi/:id" element={<StudentPage />} />
         <Route path="setari" element={<SettingsPage />} />
+        <Route path="cont" element={<AccountPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

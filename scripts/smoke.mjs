@@ -62,6 +62,8 @@ for (const path of ['/admin/', '/u/abcdefghijkmnop2']) {
 
 const me = await api('GET', '/api/admin/me');
 check('local teacher login', me.status === 200 && typeof me.body?.teacher?.email === 'string', JSON.stringify(me.body));
+const badLogin = await api('POST', '/api/auth/login', { email: 'nimeni@example.com', password: 'parola-gresita' });
+check('login refuses an unknown account', badLogin.status === 401 && badLogin.body?.error === 'wrong_login', JSON.stringify(badLogin.body));
 check('API answers are not cached or sniffed', me.headers.get('cache-control') === 'no-store' && me.headers.get('x-content-type-options') === 'nosniff');
 
 const name = `S${Date.now() % 100000}`;

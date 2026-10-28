@@ -369,6 +369,8 @@ label {
 }
 
 input[type="text"],
+input[type="email"],
+input[type="password"],
 textarea,
 select {
   min-height: 2.75rem;
@@ -381,6 +383,8 @@ select {
 }
 
 input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
 textarea:focus,
 select:focus {
   border-color: var(--ink);
@@ -1748,6 +1752,23 @@ table.items tr.edit-row > td {
 
 .warning > :last-child {
   margin-bottom: 0;
+}
+
+/* The login page: the form, and the switch between "Intră" and "Cont nou". */
+.login-box {
+  max-width: 26rem;
+  margin: 2rem auto;
+}
+
+.login-switch {
+  display: flex;
+  gap: 0.5rem;
+  margin-block: 1rem;
+}
+
+.login-switch [aria-pressed="true"] {
+  border-color: var(--ink);
+  font-weight: 700;
 }
 
 /* The class report (spec §14.2) */

@@ -1,0 +1,140 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { EmailMessage } from '../email.ts';
+import { startTestApi, type TestApi } from '../test/testApi.ts';
+
+// The test teacher is an administrator (development login).
+
+let api: TestApi;
+let emails: EmailMessage[];
+
+beforeEach(async () => {
+  emails = [];
+  api = await startTestApi({
+    app: {
+      sendEmail: async (_env, message) => {
+        emails.push(message);
+        return true;
+      },
+    },
+  });
+});
+
+afterEach(async () => {
+  await api.dispose();
+});
+
+async function signup(email = 'ana@example.com'): Promise<number> {
+  const res = await api.request('POST', '/api/auth/signup', { name: 'Ana Pop', email, password: 'parola-lunga' });
+  expect(res.status).toBe(201);
+  const row = await api.db.prepare('SELECT id FROM teachers WHERE email = ?').bind(email).first<{ id: number }>();
+  emails = [];
+  return row!.id;
+}
+
+const login = (email: string, password: string) => api.request('POST', '/api/auth/login', { email, password });
+const accountOf = async (id: number) =>
+  ((await api.request('GET', '/api/admin/accounts')).body.accounts as { id: number }[]).find((account) => account.id === id);
+
+describe('GET /api/admin/accounts', () => {
+  it('lists the accounts, the ones that wait first', async () => {
+    await api.addTeacher('bogdan@example.com', 'Bogdan');
+    const pending = await signup();
+    const res = await api.request('GET', '/api/admin/accounts');
+    expect(res.status).toBe(200);
+    expect(res.body.accounts[0]).toMatchObject({ id: pending, name: 'Ana Pop', status: 'pending', demo: true, role: 'teacher' });
+    expect(res.body.accounts.map((a: { email: string }) => a.email)).toEqual(['ana@example.com', 'bogdan@example.com', 'profesor@example.com']);
+    expect(JSON.stringify(res.body)).not.toContain('pbkdf2');
+  });
+
+  it('is only for administrators', async () => {
+    await api.addTeacher('bogdan@example.com', 'Bogdan');
+    api.env.DEV_TEACHER_EMAIL = 'bogdan@example.com';
+    const res = await api.request('GET', '/api/admin/accounts');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('admin_only');
+    expect((await api.request('POST', '/api/admin/accounts/1/approve')).status).toBe(403);
+  });
+});
+
+describe('approving and refusing', () => {
+  it('approves a pending account, which can then log in, and tells the teacher', async () => {
+    const id = await signup();
+    expect((await login('ana@example.com', 'parola-lunga')).body.error).toBe('account_pending');
+    const res = await api.request('POST', `/api/admin/accounts/${id}/approve`);
+    expect(res.status).toBe(200);
+    expect(await accountOf(id)).toMatchObject({ status: 'active', demo: true });
+    expect(emails).toEqual([expect.objectContaining({ to: ['ana@example.com'], subject: 'QuickEval: contul tău a fost aprobat' })]);
+    expect((await login('ana@example.com', 'parola-lunga')).status).toBe(200);
+    expect((await api.request('POST', `/api/admin/accounts/${id}/approve`)).body.error).toBe('not_pending');
+  });
+
+  it('refuses a pending account by deleting it, so the email can sign up again', async () => {
+    const id = await signup();
+    expect((await api.request('DELETE', `/api/admin/accounts/${id}`)).status).toBe(200);
+    expect(await accountOf(id)).toBeUndefined();
+    await signup();
+  });
+
+  it('never deletes an active account', async () => {
+    const id = await api.addTeacher('bogdan@example.com', 'Bogdan');
+    expect((await api.request('DELETE', `/api/admin/accounts/${id}`)).body.error).toBe('not_pending');
+    expect(await accountOf(id)).toBeDefined();
+  });
+});
+
+describe('PATCH /api/admin/accounts/:id', () => {
+  it('turns a demo account into a complete one', async () => {
+    const id = await signup();
+    await api.request('POST', `/api/admin/accounts/${id}/approve`);
+    const res = await api.request('PATCH', `/api/admin/accounts/${id}`, { demo: false });
+    expect(res.status).toBe(200);
+    expect(res.body.accounts.find((a: { id: number }) => a.id === id)).toMatchObject({ demo: false });
+  });
+
+  it('closes an account and ends its logins, and opens it again', async () => {
+    const id = await signup();
+    await api.request('POST', `/api/admin/accounts/${id}/approve`);
+    expect((await login('ana@example.com', 'parola-lunga')).status).toBe(200);
+    expect((await api.request('PATCH', `/api/admin/accounts/${id}`, { status: 'disabled' })).status).toBe(200);
+    const sessions = await api.db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE teacher_id = ?').bind(id).first<{ n: number }>();
+    expect(sessions!.n).toBe(0);
+    expect((await login('ana@example.com', 'parola-lunga')).body.error).toBe('account_disabled');
+    await api.request('PATCH', `/api/admin/accounts/${id}`, { status: 'active' });
+    expect((await login('ana@example.com', 'parola-lunga')).status).toBe(200);
+  });
+
+  it('changes no administrator and no pending account', async () => {
+    const adminId = await api.addTeacher('admin2@example.com', 'Admin Doi', { role: 'admin' });
+    const pending = await signup();
+    expect((await api.request('PATCH', `/api/admin/accounts/${adminId}`, { status: 'disabled' })).status).toBe(404);
+    expect((await api.request('PATCH', `/api/admin/accounts/${api.teacherId}`, { status: 'disabled' })).status).toBe(404);
+    expect((await api.request('PATCH', `/api/admin/accounts/${pending}`, { demo: false })).status).toBe(404);
+    expect(await accountOf(pending)).toMatchObject({ status: 'pending', demo: true });
+  });
+
+  it('refuses an empty change', async () => {
+    const id = await api.addTeacher('bogdan@example.com', 'Bogdan');
+    expect((await api.request('PATCH', `/api/admin/accounts/${id}`, {})).status).toBe(400);
+  });
+});
+
+describe('POST /api/admin/accounts/:id/password', () => {
+  it('makes a new password, shown once, that replaces the old one', async () => {
+    const id = await signup();
+    await api.request('POST', `/api/admin/accounts/${id}/approve`);
+    const res = await api.request('POST', `/api/admin/accounts/${id}/password`);
+    expect(res.status).toBe(201);
+    expect(res.body.password).toMatch(/^[a-z2-7]{12}$/);
+    expect((await login('ana@example.com', 'parola-lunga')).status).toBe(401);
+    expect((await login('ana@example.com', res.body.password)).status).toBe(200);
+  });
+
+  it('does not approve a pending account by giving it a password', async () => {
+    const id = await signup();
+    expect((await api.request('POST', `/api/admin/accounts/${id}/password`)).status).toBe(404);
+  });
+
+  it('sends the administrator to Contul meu for their own password', async () => {
+    expect((await api.request('POST', `/api/admin/accounts/${api.teacherId}/password`)).body.error).toBe('own_account');
+  });
+});

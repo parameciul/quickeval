@@ -102,7 +102,7 @@ Parts:
 | API | Pages Functions + Hono 4 (TypeScript) | Small, made for Workers. `app.request()` makes API tests simple. |
 | Database | Cloudflare D1 | SQLite. Free: 5 GB per account, 500 MB per database, 5 M rows read/day, 100 k rows written/day. |
 | Files | Cloudflare R2 | Free: 10 GB-month, 1 M Class A ops/month, 10 M Class B ops/month, no egress fees. Needs a one-time R2 subscription checkout (card or PayPal). |
-| Teacher login | Cloudflare Access (Zero Trust free plan, up to 50 users) | Already used by the Website admin. No passwords in our code. |
+| Teacher login | Email and password in the app (`server/routes/auth.ts`), a session cookie stored as a hash in D1 | Replaced Cloudflare Access when other teachers got accounts: Access's free plan stops at 50 users and needs each email in its policy. Free for any number of users; no email service needed to log in. |
 | Frontend | React 19 + TypeScript + Vite (multi-page) | The teacher chose it. Many interactive screens. Shared types with the API and the robot. |
 | Routing, data | React Router, TanStack Query | Standard. TanStack Query handles live polling and cache. |
 | Validation, shared types | zod 4 | One schema gives TypeScript types, runtime checks, and the JSON Schema for Claude's output (`z.toJSONSchema`). |
@@ -482,7 +482,7 @@ Base path `/api`. JSON in and out, except for file bodies. Errors have the shape
 
 ### 11.1 Teacher: `/api/admin/*`
 
-Auth: the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) is checked again in the API (RS256, issuer, audience, expiry). The email must match a row in `teachers`. Writes must send `Content-Type: application/json` (except file uploads), and are refused when they come from another site (`Sec-Fetch-Site`, `Origin`), as in the Website admin. Every query is scoped to the teacher's id.
+Auth: the `qe_session` cookie (from `POST /api/auth/login`) must name an unexpired session of an active teacher. Roles, approval and the demo limit: `docs/deploy.md`, "Accounts". Writes must send `Content-Type: application/json` (except file uploads), and are refused when they come from another site (`Sec-Fetch-Site`, `Origin`), as in the Website admin. Every query is scoped to the teacher's id.
 
 | Method and path | Purpose |
 |---|---|
@@ -784,7 +784,7 @@ The PDFs are made in the browser, in a chunk that loads only when a PDF is asked
 
 ## 15. Security and privacy
 
-- **Teacher login**: one Cloudflare Access application on the Pages host. It covers only the paths `/admin` and `/api/admin`. Paths `/u`, `/api/u`, and `/api/runner` must stay outside Access: otherwise students and the robot get a login page. The API checks the JWT again (a port of the Website's `_middleware.js` logic). The API settings are `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD`.
+- **Teacher login** (replaced: see `docs/deploy.md`, "Accounts"; the rest of this item is history): one Cloudflare Access application on the Pages host. It covers only the paths `/admin` and `/api/admin`. Paths `/u`, `/api/u`, and `/api/runner` must stay outside Access: otherwise students and the robot get a login page. The API checks the JWT again (a port of the Website's `_middleware.js` logic). The API settings are `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD`.
 - **Local development**: the API accepts `DEV_TEACHER_EMAIL` (from `.dev.vars`, git-ignored) only when the request host is `localhost` or `127.0.0.1`. Production never sets it.
 - **Secrets**:
   - upload token: 80 bits;

@@ -1,4 +1,5 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
+import { DEMO_TEST_LIMIT } from '../../shared/accounts.ts';
 import type { AnalysisInfo } from '../../shared/api.ts';
 import type { AnalysisStatus, TestStatus } from '../../shared/tests.ts';
 import type { ShownResult } from './evaluations.ts';
@@ -36,8 +37,34 @@ export function finishTests(db: D1Database, now: string): D1PreparedStatement {
     .bind(now);
 }
 
-// An open test whose scheduled evaluation time has come.
-const DUE = "t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?";
+// The test t may start an evaluation under the demo limit: it was evaluated
+// before (it already counts), or its teacher is not a demo account, or the
+// demo account has tests left. The trigger tests_count_evaluation (migration
+// 0015) counts the test when its status becomes 'evaluating'.
+export const WITHIN_DEMO_LIMIT = `(t.evaluation_counted = 1 OR NOT EXISTS (
+  SELECT 1 FROM teachers q WHERE q.id = t.teacher_id AND q.demo = 1 AND q.tests_evaluated >= ${DEMO_TEST_LIMIT}))`;
+
+// True when the demo limit keeps this test from starting an evaluation.
+export async function blockedByDemoLimit(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db.prepare(`SELECT 1 AS blocked FROM tests t WHERE t.id = ? AND NOT ${WITHIN_DEMO_LIMIT}`).bind(testId).first();
+  return row !== null;
+}
+
+// The same for a scheduled test whose time has come. One UPDATE can start
+// several such tests of a teacher, and SQLite reads its WHERE before it writes:
+// the tests scheduled earlier (by time, then by id) that would start in the
+// same UPDATE count as used, so the earliest ones start and the rest wait.
+const DUE_WITHIN_DEMO_LIMIT = `(t.evaluation_counted = 1 OR NOT EXISTS (
+  SELECT 1 FROM teachers q WHERE q.id = t.teacher_id AND q.demo = 1
+    AND q.tests_evaluated + (
+      SELECT COUNT(*) FROM tests o
+      WHERE o.teacher_id = t.teacher_id AND o.status = 'open' AND o.evaluation_counted = 0 AND o.evaluation_at IS NOT NULL
+        AND (o.evaluation_at < t.evaluation_at OR (o.evaluation_at = t.evaluation_at AND o.id < t.id))
+    ) >= ${DEMO_TEST_LIMIT}))`;
+
+// An open test whose scheduled evaluation time has come. A demo account at its
+// limit keeps the test open.
+const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ? AND ${DUE_WITHIN_DEMO_LIMIT}`;
 
 // Starts the evaluation of every test whose scheduled time has come, so a
 // scheduled test closes on time even when the robot is late (spec §8.3). For
@@ -79,7 +106,7 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
 // An open test of this teacher with the test file, the barem, and at least one
 // uploaded file (spec §8.4).
 const READY = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
-  AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL
+  AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_DEMO_LIMIT}
   AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id WHERE s.test_id = t.id)`;
 
 // open → evaluating now. Null when the test is not ready; "done" when it has
@@ -145,11 +172,11 @@ async function startSelectiveEvaluation(
   if (submissionIds.length === 0) return null;
   const placeholders = submissionIds.map(() => '?').join(',');
   const READY_SELECTED = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL
+    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_DEMO_LIMIT}
     AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id
       WHERE s.test_id = t.id AND s.id IN (${placeholders}))`;
   const OPEN_WITH_FILES = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL`;
+    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_DEMO_LIMIT}`;
   const [, , started, finished] = await db.batch<{ id: number }>([
     // Unselected confirmed uploads wait for a later evaluation.
     db
@@ -186,8 +213,9 @@ async function startSelectiveEvaluation(
 export async function scheduleEvaluation(db: D1Database, teacherId: number, testId: number, at: string, now: string): Promise<boolean> {
   const row = await db
     .prepare(
-      `UPDATE tests SET evaluation_at = ?, updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND status = 'open' AND test_file_key IS NOT NULL AND barem_file_key IS NOT NULL
+      `UPDATE tests AS t SET evaluation_at = ?, updated_at = ?
+       WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL
+         AND ${WITHIN_DEMO_LIMIT}
        RETURNING id`,
     )
     .bind(at, now, testId, teacherId)

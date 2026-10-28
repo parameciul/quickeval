@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv, AppOptions } from './env.ts';
 import { ApiError } from './errors.ts';
 import { adminRoutes } from './routes/admin.ts';
+import { authRoutes } from './routes/auth.ts';
 import { runnerRoutes } from './routes/runner.ts';
 import { uploadRoutes } from './routes/upload.ts';
 
@@ -18,6 +19,7 @@ export function createApp(options: AppOptions = {}): Hono<AppEnv> {
     if (!c.res.headers.has('Cache-Control')) c.res.headers.set('Cache-Control', 'no-store');
   });
 
+  app.route('/auth', authRoutes(options));
   app.route('/admin', adminRoutes(options));
   app.route('/u', uploadRoutes(options));
   app.route('/runner', runnerRoutes());

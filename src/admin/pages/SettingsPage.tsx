@@ -5,6 +5,7 @@ import { MAX_PARALLEL_AGENTS, type RunSummary } from '../../../shared/runner.ts'
 import { countLabel, formatDateTime } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { AccountsSection } from '../settingsPage/AccountsSection.tsx';
 import { agoText, RobotLine } from '../testPage/RobotLine.tsx';
 
 const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) => index + 1);
@@ -12,17 +13,35 @@ const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) 
 // every 10 minutes, and the robot line moves on by itself).
 const REFRESH_MS = 60_000;
 
-// Setări (spec §9): how many uploads the robot grades at the same time, the
-// robot's key, and what the robot did last.
+// Setări (spec §9), for the administrators only: the teachers' accounts, how
+// many uploads the robot grades at the same time, the robot's key, and what the
+// robot did last.
 export function SettingsPage() {
   const api = useApi();
-  const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.getSettings(), refetchInterval: REFRESH_MS });
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
+  const isAdmin = me.data?.role === 'admin';
+  const settings = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => api.getSettings(),
+    refetchInterval: REFRESH_MS,
+    enabled: isAdmin,
+  });
+
+  if (me.data && !isAdmin) {
+    return (
+      <section>
+        <h1>Setări</h1>
+        <p>Doar administratorii au acces la Setări.</p>
+      </section>
+    );
+  }
 
   return (
     <section>
       <h1>Setări</h1>
-      {settings.isPending && <p>Se încarcă…</p>}
+      {(me.isPending || settings.isPending) && <p>Se încarcă…</p>}
       {settings.error && <ErrorMessage error={settings.error} />}
+      {isAdmin && <AccountsSection />}
       {settings.data && (
         <>
           <ParallelForm current={settings.data.maxParallelAgents} />

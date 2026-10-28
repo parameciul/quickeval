@@ -1,4 +1,13 @@
 import { z } from 'zod';
+import {
+  type AccountStatus,
+  MAX_EMAIL_LENGTH,
+  MAX_PASSWORD_LENGTH,
+  MAX_TEACHER_NAME_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  normalizeEmail,
+  type Role,
+} from './accounts.ts';
 import { normalizeClassName } from './classes.ts';
 import type { TestFileKind } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
@@ -132,6 +141,55 @@ export const updateSettingsBody = z
   // number of uploads at a time.
   .refine((body) => body.maxParallelAgents !== undefined || body.showModelColumn !== undefined, { message: PARALLEL_MESSAGE });
 
+const EMAIL_MESSAGE = 'Scrie o adresă de email validă.';
+const PASSWORD_MESSAGE = `Parola are între ${MIN_PASSWORD_LENGTH} și ${MAX_PASSWORD_LENGTH} de caractere.`;
+
+export const emailSchema = z
+  .string({ message: EMAIL_MESSAGE })
+  .transform(normalizeEmail)
+  .pipe(z.email({ message: EMAIL_MESSAGE }).max(MAX_EMAIL_LENGTH, { message: EMAIL_MESSAGE }));
+
+export const passwordSchema = z
+  .string({ message: PASSWORD_MESSAGE })
+  .min(MIN_PASSWORD_LENGTH, { message: PASSWORD_MESSAGE })
+  .max(MAX_PASSWORD_LENGTH, { message: PASSWORD_MESSAGE });
+
+// A new teacher asks for an account: it waits for an administrator.
+export const signupBody = z.object({
+  name: z
+    .string({ message: 'Scrie numele tău.' })
+    .transform((raw) => raw.trim().replace(/\s+/g, ' '))
+    .pipe(
+      z
+        .string()
+        .min(1, { message: 'Scrie numele tău.' })
+        .max(MAX_TEACHER_NAME_LENGTH, { message: `Numele are cel mult ${MAX_TEACHER_NAME_LENGTH} de caractere.` }),
+    ),
+  email: emailSchema,
+  password: passwordSchema,
+});
+
+// The password is not checked for length here: an old password stays valid.
+export const loginBody = z.object({
+  email: emailSchema,
+  password: z.string({ message: 'Scrie parola.' }).min(1, { message: 'Scrie parola.' }).max(MAX_PASSWORD_LENGTH, { message: 'Parola este greșită.' }),
+});
+
+export const changePasswordBody = z.object({
+  currentPassword: z.string({ message: 'Scrie parola de acum.' }).min(1, { message: 'Scrie parola de acum.' }).max(MAX_PASSWORD_LENGTH),
+  newPassword: passwordSchema,
+});
+
+// An administrator changes another teacher's account. Each field is optional.
+export const updateAccountBody = z
+  .object({
+    demo: z.boolean({ message: 'Alege tipul contului.' }).optional(),
+    status: z.enum(['active', 'disabled'], { message: 'Alege starea contului.' }).optional(),
+  })
+  .refine((body) => body.demo !== undefined || body.status !== undefined, { message: 'Alege ce schimbi la cont.' });
+
+export type SignupInput = z.input<typeof signupBody>;
+
 const POINTS_MESSAGE = 'Scrie punctajul ca număr, de exemplu 2,5.';
 
 // The grading that the teacher's page shows (`EvaluationInfo.gradedAt`). Ids of
@@ -235,10 +293,28 @@ export type CreateTestInput = z.input<typeof createTestBody>;
 
 // Response shapes of the teacher API.
 
+// The logged-in teacher.
 export interface Teacher {
   id: number;
   email: string;
   name: string;
+  role: Role;
+  // A demo account sends at most DEMO_TEST_LIMIT tests to evaluation.
+  demo: boolean;
+  // Tests this account has sent to evaluation, each counted once.
+  testsEvaluated: number;
+}
+
+// A teacher account as the administrators see it on Setări.
+export interface Account extends Teacher {
+  status: AccountStatus;
+  createdAt: string;
+  approvedAt: string | null;
+}
+
+// A password made by an administrator, shown this once.
+export interface TemporaryPasswordAnswer {
+  password: string;
 }
 
 export interface ClassSummary {

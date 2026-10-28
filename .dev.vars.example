@@ -1,3 +1,6 @@
 # Copy to .dev.vars (never committed). Local development only: the API accepts
 # this email as the logged-in teacher, and only for requests to localhost.
 DEV_TEACHER_EMAIL=profesor@example.com
+# Optional: the emails to the administrators about new accounts (docs/deploy.md, "Accounts").
+# BREVO_API_KEY=
+# EMAIL_FROM=

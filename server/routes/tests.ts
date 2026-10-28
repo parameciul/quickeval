@@ -16,8 +16,10 @@ import {
   type TestFileAnswer,
 } from '../../shared/api.ts';
 import { isTestFileKind, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
+import { DEMO_TEST_LIMIT } from '../../shared/accounts.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
 import { acceptExerciseList,
+  blockedByDemoLimit,
   cancelSchedule,
   hasUploadedFiles,
   regradeTest,
@@ -71,6 +73,13 @@ async function evaluationBlocker(db: D1Database, teacherId: number, code: string
   if (test.summary.status !== 'open') return new ApiError(409, 'already_evaluating', 'Evaluarea a pornit deja.');
   if (!test.files.test) return new ApiError(409, 'missing_test_file', 'Încarcă testul înainte de evaluare.');
   if (!test.files.barem) return new ApiError(409, 'missing_barem', 'Încarcă baremul înainte de evaluare.');
+  if (await blockedByDemoLimit(db, test.id)) {
+    return new ApiError(
+      403,
+      'demo_limit',
+      `Contul demo poate evalua cel mult ${DEMO_TEST_LIMIT} teste. Cere unui administrator să-ți facă un cont complet.`,
+    );
+  }
   if (needsUploads && !(await hasUploadedFiles(db, test.id))) {
     return new ApiError(409, 'no_uploads', 'Niciun elev nu a încărcat încă fișiere.');
   }

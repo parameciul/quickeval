@@ -48,3 +48,14 @@ export async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
+
+// The token of a login cookie: 32 bytes (256 bits), base64url. Only its hash is stored.
+export function newSessionToken(): string {
+  return randomBase64Url(32);
+}
+
+// A password an administrator makes for a teacher: 12 characters, 60 bits.
+// The teacher changes it after logging in.
+export function newTemporaryPassword(): string {
+  return randomBase32(12);
+}

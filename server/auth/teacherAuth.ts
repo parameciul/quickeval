@@ -1,39 +1,46 @@
 import type { Context, MiddlewareHandler } from 'hono';
-import { findTeacherByEmail } from '../db/teachers.ts';
+import type { Teacher } from '../../shared/api.ts';
+import { findActiveTeacherByEmail, findTeacherBySession } from '../db/accounts.ts';
 import type { AppEnv } from '../env.ts';
 import { ApiError } from '../errors.ts';
-import { verifyAccessJwt } from './access.ts';
+import { nowIso } from '../http.ts';
+import { sha256Hex } from '../secrets.ts';
+import { sessionToken } from './session.ts';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 
-// The email of the person who made the request. Production: the Cloudflare
-// Access token, checked again here because Access runs before this code.
-// Local development: DEV_TEACHER_EMAIL from .dev.vars, but only for requests
-// to localhost, so the setting can never open the live site.
-async function loginEmail(c: Context<AppEnv>): Promise<string> {
+// The logged-in teacher. Production: the login cookie (routes/auth.ts) of an
+// active account. Local development: DEV_TEACHER_EMAIL from .dev.vars, but
+// only for requests to localhost, so the setting can never open the live site.
+async function loggedInTeacher(c: Context<AppEnv>): Promise<Teacher> {
   const devEmail = c.env.DEV_TEACHER_EMAIL?.trim().toLowerCase();
-  if (devEmail && LOCAL_HOSTS.has(new URL(c.req.url).hostname)) return devEmail;
-
-  const teamDomain = (c.env.ACCESS_TEAM_DOMAIN ?? '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-  const aud = (c.env.ACCESS_AUD ?? '').trim();
-  if (!teamDomain || !aud) {
-    throw new ApiError(500, 'access_not_configured', 'Autentificarea nu este configurată: lipsesc ACCESS_TEAM_DOMAIN sau ACCESS_AUD.');
+  if (devEmail && LOCAL_HOSTS.has(new URL(c.req.url).hostname)) {
+    const teacher = await findActiveTeacherByEmail(c.env.DB, devEmail);
+    if (!teacher) throw new ApiError(403, 'unknown_teacher', 'Contul tău nu are acces la QuickEval.');
+    return teacher;
   }
-  const result = await verifyAccessJwt(c.req.header('Cf-Access-Jwt-Assertion'), { teamDomain, aud });
-  if (!result.ok) {
-    if (result.unavailable) throw new ApiError(503, 'access_unavailable', result.message);
-    throw new ApiError(403, 'access_denied', result.message);
-  }
-  return result.email;
+  const token = sessionToken(c);
+  const teacher = token ? await findTeacherBySession(c.env.DB, await sha256Hex(token), nowIso()) : null;
+  if (!teacher) throw new ApiError(401, 'login_required', 'Intră în cont ca să continui.');
+  return teacher;
 }
 
 // Puts the logged-in teacher in c.var.teacher, or refuses the request.
 export function teacherAuth(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
-    const email = await loginEmail(c);
-    const teacher = await findTeacherByEmail(c.env.DB, email);
-    if (!teacher) throw new ApiError(403, 'unknown_teacher', 'Contul tău nu are acces la QuickEval.');
-    c.set('teacher', teacher);
+    c.set('teacher', await loggedInTeacher(c));
     await next();
   };
 }
+
+// Setări and the accounts are for the administrators only.
+export function requireAdmin(c: Context<AppEnv>): void {
+  if (c.var.teacher.role !== 'admin') {
+    throw new ApiError(403, 'admin_only', 'Doar administratorii au acces aici.');
+  }
+}
+
+export const adminOnly: MiddlewareHandler<AppEnv> = async (c, next) => {
+  requireAdmin(c);
+  await next();
+};
