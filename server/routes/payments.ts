@@ -9,7 +9,9 @@ import {
   hasPaid,
   listPayments,
   markPaid,
+  saveChargeNews,
   setStripeSession,
+  type ChargeNews,
   type PaidTest,
   type PaymentPayer,
   type SessionGuard,
@@ -105,6 +107,9 @@ export async function startCheckout(
   if (made.kind === 'paid') throw new ApiError(409, 'already_paid', 'Ai plătit deja această funcție.');
   if (made.kind === 'open') return { answer: { url: made.url }, status: 200 };
   if (made.kind === 'busy') throw new ApiError(409, 'payment_busy', 'Pagina de plată se deschide deja. Încearcă din nou peste un minut.');
+  if (made.kind === 'disputed') {
+    throw new ApiError(409, 'payment_disputed', 'Plata ta pentru această funcție este contestată la bancă. Funcția rămâne închisă până se încheie contestația.');
+  }
   if (made.kind === 'refused') throw new ApiError(401, 'no_session', 'Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
 
   const paymentId = made.id;
@@ -156,15 +161,37 @@ export function adminPaymentRoutes(options: AppOptions = {}): Hono<AppEnv> {
   return routes;
 }
 
+// The parts of a Stripe event the app reads. Every field is checked before use.
 interface StripeEvent {
   type?: unknown;
-  data?: { object?: { id?: unknown; payment_status?: unknown; amount_total?: unknown; currency?: unknown } };
+  data?: { object?: Record<string, unknown> };
 }
 
 const tooLarge = () => new ApiError(413, 'too_large', 'Cererea este prea mare.');
 
+const text = (value: unknown): string | null => (typeof value === 'string' && value.length > 0 ? value : null);
+const count = (value: unknown): number | null => (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null);
+
+// The charge or dispute news of an event, or null when the event lacks a field.
+// A charge's and a dispute's payment_intent may be an id or, if expanded, an object.
+function chargeNewsOf(type: string, object: Record<string, unknown>): ChargeNews | null {
+  const intent = object.payment_intent;
+  const paymentIntent = text(intent) ?? (typeof intent === 'object' && intent !== null ? text((intent as { id?: unknown }).id) : null);
+  const currency = text(object.currency);
+  if (!paymentIntent || !currency) return null;
+  if (type === 'charge.refunded') {
+    const amountRefunded = count(object.amount_refunded);
+    if (amountRefunded === null) return null;
+    return { paymentIntent, currency, amountRefunded, refunded: object.refunded === true };
+  }
+  const id = text(object.id);
+  const status = text(object.status);
+  return id && status ? { paymentIntent, currency, dispute: { id, status } } : null;
+}
+
 // /api/payments/webhook: Stripe tells the app about a payment. No login and no
-// same-origin rule: the signature on the exact body is the key.
+// same-origin rule: the signature on the exact body is the key. Logs name
+// Stripe ids only: a charge also holds the payer's name and email.
 export function paymentWebhookRoutes(): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
@@ -184,34 +211,51 @@ export function paymentWebhookRoutes(): Hono<AppEnv> {
     } catch {
       throw new ApiError(400, 'bad_json', 'Cererea nu este JSON valid.');
     }
-    const session = event.data?.object;
-    const sessionId = typeof session?.id === 'string' ? session.id : null;
+    const type = typeof event?.type === 'string' ? event.type : '';
+    const object = event?.data?.object;
+    const objectId = typeof object === 'object' && object !== null ? text(object.id) : null;
     // Other events are welcome and ignored: Stripe stops sending them only after a 2xx.
-    if (!sessionId) return c.json({ received: true });
+    if (!objectId || !object) return c.json({ received: true });
 
-    switch (event.type) {
+    switch (type) {
       case 'checkout.session.completed':
       case 'checkout.session.async_payment_succeeded': {
-        if (session?.payment_status !== 'paid') break;
+        if (object.payment_status !== 'paid') break;
         // Stripe is the truth about money: a paid session turns its row paid
         // even after the row was marked expired or failed.
         const marked =
-          typeof session.amount_total === 'number' &&
-          typeof session.currency === 'string' &&
-          (await markPaid(c.env.DB, sessionId, session.amount_total, session.currency, nowIso()));
+          typeof object.amount_total === 'number' &&
+          typeof object.currency === 'string' &&
+          (await markPaid(c.env.DB, objectId, object.amount_total, object.currency, text(object.payment_intent), nowIso()));
         // A repeat of an event already seen changes nothing either; a payment
         // that matches no row needs a person to look at it.
-        if (!marked && !(await hasPaidSession(c.env, sessionId))) {
-          console.error('Stripe paid session matches no payment:', sessionId, session.amount_total, session.currency);
+        if (!marked && !(await hasPaidSession(c.env, objectId))) {
+          console.error('Stripe paid session matches no payment:', objectId, object.amount_total, object.currency);
         }
         break;
       }
       case 'checkout.session.async_payment_failed':
-        await closeUnpaid(c.env.DB, sessionId, 'failed');
+        await closeUnpaid(c.env.DB, objectId, 'failed');
         break;
       case 'checkout.session.expired':
-        await closeUnpaid(c.env.DB, sessionId, 'expired');
+        await closeUnpaid(c.env.DB, objectId, 'expired');
         break;
+      case 'charge.refunded':
+      case 'charge.dispute.created':
+      case 'charge.dispute.closed': {
+        const news = chargeNewsOf(type, object);
+        if (!news) {
+          console.error('Stripe charge event lacks a field:', type, objectId);
+          break;
+        }
+        // Kept even without a payment row: the paid session may come later.
+        const match = await saveChargeNews(c.env.DB, news, nowIso());
+        if (match.kind === 'unmatched') console.error('Stripe charge event matches no payment yet:', type, objectId, news.paymentIntent);
+        if (match.kind === 'wrong_currency') {
+          console.error('Stripe charge event has another currency than its payment:', type, objectId, news.paymentIntent, news.currency, match.currency);
+        }
+        break;
+      }
     }
     return c.json({ received: true });
   });

@@ -54,9 +54,12 @@ async function webhookRaw(body: string, secret = KEYS.STRIPE_WEBHOOK_SECRET, hea
 
 const webhook = (event: unknown, secret?: string) => webhookRaw(JSON.stringify(event), secret);
 
+// The payment intent Stripe would give the session, in these tests.
+const intentOf = (sessionId: string) => sessionId.replace('cs_', 'pi_');
+
 const completed = (sessionId: string, amount: number, extra: Record<string, unknown> = {}) => ({
   type: 'checkout.session.completed',
-  data: { object: { id: sessionId, payment_status: 'paid', amount_total: amount, currency: 'ron', ...extra } },
+  data: { object: { id: sessionId, payment_status: 'paid', amount_total: amount, currency: 'ron', payment_intent: intentOf(sessionId), ...extra } },
 });
 
 const statusOf = async (sessionId: string) =>
@@ -441,5 +444,235 @@ describe('student payments', () => {
     const again = await api.request('POST', `/api/u/${token}/sessions`, { studentId: cls.studentIds[0] });
     const mine = await list(again.body.secret as string);
     expect(mine.body.payments).toEqual([expect.objectContaining({ feature: 'student_extra', status: 'paid' })]);
+  });
+});
+
+const refunded = (sessionId: string, amountRefunded: number, extra: Record<string, unknown> = {}) => ({
+  type: 'charge.refunded',
+  data: {
+    object: {
+      id: `ch_${sessionId}`,
+      payment_intent: intentOf(sessionId),
+      amount: 4900,
+      amount_refunded: amountRefunded,
+      refunded: amountRefunded >= 4900,
+      currency: 'ron',
+      billing_details: { name: 'Pop Ion', email: 'pop@example.com' },
+      ...extra,
+    },
+  },
+});
+
+const dispute = (type: 'charge.dispute.created' | 'charge.dispute.closed', sessionId: string, status: string) => ({
+  type,
+  data: { object: { id: `du_${sessionId}`, charge: `ch_${sessionId}`, payment_intent: intentOf(sessionId), amount: 4900, currency: 'ron', status } },
+});
+
+const paidPro = async () => {
+  await checkout({ feature: 'pro', returnPath: '/admin/' });
+  await webhook(completed(sessionOf(0), 4900));
+};
+
+// Whether requirePaid lets the teacher through to "pro".
+const gateOpen = async () =>
+  requirePaid(api.env, options, teacherPayer(), 'pro').then(
+    () => true,
+    (err: unknown) => {
+      expect(err).toMatchObject({ status: 402, code: 'payment_required' });
+      return false;
+    },
+  );
+
+const myPayments = async () => (await api.request('GET', '/api/admin/payments')).body.payments as Record<string, unknown>[];
+
+describe('the payment intent of a paid session', () => {
+  it('is saved when the session is paid, and filled in by a repeated event', async () => {
+    await start();
+    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    const intent = () => api.db.prepare('SELECT stripe_payment_intent FROM payments').first('stripe_payment_intent');
+    await webhook(completed(sessionOf(0), 4900, { payment_intent: null }));
+    expect(await intent()).toBeNull();
+    await webhook(completed(sessionOf(0), 4900));
+    expect(await intent()).toBe(intentOf(sessionOf(0)));
+    // A later event never replaces it.
+    await webhook(completed(sessionOf(0), 4900, { payment_intent: 'pi_other' }));
+    expect(await intent()).toBe(intentOf(sessionOf(0)));
+  });
+
+  it('is not saved for a session paid in another currency', async () => {
+    await start();
+    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await webhook(completed(sessionOf(0), 4900, { currency: 'eur' }));
+    expect(errors).toHaveBeenCalledWith('Stripe paid session matches no payment:', sessionOf(0), 4900, 'eur');
+    expect(await api.db.prepare('SELECT status, stripe_payment_intent FROM payments').first()).toEqual({ status: 'pending', stripe_payment_intent: null });
+  });
+});
+
+describe('refunds', () => {
+  it('a full refund closes the feature, shows in the list, and lets the teacher buy again', async () => {
+    await start();
+    await paidPro();
+    expect(await gateOpen()).toBe(true);
+    expect((await webhook(refunded(sessionOf(0), 4900))).status).toBe(200);
+    expect(await gateOpen()).toBe(false);
+    expect(await hasPaid(api.db, teacherPayer(), 'pro')).toBe(false);
+    // Stripe is the truth about money: the payment stays paid, and is refunded.
+    expect(await statusOf(sessionOf(0))).toBe('paid');
+    expect(await myPayments()).toEqual([
+      expect.objectContaining({ status: 'paid', amountRefunded: 4900, refundedAt: expect.any(String), disputeStatus: null, active: false }),
+    ]);
+
+    expect((await checkout({ feature: 'pro', returnPath: '/admin/' })).status).toBe(201);
+    await webhook(completed(sessionOf(1), 4900));
+    expect(await gateOpen()).toBe(true);
+    expect((await myPayments()).map((p) => p.active)).toEqual([true, false]);
+  });
+
+  it('a partial refund keeps the feature and records the amount', async () => {
+    await start();
+    await paidPro();
+    await webhook(refunded(sessionOf(0), 1000));
+    expect(await gateOpen()).toBe(true);
+    expect(await myPayments()).toEqual([expect.objectContaining({ amountRefunded: 1000, refundedAt: null, active: true })]);
+    // Still bought: no second payment.
+    expect((await checkout({ feature: 'pro', returnPath: '/admin/' })).body.error).toBe('already_paid');
+    // A second refund that completes the amount closes it.
+    await webhook(refunded(sessionOf(0), 4900));
+    expect(await gateOpen()).toBe(false);
+  });
+
+  it('a refund that comes before the paid session closes the feature once the session is paid', async () => {
+    await start();
+    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await webhook(refunded(sessionOf(0), 4900))).status).toBe(200);
+    expect(errors).toHaveBeenCalledWith('Stripe charge event matches no payment yet:', 'charge.refunded', `ch_${sessionOf(0)}`, intentOf(sessionOf(0)));
+    await webhook(completed(sessionOf(0), 4900));
+    expect(await statusOf(sessionOf(0))).toBe('paid');
+    expect(await gateOpen()).toBe(false);
+    expect(await myPayments()).toEqual([expect.objectContaining({ amountRefunded: 4900, active: false })]);
+  });
+
+  it('is safe to repeat and to get out of order', async () => {
+    await start();
+    await paidPro();
+    await webhook(refunded(sessionOf(0), 4900));
+    const first = await api.db.prepare('SELECT refunded_at FROM stripe_charges').first('refunded_at');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + 60_000);
+    await webhook(refunded(sessionOf(0), 4900));
+    // An older event (the first, partial refund) arrives last.
+    await webhook(refunded(sessionOf(0), 1000));
+    expect(await api.db.prepare('SELECT amount_refunded, refunded_at FROM stripe_charges').first()).toEqual({ amount_refunded: 4900, refunded_at: first });
+    expect(await api.db.prepare('SELECT COUNT(*) AS n FROM stripe_charges').first('n')).toBe(1);
+    expect(await gateOpen()).toBe(false);
+  });
+
+  it('ignores a refund in another currency than the payment, and logs it', async () => {
+    await start();
+    await paidPro();
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await webhook(refunded(sessionOf(0), 4900, { currency: 'eur' }))).status).toBe(200);
+    expect(errors).toHaveBeenCalledWith(
+      'Stripe charge event has another currency than its payment:',
+      'charge.refunded',
+      `ch_${sessionOf(0)}`,
+      intentOf(sessionOf(0)),
+      'eur',
+      'ron',
+    );
+    expect(await gateOpen()).toBe(true);
+    expect(await myPayments()).toEqual([expect.objectContaining({ amountRefunded: 0, active: true })]);
+  });
+
+  it('answers 200 to a charge that matches no payment, and logs only its ids', async () => {
+    await start();
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await webhook(refunded('cs_unknown', 500))).status).toBe(200);
+    expect(errors).toHaveBeenCalledWith('Stripe charge event matches no payment yet:', 'charge.refunded', 'ch_cs_unknown', 'pi_unknown');
+    expect(JSON.stringify(errors.mock.calls)).not.toContain('pop@example.com');
+    expect((await webhook({ type: 'charge.refunded', data: { object: { id: 'ch_1' } } })).status).toBe(200);
+    expect(errors).toHaveBeenCalledWith('Stripe charge event lacks a field:', 'charge.refunded', 'ch_1');
+    expect((await webhook({ type: 'charge.succeeded', data: { object: { id: 'ch_2', payment_intent: 'pi_2', currency: 'ron' } } })).status).toBe(200);
+    expect(await countPayments()).toBe(0);
+  });
+});
+
+describe('disputes', () => {
+  it('close the feature while open, and a won dispute opens it again', async () => {
+    await start();
+    await paidPro();
+    await webhook(dispute('charge.dispute.created', sessionOf(0), 'needs_response'));
+    expect(await gateOpen()).toBe(false);
+    expect(await myPayments()).toEqual([expect.objectContaining({ disputeStatus: 'needs_response', active: false })]);
+    // No second payment while the bank looks at the first.
+    const res = await checkout({ feature: 'pro', returnPath: '/admin/' });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('payment_disputed');
+    await webhook(dispute('charge.dispute.closed', sessionOf(0), 'won'));
+    expect(await gateOpen()).toBe(true);
+    // A late repeat of the created event does not close it again.
+    await webhook(dispute('charge.dispute.created', sessionOf(0), 'needs_response'));
+    expect(await gateOpen()).toBe(true);
+    expect(await myPayments()).toEqual([expect.objectContaining({ disputeStatus: 'won', active: true })]);
+  });
+
+  it('a lost dispute keeps the feature closed, and the teacher may buy again', async () => {
+    await start();
+    await paidPro();
+    await webhook(dispute('charge.dispute.created', sessionOf(0), 'needs_response'));
+    await webhook(dispute('charge.dispute.closed', sessionOf(0), 'lost'));
+    expect(await gateOpen()).toBe(false);
+    expect((await checkout({ feature: 'pro', returnPath: '/admin/' })).status).toBe(201);
+  });
+
+  it('a dispute closed before its created event arrives stays closed', async () => {
+    await start();
+    await paidPro();
+    await webhook(dispute('charge.dispute.closed', sessionOf(0), 'won'));
+    await webhook(dispute('charge.dispute.created', sessionOf(0), 'needs_response'));
+    expect(await gateOpen()).toBe(true);
+    expect(await api.db.prepare('SELECT dispute_status FROM stripe_charges').first('dispute_status')).toBe('won');
+  });
+
+  it('a dispute that comes before the paid session closes the feature', async () => {
+    await start();
+    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await webhook(dispute('charge.dispute.created', sessionOf(0), 'needs_response'));
+    await webhook(completed(sessionOf(0), 4900));
+    expect(await gateOpen()).toBe(false);
+  });
+
+  it('with a partial refund: the feature opens only when the dispute is won', async () => {
+    await start();
+    await paidPro();
+    await webhook(refunded(sessionOf(0), 1000));
+    await webhook(dispute('charge.dispute.created', sessionOf(0), 'needs_response'));
+    expect(await gateOpen()).toBe(false);
+    await webhook(dispute('charge.dispute.closed', sessionOf(0), 'won'));
+    expect(await gateOpen()).toBe(true);
+    expect(await myPayments()).toEqual([expect.objectContaining({ amountRefunded: 1000, disputeStatus: 'won', active: true })]);
+  });
+});
+
+describe('a refunded student payment', () => {
+  it("closes the student's feature for the test, and shows in the student's list", async () => {
+    await start();
+    const cls = await makeClass(api, '6E2', ['Pop Ion']);
+    const code = await makeTest(api, cls.id);
+    const token = await startTest(api, code);
+    const secret = (await api.request('POST', `/api/u/${token}/sessions`, { studentId: cls.studentIds[0] })).body.secret as string;
+    const headers = { 'X-Upload-Session': secret };
+    await api.request('POST', `/api/u/${token}/payments/checkout`, { feature: 'student_extra', returnPath: `/u/${token}` }, headers);
+    await webhook(completed(sessionOf(0), 500));
+    const payer = { teacherId: api.teacherId, studentId: cls.studentIds[0]! };
+    const test = (await api.db.prepare('SELECT id, created_at AS createdAt, code FROM tests').first<{ id: number; createdAt: string; code: string }>())!;
+    await expect(requirePaid(api.env, options, payer, 'student_extra', test)).resolves.toBeUndefined();
+    await webhook(refunded(sessionOf(0), 500, { amount: 500, refunded: true }));
+    await expect(requirePaid(api.env, options, payer, 'student_extra', test)).rejects.toMatchObject({ status: 402 });
+    const list = await api.request('GET', `/api/u/${token}/payments`, undefined, headers);
+    expect(list.body.payments).toEqual([expect.objectContaining({ amountRefunded: 500, refundedAt: expect.any(String), active: false })]);
   });
 });

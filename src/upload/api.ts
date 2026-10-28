@@ -19,7 +19,7 @@ export interface UploadApi {
   getResult(resultToken: string): Promise<StudentResultView>;
   // A file of that result page, for its preview.
   resultFileBlob(resultToken: string, fileId: number): Promise<Blob>;
-  // The student's payments for this test and for the whole account.
+  // The student's payments for the test of this link.
   listPayments(token: string, secret: string): Promise<PaymentRow[]>;
   // Resolves to the Stripe payment page. The test is the one of the link.
   startCheckout(token: string, secret: string, input: Omit<CheckoutInput, 'testCode'>): Promise<string>;

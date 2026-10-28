@@ -40,6 +40,15 @@ export interface PaymentRow {
   status: PaymentStatus;
   createdAt: string;
   paidAt: string | null;
+  // Refunds made in the Stripe dashboard, in total, in the smallest unit of the currency.
+  amountRefunded: number;
+  // When the payment was refunded in full, if it was.
+  refundedAt: string | null;
+  // Stripe's status of a dispute of the payment (for example needs_response, won, lost), if there is one.
+  disputeStatus: string | null;
+  // Whether this payment opens the feature now: paid, not refunded in full,
+  // and not disputed (a dispute closed in the seller's favour, won, counts as none).
+  active: boolean;
 }
 
 // Only Stripe's own payment pages: the browser follows nothing else.
