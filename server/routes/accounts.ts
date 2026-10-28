@@ -24,7 +24,10 @@ export function ownAccountRoutes(): Hono<AppEnv> {
       throw new ApiError(400, 'wrong_password', 'Parola de acum nu este corectă.');
     }
     const token = sessionToken(c);
-    await setPassword(c.env.DB, teacherId, await hashPassword(body.newPassword), token ? await sha256Hex(token) : null);
+    await setPassword(c.env.DB, teacherId, await hashPassword(body.newPassword), {
+      keepTokenHash: token ? await sha256Hex(token) : null,
+      teachersOnly: false,
+    });
     return c.json({ changed: true });
   });
 
@@ -78,12 +81,26 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   // A new password for a teacher who forgot theirs, shown this once. The
-  // teacher's logins end. An administrator changes their own on "Contul meu".
+  // teacher's logins end, and the teacher gets an email, so a password changed
+  // without asking does not go unseen. Never an administrator's: an
+  // administrator changes their own on "Contul meu", or with
+  // `npm run set-password` when they forgot it.
   routes.post('/:id/password', async (c) => {
     const id = parseId(c.req.param('id'));
     if (id === c.var.teacher.id) throw new ApiError(409, 'own_account', 'Schimbă-ți parola din pagina Contul meu.');
     const password = newTemporaryPassword();
-    if (!(await setPassword(c.env.DB, id, await hashPassword(password), null))) throw notFound();
+    const changed = await setPassword(c.env.DB, id, await hashPassword(password), { keepTokenHash: null, teachersOnly: true });
+    if (!changed) throw notFound();
+    await sendEmail(c.env, {
+      to: [changed.email],
+      subject: 'QuickEval: parola ta a fost schimbată',
+      text: [
+        `Bună, ${changed.name}!`,
+        '',
+        `Un administrator QuickEval (${c.var.teacher.name}) ți-a făcut o parolă nouă. Ți-o trimite el.`,
+        'Dacă nu ai cerut asta, scrie-i unui administrator.',
+      ].join('\n'),
+    });
     return c.json({ password }, 201);
   });
 

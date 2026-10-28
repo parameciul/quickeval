@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.ts';
-import { LOCK_MS, MAX_FAILED_LOGINS, MAX_PENDING_ACCOUNTS } from '../db/accounts.ts';
+import { LOCK_MS, MAX_FAILED_LOGINS, MAX_PENDING_ACCOUNTS, MAX_SIGNUPS_PER_IP, PENDING_DAYS } from '../db/accounts.ts';
 import type { EmailMessage } from '../email.ts';
 import { hashPassword } from '../passwords.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
@@ -30,11 +30,16 @@ afterEach(async () => {
 const signup = (body: Record<string, unknown>) => api.request('POST', '/api/auth/signup', body);
 const login = (email: string, password: string) => api.request('POST', '/api/auth/login', { email, password });
 
-// The Cookie header that sends back the login cookie of an answer.
-function cookieOf(res: { headers: Headers }): string {
-  const setCookie = res.headers.get('Set-Cookie') ?? '';
-  return setCookie.split(';')[0]!;
+// The Cookie header part that sends back a cookie of an answer: the login
+// cookie, or the browser's mark (qe_device).
+function cookieOf(res: { headers: Headers }, name = 'qe_session'): string {
+  const found = res.headers.getSetCookie().find((cookie) => cookie.startsWith(`${name}=`));
+  return found ? found.split(';')[0]! : '';
 }
+
+const loginWith = (cookie: string, email: string, password: string) =>
+  api.request('POST', '/api/auth/login', { email, password }, { Cookie: cookie });
+const wrongBody = async () => (await login('nimeni@example.com', 'orice-parola')).body;
 
 async function setPasswordOf(email: string, password: string): Promise<void> {
   await api.db.prepare('UPDATE teachers SET password_hash = ? WHERE email = ?').bind(await hashPassword(password), email).run();
@@ -54,21 +59,48 @@ describe('POST /api/auth/signup', () => {
     expect(row!.password_hash).not.toContain('parola-lunga');
     expect(emails).toHaveLength(1);
     expect(emails[0]!.to).toEqual(['profesor@example.com', 'admin2@example.com']);
+    expect(emails[0]!.text).toContain('Ana Pop');
     expect(emails[0]!.text).toContain('ana.pop@example.com');
     expect(emails[0]!.text).toContain('http://localhost/admin/setari');
   });
 
-  it('refuses an email that already has an account', async () => {
+  it('answers an email that already has an account as any other, and changes nothing', async () => {
+    const before = await api.db.prepare('SELECT * FROM teachers').all();
     const res = await signup({ name: 'Laura', email: 'Profesor@example.com', password: 'parola-lunga' });
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe('email_taken');
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ status: 'pending' });
+    expect((await api.db.prepare('SELECT * FROM teachers').all()).results).toEqual(before.results);
     expect(emails).toHaveLength(0);
+  });
+
+  it('takes at most a few sign-ups from one IP in a day', async () => {
+    const from = (ip: string, i: number) =>
+      api.request('POST', '/api/auth/signup', { name: 'Ana', email: `a${ip}${i}@example.com`, password: 'parola-lunga' }, { 'CF-Connecting-IP': ip });
+    for (let i = 0; i < MAX_SIGNUPS_PER_IP; i++) expect((await from('1', i)).status).toBe(201);
+    const refused = await from('1', 99);
+    expect(refused.status).toBe(429);
+    expect(refused.body.error).toBe('too_many_pending');
+    expect((await from('2', 0)).status).toBe(201);
+    const stored = await api.db.prepare("SELECT signup_ip_hash FROM teachers WHERE email = 'a10@example.com'").first<{ signup_ip_hash: string }>();
+    expect(stored!.signup_ip_hash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('deletes accounts that waited too long, so they free their places', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T10:00:00.000Z'));
+    expect((await signup({ name: 'Vechi', email: 'vechi@example.com', password: 'parola-lunga' })).status).toBe(201);
+    vi.setSystemTime(new Date(Date.parse('2026-10-01T10:00:00.000Z') + (PENDING_DAYS + 1) * 24 * 60 * 60 * 1000));
+    expect((await signup({ name: 'Nou', email: 'nou@example.com', password: 'parola-lunga' })).status).toBe(201);
+    const rows = await api.db.prepare("SELECT email FROM teachers WHERE status = 'pending'").all<{ email: string }>();
+    expect(rows.results.map((row) => row.email)).toEqual(['nou@example.com']);
   });
 
   it.each([
     [{ name: '', email: 'a@example.com', password: 'parola-lunga' }, 'Scrie numele tău.'],
     [{ name: 'Ana', email: 'nu-e-email', password: 'parola-lunga' }, 'Scrie o adresă de email validă.'],
     [{ name: 'Ana', email: 'a@example.com', password: 'scurta' }, 'Parola are între 8 și 200 de caractere.'],
+    [{ name: 'Vezi https://evil.example', email: 'a@example.com', password: 'parola-lunga' }, 'Numele are doar litere, spații, puncte, apostrofuri și cratime.'],
+    [{ name: '-Ana', email: 'a@example.com', password: 'parola-lunga' }, 'Numele are doar litere, spații, puncte, apostrofuri și cratime.'],
   ])('refuses %j', async (body, message) => {
     const res = await signup(body);
     expect(res.status).toBe(400);
@@ -85,6 +117,10 @@ describe('POST /api/auth/signup', () => {
     const res = await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });
     expect(res.status).toBe(429);
     expect(res.body.error).toBe('too_many_pending');
+  });
+
+  it('takes Romanian names with diacritics, hyphens and apostrophes', async () => {
+    expect((await signup({ name: "Ioana-Ștefania D'Ângelo Țurcanu", email: 'ioana@example.com', password: 'parola-lunga' })).status).toBe(201);
   });
 
   it('refuses a sign-up from another site', async () => {
@@ -153,24 +189,30 @@ describe('POST /api/auth/login', () => {
     expect((await login('profesor@example.com', 'parola-buna')).body.error).toBe('account_disabled');
   });
 
-  it('locks the account for 15 minutes after ten wrong passwords in a row', async () => {
+  it('locks the account for 15 minutes after ten wrong passwords in a row, with the same answer as a wrong password', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-28T10:00:00.000Z'));
     await setPasswordOf('profesor@example.com', 'parola-buna');
     for (let i = 0; i < MAX_FAILED_LOGINS; i++) expect((await login('profesor@example.com', 'gresita')).status).toBe(401);
     const locked = await login('profesor@example.com', 'parola-buna');
-    expect(locked.status).toBe(429);
-    expect(locked.body.error).toBe('locked');
+    expect(locked.status).toBe(401);
+    expect(locked.body).toEqual(await wrongBody());
+    expect(locked.headers.get('Set-Cookie')).toBeNull();
     vi.setSystemTime(new Date(Date.parse('2026-10-28T10:00:00.000Z') + LOCK_MS + 1000));
     expect((await login('profesor@example.com', 'parola-buna')).status).toBe(200);
   });
 
   it('lets no burst of attempts sent at once past the lock', async () => {
     await setPasswordOf('profesor@example.com', 'parola-buna');
-    const answers = await Promise.all(Array.from({ length: 30 }, () => login('profesor@example.com', 'gresita')));
-    expect(answers.filter((res) => res.status === 401)).toHaveLength(MAX_FAILED_LOGINS);
-    expect(answers.filter((res) => res.status === 429)).toHaveLength(30 - MAX_FAILED_LOGINS);
-    expect((await login('profesor@example.com', 'parola-buna')).status).toBe(429);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-28T10:00:00.000Z'));
+    await Promise.all(Array.from({ length: 30 }, () => login('profesor@example.com', 'gresita')));
+    // Exactly MAX_FAILED_LOGINS attempts were taken; the tenth set the lock.
+    const row = await api.db
+      .prepare("SELECT failed_logins, locked_until FROM teachers WHERE email = 'profesor@example.com'")
+      .first<{ failed_logins: number; locked_until: string }>();
+    expect(row).toEqual({ failed_logins: MAX_FAILED_LOGINS, locked_until: new Date(Date.parse('2026-10-28T10:00:00.000Z') + LOCK_MS).toISOString() });
+    expect((await login('profesor@example.com', 'parola-buna')).status).toBe(401);
   });
 
   it('starts the count again when a lock ends', async () => {
@@ -189,6 +231,52 @@ describe('POST /api/auth/login', () => {
     expect((await login('profesor@example.com', 'parola-buna')).status).toBe(200);
     expect((await login('profesor@example.com', 'gresita')).status).toBe(401);
     expect((await login('profesor@example.com', 'parola-buna')).status).toBe(200);
+  });
+});
+
+describe('a browser that logged in before', () => {
+  async function knownBrowser(email = 'profesor@example.com', password = 'parola-buna'): Promise<string> {
+    await setPasswordOf(email, password);
+    const res = await login(email, password);
+    expect(res.headers.getSetCookie().find((cookie) => cookie.startsWith('qe_device='))).toContain('Path=/api/auth');
+    return cookieOf(res, 'qe_device');
+  }
+  const lockOut = async () => {
+    for (let i = 0; i < MAX_FAILED_LOGINS; i++) await login('profesor@example.com', 'gresita');
+  };
+
+  it('still logs in while someone else has locked the account, and leaves the lock for the others', async () => {
+    const device = await knownBrowser();
+    await lockOut();
+    expect((await login('profesor@example.com', 'parola-buna')).status).toBe(401);
+    const res = await loginWith(device, 'profesor@example.com', 'parola-buna');
+    expect(res.status).toBe(200);
+    // The known browser keeps its mark; no new one.
+    expect(cookieOf(res, 'qe_device')).toBe('');
+    expect((await login('profesor@example.com', 'parola-buna')).status).toBe(401);
+  });
+
+  it('counts its own wrong passwords, and then logs in only through the account', async () => {
+    const device = await knownBrowser();
+    for (let i = 0; i < MAX_FAILED_LOGINS; i++) expect((await loginWith(device, 'profesor@example.com', 'gresita')).status).toBe(401);
+    // The account itself was not locked by them.
+    const row = await api.db.prepare("SELECT locked_until FROM teachers WHERE email = 'profesor@example.com'").first<{ locked_until: string | null }>();
+    expect(row!.locked_until).toBeNull();
+    await lockOut();
+    expect((await loginWith(device, 'profesor@example.com', 'parola-buna')).status).toBe(401);
+  });
+
+  it('opens nothing for another account', async () => {
+    const device = await knownBrowser();
+    await api.addTeacher('ana@example.com', 'Ana');
+    await setPasswordOf('ana@example.com', 'parola-ana');
+    for (let i = 0; i < MAX_FAILED_LOGINS; i++) await login('ana@example.com', 'gresita');
+    expect((await loginWith(device, 'ana@example.com', 'parola-ana')).status).toBe(401);
+  });
+
+  it('opens nothing by itself', async () => {
+    const device = await knownBrowser();
+    expect((await api.request('GET', '/api/admin/me', undefined, { Cookie: device })).status).toBe(401);
   });
 });
 

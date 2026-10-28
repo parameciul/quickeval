@@ -30,3 +30,25 @@ export function setSessionCookie(c: Context<AppEnv>, token: string): void {
 export function clearSessionCookie(c: Context<AppEnv>): void {
   deleteCookie(c, SESSION_COOKIE, { path: PATH, httpOnly: true, secure: isHttps(c), sameSite: 'Lax' });
 }
+
+// The browser's mark that it logged in before (db/accounts.ts, trusted_devices):
+// a random token sent only to the login. It opens nothing by itself; it only
+// lets this browser's logins skip a lock set by someone else's guesses. Kept
+// after a logout.
+export const DEVICE_COOKIE = 'qe_device';
+const DEVICE_PATH = '/api/auth';
+const DEVICE_DAYS = 365;
+
+export function deviceToken(c: Context<AppEnv>): string | undefined {
+  return getCookie(c, DEVICE_COOKIE);
+}
+
+export function setDeviceCookie(c: Context<AppEnv>, token: string): void {
+  setCookie(c, DEVICE_COOKIE, token, {
+    path: DEVICE_PATH,
+    httpOnly: true,
+    secure: isHttps(c),
+    sameSite: 'Lax',
+    maxAge: DEVICE_DAYS * 24 * 60 * 60,
+  });
+}

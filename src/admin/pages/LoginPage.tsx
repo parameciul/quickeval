@@ -82,7 +82,7 @@ function SignupForm() {
     return (
       <div className="warning" role="status">
         <p>Am trimis cererea. Un administrator trebuie să aprobe contul.</p>
-        <p>După aprobare, intră cu emailul și parola alese.</p>
+        <p>După aprobare, intră cu emailul și parola alese. Dacă ai deja un cont cu acest email, intră în el cu parola ta.</p>
       </div>
     );
   }

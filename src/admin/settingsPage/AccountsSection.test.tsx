@@ -8,7 +8,10 @@ const laura = fakeAccount();
 const ana = fakeAccount({ id: 2, name: 'Ana Pop', email: 'ana@example.com', role: 'teacher', demo: true, status: 'pending' });
 const bogdan = fakeAccount({ id: 3, name: 'Bogdan', email: 'bogdan@example.com', role: 'teacher', demo: true, testsEvaluated: 2 });
 
-const withAccounts = () => createFakeApi({ classes: [], students: {}, accounts: [structuredClone(ana), structuredClone(laura), structuredClone(bogdan)] });
+const mihai = fakeAccount({ id: 4, name: 'Mihai', email: 'mihai@example.com', role: 'admin' });
+
+const withAccounts = () =>
+  createFakeApi({ classes: [], students: {}, accounts: [structuredClone(ana), structuredClone(laura), structuredClone(bogdan), structuredClone(mihai)] });
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -45,7 +48,7 @@ describe('the accounts on Setări', () => {
     const api = withAccounts();
     renderAdmin('/setari', api);
     const teachers = await section('Profesori');
-    expect(within(teachers).getByText('administrator')).toBeInTheDocument();
+    expect(within(teachers).getAllByText('administrator')).toHaveLength(2);
     expect(within(teachers).getByText('demo: 2 din 5 teste')).toBeInTheDocument();
     await userEvent.click(within(teachers).getByRole('button', { name: 'Fă cont complet: Bogdan' }));
     expect(api.updateAccount).toHaveBeenCalledWith(3, { demo: false });
@@ -71,9 +74,11 @@ describe('the accounts on Setări', () => {
     expect(await screen.findByText(FAKE_TEMPORARY_PASSWORD)).toBeInTheDocument();
   });
 
-  it('offers no account changes for an administrator, nor a new password for oneself', async () => {
+  it('offers no account changes and no new password for an administrator, oneself included', async () => {
     renderAdmin('/setari', withAccounts());
     await section('Profesori');
+    expect(screen.getByText('Mihai (mihai@example.com)')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Laura Miron/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Mihai/ })).not.toBeInTheDocument();
   });
 });

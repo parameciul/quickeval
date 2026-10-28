@@ -12,7 +12,6 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 export function AccountsSection() {
   const api = useApi();
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api.listAccounts() });
-  const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   const pending = accounts.data?.filter((account) => account.status === 'pending') ?? [];
   const others = accounts.data?.filter((account) => account.status !== 'pending') ?? [];
 
@@ -36,7 +35,7 @@ export function AccountsSection() {
           <h3>Profesori</h3>
           <ol className="row-list">
             {others.map((account) => (
-              <AccountItem key={account.id} account={account} isSelf={account.id === me.data?.id} />
+              <AccountItem key={account.id} account={account} />
             ))}
           </ol>
         </>
@@ -96,8 +95,9 @@ export function accountTag(account: Account): string {
   return 'complet';
 }
 
-// An administrator changes their own password on Contul meu.
-function AccountItem({ account, isSelf }: { account: Account; isSelf: boolean }) {
+// Administrators' accounts do not change here: an administrator changes their
+// own password on Contul meu, or with `npm run set-password`.
+function AccountItem({ account }: { account: Account }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const reload = useReload();
@@ -141,7 +141,7 @@ function AccountItem({ account, isSelf }: { account: Account; isSelf: boolean })
           {account.status === 'active' ? 'Închide contul' : 'Redeschide contul'}
         </button>
       )}
-      {!isSelf && (
+      {isTeacher && (
         <button
           type="button"
           className="button-quiet button-small"

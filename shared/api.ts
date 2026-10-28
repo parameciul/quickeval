@@ -154,6 +154,8 @@ export const passwordSchema = z
   .min(MIN_PASSWORD_LENGTH, { message: PASSWORD_MESSAGE })
   .max(MAX_PASSWORD_LENGTH, { message: PASSWORD_MESSAGE });
 
+const TEACHER_NAME = /^\p{L}[\p{L}\p{M} .'’-]*$/u;
+
 // A new teacher asks for an account: it waits for an administrator.
 export const signupBody = z.object({
   name: z
@@ -163,7 +165,10 @@ export const signupBody = z.object({
       z
         .string()
         .min(1, { message: 'Scrie numele tău.' })
-        .max(MAX_TEACHER_NAME_LENGTH, { message: `Numele are cel mult ${MAX_TEACHER_NAME_LENGTH} de caractere.` }),
+        .max(MAX_TEACHER_NAME_LENGTH, { message: `Numele are cel mult ${MAX_TEACHER_NAME_LENGTH} de caractere.` })
+        // Letters, spaces, dots, apostrophes and hyphens: the name goes into the
+        // administrators' email, so it cannot carry a link.
+        .regex(TEACHER_NAME, { message: 'Numele are doar litere, spații, puncte, apostrofuri și cratime.' }),
     ),
   email: emailSchema,
   password: passwordSchema,

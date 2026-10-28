@@ -265,7 +265,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       Object.assign(account, change);
       return structuredClone(accounts);
     }),
-    resetPassword: vi.fn(async (_teacherId: number) => FAKE_TEMPORARY_PASSWORD),
+    resetPassword: vi.fn(async (teacherId: number) => {
+      if (!accounts.some((a) => a.id === teacherId && a.role === 'teacher' && a.status !== 'pending')) throw notFound();
+      return FAKE_TEMPORARY_PASSWORD;
+    }),
     listClasses: vi.fn(async (schoolYear: number) =>
       data.classes.filter((c) => c.schoolYear === schoolYear).map((c) => ({ ...c, studentCount: countActive(c.id) })),
     ),

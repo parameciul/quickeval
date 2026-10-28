@@ -149,6 +149,26 @@ describe('POST /api/admin/accounts/:id/password', () => {
     expect((await login('ana@example.com', res.body.password)).status).toBe(200);
   });
 
+  it('tells the teacher by email', async () => {
+    const id = await api.addTeacher('bogdan@example.com', 'Bogdan');
+    await api.request('POST', `/api/admin/accounts/${id}/password`);
+    expect(emails).toEqual([expect.objectContaining({ to: ['bogdan@example.com'], subject: 'QuickEval: parola ta a fost schimbată' })]);
+    expect(emails[0]!.text).toContain('Laura Miron');
+  });
+
+  it("never changes another administrator's password, nor ends their logins", async () => {
+    const id = await api.addTeacher('admin2@example.com', 'Admin Doi', { role: 'admin' });
+    await api.db
+      .prepare("INSERT INTO sessions (token_hash, teacher_id, created_at, expires_at) VALUES ('h', ?, '2026-10-01', '2099-01-01')")
+      .bind(id)
+      .run();
+    expect((await api.request('POST', `/api/admin/accounts/${id}/password`)).status).toBe(404);
+    const row = await api.db.prepare('SELECT password_hash FROM teachers WHERE id = ?').bind(id).first<{ password_hash: string | null }>();
+    expect(row!.password_hash).toBeNull();
+    expect((await api.db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE teacher_id = ?').bind(id).first<{ n: number }>())!.n).toBe(1);
+    expect(emails).toHaveLength(0);
+  });
+
   it('does not approve a pending account by giving it a password', async () => {
     const id = await signup();
     expect((await api.request('POST', `/api/admin/accounts/${id}/password`)).status).toBe(404);
