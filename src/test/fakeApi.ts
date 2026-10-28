@@ -622,7 +622,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       return FAKE_ROBOT_KEY;
     }),
     listPayments: vi.fn(async (): Promise<PaymentRow[]> => []),
-    startCheckout: vi.fn(async (input: CheckoutInput) => `https://checkout.stripe.test/${input.feature}`),
+    startCheckout: vi.fn(async (input: CheckoutInput) => `https://checkout.stripe.com/c/${input.feature}`),
   } satisfies AdminApi;
   return api;
 }

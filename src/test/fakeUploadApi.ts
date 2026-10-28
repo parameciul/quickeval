@@ -96,7 +96,7 @@ export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
     })),
     resultFileBlob: vi.fn(async (_resultToken: string, _fileId: number) => new Blob(['jpeg'], { type: 'image/jpeg' })),
     listPayments: vi.fn(async (_token: string, _secret: string): Promise<PaymentRow[]> => []),
-    startCheckout: vi.fn(async (_token: string, _secret: string, input: Omit<CheckoutInput, 'testCode'>) => `https://checkout.stripe.test/${input.feature}`),
+    startCheckout: vi.fn(async (_token: string, _secret: string, input: Omit<CheckoutInput, 'testCode'>) => `https://checkout.stripe.com/c/${input.feature}`),
     // Test helper: an upload this phone started before (for example before a reload).
     seedSession(studentId: number, files: SubmissionFile[] = []) {
       sessions.push({ studentId, secret: `secret-${studentId}`, files, sent: false, resultToken: `result-token-${studentId}` });

@@ -20,7 +20,7 @@ import {
   type SessionRecord,
 } from '../db/links.ts';
 import { confirmResultToken, findResultByToken, findResultFile, resultsOpenByToken } from '../db/results.ts';
-import { findTestById, listPayments, type PaymentPayer } from '../db/payments.ts';
+import { listPayments, type PaidTest, type PaymentPayer } from '../db/payments.ts';
 import { listSubmissionFiles, publicFile } from '../db/submissions.ts';
 import type { AppEnv, AppOptions, Env } from '../env.ts';
 import { ApiError, isUniqueViolation } from '../errors.ts';
@@ -138,10 +138,9 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const studentPayer = async (c: Context<AppEnv>) => {
     const test = await linkTest(c);
     const current = await session(c, test);
-    const paidTest = await findTestById(c.env.DB, test.id);
-    if (!paidTest) throw unknownLink();
+    const paidTest: PaidTest = { id: test.id, createdAt: test.createdAt, code: test.code };
     const payer: PaymentPayer = { teacherId: test.teacherId, studentId: current.studentId };
-    return { payer, paidTest };
+    return { test, payer, paidTest };
   };
 
   routes.get('/:token/payments', async (c) => {
@@ -149,12 +148,14 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ payments: await listPayments(c.env.DB, payer, paidTest) });
   });
 
-  // A feature with scope "test" is bought for the test of the link.
+  // A student feature is bought for the test of the link. The insert checks
+  // in its SQL that this phone's upload still exists.
   routes.post('/:token/payments/checkout', async (c) => {
-    const { payer, paidTest } = await studentPayer(c);
+    const { test, payer, paidTest } = await studentPayer(c);
     const body = await readJson(c, checkoutBody, 4096);
-    const answer = await startCheckout(c, options, { payer, feature: body.feature, returnPath: body.returnPath, test: paidTest });
-    return c.json(answer, 201);
+    const guard = { testId: test.id, sessionHash: await sha256Hex(c.req.header(SESSION_HEADER) ?? '') };
+    const { answer, status } = await startCheckout(c, options, { payer, feature: body.feature, returnPath: body.returnPath, test: paidTest, guard });
+    return c.json(answer, status);
   });
 
   routes.get('/:token/files', async (c) => {

@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { paymentReturnOf } from '../../shared/payments.ts';
-import { messageOf } from './ApiError.ts';
+import { useEffect, useState } from 'react';
+import { isStripeCheckoutUrl, paymentReturnOf } from '../../shared/payments.ts';
+import { GENERIC_MESSAGE, messageOf } from './ApiError.ts';
 
 // The pay button of any paid feature, in both apps. `startCheckout` asks the
 // API for the Stripe payment page (useApi().startCheckout in the teacher app,
@@ -17,11 +17,23 @@ export function PayButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
+  // Back from the payment page, the browser may show this page from its
+  // cache, with the button still busy.
+  useEffect(() => {
+    const reset = (event: PageTransitionEvent) => {
+      if (event.persisted) setBusy(false);
+    };
+    window.addEventListener('pageshow', reset);
+    return () => window.removeEventListener('pageshow', reset);
+  }, []);
+
   const pay = async () => {
     setBusy(true);
     setError(null);
     try {
-      goTo(await startCheckout());
+      const url = await startCheckout();
+      if (!isStripeCheckoutUrl(url)) throw new Error(GENERIC_MESSAGE);
+      goTo(url);
     } catch (err) {
       setError(err);
       setBusy(false);
@@ -42,14 +54,14 @@ export function PayButton({
   );
 }
 
-// The line a page shows after the payment page sent the user back. A paid
-// feature opens when Stripe's webhook arrives, which may take a few seconds.
+// The line a page shows after the payment page sent the user back. Coming
+// back proves nothing: a paid feature opens when Stripe's webhook arrives.
 export function PaymentReturnNotice({ search = window.location.search }: { search?: string }) {
   const outcome = paymentReturnOf(search);
   if (outcome === null) return null;
   return (
     <p className="alert-text" role="status">
-      {outcome === 'reusita' ? 'Plata a fost primită. Funcția se deschide în câteva secunde.' : 'Plata a fost anulată. Nu ai plătit nimic.'}
+      {outcome === 'reusita' ? 'Plata se verifică. Funcția se deschide după confirmare.' : 'Plata a fost anulată. Nu ai plătit nimic.'}
     </p>
   );
 }

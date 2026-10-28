@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { checkoutParams, createCheckoutSession, formEncode, stripeSignatureHeader, verifyStripeSignature } from './stripe.ts';
+import { checkoutParams, createCheckoutSession, formEncode, STRIPE_API_VERSION, stripeSignatureHeader, verifyStripeSignature } from './stripe.ts';
 
 const SECRET = 'whsec_test_secret';
 const NOW = 1_800_000_000;
@@ -32,6 +32,20 @@ describe('verifyStripeSignature', () => {
     expect(await verifyStripeSignature(BODY, `t=${NOW},v1=${'0'.repeat(64)},v1=${good}`, SECRET, NOW)).toBe(true);
   });
 
+  it('reads spaces and upper-case hex, and refuses a second time', async () => {
+    const good = (await stripeSignatureHeader(BODY, SECRET, NOW)).split('v1=')[1]!;
+    expect(await verifyStripeSignature(BODY, `t=${NOW}, v1=${good.toUpperCase()}`, SECRET, NOW)).toBe(true);
+    expect(await verifyStripeSignature(BODY, `t=${NOW},t=${NOW},v1=${good}`, SECRET, NOW)).toBe(false);
+  });
+
+  it('signs the exact bytes, with the same answer for text and bytes', async () => {
+    const bytes = new TextEncoder().encode('{"name":"Ștefan"}');
+    const header = await stripeSignatureHeader('{"name":"Ștefan"}', SECRET, NOW);
+    expect(await verifyStripeSignature(bytes, header, SECRET, NOW)).toBe(true);
+    const bom = new Uint8Array([0xef, 0xbb, 0xbf, ...bytes]);
+    expect(await verifyStripeSignature(bom, header, SECRET, NOW)).toBe(false);
+  });
+
   it('refuses a header with no time or no v1', async () => {
     const good = (await stripeSignatureHeader(BODY, SECRET, NOW)).split('v1=')[1];
     expect(await verifyStripeSignature(BODY, `v1=${good}`, SECRET, NOW)).toBe(false);
@@ -49,6 +63,7 @@ describe('checkout form', () => {
         name: 'Raport ă',
         amount: 1500,
         currency: 'ron',
+        expiresAtS: 1_800_003_600,
         successUrl: 'https://x.test/admin/?plata=reusita&session_id={CHECKOUT_SESSION_ID}',
         cancelUrl: 'https://x.test/admin/?plata=anulata',
       }),
@@ -71,6 +86,7 @@ describe('createCheckoutSession', () => {
     name: 'Cont Pro',
     amount: 4900,
     currency: 'ron',
+    expiresAtS: 1_800_003_600,
     successUrl: 'https://q.test/admin/?plata=reusita',
     cancelUrl: 'https://q.test/admin/?plata=anulata',
   };
@@ -92,7 +108,9 @@ describe('createCheckoutSession', () => {
       Authorization: 'Bearer sk_test_1',
       'Content-Type': 'application/x-www-form-urlencoded',
       'Idempotency-Key': 'payment-3-2026',
+      'Stripe-Version': STRIPE_API_VERSION,
     });
+    expect(new URLSearchParams(String(init.body)).get('expires_at')).toBe('1800003600');
     expect(new URLSearchParams(String(init.body)).get('line_items[0][price_data][unit_amount]')).toBe('4900');
   });
 

@@ -9,6 +9,8 @@ export type Payer = 'teacher' | 'student';
 // What one payment buys: the feature for the payer's whole account, or for one test.
 export type PaymentScope = 'account' | 'test';
 
+// A student feature always has scope "test": students have no login, so
+// anyone with the link can pick a student's name.
 export interface PaidFeature {
   // Romanian name, shown on the Stripe payment page.
   name: string;
@@ -40,6 +42,11 @@ export interface PaymentRow {
   paidAt: string | null;
 }
 
+// Only Stripe's own payment pages: the browser follows nothing else.
+export function isStripeCheckoutUrl(url: string): boolean {
+  return url.startsWith('https://checkout.stripe.com/');
+}
+
 export interface CheckoutAnswer {
   // The Stripe payment page. The browser goes there.
   url: string;
@@ -55,6 +62,9 @@ export const FEATURE_KEY = /^[a-z][a-z0-9_]{0,39}$/;
 export function isReturnPath(path: string, payer: Payer): boolean {
   if (path.length > 300 || path.includes('//') || path.includes('\\')) return false;
   if (!/^\/[A-Za-z0-9\-._~/?=&%]*$/.test(path)) return false;
+  // No dot segments and no encoded dots, slashes or backslashes: the path
+  // must stay in the payer's own app.
+  if (/%(2e|2f|5c)/i.test(path) || /\/\.{1,2}(\/|\?|$)/.test(path)) return false;
   return payer === 'teacher' ? path.startsWith('/admin/') : path.startsWith('/u/');
 }
 

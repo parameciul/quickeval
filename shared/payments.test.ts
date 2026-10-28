@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkoutBody, isReturnPath, paymentReturnOf, returnUrl } from './payments.ts';
+import { checkoutBody, isReturnPath, isStripeCheckoutUrl, PAID_FEATURES, paymentReturnOf, returnUrl } from './payments.ts';
 
 describe('isReturnPath', () => {
   it('takes paths of the teacher app for teachers and of the student app for students', () => {
@@ -11,7 +11,7 @@ describe('isReturnPath', () => {
   });
 
   it('refuses other sites and odd paths', () => {
-    for (const path of ['https://evil.test/admin/', '//evil.test/admin/', '/admin//evil.test', '/admin\\x', 'admin/', '/admin/<x>', `/admin/${'a'.repeat(300)}`]) {
+    for (const path of ['https://evil.test/admin/', '//evil.test/admin/', '/admin//evil.test', '/admin\\x', 'admin/', '/admin/<x>', `/admin/${'a'.repeat(300)}`, '/admin/../u/x', '/admin/./x', '/admin/..', '/admin/x/..?a=1', '/admin/%2e%2e/u', '/admin/%2F%2Fevil.test', '/admin/x%5Cy', '/admin/@evil', '/admin/#x']) {
       expect(isReturnPath(path, 'teacher')).toBe(false);
     }
   });
@@ -41,5 +41,24 @@ describe('checkoutBody', () => {
     expect(checkoutBody.safeParse({ feature: 'Class Report', returnPath: '/admin/' }).success).toBe(false);
     expect(checkoutBody.safeParse({ feature: '__proto__', returnPath: '/admin/' }).success).toBe(false);
     expect(checkoutBody.safeParse({ feature: 'x', returnPath: '' }).success).toBe(false);
+  });
+});
+
+describe('isStripeCheckoutUrl', () => {
+  it("takes Stripe's payment pages only", () => {
+    expect(isStripeCheckoutUrl('https://checkout.stripe.com/c/pay/cs_test_1')).toBe(true);
+    for (const url of ['http://checkout.stripe.com/c/1', 'https://checkout.stripe.com.evil.test/', 'https://evil.test/?https://checkout.stripe.com/', 'javascript:alert(1)']) {
+      expect(isStripeCheckoutUrl(url)).toBe(false);
+    }
+  });
+});
+
+describe('PAID_FEATURES', () => {
+  it('sells students features for one test only, at a price Stripe takes', () => {
+    for (const [key, feature] of Object.entries(PAID_FEATURES)) {
+      expect(key).toMatch(/^[a-z][a-z0-9_]{0,39}$/);
+      if (feature.payer === 'student') expect(feature.scope).toBe('test');
+      expect(Number.isInteger(feature.amount) && feature.amount >= 200).toBe(true);
+    }
   });
 });
