@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { loginBody, signupBody } from '../../shared/api.ts';
 import { clearSessionCookie, SESSION_DAYS, sessionToken, setSessionCookie } from '../auth/session.ts';
-import { adminEmails, createAccount, createSession, deleteSession, findLogin, findTeacherBySession, recordFailedLogin } from '../db/accounts.ts';
+import { adminEmails, createAccount, createSession, deleteSession, findTeacherBySession, takeLoginAttempt } from '../db/accounts.ts';
 import { emailSender } from '../email.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError } from '../errors.ts';
@@ -12,6 +12,9 @@ import { newSessionToken, sha256Hex } from '../secrets.ts';
 const BODY_LIMIT = 4096;
 
 const wrongLogin = () => new ApiError(401, 'wrong_login', 'Emailul sau parola nu sunt corecte.');
+
+// Checked for an unknown email, so its answer takes as long as a wrong password's.
+const NO_ACCOUNT_HASH = 'pbkdf2-sha256$30000$zEE+CEDfhgSxGzKY6jIYxA==$g8IQX+dlbPg7DmYMX95oKyfcUZx7RvMD6aiAwPGnl4w=';
 
 // /api/auth: the login page of the teacher app. No login needed here.
 export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
@@ -48,15 +51,13 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.post('/login', async (c) => {
     const body = await readJson(c, loginBody, BODY_LIMIT);
     const now = nowIso();
-    const login = await findLogin(c.env.DB, body.email);
-    if (!login) throw wrongLogin();
-    if (login.locked_until !== null && login.locked_until > now) {
-      throw new ApiError(429, 'locked', 'Prea multe încercări greșite. Încearcă din nou peste 15 minute.');
-    }
-    if (!(await verifyPassword(body.password, login.password_hash))) {
-      await recordFailedLogin(c.env.DB, login.id, now);
+    const login = await takeLoginAttempt(c.env.DB, body.email, now);
+    if (login === 'locked') throw new ApiError(429, 'locked', 'Prea multe încercări greșite. Încearcă din nou peste 15 minute.');
+    if (!login) {
+      await verifyPassword(body.password, NO_ACCOUNT_HASH);
       throw wrongLogin();
     }
+    if (!(await verifyPassword(body.password, login.password_hash))) throw wrongLogin();
     if (login.status === 'pending') {
       throw new ApiError(403, 'account_pending', 'Contul tău așteaptă aprobarea unui administrator. Vei primi acces după aprobare.');
     }

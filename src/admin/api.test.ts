@@ -60,15 +60,16 @@ describe('createApiClient', () => {
     const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, { accounts: [], password: 'p' }));
     const api = createApiClient({ fetchImpl });
     await api.listAccounts();
-    await api.approveAccount(2);
-    await api.rejectAccount(3);
+    await api.approveAccount(2, '2026-10-28T10:00:00.000Z');
+    await api.rejectAccount(3, '2026-10-28T10:00:00.000Z');
     await api.updateAccount(4, { demo: false });
     expect(await api.resetPassword(5)).toBe('p');
+    expect(fetchImpl.mock.calls[1]![1]!.body).toBe(JSON.stringify({ createdAt: '2026-10-28T10:00:00.000Z' }));
     await api.changePassword('veche', 'parola-noua');
     expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
       'GET /api/admin/accounts',
       'POST /api/admin/accounts/2/approve',
-      'DELETE /api/admin/accounts/3',
+      'POST /api/admin/accounts/3/reject',
       'PATCH /api/admin/accounts/4',
       'POST /api/admin/accounts/5/password',
       'POST /api/admin/account/password',

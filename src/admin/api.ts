@@ -47,8 +47,9 @@ export interface AdminApi {
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
   // Setări, administrators only.
   listAccounts(): Promise<Account[]>;
-  approveAccount(teacherId: number): Promise<void>;
-  rejectAccount(teacherId: number): Promise<void>;
+  // Name the account the page shows by the time it was asked for: ids come back.
+  approveAccount(teacherId: number, createdAt: string): Promise<void>;
+  rejectAccount(teacherId: number, createdAt: string): Promise<void>;
   updateAccount(teacherId: number, change: { demo?: boolean; status?: 'active' | 'disabled' }): Promise<Account[]>;
   // A new password for a teacher who forgot theirs: the only time the app sees it.
   resetPassword(teacherId: number): Promise<string>;
@@ -222,11 +223,11 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       await request('POST', '/account/password', { currentPassword, newPassword });
     },
     listAccounts: async () => (await request<{ accounts: Account[] }>('GET', '/accounts')).accounts,
-    approveAccount: async (teacherId) => {
-      await request('POST', `/accounts/${teacherId}/approve`);
+    approveAccount: async (teacherId, createdAt) => {
+      await request('POST', `/accounts/${teacherId}/approve`, { createdAt });
     },
-    rejectAccount: async (teacherId) => {
-      await request('DELETE', `/accounts/${teacherId}`);
+    rejectAccount: async (teacherId, createdAt) => {
+      await request('POST', `/accounts/${teacherId}/reject`, { createdAt });
     },
     updateAccount: async (teacherId, change) =>
       (await request<{ accounts: Account[] }>('PATCH', `/accounts/${teacherId}`, change)).accounts,

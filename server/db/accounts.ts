@@ -57,28 +57,30 @@ export interface LoginRow {
   id: number;
   status: AccountStatus;
   password_hash: string | null;
-  locked_until: string | null;
 }
 
-export async function findLogin(db: D1Database, email: string): Promise<LoginRow | null> {
-  return db
-    .prepare('SELECT id, status, password_hash, locked_until FROM teachers WHERE email = ?')
-    .bind(email)
-    .first<LoginRow>();
-}
-
-// A wrong password. The tenth in a row locks the account for LOCK_MS and starts the count again.
-export async function recordFailedLogin(db: D1Database, teacherId: number, now: string): Promise<void> {
+// Takes one login attempt of the account before its password is checked: the
+// count goes up first, and the attempt that reaches MAX_FAILED_LOGINS locks
+// the account for LOCK_MS. The lock is checked in the same statement, so many
+// attempts sent at once cannot get past it (D1 runs writes one at a time). A
+// good password starts the count again (createSession). After a lock ends, the
+// count starts at this attempt. "locked" while the lock lasts; null for an
+// unknown email.
+export async function takeLoginAttempt(db: D1Database, email: string, now: string): Promise<LoginRow | 'locked' | null> {
   const lockedUntil = new Date(Date.parse(now) + LOCK_MS).toISOString();
-  await db
+  const row = await db
     .prepare(
       `UPDATE teachers SET
-         locked_until = CASE WHEN failed_logins + 1 >= ? THEN ? ELSE locked_until END,
-         failed_logins = CASE WHEN failed_logins + 1 >= ? THEN 0 ELSE failed_logins + 1 END
-       WHERE id = ?`,
+         failed_logins = CASE WHEN locked_until IS NULL THEN failed_logins + 1 ELSE 1 END,
+         locked_until = CASE WHEN locked_until IS NULL AND failed_logins + 1 >= ? THEN ? ELSE NULL END
+       WHERE email = ? AND (locked_until IS NULL OR locked_until <= ?)
+       RETURNING id, status, password_hash`,
     )
-    .bind(MAX_FAILED_LOGINS, lockedUntil, MAX_FAILED_LOGINS, teacherId)
-    .run();
+    .bind(MAX_FAILED_LOGINS, lockedUntil, email, now)
+    .first<LoginRow>();
+  if (row) return row;
+  const exists = await db.prepare('SELECT 1 AS found FROM teachers WHERE email = ?').bind(email).first();
+  return exists ? 'locked' : null;
 }
 
 // A good password: a new session, the count of wrong passwords starts again,
@@ -138,17 +140,31 @@ export async function listAccounts(db: D1Database): Promise<Account[]> {
   return rows.results.map((row) => ({ ...toTeacher(row), status: row.status, createdAt: row.created_at, approvedAt: row.approved_at }));
 }
 
-// pending → active. Null when the account is not pending (approved meanwhile, or gone).
-export async function approveAccount(db: D1Database, teacherId: number, now: string): Promise<{ email: string; name: string } | null> {
+// The account an administrator's page shows: ids of refused (deleted)
+// accounts come back, so the page also sends the time the account was asked
+// for, and the write checks both.
+export interface ShownAccount {
+  teacherId: number;
+  createdAt: string;
+}
+
+// pending → active. Null when the account is not pending (approved meanwhile,
+// or gone), or is another account now.
+export async function approveAccount(db: D1Database, shown: ShownAccount, now: string): Promise<{ email: string; name: string } | null> {
   return db
-    .prepare("UPDATE teachers SET status = 'active', approved_at = ? WHERE id = ? AND status = 'pending' RETURNING email, name")
-    .bind(now, teacherId)
+    .prepare(
+      "UPDATE teachers SET status = 'active', approved_at = ? WHERE id = ? AND created_at = ? AND status = 'pending' RETURNING email, name",
+    )
+    .bind(now, shown.teacherId, shown.createdAt)
     .first<{ email: string; name: string }>();
 }
 
 // Deletes an account that still waits: it cannot have logged in, so it has no data.
-export async function rejectAccount(db: D1Database, teacherId: number): Promise<boolean> {
-  const row = await db.prepare("DELETE FROM teachers WHERE id = ? AND status = 'pending' RETURNING id").bind(teacherId).first();
+export async function rejectAccount(db: D1Database, shown: ShownAccount): Promise<boolean> {
+  const row = await db
+    .prepare("DELETE FROM teachers WHERE id = ? AND created_at = ? AND status = 'pending' RETURNING id")
+    .bind(shown.teacherId, shown.createdAt)
+    .first();
   return row !== null;
 }
 

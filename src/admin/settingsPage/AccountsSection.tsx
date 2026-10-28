@@ -54,8 +54,8 @@ function PendingItem({ account }: { account: Account }) {
   const api = useApi();
   const reload = useReload();
   // A refusal means the page was out of date: read the accounts again.
-  const approve = useMutation({ mutationFn: () => api.approveAccount(account.id), onSettled: reload });
-  const reject = useMutation({ mutationFn: () => api.rejectAccount(account.id), onSettled: reload });
+  const approve = useMutation({ mutationFn: () => api.approveAccount(account.id, account.createdAt), onSettled: reload });
+  const reject = useMutation({ mutationFn: () => api.rejectAccount(account.id, account.createdAt), onSettled: reload });
 
   return (
     <li>

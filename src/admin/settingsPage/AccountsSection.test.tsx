@@ -26,7 +26,7 @@ describe('the accounts on Setări', () => {
     const waiting = await section('Așteaptă aprobarea');
     expect(within(waiting).getByText('Ana Pop (ana@example.com)')).toBeInTheDocument();
     await userEvent.click(within(waiting).getByRole('button', { name: 'Aprobă Ana Pop' }));
-    expect(api.approveAccount).toHaveBeenCalledWith(2);
+    expect(api.approveAccount).toHaveBeenCalledWith(2, ana.createdAt);
     expect(await screen.findByText('Niciun cont nu așteaptă aprobarea.')).toBeInTheDocument();
     const teachers = await section('Profesori');
     expect(within(teachers).getByText('Ana Pop (ana@example.com)')).toBeInTheDocument();
@@ -37,7 +37,7 @@ describe('the accounts on Setări', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin('/setari', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Refuză Ana Pop' }));
-    expect(api.rejectAccount).toHaveBeenCalledWith(2);
+    expect(api.rejectAccount).toHaveBeenCalledWith(2, ana.createdAt);
     expect(await screen.findByText('Niciun cont nu așteaptă aprobarea.')).toBeInTheDocument();
   });
 

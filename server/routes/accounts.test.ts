@@ -31,6 +31,11 @@ async function signup(email = 'ana@example.com'): Promise<number> {
   return row!.id;
 }
 
+const createdAtOf = async (id: number) =>
+  (await api.db.prepare('SELECT created_at FROM teachers WHERE id = ?').bind(id).first<{ created_at: string }>())!.created_at;
+const approve = async (id: number) => api.request('POST', `/api/admin/accounts/${id}/approve`, { createdAt: await createdAtOf(id) });
+const reject = async (id: number) => api.request('POST', `/api/admin/accounts/${id}/reject`, { createdAt: await createdAtOf(id) });
+
 const login = (email: string, password: string) => api.request('POST', '/api/auth/login', { email, password });
 const accountOf = async (id: number) =>
   ((await api.request('GET', '/api/admin/accounts')).body.accounts as { id: number }[]).find((account) => account.id === id);
@@ -52,7 +57,7 @@ describe('GET /api/admin/accounts', () => {
     const res = await api.request('GET', '/api/admin/accounts');
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('admin_only');
-    expect((await api.request('POST', '/api/admin/accounts/1/approve')).status).toBe(403);
+    expect((await api.request('POST', '/api/admin/accounts/1/approve', { createdAt: 'x' })).status).toBe(403);
   });
 });
 
@@ -60,32 +65,47 @@ describe('approving and refusing', () => {
   it('approves a pending account, which can then log in, and tells the teacher', async () => {
     const id = await signup();
     expect((await login('ana@example.com', 'parola-lunga')).body.error).toBe('account_pending');
-    const res = await api.request('POST', `/api/admin/accounts/${id}/approve`);
+    const res = await approve(id);
     expect(res.status).toBe(200);
     expect(await accountOf(id)).toMatchObject({ status: 'active', demo: true });
     expect(emails).toEqual([expect.objectContaining({ to: ['ana@example.com'], subject: 'QuickEval: contul tău a fost aprobat' })]);
     expect((await login('ana@example.com', 'parola-lunga')).status).toBe(200);
-    expect((await api.request('POST', `/api/admin/accounts/${id}/approve`)).body.error).toBe('not_pending');
+    expect((await approve(id)).body.error).toBe('not_pending');
   });
 
   it('refuses a pending account by deleting it, so the email can sign up again', async () => {
     const id = await signup();
-    expect((await api.request('DELETE', `/api/admin/accounts/${id}`)).status).toBe(200);
+    expect((await reject(id)).status).toBe(200);
     expect(await accountOf(id)).toBeUndefined();
     await signup();
   });
 
   it('never deletes an active account', async () => {
     const id = await api.addTeacher('bogdan@example.com', 'Bogdan');
-    expect((await api.request('DELETE', `/api/admin/accounts/${id}`)).body.error).toBe('not_pending');
+    const shown = { createdAt: await createdAtOf(id) };
+    expect((await api.request('POST', `/api/admin/accounts/${id}/reject`, shown)).body.error).toBe('not_pending');
     expect(await accountOf(id)).toBeDefined();
+  });
+});
+
+describe('a page opened before an account was refused', () => {
+  it('approves or refuses nothing of the next account that got the same id', async () => {
+    const first = await signup('ana@example.com');
+    const shown = { createdAt: await createdAtOf(first) };
+    expect((await reject(first)).status).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const next = await signup('mallory@example.com');
+    expect(next).toBe(first);
+    expect((await api.request('POST', `/api/admin/accounts/${first}/approve`, shown)).body.error).toBe('not_pending');
+    expect((await api.request('POST', `/api/admin/accounts/${first}/reject`, shown)).body.error).toBe('not_pending');
+    expect(await accountOf(next)).toMatchObject({ email: 'mallory@example.com', status: 'pending' });
   });
 });
 
 describe('PATCH /api/admin/accounts/:id', () => {
   it('turns a demo account into a complete one', async () => {
     const id = await signup();
-    await api.request('POST', `/api/admin/accounts/${id}/approve`);
+    await approve(id);
     const res = await api.request('PATCH', `/api/admin/accounts/${id}`, { demo: false });
     expect(res.status).toBe(200);
     expect(res.body.accounts.find((a: { id: number }) => a.id === id)).toMatchObject({ demo: false });
@@ -93,7 +113,7 @@ describe('PATCH /api/admin/accounts/:id', () => {
 
   it('closes an account and ends its logins, and opens it again', async () => {
     const id = await signup();
-    await api.request('POST', `/api/admin/accounts/${id}/approve`);
+    await approve(id);
     expect((await login('ana@example.com', 'parola-lunga')).status).toBe(200);
     expect((await api.request('PATCH', `/api/admin/accounts/${id}`, { status: 'disabled' })).status).toBe(200);
     const sessions = await api.db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE teacher_id = ?').bind(id).first<{ n: number }>();
@@ -121,7 +141,7 @@ describe('PATCH /api/admin/accounts/:id', () => {
 describe('POST /api/admin/accounts/:id/password', () => {
   it('makes a new password, shown once, that replaces the old one', async () => {
     const id = await signup();
-    await api.request('POST', `/api/admin/accounts/${id}/approve`);
+    await approve(id);
     const res = await api.request('POST', `/api/admin/accounts/${id}/password`);
     expect(res.status).toBe(201);
     expect(res.body.password).toMatch(/^[a-z2-7]{12}$/);

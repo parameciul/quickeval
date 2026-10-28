@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { changePasswordBody, updateAccountBody } from '../../shared/api.ts';
+import { changePasswordBody, shownAccountBody, updateAccountBody } from '../../shared/api.ts';
 import { adminOnly } from '../auth/teacherAuth.ts';
 import { sessionToken } from '../auth/session.ts';
 import { approveAccount, getPasswordHash, listAccounts, rejectAccount, setPassword, updateAccount } from '../db/accounts.ts';
@@ -42,7 +42,9 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
 
   // The teacher hears about it by email when emails are set up.
   routes.post('/:id/approve', async (c) => {
-    const approved = await approveAccount(c.env.DB, parseId(c.req.param('id')), nowIso());
+    const teacherId = parseId(c.req.param('id'));
+    const { createdAt } = await readJson(c, shownAccountBody, BODY_LIMIT);
+    const approved = await approveAccount(c.env.DB, { teacherId, createdAt }, nowIso());
     if (!approved) throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
     await sendEmail(c.env, {
       to: [approved.email],
@@ -58,8 +60,10 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   // Refusing deletes an account that waits.
-  routes.delete('/:id', async (c) => {
-    if (!(await rejectAccount(c.env.DB, parseId(c.req.param('id'))))) {
+  routes.post('/:id/reject', async (c) => {
+    const teacherId = parseId(c.req.param('id'));
+    const { createdAt } = await readJson(c, shownAccountBody, BODY_LIMIT);
+    if (!(await rejectAccount(c.env.DB, { teacherId, createdAt }))) {
       throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
     }
     return c.json({ deleted: true });

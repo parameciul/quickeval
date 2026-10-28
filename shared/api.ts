@@ -188,6 +188,10 @@ export const updateAccountBody = z
   })
   .refine((body) => body.demo !== undefined || body.status !== undefined, { message: 'Alege ce schimbi la cont.' });
 
+// Approving or refusing names the account the page shows by the time it asked
+// (`Account.createdAt`): a refused account's id comes back for the next sign-up.
+export const shownAccountBody = z.object({ createdAt: z.string({ message: 'Reîncarcă pagina.' }).max(40) });
+
 export type SignupInput = z.input<typeof signupBody>;
 
 const POINTS_MESSAGE = 'Scrie punctajul ca număr, de exemplu 2,5.';

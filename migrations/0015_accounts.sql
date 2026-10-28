@@ -19,7 +19,7 @@ UPDATE teachers SET role = 'admin' WHERE email IN ('plesalaura@yahoo.com', 'mg14
 -- limit once, whatever happens to it later (reopen, regrade, delete).
 ALTER TABLE tests ADD COLUMN evaluation_counted INTEGER NOT NULL DEFAULT 0;
 
-UPDATE tests SET evaluation_counted = 1 WHERE status IN ('evaluating', 'done');
+UPDATE tests SET evaluation_counted = 1 WHERE status IN ('evaluating', 'done') OR evaluation_started_at IS NOT NULL;
 
 -- Every path that starts an evaluation sets the status to 'evaluating', so the
 -- count lives here instead of in each of them. The statements inside the

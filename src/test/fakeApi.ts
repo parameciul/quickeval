@@ -249,13 +249,13 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     logout: vi.fn(async () => {}),
     changePassword: vi.fn(async (_current: string, _next: string) => {}),
     listAccounts: vi.fn(async () => structuredClone(accounts)),
-    approveAccount: vi.fn(async (teacherId: number) => {
-      const account = accounts.find((a) => a.id === teacherId && a.status === 'pending');
+    approveAccount: vi.fn(async (teacherId: number, createdAt: string) => {
+      const account = accounts.find((a) => a.id === teacherId && a.createdAt === createdAt && a.status === 'pending');
       if (!account) throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
       Object.assign(account, { status: 'active', approvedAt: '2026-10-28T10:00:00.000Z' });
     }),
-    rejectAccount: vi.fn(async (teacherId: number) => {
-      const index = accounts.findIndex((a) => a.id === teacherId && a.status === 'pending');
+    rejectAccount: vi.fn(async (teacherId: number, createdAt: string) => {
+      const index = accounts.findIndex((a) => a.id === teacherId && a.createdAt === createdAt && a.status === 'pending');
       if (index < 0) throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
       accounts.splice(index, 1);
     }),

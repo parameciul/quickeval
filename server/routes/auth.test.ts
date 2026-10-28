@@ -165,6 +165,24 @@ describe('POST /api/auth/login', () => {
     expect((await login('profesor@example.com', 'parola-buna')).status).toBe(200);
   });
 
+  it('lets no burst of attempts sent at once past the lock', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-buna');
+    const answers = await Promise.all(Array.from({ length: 30 }, () => login('profesor@example.com', 'gresita')));
+    expect(answers.filter((res) => res.status === 401)).toHaveLength(MAX_FAILED_LOGINS);
+    expect(answers.filter((res) => res.status === 429)).toHaveLength(30 - MAX_FAILED_LOGINS);
+    expect((await login('profesor@example.com', 'parola-buna')).status).toBe(429);
+  });
+
+  it('starts the count again when a lock ends', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-28T10:00:00.000Z'));
+    await setPasswordOf('profesor@example.com', 'parola-buna');
+    for (let i = 0; i < MAX_FAILED_LOGINS; i++) await login('profesor@example.com', 'gresita');
+    vi.setSystemTime(new Date(Date.parse('2026-10-28T10:00:00.000Z') + LOCK_MS + 1000));
+    for (let i = 0; i < MAX_FAILED_LOGINS - 1; i++) expect((await login('profesor@example.com', 'gresita')).status).toBe(401);
+    expect((await login('profesor@example.com', 'parola-buna')).status).toBe(200);
+  });
+
   it('starts the count of wrong passwords again after a good login', async () => {
     await setPasswordOf('profesor@example.com', 'parola-buna');
     for (let i = 0; i < MAX_FAILED_LOGINS - 1; i++) await login('profesor@example.com', 'gresita');
