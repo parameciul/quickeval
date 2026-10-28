@@ -22,6 +22,7 @@ const row = () =>
     .prepare('SELECT print_status, print_file_key, print_attempts, files_version, upload_token FROM tests WHERE code = ?')
     .bind(code)
     .first<{ print_status: string; print_file_key: string | null; print_attempts: number; files_version: number; upload_token: string }>();
+const createdAt = async () => (await api.db.prepare('SELECT created_at FROM tests WHERE code = ?').bind(code).first<{ created_at: string }>())!.created_at;
 const lease = (runId = RUN) => robot('POST', '/lease', { runId });
 const putPrint = (body: BodyInit, headers: Record<string, string> = {}) =>
   api.fetch(`/api/runner/tests/${testId}/print`, {
@@ -87,7 +88,9 @@ describe('GET /tests/:id/print-job', () => {
     const job = await robot('GET', `/tests/${testId}/print-job`);
     expect(job.status).toBe(200);
     const stored = (await row())!;
-    expect(job.body).toEqual({ job: { testId, filesVersion: stored.files_version, contentType: PDF_TYPE, uploadToken: stored.upload_token } });
+    expect(job.body).toEqual({
+      job: { testId, createdAt: await createdAt(), filesVersion: stored.files_version, contentType: PDF_TYPE, uploadToken: stored.upload_token },
+    });
     expect(JSON.stringify(job.body)).not.toContain('fixture/');
 
     const file = await api.fetch(`/api/runner/tests/${testId}/print-job/file`, { headers: { Authorization: `Bearer ${ROBOT_KEY}` } });
@@ -133,6 +136,21 @@ describe('PUT /tests/:id/print', () => {
     expect(await res.json()).toMatchObject({ error: 'not_needed' });
     expect(await api.env.FILES.get(printFileKey(teacherId, 2026, code, 'test.pdf', 0))).toBeNull();
     expect(await row()).toMatchObject({ print_status: 'none', print_file_key: null });
+  });
+
+  it('refuses a print made for a deleted test whose id another test took', async () => {
+    await lease();
+    const made = await createdAt();
+    await api.db.prepare('UPDATE tests SET created_at = ? WHERE code = ?').bind('2026-10-30T10:00:00.000Z', code).run();
+    const res = await putPrint(pdfBody(), { 'X-Created-At': made });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: 'not_needed' });
+    expect(await row()).toMatchObject({ print_status: 'none', print_file_key: null });
+    const failed = await robot('POST', `/tests/${testId}/print-failed`, { runId: RUN, filesVersion: 0, createdAt: made, error: 'crash' });
+    expect(failed.status).toBe(409);
+    expect(await row()).toMatchObject({ print_attempts: 0 });
+
+    expect((await putPrint(pdfBody(), { 'X-Created-At': '2026-10-30T10:00:00.000Z' })).status).toBe(200);
   });
 
   it('refuses a print from a run without the lease', async () => {
@@ -262,10 +280,10 @@ describe('savePrint and printKeyIs', () => {
   it('saves nothing for a print that is already ready, and then names the stored key', async () => {
     await lease();
     const key = printFileKey(teacherId, 2026, code, 'test.pdf', 0);
-    expect(await savePrint(api.db, testId, RUN, 0, key, '2026-10-25T08:00:00.000Z')).toBe(true);
+    expect(await savePrint(api.db, testId, RUN, 0, null, key, '2026-10-25T08:00:00.000Z')).toBe(true);
     expect(await printKeyIs(api.db, testId, key)).toBe(true);
     // The route keeps the object in this case: a second run made the same version.
-    expect(await savePrint(api.db, testId, RUN, 0, key, '2026-10-25T08:01:00.000Z')).toBe(false);
+    expect(await savePrint(api.db, testId, RUN, 0, null, key, '2026-10-25T08:01:00.000Z')).toBe(false);
     expect(await printKeyIs(api.db, testId, key)).toBe(true);
     expect(await printKeyIs(api.db, testId, 'other-key')).toBe(false);
   });

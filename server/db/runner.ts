@@ -206,12 +206,13 @@ export interface RobotTestRecord {
 export async function findRobotTest(db: D1Database, testId: number): Promise<RobotTestRecord | null> {
   const row = await db
     .prepare(
-      `SELECT id, files_version, test_file_key, test_file_type, barem_file_key, barem_file_type, barem_notes, exercise_list_json
+      `SELECT id, created_at, files_version, test_file_key, test_file_type, barem_file_key, barem_file_type, barem_notes, exercise_list_json
        FROM tests WHERE id = ? AND status = 'evaluating'`,
     )
     .bind(testId)
     .first<{
       id: number;
+      created_at: string;
       files_version: number;
       test_file_key: string | null;
       test_file_type: string | null;
@@ -225,6 +226,7 @@ export async function findRobotTest(db: D1Database, testId: number): Promise<Rob
   return {
     test: {
       id: row.id,
+      createdAt: row.created_at,
       filesVersion: row.files_version,
       files: { test: file(row.test_file_key, row.test_file_type), barem: file(row.barem_file_key, row.barem_file_type) },
       exerciseList: row.exercise_list_json ? (JSON.parse(row.exercise_list_json) as ExerciseList) : null,
@@ -242,8 +244,11 @@ export async function testExists(db: D1Database, testId: number): Promise<boolea
 
 // The exercise list is saved only for a test in evaluation that waits for
 // it, only from the run that holds the lease, and only when the teacher did
-// not replace a file after the robot read the test.
-const WAITS_FOR_LIST = `id = ? AND files_version = ? AND status = 'evaluating' AND exercise_list_status = 'none' AND ${HOLDS_LEASE}`;
+// not replace a file after the robot read the test. It also names the test by
+// the time it was made: ids of deleted tests come back (no AUTOINCREMENT), so
+// an answer made for a deleted test must not land in the next one with its id.
+// `(? IS NULL OR created_at = ?)` takes the time twice; an older robot sends none.
+const WAITS_FOR_LIST = `id = ? AND files_version = ? AND (? IS NULL OR created_at = ?) AND status = 'evaluating' AND exercise_list_status = 'none' AND ${HOLDS_LEASE}`;
 
 function listInfo(row: { exercise_list_status: ExerciseListStatus; exercise_list_message: string | null } | null): ExerciseListInfo | null {
   return row ? { status: row.exercise_list_status, message: row.exercise_list_message } : null;
@@ -255,6 +260,7 @@ export async function saveExerciseList(
   testId: number,
   runId: string,
   filesVersion: number,
+  createdAt: string | null,
   checked: CheckedExerciseList,
   now: string,
 ): Promise<ExerciseListInfo | null> {
@@ -264,7 +270,7 @@ export async function saveExerciseList(
        WHERE ${WAITS_FOR_LIST}
        RETURNING exercise_list_status, exercise_list_message`,
     )
-    .bind(JSON.stringify(checked.list), checked.status, checked.message, now, testId, filesVersion, runId)
+    .bind(JSON.stringify(checked.list), checked.status, checked.message, now, testId, filesVersion, createdAt, createdAt, runId)
     .first<{ exercise_list_status: ExerciseListStatus; exercise_list_message: string | null }>();
   return listInfo(row);
 }
@@ -277,6 +283,7 @@ export async function failExerciseList(
   testId: number,
   runId: string,
   filesVersion: number,
+  createdAt: string | null,
   error: RobotError,
   now: string,
 ): Promise<ExerciseListInfo | null> {
@@ -290,7 +297,7 @@ export async function failExerciseList(
        WHERE ${WAITS_FOR_LIST}
        RETURNING exercise_list_status, exercise_list_message`,
     )
-    .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], now, testId, filesVersion, runId)
+    .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], now, testId, filesVersion, createdAt, createdAt, runId)
     .first<{ exercise_list_status: ExerciseListStatus; exercise_list_message: string | null }>();
   return listInfo(row);
 }
@@ -304,13 +311,14 @@ export async function findPrintJob(
 ): Promise<{ job: PrintJob; testFileKey: string; teacherId: number; schoolYear: number; code: string; testFileName: string } | null> {
   const row = await db
     .prepare(
-      `SELECT t.id, t.files_version, t.test_file_key, t.test_file_type, t.test_file_name, t.upload_token, t.teacher_id, t.code, c.school_year
+      `SELECT t.id, t.created_at, t.files_version, t.test_file_key, t.test_file_type, t.test_file_name, t.upload_token, t.teacher_id, t.code, c.school_year
        FROM tests t JOIN classes c ON c.id = t.class_id
        WHERE t.id = ? AND ${NEEDS_PRINT}`,
     )
     .bind(testId)
     .first<{
       id: number;
+      created_at: string;
       files_version: number;
       test_file_key: string;
       test_file_type: string | null;
@@ -322,7 +330,7 @@ export async function findPrintJob(
     }>();
   if (!row || !row.test_file_type || !row.test_file_name) return null;
   return {
-    job: { testId: row.id, filesVersion: row.files_version, contentType: row.test_file_type, uploadToken: row.upload_token },
+    job: { testId: row.id, createdAt: row.created_at, filesVersion: row.files_version, contentType: row.test_file_type, uploadToken: row.upload_token },
     testFileKey: row.test_file_key,
     teacherId: row.teacher_id,
     schoolYear: row.school_year,
@@ -336,17 +344,26 @@ export async function findPrintJob(
 // replace the test file after the robot read it.
 // The local engine refuses `UPDATE tests AS t`, so the writes name the table:
 // the shared condition is used with `tests.` for its `t.`.
-const WAITS_FOR_PRINT = `tests.id = ? AND tests.files_version = ? AND ${NEEDS_PRINT.replace(/\bt\./g, 'tests.')} AND ${HOLDS_LEASE}`;
+// Like the list, a print names the test by the time it was made.
+const WAITS_FOR_PRINT = `tests.id = ? AND tests.files_version = ? AND (? IS NULL OR tests.created_at = ?) AND ${NEEDS_PRINT.replace(/\bt\./g, 'tests.')} AND ${HOLDS_LEASE}`;
 
 // False when nothing was saved.
-export async function savePrint(db: D1Database, testId: number, runId: string, filesVersion: number, key: string, now: string): Promise<boolean> {
+export async function savePrint(
+  db: D1Database,
+  testId: number,
+  runId: string,
+  filesVersion: number,
+  createdAt: string | null,
+  key: string,
+  now: string,
+): Promise<boolean> {
   const row = await db
     .prepare(
       `UPDATE tests SET print_status = 'ready', print_file_key = ?, updated_at = ?
        WHERE ${WAITS_FOR_PRINT}
        RETURNING id`,
     )
-    .bind(key, now, testId, filesVersion, runId)
+    .bind(key, now, testId, filesVersion, createdAt, createdAt, runId)
     .first<{ id: number }>();
   return row !== null;
 }
@@ -365,6 +382,7 @@ export async function failPrint(
   testId: number,
   runId: string,
   filesVersion: number,
+  createdAt: string | null,
   error: RobotError,
   now: string,
 ): Promise<'none' | 'failed' | null> {
@@ -377,7 +395,7 @@ export async function failPrint(
        WHERE ${WAITS_FOR_PRINT}
        RETURNING print_status`,
     )
-    .bind(counted, counted, MAX_ATTEMPTS, now, testId, filesVersion, runId)
+    .bind(counted, counted, MAX_ATTEMPTS, now, testId, filesVersion, createdAt, createdAt, runId)
     .first<{ print_status: 'none' | 'failed' }>();
   return row?.print_status ?? null;
 }
@@ -403,10 +421,10 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
            WHERE ${GRADABLE} AND (s.run_id IS NULL OR s.run_id <> ?)
            ORDER BY s.attempts, s.submitted_at, s.id LIMIT 1)
          AND status = 'submitted' AND ${HOLDS_LEASE}
-       RETURNING id, test_id`,
+       RETURNING id, test_id, started_at`,
     )
     .bind(runId, runId, runId)
-    .first<{ id: number; test_id: number }>();
+    .first<{ id: number; test_id: number; started_at: string }>();
   if (!claimed) return null;
   const { results } = await db
     .prepare('SELECT id, content_type, position FROM submission_files WHERE submission_id = ? ORDER BY position, id')
@@ -415,6 +433,7 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
   return {
     submissionId: claimed.id,
     testId: claimed.test_id,
+    startedAt: claimed.started_at,
     files: results.map((row) => ({ id: row.id, contentType: row.content_type, position: row.position })),
   };
 }
@@ -600,18 +619,20 @@ export async function findRobotFile(db: D1Database, submissionId: number, fileId
 export async function findGrading(
   db: D1Database,
   submissionId: number,
-): Promise<{ status: string; runId: string | null; exerciseList: ExerciseList | null } | null> {
+): Promise<{ status: string; runId: string | null; startedAt: string; exerciseList: ExerciseList | null } | null> {
   const row = await db
-    .prepare('SELECT s.status, s.run_id, t.exercise_list_json FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?')
+    .prepare('SELECT s.status, s.run_id, s.started_at, t.exercise_list_json FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?')
     .bind(submissionId)
-    .first<{ status: string; run_id: string | null; exercise_list_json: string | null }>();
+    .first<{ status: string; run_id: string | null; started_at: string; exercise_list_json: string | null }>();
   if (!row) return null;
   const exerciseList = row.exercise_list_json ? (JSON.parse(row.exercise_list_json) as ExerciseList) : null;
-  return { status: row.status, runId: row.run_id, exerciseList };
+  return { status: row.status, runId: row.run_id, startedAt: row.started_at, exerciseList };
 }
 
-// This run is grading the upload.
-const GRADED_BY_RUN = "EXISTS (SELECT 1 FROM submissions s WHERE s.id = ? AND s.status = 'grading' AND s.run_id = ?)";
+// This run is grading this upload: its id, its run, and the time it started.
+// Ids of deleted uploads come back (no AUTOINCREMENT), so a grading that the
+// robot began before a reset must not land in the next upload with that id.
+const GRADED_BY_RUN = "EXISTS (SELECT 1 FROM submissions s WHERE s.id = ? AND s.status = 'grading' AND s.run_id = ? AND s.started_at = ?)";
 
 // Saves the grading, its items, and the graded upload in one transaction,
 // with a fixed number of queries whatever the number of items. False when
@@ -620,6 +641,7 @@ export async function saveGrading(
   db: D1Database,
   submissionId: number,
   runId: string,
+  startedAt: string,
   grading: Grading,
   raw: unknown,
   model: string,
@@ -630,7 +652,7 @@ export async function saveGrading(
     grading.items.map((item) => ({ ...item, needsReview: item.needsReview ? 1 : 0 })),
   );
   const results = await db.batch([
-    db.prepare(`DELETE FROM evaluations WHERE submission_id = ? AND ${GRADED_BY_RUN}`).bind(submissionId, submissionId, runId),
+    db.prepare(`DELETE FROM evaluations WHERE submission_id = ? AND ${GRADED_BY_RUN}`).bind(submissionId, submissionId, runId, startedAt),
     db
       .prepare(
         `INSERT INTO evaluations (submission_id, max_total, office_points, total, grade, needs_review, summary,
@@ -655,6 +677,7 @@ export async function saveGrading(
         now,
         submissionId,
         runId,
+        startedAt,
       ),
     db
       .prepare(
@@ -667,15 +690,15 @@ export async function saveGrading(
          FROM json_each(?) j JOIN evaluations e ON e.submission_id = ?
          WHERE ${GRADED_BY_RUN}`,
       )
-      .bind(items, submissionId, submissionId, runId),
-    ...lastModelStatements(db, 'grading', GRADED_BY_RUN, [submissionId, runId], { model, effort }),
+      .bind(items, submissionId, submissionId, runId, startedAt),
+    ...lastModelStatements(db, 'grading', GRADED_BY_RUN, [submissionId, runId, startedAt], { model, effort }),
     db
       .prepare(
         `UPDATE submissions SET status = 'graded', graded_at = ?, run_id = NULL, last_error = NULL
-         WHERE id = ? AND status = 'grading' AND run_id = ?
+         WHERE id = ? AND status = 'grading' AND run_id = ? AND started_at = ?
          RETURNING id`,
       )
-      .bind(now, submissionId, runId),
+      .bind(now, submissionId, runId, startedAt),
     finishTests(db, now),
   ]);
   return Boolean(results[5]?.results.length);
@@ -688,6 +711,7 @@ export async function failGrading(
   db: D1Database,
   submissionId: number,
   runId: string,
+  startedAt: string,
   error: RobotError,
   now: string,
 ): Promise<'submitted' | 'failed' | null> {
@@ -699,10 +723,10 @@ export async function failGrading(
            status = CASE WHEN attempts + ? >= ? THEN 'failed' ELSE 'submitted' END,
            last_error = CASE WHEN attempts + ? >= ? THEN ? ELSE last_error END,
            run_id = NULL
-         WHERE id = ? AND status = 'grading' AND run_id = ?
+         WHERE id = ? AND status = 'grading' AND run_id = ? AND started_at = ?
          RETURNING status`,
       )
-      .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], submissionId, runId),
+      .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], submissionId, runId, startedAt),
     finishTests(db, now),
   ]);
   return updated?.results[0]?.status ?? null;

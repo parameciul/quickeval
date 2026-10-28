@@ -173,3 +173,29 @@ describe('POST /api/admin/settings/robot-key', () => {
     expect(rows.results).toEqual([{ value: await sha256Hex(second) }]);
   });
 });
+
+describe('the settings shared by every teacher', () => {
+  const asOtherTeacher = async () => {
+    await api.addTeacher('alt.profesor@example.com', 'Alt Profesor');
+    api.env.DEV_TEACHER_EMAIL = 'alt.profesor@example.com';
+  };
+
+  it('are changed only by the first teacher', async () => {
+    await asOtherTeacher();
+    const patch = await api.request('PATCH', '/api/admin/settings', { maxParallelAgents: 3, showModelColumn: true });
+    expect(patch.status).toBe(403);
+    expect(patch.body.error).toBe('owner_only');
+    const key = await api.request('POST', '/api/admin/settings/robot-key');
+    expect(key.status).toBe(403);
+    expect(key.body.error).toBe('owner_only');
+
+    api.env.DEV_TEACHER_EMAIL = 'profesor@example.com';
+    const settings = await api.request('GET', '/api/admin/settings');
+    expect(settings.body.settings).toMatchObject({ maxParallelAgents: 1, hasRobotKey: false, showModelColumn: false });
+  });
+
+  it('still show the other teacher their own page', async () => {
+    await asOtherTeacher();
+    expect((await api.request('GET', '/api/admin/settings')).status).toBe(200);
+  });
+});

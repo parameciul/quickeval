@@ -86,6 +86,7 @@ describe('POST /api/runner/claim', () => {
     expect(res.body).toEqual({
       submissionId: oldest,
       testId,
+      startedAt: await startedAtOf(api, oldest),
       files: [
         { id: expect.any(Number), contentType: 'image/jpeg', position: 1 },
         { id: expect.any(Number), contentType: 'image/jpeg', position: 2 },
@@ -369,6 +370,27 @@ describe('POST /api/runner/submissions/:id/result', () => {
 
     await api.request('POST', `/api/admin/submissions/${id}/reset`, { startedAt: await startedAtOf(api, id) });
     expect((await sendResult(id, { ok: true, result: result([4, 4]), model: 'm' })).status).toBe(404);
+  });
+
+  it('refuses the result of an upload that the teacher reset when another upload took its id', async () => {
+    const id = await upload(0, '2026-10-07T08:10:00.000Z');
+    const stale = (await claim()).body.startedAt as string;
+    expect(stale).toBe(await startedAtOf(api, id));
+    await api.request('POST', `/api/admin/submissions/${id}/reset`, { startedAt: stale });
+    const reused = await upload(1, '2026-10-07T08:20:00.000Z');
+    expect(reused).toBe(id);
+    await api.db.prepare('UPDATE submissions SET started_at = ? WHERE id = ?').bind('2026-10-07T08:19:00.000Z', id).run();
+    const fresh = (await claim()).body.startedAt as string;
+    expect(fresh).not.toBe(stale);
+
+    const late = await sendResult(id, { startedAt: stale, ok: true, result: result([4, 4]), model: 'm' });
+    expect(late.status).toBe(409);
+    expect(late.body.error).toBe('taken_over');
+    expect((await sendResult(id, { startedAt: stale, ok: false, error: 'crash' })).status).toBe(409);
+    expect(await uploadRow(id)).toMatchObject({ status: 'grading', run_id: RUN, attempts: 0 });
+
+    expect((await sendResult(id, { startedAt: fresh, ok: true, result: result([4, 4]), model: 'm' })).status).toBe(200);
+    expect(await uploadRow(id)).toMatchObject({ status: 'graded' });
   });
 
   it('refuses the result of a run whose uploads a new run took over', async () => {

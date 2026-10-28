@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DOCX_TYPE, PDF_TYPE } from '../shared/files.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
-import { DEFAULT_BAREM_NOTES, makeWorkFolder, type Pandoc, removeFolder, runFolder } from './workdir.ts';
+import { DEFAULT_BAREM_NOTES, pandocEnv, makeWorkFolder, type Pandoc, removeFolder, runFolder } from './workdir.ts';
 
 const LIST: ExerciseList = {
   totalPoints: 10,
@@ -129,9 +129,21 @@ describe('makeWorkFolder', () => {
       writeFileSync(path.join(cwd, 'test', 'test.md'), '# Test');
     };
     const folder = await makeWorkFolder(root, 'exercise-list-4', { test: docx('test'), barem: pdf('barem') }, { skillDir, pandoc });
-    expect(calls).toEqual([{ args: ['test/source.docx', '-t', 'markdown', '--extract-media=test', '-o', 'test/test.md'], cwd: folder }]);
+    expect(calls).toEqual([{ args: ['--sandbox', 'test/source.docx', '-t', 'markdown', '--extract-media=test', '-o', 'test/test.md'], cwd: folder }]);
     expect(filesIn(folder)).toContain('test/test.md');
     expect(existsSync(path.join(folder, 'test', 'source.docx'))).toBe(false);
+  });
+
+  it('gives pandoc only the variables it needs, never the robot key or the Claude token', () => {
+    const env = pandocEnv({
+      PATH: '/usr/bin',
+      HOME: '/home/runner',
+      LANG: 'C.UTF-8',
+      QUICKEVAL_RUNNER_KEY: 'robot-key',
+      CLAUDE_CODE_OAUTH_TOKEN: 'claude-token',
+      GITHUB_TOKEN: 'gh',
+    });
+    expect(env).toEqual({ PATH: '/usr/bin', HOME: '/home/runner', LANG: 'C.UTF-8' });
   });
 
   it('refuses a teacher file that is neither PDF nor Word', async () => {

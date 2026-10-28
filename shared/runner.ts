@@ -65,10 +65,14 @@ export type RobotError = z.infer<typeof robotErrorSchema>;
 // The files_version that the robot read with the test, before it read the files.
 const filesVersionSchema = z.number().int().min(0);
 
+// The time the test was made. Ids of deleted tests come back, so an answer names
+// the test it was made for. An older robot sends none.
+const createdAtSchema = z.string().max(40).optional();
+
 // The exercise list is checked by checkExerciseList (shared/schemas.ts).
 export const exerciseListBody = z.discriminatedUnion('ok', [
-  z.object({ runId: runIdSchema, filesVersion: filesVersionSchema, ok: z.literal(true), exerciseList: z.unknown() }),
-  z.object({ runId: runIdSchema, filesVersion: filesVersionSchema, ok: z.literal(false), error: robotErrorSchema }),
+  z.object({ runId: runIdSchema, filesVersion: filesVersionSchema, createdAt: createdAtSchema, ok: z.literal(true), exerciseList: z.unknown() }),
+  z.object({ runId: runIdSchema, filesVersion: filesVersionSchema, createdAt: createdAtSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
 
 // The class analysis, or why the robot could not make it. `version` is the
@@ -119,16 +123,19 @@ export interface TasksResult {
 // upload token of the test, which the QR link holds (<site>/u/<uploadToken>).
 export interface PrintJob {
   testId: number;
+  createdAt: string;
   filesVersion: number;
   contentType: string;
   uploadToken: string;
 }
 
-export const printFailedBody = z.object({ runId: runIdSchema, filesVersion: z.number().int().min(0), error: robotErrorSchema });
+export const printFailedBody = z.object({ runId: runIdSchema, filesVersion: z.number().int().min(0), createdAt: createdAtSchema, error: robotErrorSchema });
 
 // GET /tests/:id: what the robot needs to know of a test. No names.
 export interface RobotTest {
   id: number;
+  // The time the test was made: the robot sends it back with its answer.
+  createdAt: string;
   // Goes up by 1 each time the teacher replaces the test file or the barem
   // (or its comments). The robot sends it back with the exercise list.
   filesVersion: number;
@@ -138,11 +145,15 @@ export interface RobotTest {
   baremNotes: string;
 }
 
+// The time the upload started, from the claim. Ids of deleted uploads come back,
+// so the result names the upload it was made for. An older robot sends none.
+const startedAtSchema = z.string().max(40).optional();
+
 // A grading, checked by checkGrading (shared/schemas.ts), or why the robot
 // could not grade. Only a usage limit is tried again without an attempt.
 export const resultBody = z.discriminatedUnion('ok', [
-  z.object({ runId: runIdSchema, ok: z.literal(true), result: z.unknown(), model: z.string().max(100), effort: z.string().max(100).optional() }),
-  z.object({ runId: runIdSchema, ok: z.literal(false), error: robotErrorSchema }),
+  z.object({ runId: runIdSchema, startedAt: startedAtSchema, ok: z.literal(true), result: z.unknown(), model: z.string().max(100), effort: z.string().max(100).optional() }),
+  z.object({ runId: runIdSchema, startedAt: startedAtSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
 
 // POST /claim: an upload to grade, its test, and its files in upload order.
@@ -150,5 +161,7 @@ export const resultBody = z.discriminatedUnion('ok', [
 export interface ClaimResult {
   submissionId: number;
   testId: number;
+  // The time the upload started: the robot sends it back with the result.
+  startedAt: string;
   files: { id: number; contentType: string; position: number }[];
 }

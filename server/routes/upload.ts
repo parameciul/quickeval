@@ -53,12 +53,13 @@ async function session(c: Context<AppEnv>, test: LinkTest): Promise<SessionRecor
 }
 
 // A change to an upload: the uploads must be open and the upload not yet sent.
-async function openSession(c: Context<AppEnv>): Promise<{ test: LinkTest; current: SessionRecord }> {
+// `sessionHash` goes into each write, so a write lands only in this phone's upload.
+async function openSession(c: Context<AppEnv>): Promise<{ test: LinkTest; current: SessionRecord; sessionHash: string }> {
   const test = await linkTest(c);
   if (test.status !== 'open') throw closed();
   const current = await session(c, test);
   if (current.status !== 'uploading') throw alreadySent();
-  return { test, current };
+  return { test, current, sessionHash: await sha256Hex(c.req.header(SESSION_HEADER) ?? '') };
 }
 
 // After a refused write: when the scheduled time came meanwhile, start the
@@ -136,7 +137,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
 
   // One photo or PDF per request, at most 20 per student.
   routes.put('/:token/files', async (c) => {
-    const { test, current } = await openSession(c);
+    const { test, current, sessionHash } = await openSession(c);
     const slots = await fileSlots(c.env.DB, current.submissionId);
     if (slots.count >= MAX_STUDENT_FILES) {
       throw tooManyFiles();
@@ -156,7 +157,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const stored = { key, name: file.name, type: file.contentType, size: file.bytes.byteLength, position: slots.next };
     let id: number | null;
     try {
-      id = await addSubmissionFile(c.env.DB, current.submissionId, stored, nowIso());
+      id = await addSubmissionFile(c.env.DB, current.submissionId, sessionHash, stored, nowIso());
     } catch (err) {
       await deleteFilesQuietly(c.env.FILES, [key]);
       throw err;
@@ -180,11 +181,11 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   routes.delete('/:token/files/:fileId', async (c) => {
-    const { current } = await openSession(c);
+    const { current, sessionHash } = await openSession(c);
     const fileId = parseId(c.req.param('fileId'));
     const file = await findSessionFile(c.env.DB, current.submissionId, fileId);
     if (!file) throw fileNotFound();
-    if (!(await deleteSessionFile(c.env.DB, current.submissionId, fileId, nowIso()))) {
+    if (!(await deleteSessionFile(c.env.DB, current.submissionId, sessionHash, fileId, nowIso()))) {
       await explainRefusal(c, promote);
       throw fileNotFound();
     }
@@ -195,14 +196,14 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // "Am trimis tot": uploading → submitted. Needs at least one file. Answers
   // with the secret link to the student's result page: the phone keeps it.
   routes.post('/:token/confirm', async (c) => {
-    const { current } = await openSession(c);
-    const fileCount = await confirmSubmission(c.env.DB, current.submissionId, nowIso());
+    const { current, sessionHash } = await openSession(c);
+    const fileCount = await confirmSubmission(c.env.DB, current.submissionId, sessionHash, nowIso());
     if (fileCount === null) {
       // Says why when the test closed or the upload was sent meanwhile.
       await explainRefusal(c, promote);
       throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
     }
-    const resultToken = await confirmResultToken(c.env.DB, current.submissionId);
+    const resultToken = await confirmResultToken(c.env.DB, current.submissionId, sessionHash);
     // confirmSubmission already sent the upload, so files exist: a missing
     // token means the teacher reset the upload in between. Back to the names,
     // not "add at least a photo".

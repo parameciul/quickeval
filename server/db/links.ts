@@ -156,15 +156,20 @@ export async function fileSlots(db: D1Database, submissionId: number): Promise<{
 // An upload may change only while its test is open, before the test's
 // scheduled time, and while it is not yet sent. Each write checks this itself,
 // so two requests at once cannot get past it, and a write that ends after the
-// scheduled time is refused also before a request promotes the test.
+// scheduled time is refused also before a request promotes the test. They also
+// name the phone: ids of deleted uploads come back (no AUTOINCREMENT), so a
+// request that began before a reset must not land in the next upload that got
+// the same id. The binds are the upload's id, the hash of the phone's secret,
+// and the time.
 const OPEN_UPLOAD = `EXISTS (SELECT 1 FROM submissions s JOIN tests t ON t.id = s.test_id
-  WHERE s.id = ? AND s.status = 'uploading' AND t.status = 'open'
+  WHERE s.id = ? AND s.session_hash = ? AND s.status = 'uploading' AND t.status = 'open'
     AND (t.evaluation_at IS NULL OR t.evaluation_at > ?))`;
 
 // The new file's id, or null when the upload is closed, sent, gone, or full.
 export async function addSubmissionFile(
   db: D1Database,
   submissionId: number,
+  sessionHash: string,
   file: StoredFile & { size: number; position: number },
   now: string,
 ): Promise<number | null> {
@@ -176,7 +181,7 @@ export async function addSubmissionFile(
          AND (SELECT COUNT(*) FROM submission_files WHERE submission_id = ?) < ?
        RETURNING id`,
     )
-    .bind(submissionId, file.key, file.name, file.type, file.size, file.position, now, submissionId, now, submissionId, MAX_STUDENT_FILES)
+    .bind(submissionId, file.key, file.name, file.type, file.size, file.position, now, submissionId, sessionHash, now, submissionId, MAX_STUDENT_FILES)
     .first<{ id: number }>();
   return row?.id ?? null;
 }
@@ -190,10 +195,10 @@ export async function findSessionFile(db: D1Database, submissionId: number, file
 }
 
 // False when nothing was deleted: the file is gone, or the upload is closed or sent.
-export async function deleteSessionFile(db: D1Database, submissionId: number, fileId: number, now: string): Promise<boolean> {
+export async function deleteSessionFile(db: D1Database, submissionId: number, sessionHash: string, fileId: number, now: string): Promise<boolean> {
   const result = await db
     .prepare(`DELETE FROM submission_files WHERE id = ? AND submission_id = ? AND ${OPEN_UPLOAD}`)
-    .bind(fileId, submissionId, submissionId, now)
+    .bind(fileId, submissionId, submissionId, sessionHash, now)
     .run();
   return result.meta.changes > 0;
 }
@@ -201,18 +206,18 @@ export async function deleteSessionFile(db: D1Database, submissionId: number, fi
 // uploading → submitted, in one transaction with the file count. Null when
 // the upload has no files, was already sent, or its test is closed or its
 // scheduled time has come.
-export async function confirmSubmission(db: D1Database, submissionId: number, now: string): Promise<number | null> {
+export async function confirmSubmission(db: D1Database, submissionId: number, sessionHash: string, now: string): Promise<number | null> {
   const [updated, counted] = await db.batch<Record<string, number>>([
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', submitted_at = ?
-         WHERE id = ? AND status = 'uploading'
+         WHERE id = ? AND session_hash = ? AND status = 'uploading'
            AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.status = 'open'
              AND (t.evaluation_at IS NULL OR t.evaluation_at > ?))
            AND EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)
          RETURNING id`,
       )
-      .bind(now, submissionId, now),
+      .bind(now, submissionId, sessionHash, now),
     db.prepare('SELECT COUNT(*) AS count FROM submission_files WHERE submission_id = ?').bind(submissionId),
   ]);
   if (!updated?.results.length) return null;

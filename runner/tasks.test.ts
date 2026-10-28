@@ -6,7 +6,7 @@ import { DOCX_TYPE } from '../shared/files.ts';
 import type { ClaimResult } from '../shared/runner.ts';
 import type { ClassAnalysis, ExerciseList, GradingResult } from '../shared/schemas.ts';
 import { robotApi } from './api.ts';
-import { analyzeClass, gradeSubmission, makeExerciseList, type TaskContext } from './tasks.ts';
+import { analyzeClass, gradeSubmission, leaksSecret, makeExerciseList, type TaskContext } from './tasks.ts';
 import { API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
 import { answer, problem, scriptedClaude } from './test/scriptedClaude.ts';
 
@@ -72,6 +72,25 @@ const uploadRow = () =>
     run_id: string | null;
   }>();
 
+describe('leaksSecret', () => {
+  const env = { CLAUDE_CODE_OAUTH_TOKEN: 'oauth-token-123456', QUICKEVAL_RUNNER_KEY: 'robot-key-abcdefgh', OTHER: 'not-a-secret-value' };
+
+  it('finds the Claude token or the robot key anywhere in an answer', () => {
+    expect(leaksSecret({ items: [{ comment: 'see oauth-token-123456 here' }] }, env)).toBe(true);
+    expect(leaksSecret({ summary: 'robot-key-abcdefgh' }, env)).toBe(true);
+  });
+
+  it('finds a Claude token by its prefix, even when the run does not know it', () => {
+    expect(leaksSecret({ notes: 'sk-ant-oat01-abc' }, {})).toBe(true);
+  });
+
+  it('lets a normal answer through, and ignores short or missing secrets', () => {
+    expect(leaksSecret(GRADING, env)).toBe(false);
+    expect(leaksSecret({ summary: 'x' }, { CLAUDE_CODE_OAUTH_TOKEN: 'x', QUICKEVAL_RUNNER_KEY: '' })).toBe(false);
+    expect(leaksSecret(undefined, env)).toBe(false);
+  });
+});
+
 describe('makeExerciseList', () => {
   it('saves the list that Claude made from the test and the barem, and removes the work folder', async () => {
     const claude = scriptedClaude(answer(LIST));
@@ -85,6 +104,14 @@ describe('makeExerciseList', () => {
 
   it('asks once more after an answer that the checks refuse, then counts an invalid output', async () => {
     const claude = scriptedClaude(answer({ ...LIST, exercises: [] }), answer({ nothing: true }));
+    expect(await makeExerciseList(await context(claude), world.testId)).toBe('retry');
+    expect(claude.calls).toHaveLength(2);
+    expect(await listRow()).toEqual({ status: 'none', attempts: 1 });
+  });
+
+  it('refuses an answer that holds a Claude token, and counts an invalid output', async () => {
+    const leaky = { ...LIST, notes: 'sk-ant-oat01-leaked' };
+    const claude = scriptedClaude(answer(leaky), answer(leaky));
     expect(await makeExerciseList(await context(claude), world.testId)).toBe('retry');
     expect(claude.calls).toHaveLength(2);
     expect(await listRow()).toEqual({ status: 'none', attempts: 1 });

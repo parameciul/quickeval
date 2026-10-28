@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PDF_TYPE } from '../../shared/files.ts';
 import { addSubmissionFile, confirmSubmission, createSubmission, deleteSessionFile } from '../db/links.ts';
+import { confirmResultToken } from '../db/results.ts';
 import { makeClass, makeTest, startTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -301,6 +302,11 @@ describe('the upload writes check the rules themselves', () => {
     return row!.id;
   }
 
+  async function hashOf(submissionId: number): Promise<string> {
+    const row = await api.db.prepare('SELECT session_hash FROM submissions WHERE id = ?').bind(submissionId).first<{ session_hash: string }>();
+    return row!.session_hash;
+  }
+
   async function fileCount(submissionId: number): Promise<number> {
     const row = await api.db
       .prepare('SELECT COUNT(*) AS count FROM submission_files WHERE submission_id = ?')
@@ -312,30 +318,33 @@ describe('the upload writes check the rules themselves', () => {
   it('stores no file past the 20th', async () => {
     await newSession(pop);
     const id = await submissionOf(pop);
+    const hash = await hashOf(id);
     for (let position = 1; position <= 20; position++) {
-      expect(await addSubmissionFile(api.db, id, photo(position), now)).not.toBeNull();
+      expect(await addSubmissionFile(api.db, id, hash, photo(position), now)).not.toBeNull();
     }
-    expect(await addSubmissionFile(api.db, id, photo(21), now)).toBeNull();
+    expect(await addSubmissionFile(api.db, id, hash, photo(21), now)).toBeNull();
     expect(await fileCount(id)).toBe(20);
   });
 
   it('adds and deletes nothing once the upload was sent', async () => {
     await newSession(pop);
     const id = await submissionOf(pop);
-    const fileId = (await addSubmissionFile(api.db, id, photo(1), now))!;
+    const hash = await hashOf(id);
+    const fileId = (await addSubmissionFile(api.db, id, hash, photo(1), now))!;
     await api.db.prepare("UPDATE submissions SET status = 'submitted' WHERE id = ?").bind(id).run();
-    expect(await addSubmissionFile(api.db, id, photo(2), now)).toBeNull();
-    expect(await deleteSessionFile(api.db, id, fileId, now)).toBe(false);
+    expect(await addSubmissionFile(api.db, id, hash, photo(2), now)).toBeNull();
+    expect(await deleteSessionFile(api.db, id, hash, fileId, now)).toBe(false);
     expect(await fileCount(id)).toBe(1);
   });
 
   it('adds and sends nothing once the test is closed', async () => {
     await newSession(pop);
     const id = await submissionOf(pop);
-    await addSubmissionFile(api.db, id, photo(1), now);
+    const hash = await hashOf(id);
+    await addSubmissionFile(api.db, id, hash, photo(1), now);
     await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE code = ?").bind(code).run();
-    expect(await addSubmissionFile(api.db, id, photo(2), now)).toBeNull();
-    expect(await confirmSubmission(api.db, id, now)).toBeNull();
+    expect(await addSubmissionFile(api.db, id, hash, photo(2), now)).toBeNull();
+    expect(await confirmSubmission(api.db, id, hash, now)).toBeNull();
     const row = await api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(id).first<{ status: string }>();
     expect(row!.status).toBe('uploading');
     expect(await fileCount(id)).toBe(1);
@@ -344,25 +353,50 @@ describe('the upload writes check the rules themselves', () => {
   it('adds, deletes, and sends nothing from the scheduled time on, also before a request promotes the test', async () => {
     await newSession(pop);
     const id = await submissionOf(pop);
-    const fileId = (await addSubmissionFile(api.db, id, photo(1), now))!;
+    const hash = await hashOf(id);
+    const fileId = (await addSubmissionFile(api.db, id, hash, photo(1), now))!;
     await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code = ?').bind(now, code).run();
-    expect(await addSubmissionFile(api.db, id, photo(2), now)).toBeNull();
-    expect(await deleteSessionFile(api.db, id, fileId, now)).toBe(false);
-    expect(await confirmSubmission(api.db, id, now)).toBeNull();
+    expect(await addSubmissionFile(api.db, id, hash, photo(2), now)).toBeNull();
+    expect(await deleteSessionFile(api.db, id, hash, fileId, now)).toBe(false);
+    expect(await confirmSubmission(api.db, id, hash, now)).toBeNull();
     expect(await fileCount(id)).toBe(1);
     const justBefore = '2026-10-06T07:59:59.999Z';
-    expect(await addSubmissionFile(api.db, id, photo(2), justBefore)).not.toBeNull();
-    expect(await confirmSubmission(api.db, id, justBefore)).toBe(2);
+    expect(await addSubmissionFile(api.db, id, hash, photo(2), justBefore)).not.toBeNull();
+    expect(await confirmSubmission(api.db, id, hash, justBefore)).toBe(2);
+  });
+
+  it('writes nothing for a phone whose upload was reset and whose id another upload took', async () => {
+    await newSession(pop);
+    const id = await submissionOf(pop);
+    const staleHash = await hashOf(id);
+    await api.db.prepare('DELETE FROM submissions WHERE id = ?').bind(id).run();
+    await newSession(ionescu);
+    const reused = await submissionOf(ionescu);
+    expect(reused).toBe(id);
+    const hash = await hashOf(reused);
+    expect(hash).not.toBe(staleHash);
+
+    expect(await addSubmissionFile(api.db, id, staleHash, photo(1), now)).toBeNull();
+    const fileId = (await addSubmissionFile(api.db, id, hash, photo(1), now))!;
+    expect(await deleteSessionFile(api.db, id, staleHash, fileId, now)).toBe(false);
+    expect(await confirmSubmission(api.db, id, staleHash, now)).toBeNull();
+    expect(await confirmResultToken(api.db, id, staleHash)).toBeNull();
+    expect(await fileCount(id)).toBe(1);
+    const row = await api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(id).first<{ status: string }>();
+    expect(row!.status).toBe('uploading');
+    expect(await confirmSubmission(api.db, id, hash, now)).toBe(1);
+    expect(await confirmResultToken(api.db, id, hash)).not.toBeNull();
   });
 
   it('sends an upload with its file count, and never an empty one', async () => {
     await newSession(pop);
     const id = await submissionOf(pop);
-    expect(await confirmSubmission(api.db, id, now)).toBeNull();
-    await addSubmissionFile(api.db, id, photo(1), now);
-    await addSubmissionFile(api.db, id, photo(2), now);
-    expect(await confirmSubmission(api.db, id, now)).toBe(2);
-    expect(await confirmSubmission(api.db, id, now)).toBeNull();
+    const hash = await hashOf(id);
+    expect(await confirmSubmission(api.db, id, hash, now)).toBeNull();
+    await addSubmissionFile(api.db, id, hash, photo(1), now);
+    await addSubmissionFile(api.db, id, hash, photo(2), now);
+    expect(await confirmSubmission(api.db, id, hash, now)).toBe(2);
+    expect(await confirmSubmission(api.db, id, hash, now)).toBeNull();
   });
 });
 

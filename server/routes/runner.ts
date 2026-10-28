@@ -143,11 +143,14 @@ export function runnerRoutes(): Hono<AppEnv> {
     // The key is shared by every run that made this version: a run without the
     // lease, or one that read an older file, must not touch the object.
     if (found.job.filesVersion !== version) throw printNotNeeded();
+    // An older robot names no creation time: the test as it is now.
+    const createdAt = c.req.header('X-Created-At') ?? null;
+    if (createdAt !== null && createdAt !== found.job.createdAt) throw printNotNeeded();
     if (!(await holdsLease(c.env.DB, runId.data))) throw leaseLost();
     const file = await readUpload(c, [PDF_TYPE], 'Fișierul trebuie să fie un PDF.');
     const key = printFileKey(found.teacherId, found.schoolYear, found.code, found.testFileName, version);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: PDF_TYPE } });
-    if (!(await savePrint(c.env.DB, testId, runId.data, version, key, nowIso()))) {
+    if (!(await savePrint(c.env.DB, testId, runId.data, version, createdAt, key, nowIso()))) {
       if (!(await printKeyIs(c.env.DB, testId, key))) await deleteFilesQuietly(c.env.FILES, [key]);
       throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), printNotNeeded);
     }
@@ -158,7 +161,7 @@ export function runnerRoutes(): Hono<AppEnv> {
   routes.post('/tests/:id/print-failed', async (c) => {
     const testId = parseId(c.req.param('id'));
     const body = await readJson(c, printFailedBody);
-    const status = await failPrint(c.env.DB, testId, body.runId, body.filesVersion, body.error, nowIso());
+    const status = await failPrint(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, nowIso());
     if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), printNotNeeded);
     return c.json({ status });
   });
@@ -173,9 +176,9 @@ export function runnerRoutes(): Hono<AppEnv> {
     if (body.ok) {
       const checked = checkExerciseList(body.exerciseList);
       if (!checked.ok) throw invalidResult();
-      saved = await saveExerciseList(c.env.DB, testId, body.runId, body.filesVersion, checked.value, now);
+      saved = await saveExerciseList(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, checked.value, now);
     } else {
-      saved = await failExerciseList(c.env.DB, testId, body.runId, body.filesVersion, body.error, now);
+      saved = await failExerciseList(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, now);
     }
     if (!saved) {
       throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
@@ -239,17 +242,20 @@ export function runnerRoutes(): Hono<AppEnv> {
     const current = await findGrading(c.env.DB, submissionId);
     if (!current) throw notFound();
     if (current.status !== 'grading' || current.runId !== body.runId) throw takenOver();
+    // An older robot names no start time: the upload as it is now.
+    const startedAt = body.startedAt ?? current.startedAt;
+    if (startedAt !== current.startedAt) throw takenOver();
     const now = nowIso();
     if (body.ok) {
       if (!current.exerciseList) throw takenOver();
       const checked = checkGrading(body.result, current.exerciseList);
       if (!checked.ok) throw invalidResult();
-      if (!(await saveGrading(c.env.DB, submissionId, body.runId, checked.value, body.result, body.model, now, body.effort ?? null))) {
+      if (!(await saveGrading(c.env.DB, submissionId, body.runId, startedAt, checked.value, body.result, body.model, now, body.effort ?? null))) {
         throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();
       }
       return c.json({ status: 'graded' });
     }
-    const status = await failGrading(c.env.DB, submissionId, body.runId, body.error, now);
+    const status = await failGrading(c.env.DB, submissionId, body.runId, startedAt, body.error, now);
     if (!status) throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();
     return c.json({ status });
   });
