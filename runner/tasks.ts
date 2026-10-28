@@ -59,6 +59,21 @@ const MAX_ANSWER_BYTES = MAX_ROBOT_BODY_BYTES - 10_000;
 
 const byteLength = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 
+// Claude reads untrusted student pages, and its answer reaches the student's
+// result page. An answer that holds one of the run's secrets, or a Claude
+// token, is refused whatever else it says.
+const SECRET_NAMES = ['CLAUDE_CODE_OAUTH_TOKEN', 'QUICKEVAL_RUNNER_KEY'];
+const MIN_SECRET_LENGTH = 8;
+
+export function leaksSecret(output: unknown, env: Record<string, string | undefined> = process.env): boolean {
+  const text = JSON.stringify(output) ?? '';
+  if (text.includes('sk-ant-')) return true;
+  return SECRET_NAMES.some((name) => {
+    const value = env[name];
+    return value !== undefined && value.length >= MIN_SECRET_LENGTH && text.includes(value);
+  });
+}
+
 // Runs Claude, and once more when the answer cannot be used (spec §12.4: an
 // invalid output gets one more try with the same input).
 async function askClaude(ctx: TaskContext, mode: ClaudeMode, cwd: string, usable: (output: unknown) => boolean): Promise<ClaudeOutcome> {
@@ -66,7 +81,7 @@ async function askClaude(ctx: TaskContext, mode: ClaudeMode, cwd: string, usable
   for (let attempt = 1; attempt <= 2; attempt++) {
     const started = Date.now();
     outcome = await ctx.claude({ mode, cwd, jsonSchema: JSON_SCHEMAS[mode] });
-    if (outcome.ok && (byteLength(outcome.output) > MAX_ANSWER_BYTES || !usable(outcome.output))) {
+    if (outcome.ok && (byteLength(outcome.output) > MAX_ANSWER_BYTES || leaksSecret(outcome.output) || !usable(outcome.output))) {
       outcome = { ok: false, problem: 'invalid_output', detail: 'refused by the checks' };
     }
     const seconds = Math.round((Date.now() - started) / 1000);
@@ -166,7 +181,7 @@ export async function makeExerciseList(ctx: TaskContext, testId: number): Promis
     // The files' version is read before the files: a file replaced after this
     // read makes the API refuse the list.
     const test = await ctx.api.test(testId);
-    const post = { runId: ctx.runId, filesVersion: test.filesVersion };
+    const post = { runId: ctx.runId, filesVersion: test.filesVersion, createdAt: test.createdAt };
     const sendError = async (error: RobotError) => (await ctx.api.sendExerciseList(testId, { ...post, ok: false, error })).status === 'failed';
     const files = await teacherFiles(ctx, testId, test.files);
     if (!files) return sendOutcome({ ok: false, problem: 'crash', detail: 'missing file' }, async () => undefined, sendError);
@@ -202,9 +217,9 @@ export async function analyzeClass(ctx: TaskContext, testId: number): Promise<Ta
 }
 
 export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Promise<TaskEnd> {
-  const { submissionId, testId } = claim;
+  const { submissionId, testId, startedAt } = claim;
   const end = await inWorkFolder(ctx, `grade-${submissionId}`, async (makeFolder) => {
-    const sendError = async (error: RobotError) => (await ctx.api.sendResult(submissionId, { runId: ctx.runId, ok: false, error })) === 'failed';
+    const sendError = async (error: RobotError) => (await ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: false, error })) === 'failed';
     const test = await ctx.api.test(testId);
     const list: ExerciseList | null = test.exerciseList;
     const files = await teacherFiles(ctx, testId, test.files);
@@ -216,7 +231,7 @@ export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Pro
     const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes, exerciseList: list, pages });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list).ok);
-    return sendOutcome(outcome, (result, model, effort) => ctx.api.sendResult(submissionId, { runId: ctx.runId, ok: true, result, model, effort }),
+    return sendOutcome(outcome, (result, model, effort) => ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: true, result, model, effort }),
       sendError,
     );
   });

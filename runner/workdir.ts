@@ -44,9 +44,22 @@ export interface WorkFolderInput {
 // Runs pandoc with these arguments in this folder.
 export type Pandoc = (args: string[], cwd: string) => Promise<void>;
 
+// pandoc reads a file the teacher made, so it gets only the variables it needs
+// to start: never the robot key or the Claude token that the Grade step holds.
+const PANDOC_ENV = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'TEMP', 'TMP', 'SystemRoot'];
+
+export function pandocEnv(env: Record<string, string | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of PANDOC_ENV) {
+    const value = env[name];
+    if (value !== undefined) out[name] = value;
+  }
+  return out;
+}
+
 export const realPandoc: Pandoc = (args, cwd) =>
   new Promise((resolve, reject) => {
-    execFile('pandoc', args, { cwd, timeout: 120_000 }, (err) => (err ? reject(err) : resolve()));
+    execFile('pandoc', args, { cwd, timeout: 120_000, env: pandocEnv(process.env) }, (err) => (err ? reject(err) : resolve()));
   });
 
 // The folder of one run: task folders and Claude's empty settings folder.
@@ -109,7 +122,7 @@ async function writeTeacherFile(folder: string, kind: TestFileKind, file: TaskFi
   const source = `${kind}/source.docx`;
   await writeFile(path.join(folder, source), file.bytes);
   // Relative paths with "/", run in the work folder: the picture links then work from it.
-  await pandoc([source, '-t', 'markdown', `--extract-media=${kind}`, '-o', `${kind}/${kind}.md`], folder);
+  await pandoc(['--sandbox', source, '-t', 'markdown', `--extract-media=${kind}`, '-o', `${kind}/${kind}.md`], folder);
   await rm(path.join(folder, source));
 }
 

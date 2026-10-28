@@ -64,7 +64,7 @@ export interface RobotApi {
   printJob(testId: number): Promise<PrintJob>;
   printSource(testId: number): Promise<Uint8Array>;
   // The test with the QR code, made from the test file of `filesVersion`.
-  sendPrint(testId: number, runId: string, filesVersion: number, pdf: Uint8Array): Promise<void>;
+  sendPrint(testId: number, runId: string, filesVersion: number, pdf: Uint8Array, createdAt?: string): Promise<void>;
   // "failed": the last attempt failed. "none": the print waits for another try.
   sendPrintFailed(testId: number, body: PrintFailedPost): Promise<'none' | 'failed'>;
 }
@@ -135,11 +135,16 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
       (await json<{ status: 'ready' | 'requested' | 'failed' }>('POST', `/tests/${testId}/analysis`, body)).status,
     printJob: async (testId) => (await json<{ job: PrintJob }>('GET', `/tests/${testId}/print-job`)).job,
     printSource: (testId) => bytes(`/tests/${testId}/print-job/file`),
-    sendPrint: (testId, runId, filesVersion, pdf) =>
+    sendPrint: (testId, runId, filesVersion, pdf, createdAt) =>
       send(
         'PUT',
         `/tests/${testId}/print`,
-        new Raw(pdf, { 'Content-Type': 'application/pdf', 'X-Run-Id': runId, 'X-Files-Version': String(filesVersion) }),
+        new Raw(pdf, {
+          'Content-Type': 'application/pdf',
+          'X-Run-Id': runId,
+          'X-Files-Version': String(filesVersion),
+          ...(createdAt ? { 'X-Created-At': createdAt } : {}),
+        }),
         nothing,
       ),
     sendPrintFailed: async (testId, body) =>

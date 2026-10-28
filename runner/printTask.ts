@@ -106,7 +106,7 @@ export async function makePrint(ctx: TaskContext, print: { tools: PrintTools; si
     end = await (async (): Promise<TaskEnd> => {
       const job = await ctx.api.printJob(testId);
       const sendError = async (error: RobotError): Promise<TaskEnd> =>
-        (await ctx.api.sendPrintFailed(testId, { runId: ctx.runId, filesVersion: job.filesVersion, error })) === 'failed' ? 'failed' : 'retry';
+        (await ctx.api.sendPrintFailed(testId, { runId: ctx.runId, filesVersion: job.filesVersion, createdAt: job.createdAt, error })) === 'failed' ? 'failed' : 'retry';
       const fileType = job.contentType === PDF_TYPE ? 'pdf' : job.contentType === DOCX_TYPE ? 'docx' : null;
       type = fileType;
       if (!fileType) return sendError('crash');
@@ -132,7 +132,7 @@ export async function makePrint(ctx: TaskContext, print: { tools: PrintTools; si
         return sendError(isTimeout(err) ? 'timeout' : 'crash');
       }
       try {
-        await ctx.api.sendPrint(testId, ctx.runId, job.filesVersion, pdf);
+        await ctx.api.sendPrint(testId, ctx.runId, job.filesVersion, pdf, job.createdAt);
         return 'saved';
       } catch (err) {
         // A PDF that the API refuses (a bad request, not a PDF, too large,

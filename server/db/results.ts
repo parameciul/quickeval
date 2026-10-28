@@ -114,13 +114,13 @@ export async function teacherResultToken(db: D1Database, shown: ShownUpload): Pr
   return null;
 }
 
-// The result link of an upload the student just sent. The caller already
-// scoped the upload by the phone's secret; older uploads without a link get
-// one now.
-export async function confirmResultToken(db: D1Database, submissionId: number): Promise<string | null> {
+// The result link of an upload the student just sent, named by its id and the
+// hash of the phone's secret: an id that came back for another student's new
+// upload gives this phone nothing. Older uploads without a link get one now.
+export async function confirmResultToken(db: D1Database, submissionId: number, sessionHash: string): Promise<string | null> {
   const row = await db
-    .prepare('SELECT result_token FROM submissions WHERE id = ?')
-    .bind(submissionId)
+    .prepare('SELECT result_token FROM submissions WHERE id = ? AND session_hash = ?')
+    .bind(submissionId, sessionHash)
     .first<{ result_token: string | null }>();
   if (!row) return null;
   if (row.result_token) return row.result_token;
@@ -129,16 +129,16 @@ export async function confirmResultToken(db: D1Database, submissionId: number): 
     let set: { result_token: string } | null = null;
     try {
       set = await db
-        .prepare('UPDATE submissions SET result_token = ? WHERE id = ? AND result_token IS NULL RETURNING result_token')
-        .bind(token, submissionId)
+        .prepare('UPDATE submissions SET result_token = ? WHERE id = ? AND session_hash = ? AND result_token IS NULL RETURNING result_token')
+        .bind(token, submissionId, sessionHash)
         .first<{ result_token: string }>();
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
     }
     if (set) return set.result_token;
     const again = await db
-      .prepare('SELECT result_token FROM submissions WHERE id = ?')
-      .bind(submissionId)
+      .prepare('SELECT result_token FROM submissions WHERE id = ? AND session_hash = ?')
+      .bind(submissionId, sessionHash)
       .first<{ result_token: string | null }>();
     if (again?.result_token) return again.result_token;
     if (!again) return null;

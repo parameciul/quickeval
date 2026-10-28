@@ -20,6 +20,7 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 ## Rules
 
 - The robot's Claude reads only its work folder (`--tools "Read,Glob" --restricted`) and gets only the variables it needs to start (`claudeEnv` in `claude.ts`): never the robot key, never an API key. Student pages are untrusted input.
+- `pandoc` reads a Word file that the teacher made, so it runs with `--sandbox` and only the variables it needs to start (`pandocEnv` in `workdir.ts`): never the robot key or the Claude token. `askClaude` (`tasks.ts`) refuses an answer that holds one of them, or a Claude token (`leaksSecret`), because the student sees Claude's text on the result page.
 - `check.ts` runs before `npm ci`, and `run.ts` after `npm ci --omit=dev`: check.ts loads no package, and run.ts loads only zod. Import types from `shared/` with `import type`: an import with only `{ type X }` still loads its module. `check.test.ts` and `run.test.ts` prove both.
 - The class analysis (`analyzeClass`) reads `GET /tests/:id/results` (students are "Elev 1" … "Elev n") and sends back the `version` of the grades it read, so an analysis made from grades that changed meanwhile is saved as out of date. Its work folder holds the skill and `class-results.json` only. A run tries an analysis once per test.
 - Robot answers carry ids, counts, and file types, never names: a student's page goes out as `file-<id>`. The robot's logs are public: it logs through `log.ts` only ids, counts, durations, and error categories, never Claude's text or messages.

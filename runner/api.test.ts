@@ -42,6 +42,7 @@ describe('robotApi with the real API', () => {
     expect(await robot.tasks()).toEqual({ exerciseLists: [testId], pendingGrading: 0, analyses: [], prints: [] });
     expect(await robot.test(testId)).toEqual({
       id: testId,
+      createdAt: expect.any(String),
       filesVersion: 0,
       files: { test: { contentType: 'application/pdf' }, barem: { contentType: 'application/pdf' } },
       exerciseList: null,
@@ -67,7 +68,7 @@ describe('robotApi with the real API', () => {
     const open = await openTestWithFile('pdf', RUN);
     world = { api: open.api, code: open.code, testId: open.testId, submissionIds: [] };
     const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(open.api) });
-    expect(await robot.printJob(open.testId)).toEqual({ testId: open.testId, filesVersion: 0, contentType: 'application/pdf', uploadToken: open.uploadToken });
+    expect(await robot.printJob(open.testId)).toEqual({ testId: open.testId, createdAt: expect.any(String), filesVersion: 0, contentType: 'application/pdf', uploadToken: open.uploadToken });
     expect(text(await robot.printSource(open.testId))).toBe(SOURCE_BYTES.pdf);
     expect(await robot.sendPrintFailed(open.testId, { runId: RUN, filesVersion: 0, error: 'crash' })).toBe('none');
     await expect(robot.sendPrint(open.testId, RUN, 1, new TextEncoder().encode('%PDF-1.7 cu cod'))).rejects.toMatchObject({ status: 409, code: 'not_needed' });

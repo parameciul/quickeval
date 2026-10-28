@@ -318,6 +318,7 @@ describe('GET /api/runner/tests/:id', () => {
     expect(res.body).toEqual({
       test: {
         id: testId,
+        createdAt: expect.any(String),
         filesVersion: 0,
         files: { test: { contentType: 'application/pdf' }, barem: { contentType: 'application/pdf' } },
         exerciseList: LIST,
@@ -421,6 +422,20 @@ describe('POST /api/runner/tests/:id/exercise-list', () => {
     const fresh = await saveList({ filesVersion: 1, ok: true, exerciseList: LIST });
     expect(fresh.status).toBe(200);
     expect(fresh.body.exerciseList.status).toBe('ready');
+  });
+
+  it('refuses a list made for a deleted test whose id another test took', async () => {
+    const made = (await robot('GET', `/tests/${testId}`)).body.test.createdAt as string;
+    expect(made).toEqual(expect.any(String));
+    await setTest('created_at = ?', '2026-10-30T10:00:00.000Z');
+
+    const stale = await saveList({ createdAt: made, ok: true, exerciseList: LIST });
+    expect(stale.status).toBe(409);
+    expect(stale.body.error).toBe('not_needed');
+    expect((await saveList({ createdAt: made, ok: false, error: 'timeout' })).status).toBe(409);
+    expect(await listRow()).toMatchObject({ exercise_list_status: 'none', exercise_list_attempts: 0, exercise_list_json: null });
+
+    expect((await saveList({ createdAt: '2026-10-30T10:00:00.000Z', ok: true, exerciseList: LIST })).status).toBe(200);
   });
 
   it('refuses a body over 1 MB', async () => {
