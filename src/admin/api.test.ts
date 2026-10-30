@@ -47,7 +47,7 @@ describe('createApiClient', () => {
     const api = createApiClient({ fetchImpl });
     expect(await api.login('a@example.com', 'parola-buna')).toEqual({ id: 1 });
     await api.signup({ name: 'Ana', email: 'a@example.com', password: 'parola-buna' });
-    await api.confirmEmail('token-din-link');
+    await api.confirmEmail('token-din-link', 'parola-buna');
     await api.logout();
     expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
       'POST /api/auth/login',
@@ -55,7 +55,7 @@ describe('createApiClient', () => {
       'POST /api/auth/confirm',
       'POST /api/auth/logout',
     ]);
-    expect(fetchImpl.mock.calls[2]![1]!.body).toBe(JSON.stringify({ token: 'token-din-link' }));
+    expect(fetchImpl.mock.calls[2]![1]!.body).toBe(JSON.stringify({ token: 'token-din-link', password: 'parola-buna' }));
     expect(fetchImpl.mock.calls[0]![1]!.body).toBe(JSON.stringify({ email: 'a@example.com', password: 'parola-buna' }));
   });
 

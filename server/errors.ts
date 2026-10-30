@@ -1,4 +1,5 @@
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import { DEMO_TEST_LIMIT } from '../shared/accounts.ts';
 
 // An error the API reports to the browser as { error, message } with this status.
 // The message is Romanian text the teacher or student can read.
@@ -27,6 +28,15 @@ export function notGraded(): ApiError {
 // the id may belong to a new upload of another student by now.
 export function uploadChanged(): ApiError {
   return new ApiError(409, 'upload_changed', 'Încărcarea s-a schimbat. Reîncarcă pagina.');
+}
+
+// A demo account used all its evaluations (a regrade counts as one too).
+export function demoLimit(): ApiError {
+  return new ApiError(
+    403,
+    'demo_limit',
+    `Contul demo poate trimite teste la evaluare de cel mult ${DEMO_TEST_LIMIT} ori, cu tot cu recorectări. Cere unui administrator să-ți facă un cont complet.`,
+  );
 }
 
 export function isUniqueViolation(err: unknown): boolean {

@@ -14,7 +14,7 @@ describe('AccountPage', () => {
   it('shows who is logged in and the kind of account', async () => {
     renderAdmin('/cont', createFakeApi());
     expect(await screen.findByText('Laura Miron (profesor@example.com)')).toBeInTheDocument();
-    expect(screen.getByText('Ești administrator.')).toBeInTheDocument();
+    expect(screen.getByText('Ești administrator. Evaluări de până acum: 0.')).toBeInTheDocument();
   });
 
   it('changes the password', async () => {
@@ -51,10 +51,10 @@ describe('AccountPage', () => {
 
 describe('accountKindText', () => {
   it.each([
-    [fakeTeacher(), 'Ești administrator.'],
-    [fakeTeacher({ role: 'teacher' }), 'Ai un cont complet.'],
-    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1 }), 'Ai un cont demo: ai evaluat 1 din 5 teste.'],
-    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 9 }), 'Ai un cont demo: ai evaluat 5 din 5 teste.'],
+    [fakeTeacher({ testsEvaluated: 12 }), 'Ești administrator. Evaluări de până acum: 12.'],
+    [fakeTeacher({ role: 'teacher', testsEvaluated: 3 }), 'Ai un cont complet. Evaluări de până acum: 3.'],
+    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1 }), 'Ai un cont demo: ai folosit 1 din 5 evaluări.'],
+    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 9 }), 'Ai un cont demo: ai folosit 5 din 5 evaluări.'],
   ])('describes %j', (teacher, text) => {
     expect(accountKindText(teacher)).toBe(text);
   });

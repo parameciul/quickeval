@@ -8,15 +8,16 @@ import { ApiError } from '../api.ts';
 const loginRequired = () => new ApiError(401, 'login_required', 'Intră în cont ca să continui.');
 
 describe('ConfirmEmailPage', () => {
-  it('confirms the email of the link without a login, and only on the button', async () => {
+  it('confirms the email of the link without a login, with the password chosen at the sign-up', async () => {
     const api = createFakeApi();
     api.me.mockRejectedValue(loginRequired());
     renderAdmin('/confirma-email#token-din-link', api);
     const button = await screen.findByRole('button', { name: 'Confirmă adresa' });
     expect(screen.queryByRole('heading', { name: 'Intră în cont' })).not.toBeInTheDocument();
     expect(api.confirmEmail).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByLabelText('Parola'), 'parola-lunga');
     await userEvent.click(button);
-    expect(api.confirmEmail).toHaveBeenCalledWith('token-din-link');
+    expect(api.confirmEmail).toHaveBeenCalledWith('token-din-link', 'parola-lunga');
     expect(await screen.findByRole('status')).toHaveTextContent('adresa ta este confirmată');
   });
 
@@ -25,7 +26,8 @@ describe('ConfirmEmailPage', () => {
     api.me.mockRejectedValue(loginRequired());
     api.confirmEmail.mockRejectedValueOnce(new ApiError(404, 'bad_link', 'Linkul nu mai este valabil. Cere contul din nou de pe pagina de intrare.'));
     renderAdmin('/confirma-email#vechi', api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Confirmă adresa' }));
+    await userEvent.type(await screen.findByLabelText('Parola'), 'parola-lunga');
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmă adresa' }));
     expect(await screen.findByText(/Linkul nu mai este valabil/)).toBeInTheDocument();
   });
 

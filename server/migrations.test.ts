@@ -76,11 +76,8 @@ describe('migration 0018', () => {
     await test(2, 'open', '2026-10-07');
     await test(3, 'open', null);
     await apply0018();
-    const counted = await db.prepare('SELECT number, counted_files_version IS files_version AS counted FROM tests ORDER BY number').all();
-    expect(counted.results).toEqual([
-      { number: 1, counted: 1 },
-      { number: 2, counted: 1 },
-      { number: 3, counted: 0 },
-    ]);
+    // One evaluation for each test that went to the robot before.
+    const teacher = await db.prepare('SELECT tests_evaluated FROM teachers').first();
+    expect(teacher).toEqual({ tests_evaluated: 2 });
   });
 });

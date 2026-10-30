@@ -15,9 +15,9 @@ import { schoolYearOptions, useSchoolYear } from './SchoolYearContext.tsx';
 export function demoText(teacher: Teacher): string {
   const left = demoTestsLeft(teacher.testsEvaluated);
   if (left === 0) {
-    return `Cont demo: ai evaluat toate cele ${DEMO_TEST_LIMIT} teste ale contului. Cere unui administrator un cont complet.`;
+    return `Cont demo: ai folosit toate cele ${DEMO_TEST_LIMIT} evaluări ale contului. Cere unui administrator un cont complet.`;
   }
-  return `Cont demo: mai poți evalua ${left} din ${DEMO_TEST_LIMIT} teste.`;
+  return `Cont demo: mai ai ${left} din ${DEMO_TEST_LIMIT} evaluări. Fiecare trimitere a unui test la corectare se numără, și o recorectare.`;
 }
 
 export function Layout() {

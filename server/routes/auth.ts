@@ -9,9 +9,10 @@ import {
   createSession,
   deleteSession,
   findTeacherBySession,
+  findUnconfirmed,
   forgetFailedLogins,
+  giveBackIpAttempt,
   takeDeviceAttempt,
-  takeIpAttempt,
   takeLoginAttempt,
 } from '../db/accounts.ts';
 import { canSendEmail, emailSender } from '../email.ts';
@@ -23,10 +24,19 @@ import { newSessionToken, sha256Hex } from '../secrets.ts';
 
 const BODY_LIMIT = 4096;
 
-// One answer for a wrong password, an unknown email, a locked account, and an
-// IP that tried too many, so the login tells nobody which emails have an account.
+// One answer for a wrong password, an unknown email, and a locked account, so
+// the login tells nobody which emails have an account.
 const wrongLogin = () =>
   new ApiError(401, 'wrong_login', 'Emailul sau parola nu sunt corecte. După 10 încercări greșite, contul se blochează 15 minute.');
+
+// Many wrong passwords from this network (a school shares one IP): said
+// apart, so a teacher knows to wait or use another network.
+const networkBlocked = () =>
+  new ApiError(
+    429,
+    'network_blocked',
+    'Din rețeaua ta s-au încercat prea multe parole greșite. Încearcă din nou peste 15 minute, sau din altă rețea (de exemplu datele mobile).',
+  );
 
 // /api/auth: the login page of the teacher app. No login needed here.
 export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
@@ -88,14 +98,27 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ status: 'pending' }, 201);
   });
 
-  // The link from the email: the account now waits for an administrator, and
-  // the administrators get an email.
+  // The link from the email, with the password chosen at the sign-up: the
+  // account now waits for an administrator, and the administrators get an
+  // email. The password proves that whoever opened the link also asked for
+  // this account: someone who asked with another's email, and their own
+  // password, cannot get that person to confirm it.
   routes.post('/confirm', async (c) => {
-    const { token } = await readJson(c, confirmEmailBody, BODY_LIMIT);
-    const confirmed = await confirmEmail(c.env.DB, await sha256Hex(token), nowIso());
-    if (!confirmed) {
-      throw new ApiError(404, 'bad_link', 'Linkul nu mai este valabil. Cere contul din nou de pe pagina de intrare.');
+    const { token, password } = await readJson(c, confirmEmailBody, BODY_LIMIT);
+    const now = nowIso();
+    const tokenHash = await sha256Hex(token);
+    const badLink = () => new ApiError(404, 'bad_link', 'Linkul nu mai este valabil. Cere contul din nou de pe pagina de intrare.');
+    const account = await findUnconfirmed(c.env.DB, tokenHash, now);
+    if (!account) throw badLink();
+    if (!(await verifyPassword(password, account.password_hash))) {
+      throw new ApiError(
+        400,
+        'wrong_password',
+        'Parola nu este cea aleasă când ai cerut contul. Dacă nu ai cerut tu contul cu acest link, cere-l din nou de pe pagina de intrare.',
+      );
     }
+    const confirmed = await confirmEmail(c.env.DB, { teacherId: account.id, tokenHash }, now);
+    if (!confirmed) throw badLink();
     const settingsUrl = `${new URL(c.req.url).origin}/admin/setari`;
     inBackground(
       c,
@@ -125,16 +148,19 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const throughDevice = deviceHash ? await takeDeviceAttempt(c.env.DB, body.email, deviceHash, now) : null;
     // A known browser skips the IP's limit, as it skips the account's lock.
     const ipHash = throughDevice ? null : await sha256Hex(clientIpKey(c));
-    const ipAllowed = ipHash === null || (await takeIpAttempt(c.env.DB, ipHash, now));
-    const login = throughDevice ?? (ipAllowed ? await takeLoginAttempt(c.env.DB, body.email, now) : null);
+    const login = throughDevice ?? (await takeLoginAttempt(c.env.DB, body.email, ipHash!, now));
+    if (login === 'ip_blocked') throw networkBlocked();
     if (login === null || login === 'locked') {
+      // Not a wrong password for an account: the IP gets its attempt back,
+      // after the answer, so the time of the answer stays the same.
+      inBackground(c, giveBackIpAttempt(c.env.DB, ipHash!));
       // A check against no hash, so the answer takes as long as a wrong password's.
       await verifyPassword(body.password, null);
       throw wrongLogin();
     }
     if (!(await verifyPassword(body.password, login.password_hash))) throw wrongLogin();
     if (login.status !== 'active') {
-      await forgetFailedLogins(c.env.DB, login.id, throughDevice ? deviceHash : null);
+      await forgetFailedLogins(c.env.DB, login.id, throughDevice ? { deviceHash: deviceHash! } : { ipHash: ipHash! });
       if (login.status === 'disabled') throw new ApiError(403, 'account_disabled', 'Contul tău a fost închis. Scrie unui administrator.');
       if (!login.confirmed) {
         throw new ApiError(403, 'email_unconfirmed', 'Confirmă mai întâi adresa de email, cu linkul primit pe email.');

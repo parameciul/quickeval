@@ -3,8 +3,9 @@ import { DEMO_TEST_LIMIT } from '../../shared/accounts.ts';
 import { addSubmission, addTestFiles, makeClass, makeTest, startTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
-// A demo account sends at most DEMO_TEST_LIMIT tests to evaluation. The
-// teacher of these tests is a demo account with one test left.
+// Every time a test goes to the robot for grading counts, for every teacher; a
+// demo account may do it DEMO_TEST_LIMIT times. The teacher of these tests is
+// a demo account with one evaluation left.
 
 let api: TestApi;
 let classId: number;
@@ -55,7 +56,7 @@ describe('the demo limit', () => {
     const refused = await evaluate(second.code);
     expect(refused.status).toBe(403);
     expect(refused.body.error).toBe('demo_limit');
-    expect(refused.body.message).toContain(`cel mult ${DEMO_TEST_LIMIT} teste`);
+    expect(refused.body.message).toContain(`de cel mult ${DEMO_TEST_LIMIT} ori`);
     expect(await statusOf(second.code)).toBe('open');
     // The upload stays as the student left it.
     const upload = await api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(second.submissionId).first<{ status: string }>();
@@ -63,38 +64,75 @@ describe('the demo limit', () => {
     expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
   });
 
-  it('lets a counted test be evaluated again after a reopen, without counting it twice', async () => {
+  // A test that went to the robot once, made done with its uploads graded.
+  async function finishedTest(title: string): Promise<{ code: string; submissionId: number }> {
+    const test = await readyTest(title);
+    expect((await evaluate(test.code)).status).toBe(200);
+    await api.db.prepare("UPDATE submissions SET status = 'graded', graded_at = ? WHERE id = ?").bind(PAST, test.submissionId).run();
+    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(test.code).run();
+    return test;
+  }
+  const uploadStatus = async (id: number) =>
+    (await api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(id).first<{ status: string }>())!.status;
+
+  it('counts a reopened test again at its next start, and refuses it past the limit', async () => {
     const first = await readyTest('Primul');
     await evaluate(first.code);
     expect((await api.request('POST', `/api/admin/tests/${first.code}/reopen`)).status).toBe(200);
-    expect(await statusOf(first.code)).toBe('open');
-    expect((await evaluate(first.code)).status).toBe(200);
-    expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
-  });
-
-  it('counts a reopened test again when it starts with new files, so one test cannot grade test after test', async () => {
-    const first = await readyTest('Primul');
-    await evaluate(first.code);
-    await api.request('POST', `/api/admin/tests/${first.code}/reopen`);
-    expect((await api.request('PUT', `/api/admin/tests/${first.code}/barem-notes`, { notes: 'Alt test, alt barem.' })).status).toBe(200);
-    const refused = await evaluate(first.code);
-    expect(refused.body.error).toBe('demo_limit');
+    expect((await evaluate(first.code)).body.error).toBe('demo_limit');
     expect(await statusOf(first.code)).toBe('open');
     await api.db.prepare('UPDATE teachers SET tests_evaluated = ? WHERE id = ?').bind(DEMO_TEST_LIMIT - 1, api.teacherId).run();
     expect((await evaluate(first.code)).status).toBe(200);
     expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
   });
 
-  it('does not count a regrade, also with new files, since it grades the same uploads', async () => {
-    const first = await readyTest('Primul');
-    await evaluate(first.code);
-    await api.db.prepare("UPDATE submissions SET status = 'graded', graded_at = ?").bind(PAST).run();
-    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(first.code).run();
-    await addTestFiles(api, first.code);
-    await api.db.prepare('UPDATE tests SET files_version = files_version + 1 WHERE code = ?').bind(first.code).run();
-    expect((await api.request('POST', `/api/admin/tests/${first.code}/regrade`)).status).toBe(200);
-    expect(await statusOf(first.code)).toBe('evaluating');
+  it('counts "Recorectează tot" of a finished test, and refuses it past the limit without touching the results', async () => {
+    const test = await finishedTest('Primul');
+    const refused = await api.request('POST', `/api/admin/tests/${test.code}/regrade`);
+    expect(refused.status).toBe(403);
+    expect(refused.body.error).toBe('demo_limit');
+    expect(await statusOf(test.code)).toBe('done');
+    expect(await uploadStatus(test.submissionId)).toBe('graded');
+    await api.db.prepare('UPDATE teachers SET tests_evaluated = ? WHERE id = ?').bind(DEMO_TEST_LIMIT - 1, api.teacherId).run();
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/regrade`)).status).toBe(200);
+    expect(await statusOf(test.code)).toBe('evaluating');
     expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
+  });
+
+  it('refuses a retry that sends a finished test back past the limit', async () => {
+    const test = await finishedTest('Primul');
+    await api.db.prepare("UPDATE submissions SET status = 'failed' WHERE id = ?").bind(test.submissionId).run();
+    const startedAt = (await api.db.prepare('SELECT started_at FROM submissions WHERE id = ?').bind(test.submissionId).first<{ started_at: string }>())!
+      .started_at;
+    const refused = await api.request('POST', `/api/admin/submissions/${test.submissionId}/retry`, { startedAt });
+    expect(refused.body.error).toBe('demo_limit');
+    expect(await uploadStatus(test.submissionId)).toBe('failed');
+    expect(await statusOf(test.code)).toBe('done');
+  });
+
+  it('does not count "Regenerează", which only asks for the class analysis', async () => {
+    const test = await finishedTest('Primul');
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/analysis/regenerate`)).status).toBe(200);
+    expect(await statusOf(test.code)).toBe('evaluating');
+    expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
+  });
+
+  it('does not count a scheduled test that nobody uploaded to', async () => {
+    const code = await makeTest(api, classId, 'Gol');
+    await startTest(api, code);
+    await addTestFiles(api, code);
+    await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code = ?').bind(PAST, code).run();
+    await api.request('GET', '/api/admin/me');
+    expect(await statusOf(code)).toBe('done');
+    expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT - 1);
+  });
+
+  it('counts the evaluations of administrators and complete accounts too, without a limit', async () => {
+    await api.db.prepare("UPDATE teachers SET role = 'admin', demo = 0, tests_evaluated = 50 WHERE id = ?").bind(api.teacherId).run();
+    const test = await finishedTest('Primul');
+    expect(await testsEvaluated()).toBe(51);
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/regrade`)).status).toBe(200);
+    expect(await testsEvaluated()).toBe(52);
   });
 
   it('starts only the earliest of several scheduled tests that come due at once', async () => {

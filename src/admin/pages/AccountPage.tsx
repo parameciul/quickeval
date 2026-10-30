@@ -7,9 +7,9 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // What kind of account this is, in one sentence.
 export function accountKindText(teacher: Teacher): string {
-  if (teacher.role === 'admin') return 'Ești administrator.';
-  if (!teacher.demo) return 'Ai un cont complet.';
-  return `Ai un cont demo: ai evaluat ${Math.min(teacher.testsEvaluated, DEMO_TEST_LIMIT)} din ${DEMO_TEST_LIMIT} teste.`;
+  if (teacher.role === 'admin') return `Ești administrator. Evaluări de până acum: ${teacher.testsEvaluated}.`;
+  if (!teacher.demo) return `Ai un cont complet. Evaluări de până acum: ${teacher.testsEvaluated}.`;
+  return `Ai un cont demo: ai folosit ${Math.min(teacher.testsEvaluated, DEMO_TEST_LIMIT)} din ${DEMO_TEST_LIMIT} evaluări.`;
 }
 
 // /cont: the teacher's own account: who is logged in, the password, and "Ieși".

@@ -7,8 +7,10 @@ import {
   MAX_FAILED_LOGINS,
   MAX_IP_FAILED_LOGINS,
   MAX_PENDING_ACCOUNTS,
+  MAX_SIGNUPS_PER_DAY,
   MAX_SIGNUPS_PER_IP,
   PENDING_DAYS,
+  RESEND_MINUTES,
 } from '../db/accounts.ts';
 import type { EmailMessage } from '../email.ts';
 import { hashPassword } from '../passwords.ts';
@@ -52,7 +54,7 @@ const wrongBody = async () => (await login('nimeni@example.com', 'orice-parola')
 
 // The token of the confirmation link in the last email.
 const linkToken = () => /confirma-email#([\w-]+)/.exec(emails.at(-1)!.text)![1]!;
-const confirm = (token: string) => api.request('POST', '/api/auth/confirm', { token });
+const confirm = (token: string, password = 'parola-lunga') => api.request('POST', '/api/auth/confirm', { token, password });
 
 async function setPasswordOf(email: string, password: string): Promise<void> {
   await api.db.prepare('UPDATE teachers SET password_hash = ? WHERE email = ?').bind(await hashPassword(password), email).run();
@@ -108,11 +110,28 @@ describe('POST /api/auth/signup', () => {
     expect(rows.results.map((row) => row.email)).toEqual(['bianca@example.com']);
   });
 
-  it('lets the owner of an email ask again while nobody confirmed it, and only the newest link works', async () => {
+  it('confirms only with the password chosen at the sign-up, so nobody can sign up with the email of someone else and have them confirm it', async () => {
+    // Someone asks with Ana's email and their own password; Ana gets the link.
+    await signup({ name: 'Altcineva', email: 'ana@example.com', password: 'parola-straina' });
+    const res = await confirm(linkToken(), 'parola-lunga');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('wrong_password');
+    const row = await api.db.prepare("SELECT email_confirmed_at FROM teachers WHERE email = 'ana@example.com'").first();
+    expect(row).toEqual({ email_confirmed_at: null });
+    expect((await confirm(linkToken(), 'parola-straina')).status).toBe(200);
+  });
+
+  it('sends one email at most one link in a few minutes, and then lets its owner ask again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-28T10:00:00.000Z'));
     await signup({ name: 'Altcineva', email: 'ana@example.com', password: 'parola-straina' });
     const first = linkToken();
+    for (let i = 0; i < 3; i++) expect((await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' })).status).toBe(201);
+    expect(emails).toHaveLength(1);
+    vi.setSystemTime(new Date(Date.parse('2026-10-28T10:00:00.000Z') + RESEND_MINUTES * 60 * 1000 + 1000));
     await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });
-    expect((await confirm(first)).status).toBe(404);
+    expect(emails).toHaveLength(2);
+    expect((await confirm(first, 'parola-straina')).status).toBe(404);
     expect((await confirm(linkToken())).status).toBe(200);
     const row = await api.db.prepare("SELECT name FROM teachers WHERE email = 'ana@example.com'").first<{ name: string }>();
     expect(row!.name).toBe('Ana');
@@ -173,8 +192,27 @@ describe('POST /api/auth/signup', () => {
     expect(refused.status).toBe(429);
     expect(refused.body.error).toBe('too_many_pending');
     expect((await from('2', 0)).status).toBe(201);
-    const stored = await api.db.prepare("SELECT signup_ip_hash FROM teachers WHERE email = 'a10@example.com'").first<{ signup_ip_hash: string }>();
-    expect(stored!.signup_ip_hash).toMatch(/^[0-9a-f]{64}$/);
+    const stored = await api.db.prepare('SELECT ip_hash FROM signup_ips').all<{ ip_hash: string }>();
+    expect(stored.results.map((row) => row.ip_hash)).toEqual([expect.stringMatching(/^[0-9a-f]{64}$/), expect.stringMatching(/^[0-9a-f]{64}$/)]);
+  });
+
+  it('counts a sign-up with a taken email against the IP like any other, so the limit tells nothing', async () => {
+    const from = (email: string) =>
+      api.request('POST', '/api/auth/signup', { name: 'Ana', email, password: 'parola-lunga' }, { 'CF-Connecting-IP': '5.5.5.5' });
+    expect((await from('profesor@example.com')).status).toBe(201);
+    for (let i = 1; i < MAX_SIGNUPS_PER_IP; i++) expect((await from(`nou${i}@example.com`)).status).toBe(201);
+    expect((await from('profesor@example.com')).status).toBe(429);
+    expect((await from('altul@example.com')).status).toBe(429);
+  });
+
+  it('takes at most a fixed number of sign-ups a day from all IPs together', async () => {
+    await api.db
+      .prepare('INSERT INTO signup_ips (ip_hash, attempts, window_start) VALUES (?, ?, ?)')
+      .bind('alt', MAX_SIGNUPS_PER_DAY, new Date().toISOString())
+      .run();
+    const res = await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });
+    expect(res.status).toBe(429);
+    expect(emails).toHaveLength(0);
   });
 
   it('counts the IPv6 addresses of one /64 as one IP', async () => {
@@ -338,19 +376,31 @@ describe('POST /api/auth/login', () => {
     expect(row).toEqual({ failed_logins: 0, locked_until: null });
   });
 
-  it('refuses an IP that sent too many wrong passwords, for any account, until its window ends', async () => {
+  it('refuses an IP that sent too many wrong passwords for existing accounts, with its own message, until its window ends', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-28T10:00:00.000Z'));
     await setPasswordOf('profesor@example.com', 'parola-buna');
     const from = (ip: string, email: string, password: string) =>
       api.request('POST', '/api/auth/login', { email, password }, { 'CF-Connecting-IP': ip });
-    // Many accounts, each under its own lock.
-    for (let i = 0; i < MAX_IP_FAILED_LOGINS; i++) expect((await from('9.9.9.9', `nimeni${i}@example.com`, 'gresita')).status).toBe(401);
+    // Unknown emails and locked accounts do not count: only wrong passwords.
+    for (let i = 0; i < 20; i++) expect((await from('9.9.9.9', `nimeni${i}@example.com`, 'gresita')).status).toBe(401);
+    const perAccount = MAX_FAILED_LOGINS;
+    const accounts = MAX_IP_FAILED_LOGINS / perAccount;
+    for (let a = 0; a < accounts; a++) {
+      const email = `p${a}@example.com`;
+      await api.addTeacher(email, `P${a}`);
+      await setPasswordOf(email, 'parola-buna');
+      // Past its own lock, an account's attempts are not wrong passwords and do not count either.
+      const tries = a === accounts - 1 ? perAccount : perAccount + 2;
+      for (let i = 0; i < tries; i++) expect((await from('9.9.9.9', email, 'gresita')).status).toBe(401);
+    }
     const refused = await from('9.9.9.9', 'profesor@example.com', 'parola-buna');
-    expect(refused.status).toBe(401);
-    expect(refused.body).toEqual(await wrongBody());
+    expect(refused.status).toBe(429);
+    expect(refused.body.error).toBe('network_blocked');
     // The account itself took no attempt from that IP.
-    expect(await api.db.prepare('SELECT failed_logins FROM teachers').first()).toEqual({ failed_logins: 0 });
+    expect(await api.db.prepare("SELECT failed_logins FROM teachers WHERE email = 'profesor@example.com'").first()).toEqual({
+      failed_logins: 0,
+    });
     expect((await from('8.8.8.8', 'profesor@example.com', 'parola-buna')).status).toBe(200);
     vi.setSystemTime(new Date(Date.parse('2026-10-28T10:00:00.000Z') + IP_WINDOW_MS + 1000));
     expect((await from('9.9.9.9', 'profesor@example.com', 'parola-buna')).status).toBe(200);

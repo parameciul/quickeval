@@ -12,8 +12,6 @@ ALTER TABLE teachers ADD COLUMN password_hash TEXT;
 ALTER TABLE teachers ADD COLUMN failed_logins INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE teachers ADD COLUMN locked_until TEXT;
 ALTER TABLE teachers ADD COLUMN approved_at TEXT;
--- SHA-256 of the IP that asked for the account, while it waits: limits sign-ups per IP.
-ALTER TABLE teachers ADD COLUMN signup_ip_hash TEXT;
 -- A new account proves its email with a link (only the SHA-256 of the link's
 -- token is kept). Accounts that exist now count as confirmed.
 ALTER TABLE teachers ADD COLUMN email_confirmed_at TEXT;
@@ -27,23 +25,21 @@ UPDATE teachers SET role = 'admin' WHERE email IN ('plesalaura@yahoo.com', 'mg14
 -- now) stays the one who may open Setări.
 UPDATE teachers SET role = 'admin' WHERE id = (SELECT MIN(id) FROM teachers) AND NOT EXISTS (SELECT 1 FROM teachers WHERE role = 'admin');
 
--- The files_version of the test when it last counted against the demo limit;
--- NULL until it first does. A test counts once for the same files (a reopen
--- and a new start with the same test and barem is free), and again when it
--- starts with new files: one test row cannot grade test after new test.
-ALTER TABLE tests ADD COLUMN counted_files_version INTEGER;
+-- How many times the teacher's tests went to the robot for grading: every
+-- start of an evaluation, and every regrade or retry that sends a finished
+-- test back. Kept for every teacher (statistics); a demo account may reach
+-- DEMO_TEST_LIMIT. Until now: one for each test that was evaluated.
+UPDATE teachers SET tests_evaluated = (SELECT COUNT(*) FROM tests WHERE tests.teacher_id = teachers.id AND (tests.status IN ('evaluating', 'done') OR tests.evaluation_started_at IS NOT NULL));
 
-UPDATE tests SET counted_files_version = files_version WHERE status IN ('evaluating', 'done') OR evaluation_started_at IS NOT NULL;
-
--- Every path that grades new uploads moves the test from 'open' to
--- 'evaluating', so the count lives here instead of in each of them. A regrade
--- (done to evaluating) grades the same uploads again and does not count. The
--- statements inside the trigger share one line: the test helper splits on ";"
--- at a line end.
+-- Every path that sends a test to the robot for grading moves it into
+-- 'evaluating' with uploads that wait for grading ('submitted'), so the count
+-- lives here instead of in each of them. "Regenerează" (only the class
+-- analysis) sends no upload and does not count, nor does a test with nothing
+-- to grade.
 CREATE TRIGGER tests_count_evaluation AFTER UPDATE OF status ON tests
-WHEN OLD.status = 'open' AND NEW.status = 'evaluating' AND NEW.counted_files_version IS NOT NEW.files_version
+WHEN NEW.status = 'evaluating' AND OLD.status <> 'evaluating' AND EXISTS (SELECT 1 FROM submissions WHERE test_id = NEW.id AND status = 'submitted')
 BEGIN
-  UPDATE teachers SET tests_evaluated = tests_evaluated + 1 WHERE id = NEW.teacher_id; UPDATE tests SET counted_files_version = NEW.files_version WHERE id = NEW.id; END;
+  UPDATE teachers SET tests_evaluated = tests_evaluated + 1 WHERE id = NEW.teacher_id; END;
 
 -- A login. Only the SHA-256 of the cookie's token is stored.
 CREATE TABLE sessions (
@@ -69,9 +65,18 @@ CREATE TABLE trusted_devices (
 
 CREATE INDEX trusted_devices_by_teacher ON trusted_devices (teacher_id);
 
--- Wrong passwords from one IP (SHA-256 of a /64 for IPv6) in the current
--- window, across all accounts: someone guessing many accounts at once.
+-- Wrong passwords for existing accounts from one IP (SHA-256 of the IP, or
+-- of its /64 for IPv6) in the current 15-minute window: someone guessing many
+-- accounts at once.
 CREATE TABLE login_ips (
+  ip_hash TEXT PRIMARY KEY,
+  attempts INTEGER NOT NULL,
+  window_start TEXT NOT NULL
+);
+
+-- Sign-up requests from one IP (as above) in the current one-day window,
+-- whatever their outcome.
+CREATE TABLE signup_ips (
   ip_hash TEXT PRIMARY KEY,
   attempts INTEGER NOT NULL,
   window_start TEXT NOT NULL

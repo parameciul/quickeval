@@ -128,7 +128,7 @@ function SignupForm() {
       </span>
       {signup.error && <ErrorMessage error={signup.error} />}
       <p className="hint">
-        Un cont nou este un cont demo: poți evalua {DEMO_TEST_LIMIT} teste. Contul se poate folosi după ce confirmi adresa de email și îl
+        Un cont nou este un cont demo: poți trimite teste la corectare de {DEMO_TEST_LIMIT} ori. Contul se poate folosi după ce confirmi adresa de email și îl
         aprobă un administrator.
       </p>
     </form>

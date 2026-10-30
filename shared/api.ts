@@ -199,9 +199,11 @@ export const updateAccountBody = z
 // (`Account.createdAt`): a refused account's id comes back for the next sign-up.
 export const shownAccountBody = z.object({ createdAt: z.string({ message: 'Reîncarcă pagina.' }).max(40) });
 
-// The link from the email that confirms a new account (its token).
+// The link from the email that confirms a new account (its token), with the
+// password chosen at the sign-up.
 export const confirmEmailBody = z.object({
   token: z.string({ message: 'Linkul nu este întreg.' }).min(1, { message: 'Linkul nu este întreg.' }).max(100, { message: 'Linkul nu este întreg.' }),
+  password: z.string({ message: 'Scrie parola.' }).min(1, { message: 'Scrie parola.' }).max(MAX_PASSWORD_LENGTH, { message: 'Parola este greșită.' }),
 });
 
 // "Refuză toate": the accounts that wait, as the page shows them.

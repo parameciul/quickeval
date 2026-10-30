@@ -68,11 +68,11 @@ describe('the accounts on Setări', () => {
     const api = withAccounts();
     renderAdmin('/setari', api);
     const teachers = await section('Profesori');
-    expect(within(teachers).getAllByText('administrator')).toHaveLength(2);
-    expect(within(teachers).getByText('demo: 2 din 5 teste')).toBeInTheDocument();
+    expect(within(teachers).getAllByText('administrator · 0 evaluări')).toHaveLength(2);
+    expect(within(teachers).getByText('demo: 2 din 5 evaluări')).toBeInTheDocument();
     await userEvent.click(within(teachers).getByRole('button', { name: 'Fă cont complet: Bogdan' }));
     expect(api.updateAccount).toHaveBeenCalledWith(3, { demo: false });
-    expect(await within(teachers).findByText('complet')).toBeInTheDocument();
+    expect(await within(teachers).findByText('complet · 2 evaluări')).toBeInTheDocument();
   });
 
   it('closes an account and opens it again', async () => {
