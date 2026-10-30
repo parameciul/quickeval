@@ -129,7 +129,7 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const shown = await requireShown(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), startedAt);
     const testStatus = await retrySubmission(c.env.DB, shown, nowIso());
     if (testStatus === null) {
-      if (await regradeBlockedByDemoLimit(c.env.DB, { submissionId: shown.submissionId })) throw demoLimit();
+      if (await regradeBlockedByDemoLimit(c.env.DB, { submissionId: shown.submissionId, startedAt: shown.startedAt })) throw demoLimit();
       throw new ApiError(409, 'not_failed', 'Corectarea acestei lucrări nu a eșuat.');
     }
     const robot = testStatus === 'evaluating' ? await startRobot(c.env) : null;
@@ -146,7 +146,7 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (!found) throw notFound();
     const testStatus = await regradeSubmission(c.env.DB, { teacherId, submissionId, gradedAt }, nowIso());
     if (testStatus === null) {
-      if (await regradeBlockedByDemoLimit(c.env.DB, { submissionId })) throw demoLimit();
+      if (await regradeBlockedByDemoLimit(c.env.DB, { submissionId, gradedAt })) throw demoLimit();
       throw notGraded();
     }
     const robot = testStatus === 'evaluating' ? await startRobot(c.env) : null;

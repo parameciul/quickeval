@@ -10,6 +10,7 @@ import {
   MAX_SIGNUPS_PER_DAY,
   MAX_SIGNUPS_PER_IP,
   PENDING_DAYS,
+  REPLACE_MINUTES,
   RESEND_MINUTES,
 } from '../db/accounts.ts';
 import type { EmailMessage } from '../email.ts';
@@ -196,6 +197,31 @@ describe('POST /api/auth/signup', () => {
     expect(stored.results.map((row) => row.ip_hash)).toEqual([expect.stringMatching(/^[0-9a-f]{64}$/), expect.stringMatching(/^[0-9a-f]{64}$/)]);
   });
 
+  it('lets no single IP use up the sign-ups of the day for everyone', async () => {
+    const from = (ip: string, i: number) =>
+      api.request('POST', '/api/auth/signup', { name: 'Ana', email: `x${i}@example.com`, password: 'parola-lunga' }, { 'CF-Connecting-IP': ip });
+    for (let i = 0; i < MAX_SIGNUPS_PER_DAY + 5; i++) await from('6.6.6.6', i);
+    expect((await api.db.prepare('SELECT attempts FROM signup_ips').first<{ attempts: number }>())!.attempts).toBe(MAX_SIGNUPS_PER_IP + 1);
+    expect((await from('9.9.9.9', 999)).status).toBe(201);
+  });
+
+  it('lets only the same IP soon ask again for an email that is not confirmed, so nobody else can keep cancelling its link', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-28T10:00:00.000Z'));
+    const from = (ip: string, name: string) =>
+      api.request('POST', '/api/auth/signup', { name, email: 'ana@example.com', password: 'parola-lunga' }, { 'CF-Connecting-IP': ip });
+    await from('1.1.1.1', 'Ana');
+    const owners = async () => (await api.db.prepare("SELECT name FROM teachers WHERE email = 'ana@example.com'").first<{ name: string }>())!.name;
+    vi.setSystemTime(new Date(Date.parse('2026-10-28T10:00:00.000Z') + RESEND_MINUTES * 60 * 1000 + 1000));
+    await from('2.2.2.2', 'Altcineva');
+    expect(await owners()).toBe('Ana');
+    await from('1.1.1.1', 'Ana Pop');
+    expect(await owners()).toBe('Ana Pop');
+    vi.setSystemTime(new Date(Date.parse('2026-10-28T10:00:00.000Z') + (RESEND_MINUTES + REPLACE_MINUTES) * 60 * 1000 + 2000));
+    await from('2.2.2.2', 'Altcineva');
+    expect(await owners()).toBe('Altcineva');
+  });
+
   it('counts a sign-up with a taken email against the IP like any other, so the limit tells nothing', async () => {
     const from = (email: string) =>
       api.request('POST', '/api/auth/signup', { name: 'Ana', email, password: 'parola-lunga' }, { 'CF-Connecting-IP': '5.5.5.5' });
@@ -206,10 +232,12 @@ describe('POST /api/auth/signup', () => {
   });
 
   it('takes at most a fixed number of sign-ups a day from all IPs together', async () => {
-    await api.db
-      .prepare('INSERT INTO signup_ips (ip_hash, attempts, window_start) VALUES (?, ?, ?)')
-      .bind('alt', MAX_SIGNUPS_PER_DAY, new Date().toISOString())
-      .run();
+    const insert = api.db.prepare('INSERT INTO signup_ips (ip_hash, attempts, window_start) VALUES (?, ?, ?)');
+    await api.db.batch(
+      Array.from({ length: MAX_SIGNUPS_PER_DAY / MAX_SIGNUPS_PER_IP }, (_, i) =>
+        insert.bind(`ip${i}`, MAX_SIGNUPS_PER_IP, new Date().toISOString()),
+      ),
+    );
     const res = await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });
     expect(res.status).toBe(429);
     expect(emails).toHaveLength(0);
@@ -376,24 +404,13 @@ describe('POST /api/auth/login', () => {
     expect(row).toEqual({ failed_logins: 0, locked_until: null });
   });
 
-  it('refuses an IP that sent too many wrong passwords for existing accounts, with its own message, until its window ends', async () => {
+  it('refuses an IP that sent too many wrong logins, with its own message, until its window ends', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-28T10:00:00.000Z'));
     await setPasswordOf('profesor@example.com', 'parola-buna');
     const from = (ip: string, email: string, password: string) =>
       api.request('POST', '/api/auth/login', { email, password }, { 'CF-Connecting-IP': ip });
-    // Unknown emails and locked accounts do not count: only wrong passwords.
-    for (let i = 0; i < 20; i++) expect((await from('9.9.9.9', `nimeni${i}@example.com`, 'gresita')).status).toBe(401);
-    const perAccount = MAX_FAILED_LOGINS;
-    const accounts = MAX_IP_FAILED_LOGINS / perAccount;
-    for (let a = 0; a < accounts; a++) {
-      const email = `p${a}@example.com`;
-      await api.addTeacher(email, `P${a}`);
-      await setPasswordOf(email, 'parola-buna');
-      // Past its own lock, an account's attempts are not wrong passwords and do not count either.
-      const tries = a === accounts - 1 ? perAccount : perAccount + 2;
-      for (let i = 0; i < tries; i++) expect((await from('9.9.9.9', email, 'gresita')).status).toBe(401);
-    }
+    for (let i = 0; i < MAX_IP_FAILED_LOGINS; i++) expect((await from('9.9.9.9', `nimeni${i}@example.com`, 'gresita')).status).toBe(401);
     const refused = await from('9.9.9.9', 'profesor@example.com', 'parola-buna');
     expect(refused.status).toBe(429);
     expect(refused.body.error).toBe('network_blocked');
@@ -404,6 +421,17 @@ describe('POST /api/auth/login', () => {
     expect((await from('8.8.8.8', 'profesor@example.com', 'parola-buna')).status).toBe(200);
     vi.setSystemTime(new Date(Date.parse('2026-10-28T10:00:00.000Z') + IP_WINDOW_MS + 1000));
     expect((await from('9.9.9.9', 'profesor@example.com', 'parola-buna')).status).toBe(200);
+  });
+
+  it('counts the attempt of an unknown email like a wrong password, so the count tells nothing about the email', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-buna');
+    const from = (email: string) =>
+      api.request('POST', '/api/auth/login', { email, password: 'gresita' }, { 'CF-Connecting-IP': '6.6.6.6' });
+    for (let i = 0; i < MAX_IP_FAILED_LOGINS - 1; i++) await from(`nimeni${i}@example.com`);
+    const attempts = async () => (await api.db.prepare('SELECT attempts FROM login_ips').first<{ attempts: number }>())!.attempts;
+    expect(await attempts()).toBe(MAX_IP_FAILED_LOGINS - 1);
+    expect((await from('altcineva@example.com')).status).toBe(401);
+    expect((await from('profesor@example.com')).body.error).toBe('network_blocked');
   });
 
   it('gives an IP its attempt back for a good password', async () => {

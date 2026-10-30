@@ -11,7 +11,6 @@ import {
   findTeacherBySession,
   findUnconfirmed,
   forgetFailedLogins,
-  giveBackIpAttempt,
   takeDeviceAttempt,
   takeLoginAttempt,
 } from '../db/accounts.ts';
@@ -151,9 +150,6 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const login = throughDevice ?? (await takeLoginAttempt(c.env.DB, body.email, ipHash!, now));
     if (login === 'ip_blocked') throw networkBlocked();
     if (login === null || login === 'locked') {
-      // Not a wrong password for an account: the IP gets its attempt back,
-      // after the answer, so the time of the answer stays the same.
-      inBackground(c, giveBackIpAttempt(c.env.DB, ipHash!));
       // A check against no hash, so the answer takes as long as a wrong password's.
       await verifyPassword(body.password, null);
       throw wrongLogin();

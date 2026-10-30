@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { Account } from '../../../shared/api.ts';
 import { DEMO_TEST_LIMIT } from '../../../shared/accounts.ts';
-import { formatDateTime } from '../../ui/format.ts';
+import { countLabel, formatDateTime } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
@@ -120,7 +120,7 @@ function PendingItem({ account }: { account: Account }) {
 
 // The kind of account, and how many times its tests went to the robot for grading.
 export function accountTag(account: Account): string {
-  const evaluations = `${account.testsEvaluated} ${account.testsEvaluated === 1 ? 'evaluare' : 'evaluări'}`;
+  const evaluations = countLabel(account.testsEvaluated, 'evaluare', 'evaluări');
   if (account.role === 'admin') return `administrator · ${evaluations}`;
   if (account.status === 'disabled') return `închis · ${evaluations}`;
   if (account.demo) return `demo: ${Math.min(account.testsEvaluated, DEMO_TEST_LIMIT)} din ${DEMO_TEST_LIMIT} evaluări`;

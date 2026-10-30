@@ -99,6 +99,44 @@ describe('the demo limit', () => {
     expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
   });
 
+  it('counts a regrade of a test still in evaluation, and refuses it past the limit, also after "Regenerează"', async () => {
+    const test = await finishedTest('Primul');
+    // "Regenerează" puts the finished test back in evaluation, for the analysis only.
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/analysis/regenerate`)).status).toBe(200);
+    expect(await statusOf(test.code)).toBe('evaluating');
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/regrade`)).body.error).toBe('demo_limit');
+    expect(await uploadStatus(test.submissionId)).toBe('graded');
+    expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
+    await api.db.prepare('UPDATE teachers SET tests_evaluated = ? WHERE id = ?').bind(DEMO_TEST_LIMIT - 1, api.teacherId).run();
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/regrade`)).status).toBe(200);
+    expect(await uploadStatus(test.submissionId)).toBe('submitted');
+    expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
+  });
+
+  it('counts a retry of a test still in evaluation once', async () => {
+    await api.db.prepare("UPDATE teachers SET demo = 0 WHERE id = ?").bind(api.teacherId).run();
+    const test = await readyTest('Primul');
+    await evaluate(test.code);
+    const before = await testsEvaluated();
+    await api.db.prepare("UPDATE submissions SET status = 'failed' WHERE id = ?").bind(test.submissionId).run();
+    const startedAt = (await api.db.prepare('SELECT started_at FROM submissions WHERE id = ?').bind(test.submissionId).first<{ started_at: string }>())!
+      .started_at;
+    expect((await api.request('POST', `/api/admin/submissions/${test.submissionId}/retry`, { startedAt })).status).toBe(200);
+    expect(await testsEvaluated()).toBe(before + 1);
+    // A retry of an upload that did not fail changes nothing and counts nothing.
+    expect((await api.request('POST', `/api/admin/submissions/${test.submissionId}/retry`, { startedAt })).body.error).toBe('not_failed');
+    expect(await testsEvaluated()).toBe(before + 1);
+  });
+
+  it('says what really kept a regrade from happening, also at the limit', async () => {
+    const test = await finishedTest('Primul');
+    await api.db.prepare("UPDATE submissions SET status = 'uploading' WHERE id = ?").bind(test.submissionId).run();
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/regrade`)).body.error).toBe('nothing_to_regrade');
+    const startedAt = (await api.db.prepare('SELECT started_at FROM submissions WHERE id = ?').bind(test.submissionId).first<{ started_at: string }>())!
+      .started_at;
+    expect((await api.request('POST', `/api/admin/submissions/${test.submissionId}/retry`, { startedAt })).body.error).toBe('not_failed');
+  });
+
   it('refuses a retry that sends a finished test back past the limit', async () => {
     const test = await finishedTest('Primul');
     await api.db.prepare("UPDATE submissions SET status = 'failed' WHERE id = ?").bind(test.submissionId).run();

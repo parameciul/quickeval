@@ -2,13 +2,15 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import type { Teacher } from '../../../shared/api.ts';
 import { DEMO_TEST_LIMIT, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../../../shared/accounts.ts';
+import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // What kind of account this is, in one sentence.
 export function accountKindText(teacher: Teacher): string {
-  if (teacher.role === 'admin') return `Ești administrator. Evaluări de până acum: ${teacher.testsEvaluated}.`;
-  if (!teacher.demo) return `Ai un cont complet. Evaluări de până acum: ${teacher.testsEvaluated}.`;
+  const evaluations = countLabel(teacher.testsEvaluated, 'evaluare', 'evaluări');
+  if (teacher.role === 'admin') return `Ești administrator. Până acum: ${evaluations}.`;
+  if (!teacher.demo) return `Ai un cont complet. Până acum: ${evaluations}.`;
   return `Ai un cont demo: ai folosit ${Math.min(teacher.testsEvaluated, DEMO_TEST_LIMIT)} din ${DEMO_TEST_LIMIT} evaluări.`;
 }
 

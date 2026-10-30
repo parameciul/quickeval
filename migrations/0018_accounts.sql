@@ -16,6 +16,9 @@ ALTER TABLE teachers ADD COLUMN approved_at TEXT;
 -- token is kept). Accounts that exist now count as confirmed.
 ALTER TABLE teachers ADD COLUMN email_confirmed_at TEXT;
 ALTER TABLE teachers ADD COLUMN confirm_token_hash TEXT;
+-- SHA-256 of the IP that asked for an account not yet confirmed: only that IP
+-- may soon ask again for the same email.
+ALTER TABLE teachers ADD COLUMN confirm_ip_hash TEXT;
 
 UPDATE teachers SET email_confirmed_at = created_at;
 
@@ -65,9 +68,9 @@ CREATE TABLE trusted_devices (
 
 CREATE INDEX trusted_devices_by_teacher ON trusted_devices (teacher_id);
 
--- Wrong passwords for existing accounts from one IP (SHA-256 of the IP, or
--- of its /64 for IPv6) in the current 15-minute window: someone guessing many
--- accounts at once.
+-- Login attempts that were not a good password, from one IP (SHA-256 of the
+-- IP, or of its /64 for IPv6) in the current 15-minute window: someone
+-- guessing many accounts at once.
 CREATE TABLE login_ips (
   ip_hash TEXT PRIMARY KEY,
   attempts INTEGER NOT NULL,
@@ -75,7 +78,7 @@ CREATE TABLE login_ips (
 );
 
 -- Sign-up requests from one IP (as above) in the current one-day window,
--- whatever their outcome.
+-- whatever their outcome; counted up to one past the IP's limit.
 CREATE TABLE signup_ips (
   ip_hash TEXT PRIMARY KEY,
   attempts INTEGER NOT NULL,

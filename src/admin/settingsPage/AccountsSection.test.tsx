@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi, FAKE_TEMPORARY_PASSWORD, fakeAccount } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
+import { accountTag } from './AccountsSection.tsx';
 
 const laura = fakeAccount();
 const ana = fakeAccount({ id: 2, name: 'Ana Pop', email: 'ana@example.com', role: 'teacher', demo: true, status: 'pending' });
@@ -100,5 +101,16 @@ describe('the accounts on Setări', () => {
     expect(screen.getByText('Mihai (mihai@example.com)')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Laura Miron/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Mihai/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('accountTag', () => {
+  it.each([
+    [fakeAccount({ role: 'teacher', testsEvaluated: 1 }), 'complet · 1 evaluare'],
+    [fakeAccount({ role: 'teacher', testsEvaluated: 7 }), 'complet · 7 evaluări'],
+    [fakeAccount({ role: 'teacher', testsEvaluated: 51 }), 'complet · 51 de evaluări'],
+    [fakeAccount({ testsEvaluated: 120 }), 'administrator · 120 de evaluări'],
+  ])('describes %j', (account, text) => {
+    expect(accountTag(account)).toBe(text);
   });
 });

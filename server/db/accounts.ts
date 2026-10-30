@@ -15,9 +15,12 @@ export const MAX_PENDING_ACCOUNTS = 50;
 // plan sends 300 a day.
 export const MAX_SIGNUPS_PER_IP = 5;
 export const MAX_SIGNUPS_PER_DAY = 100;
-// An email gets at most one confirmation link in this time: asking again
-// sooner changes nothing, so nobody can fill a mailbox with links.
+// An email gets at most one confirmation link in this time from the IP that
+// asked first: asking again sooner changes nothing, so nobody can fill a
+// mailbox with links. From another IP, only after REPLACE_MINUTES, so someone
+// else cannot keep cancelling the link before its owner opens it.
 export const RESEND_MINUTES = 10;
+export const REPLACE_MINUTES = 60;
 // An account that waits this long is deleted at the next sign-up.
 export const PENDING_DAYS = 30;
 // The link that confirms a new account's email works this long; an account
@@ -95,8 +98,9 @@ const LOGIN_COLUMNS = 'id, status, password_hash, email_confirmed_at IS NOT NULL
 // at once cannot get past it (D1 runs writes one at a time). A good password
 // starts the count again (createSession). After a lock ends, the count starts
 // at this attempt. The IP's count goes up the same way, in a window of
-// IP_WINDOW_MS from its first attempt; only a wrong password for an existing
-// account keeps it (the caller gives it back otherwise: giveBackIpAttempt).
+// IP_WINDOW_MS from its first attempt, for any email: only a good password
+// gives it back (createSession, forgetFailedLogins). Keeping it also for an
+// unknown email keeps the count from telling which emails have an account.
 // "ip_blocked" when the IP used up its attempts (the account takes none),
 // "locked" while the account's lock lasts, null for an unknown email.
 export async function takeLoginAttempt(
@@ -133,11 +137,6 @@ export async function takeLoginAttempt(
   const row = account?.results[0] as LoginRow | undefined;
   if (row) return row;
   return exists?.results.length ? 'locked' : null;
-}
-
-// An attempt of this IP that was not a wrong password for an existing account.
-export async function giveBackIpAttempt(db: D1Database, ipHash: string): Promise<void> {
-  await db.prepare('UPDATE login_ips SET attempts = MAX(attempts - 1, 0) WHERE ip_hash = ?').bind(ipHash).run();
 }
 
 // The same for a browser that logged in to this account before: it skips the
@@ -249,8 +248,9 @@ export async function deleteSession(db: D1Database, tokenHash: string): Promise<
 // MAX_SIGNUPS_PER_DAY in the last day, or when MAX_PENDING_ACCOUNTS confirmed
 // accounts wait. "email_taken" when the email has an account, nothing
 // changes, and no email goes out. An account of this email that was never
-// confirmed is replaced once RESEND_MINUTES passed, so whoever owns the email
-// can always ask again, and gets at most one link in that time. Accounts that
+// confirmed is replaced once RESEND_MINUTES passed from the same IP, or
+// REPLACE_MINUTES from another, so whoever owns the email can always ask
+// again, and gets at most one link in that time. Accounts that
 // waited PENDING_DAYS, or were not confirmed in CONFIRM_HOURS, go first.
 export async function createAccount(
   db: D1Database,
@@ -258,8 +258,10 @@ export async function createAccount(
   now: string,
 ): Promise<'created' | 'email_taken' | 'too_many'> {
   const dayAgo = daysBefore(now, 1);
+  // Each IP adds at most MAX_SIGNUPS_PER_IP to the total, so one IP cannot
+  // close sign-ups for everyone.
   const TOO_MANY = `((SELECT attempts FROM signup_ips WHERE ip_hash = ?1) > ${MAX_SIGNUPS_PER_IP}
-    OR (SELECT SUM(attempts) FROM signup_ips) > ${MAX_SIGNUPS_PER_DAY}
+    OR (SELECT SUM(MIN(attempts, ${MAX_SIGNUPS_PER_IP})) FROM signup_ips) > ${MAX_SIGNUPS_PER_DAY}
     OR (SELECT COUNT(*) FROM teachers WHERE status = 'pending' AND email_confirmed_at IS NOT NULL) >= ${MAX_PENDING_ACCOUNTS})`;
   try {
     const results = await db.batch<{ id?: number; too_many?: number }>([
@@ -267,7 +269,7 @@ export async function createAccount(
       db
         .prepare(
           `INSERT INTO signup_ips (ip_hash, attempts, window_start) VALUES (?, 1, ?)
-           ON CONFLICT (ip_hash) DO UPDATE SET attempts = attempts + 1`,
+           ON CONFLICT (ip_hash) DO UPDATE SET attempts = MIN(attempts + 1, ${MAX_SIGNUPS_PER_IP + 1})`,
         )
         .bind(input.ipHash, now),
       db
@@ -278,14 +280,15 @@ export async function createAccount(
         .bind(daysBefore(now, PENDING_DAYS), msBefore(now, CONFIRM_HOURS * 60 * 60 * 1000)),
       db
         .prepare(
-          `DELETE FROM teachers WHERE email = ?2 AND status = 'pending' AND email_confirmed_at IS NULL AND created_at <= ?3
+          `DELETE FROM teachers WHERE email = ?2 AND status = 'pending' AND email_confirmed_at IS NULL
+             AND ((confirm_ip_hash = ?1 AND created_at <= ?3) OR created_at <= ?4)
              AND NOT ${TOO_MANY}`,
         )
-        .bind(input.ipHash, input.email, msBefore(now, RESEND_MINUTES * 60 * 1000)),
+        .bind(input.ipHash, input.email, msBefore(now, RESEND_MINUTES * 60 * 1000), msBefore(now, REPLACE_MINUTES * 60 * 1000)),
       db
         .prepare(
-          `INSERT INTO teachers (email, name, created_at, role, status, demo, password_hash, confirm_token_hash)
-           SELECT ?2, ?3, ?4, 'teacher', 'pending', 1, ?5, ?6
+          `INSERT INTO teachers (email, name, created_at, role, status, demo, password_hash, confirm_token_hash, confirm_ip_hash)
+           SELECT ?2, ?3, ?4, 'teacher', 'pending', 1, ?5, ?6, ?1
            WHERE NOT ${TOO_MANY} AND NOT EXISTS (SELECT 1 FROM teachers WHERE email = ?2)
            RETURNING id`,
         )
@@ -327,7 +330,7 @@ export async function confirmEmail(
 ): Promise<{ email: string; name: string } | null> {
   return db
     .prepare(
-      `UPDATE teachers SET email_confirmed_at = ?, confirm_token_hash = NULL
+      `UPDATE teachers SET email_confirmed_at = ?, confirm_token_hash = NULL, confirm_ip_hash = NULL
        WHERE id = ? AND confirm_token_hash = ? AND status = 'pending' AND email_confirmed_at IS NULL
        RETURNING email, name`,
     )
