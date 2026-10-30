@@ -28,6 +28,7 @@ import type {
 } from '../../shared/api.ts';
 import { normalizeClassName } from '../../shared/classes.ts';
 import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
+import type { CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
 import { studentNameKey } from '../../shared/students.ts';
 import { buildTestCode } from '../../shared/tests.ts';
@@ -664,6 +665,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       settings.hasRobotKey = true;
       return FAKE_ROBOT_KEY;
     }),
+    listPayments: vi.fn(async (): Promise<PaymentRow[]> => []),
+    startCheckout: vi.fn(async (input: CheckoutInput) => `https://checkout.stripe.com/c/${input.feature}`),
   } satisfies AdminApi;
   return api;
 }

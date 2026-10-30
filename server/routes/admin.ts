@@ -4,6 +4,7 @@ import type { AppEnv, AppOptions } from '../env.ts';
 import { promoteDue, sameOriginWrites } from '../http.ts';
 import { accountRoutes, ownAccountRoutes } from './accounts.ts';
 import { classRoutes } from './classes.ts';
+import { adminPaymentRoutes } from './payments.ts';
 import { settingsRoutes } from './settings.ts';
 import { studentRoutes } from './students.ts';
 import { submissionRoutes } from './submissions.ts';
@@ -22,5 +23,6 @@ export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.route('/settings', settingsRoutes());
   routes.route('/account', ownAccountRoutes());
   routes.route('/accounts', accountRoutes(options));
+  routes.route('/payments', adminPaymentRoutes(options));
   return routes;
 }

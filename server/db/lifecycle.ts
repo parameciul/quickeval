@@ -40,7 +40,7 @@ export function finishTests(db: D1Database, now: string): D1PreparedStatement {
 // The test t may start an evaluation under the demo limit: it was evaluated
 // before (it already counts), or its teacher is not a demo account, or the
 // demo account has tests left. The trigger tests_count_evaluation (migration
-// 0015) counts the test when its status becomes 'evaluating'.
+// 0018) counts the test when its status becomes 'evaluating'.
 export const WITHIN_DEMO_LIMIT = `(t.evaluation_counted = 1 OR NOT EXISTS (
   SELECT 1 FROM teachers q WHERE q.id = t.teacher_id AND q.demo = 1 AND q.tests_evaluated >= ${DEMO_TEST_LIMIT}))`;
 

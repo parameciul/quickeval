@@ -4,3 +4,6 @@ DEV_TEACHER_EMAIL=profesor@example.com
 # Optional: the emails to the administrators about new accounts (docs/deploy.md, "Accounts").
 # BREVO_API_KEY=
 # EMAIL_FROM=
+# Stripe test-mode keys (docs/payments.md). Leave empty: payments then answer 503.
+# STRIPE_SECRET_KEY=sk_test_...
+# STRIPE_WEBHOOK_SECRET=whsec_...
