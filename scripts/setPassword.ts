@@ -50,9 +50,11 @@ export function passwordWasSet(wranglerJson: string, passwordHash: string): bool
 
 // Runs wrangler on the chosen database; its JSON answer, or null when it failed.
 function wrangler(target: '--local' | '--remote', args: string[]): string | null {
-  // npx is npx.cmd on Windows, which runs only through a shell, so every
-  // argument that could hold a space or a quote is quoted here.
-  const result = spawnSync('npx', ['wrangler', 'd1', 'execute', 'quickeval', target, '--json', ...args], {
+  // npx is npx.cmd on Windows, which runs only through a shell. The command
+  // goes as one line (Node warns about separate arguments with a shell), and
+  // every argument that could hold a space or a quote is quoted by the caller.
+  const command = ['npx', 'wrangler', 'd1', 'execute', 'quickeval', target, '--json', ...args].join(' ');
+  const result = spawnSync(command, {
     stdio: ['inherit', 'pipe', 'inherit'],
     shell: true,
     encoding: 'utf8',
