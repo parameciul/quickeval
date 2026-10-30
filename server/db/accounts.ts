@@ -14,11 +14,19 @@ export const MAX_PENDING_ACCOUNTS = 50;
 export const MAX_SIGNUPS_PER_IP = 3;
 // An account that waits this long is deleted at the next sign-up.
 export const PENDING_DAYS = 30;
+// The link that confirms a new account's email works this long; an account
+// not confirmed by then is deleted at the next sign-up.
+export const CONFIRM_HOURS = 24;
+// After this many wrong passwords from one IP (any accounts) in IP_WINDOW_MS,
+// logins from it are refused until the window ends, except from a known browser.
+export const MAX_IP_FAILED_LOGINS = 30;
+export const IP_WINDOW_MS = 15 * 60 * 1000;
 // A browser that logged in before stops being known after this long unused.
 export const DEVICE_DAYS = 365;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const daysBefore = (now: string, days: number) => new Date(Date.parse(now) - days * DAY_MS).toISOString();
+const msBefore = (now: string, ms: number) => new Date(Date.parse(now) - ms).toISOString();
 
 interface TeacherRow {
   id: number;
@@ -66,7 +74,11 @@ export interface LoginRow {
   id: number;
   status: AccountStatus;
   password_hash: string | null;
+  // 1 when the email is confirmed (always, for an account that is not pending).
+  confirmed: number;
 }
+
+const LOGIN_COLUMNS = 'id, status, password_hash, email_confirmed_at IS NOT NULL AS confirmed';
 
 // Takes one login attempt of the account before its password is checked: the
 // count goes up first, and the attempt that reaches MAX_FAILED_LOGINS locks
@@ -83,7 +95,7 @@ export async function takeLoginAttempt(db: D1Database, email: string, now: strin
          failed_logins = CASE WHEN locked_until IS NULL THEN failed_logins + 1 ELSE 1 END,
          locked_until = CASE WHEN locked_until IS NULL AND failed_logins + 1 >= ? THEN ? ELSE NULL END
        WHERE email = ? AND (locked_until IS NULL OR locked_until <= ?)
-       RETURNING id, status, password_hash`,
+       RETURNING ${LOGIN_COLUMNS}`,
     )
     .bind(MAX_FAILED_LOGINS, lockedUntil, email, now)
     .first<LoginRow>();
@@ -107,7 +119,57 @@ export async function takeDeviceAttempt(db: D1Database, email: string, deviceHas
     .bind(now, deviceHash, MAX_FAILED_LOGINS, daysBefore(now, DEVICE_DAYS), email)
     .first<{ teacher_id: number }>();
   if (!device) return null;
-  return db.prepare('SELECT id, status, password_hash FROM teachers WHERE id = ?').bind(device.teacher_id).first<LoginRow>();
+  return db.prepare(`SELECT ${LOGIN_COLUMNS} FROM teachers WHERE id = ?`).bind(device.teacher_id).first<LoginRow>();
+}
+
+// Takes one login attempt of this IP (`ipHash`, see clientIpKey) before the
+// password is checked, the same way as takeLoginAttempt: the count goes up
+// first, in one statement. A window of IP_WINDOW_MS starts at the first
+// attempt; a good password takes its attempt back (createSession). False when
+// the IP used up its attempts for this window.
+export async function takeIpAttempt(db: D1Database, ipHash: string, now: string): Promise<boolean> {
+  const windowOver = msBefore(now, IP_WINDOW_MS);
+  const row = await db
+    .prepare(
+      `INSERT INTO login_ips (ip_hash, attempts, window_start) VALUES (?, 1, ?)
+       ON CONFLICT (ip_hash) DO UPDATE SET
+         attempts = CASE WHEN window_start <= ? THEN 1 ELSE attempts + 1 END,
+         window_start = CASE WHEN window_start <= ? THEN excluded.window_start ELSE window_start END
+       RETURNING attempts`,
+    )
+    .bind(ipHash, now, windowOver, windowOver)
+    .first<{ attempts: number }>();
+  return (row?.attempts ?? 0) <= MAX_IP_FAILED_LOGINS;
+}
+
+// The current password, checked on "Contul meu" before a new one: it counts
+// as a login attempt of the account, so a stolen login cookie cannot guess it
+// without end. False while the account is locked. A good password starts the
+// count again (setPassword).
+export async function takePasswordCheck(db: D1Database, teacherId: number, now: string): Promise<boolean> {
+  const lockedUntil = new Date(Date.parse(now) + LOCK_MS).toISOString();
+  const row = await db
+    .prepare(
+      `UPDATE teachers SET
+         failed_logins = CASE WHEN locked_until IS NULL THEN failed_logins + 1 ELSE 1 END,
+         locked_until = CASE WHEN locked_until IS NULL AND failed_logins + 1 >= ? THEN ? ELSE NULL END
+       WHERE id = ? AND (locked_until IS NULL OR locked_until <= ?)
+       RETURNING id`,
+    )
+    .bind(MAX_FAILED_LOGINS, lockedUntil, teacherId, now)
+    .first();
+  return row !== null;
+}
+
+// A good password of an account that may not log in (pending or closed):
+// the attempt it took is not a wrong password. Through a known browser, the
+// browser's count starts again, as after a login.
+export async function forgetFailedLogins(db: D1Database, teacherId: number, deviceHash: string | null): Promise<void> {
+  await (
+    deviceHash
+      ? db.prepare('UPDATE trusted_devices SET failed_logins = 0 WHERE token_hash = ? AND teacher_id = ?').bind(deviceHash, teacherId)
+      : db.prepare('UPDATE teachers SET failed_logins = 0, locked_until = NULL WHERE id = ?').bind(teacherId)
+  ).run();
 }
 
 export interface NewSession {
@@ -116,6 +178,8 @@ export interface NewSession {
   expiresAt: string;
   // The browser's qe_device token hash; `known` when the login went through it.
   device: { hash: string; known: boolean };
+  // The IP's key when the login took an IP attempt (takeIpAttempt).
+  ipHash: string | null;
 }
 
 // A good password: a new session, and the teacher's expired sessions and
@@ -123,10 +187,13 @@ export interface NewSession {
 // account's count of wrong passwords again; a login through a known browser
 // starts that browser's count again and leaves the account's lock as it is,
 // so the teacher's logins never lift a lock that someone else's guesses set.
-// A browser that was not known becomes known.
+// A browser that was not known becomes known. The IP gets its attempt back,
+// and the windows of IPs that ended are deleted.
 export async function createSession(db: D1Database, session: NewSession, now: string): Promise<void> {
-  const { teacherId, tokenHash, expiresAt, device } = session;
+  const { teacherId, tokenHash, expiresAt, device, ipHash } = session;
   await db.batch([
+    ...(ipHash ? [db.prepare('UPDATE login_ips SET attempts = MAX(attempts - 1, 0) WHERE ip_hash = ?').bind(ipHash)] : []),
+    db.prepare('DELETE FROM login_ips WHERE window_start <= ?').bind(msBefore(now, IP_WINDOW_MS)),
     device.known
       ? db.prepare('UPDATE trusted_devices SET failed_logins = 0, last_used_at = ? WHERE token_hash = ?').bind(now, device.hash)
       : db.prepare('UPDATE teachers SET failed_logins = 0, locked_until = NULL WHERE id = ?').bind(teacherId),
@@ -148,22 +215,31 @@ export async function deleteSession(db: D1Database, tokenHash: string): Promise<
   await db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(tokenHash).run();
 }
 
-// A new account: a teacher, pending, demo. "email_taken" when the email has an
-// account; "too_many" when MAX_PENDING_ACCOUNTS already wait, or this IP
-// (`ipHash`) asked for MAX_SIGNUPS_PER_IP accounts in the last day that still
-// wait. Accounts that waited PENDING_DAYS are deleted first.
+// A new account: a teacher, pending, demo, its email not yet confirmed
+// (`confirmTokenHash`, the SHA-256 of the link's token). "email_taken" when the
+// email has an account; an account of this email that was never confirmed is
+// replaced instead, so whoever owns the email can always ask again. "too_many"
+// when MAX_PENDING_ACCOUNTS already wait, or this IP (`ipHash`) asked for
+// MAX_SIGNUPS_PER_IP accounts in the last day that still wait. Accounts that
+// waited PENDING_DAYS, or were not confirmed in CONFIRM_HOURS, are deleted first.
 export async function createAccount(
   db: D1Database,
-  input: { name: string; email: string; passwordHash: string; ipHash: string },
+  input: { name: string; email: string; passwordHash: string; ipHash: string; confirmTokenHash: string },
   now: string,
 ): Promise<'created' | 'email_taken' | 'too_many'> {
   try {
-    const [, inserted] = await db.batch<{ id: number }>([
-      db.prepare("DELETE FROM teachers WHERE status = 'pending' AND created_at <= ?").bind(daysBefore(now, PENDING_DAYS)),
+    const [, , inserted] = await db.batch<{ id: number }>([
       db
         .prepare(
-          `INSERT INTO teachers (email, name, created_at, role, status, demo, password_hash, signup_ip_hash)
-           SELECT ?, ?, ?, 'teacher', 'pending', 1, ?, ?
+          `DELETE FROM teachers WHERE status = 'pending'
+             AND (created_at <= ? OR (email_confirmed_at IS NULL AND created_at <= ?))`,
+        )
+        .bind(daysBefore(now, PENDING_DAYS), msBefore(now, CONFIRM_HOURS * 60 * 60 * 1000)),
+      db.prepare("DELETE FROM teachers WHERE email = ? AND status = 'pending' AND email_confirmed_at IS NULL").bind(input.email),
+      db
+        .prepare(
+          `INSERT INTO teachers (email, name, created_at, role, status, demo, password_hash, signup_ip_hash, confirm_token_hash)
+           SELECT ?, ?, ?, 'teacher', 'pending', 1, ?, ?, ?
            WHERE (SELECT COUNT(*) FROM teachers WHERE status = 'pending') < ?
              AND (SELECT COUNT(*) FROM teachers WHERE status = 'pending' AND signup_ip_hash = ? AND created_at > ?) < ?
            RETURNING id`,
@@ -174,6 +250,7 @@ export async function createAccount(
           now,
           input.passwordHash,
           input.ipHash,
+          input.confirmTokenHash,
           MAX_PENDING_ACCOUNTS,
           input.ipHash,
           daysBefore(now, 1),
@@ -187,17 +264,33 @@ export async function createAccount(
   }
 }
 
+// The link in the email of a new account: its email is confirmed, and the
+// account now waits for an administrator. Null for a wrong or used link, or
+// one older than CONFIRM_HOURS.
+export async function confirmEmail(db: D1Database, tokenHash: string, now: string): Promise<{ email: string; name: string } | null> {
+  return db
+    .prepare(
+      `UPDATE teachers SET email_confirmed_at = ?, confirm_token_hash = NULL
+       WHERE confirm_token_hash = ? AND status = 'pending' AND email_confirmed_at IS NULL AND created_at > ?
+       RETURNING email, name`,
+    )
+    .bind(now, tokenHash, msBefore(now, CONFIRM_HOURS * 60 * 60 * 1000))
+    .first<{ email: string; name: string }>();
+}
+
 // The addresses that hear about new accounts.
 export async function adminEmails(db: D1Database): Promise<string[]> {
   const rows = await db.prepare("SELECT email FROM teachers WHERE role = 'admin' AND status = 'active' ORDER BY id").all<{ email: string }>();
   return rows.results.map((row) => row.email);
 }
 
-// Pending accounts first, then by name.
+// Pending accounts first, then by name. A pending account whose email is not
+// confirmed yet is not shown: nobody may approve it.
 export async function listAccounts(db: D1Database): Promise<Account[]> {
   const rows = await db
     .prepare(
       `SELECT ${TEACHER_COLUMNS}, t.status, t.created_at, t.approved_at FROM teachers t
+       WHERE t.status <> 'pending' OR t.email_confirmed_at IS NOT NULL
        ORDER BY CASE t.status WHEN 'pending' THEN 0 ELSE 1 END, t.name COLLATE NOCASE, t.id`,
     )
     .all<AccountRow>();
@@ -212,25 +305,32 @@ export interface ShownAccount {
   createdAt: string;
 }
 
-// pending → active. Null when the account is not pending (approved meanwhile,
-// or gone), or is another account now.
+// pending → active, once its email is confirmed. Null when the account is not
+// pending (approved meanwhile, or gone), or is another account now.
 export async function approveAccount(db: D1Database, shown: ShownAccount, now: string): Promise<{ email: string; name: string } | null> {
   return db
     .prepare(
       `UPDATE teachers SET status = 'active', approved_at = ?, signup_ip_hash = NULL
-       WHERE id = ? AND created_at = ? AND status = 'pending' RETURNING email, name`,
+       WHERE id = ? AND created_at = ? AND status = 'pending' AND email_confirmed_at IS NOT NULL RETURNING email, name`,
     )
     .bind(now, shown.teacherId, shown.createdAt)
     .first<{ email: string; name: string }>();
 }
 
-// Deletes an account that still waits: it cannot have logged in, so it has no data.
-export async function rejectAccount(db: D1Database, shown: ShownAccount): Promise<boolean> {
-  const row = await db
-    .prepare("DELETE FROM teachers WHERE id = ? AND created_at = ? AND status = 'pending' RETURNING id")
-    .bind(shown.teacherId, shown.createdAt)
-    .first();
-  return row !== null;
+// Deletes accounts that still wait: they cannot have logged in, so they have
+// no data. Returns how many went; the others were approved or gone meanwhile.
+export async function rejectAccounts(db: D1Database, shown: ShownAccount[]): Promise<number> {
+  const rows = await db
+    .prepare(
+      `DELETE FROM teachers WHERE status = 'pending'
+         AND EXISTS (SELECT 1 FROM json_each(?) j
+                     WHERE json_extract(j.value, '$.teacherId') = teachers.id
+                       AND json_extract(j.value, '$.createdAt') = teachers.created_at)
+       RETURNING id`,
+    )
+    .bind(JSON.stringify(shown))
+    .all();
+  return rows.results.length;
 }
 
 // An administrator changes a teacher's account (never an administrator's, nor

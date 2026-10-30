@@ -42,8 +42,10 @@ export { ApiError };
 export interface AdminApi {
   me(): Promise<Teacher>;
   login(email: string, password: string): Promise<Teacher>;
-  // A new account waits for an administrator's approval.
+  // A new account first confirms its email, then waits for an administrator's approval.
   signup(input: SignupInput): Promise<void>;
+  // The link from the confirmation email (its token).
+  confirmEmail(token: string): Promise<void>;
   logout(): Promise<void>;
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
   // Setări, administrators only.
@@ -51,6 +53,8 @@ export interface AdminApi {
   // Name the account the page shows by the time it was asked for: ids come back.
   approveAccount(teacherId: number, createdAt: string): Promise<void>;
   rejectAccount(teacherId: number, createdAt: string): Promise<void>;
+  // "Refuză toate": how many went (those approved meanwhile stay).
+  rejectAllAccounts(accounts: { id: number; createdAt: string }[]): Promise<number>;
   updateAccount(teacherId: number, change: { demo?: boolean; status?: 'active' | 'disabled' }): Promise<Account[]>;
   // A new password for a teacher who forgot theirs: the only time the app sees it.
   resetPassword(teacherId: number): Promise<string>;
@@ -221,6 +225,9 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     signup: async (input) => {
       await request('POST', '/signup', input, undefined, '/api/auth');
     },
+    confirmEmail: async (token) => {
+      await request('POST', '/confirm', { token }, undefined, '/api/auth');
+    },
     logout: async () => {
       await request('POST', '/logout', undefined, undefined, '/api/auth');
     },
@@ -234,6 +241,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     rejectAccount: async (teacherId, createdAt) => {
       await request('POST', `/accounts/${teacherId}/reject`, { createdAt });
     },
+    rejectAllAccounts: async (accounts) => (await request<{ deleted: number }>('POST', '/accounts/reject-all', { accounts })).deleted,
     updateAccount: async (teacherId, change) =>
       (await request<{ accounts: Account[] }>('PATCH', `/accounts/${teacherId}`, change)).accounts,
     resetPassword: async (teacherId) => (await request<{ password: string }>('POST', `/accounts/${teacherId}/password`)).password,

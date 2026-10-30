@@ -7,8 +7,9 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // The accounts part of Setări: the administrators approve or refuse new
-// accounts, make a demo account complete, close an account, and give a
-// teacher who forgot it a new password.
+// accounts (one by one, or all that wait at once), make a demo account
+// complete, close an account, and give a teacher who forgot it a new password.
+// Only accounts whose email is confirmed are listed.
 export function AccountsSection() {
   const api = useApi();
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api.listAccounts() });
@@ -26,11 +27,14 @@ export function AccountsSection() {
           {pending.length === 0 ? (
             <p className="hint">Niciun cont nu așteaptă aprobarea.</p>
           ) : (
-            <ol className="row-list">
-              {pending.map((account) => (
-                <PendingItem key={account.id} account={account} />
-              ))}
-            </ol>
+            <>
+              <ol className="row-list">
+                {pending.map((account) => (
+                  <PendingItem key={account.id} account={account} />
+                ))}
+              </ol>
+              {pending.length > 1 && <RejectAll pending={pending} />}
+            </>
           )}
           <h3>Profesori</h3>
           <ol className="row-list">
@@ -47,6 +51,32 @@ export function AccountsSection() {
 function useReload() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: ['accounts'] });
+}
+
+// For a wave of sign-ups nobody knows: every account the page shows as
+// waiting goes at once.
+function RejectAll({ pending }: { pending: Account[] }) {
+  const api = useApi();
+  const reload = useReload();
+  const rejectAll = useMutation({
+    mutationFn: () => api.rejectAllAccounts(pending.map((account) => ({ id: account.id, createdAt: account.createdAt }))),
+    onSettled: reload,
+  });
+  return (
+    <p>
+      <button
+        type="button"
+        className="button-quiet button-small"
+        disabled={rejectAll.isPending}
+        onClick={() => {
+          if (window.confirm(`Refuzi toate cele ${pending.length} conturi care așteaptă? Cererile se șterg.`)) rejectAll.mutate();
+        }}
+      >
+        Refuză toate
+      </button>
+      {rejectAll.error && <ErrorMessage error={rejectAll.error} />}
+    </p>
+  );
 }
 
 function PendingItem({ account }: { account: Account }) {

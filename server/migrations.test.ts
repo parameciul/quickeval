@@ -36,7 +36,7 @@ async function databaseBefore0018(): Promise<{ db: D1Database; apply0018: () => 
 const addTeacher = (db: D1Database, email: string) =>
   db.prepare("INSERT INTO teachers (email, name, created_at) VALUES (?, 'X', '2026-10-06')").bind(email).run();
 const rolesOf = async (db: D1Database) =>
-  (await db.prepare('SELECT email, role, status, demo FROM teachers ORDER BY id').all()).results;
+  (await db.prepare('SELECT email, role, status, demo, email_confirmed_at IS NOT NULL AS confirmed FROM teachers ORDER BY id').all()).results;
 
 describe('migration 0018', () => {
   it('makes the two administrators, and keeps every teacher active and complete', async () => {
@@ -46,9 +46,9 @@ describe('migration 0018', () => {
     await addTeacher(db, 'mg1497_miron@yahoo.com');
     await apply0018();
     expect(await rolesOf(db)).toEqual([
-      { email: 'plesalaura@yahoo.com', role: 'admin', status: 'active', demo: 0 },
-      { email: 'alt@example.com', role: 'teacher', status: 'active', demo: 0 },
-      { email: 'mg1497_miron@yahoo.com', role: 'admin', status: 'active', demo: 0 },
+      { email: 'plesalaura@yahoo.com', role: 'admin', status: 'active', demo: 0, confirmed: 1 },
+      { email: 'alt@example.com', role: 'teacher', status: 'active', demo: 0, confirmed: 1 },
+      { email: 'mg1497_miron@yahoo.com', role: 'admin', status: 'active', demo: 0, confirmed: 1 },
     ]);
   });
 
@@ -76,11 +76,11 @@ describe('migration 0018', () => {
     await test(2, 'open', '2026-10-07');
     await test(3, 'open', null);
     await apply0018();
-    const counted = await db.prepare('SELECT number, evaluation_counted FROM tests ORDER BY number').all();
+    const counted = await db.prepare('SELECT number, counted_files_version IS files_version AS counted FROM tests ORDER BY number').all();
     expect(counted.results).toEqual([
-      { number: 1, evaluation_counted: 1 },
-      { number: 2, evaluation_counted: 1 },
-      { number: 3, evaluation_counted: 0 },
+      { number: 1, counted: 1 },
+      { number: 2, counted: 1 },
+      { number: 3, counted: 0 },
     ]);
   });
 });

@@ -47,21 +47,27 @@ describe('createApiClient', () => {
     const api = createApiClient({ fetchImpl });
     expect(await api.login('a@example.com', 'parola-buna')).toEqual({ id: 1 });
     await api.signup({ name: 'Ana', email: 'a@example.com', password: 'parola-buna' });
+    await api.confirmEmail('token-din-link');
     await api.logout();
     expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
       'POST /api/auth/login',
       'POST /api/auth/signup',
+      'POST /api/auth/confirm',
       'POST /api/auth/logout',
     ]);
+    expect(fetchImpl.mock.calls[2]![1]!.body).toBe(JSON.stringify({ token: 'token-din-link' }));
     expect(fetchImpl.mock.calls[0]![1]!.body).toBe(JSON.stringify({ email: 'a@example.com', password: 'parola-buna' }));
   });
 
   it('calls the accounts of Setări', async () => {
-    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, { accounts: [], password: 'p' }));
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(200, { accounts: [], password: 'p', deleted: 2 }),
+    );
     const api = createApiClient({ fetchImpl });
     await api.listAccounts();
     await api.approveAccount(2, '2026-10-28T10:00:00.000Z');
     await api.rejectAccount(3, '2026-10-28T10:00:00.000Z');
+    expect(await api.rejectAllAccounts([{ id: 6, createdAt: '2026-10-28T10:00:00.000Z' }])).toBe(2);
     await api.updateAccount(4, { demo: false });
     expect(await api.resetPassword(5)).toBe('p');
     expect(fetchImpl.mock.calls[1]![1]!.body).toBe(JSON.stringify({ createdAt: '2026-10-28T10:00:00.000Z' }));
@@ -70,6 +76,7 @@ describe('createApiClient', () => {
       'GET /api/admin/accounts',
       'POST /api/admin/accounts/2/approve',
       'POST /api/admin/accounts/3/reject',
+      'POST /api/admin/accounts/reject-all',
       'PATCH /api/admin/accounts/4',
       'POST /api/admin/accounts/5/password',
       'POST /api/admin/account/password',

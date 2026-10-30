@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { hashPassword, PASSWORD_ITERATIONS, verifyPassword } from './passwords.ts';
 
 describe('password hashes', () => {
@@ -24,4 +24,16 @@ describe('password hashes', () => {
       expect(await verifyPassword('parola', stored)).toBe(false);
     },
   );
+
+  it('runs the full hash also for a missing or broken stored value, so it takes as long as a wrong password', async () => {
+    const derive = vi.spyOn(crypto.subtle, 'deriveBits');
+    try {
+      expect(await verifyPassword('parola', null)).toBe(false);
+      expect(await verifyPassword('parola', 'plain')).toBe(false);
+      expect(derive).toHaveBeenCalledTimes(2);
+      expect(derive.mock.calls[0]![0]).toMatchObject({ iterations: PASSWORD_ITERATIONS });
+    } finally {
+      derive.mockRestore();
+    }
+  });
 });

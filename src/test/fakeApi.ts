@@ -247,6 +247,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     me: vi.fn(async () => structuredClone(me)),
     login: vi.fn(async (_email: string, _password: string) => structuredClone(me)),
     signup: vi.fn(async (_input: { name: string; email: string; password: string }) => {}),
+    confirmEmail: vi.fn(async (_token: string) => {}),
     logout: vi.fn(async () => {}),
     changePassword: vi.fn(async (_current: string, _next: string) => {}),
     listAccounts: vi.fn(async () => structuredClone(accounts)),
@@ -259,6 +260,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const index = accounts.findIndex((a) => a.id === teacherId && a.createdAt === createdAt && a.status === 'pending');
       if (index < 0) throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
       accounts.splice(index, 1);
+    }),
+    rejectAllAccounts: vi.fn(async (shown: { id: number; createdAt: string }[]) => {
+      const gone = accounts.filter((a) => a.status === 'pending' && shown.some((s) => s.id === a.id && s.createdAt === a.createdAt));
+      for (const account of gone) accounts.splice(accounts.indexOf(account), 1);
+      return gone.length;
     }),
     updateAccount: vi.fn(async (teacherId: number, change: { demo?: boolean; status?: 'active' | 'disabled' }) => {
       const account = accounts.find((a) => a.id === teacherId && a.role === 'teacher' && a.status !== 'pending');

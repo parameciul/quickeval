@@ -47,7 +47,7 @@ describe('the login form', () => {
     await userEvent.type(screen.getByLabelText(/^Parola/), 'parola-lunga');
     await userEvent.click(screen.getByRole('button', { name: 'Cere contul' }));
     expect(api.signup).toHaveBeenCalledWith({ name: 'Ana Pop', email: 'ana@example.com', password: 'parola-lunga' });
-    expect(await screen.findByRole('status')).toHaveTextContent('Un administrator trebuie să aprobe contul.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Ți-am trimis un email cu un link.');
   });
 
   it('shows other errors of the first request as they are', async () => {

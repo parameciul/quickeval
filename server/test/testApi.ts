@@ -64,8 +64,8 @@ export async function startTestApi(options: { env?: Partial<Env>; app?: AppOptio
 
   const addTeacher = async (email: string, name: string, options: { role?: 'admin' | 'teacher'; demo?: boolean } = {}) => {
     const row = await db
-      .prepare('INSERT INTO teachers (email, name, created_at, role, demo) VALUES (?, ?, ?, ?, ?) RETURNING id')
-      .bind(email, name, '2026-10-06T08:00:00.000Z', options.role ?? 'teacher', options.demo ? 1 : 0)
+      .prepare('INSERT INTO teachers (email, name, created_at, email_confirmed_at, role, demo) VALUES (?, ?, ?, ?, ?, ?) RETURNING id')
+      .bind(email, name, '2026-10-06T08:00:00.000Z', '2026-10-06T08:00:00.000Z', options.role ?? 'teacher', options.demo ? 1 : 0)
       .first<{ id: number }>();
     return row!.id;
   };
@@ -83,7 +83,11 @@ export async function startTestApi(options: { env?: Partial<Env>; app?: AppOptio
 
   const env: Env = { DB: db, FILES: platform.env.FILES, DEV_TEACHER_EMAIL: TEACHER_EMAIL, ...options.env };
   const app = createApp(options.app);
-  const send = (path: string, init: RequestInit = {}) => Promise.resolve(app.request(`http://localhost${path}`, init, env));
+  // Work a route leaves running after its answer (inBackground): request()
+  // waits for it, so a test sees the emails; fetch() does not.
+  const background: Promise<unknown>[] = [];
+  const executionCtx = { waitUntil: (work: Promise<unknown>) => void background.push(work), passThroughOnException: () => {}, props: {} };
+  const send = (path: string, init: RequestInit = {}) => Promise.resolve(app.request(`http://localhost${path}`, init, env, executionCtx));
 
   return {
     env,
@@ -99,6 +103,7 @@ export async function startTestApi(options: { env?: Partial<Env>; app?: AppOptio
       }
       const res = await send(path, init);
       const text = await res.text();
+      await Promise.all(background.splice(0));
       return { status: res.status, headers: res.headers, body: text === '' ? null : JSON.parse(text) };
     },
     fetch: send,

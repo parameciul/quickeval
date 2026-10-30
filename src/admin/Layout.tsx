@@ -27,8 +27,10 @@ export function Layout() {
   const { year, setYear } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   // Nobody logged in: the login form takes the place of every page. The pages
-  // wait for the login, so they never ask the API without it.
+  // wait for the login, so they never ask the API without it. The page that
+  // confirms a new account's email needs no login.
   const loggedOut = isLoginRequired(me.error);
+  const openPage = location.pathname === '/confirma-email';
 
   return (
     <>
@@ -69,7 +71,9 @@ export function Layout() {
       </header>
       <main className="wrap page">
         {me.data?.demo && <p className="warning">{demoText(me.data)}</p>}
-        {loggedOut ? (
+        {openPage ? (
+          <Outlet />
+        ) : loggedOut ? (
           <LoginPage />
         ) : me.error ? (
           <ErrorMessage error={me.error} />

@@ -4,6 +4,7 @@ import { AccountPage } from './pages/AccountPage.tsx';
 import { ClassesPage } from './pages/ClassesPage.tsx';
 import { ClassPage } from './pages/ClassPage.tsx';
 import { ClassStudentsPage } from './pages/ClassStudentsPage.tsx';
+import { ConfirmEmailPage } from './pages/ConfirmEmailPage.tsx';
 import { NewTestPage } from './pages/NewTestPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { ReportPage } from './pages/ReportPage.tsx';
@@ -29,6 +30,7 @@ export function AppRoutes() {
         <Route path="elevi/:id" element={<StudentPage />} />
         <Route path="setari" element={<SettingsPage />} />
         <Route path="cont" element={<AccountPage />} />
+        <Route path="confirma-email" element={<ConfirmEmailPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

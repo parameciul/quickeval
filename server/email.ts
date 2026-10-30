@@ -40,3 +40,8 @@ export async function sendBrevoEmail(env: Env, message: EmailMessage, fetchImpl:
 export function emailSender(options: AppOptions): (env: Env, message: EmailMessage) => Promise<boolean> {
   return options.sendEmail ?? ((env, message) => sendBrevoEmail(env, message));
 }
+
+// Whether emails can go out at all: a new account needs one to confirm its address.
+export function canSendEmail(env: Env, options: AppOptions): boolean {
+  return options.sendEmail !== undefined || (Boolean(env.BREVO_API_KEY?.trim()) && Boolean(env.EMAIL_FROM?.trim()));
+}

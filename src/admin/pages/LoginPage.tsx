@@ -81,8 +81,11 @@ function SignupForm() {
   if (signup.isSuccess) {
     return (
       <div className="warning" role="status">
-        <p>Am trimis cererea. Un administrator trebuie să aprobe contul.</p>
-        <p>După aprobare, intră cu emailul și parola alese. Dacă ai deja un cont cu acest email, intră în el cu parola ta.</p>
+        <p>Ți-am trimis un email cu un link. Deschide-l în 24 de ore ca să confirmi adresa; apoi un administrator aprobă contul.</p>
+        <p>
+          După aprobare, intră cu emailul și parola alese. Nu găsești emailul? Uită-te și în Spam. Dacă ai deja un cont cu acest email, intră
+          în el cu parola ta.
+        </p>
       </div>
     );
   }
@@ -125,7 +128,8 @@ function SignupForm() {
       </span>
       {signup.error && <ErrorMessage error={signup.error} />}
       <p className="hint">
-        Un cont nou este un cont demo: poți evalua {DEMO_TEST_LIMIT} teste. Contul se poate folosi după ce îl aprobă un administrator.
+        Un cont nou este un cont demo: poți evalua {DEMO_TEST_LIMIT} teste. Contul se poate folosi după ce confirmi adresa de email și îl
+        aprobă un administrator.
       </p>
     </form>
   );

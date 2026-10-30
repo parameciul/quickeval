@@ -44,6 +44,26 @@ describe('the accounts on Setări', () => {
     expect(await screen.findByText('Niciun cont nu așteaptă aprobarea.')).toBeInTheDocument();
   });
 
+  it('refuses every account that waits at once, after a confirmation', async () => {
+    const carmen = fakeAccount({ id: 5, name: 'Carmen', email: 'carmen@example.com', role: 'teacher', demo: true, status: 'pending' });
+    const api = createFakeApi({ classes: [], students: {}, accounts: [structuredClone(ana), structuredClone(carmen), structuredClone(laura)] });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin('/setari', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Refuză toate' }));
+    expect(confirm).toHaveBeenCalledWith('Refuzi toate cele 2 conturi care așteaptă? Cererile se șterg.');
+    expect(api.rejectAllAccounts).toHaveBeenCalledWith([
+      { id: 2, createdAt: ana.createdAt },
+      { id: 5, createdAt: carmen.createdAt },
+    ]);
+    expect(await screen.findByText('Niciun cont nu așteaptă aprobarea.')).toBeInTheDocument();
+  });
+
+  it('offers no "Refuză toate" for a single account that waits', async () => {
+    renderAdmin('/setari', withAccounts());
+    await screen.findByRole('button', { name: 'Aprobă Ana Pop' });
+    expect(screen.queryByRole('button', { name: 'Refuză toate' })).not.toBeInTheDocument();
+  });
+
   it('shows the kind of each account and makes a demo account complete', async () => {
     const api = withAccounts();
     renderAdmin('/setari', api);

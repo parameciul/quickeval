@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.ts';
-import { LOCK_MS, MAX_FAILED_LOGINS, MAX_PENDING_ACCOUNTS, MAX_SIGNUPS_PER_IP, PENDING_DAYS } from '../db/accounts.ts';
+import {
+  CONFIRM_HOURS,
+  IP_WINDOW_MS,
+  LOCK_MS,
+  MAX_FAILED_LOGINS,
+  MAX_IP_FAILED_LOGINS,
+  MAX_PENDING_ACCOUNTS,
+  MAX_SIGNUPS_PER_IP,
+  PENDING_DAYS,
+} from '../db/accounts.ts';
 import type { EmailMessage } from '../email.ts';
 import { hashPassword } from '../passwords.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
@@ -41,27 +50,110 @@ const loginWith = (cookie: string, email: string, password: string) =>
   api.request('POST', '/api/auth/login', { email, password }, { Cookie: cookie });
 const wrongBody = async () => (await login('nimeni@example.com', 'orice-parola')).body;
 
+// The token of the confirmation link in the last email.
+const linkToken = () => /confirma-email#([\w-]+)/.exec(emails.at(-1)!.text)![1]!;
+const confirm = (token: string) => api.request('POST', '/api/auth/confirm', { token });
+
 async function setPasswordOf(email: string, password: string): Promise<void> {
   await api.db.prepare('UPDATE teachers SET password_hash = ? WHERE email = ?').bind(await hashPassword(password), email).run();
 }
 
 describe('POST /api/auth/signup', () => {
-  it('makes a pending demo account and tells the administrators', async () => {
+  it('makes a pending demo account and sends its email a confirmation link', async () => {
     await api.addTeacher('admin2@example.com', 'Admin Doi', { role: 'admin' });
-    await api.addTeacher('profesor2@example.com', 'Profesor Doi');
     const res = await signup({ name: '  Ana   Pop ', email: ' Ana.Pop@Example.com ', password: 'parola-lunga' });
     expect(res.status).toBe(201);
     expect(res.body).toEqual({ status: 'pending' });
     const row = await api.db
-      .prepare("SELECT name, role, status, demo, password_hash FROM teachers WHERE email = 'ana.pop@example.com'")
-      .first<{ name: string; role: string; status: string; demo: number; password_hash: string }>();
-    expect(row).toMatchObject({ name: 'Ana Pop', role: 'teacher', status: 'pending', demo: 1 });
+      .prepare(
+        "SELECT name, role, status, demo, password_hash, email_confirmed_at, confirm_token_hash FROM teachers WHERE email = 'ana.pop@example.com'",
+      )
+      .first<Record<string, unknown>>();
+    expect(row).toMatchObject({ name: 'Ana Pop', role: 'teacher', status: 'pending', demo: 1, email_confirmed_at: null });
     expect(row!.password_hash).not.toContain('parola-lunga');
+    // Only the administrators' email waits for the confirmation.
     expect(emails).toHaveLength(1);
-    expect(emails[0]!.to).toEqual(['profesor@example.com', 'admin2@example.com']);
-    expect(emails[0]!.text).toContain('Ana Pop');
-    expect(emails[0]!.text).toContain('ana.pop@example.com');
-    expect(emails[0]!.text).toContain('http://localhost/admin/setari');
+    expect(emails[0]!.to).toEqual(['ana.pop@example.com']);
+    expect(emails[0]!.text).toMatch(/http:\/\/localhost\/admin\/confirma-email#[\w-]{43}/);
+    expect(row!.confirm_token_hash).not.toBe(linkToken());
+  });
+
+  it('tells the administrators once the email is confirmed, and takes each link once', async () => {
+    await api.addTeacher('admin2@example.com', 'Admin Doi', { role: 'admin' });
+    await api.addTeacher('profesor2@example.com', 'Profesor Doi');
+    await signup({ name: 'Ana Pop', email: 'ana.pop@example.com', password: 'parola-lunga' });
+    const token = linkToken();
+    const res = await confirm(token);
+    expect(res.status).toBe(200);
+    expect(emails).toHaveLength(2);
+    expect(emails[1]!.to).toEqual(['profesor@example.com', 'admin2@example.com']);
+    expect(emails[1]!.text).toContain('Ana Pop');
+    expect(emails[1]!.text).toContain('ana.pop@example.com');
+    expect(emails[1]!.text).toContain('http://localhost/admin/setari');
+    const again = await confirm(token);
+    expect(again.status).toBe(404);
+    expect(again.body.error).toBe('bad_link');
+    expect((await confirm('made-up')).status).toBe(404);
+  });
+
+  it('takes no link older than a day, and deletes the account at the next sign-up', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T10:00:00.000Z'));
+    await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });
+    const token = linkToken();
+    vi.setSystemTime(new Date(Date.parse('2026-10-01T10:00:00.000Z') + CONFIRM_HOURS * 60 * 60 * 1000 + 1000));
+    expect((await confirm(token)).status).toBe(404);
+    await signup({ name: 'Bianca', email: 'bianca@example.com', password: 'parola-lunga' });
+    const rows = await api.db.prepare("SELECT email FROM teachers WHERE status = 'pending'").all<{ email: string }>();
+    expect(rows.results.map((row) => row.email)).toEqual(['bianca@example.com']);
+  });
+
+  it('lets the owner of an email ask again while nobody confirmed it, and only the newest link works', async () => {
+    await signup({ name: 'Altcineva', email: 'ana@example.com', password: 'parola-straina' });
+    const first = linkToken();
+    await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });
+    expect((await confirm(first)).status).toBe(404);
+    expect((await confirm(linkToken())).status).toBe(200);
+    const row = await api.db.prepare("SELECT name FROM teachers WHERE email = 'ana@example.com'").first<{ name: string }>();
+    expect(row!.name).toBe('Ana');
+  });
+
+  it('does not replace an account whose email is confirmed', async () => {
+    await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });
+    await confirm(linkToken());
+    emails = [];
+    expect((await signup({ name: 'Altcineva', email: 'ana@example.com', password: 'parola-straina' })).status).toBe(201);
+    expect(emails).toHaveLength(0);
+    const row = await api.db.prepare("SELECT name FROM teachers WHERE email = 'ana@example.com'").first<{ name: string }>();
+    expect(row!.name).toBe('Ana');
+  });
+
+  it('answers before the email goes out, so its time tells nothing', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const slow = await startTestApi({ app: { sendEmail: () => held.then(() => true) } });
+    try {
+      const res = await slow.fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' }),
+      });
+      expect(res.status).toBe(201);
+    } finally {
+      release();
+      await slow.dispose();
+    }
+  });
+
+  it('is off while no email can go out', async () => {
+    const quiet = await startTestApi();
+    try {
+      const res = await quiet.request('POST', '/api/auth/signup', { name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });
+      expect(res.status).toBe(503);
+      expect(res.body.error).toBe('signup_off');
+    } finally {
+      await quiet.dispose();
+    }
   });
 
   it('answers an email that already has an account as any other, and changes nothing', async () => {
@@ -85,6 +177,14 @@ describe('POST /api/auth/signup', () => {
     expect(stored!.signup_ip_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('counts the IPv6 addresses of one /64 as one IP', async () => {
+    const from = (ip: string, i: number) =>
+      api.request('POST', '/api/auth/signup', { name: 'Ana', email: `v${i}@example.com`, password: 'parola-lunga' }, { 'CF-Connecting-IP': ip });
+    for (let i = 0; i < MAX_SIGNUPS_PER_IP; i++) expect((await from(`2001:db8:1:2::${i + 1}`, i)).status).toBe(201);
+    expect((await from('2001:0db8:0001:0002:ffff:1:2:3', 99)).status).toBe(429);
+    expect((await from('2001:db8:1:3::1', 100)).status).toBe(201);
+  });
+
   it('deletes accounts that waited too long, so they free their places', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-01T10:00:00.000Z'));
@@ -99,6 +199,7 @@ describe('POST /api/auth/signup', () => {
     [{ name: '', email: 'a@example.com', password: 'parola-lunga' }, 'Scrie numele tău.'],
     [{ name: 'Ana', email: 'nu-e-email', password: 'parola-lunga' }, 'Scrie o adresă de email validă.'],
     [{ name: 'Ana', email: 'a@example.com', password: 'scurta' }, 'Parola are între 8 și 200 de caractere.'],
+    [{ name: 'Ana', email: 'a@example.com', password: 'Parola123' }, 'Parola aceasta e prea des folosită. Alege alta.'],
     [{ name: 'Vezi https://evil.example', email: 'a@example.com', password: 'parola-lunga' }, 'Numele are doar litere, spații, puncte, apostrofuri și cratime.'],
     [{ name: '-Ana', email: 'a@example.com', password: 'parola-lunga' }, 'Numele are doar litere, spații, puncte, apostrofuri și cratime.'],
   ])('refuses %j', async (body, message) => {
@@ -110,7 +211,9 @@ describe('POST /api/auth/signup', () => {
   it('keeps at most a fixed number of accounts waiting', async () => {
     const statements = Array.from({ length: MAX_PENDING_ACCOUNTS }, (_, i) =>
       api.db
-        .prepare("INSERT INTO teachers (email, name, created_at, status, demo) VALUES (?, 'X', '2026-10-06', 'pending', 1)")
+        .prepare(
+          "INSERT INTO teachers (email, name, created_at, status, demo, email_confirmed_at) VALUES (?, 'X', '2026-10-29', 'pending', 1, '2026-10-29')",
+        )
         .bind(`p${i}@example.com`),
     );
     await api.db.batch(statements);
@@ -174,9 +277,11 @@ describe('POST /api/auth/login', () => {
     expect((await login('profesor@example.com', 'orice-parola')).status).toBe(401);
   });
 
-  it('tells a pending account to wait, but only with the right password', async () => {
+  it('tells a pending account to confirm its email, then to wait, but only with the right password', async () => {
     await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });
     expect((await login('ana@example.com', 'alta-parola')).body.error).toBe('wrong_login');
+    expect((await login('ana@example.com', 'parola-lunga')).body.error).toBe('email_unconfirmed');
+    await confirm(linkToken());
     const res = await login('ana@example.com', 'parola-lunga');
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('account_pending');
@@ -223,6 +328,39 @@ describe('POST /api/auth/login', () => {
     vi.setSystemTime(new Date(Date.parse('2026-10-28T10:00:00.000Z') + LOCK_MS + 1000));
     for (let i = 0; i < MAX_FAILED_LOGINS - 1; i++) expect((await login('profesor@example.com', 'gresita')).status).toBe(401);
     expect((await login('profesor@example.com', 'parola-buna')).status).toBe(200);
+  });
+
+  it('counts no good password as a wrong one, also for an account that may not log in', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-buna');
+    await api.db.prepare("UPDATE teachers SET status = 'disabled'").run();
+    for (let i = 0; i < MAX_FAILED_LOGINS + 2; i++) expect((await login('profesor@example.com', 'parola-buna')).body.error).toBe('account_disabled');
+    const row = await api.db.prepare('SELECT failed_logins, locked_until FROM teachers').first();
+    expect(row).toEqual({ failed_logins: 0, locked_until: null });
+  });
+
+  it('refuses an IP that sent too many wrong passwords, for any account, until its window ends', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-28T10:00:00.000Z'));
+    await setPasswordOf('profesor@example.com', 'parola-buna');
+    const from = (ip: string, email: string, password: string) =>
+      api.request('POST', '/api/auth/login', { email, password }, { 'CF-Connecting-IP': ip });
+    // Many accounts, each under its own lock.
+    for (let i = 0; i < MAX_IP_FAILED_LOGINS; i++) expect((await from('9.9.9.9', `nimeni${i}@example.com`, 'gresita')).status).toBe(401);
+    const refused = await from('9.9.9.9', 'profesor@example.com', 'parola-buna');
+    expect(refused.status).toBe(401);
+    expect(refused.body).toEqual(await wrongBody());
+    // The account itself took no attempt from that IP.
+    expect(await api.db.prepare('SELECT failed_logins FROM teachers').first()).toEqual({ failed_logins: 0 });
+    expect((await from('8.8.8.8', 'profesor@example.com', 'parola-buna')).status).toBe(200);
+    vi.setSystemTime(new Date(Date.parse('2026-10-28T10:00:00.000Z') + IP_WINDOW_MS + 1000));
+    expect((await from('9.9.9.9', 'profesor@example.com', 'parola-buna')).status).toBe(200);
+  });
+
+  it('gives an IP its attempt back for a good password', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-buna');
+    const from = (password: string) =>
+      api.request('POST', '/api/auth/login', { email: 'profesor@example.com', password }, { 'CF-Connecting-IP': '7.7.7.7' });
+    for (let i = 0; i < MAX_IP_FAILED_LOGINS + 5; i++) expect((await from('parola-buna')).status).toBe(200);
   });
 
   it('starts the count of wrong passwords again after a good login', async () => {
@@ -334,5 +472,37 @@ describe('POST /api/admin/account/password', () => {
     const res = await api.request('POST', '/api/admin/account/password', { currentPassword: 'gresita', newPassword: 'parola-noua' }, { Cookie: cookie });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('wrong_password');
+  });
+
+  it('stops guessing the current password after ten wrong ones', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-veche');
+    const cookie = cookieOf(await login('profesor@example.com', 'parola-veche'));
+    const change = (currentPassword: string) =>
+      api.request('POST', '/api/admin/account/password', { currentPassword, newPassword: 'parola-noua' }, { Cookie: cookie });
+    for (let i = 0; i < MAX_FAILED_LOGINS; i++) expect((await change('gresita')).body.error).toBe('wrong_password');
+    const locked = await change('parola-veche');
+    expect(locked.status).toBe(429);
+    expect(locked.body.error).toBe('too_many_tries');
+    expect((await login('profesor@example.com', 'parola-veche')).status).toBe(401);
+  });
+
+  it('starts the count again after a good current password', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-veche');
+    const cookie = cookieOf(await login('profesor@example.com', 'parola-veche'));
+    const change = (currentPassword: string, newPassword: string) =>
+      api.request('POST', '/api/admin/account/password', { currentPassword, newPassword }, { Cookie: cookie });
+    for (let i = 0; i < MAX_FAILED_LOGINS - 1; i++) await change('gresita', 'parola-noua');
+    expect((await change('parola-veche', 'parola-noua')).status).toBe(200);
+    expect(await api.db.prepare('SELECT failed_logins FROM teachers').first()).toEqual({ failed_logins: 0 });
+  });
+});
+
+describe('the development login', () => {
+  it('never opens the live site', async () => {
+    api.env.DEV_TEACHER_EMAIL = 'profesor@example.com';
+    expect((await api.request('GET', '/api/admin/me')).status).toBe(200);
+    const live = await createApp().request('https://quickeval.pages.dev/api/admin/me', {}, api.env);
+    expect(live.status).toBe(401);
+    expect(((await live.json()) as { error: string }).error).toBe('login_required');
   });
 });

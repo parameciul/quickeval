@@ -102,7 +102,7 @@ Parts:
 | API | Pages Functions + Hono 4 (TypeScript) | Small, made for Workers. `app.request()` makes API tests simple. |
 | Database | Cloudflare D1 | SQLite. Free: 5 GB per account, 500 MB per database, 5 M rows read/day, 100 k rows written/day. |
 | Files | Cloudflare R2 | Free: 10 GB-month, 1 M Class A ops/month, 10 M Class B ops/month, no egress fees. Needs a one-time R2 subscription checkout (card or PayPal). |
-| Teacher login | Email and password in the app (`server/routes/auth.ts`), a session cookie stored as a hash in D1 | Replaced Cloudflare Access when other teachers got accounts: Access's free plan stops at 50 users and needs each email in its policy. Free for any number of users; no email service needed to log in. |
+| Teacher login | Email and password in the app (`server/routes/auth.ts`), a session cookie stored as a hash in D1 | Replaced Cloudflare Access when other teachers got accounts: Access's free plan stops at 50 users and needs each email in its policy. Free for any number of users; no email service needed to log in. A new account confirms its email through a link sent with Brevo (free, 300 emails a day). |
 | Frontend | React 19 + TypeScript + Vite (multi-page) | The teacher chose it. Many interactive screens. Shared types with the API and the robot. |
 | Routing, data | React Router, TanStack Query | Standard. TanStack Query handles live polling and cache. |
 | Validation, shared types | zod 4 | One schema gives TypeScript types, runtime checks, and the JSON Schema for Claude's output (`z.toJSONSchema`). |

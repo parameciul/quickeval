@@ -23,9 +23,14 @@ afterEach(async () => {
   await api.dispose();
 });
 
-async function signup(email = 'ana@example.com'): Promise<number> {
+// A sign-up whose email is confirmed with the link it got: the account waits for an administrator.
+async function signup(email = 'ana@example.com', options: { confirm?: boolean } = {}): Promise<number> {
   const res = await api.request('POST', '/api/auth/signup', { name: 'Ana Pop', email, password: 'parola-lunga' });
   expect(res.status).toBe(201);
+  if (options.confirm !== false) {
+    const token = /confirma-email#([\w-]+)/.exec(emails.at(-1)!.text)![1];
+    expect((await api.request('POST', '/api/auth/confirm', { token })).status).toBe(200);
+  }
   const row = await api.db.prepare('SELECT id FROM teachers WHERE email = ?').bind(email).first<{ id: number }>();
   emails = [];
   return row!.id;
@@ -78,6 +83,37 @@ describe('approving and refusing', () => {
     expect((await reject(id)).status).toBe(200);
     expect(await accountOf(id)).toBeUndefined();
     await signup();
+  });
+
+  it('neither shows nor approves an account whose email is not confirmed', async () => {
+    const id = await signup('ana@example.com', { confirm: false });
+    expect(await accountOf(id)).toBeUndefined();
+    expect((await approve(id)).body.error).toBe('not_pending');
+  });
+
+  it('refuses every account the page shows as waiting at once', async () => {
+    const first = await signup('ana@example.com');
+    const second = await signup('bianca@example.com');
+    const third = await signup('carmen@example.com');
+    const shown = await Promise.all([first, second].map(async (id) => ({ id, createdAt: await createdAtOf(id) })));
+    await approve(second);
+    const res = await api.request('POST', '/api/admin/accounts/reject-all', { accounts: shown });
+    expect(res.status).toBe(200);
+    // The account approved meanwhile stays, and so does the one the page did not show.
+    expect(res.body).toEqual({ deleted: 1 });
+    expect(await accountOf(first)).toBeUndefined();
+    expect(await accountOf(second)).toMatchObject({ status: 'active' });
+    expect(await accountOf(third)).toMatchObject({ status: 'pending' });
+  });
+
+  it('refuses all only for administrators', async () => {
+    const id = await signup();
+    await api.addTeacher('bogdan@example.com', 'Bogdan');
+    api.env.DEV_TEACHER_EMAIL = 'bogdan@example.com';
+    const res = await api.request('POST', '/api/admin/accounts/reject-all', { accounts: [{ id, createdAt: await createdAtOf(id) }] });
+    expect(res.status).toBe(403);
+    api.env.DEV_TEACHER_EMAIL = 'profesor@example.com';
+    expect(await accountOf(id)).toBeDefined();
   });
 
   it('never deletes an active account', async () => {

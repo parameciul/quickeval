@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   type AccountStatus,
+  isCommonPassword,
   MAX_EMAIL_LENGTH,
   MAX_PASSWORD_LENGTH,
   MAX_TEACHER_NAME_LENGTH,
@@ -152,7 +153,8 @@ export const emailSchema = z
 export const passwordSchema = z
   .string({ message: PASSWORD_MESSAGE })
   .min(MIN_PASSWORD_LENGTH, { message: PASSWORD_MESSAGE })
-  .max(MAX_PASSWORD_LENGTH, { message: PASSWORD_MESSAGE });
+  .max(MAX_PASSWORD_LENGTH, { message: PASSWORD_MESSAGE })
+  .refine((password) => !isCommonPassword(password), { message: 'Parola aceasta e prea des folosită. Alege alta.' });
 
 const TEACHER_NAME = /^\p{L}[\p{L}\p{M} .'’-]*$/u;
 
@@ -196,6 +198,19 @@ export const updateAccountBody = z
 // Approving or refusing names the account the page shows by the time it asked
 // (`Account.createdAt`): a refused account's id comes back for the next sign-up.
 export const shownAccountBody = z.object({ createdAt: z.string({ message: 'Reîncarcă pagina.' }).max(40) });
+
+// The link from the email that confirms a new account (its token).
+export const confirmEmailBody = z.object({
+  token: z.string({ message: 'Linkul nu este întreg.' }).min(1, { message: 'Linkul nu este întreg.' }).max(100, { message: 'Linkul nu este întreg.' }),
+});
+
+// "Refuză toate": the accounts that wait, as the page shows them.
+export const rejectAccountsBody = z.object({
+  accounts: z
+    .array(z.object({ id: z.number().int().positive(), createdAt: z.string().max(40) }), { message: 'Reîncarcă pagina.' })
+    .min(1, { message: 'Niciun cont de refuzat.' })
+    .max(100, { message: 'Reîncarcă pagina.' }),
+});
 
 export type SignupInput = z.input<typeof signupBody>;
 

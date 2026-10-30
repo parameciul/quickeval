@@ -72,6 +72,45 @@ describe('the demo limit', () => {
     expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
   });
 
+  it('counts a reopened test again when it starts with new files, so one test cannot grade test after test', async () => {
+    const first = await readyTest('Primul');
+    await evaluate(first.code);
+    await api.request('POST', `/api/admin/tests/${first.code}/reopen`);
+    expect((await api.request('PUT', `/api/admin/tests/${first.code}/barem-notes`, { notes: 'Alt test, alt barem.' })).status).toBe(200);
+    const refused = await evaluate(first.code);
+    expect(refused.body.error).toBe('demo_limit');
+    expect(await statusOf(first.code)).toBe('open');
+    await api.db.prepare('UPDATE teachers SET tests_evaluated = ? WHERE id = ?').bind(DEMO_TEST_LIMIT - 1, api.teacherId).run();
+    expect((await evaluate(first.code)).status).toBe(200);
+    expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
+  });
+
+  it('does not count a regrade, also with new files, since it grades the same uploads', async () => {
+    const first = await readyTest('Primul');
+    await evaluate(first.code);
+    await api.db.prepare("UPDATE submissions SET status = 'graded', graded_at = ?").bind(PAST).run();
+    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(first.code).run();
+    await addTestFiles(api, first.code);
+    await api.db.prepare('UPDATE tests SET files_version = files_version + 1 WHERE code = ?').bind(first.code).run();
+    expect((await api.request('POST', `/api/admin/tests/${first.code}/regrade`)).status).toBe(200);
+    expect(await statusOf(first.code)).toBe('evaluating');
+    expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
+  });
+
+  it('starts only the earliest of several scheduled tests that come due at once', async () => {
+    const tests = [await readyTest('Primul'), await readyTest('Al doilea'), await readyTest('Al treilea')];
+    // The same time for the first two (the lower id goes first), an earlier one for the third.
+    await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code IN (?, ?)').bind(PAST, tests[0]!.code, tests[1]!.code).run();
+    await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code = ?').bind('2026-10-05T08:00:00.000Z', tests[2]!.code).run();
+    await api.request('GET', '/api/admin/me');
+    expect(await Promise.all(tests.map((test) => statusOf(test.code)))).toEqual(['open', 'open', 'evaluating']);
+    expect(await testsEvaluated()).toBe(DEMO_TEST_LIMIT);
+    // With one more test allowed, the next earliest starts.
+    await api.db.prepare('UPDATE teachers SET tests_evaluated = ? WHERE id = ?').bind(DEMO_TEST_LIMIT - 1, api.teacherId).run();
+    await api.request('GET', '/api/admin/me');
+    expect(await Promise.all(tests.map((test) => statusOf(test.code)))).toEqual(['evaluating', 'open', 'evaluating']);
+  });
+
   it('still counts a test that was deleted after its evaluation', async () => {
     const first = await readyTest('Primul');
     await evaluate(first.code);
