@@ -6,8 +6,9 @@ export type Role = 'admin' | 'teacher';
 // "pending": waits for an administrator. "disabled": an administrator closed it.
 export type AccountStatus = 'pending' | 'active' | 'disabled';
 
-// A demo account may send this many tests to evaluation.
-export const DEMO_TEST_LIMIT = 5;
+// A demo account may have this many papers graded. A paper is one student's
+// whole test, however many pages it has. A regrade counts as one more.
+export const DEMO_PAPER_LIMIT = 5;
 
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 200;
@@ -36,7 +37,7 @@ export function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
-// How many tests a demo account may still send to evaluation.
-export function demoTestsLeft(testsEvaluated: number): number {
-  return Math.max(0, DEMO_TEST_LIMIT - testsEvaluated);
+// How many papers a demo account may still have graded.
+export function demoPapersLeft(papersGraded: number): number {
+  return Math.max(0, DEMO_PAPER_LIMIT - papersGraded);
 }

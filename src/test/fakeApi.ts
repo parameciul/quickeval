@@ -53,7 +53,7 @@ export interface FakeData {
 
 // The logged-in teacher of the page tests: Laura, an administrator.
 export function fakeTeacher(overrides: Partial<Teacher> = {}): Teacher {
-  return { id: 1, email: 'profesor@example.com', name: 'Laura Miron', role: 'admin', demo: false, testsEvaluated: 0, ...overrides };
+  return { id: 1, email: 'profesor@example.com', name: 'Laura Miron', role: 'admin', demo: false, testsEvaluated: 0, papersGraded: 0, papersWaiting: 0, ...overrides };
 }
 
 export function fakeAccount(overrides: Partial<Account> = {}): Account {

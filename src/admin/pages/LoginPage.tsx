@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { DEMO_TEST_LIMIT, MAX_PASSWORD_LENGTH, MAX_TEACHER_NAME_LENGTH, MIN_PASSWORD_LENGTH } from '../../../shared/accounts.ts';
+import { DEMO_PAPER_LIMIT, MAX_PASSWORD_LENGTH, MAX_TEACHER_NAME_LENGTH, MIN_PASSWORD_LENGTH } from '../../../shared/accounts.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
@@ -128,7 +128,7 @@ function SignupForm() {
       </span>
       {signup.error && <ErrorMessage error={signup.error} />}
       <p className="hint">
-        Un cont nou este un cont demo: poți trimite teste la corectare de {DEMO_TEST_LIMIT} ori. Contul se poate folosi după ce confirmi adresa de email și îl
+        Un cont nou este un cont demo: poți corecta {DEMO_PAPER_LIMIT} lucrări. Contul se poate folosi după ce confirmi adresa de email și îl
         aprobă un administrator.
       </p>
     </form>

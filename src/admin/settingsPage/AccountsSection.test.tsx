@@ -7,7 +7,7 @@ import { accountTag } from './AccountsSection.tsx';
 
 const laura = fakeAccount();
 const ana = fakeAccount({ id: 2, name: 'Ana Pop', email: 'ana@example.com', role: 'teacher', demo: true, status: 'pending' });
-const bogdan = fakeAccount({ id: 3, name: 'Bogdan', email: 'bogdan@example.com', role: 'teacher', demo: true, testsEvaluated: 2 });
+const bogdan = fakeAccount({ id: 3, name: 'Bogdan', email: 'bogdan@example.com', role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 2 });
 
 const mihai = fakeAccount({ id: 4, name: 'Mihai', email: 'mihai@example.com', role: 'admin' });
 
@@ -69,11 +69,11 @@ describe('the accounts on Setări', () => {
     const api = withAccounts();
     renderAdmin('/setari', api);
     const teachers = await section('Profesori');
-    expect(within(teachers).getAllByText('administrator · 0 evaluări')).toHaveLength(2);
-    expect(within(teachers).getByText('demo: 2 din 5 evaluări')).toBeInTheDocument();
+    expect(within(teachers).getAllByText('administrator · 0 teste · 0 lucrări')).toHaveLength(2);
+    expect(within(teachers).getByText('demo: 2 din 5 lucrări · 1 test')).toBeInTheDocument();
     await userEvent.click(within(teachers).getByRole('button', { name: 'Fă cont complet: Bogdan' }));
     expect(api.updateAccount).toHaveBeenCalledWith(3, { demo: false });
-    expect(await within(teachers).findByText('complet · 2 evaluări')).toBeInTheDocument();
+    expect(await within(teachers).findByText('complet · 1 test · 2 lucrări')).toBeInTheDocument();
   });
 
   it('closes an account and opens it again', async () => {
@@ -106,10 +106,10 @@ describe('the accounts on Setări', () => {
 
 describe('accountTag', () => {
   it.each([
-    [fakeAccount({ role: 'teacher', testsEvaluated: 1 }), 'complet · 1 evaluare'],
-    [fakeAccount({ role: 'teacher', testsEvaluated: 7 }), 'complet · 7 evaluări'],
-    [fakeAccount({ role: 'teacher', testsEvaluated: 51 }), 'complet · 51 de evaluări'],
-    [fakeAccount({ testsEvaluated: 120 }), 'administrator · 120 de evaluări'],
+    [fakeAccount({ role: 'teacher', testsEvaluated: 1, papersGraded: 1 }), 'complet · 1 test · 1 lucrare'],
+    [fakeAccount({ role: 'teacher', testsEvaluated: 7, papersGraded: 19 }), 'complet · 7 teste · 19 lucrări'],
+    [fakeAccount({ role: 'teacher', testsEvaluated: 51, papersGraded: 900 }), 'complet · 51 de teste · 900 de lucrări'],
+    [fakeAccount({ testsEvaluated: 4, papersGraded: 88 }), 'administrator · 4 teste · 88 de lucrări'],
   ])('describes %j', (account, text) => {
     expect(accountTag(account)).toBe(text);
   });

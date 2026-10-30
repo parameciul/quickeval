@@ -26,18 +26,21 @@ export function RegradeAllButton({
   // An open test grades the uploads after Start evaluation: the page says so
   // until the evaluation starts, and not again if the test opens again.
   const [regradedOpen, setRegradedOpen] = useState(false);
+  // A demo account regrades only the papers it has left.
+  const [partly, setPartly] = useState<{ sent: number; asked: number } | null>(null);
   if (regradedOpen && testStatus !== 'open') setRegradedOpen(false);
+  const count = uploads.filter((row) => row.status === 'graded' || row.status === 'failed').length;
   const regrade = useMutation({
     mutationFn: () => api.regradeTest(code),
     onSuccess: async (answer) => {
       onRobot(answer.robot);
       setRegradedOpen(answer.robot === null);
+      setPartly(answer.count < count ? { sent: answer.count, asked: count } : null);
       await onChanged();
     },
   });
   const waits = regradedOpen && testStatus === 'open';
-  const count = uploads.filter((row) => row.status === 'graded' || row.status === 'failed').length;
-  if (count === 0 && !waits) return null;
+  if (count === 0 && !waits && !partly) return null;
 
   return (
     <>
@@ -57,6 +60,11 @@ export function RegradeAllButton({
         </p>
       )}
       {waits && <p role="status">Lucrările se corectează din nou după ce pornești evaluarea.</p>}
+      {partly && (
+        <p role="status">
+          Limita contului demo: se corectează din nou {partly.sent} din cele {partly.asked} lucrări. Celelalte își păstrează rezultatele.
+        </p>
+      )}
       {regrade.error && <ErrorMessage error={regrade.error} />}
     </>
   );

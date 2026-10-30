@@ -136,7 +136,7 @@ function TestDetails({ code }: { code: string }) {
           ) : (
             <EvaluationState test={test} />
           )}
-          {test.status === 'done' && <PartialEvaluationNotice uploads={uploads} />}
+          {test.status !== 'open' && <PartialEvaluationNotice status={test.status} uploads={uploads} />}
           {robotText && <p role="status">{robotText}</p>}
           {(test.status === 'evaluating' || test.evaluationAt || printWaits) && (
             <RobotLine lastCheckAt={robot.lastCheckAt} lateText={printWaits ? 'Testul cu cod QR poate întârzia.' : undefined}>
@@ -314,9 +314,13 @@ function EvaluationState({ test }: { test: TestInfo }) {
   return <p>{test.status === 'done' ? `Corectarea s-a terminat.${since}` : `Robotul corectează lucrările trimise.${since}`}</p>;
 }
 
-// After a finished evaluation with uploads that still wait for grading.
-function PartialEvaluationNotice({ uploads }: { uploads: UploadRow[] }) {
-  const pending = uploads.filter((row) => row.fileCount > 0 && (row.status === 'uploading' || row.status === 'submitted'));
+// An evaluation with uploads that stayed out of it: the teacher selected others,
+// or a demo account had no more papers left. During the evaluation, a sent
+// upload still waits for its turn.
+function PartialEvaluationNotice({ status, uploads }: { status: TestStatus; uploads: UploadRow[] }) {
+  const pending = uploads.filter(
+    (row) => row.fileCount > 0 && (row.status === 'uploading' || (status === 'done' && row.status === 'submitted')),
+  );
   if (pending.length === 0) return null;
   const what = pending.length === 1 ? '1 lucrare cu fișiere nu a fost corectată' : `${pending.length} lucrări cu fișiere nu au fost corectate`;
   return (

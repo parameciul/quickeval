@@ -15,7 +15,7 @@ describe('GET /api/admin/me', () => {
     const res = await api.request('GET', '/api/admin/me');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      teacher: { id: api.teacherId, email: 'profesor@example.com', name: 'Laura Miron', role: 'admin', demo: false, testsEvaluated: 0 },
+      teacher: { id: api.teacherId, email: 'profesor@example.com', name: 'Laura Miron', role: 'admin', demo: false, testsEvaluated: 0, papersGraded: 0, papersWaiting: 0 },
     });
   });
 
