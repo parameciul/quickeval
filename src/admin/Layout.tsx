@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { demoTestsLeft, DEMO_TEST_LIMIT } from '../../shared/accounts.ts';
 import type { Teacher } from '../../shared/api.ts';
@@ -26,6 +27,17 @@ export function Layout() {
   const onTests = location.pathname === '/' || location.pathname.startsWith('/teste');
   const { year, setYear } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
+  // A start, a regrade or a retry changes the count of evaluations the demo
+  // line shows: every change a logged-in teacher makes reads the account again.
+  const queryClient = useQueryClient();
+  useEffect(
+    () =>
+      queryClient.getMutationCache().subscribe((event) => {
+        const changed = event.type === 'updated' && event.action.type === 'success';
+        if (changed && queryClient.getQueryData(['me'])) void queryClient.invalidateQueries({ queryKey: ['me'] });
+      }),
+    [queryClient],
+  );
   // Nobody logged in: the login form takes the place of every page. The pages
   // wait for the login, so they never ask the API without it. The page that
   // confirms a new account's email needs no login.

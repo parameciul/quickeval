@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEMO_TEST_LIMIT } from '../../shared/accounts.ts';
-import { addSubmission, addTestFiles, makeClass, makeTest, startTest } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, addTestFiles, makeClass, makeTest, startTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 // Every time a test goes to the robot for grading counts, for every teacher; a
@@ -12,6 +12,8 @@ let classId: number;
 let studentIds: number[];
 
 const PAST = '2026-10-06T08:00:00.000Z';
+// The time of a grading made by addEvaluation.
+const GRADED_AT = '2026-10-07T09:00:00.000Z';
 
 const testsEvaluated = async () =>
   (await api.db.prepare('SELECT tests_evaluated FROM teachers WHERE id = ?').bind(api.teacherId).first<{ tests_evaluated: number }>())!
@@ -126,6 +128,47 @@ describe('the demo limit', () => {
     // A retry of an upload that did not fail changes nothing and counts nothing.
     expect((await api.request('POST', `/api/admin/submissions/${test.submissionId}/retry`, { startedAt })).body.error).toBe('not_failed');
     expect(await testsEvaluated()).toBe(before + 1);
+  });
+
+  // "Recorectează" of one upload, with the grading the page shows.
+  async function regradeUpload(submissionId: number) {
+    const graded = await api.db.prepare('SELECT 1 FROM evaluations WHERE submission_id = ?').bind(submissionId).first();
+    if (!graded) await addEvaluation(api, submissionId);
+    return api.request('POST', `/api/admin/submissions/${submissionId}/regrade`, { gradedAt: GRADED_AT });
+  }
+
+  it('counts a regrade of one upload once, on a finished test and on a test in evaluation', async () => {
+    await api.db.prepare('UPDATE teachers SET demo = 0 WHERE id = ?').bind(api.teacherId).run();
+    const test = await finishedTest('Primul');
+    const before = await testsEvaluated();
+    expect((await regradeUpload(test.submissionId)).status).toBe(200);
+    expect(await statusOf(test.code)).toBe('evaluating');
+    expect(await testsEvaluated()).toBe(before + 1);
+    await api.db.prepare("UPDATE submissions SET status = 'graded', graded_at = ? WHERE id = ?").bind(PAST, test.submissionId).run();
+    expect((await regradeUpload(test.submissionId)).status).toBe(200);
+    expect(await statusOf(test.code)).toBe('evaluating');
+    expect(await testsEvaluated()).toBe(before + 2);
+  });
+
+  it('counts a regrade of an open test once, at its next start', async () => {
+    await api.db.prepare('UPDATE teachers SET demo = 0 WHERE id = ?').bind(api.teacherId).run();
+    const test = await finishedTest('Primul');
+    const before = await testsEvaluated();
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/reopen`)).status).toBe(200);
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/regrade`)).status).toBe(200);
+    expect(await testsEvaluated()).toBe(before);
+    expect((await evaluate(test.code)).status).toBe(200);
+    expect(await testsEvaluated()).toBe(before + 1);
+  });
+
+  it('keeps the results of an open test at the limit: a regrade that could never run is refused', async () => {
+    const test = await finishedTest('Primul');
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/reopen`)).status).toBe(200);
+    expect((await api.request('POST', `/api/admin/tests/${test.code}/regrade`)).body.error).toBe('demo_limit');
+    expect((await regradeUpload(test.submissionId)).body.error).toBe('demo_limit');
+    expect(await uploadStatus(test.submissionId)).toBe('graded');
+    const evaluations = await api.db.prepare('SELECT COUNT(*) AS n FROM evaluations WHERE submission_id = ?').bind(test.submissionId).first();
+    expect(evaluations).toEqual({ n: 1 });
   });
 
   it('says what really kept a regrade from happening, also at the limit', async () => {

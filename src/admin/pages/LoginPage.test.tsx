@@ -85,6 +85,18 @@ describe('the menu by role', () => {
     expect(await screen.findByText(/^Cont demo: mai ai 3 din 5 evaluări\./)).toBeInTheDocument();
   });
 
+  it('reads the demo line again after a change, so it shows the evaluations left', async () => {
+    const teacher = fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 2 });
+    const api = createFakeApi({ classes: [], students: {}, me: teacher });
+    renderAdmin('/cont', api);
+    expect(await screen.findByText(/^Cont demo: mai ai 3 din 5 evaluări\./)).toBeInTheDocument();
+    teacher.testsEvaluated = 3;
+    await userEvent.type(screen.getByLabelText('Parola de acum'), 'parola-veche');
+    await userEvent.type(screen.getByLabelText(/^Parola nouă/), 'parola-noua');
+    await userEvent.click(screen.getByRole('button', { name: 'Schimbă parola' }));
+    expect(await screen.findByText(/^Cont demo: mai ai 2 din 5 evaluări\./)).toBeInTheDocument();
+  });
+
   it('tells a demo account when its evaluations are used up', async () => {
     const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 5 }) });
     renderAdmin('/clase', api);

@@ -29,16 +29,16 @@ UPDATE teachers SET role = 'admin' WHERE email IN ('plesalaura@yahoo.com', 'mg14
 UPDATE teachers SET role = 'admin' WHERE id = (SELECT MIN(id) FROM teachers) AND NOT EXISTS (SELECT 1 FROM teachers WHERE role = 'admin');
 
 -- How many times the teacher's tests went to the robot for grading: every
--- start of an evaluation, and every regrade or retry that sends a finished
--- test back. Kept for every teacher (statistics); a demo account may reach
+-- start of an evaluation, and every regrade or retry. Kept for every teacher (statistics); a demo account may reach
 -- DEMO_TEST_LIMIT. Until now: one for each test that was evaluated.
 UPDATE teachers SET tests_evaluated = (SELECT COUNT(*) FROM tests WHERE tests.teacher_id = teachers.id AND (tests.status IN ('evaluating', 'done') OR tests.evaluation_started_at IS NOT NULL));
 
--- Every path that sends a test to the robot for grading moves it into
--- 'evaluating' with uploads that wait for grading ('submitted'), so the count
--- lives here instead of in each of them. "Regenerează" (only the class
--- analysis) sends no upload and does not count, nor does a test with nothing
--- to grade.
+-- Every start, and every regrade or retry of a finished test, moves the test
+-- into 'evaluating' with uploads that wait for grading ('submitted'), so
+-- their count lives here instead of in each of them. A regrade or retry of a
+-- test already in evaluation is counted by server/db/lifecycle.ts
+-- (countGradingAgain). "Regenerează" (only the class analysis) sends no upload
+-- and does not count, nor does a test with nothing to grade.
 CREATE TRIGGER tests_count_evaluation AFTER UPDATE OF status ON tests
 WHEN NEW.status = 'evaluating' AND OLD.status <> 'evaluating' AND EXISTS (SELECT 1 FROM submissions WHERE test_id = NEW.id AND status = 'submitted')
 BEGIN
