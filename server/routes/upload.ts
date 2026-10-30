@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
 import { startSessionBody, type ConfirmAnswer, type UploadSession } from '../../shared/api.ts';
+import { checkoutBody } from '../../shared/payments.ts';
 import { MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, studentFileKey } from '../../shared/files.ts';
 import { isResultToken, isUploadToken } from '../../shared/tests.ts';
 import {
@@ -19,12 +20,14 @@ import {
   type SessionRecord,
 } from '../db/links.ts';
 import { confirmResultToken, findResultByToken, findResultFile, resultsOpenByToken } from '../db/results.ts';
+import { listPayments, type PaidTest, type PaymentPayer } from '../db/payments.ts';
 import { listSubmissionFiles, publicFile } from '../db/submissions.ts';
 import type { AppEnv, AppOptions, Env } from '../env.ts';
 import { ApiError, isUniqueViolation } from '../errors.ts';
 import { duePromoter, nowIso, parseId, promoteDue, readJson, sameOriginWrites } from '../http.ts';
 import { newDeviceSecret, newResultToken, randomBase32, sha256Hex } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
+import { startCheckout } from './payments.ts';
 
 const SESSION_HEADER = 'X-Upload-Session';
 
@@ -128,6 +131,31 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (submissionId === null) throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
     const created: UploadSession = { submissionId, studentId, studentName: student.fullName, status: 'uploading', files: [] };
     return c.json({ secret, session: created }, 201);
+  });
+
+  // The student's payments for this test. The payer is the student of this
+  // phone's upload, named by student id: upload rows go away on a reset.
+  const studentPayer = async (c: Context<AppEnv>) => {
+    const test = await linkTest(c);
+    const current = await session(c, test);
+    const paidTest: PaidTest = { id: test.id, createdAt: test.createdAt, code: test.code };
+    const payer: PaymentPayer = { teacherId: test.teacherId, studentId: current.studentId };
+    return { test, payer, paidTest };
+  };
+
+  routes.get('/:token/payments', async (c) => {
+    const { payer, paidTest } = await studentPayer(c);
+    return c.json({ payments: await listPayments(c.env.DB, payer, paidTest) });
+  });
+
+  // A student feature is bought for the test of the link. The insert checks
+  // in its SQL that this phone's upload still exists.
+  routes.post('/:token/payments/checkout', async (c) => {
+    const { test, payer, paidTest } = await studentPayer(c);
+    const body = await readJson(c, checkoutBody, 4096);
+    const guard = { testId: test.id, sessionHash: await sha256Hex(c.req.header(SESSION_HEADER) ?? '') };
+    const { answer, status } = await startCheckout(c, options, { payer, feature: body.feature, returnPath: body.returnPath, test: paidTest, guard });
+    return c.json(answer, status);
   });
 
   routes.get('/:token/files', async (c) => {
