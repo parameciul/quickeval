@@ -19,5 +19,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "server", "functions", "shared", "runner", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "server", "functions", "shared", "runner", "scripts/setPassword.ts", "scripts/setPassword.test.ts", "vite.config.ts", "vitest.config.ts"]
 }

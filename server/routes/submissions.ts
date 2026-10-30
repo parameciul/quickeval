@@ -3,12 +3,12 @@ import { Hono } from 'hono';
 import { correctItemBody, regradeBody, reviewPagesBody, shownUpload, type RegradeAnswer, type ResultsOpenAnswer } from '../../shared/api.ts';
 import { formatPoints, isValidCorrection } from '../../shared/scoring.ts';
 import { correctItem, correctEvaluation, findTeacherItem } from '../db/evaluations.ts';
-import { regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
+import { regradeBlockedByDemoLimit, regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
 import { setSubmissionResultsOpen, teacherResultToken } from '../db/results.ts';
 import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission, type ShownUpload, uploadStartedAt } from '../db/submissions.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
-import { ApiError, notFound, notGraded, uploadChanged } from '../errors.ts';
+import { ApiError, demoLimit, notFound, notGraded, uploadChanged } from '../errors.ts';
 import { nowIso, parseId, readJson } from '../http.ts';
 import { deleteFilesQuietly, fileResponse } from '../uploads.ts';
 
@@ -128,7 +128,10 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const { startedAt } = await readJson(c, shownUpload);
     const shown = await requireShown(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), startedAt);
     const testStatus = await retrySubmission(c.env.DB, shown, nowIso());
-    if (testStatus === null) throw new ApiError(409, 'not_failed', 'Corectarea acestei lucrări nu a eșuat.');
+    if (testStatus === null) {
+      if (await regradeBlockedByDemoLimit(c.env.DB, { submissionId: shown.submissionId, startedAt: shown.startedAt })) throw demoLimit();
+      throw new ApiError(409, 'not_failed', 'Corectarea acestei lucrări nu a eșuat.');
+    }
     const robot = testStatus === 'evaluating' ? await startRobot(c.env) : null;
     return c.json({ status: 'submitted', robot });
   });
@@ -142,7 +145,10 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const found = await getTeacherSubmission(c.env.DB, teacherId, submissionId);
     if (!found) throw notFound();
     const testStatus = await regradeSubmission(c.env.DB, { teacherId, submissionId, gradedAt }, nowIso());
-    if (testStatus === null) throw notGraded();
+    if (testStatus === null) {
+      if (await regradeBlockedByDemoLimit(c.env.DB, { submissionId, gradedAt })) throw demoLimit();
+      throw notGraded();
+    }
     const robot = testStatus === 'evaluating' ? await startRobot(c.env) : null;
     return c.json({ count: 1, testStatus, robot } satisfies RegradeAnswer);
   });

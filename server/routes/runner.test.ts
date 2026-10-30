@@ -81,7 +81,7 @@ describe('robot key', () => {
     try {
       await setRobotKey(outside);
       expect((await robotRequest(outside)('POST', '/check')).status).toBe(200);
-      expect((await outside.request('GET', '/api/admin/me')).status).toBe(500);
+      expect((await outside.request('GET', '/api/admin/me')).status).toBe(401);
     } finally {
       await outside.dispose();
     }

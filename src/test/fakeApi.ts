@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type {
+  Account,
   AnalysisAnswer,
   BaremNotesAnswer,
   ClassReport,
@@ -18,6 +19,7 @@ import type {
   StudentHistory,
   StudentRow,
   SubmissionDetail,
+  Teacher,
   TestDetail,
   TestFileAnswer,
   TestInfo,
@@ -43,7 +45,22 @@ export interface FakeData {
   histories?: StudentHistory[];
   // The class reports, by test code.
   reports?: Record<string, ClassReport>;
+  // The logged-in teacher; an administrator when missing.
+  me?: Teacher;
+  // The accounts on Setări; the logged-in teacher alone when missing.
+  accounts?: Account[];
 }
+
+// The logged-in teacher of the page tests: Laura, an administrator.
+export function fakeTeacher(overrides: Partial<Teacher> = {}): Teacher {
+  return { id: 1, email: 'profesor@example.com', name: 'Laura Miron', role: 'admin', demo: false, testsEvaluated: 0, ...overrides };
+}
+
+export function fakeAccount(overrides: Partial<Account> = {}): Account {
+  return { ...fakeTeacher(), status: 'active', createdAt: '2026-10-06T08:00:00.000Z', approvedAt: null, ...overrides };
+}
+
+export const FAKE_TEMPORARY_PASSWORD = 'abcdefghjkmn';
 
 // The settings of a new installation, for building fake data in tests.
 export function fakeSettings(overrides: Partial<Settings> = {}): Settings {
@@ -190,6 +207,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
   const tests = (data.tests ??= []);
   const submissions = (data.submissions ??= []);
   const settings = (data.settings ??= fakeSettings());
+  const me = data.me ?? fakeTeacher();
+  const accounts = (data.accounts ??= [fakeAccount(me)]);
   const countActive = (classId: number) => (data.students[classId] ?? []).filter((s) => s.active).length;
   const findSubmission = (submissionId: number) => {
     const found = submissions.find((s) => s.id === submissionId);
@@ -225,7 +244,38 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
   };
 
   const api = {
-    me: vi.fn(async () => ({ id: 1, email: 'profesor@example.com', name: 'Laura Miron' })),
+    me: vi.fn(async () => structuredClone(me)),
+    login: vi.fn(async (_email: string, _password: string) => structuredClone(me)),
+    signup: vi.fn(async (_input: { name: string; email: string; password: string }) => {}),
+    confirmEmail: vi.fn(async (_token: string, _password: string) => {}),
+    logout: vi.fn(async () => {}),
+    changePassword: vi.fn(async (_current: string, _next: string) => {}),
+    listAccounts: vi.fn(async () => structuredClone(accounts)),
+    approveAccount: vi.fn(async (teacherId: number, createdAt: string) => {
+      const account = accounts.find((a) => a.id === teacherId && a.createdAt === createdAt && a.status === 'pending');
+      if (!account) throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
+      Object.assign(account, { status: 'active', approvedAt: '2026-10-28T10:00:00.000Z' });
+    }),
+    rejectAccount: vi.fn(async (teacherId: number, createdAt: string) => {
+      const index = accounts.findIndex((a) => a.id === teacherId && a.createdAt === createdAt && a.status === 'pending');
+      if (index < 0) throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
+      accounts.splice(index, 1);
+    }),
+    rejectAllAccounts: vi.fn(async (shown: { id: number; createdAt: string }[]) => {
+      const gone = accounts.filter((a) => a.status === 'pending' && shown.some((s) => s.id === a.id && s.createdAt === a.createdAt));
+      for (const account of gone) accounts.splice(accounts.indexOf(account), 1);
+      return gone.length;
+    }),
+    updateAccount: vi.fn(async (teacherId: number, change: { demo?: boolean; status?: 'active' | 'disabled' }) => {
+      const account = accounts.find((a) => a.id === teacherId && a.role === 'teacher' && a.status !== 'pending');
+      if (!account) throw notFound();
+      Object.assign(account, change);
+      return structuredClone(accounts);
+    }),
+    resetPassword: vi.fn(async (teacherId: number) => {
+      if (!accounts.some((a) => a.id === teacherId && a.role === 'teacher' && a.status !== 'pending')) throw notFound();
+      return FAKE_TEMPORARY_PASSWORD;
+    }),
     listClasses: vi.fn(async (schoolYear: number) =>
       data.classes.filter((c) => c.schoolYear === schoolYear).map((c) => ({ ...c, studentCount: countActive(c.id) })),
     ),

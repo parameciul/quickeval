@@ -1,4 +1,5 @@
 import type {
+  Account,
   AnalysisAnswer,
   BaremNotesAnswer,
   ClassDetail,
@@ -18,6 +19,7 @@ import type {
   RobotStart,
   RobotStartAnswer,
   Settings,
+  SignupInput,
   StartedTest,
   StudentHistory,
   StudentRow,
@@ -39,6 +41,23 @@ export { ApiError };
 // tests can pass a fake.
 export interface AdminApi {
   me(): Promise<Teacher>;
+  login(email: string, password: string): Promise<Teacher>;
+  // A new account first confirms its email, then waits for an administrator's approval.
+  signup(input: SignupInput): Promise<void>;
+  // The link from the confirmation email (its token), with the password chosen at the sign-up.
+  confirmEmail(token: string, password: string): Promise<void>;
+  logout(): Promise<void>;
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
+  // Setări, administrators only.
+  listAccounts(): Promise<Account[]>;
+  // Name the account the page shows by the time it was asked for: ids come back.
+  approveAccount(teacherId: number, createdAt: string): Promise<void>;
+  rejectAccount(teacherId: number, createdAt: string): Promise<void>;
+  // "Refuză toate": how many went (those approved meanwhile stay).
+  rejectAllAccounts(accounts: { id: number; createdAt: string }[]): Promise<number>;
+  updateAccount(teacherId: number, change: { demo?: boolean; status?: 'active' | 'disabled' }): Promise<Account[]>;
+  // A new password for a teacher who forgot theirs: the only time the app sees it.
+  resetPassword(teacherId: number): Promise<string>;
   listClasses(schoolYear: number): Promise<ClassSummary[]>;
   createClass(input: CreateClassInput): Promise<ClassSummary>;
   getClass(classId: number): Promise<ClassDetail>;
@@ -109,7 +128,7 @@ export interface AdminApi {
   startCheckout(input: CheckoutInput): Promise<string>;
 }
 
-// Files open straight from the API: the browser sends the Access login cookie.
+// Files open straight from the API: the browser sends the login cookie.
 export function testFileUrl(code: string, kind: TestFileKind): string {
   return `/api/admin/tests/${encodeURIComponent(code)}/files/${kind}`;
 }
@@ -129,8 +148,8 @@ export function studentResultUrl(resultToken: string): string {
 }
 
 
-// The Cloudflare Access login ended. The app reloads the page so Access shows
-// its login screen.
+// A login page in front of the app (Cloudflare Access, while it still guards
+// /admin) answered instead of the API. The app reloads the page so it shows.
 export class LoginExpiredError extends Error {
   constructor() {
     super('Sesiunea a expirat. Reîncarcă pagina ca să intri din nou.');
@@ -163,7 +182,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   const onLoginExpired = options.onLoginExpired ?? reloadForLogin;
 
   // A JSON body, or a file sent raw with its type and URI-encoded name.
-  async function request<T>(method: string, path: string, body?: unknown, file?: File): Promise<T> {
+  // `base` is /api/admin, or /api/auth for the login page.
+  async function request<T>(method: string, path: string, body?: unknown, file?: File, base = '/api/admin'): Promise<T> {
     const headers: Record<string, string> = { Accept: 'application/json' };
     let payload: BodyInit | undefined;
     if (file) {
@@ -176,11 +196,11 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     }
     let res: Response;
     try {
-      res = await fetchImpl(`/api/admin${path}`, {
+      res = await fetchImpl(`${base}${path}`, {
         method,
         headers,
         credentials: 'same-origin',
-        // An expired Access session answers with a redirect to the login page on
+        // An expired Access session answers with a redirect to its login page on
         // another origin. 'manual' turns it into an opaqueredirect response here.
         redirect: 'manual',
         ...(payload === undefined ? {} : { body: payload }),
@@ -200,6 +220,31 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
 
   return {
     me: async () => (await request<{ teacher: Teacher }>('GET', '/me')).teacher,
+    login: async (email, password) =>
+      (await request<{ teacher: Teacher }>('POST', '/login', { email, password }, undefined, '/api/auth')).teacher,
+    signup: async (input) => {
+      await request('POST', '/signup', input, undefined, '/api/auth');
+    },
+    confirmEmail: async (token, password) => {
+      await request('POST', '/confirm', { token, password }, undefined, '/api/auth');
+    },
+    logout: async () => {
+      await request('POST', '/logout', undefined, undefined, '/api/auth');
+    },
+    changePassword: async (currentPassword, newPassword) => {
+      await request('POST', '/account/password', { currentPassword, newPassword });
+    },
+    listAccounts: async () => (await request<{ accounts: Account[] }>('GET', '/accounts')).accounts,
+    approveAccount: async (teacherId, createdAt) => {
+      await request('POST', `/accounts/${teacherId}/approve`, { createdAt });
+    },
+    rejectAccount: async (teacherId, createdAt) => {
+      await request('POST', `/accounts/${teacherId}/reject`, { createdAt });
+    },
+    rejectAllAccounts: async (accounts) => (await request<{ deleted: number }>('POST', '/accounts/reject-all', { accounts })).deleted,
+    updateAccount: async (teacherId, change) =>
+      (await request<{ accounts: Account[] }>('PATCH', `/accounts/${teacherId}`, change)).accounts,
+    resetPassword: async (teacherId) => (await request<{ password: string }>('POST', `/accounts/${teacherId}/password`)).password,
     listClasses: async (schoolYear) =>
       (await request<{ classes: ClassSummary[] }>('GET', `/classes?year=${schoolYear}`)).classes,
     createClass: async (input) => (await request<{ class: ClassSummary }>('POST', '/classes', input)).class,

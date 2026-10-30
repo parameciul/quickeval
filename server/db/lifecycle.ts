@@ -1,4 +1,5 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
+import { DEMO_TEST_LIMIT } from '../../shared/accounts.ts';
 import type { AnalysisInfo } from '../../shared/api.ts';
 import type { AnalysisStatus, TestStatus } from '../../shared/tests.ts';
 import type { ShownResult } from './evaluations.ts';
@@ -36,8 +37,90 @@ export function finishTests(db: D1Database, now: string): D1PreparedStatement {
     .bind(now);
 }
 
-// An open test whose scheduled evaluation time has come.
-const DUE = "t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?";
+// The test t may go to the robot for grading under the demo limit: its
+// teacher is not a demo account, or has evaluations left. The trigger
+// tests_count_evaluation (migration 0018) counts every evaluation, of every
+// teacher, when the test moves into 'evaluating' with uploads to grade.
+export const WITHIN_DEMO_LIMIT = `NOT EXISTS (
+  SELECT 1 FROM teachers q WHERE q.id = t.teacher_id AND q.demo = 1 AND q.tests_evaluated >= ${DEMO_TEST_LIMIT})`;
+
+// A regrade or retry of test t sends uploads to the robot, so it is an
+// evaluation of its own and needs the demo limit: a finished test goes back
+// to evaluation (the trigger counts it), and a test in evaluation takes them
+// in the evaluation it is in (countGradingAgain counts it). An open test
+// grades them at its next start, which counts then; it needs the limit all
+// the same, or a demo account at its limit would lose its results to a
+// regrade that can never run.
+const MAY_GRADE_AGAIN = WITHIN_DEMO_LIMIT;
+
+// The status of the test before the batch, returned by the UPDATE that sent
+// the uploads back (its RETURNING runs before the batch's later writes).
+const STATUS_BEFORE = '(SELECT t.status FROM tests t WHERE t.id = submissions.test_id) AS test_status';
+
+// Counts a regrade or retry of a test that was in evaluation already (the
+// trigger counts only a test that moves into evaluation, as a finished one
+// does). Runs after the batch, from what its UPDATE returned; the demo limit
+// was checked inside that UPDATE.
+async function countGradingAgain(db: D1Database, teacherId: number, regraded: { test_status?: TestStatus }[] | undefined): Promise<void> {
+  if (regraded?.[0]?.test_status !== 'evaluating') return;
+  await db.prepare('UPDATE teachers SET tests_evaluated = tests_evaluated + 1 WHERE id = ?').bind(teacherId).run();
+}
+
+// True when the demo limit keeps this test from starting an evaluation.
+export async function blockedByDemoLimit(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db.prepare(`SELECT 1 AS blocked FROM tests t WHERE t.id = ? AND NOT ${WITHIN_DEMO_LIMIT}`).bind(testId).first();
+  return row !== null;
+}
+
+// Why a regrade or retry changed nothing, when the demo limit is the reason:
+// the test has what the action names (uploads to grade again; this graded
+// upload; this failed upload), and only the limit kept it. Read after the
+// write, so another reason (nothing to regrade, a changed upload) wins.
+export async function regradeBlockedByDemoLimit(
+  db: D1Database,
+  of: { testId: number } | { submissionId: number; gradedAt: string } | { submissionId: number; startedAt: string },
+): Promise<boolean> {
+  const blocked = `NOT ${MAY_GRADE_AGAIN}`;
+  const statement =
+    'testId' in of
+      ? db
+          .prepare(
+            `SELECT 1 AS blocked FROM tests t WHERE t.id = ? AND ${blocked}
+               AND EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status IN ('graded', 'failed'))`,
+          )
+          .bind(of.testId)
+      : 'gradedAt' in of
+        ? db
+            .prepare(
+              `SELECT 1 AS blocked FROM tests t JOIN submissions s ON s.test_id = t.id
+               WHERE s.id = ? AND s.status = 'graded' AND ${blocked}
+                 AND EXISTS (SELECT 1 FROM evaluations ev WHERE ev.submission_id = s.id AND ev.created_at = ?)`,
+            )
+            .bind(of.submissionId, of.gradedAt)
+        : db
+            .prepare(
+              `SELECT 1 AS blocked FROM tests t JOIN submissions s ON s.test_id = t.id
+               WHERE s.id = ? AND s.status = 'failed' AND s.started_at = ? AND ${blocked}`,
+            )
+            .bind(of.submissionId, of.startedAt);
+  return (await statement.first()) !== null;
+}
+
+// The same for a scheduled test whose time has come. One UPDATE can start
+// several such tests of a teacher, and SQLite reads its WHERE before it writes:
+// the tests scheduled earlier (by time, then by id) that would start in the
+// same UPDATE count as used, so the earliest ones start and the rest wait.
+const DUE_WITHIN_DEMO_LIMIT = `NOT EXISTS (
+  SELECT 1 FROM teachers q WHERE q.id = t.teacher_id AND q.demo = 1
+    AND q.tests_evaluated + (
+      SELECT COUNT(*) FROM tests o
+      WHERE o.teacher_id = t.teacher_id AND o.status = 'open' AND o.evaluation_at IS NOT NULL
+        AND (o.evaluation_at < t.evaluation_at OR (o.evaluation_at = t.evaluation_at AND o.id < t.id))
+    ) >= ${DEMO_TEST_LIMIT})`;
+
+// An open test whose scheduled evaluation time has come. A demo account at its
+// limit keeps the test open.
+const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ? AND ${DUE_WITHIN_DEMO_LIMIT}`;
 
 // Starts the evaluation of every test whose scheduled time has come, so a
 // scheduled test closes on time even when the robot is late (spec §8.3). For
@@ -79,7 +162,7 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
 // An open test of this teacher with the test file, the barem, and at least one
 // uploaded file (spec §8.4).
 const READY = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
-  AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL
+  AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_DEMO_LIMIT}
   AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id WHERE s.test_id = t.id)`;
 
 // open → evaluating now. Null when the test is not ready; "done" when it has
@@ -145,11 +228,11 @@ async function startSelectiveEvaluation(
   if (submissionIds.length === 0) return null;
   const placeholders = submissionIds.map(() => '?').join(',');
   const READY_SELECTED = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL
+    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_DEMO_LIMIT}
     AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id
       WHERE s.test_id = t.id AND s.id IN (${placeholders}))`;
   const OPEN_WITH_FILES = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL`;
+    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_DEMO_LIMIT}`;
   const [, , started, finished] = await db.batch<{ id: number }>([
     // Unselected confirmed uploads wait for a later evaluation.
     db
@@ -186,8 +269,9 @@ async function startSelectiveEvaluation(
 export async function scheduleEvaluation(db: D1Database, teacherId: number, testId: number, at: string, now: string): Promise<boolean> {
   const row = await db
     .prepare(
-      `UPDATE tests SET evaluation_at = ?, updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND status = 'open' AND test_file_key IS NOT NULL AND barem_file_key IS NOT NULL
+      `UPDATE tests AS t SET evaluation_at = ?, updated_at = ?
+       WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL
+         AND ${WITHIN_DEMO_LIMIT}
        RETURNING id`,
     )
     .bind(at, now, testId, teacherId)
@@ -269,17 +353,18 @@ function backToEvaluation(db: D1Database, teacherId: number, submissionId: numbe
 // grading the page shows: ids come back after a reset, so a page opened before
 // must not regrade another upload. A finished test goes back to evaluation; an
 // open test grades it after Start evaluation. Returns the test's status, or
-// null when the upload does not hold that grading.
+// null when the upload does not hold that grading, or the demo limit keeps
+// the upload from being graded again.
 export async function regradeSubmission(db: D1Database, shown: ShownResult, now: string): Promise<TestStatus | null> {
   const { teacherId, submissionId, gradedAt } = shown;
-  const [regraded, , , test] = await db.batch<{ test_id?: number; status?: TestStatus }>([
+  const [regraded, , , test] = await db.batch<{ test_id?: number; test_status?: TestStatus; status?: TestStatus }>([
     db
       .prepare(
         `UPDATE submissions SET ${GRADE_AGAIN}
          WHERE id = ? AND status = 'graded'
-           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ? AND ${MAY_GRADE_AGAIN})
            AND EXISTS (SELECT 1 FROM evaluations ev WHERE ev.submission_id = submissions.id AND ev.created_at = ?)
-         RETURNING test_id`,
+         RETURNING test_id, ${STATUS_BEFORE}`,
       )
       .bind(submissionId, teacherId, gradedAt),
     // After the UPDATE, so its check still sees the result. An upload that
@@ -294,23 +379,26 @@ export async function regradeSubmission(db: D1Database, shown: ShownResult, now:
     ...backToEvaluation(db, teacherId, submissionId, now),
   ]);
   if (!regraded?.results.length) return null;
+  await countGradingAgain(db, teacherId, regraded.results);
   return test?.results[0]?.status ?? null;
 }
 
 // "Recorectează tot": every graded upload of the test, and every upload whose
 // grading failed, waits for the robot again. Results and corrections go. A
-// finished test goes back to evaluation. Returns how many uploads wait, and
-// the test's status; null when the test is gone.
+// finished test goes back to evaluation. With the demo limit reached,
+// nothing changes. Returns how many uploads wait, and the test's status;
+// null when the test is gone.
 export async function regradeTest(
   db: D1Database,
   teacherId: number,
   testId: number,
   now: string,
 ): Promise<{ count: number; status: TestStatus } | null> {
-  const AGAIN = `test_id = ? AND status IN ('graded', 'failed') AND EXISTS (SELECT 1 FROM tests t WHERE t.id = ? AND t.teacher_id = ?)`;
-  const [, regraded, , test] = await db.batch<{ id?: number; status?: TestStatus }>([
+  const AGAIN = `test_id = ? AND status IN ('graded', 'failed')
+    AND EXISTS (SELECT 1 FROM tests t WHERE t.id = ? AND t.teacher_id = ? AND ${MAY_GRADE_AGAIN})`;
+  const [, regraded, , test] = await db.batch<{ id?: number; test_status?: TestStatus; status?: TestStatus }>([
     db.prepare(`DELETE FROM evaluations WHERE submission_id IN (SELECT id FROM submissions WHERE ${AGAIN})`).bind(testId, testId, teacherId),
-    db.prepare(`UPDATE submissions SET ${GRADE_AGAIN} WHERE ${AGAIN} RETURNING id`).bind(testId, testId, teacherId),
+    db.prepare(`UPDATE submissions SET ${GRADE_AGAIN} WHERE ${AGAIN} RETURNING id, ${STATUS_BEFORE}`).bind(testId, testId, teacherId),
     db
       .prepare(
         `UPDATE tests SET status = 'evaluating', archived = 0, updated_at = ?, ${ASK_FOR_ANALYSIS}
@@ -321,6 +409,7 @@ export async function regradeTest(
     db.prepare('SELECT status FROM tests WHERE id = ? AND teacher_id = ?').bind(testId, teacherId),
   ]);
   const status = test?.results[0]?.status;
+  await countGradingAgain(db, teacherId, regraded?.results);
   return status ? { count: regraded?.results.length ?? 0, status } : null;
 }
 
@@ -345,21 +434,23 @@ export async function requestAnalysis(db: D1Database, teacherId: number, testId:
 
 // failed → submitted with 0 attempts, so the robot grades the upload again. A
 // finished test goes back to evaluation (spec §8.5). Returns the test's
-// status, or null when the upload the page shows had not failed (or is
+// status, or null when the demo limit keeps the upload from being graded
+// again, or the upload the page shows had not failed (or is
 // another upload now: ids of deleted rows come back).
 export async function retrySubmission(db: D1Database, shown: ShownUpload, now: string): Promise<TestStatus | null> {
   const { teacherId, submissionId, startedAt } = shown;
-  const [retried, , test] = await db.batch<{ test_id?: number; status?: TestStatus }>([
+  const [retried, , test] = await db.batch<{ test_id?: number; test_status?: TestStatus; status?: TestStatus }>([
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL
          WHERE id = ? AND started_at = ? AND status = 'failed'
-           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?)
-         RETURNING test_id`,
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ? AND ${MAY_GRADE_AGAIN})
+         RETURNING test_id, ${STATUS_BEFORE}`,
       )
       .bind(submissionId, startedAt, teacherId),
     ...backToEvaluation(db, teacherId, submissionId, now),
   ]);
   if (!retried?.results.length) return null;
+  await countGradingAgain(db, teacherId, retried.results);
   return test?.results[0]?.status ?? null;
 }

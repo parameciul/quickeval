@@ -14,7 +14,8 @@
     "test": "vitest run",
     "build": "tsc -p tsconfig.json && vite build",
     "smoke": "node scripts/smoke.mjs",
-    "try:skill": "node runner/trySkill.ts"
+    "try:skill": "node runner/trySkill.ts",
+    "set-password": "node scripts/setPassword.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.1",

@@ -18,6 +18,8 @@ import {
 import { isTestFileKind, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
 import { acceptExerciseList,
+  blockedByDemoLimit,
+  regradeBlockedByDemoLimit,
   cancelSchedule,
   hasUploadedFiles,
   regradeTest,
@@ -51,7 +53,7 @@ import {
 } from '../db/tests.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
-import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
+import { ApiError, demoLimit, isUniqueViolation, notFound } from '../errors.ts';
 import { nowIso, parseSchoolYear, parseTestCode, readJson } from '../http.ts';
 import { newUploadToken } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
@@ -71,6 +73,7 @@ async function evaluationBlocker(db: D1Database, teacherId: number, code: string
   if (test.summary.status !== 'open') return new ApiError(409, 'already_evaluating', 'Evaluarea a pornit deja.');
   if (!test.files.test) return new ApiError(409, 'missing_test_file', 'Încarcă testul înainte de evaluare.');
   if (!test.files.barem) return new ApiError(409, 'missing_barem', 'Încarcă baremul înainte de evaluare.');
+  if (await blockedByDemoLimit(db, test.id)) return demoLimit();
   if (needsUploads && !(await hasUploadedFiles(db, test.id))) {
     return new ApiError(409, 'no_uploads', 'Niciun elev nu a încărcat încă fișiere.');
   }
@@ -234,7 +237,10 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const regraded = await regradeTest(c.env.DB, c.var.teacher.id, test.id, nowIso());
     if (!regraded) throw notFound();
-    if (regraded.count === 0) throw new ApiError(409, 'nothing_to_regrade', 'Testul nu are lucrări corectate.');
+    if (regraded.count === 0) {
+      if (await regradeBlockedByDemoLimit(c.env.DB, { testId: test.id })) throw demoLimit();
+      throw new ApiError(409, 'nothing_to_regrade', 'Testul nu are lucrări corectate.');
+    }
     const robot = regraded.status === 'evaluating' ? await startRobot(c.env) : null;
     return c.json({ count: regraded.count, testStatus: regraded.status, robot } satisfies RegradeAnswer);
   });

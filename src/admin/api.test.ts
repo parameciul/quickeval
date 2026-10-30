@@ -42,6 +42,47 @@ describe('createApiClient', () => {
     expect(error).toMatchObject({ status: 409, code: 'class_exists', message: 'Clasa 6E2 există deja în anul școlar 2026-2027.' });
   });
 
+  it('logs in, signs up, and logs out through /api/auth', async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, { teacher: { id: 1 } }));
+    const api = createApiClient({ fetchImpl });
+    expect(await api.login('a@example.com', 'parola-buna')).toEqual({ id: 1 });
+    await api.signup({ name: 'Ana', email: 'a@example.com', password: 'parola-buna' });
+    await api.confirmEmail('token-din-link', 'parola-buna');
+    await api.logout();
+    expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
+      'POST /api/auth/login',
+      'POST /api/auth/signup',
+      'POST /api/auth/confirm',
+      'POST /api/auth/logout',
+    ]);
+    expect(fetchImpl.mock.calls[2]![1]!.body).toBe(JSON.stringify({ token: 'token-din-link', password: 'parola-buna' }));
+    expect(fetchImpl.mock.calls[0]![1]!.body).toBe(JSON.stringify({ email: 'a@example.com', password: 'parola-buna' }));
+  });
+
+  it('calls the accounts of Setări', async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(200, { accounts: [], password: 'p', deleted: 2 }),
+    );
+    const api = createApiClient({ fetchImpl });
+    await api.listAccounts();
+    await api.approveAccount(2, '2026-10-28T10:00:00.000Z');
+    await api.rejectAccount(3, '2026-10-28T10:00:00.000Z');
+    expect(await api.rejectAllAccounts([{ id: 6, createdAt: '2026-10-28T10:00:00.000Z' }])).toBe(2);
+    await api.updateAccount(4, { demo: false });
+    expect(await api.resetPassword(5)).toBe('p');
+    expect(fetchImpl.mock.calls[1]![1]!.body).toBe(JSON.stringify({ createdAt: '2026-10-28T10:00:00.000Z' }));
+    await api.changePassword('veche', 'parola-noua');
+    expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
+      'GET /api/admin/accounts',
+      'POST /api/admin/accounts/2/approve',
+      'POST /api/admin/accounts/3/reject',
+      'POST /api/admin/accounts/reject-all',
+      'PATCH /api/admin/accounts/4',
+      'POST /api/admin/accounts/5/password',
+      'POST /api/admin/account/password',
+    ]);
+  });
+
   it('reloads for a new login when Access redirects', async () => {
     const redirect = { type: 'opaqueredirect', status: 0, ok: false, headers: new Headers() } as Response;
     const onLoginExpired = vi.fn();

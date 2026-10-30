@@ -89,3 +89,32 @@ export function promoteDue(options: AppOptions = {}): MiddlewareHandler<AppEnv> 
     await next();
   };
 }
+
+// Work the answer does not wait for (emails): the Function keeps running
+// until it ends. Outside Workers (no execution context) it simply runs on.
+export function inBackground(c: Context, work: Promise<unknown>): void {
+  const settled = work.catch((err: unknown) =>
+    console.warn(`Background work failed: ${err instanceof Error ? err.name : 'unknown error'}`),
+  );
+  let ctx: { waitUntil(promise: Promise<unknown>): void } | null = null;
+  try {
+    ctx = c.executionCtx;
+  } catch {
+    // No execution context: local tools.
+  }
+  if (ctx) ctx.waitUntil(settled);
+}
+
+// The key of the visitor's IP for the limits: the address Cloudflare saw
+// (CF-Connecting-IP), and for IPv6 its /64, which one home or phone gets whole.
+export function clientIpKey(c: Context): string {
+  const ip = (c.req.header('CF-Connecting-IP') ?? '').trim().toLowerCase();
+  if (!ip.includes(':')) return ip;
+  const [head = '', tail = ''] = ip.split('::');
+  const headParts = head === '' ? [] : head.split(':');
+  const tailParts = tail === '' ? [] : tail.split(':');
+  const missing = ip.includes('::') ? Math.max(0, 8 - headParts.length - tailParts.length) : 0;
+  const groups = [...headParts, ...Array<string>(missing).fill('0'), ...tailParts];
+  const prefix = groups.slice(0, 4).map((group) => group.replace(/^0+(?=.)/, ''));
+  return `${prefix.join(':')}::/64`;
+}

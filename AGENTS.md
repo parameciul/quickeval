@@ -11,12 +11,12 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 - `index.html` (landing page), `admin/index.html` (teacher app, `/admin/`), `u/index.html` (student app, `/u/<token>`).
 - `src/`: the two React apps (`admin/`, `upload/`), shared UI (`ui/`), test helpers (`test/`).
 - `functions/api/[[route]].ts`: the Cloudflare Pages entry for `/api/*`; it serves the Hono app from `server/app.ts`.
-- `server/`: the API (routes, D1 queries, auth, R2 files, secrets).
-- `shared/`: code for the API, the browser, and the robot: zod request schemas and response types (`api.ts`), school year, class and student names, ids, test codes (`tests.ts`), file rules and R2 keys (`files.ts`), the robot's output contracts and their JSON Schemas (`schemas.ts`), points and grades (`scoring.ts`), robot API bodies (`runner.ts`).
+- `server/`: the API (routes, D1 queries, auth, R2 files, secrets, emails).
+- `shared/`: code for the API, the browser, and the robot: zod request schemas and response types (`api.ts`), roles and the demo limit (`accounts.ts`), school year, class and student names, ids, test codes (`tests.ts`), file rules and R2 keys (`files.ts`), the robot's output contracts and their JSON Schemas (`schemas.ts`), points and grades (`scoring.ts`), robot API bodies (`runner.ts`).
 - Payments with Stripe Checkout: `docs/payments.md`.
 - `migrations/`: D1 SQL migrations, numbered. One statement per `;` at a line end (the test helper splits on that), and no `;` inside strings.
 - `public/`: copied as-is into `dist/` (`_routes.json`: only `/api/*` runs Functions; `_redirects`, `_headers`, `theme.js`, `favicon.svg`, `robots.txt`). `_redirects` must use the directory form `/admin/* /admin/ 200` and `/u/* /u/ 200`: Wrangler refuses `/admin/* /admin/index.html 200` as a redirect loop.
-- `scripts/`: `seed-local.sql` (the local teacher), `smoke.mjs` (checks a running local server, with one full upload graded by a pretend robot).
+- `scripts/`: `seed-local.sql` (the local teacher, an administrator), `setPassword.ts` (`npm run set-password -- <email> [--local]`: an account's password straight in D1), `smoke.mjs` (checks a running local server, with one full upload graded by a pretend robot).
 - `runner/`: the grading robot (spec §12), run by `.github/workflows/evaluate.yml`. `.claude/skills/evaluate-test/`: its grading skill (spec §13).
 - `runner/print/`: the print container (pinned LibreOffice and the QR stamp) that makes the test's print PDF.
 
@@ -35,6 +35,7 @@ Details and the remaining rules are in the nested `AGENTS.md` files.
 
 - All user-facing text is Romanian. The API reports errors as `{ error, message }`; the UI shows `message`.
 - No page tells students that AI grades their work. Student-app tests check every screen with `expectNoGradingWords()`.
+- Teachers log in with email and password (`server/routes/auth.ts`, a `qe_session` cookie). Setări and `/api/admin/settings` and `/api/admin/accounts` are for administrators only (`adminOnly` in `server/auth/teacherAuth.ts`). A new account confirms its email, then is pending and demo. Every time a test goes to the robot for grading (every start, regrade and retry) counts in `teachers.tests_evaluated`, for every teacher (a trigger in migration 0018, and `countGradingAgain` in `server/db/lifecycle.ts` for a test already in evaluation); a demo account may do it `DEMO_TEST_LIMIT` times, checked in the SQL of every such path (`WITHIN_DEMO_LIMIT` in `server/db/lifecycle.ts`).
 - Every teacher query is scoped by the teacher's id. Ids from URLs go through `parseId`, test codes through `parseTestCode`.
 - Student and robot writes, and the teacher's corrections, check their own rules inside their SQL statement (`server/db/links.ts`, `server/db/runner.ts`, `server/db/evaluations.ts`), never in a check before the write.
 - Every `/api/admin` and `/api/u` request first runs the `promoteDue` middleware. A router added under them keeps it.

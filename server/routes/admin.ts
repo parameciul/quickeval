@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { teacherAuth } from '../auth/teacherAuth.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { promoteDue, sameOriginWrites } from '../http.ts';
+import { accountRoutes, ownAccountRoutes } from './accounts.ts';
 import { classRoutes } from './classes.ts';
 import { adminPaymentRoutes } from './payments.ts';
 import { settingsRoutes } from './settings.ts';
@@ -9,7 +10,8 @@ import { studentRoutes } from './students.ts';
 import { submissionRoutes } from './submissions.ts';
 import { testRoutes } from './tests.ts';
 
-// /api/admin: everything the teacher app calls. Every route needs a teacher login.
+// /api/admin: everything the teacher app calls. Every route needs a teacher login; Setări
+// and the accounts need an administrator.
 export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
   routes.use('*', sameOriginWrites, teacherAuth(), promoteDue(options));
@@ -19,6 +21,8 @@ export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.route('/tests', testRoutes(options));
   routes.route('/submissions', submissionRoutes(options));
   routes.route('/settings', settingsRoutes());
+  routes.route('/account', ownAccountRoutes());
+  routes.route('/accounts', accountRoutes(options));
   routes.route('/payments', adminPaymentRoutes(options));
   return routes;
 }

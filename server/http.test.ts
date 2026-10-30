@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { ApiError, isUniqueViolation } from './errors.ts';
-import { parseId, readJson, sameOriginWrites } from './http.ts';
+import { clientIpKey, parseId, readJson, sameOriginWrites } from './http.ts';
 
 // A small app that answers ApiErrors the way server/app.ts does.
 function testApp() {
@@ -88,5 +88,27 @@ describe('isUniqueViolation', () => {
     expect(isUniqueViolation(new Error('D1_ERROR: UNIQUE constraint failed: classes.teacher_id'))).toBe(true);
     expect(isUniqueViolation('UNIQUE constraint failed: tests.code')).toBe(true);
     expect(isUniqueViolation(new Error('FOREIGN KEY constraint failed'))).toBe(false);
+  });
+});
+
+describe('clientIpKey', () => {
+  const keyOf = async (ip: string | undefined) => {
+    const app = new Hono();
+    app.get('/', (c) => c.text(clientIpKey(c)));
+    return (await app.request('/', { headers: ip === undefined ? {} : { 'CF-Connecting-IP': ip } })).text();
+  };
+
+  it.each([
+    ['203.0.113.7', '203.0.113.7'],
+    ['2001:db8:1:2::5', '2001:db8:1:2::/64'],
+    ['2001:0DB8:0001:0002:aaaa:bbbb:cccc:dddd', '2001:db8:1:2::/64'],
+    ['2001:db8::1', '2001:db8:0:0::/64'],
+    ['::1', '0:0:0:0::/64'],
+  ])('keys %s as %s', async (ip, key) => {
+    expect(await keyOf(ip)).toBe(key);
+  });
+
+  it('is empty without the header', async () => {
+    expect(await keyOf(undefined)).toBe('');
   });
 });

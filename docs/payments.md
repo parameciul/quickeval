@@ -45,7 +45,7 @@ Refunds and disputes are made in the Stripe dashboard (or by the payer's bank); 
 4. The secrets apply from the next deployment.
 5. Local test: put both keys (test mode) in `.dev.vars`, and forward the webhook with the Stripe CLI: `stripe listen --forward-to http://127.0.0.1:8788/api/payments/webhook` (it prints the `whsec_…` to use locally).
 
-The path `/api/payments` must stay outside Cloudflare Access: Stripe has no login.
+The path `/api/payments` needs no login: Stripe has none. It checks the Stripe signature instead.
 
 ## Not handled yet
 

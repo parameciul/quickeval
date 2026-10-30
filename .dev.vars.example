@@ -1,6 +1,10 @@
 # Copy to .dev.vars (never committed). Local development only: the API accepts
 # this email as the logged-in teacher, and only for requests to localhost.
 DEV_TEACHER_EMAIL=profesor@example.com
+# The emails of new accounts (docs/deploy.md, "Accounts"). Without them, sign-up answers 503.
+# Locally, new accounts can be confirmed by hand: UPDATE teachers SET email_confirmed_at = created_at.
+# BREVO_API_KEY=
+# EMAIL_FROM=
 # Stripe test-mode keys (docs/payments.md). Leave empty: payments then answer 503.
 # STRIPE_SECRET_KEY=sk_test_...
 # STRIPE_WEBHOOK_SECRET=whsec_...
