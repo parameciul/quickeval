@@ -1,5 +1,5 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { DEMO_TEST_LIMIT } from '../../shared/accounts.ts';
+import { DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
 import type { AnalysisInfo } from '../../shared/api.ts';
 import type { AnalysisStatus, TestStatus } from '../../shared/tests.ts';
 import type { ShownResult } from './evaluations.ts';
@@ -37,21 +37,54 @@ export function finishTests(db: D1Database, now: string): D1PreparedStatement {
     .bind(now);
 }
 
-// The test t may go to the robot for grading under the demo limit: its
-// teacher is not a demo account, or has evaluations left. The trigger
-// tests_count_evaluation (migration 0018) counts every evaluation, of every
-// teacher, when the test moves into 'evaluating' with uploads to grade.
-export const WITHIN_DEMO_LIMIT = `NOT EXISTS (
-  SELECT 1 FROM teachers q WHERE q.id = t.teacher_id AND q.demo = 1 AND q.tests_evaluated >= ${DEMO_TEST_LIMIT})`;
+// How many papers of a teacher are on their way to the robot, in the tests x
+// of `waiting`. The trigger submissions_count_paper (migration 0019) counts a
+// paper when its result arrives, so these use the demo limit too.
+export const papersWaitingSql = (teacherId: string, waiting = "x.status = 'evaluating'") =>
+  `(SELECT COUNT(*) FROM submissions w JOIN tests x ON x.id = w.test_id
+    WHERE x.teacher_id = ${teacherId} AND w.status IN ('submitted', 'grading') AND ${waiting})`;
 
-// A regrade or retry of test t sends uploads to the robot, so it is an
-// evaluation of its own and needs the demo limit: a finished test goes back
-// to evaluation (the trigger counts it), and a test in evaluation takes them
+// How many papers the teacher of test t may still send to the robot: no limit
+// for a complete account.
+const papersLeft = (waiting?: string) => `(SELECT CASE WHEN q.demo = 0 THEN 1000000
+    ELSE MAX(0, ${DEMO_PAPER_LIMIT} - q.papers_graded - ${papersWaitingSql('q.id', waiting)}) END
+  FROM teachers q WHERE q.id = t.teacher_id)`;
+
+const PAPERS_LEFT = papersLeft();
+
+// A regrade of an open test grades its papers at the next start, so the papers
+// that wait in that test use the limit too: a demo account must not lose
+// results to a regrade that can never run.
+const PAPERS_LEFT_TO_REGRADE = papersLeft("(x.status = 'evaluating' OR x.id = t.id)");
+
+// The test t may send at least one paper to the robot. The trigger
+// tests_count_evaluation (migration 0018) counts the test, for every teacher,
+// when it moves into 'evaluating' with uploads to grade.
+export const WITHIN_PAPER_LIMIT = `${PAPERS_LEFT} > 0`;
+
+// A regrade or retry of test t sends a paper to the robot: a finished test goes
+// back to evaluation (the trigger counts it), and a test in evaluation takes it
 // in the evaluation it is in (countGradingAgain counts it). An open test
-// grades them at its next start, which counts then; it needs the limit all
-// the same, or a demo account at its limit would lose its results to a
-// regrade that can never run.
-const MAY_GRADE_AGAIN = WITHIN_DEMO_LIMIT;
+// grades it at its next start, which counts then.
+const MAY_GRADE_AGAIN = `${PAPERS_LEFT_TO_REGRADE} > 0`;
+
+// A paper s of an open test that a start would send to the robot.
+const SENDABLE = `(s.status = 'submitted' OR (s.status = 'uploading' AND EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = s.id)))`;
+
+// The papers the limit lets start, for the tests t of `scope`: by scheduled
+// time and test, then the papers the students confirmed, oldest first. The
+// rest wait for a later evaluation, as unselected uploads do.
+function papersToSend(scope: string, only = 'TRUE'): string {
+  return `SELECT p.id FROM (
+    SELECT s.id, ${PAPERS_LEFT} AS allowed,
+      ROW_NUMBER() OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id, s.status <> 'submitted', s.submitted_at, s.id) AS place
+    FROM submissions s JOIN tests t ON t.id = s.test_id
+    WHERE (${scope}) AND ${only} AND ${SENDABLE}) p
+  WHERE p.place <= p.allowed`;
+}
+
+// A paper past the limit goes back to uploading (its files stay).
+const HOLD_BACK = "status = 'uploading', auto_submitted = 0, submitted_at = NULL";
 
 // The status of the test before the batch, returned by the UPDATE that sent
 // the uploads back (its RETURNING runs before the batch's later writes).
@@ -68,7 +101,7 @@ async function countGradingAgain(db: D1Database, teacherId: number, regraded: { 
 
 // True when the demo limit keeps this test from starting an evaluation.
 export async function blockedByDemoLimit(db: D1Database, testId: number): Promise<boolean> {
-  const row = await db.prepare(`SELECT 1 AS blocked FROM tests t WHERE t.id = ? AND NOT ${WITHIN_DEMO_LIMIT}`).bind(testId).first();
+  const row = await db.prepare(`SELECT 1 AS blocked FROM tests t WHERE t.id = ? AND NOT ${WITHIN_PAPER_LIMIT}`).bind(testId).first();
   return row !== null;
 }
 
@@ -106,31 +139,28 @@ export async function regradeBlockedByDemoLimit(
   return (await statement.first()) !== null;
 }
 
-// The same for a scheduled test whose time has come. One UPDATE can start
-// several such tests of a teacher, and SQLite reads its WHERE before it writes:
-// the tests scheduled earlier (by time, then by id) that would start in the
-// same UPDATE count as used, so the earliest ones start and the rest wait.
-const DUE_WITHIN_DEMO_LIMIT = `NOT EXISTS (
-  SELECT 1 FROM teachers q WHERE q.id = t.teacher_id AND q.demo = 1
-    AND q.tests_evaluated + (
-      SELECT COUNT(*) FROM tests o
-      WHERE o.teacher_id = t.teacher_id AND o.status = 'open' AND o.evaluation_at IS NOT NULL
-        AND (o.evaluation_at < t.evaluation_at OR (o.evaluation_at = t.evaluation_at AND o.id < t.id))
-    ) >= ${DEMO_TEST_LIMIT})`;
-
 // An open test whose scheduled evaluation time has come. A demo account at its
 // limit keeps the test open.
-const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ? AND ${DUE_WITHIN_DEMO_LIMIT}`;
+const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND ${WITHIN_PAPER_LIMIT}`;
+
+const DUE_PAPERS = papersToSend(DUE);
+
+// One UPDATE can start several due tests of a teacher, and SQLite reads its
+// WHERE before it writes: a test starts when one of its papers is within the
+// limit, or when it has no paper to send and ends at once. The rest wait.
+const STARTS = `${DUE} AND (NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND ${SENDABLE})
+  OR EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.id IN (${DUE_PAPERS})))`;
 
 // Starts the evaluation of every test whose scheduled time has come, so a
 // scheduled test closes on time even when the robot is late (spec §8.3). For
 // those tests the uploads closed at the scheduled time: uploads with files
-// are sent as they are ("Fără confirmare"); uploads without files stay. Also
+// are sent as they are ("Fără confirmare"), within the demo limit; uploads
+// without files stay. Also
 // finishes the tests that have nothing left to grade. True when this call
 // started an evaluation that did not end at once: the robot has work. D1 runs
 // writes one at a time, so of two calls at once only one sees that test.
 export async function promoteDueTests(db: D1Database, now: string): Promise<boolean> {
-  const [, started, finished] = await db.batch<{ id: number }>(promoteStatements(db, now));
+  const [, , started, finished] = await db.batch<{ id: number }>(promoteStatements(db, now));
   const ended = new Set(finished?.results.map((row) => row.id));
   return Boolean(started?.results.some((row) => !ended.has(row.id)));
 }
@@ -140,36 +170,43 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
   return [
     db
       .prepare(
+        `UPDATE submissions SET ${HOLD_BACK}
+         WHERE status = 'submitted' AND test_id IN (SELECT t.id FROM tests t WHERE ${STARTS})
+           AND id NOT IN (${DUE_PAPERS})`,
+      )
+      .bind(now),
+    db
+      .prepare(
         `UPDATE submissions
          SET status = 'submitted', auto_submitted = 1,
            submitted_at = (SELECT t.evaluation_at FROM tests t WHERE t.id = submissions.test_id)
-         WHERE status = 'uploading' AND ${HAS_FILES}
-           AND test_id IN (SELECT t.id FROM tests t WHERE ${DUE})`,
+         WHERE status = 'uploading' AND ${HAS_FILES} AND id IN (${DUE_PAPERS})`,
       )
       .bind(now),
     db
       .prepare(
         `UPDATE tests
-         SET status = 'evaluating', evaluation_started_at = evaluation_at, evaluation_at = NULL, updated_at = ?, ${ASK_FOR_ANALYSIS}
-         WHERE id IN (SELECT t.id FROM tests t WHERE ${DUE})
+         SET status = 'evaluating', evaluation_started_at = evaluation_at, evaluation_at = NULL, updated_at = ?1, ${ASK_FOR_ANALYSIS}
+         WHERE id IN (SELECT t.id FROM tests t WHERE ${STARTS})
          RETURNING id`,
       )
-      .bind(now, now),
+      .bind(now),
     finishTests(db, now),
   ];
 }
 
 // An open test of this teacher with the test file, the barem, and at least one
 // uploaded file (spec §8.4).
-const READY = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
-  AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_DEMO_LIMIT}
+const READY = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
+  AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_PAPER_LIMIT}
   AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id WHERE s.test_id = t.id)`;
 
 // open → evaluating now. Null when the test is not ready; "done" when it has
 // nothing to grade (every upload was graded before). With `submissionIds`,
 // only the selected uploads are sent to grading: uploads with files that were
 // not selected stay uploading, so the robot ignores them until the teacher
-// reopens and evaluates them.
+// reopens and evaluates them. A demo account sends the papers it has left,
+// and the others wait in the same way.
 export async function startEvaluationNow(
   db: D1Database,
   teacherId: number,
@@ -178,22 +215,28 @@ export async function startEvaluationNow(
   submissionIds?: number[],
 ): Promise<'evaluating' | 'done' | null> {
   if (submissionIds !== undefined) return startSelectiveEvaluation(db, teacherId, testId, now, submissionIds);
-  const [, started, finished] = await db.batch<{ id: number }>([
+  const [, , started, finished] = await db.batch<{ id: number }>([
     db
       .prepare(
-        `UPDATE submissions SET status = 'submitted', auto_submitted = 1, submitted_at = ?
-         WHERE status = 'uploading' AND ${HAS_FILES}
-           AND test_id IN (SELECT t.id FROM tests t WHERE ${READY})`,
+        `UPDATE submissions SET ${HOLD_BACK}
+         WHERE status = 'submitted' AND test_id IN (SELECT t.id FROM tests t WHERE ${READY})
+           AND id NOT IN (${papersToSend(READY)})`,
       )
-      .bind(now, testId, teacherId),
+      .bind(testId, teacherId),
+    db
+      .prepare(
+        `UPDATE submissions SET status = 'submitted', auto_submitted = 1, submitted_at = ?3
+         WHERE status = 'uploading' AND ${HAS_FILES} AND id IN (${papersToSend(READY)})`,
+      )
+      .bind(testId, teacherId, now),
     db
       .prepare(
         `UPDATE tests
-         SET status = 'evaluating', evaluation_started_at = ?, evaluation_at = NULL, updated_at = ?, ${ASK_FOR_ANALYSIS}
+         SET status = 'evaluating', evaluation_started_at = ?3, evaluation_at = NULL, updated_at = ?3, ${ASK_FOR_ANALYSIS}
          WHERE id IN (SELECT t.id FROM tests t WHERE ${READY})
          RETURNING id`,
       )
-      .bind(now, now, testId, teacherId),
+      .bind(testId, teacherId, now),
     finishTests(db, now),
   ]);
   if (!started?.results.length) return null;
@@ -217,7 +260,8 @@ export async function selectedHaveFiles(db: D1Database, testId: number, submissi
 // open → evaluating now for the selected uploads only. Unselected uploads
 // that were confirmed go back to uploading (their files stay), so the robot
 // grades only the selection. The teacher reopens the test and evaluates the
-// rest. Null when the test is not ready.
+// rest. A demo account sends the first selected papers it has left. Null when
+// the test is not ready.
 async function startSelectiveEvaluation(
   db: D1Database,
   teacherId: number,
@@ -226,38 +270,38 @@ async function startSelectiveEvaluation(
   submissionIds: number[],
 ): Promise<'evaluating' | 'done' | null> {
   if (submissionIds.length === 0) return null;
-  const placeholders = submissionIds.map(() => '?').join(',');
-  const READY_SELECTED = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_DEMO_LIMIT}
+  const placeholders = submissionIds.map((_, index) => `?${index + 4}`).join(',');
+  const params = [testId, teacherId, now, ...submissionIds];
+  const READY_SELECTED = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
+    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_PAPER_LIMIT}
     AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id
       WHERE s.test_id = t.id AND s.id IN (${placeholders}))`;
-  const OPEN_WITH_FILES = `t.id = ? AND t.teacher_id = ? AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_DEMO_LIMIT}`;
+  const OPEN_WITH_FILES = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
+    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_PAPER_LIMIT}`;
+  const TO_SEND = papersToSend(OPEN_WITH_FILES, `s.id IN (${placeholders})`);
   const [, , started, finished] = await db.batch<{ id: number }>([
     // Unselected confirmed uploads wait for a later evaluation.
     db
       .prepare(
-        `UPDATE submissions SET status = 'uploading', auto_submitted = 0, submitted_at = NULL
-         WHERE status = 'submitted' AND test_id = ? AND id NOT IN (${placeholders})
+        `UPDATE submissions SET ${HOLD_BACK}
+         WHERE status = 'submitted' AND test_id = ?1 AND id NOT IN (${TO_SEND})
            AND EXISTS (SELECT 1 FROM tests t WHERE ${OPEN_WITH_FILES})`,
       )
-      .bind(testId, ...submissionIds, testId, teacherId),
+      .bind(...params),
     db
       .prepare(
-        `UPDATE submissions SET status = 'submitted', auto_submitted = 1, submitted_at = ?
-         WHERE status = 'uploading' AND ${HAS_FILES}
-           AND id IN (${placeholders}) AND test_id = ?
-           AND EXISTS (SELECT 1 FROM tests t WHERE ${OPEN_WITH_FILES})`,
+        `UPDATE submissions SET status = 'submitted', auto_submitted = 1, submitted_at = ?3
+         WHERE status = 'uploading' AND ${HAS_FILES} AND id IN (${TO_SEND})`,
       )
-      .bind(now, ...submissionIds, testId, testId, teacherId),
+      .bind(...params),
     db
       .prepare(
         `UPDATE tests
-         SET status = 'evaluating', evaluation_started_at = ?, evaluation_at = NULL, updated_at = ?, ${ASK_FOR_ANALYSIS}
+         SET status = 'evaluating', evaluation_started_at = ?3, evaluation_at = NULL, updated_at = ?3, ${ASK_FOR_ANALYSIS}
          WHERE id IN (SELECT t.id FROM tests t WHERE ${READY_SELECTED})
          RETURNING id`,
       )
-      .bind(now, now, testId, teacherId, ...submissionIds),
+      .bind(...params),
     finishTests(db, now),
   ]);
   if (!started?.results.length) return null;
@@ -271,7 +315,7 @@ export async function scheduleEvaluation(db: D1Database, teacherId: number, test
     .prepare(
       `UPDATE tests AS t SET evaluation_at = ?, updated_at = ?
        WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL
-         AND ${WITHIN_DEMO_LIMIT}
+         AND ${WITHIN_PAPER_LIMIT}
        RETURNING id`,
     )
     .bind(at, now, testId, teacherId)
@@ -385,20 +429,24 @@ export async function regradeSubmission(db: D1Database, shown: ShownResult, now:
 
 // "Recorectează tot": every graded upload of the test, and every upload whose
 // grading failed, waits for the robot again. Results and corrections go. A
-// finished test goes back to evaluation. With the demo limit reached,
-// nothing changes. Returns how many uploads wait, and the test's status;
-// null when the test is gone.
+// finished test goes back to evaluation. A demo account sends the papers it has
+// left, the failed ones first, and the others keep their results. With the
+// demo limit reached, nothing changes. Returns how many uploads wait, and the
+// test's status; null when the test is gone.
 export async function regradeTest(
   db: D1Database,
   teacherId: number,
   testId: number,
   now: string,
 ): Promise<{ count: number; status: TestStatus } | null> {
-  const AGAIN = `test_id = ? AND status IN ('graded', 'failed')
-    AND EXISTS (SELECT 1 FROM tests t WHERE t.id = ? AND t.teacher_id = ? AND ${MAY_GRADE_AGAIN})`;
+  const AGAIN = `SELECT p.id FROM (
+    SELECT s.id, ${PAPERS_LEFT_TO_REGRADE} AS allowed, ROW_NUMBER() OVER (ORDER BY s.status <> 'failed', s.id) AS place
+    FROM submissions s JOIN tests t ON t.id = s.test_id
+    WHERE t.id = ? AND t.teacher_id = ? AND s.status IN ('graded', 'failed')) p
+  WHERE p.place <= p.allowed`;
   const [, regraded, , test] = await db.batch<{ id?: number; test_status?: TestStatus; status?: TestStatus }>([
-    db.prepare(`DELETE FROM evaluations WHERE submission_id IN (SELECT id FROM submissions WHERE ${AGAIN})`).bind(testId, testId, teacherId),
-    db.prepare(`UPDATE submissions SET ${GRADE_AGAIN} WHERE ${AGAIN} RETURNING id, ${STATUS_BEFORE}`).bind(testId, testId, teacherId),
+    db.prepare(`DELETE FROM evaluations WHERE submission_id IN (${AGAIN})`).bind(testId, teacherId),
+    db.prepare(`UPDATE submissions SET ${GRADE_AGAIN} WHERE id IN (${AGAIN}) RETURNING id, ${STATUS_BEFORE}`).bind(testId, teacherId),
     db
       .prepare(
         `UPDATE tests SET status = 'evaluating', archived = 0, updated_at = ?, ${ASK_FOR_ANALYSIS}

@@ -16,7 +16,7 @@ afterEach(async () => {
   dispose = undefined;
 });
 
-async function databaseBefore0018(): Promise<{ db: D1Database; apply0018: () => Promise<void> }> {
+async function databaseBefore0018(): Promise<{ db: D1Database; apply0018: () => Promise<void>; applyRest: () => Promise<void> }> {
   const platform = await getPlatformProxy<{ DB: D1Database }>({
     configPath: fileURLToPath(new URL('../wrangler.toml', import.meta.url)),
     persist: false,
@@ -30,7 +30,13 @@ async function databaseBefore0018(): Promise<{ db: D1Database; apply0018: () => 
     await db.batch(splitSql(sql).map((statement) => db.prepare(statement)));
   };
   for (const file of files.filter((name) => name < '0018')) await run(file);
-  return { db, apply0018: () => run(files.find((name) => name.startsWith('0018'))!) };
+  return {
+    db,
+    apply0018: () => run(files.find((name) => name.startsWith('0018'))!),
+    applyRest: async () => {
+      for (const file of files.filter((name) => name >= '0019')) await run(file);
+    },
+  };
 }
 
 const addTeacher = (db: D1Database, email: string) =>
@@ -79,5 +85,32 @@ describe('migration 0018', () => {
     // One evaluation for each test that went to the robot before.
     const teacher = await db.prepare('SELECT tests_evaluated FROM teachers').first();
     expect(teacher).toEqual({ tests_evaluated: 2 });
+  });
+});
+
+describe('migration 0019', () => {
+  it('counts the papers already graded, for each teacher', async () => {
+    const { db, apply0018, applyRest } = await databaseBefore0018();
+    await addTeacher(db, 'plesalaura@yahoo.com');
+    await addTeacher(db, 'alt@example.com');
+    await apply0018();
+    await db.prepare("INSERT INTO classes (teacher_id, name, school_year, created_at) VALUES (1, '6E2', 2026, '2026-10-06')").run();
+    await db.prepare("INSERT INTO students (id, teacher_id, full_name, created_at) VALUES (1, 1, 'Pop Ion', '2026-10-06'), (2, 1, 'Stan Eva', '2026-10-06')").run();
+    await db
+      .prepare(
+        `INSERT INTO tests (teacher_id, class_id, number, code, title, status, created_at, updated_at)
+         VALUES (1, 1, 1, '6E2-26T1', 'T', 'done', '2026-10-06', '2026-10-06')`,
+      )
+      .run();
+    const upload = (studentId: number, status: string) =>
+      db
+        .prepare("INSERT INTO submissions (test_id, student_id, status, started_at) VALUES (1, ?, ?, '2026-10-06')")
+        .bind(studentId, status)
+        .run();
+    await upload(1, 'graded');
+    await upload(2, 'failed');
+    await applyRest();
+    const teachers = await db.prepare('SELECT papers_graded FROM teachers ORDER BY id').all();
+    expect(teachers.results).toEqual([{ papers_graded: 1 }, { papers_graded: 0 }]);
   });
 });

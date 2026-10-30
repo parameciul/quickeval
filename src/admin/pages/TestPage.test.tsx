@@ -607,6 +607,26 @@ describe('TestPage evaluation', () => {
     expect(screen.queryByRole('button', { name: 'Recorectează tot' })).not.toBeInTheDocument();
   });
 
+  it('says how many papers the demo limit let go to a regrade', async () => {
+    const api = evaluationApi({ status: 'done' }, gradedAndFailed());
+    api.regradeTest.mockResolvedValueOnce({ count: 1, testStatus: 'evaluating', robot: 'next_check' });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează tot' }));
+    expect(await screen.findByText('Limita contului demo: se corectează din nou 1 din cele 2 lucrări. Celelalte își păstrează rezultatele.')).toBeInTheDocument();
+  });
+
+  it('counts only the papers that stayed out, while the robot grades the others', async () => {
+    const api = evaluationApi({ status: 'evaluating' }, [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 1 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan', submissionId: 7, status: 'uploading', fileCount: 0 }),
+    ]);
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByText('Evaluare parțială.')).toBeInTheDocument();
+    expect(screen.getByText(/1 lucrare cu fișiere nu a fost corectată/)).toBeInTheDocument();
+  });
+
   it('says that an open test grades the uploads again after Start evaluation', async () => {
     const api = evaluationApi({ status: 'open' }, gradedAndFailed());
     vi.spyOn(window, 'confirm').mockReturnValue(true);

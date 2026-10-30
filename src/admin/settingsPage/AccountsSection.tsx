@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { Account } from '../../../shared/api.ts';
-import { DEMO_TEST_LIMIT } from '../../../shared/accounts.ts';
+import { DEMO_PAPER_LIMIT } from '../../../shared/accounts.ts';
 import { countLabel, formatDateTime } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -118,13 +118,15 @@ function PendingItem({ account }: { account: Account }) {
   );
 }
 
-// The kind of account, and how many times its tests went to the robot for grading.
+// The kind of account, how many times its tests went to the robot for grading,
+// and how many papers the robot graded.
 export function accountTag(account: Account): string {
-  const evaluations = countLabel(account.testsEvaluated, 'evaluare', 'evaluări');
-  if (account.role === 'admin') return `administrator · ${evaluations}`;
-  if (account.status === 'disabled') return `închis · ${evaluations}`;
-  if (account.demo) return `demo: ${Math.min(account.testsEvaluated, DEMO_TEST_LIMIT)} din ${DEMO_TEST_LIMIT} evaluări`;
-  return `complet · ${evaluations}`;
+  const tests = countLabel(account.testsEvaluated, 'test', 'teste');
+  const papers = countLabel(account.papersGraded, 'lucrare', 'lucrări');
+  if (account.role === 'admin') return `administrator · ${tests} · ${papers}`;
+  if (account.status === 'disabled') return `închis · ${tests} · ${papers}`;
+  if (account.demo) return `demo: ${Math.min(account.papersGraded, DEMO_PAPER_LIMIT)} din ${DEMO_PAPER_LIMIT} lucrări · ${tests}`;
+  return `complet · ${tests} · ${papers}`;
 }
 
 // Administrators' accounts do not change here: an administrator changes their

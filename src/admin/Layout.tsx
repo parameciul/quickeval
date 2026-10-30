@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
-import { demoTestsLeft, DEMO_TEST_LIMIT } from '../../shared/accounts.ts';
+import { demoPapersLeft, DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
 import type { Teacher } from '../../shared/api.ts';
 import { formatSchoolYear, schoolYearOf } from '../../shared/schoolYear.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
@@ -14,11 +14,11 @@ import { schoolYearOptions, useSchoolYear } from './SchoolYearContext.tsx';
 
 // The line a demo account sees on every page.
 export function demoText(teacher: Teacher): string {
-  const left = demoTestsLeft(teacher.testsEvaluated);
+  const left = demoPapersLeft(teacher.papersGraded + teacher.papersWaiting);
   if (left === 0) {
-    return `Cont demo: ai folosit toate cele ${DEMO_TEST_LIMIT} evaluări ale contului. Cere unui administrator un cont complet.`;
+    return `Cont demo: ai folosit toate cele ${DEMO_PAPER_LIMIT} lucrări ale contului. Cere unui administrator un cont complet.`;
   }
-  return `Cont demo: mai ai ${left} din ${DEMO_TEST_LIMIT} evaluări. Fiecare trimitere a unui test la corectare se numără, și o recorectare.`;
+  return `Cont demo: mai ai ${left} din ${DEMO_PAPER_LIMIT} lucrări. Fiecare lucrare corectată se numără, și o recorectare.`;
 }
 
 export function Layout() {
@@ -27,8 +27,8 @@ export function Layout() {
   const onTests = location.pathname === '/' || location.pathname.startsWith('/teste');
   const { year, setYear } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
-  // A start, a regrade or a retry changes the count of evaluations the demo
-  // line shows: every change a logged-in teacher makes reads the account again.
+  // A start, a regrade or a retry changes the papers the demo line shows:
+  // every change a logged-in teacher makes reads the account again.
   const queryClient = useQueryClient();
   useEffect(
     () =>

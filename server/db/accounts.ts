@@ -2,6 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type { AccountStatus, Role } from '../../shared/accounts.ts';
 import type { Account, Teacher } from '../../shared/api.ts';
 import { isUniqueViolation } from '../errors.ts';
+import { papersWaitingSql } from './lifecycle.ts';
 
 // Teacher accounts and logins. Writes check their own rules in their SQL.
 
@@ -45,6 +46,8 @@ interface TeacherRow {
   role: Role;
   demo: number;
   tests_evaluated: number;
+  papers_graded: number;
+  papers_waiting: number;
 }
 
 interface AccountRow extends TeacherRow {
@@ -53,10 +56,19 @@ interface AccountRow extends TeacherRow {
   approved_at: string | null;
 }
 
-const TEACHER_COLUMNS = 't.id, t.email, t.name, t.role, t.demo, t.tests_evaluated';
+const TEACHER_COLUMNS = `t.id, t.email, t.name, t.role, t.demo, t.tests_evaluated, t.papers_graded, ${papersWaitingSql('t.id')} AS papers_waiting`;
 
 function toTeacher(row: TeacherRow): Teacher {
-  return { id: row.id, email: row.email, name: row.name, role: row.role, demo: row.demo === 1, testsEvaluated: row.tests_evaluated };
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    demo: row.demo === 1,
+    testsEvaluated: row.tests_evaluated,
+    papersGraded: row.papers_graded,
+    papersWaiting: row.papers_waiting,
+  };
 }
 
 // The local development login (DEV_TEACHER_EMAIL): an active account with this email.

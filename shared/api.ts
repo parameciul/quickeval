@@ -325,10 +325,14 @@ export interface Teacher {
   email: string;
   name: string;
   role: Role;
-  // A demo account sends at most DEMO_TEST_LIMIT tests to evaluation.
+  // A demo account has at most DEMO_PAPER_LIMIT papers graded.
   demo: boolean;
-  // Tests this account has sent to evaluation, each counted once.
+  // How many times this account's tests went to the robot for grading.
   testsEvaluated: number;
+  // Papers the robot graded for this account; a regrade counts as one more.
+  papersGraded: number;
+  // Papers on their way to the robot: they use the demo limit too.
+  papersWaiting: number;
 }
 
 // A teacher account as the administrators see it on Setări.

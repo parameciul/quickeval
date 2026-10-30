@@ -41,7 +41,7 @@ describe('the login form', () => {
     renderAdmin('/', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Vreau cont nou' }));
     expect(screen.getByRole('heading', { name: 'Cont nou' })).toBeInTheDocument();
-    expect(screen.getByText(/cont demo: poți trimite teste la corectare de 5 ori/)).toBeInTheDocument();
+    expect(screen.getByText(/cont demo: poți corecta 5 lucrări/)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Numele tău'), 'Ana Pop');
     await userEvent.type(screen.getByLabelText('Email'), 'ana@example.com');
     await userEvent.type(screen.getByLabelText(/^Parola/), 'parola-lunga');
@@ -79,28 +79,34 @@ describe('the menu by role', () => {
     expect(api.listAccounts).not.toHaveBeenCalled();
   });
 
-  it('tells a demo account how many evaluations it has left', async () => {
-    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 2 }) });
+  it('tells a demo account how many papers it has left', async () => {
+    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 }) });
     renderAdmin('/clase', api);
-    expect(await screen.findByText(/^Cont demo: mai ai 3 din 5 evaluări\./)).toBeInTheDocument();
+    expect(await screen.findByText(/^Cont demo: mai ai 3 din 5 lucrări\./)).toBeInTheDocument();
   });
 
-  it('reads the demo line again after a change, so it shows the evaluations left', async () => {
-    const teacher = fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 2 });
+  it('counts the papers on their way to the robot as used', async () => {
+    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2, papersWaiting: 1 }) });
+    renderAdmin('/clase', api);
+    expect(await screen.findByText(/^Cont demo: mai ai 2 din 5 lucrări\./)).toBeInTheDocument();
+  });
+
+  it('reads the demo line again after a change, so it shows the papers left', async () => {
+    const teacher = fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 });
     const api = createFakeApi({ classes: [], students: {}, me: teacher });
     renderAdmin('/cont', api);
-    expect(await screen.findByText(/^Cont demo: mai ai 3 din 5 evaluări\./)).toBeInTheDocument();
-    teacher.testsEvaluated = 3;
+    expect(await screen.findByText(/^Cont demo: mai ai 3 din 5 lucrări\./)).toBeInTheDocument();
+    teacher.papersGraded = 3;
     await userEvent.type(screen.getByLabelText('Parola de acum'), 'parola-veche');
     await userEvent.type(screen.getByLabelText(/^Parola nouă/), 'parola-noua');
     await userEvent.click(screen.getByRole('button', { name: 'Schimbă parola' }));
-    expect(await screen.findByText(/^Cont demo: mai ai 2 din 5 evaluări\./)).toBeInTheDocument();
+    expect(await screen.findByText(/^Cont demo: mai ai 2 din 5 lucrări\./)).toBeInTheDocument();
   });
 
-  it('tells a demo account when its evaluations are used up', async () => {
-    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 5 }) });
+  it('tells a demo account when its papers are used up', async () => {
+    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 5 }) });
     renderAdmin('/clase', api);
-    expect(await screen.findByText(/ai folosit toate cele 5 evaluări ale contului/)).toBeInTheDocument();
+    expect(await screen.findByText(/ai folosit toate cele 5 lucrări ale contului/)).toBeInTheDocument();
   });
 
   it('shows no demo line to a complete account', async () => {
