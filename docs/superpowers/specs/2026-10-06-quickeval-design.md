@@ -372,7 +372,7 @@ draft ──Start test──► open ──Start evaluation (now, or when evalua
 ### 8.2 Start test (draft → open)
 
 - The teacher starts the test on the day of the test, when she hands out the printed sheets: before that, the test is printed from the draft.
-- Keeps the `upload_token` the test got when it was made, so the printed QR code works. A draft made before tests got their link at once gets one now (`COALESCE`).
+- Keeps the `upload_token` the test got when it was made, so the printed QR code works. A draft made before tests got their link at once gets one now (`COALESCE`); it also gets one with a new test file, or with "Pregătește testul cu cod QR".
 - Sets `started_at` to now. This is the "date and hour" of the test.
 - The test page then shows the link `https://<host>/u/<upload_token>`, a Copy button, and a QR code. A full-screen QR view works for the class projector.
 - When the print PDF still waits (for example the draft made before tests got their link), the route starts the robot, as it does for other work; the answer carries `robot`. See `docs/superpowers/specs/2026-10-25-qr-print-test-design.md` §4.3.
@@ -380,7 +380,7 @@ draft ──Start test──► open ──Start evaluation (now, or when evalua
 ### 8.2a Stop test (open → draft)
 
 - For a test started by mistake (on the wrong day, so with the wrong date). **Oprește testul** on the test page asks first.
-- Allowed only while no student has uploaded a file: no upload of the test has a file, and none is past `uploading`. The UPDATE checks it in its own SQL (a file that lands at the same moment either comes first and keeps the test open, or finds the test a draft and is refused). Otherwise 409 `has_uploads`; a draft gets 409 `not_started`, a test in evaluation or done 409 `closed`.
+- Allowed only while no student has uploaded a file (no upload of the test has a file, and none is past `uploading`) and the test was never evaluated (`evaluation_started_at IS NULL`: a test reopened after an evaluation was not started by mistake). The UPDATE checks both in its own SQL (a file that lands at the same moment either comes first and keeps the test open, or finds the test a draft and is refused). Otherwise 409 `has_uploads` or `evaluated`; a draft gets 409 `not_started`, a test in evaluation or done 409 `closed`. The button shows only when neither holds, and its confirmation says when a scheduled evaluation is cancelled too.
 - Sets `status = 'draft'`, clears `started_at` (the date) and `evaluation_at` (a schedule). Keeps the upload link, the second link, the print PDF, and uploads with no file (a student who only picked a name goes on at the next start).
 - Starting the test again keeps the same link and sets the new date.
 
@@ -407,7 +407,7 @@ draft ──Start test──► open ──Start evaluation (now, or when evalua
 - **Retry** (a `failed` submission): sets it to `submitted` with 0 attempts. If the test is `done`, it goes back to `evaluating`. Like Start evaluation, it asks GitHub to start the robot (§12.6); so does **Încearcă din nou** on a failed exercise list.
 - **Analysis refresh rule**: each time a test enters `evaluating` (Start evaluation, Regrade, or Retry on a `done` test), an analysis that is `none`, `ready`, or `failed` becomes `requested` with 0 attempts: the first analysis is asked for the same way. So the robot writes a new analysis after the new grades. Teacher corrections only set `analysis_stale = 1`. The teacher then clicks **Regenerează** when she wants a new analysis; it works from any state, also for a test graded before analyses existed (`none`).
 - **An analysis made from grades that changed meanwhile**: the robot reads the grades with a `version` (the number of graded results and the time of the last change) and sends it back. When the grades changed in between (a correction, a regrade), the analysis is saved as `ready` with `analysis_stale = 1`. It is saved only when no upload waits for grading: after a regrade that came meanwhile it stays `requested`, and the robot writes it after the new grades.
-- **Delete test**: needs a confirmation. It deletes the R2 files under the test prefix and all its rows. A robot result for a deleted test gets 404, and the robot drops it.
+- **Delete test**: needs a confirmation; when the print PDF is ready, it warns that the QR codes on printed tests will stop working. It deletes the R2 files under the test prefix and all its rows. A robot result for a deleted test gets 404, and the robot drops it.
 
 ## 9. Teacher app (`/admin/`)
 
@@ -444,7 +444,7 @@ A school-year switch in the header (default: the current school year) filters Te
 - Under the test file, while the test is a draft or open: "Testul pentru tipărit" (the test with the QR code; see `docs/superpowers/specs/2026-10-25-qr-print-test-design.md` §4.7). A draft made before tests got their link at once shows **Pregătește testul cu cod QR** instead.
 - Actions, shown by status:
   - draft: **Începe testul** (Start test), with a hint to start it on the day of the test, since that day becomes the test's date.
-  - open: **Oprește testul** (Stop test, §8.2a), only while no student has uploaded a file. Link with Copy button, QR code (full-screen view), **Pornește evaluarea acum** (the teacher selects uploads in the table first; the button needs at least one selected upload with files, and the unselected uploads wait for a later evaluation, §8.4), **Programează** (pick a time; it grades every upload), cancel the schedule. **Arată linkurile** and **Ascunde linkurile** show or hide the link section (the choice stays in the browser). **Creează linkul pentru mai multe încărcări** makes the second link of §10, for one phone that uploads for several students.
+  - open: **Oprește testul** (Stop test, §8.2a), only while no student has uploaded a file and the test was never evaluated. Link with Copy button, QR code (full-screen view), **Pornește evaluarea acum** (the teacher selects uploads in the table first; the button needs at least one selected upload with files, and the unselected uploads wait for a later evaluation, §8.4), **Programează** (pick a time; it grades every upload), cancel the schedule. **Arată linkurile** and **Ascunde linkurile** show or hide the link section (the choice stays in the browser). **Creează linkul pentru mai multe încărcări** makes the second link of §10, for one phone that uploads for several students.
   - any status after Start test: **Publică rezultatele** opens the result pages of all students (**Oprește accesul la rezultate** closes them, and takes back the results published one by one). In the uploads table, **Publică** and **Oprește publicarea** open or close one student's page, and **Link rezultat** shows the link to share (copy, WhatsApp).
   - evaluating/done: **Redeschide încărcarea** (Reopen uploads).
   - any status with a graded or failed upload: **Recorectează tot** (Regrade all).
@@ -520,7 +520,7 @@ Auth: the `qe_session` cookie (from `POST /api/auth/login`) must name an unexpir
 | `PUT /tests/:code/files/:kind` (`kind` = `test` or `barem`) | Raw body. Headers `Content-Type`, `Content-Length`, `X-File-Name` (URI-encoded). PDF or DOCX, ≤ 25 MB. |
 | `GET /tests/:code/files/:kind` | Stream the file. |
 | `POST /tests/:code/start` | draft → open (§8.2). Answers `{ status, uploadToken, startedAt, robot }`. |
-| `POST /tests/:code/stop` | open → draft (§8.2a), only while no student has uploaded a file. Answers `{ status: 'draft' }`. |
+| `POST /tests/:code/stop` | open → draft (§8.2a), only while no student has uploaded a file and the test was never evaluated. Answers `{ status: 'draft' }`. |
 | `POST /tests/:code/evaluate` `{ at?: string, submissionIds?: number[] }` | No `at`, or `at` in the past: start now (with `submissionIds`: only those uploads, §8.4). Future `at`: schedule (not with `submissionIds`). |
 | `DELETE /tests/:code/schedule` | Cancel the schedule. |
 | `POST /tests/:code/reopen` | Reopen uploads. |

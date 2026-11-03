@@ -629,8 +629,8 @@ export interface StartedTest {
   status: TestStatus;
   uploadToken: string;
   startedAt: string;
-  // Set when starting the test made work for the robot: the print PDF of a
-  // draft made before tests got their link at once.
+  // Set when the print PDF still waits at the start (for example a draft made
+  // before tests got their link at once): the robot was started for it.
   robot: RobotStart | null;
 }
 

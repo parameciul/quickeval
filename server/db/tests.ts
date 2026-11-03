@@ -311,16 +311,17 @@ const NO_STUDENT_FILES = `NOT EXISTS (SELECT 1 FROM submissions s JOIN submissio
 // "Oprește testul": open → draft, for a test started by mistake (on the wrong
 // day). The date goes, and so does a scheduled evaluation; the link stays, so
 // the printed QR code works when the test starts again. Only while no student
-// has uploaded a file, checked in the write itself: a file that lands at the
-// same moment either comes first and keeps the test open, or finds it no
-// longer open. Uploads with no file stay and go on at the next start. False when
-// the test is gone, is not the teacher's, is not open, or holds a student's
-// file.
+// has uploaded a file and the test was never evaluated (a test reopened after
+// an evaluation was not started by mistake), checked in the write itself: a
+// file that lands at the same moment either comes first and keeps the test
+// open, or finds it no longer open. Uploads with no file stay and go on at the
+// next start. False when the test is gone, is not the teacher's, is not open,
+// was evaluated, or holds a student's file.
 export async function stopTest(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
   const row = await db
     .prepare(
       `UPDATE tests SET status = 'draft', started_at = NULL, evaluation_at = NULL, updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND status = 'open' AND ${NO_STUDENT_FILES}
+       WHERE id = ? AND teacher_id = ? AND status = 'open' AND evaluation_started_at IS NULL AND ${NO_STUDENT_FILES}
        RETURNING id`,
     )
     .bind(now, testId, teacherId)
@@ -410,7 +411,8 @@ export async function setTestArchived(
 
 // Points the test at a new test or barem file, and counts the change in
 // files_version. A new test file also clears the print PDF made from the old
-// one. A new barem also clears the exercise list, which the robot made from
+// one, and gives `uploadToken` to a draft made before tests got their link at
+// once (every other test has its link), so its print PDF waits for the robot. A new barem also clears the exercise list, which the robot made from
 // the old one (spec §8.5). Returns the test's status, the key of the print
 // PDF the change cleared, and the key of the file it replaced (the caller
 // deletes their objects), or null when the test is gone. The keys are read in
@@ -423,11 +425,12 @@ export async function saveTestFile(
   kind: TestFileKind,
   file: StoredFile,
   now: string,
+  uploadToken: string,
 ): Promise<{ status: TestStatus; clearedPrintKey: string | null; replacedKey: string | null } | null> {
   const sql =
     kind === 'test'
       ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1,
-           print_status = 'none', print_attempts = 0, print_file_key = NULL,
+           print_status = 'none', print_attempts = 0, print_file_key = NULL, upload_token = COALESCE(upload_token, ?),
            barem_request = CASE WHEN barem_unchecked = 1 AND status IN ('draft', 'open') THEN 'requested' ELSE barem_request END,
            barem_request_attempts = CASE WHEN barem_unchecked = 1 AND status IN ('draft', 'open') THEN 0 ELSE barem_request_attempts END
          WHERE id = ? AND teacher_id = ?
@@ -441,7 +444,9 @@ export async function saveTestFile(
     db
       .prepare(`SELECT print_file_key, ${kind === 'test' ? 'test_file_key' : 'barem_file_key'} AS replaced_key FROM tests WHERE id = ? AND teacher_id = ?`)
       .bind(testId, teacherId),
-    db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId),
+    kind === 'test'
+      ? db.prepare(sql).bind(file.key, file.name, file.type, now, uploadToken, testId, teacherId)
+      : db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId),
   ]);
   const status = written?.results[0]?.status;
   if (!status) return null;

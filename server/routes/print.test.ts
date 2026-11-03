@@ -47,6 +47,22 @@ describe('starting the robot for the print PDF', () => {
     expect(detail.body.test).toMatchObject({ status: 'draft', print: { status: 'none', fromWord: false } });
   });
 
+  it('gives a draft made before tests got their link at once its link with its test file', async () => {
+    await setTest('upload_token = NULL');
+    const res = await putTestFile('test.pdf', 'enunț');
+    expect(res.status).toBe(200);
+    expect((await res.json()) as { robot: string }).toMatchObject({ robot: 'dispatched' });
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test).toMatchObject({ status: 'draft', uploadToken: expect.stringMatching(/^[a-z2-7]{16}$/), print: { status: 'none' } });
+  });
+
+  it('keeps the link of a test when its test file changes', async () => {
+    const token = await startTest(api, code);
+    await putTestFile('test.pdf', 'unu');
+    await putTestFile('test.pdf', 'doi');
+    expect((await api.request('GET', `/api/admin/tests/${code}`)).body.test.uploadToken).toBe(token);
+  });
+
   it('starts the robot at Start when the print PDF still waits', async () => {
     await addTestFiles(api, code, ['test']);
     const res = await api.request('POST', `/api/admin/tests/${code}/start`);
@@ -136,10 +152,10 @@ describe('a new test or barem file and the print PDF', () => {
     await startTest(api, code);
     await setTest("print_status = 'ready', print_file_key = 'late-key'");
     const file = { key: 'new-key', name: 'test.pdf', type: PDF_TYPE };
-    const saved = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'test', file, '2026-10-25T08:00:00.000Z');
+    const saved = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'test', file, '2026-10-25T08:00:00.000Z', 'kkkkkkkkkkkkkkkk');
     expect(saved).toEqual({ status: 'open', clearedPrintKey: 'late-key', replacedKey: null });
     expect(await printRow()).toMatchObject({ print_status: 'none', print_file_key: null });
-    const barem = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'barem', file, '2026-10-25T08:00:00.000Z');
+    const barem = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'barem', file, '2026-10-25T08:00:00.000Z', 'kkkkkkkkkkkkkkkk');
     expect(barem).toEqual({ status: 'open', clearedPrintKey: null, replacedKey: null });
   });
 
@@ -147,10 +163,10 @@ describe('a new test or barem file and the print PDF', () => {
     // A barem the robot saved after the route read the test.
     await setTest("barem_file_key = 'late-barem'");
     const file = { key: 'own-barem', name: 'barem.pdf', type: PDF_TYPE };
-    const barem = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'barem', file, '2026-10-25T08:00:00.000Z');
+    const barem = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'barem', file, '2026-10-25T08:00:00.000Z', 'kkkkkkkkkkkkkkkk');
     expect(barem).toMatchObject({ replacedKey: 'late-barem' });
     await setTest("test_file_key = 'late-test'");
-    const test = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'test', { ...file, key: 'own-test' }, '2026-10-25T08:00:00.000Z');
+    const test = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'test', { ...file, key: 'own-test' }, '2026-10-25T08:00:00.000Z', 'kkkkkkkkkkkkkkkk');
     expect(test).toMatchObject({ replacedKey: 'late-test' });
   });
 

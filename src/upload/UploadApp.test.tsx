@@ -117,6 +117,20 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
+  it('shows the not-started screen when the teacher stopped the test while the names were on screen', async () => {
+    const api = createFakeUploadApi();
+    api.startSession.mockRejectedValueOnce(
+      new ApiError(409, 'not_started', 'Testul nu a început încă. Poți încărca lucrarea după ce îl începe profesorul.'),
+    );
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pop Ion' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Da, încep' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Testul nu a început încă.');
+    expect(screen.getByRole('button', { name: 'Verifică din nou' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
   it('shows a wrong-link message for an address without a valid token, without asking the server', async () => {
     const api = createFakeUploadApi();
     render(<UploadApp api={api} token={null} />);

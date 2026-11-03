@@ -62,6 +62,11 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           session: { studentId: student.id, studentName: started.session.studentName, secret, files: started.session.files },
         });
       } catch (err) {
+        // The teacher stopped the test while the names were on screen.
+        if (err instanceof ApiError && err.code === 'not_started') {
+          setPhase({ kind: 'notStarted', info });
+          return;
+        }
         if (auto && err instanceof ApiError && err.code === 'other_device') {
           // The secret is left from an upload the teacher reset and the student
           // started on another phone: this phone forgets it and shows the names.

@@ -206,7 +206,9 @@ function TestDetails({ code }: { code: string }) {
             className="button-quiet button-small button-danger"
             disabled={remove.isPending}
             onClick={() => {
-              if (window.confirm(`Ștergi testul ${code}? Se șterg și toate lucrările încărcate.`)) remove.mutate();
+              // A printed test keeps its QR code: after a delete, the code leads nowhere.
+              const printed = test.print.status === 'ready' ? ' Codurile QR de pe testele tipărite nu vor mai funcționa.' : '';
+              if (window.confirm(`Ștergi testul ${code}? Se șterg și toate lucrările încărcate.${printed}`)) remove.mutate();
             }}
           >
             Șterge testul
@@ -304,8 +306,9 @@ function TestActions({
       </>
     );
   }
-  // Stopping is refused once a student has uploaded a file: the API checks it too.
-  const canStop = uploads.every((row) => row.fileCount === 0);
+  // Stopping is refused once a student has uploaded a file, or once the test
+  // was evaluated (a reopened test): the API checks it too.
+  const canStop = test.evaluationStartedAt === null && uploads.every((row) => row.fileCount === 0);
   if (test.status === 'open' && test.uploadToken)
     return (
       <>
@@ -334,9 +337,9 @@ function TestActions({
               className="button-quiet button-small"
               disabled={stop.isPending}
               onClick={() => {
-                if (window.confirm('Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge.')) {
-                  stop.mutate();
-                }
+                const schedule = test.evaluationAt ? ' Evaluarea programată se anulează.' : '';
+                const question = `Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge.${schedule}`;
+                if (window.confirm(question)) stop.mutate();
               }}
             >
               Oprește testul

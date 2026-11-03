@@ -126,6 +126,17 @@ describe('POST /api/admin/tests/:code/stop', () => {
     expect((await testRow())!.status).toBe('done');
   });
 
+  it('refuses a test reopened after an evaluation, even with no student file left', async () => {
+    await api.request('POST', `/api/admin/tests/${code}/start`);
+    // A scheduled evaluation ran with nobody uploaded, then the teacher reopened the uploads.
+    await setState("status = 'done', evaluation_started_at = '2026-10-07T08:00:00.000Z'");
+    expect((await api.request('POST', `/api/admin/tests/${code}/reopen`)).status).toBe(200);
+    const res = await api.request('POST', `/api/admin/tests/${code}/stop`);
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'evaluated', message: 'Testul a fost deja evaluat, așa că nu mai poate fi oprit.' });
+    expect((await testRow())!.status).toBe('open');
+  });
+
   it('answers 404 for a test of another teacher and leaves it open', async () => {
     const foreign = await otherTeacherTest(api);
     expect((await api.request('POST', `/api/admin/tests/${foreign.code}/stop`)).status).toBe(404);

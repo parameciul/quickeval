@@ -30,7 +30,7 @@ import type {
   UploadRow,
 } from '../../shared/api.ts';
 import { normalizeClassName } from '../../shared/classes.ts';
-import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
+import { DOCX_TYPE, uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
 import type { CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
 import { studentNameKey } from '../../shared/students.ts';
@@ -417,7 +417,12 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = findTest(code).test;
       const info = { name: file.name, type: uploadTypeOf(file) };
       found.files[kind] = info;
-      if (kind === 'test') return { file: info, robot: null };
+      if (kind === 'test') {
+        // Like the server: a new test file needs a new print PDF, and an old draft gets its link.
+        found.uploadToken ??= FAKE_TOKEN;
+        found.print = { status: 'none', fromWord: info.type === DOCX_TYPE };
+        return { file: info, robot: printWaits(found) ? 'dispatched' : null };
+      }
       found.exerciseList = { status: 'none', message: null };
       return { file: info, robot: found.status === 'evaluating' ? 'next_check' : null };
     }),
@@ -443,13 +448,14 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.barem = { ...found.barem, unchecked: false };
       return { barem: found.barem };
     }),
-    // Like the server: the test keeps its link; a draft made before tests got
-    // their link at once gets one now, and its print PDF is work for the robot.
+    // Like the server: the test keeps its link (a draft made before tests got
+    // their link at once gets one now), and a print PDF that still waits is
+    // work for the robot.
     startTest: vi.fn(async (code: string): Promise<StartedTest> => {
       const found = findTest(code).test;
       if (found.status !== 'draft') throw new ApiError(409, 'already_started', 'Testul a început deja.');
-      const robot = found.uploadToken === null && found.files.test !== null && found.print.status === 'none' ? 'dispatched' : null;
       Object.assign(found, { status: 'open', archived: false, uploadToken: found.uploadToken ?? FAKE_TOKEN, startedAt: FAKE_STARTED_AT });
+      const robot = printWaits(found) ? 'dispatched' : null;
       return { status: found.status, uploadToken: found.uploadToken ?? FAKE_TOKEN, startedAt: FAKE_STARTED_AT, robot };
     }),
     // Like the server: only an open test with no student file stops; its date
@@ -459,6 +465,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = detail.test;
       if (found.status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
       if (found.status !== 'open') throw new ApiError(409, 'closed', 'Încărcarea s-a închis. Testul nu mai poate fi oprit.');
+      if (found.evaluationStartedAt !== null) throw new ApiError(409, 'evaluated', 'Testul a fost deja evaluat, așa că nu mai poate fi oprit.');
       if (detail.uploads.some((row) => row.fileCount > 0)) {
         throw new ApiError(409, 'has_uploads', 'Un elev a încărcat deja lucrarea, așa că testul nu mai poate fi oprit.');
       }

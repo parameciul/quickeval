@@ -77,7 +77,7 @@ R2 key: `t/<teacherId>/<schoolYear>/<code>/print/<test-file-slug>-qr.pdf` (a new
 
 Saving a new test file sets `print_status = 'none'`, `print_attempts = 0`, `print_file_key = NULL` in the same UPDATE, and the old print file is deleted quietly, like an old test file. A new barem does not touch the print PDF. Deleting a test deletes its print file with its other files.
 
-A print job waits while `status IN ('draft', 'open') AND upload_token IS NOT NULL AND test_file_key IS NOT NULL AND print_status = 'none'` (one SQL condition `NEEDS_PRINT` in `server/db/runner.ts`, next to `NEEDS_EXERCISE_LIST`). It counts in `runCheck` (`hasWork` is true when only a print job waits), `listTasks` (oldest test first), and `testHasRobotWork`. After the migration, the tests that are open at that moment become print jobs; tests in evaluation or done do not, until they are reopened. A draft made before tests got their token at once has none: it becomes a print job when it starts, or on "Pregătește testul cu cod QR" (`POST /tests/:code/print/retry`, which gives it its token).
+A print job waits while `status IN ('draft', 'open') AND upload_token IS NOT NULL AND test_file_key IS NOT NULL AND print_status = 'none'` (one SQL condition `NEEDS_PRINT` in `server/db/runner.ts`, next to `NEEDS_EXERCISE_LIST`). It counts in `runCheck` (`hasWork` is true when only a print job waits), `listTasks` (oldest test first), and `testHasRobotWork`. After the migration, the tests that are open at that moment become print jobs; tests in evaluation or done do not, until they are reopened. A draft made before tests got their token at once has none: it gets one, and becomes a print job, when it starts, when its test file is uploaded or replaced (`saveTestFile`), or on "Pregătește testul cu cod QR" (`POST /tests/:code/print/retry`).
 
 `TestFileKind` stays `'test' | 'barem'`: the teacher cannot upload a print file through the teacher route.
 
@@ -85,7 +85,7 @@ A print job waits while `status IN ('draft', 'open') AND upload_token IS NOT NUL
 
 The robot today reads only tests in evaluation (`findRobotTest`), so a leaked robot key shows nothing of an open test. A print job needs a draft or open test's file and upload token. The access widens only this far:
 
-- `GET /tests/:id/print-job` → `{ testId, filesVersion, contentType, uploadToken }`, and `GET /tests/:id/print-job/file` → the test file. Both answer 404 unless the test is a waiting print job (`NEEDS_PRINT`), checked in their SQL. A test whose print PDF is ready or failed, or that is not open, shows nothing.
+- `GET /tests/:id/print-job` → `{ testId, filesVersion, contentType, uploadToken }`, and `GET /tests/:id/print-job/file` → the test file. Both answer 404 unless the test is a waiting print job (`NEEDS_PRINT`), checked in their SQL. A test whose print PDF is ready or failed, or that is neither a draft nor open, shows nothing.
 - `PUT /tests/:id/print` with the PDF as the body, `runId` and `filesVersion` in headers: saves only when the run holds the lease, the test still waits (`NEEDS_PRINT`), and `files_version` is the one the robot read (a PDF made from a replaced file is refused, 409 `not_needed`). The body is checked as a PDF (`looksLike`) and at most 25 MB, read with `arrayBuffer()` like other uploads. R2 write first, then the row; a refused row write deletes the new object.
 - `POST /tests/:id/print-failed` `{ runId, filesVersion, error }`: one attempt more, under the same conditions; at 3 attempts `print_status = 'failed'`.
 

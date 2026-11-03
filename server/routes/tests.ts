@@ -164,7 +164,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   // "Oprește testul": open → draft, for a test started by mistake. Only while
-  // no student has uploaded a file; the link and the print PDF stay.
+  // no student has uploaded a file and the test was never evaluated; the link
+  // and the print PDF stay.
   routes.post('/:code/stop', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     if (test.summary.status === 'open' && (await stopTest(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
@@ -174,6 +175,9 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const current = await requireTest(c.env.DB, c.var.teacher.id, test.summary.code);
     if (current.summary.status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
     if (current.summary.status !== 'open') throw new ApiError(409, 'closed', 'Încărcarea s-a închis. Testul nu mai poate fi oprit.');
+    if (current.summary.evaluationStartedAt !== null) {
+      throw new ApiError(409, 'evaluated', 'Testul a fost deja evaluat, așa că nu mai poate fi oprit.');
+    }
     if (await hasStudentFiles(c.env.DB, current.id)) {
       throw new ApiError(409, 'has_uploads', 'Un elev a încărcat deja lucrarea, așa că testul nu mai poate fi oprit.');
     }
@@ -410,7 +414,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const file = await readUpload(c, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
     const key = testFileKey(teacherId, test.summary.schoolYear, test.summary.code, kind, file.name, file.contentType);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
-    const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
+    const stored = { key, name: file.name, type: file.contentType };
+    const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, stored, nowIso(), newUploadToken());
     // The replaced file is read in the write's own batch: the robot may have
     // saved a generated barem after this route read the test.
     const replaced = saved?.replacedKey ?? null;
