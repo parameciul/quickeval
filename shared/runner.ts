@@ -133,6 +133,18 @@ export interface PrintJob {
   uploadToken: string;
 }
 
+// One barem to write from the test file: the file's type and version, and the
+// teacher's comments for the barem.
+export interface BaremJob {
+  testId: number;
+  createdAt: string;
+  filesVersion: number;
+  contentType: string;
+  baremNotes: string;
+}
+
+export const baremFailedBody = z.object({ runId: runIdSchema, filesVersion: z.number().int().min(0), createdAt: createdAtSchema, error: robotErrorSchema });
+
 export const printFailedBody = z.object({ runId: runIdSchema, filesVersion: z.number().int().min(0), createdAt: createdAtSchema, error: robotErrorSchema });
 
 // GET /tests/:id: what the robot needs to know of a test. No names.

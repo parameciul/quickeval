@@ -1,9 +1,10 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
 import type { ExerciseListInfo } from '../../shared/api.ts';
-import { isTestFileKind, PDF_TYPE, printFileKey } from '../../shared/files.ts';
+import { DOCX_TYPE, generatedBaremKey, isTestFileKind, PDF_TYPE, printFileKey } from '../../shared/files.ts';
 import {
   analysisBody,
+  baremFailedBody,
   checkBody,
   exerciseListBody,
   type LeaseResult,
@@ -17,11 +18,14 @@ import {
 import { checkClassAnalysis, checkExerciseList, checkGrading } from '../../shared/schemas.ts';
 import { robotAuth } from '../auth/robotAuth.ts';
 import {
+  baremKeyIs,
   claimSubmission,
   failAnalysis,
+  failBaremJob,
   failExerciseList,
   failGrading,
   failPrint,
+  findBaremJob,
   findClassResults,
   findGrading,
   findPrintJob,
@@ -35,6 +39,7 @@ import {
   runCheck,
   saveAnalysis,
   saveExerciseList,
+  saveGeneratedBarem,
   saveGrading,
   savePrint,
   takeLease,
@@ -49,6 +54,7 @@ import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
 const leaseLost = () => new ApiError(409, 'lease_lost', 'Altă rulare a robotului lucrează acum.');
 // A broken output: the robot counts it as invalid_output.
 const invalidResult = () => new ApiError(422, 'invalid_result', 'Rezultatul robotului nu poate fi folosit.');
+const baremNotNeeded = () => new ApiError(409, 'not_needed', 'Baremul nu mai este cerut.');
 const printNotNeeded = () => new ApiError(409, 'not_needed', 'Testul cu cod QR nu mai este cerut.');
 
 // Why a robot write changed nothing: the test is gone (404, the robot drops
@@ -163,6 +169,60 @@ export function runnerRoutes(): Hono<AppEnv> {
     const body = await readJson(c, printFailedBody);
     const status = await failPrint(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, nowIso());
     if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), printNotNeeded);
+    return c.json({ status });
+  });
+
+  // The barem job of a draft or open test: 404 unless the test waits for its
+  // generated barem.
+  routes.get('/tests/:id/barem-job', async (c) => {
+    const found = await findBaremJob(c.env.DB, parseId(c.req.param('id')));
+    if (!found) throw notFound();
+    return c.json({ job: found.job });
+  });
+
+  routes.get('/tests/:id/barem-job/file', async (c) => {
+    const found = await findBaremJob(c.env.DB, parseId(c.req.param('id')));
+    const object = found ? await c.env.FILES.get(found.testFileKey) : null;
+    if (!found || !object) throw notFound();
+    return fileResponse(object, 'test', found.job.contentType);
+  });
+
+  // The generated barem, a Word file. Like the print PDF, the object is
+  // written first, then the row; a refused row write deletes the object, unless
+  // the row already names it. The barem it replaces is deleted after the save.
+  routes.put('/tests/:id/barem', async (c) => {
+    const testId = parseId(c.req.param('id'));
+    const runId = runIdSchema.safeParse(c.req.header('X-Run-Id'));
+    if (!runId.success) throw new ApiError(400, 'invalid', runId.error.issues[0]?.message ?? 'Datele trimise nu sunt valide.');
+    const versionText = c.req.header('X-Files-Version') ?? '';
+    const version = Number(versionText);
+    if (!/^\d+$/.test(versionText) || !Number.isSafeInteger(version)) throw new ApiError(400, 'invalid', 'Versiunea fișierelor nu este validă.');
+    const found = await findBaremJob(c.env.DB, testId);
+    if (!found) throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), baremNotNeeded);
+    // The key is shared by every run that made this version: a run without the
+    // lease, or one that read an older file, must not touch the object.
+    if (found.job.filesVersion !== version) throw baremNotNeeded();
+    const createdAt = c.req.header('X-Created-At') ?? null;
+    if (createdAt !== null && createdAt !== found.job.createdAt) throw baremNotNeeded();
+    if (!(await holdsLease(c.env.DB, runId.data))) throw leaseLost();
+    const file = await readUpload(c, [DOCX_TYPE], 'Fișierul trebuie să fie un document Word.');
+    const key = generatedBaremKey(found.teacherId, found.schoolYear, found.code, version);
+    await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: DOCX_TYPE } });
+    const saved = await saveGeneratedBarem(c.env.DB, testId, runId.data, version, createdAt, key, `${found.code} - barem generat.docx`, nowIso());
+    if (!saved) {
+      if (!(await baremKeyIs(c.env.DB, testId, key))) await deleteFilesQuietly(c.env.FILES, [key]);
+      throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), baremNotNeeded);
+    }
+    if (saved.oldKey && saved.oldKey !== key) await deleteFilesQuietly(c.env.FILES, [saved.oldKey]);
+    return c.json({ status: 'ready' });
+  });
+
+  // The robot could not write the barem.
+  routes.post('/tests/:id/barem-failed', async (c) => {
+    const testId = parseId(c.req.param('id'));
+    const body = await readJson(c, baremFailedBody);
+    const status = await failBaremJob(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, nowIso());
+    if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), baremNotNeeded);
     return c.json({ status });
   });
 

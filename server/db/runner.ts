@@ -1,10 +1,12 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type { ExerciseListInfo } from '../../shared/api.ts';
+import { DOCX_TYPE } from '../../shared/files.ts';
 import {
   LEASE_STALE_MS,
   type CheckResult,
   type ClaimResult,
   type ClassResults,
+  type BaremJob,
   type PrintJob,
   type RobotError,
   type RobotTest,
@@ -407,6 +409,109 @@ export async function failPrint(
     .bind(counted, counted, MAX_ATTEMPTS, now, testId, filesVersion, createdAt, createdAt, runId)
     .first<{ print_status: 'none' | 'failed' }>();
   return row?.print_status ?? null;
+}
+
+// The barem job of a test that waits for its generated barem, with what the
+// route needs to read the test file. Null for any other test.
+export async function findBaremJob(
+  db: D1Database,
+  testId: number,
+): Promise<{ job: BaremJob; testFileKey: string; teacherId: number; schoolYear: number; code: string } | null> {
+  const row = await db
+    .prepare(
+      `SELECT t.id, t.created_at, t.files_version, t.test_file_key, t.test_file_type, t.barem_notes, t.teacher_id, t.code, c.school_year
+       FROM tests t JOIN classes c ON c.id = t.class_id
+       WHERE t.id = ? AND ${NEEDS_BAREM}`,
+    )
+    .bind(testId)
+    .first<{
+      id: number;
+      created_at: string;
+      files_version: number;
+      test_file_key: string;
+      test_file_type: string | null;
+      barem_notes: string;
+      teacher_id: number;
+      code: string;
+      school_year: number;
+    }>();
+  if (!row || !row.test_file_type) return null;
+  return {
+    job: { testId: row.id, createdAt: row.created_at, filesVersion: row.files_version, contentType: row.test_file_type, baremNotes: row.barem_notes },
+    testFileKey: row.test_file_key,
+    teacherId: row.teacher_id,
+    schoolYear: row.school_year,
+    code: row.code,
+  };
+}
+
+// A generated barem is saved or failed only for a test that still waits for it,
+// only from the run that holds the lease, and only when no file changed after
+// the robot read the test (a barem the teacher uploads meanwhile also moves
+// files_version and clears the request).
+const WAITS_FOR_BAREM = `tests.id = ? AND tests.files_version = ? AND (? IS NULL OR tests.created_at = ?) AND ${NEEDS_BAREM.replace(/\bt\./g, 'tests.')} AND ${HOLDS_LEASE}`;
+
+// The new barem waits for the teacher's check (barem_unchecked), and the
+// exercise list made from the old barem is cleared. Returns the key of the
+// barem it replaced, or null when nothing was saved.
+export async function saveGeneratedBarem(
+  db: D1Database,
+  testId: number,
+  runId: string,
+  filesVersion: number,
+  createdAt: string | null,
+  key: string,
+  name: string,
+  now: string,
+): Promise<{ oldKey: string | null } | null> {
+  const [before, written] = await db.batch<{ barem_file_key?: string | null; id?: number }>([
+    db.prepare('SELECT barem_file_key FROM tests WHERE id = ?').bind(testId),
+    db
+      .prepare(
+        `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, barem_unchecked = 1,
+           barem_request = 'none', barem_request_attempts = 0, files_version = files_version + 1,
+           exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0,
+           updated_at = ?
+         WHERE ${WAITS_FOR_BAREM}
+         RETURNING id`,
+      )
+      .bind(key, name, DOCX_TYPE, now, testId, filesVersion, createdAt, createdAt, runId),
+  ]);
+  if (!written?.results[0]) return null;
+  return { oldKey: before?.results[0]?.barem_file_key ?? null };
+}
+
+// Whether the test's barem is stored under this key.
+export async function baremKeyIs(db: D1Database, testId: number, key: string): Promise<boolean> {
+  const row = await db.prepare('SELECT 1 AS found FROM tests WHERE id = ? AND barem_file_key = ?').bind(testId, key).first<{ found: number }>();
+  return row !== null;
+}
+
+// The robot could not write the barem: one more attempt is counted (none for a
+// usage limit), and at MAX_ATTEMPTS the request fails and the teacher can ask
+// again. Null when nothing was saved.
+export async function failBaremJob(
+  db: D1Database,
+  testId: number,
+  runId: string,
+  filesVersion: number,
+  createdAt: string | null,
+  error: RobotError,
+  now: string,
+): Promise<'none' | 'failed' | null> {
+  const counted = error === 'usage_limit' ? 0 : 1;
+  const row = await db
+    .prepare(
+      `UPDATE tests SET barem_request_attempts = barem_request_attempts + ?,
+         barem_request = CASE WHEN barem_request_attempts + ? >= ? THEN 'failed' ELSE 'requested' END,
+         updated_at = ?
+       WHERE ${WAITS_FOR_BAREM}
+       RETURNING barem_request`,
+    )
+    .bind(counted, counted, MAX_ATTEMPTS, now, testId, filesVersion, createdAt, createdAt, runId)
+    .first<{ barem_request: 'requested' | 'failed' }>();
+  if (!row) return null;
+  return row.barem_request === 'failed' ? 'failed' : 'none';
 }
 
 // Whether the run holds the lease now.

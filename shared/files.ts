@@ -122,6 +122,12 @@ export function printFileKey(teacherId: number, schoolYear: number, code: string
   return `${testFolder(teacherId, schoolYear, code)}print/${slugify(withoutExtension(testFileName))}-v${filesVersion}-qr.pdf`;
 }
 
+// t/1/2026/6E2-26T1/barem/generat-v4.docx: the barem the robot wrote, named
+// after the files version it was made from.
+export function generatedBaremKey(teacherId: number, schoolYear: number, code: string, filesVersion: number): string {
+  return `${testFolder(teacherId, schoolYear, code)}barem/generat-v${filesVersion}.docx`;
+}
+
 // t/1/2026/6E2-26T1/barem/barem-final.pdf
 export function testFileKey(
   teacherId: number,
