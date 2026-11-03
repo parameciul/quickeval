@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DOCX_TYPE, generatedBaremKey } from '../../shared/files.ts';
-import { saveTestFile } from '../db/tests.ts';
+import { saveGeneratedBarem } from '../db/runner.ts';
+import { saveTestFile, type StoredFile } from '../db/tests.ts';
 import { addTestFiles, makeClass, makeTest, ROBOT_KEY, robotRequest, setRobotKey, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -44,6 +45,24 @@ const putBarem = async (body: BodyInit, headers: Record<string, string> = {}) =>
     headers: { ...auth, 'Content-Type': DOCX_TYPE, 'X-Run-Id': RUN, ...headers, 'X-Files-Version': filesVersion },
   });
 };
+// Runs SQL on the test row right after the robot's object is written: the
+// route's checks have passed by then, so only the save's own SQL can refuse.
+function changeRowAfterPut(assignments: string): void {
+  const files = api.env.FILES;
+  api.env.FILES = new Proxy(files, {
+    get(target, property) {
+      if (property === 'put') {
+        return async (...args: Parameters<typeof files.put>) => {
+          const stored = await target.put(...args);
+          await setTest(assignments);
+          return stored;
+        };
+      }
+      const value = Reflect.get(target, property, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
 const jobPath = () => `/tests/${testId}/barem-job`;
 
 beforeEach(async () => {
@@ -139,8 +158,8 @@ describe('PUT /tests/:id/barem', () => {
 
   it('refuses after the teacher uploaded her own barem', async () => {
     const v = await version();
-    const own = { key: `fixture/${code}/own.pdf`, name: 'barem.pdf', type: 'application/pdf' };
-    await saveTestFile(api.db, teacherId, testId, 'barem', own as never, '2026-11-03T08:00:00.000Z');
+    const own: StoredFile = { key: `fixture/${code}/own.pdf`, name: 'barem.pdf', type: 'application/pdf' };
+    await saveTestFile(api.db, teacherId, testId, 'barem', own, '2026-11-03T08:00:00.000Z');
     const res = await putBarem(docx(), { 'X-Files-Version': String(v) });
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ error: 'not_needed' });
@@ -179,9 +198,75 @@ describe('PUT /tests/:id/barem', () => {
     expect(new Uint8Array(await (await api.env.FILES.get(stored.barem_file_key!))!.arrayBuffer())).toEqual(docx('first'));
   });
 
+  it('deletes the new object when the save is refused after the pre-checks', async () => {
+    const v = await version();
+    const key = generatedBaremKey(teacherId, 2026, code, v);
+    changeRowAfterPut("barem_request = 'none'");
+    const res = await putBarem(docx());
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: 'not_needed' });
+    expect(await api.env.FILES.get(key)).toBeNull();
+  });
+
+  it('keeps the object when the refused save finds the row already naming it', async () => {
+    const v = await version();
+    const key = generatedBaremKey(teacherId, 2026, code, v);
+    changeRowAfterPut("barem_request = 'none', barem_file_key = '" + key + "'");
+    const res = await putBarem(docx());
+    expect(res.status).toBe(409);
+    expect(await api.env.FILES.get(key)).not.toBeNull();
+  });
+
   it('answers 404 for a test that is gone', async () => {
     await api.db.prepare('DELETE FROM tests WHERE id = ?').bind(testId).run();
     expect((await putBarem(docx(), { 'X-Files-Version': '0' })).status).toBe(404);
+  });
+});
+
+describe('saveGeneratedBarem', () => {
+  const NOW = '2026-11-03T08:00:00.000Z';
+  const KEY = 'new/generat.docx';
+  const save = (runId = RUN, filesVersion?: number, made: string | null = null) =>
+    version().then((v) => saveGeneratedBarem(api.db, testId, runId, filesVersion ?? v, made, KEY, 'generat.docx', NOW));
+  const unchanged = async () => {
+    const before = await row();
+    return async () => expect(await row()).toEqual(before);
+  };
+
+  beforeEach(async () => {
+    await lease();
+    await addTestFiles(api, code, ['barem']);
+  });
+
+  it('saves for the lease holder and names the barem it replaced', async () => {
+    const v = await version();
+    expect(await save(RUN, v, await createdAt())).toEqual({ oldKey: `fixture/${code}/barem.pdf` });
+    expect(await row()).toMatchObject({ barem_file_key: KEY, barem_unchecked: 1, files_version: v + 1 });
+  });
+
+  it('saves nothing for an older files version', async () => {
+    const check = await unchanged();
+    expect(await save(RUN, (await version()) - 1)).toBeNull();
+    await check();
+  });
+
+  it('saves nothing for another creation time', async () => {
+    const check = await unchanged();
+    expect(await save(RUN, undefined, '2026-10-30T10:00:00.000Z')).toBeNull();
+    await check();
+  });
+
+  it('saves nothing when no barem is requested', async () => {
+    await setTest("barem_request = 'none'");
+    const check = await unchanged();
+    expect(await save()).toBeNull();
+    await check();
+  });
+
+  it('saves nothing without the lease', async () => {
+    const check = await unchanged();
+    expect(await save(OTHER_RUN)).toBeNull();
+    await check();
   });
 });
 
