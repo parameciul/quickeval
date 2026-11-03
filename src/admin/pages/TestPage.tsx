@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
+import type { BaremRequest, RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { MAX_TITLE_LENGTH, normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
 import { classToneClass, classToneStyle } from '../../ui/classTone.ts';
@@ -22,9 +22,9 @@ import { UploadsTable } from '../testPage/UploadsTable.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
 // While students upload (and later while the robot grades), the page asks for
-// news every 10 seconds.
-export function refreshInterval(status: TestStatus | undefined): number | false {
-  return status === 'open' || status === 'evaluating' ? 10_000 : false;
+// news every 10 seconds, and also while a generated barem is awaited.
+export function refreshInterval(status: TestStatus | undefined, baremRequest?: BaremRequest): number | false {
+  return status === 'open' || status === 'evaluating' || baremRequest === 'requested' ? 10_000 : false;
 }
 
 export function TestPage() {
@@ -49,7 +49,7 @@ function TestDetails({ code }: { code: string }) {
   const detail = useQuery({
     queryKey: ['test', code],
     queryFn: () => api.getTest(code),
-    refetchInterval: (query) => refreshInterval(query.state.data?.test.status),
+    refetchInterval: (query) => refreshInterval(query.state.data?.test.status, query.state.data?.test.barem.request),
   });
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['test', code] });

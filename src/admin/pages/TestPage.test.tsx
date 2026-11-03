@@ -352,6 +352,8 @@ describe('refreshInterval', () => {
     expect(refreshInterval('draft')).toBe(false);
     expect(refreshInterval('done')).toBe(false);
     expect(refreshInterval(undefined)).toBe(false);
+    expect(refreshInterval('draft', 'requested')).toBe(10_000);
+    expect(refreshInterval('draft', 'failed')).toBe(false);
   });
 });
 

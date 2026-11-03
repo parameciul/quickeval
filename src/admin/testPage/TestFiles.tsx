@@ -6,6 +6,7 @@ import { testFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { TestFileInput } from '../TestFileInput.tsx';
+import { GeneratedBarem } from './GeneratedBarem.tsx';
 import { PrintTest } from './PrintTest.tsx';
 
 const NAMES: Record<TestFileKind, { title: string; upload: string; replace: string }> = {
@@ -45,6 +46,11 @@ export function TestFiles({
           onChanged={onChanged}
           onRobot={onRobot}
           baremNotes={test.baremNotes}
+          actions={
+            test.status === 'draft' || test.status === 'open' ? (
+              <GeneratedBarem test={test} onChanged={onChanged} onRobot={onRobot} />
+            ) : undefined
+          }
         />
       </ul>
     </>
@@ -59,6 +65,7 @@ function TestFileRow({
   onChanged,
   onRobot,
   baremNotes,
+  actions,
   children,
 }: {
   code: string;
@@ -68,6 +75,7 @@ function TestFileRow({
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
   baremNotes?: string;
+  actions?: ReactNode;
   children?: ReactNode;
 }) {
   const api = useApi();
@@ -100,6 +108,7 @@ function TestFileRow({
         id={`file-${kind}`}
         label={file ? names.replace : names.upload}
         disabled={locked || upload.isPending}
+        actions={actions}
         confirm={
           kind === 'barem' && file
             ? (picked) => window.confirm(`Înlocuiești baremul existent cu ${picked.name}?`)

@@ -14,6 +14,8 @@ function missingFiles(test: TestInfo): string[] {
   const missing: string[] = [];
   if (!test.files.test) missing.push('Încarcă testul.');
   if (!test.files.barem) missing.push('Încarcă baremul.');
+  if (test.barem.request === 'requested') missing.push('Baremul se generează încă.');
+  else if (test.barem.unchecked) missing.push('Verifică baremul generat înainte de evaluare.');
   return missing;
 }
 
