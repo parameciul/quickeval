@@ -128,6 +128,13 @@ describe('the class analysis task', () => {
   });
 });
 
+describe('the barem task', () => {
+  it('runs the same skill in its own mode, with 15 minutes', () => {
+    expect(claudeArgs('barem', {}, SETTINGS)[1]).toBe('/evaluate-test barem');
+    expect(TIME_LIMITS_MS.barem).toBe(15 * 60_000);
+  });
+});
+
 describe('claudeSettings and claudeEnv', () => {
   it('takes the model, the effort, and the token from the environment', () => {
     expect(claudeSettings({}, '/c')).toEqual({ command: ['claude'], model: 'opus', effort: 'high', token: undefined, configDir: '/c' });

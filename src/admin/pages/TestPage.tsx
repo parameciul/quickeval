@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
+import type { BaremRequest, RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { MAX_TITLE_LENGTH, normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
 import { classToneClass, classToneStyle } from '../../ui/classTone.ts';
@@ -15,16 +15,16 @@ import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
 import { hasResultsToManage, ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
-import { StartRobotButton, waitsForPrint, waitsForRobot } from '../testPage/StartRobotButton.tsx';
+import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
 import { MultiUploadLink, UploadLink } from '../testPage/UploadLink.tsx';
 import { UploadsTable } from '../testPage/UploadsTable.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
 // While students upload (and later while the robot grades), the page asks for
-// news every 10 seconds.
-export function refreshInterval(status: TestStatus | undefined): number | false {
-  return status === 'open' || status === 'evaluating' ? 10_000 : false;
+// news every 10 seconds, and also while a generated barem is awaited.
+export function refreshInterval(status: TestStatus | undefined, baremRequest?: BaremRequest): number | false {
+  return status === 'open' || status === 'evaluating' || baremRequest === 'requested' ? 10_000 : false;
 }
 
 export function TestPage() {
@@ -49,7 +49,7 @@ function TestDetails({ code }: { code: string }) {
   const detail = useQuery({
     queryKey: ['test', code],
     queryFn: () => api.getTest(code),
-    refetchInterval: (query) => refreshInterval(query.state.data?.test.status),
+    refetchInterval: (query) => refreshInterval(query.state.data?.test.status, query.state.data?.test.barem.request),
   });
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['test', code] });
@@ -76,9 +76,11 @@ function TestDetails({ code }: { code: string }) {
   const { test, uploads, robot, showModel } = detail.data;
   // A failed robot start that the API kept: a scheduled start happens in any
   // request, so only the API knows of it. A button's answer says the same.
-  // An open test waits for the robot only for its print PDF.
+  // A draft or open test waits for the robot only for its print PDF or its barem.
   const printWaits = waitsForPrint(test);
-  const robotText = (test.status === 'evaluating' || printWaits) && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
+  const baremWaits = waitsForBarem(test);
+  const robotText = (test.status === 'evaluating' || printWaits || baremWaits) && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
+  const robotLateText = printWaits ? 'Testul cu cod QR poate întârzia.' : baremWaits ? 'Baremul poate întârzia.' : undefined;
   return (
     <section>
       <p className="back-link">
@@ -138,13 +140,22 @@ function TestDetails({ code }: { code: string }) {
           )}
           {test.status !== 'open' && <PartialEvaluationNotice status={test.status} uploads={uploads} />}
           {robotText && <p role="status">{robotText}</p>}
-          {(test.status === 'evaluating' || test.evaluationAt || printWaits) && (
-            <RobotLine lastCheckAt={robot.lastCheckAt} lateText={printWaits ? 'Testul cu cod QR poate întârzia.' : undefined}>
+          {(test.status === 'evaluating' || test.evaluationAt || printWaits || baremWaits) && (
+            <RobotLine lastCheckAt={robot.lastCheckAt} lateText={robotLateText}>
               {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
             </RobotLine>
           )}
           <RegradeAllButton code={code} testStatus={test.status} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
           <AnalysisState test={test} uploads={uploads} />
+        </>
+      )}
+
+      {test.status === 'draft' && baremWaits && (
+        <>
+          {robotText && <p role="status">{robotText}</p>}
+          <RobotLine lastCheckAt={robot.lastCheckAt} lateText={robotLateText}>
+            <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />
+          </RobotLine>
         </>
       )}
 

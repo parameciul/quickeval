@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DOCX_TYPE,
   extensionFor,
+  generatedBaremKey,
   fileProblem,
   isTestFileKind,
   looksLike,
@@ -103,6 +104,12 @@ describe('fileProblem', () => {
     expect(fileProblem(pick('mare.pdf', PDF_TYPE, MAX_FILE_BYTES + 1), TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE)).toBe(
       'Fișierul are peste 25 MB.',
     );
+  });
+});
+
+describe('generatedBaremKey', () => {
+  it('names the generated barem after the files version', () => {
+    expect(generatedBaremKey(1, 2026, '6E2-26T1', 4)).toBe('t/1/2026/6E2-26T1/barem/generat_v4.docx');
   });
 });
 

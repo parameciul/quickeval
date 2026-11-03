@@ -84,6 +84,11 @@ export async function addOpenTest(api: TestApi, type: 'pdf' | 'docx', className 
   return { code, testId, uploadToken };
 }
 
+// The test waits for a generated barem, with the teacher's comments for it.
+export async function requestBarem(api: TestApi, testId: number, notes = ''): Promise<void> {
+  await api.db.prepare("UPDATE tests SET barem_request = 'requested', barem_notes = ? WHERE id = ?").bind(notes, testId).run();
+}
+
 // The API with the robot key set and one open test that waits for its print
 // PDF. The robot's lease is taken for `leaseRunId` when it is given.
 export async function openTestWithFile(type: 'pdf' | 'docx', leaseRunId?: string): Promise<{ api: TestApi } & OpenTest> {

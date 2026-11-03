@@ -1,11 +1,14 @@
 import { Hono } from 'hono';
 import type { D1Database } from '@cloudflare/workers-types';
 import {
+  baremCheckedBody,
   baremNotesBody,
   createTestBody,
   evaluateTestBody,
   renameTestBody,
   type AnalysisAnswer,
+  type BaremCheckedAnswer,
+  type BaremGenerateAnswer,
   type BaremNotesAnswer,
   type EvaluationStart,
   type ExerciseListAnswer,
@@ -34,15 +37,18 @@ import { setResultsOpen } from '../db/results.ts';
 import { testHasRobotWork } from '../db/runner.ts';
 import { getShowModel, testPageRobot } from '../db/settings.ts';
 import {
+  confirmBarem,
   createTest,
   createMultiUploadToken,
   deleteTestRow,
   listTestKeys,
   listTests,
   listUploads,
+  needsBarem,
   needsPrint,
   renameTest,
   reopenTest,
+  requestBarem,
   requireTest,
   retryPrint,
   saveBaremNotes,
@@ -72,7 +78,9 @@ async function evaluationBlocker(db: D1Database, teacherId: number, code: string
   if (test.summary.status === 'draft') return new ApiError(409, 'not_started', 'Testul nu a început încă.');
   if (test.summary.status !== 'open') return new ApiError(409, 'already_evaluating', 'Evaluarea a pornit deja.');
   if (!test.files.test) return new ApiError(409, 'missing_test_file', 'Încarcă testul înainte de evaluare.');
+  if (test.barem.request === 'requested') return new ApiError(409, 'barem_generating', 'Baremul se generează încă.');
   if (!test.files.barem) return new ApiError(409, 'missing_barem', 'Încarcă baremul înainte de evaluare.');
+  if (test.barem.unchecked) return new ApiError(409, 'barem_unchecked', 'Verifică baremul generat înainte de evaluare.');
   if (await blockedByDemoLimit(db, test.id)) return demoLimit();
   if (needsUploads && !(await hasUploadedFiles(db, test.id))) {
     return new ApiError(409, 'no_uploads', 'Niciun elev nu a încărcat încă fișiere.');
@@ -126,7 +134,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const body = await readJson(c, baremNotesBody);
     const status = await saveBaremNotes(c.env.DB, teacherId, test.id, body.notes, nowIso());
     if (status === null) throw notFound();
-    const robot = status === 'evaluating' ? await startRobot(c.env) : null;
+    // A running barem job drops its answer now that the files changed, so a waiting request needs a new run.
+    const robot = status === 'evaluating' || (await needsBarem(c.env.DB, test.id)) ? await startRobot(c.env) : null;
     return c.json({ baremNotes: body.notes, robot } satisfies BaremNotesAnswer);
   });
 
@@ -195,6 +204,27 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu poate fi încercat din nou.');
     }
     return c.json({ print: { status: 'none', fromWord: test.print.fromWord }, robot: await startRobot(c.env) } satisfies PrintRetryAnswer);
+  });
+
+  // "Generează baremul": the robot writes the barem from the test file.
+  routes.post('/:code/barem/generate', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
+      if (!test.files.test) throw new ApiError(409, 'missing_test_file', 'Încarcă testul înainte să generezi baremul.');
+      throw new ApiError(409, 'not_editable', 'Baremul se poate genera doar înainte de evaluare.');
+    }
+    const barem = { request: 'requested', unchecked: test.barem.unchecked } as const;
+    return c.json({ barem, robot: await startRobot(c.env) } satisfies BaremGenerateAnswer);
+  });
+
+  // The teacher checked the generated barem as the page showed it.
+  routes.post('/:code/barem/checked', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const body = await readJson(c, baremCheckedBody);
+    if (!(await confirmBarem(c.env.DB, c.var.teacher.id, test.id, body.filesVersion, nowIso()))) {
+      throw new ApiError(409, 'stale', 'Baremul s-a schimbat. Reîncarcă pagina.');
+    }
+    return c.json({ barem: { request: test.barem.request, unchecked: false } } satisfies BaremCheckedAnswer);
   });
 
   // Archives a finished test: it leaves the class table and the test list.
@@ -307,8 +337,11 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // or for the print PDF of an open test when the robot did not start.
   routes.post('/:code/robot', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
-    // An open test has robot work only while its print PDF waits; testHasRobotWork decides.
-    if (test.summary.status !== 'evaluating' && test.summary.status !== 'open') {
+    // An open test has robot work only while its print PDF or barem waits, a
+    // draft one only while its barem waits; testHasRobotWork decides.
+    const status = test.summary.status;
+    const draftBarem = status === 'draft' && (await needsBarem(c.env.DB, test.id));
+    if (status !== 'evaluating' && status !== 'open' && !draftBarem) {
       throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
     }
     if (!(await testHasRobotWork(c.env.DB, test.id, nowIso()))) {
@@ -354,12 +387,14 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const key = testFileKey(teacherId, test.summary.schoolYear, test.summary.code, kind, file.name, file.contentType);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
     const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
-    const old = test.files[kind];
-    const stale = [old && old.key !== key ? old.key : null, saved?.clearedPrintKey ?? null].filter((k) => k !== null);
+    // The replaced file is read in the write's own batch: the robot may have
+    // saved a generated barem after this route read the test.
+    const replaced = saved?.replacedKey ?? null;
+    const stale = [replaced !== key ? replaced : null, saved?.clearedPrintKey ?? null].filter((k) => k !== null);
     if (stale.length > 0) await deleteFilesQuietly(c.env.FILES, stale);
     let robotWork = false;
     if (kind === 'barem') robotWork = saved?.status === 'evaluating';
-    else robotWork = await needsPrint(c.env.DB, test.id);
+    else robotWork = (await needsPrint(c.env.DB, test.id)) || (await needsBarem(c.env.DB, test.id));
     const robot = robotWork ? await startRobot(c.env) : null;
     return c.json({ file: { name: file.name, type: file.contentType }, robot } satisfies TestFileAnswer);
   });

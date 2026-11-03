@@ -43,6 +43,7 @@ Details and the remaining rules are in the nested `AGENTS.md` files.
 - Functions: at most 10 ms of CPU and 15 D1 queries per request. Group writes with `db.batch()`.
 - The robot's Claude reads only its work folder and gets no robot key and no API key. Robot answers and logs carry no names.
 - The PDFs and the CSV are made in the browser (`src/admin/pdf/`, `shared/csv.ts`). The student's PDF is made from `StudentPdfInput`, which has no confidence and no review reason; the CSV guards every text cell against formulas.
+- A generated barem ("Generează baremul", a robot job) is unchecked until the teacher confirms it; `BAREM_ACTIVE` (`server/db/lifecycle.ts`) keeps an unchecked or generating barem out of every evaluation start. A barem the teacher uploads is always active.
 - Every path that makes work for the robot starts it (`startRobot`): the GitHub schedule does not fire. This includes "Regenerează" (the class analysis).
 - A print job is an open test with a test file and no print PDF; every path that makes one starts the robot.
 - Times are stored as ISO 8601 UTC strings (`nowIso()` or `new Date(x).toISOString()`: SQL compares them as text) and shown in Europe/Bucharest time. School year Y runs from September of Y to August of Y+1.

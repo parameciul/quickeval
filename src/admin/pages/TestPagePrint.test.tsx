@@ -28,6 +28,32 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('TestPage and a waiting barem request', () => {
+  const REQUESTED = { barem: { request: 'requested', unchecked: false } } as const;
+
+  it('shows the robot line and the notice on a draft test when the robot did not start', async () => {
+    const api = apiWith({ status: 'draft', uploadToken: null, ...REQUESTED }, true);
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByText(robotStartMessage('next_check'))).toBeInTheDocument();
+    expect(screen.getByText(NEVER_CHECKED)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Pornește robotul' }));
+    expect(api.startRobot).toHaveBeenCalledWith('6E2-26T1');
+  });
+
+  it('shows no robot line on a draft test without a waiting request', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'draft', uploadToken: null, barem: { request: 'failed', unchecked: false } }, true));
+    expect(await screen.findByText('Nu am putut genera baremul.')).toBeInTheDocument();
+    expect(screen.queryByText(NEVER_CHECKED)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pornește robotul' })).not.toBeInTheDocument();
+  });
+
+  it('offers "Pornește robotul" on an open test while the request waits', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ print: { status: 'ready', fromWord: true }, ...REQUESTED }, true));
+    expect(await screen.findByText(robotStartMessage('next_check'))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pornește robotul' })).toBeInTheDocument();
+  });
+});
+
 describe('TestPage and the print PDF', () => {
   it('shows the robot line and starts the robot while the print PDF waits', async () => {
     const api = apiWith({});

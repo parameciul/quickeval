@@ -5,6 +5,7 @@ import type { RunSummary } from '../shared/runner.ts';
 import type { RobotApi, RobotApiOptions } from './api.ts';
 import { RobotApiError, robotApiFromEnv } from './api.ts';
 import type { ClaudeRunner } from './claude.ts';
+import { makeBarem } from './baremTask.ts';
 import { claudeRunner, claudeSettings } from './claude.ts';
 import { log } from './log.ts';
 import type { PrintTools } from './printTask.ts';
@@ -14,7 +15,7 @@ import { analyzeClass, gradeSubmission, makeExerciseList } from './tasks.ts';
 import type { WorkFolderOptions } from './workdir.ts';
 import { removeFolder, runFolder } from './workdir.ts';
 
-// One robot run (spec §12.2): take the lease, make the print PDFs and the exercise lists, grade
+// One robot run (spec §12.2): take the lease, make the print PDFs, the generated barems and the exercise lists, grade
 // the uploads with up to maxParallel Claude runs at once, write the class
 // analyses, and give the lease back with a summary of counts.
 
@@ -60,7 +61,7 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
   log('run started', { run: runId, maxParallel: lease.maxParallel });
 
   const ctx: TaskContext = { api, claude: options.claude, runId, root: options.root, workdir: options.workdir, print: options.print };
-  const counts = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0 };
+  const counts = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, barems: 0 };
   let stop: RunSummary['stop'] | null = null;
   // The first reason to stop wins.
   const stopTaking = (reason: RunSummary['stop']) => {
@@ -83,7 +84,7 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
   }, options.heartbeatMs ?? HEARTBEAT_MS);
 
   let failuresInARow = 0;
-  const record = (end: TaskEnd, done: 'exerciseLists' | 'graded' | 'analyses' | 'prints') => {
+  const record = (end: TaskEnd, done: 'exerciseLists' | 'graded' | 'analyses' | 'prints' | 'barems') => {
     if (end === 'saved') counts[done] += 1;
     else if (end === 'failed' && done === 'graded') counts.failed += 1;
     else if (end === 'usage_limit' || end === 'claude_login' || end === 'lease_lost') stopTaking(end);
@@ -133,6 +134,9 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
     // Any other end is tried once per run. When the image cannot be built,
     // the run makes no print PDF at all.
     const printsTried = new Set<number>();
+    // A barem is tried again in the next round only while it waits for another
+    // attempt; any other end is tried once per run.
+    const baremsTried = new Set<number>();
     const print = options.print;
     let printsOff = false;
     while (canTake()) {
@@ -153,6 +157,14 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
           printsOff = true;
           log('print setup failed', { run: runId });
         }
+      }
+      // The generated barems next: the teacher waits for them too.
+      for (const testId of tasks.barems ?? []) {
+        if (baremsTried.has(testId) || !canTake()) continue;
+        started += 1;
+        const end = await makeBarem(ctx, testId);
+        if (end !== 'retry') baremsTried.add(testId);
+        record(end, 'barems');
       }
       for (const testId of tasks.exerciseLists) {
         if (listsTried.has(testId) || !canTake()) continue;

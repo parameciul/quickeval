@@ -1,6 +1,8 @@
 import type {
   Account,
   AnalysisAnswer,
+  BaremCheckedAnswer,
+  BaremGenerateAnswer,
   BaremNotesAnswer,
   ClassDetail,
   ClassReport,
@@ -77,6 +79,10 @@ export interface AdminApi {
   uploadTestFile(code: string, kind: TestFileKind, file: File): Promise<TestFileAnswer>;
   // Extra teacher comments for the barem, read by the robot as part of it.
   saveBaremNotes(code: string, notes: string): Promise<BaremNotesAnswer>;
+  // "Generează baremul": the robot writes a barem from the test file.
+  generateBarem(code: string): Promise<BaremGenerateAnswer>;
+  // "Am verificat baremul": names the files version the page showed.
+  confirmBarem(code: string, filesVersion: number): Promise<BaremCheckedAnswer>;
   startTest(code: string): Promise<StartedTest>;
   reopenTest(code: string): Promise<ReopenAnswer>;
   // "Încearcă din nou" on a print PDF that failed.
@@ -270,6 +276,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     },
     uploadTestFile: (code, kind, file) => request<TestFileAnswer>('PUT', `${test(code)}/files/${kind}`, undefined, file),
     saveBaremNotes: (code, notes) => request<BaremNotesAnswer>('PUT', `${test(code)}/barem-notes`, { notes }),
+    generateBarem: (code) => request<BaremGenerateAnswer>('POST', `${test(code)}/barem/generate`),
+    confirmBarem: (code, filesVersion) => request<BaremCheckedAnswer>('POST', `${test(code)}/barem/checked`, { filesVersion }),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
     createMultiUploadLink: async (code) =>
       (await request<{ multiUploadToken: string }>('POST', `${test(code)}/multi-link`)).multiUploadToken,

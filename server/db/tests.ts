@@ -1,11 +1,11 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { AnalysisInfo, ExerciseListInfo, PrintStatus, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
+import type { AnalysisInfo, BaremRequest, ExerciseListInfo, PrintStatus, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
 import { DOCX_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { flagCountSql } from './evaluations.ts';
-import { NEEDS_PRINT } from './runner.ts';
+import { NEEDS_BAREM, NEEDS_PRINT } from './runner.ts';
 
 export interface StoredFile {
   key: string;
@@ -23,6 +23,8 @@ export interface TestRecord {
   files: Record<TestFileKind, StoredFile | null>;
   exerciseList: ExerciseListInfo;
   baremNotes: string;
+  barem: { request: BaremRequest; unchecked: boolean };
+  filesVersion: number;
   analysis: AnalysisInfo;
   print: { status: PrintStatus; key: string | null; fromWord: boolean };
 }
@@ -48,6 +50,9 @@ interface TestRow {
   barem_file_name: string | null;
   barem_file_type: string | null;
   barem_notes: string | null;
+  barem_request: BaremRequest;
+  barem_unchecked: number;
+  files_version: number;
   exercise_list_status: ExerciseListStatus;
   exercise_list_message: string | null;
   results_open: number;
@@ -68,7 +73,7 @@ const SELECT_TEST = `
   SELECT t.id, t.code, t.title, t.status, t.class_id, c.name AS class_name, c.school_year,
     t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token, t.multi_upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
-    t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
+    t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.barem_request, t.barem_unchecked, t.files_version, t.exercise_list_status, t.exercise_list_message,
     t.results_open, t.archived, t.analysis_status, t.analysis_stale, t.analysis_attempts,
     t.print_status, t.print_file_key,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
@@ -113,6 +118,8 @@ function toRecord(row: TestRow): TestRecord {
     },
     exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
     baremNotes: row.barem_notes ?? '',
+    barem: { request: row.barem_request, unchecked: row.barem_unchecked === 1 },
+    filesVersion: row.files_version,
     analysis: { status: row.analysis_status, stale: row.analysis_stale === 1, attempts: row.analysis_attempts },
     print: { status: row.print_status, key: row.print_file_key, fromWord: row.test_file_type === DOCX_TYPE },
   };
@@ -128,6 +135,8 @@ export function toTestInfo(record: TestRecord): TestInfo {
     files: { test: info(record.files.test), barem: info(record.files.barem) },
     exerciseList: record.exerciseList,
     baremNotes: record.baremNotes,
+    barem: record.barem,
+    filesVersion: record.filesVersion,
     analysis: record.analysis,
     print: { status: record.print.status, fromWord: record.print.fromWord },
   };
@@ -364,10 +373,11 @@ export async function setTestArchived(
 // Points the test at a new test or barem file, and counts the change in
 // files_version. A new test file also clears the print PDF made from the old
 // one. A new barem also clears the exercise list, which the robot made from
-// the old one (spec §8.5). Returns the test's status and the key of the print
-// PDF the change cleared (the caller deletes its object), or null when the
-// test is gone. The key is read in the same batch as the write, so a print
-// the robot saves meanwhile is not left in R2.
+// the old one (spec §8.5). Returns the test's status, the key of the print
+// PDF the change cleared, and the key of the file it replaced (the caller
+// deletes their objects), or null when the test is gone. The keys are read in
+// the same batch as the write, so a print or a generated barem the robot
+// saves meanwhile is not left in R2.
 export async function saveTestFile(
   db: D1Database,
   teacherId: number,
@@ -375,24 +385,30 @@ export async function saveTestFile(
   kind: TestFileKind,
   file: StoredFile,
   now: string,
-): Promise<{ status: TestStatus; clearedPrintKey: string | null } | null> {
+): Promise<{ status: TestStatus; clearedPrintKey: string | null; replacedKey: string | null } | null> {
   const sql =
     kind === 'test'
       ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1,
-           print_status = 'none', print_attempts = 0, print_file_key = NULL
+           print_status = 'none', print_attempts = 0, print_file_key = NULL,
+           barem_request = CASE WHEN barem_unchecked = 1 AND status IN ('draft', 'open') THEN 'requested' ELSE barem_request END,
+           barem_request_attempts = CASE WHEN barem_unchecked = 1 AND status IN ('draft', 'open') THEN 0 ELSE barem_request_attempts END
          WHERE id = ? AND teacher_id = ?
          RETURNING status`
       : `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, updated_at = ?, files_version = files_version + 1,
-           exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0
+           exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0,
+           barem_unchecked = 0, barem_request = 'none', barem_request_attempts = 0
          WHERE id = ? AND teacher_id = ?
          RETURNING status`;
-  const [before, written] = await db.batch<{ print_file_key?: string | null; status?: TestStatus }>([
-    db.prepare('SELECT print_file_key FROM tests WHERE id = ? AND teacher_id = ?').bind(testId, teacherId),
+  const [before, written] = await db.batch<{ print_file_key?: string | null; replaced_key?: string | null; status?: TestStatus }>([
+    db
+      .prepare(`SELECT print_file_key, ${kind === 'test' ? 'test_file_key' : 'barem_file_key'} AS replaced_key FROM tests WHERE id = ? AND teacher_id = ?`)
+      .bind(testId, teacherId),
     db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId),
   ]);
   const status = written?.results[0]?.status;
   if (!status) return null;
-  return { status, clearedPrintKey: kind === 'test' ? (before?.results[0]?.print_file_key ?? null) : null };
+  const row = before?.results[0];
+  return { status, clearedPrintKey: kind === 'test' ? (row?.print_file_key ?? null) : null, replacedKey: row?.replaced_key ?? null };
 }
 
 // Points the test at new barem comments, as if the barem file changed (spec
@@ -433,6 +449,50 @@ export async function listTestKeys(db: D1Database, record: TestRecord): Promise<
 // True when the test still waits for its print PDF.
 export async function needsPrint(db: D1Database, testId: number): Promise<boolean> {
   const row = await db.prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND ${NEEDS_PRINT}`).bind(testId).first();
+  return row !== null;
+}
+
+// True when the robot has a barem to generate for the test.
+export async function needsBarem(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db.prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND ${NEEDS_BAREM}`).bind(testId).first();
+  return row !== null;
+}
+
+// "Generează baremul": the robot is asked to write the barem from the test
+// file. A scheduled evaluation is cleared, because the barem must be checked
+// first. False when the test is gone, is not the teacher's, is past
+// uploads, or has no test file.
+export async function requestBarem(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET barem_request = 'requested', barem_request_attempts = 0, evaluation_at = NULL, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND status IN ('draft', 'open') AND test_file_key IS NOT NULL
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ id: number }>();
+  return row !== null;
+}
+
+// The teacher checked the generated barem as the page showed it. False when
+// the test is gone, is not the teacher's, the barem is not waiting for a check,
+// a new barem is being generated or its generation failed (the barem is then
+// the old test's), or a file changed since the page was read.
+export async function confirmBarem(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  filesVersion: number,
+  now: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET barem_unchecked = 0, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND files_version = ? AND barem_unchecked = 1 AND barem_request = 'none'
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId, filesVersion)
+    .first<{ id: number }>();
   return row !== null;
 }
 

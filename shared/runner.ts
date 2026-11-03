@@ -23,6 +23,8 @@ export const runSummarySchema = z.object({
   analyses: z.number().int().min(0),
   // Print PDFs made. Default 0: an older robot's summary has no such count.
   prints: z.number().int().min(0).default(0),
+  // Barems generated. Default 0: an older robot's summary has no such count.
+  barems: z.number().int().min(0).default(0),
   // Why the run stopped taking new work. "claude_login": Claude did not accept
   // the token, so the run stopped before it spoiled any work. "error": the
   // robot API failed; the GitHub run's log says more.
@@ -38,6 +40,7 @@ export interface CheckResult {
   pendingGrading: number;
   analyses: number;
   prints: number;
+  barems: number;
 }
 
 // A run's id, made by the robot: 8-64 characters from A-Z, a-z, 0-9, "_" and "-".
@@ -117,6 +120,7 @@ export interface TasksResult {
   pendingGrading: number;
   analyses: number[];
   prints: number[];
+  barems: number[];
 }
 
 // One print PDF to make: the test file's type and version, and the students'
@@ -128,6 +132,18 @@ export interface PrintJob {
   contentType: string;
   uploadToken: string;
 }
+
+// One barem to write from the test file: the file's type and version, and the
+// teacher's comments for the barem.
+export interface BaremJob {
+  testId: number;
+  createdAt: string;
+  filesVersion: number;
+  contentType: string;
+  baremNotes: string;
+}
+
+export const baremFailedBody = z.object({ runId: runIdSchema, filesVersion: z.number().int().min(0), createdAt: createdAtSchema, error: robotErrorSchema });
 
 export const printFailedBody = z.object({ runId: runIdSchema, filesVersion: z.number().int().min(0), createdAt: createdAtSchema, error: robotErrorSchema });
 

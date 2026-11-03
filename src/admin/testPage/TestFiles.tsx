@@ -6,6 +6,7 @@ import { testFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { TestFileInput } from '../TestFileInput.tsx';
+import { useGeneratedBarem } from './GeneratedBarem.tsx';
 import { PrintTest } from './PrintTest.tsx';
 
 const NAMES: Record<TestFileKind, { title: string; upload: string; replace: string }> = {
@@ -29,6 +30,8 @@ export function TestFiles({
 }) {
   const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
   const locked = test.status === 'evaluating' && !listBlocked;
+  const generated = useGeneratedBarem({ test, onChanged, onRobot });
+  const canGenerate = test.status === 'draft' || test.status === 'open';
   return (
     <>
       <h2>Fișiere</h2>
@@ -45,6 +48,8 @@ export function TestFiles({
           onChanged={onChanged}
           onRobot={onRobot}
           baremNotes={test.baremNotes}
+          actions={canGenerate ? generated.buttons : undefined}
+          status={canGenerate ? generated.status : undefined}
         />
       </ul>
     </>
@@ -59,6 +64,8 @@ function TestFileRow({
   onChanged,
   onRobot,
   baremNotes,
+  actions,
+  status,
   children,
 }: {
   code: string;
@@ -68,6 +75,8 @@ function TestFileRow({
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
   baremNotes?: string;
+  actions?: ReactNode;
+  status?: ReactNode;
   children?: ReactNode;
 }) {
   const api = useApi();
@@ -100,12 +109,19 @@ function TestFileRow({
         id={`file-${kind}`}
         label={file ? names.replace : names.upload}
         disabled={locked || upload.isPending}
+        actions={actions}
+        confirm={
+          kind === 'barem' && file
+            ? (picked) => window.confirm(`Înlocuiești baremul existent cu ${picked.name}?`)
+            : undefined
+        }
         onPick={(picked) => {
           if (picked) upload.mutate(picked);
         }}
       />
       {upload.isPending && <p role="status">Se încarcă…</p>}
       {upload.error && <ErrorMessage error={upload.error} />}
+      {status}
       {kind === 'barem' && (
         <BaremNotesEditor code={code} notes={baremNotes ?? ''} locked={locked} onChanged={onChanged} onRobot={onRobot} />
       )}

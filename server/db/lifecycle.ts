@@ -17,6 +17,10 @@ const ASK_FOR_ANALYSIS = `
   analysis_status = CASE WHEN analysis_status IN ('none', 'ready', 'failed') THEN 'requested' ELSE analysis_status END,
   analysis_attempts = 0`;
 
+// The barem of test t can be graded against: it exists, the teacher checked it
+// when the robot generated it, and no generation is running.
+export const BAREM_ACTIVE = "t.barem_file_key IS NOT NULL AND t.barem_unchecked = 0 AND t.barem_request <> 'requested'";
+
 const HAS_FILES = 'EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)';
 
 // evaluating → done: no upload waits for grading or is being graded, and no
@@ -140,8 +144,8 @@ export async function regradeBlockedByDemoLimit(
 }
 
 // An open test whose scheduled evaluation time has come. A demo account at its
-// limit keeps the test open.
-const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND ${WITHIN_PAPER_LIMIT}`;
+// limit, or a barem that is not active, keeps the test open.
+const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}`;
 
 const DUE_PAPERS = papersToSend(DUE);
 
@@ -198,7 +202,7 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
 // An open test of this teacher with the test file, the barem, and at least one
 // uploaded file (spec §8.4).
 const READY = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
-  AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_PAPER_LIMIT}
+  AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}
   AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id WHERE s.test_id = t.id)`;
 
 // open → evaluating now. Null when the test is not ready; "done" when it has
@@ -273,11 +277,11 @@ async function startSelectiveEvaluation(
   const placeholders = submissionIds.map((_, index) => `?${index + 4}`).join(',');
   const params = [testId, teacherId, now, ...submissionIds];
   const READY_SELECTED = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_PAPER_LIMIT}
+    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}
     AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id
       WHERE s.test_id = t.id AND s.id IN (${placeholders}))`;
   const OPEN_WITH_FILES = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL AND ${WITHIN_PAPER_LIMIT}`;
+    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}`;
   const TO_SEND = papersToSend(OPEN_WITH_FILES, `s.id IN (${placeholders})`);
   const [, , started, finished] = await db.batch<{ id: number }>([
     // Unselected confirmed uploads wait for a later evaluation.
@@ -314,7 +318,7 @@ export async function scheduleEvaluation(db: D1Database, teacherId: number, test
   const row = await db
     .prepare(
       `UPDATE tests AS t SET evaluation_at = ?, updated_at = ?
-       WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND t.barem_file_key IS NOT NULL
+       WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE}
          AND ${WITHIN_PAPER_LIMIT}
        RETURNING id`,
     )

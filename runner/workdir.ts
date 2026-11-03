@@ -19,6 +19,7 @@ import type { ExerciseList } from '../shared/schemas.ts';
 //   barem/notes.md                  (when the teacher added comments to the barem)
 //   exercises.json                  (grade) the exercise list
 //   student/page-01.jpg, …          (grade) the pages, in upload order
+//   notes.md                        (barem) the teacher's comments for the barem to write; no barem/ folder
 //   class-results.json              (class-report) the graded class, anonymized; no test, no barem
 
 export const SKILL_DIR = fileURLToPath(new URL('../.claude/skills/evaluate-test/', import.meta.url));
@@ -37,6 +38,9 @@ export interface WorkFolderInput {
   // Grade mode: the test's exercise list and the student's pages, in upload order.
   exerciseList?: ExerciseList;
   pages?: TaskFile[];
+  // Barem mode: what the teacher asked for the barem to write. Not the notes of
+  // a barem that exists (baremNotes).
+  requestNotes?: string;
   // Class-report mode: the graded class, anonymized.
   classResults?: ClassResults;
 }
@@ -92,6 +96,8 @@ export async function makeWorkFolder(root: string, taskId: string, input: WorkFo
     const notes = teacherNotes ? `${DEFAULT_BAREM_NOTES}\n${teacherNotes}` : DEFAULT_BAREM_NOTES;
     await writeFile(path.join(folder, 'barem', 'notes.md'), `${notes}\n`);
   }
+  const requestNotes = input.requestNotes?.trim();
+  if (requestNotes) await writeFile(path.join(folder, 'notes.md'), `${requestNotes}\n`);
   if (input.exerciseList) {
     await writeFile(path.join(folder, 'exercises.json'), `${JSON.stringify(input.exerciseList, null, 2)}\n`);
   }

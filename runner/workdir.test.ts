@@ -121,6 +121,15 @@ describe('makeWorkFolder', () => {
     expect(filesIn(noBarem)).not.toContain('barem/notes.md');
   });
 
+  it('writes the teacher notes for a barem task and no barem folder', async () => {
+    const folder = await makeWorkFolder(root, 'barem-1', { test: pdf('test'), requestNotes: '  Fără subiectul III.  ' }, { skillDir });
+    expect(filesIn(folder)).toEqual(['.claude/skills/evaluate-test/SKILL.md', '.claude/skills/evaluate-test/references/grading-rules.md', 'notes.md', 'test/test.pdf']);
+    expect(readFileSync(path.join(folder, 'notes.md'), 'utf8')).toBe('Fără subiectul III.\n');
+    expect(existsSync(path.join(folder, 'barem'))).toBe(false);
+    const none = await makeWorkFolder(root, 'barem-2', { test: pdf('test'), requestNotes: '  ' }, { skillDir });
+    expect(filesIn(none)).not.toContain('notes.md');
+  });
+
   it('turns a Word file into Markdown with pandoc, in the work folder, and removes the Word file', async () => {
     const calls: { args: string[]; cwd: string }[] = [];
     const pandoc: Pandoc = async (args, cwd) => {

@@ -2,6 +2,8 @@ import { vi } from 'vitest';
 import type {
   Account,
   AnalysisAnswer,
+  BaremCheckedAnswer,
+  BaremGenerateAnswer,
   BaremNotesAnswer,
   ClassReport,
   ClassSummary,
@@ -121,6 +123,8 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
       baremNotes: '',
+      barem: { request: 'none', unchecked: false },
+      filesVersion: 0,
       analysis: { status: 'none', stale: false, attempts: 0 },
       print: { status: 'none', fromWord: false },
       ...overrides,
@@ -421,6 +425,20 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.baremNotes = notes.trim();
       found.exerciseList = { status: 'none', message: null };
       return { baremNotes: found.baremNotes, robot: found.status === 'evaluating' ? 'next_check' : null };
+    }),
+    // Like the server: only a draft or open test with a test file asks the robot.
+    generateBarem: vi.fn(async (code: string): Promise<BaremGenerateAnswer> => {
+      const found = findTest(code).test;
+      if (!found.files.test) throw new ApiError(409, 'no_test_file', 'Încarcă întâi testul.');
+      found.barem = { ...found.barem, request: 'requested' };
+      return { barem: found.barem, robot: 'dispatched' };
+    }),
+    // Like the server: a stale files version is refused.
+    confirmBarem: vi.fn(async (code: string, filesVersion: number): Promise<BaremCheckedAnswer> => {
+      const found = findTest(code).test;
+      if (found.filesVersion !== filesVersion) throw new ApiError(409, 'stale', 'Baremul s-a schimbat. Reîncarcă pagina.');
+      found.barem = { ...found.barem, unchecked: false };
+      return { barem: found.barem };
     }),
     startTest: vi.fn(async (code: string): Promise<StartedTest> => {
       const found = findTest(code).test;

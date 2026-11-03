@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { ExerciseList, GradingResult } from '../shared/schemas.ts';
+import type { ExerciseList, GeneratedBarem, GradingResult } from '../shared/schemas.ts';
 import { trySkill } from './trySkill.ts';
 import { answer, problem, scriptedClaude } from './test/scriptedClaude.ts';
 
@@ -121,6 +121,55 @@ describe('try:skill grade', () => {
     rmSync(path.join(folder, 'student'), { recursive: true });
     expect(await run('grade', scriptedClaude())).toBe(1);
     expect(lines[0]).toMatch(/^Pune paginile elevului în /);
+  });
+});
+
+describe('try:skill barem', () => {
+  const BAREM: GeneratedBarem = {
+    title: 'Test de evaluare',
+    subtitle: 'Matematică',
+    notes: [],
+    total: 10,
+    officePoints: 1,
+    parts: [{ title: '', sections: [{ title: 'SUBIECTUL I', points: 9, items: [{ label: '1.', steps: [{ text: 'Totul.', points: 9 }] }] }] }],
+  };
+  const pandoc = async (args: string[], cwd: string) => {
+    if (args.includes('docx')) writeFileSync(path.join(cwd, 'barem.docx'), 'PK fake word');
+  };
+  const runBarem = (claude: ReturnType<typeof scriptedClaude>, tool = pandoc) =>
+    trySkill(['barem', folder], { RUNNER_TEMP: temp }, { claude: claude.run, workdir: { skillDir, pandoc: tool }, print: (line) => lines.push(line) });
+
+  beforeEach(() => rmSync(path.join(folder, 'barem.pdf')));
+
+  it('writes barem.json and barem.docx from the test alone, with the notes of the teacher', async () => {
+    writeFileSync(path.join(folder, 'notes.md'), 'Acordă punct parțial.');
+    const claude = scriptedClaude(answer(BAREM));
+    expect(await runBarem(claude)).toBe(0);
+    expect(claude.calls[0]!.task.mode).toBe('barem');
+    expect(claude.calls[0]!.files).toEqual(['.claude/skills/evaluate-test/SKILL.md', 'notes.md', 'test/test.pdf']);
+    expect(JSON.parse(readFileSync(path.join(folder, 'barem.json'), 'utf8'))).toEqual(BAREM);
+    expect(readFileSync(path.join(folder, 'barem.docx'), 'utf8')).toBe('PK fake word');
+    expect(lines.at(-1)).toBe(`Am scris ${path.join(folder, 'barem.json')} și ${path.join(folder, 'barem.docx')}.`);
+    expect(readdirSync(path.join(temp, 'qe'))).toEqual([]);
+  });
+
+  it('needs the test, but no barem', async () => {
+    rmSync(path.join(folder, 'test.pdf'));
+    expect(await runBarem(scriptedClaude())).toBe(1);
+    expect(lines[0]).toMatch(/trebuie să fie test\.pdf \(sau test\.docx\)\.$/);
+  });
+
+  it('says when the points do not add up, and writes nothing', async () => {
+    expect(await runBarem(scriptedClaude(answer({ ...BAREM, total: 12 })))).toBe(1);
+    expect(lines.at(-1)).toBe('Baremul nu poate fi folosit (sections and office points do not add up to the total).');
+    expect(existsSync(path.join(folder, 'barem.json'))).toBe(false);
+  });
+
+  it('says when pandoc is missing', async () => {
+    const missing = Object.assign(new Error('spawn pandoc ENOENT'), { code: 'ENOENT', syscall: 'spawn pandoc' });
+    expect(await runBarem(scriptedClaude(answer(BAREM)), () => Promise.reject(missing))).toBe(1);
+    expect(lines.at(-1)).toMatch(/^Lipsește pandoc/);
+    expect(readdirSync(path.join(temp, 'qe'))).toEqual([]);
   });
 });
 

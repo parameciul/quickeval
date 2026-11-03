@@ -256,6 +256,95 @@ describe('DELETE /api/admin/tests/:code/schedule', () => {
   });
 });
 
+describe('a generated barem that is not active', () => {
+  const FUTURE = () => new Date(Date.now() + 3_600_000).toISOString();
+
+  it('refuses to start an evaluation while the barem is unchecked', async () => {
+    await addTestFiles(api, code);
+    const upload = await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    await setTest('barem_unchecked = 1');
+    const res = await evaluate();
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: 'barem_unchecked', message: 'Verifică baremul generat înainte de evaluare.' });
+    expect((await testRow())?.status).toBe('open');
+    expect((await uploadRow(upload))?.status).toBe('uploading');
+  });
+
+  it('refuses to start an evaluation while the barem is generating', async () => {
+    await addTestFiles(api, code);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    await setTest("barem_request = 'requested'");
+    const res = await evaluate();
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: 'barem_generating', message: 'Baremul se generează încă.' });
+    expect((await testRow())?.status).toBe('open');
+  });
+
+  it('says the first barem is generating rather than missing', async () => {
+    await addTestFiles(api, code, ['test']);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    await setTest("barem_request = 'requested'");
+    const res = await evaluate();
+    expect(res.body).toMatchObject({ error: 'barem_generating', message: 'Baremul se generează încă.' });
+  });
+
+  it('refuses to schedule while the barem is unchecked or generating', async () => {
+    await addTestFiles(api, code);
+    await setTest('barem_unchecked = 1');
+    const unchecked = await evaluate({ at: FUTURE() });
+    expect(unchecked.status).toBe(409);
+    expect(unchecked.body).toMatchObject({ error: 'barem_unchecked' });
+    expect((await testRow())?.evaluation_at).toBeNull();
+    await setTest("barem_unchecked = 0, barem_request = 'requested'");
+    const generating = await evaluate({ at: FUTURE() });
+    expect(generating.body).toMatchObject({ error: 'barem_generating' });
+    expect((await testRow())?.evaluation_at).toBeNull();
+  });
+
+  it('starts selected uploads only with an active barem', async () => {
+    await addTestFiles(api, code);
+    const submitted = await addSubmission(api, code, studentIds[0]!, { status: 'submitted', files: 1 });
+    const uploading = await addSubmission(api, code, studentIds[1]!, { files: 1 });
+    await setTest('barem_unchecked = 1');
+    const res = await evaluate({ submissionIds: [uploading] });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: 'barem_unchecked' });
+    expect((await testRow())?.status).toBe('open');
+    expect(await uploadRow(submitted)).toMatchObject({ status: 'submitted', auto_submitted: 0 });
+    expect(await uploadRow(uploading)).toMatchObject({ status: 'uploading', auto_submitted: 0 });
+  });
+
+  it('starts again once the barem is checked', async () => {
+    await addTestFiles(api, code);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    await setTest('barem_unchecked = 1');
+    expect((await evaluate()).status).toBe(409);
+    await setTest('barem_unchecked = 0');
+    expect((await evaluate()).status).toBe(200);
+  });
+
+  it('does not start a scheduled evaluation whose barem became unchecked', async () => {
+    await addTestFiles(api, code);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    await setTest('evaluation_at = ?, barem_unchecked = 1', PAST);
+    await api.request('GET', `/api/admin/tests/${code}`);
+    expect((await testRow())?.status).toBe('open');
+    expect(dispatchRobot).not.toHaveBeenCalled();
+    await setTest("barem_unchecked = 0, barem_request = 'requested'");
+    await api.request('GET', `/api/admin/tests/${code}`);
+    expect((await testRow())?.status).toBe('open');
+    await setTest("barem_request = 'none'");
+    await api.request('GET', `/api/admin/tests/${code}`);
+    expect((await testRow())?.status).toBe('evaluating');
+  });
+
+  it('shows the barem state and the files version in the test', async () => {
+    await setTest("barem_request = 'failed', barem_unchecked = 1");
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test).toMatchObject({ barem: { request: 'failed', unchecked: true }, filesVersion: expect.any(Number) });
+  });
+});
+
 describe('a scheduled evaluation', () => {
   it('starts exactly at its time, also for a time sent without milliseconds', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -417,7 +506,7 @@ describe('a robot start that GitHub did not take', () => {
     await setRobotKey(api);
     expect((await robot('POST', '/lease', { runId: 'run-0001' })).body.granted).toBe(true);
     expect(await robotLine()).toMatchObject({ startFailed: false });
-    const summary = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, stop: 'budget' };
+    const summary = { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, barems: 0, stop: 'budget' };
     expect((await robot('POST', '/release', { runId: 'run-0001', summary })).status).toBe(200);
     expect(await robotLine()).toMatchObject({ startFailed: true });
   });
