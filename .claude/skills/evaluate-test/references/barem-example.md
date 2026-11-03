@@ -138,12 +138,6 @@ $(\sigma \circ \tau)(k)\text{=}\sigma\left( \tau(k) \right)$.
            semnul permutării $\rho$ în acest caz.
   --------------------------------------------------------------------------
 
-**TEST DE EVALUARE**
-
-**Permutări**
-
-Matematică -- clasa a XI-a R1 (programa M1, 4 ore/săptămână)
-
 ## Baremul
 
 **BAREM DE EVALUARE ȘI DE NOTARE**

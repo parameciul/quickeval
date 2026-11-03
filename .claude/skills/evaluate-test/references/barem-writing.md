@@ -18,7 +18,7 @@ These rules come from a real barem of the teacher (see `barem-example.md`). The 
 - One variant is one part (RÂNDUL I, RÂNDUL II). Each variant has its own solutions, with its own numbers. Solve each variant on its own.
 - Each subject (SUBIECTUL I, SUBIECTUL al II-lea, SUBIECTUL al III-lea) is one table with its points in the title: "(30 de puncte)". In the answer the `title` of a subject is only "SUBIECTUL I": the points are written from its `points`. All the subjects of a variant plus the "din oficiu" points make the total (3 × 30 + 10 = 100).
 - Follow the test's numbering: "1.", "2.", and the letters "a)", "b)", "c)". Do not renumber, do not merge two parts, do not skip one.
-- At the end of a variant the example repeats the sum: "Total: 90 de puncte, la care se adaugă cele 10 puncte din oficiu (total 100 de puncte)". You do not write this line: the numbers `total` and `officePoints` carry it.
+- At the end of a variant the example repeats the sum: "Total: 90 de puncte, la care se adaugă cele 10 puncte din oficiu (total 100 de puncte)". The Word file gets no total line: do not put one in any field.
 
 ## The steps and the points
 

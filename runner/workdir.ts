@@ -97,8 +97,7 @@ export async function makeWorkFolder(root: string, taskId: string, input: WorkFo
     await writeFile(path.join(folder, 'barem', 'notes.md'), `${notes}\n`);
   }
   const requestNotes = input.requestNotes?.trim();
-  if (requestNotes) await writeFile(path.join(folder, 'notes.md'), `${requestNotes}
-`);
+  if (requestNotes) await writeFile(path.join(folder, 'notes.md'), `${requestNotes}\n`);
   if (input.exerciseList) {
     await writeFile(path.join(folder, 'exercises.json'), `${JSON.stringify(input.exerciseList, null, 2)}\n`);
   }

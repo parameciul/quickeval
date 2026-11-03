@@ -117,5 +117,5 @@ The answer fields:
     - `items`: the exercises of the subject, and their parts, in order. Make one entry for each part that the test scores (a), b), c)), or for the whole exercise when it has no parts.
       - `label`: the label printed before the first step, as the barem of the example writes it: "1." for an exercise with no parts; "1. a)" for the first part of exercise 1; "b)", "c)" for the next parts of the same exercise; then "2. a)" for the first part of exercise 2.
       - `steps`: the steps of the solution, in order.
-        - `text`: one step: what the student writes or finds, and what earns the points. One line of text, with no line break in it. Math goes in single `$`, for example `$x = 3$`. Write a matrix on one line: `$\begin{pmatrix} 1 & 2 \ 2 & 1 \end{pmatrix}$`.
+        - `text`: one step: what the student writes or finds, and what earns the points. One line of text, with no line break in it. The code writes the `label` before the text of the first step, so `text` must not start with a label ("1.", "a)"). Math goes in single `$`, for example `$x = 3$`. Write a matrix on one line: `$\begin{pmatrix} 1 & 2 \\ 2 & 1 \end{pmatrix}$`. In the JSON string a backslash is written `\\`, so a row break is `\\\\` in the raw JSON.
         - `points`: the points of the step: a whole number, at least 1.
