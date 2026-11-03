@@ -5,10 +5,11 @@ import path from 'node:path';
 import { STUDENT_FILE_TYPES, TEACHER_FILE_TYPES, typeFromFileName } from '../shared/files.ts';
 import { formatPoints } from '../shared/scoring.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
-import { checkExerciseList, checkGrading, claudeJsonSchema, exerciseListSchema, gradingResultSchema } from '../shared/schemas.ts';
+import { checkExerciseList, checkGeneratedBarem, checkGrading, claudeJsonSchema, exerciseListSchema, generatedBaremSchema, gradingResultSchema } from '../shared/schemas.ts';
 import type { ClaudeOutcome, ClaudeRunner } from './claude.ts';
+import { makeBaremDocx } from './baremDocx.ts';
 import { claudeRunner, claudeSettings } from './claude.ts';
-import type { TaskFile, WorkFolderOptions } from './workdir.ts';
+import type { TaskFile, WorkFolderInput, WorkFolderOptions } from './workdir.ts';
 import { makeWorkFolder, removeFolder, runFolder } from './workdir.ts';
 
 // `npm run try:skill -- <mode> <folder>` (spec §13): tries the grading skill
@@ -19,11 +20,12 @@ import { makeWorkFolder, removeFolder, runFolder } from './workdir.ts';
 //   test.pdf or test.docx, barem.pdf or barem.docx
 //   student/            (grade) the pages, in name order: 1.jpg, 2.jpg, …, 10.jpg
 //   exercises.json      (grade) written by the exercise-list mode
+//   notes.md            (barem) the teacher's comments for the barem; the barem mode needs no barem file
 //
 // The exercise-list mode writes exercises.json; the grade mode writes
-// grading.json. Messages are in Romanian: the teacher runs it.
+// grading.json; the barem mode writes barem.json and barem.docx. Messages are in Romanian: the teacher runs it.
 
-const USAGE = 'Folosire: npm run try:skill -- exercise-list <dosar>  sau  npm run try:skill -- grade <dosar>';
+const USAGE = 'Folosire: npm run try:skill -- exercise-list <dosar>  sau  npm run try:skill -- grade <dosar>  sau  npm run try:skill -- barem <dosar>';
 
 export interface TryOptions {
   // Tests replace Claude and the skill folder.
@@ -60,6 +62,11 @@ function readExerciseList(text: string): ExerciseList | null {
   }
 }
 
+async function readNotes(folder: string): Promise<string | undefined> {
+  const file = path.join(folder, 'notes.md');
+  return existsSync(file) ? readFile(file, 'utf8') : undefined;
+}
+
 function workFolderProblem(err: unknown): string {
   const { code, syscall } = (err ?? {}) as { code?: unknown; syscall?: unknown };
   if (code === 'ENOENT' && typeof syscall === 'string' && syscall.includes('pandoc')) {
@@ -86,7 +93,7 @@ function problemText(outcome: Exclude<ClaudeOutcome, { ok: true }>): string {
 export async function trySkill(args: string[], env: Record<string, string | undefined>, options: TryOptions = {}): Promise<number> {
   const print = options.print ?? ((line: string) => console.log(line));
   const [mode, folderArg] = args;
-  if ((mode !== 'exercise-list' && mode !== 'grade') || !folderArg) {
+  if ((mode !== 'exercise-list' && mode !== 'grade' && mode !== 'barem') || !folderArg) {
     print(USAGE);
     return 1;
   }
@@ -96,8 +103,12 @@ export async function trySkill(args: string[], env: Record<string, string | unde
     return 1;
   }
   const test = await teacherFile(folder, 'test');
-  const barem = await teacherFile(folder, 'barem');
-  if (!test || !barem) {
+  const barem = mode === 'barem' ? null : await teacherFile(folder, 'barem');
+  if (mode === 'barem' ? !test : !test || !barem) {
+    if (mode === 'barem') {
+      print(`În ${folder} trebuie să fie test.pdf (sau test.docx).`);
+      return 1;
+    }
     print(`În ${folder} trebuie să fie test.pdf (sau test.docx) și barem.pdf (sau barem.docx).`);
     return 1;
   }
@@ -130,12 +141,13 @@ export async function trySkill(args: string[], env: Record<string, string | unde
     const claude = options.claude ?? claudeRunner(claudeSettings(env, configDir));
     let cwd: string;
     try {
-      cwd = await makeWorkFolder(root, mode, { test, barem, exerciseList: list, pages }, options.workdir);
+      const input: WorkFolderInput = mode === 'barem' ? { test: test!, requestNotes: await readNotes(folder) } : { test: test!, barem: barem!, exerciseList: list, pages };
+      cwd = await makeWorkFolder(root, mode, input, options.workdir);
     } catch (err) {
       print(workFolderProblem(err));
       return 1;
     }
-    const jsonSchema = claudeJsonSchema(mode === 'grade' ? gradingResultSchema : exerciseListSchema);
+    const jsonSchema = claudeJsonSchema(mode === 'grade' ? gradingResultSchema : mode === 'barem' ? generatedBaremSchema : exerciseListSchema);
     print(`Claude lucrează (${mode})…`);
     let outcome: ClaudeOutcome;
     try {
@@ -147,6 +159,27 @@ export async function trySkill(args: string[], env: Record<string, string | unde
     if (!outcome.ok) {
       print(problemText(outcome));
       return 1;
+    }
+    if (mode === 'barem') {
+      const checked = checkGeneratedBarem(outcome.output);
+      if (!checked.ok) {
+        print(`Baremul nu poate fi folosit (${checked.reason}).`);
+        return 1;
+      }
+      let docx: Uint8Array;
+      try {
+        docx = await makeBaremDocx(checked.value, path.join(root, 'docx'), options.workdir?.pandoc);
+      } catch (err) {
+        const { code } = (err ?? {}) as { code?: unknown };
+        print(code === 'ENOENT' ? workFolderProblem(err) : 'Baremul nu a putut fi transformat în fișier Word.');
+        return 1;
+      }
+      await writeFile(path.join(folder, 'barem.json'), `${JSON.stringify(checked.value, null, 2)}
+`);
+      await writeFile(path.join(folder, 'barem.docx'), docx);
+      print(`Total ${checked.value.total} de puncte, din oficiu ${checked.value.officePoints}.`);
+      print(`Am scris ${path.join(folder, 'barem.json')} și ${path.join(folder, 'barem.docx')}.`);
+      return 0;
     }
     if (mode === 'exercise-list') {
       const checked = checkExerciseList(outcome.output);

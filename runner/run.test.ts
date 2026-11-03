@@ -5,11 +5,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runIdSchema, type TasksResult } from '../shared/runner.ts';
-import type { ExerciseList, GradingResult } from '../shared/schemas.ts';
+import type { ExerciseList, GeneratedBarem, GradingResult } from '../shared/schemas.ts';
 import { type RobotApi, robotApi } from './api.ts';
 import { PrintSetupError } from './printTask.ts';
 import { main, newRunId, type RunOptions, runRobot } from './run.ts';
-import { addOpenTest, API_URL, evaluatingTest, fetchFrom, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
+import { addOpenTest, API_URL, evaluatingTest, fetchFrom, requestBarem, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
 import { answer, problem, scriptedClaude, type ScriptedAnswer } from './test/scriptedClaude.ts';
 
 const RUN = 'run-loop-0001';
@@ -407,6 +407,97 @@ describe('runRobot and the print PDFs', () => {
     };
     const report = await runRobot({ ...run, api: older });
     expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, barems: 0, stop: 'done' }, exitCode: 0 });
+  });
+});
+
+describe('runRobot and the generated barems', () => {
+  const BAREM: GeneratedBarem = {
+    title: 'Test',
+    subtitle: 'Matematică',
+    notes: [],
+    total: 10,
+    officePoints: 1,
+    parts: [{ title: '', sections: [{ title: 'SUBIECTUL I', points: 9, items: [{ label: '1.', steps: [{ text: 'Totul.', points: 9 }] }] }] }],
+  };
+  const pandoc = async (args: string[], cwd: string) => {
+    if (args.includes('docx')) writeFileSync(path.join(cwd, 'barem.docx'), 'PK\u0003\u0004 fake word');
+  };
+
+  function recordedRun(claude: ReturnType<typeof scriptedClaude>): { run: RunOptions; requests: string[] } {
+    const requests: string[] = [];
+    const inner = fetchFrom(world!.api);
+    const api = robotApi(API_URL, ROBOT_KEY, {
+      fetch: (url, init) => {
+        requests.push(`${init.method} ${url.slice(`${API_URL}/api/runner`.length)}`);
+        return inner(url, init);
+      },
+      retryDelayMs: 0,
+    });
+    return { run: { ...options(claude, { workdir: { skillDir: skill(), pandoc } }), api }, requests };
+  }
+
+  const baremRow = (testId: number) =>
+    world!.api.db
+      .prepare('SELECT barem_request, barem_request_attempts, barem_unchecked FROM tests WHERE id = ?')
+      .bind(testId)
+      .first<{ barem_request: string; barem_request_attempts: number; barem_unchecked: number }>();
+
+  it('does barem jobs after print jobs and before exercise lists', async () => {
+    await setUp(1, 1, false);
+    const open = await addOpenTest(world!.api, 'pdf');
+    await requestBarem(world!.api, open.testId);
+    const claude = scriptedClaude(answer(BAREM), answer(LIST), answer(GRADING));
+    const { run, requests } = recordedRun(claude);
+    const tools = {
+      prepare: async () => undefined,
+      run: async (args: string[], dir: string) => {
+        if (args[1] === '/app/stamp_qr.py') writeFileSync(path.join(dir, 'out.pdf'), '%PDF-1.7 stamped');
+      },
+    };
+    const report = await runRobot({ ...run, print: { tools, siteUrl: API_URL } });
+    expect(report).toEqual({ summary: { exerciseLists: 1, graded: 1, failed: 0, analyses: 0, prints: 1, barems: 1, stop: 'done' }, exitCode: 0 });
+    expect(claude.calls.map((call) => call.task.mode)).toEqual(['barem', 'exercise-list', 'grade']);
+    const printed = requests.indexOf(`PUT /tests/${open.testId}/print`);
+    const made = requests.indexOf(`PUT /tests/${open.testId}/barem`);
+    expect(printed).toBeGreaterThan(-1);
+    expect(made).toBeGreaterThan(printed);
+    expect(made).toBeLessThan(requests.indexOf(`POST /tests/${world!.testId}/exercise-list`));
+    expect(await baremRow(open.testId)).toEqual({ barem_request: 'none', barem_request_attempts: 0, barem_unchecked: 1 });
+  });
+
+  it('counts a failed barem in the failures in a row', async () => {
+    await setUp(0, 1, false);
+    const open = await addOpenTest(world!.api, 'pdf');
+    await requestBarem(world!.api, open.testId);
+    const claude = scriptedClaude(problem('crash'), problem('crash'), problem('crash'));
+    const report = await runRobot(recordedRun(claude).run);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, barems: 0, stop: 'error' }, exitCode: 1 });
+    expect(claude.calls.map((call) => call.task.mode)).toEqual(['barem', 'barem', 'barem']);
+    expect(await baremRow(open.testId)).toMatchObject({ barem_request: 'failed', barem_request_attempts: 3 });
+  });
+
+  it('tries a barem again in the next round while it waits for another attempt', async () => {
+    await setUp(0, 1, false);
+    const open = await addOpenTest(world!.api, 'pdf');
+    await requestBarem(world!.api, open.testId);
+    const claude = scriptedClaude(problem('crash'), answer(BAREM));
+    const report = await runRobot(recordedRun(claude).run);
+    expect(report.summary).toMatchObject({ barems: 1, stop: 'done' });
+    expect(claude.calls.map((call) => call.task.mode)).toEqual(['barem', 'barem']);
+    expect(await baremRow(open.testId)).toMatchObject({ barem_request: 'none', barem_request_attempts: 0, barem_unchecked: 1 });
+  });
+
+  it('runs against an API that sends no barem jobs', async () => {
+    await setUp(1, 1);
+    const { run } = recordedRun(scriptedClaude(answer(GRADING)));
+    const older: RobotApi = {
+      ...run.api,
+      tasks: async () => {
+        const { barems: _barems, ...rest } = await run.api.tasks();
+        return rest as TasksResult;
+      },
+    };
+    expect((await runRobot({ ...run, api: older })).summary).toMatchObject({ graded: 1, barems: 0, stop: 'done' });
   });
 });
 

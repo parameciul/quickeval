@@ -1,7 +1,10 @@
 import type { z } from 'zod';
 import type { ExerciseListInfo } from '../shared/api.ts';
+import { DOCX_TYPE } from '../shared/files.ts';
 import type {
   analysisBody,
+  BaremJob,
+  baremFailedBody,
   CheckBody,
   CheckResult,
   ClaimResult,
@@ -25,6 +28,7 @@ export type ExerciseListPost = z.input<typeof exerciseListBody>;
 export type ResultPost = z.input<typeof resultBody>;
 export type AnalysisPost = z.input<typeof analysisBody>;
 export type PrintFailedPost = z.input<typeof printFailedBody>;
+export type BaremFailedPost = z.input<typeof baremFailedBody>;
 
 // A refused request: `code` is the API's error code ("lease_lost",
 // "taken_over", …), "network" when the API could not be reached, or
@@ -67,6 +71,13 @@ export interface RobotApi {
   sendPrint(testId: number, runId: string, filesVersion: number, pdf: Uint8Array, createdAt?: string): Promise<void>;
   // "failed": the last attempt failed. "none": the print waits for another try.
   sendPrintFailed(testId: number, body: PrintFailedPost): Promise<'none' | 'failed'>;
+  // A draft or open test that waits for its generated barem; 404 for any other test.
+  baremJob(testId: number): Promise<BaremJob>;
+  baremSource(testId: number): Promise<Uint8Array>;
+  // The barem as a Word file, written from the test file of `filesVersion`.
+  sendBarem(testId: number, runId: string, filesVersion: number, docx: Uint8Array, createdAt?: string): Promise<void>;
+  // "failed": the last attempt failed. "none": the barem waits for another try.
+  sendBaremFailed(testId: number, body: BaremFailedPost): Promise<'none' | 'failed'>;
 }
 
 export interface RobotApiOptions {
@@ -149,6 +160,22 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
       ),
     sendPrintFailed: async (testId, body) =>
       (await json<{ status: 'none' | 'failed' }>('POST', `/tests/${testId}/print-failed`, body)).status,
+    baremJob: async (testId) => (await json<{ job: BaremJob }>('GET', `/tests/${testId}/barem-job`)).job,
+    baremSource: (testId) => bytes(`/tests/${testId}/barem-job/file`),
+    sendBarem: (testId, runId, filesVersion, docx, createdAt) =>
+      send(
+        'PUT',
+        `/tests/${testId}/barem`,
+        new Raw(docx, {
+          'Content-Type': DOCX_TYPE,
+          'X-Run-Id': runId,
+          'X-Files-Version': String(filesVersion),
+          ...(createdAt ? { 'X-Created-At': createdAt } : {}),
+        }),
+        nothing,
+      ),
+    sendBaremFailed: async (testId, body) =>
+      (await json<{ status: 'none' | 'failed' }>('POST', `/tests/${testId}/barem-failed`, body)).status,
   };
 }
 

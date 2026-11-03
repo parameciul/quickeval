@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ExerciseList, GradingResult } from '../shared/schemas.ts';
 import { RobotApiError, robotApi, robotApiFromEnv } from './api.ts';
-import { API_URL, evaluatingTest, fetchFrom, openTestWithFile, ROBOT_KEY, type RobotWorld, SOURCE_BYTES } from './test/robotWorld.ts';
+import { API_URL, evaluatingTest, fetchFrom, openTestWithFile, requestBarem, ROBOT_KEY, type RobotWorld, SOURCE_BYTES } from './test/robotWorld.ts';
 
 const RUN = 'run-api-0001';
 
@@ -76,6 +76,26 @@ describe('robotApi with the real API', () => {
     await expect(robot.printJob(open.testId)).rejects.toMatchObject({ status: 404 });
   });
 
+  it('reads a barem job and its file, and sends the barem or its failure', async () => {
+    const open = await openTestWithFile('pdf', RUN);
+    world = { api: open.api, code: open.code, testId: open.testId, submissionIds: [] };
+    await requestBarem(open.api, open.testId, 'Acordă punct parțial.');
+    const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(open.api) });
+    expect(await robot.baremJob(open.testId)).toEqual({
+      testId: open.testId,
+      createdAt: expect.any(String),
+      filesVersion: 0,
+      contentType: 'application/pdf',
+      baremNotes: 'Acordă punct parțial.',
+    });
+    expect(text(await robot.baremSource(open.testId))).toBe(SOURCE_BYTES.pdf);
+    expect(await robot.sendBaremFailed(open.testId, { runId: RUN, filesVersion: 0, error: 'crash' })).toBe('none');
+    const docx = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
+    await expect(robot.sendBarem(open.testId, RUN, 1, docx)).rejects.toMatchObject({ status: 409, code: 'not_needed' });
+    await robot.sendBarem(open.testId, RUN, 0, docx);
+    await expect(robot.baremJob(open.testId)).rejects.toMatchObject({ status: 404 });
+  });
+
   it('turns refusals into errors with the API codes', async () => {
     world = await evaluatingTest();
     const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(world.api) });
@@ -119,6 +139,22 @@ describe('robotApi requests', () => {
     expect(calls[0]!.init.method).toBe('PUT');
     expect(calls[0]!.init.body).toBe(pdf);
     expect(calls[0]!.init.headers).toEqual({ Authorization: 'Bearer k3y', 'Content-Type': 'application/pdf', 'X-Run-Id': RUN, 'X-Files-Version': '3' });
+  });
+
+  it('sends the barem as a Word file, with the run, the files version and the creation time in headers', async () => {
+    const { calls, fetch } = fakeFetch(json(200, { status: 'ready' }));
+    const docx = new Uint8Array([0x50, 0x4b]);
+    await robotApi('https://site.test', 'k3y', { fetch }).sendBarem(12, RUN, 3, docx, '2026-11-03T08:00:00.000Z');
+    expect(calls[0]!.url).toBe('https://site.test/api/runner/tests/12/barem');
+    expect(calls[0]!.init.method).toBe('PUT');
+    expect(calls[0]!.init.body).toBe(docx);
+    expect(calls[0]!.init.headers).toEqual({
+      Authorization: 'Bearer k3y',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'X-Run-Id': RUN,
+      'X-Files-Version': '3',
+      'X-Created-At': '2026-11-03T08:00:00.000Z',
+    });
   });
 
   it('tries again after a network error or a server error', async () => {

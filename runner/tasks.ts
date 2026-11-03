@@ -78,7 +78,7 @@ export function leaksSecret(output: unknown, env: Record<string, string | undefi
 
 // Runs Claude, and once more when the answer cannot be used (spec §12.4: an
 // invalid output gets one more try with the same input).
-async function askClaude(ctx: TaskContext, mode: ClaudeMode, cwd: string, usable: (output: unknown) => boolean): Promise<ClaudeOutcome> {
+export async function askClaude(ctx: TaskContext, mode: ClaudeMode, cwd: string, usable: (output: unknown) => boolean): Promise<ClaudeOutcome> {
   let outcome: ClaudeOutcome = { ok: false, problem: 'invalid_output', detail: 'not run' };
   for (let attempt = 1; attempt <= 2; attempt++) {
     const started = Date.now();
@@ -108,7 +108,7 @@ export function refusal(err: unknown): 'dropped' | 'lease_lost' | 'invalid' | nu
 // an invalid output, so the attempt counts: an output that is always refused
 // must end as failed, not be tried by every run.
 // `sendError` tells whether the work failed for good.
-async function sendOutcome(
+export async function sendOutcome(
   outcome: ClaudeOutcome,
   sendAnswer: (output: unknown, model: string, effort: string) => Promise<unknown>,
   sendError: (error: RobotError) => Promise<boolean>,
@@ -150,7 +150,7 @@ type MakeFolder = (input: WorkFolderInput) => Promise<string | null>;
 
 // A program that the robot needs is missing: the machine is to blame, not
 // the files, so the run stops instead of counting attempts.
-function isMissingProgram(err: unknown): boolean {
+export function isMissingProgram(err: unknown): boolean {
   const { code, syscall } = (err ?? {}) as { code?: unknown; syscall?: unknown };
   return code === 'ENOENT' && typeof syscall === 'string' && syscall.startsWith('spawn');
 }

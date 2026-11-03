@@ -4,8 +4,9 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 
 ## Structure
 
-- `check.ts` (is there work?), `run.ts` (one run: lease, heartbeat, and in each round the print PDFs first, then exercise lists, parallel gradings, and class analyses), `tasks.ts` (make an exercise list, grade one upload, write the class analysis), `claude.ts` (starts Claude Code and reads its answer), `workdir.ts` (a task's work folder; Word files through pandoc), `api.ts` (the only code that calls `/api/runner`), `log.ts`, `trySkill.ts` (`npm run try:skill`).
+- `check.ts` (is there work?), `run.ts` (one run: lease, heartbeat, and in each round the print PDFs first, then the generated barems, then exercise lists, parallel gradings, and class analyses), `tasks.ts` (make an exercise list, grade one upload, write the class analysis), `claude.ts` (starts Claude Code and reads its answer), `workdir.ts` (a task's work folder; Word files through pandoc), `api.ts` (the only code that calls `/api/runner`), `log.ts`, `trySkill.ts` (`npm run try:skill`).
 - `fixtures/`: real Claude outputs. `test/`: the API in-process, a scripted Claude.
+- `baremTask.ts` writes a barem from the test file (Claude in mode `barem`, then `baremDocx.ts` and pandoc make the Word file). A pandoc failure or a file the API refuses counts a crash; a missing pandoc stops the run. A barem that ended other than `retry` is tried once per run, and a failed one counts in the failures in a row.
 - `printTask.ts` makes the print PDF through the Docker image in `print/`. The image pins LibreOffice and installs only Liberation, Carlito, and Caladea fonts: other fonts (Noto, DejaVu) change "∖" into "∣" and move the layout. `QE_PRINT_IMAGE_TESTS=1` runs the container tests (`print/container.test.ts`, slow the first time). Never log the upload token or a script's output.
 - `.claude/skills/evaluate-test/` (repo root): the grading skill (spec §13). The teacher may change its words; the robot copies it into every work folder. `skill.test.ts` checks the file and field names that the code needs.
 
@@ -15,7 +16,7 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 
 ## Try the skill
 
-`npm run try:skill -- exercise-list <folder>`, then `npm run try:skill -- grade <folder>`: try the grading skill on this PC exactly as the robot runs it (spec §13). It needs `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in the environment and never uses this PC's Claude login. The folder holds `test.pdf` or `test.docx`, `barem.pdf` or `barem.docx`, and the pages in `student/` (`1.jpg`, `2.jpg`, …); it gets `exercises.json` and `grading.json`. Keep the folder outside the repo: it holds a student's pages.
+`npm run try:skill -- exercise-list <folder>`, then `npm run try:skill -- grade <folder>`: try the grading skill on this PC exactly as the robot runs it (spec §13). It needs `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in the environment and never uses this PC's Claude login. The folder holds `test.pdf` or `test.docx`, `barem.pdf` or `barem.docx`, and the pages in `student/` (`1.jpg`, `2.jpg`, …); it gets `exercises.json` and `grading.json`. `npm run try:skill -- barem <folder>` needs only `test.pdf` or `test.docx` (and `notes.md` for the teacher's comments) and writes `barem.json` and `barem.docx`. Keep the folder outside the repo: it holds a student's pages.
 
 ## Rules
 
