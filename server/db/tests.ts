@@ -472,7 +472,8 @@ export async function requestBarem(db: D1Database, teacherId: number, testId: nu
 
 // The teacher checked the generated barem as the page showed it. False when
 // the test is gone, is not the teacher's, the barem is not waiting for a check,
-// a new barem is being generated, or a file changed since the page was read.
+// a new barem is being generated or its generation failed (the barem is then
+// the old test's), or a file changed since the page was read.
 export async function confirmBarem(
   db: D1Database,
   teacherId: number,
@@ -483,7 +484,7 @@ export async function confirmBarem(
   const row = await db
     .prepare(
       `UPDATE tests SET barem_unchecked = 0, updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND files_version = ? AND barem_unchecked = 1 AND barem_request <> 'requested'
+       WHERE id = ? AND teacher_id = ? AND files_version = ? AND barem_unchecked = 1 AND barem_request = 'none'
        RETURNING id`,
     )
     .bind(now, testId, teacherId, filesVersion)

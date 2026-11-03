@@ -121,6 +121,15 @@ describe('POST /barem/checked', () => {
     expect((await row())!.barem_unchecked).toBe(1);
   });
 
+  it('refuses a confirm after the regeneration failed', async () => {
+    await addTestFiles(api, code, ['test', 'barem']);
+    await setTest("barem_unchecked = 1, barem_request = 'failed', barem_request_attempts = 3");
+    const res = await checked((await row())!.files_version);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('stale');
+    expect((await row())!.barem_unchecked).toBe(1);
+  });
+
   it('refuses a body without a filesVersion', async () => {
     const res = await api.request('POST', `/api/admin/tests/${code}/barem/checked`, {});
     expect(res.status).toBe(400);
