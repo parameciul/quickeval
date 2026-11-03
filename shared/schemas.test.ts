@@ -350,6 +350,20 @@ describe('checkGeneratedBarem', () => {
     expect(checkGeneratedBarem({ ...sample, officePoints: -10, total: 80 }).ok).toBe(false);
   });
 
+  it('refuses a step with empty text and fractional section points', () => {
+    const empty = { ...sample, parts: [{ title: '', sections: [{ ...section('I', 30), items: [{ label: '1.', steps: [{ text: '  ', points: 30 }] }] }, section('II', 30), section('III', 30)] }] };
+    expect(checkGeneratedBarem(empty).ok).toBe(false);
+    const fraction = { ...sample, total: 100.5, officePoints: 10.5 };
+    expect(checkGeneratedBarem(fraction).ok).toBe(false);
+    const half = { ...sample, total: 90.5, officePoints: 0, parts: [{ title: '', sections: [section('I', 90.5, [90.5])] }] };
+    expect(checkGeneratedBarem(half).ok).toBe(false);
+  });
+
+  it('keeps the JSON Schema to plain numbers', () => {
+    const text = JSON.stringify(claudeJsonSchema(generatedBaremSchema));
+    for (const word of ['integer', 'minimum', 'maximum']) expect(text).not.toContain(word);
+  });
+
   it('accepts officePoints 0 with total = sections', () => {
     expect(checkGeneratedBarem({ ...sample, officePoints: 0, total: 90 }).ok).toBe(true);
   });

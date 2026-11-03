@@ -217,8 +217,8 @@ export const generatedBaremSchema = z.object({
     .string()
     .describe('Subject, class, programme and working time, for example "Matematică – clasa a XI-a R1 (programa M1, 4 ore/săptămână) – Timp de lucru: 50 de minute".'),
   notes: z.array(z.string()).describe('The "Precizări privind evaluarea": one short sentence per entry. Romanian text.'),
-  total: z.number().int().min(0).describe('All points of the test, "din oficiu" included, for example 100.'),
-  officePoints: z.number().int().min(0).describe('The "din oficiu" points, for example 10. 0 when the test gives none.'),
+  total: z.number().describe('A whole number: all points of the test, "din oficiu" included, for example 100.'),
+  officePoints: z.number().describe('A whole number: the "din oficiu" points, for example 10. 0 when the test gives none.'),
   parts: z
     .array(
       z.object({
@@ -226,14 +226,14 @@ export const generatedBaremSchema = z.object({
         sections: z.array(
           z.object({
             title: z.string().describe('The section, for example "SUBIECTUL I".'),
-            points: z.number().int().min(0).describe('The points of the section: the sum of the points of all its steps.'),
+            points: z.number().describe('A whole number: the points of the section: the sum of the points of all its steps.'),
             items: z.array(
               z.object({
                 label: z.string().describe('The exercise label, for example "1.", "a)" or "1. a)".'),
                 steps: z.array(
                   z.object({
                     text: z.string().describe(`One step of the solution and what earns the points. ${TEXT}`),
-                    points: z.number().int().min(1).describe('The points of this step. At least 1.'),
+                    points: z.number().describe('The points of this step: a whole number, at least 1.'),
                   }),
                 ),
               }),
@@ -247,6 +247,7 @@ export const generatedBaremSchema = z.object({
 
 export type GeneratedBarem = z.infer<typeof generatedBaremSchema>;
 
+const isCount = (n: number) => Number.isInteger(n) && n >= 0;
 const MAX_BAREM_PARTS = 4;
 const MAX_BAREM_SECTIONS = 6;
 const MAX_BAREM_ITEMS = 30;
@@ -263,6 +264,7 @@ export function checkGeneratedBarem(raw: unknown): Checked<GeneratedBarem> {
   const parsed = generatedBaremSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, reason: 'not a barem' };
   const input = parsed.data;
+  if (!isCount(input.total) || !isCount(input.officePoints)) return { ok: false, reason: 'total and office points must be whole numbers' };
   if (input.parts.length === 0 || input.parts.length > MAX_BAREM_PARTS) return { ok: false, reason: `needs 1 to ${MAX_BAREM_PARTS} parts` };
   if (input.notes.length > MAX_BAREM_NOTES) return { ok: false, reason: `at most ${MAX_BAREM_NOTES} notes` };
   for (const part of input.parts) {
@@ -279,8 +281,13 @@ export function checkGeneratedBarem(raw: unknown): Checked<GeneratedBarem> {
         if (item.steps.length === 0 || item.steps.length > MAX_BAREM_STEPS) {
           return { ok: false, reason: `needs 1 to ${MAX_BAREM_STEPS} steps in an item` };
         }
-        for (const step of item.steps) sectionSum += step.points;
+        for (const step of item.steps) {
+          if (!isCount(step.points) || step.points === 0) return { ok: false, reason: 'step points must be a whole number above 0' };
+          if (step.text.trim() === '') return { ok: false, reason: 'empty step text' };
+          sectionSum += step.points;
+        }
       }
+      if (!isCount(section.points)) return { ok: false, reason: 'section points must be a whole number' };
       if (sectionSum !== section.points) return { ok: false, reason: 'steps do not add up to the section points' };
       sectionsTotal += section.points;
     }
