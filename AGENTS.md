@@ -1,6 +1,6 @@
 # AGENTS.md
 
-QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakespeare, Timișoara) collect and grade her students' math tests. The teacher pages and the student pages are in Romanian. Code, comments, and docs are in English.
+MQGrader (formerly QuickEval): a web app that helps Laura Miron (math teacher, Liceul William Shakespeare, Timișoara) collect and grade her students' math tests. The product name is MQGrader; the code, the URLs, the secrets, the database and the repository keep the old name quickeval. The teacher pages and the student pages are in Romanian. Code, comments, and docs are in English.
 
 - Design: `docs/superpowers/specs/2026-10-06-quickeval-design.md`. Plans: `docs/superpowers/plans/`.
 - Live: https://quickeval.pages.dev/. Brand source: the "Matematică cu Laura Miron" site (`D:\Projects\Website`, https://lauramiron.pages.dev/).
@@ -34,7 +34,7 @@ QuickEval: a web app that helps Laura Miron (math teacher, Liceul William Shakes
 Details and the remaining rules are in the nested `AGENTS.md` files.
 
 - All user-facing text is Romanian. The API reports errors as `{ error, message }`; the UI shows `message`.
-- No page tells students that AI grades their work. Student-app tests check every screen with `expectNoGradingWords()`.
+- No page tells students that AI grades their work. Student-app tests check every screen with `expectNoGradingWords()`. Student pages do show the MQGrader brand and invite teachers to try it (`src/upload/BrandFooter.tsx`): students carry the brand, but no word says how the work is graded.
 - Teachers log in with email and password (`server/routes/auth.ts`, a `qe_session` cookie). Setări and `/api/admin/settings` and `/api/admin/accounts` are for administrators only (`adminOnly` in `server/auth/teacherAuth.ts`). A new account confirms its email, then is pending and demo. Every time a test goes to the robot for grading (every start, regrade and retry) counts in `teachers.tests_evaluated`, for every teacher (a trigger in migration 0018, and `countGradingAgain` in `server/db/lifecycle.ts` for a test already in evaluation); every paper the robot grades counts in `teachers.papers_graded` (a trigger in migration 0019; a regrade counts as one more, a failed grading as none). A demo account may have `DEMO_PAPER_LIMIT` papers graded, checked in the SQL of every such path (`WITHIN_PAPER_LIMIT` and `papersToSend` in `server/db/lifecycle.ts`): a test with more papers than the account has left sends the first ones, and the others wait as unselected uploads do.
 - Every teacher query is scoped by the teacher's id. Ids from URLs go through `parseId`, test codes through `parseTestCode`.
 - Student and robot writes, and the teacher's corrections, check their own rules inside their SQL statement (`server/db/links.ts`, `server/db/runner.ts`, `server/db/evaluations.ts`), never in a check before the write.

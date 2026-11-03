@@ -32,7 +32,7 @@ describe('dispatchRobot', () => {
     expect(init.body).toBe('{"event_type":"evaluate-now"}');
     const headers = new Headers(init.headers);
     expect(headers.get('Authorization')).toBe('Bearer secret-token');
-    expect(headers.get('User-Agent')).toBe('QuickEval');
+    expect(headers.get('User-Agent')).toBe('MQGrader');
     expect(warn).not.toHaveBeenCalled();
   });
 

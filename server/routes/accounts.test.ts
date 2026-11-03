@@ -73,7 +73,7 @@ describe('approving and refusing', () => {
     const res = await approve(id);
     expect(res.status).toBe(200);
     expect(await accountOf(id)).toMatchObject({ status: 'active', demo: true });
-    expect(emails).toEqual([expect.objectContaining({ to: ['ana@example.com'], subject: 'QuickEval: contul tău a fost aprobat' })]);
+    expect(emails).toEqual([expect.objectContaining({ to: ['ana@example.com'], subject: 'MQGrader: contul tău a fost aprobat' })]);
     expect((await login('ana@example.com', 'parola-lunga')).status).toBe(200);
     expect((await approve(id)).body.error).toBe('not_pending');
   });
@@ -188,7 +188,7 @@ describe('POST /api/admin/accounts/:id/password', () => {
   it('tells the teacher by email', async () => {
     const id = await api.addTeacher('bogdan@example.com', 'Bogdan');
     await api.request('POST', `/api/admin/accounts/${id}/password`);
-    expect(emails).toEqual([expect.objectContaining({ to: ['bogdan@example.com'], subject: 'QuickEval: parola ta a fost schimbată' })]);
+    expect(emails).toEqual([expect.objectContaining({ to: ['bogdan@example.com'], subject: 'MQGrader: parola ta a fost schimbată' })]);
     expect(emails[0]!.text).toContain('Laura Miron');
   });
 

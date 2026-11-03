@@ -49,11 +49,11 @@ check('landing page', landing.res.status === 200 && landing.text.includes('Intr�
 
 for (const path of ['/admin/', '/admin/clase', '/admin/teste/6E2-26T1']) {
   const admin = await page(path);
-  check(`teacher app at ${path}`, admin.res.status === 200 && admin.text.includes('<title>QuickEval · Profesor</title>'), String(admin.res.status));
+  check(`teacher app at ${path}`, admin.res.status === 200 && admin.text.includes('<title>MQGrader · Profesor</title>'), String(admin.res.status));
 }
 
 const student = await page('/u/abcdefghijkmnop2');
-check('student app at /u/<token>', student.res.status === 200 && student.text.includes('<title>QuickEval · Trimite lucrarea</title>'), String(student.res.status));
+check('student app at /u/<token>', student.res.status === 200 && student.text.includes('<title>MQGrader · Trimite lucrarea</title>'), String(student.res.status));
 for (const path of ['/admin/', '/u/abcdefghijkmnop2']) {
   const headers = (await page(path)).res.headers;
   check(`noindex header on ${path}`, (headers.get('x-robots-tag') ?? '').includes('noindex'));

@@ -51,8 +51,7 @@ export function Layout() {
           <Link className="brand" to="/">
             <BrandMark />
             <span className="brand-text">
-              <span className="brand-name">QuickEval</span>
-              <span className="brand-sub">Matematică cu Laura Miron</span>
+              <span className="brand-name">MQGrader</span>
             </span>
           </Link>
           {me.data && (
@@ -99,7 +98,7 @@ export function Layout() {
       </main>
       <footer className="site-footer">
         <div className="wrap">
-          <p>QuickEval{me.data ? ` · ${me.data.name}` : ''}</p>
+          <p>MQGrader{me.data ? ` · ${me.data.name}` : ''}</p>
         </div>
       </footer>
     </>

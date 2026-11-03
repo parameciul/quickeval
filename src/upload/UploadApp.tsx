@@ -3,6 +3,7 @@ import type { LinkInfo, LinkStudent } from '../../shared/api.ts';
 import { displayClassName } from '../../shared/classes.ts';
 import { ApiError, GENERIC_MESSAGE, messageOf } from '../ui/ApiError.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
+import { BrandFooter } from './BrandFooter.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import type { ActiveSession, UploadApi } from './api.ts';
 import { NamePicker } from './NamePicker.tsx';
@@ -130,8 +131,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           <span className="brand">
             <BrandMark />
             <span className="brand-text">
-              <span className="brand-name">QuickEval</span>
-              <span className="brand-sub">Matematică cu Laura Miron</span>
+              <span className="brand-name">MQGrader</span>
             </span>
           </span>
         </div>
@@ -227,11 +227,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           )}
         </ErrorBoundary>
       </main>
-      <footer className="site-footer">
-        <div className="wrap">
-          <p>QuickEval · Matematică cu Laura Miron</p>
-        </div>
-      </footer>
+      <BrandFooter />
     </>
   );
 }

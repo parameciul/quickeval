@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { displayClassName } from '../../shared/classes.ts';
 import { ApiError, messageOf } from '../ui/ApiError.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
+import { BrandFooter } from './BrandFooter.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import type { UploadApi } from './api.ts';
 import { forgetResultLinkByToken } from './resultLinks.ts';
@@ -44,8 +45,7 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
           <span className="brand">
             <BrandMark />
             <span className="brand-text">
-              <span className="brand-name">QuickEval</span>
-              <span className="brand-sub">Matematică cu Laura Miron</span>
+              <span className="brand-name">MQGrader</span>
             </span>
           </span>
         </div>
@@ -68,11 +68,7 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
           )}
         </ErrorBoundary>
       </main>
-      <footer className="site-footer">
-        <div className="wrap">
-          <p>QuickEval · Matematică cu Laura Miron</p>
-        </div>
-      </footer>
+      <BrandFooter />
     </>
   );
 }

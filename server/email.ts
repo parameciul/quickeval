@@ -21,7 +21,7 @@ export async function sendBrevoEmail(env: Env, message: EmailMessage, fetchImpl:
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'api-key': key },
       body: JSON.stringify({
-        sender: { name: 'QuickEval', email: from },
+        sender: { name: 'MQGrader', email: from },
         to: message.to.map((email) => ({ email })),
         subject: message.subject,
         textContent: message.text,

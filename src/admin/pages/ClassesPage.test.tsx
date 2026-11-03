@@ -29,7 +29,9 @@ describe('ClassesPage', () => {
 
   it('shows the teacher name in the footer', async () => {
     renderAdmin('/clase', twoClasses());
-    expect(await screen.findByText('QuickEval · Laura Miron')).toBeInTheDocument();
+    expect(await screen.findByText('MQGrader · Laura Miron')).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toHaveTextContent('MQGrader');
+    expect(screen.queryByText('Matematică cu Laura Miron')).not.toBeInTheDocument();
   });
 
   it('switches the school year from the header', async () => {

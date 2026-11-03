@@ -1,4 +1,4 @@
-/* QuickEval look, taken from the "Matematică cu Laura Miron" site
+/* MQGrader look, taken from the "Matematică cu Laura Miron" site
    (D:\Projects\Website\assets\css\style.css): a Romanian squared math notebook
    in light mode, a green chalkboard in dark mode. The dark colours are written
    twice because CSS cannot share one block across a media query; keep the two
@@ -16,7 +16,9 @@
   --marker: #fff0a0;
   --marker-edge: #ffd94a;
   --rule: #d4dce8;
-  --brand-marker: #fff0a0;
+  --mark-from: #0891b2;
+  --mark-to: #2563eb;
+  --mark-tick: #ea580c;
   --ok-bg: #e1f2e8;
   --ok-fg: #1b6b43;
   --error-bg: #fbe5e2;
@@ -47,7 +49,9 @@
   --marker: rgba(255, 226, 110, 0.16);
   --marker-edge: rgba(255, 217, 74, 0.75);
   --rule: rgba(255, 255, 255, 0.14);
-  --brand-marker: rgba(255, 217, 74, 0.5);
+  --mark-from: #22e8ee;
+  --mark-to: #3b7cf4;
+  --mark-tick: #fb923c;
   --ok-bg: rgba(120, 210, 160, 0.16);
   --ok-fg: #a8e6c1;
   --error-bg: rgba(255, 139, 128, 0.16);
@@ -75,7 +79,9 @@
     --marker: rgba(255, 226, 110, 0.16);
     --marker-edge: rgba(255, 217, 74, 0.75);
     --rule: rgba(255, 255, 255, 0.14);
-    --brand-marker: rgba(255, 217, 74, 0.5);
+    --mark-from: #22e8ee;
+    --mark-to: #3b7cf4;
+    --mark-tick: #fb923c;
     --ok-bg: rgba(120, 210, 160, 0.16);
     --ok-fg: #a8e6c1;
     --error-bg: rgba(255, 139, 128, 0.16);
@@ -223,11 +229,6 @@ h2 {
 .brand-name {
   font-size: 1.15rem;
   font-weight: 800;
-}
-
-.brand-sub {
-  font-size: 0.8rem;
-  color: var(--muted);
 }
 
 .main-nav {

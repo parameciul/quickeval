@@ -1,13 +1,30 @@
-// Laura Miron's initials over a highlighter stroke, as in the Website header.
-// Coloured by --ink (currentColor) and --brand-marker, so both themes work.
+// The MQGrader mark: a score ring, and an orange tick that breaks out through
+// its gap. Coloured by --mark-from, --mark-to and --mark-tick, so both themes
+// work. A page shows one mark, so the gradient id is fixed.
 export function BrandMark() {
   return (
     <svg className="brand-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <path d="M10 48h44" fill="none" stroke="var(--brand-marker)" strokeWidth="12" strokeLinecap="round" />
-      <g fill="none" stroke="currentColor" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M25 13c-3 11-6 21-9 31 7 0 13-2 18-6" />
-        <path d="M33 45l4-23 6 13 8-15 2 25" />
-      </g>
+      <defs>
+        <linearGradient id="brand-mark-ring" gradientUnits="userSpaceOnUse" x1="12" y1="12" x2="52" y2="52">
+          <stop offset="0" style={{ stopColor: 'var(--mark-from)' }} />
+          <stop offset="1" style={{ stopColor: 'var(--mark-to)' }} />
+        </linearGradient>
+      </defs>
+      <path
+        d="M48.42 27.6A17 17 0 1 1 36.4 15.58"
+        fill="none"
+        stroke="url(#brand-mark-ring)"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M23 32L30 39L49 18"
+        fill="none"
+        stroke="var(--mark-tick)"
+        strokeWidth="6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

@@ -38,6 +38,18 @@ const graded: StudentResultView = {
 };
 
 describe('ResultApp', () => {
+  it('shows the MQGrader brand and invites other teachers to try it', async () => {
+    const api = createFakeUploadApi();
+    api.getResult.mockResolvedValue(structuredClone(graded));
+    render(<ResultApp api={api} resultToken="result-token-11" />);
+    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toHaveTextContent('MQGrader');
+    expect(screen.queryByText(/Laura Miron/)).not.toBeInTheDocument();
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('Profesorul tău folosește MQGrader. Ești profesor? Încearcă gratuit.');
+    expect(screen.getByRole('link', { name: 'Încearcă gratuit' })).toHaveAttribute('href', '/admin/');
+    expectNoGradingWords();
+  });
+
   it('shows the grade, the mistakes, and the final words, without any teacher controls', async () => {
     const api = createFakeUploadApi();
     api.getResult.mockResolvedValue(structuredClone(graded));
