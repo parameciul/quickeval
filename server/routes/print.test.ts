@@ -111,10 +111,21 @@ describe('a new test or barem file and the print PDF', () => {
     await setTest("print_status = 'ready', print_file_key = 'late-key'");
     const file = { key: 'new-key', name: 'test.pdf', type: PDF_TYPE };
     const saved = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'test', file, '2026-10-25T08:00:00.000Z');
-    expect(saved).toEqual({ status: 'open', clearedPrintKey: 'late-key' });
+    expect(saved).toEqual({ status: 'open', clearedPrintKey: 'late-key', replacedKey: null });
     expect(await printRow()).toMatchObject({ print_status: 'none', print_file_key: null });
     const barem = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'barem', file, '2026-10-25T08:00:00.000Z');
-    expect(barem).toEqual({ status: 'open', clearedPrintKey: null });
+    expect(barem).toEqual({ status: 'open', clearedPrintKey: null, replacedKey: null });
+  });
+
+  it('names the file that the write itself replaced, whatever the route read before', async () => {
+    // A barem the robot saved after the route read the test.
+    await setTest("barem_file_key = 'late-barem'");
+    const file = { key: 'own-barem', name: 'barem.pdf', type: PDF_TYPE };
+    const barem = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'barem', file, '2026-10-25T08:00:00.000Z');
+    expect(barem).toMatchObject({ replacedKey: 'late-barem' });
+    await setTest("test_file_key = 'late-test'");
+    const test = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'test', { ...file, key: 'own-test' }, '2026-10-25T08:00:00.000Z');
+    expect(test).toMatchObject({ replacedKey: 'late-test' });
   });
 
   it('a new barem does not touch the print PDF', async () => {

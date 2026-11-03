@@ -280,6 +280,14 @@ describe('a generated barem that is not active', () => {
     expect((await testRow())?.status).toBe('open');
   });
 
+  it('says the first barem is generating rather than missing', async () => {
+    await addTestFiles(api, code, ['test']);
+    await addSubmission(api, code, studentIds[0]!, { files: 1 });
+    await setTest("barem_request = 'requested'");
+    const res = await evaluate();
+    expect(res.body).toMatchObject({ error: 'barem_generating', message: 'Baremul se generează încă.' });
+  });
+
   it('refuses to schedule while the barem is unchecked or generating', async () => {
     await addTestFiles(api, code);
     await setTest('barem_unchecked = 1');

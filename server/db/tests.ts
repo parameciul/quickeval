@@ -373,10 +373,11 @@ export async function setTestArchived(
 // Points the test at a new test or barem file, and counts the change in
 // files_version. A new test file also clears the print PDF made from the old
 // one. A new barem also clears the exercise list, which the robot made from
-// the old one (spec §8.5). Returns the test's status and the key of the print
-// PDF the change cleared (the caller deletes its object), or null when the
-// test is gone. The key is read in the same batch as the write, so a print
-// the robot saves meanwhile is not left in R2.
+// the old one (spec §8.5). Returns the test's status, the key of the print
+// PDF the change cleared, and the key of the file it replaced (the caller
+// deletes their objects), or null when the test is gone. The keys are read in
+// the same batch as the write, so a print or a generated barem the robot
+// saves meanwhile is not left in R2.
 export async function saveTestFile(
   db: D1Database,
   teacherId: number,
@@ -384,7 +385,7 @@ export async function saveTestFile(
   kind: TestFileKind,
   file: StoredFile,
   now: string,
-): Promise<{ status: TestStatus; clearedPrintKey: string | null } | null> {
+): Promise<{ status: TestStatus; clearedPrintKey: string | null; replacedKey: string | null } | null> {
   const sql =
     kind === 'test'
       ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1,
@@ -398,13 +399,16 @@ export async function saveTestFile(
            barem_unchecked = 0, barem_request = 'none', barem_request_attempts = 0
          WHERE id = ? AND teacher_id = ?
          RETURNING status`;
-  const [before, written] = await db.batch<{ print_file_key?: string | null; status?: TestStatus }>([
-    db.prepare('SELECT print_file_key FROM tests WHERE id = ? AND teacher_id = ?').bind(testId, teacherId),
+  const [before, written] = await db.batch<{ print_file_key?: string | null; replaced_key?: string | null; status?: TestStatus }>([
+    db
+      .prepare(`SELECT print_file_key, ${kind === 'test' ? 'test_file_key' : 'barem_file_key'} AS replaced_key FROM tests WHERE id = ? AND teacher_id = ?`)
+      .bind(testId, teacherId),
     db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId),
   ]);
   const status = written?.results[0]?.status;
   if (!status) return null;
-  return { status, clearedPrintKey: kind === 'test' ? (before?.results[0]?.print_file_key ?? null) : null };
+  const row = before?.results[0];
+  return { status, clearedPrintKey: kind === 'test' ? (row?.print_file_key ?? null) : null, replacedKey: row?.replaced_key ?? null };
 }
 
 // Points the test at new barem comments, as if the barem file changed (spec

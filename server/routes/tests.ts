@@ -78,8 +78,8 @@ async function evaluationBlocker(db: D1Database, teacherId: number, code: string
   if (test.summary.status === 'draft') return new ApiError(409, 'not_started', 'Testul nu a început încă.');
   if (test.summary.status !== 'open') return new ApiError(409, 'already_evaluating', 'Evaluarea a pornit deja.');
   if (!test.files.test) return new ApiError(409, 'missing_test_file', 'Încarcă testul înainte de evaluare.');
-  if (!test.files.barem) return new ApiError(409, 'missing_barem', 'Încarcă baremul înainte de evaluare.');
   if (test.barem.request === 'requested') return new ApiError(409, 'barem_generating', 'Baremul se generează încă.');
+  if (!test.files.barem) return new ApiError(409, 'missing_barem', 'Încarcă baremul înainte de evaluare.');
   if (test.barem.unchecked) return new ApiError(409, 'barem_unchecked', 'Verifică baremul generat înainte de evaluare.');
   if (await blockedByDemoLimit(db, test.id)) return demoLimit();
   if (needsUploads && !(await hasUploadedFiles(db, test.id))) {
@@ -387,8 +387,10 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const key = testFileKey(teacherId, test.summary.schoolYear, test.summary.code, kind, file.name, file.contentType);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
     const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
-    const old = test.files[kind];
-    const stale = [old && old.key !== key ? old.key : null, saved?.clearedPrintKey ?? null].filter((k) => k !== null);
+    // The replaced file is read in the write's own batch: the robot may have
+    // saved a generated barem after this route read the test.
+    const replaced = saved?.replacedKey ?? null;
+    const stale = [replaced !== key ? replaced : null, saved?.clearedPrintKey ?? null].filter((k) => k !== null);
     if (stale.length > 0) await deleteFilesQuietly(c.env.FILES, stale);
     let robotWork = false;
     if (kind === 'barem') robotWork = saved?.status === 'evaluating';

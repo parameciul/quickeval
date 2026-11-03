@@ -22,10 +22,15 @@ function escapeText(text: string): string {
   return text.replace(MARKDOWN_SPECIAL, (c) => `\\${c}`);
 }
 
-// The space after \vert keeps it from gluing to a letter. A closing "$" that
-// follows a space is not math for pandoc, so a trailing space goes.
+// The space after \vert keeps it from gluing to a letter. An opening "$"
+// followed by a space, or a closing "$" after one, is not math for pandoc, so
+// those spaces go; a TeX control space ("\ ") at the end stays.
 function escapeMath(math: string): string {
-  return math.replace(/\\\|/g, '\\Vert ').replace(/\|/g, '\\vert ').trimEnd();
+  return math
+    .replace(/\\\|/g, '\\Vert ')
+    .replace(/\|/g, '\\vert ')
+    .replace(/^\s+/, '')
+    .replace(/(?<!\\)\s+$/, '');
 }
 
 // One table cell: a single line, Markdown escaped outside math, pipes made safe
@@ -36,8 +41,11 @@ export function escapeCell(text: string): string {
     .split('$')
     .map((part, i) => (i % 2 === 1 ? escapeMath(part) : escapeText(part)))
     .join('$');
-  // "1." or "a)" at the start would become a list.
-  return escaped.replace(/^(\d+)([.)])/, '$1\\$2').replace(/^([A-Za-z])\)/, '$1\\)');
+  // "1.", "a)", "- " or "+ " at the start would become a list.
+  return escaped
+    .replace(/^(\d+)([.)])/, '$1\\$2')
+    .replace(/^([A-Za-z])\)/, '$1\\)')
+    .replace(/^([-+])(?=\s)/, '\\$1');
 }
 
 function pointsText(points: number): string {

@@ -99,6 +99,12 @@ describe('escapeCell', () => {
   it('keeps a leading number from becoming a list', () => expect(escapeCell('1. x')).toBe('1\\. x'));
   it('escapes Markdown outside math only', () => expect(escapeCell('a*b $a*b$')).toBe('a\\*b $a*b$'));
   it('keeps a leading "a)" from becoming a list', () => expect(escapeCell('a) x')).toBe('a\\) x'));
+  it('drops spaces just inside the dollars', () => expect(escapeCell('Calcul $ x = 3 $ corect')).toBe('Calcul $x = 3$ corect'));
+  it('keeps a control space at the end of math', () => expect(escapeCell('$a\\ $')).toBe('$a\\ $'));
+  it('keeps a leading "-" or "+" from becoming a list', () => {
+    expect(escapeCell('- x')).toBe('\\- x');
+    expect(escapeCell('+ x')).toBe('\\+ x');
+  });
 });
 
 async function documentXml(bytes: Uint8Array, dir: string): Promise<string> {
