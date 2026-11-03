@@ -121,6 +121,8 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
       baremNotes: '',
+      barem: { request: 'none', unchecked: false },
+      filesVersion: 0,
       analysis: { status: 'none', stale: false, attempts: 0 },
       print: { status: 'none', fromWord: false },
       ...overrides,

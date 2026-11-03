@@ -517,6 +517,10 @@ export interface AnalysisAnswer {
 // The printable test PDF with a QR code. "none": not made yet.
 export type PrintStatus = 'none' | 'ready' | 'failed';
 
+// Whether the robot was asked to generate the barem from the test file:
+// "requested" while it runs, "failed" when it gave up.
+export type BaremRequest = 'none' | 'requested' | 'failed';
+
 export interface TestInfo extends TestSummary {
   uploadToken: string | null;
   multiUploadToken: string | null;
@@ -524,6 +528,11 @@ export interface TestInfo extends TestSummary {
   exerciseList: ExerciseListInfo;
   // Extra teacher comments for the barem, read by the robot as part of it.
   baremNotes: string;
+  // unchecked: a generated barem waits for the teacher's check, and no
+  // evaluation starts until then.
+  barem: { request: BaremRequest; unchecked: boolean };
+  // Goes up with every new test file, barem, or barem comments.
+  filesVersion: number;
   analysis: AnalysisInfo;
   // fromWord: the test file is a Word file, so the PDF is made from it.
   print: { status: PrintStatus; fromWord: boolean };

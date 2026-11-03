@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { AnalysisInfo, ExerciseListInfo, PrintStatus, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
+import type { AnalysisInfo, BaremRequest, ExerciseListInfo, PrintStatus, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
 import { DOCX_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
@@ -23,6 +23,8 @@ export interface TestRecord {
   files: Record<TestFileKind, StoredFile | null>;
   exerciseList: ExerciseListInfo;
   baremNotes: string;
+  barem: { request: BaremRequest; unchecked: boolean };
+  filesVersion: number;
   analysis: AnalysisInfo;
   print: { status: PrintStatus; key: string | null; fromWord: boolean };
 }
@@ -48,6 +50,9 @@ interface TestRow {
   barem_file_name: string | null;
   barem_file_type: string | null;
   barem_notes: string | null;
+  barem_request: BaremRequest;
+  barem_unchecked: number;
+  files_version: number;
   exercise_list_status: ExerciseListStatus;
   exercise_list_message: string | null;
   results_open: number;
@@ -68,7 +73,7 @@ const SELECT_TEST = `
   SELECT t.id, t.code, t.title, t.status, t.class_id, c.name AS class_name, c.school_year,
     t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token, t.multi_upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
-    t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.exercise_list_status, t.exercise_list_message,
+    t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.barem_request, t.barem_unchecked, t.files_version, t.exercise_list_status, t.exercise_list_message,
     t.results_open, t.archived, t.analysis_status, t.analysis_stale, t.analysis_attempts,
     t.print_status, t.print_file_key,
     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
@@ -113,6 +118,8 @@ function toRecord(row: TestRow): TestRecord {
     },
     exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
     baremNotes: row.barem_notes ?? '',
+    barem: { request: row.barem_request, unchecked: row.barem_unchecked === 1 },
+    filesVersion: row.files_version,
     analysis: { status: row.analysis_status, stale: row.analysis_stale === 1, attempts: row.analysis_attempts },
     print: { status: row.print_status, key: row.print_file_key, fromWord: row.test_file_type === DOCX_TYPE },
   };
@@ -128,6 +135,8 @@ export function toTestInfo(record: TestRecord): TestInfo {
     files: { test: info(record.files.test), barem: info(record.files.barem) },
     exerciseList: record.exerciseList,
     baremNotes: record.baremNotes,
+    barem: record.barem,
+    filesVersion: record.filesVersion,
     analysis: record.analysis,
     print: { status: record.print.status, fromWord: record.print.fromWord },
   };

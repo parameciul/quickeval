@@ -73,6 +73,8 @@ async function evaluationBlocker(db: D1Database, teacherId: number, code: string
   if (test.summary.status !== 'open') return new ApiError(409, 'already_evaluating', 'Evaluarea a pornit deja.');
   if (!test.files.test) return new ApiError(409, 'missing_test_file', 'Încarcă testul înainte de evaluare.');
   if (!test.files.barem) return new ApiError(409, 'missing_barem', 'Încarcă baremul înainte de evaluare.');
+  if (test.barem.request === 'requested') return new ApiError(409, 'barem_generating', 'Baremul se generează încă.');
+  if (test.barem.unchecked) return new ApiError(409, 'barem_unchecked', 'Verifică baremul generat înainte de evaluare.');
   if (await blockedByDemoLimit(db, test.id)) return demoLimit();
   if (needsUploads && !(await hasUploadedFiles(db, test.id))) {
     return new ApiError(409, 'no_uploads', 'Niciun elev nu a încărcat încă fișiere.');

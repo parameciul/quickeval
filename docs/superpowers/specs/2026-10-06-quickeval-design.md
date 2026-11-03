@@ -346,6 +346,7 @@ Example: `t/1/2026/6E2-26T1/students/14-popescu-ana/01-k3f9q2xa.jpg`.
 
 ### 7.3 Rules
 
+- **Generated barem**: columns `tests.barem_request`, `barem_request_attempts`, and `barem_unchecked`; see `docs/superpowers/specs/2026-11-03-generated-barem-design.md`.
 - **Class name**: trim it, remove inner spaces, and make it uppercase. It must match `^[A-Z0-9]{1,8}$`. The UI shows it as "Clasa 6E2".
 - **School year**: in Europe/Bucharest time, September to December of year Y belongs to school year Y. January to August belongs to Y-1. The UI shows "2026-2027".
 - **Test code**: `<class name>-<YY>T<n>`, where YY is the last two digits of the class's school year and n is `classes.next_test_number`. The counter only goes up, so a deleted test never gives its number to a new test. Pattern: `^[A-Z0-9]{1,8}-\d{2}T\d{1,3}$`.
@@ -384,6 +385,7 @@ draft ──Start test──► open ──Start evaluation (now, or when evalua
 - Needs: a test file, a barem file, and at least one submission with at least one file. Otherwise the button is off and shows the reason. A schedule needs only the two files, because the uploads may still come. At the scheduled time the uploads close even if nobody uploaded; a test with nothing to grade then ends at once.
 - "Now": sets `status = 'evaluating'`, `evaluation_started_at = now`, and clears `evaluation_at`. Submissions in `uploading` that have at least one file become `submitted` with `auto_submitted = 1`. Uploading submissions with no files are left as they are. Then the API sends `repository_dispatch` with `event_type: "evaluate-now"`, so the robot starts in about 1 minute. If the GitHub token is missing, the robot starts at the next 10-minute check, and the UI says so.
 - "Now" for a selection: the request names the uploads to grade (`submissionIds`, 1-500). Only those become `submitted`; an upload with files that was not selected goes back to `uploading` with its files, so the robot ignores it until the teacher reopens the uploads and evaluates it. A selection is refused with a schedule, and it needs at least one selected upload with files.
+- A generated barem that is unchecked or still generating blocks every start, schedule, and scheduled promotion (`BAREM_ACTIVE`); see `docs/superpowers/specs/2026-11-03-generated-barem-design.md`.
 - "Schedule": the teacher picks a future time, at most 60 days ahead; the browser sends it as a UTC ISO time. It is saved in `evaluation_at`. The test stays `open` until then (§8.3).
 
 ### 8.5 During and after evaluation
