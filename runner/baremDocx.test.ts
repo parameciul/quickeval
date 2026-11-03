@@ -81,6 +81,13 @@ describe('baremMarkdown', () => {
     expect(md).toContain('(10 puncte)');
     expect(md).not.toContain('**RÂNDUL');
   });
+
+  it('says "punct" for one point', () => {
+    const one: GeneratedBarem = { ...sample, parts: [{ title: '', sections: [{ ...sample.parts[0]!.sections[1]!, title: 'S', points: 1 }] }] };
+    const md = baremMarkdown(one);
+    expect(md).toContain('(1 punct)');
+    expect(md).not.toContain('1 puncte');
+  });
 });
 
 describe('escapeCell', () => {

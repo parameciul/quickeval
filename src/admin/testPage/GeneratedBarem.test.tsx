@@ -44,6 +44,20 @@ describe('GeneratedBarem', () => {
     expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1');
   });
 
+  it('says that a scheduled evaluation is cancelled, with or without a barem', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const at = '2099-01-01T10:00:00.000Z';
+    const { unmount } = renderAdmin('/teste/6E2-26T1', apiWith({ evaluationAt: at }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Generează baremul' }));
+    expect(confirm).toHaveBeenLastCalledWith('Generezi baremul? Programarea evaluării se anulează.');
+    unmount();
+    const api = apiWith({ evaluationAt: at, files: { test: TEST_FILE, barem: { name: 'Barem.pdf', type: PDF_TYPE } } });
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Generează baremul' }));
+    expect(confirm).toHaveBeenLastCalledWith(`${REPLACE} Programarea evaluării se anulează.`);
+    expect(api.generateBarem).not.toHaveBeenCalled();
+  });
+
   it('is disabled without a test file, with the hint', async () => {
     renderAdmin('/teste/6E2-26T1', apiWith({ files: { test: null, barem: null } }));
     expect(await screen.findByRole('button', { name: 'Generează baremul' })).toBeDisabled();
@@ -73,6 +87,32 @@ describe('GeneratedBarem', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }));
     expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1');
     expect(await screen.findByText('Se generează baremul… Durează câteva minute.')).toBeInTheDocument();
+  });
+
+  it('asks before a retry replaces an existing barem, and Renunță sends nothing', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const api = apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'failed', unchecked: true } });
+    renderAdmin('/teste/6E2-26T1', api);
+    const button = await screen.findByRole('button', { name: 'Încearcă din nou' });
+    await userEvent.click(button);
+    expect(confirm).toHaveBeenLastCalledWith(REPLACE);
+    expect(api.generateBarem).not.toHaveBeenCalled();
+    await userEvent.click(button);
+    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1');
+  });
+
+  it('offers no confirm after a failed regeneration of an unchecked barem', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'failed', unchecked: true } }));
+    expect(await screen.findByText('Nu am putut genera baremul.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Am verificat baremul' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Barem generat automat/)).not.toBeInTheDocument();
+  });
+
+  it('offers no confirm while a new barem is generated over an unchecked one', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'requested', unchecked: true } }));
+    expect(await screen.findByText('Se generează baremul… Durează câteva minute.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Am verificat baremul' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Barem generat automat/)).not.toBeInTheDocument();
   });
 
   it('confirms an unchecked barem with the shown version', async () => {
@@ -112,5 +152,11 @@ describe('GeneratedBarem', () => {
     expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Programează' })).toBeDisabled();
     expect(screen.getByText(/Baremul se generează încă\./)).toBeInTheDocument();
+  });
+
+  it('does not ask to upload the barem during a first generation', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ barem: { request: 'requested', unchecked: false } }));
+    expect(await screen.findByText(/Baremul se generează încă\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Încarcă baremul\./)).not.toBeInTheDocument();
   });
 });

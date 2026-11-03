@@ -41,6 +41,7 @@ export function escapeCell(text: string): string {
 }
 
 function pointsText(points: number): string {
+  if (points === 1) return '1 punct';
   return points >= 20 ? `${points} de puncte` : `${points} puncte`;
 }
 

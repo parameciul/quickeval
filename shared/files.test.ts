@@ -109,7 +109,7 @@ describe('fileProblem', () => {
 
 describe('generatedBaremKey', () => {
   it('names the generated barem after the files version', () => {
-    expect(generatedBaremKey(1, 2026, '6E2-26T1', 4)).toBe('t/1/2026/6E2-26T1/barem/generat-v4.docx');
+    expect(generatedBaremKey(1, 2026, '6E2-26T1', 4)).toBe('t/1/2026/6E2-26T1/barem/generat_v4.docx');
   });
 });
 
