@@ -43,6 +43,14 @@ describe('NewTestPage', () => {
     expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'barem', barem);
   });
 
+  it('shows the picked file name next to the button', async () => {
+    const { container } = renderAdmin('/teste/nou', classes());
+    await userEvent.upload(await screen.findByLabelText('Testul (PDF sau Word, opțional)'), pdf('nou.pdf'));
+    const field = container.querySelector('#new-test-file')!.closest('.file-field')!;
+    expect(field.querySelector('.file-chosen')).toHaveTextContent('nou.pdf');
+    expect(container.querySelector('#new-barem-file')!.closest('.file-field')!.querySelector('.file-chosen')).toBeEmptyDOMElement();
+  });
+
   it('picks the class named in the link', async () => {
     renderAdmin('/teste/nou?clasa=2', classes());
     expect(await screen.findByLabelText('Clasa')).toHaveValue('2');

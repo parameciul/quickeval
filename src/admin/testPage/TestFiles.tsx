@@ -100,6 +100,11 @@ function TestFileRow({
         id={`file-${kind}`}
         label={file ? names.replace : names.upload}
         disabled={locked || upload.isPending}
+        confirm={
+          kind === 'barem' && file
+            ? (picked) => window.confirm(`Înlocuiești baremul existent cu ${picked.name}?`)
+            : undefined
+        }
         onPick={(picked) => {
           if (picked) upload.mutate(picked);
         }}

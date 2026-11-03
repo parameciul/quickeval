@@ -520,7 +520,48 @@ describe('TestPage evaluation', () => {
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled();
   });
 
+  it('asks before replacing the barem and keeps it on Renunță', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const api = evaluationApi({});
+    renderAdmin('/teste/6E2-26T1', api);
+    const input = await screen.findByLabelText('Înlocuiește baremul');
+    await userEvent.upload(input, new File(['%PDF-1.7'], 'nou.pdf', { type: PDF_TYPE }));
+    expect(window.confirm).toHaveBeenCalledWith('Înlocuiești baremul existent cu nou.pdf?');
+    expect(api.uploadTestFile).not.toHaveBeenCalled();
+    expect(input).toHaveValue('');
+    expect(screen.getByRole('link', { name: 'Barem.pdf' })).toBeInTheDocument();
+  });
+
+  it('replaces the barem when the teacher confirms', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const api = evaluationApi({});
+    renderAdmin('/teste/6E2-26T1', api);
+    const file = new File(['%PDF-1.7'], 'nou.pdf', { type: PDF_TYPE });
+    await userEvent.upload(await screen.findByLabelText('Înlocuiește baremul'), file);
+    expect(api.uploadTestFile).toHaveBeenCalledTimes(1);
+    expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'barem', file);
+  });
+
+  it('does not ask for the first barem', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const api = evaluationApi({ files: { test: FILES.test, barem: null } });
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.upload(await screen.findByLabelText('Încarcă baremul'), new File(['%PDF-1.7'], 'nou.pdf', { type: PDF_TYPE }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(api.uploadTestFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not ask before replacing the test file', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const api = evaluationApi({});
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.upload(await screen.findByLabelText('Înlocuiește testul'), new File(['%PDF-1.7'], 'nou.pdf', { type: PDF_TYPE }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(api.uploadTestFile).toHaveBeenCalledTimes(1);
+  });
+
   it('takes a new barem during evaluation and says when the robot starts', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const message = 'Punctajele din barem dau 9, dar totalul este 10.';
     const api = evaluationApi({ status: 'evaluating', exerciseList: { status: 'problem', message } });
     renderAdmin('/teste/6E2-26T1', api);
@@ -533,6 +574,7 @@ describe('TestPage evaluation', () => {
   });
 
   it('takes a new barem on an open test without a robot message', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const message = 'Punctajele din barem dau 9, dar totalul este 10.';
     const api = evaluationApi({ exerciseList: { status: 'problem', message } });
     renderAdmin('/teste/6E2-26T1', api);

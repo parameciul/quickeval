@@ -639,12 +639,39 @@ a.class-badge:hover {
   max-width: 34rem;
 }
 
-/* minmax(0, 1fr): a file input is wider than a phone, and a grid column would
-   grow to its width. */
+/* The file button, the actions after it and the picked name share a line; the
+   name drops to the next line on a phone. The input is hidden but stays
+   focusable, and its label shows the focus ring. */
 .file-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-pick {
+  cursor: pointer;
+}
+
+.file-field input:disabled + .file-pick {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.file-field input:focus-visible + .file-pick {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.file-chosen {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.file-field .alert {
+  flex: 0 0 100%;
+  margin: 0;
 }
 
 input[type="file"] {
