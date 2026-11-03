@@ -20,6 +20,11 @@ const row = () =>
       evaluation_at: string | null;
       files_version: number;
     }>();
+const otherRow = (otherCode: string) =>
+  api.db
+    .prepare('SELECT barem_request, barem_unchecked, evaluation_at FROM tests WHERE code = ?')
+    .bind(otherCode)
+    .first<{ barem_request: string; barem_unchecked: number; evaluation_at: string | null }>();
 const setTest = (sql: string, ...params: unknown[]) => api.db.prepare(`UPDATE tests SET ${sql} WHERE code = ?`).bind(...params, code).run();
 const putTestFile = (name: string, text: string, kind = 'test') =>
   api.fetch(`/api/admin/tests/${code}/files/${kind}`, {
@@ -79,9 +84,14 @@ describe('POST /barem/generate', () => {
     expect((await row())!.barem_request).toBe('none');
   });
 
-  it('refuses a test of another teacher', async () => {
+  it('refuses a test of another teacher and leaves it unchanged', async () => {
     const other = await otherTeacherTest(api);
+    await api.db
+      .prepare("UPDATE tests SET test_file_key = 'fixture/x.pdf', test_file_name = 'x.pdf', test_file_type = 'application/pdf', evaluation_at = '2099-01-01T10:00:00.000Z' WHERE code = ?")
+      .bind(other.code)
+      .run();
     expect((await generate(other.code)).status).toBe(404);
+    expect(await otherRow(other.code)).toEqual({ barem_request: 'none', barem_unchecked: 0, evaluation_at: '2099-01-01T10:00:00.000Z' });
   });
 });
 
@@ -116,9 +126,12 @@ describe('POST /barem/checked', () => {
     expect(res.status).toBe(400);
   });
 
-  it('refuses a test of another teacher', async () => {
+  it('refuses a test of another teacher and leaves it unchanged', async () => {
     const other = await otherTeacherTest(api);
-    expect((await checked(0, other.code)).status).toBe(404);
+    await api.db.prepare('UPDATE tests SET barem_unchecked = 1 WHERE code = ?').bind(other.code).run();
+    const version = (await api.db.prepare('SELECT files_version FROM tests WHERE code = ?').bind(other.code).first<{ files_version: number }>())!.files_version;
+    expect((await checked(version, other.code)).status).toBe(404);
+    expect(await otherRow(other.code)).toMatchObject({ barem_request: 'none', barem_unchecked: 1 });
   });
 });
 
@@ -141,15 +154,18 @@ describe('file uploads and the generated barem', () => {
   });
 
   it('a new test file leaves a checked barem alone', async () => {
+    await setTest("barem_request = 'failed', barem_request_attempts = 3, barem_unchecked = 0");
     const res = await putTestFile('test2.pdf', 'enunț nou');
     expect(res.status).toBe(200);
-    expect(await row()).toMatchObject({ barem_request: 'none', barem_unchecked: 0 });
+    expect(await row()).toMatchObject({ barem_request: 'failed', barem_request_attempts: 3, barem_unchecked: 0 });
+    expect(await res.json()).toMatchObject({ robot: null });
+    expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
   it('a new test file does not ask for a barem once the test is done', async () => {
     await startTest(api, code);
     await setTest("barem_unchecked = 1, status = 'done'");
     await putTestFile('test2.pdf', 'enunț nou');
-    expect((await row())!.barem_request).toBe('none');
+    expect(await row()).toMatchObject({ barem_request: 'none', barem_unchecked: 1 });
   });
 });
