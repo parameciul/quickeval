@@ -72,15 +72,15 @@ jobs:
           QE_EFFORT: ${{ vars.QE_EFFORT }}
         run: node runner/check.ts
 
-      # The robot needs only zod. Claude Code is pinned: a new version changes
-      # how the robot runs, so it comes with a commit (see docs/deploy.md).
+      # The robot needs only zod. Claude Code and pandoc are pinned: a new
+      # version changes how the robot runs, so it comes with a commit (see
+      # docs/deploy.md).
       - name: Install
         if: steps.check.outputs.has_work == 'true'
         run: |
           npm ci --omit=dev
           npm install --global @anthropic-ai/claude-code@2.1.294
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends pandoc
+          bash .github/scripts/install-pandoc.sh
 
       - name: Grade
         if: steps.check.outputs.has_work == 'true'

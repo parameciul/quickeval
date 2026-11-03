@@ -22,6 +22,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      # The robot's pandoc, so the tests that need it run here too.
+      - run: bash .github/scripts/install-pandoc.sh
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

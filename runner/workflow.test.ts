@@ -60,4 +60,31 @@ describe('evaluate.yml', () => {
   it('pins the Claude Code version', () => {
     expect(workflow).toMatch(/npm install --global @anthropic-ai\/claude-code@\d+\.\d+\.\d+\n/);
   });
+
+  // Ubuntu's pandoc (3.1.3) keeps its data files outside the program, so with
+  // --sandbox it cannot write any Word file: the generated barem needs the
+  // official build, which carries them inside.
+  it('installs the pinned official pandoc, not Ubuntu\'s', () => {
+    const install = workflow.slice(workflow.indexOf('- name: Install'), workflow.indexOf('- name: Grade'));
+    expect(install).toContain('bash .github/scripts/install-pandoc.sh');
+    expect(workflow).not.toMatch(/apt-get install[^\n]*pandoc/);
+  });
+});
+
+describe('install-pandoc.sh', () => {
+  const script = readFileSync(new URL('../.github/scripts/install-pandoc.sh', import.meta.url), 'utf8');
+
+  it('downloads one pandoc version and checks it before installing', () => {
+    expect(script).toMatch(/^version=\d+\.\d+(\.\d+)*$/m);
+    expect(script).toMatch(/^sha256=[0-9a-f]{64}$/m);
+    expect(script.indexOf('sha256sum --check')).toBeGreaterThan(-1);
+    expect(script.indexOf('sha256sum --check')).toBeLessThan(script.indexOf('dpkg --install'));
+    expect(script).toContain('set -euo pipefail');
+  });
+
+  it('is also what CI tests with, before the tests run', () => {
+    const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+    expect(ci.indexOf('bash .github/scripts/install-pandoc.sh')).toBeGreaterThan(-1);
+    expect(ci.indexOf('bash .github/scripts/install-pandoc.sh')).toBeLessThan(ci.indexOf('npm test'));
+  });
 });
