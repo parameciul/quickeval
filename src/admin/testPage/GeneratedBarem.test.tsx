@@ -1,8 +1,9 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TestInfo } from '../../../shared/api.ts';
 import { DOCX_TYPE, PDF_TYPE } from '../../../shared/files.ts';
+import { ApiError } from '../api.ts';
 import { createFakeApi, FAKE_TOKEN, fakeTest } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 
@@ -86,6 +87,17 @@ describe('GeneratedBarem', () => {
     expect(api.confirmBarem).toHaveBeenCalledWith('6E2-26T1', 7);
     expect(await screen.findByRole('button', { name: 'Generează baremul' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Am verificat baremul' })).not.toBeInTheDocument();
+  });
+
+  it('reloads and shows the error when the confirm is stale', async () => {
+    const api = apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'none', unchecked: true }, filesVersion: 7 });
+    renderAdmin('/teste/6E2-26T1', api);
+    await screen.findByRole('button', { name: 'Am verificat baremul' });
+    api.getTest.mockClear();
+    api.confirmBarem.mockRejectedValueOnce(new ApiError(409, 'stale', 'Baremul s-a schimbat. Reîncarcă pagina.'));
+    await userEvent.click(screen.getByRole('button', { name: 'Am verificat baremul' }));
+    expect(await screen.findByText('Baremul s-a schimbat. Reîncarcă pagina.')).toBeInTheDocument();
+    await waitFor(() => expect(api.getTest).toHaveBeenCalled());
   });
 
   it('disables the evaluation buttons while the barem is unchecked', async () => {
