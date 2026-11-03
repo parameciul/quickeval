@@ -56,7 +56,22 @@ describe('print jobs in /check and /tasks', () => {
     expect((await robot('GET', '/tasks')).body).toEqual({ exerciseLists: [], pendingGrading: 0, analyses: [], prints: [testId], barems: [] });
   });
 
-  it('lists no print job for a draft, an evaluating, a done, a ready, or a failed test', async () => {
+  it('lists a draft with its link and a test file as a print job: the test is printed before it starts', async () => {
+    await setTest("status = 'draft', started_at = NULL");
+    expect((await robot('POST', '/check')).body).toMatchObject({ hasWork: true, prints: 1 });
+    expect((await robot('GET', '/tasks')).body.prints).toEqual([testId]);
+    const job = await robot('GET', `/tests/${testId}/print-job`);
+    expect(job.status).toBe(200);
+    expect(job.body.job.uploadToken).toBe((await row())!.upload_token);
+
+    await lease();
+    const saved = await putPrint(pdfBody());
+    expect(saved.status).toBe(200);
+    expect(await row()).toMatchObject({ print_status: 'ready' });
+    expect((await api.request('GET', `/api/admin/tests/${code}`)).body.test).toMatchObject({ status: 'draft', print: { status: 'ready' } });
+  });
+
+  it('lists no print job for a draft without a link, an evaluating, a done, a ready, or a failed test', async () => {
     const states = [
       "status = 'draft', upload_token = NULL",
       "status = 'evaluating'",

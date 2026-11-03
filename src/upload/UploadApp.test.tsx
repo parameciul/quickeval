@@ -100,6 +100,23 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
+  it('says the test has not started for a printed QR code scanned before the start, and checks again on demand', async () => {
+    const draft = { ...linkInfo({ status: 'draft' }), students: [] };
+    const api = createFakeUploadApi(draft);
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Testul nu a început încă.');
+    expect(screen.getByText('Poți încărca lucrarea după ce îl începe profesorul.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
+    expectNoGradingWords();
+
+    // The teacher starts the test: the next check shows the names.
+    api.getLink.mockResolvedValueOnce(linkInfo());
+    await userEvent.click(screen.getByRole('button', { name: 'Verifică din nou' }));
+    expect(await screen.findByRole('button', { name: 'Pop Ion' })).toBeInTheDocument();
+    expect(screen.queryByText('Testul nu a început încă.')).not.toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
   it('shows a wrong-link message for an address without a valid token, without asking the server', async () => {
     const api = createFakeUploadApi();
     render(<UploadApp api={api} token={null} />);

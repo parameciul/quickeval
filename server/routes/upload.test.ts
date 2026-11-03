@@ -81,6 +81,15 @@ describe('GET /api/u/:token', () => {
     expect(res.body).toEqual({ test: { code, title: 'Fracții', className: '6E2', status: 'done' }, students: [], multi: false });
   });
 
+  it('shows the test with no names before it starts: the printed QR code holds the link already', async () => {
+    const cls = (await api.db.prepare('SELECT class_id FROM tests WHERE code = ?').bind(code).first<{ class_id: number }>())!.class_id;
+    const draft = await makeTest(api, cls, 'Ecuații');
+    const draftToken = (await api.request('GET', `/api/admin/tests/${draft}`)).body.test.uploadToken as string;
+    const res = await api.request('GET', `/api/u/${draftToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ test: { code: draft, title: 'Ecuații', className: '6E2', status: 'draft' }, students: [], multi: false });
+  });
+
   it('marks every answer as not cacheable', async () => {
     const res = await api.request('GET', `/api/u/${token}`);
     expect(res.headers.get('Cache-Control')).toBe('no-store');
@@ -145,6 +154,26 @@ describe('POST /api/u/:token/sessions', () => {
     const res = await startSession(pop);
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('Încărcarea s-a închis.');
+  });
+
+  it('refuses new uploads before the test starts, and says so', async () => {
+    expect((await api.request('POST', `/api/admin/tests/${code}/stop`)).status).toBe(200);
+    const res = await startSession(pop);
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'not_started', message: 'Testul nu a început încă. Poți încărca lucrarea după ce îl începe profesorul.' });
+  });
+
+  it('lets a student go on with the upload begun before a stop once the test starts again', async () => {
+    const secret = await newSession(pop);
+    expect((await api.request('POST', `/api/admin/tests/${code}/stop`)).status).toBe(200);
+    const stopped = await putFile(secret, jpeg(), 'image/jpeg');
+    expect(stopped.status).toBe(409);
+    expect((await stopped.json()).error).toBe('not_started');
+    expect(await api.db.prepare('SELECT COUNT(*) AS n FROM submission_files').first()).toEqual({ n: 0 });
+
+    expect((await api.request('POST', `/api/admin/tests/${code}/start`)).body.uploadToken).toBe(token);
+    expect((await startSession(pop, secret)).status).toBe(200);
+    expect((await putFile(secret, jpeg(), 'image/jpeg')).status).toBe(201);
   });
 });
 

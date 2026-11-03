@@ -3,10 +3,12 @@ import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
-// The print PDF of an open test waits for the robot: the test has its file,
-// and the PDF is neither made nor failed.
+// The print PDF of a draft or open test waits for the robot: the test has its
+// link and its file, and the PDF is neither made nor failed.
 export function waitsForPrint(test: TestInfo): boolean {
-  return test.status === 'open' && test.files.test !== null && test.print.status === 'none';
+  return (
+    (test.status === 'draft' || test.status === 'open') && test.uploadToken !== null && test.files.test !== null && test.print.status === 'none'
+  );
 }
 
 // The barem the teacher asked for waits for the robot: the test is a draft or
@@ -15,9 +17,8 @@ export function waitsForBarem(test: TestInfo): boolean {
   return (test.status === 'draft' || test.status === 'open') && test.files.test !== null && test.barem.request === 'requested';
 }
 
-// Work waits for the robot: the print PDF of an open test or a requested barem
-// waits, or the test
-// is in evaluation, its exercise list does not wait for the teacher, and an
+// Work waits for the robot: the print PDF or a requested barem waits, or the
+// test is in evaluation, its exercise list does not wait for the teacher, and an
 // upload waits or was left in grading, or every upload is graded and the
 // class analysis waits.
 export function waitsForRobot(test: TestInfo, uploads: UploadRow[]): boolean {

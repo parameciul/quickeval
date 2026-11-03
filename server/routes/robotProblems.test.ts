@@ -264,8 +264,17 @@ describe('POST /api/admin/tests/:code/robot', () => {
     expect(dispatchRobot).toHaveBeenCalledTimes(1);
   });
 
-  it('refuses a draft test without a waiting barem request', async () => {
-    await setTest("test_file_key = 'k/test.pdf', barem_request = 'failed'");
+  it('starts the robot for a draft test whose print PDF waits', async () => {
+    await setTest("test_file_key = 'k/test.pdf', print_status = 'none'");
+    dispatchRobot.mockResolvedValueOnce(true);
+    const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ robot: 'dispatched' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a draft test without a waiting barem request or print PDF', async () => {
+    await setTest("test_file_key = 'k/test.pdf', barem_request = 'failed', print_status = 'ready'");
     const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('not_evaluating');

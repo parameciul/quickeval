@@ -45,7 +45,8 @@ Details and the remaining rules are in the nested `AGENTS.md` files.
 - The PDFs and the CSV are made in the browser (`src/admin/pdf/`, `shared/csv.ts`). The student's PDF is made from `StudentPdfInput`, which has no confidence and no review reason; the CSV guards every text cell against formulas.
 - A generated barem ("Generează baremul", a robot job) is unchecked until the teacher confirms it; `BAREM_ACTIVE` (`server/db/lifecycle.ts`) keeps an unchecked or generating barem out of every evaluation start. A barem the teacher uploads is always active.
 - Every path that makes work for the robot starts it (`startRobot`): the GitHub schedule does not fire. This includes "Regenerează" (the class analysis).
-- A print job is an open test with a test file and no print PDF; every path that makes one starts the robot.
+- A test gets its upload link (`upload_token`) when it is made, so the teacher prints the test with the QR code from the draft, before the day of the test. Start test (draft → open) opens the uploads and dates the test (`started_at`); Stop test (open → draft, `stopTest` in `server/db/tests.ts`) undoes a start by mistake, only while no student has uploaded a file (checked in its SQL), and keeps the link.
+- A print job is a draft or open test with its upload link, a test file and no print PDF (`NEEDS_PRINT`); every path that makes one starts the robot.
 - Times are stored as ISO 8601 UTC strings (`nowIso()` or `new Date(x).toISOString()`: SQL compares them as text) and shown in Europe/Bucharest time. School year Y runs from September of Y to August of Y+1.
 - Relative imports name the `.ts` or `.tsx` file. TypeScript runs with `erasableSyntaxOnly`: no enums, no namespaces, no constructor parameter properties.
 - A new migration runs on the live database before the code that needs it reaches `main` (`docs/deploy.md`).

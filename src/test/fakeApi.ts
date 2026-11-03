@@ -18,6 +18,7 @@ import type {
   RobotStart,
   Settings,
   StartedTest,
+  StoppedTest,
   StudentHistory,
   StudentRow,
   SubmissionDetail,
@@ -89,8 +90,9 @@ export const FAKE_STARTED_AT = '2026-10-06T07:15:00.000Z';
 const notFound = () => new ApiError(404, 'not_found', 'Nu am găsit ce cauți.');
 const uploadChanged = () => new ApiError(409, 'upload_changed', 'Încărcarea s-a schimbat. Reîncarcă pagina.');
 
-// An open test with a test file whose print PDF is not made yet.
-const printWaits = (test: TestInfo) => test.status === 'open' && test.files.test !== null && test.print.status === 'none';
+// A draft or open test with its link and a test file whose print PDF is not made yet.
+const printWaits = (test: TestInfo) =>
+  (test.status === 'draft' || test.status === 'open') && test.uploadToken !== null && test.files.test !== null && test.print.status === 'none';
 
 function summaryOf(test: TestInfo): TestSummary {
   const { uploadToken: _token, multiUploadToken: _multi, files: _files, ...summary } = test;
@@ -118,7 +120,8 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       resultsOpen: false,
       publishedCount: 0,
       archived: false,
-      uploadToken: null,
+      // Like the server: a test gets its link when it is made.
+      uploadToken: FAKE_TOKEN,
       multiUploadToken: null,
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
@@ -440,15 +443,31 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.barem = { ...found.barem, unchecked: false };
       return { barem: found.barem };
     }),
+    // Like the server: the test keeps its link; a draft made before tests got
+    // their link at once gets one now, and its print PDF is work for the robot.
     startTest: vi.fn(async (code: string): Promise<StartedTest> => {
       const found = findTest(code).test;
-      Object.assign(found, { status: 'open', uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT });
-      // Like the server: a test file makes the print PDF, which is work for the robot.
-      return { status: found.status, uploadToken: FAKE_TOKEN, startedAt: FAKE_STARTED_AT, robot: found.files.test ? 'dispatched' : null };
+      if (found.status !== 'draft') throw new ApiError(409, 'already_started', 'Testul a început deja.');
+      const robot = found.uploadToken === null && found.files.test !== null && found.print.status === 'none' ? 'dispatched' : null;
+      Object.assign(found, { status: 'open', archived: false, uploadToken: found.uploadToken ?? FAKE_TOKEN, startedAt: FAKE_STARTED_AT });
+      return { status: found.status, uploadToken: found.uploadToken ?? FAKE_TOKEN, startedAt: FAKE_STARTED_AT, robot };
+    }),
+    // Like the server: only an open test with no student file stops; its date
+    // and schedule go, its link stays.
+    stopTest: vi.fn(async (code: string): Promise<StoppedTest> => {
+      const detail = findTest(code);
+      const found = detail.test;
+      if (found.status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
+      if (found.status !== 'open') throw new ApiError(409, 'closed', 'Încărcarea s-a închis. Testul nu mai poate fi oprit.');
+      if (detail.uploads.some((row) => row.fileCount > 0)) {
+        throw new ApiError(409, 'has_uploads', 'Un elev a încărcat deja lucrarea, așa că testul nu mai poate fi oprit.');
+      }
+      Object.assign(found, { status: 'draft', startedAt: null, evaluationAt: null });
+      return { status: 'draft' };
     }),
     createMultiUploadLink: vi.fn(async (code: string) => {
       const found = findTest(code).test;
-      if (!found.uploadToken) throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
+      if (found.status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
       if (!found.multiUploadToken) found.multiUploadToken = FAKE_MULTI_TOKEN;
       return found.multiUploadToken;
     }),
@@ -498,10 +517,16 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       // Like the server: a print PDF that waits is work for the robot.
       return { status: 'open', robot: printWaits(found) ? 'dispatched' : null };
     }),
-    // Like the server: only a failed print PDF is made again, by the robot.
+    // Like the server: a failed print PDF is made again, by the robot, and a
+    // draft without a link gets one and its print PDF.
     retryPrint: vi.fn(async (code: string): Promise<PrintRetryAnswer> => {
       const found = findTest(code).test;
-      if (found.print.status !== 'failed') throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu poate fi încercat din nou.');
+      const beforeEvaluation = found.status === 'draft' || found.status === 'open';
+      const lacksLink = found.uploadToken === null && found.files.test !== null;
+      if (!beforeEvaluation || (found.print.status !== 'failed' && !lacksLink)) {
+        throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu poate fi încercat din nou.');
+      }
+      found.uploadToken ??= FAKE_TOKEN;
       found.print = { status: 'none', fromWord: found.print.fromWord };
       return { print: found.print, robot: 'dispatched' };
     }),
@@ -567,9 +592,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     }),
     // Like the server: an open test only while its print PDF waits.
     startRobot: vi.fn(async (code: string): Promise<RobotStart> => {
+      // Like the server: a draft or open test has work only while its print PDF or barem waits.
       const found = findTest(code).test;
-      if (found.status !== 'evaluating' && found.status !== 'open') throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
-      if (found.status === 'open' && !printWaits(found)) throw new ApiError(409, 'no_work', 'Nicio lucrare a acestui test nu așteaptă robotul.');
+      const waits = printWaits(found) || ((found.status === 'draft' || found.status === 'open') && found.files.test !== null && found.barem.request === 'requested');
+      if (found.status !== 'evaluating' && found.status !== 'open' && !waits) throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
+      if (found.status === 'open' && !waits) throw new ApiError(409, 'no_work', 'Nicio lucrare a acestui test nu așteaptă robotul.');
       return 'next_check';
     }),
     // Like the server: only a test in evaluation or done with a graded upload;

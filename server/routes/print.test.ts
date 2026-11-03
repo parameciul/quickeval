@@ -37,7 +37,17 @@ afterEach(async () => {
 });
 
 describe('starting the robot for the print PDF', () => {
-  it('starts the robot when a started test has a test file', async () => {
+  it('starts the robot when a draft gets its test file, so the test is printed before it starts', async () => {
+    const res = await putTestFile('test.pdf', 'enunț');
+    expect(res.status).toBe(200);
+    expect((await res.json()) as { robot: string }).toMatchObject({ robot: 'dispatched' });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+    expect(await printRow()).toMatchObject({ print_status: 'none' });
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test).toMatchObject({ status: 'draft', print: { status: 'none', fromWord: false } });
+  });
+
+  it('starts the robot at Start when the print PDF still waits', async () => {
     await addTestFiles(api, code, ['test']);
     const res = await api.request('POST', `/api/admin/tests/${code}/start`);
     expect(res.status).toBe(200);
@@ -48,6 +58,22 @@ describe('starting the robot for the print PDF', () => {
   it('does not start the robot when the started test has no test file', async () => {
     const res = await api.request('POST', `/api/admin/tests/${code}/start`);
     expect(res.body.robot).toBeNull();
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  it('does not start the robot at Start when the print PDF is ready', async () => {
+    await addTestFiles(api, code, ['test']);
+    await setTest("print_status = 'ready', print_file_key = 'k.pdf'");
+    const res = await api.request('POST', `/api/admin/tests/${code}/start`);
+    expect(res.body.robot).toBeNull();
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  it('does not start the robot when a test stops', async () => {
+    await addTestFiles(api, code, ['test']);
+    await startTest(api, code);
+    dispatchRobot.mockClear();
+    expect((await api.request('POST', `/api/admin/tests/${code}/stop`)).status).toBe(200);
     expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
@@ -166,6 +192,31 @@ describe('POST /api/admin/tests/:code/print/retry', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ print: { status: 'none', fromWord: false }, robot: 'dispatched' });
     expect(await printRow()).toMatchObject({ print_status: 'none', print_attempts: 0 });
+  });
+
+  it('retries a failed print of a draft', async () => {
+    await addTestFiles(api, code, ['test']);
+    await setTest("print_status = 'failed', print_attempts = 3");
+    const res = await api.request('POST', `/api/admin/tests/${code}/print/retry`);
+    expect(res.status).toBe(200);
+    expect(await printRow()).toMatchObject({ print_status: 'none', print_attempts: 0 });
+  });
+
+  it('gives a draft made before tests got their link at once its link, and starts the robot for its print', async () => {
+    await addTestFiles(api, code, ['test']);
+    await setTest('upload_token = NULL');
+    const res = await api.request('POST', `/api/admin/tests/${code}/print/retry`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ print: { status: 'none', fromWord: false }, robot: 'dispatched' });
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test).toMatchObject({ status: 'draft', uploadToken: expect.stringMatching(/^[a-z2-7]{16}$/) });
+  });
+
+  it('refuses a draft without a link that has no test file to print', async () => {
+    await setTest('upload_token = NULL');
+    const res = await api.request('POST', `/api/admin/tests/${code}/print/retry`);
+    expect(res.status).toBe(409);
+    expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
   it('refuses a print that did not fail', async () => {

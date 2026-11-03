@@ -70,20 +70,52 @@ describe('TestPage', () => {
     expect(screen.getByTitle('Codul QR al linkului')).toBeInTheDocument();
   });
 
-  it('shows the print block only while the test is open', async () => {
+  it('shows the print block on a draft and an open test, and not once the uploads closed', async () => {
     const { unmount } = renderAdmin('/teste/6E2-26T1', apiWith());
     await screen.findByRole('heading', { name: '6E2-26T1' });
-    expect(screen.queryByText('Testul pentru tipărit:')).not.toBeInTheDocument();
+    expect(screen.getByText('Testul pentru tipărit:')).toBeInTheDocument();
     unmount();
+    const open = renderAdmin('/teste/6E2-26T1', apiWith({ status: 'open' }));
+    await screen.findByRole('heading', { name: '6E2-26T1' });
+    expect(screen.getByText('Testul pentru tipărit:')).toBeInTheDocument();
+    open.unmount();
     renderAdmin('/teste/6E2-26T1', apiWith({ status: 'evaluating' }));
     await screen.findByRole('heading', { name: '6E2-26T1' });
     expect(screen.queryByText('Testul pentru tipărit:')).not.toBeInTheDocument();
   });
 
-  it('says the robot started after Start test', async () => {
-    renderAdmin('/teste/6E2-26T1', apiWith({ files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null } }));
+  it('lets the teacher download the test with the QR code before she starts it', async () => {
+    renderAdmin(
+      '/teste/6E2-26T1',
+      apiWith({ files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null }, print: { status: 'ready', fromWord: false } }),
+    );
+    expect(await screen.findByRole('link', { name: 'Descarcă testul cu cod QR' })).toBeInTheDocument();
+    expect(screen.getByText('Poți tipări testul de acum. Elevii încarcă lucrările după ce începi testul.')).toBeInTheDocument();
+    expect(screen.getByText(/Începe-l în ziua testului/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Începe testul' })).toBeInTheDocument();
+  });
+
+  it('starts no robot at Start when the print PDF is made already', async () => {
+    const api = apiWith({ files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null }, print: { status: 'ready', fromWord: false } });
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Începe testul' }));
+    expect(await screen.findByText('Deschis')).toBeInTheDocument();
+    expect(screen.queryByText(robotStartMessage('dispatched'))).not.toBeInTheDocument();
+  });
+
+  it('says the robot started after Start test of a draft made before tests got their link', async () => {
+    renderAdmin('/teste/6E2-26T1', apiWith({ uploadToken: null, files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null } }));
     await userEvent.click(await screen.findByRole('button', { name: 'Începe testul' }));
     expect(await screen.findByText(robotStartMessage('dispatched'))).toBeInTheDocument();
+  });
+
+  it('prepares the test with the QR code of a draft made before tests got their link', async () => {
+    const api = apiWith({ uploadToken: null, files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null } });
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pregătește testul cu cod QR' }));
+    expect(api.retryPrint).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByText('Se pregătește testul cu cod QR…')).toBeInTheDocument();
+    expect(screen.getByText(robotStartMessage('dispatched'))).toBeInTheDocument();
   });
 
   it('copies the link', async () => {
@@ -345,6 +377,59 @@ describe('TestPage', () => {
   });
 });
 
+describe('TestPage and a test started by mistake', () => {
+  const noFiles = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'uploading', fileCount: 0 }), fakeUpload({ studentId: 12, studentName: 'Marin Dan' })];
+
+  function openApi(rows: UploadRow[]) {
+    return createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 2 }],
+      students: {},
+      tests: [fakeTest({ status: 'open', startedAt: '2026-10-05T17:30:00.000Z' }, structuredClone(rows))],
+    });
+  }
+
+  it('stops an open test while no student has uploaded a file, after a confirmation', async () => {
+    const api = openApi(noFiles);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByText(/început 5 oct\. 2026, 20:30/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Oprește testul' }));
+    expect(confirm).toHaveBeenCalledWith(
+      'Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge.',
+    );
+    expect(api.stopTest).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByRole('button', { name: 'Începe testul' })).toBeInTheDocument();
+    expect(screen.getByText('Ciornă')).toBeInTheDocument();
+    expect(screen.queryByText(/început 5 oct/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Oprește testul' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the test open when the teacher says no', async () => {
+    const api = openApi(noFiles);
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Oprește testul' }));
+    expect(api.stopTest).not.toHaveBeenCalled();
+  });
+
+  it('offers no stop once a student has uploaded a file', async () => {
+    renderAdmin('/teste/6E2-26T1', openApi(uploads));
+    await screen.findByRole('heading', { name: '6E2-26T1' });
+    expect(screen.queryByRole('button', { name: 'Oprește testul' })).not.toBeInTheDocument();
+  });
+
+  it('says why the API refused the stop', async () => {
+    const api = openApi(noFiles);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    api.stopTest.mockRejectedValueOnce(
+      new ApiError(409, 'has_uploads', 'Un elev a încărcat deja lucrarea, așa că testul nu mai poate fi oprit.'),
+    );
+    renderAdmin('/teste/6E2-26T1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Oprește testul' }));
+    expect(await screen.findByText('Un elev a încărcat deja lucrarea, așa că testul nu mai poate fi oprit.')).toBeInTheDocument();
+  });
+});
+
 describe('refreshInterval', () => {
   it('asks for news every 10 seconds only while uploads or grading go on', () => {
     expect(refreshInterval('open')).toBe(10_000);
@@ -354,6 +439,8 @@ describe('refreshInterval', () => {
     expect(refreshInterval(undefined)).toBe(false);
     expect(refreshInterval('draft', 'requested')).toBe(10_000);
     expect(refreshInterval('draft', 'failed')).toBe(false);
+    // A draft whose print PDF the robot is making.
+    expect(refreshInterval('draft', 'none', true)).toBe(10_000);
   });
 });
 
