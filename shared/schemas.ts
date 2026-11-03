@@ -206,6 +206,109 @@ export function checkClassAnalysis(raw: unknown): Checked<ClassAnalysis> {
   };
 }
 
+// Mode "barem": the barem that Claude writes from a test (a full marking
+// scheme, not the robot's exercise list). Texts are Romanian; math is inline
+// LaTeX between single `$`.
+const TEXT = 'Romanian text. Math is inline LaTeX between single $ signs, for example $x^2+1$.';
+
+export const generatedBaremSchema = z.object({
+  title: z.string().describe('The barem title, for example "Test de evaluare – Permutări".'),
+  subtitle: z
+    .string()
+    .describe('Subject, class, programme and working time, for example "Matematică – clasa a XI-a R1 (programa M1, 4 ore/săptămână) – Timp de lucru: 50 de minute".'),
+  notes: z.array(z.string()).describe('The "Precizări privind evaluarea": one short sentence per entry. Romanian text.'),
+  total: z.number().int().min(0).describe('All points of the test, "din oficiu" included, for example 100.'),
+  officePoints: z.number().int().min(0).describe('The "din oficiu" points, for example 10. 0 when the test gives none.'),
+  parts: z
+    .array(
+      z.object({
+        title: z.string().describe('The variant, for example "RÂNDUL I". An empty string when the test has one variant.'),
+        sections: z.array(
+          z.object({
+            title: z.string().describe('The section, for example "SUBIECTUL I".'),
+            points: z.number().int().min(0).describe('The points of the section: the sum of the points of all its steps.'),
+            items: z.array(
+              z.object({
+                label: z.string().describe('The exercise label, for example "1.", "a)" or "1. a)".'),
+                steps: z.array(
+                  z.object({
+                    text: z.string().describe(`One step of the solution and what earns the points. ${TEXT}`),
+                    points: z.number().int().min(1).describe('The points of this step. At least 1.'),
+                  }),
+                ),
+              }),
+            ),
+          }),
+        ),
+      }),
+    )
+    .describe('One entry per variant. In each part, the sections plus officePoints add up to total.'),
+});
+
+export type GeneratedBarem = z.infer<typeof generatedBaremSchema>;
+
+const MAX_BAREM_PARTS = 4;
+const MAX_BAREM_SECTIONS = 6;
+const MAX_BAREM_ITEMS = 30;
+const MAX_BAREM_STEPS = 12;
+const MAX_BAREM_NOTES = 10;
+const BAREM_TITLE = 200;
+const BAREM_NOTE = 400;
+const BAREM_STEP = 1500;
+
+// Checks the generated barem: the shape, the counts, and the sums. The steps
+// of a section add up to its points, and in every part the sections plus
+// "din oficiu" add up to the total. Long texts are cut, as in the other checks.
+export function checkGeneratedBarem(raw: unknown): Checked<GeneratedBarem> {
+  const parsed = generatedBaremSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, reason: 'not a barem' };
+  const input = parsed.data;
+  if (input.parts.length === 0 || input.parts.length > MAX_BAREM_PARTS) return { ok: false, reason: `needs 1 to ${MAX_BAREM_PARTS} parts` };
+  if (input.notes.length > MAX_BAREM_NOTES) return { ok: false, reason: `at most ${MAX_BAREM_NOTES} notes` };
+  for (const part of input.parts) {
+    if (part.sections.length === 0 || part.sections.length > MAX_BAREM_SECTIONS) {
+      return { ok: false, reason: `needs 1 to ${MAX_BAREM_SECTIONS} sections in a part` };
+    }
+    let sectionsTotal = 0;
+    for (const section of part.sections) {
+      if (section.items.length === 0 || section.items.length > MAX_BAREM_ITEMS) {
+        return { ok: false, reason: `needs 1 to ${MAX_BAREM_ITEMS} items in a section` };
+      }
+      let sectionSum = 0;
+      for (const item of section.items) {
+        if (item.steps.length === 0 || item.steps.length > MAX_BAREM_STEPS) {
+          return { ok: false, reason: `needs 1 to ${MAX_BAREM_STEPS} steps in an item` };
+        }
+        for (const step of item.steps) sectionSum += step.points;
+      }
+      if (sectionSum !== section.points) return { ok: false, reason: 'steps do not add up to the section points' };
+      sectionsTotal += section.points;
+    }
+    if (sectionsTotal + input.officePoints !== input.total) return { ok: false, reason: 'sections and office points do not add up to the total' };
+  }
+  return {
+    ok: true,
+    value: {
+      title: cutText(input.title, BAREM_TITLE),
+      subtitle: cutText(input.subtitle, BAREM_TITLE),
+      notes: cutList(input.notes, MAX_BAREM_NOTES, BAREM_NOTE),
+      total: input.total,
+      officePoints: input.officePoints,
+      parts: input.parts.map((part) => ({
+        title: cutText(part.title, BAREM_TITLE),
+        sections: part.sections.map((section) => ({
+          title: cutText(section.title, BAREM_TITLE),
+          points: section.points,
+          items: section.items.map((item) => ({
+            label: cutText(item.label, BAREM_TITLE),
+            steps: item.steps.map((step) => ({ text: cutText(step.text, BAREM_STEP), points: step.points })),
+          })),
+        })),
+      })),
+    },
+  };
+}
+
 export interface GradedItem {
   exerciseId: string;
   // 1-based, in the order of the exercise list.

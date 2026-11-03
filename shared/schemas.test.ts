@@ -3,12 +3,14 @@ import {
   CHECK_THIS,
   checkClassAnalysis,
   checkExerciseList,
+  checkGeneratedBarem,
   checkGrading,
   classAnalysisSchema,
   claudeJsonSchema,
   cutText,
   type ExerciseList,
   exerciseListSchema,
+  generatedBaremSchema,
   gradingResultSchema,
   LOW_CONFIDENCE,
   OUT_OF_RANGE,
@@ -284,5 +286,111 @@ describe('checkClassAnalysis', () => {
   it('has a JSON Schema that asks for every field', () => {
     const json = claudeJsonSchema(classAnalysisSchema) as { required: string[] };
     expect(json.required).toEqual(['overview', 'strengths', 'weaknesses', 'commonMistakes', 'recommendations']);
+  });
+});
+
+describe('checkGeneratedBarem', () => {
+  function section(title: string, points: number, steps: number[] = [points]) {
+    return {
+      title,
+      points,
+      items: [{ label: '1.', steps: steps.map((step, index) => ({ text: `Pasul ${index + 1}`, points: step })) }],
+    };
+  }
+
+  const sample = {
+    title: 'Test de evaluare – Permutări',
+    subtitle: 'Matematică – clasa a XI-a R1 – Timp de lucru: 50 de minute',
+    notes: ['Orice soluție corectă se punctează.'],
+    total: 100,
+    officePoints: 10,
+    parts: [{ title: '', sections: [section('SUBIECTUL I', 30, [10, 20]), section('SUBIECTUL II', 30), section('SUBIECTUL III', 30)] }],
+  };
+
+  it('accepts a barem whose points add up', () => {
+    const checked = checkGeneratedBarem(sample);
+    expect(checked.ok).toBe(true);
+    expect(checked.ok && checked.value).toEqual(sample);
+  });
+
+  it('refuses steps that do not add up to the section', () => {
+    const bad = { ...sample, parts: [{ title: '', sections: [section('SUBIECTUL I', 30, [10, 10]), section('II', 30), section('III', 30)] }] };
+    expect(checkGeneratedBarem(bad).ok).toBe(false);
+  });
+
+  it('refuses sections plus din oficiu that miss the total', () => {
+    expect(checkGeneratedBarem({ ...sample, total: 90 }).ok).toBe(false);
+    expect(checkGeneratedBarem({ ...sample, officePoints: 5 }).ok).toBe(false);
+  });
+
+  it('checks every part on its own', () => {
+    const second = { title: 'RÂNDUL II', sections: [section('I', 30), section('II', 30), section('III', 25)] };
+    const checked = checkGeneratedBarem({ ...sample, parts: [{ ...sample.parts[0]!, title: 'RÂNDUL I' }, second] });
+    expect(checked.ok).toBe(false);
+    const fixed = { ...second, sections: [section('I', 30), section('II', 30), section('III', 30)] };
+    expect(checkGeneratedBarem({ ...sample, parts: [{ ...sample.parts[0]!, title: 'RÂNDUL I' }, fixed] }).ok).toBe(true);
+  });
+
+  it.each([
+    ['no parts', { ...sample, parts: [] }],
+    ['an empty part', { ...sample, parts: [{ title: '', sections: [] }] }],
+    ['an empty section', { ...sample, total: 10, parts: [{ title: '', sections: [{ title: 'I', points: 0, items: [] }] }] }],
+    ['an empty item', { ...sample, total: 10, parts: [{ title: '', sections: [{ title: 'I', points: 0, items: [{ label: '1.', steps: [] }] }] }] }],
+  ])('refuses %s', (_name, raw) => {
+    expect(checkGeneratedBarem(raw).ok).toBe(false);
+  });
+
+  it('refuses a step of 0 points', () => {
+    const bad = { ...sample, parts: [{ title: '', sections: [section('I', 30, [0, 30]), section('II', 30), section('III', 30)] }] };
+    expect(checkGeneratedBarem(bad).ok).toBe(false);
+  });
+
+  it('refuses fractions and negative numbers', () => {
+    expect(checkGeneratedBarem({ ...sample, officePoints: 10.5, total: 100.5 }).ok).toBe(false);
+    expect(checkGeneratedBarem({ ...sample, officePoints: -10, total: 80 }).ok).toBe(false);
+  });
+
+  it('accepts officePoints 0 with total = sections', () => {
+    expect(checkGeneratedBarem({ ...sample, officePoints: 0, total: 90 }).ok).toBe(true);
+  });
+
+  it('refuses too many parts, sections, items, or steps', () => {
+    const part = sample.parts[0]!;
+    expect(checkGeneratedBarem({ ...sample, parts: Array.from({ length: 5 }, () => part) }).ok).toBe(false);
+    const manySections = Array.from({ length: 7 }, () => section('I', 10));
+    expect(checkGeneratedBarem({ ...sample, total: 70, officePoints: 0, parts: [{ title: '', sections: manySections }] }).ok).toBe(false);
+    const manyItems = { title: 'I', points: 31, items: Array.from({ length: 31 }, () => ({ label: '1.', steps: [{ text: 'x', points: 1 }] })) };
+    expect(checkGeneratedBarem({ ...sample, total: 31, officePoints: 0, parts: [{ title: '', sections: [manyItems] }] }).ok).toBe(false);
+    const manySteps = section('I', 13, Array.from({ length: 13 }, () => 1));
+    expect(checkGeneratedBarem({ ...sample, total: 13, officePoints: 0, parts: [{ title: '', sections: [manySteps] }] }).ok).toBe(false);
+  });
+
+  it('refuses more than 10 notes and a wrong shape', () => {
+    expect(checkGeneratedBarem({ ...sample, notes: Array.from({ length: 11 }, () => 'x') }).ok).toBe(false);
+    expect(checkGeneratedBarem({ title: 'x' }).ok).toBe(false);
+    expect(checkGeneratedBarem(null).ok).toBe(false);
+  });
+
+  it('trims the texts, drops empty notes, and cuts long texts', () => {
+    const checked = checkGeneratedBarem({
+      ...sample,
+      title: `  ${'t'.repeat(300)} `,
+      notes: ['  ', ' o notă ', 'n'.repeat(500)],
+      parts: [{ title: '', sections: [{ ...section('I', 30), items: [{ label: '1.', steps: [{ text: 's'.repeat(2000), points: 30 }] }] }, section('II', 30), section('III', 30)] }],
+    });
+    expect(checked.ok).toBe(true);
+    if (!checked.ok) return;
+    expect(Array.from(checked.value.title)).toHaveLength(200);
+    expect(checked.value.notes).toHaveLength(2);
+    expect(checked.value.notes[0]).toBe('o notă');
+    expect(Array.from(checked.value.notes[1]!)).toHaveLength(400);
+    expect(Array.from(checked.value.parts[0]!.sections[0]!.items[0]!.steps[0]!.text)).toHaveLength(1500);
+  });
+
+  it('has a JSON Schema that asks for every field', () => {
+    const json = claudeJsonSchema(generatedBaremSchema) as { $schema: string; required: string[]; properties: Record<string, unknown> };
+    expect(json.$schema).toBe('http://json-schema.org/draft-07/schema#');
+    expect(json.required).toEqual(['title', 'subtitle', 'notes', 'total', 'officePoints', 'parts']);
+    expect(Object.keys(json.properties)).toEqual(['title', 'subtitle', 'notes', 'total', 'officePoints', 'parts']);
   });
 });
