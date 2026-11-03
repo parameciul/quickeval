@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE, PDF_TYPE } from '../../shared/files.ts';
-import { addSubmission, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
+import { addSubmission, addTestFiles, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -174,6 +174,16 @@ describe('PUT /api/admin/tests/:code/barem-notes', () => {
     expect(await notesOf()).toMatchObject({ barem_notes: 'Acceptă și metoda cu proporții.', exercise_list_status: 'none' });
     const detail = await api.request('GET', `/api/admin/tests/${code}`);
     expect(detail.body.test.baremNotes).toBe('Acceptă și metoda cu proporții.');
+  });
+
+  it('starts the robot when a barem request waits', async () => {
+    dispatchRobot.mockResolvedValueOnce(true);
+    await addTestFiles(api, code, ['test']);
+    await api.db.prepare("UPDATE tests SET barem_request = 'requested' WHERE code = ?").bind(code).run();
+    const res = await saveNotes({ notes: 'Verifică raționamentul.' });
+    expect(res.status).toBe(200);
+    expect(res.body.robot).toBe('dispatched');
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
   });
 
   it('clears the exercise list like a new barem', async () => {

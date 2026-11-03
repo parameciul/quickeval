@@ -9,12 +9,19 @@ export function waitsForPrint(test: TestInfo): boolean {
   return test.status === 'open' && test.files.test !== null && test.print.status === 'none';
 }
 
-// Work waits for the robot: the print PDF of an open test waits, or the test
+// The barem the teacher asked for waits for the robot: the test is a draft or
+// open, has its test file, and the request is neither answered nor failed.
+export function waitsForBarem(test: TestInfo): boolean {
+  return (test.status === 'draft' || test.status === 'open') && test.files.test !== null && test.barem.request === 'requested';
+}
+
+// Work waits for the robot: the print PDF of an open test or a requested barem
+// waits, or the test
 // is in evaluation, its exercise list does not wait for the teacher, and an
 // upload waits or was left in grading, or every upload is graded and the
 // class analysis waits.
 export function waitsForRobot(test: TestInfo, uploads: UploadRow[]): boolean {
-  if (waitsForPrint(test)) return true;
+  if (waitsForPrint(test) || waitsForBarem(test)) return true;
   if (test.status !== 'evaluating') return false;
   if (test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed') return false;
   if (uploads.some((row) => row.status === 'submitted' || row.status === 'grading')) return true;
@@ -23,7 +30,7 @@ export function waitsForRobot(test: TestInfo, uploads: UploadRow[]): boolean {
 
 // "Pornește robotul": the teacher starts the robot again for work that a run
 // left when it stopped early (a usage limit, a crash, the time limit), or for
-// a print PDF when the robot did not start.
+// a print PDF or a generated barem when the robot did not start.
 export function StartRobotButton({
   code,
   onChanged,

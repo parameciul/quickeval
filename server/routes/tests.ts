@@ -134,7 +134,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const body = await readJson(c, baremNotesBody);
     const status = await saveBaremNotes(c.env.DB, teacherId, test.id, body.notes, nowIso());
     if (status === null) throw notFound();
-    const robot = status === 'evaluating' ? await startRobot(c.env) : null;
+    // A running barem job drops its answer now that the files changed, so a waiting request needs a new run.
+    const robot = status === 'evaluating' || (await needsBarem(c.env.DB, test.id)) ? await startRobot(c.env) : null;
     return c.json({ baremNotes: body.notes, robot } satisfies BaremNotesAnswer);
   });
 
@@ -336,8 +337,11 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // or for the print PDF of an open test when the robot did not start.
   routes.post('/:code/robot', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
-    // An open test has robot work only while its print PDF waits; testHasRobotWork decides.
-    if (test.summary.status !== 'evaluating' && test.summary.status !== 'open') {
+    // An open test has robot work only while its print PDF or barem waits, a
+    // draft one only while its barem waits; testHasRobotWork decides.
+    const status = test.summary.status;
+    const draftBarem = status === 'draft' && (await needsBarem(c.env.DB, test.id));
+    if (status !== 'evaluating' && status !== 'open' && !draftBarem) {
       throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
     }
     if (!(await testHasRobotWork(c.env.DB, test.id, nowIso()))) {

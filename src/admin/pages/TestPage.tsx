@@ -15,7 +15,7 @@ import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
 import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
 import { hasResultsToManage, ResultsAccess } from '../testPage/ResultsAccess.tsx';
 import { RobotLine } from '../testPage/RobotLine.tsx';
-import { StartRobotButton, waitsForPrint, waitsForRobot } from '../testPage/StartRobotButton.tsx';
+import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from '../testPage/StartRobotButton.tsx';
 import { TestFiles } from '../testPage/TestFiles.tsx';
 import { MultiUploadLink, UploadLink } from '../testPage/UploadLink.tsx';
 import { UploadsTable } from '../testPage/UploadsTable.tsx';
@@ -76,9 +76,11 @@ function TestDetails({ code }: { code: string }) {
   const { test, uploads, robot, showModel } = detail.data;
   // A failed robot start that the API kept: a scheduled start happens in any
   // request, so only the API knows of it. A button's answer says the same.
-  // An open test waits for the robot only for its print PDF.
+  // A draft or open test waits for the robot only for its print PDF or its barem.
   const printWaits = waitsForPrint(test);
-  const robotText = (test.status === 'evaluating' || printWaits) && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
+  const baremWaits = waitsForBarem(test);
+  const robotText = (test.status === 'evaluating' || printWaits || baremWaits) && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
+  const robotLateText = printWaits ? 'Testul cu cod QR poate întârzia.' : baremWaits ? 'Baremul poate întârzia.' : undefined;
   return (
     <section>
       <p className="back-link">
@@ -138,13 +140,22 @@ function TestDetails({ code }: { code: string }) {
           )}
           {test.status !== 'open' && <PartialEvaluationNotice status={test.status} uploads={uploads} />}
           {robotText && <p role="status">{robotText}</p>}
-          {(test.status === 'evaluating' || test.evaluationAt || printWaits) && (
-            <RobotLine lastCheckAt={robot.lastCheckAt} lateText={printWaits ? 'Testul cu cod QR poate întârzia.' : undefined}>
+          {(test.status === 'evaluating' || test.evaluationAt || printWaits || baremWaits) && (
+            <RobotLine lastCheckAt={robot.lastCheckAt} lateText={robotLateText}>
               {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
             </RobotLine>
           )}
           <RegradeAllButton code={code} testStatus={test.status} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
           <AnalysisState test={test} uploads={uploads} />
+        </>
+      )}
+
+      {test.status === 'draft' && baremWaits && (
+        <>
+          {robotText && <p role="status">{robotText}</p>}
+          <RobotLine lastCheckAt={robot.lastCheckAt} lateText={robotLateText}>
+            <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />
+          </RobotLine>
         </>
       )}
 
