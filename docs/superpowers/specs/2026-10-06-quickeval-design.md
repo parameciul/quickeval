@@ -741,7 +741,7 @@ Checks done by code, not by Claude:
   - A correct final answer without the work the barem asks for gets only the points for the answer.
   - Flag the item (do not guess) when the handwriting cannot be read, the page is cut, or the method is not in the barem.
   - Comments are kind, short, specific, and in Romanian, written to the student as "tu".
-  - Math in comments is plain Unicode (x², √, ≤, ½), never LaTeX, because the PDFs cannot draw LaTeX.
+  - Math in comments is plain Unicode (x², √, ≤, ½), never LaTeX, because the PDFs cannot draw LaTeX. A radicand or a fraction part of more than one term is in round brackets: √(x + 1), (x + 1)/3. The result pages draw the root's bar and the fraction on two levels from this text (`src/ui/mathText.ts`).
 - The teacher can edit these files. A commit to `main` changes the robot's behavior from the next run.
 - To try the skill on her PC the same way as the robot, she runs `npm run try:skill -- exercise-list <folder>`, then `npm run try:skill -- grade <folder>`, with `CLAUDE_CODE_OAUTH_TOKEN` set to her token. The folder holds `test.pdf` (or `.docx`), `barem.pdf` (or `.docx`), and the pages in `student/`, in number order (`1.jpg`, `2.jpg`, …). The script (`runner/trySkill.ts`) builds the work folder of §12.3 and runs the robot's command (§12.4) with an empty settings folder. The first mode writes `exercises.json` into the folder, the second `grading.json`, and both print the result. A normal interactive Claude Code session would load her personal settings, so its result can differ from the robot's.
 - The repo is public, so the skill is public. It must never contain student data.

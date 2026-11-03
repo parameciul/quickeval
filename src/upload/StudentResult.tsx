@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { StudentResultView } from '../../shared/api.ts';
 import { formatPoints } from '../../shared/scoring.ts';
 import { formatFileSize, pointsLevel } from '../ui/format.ts';
+import { MathText } from '../ui/MathText.tsx';
 import { resultFileUrl } from './api.ts';
 
 // One student's result page: the grade, the points and comments per exercise,
@@ -56,8 +57,12 @@ export function StudentResult({ result, resultToken }: { result: StudentResultVi
                         {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
                       </span>
                     </td>
-                    <td data-label="Răspunsul tău">{item.studentAnswer}</td>
-                    <td data-label="Comentariu">{item.comment}</td>
+                    <td data-label="Răspunsul tău">
+                      <MathText text={item.studentAnswer} />
+                    </td>
+                    <td data-label="Comentariu">
+                      <MathText text={item.comment} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -65,14 +70,18 @@ export function StudentResult({ result, resultToken }: { result: StudentResultVi
           </div>
           <section aria-label="Rezumat">
             <h3>Rezumat</h3>
-            <p>{evaluation.summary}</p>
+            <p>
+              <MathText text={evaluation.summary} />
+            </p>
           </section>
           {evaluation.strengths.length > 0 && (
             <section aria-label="Ce ai lucrat bine">
               <h3>Ce ai lucrat bine</h3>
               <ul>
                 {evaluation.strengths.map((text, index) => (
-                  <li key={index}>{text}</li>
+                  <li key={index}>
+                    <MathText text={text} />
+                  </li>
                 ))}
               </ul>
             </section>
@@ -82,7 +91,9 @@ export function StudentResult({ result, resultToken }: { result: StudentResultVi
               <h3>Recomandări</h3>
               <ul>
                 {evaluation.recommendations.map((text, index) => (
-                  <li key={index}>{text}</li>
+                  <li key={index}>
+                    <MathText text={text} />
+                  </li>
                 ))}
               </ul>
             </section>

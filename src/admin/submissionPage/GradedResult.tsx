@@ -4,6 +4,7 @@ import type { EvaluationInfo, EvaluationItemInfo, ItemChange, SubmissionDetail }
 import { TEXT_LIMITS, confidenceLevel, type Confidence } from '../../../shared/schemas.ts';
 import { formatPoints, isValidCorrection } from '../../../shared/scoring.ts';
 import { confidenceLabel, pageLabel, parsePoints, pointsLevel } from '../../ui/format.ts';
+import { MathText } from '../../ui/MathText.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
@@ -203,7 +204,9 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
           </>
         )}
       </td>
-      <td data-label="Răspunsul elevului">{item.studentAnswer}</td>
+      <td data-label="Răspunsul elevului">
+        <MathText text={item.studentAnswer} />
+      </td>
       <td data-label="Comentariu">
         {editing ? (
           <>
@@ -219,14 +222,18 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
               maxLength={TEXT_LIMITS.comment}
             />
             {item.needsReview && !item.reviewed && (
-              <span className="item-note review-reason">{`De verificat: ${item.reviewReason}`}</span>
+              <span className="item-note review-reason">
+                De verificat: <MathText text={item.reviewReason} />
+              </span>
             )}
           </>
         ) : (
           <>
-            {item.comment}
+            <MathText text={item.comment} />
             {item.needsReview && !item.reviewed && (
-              <span className="item-note review-reason">{`De verificat: ${item.reviewReason}`}</span>
+              <span className="item-note review-reason">
+                De verificat: <MathText text={item.reviewReason} />
+              </span>
             )}
           </>
         )}
@@ -447,7 +454,9 @@ function SummarySection({ submissionId, evaluation, onSaved }: { submissionId: n
           {save.error && <ErrorMessage error={save.error} />}
         </div>
       ) : (
-        <p>{evaluation.summary}</p>
+        <p>
+          <MathText text={evaluation.summary} />
+        </p>
       )}
     </section>
   );
@@ -550,7 +559,9 @@ function ListSection({
       ) : current.length > 0 ? (
         <ul>
           {current.map((text, index) => (
-            <li key={index}>{text}</li>
+            <li key={index}>
+              <MathText text={text} />
+            </li>
           ))}
         </ul>
       ) : (

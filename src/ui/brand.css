@@ -1199,6 +1199,83 @@ table.items tr.edit-row > td {
   margin-top: 0.3rem;
 }
 
+/* Roots and fractions in the grading's texts (ui/MathText.tsx), drawn like
+   on paper: the root's bar covers the whole radicand, and a fraction has its
+   numerator over its denominator. The root sign is drawn, not taken from the
+   font, so it meets the bar in every font and grows with a tall radicand. */
+.math-word {
+  white-space: nowrap;
+}
+
+.math-root,
+.math-fraction {
+  --math-rule: max(1px, 0.07em);
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.math-root {
+  position: relative;
+  padding-left: 0.6em;
+  line-height: 1;
+}
+
+.math-root-sign {
+  position: absolute;
+  left: 0;
+  top: calc(var(--math-rule) / 2);
+  width: 0.6em;
+  height: calc(100% - var(--math-rule) / 2);
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--math-rule);
+  stroke-linejoin: round;
+}
+
+.math-radicand {
+  display: inline-block;
+  padding: 0.04em 0.08em 0 0.04em;
+  border-top: var(--math-rule) solid currentColor;
+}
+
+/* ∛ and ∜: the small index sits over the tick of the sign. */
+.math-root[data-index] {
+  padding-left: 0.78em;
+}
+
+.math-root[data-index] .math-root-sign {
+  left: 0.18em;
+}
+
+.math-root[data-index]::before {
+  content: attr(data-index);
+  content: attr(data-index) / "";
+  position: absolute;
+  left: 0;
+  top: 0.08em;
+  font-size: 0.55em;
+  line-height: 1;
+}
+
+.math-fraction {
+  margin-inline: 0.08em;
+  font-size: 0.9em;
+  line-height: 1.15;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.math-numerator,
+.math-denominator {
+  display: block;
+  padding-inline: 0.12em;
+}
+
+.math-numerator {
+  border-bottom: var(--math-rule) solid currentColor;
+}
+
 /* The robot's points before a teacher correction: the old value in gray
    with a robot mark instead of words. */
 .ai-points {

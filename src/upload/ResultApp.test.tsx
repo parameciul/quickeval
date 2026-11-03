@@ -31,7 +31,7 @@ const graded: StudentResultView = {
     strengths: ['Fracții echivalente'],
     recommendations: ['Exersează ecuațiile.'],
     items: [
-      { exerciseId: 'I.1', label: 'Subiectul I, ex. 1', maxPoints: 4.5, points: 4.5, studentAnswer: '3/4', comment: 'Corect.' },
+      { exerciseId: 'I.1', label: 'Subiectul I, ex. 1', maxPoints: 4.5, points: 4.5, studentAnswer: '3/4', comment: 'Corect: √9 = 3.' },
       { exerciseId: 'II.1', label: 'Subiectul II, ex. 1', maxPoints: 4.5, points: 1, studentAnswer: 'x = 3', comment: 'Verifică semnul.' },
     ],
   },
@@ -46,6 +46,11 @@ describe('ResultApp', () => {
     expect(screen.getByText(/Nota/)).toHaveTextContent('Nota 6,5 · 6,5 puncte din 10, cu 1 din oficiu');
     expect(screen.getByText('4,5 din 4,5')).toBeInTheDocument();
     expect(screen.getByText('x = 3')).toBeInTheDocument();
+    // The math stands like on paper: the fraction on two levels, the root with its bar.
+    const answer = screen.getByRole('cell', { name: '3/4' });
+    expect(answer.querySelector('.math-numerator')).toHaveTextContent('3');
+    expect(answer.querySelector('.math-denominator')).toHaveTextContent('4');
+    expect(screen.getByRole('cell', { name: 'Corect: √9 = 3.' }).querySelector('.math-root .math-radicand')).toHaveTextContent('9');
     expect(screen.getByText('Verifică semnul.')).toBeInTheDocument();
     expect(screen.getByText('Ai lucrat bine la fracții.')).toBeInTheDocument();
     expect(screen.getByText('Fracții echivalente')).toBeInTheDocument();

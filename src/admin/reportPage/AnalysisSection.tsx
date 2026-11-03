@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { ClassReport, RobotStart } from '../../../shared/api.ts';
 import type { ClassAnalysis } from '../../../shared/schemas.ts';
 import { robotStartMessage } from '../../ui/format.ts';
+import { MathText } from '../../ui/MathText.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
@@ -75,14 +76,18 @@ export function AnalysisSection({ code, report }: { code: string; report: ClassR
               {button('Regenerează')}
             </div>
           )}
-          <p>{content.overview}</p>
+          <p>
+            <MathText text={content.overview} />
+          </p>
           {SECTIONS.map(({ key, title }) =>
             content[key].length > 0 ? (
               <section key={key} aria-label={title}>
                 <h3>{title}</h3>
                 <ul>
                   {content[key].map((text, index) => (
-                    <li key={index}>{text}</li>
+                    <li key={index}>
+                      <MathText text={text} />
+                    </li>
                   ))}
                 </ul>
               </section>
