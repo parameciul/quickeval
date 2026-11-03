@@ -1,11 +1,14 @@
 import { Hono } from 'hono';
 import type { D1Database } from '@cloudflare/workers-types';
 import {
+  baremCheckedBody,
   baremNotesBody,
   createTestBody,
   evaluateTestBody,
   renameTestBody,
   type AnalysisAnswer,
+  type BaremCheckedAnswer,
+  type BaremGenerateAnswer,
   type BaremNotesAnswer,
   type EvaluationStart,
   type ExerciseListAnswer,
@@ -34,15 +37,18 @@ import { setResultsOpen } from '../db/results.ts';
 import { testHasRobotWork } from '../db/runner.ts';
 import { getShowModel, testPageRobot } from '../db/settings.ts';
 import {
+  confirmBarem,
   createTest,
   createMultiUploadToken,
   deleteTestRow,
   listTestKeys,
   listTests,
   listUploads,
+  needsBarem,
   needsPrint,
   renameTest,
   reopenTest,
+  requestBarem,
   requireTest,
   retryPrint,
   saveBaremNotes,
@@ -197,6 +203,27 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu poate fi încercat din nou.');
     }
     return c.json({ print: { status: 'none', fromWord: test.print.fromWord }, robot: await startRobot(c.env) } satisfies PrintRetryAnswer);
+  });
+
+  // "Generează baremul": the robot writes the barem from the test file.
+  routes.post('/:code/barem/generate', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
+      if (!test.files.test) throw new ApiError(409, 'missing_test_file', 'Încarcă testul înainte să generezi baremul.');
+      throw new ApiError(409, 'not_editable', 'Baremul se poate genera doar înainte de evaluare.');
+    }
+    const barem = { request: 'requested', unchecked: test.barem.unchecked } as const;
+    return c.json({ barem, robot: await startRobot(c.env) } satisfies BaremGenerateAnswer);
+  });
+
+  // The teacher checked the generated barem as the page showed it.
+  routes.post('/:code/barem/checked', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    const body = await readJson(c, baremCheckedBody);
+    if (!(await confirmBarem(c.env.DB, c.var.teacher.id, test.id, body.filesVersion, nowIso()))) {
+      throw new ApiError(409, 'stale', 'Baremul s-a schimbat. Reîncarcă pagina.');
+    }
+    return c.json({ barem: { request: test.barem.request, unchecked: false } } satisfies BaremCheckedAnswer);
   });
 
   // Archives a finished test: it leaves the class table and the test list.
@@ -361,7 +388,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (stale.length > 0) await deleteFilesQuietly(c.env.FILES, stale);
     let robotWork = false;
     if (kind === 'barem') robotWork = saved?.status === 'evaluating';
-    else robotWork = await needsPrint(c.env.DB, test.id);
+    else robotWork = (await needsPrint(c.env.DB, test.id)) || (await needsBarem(c.env.DB, test.id));
     const robot = robotWork ? await startRobot(c.env) : null;
     return c.json({ file: { name: file.name, type: file.contentType }, robot } satisfies TestFileAnswer);
   });

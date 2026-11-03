@@ -5,7 +5,7 @@ import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { flagCountSql } from './evaluations.ts';
-import { NEEDS_PRINT } from './runner.ts';
+import { NEEDS_BAREM, NEEDS_PRINT } from './runner.ts';
 
 export interface StoredFile {
   key: string;
@@ -388,11 +388,14 @@ export async function saveTestFile(
   const sql =
     kind === 'test'
       ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1,
-           print_status = 'none', print_attempts = 0, print_file_key = NULL
+           print_status = 'none', print_attempts = 0, print_file_key = NULL,
+           barem_request = CASE WHEN barem_unchecked = 1 AND status IN ('draft', 'open') THEN 'requested' ELSE barem_request END,
+           barem_request_attempts = CASE WHEN barem_unchecked = 1 AND status IN ('draft', 'open') THEN 0 ELSE barem_request_attempts END
          WHERE id = ? AND teacher_id = ?
          RETURNING status`
       : `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, updated_at = ?, files_version = files_version + 1,
-           exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0
+           exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0,
+           barem_unchecked = 0, barem_request = 'none', barem_request_attempts = 0
          WHERE id = ? AND teacher_id = ?
          RETURNING status`;
   const [before, written] = await db.batch<{ print_file_key?: string | null; status?: TestStatus }>([
@@ -442,6 +445,49 @@ export async function listTestKeys(db: D1Database, record: TestRecord): Promise<
 // True when the test still waits for its print PDF.
 export async function needsPrint(db: D1Database, testId: number): Promise<boolean> {
   const row = await db.prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND ${NEEDS_PRINT}`).bind(testId).first();
+  return row !== null;
+}
+
+// True when the robot has a barem to generate for the test.
+export async function needsBarem(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db.prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND ${NEEDS_BAREM}`).bind(testId).first();
+  return row !== null;
+}
+
+// "Generează baremul": the robot is asked to write the barem from the test
+// file. A scheduled evaluation is cleared, because the barem must be checked
+// first. False when the test is gone, is not the teacher's, is past
+// uploads, or has no test file.
+export async function requestBarem(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET barem_request = 'requested', barem_request_attempts = 0, evaluation_at = NULL, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND status IN ('draft', 'open') AND test_file_key IS NOT NULL
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ id: number }>();
+  return row !== null;
+}
+
+// The teacher checked the generated barem as the page showed it. False when
+// the test is gone, is not the teacher's, the barem is not waiting for a check,
+// a new barem is being generated, or a file changed since the page was read.
+export async function confirmBarem(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  filesVersion: number,
+  now: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET barem_unchecked = 0, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND files_version = ? AND barem_unchecked = 1 AND barem_request <> 'requested'
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId, filesVersion)
+    .first<{ id: number }>();
   return row !== null;
 }
 

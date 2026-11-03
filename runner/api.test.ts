@@ -36,10 +36,10 @@ describe('robotApi with the real API', () => {
     const [submissionId] = world.submissionIds;
     const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(world.api) });
 
-    expect(await robot.check()).toEqual({ hasWork: true, exerciseLists: 1, pendingGrading: 0, analyses: 0, prints: 0 });
+    expect(await robot.check()).toEqual({ hasWork: true, exerciseLists: 1, pendingGrading: 0, analyses: 0, prints: 0, barems: 0 });
     expect(await robot.lease(RUN)).toEqual({ granted: true, maxParallel: 1 });
     await robot.heartbeat(RUN);
-    expect(await robot.tasks()).toEqual({ exerciseLists: [testId], pendingGrading: 0, analyses: [], prints: [] });
+    expect(await robot.tasks()).toEqual({ exerciseLists: [testId], pendingGrading: 0, analyses: [], prints: [], barems: [] });
     expect(await robot.test(testId)).toEqual({
       id: testId,
       createdAt: expect.any(String),
@@ -60,7 +60,7 @@ describe('robotApi with the real API', () => {
     expect(text(await robot.page(submissionId!, claimed!.files[1]!.id))).toBe(`jpeg ${submissionId}-2`);
     expect(await robot.sendResult(submissionId!, { runId: RUN, ok: true, result: GRADING, model: 'claude-test' })).toBe('graded');
     expect(await robot.claim(RUN)).toBeNull();
-    await robot.release(RUN, { exerciseLists: 1, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' });
+    await robot.release(RUN, { exerciseLists: 1, graded: 1, failed: 0, analyses: 0, prints: 0, barems: 0, stop: 'done' });
     expect((await robot.lease('run-api-0002')).granted).toBe(true);
   });
 

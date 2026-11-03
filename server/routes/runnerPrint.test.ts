@@ -52,8 +52,8 @@ afterEach(async () => {
 
 describe('print jobs in /check and /tasks', () => {
   it('lists an open test with a test file as a print job', async () => {
-    expect((await robot('POST', '/check')).body).toEqual({ hasWork: true, exerciseLists: 0, pendingGrading: 0, analyses: 0, prints: 1 });
-    expect((await robot('GET', '/tasks')).body).toEqual({ exerciseLists: [], pendingGrading: 0, analyses: [], prints: [testId] });
+    expect((await robot('POST', '/check')).body).toEqual({ hasWork: true, exerciseLists: 0, pendingGrading: 0, analyses: 0, prints: 1, barems: 0 });
+    expect((await robot('GET', '/tasks')).body).toEqual({ exerciseLists: [], pendingGrading: 0, analyses: [], prints: [testId], barems: [] });
   });
 
   it('lists no print job for a draft, an evaluating, a done, a ready, or a failed test', async () => {

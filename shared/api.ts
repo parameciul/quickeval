@@ -100,6 +100,9 @@ export const renameTestBody = z.object({ title: testTitleSchema });
 // barem, so the teacher need not replace the barem file.
 export const MAX_BAREM_NOTES_LENGTH = 2000;
 
+// The teacher checked the generated barem as the page showed it.
+export const baremCheckedBody = z.object({ filesVersion: z.number().int().min(0) });
+
 export const baremNotesBody = z.object({
   notes: z
     .string()
@@ -643,6 +646,17 @@ export type RobotStart = 'dispatched' | 'next_check';
 export interface ReopenAnswer {
   status: TestStatus;
   robot: RobotStart | null;
+}
+
+// "Generează baremul": `robot` is null when the robot could not be started.
+export interface BaremGenerateAnswer {
+  barem: TestInfo['barem'];
+  robot: RobotStart | null;
+}
+
+// The teacher checked the generated barem.
+export interface BaremCheckedAnswer {
+  barem: TestInfo['barem'];
 }
 
 // "Încearcă din nou" on a print PDF that failed.

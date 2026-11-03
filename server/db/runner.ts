@@ -39,6 +39,9 @@ export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = '
 // is not made yet. Keep it a flat condition on the alias t: the print writes
 // rewrite t. to tests.
 export const NEEDS_PRINT = "t.status = 'open' AND t.upload_token IS NOT NULL AND t.test_file_key IS NOT NULL AND t.print_status = 'none'";
+// A draft or open test with a test file whose barem the teacher asked the robot
+// to generate. Keep it a flat condition on the alias t.
+export const NEEDS_BAREM = "t.status IN ('draft', 'open') AND t.test_file_key IS NOT NULL AND t.barem_request = 'requested'";
 
 // The state of the grades of a test: how many graded results there are and
 // when the last one changed (a correction writes `evaluations.updated_at`, a
@@ -61,6 +64,7 @@ export async function testHasRobotWork(db: D1Database, testId: number, now: stri
          (${NEEDS_EXERCISE_LIST})
          OR (${NEEDS_ANALYSIS})
          OR (${NEEDS_PRINT})
+         OR (${NEEDS_BAREM})
          OR EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND ${GRADABLE})
          OR EXISTS (
            SELECT 1 FROM submissions s
@@ -84,7 +88,7 @@ export async function runCheck(
   now: string,
   configured: { model?: string; effort?: string } = {},
 ): Promise<CheckResult> {
-  const results = await db.batch<{ exercise_lists: number; pending_grading: number; analyses: number; prints: number }>([
+  const results = await db.batch<{ exercise_lists: number; pending_grading: number; analyses: number; prints: number; barems: number }>([
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', run_id = NULL
@@ -99,7 +103,8 @@ export async function runCheck(
       `SELECT (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_EXERCISE_LIST}) AS exercise_lists,
          (SELECT COUNT(*) FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}) AS pending_grading,
          (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_ANALYSIS}) AS analyses,
-         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_PRINT}) AS prints`,
+         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_PRINT}) AS prints,
+         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_BAREM}) AS barems`,
     ),
   ]);
   const counts = results.at(-1)?.results[0];
@@ -107,7 +112,8 @@ export async function runCheck(
   const pendingGrading = counts?.pending_grading ?? 0;
   const analyses = counts?.analyses ?? 0;
   const prints = counts?.prints ?? 0;
-  return { hasWork: exerciseLists + pendingGrading + analyses + prints > 0, exerciseLists, pendingGrading, analyses, prints };
+  const barems = counts?.barems ?? 0;
+  return { hasWork: exerciseLists + pendingGrading + analyses + prints + barems > 0, exerciseLists, pendingGrading, analyses, prints, barems };
 }
 
 // The model and effort the robot is set to use, kept for Setări. A robot that
@@ -185,14 +191,17 @@ export async function releaseLease(db: D1Database, runId: string, summary: RunSu
 }
 
 export async function listTasks(db: D1Database): Promise<TasksResult> {
-  const [lists, grading, analyses, prints] = await db.batch<{ id?: number; count?: number }>([
+  const [lists, grading, analyses, prints, barems] = await db.batch<{ id?: number; count?: number }>([
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
     db.prepare(`SELECT COUNT(*) AS count FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}`),
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_ANALYSIS} ORDER BY t.id`),
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_PRINT} ORDER BY t.started_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_BAREM} ORDER BY t.updated_at, t.id`),
   ]);
   const ids = (rows: { id?: number }[] | undefined) => (rows ?? []).map((row) => row.id!);
-  return { exerciseLists: ids(lists?.results), pendingGrading: grading?.results[0]?.count ?? 0, analyses: ids(analyses?.results), prints: ids(prints?.results) };
+  return { exerciseLists: ids(lists?.results), pendingGrading: grading?.results[0]?.count ?? 0, analyses: ids(analyses?.results), prints: ids(prints?.results),
+    barems: ids(barems?.results),
+  };
 }
 
 export interface RobotTestRecord {
