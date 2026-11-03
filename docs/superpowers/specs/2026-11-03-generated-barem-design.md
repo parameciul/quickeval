@@ -40,6 +40,8 @@ Anti-goals (a failure even if it "works"):
 
 `pandoc --sandbox -f markdown -t docx` (pandoc 3.11 on Windows) turns Markdown with `$…$` LaTeX into native Word equations (OMML), also inside pipe-table cells. A `pmatrix` with two rows gives two `<m:mr>` rows in `word/document.xml`. A cell that starts with `1.` turns into a list unless written `1\.`. The robot already installs pandoc (`evaluate.yml`, Ubuntu's package, an older 3.1.x): the plan checks the same output with that version.
 
+Found at go-live (2026-11-03): Ubuntu's pandoc 3.1.3 keeps its data files outside the program, so with `--sandbox` it stops with "Could not find data file data/data/docx/[Content_Types].xml" and writes no Word file at all (checked in an `ubuntu:24.04` container; without `--sandbox` it works, and `--data-dir` does not help). The robot and CI now install the official pandoc 3.11 build, pinned and checked by its SHA-256 (`.github/scripts/install-pandoc.sh`), the same version as the development PC.
+
 ## 4. How it works
 
 ### 4.1 The flow

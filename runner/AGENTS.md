@@ -31,5 +31,5 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 - `claude --json-schema` refuses zod's default JSON Schema (draft 2020-12): give it `claudeJsonSchema()` from `shared/schemas.ts` (draft-07).
 - Word files go through `pandoc -t markdown`, never `-t gfm`: GitHub's Markdown turns "a)" items into "1)", and the exercise names are lost.
 - A Claude error prints JSON and exits with code 1; a refused login has `subtype: "success"` and `is_error: true`. `readOutcome` (`claude.ts`) reads them in that order; `fixtures/` holds real outputs. Claude Code writes files into `CLAUDE_CONFIG_DIR`: keep that folder next to the work folders, never inside one.
-- Robot tests run the real API in-process (`test/robotWorld.ts`) and replace Claude with `scriptedClaude()` (`test/scriptedClaude.ts`). `workdir.test.ts` also runs the real pandoc when it is installed.
+- Robot tests run the real API in-process (`test/robotWorld.ts`) and replace Claude with `scriptedClaude()` (`test/scriptedClaude.ts`). `workdir.test.ts` and `baremDocx.test.ts` also run the real pandoc when it is installed; CI installs the robot's pinned pandoc (`.github/scripts/install-pandoc.sh`), so they run there too.
 - The robot's GitHub settings, its failures, and how to update the pinned Claude Code: `docs/deploy.md`.
