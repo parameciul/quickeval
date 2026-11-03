@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { classAnalysisSchema, exerciseListSchema, gradingResultSchema } from '../shared/schemas.ts';
+import { classAnalysisSchema, exerciseListSchema, generatedBaremSchema, gradingResultSchema } from '../shared/schemas.ts';
 import { SKILL_DIR } from './workdir.ts';
 
 // The grading skill (spec §13) must match what the robot gives Claude: the
@@ -51,5 +51,36 @@ describe('the grading skill', () => {
   it('asks for comments without LaTeX, and never for a student name', () => {
     expect(rules).toContain('Never use LaTeX');
     expect(rules).toContain("Never write the student's name");
+  });
+
+  it('names the barem mode and its references', () => {
+    expect(skill).toContain('## Mode `barem`');
+    expect(skill).toContain('references/barem-writing.md');
+    expect(skill).toContain('references/barem-example.md');
+    expect(existsSync(path.join(SKILL_DIR, 'references', 'barem-writing.md'))).toBe(true);
+    expect(existsSync(path.join(SKILL_DIR, 'references', 'barem-example.md'))).toBe(true);
+  });
+
+  it('explains every field of the generated barem', () => {
+    const part = generatedBaremSchema.shape.parts.element;
+    const section = part.shape.sections.element;
+    const item = section.shape.items.element;
+    const step = item.shape.steps.element;
+    const fields = [
+      ...Object.keys(generatedBaremSchema.shape),
+      ...Object.keys(part.shape),
+      ...Object.keys(section.shape),
+      ...Object.keys(item.shape),
+      ...Object.keys(step.shape),
+    ];
+    const barem = skill.slice(skill.indexOf('## Mode `barem`'));
+    for (const field of fields) expect(barem).toContain(`\`${field}\``);
+  });
+
+  it('keeps the barem mode to its own files: the notes at the folder root, no barem folder', () => {
+    const barem = skill.slice(skill.indexOf('## Mode `barem`'));
+    expect(barem).toContain('`notes.md`');
+    expect(barem).toContain('no barem');
+    expect(barem).toContain('single `$`');
   });
 });

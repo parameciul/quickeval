@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 // Runs Claude Code for one robot task (spec §12.4), the same way on GitHub and
 // in `npm run try:skill`.
 
-export type ClaudeMode = 'exercise-list' | 'grade' | 'class-report';
+export type ClaudeMode = 'exercise-list' | 'grade' | 'class-report' | 'barem';
 
 // How long one Claude call may take. The run takes new work for 2 hours; that
 // plus two calls of the longest task stays under the GitHub job's 180 minutes.
@@ -12,6 +12,7 @@ export const TIME_LIMITS_MS: Record<ClaudeMode, number> = {
   'exercise-list': 10 * 60_000,
   grade: 20 * 60_000,
   'class-report': 15 * 60_000,
+  barem: 15 * 60_000,
 };
 // At the time limit Claude gets SIGINT, then SIGTERM after this, then SIGKILL.
 export const KILL_GRACE_MS = 10_000;

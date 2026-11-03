@@ -9,6 +9,7 @@ import {
   claudeJsonSchema,
   classAnalysisSchema,
   exerciseListSchema,
+  generatedBaremSchema,
   gradingResultSchema,
 } from '../shared/schemas.ts';
 import type { RobotApi } from './api.ts';
@@ -52,6 +53,7 @@ const JSON_SCHEMAS: Record<ClaudeMode, object> = {
   'exercise-list': claudeJsonSchema(exerciseListSchema),
   grade: claudeJsonSchema(gradingResultSchema),
   'class-report': claudeJsonSchema(classAnalysisSchema),
+  barem: claudeJsonSchema(generatedBaremSchema),
 };
 
 // Room for the rest of the body around Claude's answer.
