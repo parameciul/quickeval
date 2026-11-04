@@ -5,3 +5,6 @@ dist/
 *.log
 coverage/
 secrets
+skills-lock.json
+.agents/skills/
+.superpowers/
