@@ -592,6 +592,38 @@ describe('TestPage evaluation', () => {
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [6]);
   });
 
+  it('offers "Marchează ca terminat" in place of the start button when every sent paper is graded', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    const api = evaluationApi({ evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByText('✓ Corectat complet')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pornește evaluarea acum' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Selectează cel puțin o lucrare cu fișiere din tabel.')).not.toBeInTheDocument();
+    const finish = screen.getByRole('button', { name: 'Marchează ca terminat' });
+    await userEvent.click(finish);
+    expect(api.finishTest).not.toHaveBeenCalled();
+    await userEvent.click(finish);
+    expect(api.finishTest).toHaveBeenCalledWith('6E2-26T1');
+    expect(await screen.findByText(/^Corectarea s-a terminat\./)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Marchează ca terminat' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the start button while a sent paper waits for grading', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1 }),
+    ];
+    renderAdmin('/teste/6E2-26T1', evaluationApi({}, rows));
+    expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Marchează ca terminat' })).not.toBeInTheDocument();
+    expect(screen.queryByText('✓ Corectat complet')).not.toBeInTheDocument();
+  });
+
   it('saves extra comments for the barem', async () => {
     const api = evaluationApi({});
     renderAdmin('/teste/6E2-26T1', api);

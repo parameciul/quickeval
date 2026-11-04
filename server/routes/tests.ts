@@ -12,6 +12,7 @@ import {
   type BaremNotesAnswer,
   type EvaluationStart,
   type ExerciseListAnswer,
+  type FinishedTest,
   type PrintRetryAnswer,
   type RegradeAnswer,
   type ReopenAnswer,
@@ -25,6 +26,8 @@ import { acceptExerciseList,
   blockedByDemoLimit,
   regradeBlockedByDemoLimit,
   cancelSchedule,
+  finishBlocker,
+  finishOpenTest,
   hasUploadedFiles,
   regradeTest,
   requestAnalysis,
@@ -202,6 +205,24 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       }
     }
     throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
+  });
+
+  // "Marchează ca terminat": an open test with every sent paper graded is done
+  // again (it was reopened by mistake). No robot.
+  routes.post('/:code/finish', async (c) => {
+    const teacherId = c.var.teacher.id;
+    const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
+    if (!(await finishOpenTest(c.env.DB, teacherId, test.id, nowIso()))) {
+      const status = (await requireTest(c.env.DB, teacherId, test.summary.code)).summary.status;
+      if (status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
+      if (status === 'evaluating') throw new ApiError(409, 'already_evaluating', 'Evaluarea a pornit deja.');
+      if (status === 'done') throw new ApiError(409, 'already_done', 'Testul este deja terminat.');
+      const why = await finishBlocker(c.env.DB, test.id);
+      if (why === 'papers_waiting') throw new ApiError(409, why, 'Mai sunt lucrări trimise care nu au fost corectate.');
+      if (why === 'nothing_graded') throw new ApiError(409, why, 'Testul nu are nicio lucrare corectată.');
+      throw new ApiError(409, 'busy', 'Testul s-a schimbat între timp. Încearcă din nou.');
+    }
+    return c.json({ status: 'done' } satisfies FinishedTest);
   });
 
   // Reopen uploads: evaluating or done → open.

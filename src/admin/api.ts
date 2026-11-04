@@ -15,6 +15,7 @@ import type {
   PagesReview,
   PrintRetryAnswer,
   RegradeAnswer,
+  FinishedTest,
   ReopenAnswer,
   ResultsOpenAnswer,
   ResultLinkAnswer,
@@ -88,6 +89,8 @@ export interface AdminApi {
   // "Oprește testul": an open test with no student file is a draft again.
   stopTest(code: string): Promise<StoppedTest>;
   reopenTest(code: string): Promise<ReopenAnswer>;
+  // "Marchează ca terminat": an open test whose sent papers are all graded is done.
+  finishTest(code: string): Promise<FinishedTest>;
   // "Încearcă din nou" on a print PDF that failed, and "Pregătește testul cu
   // cod QR" on a draft made before tests got their link at once.
   retryPrint(code: string): Promise<PrintRetryAnswer>;
@@ -291,6 +294,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     setSubmissionResultsOpen: async (submissionId, startedAt, open) =>
       (await request<ResultsOpenAnswer>('POST', `/submissions/${submissionId}/results/${open ? 'open' : 'close'}`, { startedAt })).resultsOpen,
     reopenTest: (code) => request<ReopenAnswer>('POST', `${test(code)}/reopen`),
+    finishTest: (code) => request<FinishedTest>('POST', `${test(code)}/finish`),
     retryPrint: (code) => request<PrintRetryAnswer>('POST', `${test(code)}/print/retry`),
     setTestArchived: async (code, archived) =>
       (await request<{ archived: boolean }>('POST', `${test(code)}/${archived ? 'archive' : 'unarchive'}`)).archived,

@@ -6,6 +6,7 @@ import { displayClassName } from '../../../shared/classes.ts';
 import { MAX_TITLE_LENGTH, normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
 import { classToneClass, classToneStyle } from '../../ui/classTone.ts';
 import { formatDateTime, robotStartMessage } from '../../ui/format.ts';
+import { GradingProgress } from '../../ui/GradingProgress.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { StatusChip } from '../StatusChip.tsx';
@@ -170,6 +171,7 @@ function TestDetails({ code }: { code: string }) {
         {test.gradedCount > 0 && ` · corectate ${test.gradedCount}`}
         {test.flagCount > 0 && ` · de verificat ${test.flagCount}`}
       </h2>
+      <GradingProgress studentCount={test.studentCount} submittedCount={test.submittedCount} gradedCount={test.gradedCount} />
       <UploadsTable
         code={code}
         uploads={uploads}

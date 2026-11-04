@@ -42,6 +42,13 @@ describe('TestsPage', () => {
     expect(api.listClasses).toHaveBeenCalledWith(2026);
   });
 
+  it('keeps the card small: the grading bar is only on the test page', async () => {
+    renderAdmin('/', withTests());
+    const card = (await screen.findByRole('link', { name: '6E2-26T2' })).closest('li')!;
+    expect(card.querySelector('.grading-progress')).toBeNull();
+    expect(within(card).queryByText('✓ Corectat complet')).not.toBeInTheDocument();
+  });
+
   it('links each test to its page and offers a new test', async () => {
     renderAdmin('/', withTests());
     expect(await screen.findByRole('link', { name: '6E2-26T2' })).toHaveAttribute('href', '/teste/6E2-26T2');

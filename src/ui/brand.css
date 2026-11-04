@@ -547,6 +547,37 @@ a.class-badge:hover {
   gap: 0.35rem 0.6rem;
 }
 
+/* The grading bar: graded in green, waiting in the marker colour, the rest
+   (not sent) is the empty track. The colours come from variables that have
+   their dark values already. */
+.grading-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.grading-progress-bar {
+  display: flex;
+  height: 0.6rem;
+  overflow: hidden;
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
+}
+
+.grading-progress-graded {
+  background: var(--ok-fg);
+}
+
+.grading-progress-waiting {
+  background: var(--marker);
+}
+
+.grading-progress-label {
+  color: var(--ok-fg);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 .check-label {
   display: inline-flex;
   align-items: center;

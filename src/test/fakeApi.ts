@@ -14,6 +14,7 @@ import type {
   PagesReview,
   PrintRetryAnswer,
   RegradeAnswer,
+  FinishedTest,
   ReopenAnswer,
   RobotStart,
   Settings,
@@ -523,6 +524,20 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       found.archived = false;
       // Like the server: a print PDF that waits is work for the robot.
       return { status: 'open', robot: printWaits(found) ? 'dispatched' : null };
+    }),
+    // Like the server: an open test with a graded paper and none waiting is done.
+    finishTest: vi.fn(async (code: string): Promise<FinishedTest> => {
+      const detail = findTest(code);
+      const waits = detail.uploads.some(
+        (row) => row.status === 'submitted' || row.status === 'grading' || (row.status === 'uploading' && row.fileCount > 0),
+      );
+      if (detail.test.status !== 'open') throw new ApiError(409, 'busy', 'Testul s-a schimbat între timp. Încearcă din nou.');
+      if (waits) throw new ApiError(409, 'papers_waiting', 'Mai sunt lucrări trimise care nu au fost corectate.');
+      if (!detail.uploads.some((row) => row.status === 'graded')) {
+        throw new ApiError(409, 'nothing_graded', 'Testul nu are nicio lucrare corectată.');
+      }
+      Object.assign(detail.test, { status: 'done', evaluationAt: null });
+      return { status: 'done' };
     }),
     // Like the server: a failed print PDF is made again, by the robot, and a
     // draft without a link gets one and its print PDF.
