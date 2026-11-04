@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { displayClassName } from '../../shared/classes.ts';
 import { ApiError, messageOf } from '../ui/ApiError.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
-import { BrandFooter } from './BrandFooter.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import type { UploadApi } from './api.ts';
 import { forgetResultLinkByToken } from './resultLinks.ts';
@@ -68,7 +67,6 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
           )}
         </ErrorBoundary>
       </main>
-      <BrandFooter />
     </>
   );
 }
