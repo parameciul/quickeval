@@ -12,9 +12,10 @@ export function storedTheme(): Theme | null {
   }
 }
 
-// The theme on screen: the reader's choice, else the system setting.
-export function currentTheme(stored: Theme | null, systemPrefersDark: boolean): Theme {
-  return stored ?? (systemPrefersDark ? 'dark' : 'light');
+// The theme on screen: the reader's choice, else light. The system setting
+// does not count (public/theme.js paints the same before the page loads).
+export function currentTheme(stored: Theme | null): Theme {
+  return stored ?? 'light';
 }
 
 export function otherTheme(theme: Theme): Theme {
@@ -28,8 +29,4 @@ export function saveTheme(theme: Theme): void {
   } catch {
     // Storage can be blocked; the choice then lasts until the page reloads.
   }
-}
-
-export function systemPrefersDark(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches;
 }

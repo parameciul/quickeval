@@ -2,14 +2,14 @@
 
 MQGrader (formerly QuickEval): a web app that helps Laura Miron (math teacher, Liceul William Shakespeare, Timișoara) collect and grade her students' math tests. The product name is MQGrader; the code, the URLs, the secrets, the database and the repository keep the old name quickeval. The teacher pages and the student pages are in Romanian. Code, comments, and docs are in English.
 
-- Design: `docs/superpowers/specs/2026-10-06-quickeval-design.md`. Plans: `docs/superpowers/plans/`.
+- Design: `docs/superpowers/specs/2026-10-06-quickeval-design.md`. Plans: `docs/superpowers/plans/`. The redesign of the look and layout (light by default, the 80 px bar, the six stages, the new landing page) is in `docs/superpowers/specs/2026-11-04-mqgrader-redesign-design.md`; it is built in phases.
 - Live: https://quickeval.pages.dev/. Brand source: the "Matematică cu Laura Miron" site (`D:\Projects\Website`, https://lauramiron.pages.dev/).
 - More instructions: `src/AGENTS.md`, `server/AGENTS.md`, `runner/AGENTS.md` (read the one for the area you change), and `docs/deploy.md` (deploy, secrets, the robot's GitHub settings).
 
 ## Structure
 
 - `index.html` (landing page), `admin/index.html` (teacher app, `/admin/`), `u/index.html` (student app, `/u/<token>`).
-- `src/`: the two React apps (`admin/`, `upload/`), shared UI (`ui/`), test helpers (`test/`).
+- `src/`: the two React apps (`admin/`, `upload/`), the landing page's stylesheet and theme button (`landing/`, no React), shared UI (`ui/`), test helpers (`test/`).
 - `functions/api/[[route]].ts`: the Cloudflare Pages entry for `/api/*`; it serves the Hono app from `server/app.ts`.
 - `server/`: the API (routes, D1 queries, auth, R2 files, secrets, emails).
 - `shared/`: code for the API, the browser, and the robot: zod request schemas and response types (`api.ts`), roles and the demo paper limit (`accounts.ts`), school year, class and student names, ids, test codes (`tests.ts`), file rules and R2 keys (`files.ts`), the robot's output contracts and their JSON Schemas (`schemas.ts`), points and grades (`scoring.ts`), robot API bodies (`runner.ts`).

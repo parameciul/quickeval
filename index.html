@@ -2,46 +2,118 @@
 <html lang="ro">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>MQGrader</title>
+    <title>MQGrader · corectarea testelor de matematică</title>
+    <meta name="description" content="Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script src="/theme.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&family=Caveat:wght@600&display=swap"
-    />
-    <link rel="stylesheet" href="/src/ui/brand.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="/src/landing/landing.css" />
+    <script type="module" src="/src/landing/landing.ts"></script>
   </head>
   <body>
-    <header class="site-header">
-      <div class="wrap header-bar">
-        <a class="brand" href="/">
-          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-            <defs>
-              <linearGradient id="brand-mark-ring" gradientUnits="userSpaceOnUse" x1="12" y1="12" x2="52" y2="52">
-                <stop offset="0" style="stop-color: var(--mark-from)" />
-                <stop offset="1" style="stop-color: var(--mark-to)" />
-              </linearGradient>
-            </defs>
-            <path d="M48.42 27.6A17 17 0 1 1 36.4 15.58" fill="none" stroke="url(#brand-mark-ring)" stroke-width="6" stroke-linecap="round" />
-            <path d="M23 32L30 39L49 18" fill="none" stroke="var(--mark-tick)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <span class="brand-text">
-            <span class="brand-name">MQGrader</span>
-          </span>
+    <div class="site">
+      <header class="site-top wrap">
+        <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
+          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
+          <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
         </a>
-      </div>
-    </header>
-    <main class="wrap page landing">
-      <h1>MQGrader</h1>
-      <p class="lead">Corectarea testelor la matematică, rapid și în ordine.</p>
-      <p><a class="button" href="/admin/">Intră ca profesor</a></p>
-    </main>
-    <footer class="site-footer">
-      <div class="wrap"><p>MQGrader</p></div>
-    </footer>
+        <nav aria-label="Pagina">
+          <a href="#cum">Cum funcționează</a>
+          <a href="#ajutor">Cum te ajută</a>
+          <button class="icon-btn" type="button" data-theme-toggle aria-label="Temă întunecată">
+            <svg class="theme-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true" focusable="false"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z" /></svg>
+            <svg class="theme-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="3" /><path d="M8 1.5v1.4M8 13.1v1.4M1.5 8h1.4M13.1 8h1.4M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1" /></svg>
+          </button>
+          <a class="btn" href="/admin/">Intră în cont</a>
+        </nav>
+      </header>
+      <main>
+        <section class="hero wrap" aria-labelledby="titlu">
+          <div class="copy">
+            <h1 class="l-h1" id="titlu">Weekendul tău, fără teancul de lucrări.</h1>
+            <p class="l-lede">Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.</p>
+            <div class="cta">
+              <a class="btn btn-primary btn-large" href="/admin/">Intră în cont</a>
+              <a class="link" href="/admin/#cont-nou">Cere un cont de profesor</a>
+            </div>
+          </div>
+          <div class="side-flow" id="cum">
+            <h2>Un test, în șase etape</h2>
+            <ol class="flow-v">
+              <li class="you">
+                <span class="node"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><path d="M5 2.75h7l3 3v11.5H5z" /><path d="M8 9h4.5M8 12h4.5" /></svg></span>
+                <div><h3>Pregătire <span class="who-tag">Tu</span></h3><p>Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.</p></div>
+              </li>
+              <li class="you">
+                <span class="node"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><path d="M5.5 7V2.75h9V7M5.5 14H3.5V7h13v7h-2" /><path d="M5.5 11.5h9v5.75h-9z" /></svg></span>
+                <div><h3>Tipărire <span class="who-tag">Tu</span></h3><p>Tipărești testul. Fiecare pagină are un cod QR.</p></div>
+              </li>
+              <li>
+                <span class="node"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><rect x="5.5" y="2.5" width="9" height="15" rx="2" /><path d="M9 14.5h2" /></svg></span>
+                <div><h3>În clasă <span class="who-tag">Elevii</span></h3><p>Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.</p></div>
+              </li>
+              <li>
+                <span class="node"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><path d="M4 10.5l3.5 3.5L16 5.5" /></svg></span>
+                <div><h3>Corectare <span class="who-tag">MQGrader</span></h3><p>Fiecare lucrare primește punctaj conform baremului, pas cu pas, cu 10 puncte din oficiu.</p></div>
+              </li>
+              <li class="you">
+                <span class="node"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10z" /><circle cx="10" cy="10" r="2.5" /></svg></span>
+                <div><h3>Verificare <span class="who-tag">Tu</span></h3><p>Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.</p></div>
+              </li>
+              <li class="you">
+                <span class="node"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><path d="M8.5 11.5l3-3" /><path d="M9.5 6.5l1.25-1.25a3 3 0 0 1 4.25 4.25L13.75 10.75M10.5 13.5l-1.25 1.25a3 3 0 0 1-4.25-4.25L6.25 9.25" /></svg></span>
+                <div><h3>Rezultate <span class="who-tag">Tu</span></h3><p><b>Fiecare elev primește un link cu rezultatul lui.</b> Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.</p></div>
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        <section class="sec ink" aria-labelledby="gata-t">
+          <div class="wrap">
+            <h2 class="l-h2" id="gata-t">Gata cu orele pierdute noaptea târziu corectând teze și teste!</h2>
+            <div class="pair">
+              <p class="l-body">Descoperă noua platformă care îți ia o mare greutate de pe umeri și îți oferă corectură riguroasă, exact după barem, în doar câteva minute.</p>
+              <p class="l-body"><b>Ce o face diferită?</b> Controlul rămâne 100% la tine. Știm că fiecare elev e unic și pot apărea situații nuanțate, așa că platforma îți permite să modifici oricând punctajele în cazurile discutabile sau creative.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="sec" id="ajutor" aria-labelledby="ajutor-t">
+          <div class="wrap">
+            <h2 class="l-h2" id="ajutor-t">Cum te ajută platforma noastră?</h2>
+            <ul class="benefits">
+              <li><h3>Acuratețe după barem</h3><p>Sistemul scanează și evaluează lucrările urmărind îndeaproape criteriile stabilite de tine, eliminând erorile de calcul sau oboseala acumulată după ore întregi de corectură.</p></li>
+              <li><h3>Control total în situații discutabile</h3><p>Știm că elevii surprind uneori prin exprimări creative sau abordări alternative. Platforma îți oferă libertatea de a ajusta rapid punctajele în orice moment, păstrând decizia finală strict în mâinile tale.</p></li>
+              <li><h3>Economie masivă de timp</h3><p>Treci de la ore întregi de corectură la doar câteva minute, timp pe care îl poți folosi pentru tine sau pentru a oferi feedback real elevilor.</p></li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="sec tint" aria-labelledby="trei-t">
+          <div class="wrap">
+            <h2 class="l-h2" id="trei-t">Pentru tine rămân trei lucruri.</h2>
+            <p class="l-body l-intro">Când intri în cont, vezi doar ce te așteaptă azi, cu un singur buton pentru fiecare. Elevii trimit lucrările singuri, iar tu verifici doar punctele nesigure.</p>
+            <ol class="tasks" data-ui aria-label="Exemplu: ce ai de făcut azi">
+              <li class="task first"><p class="kind"><span class="pill">Pregătire</span>Inducție matematică · a XI-a C</p><h3>Verifici baremul</h3><p class="ctx">Îl scrii tu sau primești o propunere. Nimic nu se corectează după un barem pe care nu l-ai confirmat.</p><span class="btn btn-primary go">Deschide</span></li>
+              <li class="task"><p class="kind"><span class="pill">Verificare</span>Ecuații de gradul al II-lea · a X-a B</p><h3>Decizi punctele nesigure</h3><p class="ctx">Vezi poza, itemul din barem și motivul. Alegi punctajul cu un clic.</p><span class="btn go">Începe</span></li>
+              <li class="task"><p class="kind"><span class="pill">Rezultate</span>Logaritmi · a X-a B</p><h3>Publici rezultatele</h3><p class="ctx">Fiecare elev primește un link cu rezultatul lui. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.</p><span class="btn go">Publică</span></li>
+            </ol>
+          </div>
+        </section>
+      </main>
+      <footer class="site-foot">
+        <div class="wrap">
+          <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
+            <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
+          </a>
+          <span class="note">Corectarea testelor de matematică · Timișoara · 2026</span>
+        </div>
+      </footer>
+    </div>
   </body>
 </html>

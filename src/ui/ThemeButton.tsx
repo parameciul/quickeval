@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { currentTheme, otherTheme, saveTheme, storedTheme, systemPrefersDark } from './theme.ts';
+import { currentTheme, otherTheme, saveTheme, storedTheme } from './theme.ts';
 
 // Shows a moon in light mode and a sun in dark mode: the icon offers the other theme.
 export function ThemeButton() {
-  const [theme, setTheme] = useState(() => currentTheme(storedTheme(), systemPrefersDark()));
+  const [theme, setTheme] = useState(() => currentTheme(storedTheme()));
   const next = otherTheme(theme);
   return (
     <button
