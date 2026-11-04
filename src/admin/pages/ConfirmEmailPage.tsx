@@ -33,7 +33,7 @@ export function ConfirmEmailPage() {
             confirm.mutate();
           }}
         >
-          <p>Ai cerut un cont în QuickEval. Scrie parola aleasă atunci, ca să confirmi că adresa de email este a ta.</p>
+          <p>Ai cerut un cont în MQGrader. Scrie parola aleasă atunci, ca să confirmi că adresa de email este a ta.</p>
           <label htmlFor="confirm-password">Parola</label>
           <input
             id="confirm-password"

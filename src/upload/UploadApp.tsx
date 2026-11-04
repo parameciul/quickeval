@@ -130,8 +130,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           <span className="brand">
             <BrandMark />
             <span className="brand-text">
-              <span className="brand-name">QuickEval</span>
-              <span className="brand-sub">Matematică cu Laura Miron</span>
+              <span className="brand-name">MQGrader</span>
             </span>
           </span>
         </div>
@@ -227,11 +226,6 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           )}
         </ErrorBoundary>
       </main>
-      <footer className="site-footer">
-        <div className="wrap">
-          <p>QuickEval · Matematică cu Laura Miron</p>
-        </div>
-      </footer>
     </>
   );
 }

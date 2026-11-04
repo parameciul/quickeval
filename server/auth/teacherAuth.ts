@@ -16,7 +16,7 @@ async function loggedInTeacher(c: Context<AppEnv>): Promise<Teacher> {
   const devEmail = c.env.DEV_TEACHER_EMAIL?.trim().toLowerCase();
   if (devEmail && LOCAL_HOSTS.has(new URL(c.req.url).hostname)) {
     const teacher = await findActiveTeacherByEmail(c.env.DB, devEmail);
-    if (!teacher) throw new ApiError(403, 'unknown_teacher', 'Contul tău nu are acces la QuickEval.');
+    if (!teacher) throw new ApiError(403, 'unknown_teacher', 'Contul tău nu are acces la MQGrader.');
     return teacher;
   }
   const token = sessionToken(c);

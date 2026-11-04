@@ -2,7 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { isValidSchoolYear, schoolYearOf } from '../../shared/schoolYear.ts';
 
 const YEAR_KEY = 'quickeval.schoolYear';
-// QuickEval starts in school year 2026-2027; no data exists before it.
+// MQGrader starts in school year 2026-2027; no data exists before it.
 const FIRST_YEAR = 2026;
 
 interface SchoolYearState {
@@ -13,7 +13,7 @@ interface SchoolYearState {
 const SchoolYearContext = createContext<SchoolYearState | null>(null);
 
 // The years the header switch offers: next year (for preparing classes in
-// summer) down to the first QuickEval year, newest first.
+// summer) down to the first MQGrader year, newest first.
 export function schoolYearOptions(current: number): number[] {
   const years: number[] = [];
   for (let year = current + 1; year >= Math.min(FIRST_YEAR, current); year--) years.push(year);

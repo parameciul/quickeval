@@ -25,7 +25,7 @@ const COMMON_PASSWORDS = new Set(
   letmein1 trustno1 superman starwars whatever computer michelle jennifer corvette mercedes internet parola12
   parola123 parola1234 parolamea parolanoua parolaparola parolasecreta romania1 romania123 bucuresti timisoara
   iubire123 iubirea1 dragoste profesor profesor1 profesoara matematica matematica1 quickeval quickeval1
-  quickeval123 liceul123 shakespeare`.split(/\s+/),
+  quickeval123 mqgrader mqgrader1 mqgrader123 liceul123 shakespeare`.split(/\s+/),
 );
 
 export function isCommonPassword(password: string): boolean {

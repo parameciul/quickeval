@@ -1,4 +1,6 @@
-# QuickEval
+# MQGrader
+
+Formerly QuickEval; the code, the URLs and the infrastructure keep that name.
 
 A test platform for Laura Miron's math classes: classes and students, tests, student uploads, grading, and reports. Runs on Cloudflare Pages (Functions, D1, R2).
 

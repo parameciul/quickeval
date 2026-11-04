@@ -17,7 +17,7 @@ describe('sendBrevoEmail', () => {
     expect(url).toBe('https://api.brevo.com/v3/smtp/email');
     expect((init.headers as Record<string, string>)['api-key']).toBe('key-123');
     expect(JSON.parse(init.body as string)).toEqual({
-      sender: { name: 'QuickEval', email: 'quickeval@example.com' },
+      sender: { name: 'MQGrader', email: 'quickeval@example.com' },
       to: [{ email: 'a@example.com' }, { email: 'b@example.com' }],
       subject: 'Subiect',
       textContent: 'Text.',

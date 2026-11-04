@@ -65,11 +65,11 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
       c,
       sendEmail(c.env, {
         to: [approved.email],
-        subject: 'QuickEval: contul tău a fost aprobat',
+        subject: 'MQGrader: contul tău a fost aprobat',
         text: [
           `Bună, ${approved.name}!`,
           '',
-          'Contul tău QuickEval a fost aprobat. Intră cu emailul și parola alese:',
+          'Contul tău MQGrader a fost aprobat. Intră cu emailul și parola alese:',
           `${new URL(c.req.url).origin}/admin/`,
         ].join('\n'),
       }),
@@ -124,11 +124,11 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
       c,
       sendEmail(c.env, {
         to: [changed.email],
-        subject: 'QuickEval: parola ta a fost schimbată',
+        subject: 'MQGrader: parola ta a fost schimbată',
         text: [
           `Bună, ${changed.name}!`,
           '',
-          `Un administrator QuickEval (${c.var.teacher.name}) ți-a făcut o parolă nouă. Ți-o trimite el.`,
+          `Un administrator MQGrader (${c.var.teacher.name}) ți-a făcut o parolă nouă. Ți-o trimite el.`,
           'Dacă nu ai cerut asta, scrie-i unui administrator.',
         ].join('\n'),
       }),

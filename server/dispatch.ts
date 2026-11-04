@@ -24,7 +24,7 @@ export async function dispatchRobot(env: Env, fetchImpl: typeof fetch = fetch): 
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         // GitHub refuses requests without a User-Agent.
-        'User-Agent': 'QuickEval',
+        'User-Agent': 'MQGrader',
         'X-GitHub-Api-Version': '2022-11-28',
       },
       body: JSON.stringify({ event_type: 'evaluate-now' }),

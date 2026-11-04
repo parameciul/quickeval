@@ -81,11 +81,11 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
         c,
         sendEmail(c.env, {
           to: [body.email],
-          subject: 'QuickEval: confirmă adresa de email',
+          subject: 'MQGrader: confirmă adresa de email',
           text: [
             `Bună, ${body.name}!`,
             '',
-            'Ai cerut un cont în QuickEval. Confirmă că adresa este a ta:',
+            'Ai cerut un cont în MQGrader. Confirmă că adresa este a ta:',
             confirmUrl,
             '',
             `Linkul merge ${CONFIRM_HOURS} de ore. După confirmare, un administrator aprobă contul.`,
@@ -124,9 +124,9 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
       adminEmails(c.env.DB).then((to) =>
         sendEmail(c.env, {
           to,
-          subject: 'QuickEval: cont nou de aprobat',
+          subject: 'MQGrader: cont nou de aprobat',
           text: [
-            'Un profesor a cerut un cont în QuickEval și și-a confirmat emailul:',
+            'Un profesor a cerut un cont în MQGrader și și-a confirmat emailul:',
             '',
             `Nume: ${confirmed.name}`,
             `Email: ${confirmed.email}`,

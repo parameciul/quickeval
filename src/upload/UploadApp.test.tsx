@@ -23,6 +23,19 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
+  it('shows only the MQGrader brand, with no other brand text', async () => {
+    const api = createFakeUploadApi();
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('heading', { name: 'Fracții' })).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toHaveTextContent('MQGrader');
+    expect(screen.queryByText(/Laura Miron/)).not.toBeInTheDocument();
+    expect(screen.getByRole('banner')).toHaveTextContent(/^MQGrader$/);
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Profesorul tău folosește|Încearcă gratuit|Ești profesor/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
   it('starts the upload after the student confirms the name, and keeps the secret', async () => {
     const api = createFakeUploadApi();
     render(<UploadApp api={api} token={LINK_TOKEN} />);
