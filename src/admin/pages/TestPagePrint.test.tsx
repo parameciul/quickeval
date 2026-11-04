@@ -55,6 +55,17 @@ describe('TestPage and a waiting barem request', () => {
 });
 
 describe('TestPage and the print PDF', () => {
+  it('shows the robot line on a draft while its print PDF waits', async () => {
+    const api = apiWith({ status: 'draft' }, true);
+    renderAdmin('/teste/6E2-26T1', api);
+    expect(await screen.findByText('Se pregătește testul cu cod QR…')).toBeInTheDocument();
+    expect(screen.getByText(robotStartMessage('next_check'))).toBeInTheDocument();
+    expect(screen.getByText(NEVER_CHECKED)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Pornește robotul' }));
+    expect(api.startRobot).toHaveBeenCalledWith('6E2-26T1');
+    await expect(api.startRobot.mock.results[0]!.value).resolves.toBe('next_check');
+  });
+
   it('shows the robot line and starts the robot while the print PDF waits', async () => {
     const api = apiWith({});
     renderAdmin('/teste/6E2-26T1', api);

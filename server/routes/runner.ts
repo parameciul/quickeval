@@ -119,8 +119,9 @@ export function runnerRoutes(): Hono<AppEnv> {
     return fileResponse(object, kind, type);
   });
 
-  // The print job of an open test: all the robot reads of a test before its
-  // evaluation. 404 unless the test waits for its print PDF.
+  // The print job of a draft or open test: with the barem job, all the robot
+  // reads of a test before its evaluation. 404 unless the test waits for its
+  // print PDF.
   routes.get('/tests/:id/print-job', async (c) => {
     const found = await findPrintJob(c.env.DB, parseId(c.req.param('id')));
     if (!found) throw notFound();

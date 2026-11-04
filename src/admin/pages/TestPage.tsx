@@ -22,9 +22,10 @@ import { UploadsTable } from '../testPage/UploadsTable.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
 // While students upload (and later while the robot grades), the page asks for
-// news every 10 seconds, and also while a generated barem is awaited.
-export function refreshInterval(status: TestStatus | undefined, baremRequest?: BaremRequest): number | false {
-  return status === 'open' || status === 'evaluating' || baremRequest === 'requested' ? 10_000 : false;
+// news every 10 seconds, and also while a generated barem or the print PDF of
+// a draft is awaited.
+export function refreshInterval(status: TestStatus | undefined, baremRequest?: BaremRequest, printWaits = false): number | false {
+  return status === 'open' || status === 'evaluating' || baremRequest === 'requested' || printWaits ? 10_000 : false;
 }
 
 export function TestPage() {
@@ -49,7 +50,10 @@ function TestDetails({ code }: { code: string }) {
   const detail = useQuery({
     queryKey: ['test', code],
     queryFn: () => api.getTest(code),
-    refetchInterval: (query) => refreshInterval(query.state.data?.test.status, query.state.data?.test.barem.request),
+    refetchInterval: (query) => {
+      const shown = query.state.data?.test;
+      return refreshInterval(shown?.status, shown?.barem.request, shown ? waitsForPrint(shown) : false);
+    },
   });
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['test', code] });
@@ -120,7 +124,7 @@ function TestDetails({ code }: { code: string }) {
 
       <TestFiles test={test} onChanged={refresh} onRobot={onRobot} />
 
-      <TestActions test={test} onChanged={refresh} onRobot={onRobot} />
+      <TestActions test={test} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
 
       {test.status !== 'draft' && (
         <>
@@ -150,7 +154,7 @@ function TestDetails({ code }: { code: string }) {
         </>
       )}
 
-      {test.status === 'draft' && baremWaits && (
+      {test.status === 'draft' && (printWaits || baremWaits) && (
         <>
           {robotText && <p role="status">{robotText}</p>}
           <RobotLine lastCheckAt={robot.lastCheckAt} lateText={robotLateText}>
@@ -202,7 +206,9 @@ function TestDetails({ code }: { code: string }) {
             className="button-quiet button-small button-danger"
             disabled={remove.isPending}
             onClick={() => {
-              if (window.confirm(`Ștergi testul ${code}? Se șterg și toate lucrările încărcate.`)) remove.mutate();
+              // A printed test keeps its QR code: after a delete, the code leads nowhere.
+              const printed = test.print.status === 'ready' ? ' Codurile QR de pe testele tipărite nu vor mai funcționa.' : '';
+              if (window.confirm(`Ștergi testul ${code}? Se șterg și toate lucrările încărcate.${printed}`)) remove.mutate();
             }}
           >
             Șterge testul
@@ -238,13 +244,18 @@ function writeLinksVisible(code: string, visible: boolean): void {
   }
 }
 
-// What the teacher can do next, by the state of the test.
+// What the teacher can do next, by the state of the test. The test is printed
+// before the day of the test (its QR code is ready from the start) and started
+// on that day: starting it opens the uploads and gives the test its date. A
+// test started by mistake can be stopped while no student has uploaded a file.
 function TestActions({
   test,
+  uploads,
   onChanged,
   onRobot,
 }: {
   test: TestInfo;
+  uploads: UploadRow[];
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
 }) {
@@ -253,6 +264,13 @@ function TestActions({
     mutationFn: () => api.startTest(test.code),
     onSuccess: async (started) => {
       onRobot(started.robot);
+      await onChanged();
+    },
+  });
+  const stop = useMutation({
+    mutationFn: () => api.stopTest(test.code),
+    onSuccess: async () => {
+      onRobot(null);
       await onChanged();
     },
   });
@@ -277,7 +295,10 @@ function TestActions({
     return (
       <>
         {heading}
-        <p className="hint">Elevii pot încărca lucrările după ce începi testul. Atunci apar linkul și codul QR.</p>
+        <p className="hint">
+          Elevii pot încărca lucrările după ce începi testul. Începe-l în ziua testului, când le dai foile: data testului este ziua
+          în care îl începi.
+        </p>
         <button type="button" className="button" disabled={start.isPending} onClick={() => start.mutate()}>
           Începe testul
         </button>
@@ -285,6 +306,9 @@ function TestActions({
       </>
     );
   }
+  // Stopping is refused once a student has uploaded a file, or once the test
+  // was evaluated (a reopened test): the API checks it too.
+  const canStop = test.evaluationStartedAt === null && uploads.every((row) => row.fileCount === 0);
   if (test.status === 'open' && test.uploadToken)
     return (
       <>
@@ -305,6 +329,24 @@ function TestActions({
             <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />
           </>
         )}
+        {canStop && (
+          <>
+            <p className="hint">Ai început testul din greșeală? Îl poți opri cât timp niciun elev nu a încărcat lucrarea.</p>
+            <button
+              type="button"
+              className="button-quiet button-small"
+              disabled={stop.isPending}
+              onClick={() => {
+                const schedule = test.evaluationAt ? ' Evaluarea programată se anulează.' : '';
+                const question = `Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge.${schedule}`;
+                if (window.confirm(question)) stop.mutate();
+              }}
+            >
+              Oprește testul
+            </button>
+          </>
+        )}
+        {stop.error && <ErrorMessage error={stop.error} />}
       </>
     );
   return (

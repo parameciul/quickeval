@@ -132,7 +132,8 @@ describe('GET /api/admin/tests/:code', () => {
     expect(res.status).toBe(200);
     expect(res.body.test).toMatchObject({
       code,
-      uploadToken: null,
+      // The link is made with the test, so the QR code can be printed before the start.
+      uploadToken: expect.stringMatching(/^[a-z2-7]{16}$/),
       files: { test: null, barem: null },
       exerciseList: { status: 'none', message: null },
       studentCount: 2,

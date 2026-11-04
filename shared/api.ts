@@ -525,6 +525,8 @@ export type PrintStatus = 'none' | 'ready' | 'failed';
 export type BaremRequest = 'none' | 'requested' | 'failed';
 
 export interface TestInfo extends TestSummary {
+  // The upload link (/u/<uploadToken>), made with the test, so the print PDF
+  // is ready before the test starts. Null only for a draft made before that.
   uploadToken: string | null;
   multiUploadToken: string | null;
   files: Record<TestFileKind, TestFileInfo | null>;
@@ -622,13 +624,19 @@ export interface Settings {
   configuredAt: string | null;
 }
 
-// Start test: the link is /u/<uploadToken>.
+// Start test: the link is /u/<uploadToken>, the one the test got when it was made.
 export interface StartedTest {
   status: TestStatus;
   uploadToken: string;
   startedAt: string;
-  // Set when starting the test made work for the robot (the print PDF).
+  // Set when the print PDF still waits at the start (for example a draft made
+  // before tests got their link at once): the robot was started for it.
   robot: RobotStart | null;
+}
+
+// "Oprește testul": the test is a draft again.
+export interface StoppedTest {
+  status: TestStatus;
 }
 
 // The link that uploads for many students on one phone: /u/<multiUploadToken>.

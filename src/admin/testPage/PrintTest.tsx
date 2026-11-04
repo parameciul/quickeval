@@ -5,7 +5,10 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // The test with the QR code in the corner of every page, made by the robot
-// from the test file, for the teacher to print. It shows under the test file.
+// from the test file, for the teacher to print. It shows under the test file
+// from the moment the test is made: the teacher prints it before the day of
+// the test, and starts the test on that day. A draft made before tests got
+// their link at once asks for the link with "Pregătește testul cu cod QR".
 export function PrintTest({
   test,
   onChanged,
@@ -30,6 +33,15 @@ export function PrintTest({
       <strong>Testul pentru tipărit:</strong>
       {test.files.test === null ? (
         <p className="hint">Încarcă testul ca să primești varianta cu cod QR.</p>
+      ) : test.uploadToken === null ? (
+        <>
+          <p>
+            <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
+              Pregătește testul cu cod QR
+            </button>
+          </p>
+          {retry.error && <ErrorMessage error={retry.error} />}
+        </>
       ) : status === 'none' ? (
         <p role="status" className="busy-line">
           <span className="spinner" aria-hidden="true" />
@@ -43,6 +55,9 @@ export function PrintTest({
             </a>
           </p>
           <p className="hint">Codul QR apare în colțul fiecărei pagini.</p>
+          {test.status === 'draft' && (
+            <p className="hint">Poți tipări testul de acum. Elevii încarcă lucrările după ce începi testul.</p>
+          )}
           {fromWord && (
             <p className="hint">
               PDF-ul a fost făcut din fișierul Word. Verifică-l înainte să-l tipărești. Pentru o copie exactă, încarcă testul ca PDF.

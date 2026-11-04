@@ -6,7 +6,9 @@ Date: 2026-10-25. Status: draft for the user's approval.
 
 Laura prints the test and hands it out on paper. Today the students reach the upload page through the link or the QR code that the test page shows on the screen or the projector. With this change, the printed test carries the QR code itself: each student scans the corner of their own sheet when they are done and uploads their work.
 
-After the teacher starts a test, the test page offers **"Descarcă testul cu cod QR"**: a PDF of the teacher's test with the student upload QR code in the bottom-right corner of every page.
+As soon as a test has its test file, the test page offers **"Descarcă testul cu cod QR"**: a PDF of the teacher's test with the student upload QR code in the bottom-right corner of every page.
+
+Update (2026-11-03): a test gets its upload link when it is made, so the print PDF is made for the draft. The teacher prints the test before the day of the test and starts it on that day: starting it no longer has to happen the evening before, and the test's date (`started_at`) is right. A test started by mistake can be stopped (open → draft) while no student has uploaded a file; the link and the print PDF stay. See the main spec §8.1, §8.2, §8.2a.
 
 The user's main concern: **the test must not change**, because it is full of math symbols. Every choice below serves that.
 
@@ -21,7 +23,7 @@ Goals:
 Non-goals:
 - No QR code for the multi-upload link (the second link stays on screen only).
 - No per-student PDFs (one PDF for the whole class; the QR code is the same for all).
-- No print PDF for a test that is not open (students can upload only while it is open).
+- No print PDF once the uploads closed (a test in evaluation or done). A draft has one: it is printed before the start.
 - No change to how the robot grades: grading still reads the teacher's original file.
 
 Anti-goals (a failure even if it "works"):
@@ -55,10 +57,10 @@ The stamp (PyMuPDF `show_pdf_page`, the QR drawn as vector squares with segno) k
 
 ### 4.1 The flow
 
-1. The teacher uploads the test (`.pdf` or `.docx`), as today.
-2. The teacher starts the test (draft → open). The test gets its upload token.
-3. If the test has a test file, the API starts the robot (`startRobot`). The same happens when the teacher uploads or replaces the test file on an open test, when the teacher reopens a test (evaluating or done → open) whose print PDF is missing, and on "Încearcă din nou". Root rule: every path that makes robot work starts the robot.
-4. The robot's check sees a **print job**: an open test with a test file and no print PDF for its current test file.
+1. The teacher creates the test. It gets its upload token at once (main spec §8.1).
+2. The teacher uploads the test (`.pdf` or `.docx`), on the create screen or on the test page.
+3. The API starts the robot (`startRobot`) when the upload made a print job. The same happens when the teacher uploads or replaces the test file on a draft or open test, starts a test whose print PDF still waits, reopens a test (evaluating or done → open) whose print PDF is missing, and on "Încearcă din nou" and "Pregătește testul cu cod QR". Root rule: every path that makes robot work starts the robot.
+4. The robot's check sees a **print job**: a draft or open test with its upload token, a test file, and no print PDF for its current test file.
 5. The robot downloads the test file and the upload token, converts a Word file to PDF, stamps the QR code on every page, and uploads the PDF to the API.
 6. The API stores it in R2 and marks the print PDF ready. The test page shows the download button.
 
@@ -75,15 +77,15 @@ R2 key: `t/<teacherId>/<schoolYear>/<code>/print/<test-file-slug>-qr.pdf` (a new
 
 Saving a new test file sets `print_status = 'none'`, `print_attempts = 0`, `print_file_key = NULL` in the same UPDATE, and the old print file is deleted quietly, like an old test file. A new barem does not touch the print PDF. Deleting a test deletes its print file with its other files.
 
-A print job waits while `status = 'open' AND upload_token IS NOT NULL AND test_file_key IS NOT NULL AND print_status = 'none'` (one SQL condition `NEEDS_PRINT` in `server/db/runner.ts`, next to `NEEDS_EXERCISE_LIST`). It counts in `runCheck` (`hasWork` is true when only a print job waits), `listTasks`, and `testHasRobotWork`. After the migration, the tests that are open at that moment become print jobs; tests in evaluation or done do not, until they are reopened.
+A print job waits while `status IN ('draft', 'open') AND upload_token IS NOT NULL AND test_file_key IS NOT NULL AND print_status = 'none'` (one SQL condition `NEEDS_PRINT` in `server/db/runner.ts`, next to `NEEDS_EXERCISE_LIST`). It counts in `runCheck` (`hasWork` is true when only a print job waits), `listTasks` (oldest test first), and `testHasRobotWork`. After the migration, the tests that are open at that moment become print jobs; tests in evaluation or done do not, until they are reopened. A draft made before tests got their token at once has none: it gets one, and becomes a print job, when it starts, when its test file is uploaded or replaced (`saveTestFile`), or on "Pregătește testul cu cod QR" (`POST /tests/:code/print/retry`).
 
 `TestFileKind` stays `'test' | 'barem'`: the teacher cannot upload a print file through the teacher route.
 
 ### 4.3 Robot API (`/api/runner`)
 
-The robot today reads only tests in evaluation (`findRobotTest`), so a leaked robot key shows nothing of an open test. A print job needs an open test's file and upload token. The access widens only this far:
+The robot today reads only tests in evaluation (`findRobotTest`), so a leaked robot key shows nothing of an open test. A print job needs a draft or open test's file and upload token. The access widens only this far:
 
-- `GET /tests/:id/print-job` → `{ testId, filesVersion, contentType, uploadToken }`, and `GET /tests/:id/print-job/file` → the test file. Both answer 404 unless the test is a waiting print job (`NEEDS_PRINT`), checked in their SQL. A test whose print PDF is ready or failed, or that is not open, shows nothing.
+- `GET /tests/:id/print-job` → `{ testId, filesVersion, contentType, uploadToken }`, and `GET /tests/:id/print-job/file` → the test file. Both answer 404 unless the test is a waiting print job (`NEEDS_PRINT`), checked in their SQL. A test whose print PDF is ready or failed, or that is neither a draft nor open, shows nothing.
 - `PUT /tests/:id/print` with the PDF as the body, `runId` and `filesVersion` in headers: saves only when the run holds the lease, the test still waits (`NEEDS_PRINT`), and `files_version` is the one the robot read (a PDF made from a replaced file is refused, 409 `not_needed`). The body is checked as a PDF (`looksLike`) and at most 25 MB, read with `arrayBuffer()` like other uploads. R2 write first, then the row; a refused row write deletes the new object.
 - `POST /tests/:id/print-failed` `{ runId, filesVersion, error }`: one attempt more, under the same conditions; at 3 attempts `print_status = 'failed'`.
 
@@ -113,10 +115,11 @@ No new install step: Docker is on the GitHub machine, and the robot builds the i
 
 ### 4.7 The teacher's page
 
-A block "Testul pentru tipărit" on the test page, next to the student link, only while the test is open:
+A block "Testul pentru tipărit" on the test page, under the test file, while the test is a draft or open:
 - No test file: "Încarcă testul ca să primești varianta cu cod QR."
-- Waiting (`none`): "Se pregătește testul cu cod QR…". The page refreshes every 10 s, as it does for open tests.
-- Ready: **"Descarcă testul cu cod QR"** (`GET /api/admin/tests/:code/print`, a PDF named `<code>-cu-cod-qr.pdf`). For a Word test, also: "PDF-ul a fost făcut din fișierul Word. Verifică-l înainte să-l tipărești. Pentru o copie exactă, încarcă testul ca PDF."
+- A draft made before tests got their token at once: **"Pregătește testul cu cod QR"** (`POST /tests/:code/print/retry`: the token, then `startRobot`).
+- Waiting (`none`): "Se pregătește testul cu cod QR…". The page refreshes every 10 s, as it does for open tests (and for a draft while its print PDF waits).
+- Ready: **"Descarcă testul cu cod QR"** (`GET /api/admin/tests/:code/print`, a PDF named `<code>-cu-cod-qr.pdf`). For a draft, also: "Poți tipări testul de acum. Elevii încarcă lucrările după ce începi testul." For a Word test, also: "PDF-ul a fost făcut din fișierul Word. Verifică-l înainte să-l tipărești. Pentru o copie exactă, încarcă testul ca PDF."
 - Failed: "Nu am putut pregăti testul cu cod QR." and **"Încearcă din nou"** (`POST /tests/:code/print/retry`: `print_status = 'none'`, 0 attempts, then `startRobot`).
 - When the robot could not start, the existing robot line says so.
 

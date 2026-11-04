@@ -16,6 +16,7 @@ import {
   type RegradeAnswer,
   type ReopenAnswer,
   type RobotStartAnswer,
+  type StoppedTest,
   type TestFileAnswer,
 } from '../../shared/api.ts';
 import { isTestFileKind, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
@@ -41,6 +42,7 @@ import {
   createTest,
   createMultiUploadToken,
   deleteTestRow,
+  hasStudentFiles,
   listTestKeys,
   listTests,
   listUploads,
@@ -55,6 +57,7 @@ import {
   saveTestFile,
   setTestArchived,
   startTest,
+  stopTest,
   toTestInfo,
 } from '../db/tests.ts';
 import { robotStarter } from '../dispatch.ts';
@@ -148,7 +151,9 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ deleted: true });
   });
 
-  // Start test: draft → open. Students can upload from /u/<uploadToken>.
+  // Start test: draft → open, on the day of the test. Students can upload
+  // from /u/<uploadToken>, the link the test got when it was made. Only a
+  // draft made before that gets its link now, and with it a print job.
   routes.post('/:code/start', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const started =
@@ -156,6 +161,27 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (!started) throw new ApiError(409, 'already_started', 'Testul a început deja.');
     const robot = (await needsPrint(c.env.DB, test.id)) ? await startRobot(c.env) : null;
     return c.json({ status: 'open', ...started, robot });
+  });
+
+  // "Oprește testul": open → draft, for a test started by mistake. Only while
+  // no student has uploaded a file and the test was never evaluated; the link
+  // and the print PDF stay.
+  routes.post('/:code/stop', async (c) => {
+    const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    if (test.summary.status === 'open' && (await stopTest(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
+      return c.json({ status: 'draft' } satisfies StoppedTest);
+    }
+    // Read after the write changed nothing, so it describes the test as it is now.
+    const current = await requireTest(c.env.DB, c.var.teacher.id, test.summary.code);
+    if (current.summary.status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
+    if (current.summary.status !== 'open') throw new ApiError(409, 'closed', 'Încărcarea s-a închis. Testul nu mai poate fi oprit.');
+    if (current.summary.evaluationStartedAt !== null) {
+      throw new ApiError(409, 'evaluated', 'Testul a fost deja evaluat, așa că nu mai poate fi oprit.');
+    }
+    if (await hasStudentFiles(c.env.DB, current.id)) {
+      throw new ApiError(409, 'has_uploads', 'Un elev a încărcat deja lucrarea, așa că testul nu mai poate fi oprit.');
+    }
+    throw new ApiError(409, 'busy', 'Testul s-a schimbat între timp. Încearcă din nou.');
   });
 
   // The link that uploads for many students on one phone (/u/<multiUploadToken>).
@@ -197,10 +223,11 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return fileResponse(object, `${test.summary.code}-cu-cod-qr.pdf`, PDF_TYPE);
   });
 
-  // "Încearcă din nou": the robot makes the print PDF again.
+  // "Încearcă din nou": the robot makes the print PDF again. Also "Pregătește
+  // testul cu cod QR" for a draft made before tests got their link at once.
   routes.post('/:code/print/retry', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
-    if (!(await retryPrint(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
+    if (!(await retryPrint(c.env.DB, c.var.teacher.id, test.id, newUploadToken(), nowIso()))) {
       throw new ApiError(409, 'not_failed', 'Testul cu cod QR nu poate fi încercat din nou.');
     }
     return c.json({ print: { status: 'none', fromWord: test.print.fromWord }, robot: await startRobot(c.env) } satisfies PrintRetryAnswer);
@@ -334,14 +361,15 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
 
   // "Pornește robotul": the teacher starts the robot again for work that a
   // run left when it stopped early (a usage limit, a crash, the time limit),
-  // or for the print PDF of an open test when the robot did not start.
+  // or for the print PDF or the barem of a draft or open test when the robot
+  // did not start.
   routes.post('/:code/robot', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
-    // An open test has robot work only while its print PDF or barem waits, a
-    // draft one only while its barem waits; testHasRobotWork decides.
+    // A draft or open test has robot work only while its print PDF or barem
+    // waits; testHasRobotWork decides.
     const status = test.summary.status;
-    const draftBarem = status === 'draft' && (await needsBarem(c.env.DB, test.id));
-    if (status !== 'evaluating' && status !== 'open' && !draftBarem) {
+    const draftWork = status === 'draft' && ((await needsBarem(c.env.DB, test.id)) || (await needsPrint(c.env.DB, test.id)));
+    if (status !== 'evaluating' && status !== 'open' && !draftWork) {
       throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
     }
     if (!(await testHasRobotWork(c.env.DB, test.id, nowIso()))) {
@@ -386,7 +414,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const file = await readUpload(c, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
     const key = testFileKey(teacherId, test.summary.schoolYear, test.summary.code, kind, file.name, file.contentType);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
-    const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, { key, name: file.name, type: file.contentType }, nowIso());
+    const stored = { key, name: file.name, type: file.contentType };
+    const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, stored, nowIso(), newUploadToken());
     // The replaced file is read in the write's own batch: the robot may have
     // saved a generated barem after this route read the test.
     const replaced = saved?.replacedKey ?? null;

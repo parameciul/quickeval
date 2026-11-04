@@ -90,9 +90,14 @@ check('upload the barem', barem.status === 200 && barem.body?.file?.name === 'ba
 const stored = await fetch(`${base}/api/admin/tests/${code}/files/barem`);
 check('read the barem back', stored.status === 200 && (await stored.text()) === '%PDF-1.4\n%%EOF\n', String(stored.status));
 
+// The draft has its link already: the test with the QR code is printed before the start.
+const draft = await api('GET', `/api/admin/tests/${code}`);
+const draftToken = draft.body?.test?.uploadToken;
+check('the draft has its upload link', draft.status === 200 && /^[a-z2-7]{16}$/.test(draftToken ?? ''), JSON.stringify(draft.body?.test));
+
 const started = await api('POST', `/api/admin/tests/${code}/start`);
 const token = started.body?.uploadToken;
-check('start the test', started.status === 200 && /^[a-z2-7]{16}$/.test(token ?? ''), JSON.stringify(started.body));
+check('start the test with the same link', started.status === 200 && token === draftToken, JSON.stringify(started.body));
 
 const link = await api('GET', `/api/u/${token}`);
 check('the link lists the student', link.status === 200 && link.body?.students?.some((s) => s.id === studentId), JSON.stringify(link.body));

@@ -23,6 +23,7 @@ import type {
   Settings,
   SignupInput,
   StartedTest,
+  StoppedTest,
   StudentHistory,
   StudentRow,
   SubmissionDetail,
@@ -84,8 +85,11 @@ export interface AdminApi {
   // "Am verificat baremul": names the files version the page showed.
   confirmBarem(code: string, filesVersion: number): Promise<BaremCheckedAnswer>;
   startTest(code: string): Promise<StartedTest>;
+  // "Oprește testul": an open test with no student file is a draft again.
+  stopTest(code: string): Promise<StoppedTest>;
   reopenTest(code: string): Promise<ReopenAnswer>;
-  // "Încearcă din nou" on a print PDF that failed.
+  // "Încearcă din nou" on a print PDF that failed, and "Pregătește testul cu
+  // cod QR" on a draft made before tests got their link at once.
   retryPrint(code: string): Promise<PrintRetryAnswer>;
   // Puts a finished test in the archive, or takes it out. Resolves to the new mark.
   setTestArchived(code: string, archived: boolean): Promise<boolean>;
@@ -279,6 +283,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     generateBarem: (code) => request<BaremGenerateAnswer>('POST', `${test(code)}/barem/generate`),
     confirmBarem: (code, filesVersion) => request<BaremCheckedAnswer>('POST', `${test(code)}/barem/checked`, { filesVersion }),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
+    stopTest: (code) => request<StoppedTest>('POST', `${test(code)}/stop`),
     createMultiUploadLink: async (code) =>
       (await request<{ multiUploadToken: string }>('POST', `${test(code)}/multi-link`)).multiUploadToken,
     setResultsOpen: async (code, open) =>

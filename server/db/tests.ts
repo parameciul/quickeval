@@ -4,6 +4,7 @@ import { DOCX_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
+import { newUploadToken } from '../secrets.ts';
 import { flagCountSql } from './evaluations.ts';
 import { NEEDS_BAREM, NEEDS_PRINT } from './runner.ts';
 
@@ -233,11 +234,12 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
 
 const MAX_CODE_TRIES = 3;
 
-// Makes a draft test with the class's next number, for example "6E2-26T3".
-// The number and the code are unique, so a test made at the same moment, or a
-// class that had this name before a rename, can already hold them: the counter
-// then moves past that number and the next try takes a new one. At most 12
-// queries.
+// Makes a draft test with the class's next number, for example "6E2-26T3",
+// and its upload link: the print PDF carries the link's QR code, so the
+// teacher can print the test before she starts it. The number and the code are
+// unique, so a test made at the same moment, or a class that had this name
+// before a rename, can already hold them: the counter then moves past that
+// number and the next try takes a new one (and a new link). At most 12 queries.
 export async function createTest(db: D1Database, teacherId: number, classId: number, title: string, now: string): Promise<string> {
   for (let attempt = 1; attempt <= MAX_CODE_TRIES; attempt++) {
     const cls = await db
@@ -253,8 +255,10 @@ export async function createTest(db: D1Database, teacherId: number, classId: num
     try {
       await db.batch([
         db
-          .prepare('INSERT INTO tests (teacher_id, class_id, number, code, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-          .bind(teacherId, classId, number, code, title, now, now),
+          .prepare(
+            'INSERT INTO tests (teacher_id, class_id, number, code, title, upload_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          )
+          .bind(teacherId, classId, number, code, title, newUploadToken(), now, now),
         db.prepare('UPDATE classes SET next_test_number = ? WHERE id = ? AND teacher_id = ?').bind(number + 1, classId, teacherId),
       ]);
       return code;
@@ -277,7 +281,10 @@ export async function renameTest(db: D1Database, teacherId: number, code: string
   return row !== null;
 }
 
-// draft → open, with a new upload link. Null when the test is no longer a draft.
+// draft → open: students can upload from now on, and now is the test's date.
+// The test keeps the link it got when it was made, so the printed QR code
+// works; a draft made before tests got their link at once gets `uploadToken`.
+// Null when the test is no longer a draft.
 export async function startTest(
   db: D1Database,
   teacherId: number,
@@ -287,13 +294,45 @@ export async function startTest(
 ): Promise<{ uploadToken: string; startedAt: string } | null> {
   const row = await db
     .prepare(
-      `UPDATE tests SET status = 'open', archived = 0, upload_token = ?, started_at = ?, updated_at = ?
+      `UPDATE tests SET status = 'open', archived = 0, upload_token = COALESCE(upload_token, ?), started_at = ?, updated_at = ?
        WHERE id = ? AND teacher_id = ? AND status = 'draft'
        RETURNING upload_token, started_at`,
     )
     .bind(uploadToken, now, now, testId, teacherId)
     .first<{ upload_token: string; started_at: string }>();
   return row ? { uploadToken: row.upload_token, startedAt: row.started_at } : null;
+}
+
+// No file of a student in the test: an upload with a file, sent or not, is
+// the student's work. On the alias tests.
+const NO_STUDENT_FILES = `NOT EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id WHERE s.test_id = tests.id)
+  AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND s.status <> 'uploading')`;
+
+// "Oprește testul": open → draft, for a test started by mistake (on the wrong
+// day). The date goes, and so does a scheduled evaluation; the link stays, so
+// the printed QR code works when the test starts again. Only while no student
+// has uploaded a file and the test was never evaluated (a test reopened after
+// an evaluation was not started by mistake), checked in the write itself: a
+// file that lands at the same moment either comes first and keeps the test
+// open, or finds it no longer open. Uploads with no file stay and go on at the
+// next start. False when the test is gone, is not the teacher's, is not open,
+// was evaluated, or holds a student's file.
+export async function stopTest(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET status = 'draft', started_at = NULL, evaluation_at = NULL, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND status = 'open' AND evaluation_started_at IS NULL AND ${NO_STUDENT_FILES}
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ id: number }>();
+  return row !== null;
+}
+
+// True when a student has uploaded a file to the test.
+export async function hasStudentFiles(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db.prepare(`SELECT 1 AS found FROM tests WHERE id = ? AND NOT (${NO_STUDENT_FILES})`).bind(testId).first();
+  return row !== null;
 }
 
 // The link that uploads for many students on one phone. Made only when the
@@ -372,7 +411,8 @@ export async function setTestArchived(
 
 // Points the test at a new test or barem file, and counts the change in
 // files_version. A new test file also clears the print PDF made from the old
-// one. A new barem also clears the exercise list, which the robot made from
+// one, and gives `uploadToken` to a draft made before tests got their link at
+// once (every other test has its link), so its print PDF waits for the robot. A new barem also clears the exercise list, which the robot made from
 // the old one (spec §8.5). Returns the test's status, the key of the print
 // PDF the change cleared, and the key of the file it replaced (the caller
 // deletes their objects), or null when the test is gone. The keys are read in
@@ -385,11 +425,12 @@ export async function saveTestFile(
   kind: TestFileKind,
   file: StoredFile,
   now: string,
+  uploadToken: string,
 ): Promise<{ status: TestStatus; clearedPrintKey: string | null; replacedKey: string | null } | null> {
   const sql =
     kind === 'test'
       ? `UPDATE tests SET test_file_key = ?, test_file_name = ?, test_file_type = ?, updated_at = ?, files_version = files_version + 1,
-           print_status = 'none', print_attempts = 0, print_file_key = NULL,
+           print_status = 'none', print_attempts = 0, print_file_key = NULL, upload_token = COALESCE(upload_token, ?),
            barem_request = CASE WHEN barem_unchecked = 1 AND status IN ('draft', 'open') THEN 'requested' ELSE barem_request END,
            barem_request_attempts = CASE WHEN barem_unchecked = 1 AND status IN ('draft', 'open') THEN 0 ELSE barem_request_attempts END
          WHERE id = ? AND teacher_id = ?
@@ -403,7 +444,9 @@ export async function saveTestFile(
     db
       .prepare(`SELECT print_file_key, ${kind === 'test' ? 'test_file_key' : 'barem_file_key'} AS replaced_key FROM tests WHERE id = ? AND teacher_id = ?`)
       .bind(testId, teacherId),
-    db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId),
+    kind === 'test'
+      ? db.prepare(sql).bind(file.key, file.name, file.type, now, uploadToken, testId, teacherId)
+      : db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId),
   ]);
   const status = written?.results[0]?.status;
   if (!status) return null;
@@ -496,16 +539,20 @@ export async function confirmBarem(
   return row !== null;
 }
 
-// "Încearcă din nou": a failed print PDF goes back to the queue. False when the
-// test is gone, is not the teacher's, is not open, or the print did not fail.
-export async function retryPrint(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+// "Încearcă din nou": a failed print PDF goes back to the queue. Also
+// "Pregătește testul cu cod QR" for a draft made before tests got their link
+// at once: it gets `uploadToken`, and its print PDF waits for the robot. False
+// when the test is gone, is not the teacher's, is past uploads, or its print
+// neither failed nor lacks a link (with a test file to print).
+export async function retryPrint(db: D1Database, teacherId: number, testId: number, uploadToken: string, now: string): Promise<boolean> {
   const row = await db
     .prepare(
-      `UPDATE tests SET print_status = 'none', print_attempts = 0, updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND status = 'open' AND print_status = 'failed'
+      `UPDATE tests SET print_status = 'none', print_attempts = 0, upload_token = COALESCE(upload_token, ?), updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND status IN ('draft', 'open')
+         AND (print_status = 'failed' OR (upload_token IS NULL AND test_file_key IS NOT NULL))
        RETURNING id`,
     )
-    .bind(now, testId, teacherId)
+    .bind(uploadToken, now, testId, teacherId)
     .first<{ id: number }>();
   return row !== null;
 }

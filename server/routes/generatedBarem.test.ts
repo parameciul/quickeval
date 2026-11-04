@@ -167,8 +167,9 @@ describe('file uploads and the generated barem', () => {
     const res = await putTestFile('test2.pdf', 'enunț nou');
     expect(res.status).toBe(200);
     expect(await row()).toMatchObject({ barem_request: 'failed', barem_request_attempts: 3, barem_unchecked: 0 });
-    expect(await res.json()).toMatchObject({ robot: null });
-    expect(dispatchRobot).not.toHaveBeenCalled();
+    // The robot starts only for the print PDF of the new test file.
+    expect(await res.json()).toMatchObject({ robot: 'dispatched' });
+    expect(await api.db.prepare('SELECT print_status FROM tests WHERE code = ?').bind(code).first()).toEqual({ print_status: 'none' });
   });
 
   it('a new test file does not ask for a barem once the test is done', async () => {

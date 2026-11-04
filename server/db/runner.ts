@@ -37,10 +37,13 @@ export const GRADABLE = `s.status = 'submitted' AND t.status = 'evaluating' AND 
 export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = 'requested'
   AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status IN ('submitted', 'grading'))
   AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = t.id AND g.status = 'graded')`;
-// A started test with a test file whose print PDF (the test with the QR code)
-// is not made yet. Keep it a flat condition on the alias t: the print writes
-// rewrite t. to tests.
-export const NEEDS_PRINT = "t.status = 'open' AND t.upload_token IS NOT NULL AND t.test_file_key IS NOT NULL AND t.print_status = 'none'";
+// A draft or open test with an upload link and a test file whose print PDF
+// (the test with the QR code) is not made yet. A test gets its link when it is
+// made, so the teacher prints it before the day of the test and starts it on
+// that day. Keep it a flat condition on the alias t: the print writes rewrite
+// t. to tests.
+export const NEEDS_PRINT =
+  "t.status IN ('draft', 'open') AND t.upload_token IS NOT NULL AND t.test_file_key IS NOT NULL AND t.print_status = 'none'";
 // A draft or open test with a test file whose barem the teacher asked the robot
 // to generate. Keep it a flat condition on the alias t.
 export const NEEDS_BAREM = "t.status IN ('draft', 'open') AND t.test_file_key IS NOT NULL AND t.barem_request = 'requested'";
@@ -197,7 +200,7 @@ export async function listTasks(db: D1Database): Promise<TasksResult> {
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
     db.prepare(`SELECT COUNT(*) AS count FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}`),
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_ANALYSIS} ORDER BY t.id`),
-    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_PRINT} ORDER BY t.started_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_PRINT} ORDER BY t.created_at, t.id`),
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_BAREM} ORDER BY t.updated_at, t.id`),
   ]);
   const ids = (rows: { id?: number }[] | undefined) => (rows ?? []).map((row) => row.id!);
@@ -315,7 +318,7 @@ export async function failExerciseList(
 
 // The print job of a test that waits for its print PDF, with what the route
 // needs to read the test file and name the result. Null for any other test:
-// the robot sees an open test only through this job.
+// the robot sees a draft or open test only through this job.
 export async function findPrintJob(
   db: D1Database,
   testId: number,

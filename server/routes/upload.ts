@@ -33,6 +33,8 @@ const SESSION_HEADER = 'X-Upload-Session';
 
 const unknownLink = () => new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
 const closed = () => new ApiError(409, 'closed', 'Încărcarea s-a închis.');
+// A draft test: its link is on the printed test before the teacher starts it.
+const notStarted = () => new ApiError(409, 'not_started', 'Testul nu a început încă. Poți încărca lucrarea după ce îl începe profesorul.');
 const alreadySent = () => new ApiError(409, 'already_submitted', 'Lucrarea ta a fost deja trimisă.');
 const otherDevice = () =>
   new ApiError(409, 'other_device', 'Încărcarea a început pe alt telefon. Roagă profesorul să o reseteze.');
@@ -47,6 +49,13 @@ async function linkTest(c: Context<AppEnv>): Promise<LinkTest> {
   return test;
 }
 
+// Students upload only while the test is open: not before the teacher starts
+// it, and not after the uploads closed.
+function requireOpen(test: LinkTest): void {
+  if (test.status === 'draft') throw notStarted();
+  if (test.status !== 'open') throw closed();
+}
+
 // The upload that this phone's secret belongs to, in this test only.
 async function session(c: Context<AppEnv>, test: LinkTest): Promise<SessionRecord> {
   const secret = c.req.header(SESSION_HEADER);
@@ -59,7 +68,7 @@ async function session(c: Context<AppEnv>, test: LinkTest): Promise<SessionRecor
 // `sessionHash` goes into each write, so a write lands only in this phone's upload.
 async function openSession(c: Context<AppEnv>): Promise<{ test: LinkTest; current: SessionRecord; sessionHash: string }> {
   const test = await linkTest(c);
-  if (test.status !== 'open') throw closed();
+  requireOpen(test);
   const current = await session(c, test);
   if (current.status !== 'uploading') throw alreadySent();
   return { test, current, sessionHash: await sha256Hex(c.req.header(SESSION_HEADER) ?? '') };
@@ -97,7 +106,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // Start an upload for a student, or go on with it on the same phone.
   routes.post('/:token/sessions', async (c) => {
     const test = await linkTest(c);
-    if (test.status !== 'open') throw closed();
+    requireOpen(test);
     const { studentId } = await readJson(c, startSessionBody);
     const student = await findActiveStudent(c.env.DB, test, studentId);
     if (!student) throw new ApiError(404, 'unknown_student', 'Nu am găsit numele tău în listă.');

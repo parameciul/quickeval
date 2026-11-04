@@ -159,7 +159,7 @@ describe('PUT /tests/:id/barem', () => {
   it('refuses after the teacher uploaded her own barem', async () => {
     const v = await version();
     const own: StoredFile = { key: `fixture/${code}/own.pdf`, name: 'barem.pdf', type: 'application/pdf' };
-    await saveTestFile(api.db, teacherId, testId, 'barem', own, '2026-11-03T08:00:00.000Z');
+    await saveTestFile(api.db, teacherId, testId, 'barem', own, '2026-11-03T08:00:00.000Z', 'kkkkkkkkkkkkkkkk');
     const res = await putBarem(docx(), { 'X-Files-Version': String(v) });
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ error: 'not_needed' });

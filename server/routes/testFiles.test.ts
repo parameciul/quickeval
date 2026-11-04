@@ -35,7 +35,8 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
   it('stores the test file in the test folder and shows it on the test', async () => {
     const res = await putFile(code, 'test', pdf('enunț'), PDF_TYPE, 'Test final ședința 1.pdf');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ file: { name: 'Test final ședința 1.pdf', type: PDF_TYPE }, robot: null });
+    // The draft has its link, so its print PDF waits for the robot.
+    expect(await res.json()).toEqual({ file: { name: 'Test final ședința 1.pdf', type: PDF_TYPE }, robot: 'next_check' });
 
     const key = `t/${api.teacherId}/2026/${code}/test/test-final-sedinta-1.pdf`;
     expect(await (await api.env.FILES.get(key))?.text()).toBe('%PDF-1.7 enunț');

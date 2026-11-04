@@ -22,6 +22,7 @@ export const UNKNOWN_LINK = 'Link greșit. Cere profesorului linkul nou.';
 type Phase =
   | { kind: 'loading' }
   | { kind: 'failed'; message: string }
+  | { kind: 'notStarted'; info: LinkInfo }
   | { kind: 'closed'; info: LinkInfo }
   | { kind: 'names'; info: LinkInfo; message: string | null }
   | { kind: 'upload'; info: LinkInfo; session: ActiveSession }
@@ -61,6 +62,11 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           session: { studentId: student.id, studentName: started.session.studentName, secret, files: started.session.files },
         });
       } catch (err) {
+        // The teacher stopped the test while the names were on screen.
+        if (err instanceof ApiError && err.code === 'not_started') {
+          setPhase({ kind: 'notStarted', info });
+          return;
+        }
         if (auto && err instanceof ApiError && err.code === 'other_device') {
           // The secret is left from an upload the teacher reset and the student
           // started on another phone: this phone forgets it and shows the names.
@@ -84,6 +90,11 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
       try {
         const info = await api.getLink(token);
         if (!isCurrent()) return;
+        // The QR code is on the printed test before the teacher starts it.
+        if (info.test.status === 'draft') {
+          setPhase({ kind: 'notStarted', info });
+          return;
+        }
         if (info.test.status !== 'open') {
           setPhase({ kind: 'closed', info });
           return;
@@ -134,6 +145,17 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
             </p>
           )}
           {phase.kind !== 'loading' && phase.kind !== 'failed' && <TestTitle info={phase.info} />}
+          {phase.kind === 'notStarted' && (
+            <>
+              <p className="alert" role="alert">
+                Testul nu a început încă.
+              </p>
+              <p className="hint">Poți încărca lucrarea după ce îl începe profesorul.</p>
+              <button type="button" className="button button-big" onClick={() => load(null)}>
+                Verifică din nou
+              </button>
+            </>
+          )}
           {phase.kind === 'closed' && token && (
             <>
               <p className="alert" role="alert">

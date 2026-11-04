@@ -18,7 +18,8 @@ const NAMES: Record<TestFileKind, { title: string; upload: string; replace: stri
 // the robot grades with them; while their exercise list has a problem or
 // failed, the robot uses neither, and the teacher may fix them. A new barem
 // during evaluation starts the robot, which makes the exercise list again.
-// While the test is open, the test with the QR code shows under the test file.
+// Before the uploads close, the test with the QR code shows under the test
+// file: the teacher prints it before the day of the test.
 export function TestFiles({
   test,
   onChanged,
@@ -31,14 +32,15 @@ export function TestFiles({
   const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
   const locked = test.status === 'evaluating' && !listBlocked;
   const generated = useGeneratedBarem({ test, onChanged, onRobot });
-  const canGenerate = test.status === 'draft' || test.status === 'open';
+  // Before the uploads close: the barem can be generated, and the test printed.
+  const beforeClose = test.status === 'draft' || test.status === 'open';
   return (
     <>
       <h2>Fișiere</h2>
       {locked && <p className="hint">Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.</p>}
       <ul className="file-list">
         <TestFileRow code={test.code} kind="test" file={test.files.test} locked={locked} onChanged={onChanged} onRobot={onRobot}>
-          {test.status === 'open' && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
+          {beforeClose && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
         </TestFileRow>
         <TestFileRow
           code={test.code}
@@ -48,8 +50,8 @@ export function TestFiles({
           onChanged={onChanged}
           onRobot={onRobot}
           baremNotes={test.baremNotes}
-          actions={canGenerate ? generated.buttons : undefined}
-          status={canGenerate ? generated.status : undefined}
+          actions={beforeClose ? generated.buttons : undefined}
+          status={beforeClose ? generated.status : undefined}
         />
       </ul>
     </>
