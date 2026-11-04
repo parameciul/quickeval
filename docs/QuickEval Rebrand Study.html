@@ -1,0 +1,1222 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>QuickEval Rebrand Study</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&family=Caveat:wght@600&family=Spectral:wght@500;600&family=Source+Sans+3:wght@400;600;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one report column (max 1120px). The brand studio below it re-skins one set of
+   product mockups per direction, so the four looks compare on identical content. */
+:root {
+  --bg: #f5f6f8;
+  --fg: #1a1d23;
+  --muted: #586070;
+  --line: #dce1e8;
+  --card: #ffffff;
+  --accent: #1d3c8f;
+  --accent-soft: #e6ecf8;
+  --good: #1b6b43;
+  --good-soft: #e1f2e8;
+  --warn: #8a5a00;
+  --warn-soft: #fbefd2;
+  --bad: #a52a20;
+  --bad-soft: #fbe5e2;
+  --chip: #edf0f4;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121418; --fg: #e7e9ee; --muted: #a3aab7; --line: #2a2f38; --card: #191c22;
+    --accent: #9db8ff; --accent-soft: #1d2840; --good: #7ddba3; --good-soft: #17301f;
+    --warn: #ffcf66; --warn-soft: #33290f; --bad: #ff8b80; --bad-soft: #3a1c19; --chip: #22262e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121418; --fg: #e7e9ee; --muted: #a3aab7; --line: #2a2f38; --card: #191c22;
+  --accent: #9db8ff; --accent-soft: #1d2840; --good: #7ddba3; --good-soft: #17301f;
+  --warn: #ffcf66; --warn-soft: #33290f; --bad: #ff8b80; --bad-soft: #3a1c19; --chip: #22262e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 16px/1.6 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: clamp(2rem, 4.2vw, 3rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 700; }
+h3 { font-size: 1.1rem; font-weight: 600; }
+p { margin: 0; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font: 500 12px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.125rem; max-width: 65ch; color: var(--fg); }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+.prose { display: flex; flex-direction: column; gap: 12px; max-width: 70ch; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; padding-block: 28px 8px; }
+.top nav { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; }
+.top nav a { color: var(--muted); text-decoration: none; }
+.top nav a:hover { color: var(--fg); }
+
+.hero { padding-block: 32px 40px; display: flex; flex-direction: column; gap: 16px; }
+section { padding-block: 48px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card ul, .prose ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+
+.verdict { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 20px; }
+.verdict > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.verdict .big { font-size: 1.35rem; font-weight: 700; line-height: 1.25; }
+.note { font-size: 15px; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; max-width: 75ch; }
+
+.chip { display: inline-block; font: 500 12px/1.2 var(--mono); padding: 4px 8px; border-radius: 999px; background: var(--chip); color: var(--fg); white-space: nowrap; }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.chip.acc { background: var(--accent-soft); color: var(--accent); }
+
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 12px/1.3 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); background: var(--card); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.wide { min-width: 1040px; }
+tr.you td { background: var(--accent-soft); }
+tr.out td { color: var(--muted); }
+tr.split td { border-top: 2px solid var(--line); }
+.score { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+.stat b { font: 600 1.75rem/1.1 var(--sans); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 14px; color: var(--muted); }
+
+.map-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; overflow-x: auto; }
+.map { display: block; width: 100%; min-width: 560px; height: auto; }
+.map .ax { stroke: var(--line); stroke-width: 1; }
+.map .zone { fill: var(--accent-soft); }
+.map text { fill: var(--fg); font: 13px var(--sans); }
+.map .lbl-muted { fill: var(--muted); font: 12px var(--mono); }
+.map .pt { fill: var(--muted); }
+.map .me { fill: var(--accent); }
+.map .me-ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+
+.pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px; }
+.pillar { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; display: flex; flex-direction: column; gap: 4px; }
+.pillar b { font-size: 1.05rem; }
+.quote { font-size: 1.1rem; line-height: 1.55; max-width: 70ch; padding: 18px 20px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+
+/* Brand cards: each sits on its own brand surface, so the colors are the brand's own in both page themes. */
+.brands { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
+.brand { border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--line); min-width: 0; }
+.brand .lockup { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand .lockup svg { width: 48px; height: 48px; flex: none; }
+.brand .sizes { display: flex; align-items: flex-end; gap: 12px; }
+.brand .sizes svg:nth-child(1) { width: 64px; height: 64px; }
+.brand .sizes svg:nth-child(2) { width: 32px; height: 32px; }
+.brand .sizes svg:nth-child(3) { width: 16px; height: 16px; }
+.brand .tag { font-size: 14px; line-height: 1.45; }
+.brand .line { font-size: 14px; font-style: italic; }
+.brand .desc { font: 500 11px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; margin-top: -6px; }
+.brand .swatches { display: flex; gap: 6px; }
+.brand .swatches i { width: 28px; height: 28px; border-radius: 6px; display: block; border: 1px solid rgba(0, 0, 0, 0.12); }
+.brand .pick { align-self: flex-start; font: 600 11px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 8px; border-radius: 999px; }
+.b-a { background: #fbfcfe; color: #24272d; background-image: linear-gradient(#e3eaf4 1px, transparent 1px), linear-gradient(90deg, #e3eaf4 1px, transparent 1px); background-size: 20px 20px; }
+.b-a .word { font: 800 30px/1 "Atkinson Hyperlegible Next", "Segoe UI", sans-serif; color: #1d3c8f; background: linear-gradient(transparent 62%, #fff0a0 62%, #fff0a0 92%, transparent 92%); padding: 0 4px; }
+.b-a .pick { background: #1d3c8f; color: #ffffff; }
+.b-b { background: #eef2ee; color: #17211c; }
+.b-b .word { font: 600 31px/1 "Spectral", Georgia, serif; color: #1f4d3a; letter-spacing: 0.01em; }
+.b-b .pick { background: #1f4d3a; color: #f7f3e8; }
+.b-c { background: #ffffff; color: #15171c; }
+.b-c .word { font: 600 30px/1 "Geist", "Segoe UI", sans-serif; letter-spacing: -0.02em; color: #15171c; }
+.b-c .word em { font-style: normal; color: #2747d6; }
+.b-c .pick { background: #15171c; color: #ffffff; }
+.b-d { background: #0f172a; color: #e2e8f0; }
+.b-d .word { font: 700 30px/1 "Inter", "Segoe UI", sans-serif; color: #e2e8f0; }
+.b-d .word em { font-style: normal; background: linear-gradient(90deg, #22e8ee, #3b7cf4); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.b-e { background: #f4f8fc; color: #0f172a; }
+.b-e .word { font: 700 30px/1 "Inter", "Segoe UI", sans-serif; color: #0f172a; }
+.b-e .word em { font-style: normal; background: linear-gradient(90deg, #0891b2, #2563eb); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.b-e .pick { background: #0369a1; color: #ffffff; }
+.brands.two { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+.icons { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; }
+.ico-card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--card); display: flex; flex-direction: column; min-width: 0; }
+.ico-side { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.ico-side.dark { background: #0b1222; color: #e2e8f0; }
+.ico-side.light { background: #f4f8fc; color: #0f172a; border-top: 1px solid #dbe4ef; }
+.ico-row { display: flex; align-items: flex-end; gap: 10px; }
+.ico-row svg:nth-child(1) { width: 64px; height: 64px; }
+.ico-row svg:nth-child(2) { width: 32px; height: 32px; }
+.ico-row svg:nth-child(3) { width: 16px; height: 16px; }
+.ico-word { font: 700 22px/1 "Inter", "Segoe UI", sans-serif; }
+.ico-word em { font-style: normal; -webkit-background-clip: text; background-clip: text; color: transparent; }
+.em-cool-d { background-image: linear-gradient(90deg, #22e8ee, #3b7cf4); }
+.em-cool-l { background-image: linear-gradient(90deg, #0891b2, #2563eb); }
+.em-warm-d { background-image: linear-gradient(90deg, #fbbf24, #f97316); }
+.em-warm-l { background-image: linear-gradient(90deg, #d97706, #ea580c); }
+.em-sun-d { background-image: linear-gradient(90deg, #fbbf24, #f97316, #f43f5e); }
+.em-sun-l { background-image: linear-gradient(90deg, #d97706, #ea580c, #e11d48); }
+.ico-info { padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+.ico-info h3 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.brand-head { font-size: 1rem; font-weight: 600; }
+.b-d .pick { background: #f97316; color: #0f172a; }
+.b-d .swatches i { border-color: rgba(255, 255, 255, 0.3); }
+
+/* ---------- Brand studio ---------- */
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tab-btn { font: 600 14px/1.2 var(--sans); padding: 8px 14px 8px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--fg); cursor: pointer; display: flex; gap: 10px; align-items: center; }
+.tab-btn svg { width: 26px; height: 26px; flex: none; }
+.tab-btn small { display: block; font: 400 12px var(--sans); color: var(--muted); }
+.tab-btn[aria-selected="true"] { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
+.vinfo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px; }
+.vinfo .card h3 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.mocks { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.mock { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mock.desk { grid-column: 1 / -1; }
+.mock figcaption { font-size: 13px; color: var(--muted); }
+
+.studio[data-v="a"] {
+  --m-bg: #fbfcfe; --m-grid: #e3eaf4; --m-surface: #ffffff; --m-ink: #24272d; --m-muted: #586070; --m-line: #d4dce8;
+  --m-accent: #1d3c8f; --m-on-accent: #ffffff; --m-bar-bg: #ffffff; --m-bar-fg: #24272d;
+  --m-ok: #1b6b43; --m-ok-soft: #e1f2e8; --m-warn: #a35100; --m-warn-soft: #fff0a0; --m-flag-bg: #fffbe3;
+  --m-font: "Atkinson Hyperlegible Next", "Segoe UI", sans-serif; --m-display: "Atkinson Hyperlegible Next", "Segoe UI", sans-serif; --m-mono: "Atkinson Hyperlegible Next", "Segoe UI", sans-serif;
+  --m-r: 12px; --m-r-sm: 10px; --m-r-btn: 999px; --m-name-w: 800;
+  --m-pts-font: 600 26px/1 "Caveat", "Segoe Print", cursive; --m-pts-color: #cf3a2f;
+  --m-grade-font: 600 38px/1 "Caveat", "Segoe Print", cursive; --m-grade-color: #cf3a2f;
+  --m-shadow: 0 1px 0 #d4dce8, 0 14px 32px -20px rgba(29, 60, 143, 0.45);
+}
+.studio[data-v="b"] {
+  --m-bg: #eef2ee; --m-grid: transparent; --m-surface: #ffffff; --m-ink: #17211c; --m-muted: #53605a; --m-line: #cdd7d0;
+  --m-accent: #1f4d3a; --m-on-accent: #f7f3e8; --m-bar-bg: #1f4d3a; --m-bar-fg: #f7f3e8;
+  --m-ok: #2e7d4f; --m-ok-soft: #e3f0e7; --m-warn: #8f5400; --m-warn-soft: #f4e4c1; --m-flag-bg: #fbf6ea;
+  --m-font: "Source Sans 3", "Segoe UI", sans-serif; --m-display: "Spectral", Georgia, serif; --m-mono: "Source Sans 3", "Segoe UI", sans-serif;
+  --m-r: 4px; --m-r-sm: 3px; --m-r-btn: 3px; --m-name-w: 600;
+  --m-pts-font: 600 17px/1 "Spectral", Georgia, serif; --m-pts-color: #1f4d3a;
+  --m-grade-font: 600 30px/1 "Spectral", Georgia, serif; --m-grade-color: #1f4d3a;
+  --m-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 18px 34px -26px rgba(31, 77, 58, 0.55);
+}
+.studio[data-v="c"] {
+  --m-bg: #f4f5f7; --m-grid: transparent; --m-surface: #ffffff; --m-ink: #15171c; --m-muted: #5d6470; --m-line: #e1e4e9;
+  --m-accent: #2747d6; --m-on-accent: #ffffff; --m-bar-bg: #ffffff; --m-bar-fg: #15171c;
+  --m-ok: #1a7f4b; --m-ok-soft: #e2f3ea; --m-warn: #9c5d00; --m-warn-soft: #fdefd6; --m-flag-bg: #fffaf0;
+  --m-font: "Geist", "Segoe UI", sans-serif; --m-display: "Geist", "Segoe UI", sans-serif; --m-mono: "Geist Mono", ui-monospace, Consolas, monospace;
+  --m-r: 8px; --m-r-sm: 6px; --m-r-btn: 6px; --m-name-w: 600;
+  --m-pts-font: 500 14px/1 "Geist Mono", ui-monospace, monospace; --m-pts-color: #15171c;
+  --m-grade-font: 600 28px/1 "Geist Mono", ui-monospace, monospace; --m-grade-color: #2747d6;
+  --m-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 12px 28px -18px rgba(16, 24, 40, 0.35);
+}
+.studio[data-v="d"] {
+  --m-bg: #0b1222; --m-grid: transparent; --m-surface: #111b30; --m-ink: #e2e8f0; --m-muted: #94a3b8; --m-line: #22304d;
+  --m-accent: #0284c7; --m-on-accent: #ffffff; --m-bar-bg: #0f172a; --m-bar-fg: #e2e8f0;
+  --m-ok: #34d399; --m-ok-soft: rgba(52, 211, 153, 0.16); --m-warn: #f97316; --m-warn-soft: rgba(249, 115, 22, 0.2); --m-flag-bg: rgba(249, 115, 22, 0.08);
+  --m-font: "Inter", "Segoe UI", sans-serif; --m-display: "Inter", "Segoe UI", sans-serif; --m-mono: "JetBrains Mono", ui-monospace, monospace;
+  --m-r: 12px; --m-r-sm: 10px; --m-r-btn: 8px; --m-name-w: 700;
+  --m-pts-font: 500 14px/1 "JetBrains Mono", ui-monospace, monospace; --m-pts-color: #38bdf8;
+  --m-grade-font: 700 28px/1 "Inter", "Segoe UI", sans-serif; --m-grade-color: #38bdf8;
+  --m-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 0 52px -10px rgba(34, 211, 238, 0.5);
+}
+.studio[data-v="e"] {
+  --m-bg: #f4f8fc; --m-grid: transparent; --m-surface: #ffffff; --m-ink: #0f172a; --m-muted: #526077; --m-line: #dbe4ef;
+  --m-accent: #0369a1; --m-on-accent: #ffffff; --m-bar-bg: #ffffff; --m-bar-fg: #0f172a;
+  --m-ok: #047857; --m-ok-soft: #e3f6ef; --m-warn: #c2410c; --m-warn-soft: #ffedd5; --m-flag-bg: #fff7ed;
+  --m-font: "Inter", "Segoe UI", sans-serif; --m-display: "Inter", "Segoe UI", sans-serif; --m-mono: "JetBrains Mono", ui-monospace, monospace;
+  --m-r: 12px; --m-r-sm: 10px; --m-r-btn: 8px; --m-name-w: 700;
+  --m-pts-font: 500 14px/1 "JetBrains Mono", ui-monospace, monospace; --m-pts-color: #0369a1;
+  --m-grade-font: 700 28px/1 "Inter", "Segoe UI", sans-serif; --m-grade-color: #0369a1;
+  --m-shadow: 0 0 0 1px rgba(14, 165, 233, 0.25), 0 18px 48px -18px rgba(14, 165, 233, 0.45);
+}
+
+.m {
+  position: relative; background-color: var(--m-bg); color: var(--m-ink); font-family: var(--m-font);
+  background-image: linear-gradient(var(--m-grid) 1px, transparent 1px), linear-gradient(90deg, var(--m-grid) 1px, transparent 1px);
+  background-size: 24px 24px; border: 1px solid var(--m-line); border-radius: 14px; overflow: hidden; box-shadow: var(--m-shadow);
+  font-size: 14px; line-height: 1.45;
+}
+.m-bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--m-bar-bg); color: var(--m-bar-fg); border-bottom: 1px solid var(--m-line); }
+.m-logo { width: 28px; height: 28px; flex: none; }
+.m-name { font-family: var(--m-display); font-weight: var(--m-name-w); font-size: 19px; line-height: 1; }
+.m-nav { display: flex; gap: 16px; font-size: 13px; opacity: 0.85; margin-left: 12px; }
+.m-nav b { font-weight: 700; opacity: 1; }
+.m-user { margin-left: auto; font-size: 13px; opacity: 0.85; white-space: nowrap; }
+.m-badge { display: none; font: 600 11px/1 var(--m-font); padding: 5px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.4); }
+.studio[data-v="d"] .m-badge, .studio[data-v="e"] .m-badge { display: inline-block; }
+.studio[data-v="e"] .m-badge { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+.studio[data-v="e"] .m-btn.pri, .studio[data-v="e"] .p-btn { background: linear-gradient(90deg, #0891b2, #2563eb); border-color: transparent; box-shadow: 0 6px 18px -6px rgba(37, 99, 235, 0.55); }
+.m-sub { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 10px 16px; font-size: 13px; color: var(--m-muted); background: var(--m-bg); border-bottom: 1px solid var(--m-line); }
+.m-sub b { color: var(--m-ink); }
+.m-flagcount { margin-left: auto; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--m-warn-soft); color: var(--m-warn); }
+.studio[data-v="d"] .m-flagcount { color: #fdba74; }
+
+.m-split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; padding: 16px; }
+.m-scan { background: var(--m-surface); border: 1px solid var(--m-line); border-radius: var(--m-r); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.m-scan-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--m-muted); }
+.m-scan svg { display: block; width: 100%; height: auto; border-radius: calc(var(--m-r) - 4px); }
+.hw { font-family: "Caveat", "Segoe Print", "Comic Sans MS", cursive; font-size: 27px; fill: #22397f; }
+.ov { fill: none; stroke-width: 2.2; }
+.ov.ok { stroke: var(--m-ok); }
+.ov.flag { stroke: var(--m-warn); stroke-dasharray: 6 4; fill: var(--m-warn-soft); fill-opacity: 0.45; }
+.ovn circle { fill: var(--m-ok); }
+.ovn.flag circle { fill: var(--m-warn); }
+.ovn text { fill: #ffffff; font: 700 12px var(--m-font); text-anchor: middle; }
+.pen { font-family: "Caveat", "Segoe Print", cursive; font-size: 26px; fill: #cf3a2f; }
+.studio:not([data-v="a"]) .pen { display: none; }
+
+.m-pane { background: var(--m-surface); border: 1px solid var(--m-line); border-radius: var(--m-r); padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.m-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-family: var(--m-display); font-weight: 700; font-size: 16px; }
+.studio[data-v="b"] .m-h { font-weight: 600; font-size: 18px; border-bottom: 3px double var(--m-line); padding-bottom: 8px; }
+.m-h span { font-family: var(--m-mono); font-size: 13px; color: var(--m-muted); font-weight: 500; }
+.m-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.m-it { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px; border: 1px solid var(--m-line); border-radius: var(--m-r-sm); }
+.studio[data-v="b"] .m-it { border-width: 0 0 1px 0; border-radius: 0; padding: 10px 2px; }
+.m-it .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 700 12px var(--m-font); background: var(--m-ok-soft); color: var(--m-ok); }
+.m-it.flag { background: var(--m-flag-bg); border-color: var(--m-warn); }
+.studio[data-v="b"] .m-it.flag { border-width: 1px; border-radius: var(--m-r-sm); padding: 10px; }
+.m-it.flag .n { background: var(--m-warn-soft); color: var(--m-warn); }
+.studio[data-v="d"] .m-it.flag .n { color: #fdba74; }
+.m-it b { display: block; font-weight: 700; font-size: 14px; }
+.m-it small { display: block; font-size: 12.5px; color: var(--m-muted); margin-top: 2px; }
+.m-it .why { color: var(--m-ink); }
+.m-pts { font: var(--m-pts-font); color: var(--m-pts-color); white-space: nowrap; }
+.m-act { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+.m-btn { font: 700 13px/1.2 var(--m-font); padding: 7px 12px; border-radius: var(--m-r-btn); border: 1px solid var(--m-line); background: var(--m-surface); color: var(--m-ink); }
+.m-btn.pri { background: var(--m-accent); border-color: var(--m-accent); color: var(--m-on-accent); }
+.studio[data-v="d"] .m-btn.pri { box-shadow: 0 0 18px rgba(34, 211, 238, 0.45); }
+.kbd { font: 500 11px/1 var(--m-mono); padding: 3px 6px; border: 1px solid var(--m-line); border-bottom-width: 2px; border-radius: 4px; color: var(--m-muted); }
+.studio[data-v="a"] .kbd, .studio[data-v="b"] .kbd { display: none; }
+.m-total { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px dashed var(--m-line); font-size: 13px; color: var(--m-muted); }
+.m-total b { color: var(--m-ink); }
+.m-grade { font: var(--m-grade-font); color: var(--m-grade-color); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.studio[data-v="a"] .m-grade { border: 2px solid #cf3a2f; border-radius: 50%; padding: 6px 10px 2px; transform: rotate(-4deg); }
+.studio[data-v="b"] .m-grade { border: 3px double #a8781f; padding: 6px 10px; }
+
+.m-test { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; padding: 16px; }
+.m-qr { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.m-qr .code { background: #ffffff; border: 1px solid var(--m-line); border-radius: var(--m-r-sm); padding: 8px; }
+.m-qr .code svg { display: block; width: 100%; height: auto; }
+.m-link { font: 500 12px/1.3 var(--m-mono); color: var(--m-muted); word-break: break-all; }
+.m-list { background: var(--m-surface); border: 1px solid var(--m-line); border-radius: var(--m-r); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.m-prog { display: flex; justify-content: space-between; font-size: 13px; }
+.m-prog b { font-variant-numeric: tabular-nums; }
+.bar { height: 8px; background: var(--m-line); border-radius: 999px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 86%; background: var(--m-accent); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; font-size: 13px; padding: 5px 0; border-bottom: 1px solid var(--m-line); }
+.row:last-of-type { border-bottom: 0; }
+.row span { font-variant-numeric: tabular-nums; color: var(--m-muted); }
+.st { font: 700 11px/1 var(--m-font); padding: 4px 8px; border-radius: 999px; background: var(--m-ok-soft); color: var(--m-ok); }
+.st.wait { background: var(--m-warn-soft); color: var(--m-warn); }
+.studio[data-v="d"] .st.wait { color: #fdba74; }
+.m-cta { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 16px; }
+
+.phone { width: 100%; max-width: 320px; margin-inline: auto; border-radius: 40px; padding: 10px; background: #15161a; box-shadow: 0 20px 40px -24px rgba(0, 0, 0, 0.6); position: relative; }
+.phone .m { border-radius: 30px; min-height: 560px; display: flex; flex-direction: column; }
+.notch { position: absolute; top: 18px; left: 50%; width: 84px; height: 20px; margin-left: -42px; background: #15161a; border-radius: 999px; z-index: 2; }
+.p-top { padding: 40px 18px 12px; display: flex; align-items: center; gap: 8px; background: var(--m-bar-bg); color: var(--m-bar-fg); border-bottom: 1px solid var(--m-line); }
+.p-top .m-logo { width: 22px; height: 22px; }
+.p-top .m-name { font-size: 16px; }
+.p-made { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; color: var(--m-muted); padding-top: 10px; border-top: 1px dashed var(--m-line); }
+.p-made svg { width: 16px; height: 16px; flex: none; }
+.p-made b { color: var(--m-ink); }
+.p-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.p-title { font-family: var(--m-display); font-weight: 700; font-size: 20px; line-height: 1.2; }
+.studio[data-v="b"] .p-title { font-weight: 600; }
+.p-field { display: flex; flex-direction: column; gap: 6px; }
+.p-field label { font-size: 12px; font-weight: 700; color: var(--m-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.p-select { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--m-surface); border: 1px solid var(--m-line); border-radius: var(--m-r-sm); font-weight: 700; }
+.thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.thumb { aspect-ratio: 3 / 4; max-width: 100%; border-radius: 6px; border: 1px solid var(--m-line); background-color: #fdfdfb; background-image: linear-gradient(#dfe6f1 1px, transparent 1px), linear-gradient(90deg, #dfe6f1 1px, transparent 1px); background-size: 8px 8px; position: relative; overflow: hidden; }
+.thumb::after { content: ""; position: absolute; left: 18%; right: 14%; top: 22%; height: 46%; background: repeating-linear-gradient(#22397f 0 2px, transparent 2px 9px); opacity: 0.55; border-radius: 2px; }
+.thumb.add { background: var(--m-surface); display: grid; place-items: center; font-size: 22px; color: var(--m-accent); border-style: dashed; }
+.thumb.add::after { display: none; }
+.p-btn { margin-top: auto; text-align: center; padding: 13px; border-radius: var(--m-r-btn); background: var(--m-accent); color: var(--m-on-accent); font-weight: 700; font-size: 15px; }
+.studio[data-v="d"] .p-btn { box-shadow: 0 0 22px rgba(34, 211, 238, 0.45); }
+.p-note { font-size: 12px; color: var(--m-muted); text-align: center; }
+.callout { display: none; position: absolute; right: 10px; top: 40px; transform: rotate(-2deg); width: 58%; background: #fff7ed; color: #7c2d12; border: 2px solid #f97316; border-radius: 10px; padding: 8px 10px; font: 600 12px/1.35 var(--sans); z-index: 3; }
+.studio[data-v="d"] .callout { display: block; }
+
+@media (max-width: 860px) {
+  .mocks { grid-template-columns: minmax(0, 1fr); }
+  .m-split { grid-template-columns: minmax(0, 1fr); }
+  .m-nav { display: none; }
+}
+@media (max-width: 520px) {
+  .studio .m-badge { display: none; }
+  .m-test { grid-template-columns: minmax(0, 1fr); }
+  .m-qr { max-width: 180px; }
+}
+
+ol.steps { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 10px; max-width: 75ch; }
+.sources { font-size: 14px; columns: 2 320px; column-gap: 32px; padding-left: 1.2em; margin: 0; }
+.sources li { break-inside: avoid; margin-bottom: 6px; }
+footer { padding-top: 32px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+@media (prefers-reduced-motion: no-preference) {
+  .m, .mock { transition: opacity 0.18s ease; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="logo-a" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#1d3c8f"/>
+      <path d="M0 16H64M0 32H64M0 48H64M16 0V64M32 0V64M48 0V64" stroke="#ffffff" stroke-opacity="0.13" stroke-width="1"/>
+      <path d="M8 44V20L17 33L26 20V44" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="42" cy="31" r="10" fill="none" stroke="#ffffff" stroke-width="5"/>
+      <path d="M41 39L46 45L57 30" fill="none" stroke="#ffd94a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="logo-b" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="10" fill="#1f4d3a"/>
+      <circle cx="32" cy="32" r="23" fill="none" stroke="#c9a24a" stroke-width="2.5"/>
+      <circle cx="32" cy="32" r="18.5" fill="none" stroke="#c9a24a" stroke-width="1" stroke-opacity="0.7"/>
+      <text x="32" y="38" text-anchor="middle" font-family="Spectral, Georgia, serif" font-weight="600" font-size="19" fill="#f4efe2">MQ</text>
+      <path d="M26 44L30 47L38 41" fill="none" stroke="#c9a24a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="logo-c" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="12" fill="#15171c"/>
+      <circle cx="29" cy="29" r="15" fill="none" stroke="#ffffff" stroke-width="5"/>
+      <path d="M30 41L37 48L54 26" fill="none" stroke="#8ea2ff" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"/>
+    </symbol>
+    <linearGradient id="mqg-dark" gradientUnits="userSpaceOnUse" x1="8" y1="16" x2="56" y2="50"><stop offset="0" stop-color="#22e8ee"/><stop offset="1" stop-color="#3b7cf4"/></linearGradient>
+    <linearGradient id="mqg-light" gradientUnits="userSpaceOnUse" x1="8" y1="16" x2="56" y2="50"><stop offset="0" stop-color="#0891b2"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+    <clipPath id="mq-clip"><rect x="0" y="20" width="64" height="44"/></clipPath>
+    <symbol id="logo-d" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b1222"/><path d="M48.42 27.6A17 17 0 1 1 36.4 15.58" fill="none" stroke="url(#cg-d)" stroke-width="6" stroke-linecap="round"/><path d="M23 32L30 39L49 18" fill="none" stroke="#fb923c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="logo-e" viewBox="0 0 64 64"><rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/><path d="M48.42 27.6A17 17 0 1 1 36.4 15.58" fill="none" stroke="url(#cg-l)" stroke-width="6" stroke-linecap="round"/><path d="M23 32L30 39L49 18" fill="none" stroke="#ea580c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <linearGradient id="g-tail-d" gradientUnits="userSpaceOnUse" x1="42" y1="34" x2="54" y2="46"><stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#f97316"/></linearGradient>
+    <linearGradient id="g-tail-l" gradientUnits="userSpaceOnUse" x1="42" y1="34" x2="54" y2="46"><stop offset="0" stop-color="#d97706"/><stop offset="1" stop-color="#ea580c"/></linearGradient>
+    <linearGradient id="g-sun-d" gradientUnits="userSpaceOnUse" x1="8" y1="16" x2="56" y2="50"><stop offset="0" stop-color="#fbbf24"/><stop offset="0.55" stop-color="#f97316"/><stop offset="1" stop-color="#f43f5e"/></linearGradient>
+    <linearGradient id="g-sun-l" gradientUnits="userSpaceOnUse" x1="8" y1="16" x2="56" y2="50"><stop offset="0" stop-color="#d97706"/><stop offset="0.55" stop-color="#ea580c"/><stop offset="1" stop-color="#e11d48"/></linearGradient>
+    <linearGradient id="g-tile" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="64" y2="64"><stop offset="0" stop-color="#fcd34d"/><stop offset="1" stop-color="#f97316"/></linearGradient>
+    <symbol id="ico1d" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#0b1222"/>
+      <g transform="translate(0 -2)" fill="none" stroke-width="5.5" stroke-miterlimit="10">
+        <circle cx="40" cy="32" r="9.5" stroke-width="5" stroke="url(#mqg-dark)"/>
+        <path d="M27 28.2L35 16" stroke="#0b1222" stroke-width="8" clip-path="url(#mq-clip)"/>
+        <path d="M10 44V16L22.5 35L35 16" stroke="url(#mqg-dark)" clip-path="url(#mq-clip)"/>
+        <path d="M42 34L54 46" stroke="#0b1222" stroke-width="8"/>
+        <path d="M42 34L54 46" stroke="url(#g-tail-d)"/>
+      </g>
+    </symbol>
+    <symbol id="ico1l" viewBox="0 0 64 64">
+      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/>
+      <g transform="translate(0 -2)" fill="none" stroke-width="5.5" stroke-miterlimit="10">
+        <circle cx="40" cy="32" r="9.5" stroke-width="5" stroke="url(#mqg-light)"/>
+        <path d="M27 28.2L35 16" stroke="#ffffff" stroke-width="8" clip-path="url(#mq-clip)"/>
+        <path d="M10 44V16L22.5 35L35 16" stroke="url(#mqg-light)" clip-path="url(#mq-clip)"/>
+        <path d="M42 34L54 46" stroke="#ffffff" stroke-width="8"/>
+        <path d="M42 34L54 46" stroke="url(#g-tail-l)"/>
+      </g>
+    </symbol>
+    <symbol id="ico2d" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#0b1222"/>
+      <g transform="translate(0 -2)" fill="none" stroke-width="5.5" stroke-miterlimit="10">
+        <circle cx="40" cy="32" r="9.5" stroke-width="5" stroke="url(#mqg-dark)"/>
+        <path d="M27 28.2L35 16" stroke="#0b1222" stroke-width="8" clip-path="url(#mq-clip)"/>
+        <path d="M10 44V16L22.5 35L35 16" stroke="url(#mqg-dark)" clip-path="url(#mq-clip)"/>
+        <path d="M36 39L43 46L57 27" stroke="#0b1222" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M36 39L43 46L57 27" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </symbol>
+    <symbol id="ico2l" viewBox="0 0 64 64">
+      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/>
+      <g transform="translate(0 -2)" fill="none" stroke-width="5.5" stroke-miterlimit="10">
+        <circle cx="40" cy="32" r="9.5" stroke-width="5" stroke="url(#mqg-light)"/>
+        <path d="M27 28.2L35 16" stroke="#ffffff" stroke-width="8" clip-path="url(#mq-clip)"/>
+        <path d="M10 44V16L22.5 35L35 16" stroke="url(#mqg-light)" clip-path="url(#mq-clip)"/>
+        <path d="M36 39L43 46L57 27" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M36 39L43 46L57 27" stroke="#ea580c" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </symbol>
+    <symbol id="ico3d" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#0b1222"/>
+      <g transform="translate(0 -2)" fill="none" stroke-width="5.5" stroke-miterlimit="10">
+        <circle cx="40" cy="32" r="9.5" stroke-width="5" stroke="url(#g-sun-d)"/>
+        <path d="M27 28.2L35 16" stroke="#0b1222" stroke-width="8" clip-path="url(#mq-clip)"/>
+        <path d="M10 44V16L22.5 35L35 16" stroke="url(#g-sun-d)" clip-path="url(#mq-clip)"/>
+        <path d="M42 34L54 46" stroke="#0b1222" stroke-width="8"/>
+        <path d="M42 34L54 46" stroke="url(#g-sun-d)"/>
+      </g>
+    </symbol>
+    <symbol id="ico3l" viewBox="0 0 64 64">
+      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/>
+      <g transform="translate(0 -2)" fill="none" stroke-width="5.5" stroke-miterlimit="10">
+        <circle cx="40" cy="32" r="9.5" stroke-width="5" stroke="url(#g-sun-l)"/>
+        <path d="M27 28.2L35 16" stroke="#ffffff" stroke-width="8" clip-path="url(#mq-clip)"/>
+        <path d="M10 44V16L22.5 35L35 16" stroke="url(#g-sun-l)" clip-path="url(#mq-clip)"/>
+        <path d="M42 34L54 46" stroke="#ffffff" stroke-width="8"/>
+        <path d="M42 34L54 46" stroke="url(#g-sun-l)"/>
+      </g>
+    </symbol>
+    <symbol id="ico4" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="url(#g-tile)"/>
+      <g transform="translate(0 -2)" fill="none" stroke-width="5.5" stroke-miterlimit="10">
+        <circle cx="40" cy="32" r="9.5" stroke-width="5" stroke="#0b1222"/>
+        <path d="M27 28.2L35 16" stroke="url(#g-tile)" stroke-width="8" clip-path="url(#mq-clip)"/>
+        <path d="M10 44V16L22.5 35L35 16" stroke="#0b1222" clip-path="url(#mq-clip)"/>
+        <path d="M42 34L54 46" stroke="url(#g-tile)" stroke-width="8"/>
+        <path d="M42 34L54 46" stroke="#0b1222"/>
+      </g>
+    </symbol>
+    <linearGradient id="g-stamp" gradientUnits="userSpaceOnUse" x1="34" y1="34" x2="56" y2="56"><stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#f97316"/></linearGradient>
+    <symbol id="n1d" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#0b1222"/>
+      <circle cx="27" cy="27" r="13" fill="none" stroke="url(#mqg-dark)" stroke-width="6"/>
+      <path d="M37 37L50 50" stroke="url(#mqg-dark)" stroke-width="7" stroke-linecap="round"/>
+      <path d="M20.5 27.5L25 32L33.5 22.5" fill="none" stroke="#fb923c" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="n1l" viewBox="0 0 64 64">
+      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/>
+      <circle cx="27" cy="27" r="13" fill="none" stroke="url(#mqg-light)" stroke-width="6"/>
+      <path d="M37 37L50 50" stroke="url(#mqg-light)" stroke-width="7" stroke-linecap="round"/>
+      <path d="M20.5 27.5L25 32L33.5 22.5" fill="none" stroke="#ea580c" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="n2d" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#0b1222"/>
+      <path d="M17 9H38L48 19V51a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3V12a3 3 0 0 1 3-3Z" fill="#e6f0fb"/>
+      <path d="M38 9V19H48Z" fill="#b9cfe8"/>
+      <path d="M20 26H40M20 33H40M20 40H31" stroke="url(#mqg-light)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="45" cy="45" r="11" fill="url(#g-stamp)" stroke="#0b1222" stroke-width="2.5"/>
+      <path d="M40 45.5L43.5 49L50.5 41.5" fill="none" stroke="#0b1222" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="n2l" viewBox="0 0 64 64">
+      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/>
+      <path d="M17 9H38L48 19V51a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3V12a3 3 0 0 1 3-3Z" fill="#eaf3fc" stroke="#9cc3e6" stroke-width="1.5"/>
+      <path d="M38 9V19H48Z" fill="#b9cfe8"/>
+      <path d="M20 26H40M20 33H40M20 40H31" stroke="url(#mqg-light)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="45" cy="45" r="11" fill="url(#g-stamp)" stroke="#ffffff" stroke-width="2.5"/>
+      <path d="M40 45.5L43.5 49L50.5 41.5" fill="none" stroke="#0b1222" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="n3d" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#0b1222"/>
+      <path d="M36.4 48.4A17 17 0 1 1 48.4 36.4" fill="none" stroke="url(#mqg-dark)" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="46" cy="46" r="5.5" fill="#fb923c"/>
+    </symbol>
+    <symbol id="n3l" viewBox="0 0 64 64">
+      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/>
+      <path d="M36.4 48.4A17 17 0 1 1 48.4 36.4" fill="none" stroke="url(#mqg-light)" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="46" cy="46" r="5.5" fill="#ea580c"/>
+    </symbol>
+    <symbol id="n4d" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#0b1222"/>
+      <text x="32" y="27.5" text-anchor="middle" font-family="Inter, Segoe UI, sans-serif" font-weight="700" font-size="23" fill="url(#mqg-dark)">M</text>
+      <rect x="14" y="31" width="36" height="5" rx="2.5" fill="#fb923c"/>
+      <text x="32" y="55" text-anchor="middle" font-family="Inter, Segoe UI, sans-serif" font-weight="700" font-size="23" fill="url(#mqg-dark)">Q</text>
+    </symbol>
+    <symbol id="n4l" viewBox="0 0 64 64">
+      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/>
+      <text x="32" y="27.5" text-anchor="middle" font-family="Inter, Segoe UI, sans-serif" font-weight="700" font-size="23" fill="url(#mqg-light)">M</text>
+      <rect x="14" y="31" width="36" height="5" rx="2.5" fill="#ea580c"/>
+      <text x="32" y="55" text-anchor="middle" font-family="Inter, Segoe UI, sans-serif" font-weight="700" font-size="23" fill="url(#mqg-light)">Q</text>
+    </symbol>
+    <symbol id="n5d" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#0b1222"/>
+      <path d="M9 35L16 31L25 47L37 17" fill="none" stroke="url(#mqg-dark)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M37 17H55" stroke="#fb923c" stroke-width="6" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="n5l" viewBox="0 0 64 64">
+      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/>
+      <path d="M9 35L16 31L25 47L37 17" fill="none" stroke="url(#mqg-light)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M37 17H55" stroke="#ea580c" stroke-width="6" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="n6d" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#0b1222"/>
+      <text x="31.5" y="41" text-anchor="middle" font-family="Inter, Segoe UI, sans-serif" font-weight="700" font-size="23" fill="url(#mqg-dark)">10</text>
+      <path d="M47 18C40 10 17 12 12 27C8 39 18 51 33 50C47 49 55 39 52 27C50 20 44 15 36 14" fill="none" stroke="#fb923c" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="n6l" viewBox="0 0 64 64">
+      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/>
+      <text x="31.5" y="41" text-anchor="middle" font-family="Inter, Segoe UI, sans-serif" font-weight="700" font-size="23" fill="url(#mqg-light)">10</text>
+      <path d="M47 18C40 10 17 12 12 27C8 39 18 51 33 50C47 49 55 39 52 27C50 20 44 15 36 14" fill="none" stroke="#ea580c" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+    <linearGradient id="cg-d" gradientUnits="userSpaceOnUse" x1="12" y1="12" x2="52" y2="52"><stop offset="0" stop-color="#22e8ee"/><stop offset="1" stop-color="#3b7cf4"/></linearGradient>
+    <linearGradient id="cg-l" gradientUnits="userSpaceOnUse" x1="12" y1="12" x2="52" y2="52"><stop offset="0" stop-color="#0891b2"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+    <symbol id="r1d" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b1222"/><path d="M36.4 48.42A17 17 0 1 1 48.42 36.4" fill="none" stroke="url(#cg-d)" stroke-width="6" stroke-linecap="round"/><circle cx="44.02" cy="44.02" r="4.5" fill="#fb923c"/></symbol>
+    <symbol id="r1l" viewBox="0 0 64 64"><rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/><path d="M36.4 48.42A17 17 0 1 1 48.42 36.4" fill="none" stroke="url(#cg-l)" stroke-width="6" stroke-linecap="round"/><circle cx="44.02" cy="44.02" r="4.5" fill="#ea580c"/></symbol>
+    <symbol id="r2d" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b1222"/><path d="M48.42 27.6A17 17 0 1 1 36.4 15.58" fill="none" stroke="url(#cg-d)" stroke-width="6" stroke-linecap="round"/><path d="M23 32L30 39L49 18" fill="none" stroke="#fb923c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="r2l" viewBox="0 0 64 64"><rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/><path d="M48.42 27.6A17 17 0 1 1 36.4 15.58" fill="none" stroke="url(#cg-l)" stroke-width="6" stroke-linecap="round"/><path d="M23 32L30 39L49 18" fill="none" stroke="#ea580c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="r3d" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b1222"/><path d="M36.4 48.42A17 17 0 1 1 48.42 36.4" fill="none" stroke="url(#cg-d)" stroke-width="6" stroke-linecap="round"/><circle cx="44.02" cy="44.02" r="4.5" fill="#fb923c"/><path d="M20.5 33.5L24 31.5L28 39.5L33.5 25H41" fill="none" stroke="#e2e8f0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="r3l" viewBox="0 0 64 64"><rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/><path d="M36.4 48.42A17 17 0 1 1 48.42 36.4" fill="none" stroke="url(#cg-l)" stroke-width="6" stroke-linecap="round"/><circle cx="44.02" cy="44.02" r="4.5" fill="#ea580c"/><path d="M20.5 33.5L24 31.5L28 39.5L33.5 25H41" fill="none" stroke="#0f172a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="r4d" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b1222"/><g transform="translate(0 -3)"><path d="M8 37L13 34.5L19 46L27 24" fill="none" stroke="url(#cg-d)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M27 24H57" stroke="#fb923c" stroke-width="5" stroke-linecap="round"/><text x="42.5" y="43.5" text-anchor="middle" font-family="Inter, Segoe UI, sans-serif" font-weight="700" font-size="17" fill="#e2e8f0">MQ</text></g></symbol>
+    <symbol id="r4l" viewBox="0 0 64 64"><rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/><g transform="translate(0 -3)"><path d="M8 37L13 34.5L19 46L27 24" fill="none" stroke="url(#cg-l)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M27 24H57" stroke="#ea580c" stroke-width="5" stroke-linecap="round"/><text x="42.5" y="43.5" text-anchor="middle" font-family="Inter, Segoe UI, sans-serif" font-weight="700" font-size="17" fill="#0f172a">MQ</text></g></symbol>
+    <symbol id="r5d" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b1222"/><g transform="translate(-1 2)"><path d="M11 44V16L18.5 34L26 16H55" fill="none" stroke="url(#cg-d)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M43.46 42.68A9.5 9.5 0 1 1 50.18 35.96" fill="none" stroke="url(#cg-d)" stroke-width="5" stroke-linecap="round"/><circle cx="49.5" cy="42" r="3.5" fill="#fb923c"/></g></symbol>
+    <symbol id="r5l" viewBox="0 0 64 64"><rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/><g transform="translate(-1 2)"><path d="M11 44V16L18.5 34L26 16H55" fill="none" stroke="url(#cg-l)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M43.46 42.68A9.5 9.5 0 1 1 50.18 35.96" fill="none" stroke="url(#cg-l)" stroke-width="5" stroke-linecap="round"/><circle cx="49.5" cy="42" r="3.5" fill="#ea580c"/></g></symbol>
+    <symbol id="r6d" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b1222"/><g transform="translate(-1 2)"><path d="M9 33L14 30.5L20 44L27 16H55" fill="none" stroke="url(#cg-d)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M43.46 42.68A9.5 9.5 0 1 1 50.18 35.96" fill="none" stroke="url(#cg-d)" stroke-width="5" stroke-linecap="round"/><circle cx="49.5" cy="42" r="3.5" fill="#fb923c"/></g></symbol>
+    <symbol id="r6l" viewBox="0 0 64 64"><rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="#ffffff" stroke="#d5e0ec" stroke-width="1.5"/><g transform="translate(-1 2)"><path d="M9 33L14 30.5L20 44L27 16H55" fill="none" stroke="url(#cg-l)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M43.46 42.68A9.5 9.5 0 1 1 50.18 35.96" fill="none" stroke="url(#cg-l)" stroke-width="5" stroke-linecap="round"/><circle cx="49.5" cy="42" r="3.5" fill="#ea580c"/></g></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">Brand and market study · 3 Nov 2026 · international names</span>
+    <nav aria-label="Sections">
+      <a href="#answer">Answer</a>
+      <a href="#today">Today</a>
+      <a href="#market">Market</a>
+      <a href="#customers">Customers</a>
+      <a href="#names">Names</a>
+      <a href="#icons">Icons</a>
+      <a href="#studio-sec">Designs</a>
+      <a href="#doc">Compare</a>
+      <a href="#before">Before selling</a>
+      <a href="#sources">Sources</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>QuickEval needs a new name that works in any language, a clear first market, and a look nobody else can copy.</h1>
+    <p class="lede">This study compares the app with the market, picks the customers to win first, checks 16 international names, and shows MQGrader, your choice, in three design directions: logo and product screens. Your Google Doc's original dark look is drawn as a fourth, so you can compare all four on the same screens.</p>
+  </div>
+
+  <section id="answer">
+    <div class="sec-head">
+      <span class="eyebrow">The short answer</span>
+      <h2>Rename to MQGrader, launch in Romania, grow in Europe, use the dark and light MQ look</h2>
+    </div>
+    <div class="verdict">
+      <div>
+        <span class="eyebrow">Name</span>
+        <span class="big">MQGrader</span>
+        <p class="small muted">Your choice. MQ stands for Math &amp; Quantitative. Students see it too, so they spread it. Keep every student screen free of AI words, and show the meaning of MQ next to the logo. Trademark and domains are not checked yet.</p>
+      </div>
+      <div>
+        <span class="eyebrow">First customers</span>
+        <span class="big">Romanian math teachers, then private tutors</span>
+        <p class="small muted">Teachers bring volume and word of mouth. Tutors pay from their own business. Then Moldova, then other European countries.</p>
+      </div>
+      <div>
+        <span class="eyebrow">Position</span>
+        <span class="big">The teacher decides. MQGrader does the first pass.</span>
+        <p class="small muted">Students upload from their phones, every paper is graded by the marking scheme, and the teacher settles each doubtful point.</p>
+      </div>
+      <div>
+        <span class="eyebrow">Design</span>
+        <span class="big">D for dark, E for light</span>
+        <p class="small muted">Your choice: deep navy, the ring-and-tick icon, Inter and mono numbers. E is the same brand in daylight. The app already switches between light and dark themes, so D and E fit that switch.</p>
+      </div>
+    </div>
+    <p class="note"><b>Only the brand becomes international.</b> The plan to sell stays Romania-first: the founder's network, the test format and the lack of local competitors are all strongest there. The international name means you do not rename again when you cross the border.</p>
+    <p class="quote"><b>Positioning statement.</b> For math teachers who grade stacks of paper tests, MQGrader is the grading assistant that follows the marking scheme step by step. Students upload their work from their phones, every paper gets a proposed grade, and the teacher decides every doubtful point. Generic AI graders are built for US classrooms and percentages. MQGrader gives points per step, the way a marking scheme works, and it starts where that matters most: in Romania, with Subiectul I, II and III, din oficiu and grades from 1 to 10.</p>
+  </section>
+
+  <section id="today">
+    <div class="sec-head">
+      <span class="eyebrow">What the app is today</span>
+      <h2>Sell what is built. Your doc describes a different product.</h2>
+      <p class="prose muted">The doc promises a camera with auto-shutter, a vision engine plus a computer algebra system, LaTeX trees, PII masking and US privacy laws. Most of that does not exist. If you market it, the first teacher who tries it will notice. Here is the real list.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Capability</th><th>In your doc</th><th>In the app today</th><th>What to say in sales</th></tr></thead>
+        <tbody>
+          <tr><td>Collect the papers</td><td>Teacher scans the stack, auto-shutter camera</td><td><span class="chip good">Built</span> Students upload photos or a PDF from their own phone, through a link or QR code. The teacher sees live who has sent.</td><td>"You never scan a stack again."</td></tr>
+          <tr><td>Grade by the marking scheme</td><td>Step tree, CAS check</td><td><span class="chip good">Built</span> Points for each barem item, with a comment and a confidence level. No algebra system.</td><td>"Graded by your marking scheme, item by item."</td></tr>
+          <tr><td>Doubtful items</td><td>Not mentioned</td><td><span class="chip good">Built</span> Flags for unclear items. The teacher corrects points and can grade again.</td><td>"You decide every doubtful point."</td></tr>
+          <tr><td>Make the marking scheme</td><td>Not mentioned</td><td><span class="chip good">Built</span> Generates a barem from the test. It stays unused until the teacher confirms it.</td><td>"No scheme yet? Get a draft to check."</td></tr>
+          <tr><td>Print the test</td><td>Not mentioned</td><td><span class="chip good">Built</span> Makes the print PDF with a QR stamp that leads to the upload page.</td><td>"Print, hand out, collect by QR."</td></tr>
+          <tr><td>Reports</td><td>Remediation sheets, Google Classroom</td><td><span class="chip good">Built</span> PDF for each student and the class, CSV, class statistics and an analysis of strong and weak points. <span class="chip warn">Not built</span> practice sheets, Classroom export.</td><td>"Reports ready for parents and the class."</td></tr>
+          <tr><td>Error types and follow-through credit</td><td>Slip, computational, conceptual</td><td><span class="chip warn">Not built</span> A good roadmap item.</td><td>Do not claim yet.</td></tr>
+          <tr><td>Languages</td><td>English</td><td><span class="chip warn">Not built</span> The interface is Romanian only. An international brand needs at least an English interface next.</td><td>"Romanian now, English next."</td></tr>
+          <tr><td>Privacy</td><td>FERPA, COPPA, PII masking</td><td><span class="chip acc">Partly</span> The grading robot's answers and logs carry no names. Files are private and go through ownership checks. FERPA and COPPA are US laws; Europe needs GDPR and the EU AI Act.</td><td>"Built for GDPR," only after the checklist below.</td></tr>
+          <tr><td>Accounts and paying</td><td>Freemium tiers</td><td><span class="chip acc">Partly</span> Email login, demo accounts with 5 papers, Stripe Checkout ready but no paid features on sale.</td><td>Pricing below is a proposal.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="market">
+    <div class="sec-head">
+      <span class="eyebrow">State of the art, November 2026</span>
+      <h2>Many AI graders exist. None we found is built for a Romanian math test.</h2>
+      <p class="prose muted">The field filled up in 2025 and 2026. Several products now grade handwritten math from photos with partial credit. They aim at US schools or universities, grade in percentages, and expect the teacher to collect and upload the papers. Our searches found no Romanian product that grades handwritten math tests. That does not prove none exists.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Product</th><th>Who it is for</th><th>Handwritten math</th><th>How papers arrive</th><th>Romanian format</th><th>Price signal</th></tr></thead>
+        <tbody>
+          <tr class="you"><td><b>Your app (MQGrader)</b></td><td>Romanian math teachers first</td><td>Yes, item by item from the marking scheme, with flags</td><td>Students upload by link or QR</td><td>Yes: barem, din oficiu, grades 1–10</td><td>Not on sale yet</td></tr>
+          <tr><td>Examino (France, founded 2024)</td><td>Teachers, K-12</td><td>Yes: step grades, partial credit, phone capture</td><td>Teacher photographs papers</td><td>Not found</td><td>From €5.90 or $7.50 a month (sources disagree); 10 free math papers</td></tr>
+          <tr><td>Frizzle (Y Combinator, US)</td><td>US K-12 math</td><td>Yes: per-step grades from photos, class dashboard</td><td>Teacher uploads photos</td><td>No</td><td>Free seats for Title I schools; other listings disagree</td></tr>
+          <tr><td>Gradescope (Turnitin)</td><td>Universities</td><td>AI-assisted grouping; the teacher grades</td><td>Students or staff upload scans</td><td>No</td><td>Institution quote only</td></tr>
+          <tr><td>Crowdmark (Canada)</td><td>Universities, schools</td><td>Collaborative grading of uploads</td><td>Students upload photos</td><td>No</td><td>Contact vendor</td></tr>
+          <tr><td>MathGPT.ai</td><td>Higher education</td><td>Paper submissions, partial credit (limited release, July 2026)</td><td>Upload</td><td>No</td><td>Not public</td></tr>
+          <tr><td>StepWise Math (Querium)</td><td>US students and teachers</td><td>Step-by-step tutor and feedback, typed work</td><td>Online</td><td>No</td><td>Free for US public schools, per its site</td></tr>
+          <tr><td>GradingPal, GradeLab, Gradr, Graide, Top Marks AI, Graded Pro, Mathster, MathSense AI</td><td>K-12 and universities, mostly US, UK and Nordics</td><td>Claimed; not tested here</td><td>Upload</td><td>No</td><td>Freemium or quote</td></tr>
+          <tr><td>CoGrader, Brisk, MagicSchool</td><td>K-12, text first</td><td>Weak on handwritten math (from your doc, not verified)</td><td>Docs, typed text</td><td>No</td><td>Freemium</td></tr>
+          <tr><td>Google Classroom with Gemini</td><td>All schools</td><td>No: drafts feedback on written work and says it does not grade</td><td>Classroom</td><td>Romanian UI, no barem</td><td>Free for schools</td></tr>
+          <tr><td>Digitaliada (Romania)</td><td>Romanian schools</td><td>No: automatic correction of digital exercises</td><td>Online exercises</td><td>Yes</td><td>Free</td></tr>
+          <tr><td>ChatGPT, Claude, Gemini chat</td><td>Anyone</td><td>Reads one photo at a time</td><td>Teacher pastes photos</td><td>Language yes, barem discipline no</td><td>About $20 a month</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="map-wrap">
+      <svg class="map" viewBox="0 0 680 460" role="img" aria-labelledby="map-title map-desc">
+        <title id="map-title">Market map</title>
+        <desc id="map-desc">Products placed by how well they handle handwritten math on paper and how well they fit a Romanian classroom. Your app sits alone in the top right.</desc>
+        <rect class="zone" x="360" y="30" width="290" height="185" rx="8"/>
+        <text class="lbl-muted" x="372" y="52">Open space</text>
+        <line class="ax" x1="70" y1="400" x2="650" y2="400"/>
+        <line class="ax" x1="70" y1="30" x2="70" y2="400"/>
+        <line class="ax" x1="360" y1="30" x2="360" y2="400" stroke-dasharray="3 5"/>
+        <line class="ax" x1="70" y1="215" x2="650" y2="215" stroke-dasharray="3 5"/>
+        <text class="lbl-muted" x="70" y="420">low</text>
+        <text class="lbl-muted" x="650" y="420" text-anchor="end">high</text>
+        <text x="360" y="446" text-anchor="middle">Handles handwritten math on paper</text>
+        <text class="lbl-muted" x="58" y="400" text-anchor="end">low</text>
+        <text class="lbl-muted" x="58" y="40" text-anchor="end">high</text>
+        <text x="24" y="215" text-anchor="middle" transform="rotate(-90 24 215)">Fits a Romanian classroom</text>
+
+        <circle class="pt" cx="128" cy="89" r="6"/><text x="138" y="94">Digitaliada (RO)</text>
+        <circle class="pt" cx="151" cy="215" r="6"/><text x="161" y="211">Gemini in Classroom</text>
+        <circle class="pt" cx="348" cy="193" r="6"/><text x="358" y="189">ChatGPT · Claude · Gemini chat</text>
+        <circle class="pt" cx="174" cy="326" r="6"/><text x="184" y="331">CoGrader · Brisk · MagicSchool</text>
+        <circle class="pt" cx="337" cy="281" r="6"/><text x="347" y="286">Crowdmark</text>
+        <circle class="pt" cx="441" cy="304" r="6"/><text x="451" y="309">Gradescope</text>
+        <circle class="pt" cx="522" cy="252" r="6"/><text x="512" y="257" text-anchor="end">Examino (FR)</text>
+        <circle class="pt" cx="569" cy="333" r="6"/><text x="559" y="338" text-anchor="end">Frizzle (US)</text>
+        <circle class="pt" cx="383" cy="356" r="6"/><text x="393" y="361">GradingPal</text>
+        <circle class="pt" cx="511" cy="378" r="6"/><text x="501" y="383" text-anchor="end">MathGPT.ai</text>
+        <circle class="me-ring" cx="580" cy="74" r="13"/><circle class="me" cx="580" cy="74" r="7"/>
+        <text x="562" y="79" text-anchor="end" font-weight="700">Your app</text>
+      </svg>
+    </div>
+    <p class="small muted">The placement is my judgement from the sources, not a measurement. The point is the gap: the products that grade handwritten math well do not fit a Romanian classroom, and the Romanian tools do not grade paper.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Where you win</h3>
+        <ul>
+          <li>Students upload their own work by QR. The school math graders (Examino, Frizzle) expect the teacher to photograph the stack; student upload exists mostly in university tools (Gradescope, Crowdmark).</li>
+          <li>The Romanian test format is native: Subiectul I, II and III, din oficiu, grades from 1 to 10.</li>
+          <li>The teacher stays in charge: flags, corrections, a generated marking scheme only after confirmation.</li>
+          <li>Print-ready test with QR, PDF reports, CSV, class analysis.</li>
+          <li>Built by a math teacher in Timișoara: a true story that foreign tools cannot tell.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Where you are behind</h3>
+        <ul>
+          <li>No published accuracy figure. Competitors claim speed and accuracy; you need real numbers.</li>
+          <li>Romanian interface only. The international brand needs English next.</li>
+          <li>No export to Google Classroom or other school tools.</li>
+          <li>No error types, practice sheets, or school accounts yet.</li>
+          <li>Grading runs on one teacher's Claude subscription. Paying customers need the API (see "Before you sell").</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>"Why not just use ChatGPT?"</h3>
+        <p class="small">Every teacher will ask this. The answer: a chat reads one photo at a time. MQGrader collects 28 papers by itself, grades each one by the same marking scheme, flags what it is not sure of, and gives you the class report. Names stay out of the grading answers and logs.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="customers">
+    <div class="sec-head">
+      <span class="eyebrow">Target customers</span>
+      <h2>Start in Romania. Grow into Europe. Leave the US alone.</h2>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>148,268</b><span>registered for Evaluarea Națională in 2026 (Ministry, 30 June 2026)</span></div>
+      <div class="stat"><b>≈131,000</b><span>BAC candidates in the June–July 2026 session (press reports)</span></div>
+      <div class="stat"><b>53%</b><span>of grade-8 students take tutoring in one Bihor county study; about 90% of them in math</span></div>
+      <div class="stat"><b>9,818 lei</b><span>average a family spends a year on tutoring, after-school and materials (Salvați Copiii, 2024 data)</span></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Segment</th><th>Why they buy</th><th>Will they pay?</th><th>How to reach them</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td><b>Math teachers in Romanian public schools</b>, grades 5 to 12</td><td>Five classes of about 28 students, tests, simulations and teze graded on evenings and weekends.</td><td>Yes, but little, from their own pocket.</td><td>Laura's network, teacher Facebook groups, county teacher-training centres (CCD), math teacher conferences.</td><td><span class="chip acc">P1 · users</span></td></tr>
+          <tr><td><b>Private tutors and tutoring centres</b></td><td>Weekly practice tests for EN and BAC. Parents want proof of progress.</td><td>Yes. It is a business tool, and the cost goes into the lesson price.</td><td>Tutor groups and marketplaces, parents who see the reports.</td><td><span class="chip acc">P1 · revenue</span></td></tr>
+          <tr><td><b>Private schools and after-schools</b></td><td>Show parents consistent, careful grading.</td><td>Yes, from a school budget, with faster decisions than public schools.</td><td>Direct contact and demos.</td><td><span class="chip">P2</span></td></tr>
+          <tr><td><b>Moldova</b></td><td>Same language, same barem tradition (the national agency ANCE publishes barems).</td><td>Yes, at lower prices.</td><td>The same product and copy.</td><td><span class="chip">P3</span></td></tr>
+          <tr><td><b>Other European countries</b></td><td>Written math tests marked by a scheme exist everywhere; France calls it "barème", Spain "baremo".</td><td>Yes.</td><td>Needs an English interface first, then local languages and the EU AI Act work.</td><td><span class="chip">P4 · from 2027</span></td></tr>
+          <tr><td>Students who check their own practice tests</td><td>Big need before EN and BAC.</td><td>Parents pay.</td><td>—</td><td><span class="chip warn">Later</span> It needs a separate product that is open about AI: today student pages never mention AI.</td></tr>
+          <tr><td>United States</td><td>Crowded, with free offers (Frizzle gives free seats to Title I schools).</td><td>—</td><td>—</td><td><span class="chip bad">Not now</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="grid3">
+      <div class="card"><span class="eyebrow">Try</span><h3>Free</h3><p class="small">One full class test, up to 30 papers. Today the demo stops at 5 papers, which is too few to see the value.</p></div>
+      <div class="card"><span class="eyebrow">Teacher</span><h3>39 lei a month</h3><p class="small">About €8. Or 349 lei (about €70) a year. Up to 300 papers a month: about five classes, two tests each.</p></div>
+      <div class="card"><span class="eyebrow">Tutor</span><h3>79 lei a month</h3><p class="small">About €16. Up to 600 papers a month, and parent reports with the tutor's own name.</p></div>
+      <div class="card"><span class="eyebrow">School</span><h3>From 2,900 lei a year</h3><p class="small">About €580. Up to 10 teachers, an invoice and a data processing agreement.</p></div>
+    </div>
+    <p class="small muted">These prices are a proposal, not tested. For comparison, Examino starts at €5.90 a month. Before you set prices, measure the AI cost of one paper on the Claude API.</p>
+    <div class="card"><h3>Students as a channel</h3><p class="small">Every student who uploads a test sees the brand, and so do the parents who read the student PDF. One short line, "Profesorul tău folosește MQGrader. Ești profesor? Încearcă gratuit." (Your teacher uses MQGrader. Are you a teacher? Try it free.), turns each class of 28 students into 28 small ads. Your doc had the same idea for its practice sheets. Keep these lines free of AI words.</p></div>
+  </section>
+
+  <section id="names">
+    <div class="sec-head">
+      <span class="eyebrow">The name</span>
+      <h2>QuickEval clashes with Brightspace. The new name must work in any language.</h2>
+      <p class="prose muted">"Quick Eval" is the name of the grading screen in D2L Brightspace, a school platform used by many universities. Same field, same words: that is the strongest reason to rename. I checked 16 international names with web searches and scored them from 1 to 5 on five points. The scores are my judgement. Trademarks and domains are not checked. Bifa and Barem, the Romanian words from the first version, are out because the brand must be international. You chose MQGrader; its row is marked below.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table class="wide">
+        <thead><tr><th>Name</th><th class="num">Meaning for math teachers</th><th class="num">Safe on the student page</th><th class="num">Easy to say in Europe</th><th class="num">Ownable</th><th class="num">Works abroad</th><th class="num">Total</th><th>Clash found</th><th>Main reason</th></tr></thead>
+        <tbody>
+          <tr><td><b>Stepmark</b></td><td class="num score">4</td><td class="num score">4</td><td class="num score">4</td><td class="num score">3</td><td class="num score">5</td><td class="num score"><b>20</b></td><td><span class="chip warn">Near</span></td><td>A mark for every step: partial credit in two words. A pedometer widget is called StepMark, and StepWise Math, an AI math tutor, uses a similar "Step" idea.</td></tr>
+          <tr><td><b>Tallymark</b></td><td class="num score">3</td><td class="num score">5</td><td class="num score">4</td><td class="num score">3</td><td class="num score">5</td><td class="num score"><b>20</b></td><td><span class="chip warn">Near</span></td><td>Tally marks count points in every language. No product found with the name, but "Tally" software brands exist and "tally marks" is a kindergarten topic, so search is crowded.</td></tr>
+          <tr><td><b>Gradino</b></td><td class="num score">3</td><td class="num score">4</td><td class="num score">4</td><td class="num score">2</td><td class="num score">4</td><td class="num score"><b>17</b></td><td><span class="chip warn">Near</span></td><td>Italian for "small step", with "grad" inside. Gradin, an iPad grading app, is one letter away, and the "Grad-" space is crowded (Gradr, Graide, Edugrade, Gradarius).</td></tr>
+          <tr class="split"><td>Notara</td><td class="num score">3</td><td class="num score">4</td><td class="num score">4</td><td class="num score">2</td><td class="num score">4</td><td class="num score">17</td><td><span class="chip warn">Near</span></td><td>"Nota" means grade in many languages. Several note-taking apps are called Notara.</td></tr>
+          <tr><td>Gradus</td><td class="num score">3</td><td class="num score">4</td><td class="num score">5</td><td class="num score">1</td><td class="num score">5</td><td class="num score">18</td><td><span class="chip bad">Clash</span></td><td>Latin for step and grade. Gradus Software is a music education company, and a grade calculator app is called Gradus.</td></tr>
+          <tr><td>Stepwise</td><td class="num score">4</td><td class="num score">4</td><td class="num score">4</td><td class="num score">1</td><td class="num score">5</td><td class="num score">18</td><td><span class="chip bad">Clash</span></td><td>StepWise Math is an AI math tutor for teachers and students.</td></tr>
+          <tr><td>Radix</td><td class="num score">3</td><td class="num score">4</td><td class="num score">5</td><td class="num score">1</td><td class="num score">5</td><td class="num score">18</td><td><span class="chip bad">Clash</span></td><td>Radix LMS is a K-12 school platform with grades.</td></tr>
+          <tr><td>Pointwise</td><td class="num score">3</td><td class="num score">4</td><td class="num score">3</td><td class="num score">2</td><td class="num score">4</td><td class="num score">16</td><td><span class="chip bad">Clash</span></td><td>Pointwise is Cadence's engineering mesh software.</td></tr>
+          <tr><td>Inkmark</td><td class="num score">3</td><td class="num score">4</td><td class="num score">4</td><td class="num score">1</td><td class="num score">4</td><td class="num score">16</td><td><span class="chip bad">Clash</span></td><td>Inkmark Software holds a trademark for handwriting recognition software.</td></tr>
+          <tr><td>Penmark</td><td class="num score">3</td><td class="num score">4</td><td class="num score">4</td><td class="num score">1</td><td class="num score">4</td><td class="num score">16</td><td><span class="chip bad">Clash</span></td><td>Penmark is a Japanese student timetable app.</td></tr>
+          <tr><td>Markwise</td><td class="num score">3</td><td class="num score">4</td><td class="num score">4</td><td class="num score">1</td><td class="num score">4</td><td class="num score">16</td><td><span class="chip bad">Clash</span></td><td>Markwise is an AI bookmarking app.</td></tr>
+          <tr><td>Lemma</td><td class="num score">3</td><td class="num score">4</td><td class="num score">4</td><td class="num score">1</td><td class="num score">4</td><td class="num score">16</td><td><span class="chip bad">Clash</span></td><td>Lemma Learning builds a suite for high school math teachers.</td></tr>
+          <tr><td>Emendo</td><td class="num score">2</td><td class="num score">3</td><td class="num score">4</td><td class="num score">2</td><td class="num score">4</td><td class="num score">15</td><td><span class="chip warn">Near</span></td><td>Latin for "I correct", which few people know. Several companies use it, one of them an education concept.</td></tr>
+          <tr><td>Rootmark</td><td class="num score">3</td><td class="num score">4</td><td class="num score">3</td><td class="num score">1</td><td class="num score">4</td><td class="num score">15</td><td><span class="chip bad">Clash</span></td><td>Rootmark Inc. has US trademark filings for software services.</td></tr>
+          <tr><td>QuickEval</td><td class="num score">2</td><td class="num score">4</td><td class="num score">3</td><td class="num score">1</td><td class="num score">4</td><td class="num score">14</td><td><span class="chip bad">Clash</span></td><td>The Brightspace grading screen has the same name.</td></tr>
+          <tr><td>CoolGrader</td><td class="num score">2</td><td class="num score">1</td><td class="num score">5</td><td class="num score">1</td><td class="num score">4</td><td class="num score">13</td><td><span class="chip bad">Clash</span></td><td>One letter from CoGrader, a funded US AI grading tool for teachers; a search for "CoolGrader" returns CoGrader. "Grader" tells students a machine grades them, and "cool" plus "grader" are common words, so the trademark is weak.</td></tr>
+          <tr class="you"><td><b>MQGrader</b> <span class="chip acc">Chosen</span></td><td class="num score">2</td><td class="num score">1</td><td class="num score">2</td><td class="num score">4</td><td class="num score">3</td><td class="num score"><b>12</b></td><td><span class="chip good">None</span></td><td>Your choice. No clash found. Students will see it, which spreads the brand; keep every student screen free of AI words. "MQ" still needs its meaning (Math &amp; Quantitative) next to the logo, and people spell the letters instead of saying a word.</td></tr>
+          <tr class="out"><td>Bifa, Barem</td><td colspan="6">—</td><td><span class="chip">Out</span></td><td>Romanian words. Strong at home, but the brand must be international.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">History: Stepmark and Tallymark tied at 20 and were my top picks. You chose MQGrader. You then chose the dark look from your doc, D, asked for a light version, E, and picked the ring-and-tick icon for both. The cards below show D and E first, then the other three directions.</p>
+
+    <h3 class="brand-head">Your direction: D for dark, E for light</h3>
+    <div class="brands two">
+      <div class="brand b-d">
+        <span class="pick">D · Dark · your pick</span>
+        <div class="lockup"><svg><use href="#logo-d"/></svg><span class="word"><em>MQ</em>Grader</span></div>
+        <span class="desc">Math &amp; Quantitative</span>
+        <div class="sizes" aria-label="Logo at 64, 32 and 16 pixels"><svg><use href="#logo-d"/></svg><svg><use href="#logo-d"/></svg><svg><use href="#logo-d"/></svg></div>
+        <p class="tag"><b>Ring and tick.</b> The cyan-to-blue ring is the score, and the orange tick breaks out through its gap: a test that is graded and checked. It stays clear at 16 px.</p>
+        <p class="line">"Precision in every step."</p>
+        <div class="swatches"><i style="background:#0b1222"></i><i style="background:#22e8ee"></i><i style="background:#3b7cf4"></i><i style="background:#f97316"></i><i style="background:#e2e8f0"></i></div>
+      </div>
+      <div class="brand b-e">
+        <span class="pick">E · Light · new</span>
+        <div class="lockup"><svg><use href="#logo-e"/></svg><span class="word"><em>MQ</em>Grader</span></div>
+        <span class="desc">Math &amp; Quantitative</span>
+        <div class="sizes" aria-label="Logo at 64, 32 and 16 pixels"><svg><use href="#logo-e"/></svg><svg><use href="#logo-e"/></svg><svg><use href="#logo-e"/></svg></div>
+        <p class="tag"><b>The same icon in daylight.</b> A white tile, a deeper blue ring and a darker orange tick, so both keep their contrast on white.</p>
+        <p class="line">"Precision in every step."</p>
+        <div class="swatches"><i style="background:#ffffff"></i><i style="background:#0891b2"></i><i style="background:#2563eb"></i><i style="background:#c2410c"></i><i style="background:#0f172a"></i></div>
+      </div>
+    </div>
+    <h3 class="brand-head">Other directions</h3>
+    <div class="brands">
+      <div class="brand b-a">
+        <span class="pick">A · Notebook</span>
+        <div class="lockup"><svg><use href="#logo-a"/></svg><span class="word">MQGrader</span></div>
+        <span class="desc">Math &amp; Quantitative</span>
+        <div class="sizes" aria-label="Logo at 64, 32 and 16 pixels"><svg><use href="#logo-a"/></svg><svg><use href="#logo-a"/></svg><svg><use href="#logo-a"/></svg></div>
+        <p class="tag"><b>The tail of the Q is a tick.</b> Ink-blue tile with a faint grid, white letters, a yellow-marker tick: the same parts as today's favicon, so the brand family stays.</p>
+        <p class="line">"Points for every step. The last word is yours."</p>
+        <div class="swatches"><i style="background:#1d3c8f"></i><i style="background:#cf3a2f"></i><i style="background:#ffd94a"></i><i style="background:#fbfcfe"></i><i style="background:#24272d"></i></div>
+      </div>
+      <div class="brand b-b">
+        <span class="pick">B · Ledger</span>
+        <div class="lockup"><svg><use href="#logo-b"/></svg><span class="word">MQGrader</span></div>
+        <span class="desc">Math &amp; Quantitative</span>
+        <div class="sizes" aria-label="Logo at 64, 32 and 16 pixels"><svg><use href="#logo-b"/></svg><svg><use href="#logo-b"/></svg><svg><use href="#logo-b"/></svg></div>
+        <p class="tag"><b>An official seal.</b> MQ in a brass ring on school green, with a small tick. Formal, like a stamp on a graded paper.</p>
+        <p class="line">"Every point counted. Every grade signed by you."</p>
+        <div class="swatches"><i style="background:#1f4d3a"></i><i style="background:#a8781f"></i><i style="background:#f7f3e8"></i><i style="background:#eef2ee"></i><i style="background:#17211c"></i></div>
+      </div>
+      <div class="brand b-c">
+        <span class="pick">C · Precision</span>
+        <div class="lockup"><svg><use href="#logo-c"/></svg><span class="word"><em>MQ</em>Grader</span></div>
+        <span class="desc">Math &amp; Quantitative</span>
+        <div class="sizes" aria-label="Logo at 64, 32 and 16 pixels"><svg><use href="#logo-c"/></svg><svg><use href="#logo-c"/></svg><svg><use href="#logo-c"/></svg></div>
+        <p class="tag"><b>One Q, one tick.</b> A white ring with a cobalt tick for its tail, on graphite. Precise and modern, a little cold.</p>
+        <p class="line">"Every step counted. Every point explained."</p>
+        <div class="swatches"><i style="background:#15171c"></i><i style="background:#2747d6"></i><i style="background:#8ea2ff"></i><i style="background:#f4f5f7"></i><i style="background:#1a7f4b"></i></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="icons">
+    <div class="sec-head">
+      <span class="eyebrow">Icon options</span>
+      <h2>The score ring, refined, and five variants with a square root</h2>
+      <p class="prose muted">All six sit on one grid: 64 units with a 12-unit margin, 6-unit strokes (5 to 5.5 where the shapes are smaller), round ends, the same cyan-to-blue direction, and one warm element. Each card shows the icon on the dark look (D, top) and on the light look (E, bottom), at 64, 32 and 16 pixels. You chose icon 2; D and E use it now.</p>
+    </div>
+    <div class="icons">
+      <div class="ico-card">
+        <div class="ico-side dark"><div class="ico-row"><svg><use href="#r1d"/></svg><svg><use href="#r1d"/></svg><svg><use href="#r1d"/></svg></div><span class="ico-word"><em class="em-cool-d">MQ</em>Grader</span></div>
+        <div class="ico-side light"><div class="ico-row"><svg><use href="#r1l"/></svg><svg><use href="#r1l"/></svg><svg><use href="#r1l"/></svg></div><span class="ico-word"><em class="em-cool-l">MQ</em>Grader</span></div>
+        <div class="ico-info"><h3>1 · Score ring</h3><p class="small">Kept from the last round, now calibrated. The orange dot sits exactly on the ring line, in a 60° gap, one and a half strokes wide.</p></div>
+      </div>
+      <div class="ico-card">
+        <div class="ico-side dark"><div class="ico-row"><svg><use href="#r2d"/></svg><svg><use href="#r2d"/></svg><svg><use href="#r2d"/></svg></div><span class="ico-word"><em class="em-cool-d">MQ</em>Grader</span></div>
+        <div class="ico-side light"><div class="ico-row"><svg><use href="#r2l"/></svg><svg><use href="#r2l"/></svg><svg><use href="#r2l"/></svg></div><span class="ico-word"><em class="em-cool-l">MQ</em>Grader</span></div>
+        <div class="ico-info"><h3>2 · Ring and tick <span class="chip acc">Chosen</span></h3><p class="small">The ring is the score. The orange tick breaks out through the gap at the top: a test that is graded and checked.</p></div>
+      </div>
+      <div class="ico-card">
+        <div class="ico-side dark"><div class="ico-row"><svg><use href="#r3d"/></svg><svg><use href="#r3d"/></svg><svg><use href="#r3d"/></svg></div><span class="ico-word"><em class="em-cool-d">MQ</em>Grader</span></div>
+        <div class="ico-side light"><div class="ico-row"><svg><use href="#r3l"/></svg><svg><use href="#r3l"/></svg><svg><use href="#r3l"/></svg></div><span class="ico-word"><em class="em-cool-l">MQ</em>Grader</span></div>
+        <div class="ico-info"><h3>3 · Ring and root</h3><p class="small">The score ring with a small square-root sign inside: a math score. It gets busy at 16 pixels.</p></div>
+      </div>
+      <div class="ico-card">
+        <div class="ico-side dark"><div class="ico-row"><svg><use href="#r4d"/></svg><svg><use href="#r4d"/></svg><svg><use href="#r4d"/></svg></div><span class="ico-word"><em class="em-cool-d">MQ</em>Grader</span></div>
+        <div class="ico-side light"><div class="ico-row"><svg><use href="#r4l"/></svg><svg><use href="#r4l"/></svg><svg><use href="#r4l"/></svg></div><span class="ico-word"><em class="em-cool-l">MQ</em>Grader</span></div>
+        <div class="ico-info"><h3>4 · √MQ</h3><p class="small">The letters MQ under a square-root sign, like a math expression, with an orange top bar. At 16 pixels the letters fade and the sign stays.</p></div>
+      </div>
+      <div class="ico-card">
+        <div class="ico-side dark"><div class="ico-row"><svg><use href="#r5d"/></svg><svg><use href="#r5d"/></svg><svg><use href="#r5d"/></svg></div><span class="ico-word"><em class="em-cool-d">MQ</em>Grader</span></div>
+        <div class="ico-side light"><div class="ico-row"><svg><use href="#r5l"/></svg><svg><use href="#r5l"/></svg><svg><use href="#r5l"/></svg></div><span class="ico-word"><em class="em-cool-l">MQ</em>Grader</span></div>
+        <div class="ico-info"><h3>5 · Root from the M</h3><p class="small">The M turns into a square-root sign, and its top bar covers the Q, drawn as the score ring. Your square root from MQ, in one line.</p></div>
+      </div>
+      <div class="ico-card">
+        <div class="ico-side dark"><div class="ico-row"><svg><use href="#r6d"/></svg><svg><use href="#r6d"/></svg><svg><use href="#r6d"/></svg></div><span class="ico-word"><em class="em-cool-d">MQ</em>Grader</span></div>
+        <div class="ico-side light"><div class="ico-row"><svg><use href="#r6l"/></svg><svg><use href="#r6l"/></svg><svg><use href="#r6l"/></svg></div><span class="ico-word"><em class="em-cool-l">MQ</em>Grader</span></div>
+        <div class="ico-info"><h3>6 · Root over ring</h3><p class="small">A classic square-root sign over the score ring. Simpler than 5, without the M.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="studio-sec">
+    <div class="sec-head">
+      <span class="eyebrow">Five looks, one set of screens</span>
+      <h2>Pick a direction and see the same three screens change</h2>
+      <p class="prose muted">Each direction shows the screens that make the product: the teacher reviewing a flagged point, the test page with its QR code, and the student's upload page on a phone. The content is the same, so only the brand changes. All directions use MQGrader. The screen text is Romanian, the launch language. The brand also shows on the student phone, so students carry it to parents and other teachers.</p>
+    </div>
+
+    <div class="studio" id="studio" data-v="a">
+      <div class="tabs" role="tablist" aria-label="Design directions">
+        <button class="tab-btn" role="tab" id="tab-a" aria-selected="true" aria-controls="panel" data-v="a"><svg><use href="#logo-a"/></svg><span>A · Notebook<small>squared paper</small></span></button>
+        <button class="tab-btn" role="tab" id="tab-b" aria-selected="false" aria-controls="panel" data-v="b" tabindex="-1"><svg><use href="#logo-b"/></svg><span>B · Ledger<small>formal</small></span></button>
+        <button class="tab-btn" role="tab" id="tab-c" aria-selected="false" aria-controls="panel" data-v="c" tabindex="-1"><svg><use href="#logo-c"/></svg><span>C · Precision<small>pro tool</small></span></button>
+        <button class="tab-btn" role="tab" id="tab-d" aria-selected="false" aria-controls="panel" data-v="d" tabindex="-1"><svg><use href="#logo-d"/></svg><span>D · Dark<small>your pick</small></span></button>
+        <button class="tab-btn" role="tab" id="tab-e" aria-selected="false" aria-controls="panel" data-v="e" tabindex="-1"><svg><use href="#logo-e"/></svg><span>E · Light<small>same look, lighter</small></span></button>
+      </div>
+
+      <div id="panel" role="tabpanel" aria-labelledby="tab-a" class="stack" style="margin-top:16px">
+        <div class="vinfo" data-for="a">
+          <div class="card"><h3>A · Notebook</h3><p class="small"><b>Idea:</b> the squared math notebook used in schools across much of Europe, with the teacher's red pen and yellow marker. Points look handwritten in red; anything that needs the teacher is highlighted in yellow. In the logo, the tail of the Q is a tick.</p><p class="small"><b>Tagline:</b> "Points for every step. The last word is yours." (RO: "Puncte pentru fiecare pas. Ultimul cuvânt e al tău.")</p></div>
+          <div class="card"><h3>Who it is for</h3><p class="small">Teachers and tutors, first in Romania, then across Europe. Warm, familiar and calm for long grading sessions. Atkinson Hyperlegible Next is made for easy reading; Caveat is the teacher's hand.</p><p class="small"><b>Cost to adopt:</b> low. Today's brand.css already uses these colors and fonts. You change the name, the logo and the favicon.</p></div>
+          <div class="card"><h3>Risks</h3><p class="small">"Grader" is a technical word next to a warm school look; the notebook style softens it. Trademark and domains are not checked.</p></div>
+        </div>
+        <div class="vinfo" data-for="b" hidden>
+          <div class="card"><h3>B · Ledger</h3><p class="small"><b>Idea:</b> an official register. The logo is a seal with MQ in a brass ring. The look: school green, brass, serif titles, ruled tables, the grade in a stamped box.</p><p class="small"><b>Tagline:</b> "Every point counted. Every grade signed by you." (RO: "Fiecare punct numărat. Fiecare notă semnată de tine.")</p></div>
+          <div class="card"><h3>Who it is for</h3><p class="small">Schools, school networks and tutoring centres that want an official feel. Spectral for titles, Source Sans 3 for text.</p></div>
+          <div class="card"><h3>Risks</h3><p class="small">The formal look can feel cold to a single teacher at home. The letters inside the seal are too small to read at 16 px; there the ring shape carries the icon.</p></div>
+        </div>
+        <div class="vinfo" data-for="c" hidden>
+          <div class="card"><h3>C · Precision</h3><p class="small"><b>Idea:</b> one Q whose tail is a tick. A precise tool for professionals: graphite and cobalt, numbers in mono type, keyboard shortcuts, a dense split view.</p><p class="small"><b>Tagline:</b> "Every step counted. Every point explained." (RO: "Fiecare pas, punctat.")</p></div>
+          <div class="card"><h3>Who it is for</h3><p class="small">Teachers who grade a lot and love shortcuts, and departments. Geist and Geist Mono.</p></div>
+          <div class="card"><h3>Risks</h3><p class="small">Less warmth. It looks like many modern software tools, so it is easier to copy. Next to "Grader" it can feel like a machine more than a teacher's helper.</p></div>
+        </div>
+        <div class="vinfo" data-for="d" hidden>
+          <div class="card"><h3>D · Dark <span class="chip acc">Your pick</span></h3><p class="small"><b>Idea:</b> the look from your doc. Deep navy, a soft cyan glow, Inter for text and JetBrains Mono for numbers. The icon: a cyan-to-blue score ring with an orange tick that breaks out of it.</p><p class="small"><b>Tagline:</b> "Precision in every step." (RO: "Precizie la fiecare pas.")</p></div>
+          <div class="card"><h3>How to use it</h3><p class="small">D and E are the dark and light themes of one brand. The app already switches between a light and a dark theme, so D and E fit that switch directly.</p><p class="small">Keep the split view, the keyboard shortcuts and the mono numbers from your doc.</p></div>
+          <div class="card"><h3>Adjust before launch</h3><ul class="small"><li>The colors are close to Tailwind's defaults, which many sites use. Take the exact colors from the ring-and-tick icon to make them yours.</li><li>Keep "AI-Powered" on teacher screens only. Student screens show the brand but no AI words.</li><li>Grades stay 1–10 with din oficiu, not out of 100.</li></ul></div>
+        </div>
+        <div class="vinfo" data-for="e" hidden>
+          <div class="card"><h3>E · Light <span class="chip acc">New</span></h3><p class="small"><b>Idea:</b> the same brand as D in daylight. White and pale-blue surfaces, the same ring-and-tick icon on a white tile, cyan-to-blue buttons, and a soft cyan glow instead of the dark halo.</p><p class="small"><b>Tagline:</b> "Precision in every step." (RO: "Precizie la fiecare pas.")</p></div>
+          <div class="card"><h3>Who it is for</h3><p class="small">Daytime grading, bright classrooms and projectors, and teachers who do not like dark screens. A good default for students' phones in daylight.</p></div>
+          <div class="card"><h3>Watch out</h3><p class="small">Bright cyan is hard to read on white. Text and buttons use the deeper blue; the bright cyan stays in the mark and the glow.</p></div>
+        </div>
+
+        <div class="mocks">
+          <figure class="mock desk">
+            <div class="m">
+              <div class="m-bar">
+                <svg class="m-logo"><use class="js-logo" href="#logo-a"/></svg>
+                <span class="m-name js-name">MQGrader</span>
+                <span class="m-badge">AI-Powered</span>
+                <nav class="m-nav"><span>Clase</span><b>Teste</b><span>Rapoarte</span></nav>
+                <span class="m-user">prof. L. Miron</span>
+              </div>
+              <div class="m-sub">
+                <span>Teză sem. I · Matematică · a X-a B · 10B-26T3</span>
+                <span><b>Ioana Marin</b> · lucrarea 12 din 28</span>
+                <span class="m-flagcount">3 puncte de verificat în test</span>
+              </div>
+              <div class="m-split">
+                <div class="m-scan">
+                  <div class="m-scan-top"><span>Pagina 2 din 3 · poză de pe telefon</span><span>Subiectul al II-lea</span></div>
+                  <svg viewBox="0 0 380 300" role="img" aria-label="Photo of the student's handwritten solution">
+                    <defs>
+                      <pattern id="sq" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M16 0H0V16" fill="none" stroke="#dfe6f1" stroke-width="1"/></pattern>
+                    </defs>
+                    <rect width="380" height="300" fill="#fdfdfb"/>
+                    <rect width="380" height="300" fill="url(#sq)"/>
+                    <line x1="44" y1="0" x2="44" y2="300" stroke="#e7a7a2" stroke-width="1.5"/>
+                    <text class="hw" x="54" y="44">3)  x² - 5x + 6 = 0</text>
+                    <rect class="ov ok" x="50" y="64" width="290" height="42" rx="6"/>
+                    <text class="hw" x="58" y="94">Δ = b² - 4ac = 25 - 24 = 1</text>
+                    <rect class="ov ok" x="50" y="114" width="230" height="86" rx="6"/>
+                    <text class="hw" x="58" y="144">x1 = (5 + 1) : 2 = 3</text>
+                    <text class="hw" x="58" y="188">x2 = (5 - 1) : 2 = 2</text>
+                    <path d="M222 168c6 10 12 14 20 10" fill="none" stroke="#22397f" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>
+                    <rect class="ov flag" x="50" y="208" width="200" height="46" rx="6"/>
+                    <text class="hw" x="58" y="240">S = {2 ; 3}</text>
+                    <g class="ovn"><circle cx="352" cy="85" r="11"/><text x="352" y="89">1</text></g>
+                    <g class="ovn"><circle cx="292" cy="157" r="11"/><text x="292" y="161">2</text></g>
+                    <g class="ovn flag"><circle cx="262" cy="231" r="11"/><text x="262" y="235">3</text></g>
+                    <text class="pen" x="8" y="94">2p</text>
+                    <text class="pen" x="8" y="166">2p</text>
+                    <text class="pen" x="10" y="240">1?</text>
+                  </svg>
+                </div>
+                <div class="m-pane">
+                  <div class="m-h">Subiectul al II-lea · 3. <span>5p</span></div>
+                  <ol class="m-items">
+                    <li class="m-it"><span class="n">1</span><div><b>Calculează Δ = 1</b><small>Barem 2p · corect</small></div><span class="m-pts">2p</span></li>
+                    <li class="m-it"><span class="n">2</span><div><b>Aplică formula rădăcinilor</b><small>Barem 2p · corect</small></div><span class="m-pts">2p</span></li>
+                    <li class="m-it flag"><span class="n">3</span><div><b>Rădăcinile x<sub>1</sub> = 3, x<sub>2</sub> = 2</b><small class="why">De verificat: cifra de la x<sub>2</sub> se citește greu.</small><div class="m-act"><span class="m-btn pri">Accept 1p</span><span class="m-btn">Schimb punctajul</span><span class="kbd">A</span><span class="kbd">0–1</span><span class="kbd">J / K</span></div></div><span class="m-pts">1p?</span></li>
+                  </ol>
+                  <div class="m-total"><span>Total: <b>75 p</b> + <b>10 p</b> din oficiu</span><span class="m-grade js-grade">8,50</span></div>
+                </div>
+              </div>
+            </div>
+            <figcaption>Teacher review. The photo comes from the student's phone. The proposed points sit next to the marking scheme, and the one doubtful point waits for the teacher.</figcaption>
+          </figure>
+
+          <figure class="mock">
+            <div class="m">
+              <div class="m-bar">
+                <svg class="m-logo"><use class="js-logo" href="#logo-a"/></svg>
+                <span class="m-name js-name">MQGrader</span>
+                <span class="m-user">Teză sem. I · a X-a B</span>
+              </div>
+              <div class="m-test">
+                <div class="m-qr">
+                  <div class="code"><svg id="qr" viewBox="0 0 29 29" role="img" aria-label="Example QR code"></svg></div>
+                  <span class="m-link"><span class="js-domain">mqgrader.com</span>/u/7KQ2 (example)</span>
+                  <span class="m-btn">Copiază linkul</span>
+                </div>
+                <div class="m-list">
+                  <div class="m-prog"><span>Au trimis lucrarea</span><b>24 din 28</b></div>
+                  <div class="bar"><i></i></div>
+                  <div class="row"><b>Andrei Popescu</b><span>3 pagini · 10:42</span><span class="st">Trimis</span></div>
+                  <div class="row"><b>Ioana Marin</b><span>3 pagini · 10:44</span><span class="st">Trimis</span></div>
+                  <div class="row"><b>Luca Stan</b><span>—</span><span class="st wait">Așteaptă</span></div>
+                  <div class="row"><b>Maria Ionescu</b><span>2 pagini · 10:45</span><span class="st">Trimis</span></div>
+                  <div class="row"><b>Vlad Dumitru</b><span>—</span><span class="st wait">Așteaptă</span></div>
+                </div>
+              </div>
+              <div class="m-cta"><span class="m-btn pri">Pornește corectarea</span><span class="m-btn">Programează la 18:00</span></div>
+            </div>
+            <figcaption>Test page. Students scan the QR in class; the teacher watches the list fill up, then starts grading now or at a set time.</figcaption>
+          </figure>
+
+          <figure class="mock">
+            <div class="phone">
+              <div class="notch"></div>
+              <div class="m">
+                <div class="p-top"><svg class="m-logo"><use class="js-logo" href="#logo-a"/></svg><span class="m-name js-name">MQGrader</span></div>
+                <div class="p-body">
+                  <div><div class="p-title">Teză sem. I · Matematică</div><div class="p-note" style="text-align:left">a X-a B · prof. L. Miron</div></div>
+                  <div class="p-field"><label>Numele tău</label><div class="p-select"><span>Ioana Marin</span><span aria-hidden="true">▾</span></div></div>
+                  <div class="p-field"><label>Pozele lucrării</label><div class="thumbs"><div class="thumb"></div><div class="thumb"></div><div class="thumb"></div><div class="thumb add">+</div></div></div>
+                  <div class="p-btn">Trimite lucrarea · 3 pagini</div>
+                  <div class="p-note">Poți trimite până la 12:30. Profesorul tău vede lucrarea după ce o trimiți.</div>
+                  <div class="p-made"><svg><use class="js-logo" href="#logo-a"/></svg><span>Profesorul tău folosește <b>MQGrader</b>. Ești profesor? Încearcă gratuit.</span></div>
+                </div>
+              </div>
+            </div>
+            <figcaption>Student upload. No login and no app to install. The brand shows on purpose: students carry it to parents and other teachers. No student screen talks about automatic grading.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="doc">
+    <div class="sec-head">
+      <span class="eyebrow">Design comparison</span>
+      <h2>Your look, D and E, next to the other directions</h2>
+    </div>
+    <div class="tbl-wrap">
+      <table class="wide">
+        <thead><tr><th>Point</th><th>D · Dark (your pick)</th><th>E · Light (new)</th><th>A · Notebook</th><th>B · Ledger</th><th>C · Precision</th></tr></thead>
+        <tbody>
+          <tr><td>First feeling</td><td>Modern tech product</td><td>Modern and bright</td><td>School, paper, a teacher's desk</td><td>Official, careful</td><td>Professional tool</td></tr>
+          <tr><td>Can someone else own it?</td><td>Partly: the ring-and-tick icon is yours; the colors are close to Tailwind's defaults</td><td>Same as D</td><td>Yes: squared paper, red pen, marker, Q with a tick</td><td>Partly: green and brass are common for institutions</td><td>Partly: close to many modern tools</td></tr>
+          <tr><td>Student screens</td><td>Brand, no AI words</td><td>Brand, no AI words</td><td>Brand, no AI words</td><td>Brand, no AI words</td><td>Brand, no AI words</td></tr>
+          <tr><td>Scores</td><td>Points and grades 1–10 in cyan</td><td>Points and grades 1–10 in blue</td><td>Points and the grade in red pen</td><td>Points and the grade in a stamp</td><td>Points in mono, grade in cobalt</td></tr>
+          <tr><td>Long grading sessions</td><td>Dark screen, calm in the evening</td><td>Light screen for daytime and projectors</td><td>Light paper, legible face</td><td>Light, formal</td><td>Light, dense, shortcuts</td></tr>
+          <tr><td>Logo at 16 px</td><td>Clear</td><td>Clear</td><td>Clear</td><td>Clear</td><td>Clear</td></tr>
+          <tr><td>Cost to switch from today</td><td>High: new colors and fonts. The light/dark switch already exists.</td><td>Same as D</td><td>Low: same tokens</td><td>Medium</td><td>Medium</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pillars">
+      <div class="pillar"><b>You decide</b><span class="small muted">Every doubtful point waits for the teacher. This also fits the EU AI Act, which asks for human oversight. (RO: "Tu decizi.")</span></div>
+      <div class="pillar"><b>No scanning</b><span class="small muted">Students send their work by QR from their own phones. (RO: "Fără scanat.")</span></div>
+      <div class="pillar"><b>By the marking scheme</b><span class="small muted">Points per step, from your scheme or a draft you confirm. In Romania: Subiectul I, II and III, din oficiu, grades 1–10. (RO: "Pe barem.")</span></div>
+      <div class="pillar"><b>Reports ready</b><span class="small muted">A PDF per student and per class, and a CSV for the register. (RO: "Rapoarte gata.")</span></div>
+    </div>
+  </section>
+
+  <section id="before">
+    <div class="sec-head">
+      <span class="eyebrow">Before you sell</span>
+      <h2>Six things to settle first</h2>
+    </div>
+    <ol class="steps">
+      <li><b>Move grading to the Claude API.</b> Today the robot uses one teacher's Claude subscription token. For paying customers, use the API under commercial terms, and check Anthropic's terms. Then measure the cost of one paper and set prices from it.</li>
+      <li><b>Prove accuracy.</b> Grade about 200 real papers both ways: the teacher and the app. Publish how often they agree within half a point. This is the trust number every competitor lacks.</li>
+      <li><b>GDPR for minors.</b> Student photos are personal data of children. Write a privacy notice, a data processing agreement for schools, and a retention rule. Automatic cleanup of old files is still on the "later" list.</li>
+      <li><b>EU AI Act.</b> AI that evaluates learning outcomes is high-risk under Annex III. The duties apply from 2 December 2027 after the Digital Omnibus delay. Keep the teacher in charge, keep logs, document accuracy. Ask a lawyer whether "student pages never mention AI" can stay once schools deploy it.</li>
+      <li><b>Check MQGrader.</b> Search EUIPO TMview, the WIPO Global Brand Database and OSIM for "MQGrader" and close names in classes 9, 41 and 42. Check the .com, .app and .eu domains, and what the name means in each target language. Nothing here is verified.</li>
+      <li><b>Separate the brands.</b> The product gets its own name and logo; the favicon still shows the Laura Miron monogram. Keep "made by a math teacher" as the founding story, with Laura's agreement.</li>
+    </ol>
+    <div class="card">
+      <h3>Next steps, in order</h3>
+      <ol class="steps small">
+        <li>Choose the design for MQGrader, then run the trademark and domain check.</li>
+        <li>Show directions A, B and C to 5–10 math teachers and 3 tutors. Ask: "Which one would you trust with your grades?"</li>
+        <li>Move grading to the API and measure the cost per paper.</li>
+        <li>Run the accuracy study.</li>
+        <li>Rebrand the app: the name, the logo, the favicon, and the "Your teacher uses MQGrader" line on the student pages and student PDFs. With D and E the colors and fonts change, and the existing light/dark switch carries the two themes.</li>
+        <li>Add an English interface, then open the paid plans. Stripe Checkout is already in the app.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="sources">
+    <div class="sec-head">
+      <span class="eyebrow">Sources</span>
+      <h2>Where the facts come from</h2>
+      <p class="small muted">Searched on 3 November 2026. Vendor claims are their own. Your doc: "MQGrader – Comprehensive SOTA Market Analysis & Branding Strategy" (Google Docs).</p>
+    </div>
+    <ul class="sources">
+      <li><a href="https://community.d2l.com/brightspace/kb/articles/3549">D2L Brightspace: Quick Eval</a></li>
+      <li><a href="https://wur-educationsupport.screenstepslive.com/m/brightspace_help_lecturers/l/1204598-how-to-use-quick-eval">Wageningen University: how to use Quick Eval</a></li>
+      <li><a href="https://examino.ai/en/features/ai-math-grader">Examino: AI math grader</a></li>
+      <li><a href="https://www.capterra.com/p/10042989/Examino/">Capterra: Examino pricing</a></li>
+      <li><a href="https://indexator.ai/companies/examino">Indexator: Examino</a></li>
+      <li><a href="https://www.ycombinator.com/launches/OFP-frizzle-ai-grading-for-math-teachers">Y Combinator: Frizzle launch</a></li>
+      <li><a href="https://neuronfeed.com/startups/frizzle">Neuronfeed: Frizzle</a></li>
+      <li><a href="https://www.morningstar.com/news/pr-newswire/20260729sf15336/mathgptai-automates-grading-for-handwritten-higher-education-math-assignments">MathGPT.ai press release, July 2026</a></li>
+      <li><a href="https://aitoolsbakery.com/?p=11586">Gradescope review 2026</a></li>
+      <li><a href="https://www.classe365.com/blog/?p=8250">Classe365: AI grading tools for K-12, 2026</a></li>
+      <li><a href="https://www.capterra.com/p/268608/Crowdmark/">Capterra: Crowdmark</a></li>
+      <li><a href="https://examino.ai/en/blog/ai/best-ai-grading-tools-2025">Examino: 13 AI grading tools compared</a></li>
+      <li><a href="https://blog.aieducator.tools/posts/best-ai-grading-tools-for-teachers-2026">AI grading tools for teachers, 2026</a></li>
+      <li><a href="https://support.google.com/edu/classroom/answer/15410566">Google: Gemini in Classroom</a></li>
+      <li><a href="https://www.edtechinnovationhub.com/news/google-classroom-rolls-out-ai-suggested-feedback-for-written-assignments">Classroom AI-suggested feedback</a></li>
+      <li><a href="https://www.edupedu.ro/teste-de-evaluare-nationala-in-digitaliada-platforma-gratuita-pentru-profesori-elevi-si-scoli-corectare-automata-exercitii-personalizate-redirectionarea-elevului-spre-lectiile-pe-care-nu-le-mai/amp/">Edupedu: Digitaliada</a></li>
+      <li><a href="https://iirmp.utcluj.ro/files/Acasa/Site/structura/250402_Regulament_AI_pt_CF_1.pdf">UT Cluj: AI rules (AI may not assign grades)</a></li>
+      <li><a href="https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/">Gibson Dunn: AI Act Omnibus, delayed high-risk dates</a></li>
+      <li><a href="https://www.mondaq.com/eu-digital-omnibus-on-ai-enters-into-force/1825722">Mondaq: Digital Omnibus on AI in force</a></li>
+      <li><a href="https://www.edu.ro/sites/default/files/30_06_2026_Dosar_presa_ENVIII_2026_IC.pdf">Ministry of Education: EN VIII 2026 press file</a></li>
+      <li><a href="https://www.edupedu.ro/bacalaureat-2026-aproape-18-000-de-elevi-sustin-probele-scrise-in-bucuresti-anunta-inspectoratul-scolar/">Edupedu: BAC 2026</a></li>
+      <li><a href="https://www.capital.ro/evaluarea-nationala-bacalaureat-2026-elevii-incep-perioada-examenelor.html">Capital: EN and BAC 2026</a></li>
+      <li><a href="https://www.salvaticopiii.ro/sites/ro/files/2025-03/cat-dau-parintii-pe-meditatii-costurile-ascunse-ale-educatiei-studiu-national.pdf">Salvați Copiii: what parents pay for tutoring</a></li>
+      <li><a href="https://www.edupedu.ro/peste-jumatate-dintre-elevii-de-clasa-a-viii-a-din-bihor-iau-meditatii-iar-dintre-ei-90-la-matematica-potrivit-unui-studiu-sociologic-realizat-de-universitatea-din-oradea-doar-un-sfert-dintre-par/amp/">Edupedu: Bihor tutoring study</a></li>
+      <li><a href="https://ance.gov.md/sites/default/files/barem_limbi_straine_aprofundat.pdf">ANCE Moldova: published barem</a></li>
+      <li><a href="https://appgoblin.info/apps/6759448480">StepMark: Pedometer Widget</a></li>
+      <li><a href="https://www.querium.com/?p=15">Querium: StepWise Math</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/Tally_Solutions">Tally Solutions</a></li>
+      <li><a href="https://apps.apple.com/app/id6754825654">Gradin (iPad grading app)</a></li>
+      <li><a href="https://edtechimpact.com/products/gradr/">Gradr</a></li>
+      <li><a href="https://www.timeshighereducation.com/campus/sponsor/graide">Graide</a></li>
+      <li><a href="https://edtechimpact.com/compare/gradarius-ai-powered-maths-learning-platform-vs-eduuschool">Gradarius</a></li>
+      <li><a href="https://app.dealroom.co/companies/notara">Dealroom: Notara</a></li>
+      <li><a href="https://github.com/DnzzL/notara">Notara notes app</a></li>
+      <li><a href="https://www.teachermagazine.com/au_en/authors/gradus-software">Gradus Software</a></li>
+      <li><a href="https://apps.apple.com/us/app/gradus/id1063184658">Gradus¹ grade calculator</a></li>
+      <li><a href="https://radixlms.com/">Radix LMS</a></li>
+      <li><a href="https://www.businesswire.com/news/home/20210415005222/en">Cadence acquires Pointwise</a></li>
+      <li><a href="https://trademark.justia.com/owners/inkmark-software-llc-2514696">Inkmark Software trademarks</a></li>
+      <li><a href="https://apps.apple.com/app/id1440444406">Penmark (Japan)</a></li>
+      <li><a href="https://www.toolmage.com/en/compare/markwise-vs-stacks/">Markwise</a></li>
+      <li><a href="https://www.patreon.com/lemmalearning">Lemma Learning</a></li>
+      <li><a href="https://www.preqin.com/data/profile/asset/cograder/764570">Preqin: CoGrader</a></li>
+      <li><a href="https://builtin.com/company/cograder">Built In: CoGrader</a></li>
+      <li><a href="https://startups.one.gob.es/companies/emendo">Emendo</a></li>
+      <li><a href="https://markinton.com/trademark/rootmark-99586357">Rootmark filing</a></li>
+      <li><a href="https://students.mq.edu.au/__data/assets/pdf_file/0008/1342538/From-2001-Grading-System-Verification.pdf">Macquarie University (an "MQ" search result)</a></li>
+    </ul>
+  </section>
+
+  <footer>
+    Prepared for the QuickEval team. Prices, scores and map positions are proposals and judgement, not measurements. Trademarks and domains are not verified.
+  </footer>
+</div>
+
+<script>
+(function () {
+  var V = {
+    a: { name: "MQGrader", domain: "mqgrader.com", grade: "8,50", logo: "#logo-a" },
+    b: { name: "MQGrader", domain: "mqgrader.com", grade: "8,50", logo: "#logo-b" },
+    c: { name: "MQGrader", domain: "mqgrader.com", grade: "8,50", logo: "#logo-c" },
+    d: { name: "MQGrader", domain: "mqgrader.com", grade: "8,50", logo: "#logo-d" },
+    e: { name: "MQGrader", domain: "mqgrader.com", grade: "8,50", logo: "#logo-e" }
+  };
+  var HASH = { notebook: "a", ledger: "b", precision: "c", dark: "d", darklook: "d", light: "e" };
+  var studio = document.getElementById("studio");
+  var panel = document.getElementById("panel");
+  var tabs = Array.prototype.slice.call(studio.querySelectorAll(".tab-btn"));
+
+  function set(v) {
+    var d = V[v];
+    if (!d) return;
+    studio.setAttribute("data-v", v);
+    tabs.forEach(function (t) {
+      var on = t.getAttribute("data-v") === v;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      if (on) panel.setAttribute("aria-labelledby", t.id);
+    });
+    studio.querySelectorAll(".vinfo").forEach(function (el) { el.hidden = el.getAttribute("data-for") !== v; });
+    studio.querySelectorAll(".js-name").forEach(function (el) { el.textContent = d.name; });
+    studio.querySelectorAll(".js-domain").forEach(function (el) { el.textContent = d.domain; });
+    studio.querySelectorAll(".js-grade").forEach(function (el) { el.textContent = d.grade; });
+    studio.querySelectorAll(".js-logo").forEach(function (el) { el.setAttribute("href", d.logo); });
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener("click", function () { set(t.getAttribute("data-v")); });
+    t.addEventListener("keydown", function (e) {
+      var k = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (!k) return;
+      e.preventDefault();
+      var next = tabs[(i + k + tabs.length) % tabs.length];
+      next.focus();
+      set(next.getAttribute("data-v"));
+    });
+  });
+
+  var h = (location.hash || "").replace("#", "");
+  set(HASH[h] || "d");
+
+  // Example QR: three finder squares and a seeded pattern. It is a picture, not a working code.
+  var svg = document.getElementById("qr");
+  var n = 29, seed = 7;
+  function rnd() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; }
+  function finder(x, y) { return x >= 0 && y >= 0 && x < 7 && y < 7; }
+  function inFinder(x, y) { return finder(x, y) || finder(x - (n - 7), y) || finder(x, y - (n - 7)); }
+  function sep(x, y) { return (x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8); }
+  var out = '<rect width="29" height="29" fill="#ffffff"/>';
+  for (var y = 0; y < n; y++) {
+    for (var x = 0; x < n; x++) {
+      var on;
+      if (inFinder(x, y)) {
+        var fx = x >= n - 7 ? x - (n - 7) : x, fy = y >= n - 7 ? y - (n - 7) : y;
+        on = fx === 0 || fx === 6 || fy === 0 || fy === 6 || (fx >= 2 && fx <= 4 && fy >= 2 && fy <= 4);
+      } else if (sep(x, y)) {
+        on = false;
+      } else {
+        on = rnd() > 0.52;
+      }
+      if (on) out += '<rect x="' + x + '" y="' + y + '" width="1.02" height="1.02" fill="#111111"/>';
+    }
+  }
+  svg.innerHTML = out;
+})();
+</script>
+
+</body></html>
