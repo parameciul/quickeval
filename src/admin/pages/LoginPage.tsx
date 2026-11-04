@@ -1,15 +1,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
+import { useLocation } from 'react-router';
 import { DEMO_PAPER_LIMIT, MAX_PASSWORD_LENGTH, MAX_TEACHER_NAME_LENGTH, MIN_PASSWORD_LENGTH } from '../../../shared/accounts.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 type Mode = 'login' | 'signup';
 
+// The link "Cere un cont de profesor" of the landing page opens /admin/#cont-nou.
+export const SIGNUP_HASH = '#cont-nou';
+
 // Shown instead of every page while nobody is logged in: "Intră" with email
 // and password, or "Cont nou", which asks an administrator for an account.
 export function LoginPage() {
-  const [mode, setMode] = useState<Mode>('login');
+  const { hash } = useLocation();
+  const [mode, setMode] = useState<Mode>(hash === SIGNUP_HASH ? 'signup' : 'login');
   return (
     <section className="login-box">
       <h1>{mode === 'login' ? 'Intră în cont' : 'Cont nou'}</h1>

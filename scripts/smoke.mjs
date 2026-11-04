@@ -45,7 +45,7 @@ const pdf = new TextEncoder().encode('%PDF-1.4\n%%EOF\n');
 const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
 
 const landing = await page('/');
-check('landing page', landing.res.status === 200 && landing.text.includes('Intră ca profesor'), String(landing.res.status));
+check('landing page', landing.res.status === 200 && landing.text.includes('Weekendul tău, fără teancul de lucrări.'), String(landing.res.status));
 
 for (const path of ['/admin/', '/admin/clase', '/admin/teste/6E2-26T1']) {
   const admin = await page(path);

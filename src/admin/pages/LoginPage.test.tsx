@@ -50,6 +50,16 @@ describe('the login form', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Ți-am trimis un email cu un link.');
   });
 
+  it('opens on the new account form from the link "#cont-nou" of the landing page', async () => {
+    const api = createFakeApi();
+    api.me.mockRejectedValueOnce(loginRequired());
+    renderAdmin('/#cont-nou', api);
+    expect(await screen.findByRole('heading', { name: 'Cont nou' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vreau cont nou' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Am cont' }));
+    expect(screen.getByRole('heading', { name: 'Intră în cont' })).toBeInTheDocument();
+  });
+
   it('shows other errors of the first request as they are', async () => {
     const api = createFakeApi();
     api.me.mockRejectedValueOnce(new ApiError(503, 'down', 'Serverul nu răspunde.'));

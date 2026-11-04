@@ -1,0 +1,167 @@
+/* The landing page (index.html), in the look of the redesign
+   (docs/superpowers/specs/2026-11-04-mqgrader-redesign-design.md §2, §3).
+   It has its own tokens: the app keeps src/ui/brand.css until the redesign
+   reaches it. One face, Schibsted Grotesk; flat colours; orange only for
+   what is the teacher's to do. */
+
+:root {
+  --ground: #f3f5f8;
+  --surface: #ffffff;
+  --border: #e0e5ec;
+  --rule: #edf0f4;
+  --control: #c5cedb;
+  --text: #0c1524;
+  --muted: #4a566a;
+  --blue: #1b5cc8;
+  --blue-hover: #154ba6;
+  --on-blue: #ffffff;
+  --blue-tint: #e6eefb;
+  --orange: #b9480a;
+  --orange-mark: #e2590b;
+  --orange-tint: #fdeee3;
+  --active: #e7ecf3;
+  --band: #0c1524;
+  --on-band: #f3f5f8;
+  --mk-a: var(--blue);
+  --mk-b: var(--orange-mark);
+  --font: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --r: 10px;
+  --r-sm: 8px;
+  color-scheme: light;
+}
+/* Dark is written twice (as src/ui/brand.css does): public/theme.js sets
+   data-theme on every visit, the media block covers a page without it. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0e1116; --surface: #161a21; --border: #272d38; --rule: #1f242d; --control: #3b4351;
+    --text: #eef1f5; --muted: #a9b2c0; --blue: #80b1ff; --blue-hover: #a3c6ff; --on-blue: #0c1524;
+    --blue-tint: #1a2740; --orange: #ff9a57; --orange-mark: #ff8a3d; --orange-tint: #33200f;
+    --active: #252b36; --band: #05070a; --on-band: #eef1f5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0e1116; --surface: #161a21; --border: #272d38; --rule: #1f242d; --control: #3b4351;
+  --text: #eef1f5; --muted: #a9b2c0; --blue: #80b1ff; --blue-hover: #a3c6ff; --on-blue: #0c1524;
+  --blue-tint: #1a2740; --orange: #ff9a57; --orange-mark: #ff8a3d; --orange-tint: #33200f;
+  --active: #252b36; --band: #05070a; --on-band: #eef1f5;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--surface); color: var(--text); font: 400 16px/1.5 var(--font); }
+h1, h2, h3, p, ol, ul { margin: 0; }
+h1, h2, h3 { text-wrap: balance; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.site { min-height: 100vh; display: flex; flex-direction: column; }
+.site main { flex: 1; }
+.wrap { padding-left: max(40px, env(safe-area-inset-left, 0px)); padding-right: max(40px, env(safe-area-inset-right, 0px)); }
+
+/* Brand lockup: the mark, the name, the byline. */
+.mark { width: 28px; height: 28px; flex: none; display: block; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand .words { display: flex; flex-direction: column; line-height: 1.12; }
+.brand .words b { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.brand .words span { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+
+/* Buttons and links */
+.btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 16px; border: 1px solid var(--control); border-radius: var(--r-sm); background: var(--surface); color: var(--text); font: 600 15px var(--font); text-decoration: none; white-space: nowrap; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
+.btn-primary:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
+.btn-large { height: 48px; padding: 0 22px; font-size: 16px; }
+.link { color: var(--blue); font-weight: 600; text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--control); border-radius: var(--r-sm); background: var(--surface); color: var(--muted); cursor: pointer; }
+.icon-btn:hover { color: var(--text); border-color: var(--muted); }
+.icon-btn svg { width: 16px; height: 16px; }
+.theme-sun { display: none; }
+:root[data-theme="dark"] .theme-moon { display: none; }
+:root[data-theme="dark"] .theme-sun { display: block; }
+
+/* Header */
+.site-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 20px; }
+.site-top nav { display: flex; align-items: center; gap: 20px; font-size: 15px; }
+.site-top nav a:not(.btn) { color: var(--muted); text-decoration: none; font-weight: 500; }
+.site-top nav a:not(.btn):hover { color: var(--text); }
+
+/* Type */
+.l-h1 { font-size: clamp(36px, 4.6vw, 80px); line-height: 0.98; letter-spacing: -0.045em; font-weight: 800; }
+.l-h2 { font-size: clamp(30px, 3.6vw, 56px); line-height: 1.04; letter-spacing: -0.035em; font-weight: 800; }
+.l-lede { font-size: 21px; line-height: 1.5; max-width: 40ch; }
+.l-body { font-size: 18px; line-height: 1.6; max-width: 58ch; }
+.l-body b { font-weight: 700; }
+.l-intro { margin-top: 20px; }
+.cta { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+
+/* Sections */
+.sec { padding-block: 120px; }
+.sec.tint { background: var(--ground); }
+.sec.ink { background: var(--band); color: var(--on-band); }
+.sec.ink .l-body { color: var(--on-band); }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; margin-top: 40px; }
+
+/* Hero: the statement beside the six stages. */
+.hero { padding-block: 48px 120px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 32px; row-gap: 40px; align-items: center; }
+.hero .copy { grid-column: 1 / span 7; display: flex; flex-direction: column; gap: 32px; }
+.side-flow { grid-column: 8 / -1; background: var(--ground); border-radius: 16px; padding: 32px; }
+.side-flow h2 { font-size: 15px; font-weight: 700; color: var(--muted); margin-bottom: 20px; }
+
+/* The six stages, top to bottom. */
+.flow-v { list-style: none; padding: 0; display: flex; flex-direction: column; }
+.flow-v li { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 18px; position: relative; padding-bottom: 18px; }
+.flow-v li:last-child { padding-bottom: 0; }
+.flow-v li:not(:last-child)::after { content: ""; position: absolute; left: 19px; top: 40px; bottom: 0; width: 3px; border-radius: 2px; background: var(--active); }
+.flow-v .node { width: 40px; height: 40px; border-radius: 50%; background: var(--blue-tint); color: var(--blue); display: grid; place-items: center; }
+.flow-v .node svg { width: 20px; height: 20px; }
+.flow-v li.you .node { background: var(--orange-tint); color: var(--orange); }
+.flow-v h3 { font-size: 18px; font-weight: 800; letter-spacing: -0.015em; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding-top: 6px; }
+.flow-v p { font-size: 15px; margin-top: 2px; }
+.flow-v p b { font-weight: 700; }
+.who-tag { font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--blue-tint); color: var(--blue); letter-spacing: 0; }
+.you .who-tag { background: var(--orange-tint); color: var(--orange); }
+
+/* "Cum te ajută platforma noastră?": three statements, no cards. */
+.benefits { list-style: none; margin-top: 56px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px; }
+.benefits h3 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 14px; }
+.benefits p { font-size: 17px; line-height: 1.6; }
+
+/* "Pentru tine rămân trei lucruri.": three tasks drawn as the app draws them. */
+.tasks { list-style: none; margin-top: 48px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.task { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+.task.first { border-color: var(--orange-mark); }
+.task .kind { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.task h3 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
+.task .ctx { color: var(--muted); font-size: 14px; }
+.task .go { margin-top: auto; align-self: flex-start; height: 36px; cursor: default; }
+.pill { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--orange-tint); color: var(--orange); }
+
+/* Footer: one line, about as high as the header. */
+.site-foot { background: var(--band); color: var(--on-band); }
+.site-foot .wrap { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 8px 24px; flex-wrap: wrap; padding-block: 14px; font-size: 14px; }
+.site-foot .brand { --mk-a: #80b1ff; --mk-b: #ff8a3d; color: var(--on-band); }
+.site-foot .brand .words span { color: var(--on-band); opacity: 0.75; }
+.site-foot .note { opacity: 0.8; }
+
+@media (max-width: 1100px) {
+  .hero .copy, .side-flow { grid-column: 1 / -1; }
+  .benefits, .tasks { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+  .tasks { gap: 16px; }
+  .pair { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+}
+@media (max-width: 900px) {
+  .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .site-top nav a:not(.btn), .site-top .brand .words span { display: none; }
+  .site-top nav { gap: 10px; }
+  .hero { padding-block: 24px 72px; }
+  .side-flow { padding: 20px; }
+  .sec { padding-block: 72px; }
+  .l-lede { font-size: 18px; }
+  .site-foot .note { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

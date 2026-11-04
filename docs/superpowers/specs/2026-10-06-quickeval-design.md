@@ -818,7 +818,8 @@ The PDFs are made in the browser, in a chunk that loads only when a PDF is asked
   - fonts "Atkinson Hyperlegible Next" and "Caveat";
   - the Laura Miron mark (`favicon.svg`, the `assets/img/brand/` variants);
   - the squared-paper background.
-- The theme follows the system and has a switch. The choice is saved in `localStorage['quickeval.theme']`. A script in the page head applies it before the first paint, as in the Website.
+- The redesign of 2026-11-04 (`2026-11-04-mqgrader-redesign-design.md`) replaces this section phase by phase. Phase 1: the landing page and the light default.
+- Light is the default theme, whatever the system says; a switch offers dark. The choice is saved in `localStorage['quickeval.theme']`. A script in the page head (`public/theme.js`) applies it before the first paint.
 - Accessible: real buttons and labels, focus rings, contrast ≥ 4.5:1, touch targets ≥ 44 px on the student app.
 - Layout: a header with the brand and "QuickEval", the school-year switch, and the navigation (Teste, Clase, Setări). A footer with the name of the teacher.
 

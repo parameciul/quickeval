@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import themeScript from '../../public/theme.js?raw';
 import { currentTheme, otherTheme, saveTheme, storedTheme, THEME_KEY } from './theme.ts';
 
 afterEach(() => {
@@ -7,10 +8,10 @@ afterEach(() => {
 });
 
 describe('theme', () => {
-  it('uses the saved choice before the system setting', () => {
-    expect(currentTheme('light', true)).toBe('light');
-    expect(currentTheme(null, true)).toBe('dark');
-    expect(currentTheme(null, false)).toBe('light');
+  it('uses the saved choice, else light: the system setting does not count', () => {
+    expect(currentTheme('dark')).toBe('dark');
+    expect(currentTheme('light')).toBe('light');
+    expect(currentTheme(null)).toBe('light');
   });
 
   it('switches to the other theme', () => {
@@ -28,5 +29,27 @@ describe('theme', () => {
   it('ignores an unknown saved value', () => {
     localStorage.setItem(THEME_KEY, 'purple');
     expect(storedTheme()).toBeNull();
+  });
+});
+
+// public/theme.js runs in the head of every page, before the stylesheet.
+describe('the theme script of the page head', () => {
+  const run = () => new Function(themeScript)();
+
+  it('paints light when nothing is saved', () => {
+    run();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+  });
+
+  it('paints the saved choice', () => {
+    localStorage.setItem(THEME_KEY, 'dark');
+    run();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+  });
+
+  it('paints light when the saved value is unknown', () => {
+    localStorage.setItem(THEME_KEY, 'purple');
+    run();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
   });
 });
