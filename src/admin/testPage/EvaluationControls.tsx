@@ -68,6 +68,13 @@ export function EvaluationControls({
     },
   });
   const cancel = useMutation({ mutationFn: () => api.cancelSchedule(test.code), onSuccess: onChanged });
+  const finish = useMutation({ mutationFn: () => api.finishTest(test.code), onSuccess: onChanged });
+
+  // A test reopened after its grading: every sent paper is graded already, so
+  // there is nothing to select and nothing for the robot.
+  const allGraded =
+    uploads.some((row) => row.status === 'graded') &&
+    !uploads.some((row) => row.fileCount > 0 && (row.status === 'uploading' || row.status === 'submitted' || row.status === 'grading'));
 
   const fileSteps = missingFiles(test);
   const hasUploads = uploads.some((row) => row.fileCount > 0);
@@ -90,24 +97,45 @@ export function EvaluationControls({
 
   return (
     <>
-      <p className="hint">
-        După ce pornește evaluarea, elevii nu mai pot încărca. {selectedCount > 0 ? 'Se corectează numai lucrările selectate din tabel.' : 'Selectează din tabel lucrările de corectat.'}
-      </p>
-      <p className="form-row">
-        <button
-          type="button"
-          className="button"
-          disabled={startSteps.length > 0 || needsSelection || start.isPending}
-          onClick={() => {
-            if (window.confirm(confirmText)) start.mutate();
-          }}
-        >
-          Pornește evaluarea acum
-        </button>
-        {needsSelection && <span className="hint">Selectează cel puțin o lucrare cu fișiere din tabel.</span>}
-      </p>
-      {startSteps.length > 0 && <p className="hint">Ca să pornești evaluarea: {startSteps.join(' ')}</p>}
-      {start.error && <ErrorMessage error={start.error} />}
+      {allGraded ? (
+        <>
+          <p className="hint">Toate lucrările trimise sunt corectate. După ce marchezi testul ca terminat, elevii nu mai pot încărca.</p>
+          <p className="form-row">
+            <button
+              type="button"
+              className="button"
+              disabled={finish.isPending}
+              onClick={() => {
+                if (window.confirm('Marchezi testul ca terminat? Elevii nu mai pot încărca lucrări, iar notele rămân cum sunt.')) finish.mutate();
+              }}
+            >
+              Marchează ca terminat
+            </button>
+          </p>
+          {finish.error && <ErrorMessage error={finish.error} />}
+        </>
+      ) : (
+        <>
+          <p className="hint">
+            După ce pornește evaluarea, elevii nu mai pot încărca. {selectedCount > 0 ? 'Se corectează numai lucrările selectate din tabel.' : 'Selectează din tabel lucrările de corectat.'}
+          </p>
+          <p className="form-row">
+            <button
+              type="button"
+              className="button"
+              disabled={startSteps.length > 0 || needsSelection || start.isPending}
+              onClick={() => {
+                if (window.confirm(confirmText)) start.mutate();
+              }}
+            >
+              Pornește evaluarea acum
+            </button>
+            {needsSelection && <span className="hint">Selectează cel puțin o lucrare cu fișiere din tabel.</span>}
+          </p>
+          {startSteps.length > 0 && <p className="hint">Ca să pornești evaluarea: {startSteps.join(' ')}</p>}
+          {start.error && <ErrorMessage error={start.error} />}
+        </>
+      )}
 
       {test.evaluationAt ? (
         <p>

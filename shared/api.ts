@@ -639,6 +639,11 @@ export interface StoppedTest {
   status: TestStatus;
 }
 
+// "Marchează ca terminat": an open test whose sent papers are all graded is done.
+export interface FinishedTest {
+  status: TestStatus;
+}
+
 // The link that uploads for many students on one phone: /u/<multiUploadToken>.
 export interface MultiUploadLink {
   multiUploadToken: string;

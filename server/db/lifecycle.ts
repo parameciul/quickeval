@@ -41,6 +41,47 @@ export function finishTests(db: D1Database, now: string): D1PreparedStatement {
     .bind(now);
 }
 
+// A paper s that still waits for grading: sent, being graded, or uploaded with
+// files and not sent.
+const WAITS_FOR_GRADING = `(s.status IN ('submitted', 'grading')
+  OR (s.status = 'uploading' AND EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = s.id)))`;
+
+// open → done with no robot, for a test that was reopened after its grading:
+// at least one paper is graded and none waits. The results stay and the class
+// analysis is left as it is (a ready one stays ready, a requested one is not
+// asked for). Not an evaluation start, so nothing is counted. False when the
+// test is gone, is not the teacher's, is not open, has no graded paper, or has
+// a paper that waits; all checked in the write.
+export async function finishOpenTest(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET status = 'done', evaluation_at = NULL, updated_at = ?,
+         analysis_status = CASE WHEN analysis_status = 'requested' THEN 'none' ELSE analysis_status END
+       WHERE id = ? AND teacher_id = ? AND status = 'open'
+         AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = tests.id AND g.status = 'graded')
+         AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND ${WAITS_FOR_GRADING})
+       RETURNING id`,
+    )
+    .bind(now, testId, teacherId)
+    .first<{ id: number }>();
+  return row !== null;
+}
+
+// Why finishOpenTest changed nothing: a papers-waiting test is told apart from
+// one with nothing graded. Read after the write.
+export async function finishBlocker(db: D1Database, testId: number): Promise<'papers_waiting' | 'nothing_graded' | null> {
+  const row = await db
+    .prepare(
+      `SELECT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = ?1 AND ${WAITS_FOR_GRADING}) AS waiting,
+              EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = ?1 AND g.status = 'graded') AS graded`,
+    )
+    .bind(testId)
+    .first<{ waiting: number; graded: number }>();
+  if (row?.waiting) return 'papers_waiting';
+  if (!row?.graded) return 'nothing_graded';
+  return null;
+}
+
 // How many papers of a teacher are on their way to the robot, in the tests x
 // of `waiting`. The trigger submissions_count_paper (migration 0019) counts a
 // paper when its result arrives, so these use the demo limit too.
