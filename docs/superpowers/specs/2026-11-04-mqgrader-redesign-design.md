@@ -1,6 +1,6 @@
 # MQGrader redesign: design
 
-Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phase 1 (landing page and light theme) and Phase 2 (look and shell) are live; Phase 3 (Teste page) is being built; the other phases are not.
+Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phases 1 to 3 (landing page and light theme, look and shell, Teste page) are live; Phase 4 (test page) is being built; the other phases are not.
 
 ## 0. Plain summary
 
@@ -31,6 +31,8 @@ The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (
 19. No search box until search is designed (§11).
 20. The rows of the Teste page keep the results buttons of the old cards: "Publică rezultatele" publishes from the list, and "Oprește accesul" stays on a test whose results are open (Phase 3).
 21. A finished test shows "media testului" on the Teste page, the same number as its class report (Phase 3).
+22. The test page's Verificare lists the papers with points to check, each opening the paper's page. The list of each point with its reason comes with the review of Phase 6: the API gives only a count per paper (Phase 4).
+23. The students' link and its QR code are always in "Fișa testului": the button "Arată linkurile" goes (Phase 4).
 
 ## 2. Look
 
@@ -156,17 +158,25 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
 
 ## 6. Test page (`/admin/teste/:code`, Phase 4)
 
-- Title: the test's name; under it the class, the students and the start.
-- Left column, 300 px: the six stages as a vertical list (a dot per stage: blue with a tick when done, orange when it waits on the teacher, empty when later; the stage name and its state) and, under it, "Fișa testului".
-- Right: only the panel of the chosen stage. The current stage opens first; every other stage can be opened at any time to read or change it.
-- The stages and the controls that exist today:
-  - Pregătire: the test file, the barem (uploaded, or generated and confirmed with "Am verificat baremul"), comments to the barem, "Încarcă-l în locul propunerii". Done when the barem is active.
-  - Tipărire: the test with the QR code (`PrintTest`), its failure and retry. Done when the print PDF exists.
-  - În clasă: "Începe testul" and "Oprește testul" (`TestActions`), the upload link and QR, who sent and who did not, "Redeschide încărcarea".
-  - Corectare: start now or at a time, the choice of papers, the grading bar (`GradingProgress`), the robot line, "Recorectează tot".
-  - Verificare: the doubtful points (student, exercise, reason, proposed points, "Decide") and "Începe verificarea"; the graded papers, the ones to check first.
-  - Rezultate: §8.
-- Fișa testului: class and students, code, start, sent, barem (points + 10 from office), the files (test, barem, test with QR code), the students' link with its QR code and "Copiază linkul", and "Redenumește", "Arhivează", "Șterge testul".
+- Above the title, the link "← Toate testele". Title: the test's name. Under it: the class (a link to its page), its students ("3 elevi") and the start ("început 6 oct. 2026, 10:15"), or "ciornă" for a draft. Under that, for every stage: the notice of the page before (a new test whose file did not upload), a failed refresh, and what the robot answered to the last button.
+- Left column, 300 px: the six stages of `stagesOf()` (§5) as a vertical list and, under it, "Fișa testului". Each stage is a link: a dot (blue with a tick when done, orange when it waits on the teacher, pale blue when in progress, empty when later), the stage name and its note ("lipsește baremul"; "gata" or "urmează" when the stage has none). The words also say the state to a screen reader ("în lucru", "te așteaptă").
+- Right: only the panel of the chosen stage: its name, the landing page's sentence for that stage (§3), and its controls.
+  - The page opens on the current stage (§5). A click on a stage opens its panel. The address keeps it (`#pregatire`, `#tiparire`, `#in-clasa`, `#corectare`, `#verificare`, `#rezultate`) without a new step in the history, so a reload and Back come back to it. The Teste page opens a stage this way: "Pornește corectarea" opens `#corectare`.
+  - The page never changes the panel by itself: after a refresh or a button, the same panel stays open, also when the current stage moved on. A panel may end with a link to the next stage ("Următoarea etapă: Corectare →").
+- The panels. Phase 4 moves the controls that exist today; Phase 5 changes Rezultate, and Phase 6 Verificare.
+  - Pregătire: the test file, the barem (uploaded, or generated and confirmed with "Am verificat baremul"), the comments to the barem; the robot line while a barem is generated. Done when the barem is active.
+  - Tipărire: the test with the QR code (`PrintTest`), its failure and retry, "Pregătește testul cu cod QR"; the robot line while it is made. After the uploads closed, one line: the file stays in Fișa testului. Done when the print PDF exists.
+  - În clasă: "Începe testul" and "Oprește testul" (`TestActions`), "Redeschide încărcarea", the link for many uploads (while open), and the papers table: who sent and who did not.
+  - Corectare: before the start, one line. While open: start now for the chosen papers or at a time, or "Marchează ca terminat", and the papers table with its checkboxes (only in this panel). After: the state of the grading, a partial grading, a problem of the barem (with a link to Pregătire, where the barem is replaced), the robot line, "Recorectează tot", the line of the class analysis, and the papers table.
+  - Verificare: "Lucrări cu puncte de verificat", a row per paper with points to check (the student, the grade, "2 puncte de verificat", and "Decide", which opens the paper's page), and "Începe verificarea", which opens the first of them. "Toate punctele sunt verificate." when graded papers have none; one line before any paper is graded. Then the papers table. The list of each point with its reason comes with the review (§7, Phase 6): the API gives only a count per paper.
+  - Rezultate: the controls of today: "Publică rezultatele" or "Oprește accesul la rezultate", "Raportul clasei" once a paper is graded, and the papers table, where a result is published alone and has its link. §8 (Phase 5) replaces it.
+  - Every stage can be opened at any time. A panel whose stage has not come yet says so in one line, and still shows what can be read or changed.
+- Fișa testului:
+  - The facts: the class and its students, the code, the state, the start, the papers sent, the barem's state ("activ", "de verificat", "se generează", "lipsește"; not its points, which the API knows only after the grading starts), and "Media testului" once a paper is graded.
+  - The files: the test, the barem, the test with the QR code.
+  - While the test is a draft or open and has its link: the students' link, always shown: a small QR code, the address with "Copiază linkul", and "Arată codul QR pe tot ecranul".
+  - "Redenumește testul"; "Arhivează testul" or "Scoate din arhivă" (a finished test); "Șterge testul".
+- On a phone (below 900 px): one column; the stages, then the panel, then Fișa testului.
 
 ## 7. Verificarea punctelor (Phase 6)
 
