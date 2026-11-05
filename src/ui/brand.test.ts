@@ -55,6 +55,11 @@ describe('brand.css', () => {
     ]);
   });
 
+  it('wraps a long word inside the cards of the panels', () => {
+    expect(value(declarations('.class-item'), 'overflow-wrap')).toBe('anywhere');
+    expect(value(declarations('.todo-card'), 'overflow-wrap')).toBe('anywhere');
+  });
+
   it('is flat: no gradient, no notebook grid', () => {
     expect(css).not.toMatch(/gradient\(/);
     expect(css).not.toContain('--grid');

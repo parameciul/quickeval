@@ -730,6 +730,7 @@ h2 {
   border-radius: var(--radius-panel);
   color: var(--text);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .class-item:hover {
@@ -889,6 +890,7 @@ h2 {
   padding: 1rem;
   border: 1px solid var(--rule);
   border-radius: var(--radius-panel);
+  overflow-wrap: anywhere;
 }
 
 .todo-card:first-child {

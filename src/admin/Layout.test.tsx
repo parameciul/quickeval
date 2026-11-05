@@ -1,8 +1,28 @@
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useNavigate } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi, fakeTeacher, fakeTest } from '../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../test/renderAdmin.tsx';
+
+// The browser's Back button: the router gives the page it returns to the key
+// that page had before.
+function BackButton() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => void navigate(-1)}>
+      Înapoi în istoric
+    </button>
+  );
+}
+
+const withBack = (
+  <>
+    <LocationProbe />
+    <BackButton />
+  </>
+);
+const back = () => userEvent.click(screen.getByRole('button', { name: 'Înapoi în istoric' }));
 
 const withClasses = () =>
   createFakeApi({
@@ -92,6 +112,27 @@ describe('the shell', () => {
     await userEvent.click(screen.getByRole('main'));
     expect(screen.queryByRole('link', { name: 'Contul meu' })).not.toBeInTheDocument();
   });
+
+  it('gives the focus back to the initials when Esc closes the account menu', async () => {
+    renderAdmin('/', withClasses());
+    const button = await screen.findByRole('button', { name: /^Contul tău/ });
+    await userEvent.click(button);
+    await userEvent.tab();
+    expect(screen.getByRole('link', { name: 'Contul meu' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(button).toHaveFocus();
+  });
+
+  it('keeps the account menu closed on Back to the page it was opened on', async () => {
+    renderAdmin('/', withClasses(), withBack);
+    await userEvent.click(await screen.findByRole('button', { name: /^Contul tău/ }));
+    await userEvent.click(screen.getByRole('link', { name: 'Contul meu' }));
+    await expectLocation('/cont');
+    await back();
+    await expectLocation(/^\/$/);
+    expect(screen.getByRole('button', { name: /^Contul tău/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('profesor@example.com')).not.toBeInTheDocument();
+  });
 });
 
 describe('the phone menu', () => {
@@ -152,6 +193,30 @@ describe('the phone menu', () => {
     await expectLocation('/cont');
     expect(isOpen()).toBe(false);
   });
+
+  it('comes right after ☰ for the keyboard, and Esc gives the focus back to ☰', async () => {
+    renderAdmin('/', withClasses());
+    await menu();
+    const burger = screen.getByRole('button', { name: 'Meniu' });
+    await userEvent.click(burger);
+    await userEvent.tab();
+    expect(within(screen.getByRole('region', { name: 'Mai mult' })).getByRole('link', { name: 'Setări' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('region', { name: 'Mai mult' })).not.toBeInTheDocument();
+    expect(burger).toHaveFocus();
+  });
+
+  it('stays closed on Back to the page it was opened on', async () => {
+    renderAdmin('/', withClasses(), withBack);
+    await menu();
+    await userEvent.click(screen.getByRole('button', { name: 'Meniu' }));
+    await userEvent.click(within(screen.getByRole('region', { name: 'Mai mult' })).getByRole('link', { name: 'Contul meu' }));
+    await expectLocation('/cont');
+    await back();
+    await expectLocation(/^\/$/);
+    expect(screen.queryByRole('region', { name: 'Mai mult' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Meniu' })).toHaveAttribute('aria-expanded', 'false');
+  });
 });
 
 describe('De făcut', () => {
@@ -209,6 +274,22 @@ describe('De făcut', () => {
     await userEvent.click(within(bar).getByRole('button', { name: /^De făcut/ }));
     expect(screen.getAllByRole('complementary').map((panel) => panel.getAttribute('aria-labelledby'))).toEqual(['panel-todo-title']);
   });
+
+  it('gives the focus back to the button of the panel Esc closes, also after a switch of panels', async () => {
+    renderAdmin('/', withTodo());
+    const bar = await menu();
+    const todo = await within(bar).findByRole('button', { name: /^De făcut/ });
+    const clase = within(bar).getByRole('button', { name: 'Clase' });
+    await userEvent.click(clase);
+    await userEvent.keyboard('{Escape}');
+    expect(clase).toHaveFocus();
+    await userEvent.click(clase);
+    await userEvent.click(todo);
+    expect(screen.getByRole('complementary', { name: 'Ce ai de făcut' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    expect(todo).toHaveFocus();
+  });
 });
 
 describe('the panel Clasele tale', () => {
@@ -255,6 +336,18 @@ describe('the panel Clasele tale', () => {
     await userEvent.click(clase);
     await userEvent.click(clase);
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it('stays closed on Back to the page it was opened on', async () => {
+    renderAdmin('/', withClasses(), withBack);
+    const bar = await menu();
+    await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
+    await userEvent.click(screen.getByRole('link', { name: /^6E3/ }));
+    await expectLocation('/clase/2');
+    await back();
+    await expectLocation(/^\/$/);
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Clase' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('says what waits in a test, in orange', async () => {

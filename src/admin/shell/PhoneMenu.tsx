@@ -4,15 +4,18 @@ import type { Teacher } from '../../../shared/api.ts';
 import { ThemeSwitch } from '../../ui/ThemeButton.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { IconSettings } from './icons.tsx';
+import { useFocusBack } from './useFocusBack.ts';
 import { useLogout } from './useLogout.ts';
 import { YearSelect } from './YearSelect.tsx';
 
 // The menu under ☰ on a phone (redesign spec §4, round 6 design M2): what the
-// bottom bar has no room for. It drops from the top bar; a tap outside it or
-// on ☰ again closes it, and so do Esc and a new page (the Layout).
+// bottom bar has no room for. It drops from the top bar and comes right after
+// ☰ for the keyboard (the Layout draws it there); a tap outside it or on ☰
+// again closes it, and so do Esc and a new page (the Layout).
 export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): void }) {
   const box = useRef<HTMLElement>(null);
   const logout = useLogout();
+  useFocusBack(box);
   useEffect(() => {
     const onPointer = (event: MouseEvent) => {
       const target = event.target as Element;

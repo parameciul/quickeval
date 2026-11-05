@@ -56,8 +56,11 @@ export function Layout() {
   });
   const todo = todoList(tests.data ?? []);
   const others = (tests.data ?? []).filter((test) => !test.archived && test.status !== 'done' && !todo.some((item) => item.code === test.code)).length;
-  // The open panel and the page it was opened on: another page closes it.
+  // The open panel and the page it was opened on: another page closes it, and
+  // it stays closed when Back or Forward returns to that page (the router gives
+  // the page its old key again).
   const [panel, setPanel] = useState<{ name: PanelName; on: string } | null>(null);
+  if (panel && panel.on !== location.key) setPanel(null);
   const open = panel?.on === location.key ? panel.name : null;
   const toggle = (name: PanelName) => setPanel(open === name ? null : { name, on: location.key });
   const close = useCallback(() => setPanel(null), []);
@@ -119,6 +122,7 @@ export function Layout() {
             {open === 'menu' ? <IconClose /> : <IconMenu />}
           </button>
         )}
+        {me.data && open === 'menu' && <PhoneMenu teacher={me.data} onClose={close} />}
       </header>
       {me.data && (
         <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length} panel={open} onToggle={toggle} />
@@ -143,7 +147,6 @@ export function Layout() {
         <ClassesPanel year={year} todo={todo} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
       )}
       {me.data && open === 'todo' && <TodoPanel items={todo} others={others} onClose={() => setPanel(null)} />}
-      {me.data && open === 'menu' && <PhoneMenu teacher={me.data} onClose={close} />}
     </div>
   );
 }
