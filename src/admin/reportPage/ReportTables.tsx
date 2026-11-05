@@ -86,7 +86,7 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
               </th>
               <td>
                 <strong>{formatPoints(row.grade)}</strong>
-                {row.flagCount > 0 && <span className="tag">de verificat {row.flagCount}</span>}
+                {row.flagCount > 0 && <span className="tag tag-wait">de verificat {row.flagCount}</span>}
               </td>
               <td>
                 {formatPoints(row.total)} / {formatPoints(row.maxTotal)}

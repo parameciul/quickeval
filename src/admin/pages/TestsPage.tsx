@@ -117,7 +117,7 @@ function TestCard({ test }: { test: TestSummary }) {
       {test.startedAt && <span className="card-count">{formatDateTime(test.startedAt)}</span>}
       <span className="card-meta">
         <StatusChip status={test.status} />
-        {test.flagCount > 0 && <span className="tag">de verificat</span>}
+        {test.flagCount > 0 && <span className="tag tag-wait">de verificat</span>}
         {test.archived && <span className="tag">Arhivat</span>}
       </span>
       {test.status !== 'draft' && (

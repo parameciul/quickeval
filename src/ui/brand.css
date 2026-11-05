@@ -1,28 +1,36 @@
-/* MQGrader look, taken from the "Matematică cu Laura Miron" site
-   (D:\Projects\Website\assets\css\style.css): a Romanian squared math notebook
-   in light mode, a green chalkboard in dark mode. The dark colours are written
-   twice because CSS cannot share one block across a media query; keep the two
-   copies equal. */
+/* MQGrader look (redesign spec §2): one sans-serif face, a cool grey ground,
+   white surfaces, one blue for actions and data, orange only for what waits on
+   the teacher. Flat colours: no gradients; shadows only on what floats. The
+   dark colours are written twice because CSS cannot share one block across a
+   media query; keep the two copies equal (brand.test.ts checks it).
+
+   The names are older than the redesign: --paper is the ground, --sheet a
+   surface, --rule a border, --ink the blue, --marker the tint of what waits. */
 
 :root {
-  --paper: #fbfcfe;
-  --grid: #e3eaf4;
+  --paper: #f3f5f8;
   --sheet: #ffffff;
-  --text: #24272d;
-  --muted: #586070;
-  --ink: #1d3c8f;
-  --ink-hover: #132a69;
-  --red: #cf3a2f;
-  --marker: #fff0a0;
-  --marker-edge: #ffd94a;
-  --rule: #d4dce8;
-  --mark-from: #0891b2;
-  --mark-to: #2563eb;
-  --mark-tick: #ea580c;
-  --ok-bg: #e1f2e8;
-  --ok-fg: #1b6b43;
-  --error-bg: #fbe5e2;
-  --error-fg: #a52a20;
+  --raised: #f7f9fb;
+  --active: #e7ecf3;
+  --rule: #e0e5ec;
+  --line: #edf0f4;
+  --control: #c5cedb;
+  --text: #0c1524;
+  --muted: #4a566a;
+  --ink: #1b5cc8;
+  --ink-hover: #154ba6;
+  --on-ink: #ffffff;
+  --ink-tint: #e6eefb;
+  --orange: #b9480a;
+  --orange-mark: #e2590b;
+  --marker: #fdeee3;
+  --red: #b42318;
+  --ok-bg: #e1f3e9;
+  --ok-fg: #1d7a4c;
+  --error-bg: #fbe9e7;
+  --error-fg: #b42318;
+  --mk-a: #1b5cc8;
+  --mk-b: #e2590b;
   --conf-5: #1b6b43;
   --conf-4: #2f9e44;
   --conf-3: #8a6d00;
@@ -30,32 +38,38 @@
   --conf-1: #cf3a2f;
   --tone-sat: 65%;
   --tone-fill: 1;
-  --cell: 24px;
-  --margin-x: 3rem;
-  --font: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --float: 0 18px 48px rgb(10 20 40 / 0.16);
+  --radius: 8px;
+  --radius-panel: 10px;
+  --font: "Schibsted Grotesk", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
   --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --paper: #1d2925;
-  --grid: rgba(255, 255, 255, 0.045);
-  --sheet: #22302b;
-  --text: #e8ece7;
-  --muted: #b1bab3;
-  --ink: #a9c5ff;
-  --ink-hover: #d2e0ff;
+  --paper: #0e1116;
+  --sheet: #161a21;
+  --raised: #1b2028;
+  --active: #252b36;
+  --rule: #272d38;
+  --line: #1f242d;
+  --control: #3b4351;
+  --text: #eef1f5;
+  --muted: #a9b2c0;
+  --ink: #80b1ff;
+  --ink-hover: #a3c6ff;
+  --on-ink: #0c1524;
+  --ink-tint: #1a2740;
+  --orange: #ff9a57;
+  --orange-mark: #ff8a3d;
+  --marker: #33200f;
   --red: #ff8b80;
-  --marker: rgba(255, 226, 110, 0.16);
-  --marker-edge: rgba(255, 217, 74, 0.75);
-  --rule: rgba(255, 255, 255, 0.14);
-  --mark-from: #22e8ee;
-  --mark-to: #3b7cf4;
-  --mark-tick: #fb923c;
-  --ok-bg: rgba(120, 210, 160, 0.16);
-  --ok-fg: #a8e6c1;
-  --error-bg: rgba(255, 139, 128, 0.16);
-  --error-fg: #ffb3ab;
+  --ok-bg: #13291e;
+  --ok-fg: #5fd39a;
+  --error-bg: #3a1a17;
+  --error-fg: #ff8b80;
+  --mk-a: #80b1ff;
+  --mk-b: #ff8a3d;
   --conf-5: #7ddba3;
   --conf-4: #6fce85;
   --conf-3: #ffd94a;
@@ -63,29 +77,35 @@
   --conf-1: #ff8b80;
   --tone-sat: 70%;
   --tone-fill: 0.3;
+  --float: 0 18px 48px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #1d2925;
-    --grid: rgba(255, 255, 255, 0.045);
-    --sheet: #22302b;
-    --text: #e8ece7;
-    --muted: #b1bab3;
-    --ink: #a9c5ff;
-    --ink-hover: #d2e0ff;
+    --paper: #0e1116;
+    --sheet: #161a21;
+    --raised: #1b2028;
+    --active: #252b36;
+    --rule: #272d38;
+    --line: #1f242d;
+    --control: #3b4351;
+    --text: #eef1f5;
+    --muted: #a9b2c0;
+    --ink: #80b1ff;
+    --ink-hover: #a3c6ff;
+    --on-ink: #0c1524;
+    --ink-tint: #1a2740;
+    --orange: #ff9a57;
+    --orange-mark: #ff8a3d;
+    --marker: #33200f;
     --red: #ff8b80;
-    --marker: rgba(255, 226, 110, 0.16);
-    --marker-edge: rgba(255, 217, 74, 0.75);
-    --rule: rgba(255, 255, 255, 0.14);
-    --mark-from: #22e8ee;
-    --mark-to: #3b7cf4;
-    --mark-tick: #fb923c;
-    --ok-bg: rgba(120, 210, 160, 0.16);
-    --ok-fg: #a8e6c1;
-    --error-bg: rgba(255, 139, 128, 0.16);
-    --error-fg: #ffb3ab;
+    --ok-bg: #13291e;
+    --ok-fg: #5fd39a;
+    --error-bg: #3a1a17;
+    --error-fg: #ff8b80;
+    --mk-a: #80b1ff;
+    --mk-b: #ff8a3d;
     --conf-5: #7ddba3;
     --conf-4: #6fce85;
     --conf-3: #ffd94a;
@@ -93,6 +113,7 @@
     --conf-1: #ff8b80;
     --tone-sat: 70%;
     --tone-fill: 0.3;
+    --float: 0 18px 48px rgb(0 0 0 / 0.5);
     color-scheme: dark;
   }
 }
@@ -114,14 +135,19 @@ body {
   display: flex;
   flex-direction: column;
   font-family: var(--font);
-  font-size: 1.0625rem;
-  line-height: 1.6;
+  font-size: 0.9375rem;
+  line-height: 1.55;
   color: var(--text);
   background-color: var(--paper);
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: var(--cell) var(--cell);
+}
+
+/* On a phone (the phone layout, below 900px) the text is one step larger:
+   the student pages are read there, and a phone zooms into a field whose text
+   is under 16px. */
+@media (max-width: 56.25rem) {
+  body {
+    font-size: 1rem;
+  }
 }
 
 #root {
@@ -142,12 +168,11 @@ a {
 
 a:hover {
   color: var(--ink-hover);
-  text-decoration-thickness: 2px;
 }
 
 :focus-visible {
-  outline: 3px solid var(--ink);
-  outline-offset: 3px;
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
   border-radius: 2px;
 }
 
@@ -157,15 +182,19 @@ a:hover {
 
 h1 {
   margin: 0 0 0.75rem;
-  font-size: clamp(1.5rem, 1rem + 2vw, 2.2rem);
-  font-weight: 800;
+  font-size: clamp(1.375rem, 1.1rem + 1vw, 1.75rem);
+  font-weight: 700;
   line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 h2 {
   margin: 1.75rem 0 0.5rem;
-  font-size: 1.3rem;
-  font-weight: 800;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-wrap: balance;
 }
 
 .wrap {
@@ -227,8 +256,10 @@ h2 {
 }
 
 .brand-name {
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 .main-nav {
@@ -280,29 +311,10 @@ h2 {
   height: 1.2rem;
 }
 
-/* Page body with the notebook's red margin line */
+/* Page body */
 
 .page {
-  position: relative;
-  padding-block: 0.75rem 2.5rem;
-  padding-left: var(--margin-x);
-}
-
-.page::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(var(--margin-x) - 1.25rem);
-  width: 2px;
-  background: var(--red);
-  opacity: 0.7;
-}
-
-@media (max-width: 40rem) {
-  :root {
-    --margin-x: 1.75rem;
-  }
+  padding-block: 1.25rem 2.5rem;
 }
 
 .site-footer {
@@ -319,45 +331,60 @@ h2 {
 
 /* Buttons and forms */
 
+/* Buttons are 8px rounded: an outline by default, filled blue for the one
+   main action of a screen. */
 .button,
 .button-quiet {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.75rem;
-  padding: 0.45rem 1.15rem;
-  border-radius: 999px;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius);
   font: inherit;
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
   text-decoration: none;
   cursor: pointer;
+  transition: background-color 120ms, border-color 120ms;
 }
 
 .button {
-  border: 0;
+  border: 1px solid var(--ink);
   background: var(--ink);
-  color: var(--sheet);
+  color: var(--on-ink);
 }
 
 .button:hover {
+  border-color: var(--ink-hover);
   background: var(--ink-hover);
-  color: var(--sheet);
+  color: var(--on-ink);
 }
 
 .button-quiet {
-  border: 1.5px solid var(--rule);
+  border: 1px solid var(--control);
   background: var(--sheet);
-  color: var(--ink);
+  color: var(--text);
 }
 
 .button-quiet:hover {
-  border-color: var(--ink);
+  border-color: var(--muted);
+  color: var(--text);
 }
 
 .button-small {
-  min-height: 2.25rem;
-  padding: 0.2rem 0.85rem;
-  font-size: 0.9rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .button-quiet {
+    transition: none;
+  }
 }
 
 button:disabled {
@@ -366,7 +393,7 @@ button:disabled {
 }
 
 label {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 input[type="text"],
@@ -374,10 +401,10 @@ input[type="email"],
 input[type="password"],
 textarea,
 select {
-  min-height: 2.75rem;
-  padding: 0.45rem 0.75rem;
-  border: 1.5px solid var(--rule);
-  border-radius: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
   background: var(--sheet);
   color: var(--text);
   font: inherit;
@@ -389,7 +416,7 @@ input[type="password"]:focus,
 textarea:focus,
 select:focus {
   border-color: var(--ink);
-  outline: 3px solid var(--ink);
+  outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
 
@@ -431,8 +458,7 @@ textarea {
   max-width: 40rem;
   margin-block: 0.75rem;
   padding: 0.6rem 0.9rem;
-  border-left: 4px solid var(--error-fg);
-  border-radius: 0.35rem;
+  border-radius: var(--radius);
   background: var(--error-bg);
   color: var(--error-fg);
 }
@@ -441,20 +467,26 @@ textarea {
   margin: 0;
 }
 
+/* A label: a small flat tinted block. Grey by default; orange (.tag-wait)
+   only for what waits on the teacher, green for what is done and shown. */
 .tag {
   display: inline-block;
-  padding: 0 0.55rem;
-  border-radius: 0.3rem;
-  background: var(--marker);
-  color: var(--text);
-  font-size: 0.85rem;
-  font-weight: 700;
+  padding: 0 0.5rem;
+  border-radius: 6px;
+  background: var(--active);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.6;
 }
 
-/* Quiet and positive labels: "Rezultate nepublicate" is grey, "Rezultate
-   publicate" green. */
+.tag-wait {
+  background: var(--marker);
+  color: var(--orange);
+}
+
 .tag-muted {
-  background: color-mix(in srgb, var(--muted) 16%, transparent);
+  background: var(--active);
   color: var(--muted);
 }
 
@@ -479,8 +511,8 @@ textarea {
   flex-direction: column;
   gap: 0.35rem;
   padding: 0.9rem 1rem;
-  border: 1.5px solid var(--rule);
-  border-radius: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
   background: var(--sheet);
 }
 
@@ -558,18 +590,18 @@ a.class-badge:hover {
 
 .grading-progress-bar {
   display: flex;
-  height: 0.6rem;
+  height: 0.5rem;
   overflow: hidden;
-  border-radius: 0.3rem;
-  background: color-mix(in srgb, var(--muted) 22%, transparent);
+  border-radius: 4px;
+  background: var(--active);
 }
 
 .grading-progress-graded {
-  background: var(--ok-fg);
+  background: var(--ink);
 }
 
 .grading-progress-waiting {
-  background: var(--marker);
+  background: color-mix(in srgb, var(--ink) 35%, var(--sheet));
 }
 
 .grading-progress-label {
@@ -591,8 +623,8 @@ a.class-badge:hover {
 }
 
 .card-title {
-  font-size: 1.2rem;
-  font-weight: 800;
+  font-size: 1.0625rem;
+  font-weight: 700;
 }
 
 .row-list {
@@ -691,8 +723,8 @@ a.class-badge:hover {
 }
 
 .file-field input:focus-visible + .file-pick {
-  outline: 3px solid var(--ink);
-  outline-offset: 3px;
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .file-chosen {
@@ -711,16 +743,17 @@ input[type="file"] {
   font: inherit;
 }
 
-/* A test's state: draft is plain, open is green, being graded is
-   highlighted, graded is blue ink. */
+/* A test's state: draft is plain, open is green, being graded is pale blue,
+   graded is blue. */
 .status {
   display: inline-block;
-  padding: 0 0.6rem;
-  border-radius: 0.3rem;
-  background: color-mix(in srgb, var(--muted) 16%, transparent);
+  padding: 0 0.5rem;
+  border-radius: 6px;
+  background: var(--active);
   color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.6;
   white-space: nowrap;
 }
 
@@ -730,13 +763,13 @@ input[type="file"] {
 }
 
 .status-evaluating {
-  background: var(--marker);
-  color: var(--text);
+  background: var(--ink-tint);
+  color: var(--ink);
 }
 
 .status-done {
-  background: color-mix(in srgb, var(--ink) 12%, transparent);
-  color: var(--ink);
+  background: var(--ink-tint);
+  color: var(--text);
 }
 
 .lead-line {
@@ -1746,8 +1779,7 @@ table.items tr.edit-row > td {
 .tips {
   margin-block: 0.75rem;
   padding: 0.6rem 0.9rem;
-  border-left: 4px solid var(--marker-edge);
-  border-radius: 0.35rem;
+  border-radius: var(--radius);
   background: var(--marker);
 }
 
@@ -1763,8 +1795,8 @@ table.items tr.edit-row > td {
 
 /* The file inputs hide inside their labels; the label shows the focus. */
 .pick-button:focus-within {
-  outline: 3px solid var(--ink);
-  outline-offset: 3px;
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .page-list {
@@ -1876,8 +1908,7 @@ table.items tr.edit-row > td {
   max-width: 40rem;
   margin-block: 0.75rem;
   padding: 0.6rem 0.9rem;
-  border-left: 4px solid var(--marker-edge);
-  border-radius: 0.35rem;
+  border-radius: var(--radius);
   background: var(--marker);
   color: var(--text);
 }
