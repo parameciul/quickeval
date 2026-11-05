@@ -1,9 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
-import { Link } from 'react-router';
 import type { RobotStart, TestInfo } from '../../../shared/api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { stageHash } from '../stages.ts';
+import { MoveOnLink } from './MoveOnLink.tsx';
 
 // The robot reads the test and the barem first and makes a list of the
 // exercises (spec §9). Shown only when that list needs the teacher: its
@@ -38,9 +37,9 @@ export function ExerciseListBanner({
           <button type="button" className="button-quiet button-small" disabled={accept.isPending} onClick={() => accept.mutate()}>
             Folosește oricum
           </button>
-          <Link className="button-quiet button-small" to={{ hash: stageHash('Pregătire') }} replace>
+          <MoveOnLink className="button-quiet button-small" stage="Pregătire">
             Înlocuiește baremul
-          </Link>
+          </MoveOnLink>
         </span>
         {accept.error && <ErrorMessage error={accept.error} />}
       </div>

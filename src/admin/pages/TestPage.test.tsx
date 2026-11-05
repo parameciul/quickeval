@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useNavigationType } from 'react-router';
+import { useNavigate, useNavigationType } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
@@ -48,6 +48,16 @@ const sheet = () => screen.getByRole('region', { name: 'Fișa testului' });
 // How the app came to this address: a stage link replaces it, so Back leaves the page.
 function NavigationProbe() {
   return <p data-testid="navigation">{useNavigationType()}</p>;
+}
+
+// A jump to the test page, as a link of the Teste page or of "De făcut" does.
+function GoToTest() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(PAGE)}>
+      Mergi la test
+    </button>
+  );
 }
 
 afterEach(() => {
@@ -406,6 +416,13 @@ describe('TestPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Testul a fost creat, dar fișierul Test.pdf nu s-a încărcat.');
   });
 
+  it('keeps the notice of the new-test page when the teacher opens another stage', async () => {
+    renderAdmin({ pathname: PAGE, state: { notice: 'Testul a fost creat, dar fișierul Test.pdf nu s-a încărcat.' } }, apiWith());
+    expect(await screen.findByText('Testul a fost creat, dar fișierul Test.pdf nu s-a încărcat.')).toBeInTheDocument();
+    await openStage('Tipărire');
+    expect(screen.getByText('Testul a fost creat, dar fișierul Test.pdf nu s-a încărcat.')).toBeInTheDocument();
+  });
+
   it('creates the multi-upload link on demand and then shows it', async () => {
     const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN });
     renderAdmin(`${PAGE}#in-clasa`, api);
@@ -535,6 +552,47 @@ describe('TestPage stages', () => {
     await userEvent.click(corectare);
     expect(await screen.findByRole('heading', { level: 2, name: 'Corectare' })).not.toHaveFocus();
     expect(corectare).toHaveFocus();
+  });
+
+  it('moves the focus to a new panel only when the next-stage link opened it', async () => {
+    renderAdmin(`${PAGE}#pregatire`, doneApi());
+    const user = userEvent.setup();
+    // A click with Ctrl opens the link in a new tab: this page stays as it is.
+    // jsdom has no tabs, so the test stops that part of the click.
+    const noNewTab = (event: MouseEvent) => {
+      if (event.ctrlKey) event.preventDefault();
+    };
+    window.addEventListener('click', noNewTab, true);
+    await user.keyboard('{Control>}');
+    await user.click(await screen.findByRole('link', { name: 'Următoarea etapă: Tipărire →' }));
+    await user.keyboard('{/Control}');
+    window.removeEventListener('click', noNewTab, true);
+    expect(screen.getByRole('heading', { level: 2, name: 'Pregătire' })).toBeInTheDocument();
+    const corectare = within(screen.getByRole('navigation', { name: 'Etapele testului' })).getByRole('link', { name: /^Corectare / });
+    await user.click(corectare);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Corectare' })).not.toHaveFocus();
+    expect(corectare).toHaveFocus();
+  });
+
+  it('opens the stage the test is at now, not the one that data kept from an earlier visit shows', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 2 }],
+      students: {},
+      tests: [
+        fakeTest(
+          { status: 'evaluating', startedAt: '2026-10-06T07:15:00.000Z', evaluationStartedAt: '2026-10-07T08:00:00.000Z' },
+          flagged.map((row) => ({ ...row, flagCount: 0 })),
+        ),
+      ],
+    });
+    renderAdmin(PAGE, api, <GoToTest />);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Corectare' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('link', { name: '← Toate testele' }));
+    await waitFor(() => expect(screen.queryByRole('navigation', { name: 'Etapele testului' })).not.toBeInTheDocument());
+    // Meanwhile the grading ended, and points wait to be checked.
+    api.getTest = doneApi().getTest;
+    await userEvent.click(screen.getByRole('button', { name: 'Mergi la test' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Verificare' })).toBeInTheDocument();
   });
 
   it('opens the stage the address names, and the current stage for an unknown address', async () => {
@@ -930,6 +988,13 @@ describe('TestPage evaluation', () => {
     await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
     await openStage('Pregătire');
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled();
+  });
+
+  it('gives the focus to the panel Pregătire when the barem warning opens it', async () => {
+    const api = evaluationApi({ status: 'evaluating', exerciseList: { status: 'problem', message: 'Punctajele din barem dau 9, dar totalul este 10.' } });
+    renderAdmin(`${PAGE}#corectare`, api);
+    await userEvent.click(await screen.findByRole('link', { name: 'Înlocuiește baremul' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Pregătire' })).toHaveFocus();
   });
 
   it('asks before replacing the barem and keeps it on Renunță', async () => {

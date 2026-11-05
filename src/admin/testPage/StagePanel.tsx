@@ -1,18 +1,19 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import type { RobotStart, TestDetail, TestInfo, UploadRow } from '../../../shared/api.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
 import { formatDateTime } from '../../ui/format.ts';
 import { GradingProgress } from '../../ui/GradingProgress.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { stageHash, type StageName } from '../stages.ts';
+import type { StageName } from '../stages.ts';
 import { AnalysisState } from './AnalysisState.tsx';
 import { EvaluationControls } from './EvaluationControls.tsx';
 import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { PrintTest } from './PrintTest.tsx';
 import { RegradeAllButton } from './RegradeAllButton.tsx';
+import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
 import { hasResultsToManage, ResultsAccess } from './ResultsAccess.tsx';
 import { ReviewList } from './ReviewList.tsx';
 import { RobotLine } from './RobotLine.tsx';
@@ -57,21 +58,22 @@ const NEXT: Partial<Record<StageName, StageName>> = {
 export function StagePanel({ stage, ...props }: PanelProps & { stage: StageName }) {
   const id = useId();
   const next = NEXT[stage];
-  // The link to the next stage sits at the end of a panel that can be long:
-  // after it, the page shows the top of the new panel, and its heading takes
-  // the focus, so a screen reader names it. Chrome does not always scroll to
-  // an element that takes the focus right after a click, so the panel is
-  // scrolled into view first (jsdom has no scrollIntoView). A click on the
-  // list of stages keeps the focus on its link.
+  // A link inside a panel to another stage (MoveOnLink) can sit at the end of
+  // a long panel: after it, the page shows the top of the new panel, and its
+  // heading takes the focus, so a screen reader names it. Chrome does not
+  // always scroll to an element that takes the focus right after a click, so
+  // the panel is scrolled into view first (jsdom has no scrollIntoView). A
+  // click on the list of stages keeps the focus on its link. A reload keeps
+  // the navigation state, so only a move made after the page opened counts.
   const panel = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const movedOn = useRef(false);
+  const location = useLocation();
+  const openedAt = useRef(location.key);
   useEffect(() => {
-    if (!movedOn.current) return;
-    movedOn.current = false;
+    if (location.key === openedAt.current || !isMoveOn(location.state)) return;
     panel.current?.scrollIntoView?.({ block: 'start' });
     heading.current?.focus({ preventScroll: true });
-  }, [stage]);
+  }, [location.key, location.state]);
   return (
     <section className="stage-panel" aria-labelledby={id} ref={panel}>
       <div className="stage-head">
@@ -89,15 +91,7 @@ export function StagePanel({ stage, ...props }: PanelProps & { stage: StageName 
         {stage === 'Rezultate' && <ResultsPanel {...props} />}
         {next && (
           <p className="next-stage">
-            <Link
-              to={{ hash: stageHash(next) }}
-              replace
-              onClick={() => {
-                movedOn.current = true;
-              }}
-            >
-              Următoarea etapă: {next} →
-            </Link>
+            <MoveOnLink stage={next}>Următoarea etapă: {next} →</MoveOnLink>
           </p>
         )}
       </div>

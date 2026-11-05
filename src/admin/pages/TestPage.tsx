@@ -8,7 +8,7 @@ import { classToneClass, classToneStyle } from '../../ui/classTone.ts';
 import { formatDateTime, robotStartMessage, studentCountLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { stageFromHash, stagesOf } from '../stages.ts';
+import { stageFromHash, stagesOf, type StageName } from '../stages.ts';
 import { StageList } from '../testPage/StageList.tsx';
 import { StagePanel } from '../testPage/StagePanel.tsx';
 import { waitsForBarem, waitsForPrint } from '../testPage/StartRobotButton.tsx';
@@ -43,15 +43,25 @@ function TestDetails({ code }: { code: string }) {
   // A failed first load has nothing to show. A failed refresh keeps the page,
   // and an open QR view with it, and says why above it.
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
-  return <TestView code={code} detail={detail.data} refreshError={detail.isRefetchError ? detail.error : null} />;
+  return (
+    <TestView
+      code={code}
+      detail={detail.data}
+      fresh={detail.isFetchedAfterMount}
+      refreshError={detail.isRefetchError ? detail.error : null}
+    />
+  );
 }
 
 // The test page of the redesign (spec §6): the six stages and Fișa testului,
-// and the panel of the chosen stage.
-function TestView({ code, detail, refreshError }: { code: string; detail: TestDetail; refreshError: Error | null }) {
+// and the panel of the chosen stage. `fresh`: the data was read for this
+// visit, not kept from an earlier one.
+function TestView({ code, detail, fresh, refreshError }: { code: string; detail: TestDetail; fresh: boolean; refreshError: Error | null }) {
   const queryClient = useQueryClient();
   const location = useLocation();
-  const notice = (location.state as { notice?: string } | null)?.notice;
+  // The notice of the page before stays while the teacher opens other stages,
+  // whose links replace the navigation state.
+  const [notice] = useState(() => (location.state as { notice?: string } | null)?.notice);
   // When the robot starts, after the teacher started or restarted grading.
   const [robotNotice, setRobotNotice] = useState<string | null>(null);
   const onRobot = (robot: RobotStart | null) => setRobotNotice(robot ? robotStartMessage(robot) : null);
@@ -60,11 +70,13 @@ function TestView({ code, detail, refreshError }: { code: string; detail: TestDe
   const [selected, setSelected] = useState<number[]>([]);
   const { test, uploads, robot, showModel } = detail;
   const { stages, current } = stagesOf(test);
-  // The page opens on the stage the test is at when it first loads. After
-  // that only the teacher changes the panel: a refresh or a button that moves
-  // the test on keeps it.
-  const [opened] = useState(current.name);
-  const chosen = stageFromHash(location.hash) ?? opened;
+  // The page opens on the stage the test is at when it first loads. Data kept
+  // from an earlier visit can be old, so only data read for this visit fixes
+  // that stage. After that only the teacher changes the panel: a refresh or a
+  // button that moves the test on keeps it.
+  const [opened, setOpened] = useState<StageName | null>(fresh ? current.name : null);
+  if (opened === null && fresh) setOpened(current.name);
+  const chosen = stageFromHash(location.hash) ?? opened ?? current.name;
 
   // The list of the year is read on every page (the shell): read it again,
   // but do not wait for it.
