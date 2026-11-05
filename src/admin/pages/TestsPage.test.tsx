@@ -52,7 +52,7 @@ describe('TestsPage', () => {
   it('links each test to its page and offers a new test', async () => {
     renderAdmin('/', withTests());
     expect(await screen.findByRole('link', { name: '6E2-26T2' })).toHaveAttribute('href', '/teste/6E2-26T2');
-    expect(screen.getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/teste/nou');
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/teste/nou');
   });
 
   it('says so when the year has no tests', async () => {
@@ -60,13 +60,11 @@ describe('TestsPage', () => {
     expect(await screen.findByText('Nu ai niciun test în acest an școlar.')).toBeInTheDocument();
   });
 
-  it('marks Teste in the menu on test pages and Clase on class pages', async () => {
-    renderAdmin('/', withTests());
+  it('marks Teste in the menu on test pages', async () => {
+    renderAdmin('/teste/6E2-26T2', withTests());
     const menu = await screen.findByRole('navigation', { name: 'Meniu' });
     expect(within(menu).getByRole('link', { name: 'Teste' })).toHaveAttribute('aria-current', 'page');
-    await userEvent.click(within(menu).getByRole('link', { name: 'Clase' }));
-    expect(within(menu).getByRole('link', { name: 'Clase' })).toHaveAttribute('aria-current', 'page');
-    expect(within(menu).getByRole('link', { name: 'Teste' })).not.toHaveAttribute('aria-current');
+    expect(within(menu).getByRole('button', { name: 'Clase' })).not.toHaveAttribute('aria-current');
   });
 });
 

@@ -42,7 +42,6 @@
   --radius: 8px;
   --radius-panel: 10px;
   --font: "Schibsted Grotesk", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-  --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
   color-scheme: light;
 }
 
@@ -216,7 +215,7 @@ h2 {
   border: 0;
 }
 
-/* Header */
+/* The student pages' header: the mark and the name, nothing else. */
 
 .site-header {
   position: sticky;
@@ -228,26 +227,28 @@ h2 {
 
 .header-bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 1.25rem;
-  padding-block: 0.55rem;
+  min-height: 3.5rem;
+  padding-block: 0.5rem;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  margin-right: auto;
-  line-height: 1.2;
+  gap: 0.6rem;
+  line-height: 1.15;
   text-decoration: none;
-  color: var(--ink);
+  color: var(--text);
+}
+
+.brand:hover {
+  color: var(--text);
 }
 
 .brand-mark {
   flex: none;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 .brand-text {
@@ -256,77 +257,385 @@ h2 {
 }
 
 .brand-name {
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--text);
 }
 
-.main-nav {
-  display: flex;
-  gap: 0.25rem;
+.brand-by {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
-.main-nav a {
-  padding: 0.35rem 0.75rem;
-  border: 2px solid transparent;
-  border-radius: 999px;
-  font-family: var(--hand);
-  font-size: 1.45rem;
-  font-weight: 600;
-  line-height: 1.2;
-  text-decoration: none;
-}
-
-.main-nav a[aria-current="page"] {
-  border-color: var(--red);
-}
-
-.header-tools {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
+/* The theme button: a moon in light mode, a sun in dark mode. */
 .theme-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.5rem;
-  min-height: 2.5rem;
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
   padding: 0;
-  border: 1.5px solid var(--rule);
-  border-radius: 999px;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
   background: var(--sheet);
-  color: var(--ink);
+  color: var(--muted);
   cursor: pointer;
 }
 
 .theme-btn:hover {
-  border-color: var(--ink);
+  border-color: var(--muted);
+  color: var(--text);
 }
 
 .theme-icon {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* The teacher app's shell (redesign spec §4): the top bar over everything,
+   the 80px bar on the left, the page on the ground beside it, and one side
+   panel at a time over the page, beside the bar. */
+
+.shell {
+  --bar: 80px;
+  --top: 60px;
+  display: grid;
+  flex: 1;
+  grid-template-columns: var(--bar) minmax(0, 1fr);
+  grid-template-rows: var(--top) auto;
+}
+
+.shell-bare {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  height: var(--top);
+  padding-right: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--sheet);
+}
+
+/* The mark sits over the 80px bar; the words start the top bar. */
+.topbar .brand {
+  gap: 0;
+}
+
+.topbar .brand-mark {
+  box-sizing: content-box;
+  padding-inline: calc((var(--bar) - 1.75rem) / 2);
+}
+
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.topbar-tools select {
+  min-height: 2.25rem;
+  padding-block: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.rail {
+  position: sticky;
+  top: var(--top);
+  z-index: 20;
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  height: calc(100vh - var(--top));
+  padding: 0.75rem 0.5rem;
+  border-right: 1px solid var(--rule);
+  background: var(--sheet);
+}
+
+.rail-new,
+.rail-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 3.625rem;
+  padding: 0.5rem 0.125rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.71875rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rail-item svg {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+.rail-item:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.rail-item[aria-current="page"],
+.rail-item[aria-expanded="true"] {
+  background: var(--active);
+  color: var(--text);
+}
+
+.rail-new {
+  padding-bottom: 0.625rem;
+  color: var(--text);
+}
+
+.rail-new:hover {
+  color: var(--text);
+}
+
+.rail-square {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.rail-new:hover .rail-square {
+  background: var(--ink-hover);
+}
+
+.rail-square svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.rail-foot {
+  margin-top: auto;
+}
+
+.shell > .page {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  padding: 1.5rem 2rem 3rem;
+}
+
+.shell-bare > .page {
+  grid-column: 1;
+  width: 100%;
+  max-width: 70rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+/* The account menu under the initials. */
+.user {
+  position: relative;
+}
+
+.user-button {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 50%;
+  background: var(--active);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.user-button:hover,
+.user-button[aria-expanded="true"] {
+  background: var(--control);
+}
+
+.user-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: 15rem;
+  padding: 0.375rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+  box-shadow: var(--float);
+}
+
+.user-who {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 0.25rem;
+  padding: 0.5rem 0.625rem 0.625rem;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.user-who span {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.user-menu a,
+.user-menu button {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.625rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.user-menu a:hover,
+.user-menu button:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+/* A side panel: beside the bar, over the page, 384px wide. */
+.panel {
+  position: fixed;
+  top: var(--top);
+  bottom: 0;
+  left: var(--bar);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  width: 24rem;
+  max-width: calc(100vw - var(--bar));
+  overflow-y: auto;
+  border-right: 1px solid var(--rule);
+  background: var(--sheet);
+  box-shadow: var(--float);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.125rem 1rem 0.75rem 1.25rem;
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.panel-close {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.panel-close:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.panel-close svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.panel-body {
+  margin: 0;
+  padding: 0 1.25rem;
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: auto;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+/* The classes in the panel: each one a link with its tests in work. */
+.class-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 1rem;
+}
+
+.class-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.class-item:hover {
+  border-color: var(--control);
+  background: var(--raised);
+  color: var(--text);
+}
+
+.class-item[aria-current="page"] {
+  border-color: var(--ink);
+  background: var(--ink-tint);
+}
+
+.class-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.125rem;
+}
+
+.class-item-head span,
+.class-item-test {
+  font-size: 0.8125rem;
+  color: var(--muted);
 }
 
 /* Page body */
 
 .page {
   padding-block: 1.25rem 2.5rem;
-}
-
-.site-footer {
-  border-top: 1px solid var(--rule);
-  background: var(--sheet);
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.site-footer p {
-  margin: 0;
-  padding-block: 0.75rem;
 }
 
 /* Buttons and forms */
@@ -1192,10 +1501,11 @@ table.items td.item-check .verificat-btn {
     align-items: start;
   }
 
+  /* Under the teacher app's top bar (--top), which also stays on screen. */
   .result-files {
     position: sticky;
-    top: 0.75rem;
-    max-height: calc(100vh - 1.5rem);
+    top: calc(var(--top, 0px) + 0.75rem);
+    max-height: calc(100vh - var(--top, 0px) - 1.5rem);
     display: flex;
     flex-direction: column;
     min-height: 0;
