@@ -1,10 +1,11 @@
 import type { TestSummary } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
-import type { Stage } from '../stages.ts';
+import { stageHash, type Stage } from '../stages.ts';
 
 // The one thing to do next on a row of the Teste page (redesign spec §5): a
 // link, or the button that publishes the results on the row. Null: nothing
-// to do now.
+// to do now. The grading of an open test starts in the panel Corectare of the
+// test page, while the page opens on În clasă (spec §6).
 export type NextStep = { kind: 'link'; label: string; to: string } | { kind: 'publish'; label: string } | null;
 
 export function nextStep(test: TestSummary, current: Stage): NextStep {
@@ -19,7 +20,7 @@ export function nextStep(test: TestSummary, current: Stage): NextStep {
       return test.prepared.print === 'failed' || !test.prepared.uploadLink ? link('Deschide') : null;
     case 'În clasă':
       if (test.status === 'draft') return link('Începe testul');
-      return test.evaluationAt === null ? link('Pornește corectarea') : null;
+      return test.evaluationAt === null ? link('Pornește corectarea', `${page}${stageHash('Corectare')}`) : null;
     case 'Corectare':
       return null;
     case 'Verificare':

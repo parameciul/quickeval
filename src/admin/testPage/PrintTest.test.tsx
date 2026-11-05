@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { TestInfo } from '../../../shared/api.ts';
@@ -18,18 +18,18 @@ function openApi(overrides: Partial<TestInfo> = {}) {
 
 describe('PrintTest', () => {
   it('asks for the test file first', async () => {
-    renderAdmin('/teste/6E2-26T1', openApi({ files: { test: null, barem: null } }));
+    renderAdmin('/teste/6E2-26T1#tiparire', openApi({ files: { test: null, barem: null } }));
     expect(await screen.findByText('Testul pentru tipărit:')).toBeInTheDocument();
     expect(screen.getByText('Încarcă testul ca să primești varianta cu cod QR.')).toBeInTheDocument();
   });
 
   it('says the PDF is being made', async () => {
-    renderAdmin('/teste/6E2-26T1', openApi());
+    renderAdmin('/teste/6E2-26T1#tiparire', openApi());
     expect(await screen.findByText('Se pregătește testul cu cod QR…')).toHaveAttribute('role', 'status');
   });
 
   it('offers the download when ready', async () => {
-    renderAdmin('/teste/6E2-26T1', openApi({ print: { status: 'ready', fromWord: false } }));
+    renderAdmin('/teste/6E2-26T1#tiparire', openApi({ print: { status: 'ready', fromWord: false } }));
     const link = await screen.findByRole('link', { name: 'Descarcă testul cu cod QR' });
     expect(link).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/print');
     expect(link).toHaveAttribute('download');
@@ -38,17 +38,17 @@ describe('PrintTest', () => {
 
   it('warns about a PDF made from Word', async () => {
     const word = /PDF-ul a fost făcut din fișierul Word/;
-    const { unmount } = renderAdmin('/teste/6E2-26T1', openApi({ print: { status: 'ready', fromWord: true } }));
+    const { unmount } = renderAdmin('/teste/6E2-26T1#tiparire', openApi({ print: { status: 'ready', fromWord: true } }));
     expect(await screen.findByText(word)).toHaveTextContent('Pentru o copie exactă, încarcă testul ca PDF.');
     unmount();
-    renderAdmin('/teste/6E2-26T1', openApi({ print: { status: 'ready', fromWord: false } }));
+    renderAdmin('/teste/6E2-26T1#tiparire', openApi({ print: { status: 'ready', fromWord: false } }));
     await screen.findByRole('link', { name: 'Descarcă testul cu cod QR' });
     expect(screen.queryByText(word)).not.toBeInTheDocument();
   });
 
   it('retries a failed print', async () => {
     const api = openApi({ print: { status: 'failed', fromWord: false } });
-    renderAdmin('/teste/6E2-26T1', api);
+    renderAdmin('/teste/6E2-26T1#tiparire', api);
     expect(await screen.findByText('Nu am putut pregăti testul cu cod QR.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }));
     expect(api.retryPrint).toHaveBeenCalledWith('6E2-26T1');
@@ -56,22 +56,22 @@ describe('PrintTest', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Încearcă din nou' })).not.toBeInTheDocument());
   });
 
-  it('shows the block in the files section, under the test file, whatever the links do', async () => {
-    renderAdmin('/teste/6E2-26T1', openApi());
-    const block = (await screen.findByText('Testul pentru tipărit:')).closest('.print-test')!;
-    const row = block.closest('li')!;
-    expect(row).toHaveTextContent('Testul:');
-    expect(row).toContainElement(screen.getByRole('link', { name: 'Test.pdf' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Arată linkurile' }));
-    expect(screen.getByText('Testul pentru tipărit:')).toBeInTheDocument();
+  it('shows the block in the panel Tipărire, and not with the files of Pregătire', async () => {
+    renderAdmin('/teste/6E2-26T1#tiparire', openApi());
+    const panel = await screen.findByRole('region', { name: 'Tipărire' });
+    expect(within(panel).getByText('Testul pentru tipărit:')).toBeInTheDocument();
+    const stages = screen.getByRole('navigation', { name: 'Etapele testului' });
+    await userEvent.click(within(stages).getByRole('link', { name: /^Pregătire / }));
+    expect(await screen.findByRole('link', { name: 'Test.pdf' })).toBeInTheDocument();
+    expect(screen.queryByText('Testul pentru tipărit:')).not.toBeInTheDocument();
   });
 
   it('turns a spinner while the PDF is being made, and not after', async () => {
-    const { unmount } = renderAdmin('/teste/6E2-26T1', openApi());
+    const { unmount } = renderAdmin('/teste/6E2-26T1#tiparire', openApi());
     const status = await screen.findByRole('status');
     expect(status.querySelector('.spinner')).not.toBeNull();
     unmount();
-    renderAdmin('/teste/6E2-26T1', openApi({ print: { status: 'ready', fromWord: false } }));
+    renderAdmin('/teste/6E2-26T1#tiparire', openApi({ print: { status: 'ready', fromWord: false } }));
     await screen.findByRole('link', { name: 'Descarcă testul cu cod QR' });
     expect(document.querySelector('.spinner')).toBeNull();
   });

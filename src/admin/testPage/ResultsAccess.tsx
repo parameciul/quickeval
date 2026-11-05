@@ -26,7 +26,7 @@ export function ResultsAccess({ test, uploads, onChanged }: { test: TestInfo; up
   const publishedAlone = test.resultsOpen ? 0 : uploads.filter((row) => row.submissionId !== null && row.resultsOpen).length;
   return (
     <section aria-label="Rezultatele elevilor">
-      <h2>Rezultatele elevilor</h2>
+      <h3>Rezultatele elevilor</h3>
       {test.resultsOpen ? (
         <>
           <p>Elevii își pot vedea rezultatele pe linkurile lor.</p>

@@ -25,6 +25,27 @@ export interface TestStages {
   current: Stage;
 }
 
+// The address of each stage's panel on the test page (redesign spec §6):
+// "#corectare".
+const STAGE_HASHES: Record<StageName, string> = {
+  Pregătire: '#pregatire',
+  Tipărire: '#tiparire',
+  'În clasă': '#in-clasa',
+  Corectare: '#corectare',
+  Verificare: '#verificare',
+  Rezultate: '#rezultate',
+};
+
+export function stageHash(name: StageName): string {
+  return STAGE_HASHES[name];
+}
+
+// The stage an address names; null for no stage or an unknown one.
+export function stageFromHash(hash: string): StageName | null {
+  const found = Object.entries(STAGE_HASHES).find(([, value]) => value === hash);
+  return found ? (found[0] as StageName) : null;
+}
+
 // The six stages of a test (redesign spec §5). A stage waits on the teacher
 // exactly when "De făcut" has the test, at that stage, so the bar and the
 // count in the menu always agree.

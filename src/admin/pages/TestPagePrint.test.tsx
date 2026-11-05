@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TestInfo } from '../../../shared/api.ts';
@@ -23,6 +23,12 @@ function apiWith(overrides: Partial<TestInfo>, startFailed = false) {
   });
 }
 
+// Opens the panel of a stage with its link in the list of stages.
+async function openStage(name: string) {
+  const stages = screen.getByRole('navigation', { name: 'Etapele testului' });
+  await userEvent.click(within(stages).getByRole('link', { name: new RegExp(`^${name} `) }));
+}
+
 afterEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
@@ -41,7 +47,7 @@ describe('TestPage and a waiting barem request', () => {
   });
 
   it('shows no robot line on a draft test without a waiting request', async () => {
-    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'draft', uploadToken: null, barem: { request: 'failed', unchecked: false } }, true));
+    renderAdmin('/teste/6E2-26T1#pregatire', apiWith({ status: 'draft', uploadToken: null, barem: { request: 'failed', unchecked: false } }, true));
     expect(await screen.findByText('Nu am putut genera baremul.')).toBeInTheDocument();
     expect(screen.queryByText(NEVER_CHECKED)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pornește robotul' })).not.toBeInTheDocument();
@@ -68,7 +74,7 @@ describe('TestPage and the print PDF', () => {
 
   it('shows the robot line and starts the robot while the print PDF waits', async () => {
     const api = apiWith({});
-    renderAdmin('/teste/6E2-26T1', api);
+    renderAdmin('/teste/6E2-26T1#tiparire', api);
     expect(await screen.findByText('Se pregătește testul cu cod QR…')).toBeInTheDocument();
     expect(screen.getByText(NEVER_CHECKED)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Pornește robotul' }));
@@ -81,7 +87,7 @@ describe('TestPage and the print PDF', () => {
     ['failed', { print: { status: 'failed', fromWord: true } }],
     ['has no test file yet', { files: { test: null, barem: null } }],
   ] as const)('shows no robot line while the print PDF %s', async (_name, overrides) => {
-    renderAdmin('/teste/6E2-26T1', apiWith(overrides, true));
+    renderAdmin('/teste/6E2-26T1#tiparire', apiWith(overrides, true));
     expect(await screen.findByText('Testul pentru tipărit:')).toBeInTheDocument();
     expect(screen.queryByText(NEVER_CHECKED)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pornește robotul' })).not.toBeInTheDocument();
@@ -89,24 +95,27 @@ describe('TestPage and the print PDF', () => {
   });
 
   it('says that the robot did not start for the print PDF, also after a reload', async () => {
-    renderAdmin('/teste/6E2-26T1', apiWith({}, true));
+    renderAdmin('/teste/6E2-26T1#tiparire', apiWith({}, true));
     expect(await screen.findByText(robotStartMessage('next_check'))).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pornește robotul' })).toBeInTheDocument();
   });
 
   it('says that the robot started after a reopen that makes the print PDF', async () => {
     const api = apiWith({ status: 'done' });
-    renderAdmin('/teste/6E2-26T1', api);
+    renderAdmin('/teste/6E2-26T1#in-clasa', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Redeschide încărcarea' }));
     expect(api.reopenTest).toHaveBeenCalledWith('6E2-26T1');
     expect(await screen.findByText(robotStartMessage('dispatched'))).toBeInTheDocument();
+    await openStage('Tipărire');
     expect(await screen.findByText('Se pregătește testul cu cod QR…')).toBeInTheDocument();
   });
 
   it('says nothing after a reopen whose print PDF is ready', async () => {
     const api = apiWith({ status: 'done', print: { status: 'ready', fromWord: false } });
-    renderAdmin('/teste/6E2-26T1', api);
+    renderAdmin('/teste/6E2-26T1#in-clasa', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Redeschide încărcarea' }));
+    expect(await screen.findByText(/^Elevii trimit lucrările\./)).toBeInTheDocument();
+    await openStage('Tipărire');
     expect(await screen.findByRole('link', { name: 'Descarcă testul cu cod QR' })).toBeInTheDocument();
     expect(screen.queryByText(robotStartMessage('dispatched'))).not.toBeInTheDocument();
   });

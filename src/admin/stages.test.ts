@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TestSummary } from '../../shared/api.ts';
 import { fakeSummary as summary } from '../test/fakeApi.ts';
 import { todoOf } from './shell/todo.ts';
-import { stagesOf } from './stages.ts';
+import { stageFromHash, stageHash, stagesOf } from './stages.ts';
 
 const started = { startedAt: '2026-10-06T07:15:00.000Z' };
 const graded = { ...started, evaluationStartedAt: '2026-10-07T07:15:00.000Z', submittedCount: 22, gradedCount: 22 };
@@ -85,5 +85,21 @@ describe('stagesOf', () => {
       const todo = todoOf(test);
       expect(waiting.map((stage) => stage.name), name).toEqual(todo ? [todo.stage] : []);
     }
+  });
+});
+
+describe('stageHash and stageFromHash', () => {
+  it('give each stage its own address, and read it back', () => {
+    const names = stagesOf(summary()).stages.map((stage) => stage.name);
+    expect(names.map(stageHash)).toEqual(['#pregatire', '#tiparire', '#in-clasa', '#corectare', '#verificare', '#rezultate']);
+    for (const name of names) expect(stageFromHash(stageHash(name))).toBe(name);
+  });
+
+  it('reads no stage from an empty or unknown address', () => {
+    expect(stageFromHash('')).toBeNull();
+    expect(stageFromHash('#')).toBeNull();
+    expect(stageFromHash('#Corectare')).toBeNull();
+    expect(stageFromHash('corectare')).toBeNull();
+    expect(stageFromHash('#toString')).toBeNull();
   });
 });

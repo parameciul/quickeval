@@ -169,7 +169,6 @@ describe('the shell', () => {
     renderAdmin('/teste/6E2-26T2', withClasses());
     const bar = await menu();
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Arată linkurile' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
     expect(screen.getByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
