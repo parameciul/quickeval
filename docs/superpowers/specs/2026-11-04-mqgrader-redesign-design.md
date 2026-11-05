@@ -34,7 +34,7 @@ The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (
 
 ### 2.1 Type
 
-One face: Schibsted Grotesk (Google Fonts), weights 400, 500, 600, 700, 800. Tabular figures are not used: in this face they widen the comma (8 , 50). Caveat stays only where the app already uses it.
+One face: Schibsted Grotesk (Google Fonts), weights 400, 500, 600, 700, 800. Tabular figures are not used: in this face they widen the comma (8 , 50). Caveat goes: it drew only the old menu.
 
 ### 2.2 Colours
 
