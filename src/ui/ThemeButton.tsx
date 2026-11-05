@@ -1,20 +1,12 @@
-import { useState } from 'react';
-import { currentTheme, otherTheme, saveTheme, storedTheme } from './theme.ts';
+import { otherTheme } from './theme.ts';
+import { useTheme } from './useTheme.ts';
 
 // Shows a moon in light mode and a sun in dark mode: the icon offers the other theme.
 export function ThemeButton() {
-  const [theme, setTheme] = useState(() => currentTheme(storedTheme()));
+  const { theme, toggle } = useTheme();
   const next = otherTheme(theme);
   return (
-    <button
-      type="button"
-      className="theme-btn"
-      aria-label={next === 'dark' ? 'Temă întunecată' : 'Temă luminoasă'}
-      onClick={() => {
-        saveTheme(next);
-        setTheme(next);
-      }}
-    >
+    <button type="button" className="theme-btn" aria-label={next === 'dark' ? 'Temă întunecată' : 'Temă luminoasă'} onClick={toggle}>
       {next === 'dark' ? (
         <svg className="theme-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path
@@ -34,6 +26,17 @@ export function ThemeButton() {
           </g>
         </svg>
       )}
+    </button>
+  );
+}
+
+// The phone menu's row: "Temă întunecată" with a switch.
+export function ThemeSwitch() {
+  const { theme, toggle } = useTheme();
+  return (
+    <button type="button" role="switch" aria-checked={theme === 'dark'} className="menu-row" onClick={toggle}>
+      <span>Temă întunecată</span>
+      <span className="switch" aria-hidden="true" />
     </button>
   );
 }

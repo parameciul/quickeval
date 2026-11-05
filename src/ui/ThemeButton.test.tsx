@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { THEME_KEY } from './theme.ts';
-import { ThemeButton } from './ThemeButton.tsx';
+import { ThemeButton, ThemeSwitch } from './ThemeButton.tsx';
 
 // A system set to dark: the page still opens light.
 function systemDark() {
@@ -44,5 +44,29 @@ describe('the theme button', () => {
     localStorage.setItem(THEME_KEY, 'dark');
     render(<ThemeButton />);
     expect(screen.getByRole('button', { name: 'Temă luminoasă' })).toBeInTheDocument();
+  });
+
+  it('follows the theme the page shows', () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    render(<ThemeButton />);
+    expect(screen.getByRole('button', { name: 'Temă luminoasă' })).toBeInTheDocument();
+  });
+});
+
+describe('the theme switch', () => {
+  it('switches the theme, and the button shows the change', async () => {
+    render(
+      <>
+        <ThemeButton />
+        <ThemeSwitch />
+      </>,
+    );
+    const toggle = screen.getByRole('switch', { name: 'Temă întunecată' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    await userEvent.click(screen.getByRole('button', { name: 'Temă luminoasă' }));
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
   });
 });

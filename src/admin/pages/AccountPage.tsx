@@ -5,6 +5,7 @@ import { DEMO_PAPER_LIMIT, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../.
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { useLogout } from '../shell/useLogout.ts';
 
 // What kind of account this is, in one sentence.
 export function accountKindText(teacher: Teacher): string {
@@ -18,11 +19,7 @@ export function accountKindText(teacher: Teacher): string {
 export function AccountPage() {
   const api = useApi();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
-  const logout = useMutation({
-    mutationFn: () => api.logout(),
-    // A new page load shows the login form.
-    onSuccess: () => window.location.assign('/admin/'),
-  });
+  const logout = useLogout();
 
   return (
     <section>

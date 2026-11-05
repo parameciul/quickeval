@@ -1,21 +1,23 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, matchPath, Outlet, useLocation } from 'react-router';
 import { demoPapersLeft, DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
 import type { Teacher } from '../../shared/api.ts';
-import { formatSchoolYear, schoolYearOf } from '../../shared/schoolYear.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
 import { useApi } from './ApiContext.tsx';
 import { ErrorMessage, isLoginRequired } from './ErrorMessage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
-import { schoolYearOptions, useSchoolYear } from './SchoolYearContext.tsx';
+import { useSchoolYear } from './SchoolYearContext.tsx';
 import { ClassesPanel } from './shell/ClassesPanel.tsx';
+import { IconClose, IconMenu } from './shell/icons.tsx';
+import { PhoneMenu } from './shell/PhoneMenu.tsx';
 import { Rail, type PanelName } from './shell/Rail.tsx';
 import { TodoPanel } from './shell/TodoPanel.tsx';
 import { todoList } from './shell/todo.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
+import { YearSelect } from './shell/YearSelect.tsx';
 
 // The line a demo account sees on every page.
 export function demoText(teacher: Teacher): string {
@@ -34,13 +36,14 @@ function classOfPath(pathname: string): number | null {
 }
 
 // The shell of the teacher app (redesign spec §4): the top bar, the 80px bar
-// on the left, the page, and one side panel at a time.
+// on the left, the page, and one side panel at a time. On a phone the bar
+// moves to the bottom of the screen and ☰ opens the rest (brand.css).
 export function Layout() {
   const api = useApi();
   const location = useLocation();
   const onTests = location.pathname === '/' || (location.pathname.startsWith('/teste') && location.pathname !== '/teste/nou');
   const onClasses = location.pathname.startsWith('/clase');
-  const { year, setYear } = useSchoolYear();
+  const { year } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   // The tests of the year: "De făcut" and the panel of the classes read them.
   // They are read again every minute while the page is open (the robot ends a
@@ -57,6 +60,7 @@ export function Layout() {
   const [panel, setPanel] = useState<{ name: PanelName; on: string } | null>(null);
   const open = panel?.on === location.key ? panel.name : null;
   const toggle = (name: PanelName) => setPanel(open === name ? null : { name, on: location.key });
+  const close = useCallback(() => setPanel(null), []);
 
   // A start, a regrade or a retry changes the papers the demo line shows, and
   // a change can end or add a thing in "De făcut": every change a logged-in
@@ -99,19 +103,22 @@ export function Layout() {
           </span>
         </Link>
         <div className="topbar-tools">
-          <label className="sr-only" htmlFor="school-year">
-            Anul școlar
-          </label>
-          <select id="school-year" value={year} onChange={(event) => setYear(Number(event.target.value))}>
-            {schoolYearOptions(schoolYearOf(new Date())).map((option) => (
-              <option key={option} value={option}>
-                {formatSchoolYear(option)}
-              </option>
-            ))}
-          </select>
+          <YearSelect id="school-year" labelClassName="sr-only" />
           <ThemeButton />
           {me.data && <UserMenu teacher={me.data} />}
         </div>
+        {me.data && (
+          <button
+            type="button"
+            className="menu-button"
+            aria-label="Meniu"
+            aria-expanded={open === 'menu'}
+            aria-controls={open === 'menu' ? 'phone-menu' : undefined}
+            onClick={() => toggle('menu')}
+          >
+            {open === 'menu' ? <IconClose /> : <IconMenu />}
+          </button>
+        )}
       </header>
       {me.data && (
         <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length} panel={open} onToggle={toggle} />
@@ -136,6 +143,7 @@ export function Layout() {
         <ClassesPanel year={year} todo={todo} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
       )}
       {me.data && open === 'todo' && <TodoPanel items={todo} others={others} onClose={() => setPanel(null)} />}
+      {me.data && open === 'menu' && <PhoneMenu teacher={me.data} onClose={close} />}
     </div>
   );
 }

@@ -56,6 +56,14 @@ export function IconSettings() {
   );
 }
 
+export function IconMenu() {
+  return (
+    <svg {...LINE} strokeWidth={1.6}>
+      <path d="M3 5.5h14M3 10h14M3 14.5h14" />
+    </svg>
+  );
+}
+
 export function IconClose() {
   return (
     <svg {...LINE} strokeWidth={1.6}>

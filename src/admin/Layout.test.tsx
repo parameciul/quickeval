@@ -94,6 +94,66 @@ describe('the shell', () => {
   });
 });
 
+describe('the phone menu', () => {
+  it('opens from ☰ with Setări, the school year, the theme and the account', async () => {
+    renderAdmin('/', withClasses());
+    await menu();
+    const burger = screen.getByRole('button', { name: 'Meniu' });
+    await userEvent.click(burger);
+    expect(burger).toHaveAttribute('aria-expanded', 'true');
+    const more = screen.getByRole('region', { name: 'Mai mult' });
+    expect(within(more).getByRole('link', { name: 'Setări' })).toHaveAttribute('href', '/setari');
+    expect(within(more).getByLabelText('Anul școlar')).toHaveValue('2026');
+    expect(within(more).getByText('profesor@example.com')).toBeInTheDocument();
+    expect(within(more).getByRole('link', { name: 'Contul meu' })).toHaveAttribute('href', '/cont');
+    expect(within(more).getByRole('button', { name: 'Ieși din cont' })).toBeInTheDocument();
+
+    await userEvent.click(within(more).getByRole('switch', { name: 'Temă întunecată' }));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(within(screen.getByRole('banner')).getByRole('button', { name: 'Temă luminoasă' })).toBeInTheDocument();
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.clear();
+  });
+
+  it('changes the school year for every page', async () => {
+    renderAdmin('/', withClasses());
+    await menu();
+    await userEvent.click(screen.getByRole('button', { name: 'Meniu' }));
+    await userEvent.selectOptions(within(screen.getByRole('region', { name: 'Mai mult' })).getByLabelText('Anul școlar'), '2027');
+    expect(await screen.findByRole('heading', { name: 'Teste 2027-2028' })).toBeInTheDocument();
+  });
+
+  it('shows no Setări to a teacher', async () => {
+    renderAdmin('/', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher' }) }));
+    await menu();
+    await userEvent.click(screen.getByRole('button', { name: 'Meniu' }));
+    expect(within(screen.getByRole('region', { name: 'Mai mult' })).queryByRole('link', { name: 'Setări' })).not.toBeInTheDocument();
+  });
+
+  it('closes on ☰, on Esc, on a tap outside it, on a page, and when a panel opens', async () => {
+    renderAdmin('/', withClasses(), <LocationProbe />);
+    const bar = await menu();
+    const burger = screen.getByRole('button', { name: 'Meniu' });
+    const isOpen = () => screen.queryByRole('region', { name: 'Mai mult' }) !== null;
+    await userEvent.click(burger);
+    await userEvent.click(burger);
+    expect(isOpen()).toBe(false);
+    await userEvent.click(burger);
+    await userEvent.keyboard('{Escape}');
+    expect(isOpen()).toBe(false);
+    await userEvent.click(burger);
+    await userEvent.click(screen.getByRole('main'));
+    expect(isOpen()).toBe(false);
+    await userEvent.click(burger);
+    await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
+    expect(isOpen()).toBe(false);
+    await userEvent.click(burger);
+    await userEvent.click(within(screen.getByRole('region', { name: 'Mai mult' })).getByRole('link', { name: 'Contul meu' }));
+    await expectLocation('/cont');
+    expect(isOpen()).toBe(false);
+  });
+});
+
 describe('De făcut', () => {
   it('shows in the bar how many things wait', async () => {
     renderAdmin('/', withTodo());

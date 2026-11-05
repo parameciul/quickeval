@@ -1,26 +1,20 @@
-import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import type { Teacher } from '../../../shared/api.ts';
-import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { initials } from './initials.ts';
+import { useLogout } from './useLogout.ts';
 
 // The teacher's initials in the top bar open a small menu: who is logged in,
 // "Contul meu" and "Ieși din cont". It closes on Esc, on a click outside it,
 // and when a page opens.
 export function UserMenu({ teacher }: { teacher: Teacher }) {
-  const api = useApi();
   const location = useLocation();
   // The page the menu was opened on: another page closes it.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === location.key;
   const box = useRef<HTMLDivElement>(null);
-  const logout = useMutation({
-    mutationFn: () => api.logout(),
-    // A new page load shows the login form.
-    onSuccess: () => window.location.assign('/admin/'),
-  });
+  const logout = useLogout();
 
   useEffect(() => {
     if (!open) return;

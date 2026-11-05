@@ -537,6 +537,115 @@ h2 {
   color: var(--text);
 }
 
+/* ☰ and its menu show on a phone only (the media query below). */
+.menu-button {
+  display: none;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.menu-button svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0 0.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu-row label {
+  font-weight: 500;
+}
+
+.menu-link {
+  justify-content: flex-start;
+  font-weight: 600;
+}
+
+.menu-link:hover {
+  color: var(--text);
+}
+
+.menu-link svg {
+  width: 1.375rem;
+  height: 1.375rem;
+  color: var(--muted);
+}
+
+.menu-quiet {
+  border-bottom: 0;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* The switch of "Temă întunecată". */
+.switch {
+  position: relative;
+  flex: none;
+  width: 2.75rem;
+  height: 1.625rem;
+  border: 1px solid var(--control);
+  border-radius: 999px;
+  background: var(--active);
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 120ms;
+}
+
+[aria-checked="true"] > .switch {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+[aria-checked="true"] > .switch::after {
+  background: var(--on-ink);
+  transform: translateX(1.125rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch::after {
+    transition: none;
+  }
+}
+
+.phone-menu .user-who {
+  margin: 0;
+  padding: 1rem 0.25rem 0.25rem;
+  border-bottom: 0;
+}
+
 /* A side panel: beside the bar, over the page, 384px wide. */
 .panel {
   position: fixed;
@@ -646,6 +755,115 @@ h2 {
 .class-item-test {
   font-size: 0.8125rem;
   color: var(--muted);
+}
+
+/* The phone (redesign spec §4, round 6 design M2): the top bar holds the
+   lockup and ☰; the bar moves to the bottom of the screen with Test nou,
+   Teste, Clase and De făcut; the panels cover the screen between the two. */
+@media (max-width: 56.25rem) {
+  .shell {
+    --top: 56px;
+    --bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topbar {
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+
+  .topbar .brand-mark {
+    padding-inline: max(1rem, env(safe-area-inset-left, 0px)) 0.625rem;
+  }
+
+  .shell:not(.shell-bare) .topbar-tools {
+    display: none;
+  }
+
+  .menu-button {
+    display: grid;
+  }
+
+  .rail {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    height: var(--bottom);
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    border-top: 1px solid var(--rule);
+    border-right: 0;
+  }
+
+  .rail-foot {
+    display: none;
+  }
+
+  .rail-new,
+  .rail-item {
+    min-height: 0;
+    padding: 0.375rem 0;
+    border-radius: 0;
+  }
+
+  .rail-item:hover {
+    background: none;
+  }
+
+  .rail-item[aria-current="page"],
+  .rail-item[aria-expanded="true"] {
+    background: none;
+    color: var(--ink);
+  }
+
+  .rail-square {
+    width: 1.875rem;
+    height: 1.875rem;
+    border-radius: var(--radius);
+  }
+
+  .rail-badge {
+    top: 0.375rem;
+    right: calc(50% - 1.375rem);
+  }
+
+  .shell > .page {
+    grid-column: 1;
+    padding: 1.25rem max(1rem, env(safe-area-inset-right, 0px)) calc(var(--bottom) + 1.5rem) max(1rem, env(safe-area-inset-left, 0px));
+  }
+
+  .panel {
+    bottom: var(--bottom);
+    left: 0;
+    width: 100%;
+    max-width: none;
+    border-right: 0;
+    box-shadow: none;
+  }
+
+  .phone-menu {
+    position: fixed;
+    top: var(--top);
+    right: 0;
+    left: 0;
+    z-index: 35;
+    max-height: calc(100vh - var(--top) - var(--bottom));
+    overflow-y: auto;
+    padding: 0.25rem max(1rem, env(safe-area-inset-right, 0px)) 0.75rem max(1rem, env(safe-area-inset-left, 0px));
+    border-bottom: 1px solid var(--rule);
+    background: var(--sheet);
+    box-shadow: var(--float);
+  }
+}
+
+@media (min-width: 56.3125rem) {
+  .phone-menu {
+    display: none;
+  }
 }
 
 .class-item-test.is-waiting {
