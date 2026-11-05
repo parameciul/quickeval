@@ -29,7 +29,7 @@ export function UploadLink({ token, label = 'Linkul pentru elevi', inputId = 'up
       <label htmlFor={inputId}>{label}</label>
       <div className="form-row">
         <input id={inputId} type="text" value={url} readOnly onFocus={(event) => event.target.select()} />
-        <button type="button" className="button button-small" onClick={copy}>
+        <button type="button" className="button-quiet button-small" onClick={copy}>
           Copiază linkul
         </button>
         {copied === 'yes' && <span role="status">Copiat!</span>}

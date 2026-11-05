@@ -35,7 +35,7 @@ describe('GeneratedBarem', () => {
   it('asks before replacing a barem by generation', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     const api = apiWith({ files: { test: TEST_FILE, barem: { name: 'Barem.pdf', type: PDF_TYPE } } });
-    renderAdmin('/teste/6E2-26T1', api);
+    renderAdmin('/teste/6E2-26T1#pregatire', api);
     const button = await screen.findByRole('button', { name: 'Generează baremul' });
     await userEvent.click(button);
     expect(confirm).toHaveBeenLastCalledWith(REPLACE);
@@ -47,12 +47,12 @@ describe('GeneratedBarem', () => {
   it('says that a scheduled evaluation is cancelled, with or without a barem', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const at = '2099-01-01T10:00:00.000Z';
-    const { unmount } = renderAdmin('/teste/6E2-26T1', apiWith({ evaluationAt: at }));
+    const { unmount } = renderAdmin('/teste/6E2-26T1#pregatire', apiWith({ evaluationAt: at }));
     await userEvent.click(await screen.findByRole('button', { name: 'Generează baremul' }));
     expect(confirm).toHaveBeenLastCalledWith('Generezi baremul? Programarea evaluării se anulează.');
     unmount();
     const api = apiWith({ evaluationAt: at, files: { test: TEST_FILE, barem: { name: 'Barem.pdf', type: PDF_TYPE } } });
-    renderAdmin('/teste/6E2-26T1', api);
+    renderAdmin('/teste/6E2-26T1#pregatire', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Generează baremul' }));
     expect(confirm).toHaveBeenLastCalledWith(`${REPLACE} Programarea evaluării se anulează.`);
     expect(api.generateBarem).not.toHaveBeenCalled();
@@ -65,11 +65,11 @@ describe('GeneratedBarem', () => {
   });
 
   it('is hidden in evaluation and done', async () => {
-    const { unmount } = renderAdmin('/teste/6E2-26T1', apiWith({ status: 'evaluating' }));
+    const { unmount } = renderAdmin('/teste/6E2-26T1#pregatire', apiWith({ status: 'evaluating' }));
     await screen.findByText('Baremul:');
     expect(screen.queryByRole('button', { name: 'Generează baremul' })).not.toBeInTheDocument();
     unmount();
-    renderAdmin('/teste/6E2-26T1', apiWith({ status: 'done' }));
+    renderAdmin('/teste/6E2-26T1#pregatire', apiWith({ status: 'done' }));
     await screen.findByText('Baremul:');
     expect(screen.queryByRole('button', { name: 'Generează baremul' })).not.toBeInTheDocument();
   });
@@ -141,21 +141,21 @@ describe('GeneratedBarem', () => {
   });
 
   it('disables the evaluation buttons while the barem is unchecked', async () => {
-    renderAdmin('/teste/6E2-26T1', apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'none', unchecked: true } }));
+    renderAdmin('/teste/6E2-26T1#corectare', apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'none', unchecked: true } }));
     expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Programează' })).toBeDisabled();
     expect(screen.getByText(/Verifică baremul generat înainte de evaluare\./)).toBeInTheDocument();
   });
 
   it('disables the evaluation buttons while the barem is generating', async () => {
-    renderAdmin('/teste/6E2-26T1', apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'requested', unchecked: false } }));
+    renderAdmin('/teste/6E2-26T1#corectare', apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'requested', unchecked: false } }));
     expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Programează' })).toBeDisabled();
     expect(screen.getByText(/Baremul se generează încă\./)).toBeInTheDocument();
   });
 
   it('does not ask to upload the barem during a first generation', async () => {
-    renderAdmin('/teste/6E2-26T1', apiWith({ barem: { request: 'requested', unchecked: false } }));
+    renderAdmin('/teste/6E2-26T1#corectare', apiWith({ barem: { request: 'requested', unchecked: false } }));
     expect(await screen.findByText(/Baremul se generează încă\./)).toBeInTheDocument();
     expect(screen.queryByText(/Încarcă baremul\./)).not.toBeInTheDocument();
   });

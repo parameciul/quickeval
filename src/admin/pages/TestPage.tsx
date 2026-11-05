@@ -1,25 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import type { BaremRequest, RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router';
+import type { BaremRequest, RobotStart, TestDetail } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
-import { MAX_TITLE_LENGTH, normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
+import { normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
 import { classToneClass, classToneStyle } from '../../ui/classTone.ts';
-import { formatDateTime, robotStartMessage } from '../../ui/format.ts';
-import { GradingProgress } from '../../ui/GradingProgress.tsx';
+import { formatDateTime, robotStartMessage, studentCountLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { StatusChip } from '../StatusChip.tsx';
-import { AnalysisState } from '../testPage/AnalysisState.tsx';
-import { EvaluationControls } from '../testPage/EvaluationControls.tsx';
-import { ExerciseListBanner } from '../testPage/ExerciseListBanner.tsx';
-import { RegradeAllButton } from '../testPage/RegradeAllButton.tsx';
-import { hasResultsToManage, ResultsAccess } from '../testPage/ResultsAccess.tsx';
-import { RobotLine } from '../testPage/RobotLine.tsx';
-import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from '../testPage/StartRobotButton.tsx';
-import { TestFiles } from '../testPage/TestFiles.tsx';
-import { MultiUploadLink, UploadLink } from '../testPage/UploadLink.tsx';
-import { UploadsTable } from '../testPage/UploadsTable.tsx';
+import { stageFromHash, stagesOf } from '../stages.ts';
+import { StageList } from '../testPage/StageList.tsx';
+import { StagePanel } from '../testPage/StagePanel.tsx';
+import { waitsForBarem, waitsForPrint } from '../testPage/StartRobotButton.tsx';
+import { TestSheet } from '../testPage/TestSheet.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
 // While students upload (and later while the robot grades), the page asks for
@@ -37,17 +30,6 @@ export function TestPage() {
 
 function TestDetails({ code }: { code: string }) {
   const api = useApi();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const notice = (useLocation().state as { notice?: string } | null)?.notice;
-  // When the robot starts, after the teacher started or restarted grading.
-  const [robotNotice, setRobotNotice] = useState<string | null>(null);
-  const onRobot = (robot: RobotStart | null) => setRobotNotice(robot ? robotStartMessage(robot) : null);
-  // The rename form opens below the title; its button stays in the title row.
-  const [renameOpen, setRenameOpen] = useState(false);
-  // The uploads to grade at the next Start evaluation (submission ids).
-  // Empty at first, so the start button stays off until the teacher selects.
-  const [selected, setSelected] = useState<number[]>([]);
   const detail = useQuery({
     queryKey: ['test', code],
     queryFn: () => api.getTest(code),
@@ -56,377 +38,83 @@ function TestDetails({ code }: { code: string }) {
       return refreshInterval(shown?.status, shown?.barem.request, shown ? waitsForPrint(shown) : false);
     },
   });
+
+  if (detail.isPending) return <p>Se încarcă…</p>;
+  // A failed first load has nothing to show. A failed refresh keeps the page,
+  // and an open QR view with it, and says why above it.
+  if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
+  return <TestView code={code} detail={detail.data} refreshError={detail.isRefetchError ? detail.error : null} />;
+}
+
+// The test page of the redesign (spec §6): the six stages and Fișa testului,
+// and the panel of the chosen stage.
+function TestView({ code, detail, refreshError }: { code: string; detail: TestDetail; refreshError: Error | null }) {
+  const queryClient = useQueryClient();
+  const location = useLocation();
+  const notice = (location.state as { notice?: string } | null)?.notice;
+  // When the robot starts, after the teacher started or restarted grading.
+  const [robotNotice, setRobotNotice] = useState<string | null>(null);
+  const onRobot = (robot: RobotStart | null) => setRobotNotice(robot ? robotStartMessage(robot) : null);
+  // The uploads to grade at the next Start evaluation (submission ids).
+  // Empty at first, so the start button stays off until the teacher selects.
+  const [selected, setSelected] = useState<number[]>([]);
+  const { test, uploads, robot, showModel } = detail;
+  const { stages, current } = stagesOf(test);
+  // The page opens on the stage the test is at when it first loads. After
+  // that only the teacher changes the panel: a refresh or a button that moves
+  // the test on keeps it.
+  const [opened] = useState(current.name);
+  const chosen = stageFromHash(location.hash) ?? opened;
+
   // The list of the year is read on every page (the shell): read it again,
   // but do not wait for it.
   const refresh = async () => {
     void queryClient.invalidateQueries({ queryKey: ['tests'] });
     await queryClient.invalidateQueries({ queryKey: ['test', code] });
   };
-  const remove = useMutation({
-    mutationFn: () => api.deleteTest(code),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['tests'] });
-      navigate('/');
-    },
-  });
 
-  const archive = useMutation({
-    mutationFn: (archived: boolean) => api.setTestArchived(code, archived),
-    onSuccess: refresh,
-  });
-
-  if (detail.isPending) return <p>Se încarcă…</p>;
-  // A failed first load has nothing to show. A failed refresh keeps the page,
-  // and an open QR view with it, and says why above it.
-  if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
-
-  const { test, uploads, robot, showModel } = detail.data;
   // A failed robot start that the API kept: a scheduled start happens in any
   // request, so only the API knows of it. A button's answer says the same.
   // A draft or open test waits for the robot only for its print PDF or its barem.
-  const printWaits = waitsForPrint(test);
-  const baremWaits = waitsForBarem(test);
-  const robotText = (test.status === 'evaluating' || printWaits || baremWaits) && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
-  const robotLateText = printWaits ? 'Testul cu cod QR poate întârzia.' : baremWaits ? 'Baremul poate întârzia.' : undefined;
+  const robotWork = test.status === 'evaluating' || waitsForPrint(test) || waitsForBarem(test);
+  const robotText = robotWork && robot.startFailed ? robotStartMessage('next_check') : robotNotice;
+
   return (
-    <section>
+    <section className="test-page">
       <p className="back-link">
         <Link to="/">← Toate testele</Link>
       </p>
-      {detail.isRefetchError && <ErrorMessage error={detail.error} />}
+      <div className="test-head">
+        <h1>{test.title}</h1>
+        <p className="test-sub">
+          <Link className={`class-badge ${classToneClass()}`} style={classToneStyle(test.classId)} to={`/clase/${test.classId}`}>
+            {displayClassName(test.className)}
+          </Link>{' '}
+          · {studentCountLabel(test.studentCount)} · {test.startedAt ? `început ${formatDateTime(test.startedAt)}` : 'ciornă'}
+        </p>
+      </div>
+      {refreshError && <ErrorMessage error={refreshError} />}
       {notice && (
         <p className="alert" role="alert">
           {notice}
         </p>
       )}
-      <div className="page-head">
-        <h1>{test.code}</h1>
-        <span className="head-actions">
-          <StatusChip status={test.status} />
-          {test.archived && <span className="tag">Arhivat</span>}
-          {test.gradedCount > 0 && (
-            <Link className="button button-small" to={`/teste/${test.code}/raport`}>
-              Raportul clasei
-            </Link>
-          )}
-          {!renameOpen && (
-            <button type="button" className="button-quiet button-small" onClick={() => setRenameOpen(true)}>
-              Redenumește testul
-            </button>
-          )}
-        </span>
-      </div>
-      <p className="lead-line">
-        {test.title} ·{' '}
-        <Link className={`class-badge ${classToneClass()}`} style={classToneStyle(test.classId)} to={`/clase/${test.classId}`}>
-          {displayClassName(test.className)}
-        </Link>
-        {test.startedAt && ` · început ${formatDateTime(test.startedAt)}`}
-      </p>
-      {renameOpen && <RenameTestForm code={code} currentTitle={test.title} onDone={refresh} onClose={() => setRenameOpen(false)} />}
-
-      <TestFiles test={test} onChanged={refresh} onRobot={onRobot} />
-
-      <TestActions test={test} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
-
-      {test.status !== 'draft' && (
-        <>
-          <h2>Evaluarea</h2>
-          <ExerciseListBanner test={test} onChanged={refresh} onRobot={onRobot} />
-          {test.status === 'open' ? (
-            <EvaluationControls
-              test={test}
-              uploads={uploads}
-              selected={selected}
-              onChanged={refresh}
-              onStarted={() => setSelected([])}
-              onRobot={onRobot}
-            />
-          ) : (
-            <EvaluationState test={test} />
-          )}
-          {test.status !== 'open' && <PartialEvaluationNotice status={test.status} uploads={uploads} />}
-          {robotText && <p role="status">{robotText}</p>}
-          {(test.status === 'evaluating' || test.evaluationAt || printWaits || baremWaits) && (
-            <RobotLine lastCheckAt={robot.lastCheckAt} lateText={robotLateText}>
-              {waitsForRobot(test, uploads) && <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />}
-            </RobotLine>
-          )}
-          <RegradeAllButton code={code} testStatus={test.status} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
-          <AnalysisState test={test} uploads={uploads} />
-        </>
-      )}
-
-      {test.status === 'draft' && (printWaits || baremWaits) && (
-        <>
-          {robotText && <p role="status">{robotText}</p>}
-          <RobotLine lastCheckAt={robot.lastCheckAt} lateText={robotLateText}>
-            <StartRobotButton code={code} onChanged={refresh} onRobot={onRobot} />
-          </RobotLine>
-        </>
-      )}
-
-      {hasResultsToManage(test) && <ResultsAccess test={test} uploads={uploads} onChanged={refresh} />}
-
-      <h2>
-        Încărcări · trimise {test.submittedCount} din {test.studentCount}
-        {test.gradedCount > 0 && ` · corectate ${test.gradedCount}`}
-        {test.flagCount > 0 && ` · de verificat ${test.flagCount}`}
-      </h2>
-      <GradingProgress studentCount={test.studentCount} submittedCount={test.submittedCount} gradedCount={test.gradedCount} />
-      <UploadsTable
-        code={code}
-        uploads={uploads}
-        showModel={showModel}
-        selectable={test.status === 'open'}
-        selected={selected}
-        onSelect={setSelected}
-        onChanged={refresh}
-        onRobot={onRobot}
-        resultsOpen={test.resultsOpen}
-      />
-
-      <div className="final-actions">
-        {(test.archived || test.status === 'done') && (
-          <div className="final-row">
-            {test.archived ? (
-              <button type="button" className="button-quiet button-small" disabled={archive.isPending} onClick={() => archive.mutate(false)}>
-                Scoate din arhivă
-              </button>
-            ) : (
-              <>
-                <button type="button" className="button-quiet button-small" disabled={archive.isPending} onClick={() => archive.mutate(true)}>
-                  Arhivează testul
-                </button>
-                <p className="hint">Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.</p>
-              </>
-            )}
-            {archive.error && <ErrorMessage error={archive.error} />}
-          </div>
-        )}
-        <div className="final-row">
-          <button
-            type="button"
-            className="button-quiet button-small button-danger"
-            disabled={remove.isPending}
-            onClick={() => {
-              // A printed test keeps its QR code: after a delete, the code leads nowhere.
-              const printed = test.print.status === 'ready' ? ' Codurile QR de pe testele tipărite nu vor mai funcționa.' : '';
-              if (window.confirm(`Ștergi testul ${code}? Se șterg și toate lucrările încărcate.${printed}`)) remove.mutate();
-            }}
-          >
-            Șterge testul
-          </button>
-          <p className="hint">Se șterg și toate lucrările încărcate de elevi.</p>
-          {remove.error && <ErrorMessage error={remove.error} />}
-        </div>
+      {robotText && <p role="status">{robotText}</p>}
+      <div className="test-grid">
+        <StageList stages={stages} chosen={chosen} />
+        <StagePanel
+          stage={chosen}
+          test={test}
+          uploads={uploads}
+          robot={robot}
+          showModel={showModel}
+          selected={selected}
+          onSelect={setSelected}
+          onChanged={refresh}
+          onRobot={onRobot}
+        />
+        <TestSheet test={test} onChanged={refresh} />
       </div>
     </section>
-  );
-}
-
-// Whether the upload links of a test show in this browser. Hidden unless the
-// teacher showed them (the QR code on the printed test is the usual way in);
-// the choice survives a reload.
-function linksStorageKey(code: string): string {
-  return `qe.uploadLinksVisible.${code}`;
-}
-
-function readLinksVisible(code: string): boolean {
-  try {
-    return localStorage.getItem(linksStorageKey(code)) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeLinksVisible(code: string, visible: boolean): void {
-  try {
-    localStorage.setItem(linksStorageKey(code), visible ? '1' : '0');
-  } catch {
-    // A browser without storage keeps the links as they are.
-  }
-}
-
-// What the teacher can do next, by the state of the test. The test is printed
-// before the day of the test (its QR code is ready from the start) and started
-// on that day: starting it opens the uploads and gives the test its date. A
-// test started by mistake can be stopped while no student has uploaded a file.
-function TestActions({
-  test,
-  uploads,
-  onChanged,
-  onRobot,
-}: {
-  test: TestInfo;
-  uploads: UploadRow[];
-  onChanged: () => Promise<void>;
-  onRobot: (robot: RobotStart | null) => void;
-}) {
-  const api = useApi();
-  const start = useMutation({
-    mutationFn: () => api.startTest(test.code),
-    onSuccess: async (started) => {
-      onRobot(started.robot);
-      await onChanged();
-    },
-  });
-  const stop = useMutation({
-    mutationFn: () => api.stopTest(test.code),
-    onSuccess: async () => {
-      onRobot(null);
-      await onChanged();
-    },
-  });
-  const reopen = useMutation({
-    mutationFn: () => api.reopenTest(test.code),
-    onSuccess: async (reopened) => {
-      onRobot(reopened.robot);
-      await onChanged();
-    },
-  });
-  // The upload links start hidden: students come in by the QR code of the
-  // printed test. The teacher shows them for a student who has no printout.
-  // Kept per test in this browser, so a reload keeps the page as left.
-  const [linksVisible, setLinksVisible] = useState(() => readLinksVisible(test.code));
-  useEffect(() => {
-    writeLinksVisible(test.code, linksVisible);
-  }, [test.code, linksVisible]);
-
-  const heading = <h2>Încărcarea lucrărilor</h2>;
-
-  if (test.status === 'draft') {
-    return (
-      <>
-        {heading}
-        <p className="hint">
-          Elevii pot încărca lucrările după ce începi testul. Începe-l în ziua testului, când le dai foile: data testului este ziua
-          în care îl începi.
-        </p>
-        <button type="button" className="button" disabled={start.isPending} onClick={() => start.mutate()}>
-          Începe testul
-        </button>
-        {start.error && <ErrorMessage error={start.error} />}
-      </>
-    );
-  }
-  // Stopping is refused once a student has uploaded a file, or once the test
-  // was evaluated (a reopened test): the API checks it too.
-  const canStop = test.evaluationStartedAt === null && uploads.every((row) => row.fileCount === 0);
-  if (test.status === 'open' && test.uploadToken)
-    return (
-      <>
-        <div className="section-head">
-          {heading}
-          <button
-            type="button"
-            className="button-quiet button-small"
-            aria-expanded={linksVisible}
-            onClick={() => setLinksVisible((visible) => !visible)}
-          >
-            {linksVisible ? 'Ascunde linkurile' : 'Arată linkurile'}
-          </button>
-        </div>
-        {linksVisible && (
-          <>
-            <UploadLink token={test.uploadToken} />
-            <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />
-          </>
-        )}
-        {canStop && (
-          <>
-            <p className="hint">Ai început testul din greșeală? Îl poți opri cât timp niciun elev nu a încărcat lucrarea.</p>
-            <button
-              type="button"
-              className="button-quiet button-small"
-              disabled={stop.isPending}
-              onClick={() => {
-                const schedule = test.evaluationAt ? ' Evaluarea programată se anulează.' : '';
-                const question = `Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge.${schedule}`;
-                if (window.confirm(question)) stop.mutate();
-              }}
-            >
-              Oprește testul
-            </button>
-          </>
-        )}
-        {stop.error && <ErrorMessage error={stop.error} />}
-      </>
-    );
-  return (
-    <>
-      {heading}
-      <p className="hint">Încărcarea este închisă. Dacă o redeschizi, elevii care nu au trimis pot încărca acum.</p>
-      <button type="button" className="button-quiet" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
-        Redeschide încărcarea
-      </button>
-      {reopen.error && <ErrorMessage error={reopen.error} />}
-    </>
-  );
-}
-
-// A test whose uploads closed: grading goes on, or has ended.
-function EvaluationState({ test }: { test: TestInfo }) {
-  const since = test.evaluationStartedAt ? ` Evaluarea a pornit la ${formatDateTime(test.evaluationStartedAt)}.` : '';
-  return <p>{test.status === 'done' ? `Corectarea s-a terminat.${since}` : `Robotul corectează lucrările trimise.${since}`}</p>;
-}
-
-// An evaluation with uploads that stayed out of it: the teacher selected others,
-// or a demo account had no more papers left. During the evaluation, a sent
-// upload still waits for its turn.
-function PartialEvaluationNotice({ status, uploads }: { status: TestStatus; uploads: UploadRow[] }) {
-  const pending = uploads.filter(
-    (row) => row.fileCount > 0 && (row.status === 'uploading' || (status === 'done' && row.status === 'submitted')),
-  );
-  if (pending.length === 0) return null;
-  const what = pending.length === 1 ? '1 lucrare cu fișiere nu a fost corectată' : `${pending.length} lucrări cu fișiere nu au fost corectate`;
-  return (
-    <div className="warning" role="status">
-      <p>
-        <strong>Evaluare parțială.</strong> {what}. Redeschide încărcarea și pornește evaluarea pentru ele.
-      </p>
-    </div>
-  );
-}
-
-function RenameTestForm({
-  code,
-  currentTitle,
-  onDone,
-  onClose,
-}: {
-  code: string;
-  currentTitle: string;
-  onDone: () => Promise<void>;
-  onClose: () => void;
-}) {
-  const api = useApi();
-  const [title, setTitle] = useState(currentTitle);
-  const rename = useMutation({
-    mutationFn: () => api.renameTest(code, title),
-    onSuccess: async () => {
-      onClose();
-      await onDone();
-    },
-  });
-
-  return (
-    <form
-      className="form-row"
-      onSubmit={(event: FormEvent) => {
-        event.preventDefault();
-        rename.mutate();
-      }}
-    >
-      <label htmlFor="rename-test">Titlu nou</label>
-      <input id="rename-test" type="text" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={MAX_TITLE_LENGTH} required />
-      <button className="button button-small" type="submit" disabled={rename.isPending}>
-        Salvează
-      </button>
-      <button type="button" className="button-quiet button-small" onClick={onClose}>
-        Renunță
-      </button>
-      {rename.error && <ErrorMessage error={rename.error} />}
-    </form>
   );
 }

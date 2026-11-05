@@ -8,8 +8,9 @@ import type { AdminApi } from '../admin/api.ts';
 import { AppRoutes } from '../admin/AppRoutes.tsx';
 import { SchoolYearProvider } from '../admin/SchoolYearContext.tsx';
 
-// Shows where the app is, for tests that check a navigation: the path, and
-// the notice that a page passed along in the navigation state.
+// Shows where the app is, for tests that check a navigation: the path with its
+// search and hash, and the notice that a page passed along in the navigation
+// state.
 export function LocationProbe() {
   const location = useLocation();
   const state = location.state as { notice?: string } | null;
@@ -17,6 +18,7 @@ export function LocationProbe() {
     <p data-testid="location">
       {location.pathname}
       {location.search}
+      {location.hash}
       {state?.notice ? ` | ${state.notice}` : ''}
     </p>
   );
