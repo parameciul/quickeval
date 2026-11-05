@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TestSummary } from '../../../shared/api.ts';
 import { fakeTest } from '../../test/fakeApi.ts';
-import { todoList, todoOf } from './todo.ts';
+import { inWork, todoList, todoOf } from './todo.ts';
 
 const summary = (overrides: Partial<TestSummary>): TestSummary => fakeTest({ title: 'Ecuații', ...overrides }).test;
 const generated = { request: 'none', unchecked: true } as const;
@@ -63,7 +63,8 @@ describe('todoOf', () => {
       text: '24 de lucrări verificate. Fiecare elev primește linkul lui după ce publici.',
       short: 'nepublicate',
     });
-    expect(todoOf(summary({ ...graded, publishedCount: 10 }))?.stage).toBe('Rezultate');
+    expect(todoOf(summary({ ...graded, publishedCount: 10 }))).toMatchObject({ stage: 'Rezultate', short: 'publicate pentru 10 elevi' });
+    expect(todoOf(summary({ ...graded, publishedCount: 1 }))?.short).toBe('publicate pentru 1 elev');
   });
 
   it('needs nothing once the results are open or every paper is published', () => {
@@ -89,5 +90,18 @@ describe('todoList', () => {
       summary({ code: 'E', ...graded, flagCount: 2 }),
     ]);
     expect(items.map((item) => `${item.stage} ${item.code}`)).toEqual(['Pregătire D', 'Verificare B', 'Verificare E', 'Rezultate A']);
+  });
+});
+
+describe('inWork', () => {
+  it('keeps a test in work until it is done and needs nothing, or archived', () => {
+    expect(inWork(summary({ status: 'draft' }))).toBe(true);
+    expect(inWork(summary({ status: 'open' }))).toBe(true);
+    expect(inWork(summary({ status: 'evaluating', gradedCount: 3 }))).toBe(true);
+    expect(inWork(summary({ ...graded }))).toBe(true);
+    expect(inWork(summary({ ...graded, flagCount: 2 }))).toBe(true);
+    expect(inWork(summary({ ...graded, resultsOpen: true }))).toBe(false);
+    expect(inWork(summary({ status: 'done', gradedCount: 0 }))).toBe(false);
+    expect(inWork(summary({ ...graded, flagCount: 2, archived: true }))).toBe(false);
   });
 });

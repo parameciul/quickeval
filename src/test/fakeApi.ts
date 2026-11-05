@@ -34,6 +34,7 @@ import { normalizeClassName } from '../../shared/classes.ts';
 import { DOCX_TYPE, uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
 import type { CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
+import { averageGrade } from '../../shared/stats.ts';
 import { studentNameKey } from '../../shared/students.ts';
 import { buildTestCode } from '../../shared/tests.ts';
 import { ApiError, type AdminApi } from '../admin/api.ts';
@@ -95,14 +96,33 @@ const uploadChanged = () => new ApiError(409, 'upload_changed', 'Încărcarea s-
 const printWaits = (test: TestInfo) =>
   (test.status === 'draft' || test.status === 'open') && test.uploadToken !== null && test.files.test !== null && test.print.status === 'none';
 
-function summaryOf(test: TestInfo): TestSummary {
-  const { uploadToken: _token, multiUploadToken: _multi, files: _files, ...summary } = test;
+// Like the server: what the test has for the class, and the average of its
+// graded papers, follow its files and its uploads.
+function withDerived({ test, ...detail }: TestDetail): TestDetail {
+  const grades = detail.uploads.flatMap((row) => (row.status === 'graded' && row.grade !== null ? [row.grade] : []));
+  return {
+    ...detail,
+    test: {
+      ...test,
+      prepared: {
+        testFile: test.files.test !== null,
+        baremFile: test.files.barem !== null,
+        print: test.print.status,
+        uploadLink: test.uploadToken !== null,
+      },
+      averageGrade: averageGrade(grades),
+    },
+  };
+}
+
+function summaryOf(detail: TestDetail): TestSummary {
+  const { uploadToken: _token, multiUploadToken: _multi, files: _files, ...summary } = withDerived(detail).test;
   return summary;
 }
 
 // A test as the API returns it, for building fake data in tests.
 export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[] = []): TestDetail {
-  return {
+  return withDerived({
     test: {
       code: '6E2-26T1',
       title: 'Fracții',
@@ -131,11 +151,45 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       filesVersion: 0,
       analysis: { status: 'none', stale: false, attempts: 0 },
       print: { status: 'none', fromWord: false },
+      // Made again from the files and the uploads (withDerived).
+      prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
+      averageGrade: null,
       ...overrides,
     },
     uploads,
     showModel: false,
     robot: { lastCheckAt: null, startFailed: false },
+  });
+}
+
+// One test of the tests list, for building fake data in tests: a draft with
+// its test file, an active barem, the print PDF and its link. The parts of
+// `prepared` an override leaves out keep these values.
+type SummaryOverrides = Omit<Partial<TestSummary>, 'prepared'> & { prepared?: Partial<TestSummary['prepared']> };
+
+export function fakeSummary({ prepared, ...overrides }: SummaryOverrides = {}): TestSummary {
+  return {
+    code: '6E2-26T1',
+    title: 'Fracții',
+    status: 'draft',
+    classId: 1,
+    className: '6E2',
+    schoolYear: 2026,
+    createdAt: '2026-10-05T08:00:00.000Z',
+    startedAt: null,
+    evaluationAt: null,
+    evaluationStartedAt: null,
+    studentCount: 24,
+    submittedCount: 0,
+    gradedCount: 0,
+    flagCount: 0,
+    resultsOpen: false,
+    publishedCount: 0,
+    archived: false,
+    barem: { request: 'none', unchecked: false },
+    prepared: { testFile: true, baremFile: true, print: 'ready', uploadLink: true, ...prepared },
+    averageGrade: null,
+    ...overrides,
   };
 }
 
@@ -300,7 +354,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       return {
         class: { ...found, studentCount: countActive(classId) },
         students: [...(data.students[classId] ?? [])],
-        tests: tests.filter((t) => t.test.classId === classId).map((t) => summaryOf(t.test)),
+        tests: tests.filter((t) => t.test.classId === classId).map(summaryOf),
         // One entry for each upload of the class's tests, like the server.
         grades: tests
           .filter((t) => t.test.classId === classId)
@@ -389,7 +443,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       return structuredClone(found);
     }),
     listTests: vi.fn(async (schoolYear: number) =>
-      tests.filter((t) => t.test.schoolYear === schoolYear).map((t) => summaryOf(t.test)),
+      tests.filter((t) => t.test.schoolYear === schoolYear).map(summaryOf),
     ),
     createTest: vi.fn(async (input: { classId: number; title: string }) => {
       const cls = data.classes.find((c) => c.id === input.classId);
@@ -404,7 +458,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       tests.unshift(created);
       return created.test.code;
     }),
-    getTest: vi.fn(async (code: string) => structuredClone(findTest(code))),
+    getTest: vi.fn(async (code: string) => structuredClone(withDerived(findTest(code)))),
     renameTest: vi.fn(async (code: string, title: string) => {
       findTest(code).test.title = title;
       return { code, title };

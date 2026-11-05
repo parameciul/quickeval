@@ -1,6 +1,6 @@
 # MQGrader redesign: design
 
-Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phase 1 (landing page and light theme) is live; Phase 2 (look and shell) is being built; the other phases are not.
+Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phase 1 (landing page and light theme) and Phase 2 (look and shell) are live; Phase 3 (Teste page) is being built; the other phases are not.
 
 ## 0. Plain summary
 
@@ -29,6 +29,8 @@ The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (
 17. On a phone, a bar at the bottom of the screen holds the four items of the 80 px bar, and ☰ holds the rest (round 6, design M2).
 18. "De făcut" comes with the shell, in Phase 2, with all three of its cases; the tests list of the API says when a generated barem waits.
 19. No search box until search is designed (§11).
+20. The rows of the Teste page keep the results buttons of the old cards: "Publică rezultatele" publishes from the list, and "Oprește accesul" stays on a test whose results are open (Phase 3).
+21. A finished test shows "media testului" on the Teste page, the same number as its class report (Phase 3).
 
 ## 2. Look
 
@@ -121,9 +123,32 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
 
 ## 5. Teste page (`/admin/`, Phase 3)
 
-- "Bună dimineața, Laura." and a line with the date and "**3 lucruri te așteaptă ˅** în 3 teste." The bold part is a button: it opens and closes the list "Ce ai de făcut" right under it (closed when the page opens). Each row: the stage as a pill, the task, the test and class, one button.
-- The class filter as chips ("Toate clasele", one chip per class), kept in the address as today (`?clasa=`).
-- "În lucru" and "Terminate" (archived ones with `?arhivate=1`, as today): a table with the test (name, class, start), the stage (a bar of six segments: blue done, orange waits on the teacher, pale in progress, grey later; the stage name and its state), the papers (sent of students), and the next step (one button, or "Nimic de făcut acum").
+- "Bună dimineața, Laura." and a line with the date and "**3 lucruri te așteaptă ˅** în 3 teste." The bold part is a button: it opens and closes the list "Ce ai de făcut" right under it (closed when the page opens). Each row: the stage as a pill, the task, the test and class, one button to the test (the first one filled).
+  - The greeting follows Romania's time: "Bună dimineața" from 5:00, "Bună ziua" from 11:00, "Bună seara" from 18:00. The name is the first word of the teacher's name; without a name the greeting is "Bună ziua." alone.
+  - The date is today in Romania's time, the weekday first, with a capital letter: "Miercuri, 4 noiembrie".
+  - The count and the list are those of "De făcut" in the bar: every class of the year, whatever chip is chosen. One thing: "1 lucru te așteaptă în 1 test."; none: "Nimic nu te așteaptă acum.", with no button.
+- The class filter as chips ("Toate clasele", one chip per class of the year), kept in the address as today (`?clasa=`). After them, the box "Arată și testele arhivate" (`?arhivate=1`), as today.
+- "În lucru" and "Terminate": a table with the test (its name as a link; the class and the start, or "ciornă"), the stage, the papers (sent of students; "—" for a draft), and the next step.
+  - "În lucru" holds the tests in work, as the panel "Clasele tale" counts them: not archived, and not done, or done with a thing in "De făcut". "Terminate" holds the other done tests, and the archived ones with `?arhivate=1`, marked "Arhivat". A group with no test is left out.
+  - The stage: a bar of six segments, one per stage (blue done, orange waits on the teacher, pale in progress, grey later), then the current stage's name and its state. The bar is for the eye only; the words say the same.
+  - The stages of a test (`src/admin/stages.ts`, for the test page of Phase 4 too). A segment is orange exactly when "De făcut" has the test, at that stage.
+    - Pregătire: orange with the case of "De făcut". Done when the test file is there and the barem is active, and always once the test is in evaluation or done. Else in progress: "lipsește testul", "baremul se generează", "lipsește baremul".
+    - Tipărire: done when the print PDF exists, and once the test has started. In progress while the print PDF is made ("se pregătește"), after it failed ("nu s-a putut pregăti"), or for a draft made before tests got their link when made ("fără cod QR": no print PDF is made until the teacher presses "Pregătește testul cu cod QR" on the test page). Later without a test file.
+    - În clasă: later for a draft ("testul nu a început"), in progress while open ("elevii trimit lucrările"), done after.
+    - Corectare: later before the evaluation, in progress during it ("15 din 22 corectate"), done when the test is done.
+    - Verificare: orange while points wait ("3 puncte nesigure"), during the grading too. Done when a done test has none. In progress for an archived test that still has some. Later otherwise.
+    - Rezultate: orange with the case of "De făcut" ("nepublicate", or "publicate pentru 2 elevi" after some results were published one by one; the panel "Clasele tale" says the same). Done when the test is done and its results are open, or every graded paper is published: "publicate · media testului 7,72", the average of the class report. Later otherwise; a done test with no graded paper says "nicio lucrare corectată".
+    - The current stage is the first orange one, else the first in progress, else the first later one, else Rezultate.
+  - The next step, from the current stage:
+    - Pregătire: "Verifică baremul" or "Generează din nou baremul" when orange; "Încarcă testul" or "Încarcă baremul" in progress; nothing while the barem is generated.
+    - Tipărire: nothing while the print PDF is made; "Deschide" after it failed, or for a draft without its link.
+    - În clasă: "Începe testul" for a draft; "Pornește corectarea" while open, and nothing when a time is set for it.
+    - Corectare: nothing.
+    - Verificare: "Verifică 3 puncte".
+    - Rezultate: "Publică rezultatele" when orange, or "Publică pentru toți" after some results were published one by one; it publishes on the row (§1, decision 20). When done: "Raportul clasei", if a paper is graded.
+    - Nothing: "Nimic de făcut acum".
+    - Every other step is a link to the test page. A test whose results are open also has "Oprește accesul" on its row. The button of the first thing in "De făcut" is filled; the others are outlines.
+  - On a phone (below 768 px) each row becomes a block: the test, the stage, the papers and the next step, one under the other.
 - "De făcut" counts exactly three cases, from the tests of the chosen school year that are not archived (`src/admin/shell/todo.ts`, Phase 2):
   - Pregătire, "Verifică baremul generat": a draft or open test whose generated barem waits for "Am verificat baremul" (`barem.unchecked`, no request running). The tests list carries `barem` from Phase 2. The same case says "Generează din nou baremul" when the new generation of an unchecked barem failed (`request` is `failed`): that barem can be neither confirmed nor used until the teacher asks for it again.
   - Verificare, "Decide N puncte nesigure": a test with points to check (`flagCount` above 0).

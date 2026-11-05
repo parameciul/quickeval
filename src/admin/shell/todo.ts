@@ -61,10 +61,18 @@ export function todoOf(test: TestSummary): TodoItem | null {
       task: 'Publică rezultatele',
       text: `${countLabel(test.gradedCount, 'lucrare verificată', 'lucrări verificate')}. Fiecare elev primește linkul lui după ce publici.`,
       action: 'Deschide',
-      short: 'nepublicate',
+      // Published one by one for some students: say for how many.
+      short: test.publishedCount > 0 ? `publicate pentru ${countLabel(test.publishedCount, 'elev', 'elevi')}` : 'nepublicate',
     };
   }
   return null;
+}
+
+// A test still in work (redesign spec §4, §5): not archived, and not done,
+// or done with a thing in "De făcut". The panel "Clasele tale" and the Teste
+// page count it the same way.
+export function inWork(test: TestSummary): boolean {
+  return !test.archived && (test.status !== 'done' || todoOf(test) !== null);
 }
 
 const STAGE_ORDER: TodoStage[] = ['Pregătire', 'Verificare', 'Rezultate'];

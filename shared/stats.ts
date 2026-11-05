@@ -43,6 +43,14 @@ export interface ClassStats {
   flaggedCount: number;
 }
 
+// The average grade of a test, as the class report and the Teste page show
+// it: the grades added from the lowest, then 2 decimals. Null with no grade.
+export function averageGrade(grades: number[]): number | null {
+  if (grades.length === 0) return null;
+  const sorted = [...grades].sort((a, b) => a - b);
+  return round2(sorted.reduce((total, grade) => total + grade, 0) / sorted.length);
+}
+
 function median(sorted: number[]): number | null {
   if (sorted.length === 0) return null;
   const middle = Math.floor(sorted.length / 2);
@@ -51,7 +59,6 @@ function median(sorted: number[]): number | null {
 
 export function classStats(report: Pick<ClassReport, 'exercises' | 'rows' | 'missing'>): ClassStats {
   const grades = report.rows.map((row) => row.grade).sort((a, b) => a - b);
-  const sum = grades.reduce((total, grade) => total + grade, 0);
   const groups = GRADE_GROUPS.map((group, index) => {
     const until = GRADE_GROUPS[index + 1]?.from ?? Infinity;
     return { label: group.label, count: grades.filter((grade) => grade >= group.from && grade < until).length };
@@ -77,7 +84,7 @@ export function classStats(report: Pick<ClassReport, 'exercises' | 'rows' | 'mis
   return {
     gradedCount: activeGraded,
     activeCount: activeGraded + report.missing.length,
-    average: grades.length === 0 ? null : round2(sum / grades.length),
+    average: averageGrade(grades),
     median: median(grades),
     min: grades[0] ?? null,
     max: grades.at(-1) ?? null,

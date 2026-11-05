@@ -1,6 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { AnalysisInfo, BaremRequest, ExerciseListInfo, PrintStatus, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
 import { DOCX_TYPE, type TestFileKind } from '../../shared/files.ts';
+import { averageGrade } from '../../shared/stats.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
@@ -68,6 +69,7 @@ interface TestRow {
   submitted_count: number;
   graded_count: number;
   flag_count: number;
+  grades_json: string;
 }
 
 const SELECT_TEST = `
@@ -82,7 +84,9 @@ const SELECT_TEST = `
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
     (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.results_open = 1) AS published_count,
     (SELECT COALESCE(SUM(${flagCountSql('ev')}), 0)
-       FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = t.id) AS flag_count
+       FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = t.id) AS flag_count,
+    (SELECT json_group_array(ev.grade)
+       FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = t.id AND s.status = 'graded') AS grades_json
   FROM tests t JOIN classes c ON c.id = t.class_id`;
 
 function storedFile(key: string | null, name: string | null, type: string | null): StoredFile | null {
@@ -112,6 +116,14 @@ function toRecord(row: TestRow): TestRecord {
       publishedCount: row.published_count,
       archived: row.archived === 1,
       barem,
+      prepared: {
+        testFile: row.test_file_key !== null,
+        baremFile: row.barem_file_key !== null,
+        print: row.print_status,
+        uploadLink: row.upload_token !== null,
+      },
+      // The grades of the class report's rows, averaged the same way.
+      averageGrade: averageGrade(JSON.parse(row.grades_json) as number[]),
     },
     uploadToken: row.upload_token,
     multiUploadToken: row.multi_upload_token,

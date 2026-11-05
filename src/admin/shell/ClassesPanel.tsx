@@ -5,12 +5,7 @@ import { studentCountLabel, testStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { Panel } from './Panel.tsx';
-import type { TodoItem } from './todo.ts';
-
-// A test still in work: not finished yet, or finished with a thing to do.
-function inWork(test: TestSummary, waits: boolean): boolean {
-  return !test.archived && (test.status !== 'done' || waits);
-}
+import { inWork, type TodoItem } from './todo.ts';
 
 // "Clasele tale" (redesign spec §4): the classes of the school year that are
 // not archived, each with its students and its tests in work; a test that
@@ -55,7 +50,7 @@ export function ClassesPanel({
           ) : null}
           <nav className="class-list">
             {active.map((item) => {
-              const work = (tests.data ?? []).filter((test) => test.classId === item.id && inWork(test, todoOf(test) !== undefined));
+              const work = (tests.data ?? []).filter((test) => test.classId === item.id && inWork(test));
               return (
                 <Link
                   key={item.id}
