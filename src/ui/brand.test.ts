@@ -60,6 +60,18 @@ describe('brand.css', () => {
     expect(value(declarations('.todo-card'), 'overflow-wrap')).toBe('anywhere');
   });
 
+  it('wraps a long word in the title and the file names of the test page', () => {
+    expect(value(declarations('.test-head h1'), 'overflow-wrap')).toBe('anywhere');
+    expect(value(declarations('.file-title'), 'overflow-wrap')).toBe('anywhere');
+  });
+
+  it('keeps the fields of Fișa testului at 16px on a phone, so the phone does not zoom in', () => {
+    const start = css.indexOf('@media (max-width: 56.25rem)', css.indexOf('.test-sheet {'));
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(css.slice(start, css.indexOf('\n}\n', start))).toContain('.test-sheet input {');
+    expect(value(declarations('.test-sheet input'), 'font-size')).toBe('1rem');
+  });
+
   it('keeps the phone menu inside the screen a phone shows now', () => {
     expect(declarations('.phone-menu')).toContain('max-height: calc(100dvh - var(--top) - var(--bottom))');
   });

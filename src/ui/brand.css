@@ -1633,6 +1633,7 @@ table.tests .row-actions {
 
 .test-head h1 {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .test-sub {
@@ -1955,6 +1956,11 @@ table.tests .row-actions {
   .stage-body {
     padding-right: 1rem;
     padding-left: 1rem;
+  }
+
+  /* The sheet's text is small, but a phone zooms into a field under 16px. */
+  .test-sheet input {
+    font-size: 1rem;
   }
 }
 
@@ -3355,6 +3361,7 @@ table.grades-table tbody .tag {
 
 .file-title {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 /* The test with the QR code, in the panel Tipărire of the test page. */
