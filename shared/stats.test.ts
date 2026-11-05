@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReportRow } from './api.ts';
-import { classStats, GRADE_GROUPS } from './stats.ts';
+import { averageGrade, classStats, GRADE_GROUPS } from './stats.ts';
 
 const exercises = [
   { id: 'E1', label: 'Exercițiul 1', maxPoints: 4 },
@@ -22,6 +22,23 @@ function row(id: number, grade: number, points: [number, number], flagCount = 0)
     ],
   };
 }
+
+describe('averageGrade', () => {
+  it('gives the average of the class report, in any order of the grades', () => {
+    const grades = [7.5, 7.67, 9.13, 4.99];
+    const rows = grades.map((grade, index) => row(index + 1, grade, [0, 0]));
+    expect(averageGrade(grades)).toBe(classStats({ exercises, rows, missing: [] }).average);
+    expect(averageGrade([...grades].reverse())).toBe(averageGrade(grades));
+  });
+
+  it('rounds a half cent up', () => {
+    expect(averageGrade([7.5, 7.67])).toBe(7.59);
+  });
+
+  it('has none without grades', () => {
+    expect(averageGrade([])).toBeNull();
+  });
+});
 
 describe('classStats', () => {
   it('has no numbers for a class without results', () => {

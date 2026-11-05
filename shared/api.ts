@@ -446,6 +446,13 @@ export interface TestSummary {
   // unchecked: a generated barem waits for the teacher's check, and no
   // evaluation starts until then. The list needs it for "De făcut".
   barem: { request: BaremRequest; unchecked: boolean };
+  // What the test has for the class: its file, a barem file (`barem` says
+  // whether it is active), and the print PDF with the QR code. The Teste page
+  // draws the stages from it.
+  prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus };
+  // The average of the graded papers, as the class report gives it; null
+  // while no paper is graded.
+  averageGrade: number | null;
 }
 
 export interface TestFileInfo {

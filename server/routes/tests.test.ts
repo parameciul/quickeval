@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DOCX_TYPE } from '../../shared/files.ts';
+import { classStats } from '../../shared/stats.ts';
 import { addEvaluation, addSubmission, makeClass, makeTest, otherTeacherTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -125,6 +126,45 @@ describe('GET /api/admin/tests', () => {
       Cerut: { request: 'requested', unchecked: false },
       Fără: { request: 'none', unchecked: false },
     });
+  });
+
+  it('says what each test has for the class: its file, a barem file and the print PDF', async () => {
+    const cls = await makeClass(api, '6E2');
+    await makeTest(api, cls.id, 'Gol');
+    const ready = await makeTest(api, cls.id, 'Gata');
+    await api.db
+      .prepare(
+        `UPDATE tests SET test_file_key = 'fixture/test.pdf', test_file_name = 'test.pdf', test_file_type = 'application/pdf',
+           barem_file_key = 'fixture/barem.pdf', barem_file_name = 'barem.pdf', barem_file_type = 'application/pdf',
+           print_status = 'ready', print_file_key = 'fixture/print.pdf'
+         WHERE code = ?`,
+      )
+      .bind(ready)
+      .run();
+
+    const res = await api.request('GET', '/api/admin/tests?year=2026');
+    const prepared = Object.fromEntries(res.body.tests.map((t: { title: string; prepared: unknown }) => [t.title, t.prepared]));
+    expect(prepared).toEqual({
+      Gol: { testFile: false, baremFile: false, print: 'none' },
+      Gata: { testFile: true, baremFile: true, print: 'ready' },
+    });
+  });
+
+  it('gives the average grade of the class report, and none before a paper is graded', async () => {
+    const cls = await makeClass(api, '6E2', ['Pop Ion', 'Ionescu Ana', 'Stan Eva']);
+    await makeTest(api, cls.id, 'Fără note');
+    const code = await makeTest(api, cls.id, 'Cu note');
+    for (const [index, grade] of [7.5, 7.67].entries()) {
+      const submission = await addSubmission(api, code, cls.studentIds[index]!, { status: 'graded', files: 1 });
+      await addEvaluation(api, submission, { grade });
+    }
+    await addSubmission(api, code, cls.studentIds[2]!, { status: 'submitted', files: 1 });
+
+    const res = await api.request('GET', '/api/admin/tests?year=2026');
+    const average = Object.fromEntries(res.body.tests.map((t: { title: string; averageGrade: number | null }) => [t.title, t.averageGrade]));
+    expect(average).toEqual({ 'Fără note': null, 'Cu note': 7.59 });
+    const report = await api.request('GET', `/api/admin/tests/${code}/report`);
+    expect(average['Cu note']).toBe(classStats(report.body.report).average);
   });
 
   it('refuses a bad year and hides tests of other teachers', async () => {
