@@ -1,16 +1,24 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { useQuery, useQueryClient, type Query } from '@tanstack/react-query';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, matchPath, Outlet, useLocation } from 'react-router';
 import { demoPapersLeft, DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
 import type { Teacher } from '../../shared/api.ts';
-import { formatSchoolYear, schoolYearOf } from '../../shared/schoolYear.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
+import { useMediaQuery } from '../ui/useMediaQuery.ts';
 import { useApi } from './ApiContext.tsx';
 import { ErrorMessage, isLoginRequired } from './ErrorMessage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
-import { schoolYearOptions, useSchoolYear } from './SchoolYearContext.tsx';
+import { useSchoolYear } from './SchoolYearContext.tsx';
+import { ClassesPanel } from './shell/ClassesPanel.tsx';
+import { IconClose, IconMenu } from './shell/icons.tsx';
+import { PhoneMenu } from './shell/PhoneMenu.tsx';
+import { Rail, type PanelName } from './shell/Rail.tsx';
+import { TodoPanel } from './shell/TodoPanel.tsx';
+import { todoList } from './shell/todo.ts';
+import { UserMenu } from './shell/UserMenu.tsx';
+import { YearSelect } from './shell/YearSelect.tsx';
 
 // The line a demo account sees on every page.
 export function demoText(teacher: Teacher): string {
@@ -21,23 +29,78 @@ export function demoText(teacher: Teacher): string {
   return `Cont demo: mai ai ${left} din ${DEMO_PAPER_LIMIT} lucrări. Fiecare lucrare corectată se numără, și o recorectare.`;
 }
 
+// The phone layout of brand.css: the bar at the bottom, a panel over the page.
+const PHONE = '(max-width: 56.25rem)';
+
+// The class of a /clase/:id page, for the panel to mark it.
+function classOfPath(pathname: string): number | null {
+  const match = matchPath({ path: '/clase/:id', end: false }, pathname);
+  const id = Number(match?.params.id);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+// The shell of the teacher app (redesign spec §4): the top bar, the 80px bar
+// on the left, the page, and one side panel at a time. On a phone the bar
+// moves to the bottom of the screen and ☰ opens the rest (brand.css).
 export function Layout() {
   const api = useApi();
   const location = useLocation();
-  const onTests = location.pathname === '/' || location.pathname.startsWith('/teste');
-  const { year, setYear } = useSchoolYear();
+  const onTests = location.pathname === '/' || (location.pathname.startsWith('/teste') && location.pathname !== '/teste/nou');
+  const onClasses = location.pathname.startsWith('/clase');
+  const { year } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
-  // A start, a regrade or a retry changes the papers the demo line shows:
-  // every change a logged-in teacher makes reads the account again.
+  // The tests of the year: "De făcut" and the panel of the classes read them.
+  // They are read again every minute while the page is open (the robot ends a
+  // grading on its own) and after every change (below).
+  const tests = useQuery({
+    queryKey: ['tests', year],
+    queryFn: () => api.listTests(year),
+    enabled: Boolean(me.data),
+    refetchInterval: 60_000,
+  });
+  const todo = todoList(tests.data ?? []);
+  const others = (tests.data ?? []).filter((test) => !test.archived && test.status !== 'done' && !todo.some((item) => item.code === test.code)).length;
+  // The open panel and the page it was opened on: another page closes it, and
+  // it stays closed when Back or Forward returns to that page (the router gives
+  // the page its old key again).
+  const [panel, setPanel] = useState<{ name: PanelName; on: string } | null>(null);
+  if (panel && panel.on !== location.key) setPanel(null);
+  const open = panel?.on === location.key ? panel.name : null;
+  const toggle = (name: PanelName) => setPanel(open === name ? null : { name, on: location.key });
+  const close = useCallback(() => setPanel(null), []);
+  const phone = useMediaQuery(PHONE);
+
+  // A start, a regrade or a retry changes the papers the demo line shows, and
+  // a change can end or add a thing in "De făcut": every change a logged-in
+  // teacher makes reads the account and the tests of the year again. Only
+  // what was not read since the change started, and joining a read already on
+  // its way: a page that reads the list after its change does not cause a
+  // second read, and nothing waits for this one.
   const queryClient = useQueryClient();
   useEffect(
     () =>
       queryClient.getMutationCache().subscribe((event) => {
         const changed = event.type === 'updated' && event.action.type === 'success';
-        if (changed && queryClient.getQueryData(['me'])) void queryClient.invalidateQueries({ queryKey: ['me'] });
+        if (!changed || !queryClient.getQueryData(['me'])) return;
+        const since = event.mutation.state.submittedAt;
+        // Read before the change started (a read in the same millisecond counts
+        // as after it: the page's own read can follow that fast).
+        const predicate = (query: Query) => query.state.dataUpdatedAt < since;
+        void queryClient.invalidateQueries({ queryKey: ['me'], predicate }, { cancelRefetch: false });
+        void queryClient.invalidateQueries({ queryKey: ['tests'], predicate }, { cancelRefetch: false });
       }),
     [queryClient],
   );
+  // Esc closes the open panel, unless a layer above it (the account menu, the
+  // QR code on the whole screen) took this Esc first.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) setPanel(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
   // Nobody logged in: the login form takes the place of every page. The pages
   // wait for the login, so they never ask the API without it. The page that
   // confirms a new account's email needs no login.
@@ -45,42 +108,47 @@ export function Layout() {
   const openPage = location.pathname === '/confirma-email';
 
   return (
-    <>
-      <header className="site-header">
-        <div className="wrap header-bar">
-          <Link className="brand" to="/">
-            <BrandMark />
-            <span className="brand-text">
-              <span className="brand-name">MQGrader</span>
-            </span>
-          </Link>
-          {me.data && (
-            <nav className="main-nav" aria-label="Meniu">
-              {/* Teste is the start page and also covers every /teste/... page. */}
-              <Link to="/" aria-current={onTests ? 'page' : undefined}>
-                Teste
-              </Link>
-              <NavLink to="/clase">Clase</NavLink>
-              {me.data.role === 'admin' && <NavLink to="/setari">Setări</NavLink>}
-              <NavLink to="/cont">Contul meu</NavLink>
-            </nav>
-          )}
-          <div className="header-tools">
-            <label className="sr-only" htmlFor="school-year">
-              Anul școlar
-            </label>
-            <select id="school-year" value={year} onChange={(event) => setYear(Number(event.target.value))}>
-              {schoolYearOptions(schoolYearOf(new Date())).map((option) => (
-                <option key={option} value={option}>
-                  {formatSchoolYear(option)}
-                </option>
-              ))}
-            </select>
-            <ThemeButton />
-          </div>
+    <div className={me.data ? 'shell' : 'shell shell-bare'}>
+      <header className="topbar">
+        <Link className="brand" to="/" aria-label="MQGrader by Laura Miron">
+          <BrandMark />
+          <span className="brand-text">
+            <span className="brand-name">MQGrader</span>
+            <span className="brand-by">by Laura Miron</span>
+          </span>
+        </Link>
+        <div className="topbar-tools">
+          <YearSelect id="school-year" labelClassName="sr-only" />
+          <ThemeButton />
+          {me.data && <UserMenu teacher={me.data} />}
         </div>
+        {me.data && (
+          <button
+            type="button"
+            className="menu-button"
+            aria-label="Mai mult"
+            aria-expanded={open === 'menu'}
+            aria-controls={open === 'menu' ? 'phone-menu' : undefined}
+            onClick={() => toggle('menu')}
+          >
+            {open === 'menu' ? <IconClose /> : <IconMenu />}
+          </button>
+        )}
+        {me.data && open === 'menu' && <PhoneMenu teacher={me.data} onClose={close} />}
       </header>
-      <main className="wrap page">
+      {me.data && (
+        <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length} panel={open} onToggle={toggle} />
+      )}
+      {/* The panels come right after the bar that opens them, for the keyboard
+          and screen readers. */}
+      {me.data && open === 'clase' && (
+        <ClassesPanel year={year} todo={todo} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
+      )}
+      {me.data && open === 'todo' && (
+        <TodoPanel items={todo} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
+      )}
+      {/* On a phone a panel covers the page: the page under it is out of reach. */}
+      <main className="page" inert={phone && (open === 'clase' || open === 'todo')}>
         {me.data?.demo && <p className="warning">{demoText(me.data)}</p>}
         {openPage ? (
           <Outlet />
@@ -96,11 +164,6 @@ export function Layout() {
           </ErrorBoundary>
         )}
       </main>
-      <footer className="site-footer">
-        <div className="wrap">
-          <p>MQGrader{me.data ? ` · ${me.data.name}` : ''}</p>
-        </div>
-      </footer>
-    </>
+    </div>
   );
 }

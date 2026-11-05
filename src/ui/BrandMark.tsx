@@ -1,30 +1,14 @@
-// The MQGrader mark: a score ring, and an orange tick that breaks out through
-// its gap. Coloured by --mark-from, --mark-to and --mark-tick, so both themes
-// work. A page shows one mark, so the gradient id is fixed.
+// The MQGrader mark, "Trei subiecte" (redesign spec §2.4): three arcs of one
+// ring, two blue and one orange, coloured by --mk-a and --mk-b so both themes
+// work. The landing page and public/favicon.svg draw the same arcs.
 export function BrandMark() {
   return (
     <svg className="brand-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <defs>
-        <linearGradient id="brand-mark-ring" gradientUnits="userSpaceOnUse" x1="12" y1="12" x2="52" y2="52">
-          <stop offset="0" style={{ stopColor: 'var(--mark-from)' }} />
-          <stop offset="1" style={{ stopColor: 'var(--mark-to)' }} />
-        </linearGradient>
-      </defs>
-      <path
-        d="M48.42 27.6A17 17 0 1 1 36.4 15.58"
-        fill="none"
-        stroke="url(#brand-mark-ring)"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M23 32L30 39L49 18"
-        fill="none"
-        stroke="var(--mark-tick)"
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <g fill="none" strokeWidth="7">
+        <path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" />
+        <path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" />
+        <path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" />
+      </g>
     </svg>
   );
 }

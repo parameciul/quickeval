@@ -56,9 +56,11 @@ function TestDetails({ code }: { code: string }) {
       return refreshInterval(shown?.status, shown?.barem.request, shown ? waitsForPrint(shown) : false);
     },
   });
+  // The list of the year is read on every page (the shell): read it again,
+  // but do not wait for it.
   const refresh = async () => {
+    void queryClient.invalidateQueries({ queryKey: ['tests'] });
     await queryClient.invalidateQueries({ queryKey: ['test', code] });
-    await queryClient.invalidateQueries({ queryKey: ['tests'] });
   };
   const remove = useMutation({
     mutationFn: () => api.deleteTest(code),

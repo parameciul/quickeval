@@ -73,8 +73,7 @@ describe('the menu by role', () => {
   it('shows Setări to an administrator', async () => {
     renderAdmin('/clase', createFakeApi());
     const menu = await screen.findByRole('navigation', { name: 'Meniu' });
-    expect(within(menu).getByRole('link', { name: 'Setări' })).toBeInTheDocument();
-    expect(within(menu).getByRole('link', { name: 'Contul meu' })).toBeInTheDocument();
+    expect(within(menu).getByRole('link', { name: 'Setări' })).toHaveAttribute('href', '/setari');
   });
 
   it('hides Setări from a teacher, and the page refuses them', async () => {
@@ -83,7 +82,7 @@ describe('the menu by role', () => {
     const menu = await screen.findByRole('navigation', { name: 'Meniu' });
     expect(within(menu).queryByRole('link', { name: 'Setări' })).not.toBeInTheDocument();
     expect(within(menu).getByRole('link', { name: 'Teste' })).toBeInTheDocument();
-    expect(within(menu).getByRole('link', { name: 'Clase' })).toBeInTheDocument();
+    expect(within(menu).getByRole('button', { name: 'Clase' })).toBeInTheDocument();
     expect(await screen.findByText('Doar administratorii au acces la Setări.')).toBeInTheDocument();
     expect(api.getSettings).not.toHaveBeenCalled();
     expect(api.listAccounts).not.toHaveBeenCalled();

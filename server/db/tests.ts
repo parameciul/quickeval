@@ -90,6 +90,7 @@ function storedFile(key: string | null, name: string | null, type: string | null
 }
 
 function toRecord(row: TestRow): TestRecord {
+  const barem = { request: row.barem_request, unchecked: row.barem_unchecked === 1 };
   return {
     id: row.id,
     summary: {
@@ -110,6 +111,7 @@ function toRecord(row: TestRow): TestRecord {
       resultsOpen: row.results_open === 1,
       publishedCount: row.published_count,
       archived: row.archived === 1,
+      barem,
     },
     uploadToken: row.upload_token,
     multiUploadToken: row.multi_upload_token,
@@ -119,7 +121,7 @@ function toRecord(row: TestRow): TestRecord {
     },
     exerciseList: { status: row.exercise_list_status, message: row.exercise_list_message },
     baremNotes: row.barem_notes ?? '',
-    barem: { request: row.barem_request, unchecked: row.barem_unchecked === 1 },
+    barem,
     filesVersion: row.files_version,
     analysis: { status: row.analysis_status, stale: row.analysis_stale === 1, attempts: row.analysis_attempts },
     print: { status: row.print_status, key: row.print_file_key, fromWord: row.test_file_type === DOCX_TYPE },

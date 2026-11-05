@@ -1,12 +1,12 @@
 # MQGrader redesign: design
 
-Date: 2026-11-04. Status: agreed with the user after five rounds of prototypes. Phase 1 (landing page and light theme) is being built; the other phases are not.
+Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phase 1 (landing page and light theme) is live; Phase 2 (look and shell) is being built; the other phases are not.
 
 ## 0. Plain summary
 
 The teacher app and the landing page get a new look and a new layout. The pages use the full width of a desktop screen. Light is the default theme; dark is one click away. A narrow bar on the left holds the menu. Every test goes through six stages, shown as a vertical list, and each page shows only what the current stage needs. The student pages keep their flow; they get the new look and show only the mark and the name.
 
-The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (git-ignored, on the developer's PC) and online as private pages: round 3 https://claude.ai/artifact/Qr3qcjNTTqk43rJqRBa6m5, round 4 https://claude.ai/artifact/WGhwJYiScewGpZpnXM3fGk, round 5 https://claude.ai/artifact/JfoJqXjZVryZCHebhG8QHw. This document holds every decision, so the build does not depend on them.
+The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (git-ignored, on the developer's PC) and online as private pages: round 3 https://claude.ai/artifact/Qr3qcjNTTqk43rJqRBa6m5, round 4 https://claude.ai/artifact/WGhwJYiScewGpZpnXM3fGk, round 5 https://claude.ai/artifact/JfoJqXjZVryZCHebhG8QHw, round 6 (the phone menu) https://claude.ai/artifact/9L44SEwAxWb7Fxe1Hra4S9. This document holds every decision, so the build does not depend on them.
 
 ## 1. Decisions, in the order the user made them
 
@@ -25,12 +25,16 @@ The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (
 13. The class page shows a few tests without wide empty columns (design Z3).
 14. No row of class tabs above a class: "Schimbă clasa" sits beside its name. "Clase" in the bar opens a panel of classes, the same kind of panel as "De făcut" (design Z3.1).
 15. The landing page keeps the dark band behind Laura's text (round 3 version).
+16. The app and the student pages take the mark "Trei subiecte" too, for now; the byline stays "by Laura Miron" (Phase 2).
+17. On a phone, a bar at the bottom of the screen holds the four items of the 80 px bar, and ☰ holds the rest (round 6, design M2).
+18. "De făcut" comes with the shell, in Phase 2, with all three of its cases; the tests list of the API says when a generated barem waits.
+19. No search box until search is designed (§11).
 
 ## 2. Look
 
 ### 2.1 Type
 
-One face: Schibsted Grotesk (Google Fonts), weights 400, 500, 600, 700, 800. Tabular figures are not used: in this face they widen the comma (8 , 50). Caveat stays only where the app already uses it.
+One face: Schibsted Grotesk (Google Fonts), weights 400, 500, 600, 700, 800. Tabular figures are not used: in this face they widen the comma (8 , 50). Caveat goes: it drew only the old menu.
 
 ### 2.2 Colours
 
@@ -78,7 +82,7 @@ The prototypes used the mark "Trei subiecte": three arcs of one ring, two blue a
 </g></svg>
 ```
 
-`--mk-a` is blue and `--mk-b` is orange-mark; on the dark band they are #80b1ff and #ff8a3d. The user has not confirmed it as the final mark (see §12). The current ring-and-tick mark stays in the app until the shell is rebuilt (Phase 2).
+`--mk-a` is blue and `--mk-b` is orange-mark; on the dark band they are #80b1ff and #ff8a3d. From Phase 2 it is also the mark of the teacher app and the student pages (`src/ui/BrandMark.tsx`) and the favicon (`public/favicon.svg`). It may still change (§12); those files and the landing page are the only places that draw it.
 
 The lockup on teacher pages and the landing page is the mark, "MQGrader" (bold) and, under it, "by Laura Miron" (small, muted). Student pages show only the mark and "MQGrader": no byline, no other brand text, no link (rule of the root `AGENTS.md`).
 
@@ -107,17 +111,23 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
 
 ## 4. App shell (Phase 2)
 
-- A bar of 80 px on the left, from top to bottom: "Test nou" (a blue square with +, the word under it), "Teste" (link), "Clase" (opens the panel "Clasele tale"), "De făcut" (opens the panel "Ce ai de făcut"; a number shows how many things wait), and at the bottom "Setări" (only for an administrator, as `adminOnly` is today). Each item has its icon and a short word under it.
-- A top bar over the page: the lockup, search, the school year, the theme button, and the user's initials, which open "Contul meu" and "Ieși din cont".
-- The panels open beside the bar, over the page, 384 px wide. Only one is open at a time; Esc and × close it. Small menus (Schimbă clasa, ⋯) close on a click outside them.
-- On a phone the bars hide behind a ☰ menu (not designed yet, §11). A panel then covers the screen.
+- A bar of 80 px on the left (the menu "Meniu"), from top to bottom: "Test nou" (a blue square with +, the word under it; to `/teste/nou`), "Teste" (link; current on every `/teste` page), "Clase" (opens the panel "Clasele tale"; marked on every `/clase` page), "De făcut" (opens the panel "Ce ai de făcut"; a number shows how many things wait), and at the bottom "Setări" (only for an administrator, as `adminOnly` is today). Each item has its icon and a short word under it.
+- A top bar over the page: the lockup (the mark sits at the top of the 80 px bar, "MQGrader" and "by Laura Miron" start the top bar), the school year, the theme button, and the user's initials, which open a small menu with the name and email, "Contul meu" and "Ieși din cont". No search box until search is designed (§11). The old footer goes.
+- The panels open beside the bar, over the page, 384 px wide. Only one is open at a time; Esc and × close it, and so does opening a page. Small menus (the initials, Schimbă clasa, ⋯) close on a click outside them and on Esc.
+- "Clasele tale": the classes of the chosen school year that are not archived, each with its number of students and its tests in work (draft, open, in evaluation, or done with a thing in "De făcut"); a test in "De făcut" is orange; the class of the page is marked. "+ Clasă nouă" and "Arhivate (n)" open the page Clase (`/clase`) until Phase 7 replaces it.
+- "Ce ai de făcut": one card per thing in "De făcut" (§5): the stage as a pill, the test and its class, what to do, one sentence, and one button to the test; the first card's button is the filled one. Under them, how many other tests of the year are in work. With nothing: "Nimic nu te așteaptă acum."
+- The demo line stays at the top of the page, under the top bar.
+- On a phone (below 900 px; round 6, design M2): the top bar holds the lockup and ☰. The 80 px bar becomes a bar at the bottom of the screen with the same four items in the same order (Test nou, Teste, Clase, De făcut with its number); Setări leaves it. ☰ drops a menu from the top bar: Setări (administrators), the school year, "Temă întunecată" (a switch), the user's name and email, "Contul meu" and "Ieși din cont". The panels cover the screen between the two bars.
 
 ## 5. Teste page (`/admin/`, Phase 3)
 
 - "Bună dimineața, Laura." and a line with the date and "**3 lucruri te așteaptă ˅** în 3 teste." The bold part is a button: it opens and closes the list "Ce ai de făcut" right under it (closed when the page opens). Each row: the stage as a pill, the task, the test and class, one button.
 - The class filter as chips ("Toate clasele", one chip per class), kept in the address as today (`?clasa=`).
 - "În lucru" and "Terminate" (archived ones with `?arhivate=1`, as today): a table with the test (name, class, start), the stage (a bar of six segments: blue done, orange waits on the teacher, pale in progress, grey later; the stage name and its state), the papers (sent of students), and the next step (one button, or "Nimic de făcut acum").
-- "De făcut" counts exactly three cases: a generated barem waiting for "Am verificat baremul"; points to check after the grading; checked results that are not published. Phase 3 checks that the tests list of the API returns what these need.
+- "De făcut" counts exactly three cases, from the tests of the chosen school year that are not archived (`src/admin/shell/todo.ts`, Phase 2):
+  - Pregătire, "Verifică baremul generat": a draft or open test whose generated barem waits for "Am verificat baremul" (`barem.unchecked`, no request running). The tests list carries `barem` from Phase 2. The same case says "Generează din nou baremul" when the new generation of an unchecked barem failed (`request` is `failed`): that barem can be neither confirmed nor used until the teacher asks for it again.
+  - Verificare, "Decide N puncte nesigure": a test with points to check (`flagCount` above 0).
+  - Rezultate, "Publică rezultatele": a done test with nothing to check, at least one graded paper, the results not open, and not every graded paper published one by one.
 
 ## 6. Test page (`/admin/teste/:code`, Phase 4)
 
@@ -160,12 +170,12 @@ The flow and the texts stay. They take the new type and colours, light by defaul
 
 ## 11. Not designed yet
 
-The phone ☰ menu; the "Test nou" form; Setări; login and sign-up; Contul meu; the first visit of a new teacher and the empty states; an archived class; the student's history page; the class report page; search and its results; where the demo account line goes.
+Search and its results (no box in the top bar until then); the "Test nou" form; Setări; login and sign-up; Contul meu; the first visit of a new teacher and the empty states; an archived class; the student's history page; the class report page; where the demo account line goes (Phase 2 keeps it at the top of the page).
 
 ## 12. Open questions
 
-- "by Laura Miron" (the user's words) or "de Laura Miron" (Romanian).
-- The final mark: the user found the current ring-and-tick mark too common and liked "Score ring" and "Ring and tick" in the brand study; the prototypes use "Trei subiecte" (§2.4), not confirmed.
+- The final mark: the user found the old ring-and-tick mark too common and liked "Score ring" and "Ring and tick" in the brand study; the prototypes use "Trei subiecte" (§2.4), which the user chose for Phase 2 "for now".
+- Settled: the byline stays "by Laura Miron" (asked on 2026-11-04).
 - "Use Z2 design for tests" was read as the Teste page of Z2 (§5), not the blocks per test inside a class.
 
 ## 13. Phases
@@ -173,8 +183,8 @@ The phone ☰ menu; the "Test nou" form; Setări; login and sign-up; Contul meu;
 Each phase is its own branch and pull request, with tests. From Phase 2 on, each plan is written from a tested prototype (the plan method of `docs/superpowers/plans/`).
 
 1. Landing page and the light default theme. The app keeps its current look.
-2. Look and shell: tokens, type, mark and lockup in `src/ui/brand.css`; the bar, the top bar, the two panels, the phone menu; the student pages' new look.
-3. Teste page and "De făcut".
+2. Look and shell: tokens, type, mark and lockup in `src/ui/brand.css`; the bar, the top bar, the two panels with "De făcut" and its three cases, the phone bar and menu; the student pages' new look.
+3. Teste page, with the list "Ce ai de făcut" in place.
 4. Test page: the stages and Fișa testului.
 5. Rezultate.
 6. Verificarea punctelor.

@@ -443,6 +443,9 @@ export interface TestSummary {
   publishedCount: number;
   // A finished test the teacher put away; only a done test can be archived.
   archived: boolean;
+  // unchecked: a generated barem waits for the teacher's check, and no
+  // evaluation starts until then. The list needs it for "De făcut".
+  barem: { request: BaremRequest; unchecked: boolean };
 }
 
 export interface TestFileInfo {
@@ -533,9 +536,6 @@ export interface TestInfo extends TestSummary {
   exerciseList: ExerciseListInfo;
   // Extra teacher comments for the barem, read by the robot as part of it.
   baremNotes: string;
-  // unchecked: a generated barem waits for the teacher's check, and no
-  // evaluation starts until then.
-  barem: { request: BaremRequest; unchecked: boolean };
   // Goes up with every new test file, barem, or barem comments.
   filesVersion: number;
   analysis: AnalysisInfo;

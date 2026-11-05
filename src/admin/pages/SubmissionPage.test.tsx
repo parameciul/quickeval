@@ -171,6 +171,19 @@ describe('SubmissionPage', () => {
     expect(screen.getByText('De verificat: 1')).toBeInTheDocument();
   });
 
+  it('reads the tests of the year once after a check, not twice', async () => {
+    const api = apiWith(graded);
+    renderAdmin(page, api);
+    const check = await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' });
+    await vi.waitFor(() => expect(api.listTests).toHaveBeenCalled());
+    const before = api.listTests.mock.calls.length;
+    await userEvent.click(check);
+    expect(await within(row('Subiectul II, ex. 1')).findByText('Verificat')).toBeInTheDocument();
+    await vi.waitFor(() => expect(api.listTests).toHaveBeenCalledTimes(before + 1));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(api.listTests).toHaveBeenCalledTimes(before + 1);
+  });
+
   it('scopes the bottom-aligned check layout to the check cell', async () => {
     renderAdmin(page, apiWith(graded));
     const check = await screen.findByRole('button', { name: 'Modifică Subiectul II, ex. 1' });

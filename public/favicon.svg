@@ -1,12 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <title>MQGrader</title>
-  <defs>
-    <linearGradient id="ring" gradientUnits="userSpaceOnUse" x1="12" y1="12" x2="52" y2="52">
-      <stop offset="0" stop-color="#22e8ee"/>
-      <stop offset="1" stop-color="#3b7cf4"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="#0b1222"/>
-  <path d="M48.42 27.6A17 17 0 1 1 36.4 15.58" fill="none" stroke="url(#ring)" stroke-width="6" stroke-linecap="round"/>
-  <path d="M23 32L30 39L49 18" fill="none" stroke="#fb923c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="64" height="64" rx="14" fill="#0c1524"/>
+  <g fill="none" stroke-width="7">
+    <path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="#80b1ff"/>
+    <path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="#80b1ff"/>
+    <path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="#ff8a3d"/>
+  </g>
 </svg>

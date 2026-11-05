@@ -27,10 +27,10 @@ describe('ClassesPage', () => {
     expect(api.listClasses).toHaveBeenCalledWith(2026);
   });
 
-  it('shows the teacher name in the footer', async () => {
+  it('shows the MQGrader lockup in the top bar', async () => {
     renderAdmin('/clase', twoClasses());
-    expect(await screen.findByText('MQGrader · Laura Miron')).toBeInTheDocument();
-    expect(screen.getByRole('banner')).toHaveTextContent('MQGrader');
+    await screen.findByRole('heading', { name: 'Clase 2026-2027' });
+    expect(screen.getByRole('banner')).toHaveTextContent('MQGraderby Laura Miron');
     expect(screen.queryByText('Matematică cu Laura Miron')).not.toBeInTheDocument();
   });
 

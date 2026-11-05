@@ -99,8 +99,10 @@ describe('the accounts on Setări', () => {
     renderAdmin('/setari', withAccounts());
     await section('Profesori');
     expect(screen.getByText('Mihai (mihai@example.com)')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Laura Miron/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Mihai/ })).not.toBeInTheDocument();
+    // The page only: the account menu in the top bar names Laura too.
+    const page = screen.getByRole('main');
+    expect(within(page).queryByRole('button', { name: /Laura Miron/ })).not.toBeInTheDocument();
+    expect(within(page).queryByRole('button', { name: /Mihai/ })).not.toBeInTheDocument();
   });
 });
 

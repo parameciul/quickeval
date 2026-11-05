@@ -24,9 +24,9 @@ export function AnalysisSection({ code, report }: { code: string; report: ClassR
     mutationFn: () => api.regenerateAnalysis(code),
     onSuccess: async (answer) => {
       setRobot(answer.robot);
+      void queryClient.invalidateQueries({ queryKey: ['tests'] });
       await queryClient.invalidateQueries({ queryKey: ['report', code] });
       await queryClient.invalidateQueries({ queryKey: ['test', code] });
-      await queryClient.invalidateQueries({ queryKey: ['tests'] });
     },
   });
   if (report.rows.length === 0) return null;
