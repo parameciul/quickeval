@@ -157,6 +157,34 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
   });
 }
 
+// One test of the tests list, for building fake data in tests: a draft with
+// its test file, an active barem and the print PDF.
+export function fakeSummary(overrides: Partial<TestSummary> = {}): TestSummary {
+  return {
+    code: '6E2-26T1',
+    title: 'Fracții',
+    status: 'draft',
+    classId: 1,
+    className: '6E2',
+    schoolYear: 2026,
+    createdAt: '2026-10-05T08:00:00.000Z',
+    startedAt: null,
+    evaluationAt: null,
+    evaluationStartedAt: null,
+    studentCount: 24,
+    submittedCount: 0,
+    gradedCount: 0,
+    flagCount: 0,
+    resultsOpen: false,
+    publishedCount: 0,
+    archived: false,
+    barem: { request: 'none', unchecked: false },
+    prepared: { testFile: true, baremFile: true, print: 'ready' },
+    averageGrade: null,
+    ...overrides,
+  };
+}
+
 // One row of the uploads table, for building fake data in tests.
 export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'studentId' | 'studentName'>): UploadRow {
   return {
