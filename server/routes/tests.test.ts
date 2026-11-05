@@ -110,6 +110,23 @@ describe('GET /api/admin/tests', () => {
     expect(res.body.tests[0]).toMatchObject({ code, gradedCount: 2, flagCount: 3 });
   });
 
+  it('says when a generated barem waits for the teacher', async () => {
+    const cls = await makeClass(api, '6E2');
+    const generated = await makeTest(api, cls.id, 'Generat');
+    const asked = await makeTest(api, cls.id, 'Cerut');
+    await makeTest(api, cls.id, 'Fără');
+    await api.db.prepare('UPDATE tests SET barem_unchecked = 1 WHERE code = ?').bind(generated).run();
+    await api.db.prepare("UPDATE tests SET barem_request = 'requested' WHERE code = ?").bind(asked).run();
+
+    const res = await api.request('GET', '/api/admin/tests?year=2026');
+    const barem = Object.fromEntries(res.body.tests.map((t: { title: string; barem: unknown }) => [t.title, t.barem]));
+    expect(barem).toEqual({
+      Generat: { request: 'none', unchecked: true },
+      Cerut: { request: 'requested', unchecked: false },
+      Fără: { request: 'none', unchecked: false },
+    });
+  });
+
   it('refuses a bad year and hides tests of other teachers', async () => {
     expect((await api.request('GET', '/api/admin/tests?year=1990')).status).toBe(400);
     await otherTeacherTest(api);
