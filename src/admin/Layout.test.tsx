@@ -1,6 +1,6 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi, fakeTeacher, fakeTest } from '../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../test/renderAdmin.tsx';
 
@@ -18,7 +18,28 @@ const withClasses = () =>
     ],
   });
 
+// Three things wait: a generated barem, points to check, results to publish.
+const withTodo = () =>
+  createFakeApi({
+    classes: [
+      { id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 },
+      { id: 2, name: '6E3', schoolYear: 2026, archived: false, studentCount: 0 },
+    ],
+    students: {},
+    tests: [
+      fakeTest({ code: '6E2-26T3', title: 'Logaritmi', status: 'done', gradedCount: 20 }),
+      fakeTest({ code: '6E2-26T2', title: 'Ecuații', status: 'done', gradedCount: 24, flagCount: 3 }),
+      fakeTest({ code: '6E3-26T1', title: 'Inducție', classId: 2, className: '6E3', barem: { request: 'none', unchecked: true } }),
+      fakeTest({ code: '6E3-26T2', title: 'Mulțimi', classId: 2, className: '6E3', status: 'open' }),
+      fakeTest({ code: '6E2-26T1', title: 'Fracții', status: 'done', gradedCount: 20, resultsOpen: true }),
+    ],
+  });
+
 const menu = () => screen.findByRole('navigation', { name: 'Meniu' });
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('the shell', () => {
   it('shows the lockup in the top bar, and no footer', async () => {
@@ -30,12 +51,13 @@ describe('the shell', () => {
     expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
   });
 
-  it('has Test nou, Teste and Clase in the bar', async () => {
+  it('has Test nou, Teste, Clase and De făcut in the bar', async () => {
     renderAdmin('/', withClasses());
     const bar = await menu();
     expect(within(bar).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/teste/nou');
     expect(within(bar).getByRole('link', { name: 'Teste' })).toHaveAttribute('aria-current', 'page');
     expect(within(bar).getByRole('button', { name: 'Clase' })).toHaveAttribute('aria-expanded', 'false');
+    expect(within(bar).getByRole('button', { name: 'De făcut' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('opens the account menu from the initials, with Contul meu', async () => {
@@ -69,6 +91,63 @@ describe('the shell', () => {
     await userEvent.click(button);
     await userEvent.click(screen.getByRole('main'));
     expect(screen.queryByRole('link', { name: 'Contul meu' })).not.toBeInTheDocument();
+  });
+});
+
+describe('De făcut', () => {
+  it('shows in the bar how many things wait', async () => {
+    renderAdmin('/', withTodo());
+    expect(await within(await menu()).findByRole('button', { name: 'De făcut: 3 lucruri' })).toHaveTextContent('De făcut3');
+  });
+
+  it('lists the three things in its panel, each with a button to its test', async () => {
+    renderAdmin('/', withTodo(), <LocationProbe />);
+    await userEvent.click(await within(await menu()).findByRole('button', { name: /^De făcut/ }));
+    const panel = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
+    const cards = within(panel).getAllByRole('listitem');
+    expect(cards.map((card) => within(card).getByRole('heading').textContent)).toEqual([
+      'Verifică baremul generat',
+      'Decide 3 puncte nesigure',
+      'Publică rezultatele',
+    ]);
+    expect(cards[0]).toHaveTextContent('PregătireInducție · 6E3');
+    expect(within(panel).getByText('Celălalt test în lucru nu are nevoie de tine acum.')).toBeInTheDocument();
+    const start = within(cards[1]!).getByRole('link', { name: 'Începe: Ecuații, 6E2' });
+    expect(start).toHaveAttribute('href', '/teste/6E2-26T2');
+    await userEvent.click(start);
+    await expectLocation('/teste/6E2-26T2');
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it('reads the tests of the year again after a change and every minute', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const api = withTodo();
+    renderAdmin('/cont', api);
+    await userEvent.type(await screen.findByLabelText('Parola de acum'), 'parola-veche');
+    await userEvent.type(screen.getByLabelText(/^Parola nouă/), 'parola-noua');
+    expect(api.listTests).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Schimbă parola' }));
+    await vi.waitFor(() => expect(api.listTests).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(api.listTests).toHaveBeenCalledTimes(3);
+  });
+
+  it('says so when nothing waits', async () => {
+    renderAdmin('/', withClasses());
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'De făcut' }));
+    expect(screen.getByText('Nimic nu te așteaptă acum.')).toBeInTheDocument();
+  });
+
+  it('is open alone: Clase closes it, and it closes Clase', async () => {
+    renderAdmin('/', withTodo());
+    const bar = await menu();
+    await userEvent.click(await within(bar).findByRole('button', { name: /^De făcut/ }));
+    await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
+    expect(screen.getAllByRole('complementary').map((panel) => panel.getAttribute('aria-labelledby'))).toEqual(['panel-clase-title']);
+    await userEvent.click(within(bar).getByRole('button', { name: /^De făcut/ }));
+    expect(screen.getAllByRole('complementary').map((panel) => panel.getAttribute('aria-labelledby'))).toEqual(['panel-todo-title']);
   });
 });
 
@@ -116,6 +195,20 @@ describe('the panel Clasele tale', () => {
     await userEvent.click(clase);
     await userEvent.click(clase);
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it('says what waits in a test, in orange', async () => {
+    renderAdmin('/', withTodo());
+    const bar = await menu();
+    await within(bar).findByRole('button', { name: /^De făcut: / });
+    await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
+    const list = screen.getByRole('navigation', { name: 'Clasele tale' });
+    const first = within(list).getByRole('link', { name: /^6E2/ });
+    expect(Array.from(first.querySelectorAll('.class-item-test')).map((line) => [line.textContent, line.className])).toEqual([
+      ['Logaritmi · Rezultate · nepublicate', 'class-item-test is-waiting'],
+      ['Ecuații · Verificare · 3 puncte nesigure', 'class-item-test is-waiting'],
+    ]);
+    expect(within(list).getByRole('link', { name: /^6E3/ })).toHaveTextContent('Inducție · Pregătire · baremul de verificatMulțimi · Deschis');
   });
 
   it('says so when the year has no class', async () => {

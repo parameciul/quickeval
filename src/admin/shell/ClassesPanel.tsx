@@ -5,21 +5,34 @@ import { studentCountLabel, testStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { Panel } from './Panel.tsx';
+import type { TodoItem } from './todo.ts';
 
-// A test still in work: not finished yet.
-function inWork(test: TestSummary): boolean {
-  return !test.archived && test.status !== 'done';
+// A test still in work: not finished yet, or finished with a thing to do.
+function inWork(test: TestSummary, waits: boolean): boolean {
+  return !test.archived && (test.status !== 'done' || waits);
 }
 
 // "Clasele tale" (redesign spec §4): the classes of the school year that are
-// not archived, each with its students and its tests in work; the class of
-// the page is marked.
-export function ClassesPanel({ year, currentClassId, onClose }: { year: number; currentClassId: number | null; onClose(): void }) {
+// not archived, each with its students and its tests in work; a test that
+// waits on the teacher is orange and says what waits ("Logaritmi · Rezultate ·
+// nepublicate"). The class of the page is marked.
+export function ClassesPanel({
+  year,
+  todo,
+  currentClassId,
+  onClose,
+}: {
+  year: number;
+  todo: TodoItem[];
+  currentClassId: number | null;
+  onClose(): void;
+}) {
   const api = useApi();
   const classes = useQuery({ queryKey: ['classes', year], queryFn: () => api.listClasses(year) });
   const tests = useQuery({ queryKey: ['tests', year], queryFn: () => api.listTests(year) });
   const active = classes.data?.filter((item) => !item.archived) ?? [];
   const archived = classes.data?.filter((item) => item.archived).length ?? 0;
+  const todoOf = (test: TestSummary) => todo.find((item) => item.code === test.code);
 
   return (
     <Panel id="panel-clase" title="Clasele tale" onClose={onClose}>
@@ -34,7 +47,7 @@ export function ClassesPanel({ year, currentClassId, onClose }: { year: number; 
       ) : (
         <nav className="class-list" aria-label="Clasele tale">
           {active.map((item) => {
-            const work = (tests.data ?? []).filter((test) => test.classId === item.id && inWork(test));
+            const work = (tests.data ?? []).filter((test) => test.classId === item.id && inWork(test, todoOf(test) !== undefined));
             return (
               <Link
                 key={item.id}
@@ -49,11 +62,14 @@ export function ClassesPanel({ year, currentClassId, onClose }: { year: number; 
                 {work.length === 0 ? (
                   <span className="class-item-test">Nimic în lucru</span>
                 ) : (
-                  work.map((test) => (
-                    <span key={test.code} className="class-item-test">
-                      {test.title} · {testStatusLabel(test.status)}
-                    </span>
-                  ))
+                  work.map((test) => {
+                    const waiting = todoOf(test);
+                    return (
+                      <span key={test.code} className={waiting ? 'class-item-test is-waiting' : 'class-item-test'}>
+                        {test.title} · {waiting ? `${waiting.stage} · ${waiting.short}` : testStatusLabel(test.status)}
+                      </span>
+                    );
+                  })
                 )}
               </Link>
             );

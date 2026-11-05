@@ -13,6 +13,8 @@ import { LoginPage } from './pages/LoginPage.tsx';
 import { schoolYearOptions, useSchoolYear } from './SchoolYearContext.tsx';
 import { ClassesPanel } from './shell/ClassesPanel.tsx';
 import { Rail, type PanelName } from './shell/Rail.tsx';
+import { TodoPanel } from './shell/TodoPanel.tsx';
+import { todoList } from './shell/todo.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
 
 // The line a demo account sees on every page.
@@ -40,19 +42,34 @@ export function Layout() {
   const onClasses = location.pathname.startsWith('/clase');
   const { year, setYear } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
+  // The tests of the year: "De făcut" and the panel of the classes read them.
+  // They are read again every minute while the page is open (the robot ends a
+  // grading on its own) and after every change (below).
+  const tests = useQuery({
+    queryKey: ['tests', year],
+    queryFn: () => api.listTests(year),
+    enabled: Boolean(me.data),
+    refetchInterval: 60_000,
+  });
+  const todo = todoList(tests.data ?? []);
+  const others = (tests.data ?? []).filter((test) => !test.archived && test.status !== 'done' && !todo.some((item) => item.code === test.code)).length;
   // The open panel and the page it was opened on: another page closes it.
   const [panel, setPanel] = useState<{ name: PanelName; on: string } | null>(null);
   const open = panel?.on === location.key ? panel.name : null;
   const toggle = (name: PanelName) => setPanel(open === name ? null : { name, on: location.key });
 
-  // A start, a regrade or a retry changes the papers the demo line shows:
-  // every change a logged-in teacher makes reads the account again.
+  // A start, a regrade or a retry changes the papers the demo line shows, and
+  // a change can end or add a thing in "De făcut": every change a logged-in
+  // teacher makes reads the account and the tests of the year again.
   const queryClient = useQueryClient();
   useEffect(
     () =>
       queryClient.getMutationCache().subscribe((event) => {
         const changed = event.type === 'updated' && event.action.type === 'success';
-        if (changed && queryClient.getQueryData(['me'])) void queryClient.invalidateQueries({ queryKey: ['me'] });
+        if (changed && queryClient.getQueryData(['me'])) {
+          void queryClient.invalidateQueries({ queryKey: ['me'] });
+          void queryClient.invalidateQueries({ queryKey: ['tests'] });
+        }
       }),
     [queryClient],
   );
@@ -96,7 +113,9 @@ export function Layout() {
           {me.data && <UserMenu teacher={me.data} />}
         </div>
       </header>
-      {me.data && <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} panel={open} onToggle={toggle} />}
+      {me.data && (
+        <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length} panel={open} onToggle={toggle} />
+      )}
       <main className="page">
         {me.data?.demo && <p className="warning">{demoText(me.data)}</p>}
         {openPage ? (
@@ -113,7 +132,10 @@ export function Layout() {
           </ErrorBoundary>
         )}
       </main>
-      {me.data && open === 'clase' && <ClassesPanel year={year} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />}
+      {me.data && open === 'clase' && (
+        <ClassesPanel year={year} todo={todo} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
+      )}
+      {me.data && open === 'todo' && <TodoPanel items={todo} others={others} onClose={() => setPanel(null)} />}
     </div>
   );
 }
