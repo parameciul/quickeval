@@ -16,7 +16,7 @@ export function nextStep(test: TestSummary, current: Stage): NextStep {
       if (!test.prepared.testFile) return link('Încarcă testul');
       return test.barem.request === 'requested' ? null : link('Încarcă baremul');
     case 'Tipărire':
-      return test.prepared.print === 'failed' ? link('Deschide') : null;
+      return test.prepared.print === 'failed' || !test.prepared.uploadLink ? link('Deschide') : null;
     case 'În clasă':
       if (test.status === 'draft') return link('Începe testul');
       return test.evaluationAt === null ? link('Pornește corectarea') : null;

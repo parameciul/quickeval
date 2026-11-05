@@ -33,7 +33,7 @@ export function stagesOf(test: TestSummary): TestStages {
   const waits = (name: StageName) => (todo?.stage === name ? todo.short : null);
   const evaluated = test.status === 'evaluating' || test.status === 'done';
   const done = test.status === 'done';
-  const { testFile, baremFile, print } = test.prepared;
+  const { testFile, baremFile, print, uploadLink } = test.prepared;
   const baremActive = baremFile && !test.barem.unchecked && test.barem.request !== 'requested';
 
   const stage = (name: StageName, state: StageState, note = ''): Stage => ({ name, state, note });
@@ -50,6 +50,9 @@ export function stagesOf(test: TestSummary): TestStages {
   const tiparire = (): Stage => {
     if (test.status !== 'draft' || print === 'ready') return stage('Tipărire', 'done');
     if (!testFile) return stage('Tipărire', 'later');
+    // No print PDF is made for a draft without its link until the teacher
+    // asks for it ("Pregătește testul cu cod QR").
+    if (!uploadLink) return stage('Tipărire', 'now', 'fără cod QR');
     return print === 'failed' ? stage('Tipărire', 'now', 'nu s-a putut pregăti') : stage('Tipărire', 'now', 'se pregătește');
   };
 

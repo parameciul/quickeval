@@ -128,10 +128,13 @@ describe('GET /api/admin/tests', () => {
     });
   });
 
-  it('says what each test has for the class: its file, a barem file and the print PDF', async () => {
+  it('says what each test has for the class: its file, a barem file, the print PDF and its link', async () => {
     const cls = await makeClass(api, '6E2');
     await makeTest(api, cls.id, 'Gol');
     const ready = await makeTest(api, cls.id, 'Gata');
+    // A draft made before tests got their upload link when made.
+    const old = await makeTest(api, cls.id, 'Vechi');
+    await api.db.prepare('UPDATE tests SET upload_token = NULL WHERE code = ?').bind(old).run();
     await api.db
       .prepare(
         `UPDATE tests SET test_file_key = 'fixture/test.pdf', test_file_name = 'test.pdf', test_file_type = 'application/pdf',
@@ -145,8 +148,9 @@ describe('GET /api/admin/tests', () => {
     const res = await api.request('GET', '/api/admin/tests?year=2026');
     const prepared = Object.fromEntries(res.body.tests.map((t: { title: string; prepared: unknown }) => [t.title, t.prepared]));
     expect(prepared).toEqual({
-      Gol: { testFile: false, baremFile: false, print: 'none' },
-      Gata: { testFile: true, baremFile: true, print: 'ready' },
+      Gol: { testFile: false, baremFile: false, print: 'none', uploadLink: true },
+      Gata: { testFile: true, baremFile: true, print: 'ready', uploadLink: true },
+      Vechi: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
     });
   });
 

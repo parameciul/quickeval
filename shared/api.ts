@@ -447,9 +447,11 @@ export interface TestSummary {
   // evaluation starts until then. The list needs it for "De făcut".
   barem: { request: BaremRequest; unchecked: boolean };
   // What the test has for the class: its file, a barem file (`barem` says
-  // whether it is active), and the print PDF with the QR code. The Teste page
-  // draws the stages from it.
-  prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus };
+  // whether it is active), the print PDF with the QR code, and whether it has
+  // its upload link (never the link itself). A draft made before tests got
+  // their link when made has none, and no print PDF is made for it until the
+  // teacher asks on the test page. The Teste page draws the stages from it.
+  prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus; uploadLink: boolean };
   // The average of the graded papers, as the class report gives it; null
   // while no paper is graded.
   averageGrade: number | null;

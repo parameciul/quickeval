@@ -133,7 +133,7 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
   - The stage: a bar of six segments, one per stage (blue done, orange waits on the teacher, pale in progress, grey later), then the current stage's name and its state. The bar is for the eye only; the words say the same.
   - The stages of a test (`src/admin/stages.ts`, for the test page of Phase 4 too). A segment is orange exactly when "De făcut" has the test, at that stage.
     - Pregătire: orange with the case of "De făcut". Done when the test file is there and the barem is active, and always once the test is in evaluation or done. Else in progress: "lipsește testul", "baremul se generează", "lipsește baremul".
-    - Tipărire: done when the print PDF exists, and once the test has started. In progress while the print PDF is made ("se pregătește") or after it failed ("nu s-a putut pregăti"). Later without a test file.
+    - Tipărire: done when the print PDF exists, and once the test has started. In progress while the print PDF is made ("se pregătește"), after it failed ("nu s-a putut pregăti"), or for a draft made before tests got their link when made ("fără cod QR": no print PDF is made until the teacher presses "Pregătește testul cu cod QR" on the test page). Later without a test file.
     - În clasă: later for a draft ("testul nu a început"), in progress while open ("elevii trimit lucrările"), done after.
     - Corectare: later before the evaluation, in progress during it ("15 din 22 corectate"), done when the test is done.
     - Verificare: orange while points wait ("3 puncte nesigure"), during the grading too. Done when a done test has none. In progress for an archived test that still has some. Later otherwise.
@@ -141,7 +141,7 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
     - The current stage is the first orange one, else the first in progress, else the first later one, else Rezultate.
   - The next step, from the current stage:
     - Pregătire: "Verifică baremul" or "Generează din nou baremul" when orange; "Încarcă testul" or "Încarcă baremul" in progress; nothing while the barem is generated.
-    - Tipărire: nothing while the print PDF is made; "Deschide" after it failed.
+    - Tipărire: nothing while the print PDF is made; "Deschide" after it failed, or for a draft without its link.
     - În clasă: "Începe testul" for a draft; "Pornește corectarea" while open, and nothing when a time is set for it.
     - Corectare: nothing.
     - Verificare: "Verifică 3 puncte".

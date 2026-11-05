@@ -25,7 +25,7 @@ The two browser apps. The root `AGENTS.md` holds the project-wide rules.
 - Testing Library's waits (`findBy…`, `waitFor`) last 3 s (`src/test/setup.ts`): while the whole suite runs, the first render of a page in a file can take about a second.
 - The Teste filters live in the address: `?clasa=<id>` and `?arhivate=1`. A `clasa` that is not a class of the year counts as all classes.
 - `TestSummary.averageGrade` is made by `averageGrade()` of `shared/stats.ts`, the function of the class report's statistics: keep both on it, so the Teste page and the report show the same number.
-- In page tests, the fake tests list makes `prepared` from a test's `files` and `print`, and `averageGrade` from its graded uploads, as the server does: a test that must be at a later stage gives them (an open test without a test file is still at Pregătire). `fakeSummary()` builds one entry of the list for the pure functions.
+- In page tests, the fake tests list makes `prepared` from a test's `files`, `print` and `uploadToken`, and `averageGrade` from its graded uploads, as the server does: a test that must be at a later stage gives them (an open test without a test file is still at Pregătire). `fakeSummary()` builds one entry of the list for the pure functions; the parts of `prepared` an override leaves out keep their ready values.
 
 - The Model column of the uploads table on the test page (`TestDetail.showModel`; the class report has none), and the model lines on Setări, are for the teacher only: the global setting `show_model_column` (the `settings` table, off by default) turns the column on. Student PDFs, the CSV, the class PDF and student pages never carry the model or effort.
 - The schedule input takes Romania's time (`ui/bucharestTime.ts`).

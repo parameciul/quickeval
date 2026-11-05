@@ -104,7 +104,12 @@ function withDerived({ test, ...detail }: TestDetail): TestDetail {
     ...detail,
     test: {
       ...test,
-      prepared: { testFile: test.files.test !== null, baremFile: test.files.barem !== null, print: test.print.status },
+      prepared: {
+        testFile: test.files.test !== null,
+        baremFile: test.files.barem !== null,
+        print: test.print.status,
+        uploadLink: test.uploadToken !== null,
+      },
       averageGrade: averageGrade(grades),
     },
   };
@@ -147,7 +152,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       analysis: { status: 'none', stale: false, attempts: 0 },
       print: { status: 'none', fromWord: false },
       // Made again from the files and the uploads (withDerived).
-      prepared: { testFile: false, baremFile: false, print: 'none' },
+      prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
       averageGrade: null,
       ...overrides,
     },
@@ -158,8 +163,11 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
 }
 
 // One test of the tests list, for building fake data in tests: a draft with
-// its test file, an active barem and the print PDF.
-export function fakeSummary(overrides: Partial<TestSummary> = {}): TestSummary {
+// its test file, an active barem, the print PDF and its link. The parts of
+// `prepared` an override leaves out keep these values.
+type SummaryOverrides = Omit<Partial<TestSummary>, 'prepared'> & { prepared?: Partial<TestSummary['prepared']> };
+
+export function fakeSummary({ prepared, ...overrides }: SummaryOverrides = {}): TestSummary {
   return {
     code: '6E2-26T1',
     title: 'Fracții',
@@ -179,7 +187,7 @@ export function fakeSummary(overrides: Partial<TestSummary> = {}): TestSummary {
     publishedCount: 0,
     archived: false,
     barem: { request: 'none', unchecked: false },
-    prepared: { testFile: true, baremFile: true, print: 'ready' },
+    prepared: { testFile: true, baremFile: true, print: 'ready', uploadLink: true, ...prepared },
     averageGrade: null,
     ...overrides,
   };

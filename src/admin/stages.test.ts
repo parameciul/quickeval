@@ -22,6 +22,12 @@ const CASES: [string, TestSummary, string, string][] = [
   ['a draft whose new barem failed', summary({ barem: { request: 'failed', unchecked: true } }), 'wdllll', 'Pregătire · baremul nu s-a generat'],
   ['a draft whose print PDF failed', summary({ prepared: { testFile: true, baremFile: true, print: 'failed' } }), 'dnllll', 'Tipărire · nu s-a putut pregăti'],
   ['a draft whose print PDF is made', summary({ prepared: { testFile: true, baremFile: true, print: 'none' } }), 'dnllll', 'Tipărire · se pregătește'],
+  [
+    'a draft made before tests got their link',
+    summary({ prepared: { testFile: true, baremFile: true, print: 'none', uploadLink: false } }),
+    'dnllll',
+    'Tipărire · fără cod QR',
+  ],
   ['a draft ready for the class', summary(), 'ddllll', 'În clasă · testul nu a început'],
   ['an open test', summary({ status: 'open', ...started, submittedCount: 19 }), 'ddnlll', 'În clasă · elevii trimit lucrările'],
   ['an open test before its print PDF', summary({ status: 'open', ...started, prepared: { testFile: true, baremFile: true, print: 'none' } }), 'ddnlll', 'În clasă · elevii trimit lucrările'],

@@ -116,7 +116,12 @@ function toRecord(row: TestRow): TestRecord {
       publishedCount: row.published_count,
       archived: row.archived === 1,
       barem,
-      prepared: { testFile: row.test_file_key !== null, baremFile: row.barem_file_key !== null, print: row.print_status },
+      prepared: {
+        testFile: row.test_file_key !== null,
+        baremFile: row.barem_file_key !== null,
+        print: row.print_status,
+        uploadLink: row.upload_token !== null,
+      },
       // The grades of the class report's rows, averaged the same way.
       averageGrade: averageGrade(JSON.parse(row.grades_json) as number[]),
     },
