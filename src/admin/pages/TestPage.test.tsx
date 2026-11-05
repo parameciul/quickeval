@@ -577,6 +577,56 @@ describe('TestPage stages', () => {
   });
 });
 
+describe('TestPage Verificare', () => {
+  function reviewApi(rows: UploadRow[]) {
+    return createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [fakeTest({ status: 'done', startedAt: '2026-10-06T07:15:00.000Z' }, rows)],
+    });
+  }
+
+  it('lists the papers with points to check, each opening its page, and starts with the first', async () => {
+    renderAdmin(
+      PAGE,
+      reviewApi([
+        fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 8.75, flagCount: 1 }),
+        fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+        fakeUpload({ studentId: 12, studentName: 'Marin Dan', submissionId: 7, status: 'graded', fileCount: 1, grade: 6.5, flagCount: 3 }),
+      ]),
+    );
+    const panel = await screen.findByRole('region', { name: 'Verificare' });
+    expect(within(panel).getByRole('link', { name: 'Începe verificarea' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
+    expect(within(panel).getByRole('link', { name: 'Începe verificarea' })).toHaveClass('button');
+    const papers = within(panel).getAllByRole('listitem');
+    expect(within(panel).getByRole('list', { name: 'Lucrări cu puncte de verificat' })).toBeInTheDocument();
+    expect(papers.map((paper) => paper.textContent)).toEqual([
+      'Pop Ionnota 8,751 punct de verificatDecide',
+      'Marin Dannota 6,53 puncte de verificatDecide',
+    ]);
+    expect(within(papers[1]!).getByText('3 puncte de verificat')).toHaveClass('tag', 'tag-wait');
+    expect(within(panel).getByRole('link', { name: 'Decide: Marin Dan' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/7');
+    // The table of every paper follows.
+    expect(within(panel).getByRole('rowheader', { name: 'Stan Eva' })).toBeInTheDocument();
+  });
+
+  it('says when every point is checked', async () => {
+    renderAdmin(
+      `${PAGE}#verificare`,
+      reviewApi([fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 })]),
+    );
+    expect(await screen.findByText('Toate punctele sunt verificate.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Începe verificarea' })).not.toBeInTheDocument();
+  });
+
+  it('waits for the grading before it lists anything', async () => {
+    renderAdmin(`${PAGE}#verificare`, apiWith({ status: 'evaluating' }));
+    expect(await screen.findByText('Punctele nesigure apar după ce se corectează lucrările.')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Lucrări cu puncte de verificat' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Toate punctele sunt verificate.')).not.toBeInTheDocument();
+  });
+});
+
 describe('TestPage and a test started by mistake', () => {
   const noFiles = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'uploading', fileCount: 0 }), fakeUpload({ studentId: 12, studentName: 'Marin Dan' })];
 

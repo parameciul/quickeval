@@ -1821,6 +1821,30 @@ table.tests .row-actions {
   text-align: right;
 }
 
+/* The papers with points to check, in the panel Verificare. */
+.review-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.review-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.review-name {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .test-sheet {
   grid-area: sheet;
   font-size: 0.875rem;

@@ -14,6 +14,7 @@ import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { PrintTest } from './PrintTest.tsx';
 import { RegradeAllButton } from './RegradeAllButton.tsx';
 import { hasResultsToManage, ResultsAccess } from './ResultsAccess.tsx';
+import { ReviewList } from './ReviewList.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
@@ -181,11 +182,15 @@ function GradingPanel(props: PanelProps) {
 }
 
 function ReviewPanel(props: PanelProps) {
-  const { test } = props;
+  const { test, uploads } = props;
   if (test.status === 'draft') return <p className="hint">Punctele nesigure apar după ce se corectează lucrările.</p>;
   return (
     <>
-      {test.gradedCount === 0 && <p className="hint">Punctele nesigure apar după ce se corectează lucrările.</p>}
+      {test.gradedCount === 0 ? (
+        <p className="hint">Punctele nesigure apar după ce se corectează lucrările.</p>
+      ) : (
+        <ReviewList test={test} uploads={uploads} />
+      )}
       <Papers {...props} selectable={false} />
     </>
   );
