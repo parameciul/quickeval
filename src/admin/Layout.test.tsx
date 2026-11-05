@@ -202,11 +202,15 @@ describe('the phone menu', () => {
   });
 
   it('changes the school year for every page', async () => {
-    renderAdmin('/', withClasses());
+    const api = withClasses();
+    renderAdmin('/', api);
     await menu();
+    expect(await within(screen.getByRole('main')).findByRole('link', { name: 'Ecuații' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Mai mult' }));
     await userEvent.selectOptions(within(screen.getByRole('region', { name: 'Mai mult' })).getByLabelText('Anul școlar'), '2027');
-    expect(await screen.findByRole('heading', { name: 'Teste 2027-2028' })).toBeInTheDocument();
+    // The Teste page shows the tests of the new year: none.
+    expect(await within(screen.getByRole('main')).findByText('Nu ai niciun test în acest an școlar.')).toBeInTheDocument();
+    expect(api.listTests).toHaveBeenCalledWith(2027);
   });
 
   it('shows no Setări to a teacher', async () => {
