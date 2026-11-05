@@ -334,6 +334,30 @@ describe('TestsPage results', () => {
     expect(within(moved).getByRole('button', { name: 'Oprește accesul: Fracții, Clasa 6E2' })).toBeInTheDocument();
   });
 
+  it('keeps the button busy until the list is read again, so a publish cannot act twice', async () => {
+    const api = withPublishing();
+    renderAdmin('/', api);
+    const row = await findRow('Fracții');
+    const read = api.listTests.getMockImplementation()!;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    api.listTests.mockImplementationOnce(async (schoolYear: number) => {
+      await gate;
+      return read(schoolYear);
+    });
+    const publish = within(row).getByRole('button', { name: 'Publică rezultatele: Fracții, Clasa 6E2' });
+    await userEvent.click(publish);
+    await waitFor(() => expect(api.listTests).toHaveBeenCalledTimes(2));
+    expect(publish).toBeDisabled();
+    await userEvent.click(publish);
+    expect(api.setResultsOpen).toHaveBeenCalledTimes(1);
+    release();
+    const finished = await screen.findByRole('region', { name: 'Terminate' });
+    expect(within(finished).getByRole('link', { name: 'Fracții' })).toBeInTheDocument();
+  });
+
   it('refreshes the test page data after a publish from the list', async () => {
     const api = withPublishing();
     const { queryClient } = renderAdmin('/', api);
