@@ -438,7 +438,17 @@ describe('POST /api/auth/login', () => {
     await setPasswordOf('profesor@example.com', 'parola-buna');
     const from = (password: string) =>
       api.request('POST', '/api/auth/login', { email: 'profesor@example.com', password }, { 'CF-Connecting-IP': '7.7.7.7' });
-    for (let i = 0; i < MAX_IP_FAILED_LOGINS + 5; i++) expect((await from('parola-buna')).status).toBe(200);
+    const attempts = async () => (await api.db.prepare('SELECT attempts FROM login_ips').first<{ attempts: number }>())!.attempts;
+    // The IP is one attempt from its limit, as after many wrong passwords. A
+    // login takes about 50 ms here, so the count is set in the database
+    // instead of by MAX_IP_FAILED_LOGINS real logins.
+    expect((await from('gresita')).status).toBe(401);
+    await api.db.prepare('UPDATE login_ips SET attempts = ?').bind(MAX_IP_FAILED_LOGINS - 1).run();
+    for (let i = 0; i < 5; i++) expect((await from('parola-buna')).status).toBe(200);
+    expect(await attempts()).toBe(MAX_IP_FAILED_LOGINS - 1);
+    // The IP still has exactly its last attempt.
+    expect((await from('gresita')).status).toBe(401);
+    expect((await from('parola-buna')).body.error).toBe('network_blocked');
   });
 
   it('starts the count of wrong passwords again after a good login', async () => {
