@@ -22,7 +22,11 @@ const CASES: [string, TestSummary, NextStep][] = [
   ['opens the test when the print PDF failed', fakeSummary({ prepared: { testFile: true, baremFile: true, print: 'failed' } }), page('Deschide')],
   ['opens a draft without its link, to prepare it with the QR code', fakeSummary({ prepared: { print: 'none', uploadLink: false } }), page('Deschide')],
   ['starts a draft ready for the class', fakeSummary(), page('Începe testul')],
-  ['starts the grading of an open test', fakeSummary({ status: 'open', ...started }), page('Pornește corectarea')],
+  [
+    'starts the grading of an open test in the panel Corectare',
+    fakeSummary({ status: 'open', ...started }),
+    { kind: 'link', label: 'Pornește corectarea', to: '/teste/6E2-26T1#corectare' },
+  ],
   ['waits for the time set for the grading', fakeSummary({ status: 'open', ...started, evaluationAt: '2026-10-06T12:00:00.000Z' }), null],
   ['waits while the papers are graded', fakeSummary({ status: 'evaluating', ...started, submittedCount: 22, gradedCount: 15 }), null],
   ['checks the points that wait', fakeSummary({ status: 'done', ...graded, flagCount: 3 }), page('Verifică 3 puncte')],
