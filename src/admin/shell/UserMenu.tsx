@@ -24,16 +24,19 @@ export function UserMenu({ teacher }: { teacher: Teacher }) {
     const onPointer = (event: MouseEvent) => {
       if (!box.current?.contains(event.target as Node)) setOpenOn(null);
     };
+    // The menu is above the panels: it takes Esc first (capture), and marks it
+    // taken so an open panel stays open.
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      event.preventDefault();
       if (box.current?.contains(document.activeElement)) button.current?.focus();
       setOpenOn(null);
     };
     document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
 
@@ -43,7 +46,7 @@ export function UserMenu({ teacher }: { teacher: Teacher }) {
         ref={button}
         type="button"
         className="user-button"
-        aria-label={`Contul tău: ${teacher.name}`}
+        aria-label={`${initials(teacher.name)}, contul tău: ${teacher.name}`}
         aria-expanded={open}
         aria-controls={open ? 'user-menu' : undefined}
         onClick={() => setOpenOn(open ? null : location.key)}

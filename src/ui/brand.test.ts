@@ -60,6 +60,14 @@ describe('brand.css', () => {
     expect(value(declarations('.todo-card'), 'overflow-wrap')).toBe('anywhere');
   });
 
+  it('keeps the phone menu inside the screen a phone shows now', () => {
+    expect(declarations('.phone-menu')).toContain('max-height: calc(100dvh - var(--top) - var(--bottom))');
+  });
+
+  it('keeps the small buttons of the student pages big enough for a finger', () => {
+    expect(value(declarations('.upload-page .button-small'), 'min-height')).toBe('2.75rem');
+  });
+
   it('is flat: no gradient, no notebook grid', () => {
     expect(css).not.toMatch(/gradient\(/);
     expect(css).not.toContain('--grid');

@@ -49,10 +49,12 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
     queryFn: () => api.getSubmission(submissionId),
     refetchInterval: (query) => resultRefreshInterval(query.state.data),
   });
-  // The test page and the test list count grades and items to check.
+  // The test page and the test list count grades and items to check. The list
+  // of the year is read on every page (the shell): read it again, but do not
+  // wait for it.
   const refreshLists = async () => {
+    void queryClient.invalidateQueries({ queryKey: ['tests'] });
     await queryClient.invalidateQueries({ queryKey: ['test', code] });
-    await queryClient.invalidateQueries({ queryKey: ['tests'] });
   };
   const saved = async (submission: SubmissionDetail) => {
     queryClient.setQueryData(['submission', submissionId], submission);

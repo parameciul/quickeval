@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type Query } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, matchPath, Outlet, useLocation } from 'react-router';
 import { demoPapersLeft, DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
@@ -6,6 +6,7 @@ import type { Teacher } from '../../shared/api.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
+import { useMediaQuery } from '../ui/useMediaQuery.ts';
 import { useApi } from './ApiContext.tsx';
 import { ErrorMessage, isLoginRequired } from './ErrorMessage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
@@ -27,6 +28,9 @@ export function demoText(teacher: Teacher): string {
   }
   return `Cont demo: mai ai ${left} din ${DEMO_PAPER_LIMIT} lucrări. Fiecare lucrare corectată se numără, și o recorectare.`;
 }
+
+// The phone layout of brand.css: the bar at the bottom, a panel over the page.
+const PHONE = '(max-width: 56.25rem)';
 
 // The class of a /clase/:id page, for the panel to mark it.
 function classOfPath(pathname: string): number | null {
@@ -64,27 +68,35 @@ export function Layout() {
   const open = panel?.on === location.key ? panel.name : null;
   const toggle = (name: PanelName) => setPanel(open === name ? null : { name, on: location.key });
   const close = useCallback(() => setPanel(null), []);
+  const phone = useMediaQuery(PHONE);
 
   // A start, a regrade or a retry changes the papers the demo line shows, and
   // a change can end or add a thing in "De făcut": every change a logged-in
-  // teacher makes reads the account and the tests of the year again.
+  // teacher makes reads the account and the tests of the year again. Only
+  // what was not read since the change started, and joining a read already on
+  // its way: a page that reads the list after its change does not cause a
+  // second read, and nothing waits for this one.
   const queryClient = useQueryClient();
   useEffect(
     () =>
       queryClient.getMutationCache().subscribe((event) => {
         const changed = event.type === 'updated' && event.action.type === 'success';
-        if (changed && queryClient.getQueryData(['me'])) {
-          void queryClient.invalidateQueries({ queryKey: ['me'] });
-          void queryClient.invalidateQueries({ queryKey: ['tests'] });
-        }
+        if (!changed || !queryClient.getQueryData(['me'])) return;
+        const since = event.mutation.state.submittedAt;
+        // Read before the change started (a read in the same millisecond counts
+        // as after it: the page's own read can follow that fast).
+        const predicate = (query: Query) => query.state.dataUpdatedAt < since;
+        void queryClient.invalidateQueries({ queryKey: ['me'], predicate }, { cancelRefetch: false });
+        void queryClient.invalidateQueries({ queryKey: ['tests'], predicate }, { cancelRefetch: false });
       }),
     [queryClient],
   );
-  // Esc closes the open panel.
+  // Esc closes the open panel, unless a layer above it (the account menu, the
+  // QR code on the whole screen) took this Esc first.
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setPanel(null);
+      if (event.key === 'Escape' && !event.defaultPrevented) setPanel(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -114,7 +126,7 @@ export function Layout() {
           <button
             type="button"
             className="menu-button"
-            aria-label="Meniu"
+            aria-label="Mai mult"
             aria-expanded={open === 'menu'}
             aria-controls={open === 'menu' ? 'phone-menu' : undefined}
             onClick={() => toggle('menu')}
@@ -127,7 +139,16 @@ export function Layout() {
       {me.data && (
         <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length} panel={open} onToggle={toggle} />
       )}
-      <main className="page">
+      {/* The panels come right after the bar that opens them, for the keyboard
+          and screen readers. */}
+      {me.data && open === 'clase' && (
+        <ClassesPanel year={year} todo={todo} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
+      )}
+      {me.data && open === 'todo' && (
+        <TodoPanel items={todo} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
+      )}
+      {/* On a phone a panel covers the page: the page under it is out of reach. */}
+      <main className="page" inert={phone && (open === 'clase' || open === 'todo')}>
         {me.data?.demo && <p className="warning">{demoText(me.data)}</p>}
         {openPage ? (
           <Outlet />
@@ -143,10 +164,6 @@ export function Layout() {
           </ErrorBoundary>
         )}
       </main>
-      {me.data && open === 'clase' && (
-        <ClassesPanel year={year} todo={todo} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
-      )}
-      {me.data && open === 'todo' && <TodoPanel items={todo} others={others} onClose={() => setPanel(null)} />}
     </div>
   );
 }

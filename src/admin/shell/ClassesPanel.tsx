@@ -15,7 +15,9 @@ function inWork(test: TestSummary, waits: boolean): boolean {
 // "Clasele tale" (redesign spec §4): the classes of the school year that are
 // not archived, each with its students and its tests in work; a test that
 // waits on the teacher is orange and says what waits ("Logaritmi · Rezultate ·
-// nepublicate"). The class of the page is marked.
+// nepublicate"). The class of the page is marked. Until the tests of the year
+// arrive a class shows no line about them (or the panel says why they could
+// not be read), never "Nimic în lucru".
 export function ClassesPanel({
   year,
   todo,
@@ -45,36 +47,43 @@ export function ClassesPanel({
       ) : active.length === 0 ? (
         <p className="panel-body hint">Nu ai nicio clasă în acest an școlar.</p>
       ) : (
-        <nav className="class-list" aria-label="Clasele tale">
-          {active.map((item) => {
-            const work = (tests.data ?? []).filter((test) => test.classId === item.id && inWork(test, todoOf(test) !== undefined));
-            return (
-              <Link
-                key={item.id}
-                className="class-item"
-                to={`/clase/${item.id}`}
-                aria-current={item.id === currentClassId ? 'page' : undefined}
-              >
-                <span className="class-item-head">
-                  <b>{item.name}</b>
-                  <span>{studentCountLabel(item.studentCount)}</span>
-                </span>
-                {work.length === 0 ? (
-                  <span className="class-item-test">Nimic în lucru</span>
-                ) : (
-                  work.map((test) => {
-                    const waiting = todoOf(test);
-                    return (
-                      <span key={test.code} className={waiting ? 'class-item-test is-waiting' : 'class-item-test'}>
-                        {test.title} · {waiting ? `${waiting.stage} · ${waiting.short}` : testStatusLabel(test.status)}
-                      </span>
-                    );
-                  })
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <>
+          {!tests.data && tests.error ? (
+            <div className="panel-body">
+              <ErrorMessage error={tests.error} />
+            </div>
+          ) : null}
+          <nav className="class-list">
+            {active.map((item) => {
+              const work = (tests.data ?? []).filter((test) => test.classId === item.id && inWork(test, todoOf(test) !== undefined));
+              return (
+                <Link
+                  key={item.id}
+                  className="class-item"
+                  to={`/clase/${item.id}`}
+                  aria-current={item.id === currentClassId ? 'page' : undefined}
+                >
+                  <span className="class-item-head">
+                    <b>{item.name}</b>
+                    <span>{studentCountLabel(item.studentCount)}</span>
+                  </span>
+                  {!tests.data ? null : work.length === 0 ? (
+                    <span className="class-item-test">Nimic în lucru</span>
+                  ) : (
+                    work.map((test) => {
+                      const waiting = todoOf(test);
+                      return (
+                        <span key={test.code} className={waiting ? 'class-item-test is-waiting' : 'class-item-test'}>
+                          {test.title} · {waiting ? `${waiting.stage} · ${waiting.short}` : testStatusLabel(test.status)}
+                        </span>
+                      );
+                    })
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        </>
       )}
       <div className="panel-actions">
         <Link className="button-quiet button-small" to="/clase">

@@ -852,7 +852,9 @@ h2 {
     right: 0;
     left: 0;
     z-index: 35;
+    /* The screen a phone shows now, with its browser bars (100vh where dvh is unknown). */
     max-height: calc(100vh - var(--top) - var(--bottom));
+    max-height: calc(100dvh - var(--top) - var(--bottom));
     overflow-y: auto;
     padding: 0.25rem max(1rem, env(safe-area-inset-right, 0px)) 0.75rem max(1rem, env(safe-area-inset-left, 0px));
     border-bottom: 1px solid var(--rule);
@@ -1182,9 +1184,9 @@ a.class-badge:hover {
   gap: 0.35rem 0.6rem;
 }
 
-/* The grading bar: graded in green, waiting in the marker colour, the rest
-   (not sent) is the empty track. The colours come from variables that have
-   their dark values already. */
+/* The grading bar: graded in blue, waiting in pale blue, the rest (not sent)
+   is the empty track. The colours come from variables that have their dark
+   values already. */
 .grading-progress {
   display: flex;
   flex-direction: column;
@@ -2205,6 +2207,11 @@ table.items tr.edit-row > td {
    narrow phone-first upload width. */
 .upload-page.result-page {
   max-width: 70rem;
+}
+
+/* A small button of the teacher app is still a finger's size here. */
+.upload-page .button-small {
+  min-height: 2.75rem;
 }
 
 .result-page table.items,

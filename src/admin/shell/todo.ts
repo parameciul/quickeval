@@ -17,11 +17,14 @@ export interface TodoItem {
 }
 
 // What a test waits for from the teacher, if anything (redesign spec §5):
-// exactly three cases, checked in this order.
+// exactly three cases, checked in this order. The first has two forms: the
+// generated barem waits to be checked, or its new generation failed (it can
+// be neither confirmed nor used until the teacher asks for it again).
 export function todoOf(test: TestSummary): TodoItem | null {
   if (test.archived) return null;
   const item = { code: test.code, testTitle: test.title, className: test.className };
-  if ((test.status === 'draft' || test.status === 'open') && test.barem.unchecked && test.barem.request === 'none') {
+  const preparing = (test.status === 'draft' || test.status === 'open') && test.barem.unchecked;
+  if (preparing && test.barem.request === 'none') {
     return {
       ...item,
       stage: 'Pregătire',
@@ -29,6 +32,16 @@ export function todoOf(test: TestSummary): TodoItem | null {
       text: 'Până îl confirmi, baremul nu se folosește la corectare.',
       action: 'Deschide',
       short: 'baremul de verificat',
+    };
+  }
+  if (preparing && test.barem.request === 'failed') {
+    return {
+      ...item,
+      stage: 'Pregătire',
+      task: 'Generează din nou baremul',
+      text: 'Baremul nu s-a putut genera din nou. Fără el, testul nu se poate corecta.',
+      action: 'Deschide',
+      short: 'baremul nu s-a generat',
     };
   }
   if (test.flagCount > 0) {

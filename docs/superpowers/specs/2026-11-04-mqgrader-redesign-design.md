@@ -125,7 +125,7 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
 - The class filter as chips ("Toate clasele", one chip per class), kept in the address as today (`?clasa=`).
 - "În lucru" and "Terminate" (archived ones with `?arhivate=1`, as today): a table with the test (name, class, start), the stage (a bar of six segments: blue done, orange waits on the teacher, pale in progress, grey later; the stage name and its state), the papers (sent of students), and the next step (one button, or "Nimic de făcut acum").
 - "De făcut" counts exactly three cases, from the tests of the chosen school year that are not archived (`src/admin/shell/todo.ts`, Phase 2):
-  - Pregătire, "Verifică baremul generat": a draft or open test whose generated barem waits for "Am verificat baremul" (`barem.unchecked`, no request running). The tests list carries `barem` from Phase 2.
+  - Pregătire, "Verifică baremul generat": a draft or open test whose generated barem waits for "Am verificat baremul" (`barem.unchecked`, no request running). The tests list carries `barem` from Phase 2. The same case says "Generează din nou baremul" when the new generation of an unchecked barem failed (`request` is `failed`): that barem can be neither confirmed nor used until the teacher asks for it again.
   - Verificare, "Decide N puncte nesigure": a test with points to check (`flagCount` above 0).
   - Rezultate, "Publică rezultatele": a done test with nothing to check, at least one graded paper, the results not open, and not every graded paper published one by one.
 

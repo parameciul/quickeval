@@ -23,6 +23,19 @@ describe('todoOf', () => {
     }
   });
 
+  it('asks to generate the barem again when its new generation failed', () => {
+    for (const status of ['draft', 'open'] as const) {
+      expect(todoOf(summary({ status, barem: { request: 'failed', unchecked: true } }))).toMatchObject({
+        stage: 'Pregătire',
+        task: 'Generează din nou baremul',
+        text: 'Baremul nu s-a putut genera din nou. Fără el, testul nu se poate corecta.',
+        action: 'Deschide',
+        short: 'baremul nu s-a generat',
+      });
+    }
+    expect(todoOf(summary({ status: 'done', barem: { request: 'failed', unchecked: true } }))).toBeNull();
+  });
+
   it('waits while a new barem is generated, and needs nothing for a checked barem', () => {
     expect(todoOf(summary({ status: 'draft', barem: { request: 'requested', unchecked: true } }))).toBeNull();
     expect(todoOf(summary({ status: 'draft', barem: { request: 'none', unchecked: false } }))).toBeNull();
