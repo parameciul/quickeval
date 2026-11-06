@@ -1,6 +1,6 @@
 # MQGrader redesign: design
 
-Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phases 1 to 4 (landing page and light theme, look and shell, Teste page, test page) are live; Phase 5 (Rezultate) is being built; the other phases are not.
+Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phases 1 to 5 (landing page and light theme, look and shell, Teste page, test page, Rezultate) are live; Phase 6 (the review of the points to check) is being built; the other phases are not.
 
 ## 0. Plain summary
 
@@ -36,6 +36,8 @@ The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (
 24. The student's PDF stays on the paper's page, one student at a time: the teacher gives it to a student who has no link. Rezultate has no download of every student's PDF (Phase 5).
 25. "CSV pentru catalog" in Rezultate is the CSV of the class report: each exercise, the total, the grade and the notes (Phase 5).
 26. "Publică toate rezultatele" opens the link of every student, and "Oprește accesul la rezultate" closes every link, also the ones published alone. While all are published, one result cannot be stopped alone (Phase 5).
+27. The review has no marks on the photo: the robot does not say where an answer is on a page, nor on which page. The middle pane shows the student's pages with the page switch (Phase 6).
+28. The review is a page of its own, `/admin/teste/:code/verificare`. "Începe verificarea" and "Decide" in the panel Verificare, "Verifică 3 puncte" on the Teste page, and the button of "Decide 3 puncte nesigure" in "De făcut" open it (Phase 6).
 
 ## 2. Look
 
@@ -122,13 +124,13 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
 - A top bar over the page: the lockup (the mark sits at the top of the 80 px bar, "MQGrader" and "by Laura Miron" start the top bar), the school year, the theme button, and the user's initials, which open a small menu with the name and email, "Contul meu" and "Ieși din cont". No search box until search is designed (§11). The old footer goes.
 - The panels open beside the bar, over the page, 384 px wide. Only one is open at a time; Esc and × close it, and so does opening a page. Small menus (the initials, Schimbă clasa, ⋯) close on a click outside them and on Esc.
 - "Clasele tale": the classes of the chosen school year that are not archived, each with its number of students and its tests in work (draft, open, in evaluation, or done with a thing in "De făcut"); a test in "De făcut" is orange; the class of the page is marked. "+ Clasă nouă" and "Arhivate (n)" open the page Clase (`/clase`) until Phase 7 replaces it.
-- "Ce ai de făcut": one card per thing in "De făcut" (§5): the stage as a pill, the test and its class, what to do, one sentence, and one button to the test; the first card's button is the filled one. Under them, how many other tests of the year are in work. With nothing: "Nimic nu te așteaptă acum."
+- "Ce ai de făcut": one card per thing in "De făcut" (§5): the stage as a pill, the test and its class, what to do, one sentence, and one button to the test (to the review for Verificare, §7); the first card's button is the filled one. Under them, how many other tests of the year are in work. With nothing: "Nimic nu te așteaptă acum."
 - The demo line stays at the top of the page, under the top bar.
 - On a phone (below 900 px; round 6, design M2): the top bar holds the lockup and ☰. The 80 px bar becomes a bar at the bottom of the screen with the same four items in the same order (Test nou, Teste, Clase, De făcut with its number); Setări leaves it. ☰ drops a menu from the top bar: Setări (administrators), the school year, "Temă întunecată" (a switch), the user's name and email, "Contul meu" and "Ieși din cont". The panels cover the screen between the two bars.
 
 ## 5. Teste page (`/admin/`, Phase 3)
 
-- "Bună dimineața, Laura." and a line with the date and "**3 lucruri te așteaptă ˅** în 3 teste." The bold part is a button: it opens and closes the list "Ce ai de făcut" right under it (closed when the page opens). Each row: the stage as a pill, the task, the test and class, one button to the test (the first one filled).
+- "Bună dimineața, Laura." and a line with the date and "**3 lucruri te așteaptă ˅** în 3 teste." The bold part is a button: it opens and closes the list "Ce ai de făcut" right under it (closed when the page opens). Each row: the stage as a pill, the task, the test and class, one button to the test (to the review for Verificare, §7; the first one filled).
   - The greeting follows Romania's time: "Bună dimineața" from 5:00, "Bună ziua" from 11:00, "Bună seara" from 18:00. The name is the first word of the teacher's name; without a name the greeting is "Bună ziua." alone.
   - The date is today in Romania's time, the weekday first, with a capital letter: "Miercuri, 4 noiembrie".
   - The count and the list are those of "De făcut" in the bar: every class of the year, whatever chip is chosen. One thing: "1 lucru te așteaptă în 1 test."; none: "Nimic nu te așteaptă acum.", with no button.
@@ -152,7 +154,7 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
     - Verificare: "Verifică 3 puncte".
     - Rezultate: "Publică rezultatele" when orange, or "Publică pentru toți" after some results were published one by one; it publishes on the row (§1, decision 20). When done: "Raportul clasei", if a paper is graded.
     - Nothing: "Nimic de făcut acum".
-    - Every other step is a link to the test page. A test whose results are open also has "Oprește accesul" on its row. The button of the first thing in "De făcut" is filled; the others are outlines.
+    - Every other step is a link to the test page; "Verifică 3 puncte" opens the review (§7). A test whose results are open also has "Oprește accesul" on its row. The button of the first thing in "De făcut" is filled; the others are outlines.
   - On a phone (below 768 px) each row becomes a block: the test, the stage, the papers and the next step, one under the other.
 - "De făcut" counts exactly three cases, from the tests of the chosen school year that are not archived (`src/admin/shell/todo.ts`, Phase 2):
   - Pregătire, "Verifică baremul generat": a draft or open test whose generated barem waits for "Am verificat baremul" (`barem.unchecked`, no request running). The tests list carries `barem` from Phase 2. The same case says "Generează din nou baremul" when the new generation of an unchecked barem failed (`request` is `failed`): that barem can be neither confirmed nor used until the teacher asks for it again.
@@ -171,7 +173,7 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
   - Tipărire: the test with the QR code (`PrintTest`), its failure and retry, "Pregătește testul cu cod QR"; the robot line while it is made. After the uploads closed, one line: the file stays in Fișa testului. Done when the print PDF exists.
   - În clasă: "Începe testul" and "Oprește testul" (`TestActions`), "Redeschide încărcarea", the link for many uploads (while open), and the papers table: who sent and who did not.
   - Corectare: before the start, one line. While open: start now for the chosen papers or at a time, or "Marchează ca terminat", and the papers table with its checkboxes (only in this panel). After: the state of the grading, a partial grading, a problem of the barem (with a link to Pregătire, where the barem is replaced), the robot line, "Recorectează tot", the line of the class analysis, and the papers table.
-  - Verificare: "Lucrări cu puncte de verificat", a row per paper with points to check (the student, the grade, "2 puncte de verificat", and "Decide", which opens the paper's page), and "Începe verificarea", which opens the first of them. "Toate punctele sunt verificate." when graded papers have none; one line before any paper is graded. Then the papers table. The list of each point with its reason comes with the review (§7, Phase 6): the API gives only a count per paper.
+  - Verificare: "Începe verificarea", which opens the review (§7) at the first point, and "Puncte de verificat", a row per point: the student and the exercise ("Ioana Marin · Subiectul al II-lea, 3)"), the reason, "propus 1p din 1p", and "Decide", which opens the review at that point. The pages the robot could not read are one point: "Paginile necitite" and the pages. "Toate punctele sunt verificate." and "Vezi lucrările" (the review) when graded papers have none; one line before any paper is graded. Then the papers table.
   - Rezultate: the students' result links and "Pentru tine" (§8, Phase 5). The papers table of the other panels has no result link and no publish button: they are in Rezultate.
   - Every stage can be opened at any time. A panel whose stage has not come yet says so in one line, and still shows what can be read or changed.
 - Fișa testului:
@@ -183,12 +185,20 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
 
 ## 7. Verificarea punctelor (Phase 6)
 
-Three panes in one panel:
+The page `/admin/teste/:code/verificare` (decision 28): three panes in one panel.
 
-- Left: "Cu puncte de verificat" (each paper with its grade and its points to check, the current one marked), then "Celelalte lucrări" (every other paper with its grade).
-- Middle: the photo of the page with the marked zones (green checked, orange dashed to check) and the page switch (1 · 2 · 3).
-- Right: the exercise of the barem, its items with points; the doubtful item on orange with its reason, "Accept Np", a stepper for another value and "Salvează"; the total, what the grade becomes with the other value, the grade; the keys: A accept, J/K next or previous point, 1–3 page.
-- The title row: "Verificare", the test, "Înapoi la test", "Următorul punct".
+- A point to check is an exercise the robot was not sure of, with its reason, or the pages the robot could not read: those pages are one point, as the papers' counts say. The points go in the order of the papers (by the student's name); in a paper, the pages first, then the exercises in the barem's order. The API lists them with each paper (`reviewPoints` in the uploads list), counted as `flagCount` counts.
+- The address names the paper and the point (`?lucrare=12&punct=34`; `punct=pagini` for the pages) without a new step in the history, so a reload comes back to it. Without them, the page opens on the first point.
+- The title row: "Verificare", under it the test, its class and "3 puncte în 2 lucrări"; "Înapoi la test" (to the panel Verificare) and "Următorul punct" (the filled button, while a point waits).
+- Left: "Cu puncte de verificat": each paper with its grade and "2 puncte de verificat", and under it its points (the exercise and "1p din 1p", or "Paginile necitite"), the current point marked. Then "Celelalte lucrări": every other graded paper with its grade. A click on a point opens it; a click on a paper of "Celelalte lucrări" shows that paper, with no point.
+- Middle: the paper's pages, one at a time: "Ioana Marin · pagina 2 din 3" and the page switch (1 · 2 · 3). A click on a photo opens it full size in a new tab; a PDF shows in a frame. No marks on the photo (decision 27). A point opens on page 1; the pages point opens on the first page the robot could not read.
+- Right, for an exercise: its name and "5p în barem"; the points ("1p din 1p"), the student's answer, the robot's comment, and on orange "De verificat:" with the reason; "Accept 1p" (the filled button), a stepper for another value (− and + by 0,5, from 0 to the maximum; any value in steps of 0,05 can be typed) and "Salvează". Under them, the total ("Total: 75 din 100, cu 10 din oficiu"), what the grade becomes while the stepper shows another value ("Cu 0p aici, nota devine 8,40"), and the grade. Then the paper's exercises with their points, the ones to check marked; a click on one to check opens it.
+- Right, for the pages point: "Robotul nu a putut citi: Pagina 2. Verifică pozele și punctajele exercițiilor de pe ele." and "Am verificat paginile".
+- Right, for a paper with no point open: its total and grade, and its exercises. Under every view, "Deschide lucrarea": the paper's page, where the rest changes (the comments, "Recorectează", the student's PDF).
+- After "Accept", "Salvează" or "Am verificat paginile", the next point opens. While the answer is on its way, the buttons and the keys do nothing. When no point is left: "Toate punctele sunt verificate." and "Mergi la Rezultate".
+- The keys: A accept, J and K the next or the previous point, 1–9 the page. A line under the decision names them (not on a phone). They do nothing while the cursor is in a field or in a panel of the bar, or with Ctrl, Alt or Meta.
+- A change names the grading it was made on: when the paper was graded again in the meantime, the change is refused and the page reads the paper again.
+- On a phone (below 900 px): one column: the page, the decision, then the papers.
 
 ## 8. Rezultate (Phase 5)
 
