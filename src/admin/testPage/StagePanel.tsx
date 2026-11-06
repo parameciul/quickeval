@@ -230,7 +230,6 @@ function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRob
         onSelect={onSelect}
         onChanged={onChanged}
         onRobot={onRobot}
-        resultsOpen={test.resultsOpen}
       />
     </>
   );

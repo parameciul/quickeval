@@ -293,6 +293,20 @@ describe('TestPage', () => {
     expect(marin.querySelector('[data-label="Model"]')).toHaveTextContent('—');
   });
 
+  it('keeps the result links and the publish buttons out of the papers table', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, resultsOpen: true }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+    ];
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
+    expect(within(pop).getByText('Publicat')).toBeInTheDocument();
+    expect(within(pop).getByRole('link', { name: 'Vezi lucrarea' })).toBeInTheDocument();
+    for (const name of ['Link rezultat', 'Copiază linkul', 'Publică', 'Oprește publicarea']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+  });
+
   it('marks only the selectable rows for the narrow-screen layout', async () => {
     renderAdmin(`${PAGE}#corectare`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
     const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
