@@ -87,11 +87,11 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   const others = otherPapers(uploads);
   const queue = pointQueue(uploads);
 
-  // The spot the address names. For a paper of this test that is not graded
-  // now (it is graded again): the first point, else the first paper.
+  // The spot the address names (the loader writes one first). A paper of this
+  // test that has no result now (it is graded again) shows, with the reason.
   const asked = parsePositiveId(params.get('lucrare') ?? undefined);
-  const askedRow = [...papers, ...others].find((row) => row.submissionId === asked);
-  const spot: ReviewSpot | null = askedRow ? { submissionId: askedRow.submissionId, key: params.get('punct') } : firstSpot(uploads);
+  const named = asked !== null && uploads.some((other) => other.submissionId === asked);
+  const spot: ReviewSpot | null = named ? { submissionId: asked, key: params.get('punct') } : firstSpot(uploads);
   const row = [...papers, ...others].find((other) => other.submissionId === spot?.submissionId);
   const point = row?.reviewPoints.find((other) => pointKey(other) === spot?.key) ?? null;
   // The spot on the screen now, for a decision that comes back later.
@@ -108,6 +108,15 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   const submission = paper.data;
   const evaluation = submission?.status === 'graded' ? submission.evaluation : null;
 
+  // The list has another grading of the paper than the one read (it was graded
+  // again; the list is read every 10 s while the robot works): read the paper
+  // again, so its new result shows.
+  const listGradedAt = uploads.find((other) => other.submissionId === spot?.submissionId)?.gradedAt ?? null;
+  const stale = submission !== undefined && listGradedAt !== (evaluation?.gradedAt ?? null);
+  useEffect(() => {
+    if (stale && spot !== null) void queryClient.invalidateQueries({ queryKey: ['submission', spot.submissionId] }, { cancelRefetch: false });
+  }, [stale, listGradedAt, spot?.submissionId, queryClient]);
+
   // What the right pane shows: the point, while the paper still has it to
   // check, else the paper.
   const item = point?.kind === 'item' ? evaluation?.items.find((other) => other.id === point.itemId && other.needsReview && !other.reviewed) : undefined;
@@ -120,8 +129,21 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   const firstPage = view.kind === 'pages' ? (pageIndex(view.pages[0] ?? '') ?? 0) : 0;
   const shownPage = pageChoice?.view === viewKey ? pageChoice.page : firstPage;
 
+  // After a decision, the point that opens takes the focus on its heading,
+  // without a scroll (on a phone the page of the paper stays in view). A move
+  // of the teacher's own drops it.
+  const pane = useRef<HTMLElement>(null);
+  const focusOn = useRef<ReviewSpot | null>(null);
+  useEffect(() => {
+    const target = focusOn.current;
+    if (target === null || submission?.id !== target.submissionId || spot?.submissionId !== target.submissionId || spot.key !== target.key) return;
+    focusOn.current = null;
+    pane.current?.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
+  });
+
   const go = (target: { submissionId: number; key: string | null } | null) => {
     if (target === null) return;
+    focusOn.current = null;
     const next = new URLSearchParams({ lucrare: String(target.submissionId) });
     if (target.key !== null) next.set('punct', target.key);
     setParams(next, { replace: true });
@@ -171,8 +193,9 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
         // (this call's own callbacks do not run once the page is gone).
         onSuccess: (saved) => {
           if (shown.current?.submissionId !== from.submissionId || shown.current.key !== from.key) return;
-          if (next) goPoint(next);
-          else go({ submissionId: saved.id, key: null });
+          const target = next ? { submissionId: next.submissionId, key: pointKey(next.point) } : { submissionId: saved.id, key: null };
+          go(target);
+          focusOn.current = target;
         },
       },
     );
@@ -245,6 +268,7 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
                   pending={decide.isPending}
                   error={decideError}
                   onDecide={onDecide}
+                  paneRef={pane}
                 />
               </>
             )}

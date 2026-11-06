@@ -428,7 +428,6 @@ describe('the review of the points to check', () => {
     await userEvent.type(input, '1,5');
     await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
     await waitFor(() => expect(within(decision()).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue('1'));
-    expect(api.getSubmission).toHaveBeenCalledTimes(2);
   });
 
   it('names the point it opens on in the address', async () => {
@@ -444,9 +443,48 @@ describe('the review of the points to check', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=11&punct=pagini'));
   });
 
-  it('keeps the address of a paper that is not graded yet', async () => {
-    renderAdmin(`${PAGE}?lucrare=12`, apiWith(), <LocationProbe />);
-    expect(await within(await screen.findByRole('region', { name: 'Decizia' })).findByRole('heading', { name: 'Ana Pop · Paginile necitite' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=12'));
+  it('shows a paper that is graded again, says why, and keeps its address', async () => {
+    const [ana, ion, eva] = papers();
+    ana!.status = 'grading';
+    ana!.evaluation = null;
+    const rows = [...rowsOf([ion!, eva!]), fakeUpload({ studentId: 1, studentName: 'Ana Pop', submissionId: 11, status: 'grading', fileCount: 3 })];
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 5 }],
+      students: {},
+      tests: [fakeTest({ status: 'evaluating', startedAt: '2026-10-06T07:00:00.000Z' }, rows.sort((a, b) => a.studentName.localeCompare(b.studentName)))],
+      submissions: [ana!, ion!, eva!],
+    });
+    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    expect(await within(panel).findByRole('heading', { name: 'Ana Pop' })).toBeInTheDocument();
+    expect(within(panel).getByText('Robotul corectează acum lucrarea. Când are rezultatul, apare aici.')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(within(queue()).getByRole('link', { name: 'Subiectul I, ex. 3 · 3p din 5p' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=11&punct=32'));
+  });
+
+  it('reads the paper again when the list has its newer grading', async () => {
+    const api = apiWith();
+    // The paper was read while it was graded again; the list has the new result.
+    const before = papers()[0]!;
+    before.status = 'grading';
+    before.evaluation = null;
+    api.getSubmission.mockResolvedValueOnce(before);
+    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
+    expect(api.getSubmission).toHaveBeenCalledTimes(2);
+  });
+
+  it('puts the focus on the point that opens after a decision', async () => {
+    const api = apiWith();
+    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, api, <LocationProbe />);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Am verificat paginile' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toHaveFocus());
+    await userEvent.click(screen.getByRole('button', { name: 'Accept 1p' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toHaveFocus());
+    // The keys still act from there.
+    await userEvent.keyboard('k');
+    await expectLocation(at('?lucrare=14&punct=41'));
   });
 });

@@ -1,10 +1,11 @@
-import { useId, useState } from 'react';
+import { useId, useState, type Ref } from 'react';
 import { Link } from 'react-router';
 import type { EvaluationInfo, EvaluationItemInfo, ItemChange, SubmissionDetail } from '../../../shared/api.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../../shared/scoring.ts';
 import { pageLabel, parsePoints } from '../../ui/format.ts';
 import { MathText } from '../../ui/MathText.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { waitingText } from '../submissionPage/waitingText.ts';
 import { pointsText, reviewPath } from './points.ts';
 
 // What the right pane shows: an exercise to check, the pages the robot could
@@ -15,8 +16,16 @@ export type ReviewView = { kind: 'item'; item: EvaluationItemInfo } | { kind: 'p
 // typed. Their names say the step: the bar's phone menu is "Mai mult".
 const STEP = 0.5;
 
+// Why a paper of the review has no result now. A paper being graded again
+// comes back with its new result.
+function noResultText(submission: SubmissionDetail): string {
+  if (submission.status === 'failed') return 'Corectarea a eșuat. O poți reîncerca din pagina lucrării.';
+  return `${waitingText(submission)} Când are rezultatul, apare aici.`;
+}
+
 // The right pane of the review (redesign spec §7). `onDecide` accepts the
-// point with a change of points, or none.
+// point with a change of points, or none. Its heading can take the focus
+// (`paneRef`), for the point that opens after a decision.
 export function ReviewDecision({
   code,
   submission,
@@ -24,6 +33,7 @@ export function ReviewDecision({
   pending,
   error,
   onDecide,
+  paneRef,
 }: {
   code: string;
   submission: SubmissionDetail;
@@ -31,14 +41,15 @@ export function ReviewDecision({
   pending: boolean;
   error: Error | null;
   onDecide: (change: ItemChange) => void;
+  paneRef?: Ref<HTMLElement>;
 }) {
   const evaluation = submission.status === 'graded' ? submission.evaluation : null;
   return (
-    <section className="review-decision" aria-label="Decizia">
+    <section className="review-decision" aria-label="Decizia" ref={paneRef}>
       {evaluation === null ? (
         <>
-          <h2>{submission.studentName}</h2>
-          <p className="hint">Lucrarea se corectează din nou.</p>
+          <h2 tabIndex={-1}>{submission.studentName}</h2>
+          <p className="hint">{noResultText(submission)}</p>
         </>
       ) : view.kind === 'item' ? (
         // A new grading of the paper starts the stepper again: a value typed
@@ -46,7 +57,7 @@ export function ReviewDecision({
         <ItemPoint key={`${evaluation.gradedAt}:${view.item.id}`} submission={submission} evaluation={evaluation} item={view.item} pending={pending} onDecide={onDecide} />
       ) : view.kind === 'pages' ? (
         <>
-          <h2>{submission.studentName} · Paginile necitite</h2>
+          <h2 tabIndex={-1}>{submission.studentName} · Paginile necitite</h2>
           <div className="review-doubt">
             <p>Robotul nu a putut citi: {view.pages.map(pageLabel).join(', ')}. Verifică pozele și punctajele exercițiilor de pe ele.</p>
             <div className="review-decide">
@@ -59,7 +70,7 @@ export function ReviewDecision({
         </>
       ) : (
         <>
-          <h2>{submission.studentName}</h2>
+          <h2 tabIndex={-1}>{submission.studentName}</h2>
           <Total evaluation={evaluation} />
         </>
       )}
@@ -125,7 +136,7 @@ function ItemPoint({
   return (
     <>
       <div className="review-item-head">
-        <h2>
+        <h2 tabIndex={-1}>
           {submission.studentName} · {item.label}
         </h2>
         <span className="hint">{pointsText(item.maxPoints)} în barem</span>
