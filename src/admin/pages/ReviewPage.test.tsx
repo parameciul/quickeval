@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { SubmissionDetail, UploadRow } from '../../../shared/api.ts';
@@ -310,5 +310,103 @@ describe('the review of the points to check', () => {
     expect(await screen.findByText('Nicio lucrare nu este corectată încă.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Înapoi la test' })).toHaveAttribute('href', '/teste/6E2-26T1#verificare');
     expect(screen.queryByRole('navigation', { name: 'Lucrările' })).not.toBeInTheDocument();
+  });
+
+  it('acts once for a key held down', async () => {
+    const api = apiWith();
+    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, api, <LocationProbe />);
+    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await userEvent.keyboard('a');
+    expect(await within(decision()).findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
+    // The key is still down: the browser repeats it, and the repeats do nothing.
+    fireEvent.keyDown(document.body, { key: 'a', repeat: true });
+    fireEvent.keyDown(document.body, { key: 'j', repeat: true });
+    await act(async () => {});
+    expect(api.correctItem).not.toHaveBeenCalled();
+    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=11&punct=32'));
+    fireEvent.keyDown(document.body, { key: 'a' });
+    await waitFor(() => expect(api.correctItem).toHaveBeenCalledTimes(1));
+  });
+
+  // A save that returns only when the test says so. done() lets it return and
+  // waits for the last thing a decision does, reading the test again, then for
+  // React to draw what came of it.
+  function heldSave(api: ReturnType<typeof apiWith>) {
+    const save = api.correctItem.getMockImplementation()!;
+    let release = () => {};
+    api.correctItem.mockImplementationOnce(
+      (...args: Parameters<typeof save>) =>
+        new Promise<SubmissionDetail>((resolve) => {
+          release = () => resolve(save(...args));
+        }),
+    );
+    return {
+      async done() {
+        const reads = api.getTest.mock.calls.length;
+        release();
+        await waitFor(() => expect(api.getTest.mock.calls.length).toBeGreaterThan(reads));
+        await act(async () => {});
+      },
+    };
+  }
+
+  it('stays on the test page when the teacher went back while a decision saved', async () => {
+    const api = apiWith();
+    const held = heldSave(api);
+    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Înapoi la test' }));
+    await screen.findByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' });
+    await held.done();
+    expect(screen.queryByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/teste\/6E2-26T1#verificare$/);
+  });
+
+  it('stays on the paper the teacher opened while a decision saved', async () => {
+    const api = apiWith();
+    const held = heldSave(api);
+    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(within(queue()).getByRole('link', { name: 'Eva Stan 5' }));
+    await expectLocation(at('?lucrare=13'));
+    await held.done();
+    expect(within(queue()).queryByRole('link', { name: 'Subiectul II, ex. 1 · 1p din 2p' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=13'));
+  });
+
+  it('acts on the keys after "Începe" in De făcut', async () => {
+    const api = apiWith();
+    renderAdmin('/teste/6E2-26T1', api, <LocationProbe />);
+    await screen.findByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' });
+    await userEvent.click(screen.getByRole('button', { name: /^De făcut/ }));
+    const todo = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
+    await userEvent.click(within(todo).getByRole('link', { name: 'Începe: Fracții, 6E2' }));
+    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await userEvent.keyboard('j');
+    await expectLocation(at('?lucrare=11&punct=32'));
+  });
+
+  it('acts on the keys after a panel of the bar closes with Esc', async () => {
+    const api = apiWith();
+    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary', { name: 'Ce ai de făcut' })).not.toBeInTheDocument();
+    await userEvent.keyboard('j');
+    await expectLocation(at('?lucrare=14&punct=41'));
+  });
+
+  it('names the point it opens on in the address', async () => {
+    renderAdmin(PAGE, apiWith(), <LocationProbe />);
+    await expectLocation(at('?lucrare=11&punct=pagini'));
+  });
+
+  it('keeps the address of a paper that is not graded yet', async () => {
+    renderAdmin(`${PAGE}?lucrare=12`, apiWith(), <LocationProbe />);
+    expect(await within(await screen.findByRole('region', { name: 'Decizia' })).findByRole('heading', { name: 'Ana Pop · Paginile necitite' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=12'));
   });
 });

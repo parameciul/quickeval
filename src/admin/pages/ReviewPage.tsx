@@ -52,8 +52,6 @@ interface Decision {
   submission: SubmissionDetail;
   point: ReviewPoint;
   change: ItemChange;
-  // The point that opens after this one; null when none is left.
-  next: QueuedPoint | null;
 }
 
 // A key typed in a field is text, not a command.
@@ -61,11 +59,15 @@ function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
+// What opens over the page from the bars (a panel, the phone menu, the account
+// menu) and the button of one while it is open: a key there is not for the
+// review. A closed panel's button, where the focus goes back, is.
+const BAR_BOXES = '.panel, .phone-menu, .user-menu, [aria-expanded="true"]';
+
 function Review({ code, detail, refreshError }: { code: string; detail: TestDetail; refreshError: Error | null }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
-  const page = useRef<HTMLElement | null>(null);
   const { test, uploads } = detail;
   const papers = papersToCheck(uploads);
   const others = otherPapers(uploads);
@@ -85,6 +87,11 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
         : null;
   const row = [...papers, ...others].find((other) => other.submissionId === spot?.submissionId);
   const point = row?.reviewPoints.find((other) => pointKey(other) === spot?.key) ?? null;
+  // The spot on the screen now, for a decision that comes back later.
+  const shown = useRef(spot);
+  useEffect(() => {
+    shown.current = spot;
+  });
 
   const paper = useQuery({
     queryKey: ['submission', spot?.submissionId],
@@ -114,6 +121,15 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   };
   const goPoint = (entry: QueuedPoint | null) => go(entry && { submissionId: entry.submissionId, key: pointKey(entry.point) });
 
+  // An address that names no paper of this test gets the spot the page opens
+  // on: a refresh that brings a newly graded paper never moves it, and a
+  // reload comes back to it. A paper graded again keeps its address, so the
+  // page comes back to it when its grading is done.
+  const known = uploads.some((other) => other.submissionId === asked);
+  useEffect(() => {
+    if (!known && spot !== null) go(spot);
+  });
+
   const decide = useMutation({
     mutationFn: ({ submission: shown, point: chosen, change }: Decision) => {
       const gradedAt = shown.evaluation!.gradedAt;
@@ -121,12 +137,10 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
         ? api.reviewPages(shown.id, { pagesReviewed: true, gradedAt })
         : api.correctItem(shown.id, chosen.itemId, { ...change, reviewed: true, gradedAt });
     },
-    onSuccess: (saved, { point: chosen, next }) => {
+    onSuccess: (saved, { point: chosen }) => {
       queryClient.setQueryData(['submission', saved.id], saved);
       // The point leaves the list at once; the API is read again after.
       queryClient.setQueryData<TestDetail>(['test', code], (old) => old && withoutPoint(old, saved, chosen));
-      if (next) goPoint(next);
-      else go({ submissionId: saved.id, key: null });
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
       void queryClient.invalidateQueries({ queryKey: ['test', code] });
     },
@@ -141,17 +155,32 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
     decide.isError && failed && failed.submission.id === spot?.submissionId && pointKey(failed.point) === spot.key ? decide.error : null;
 
   const onDecide = (change: ItemChange) => {
-    if (!point || !submission || view.kind === 'paper' || decide.isPending) return;
-    decide.mutate({ submission, point, change, next: stepPoint(queue, spot, 1) });
+    if (!point || !submission || spot === null || view.kind === 'paper' || decide.isPending) return;
+    const from = spot;
+    const next = stepPoint(queue, spot, 1);
+    decide.mutate(
+      { submission, point, change },
+      {
+        // The next point opens only if the teacher is still at this one: not
+        // after she opened another paper, and not after she left the review
+        // (this call's own callbacks do not run once the page is gone).
+        onSuccess: (saved) => {
+          if (shown.current?.submissionId !== from.submissionId || shown.current.key !== from.key) return;
+          if (next) goPoint(next);
+          else go({ submissionId: saved.id, key: null });
+        },
+      },
+    );
   };
   const nextPoint = stepPoint(queue, spot, 1);
 
-  // A, J, K and 1–9, while the cursor is on the page and not in a field, and
-  // no decision is on its way.
+  // A, J, K and 1–9, while the cursor is not in a field or in what opened from
+  // the bars, and no decision is on its way. A key held down acts once: its
+  // repeats would accept points the teacher never saw.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented || isTyping(event.target)) return;
-      if (event.target instanceof Node && event.target !== document.body && !page.current?.contains(event.target)) return;
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented || isTyping(event.target)) return;
+      if (event.target instanceof Element && event.target.closest(BAR_BOXES)) return;
       // While a decision is on its way, no key acts: the next point opens after it.
       if (decide.isPending) return;
       const key = event.key.toLowerCase();
@@ -167,7 +196,7 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   });
 
   return (
-    <section className="review-page" ref={page}>
+    <section className="review-page">
       <div className="review-head">
         <div>
           <h1>Verificare</h1>
