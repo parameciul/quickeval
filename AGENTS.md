@@ -19,6 +19,7 @@ MQGrader (formerly QuickEval): a web app that helps Laura Miron (math teacher, L
 - `scripts/`: `seed-local.sql` (the local teacher, an administrator), `setPassword.ts` (`npm run set-password -- <email> [--local]`: an account's password straight in D1), `smoke.mjs` (checks a running local server, with one full upload graded by a pretend robot).
 - `runner/`: the grading robot (spec §12), run by `.github/workflows/evaluate.yml`. `.claude/skills/evaluate-test/`: its grading skill (spec §13).
 - `runner/print/`: the print container (pinned LibreOffice and the QR stamp) that makes the test's print PDF.
+- `.claude/skills/seo/` and `.claude/skills/seo-*`: the vendored Claude SEO skill (MIT, upstream `AgriciDaniel/claude-seo` v2.5.0), loaded by both Claude Code and OpenCode. Its runtime paths were rewritten to `python .claude/skills/seo/scripts/runtime.py`; leave the rest as upstream. `.opencode/agents/seo-*.md` and `.opencode/commands/seo.md` are its OpenCode counterparts. Its Python environment and Chromium are local only (gitignored) and come from `python .claude/skills/seo/scripts/runtime.py setup`.
 
 ## Commands
 
