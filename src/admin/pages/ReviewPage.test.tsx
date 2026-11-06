@@ -58,7 +58,8 @@ function papers(): SubmissionDetail[] {
   ];
 }
 
-// The uploads table of the same papers, sorted by name, and Dan's upload.
+// The uploads table of the same papers, sorted by name, Dan's upload, and
+// Mara, who sent nothing.
 function rowsOf(submissions: SubmissionDetail[]): UploadRow[] {
   const rows = submissions.map((paper) =>
     fakeUpload({
@@ -75,6 +76,7 @@ function rowsOf(submissions: SubmissionDetail[]): UploadRow[] {
     }),
   );
   rows.push(fakeUpload({ studentId: 2, studentName: 'Dan Marin', submissionId: 12, status: 'submitted', fileCount: 1 }));
+  rows.push(fakeUpload({ studentId: 5, studentName: 'Mara Ilie' }));
   return rows.sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
 

@@ -55,7 +55,9 @@ function ReviewLoader({ code }: { code: string }) {
   // graded again keeps its address, so the page comes back to it when its
   // grading is done.
   const asked = parsePositiveId(params.get('lucrare') ?? undefined);
-  const opening = detail.data.uploads.some((row) => row.submissionId === asked) ? null : firstSpot(detail.data.uploads);
+  // (A student who sent nothing has no paper id: no address names that row.)
+  const named = asked !== null && detail.data.uploads.some((row) => row.submissionId === asked);
+  const opening = named ? null : firstSpot(detail.data.uploads);
   if (opening !== null) return <Navigate replace to={reviewPath(code, opening)} />;
   return <Review code={code} detail={detail.data} refreshError={detail.isRefetchError ? detail.error : null} />;
 }
