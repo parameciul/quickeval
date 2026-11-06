@@ -376,6 +376,13 @@ export interface ClassGrade {
   // Out of 10, once graded.
   grade: number | null;
   flagCount: number;
+  // Points and their maximum, once graded (the office points included).
+  total: number | null;
+  maxTotal: number | null;
+  // Whether the student can open the result page.
+  resultsOpen: boolean;
+  // The secret of the student's result page, for "Copiază linkul".
+  resultToken: string | null;
 }
 
 export interface ClassDetail {
