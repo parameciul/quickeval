@@ -140,6 +140,13 @@ describe('the panel Rezultate', () => {
     expect(within(row('Marin Dan')).getByRole('button', { name: 'Oprește publicarea' })).toBeInTheDocument();
   });
 
+  it('keeps the stop button while the results are open and nothing is graded, as after grading all again', async () => {
+    const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
+    renderAdmin(PAGE, apiWith({ status: 'evaluating', resultsOpen: true }, rows));
+    expect(await screen.findByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
+    expect(screen.queryByText('Rezultatele se publică după corectare.')).not.toBeInTheDocument();
+  });
+
   it('says how many points still wait before the teacher publishes', async () => {
     const rows = graded().map((upload) => (upload.studentId === 10 ? { ...upload, flagCount: 3 } : upload));
     renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
