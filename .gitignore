@@ -7,3 +7,5 @@ coverage/
 secrets
 .agents/skills/
 .superpowers/
+docs/design-proposals/
+.taste-skill/
