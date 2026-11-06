@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import type { AdminApi } from '../api.ts';
 import type { ClassGrade, StudentRow, TestSummary } from '../../../shared/api.ts';
+import { MAX_NAMES_PER_REQUEST, parseStudentNames, studentNameKey } from '../../../shared/students.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDateTime, studentCountLabel, uploadStatusLabel } from '../../ui/format.ts';
+import { ErrorMessage } from '../ErrorMessage.tsx';
 
 type TabState = { kind: 'list' } | { kind: 'student'; studentId: number } | { kind: 'add' };
 
 // "Elevi" tab of the class page: the students on the left, one student on the
-// right (spec §9). "+ Adaugă elevi" is a dialog.
+// right (spec §9). "+ Adaugă elevi" and "Redenumește" are dialogs.
 export function ClassStudents({
   api,
   classId,
@@ -48,7 +51,6 @@ export function ClassStudents({
       void api.deleteStudent(classId, student.id).then(onChanged);
     }
   };
-
   if (tab.kind === 'student') {
     const student = students.find((s) => s.id === tab.studentId);
     if (!student) return <p>Se încarcă…</p>;
@@ -91,7 +93,14 @@ export function ClassStudents({
         </p>
         <div className="card-actions">
           {editingStudent?.id === student.id ? (
-            <RenameStudentForm student={student} onDone={onChanged} />
+            <RenameStudentForm
+              api={api}
+              student={student}
+              onDone={() => {
+                setEditingStudent(null);
+                void onChanged();
+              }}
+            />
           ) : (
             <button type="button" className="button-quiet button-small" onClick={() => setEditingStudent(student)}>
               Redenumește
@@ -113,8 +122,13 @@ export function ClassStudents({
   if (tab.kind === 'add') {
     return (
       <section>
-        <h1>Adaugă elevi</h1>
-        <AddStudentsDialog classId={classId} students={students} onDone={onChanged} onClose={() => setTab({ kind: 'list' })} />
+        <AddStudentsDialog
+          api={api}
+          classId={classId}
+          students={students}
+          onDone={onChanged}
+          onClose={() => setTab({ kind: 'list' })}
+        />
       </section>
     );
   }
@@ -160,31 +174,139 @@ export function ClassStudents({
   );
 }
 
-function RenameStudentForm({ student, onDone }: { student: StudentRow; onDone: () => Promise<void> }) {
+// The names of the paste that the class already has (a student who left counts)
+// or that the paste holds twice, each named once as typed. The server stays the
+// truth: this only warns early.
+function duplicateNames(names: string[], students: StudentRow[]): { inClass: string[]; twice: string[] } {
+  const inClassKeys = new Set(students.map((student) => studentNameKey(student.fullName)));
+  const seen = new Set<string>();
+  const twiceKeys = new Set<string>();
+  const inClass: string[] = [];
+  const twice: string[] = [];
+  for (const name of names) {
+    const key = studentNameKey(name);
+    if (inClassKeys.has(key)) {
+      if (!seen.has(key)) inClass.push(name);
+    } else if (seen.has(key)) {
+      if (!twiceKeys.has(key)) twice.push(name);
+      twiceKeys.add(key);
+    }
+    seen.add(key);
+  }
+  return { inClass, twice };
+}
+
+// "Redenumește elevul" dialog of one student.
+function RenameStudentForm({
+  api,
+  student,
+  onDone,
+}: {
+  api: AdminApi;
+  student: StudentRow;
+  onDone: () => void;
+}) {
+  const [fullName, setFullName] = useState(student.fullName);
+  const [saving, setSaving] = useState(false);
+  const mutation = useMutation({
+    mutationFn: (next: string) => api.renameStudent(student.id, next),
+    onSuccess: () => {
+      setSaving(false);
+      onDone();
+    },
+  });
+
   return (
     <div className="dialog">
       <p>Redenumește {student.fullName}</p>
-      <button type="button" onClick={() => void onDone()}>Salvează</button>
+      <form
+        className="form-row"
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          setSaving(true);
+          mutation.mutate(fullName);
+        }}
+      >
+        <label htmlFor={`rename-student-${student.id}`} className="sr-only">
+          Nume nou
+        </label>
+        <input
+          id={`rename-student-${student.id}`}
+          type="text"
+          value={fullName}
+          onChange={(event) => setFullName(event.target.value)}
+          maxLength={80}
+          required
+          autoFocus
+        />
+        <button type="submit" className="button" disabled={saving}>
+          Salvează
+        </button>
+        <button type="button" className="button-quiet button-small" onClick={onDone}>
+          Renunță
+        </button>
+        {mutation.error && <ErrorMessage error={mutation.error} />}
+      </form>
     </div>
   );
 }
 
+// "Adaugă elevi" dialog: the names, one per line, added in a single step.
 function AddStudentsDialog({
+  api,
   classId,
   students,
   onDone,
   onClose,
 }: {
+  api: AdminApi;
   classId: number;
   students: StudentRow[];
   onDone: () => Promise<void>;
   onClose: () => void;
 }) {
+  const [text, setText] = useState('');
+  const names = parseStudentNames(text);
+  const tooMany = names.length > MAX_NAMES_PER_REQUEST;
+  const { inClass, twice } = duplicateNames(names, students);
+  const hasDuplicates = inClass.length > 0 || twice.length > 0;
+  const [saving, setSaving] = useState(false);
+  const mutation = useMutation({
+    mutationFn: () => api.addStudents(classId, names),
+    onSuccess: () => {
+      setSaving(false);
+      setText('');
+      void onDone();
+    },
+  });
+
   return (
     <div className="dialog">
-      <p>Adaugă elevi în clasa {classId} ({students.length} în clasă)</p>
-      <button type="button" onClick={() => void onDone()}>Salvează</button>
-      <button type="button" onClick={onClose}>Renunță</button>
+      <p>Adaugă elevi</p>
+      <label htmlFor="add-students-names" className="sr-only">Numele elevilor, câte unul pe rând</label>
+      <textarea
+        id="add-students-names"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        placeholder="Pop Ion\nIonescu Ana"
+      />
+      {tooMany && <p className="alert" role="alert">Adaugă cel mult {MAX_NAMES_PER_REQUEST} de nume odată.</p>}
+      {inClass.length > 0 && <p className="alert" role="alert">Sunt deja în clasă: {inClass.join(', ')}.</p>}
+      {twice.length > 0 && <p className="alert" role="alert">Apar de două ori: {twice.join(', ')}.</p>}
+      <form
+        className="form-stack"
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          setSaving(true);
+          mutation.mutate();
+        }}
+      >
+        <button type="submit" className="button" disabled={names.length === 0 || tooMany || hasDuplicates || saving}>
+          {names.length > 0 ? `Adaugă ${studentCountLabel(names.length)}` : 'Adaugă elevii'}
+        </button>
+      </form>
+      <button type="button" className="button-quiet button-small" onClick={onClose}>Renunță</button>
+      {mutation.error && <ErrorMessage error={mutation.error} />}
     </div>
   );
 }

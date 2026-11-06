@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
 import { displayClassName } from '../../../shared/classes.ts';
 import { parsePositiveId } from '../../../shared/ids.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
@@ -106,8 +106,20 @@ function ClassSwitcher({
   onDone: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [name, setName] = useState('');
   const { year } = useSchoolYear();
+  const navigate = useNavigate();
   const classes = useQuery({ queryKey: ['classes', year], queryFn: () => api.listClasses(year) });
+  const create = useMutation({
+    mutationFn: () => api.createClass({ name, schoolYear: year }),
+    onSuccess: async (created) => {
+      setCreateOpen(false);
+      setName('');
+      await onDone();
+      navigate(`/clase/${created.id}`);
+    },
+  });
   if (classes.isPending) return null;
   const other = (classes.data ?? []).filter((item) => item.id !== classId && !item.archived);
   return (
@@ -135,9 +147,38 @@ function ClassSwitcher({
               {waiting.has(item.id) && <span className="flag-dot" aria-label="puncte de verificat"></span>}
             </Link>
           ))}
-          <Link className="head-switch-item head-switch-new" to="/clase" onClick={onDone}>
+          <button
+            type="button"
+            className="head-switch-item head-switch-new"
+            onClick={() => setCreateOpen(true)}
+          >
             + Clasă nouă
-          </Link>
+          </button>
+        </div>
+      )}
+      {createOpen && (
+        <div className="dialog">
+          <p>Clasă nouă</p>
+          <form className="form-row" onSubmit={(event: FormEvent) => { event.preventDefault(); create.mutate(); }}>
+            <label htmlFor="new-class-name" className="sr-only">Numele clasei</label>
+            <input
+              id="new-class-name"
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={8}
+              placeholder="de exemplu 6E2"
+              required
+              autoFocus
+            />
+            <button type="submit" className="button" disabled={create.isPending}>
+              Adaugă clasa
+            </button>
+            <button type="button" className="button-quiet button-small" onClick={() => setCreateOpen(false)}>
+              Renunță
+            </button>
+            {create.error && <ErrorMessage error={create.error} />}
+          </form>
         </div>
       )}
     </span>
