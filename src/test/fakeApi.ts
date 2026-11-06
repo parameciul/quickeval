@@ -206,6 +206,8 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     submittedAt: null,
     autoSubmitted: false,
     grade: null,
+    total: null,
+    maxTotal: null,
     gradedAt: overrides.status === 'graded' ? '2026-10-07T09:00:00.000Z' : null,
     resultToken: null,
     resultsOpen: false,

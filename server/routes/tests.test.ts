@@ -212,6 +212,8 @@ describe('GET /api/admin/tests/:code', () => {
         submittedAt: null,
         autoSubmitted: false,
         grade: null,
+        total: null,
+        maxTotal: null,
         gradedAt: null,
         resultToken: null,
         resultsOpen: false,
@@ -231,6 +233,8 @@ describe('GET /api/admin/tests/:code', () => {
         submittedAt: '2026-10-06T08:30:00.000Z',
         autoSubmitted: true,
         grade: null,
+        total: null,
+        maxTotal: null,
         gradedAt: null,
         resultToken: null,
         resultsOpen: false,
@@ -304,9 +308,25 @@ describe('GET /api/admin/tests/:code', () => {
       exerciseList: { status: 'problem', message: 'Punctajele din barem dau 9, dar totalul este 10.' },
     });
     const byName = Object.fromEntries(res.body.uploads.map((row: { studentName: string }) => [row.studentName, row]));
-    expect(byName['Pop Ion']).toMatchObject({ status: 'graded', grade: 8.75, gradedAt: '2026-10-07T09:00:00.000Z', flagCount: 3, lastError: null });
+    expect(byName['Pop Ion']).toMatchObject({
+      status: 'graded',
+      grade: 8.75,
+      total: 8.75,
+      maxTotal: 10,
+      gradedAt: '2026-10-07T09:00:00.000Z',
+      flagCount: 3,
+      lastError: null,
+    });
     expect(byName['Ionescu Ana']).toMatchObject({ status: 'graded', grade: 10, flagCount: 0 });
-    expect(byName['Stan Eva']).toMatchObject({ status: 'failed', grade: null, gradedAt: null, flagCount: 0, lastError: 'Corectarea a durat prea mult.' });
+    expect(byName['Stan Eva']).toMatchObject({
+      status: 'failed',
+      grade: null,
+      total: null,
+      maxTotal: null,
+      gradedAt: null,
+      flagCount: 0,
+      lastError: 'Corectarea a durat prea mult.',
+    });
 
     // Once the teacher checked the unreadable page, it no longer counts.
     await api.db.prepare("UPDATE evaluations SET pages_reviewed_at = '2026-10-08T10:00:00.000Z' WHERE submission_id = ?").bind(graded).run();
