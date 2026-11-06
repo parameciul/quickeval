@@ -192,7 +192,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
   const { results } = await db
     .prepare(
       `SELECT st.id AS student_id, st.full_name, e.active,
-         s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.created_at AS graded_at, ev.model, ev.effort,
+         s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.total, ev.max_total, ev.created_at AS graded_at, ev.model, ev.effort,
          s.result_token, s.results_open AS submission_open, (SELECT t.results_open FROM tests t WHERE t.id = ?) AS test_open,
          (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
          ${flagCountSql('ev')} AS flag_count
@@ -214,6 +214,8 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       auto_submitted: number | null;
       last_error: string | null;
       grade: number | null;
+      total: number | null;
+      max_total: number | null;
       graded_at: string | null;
       model: string | null;
       effort: string | null;
@@ -235,6 +237,8 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       submittedAt: row.submitted_at,
       autoSubmitted: row.auto_submitted === 1,
       grade: row.grade,
+      total: row.total,
+      maxTotal: row.max_total,
       gradedAt: row.graded_at,
       model: row.model,
       effort: row.effort,

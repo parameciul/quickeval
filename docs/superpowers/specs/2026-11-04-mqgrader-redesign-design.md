@@ -1,6 +1,6 @@
 # MQGrader redesign: design
 
-Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phases 1 to 3 (landing page and light theme, look and shell, Teste page) are live; Phase 4 (test page) is being built; the other phases are not.
+Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phases 1 to 4 (landing page and light theme, look and shell, Teste page, test page) are live; Phase 5 (Rezultate) is being built; the other phases are not.
 
 ## 0. Plain summary
 
@@ -33,6 +33,9 @@ The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (
 21. A finished test shows "media testului" on the Teste page, the same number as its class report (Phase 3).
 22. The test page's Verificare lists the papers with points to check, each opening the paper's page. The list of each point with its reason comes with the review of Phase 6: the API gives only a count per paper (Phase 4).
 23. The students' link and its QR code are always in "Fișa testului": the button "Arată linkurile" goes (Phase 4).
+24. The student's PDF stays on the paper's page, one student at a time: the teacher gives it to a student who has no link. Rezultate has no download of every student's PDF (Phase 5).
+25. "CSV pentru catalog" in Rezultate is the CSV of the class report: each exercise, the total, the grade and the notes (Phase 5).
+26. "Publică toate rezultatele" opens the link of every student, and "Oprește accesul la rezultate" closes every link, also the ones published alone. While all are published, one result cannot be stopped alone (Phase 5).
 
 ## 2. Look
 
@@ -169,7 +172,7 @@ The page keeps `noindex`. Laura's texts appear without emoji and without the cha
   - În clasă: "Începe testul" and "Oprește testul" (`TestActions`), "Redeschide încărcarea", the link for many uploads (while open), and the papers table: who sent and who did not.
   - Corectare: before the start, one line. While open: start now for the chosen papers or at a time, or "Marchează ca terminat", and the papers table with its checkboxes (only in this panel). After: the state of the grading, a partial grading, a problem of the barem (with a link to Pregătire, where the barem is replaced), the robot line, "Recorectează tot", the line of the class analysis, and the papers table.
   - Verificare: "Lucrări cu puncte de verificat", a row per paper with points to check (the student, the grade, "2 puncte de verificat", and "Decide", which opens the paper's page), and "Începe verificarea", which opens the first of them. "Toate punctele sunt verificate." when graded papers have none; one line before any paper is graded. Then the papers table. The list of each point with its reason comes with the review (§7, Phase 6): the API gives only a count per paper.
-  - Rezultate: the controls of today: "Publică rezultatele" or "Oprește accesul la rezultate", "Raportul clasei" once a paper is graded, and the papers table, where a result is published alone and has its link. §8 (Phase 5) replaces it.
+  - Rezultate: the students' result links and "Pentru tine" (§8, Phase 5). The papers table of the other panels has no result link and no publish button: they are in Rezultate.
   - Every stage can be opened at any time. A panel whose stage has not come yet says so in one line, and still shows what can be read or changed.
 - Fișa testului:
   - The facts: the class and its students, the code, the state, the start, the papers sent, the barem's state ("activ", "de verificat", "se generează", "lipsește"; not its points, which the API knows only after the grading starts), and "Media testului" once a paper is graded.
@@ -189,7 +192,24 @@ Three panes in one panel:
 
 ## 8. Rezultate (Phase 5)
 
-The stage panel starts with the student links: "Fiecare elev primește un link cu rezultatul lui: nota, punctajul pe fiecare exercițiu și comentariile." and "Publică toate rezultatele". A table: student, points, grade, "Copiază linkul", and the state ("Publicat" with "Oprește publicarea", or "Nepublicat" with "Publică"); a student without a paper has no link. Under it, "Pentru tine": the class report, a PDF for each student, the CSV for the catalog.
+The panel of the stage Rezultate (§6). A draft has one line: "Rezultatele se publică după corectare." Every other test:
+
+- Under the stage's sentence, one line: "Linkul arată nota, punctajul pe fiecare exercițiu și comentariile. Elevul îl vede după ce îl publici."
+- Publishing:
+  - Before any paper is graded, while no result is published: "Rezultatele se publică după corectare.", and no button.
+  - While the results are not published for all: "Publică toate rezultatele", the panel's filled button. While points wait in Verificare, a line before it: "Mai ai 3 puncte de verificat. Dacă publici acum, elevii văd punctajul de acum."
+  - While they are: "Rezultatele sunt publicate. Elevii le văd pe linkurile lor.", "Oprește accesul la rezultate" (outline), and "Linkurile cu rezultate și pozele lor nu se mai deschid până publici din nou rezultatele." It closes every link, also the ones published alone (decision 26).
+- "Linkurile elevilor", with the count of the links ("1 publicat · 26 nepublicate", or "toate publicate"), and a table with a row for each student of the class, and for a student who left the class after starting a paper, sorted by name:
+  - "Elev": the name, a link to the paper's page (where the student's PDF is), and "a plecat" for a student who left.
+  - "Punctaj": the total and its maximum, as in the class report ("72 / 100"); "Nota". A paper not graded yet has "—" for both.
+  - "Linkul cu rezultatul": "Copiază linkul" ("Copiat!" after it). An older paper with no link yet first has "Fă linkul". When the browser refuses to copy, the link shows in a field, to copy by hand. A student who did not send a paper has no link: "Nu a trimis lucrarea."
+  - "Stare": "Publicat" with "Oprește publicarea", or "Nepublicat" with "Publică". Only a graded paper has "Publică": a paper not graded yet is "Nepublicat" alone. While all results are published, "Publicat" alone.
+  - On a phone each row is a card, like the papers table.
+- "Pentru tine":
+  - "Raportul clasei": "Media testului 7,18 · rezultatele pe exerciții · analiza clasei", and "Deschide raportul".
+  - "CSV pentru catalog": "Fiecare elev cu punctele pe exerciții, totalul și nota.", and "Descarcă CSV" (decision 25).
+  - The line "PDF-ul cu rezultatul unui elev este pe pagina lucrării lui: apasă pe numele lui în tabel." (decision 24).
+  - Before the first graded paper, one line in their place: "Raportul clasei și CSV-ul apar după prima corectare."
 
 ## 9. Clase (Phase 7)
 

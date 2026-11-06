@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef } from 'react';
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import type { RobotStart, TestDetail, TestInfo, UploadRow } from '../../../shared/api.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
 import { formatDateTime } from '../../ui/format.ts';
@@ -14,7 +14,9 @@ import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { PrintTest } from './PrintTest.tsx';
 import { RegradeAllButton } from './RegradeAllButton.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
-import { hasResultsToManage, ResultsAccess } from './ResultsAccess.tsx';
+import { ResultFiles } from './ResultFiles.tsx';
+import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
+import { ResultsAccess } from './ResultsAccess.tsx';
 import { ReviewList } from './ReviewList.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
@@ -190,24 +192,20 @@ function ReviewPanel(props: PanelProps) {
   );
 }
 
-function ResultsPanel(props: PanelProps) {
-  const { test, uploads, onChanged } = props;
+// The results (redesign spec §8): publishing, the students' links, and
+// "Pentru tine". The links table takes the place of the papers table here.
+function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
   if (test.status === 'draft') return <p className="hint">Rezultatele se publică după corectare.</p>;
+  const count = linksCount(uploads);
   return (
     <>
-      {test.gradedCount > 0 && (
-        <p>
-          <Link className="button-quiet button-small" to={`/teste/${test.code}/raport`}>
-            Raportul clasei
-          </Link>
-        </p>
-      )}
-      {hasResultsToManage(test) ? (
-        <ResultsAccess test={test} uploads={uploads} onChanged={onChanged} />
-      ) : (
-        <p className="hint">Rezultatele se publică după corectare.</p>
-      )}
-      <Papers {...props} selectable={false} />
+      <p>Linkul arată nota, punctajul pe fiecare exercițiu și comentariile. Elevul îl vede după ce îl publici.</p>
+      <ResultsAccess test={test} onChanged={onChanged} />
+      <h3>Linkurile elevilor</h3>
+      {count && <p className="hint">{count}</p>}
+      <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} onChanged={onChanged} />
+      <h3>Pentru tine</h3>
+      <ResultFiles test={test} />
     </>
   );
 }
@@ -232,7 +230,6 @@ function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRob
         onSelect={onSelect}
         onChanged={onChanged}
         onRobot={onRobot}
-        resultsOpen={test.resultsOpen}
       />
     </>
   );

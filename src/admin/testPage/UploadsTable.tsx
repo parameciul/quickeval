@@ -5,13 +5,12 @@ import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDateTime, modelCell, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { ResultLink } from './ResultLink.tsx';
 
 // Who uploaded what: one row per student of the class, with the grade once
 // the robot graded it. While the uploads are open, the teacher selects the
 // uploads to grade now: one checkbox per row with files, and one in the header
-// for all of them. While the results stay unpublished for the class, the
-// teacher publishes them one upload at a time.
+// for all of them. The result links and their publishing are in the panel
+// Rezultate (ResultLinksTable), not here.
 export function UploadsTable({
   code,
   uploads,
@@ -21,7 +20,6 @@ export function UploadsTable({
   onSelect,
   onChanged,
   onRobot,
-  resultsOpen,
 }: {
   code: string;
   uploads: UploadRow[];
@@ -34,8 +32,6 @@ export function UploadsTable({
   onSelect: (ids: number[]) => void;
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
-  // Whether the test keeps results open for all students.
-  resultsOpen: boolean;
 }) {
   if (uploads.length === 0) return <p className="hint">Clasa nu are elevi. Adaugă-i din pagina clasei.</p>;
   const eligible = selectable ? uploads.filter((row) => canSelect(row)) : [];
@@ -88,7 +84,6 @@ export function UploadsTable({
               onToggle={(id, checked) => onSelect(checked ? [...selected, id] : selected.filter((kept) => kept !== id))}
               onChanged={onChanged}
               onRobot={onRobot}
-              testResultsOpen={resultsOpen}
             />
           ))}
         </tbody>
@@ -122,7 +117,6 @@ function UploadTableRow({
   onToggle,
   onChanged,
   onRobot,
-  testResultsOpen,
 }: {
   code: string;
   row: UploadRow;
@@ -132,7 +126,6 @@ function UploadTableRow({
   onToggle: (submissionId: number, checked: boolean) => void;
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
-  testResultsOpen: boolean;
 }) {
   const api = useApi();
   // Each action on the upload names the upload the row shows (`startedAt`).
@@ -153,13 +146,6 @@ function UploadTableRow({
       onRobot(answer.robot);
       await onChanged();
     },
-  });
-  // One student's result page, while the class stays unpublished. Hidden once
-  // the test publishes every result: then every page is open anyway.
-  const publish = useMutation({
-    mutationFn: ({ submissionId, startedAt, open }: { submissionId: number; startedAt: string; open: boolean }) =>
-      api.setSubmissionResultsOpen(submissionId, startedAt, open),
-    onSuccess: onChanged,
   });
   const time = row.submittedAt ?? row.startedAt;
   const submissionId = row.submissionId;
@@ -199,15 +185,6 @@ function UploadTableRow({
         {submissionId !== null && startedAt !== null && (
           <span className="row-actions">
             <Link to={`/teste/${code}/elevi/${submissionId}`}>Vezi lucrarea</Link>
-            {row.status !== 'uploading' && (
-              <ResultLink
-                submissionId={submissionId}
-                startedAt={startedAt}
-                resultToken={row.resultToken}
-                testCode={code}
-                studentName={row.studentName}
-              />
-            )}
             {row.status === 'failed' && (
               <button
                 type="button"
@@ -232,16 +209,6 @@ function UploadTableRow({
                 Recorectează
               </button>
             )}
-            {!testResultsOpen && row.status !== 'uploading' && (
-              <button
-                type="button"
-                className="button-quiet button-small"
-                disabled={publish.isPending}
-                onClick={() => publish.mutate({ submissionId, startedAt, open: !row.resultsOpen })}
-              >
-                {row.resultsOpen ? 'Oprește publicarea' : 'Publică'}
-              </button>
-            )}
             <button
               type="button"
               className="button-quiet button-small"
@@ -259,7 +226,6 @@ function UploadTableRow({
         {reset.error && <ErrorMessage error={reset.error} />}
         {retry.error && <ErrorMessage error={retry.error} />}
         {regrade.error && <ErrorMessage error={regrade.error} />}
-        {publish.error && <ErrorMessage error={publish.error} />}
       </td>
     </tr>
   );

@@ -578,6 +578,9 @@ export interface UploadRow {
   autoSubmitted: boolean;
   // Out of 10, once graded.
   grade: number | null;
+  // The points and their maximum, the office points included, once graded.
+  total: number | null;
+  maxTotal: number | null;
   // The grading the row shows (`EvaluationInfo.gradedAt`), once graded.
   gradedAt: string | null;
   // The secret of the student's result page. Null until the upload has one

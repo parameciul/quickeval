@@ -279,7 +279,8 @@ describe('TestPage', () => {
       fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
     ];
     const detail = fakeTest({ status: 'done' }, rows);
-    renderAdmin(PAGE, createFakeApi({ classes: [], students: {}, tests: [{ ...detail, showModel: true }] }));
+    // A done test opens on Rezultate, which has no papers table.
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, tests: [{ ...detail, showModel: true }] }));
     const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
     const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
     expect(headers.indexOf('Model')).toBe(headers.indexOf('Nota') + 1);
@@ -290,6 +291,20 @@ describe('TestPage', () => {
     expect(within(stan).getByText('sonnet')).toHaveAttribute('data-label', 'Model');
     const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
     expect(marin.querySelector('[data-label="Model"]')).toHaveTextContent('—');
+  });
+
+  it('keeps the result links and the publish buttons out of the papers table', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, resultsOpen: true }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+    ];
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
+    expect(within(pop).getByText('Publicat')).toBeInTheDocument();
+    expect(within(pop).getByRole('link', { name: 'Vezi lucrarea' })).toBeInTheDocument();
+    for (const name of ['Link rezultat', 'Copiază linkul', 'Publică', 'Oprește publicarea']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
   });
 
   it('marks only the selectable rows for the narrow-screen layout', async () => {
@@ -1279,7 +1294,7 @@ describe('TestPage evaluation', () => {
     renderAdmin(`${PAGE}#corectare`, evaluationApi({ status: 'evaluating', analysis: { status: 'requested', stale: false, attempts: 0 } }, graded));
     expect(await screen.findByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).toBeInTheDocument();
     await openStage('Rezultate');
-    expect(screen.getByRole('link', { name: 'Raportul clasei' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+    expect(screen.getByRole('link', { name: 'Deschide raportul' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
   });
 
   it('says that the last attempt failed instead of saying that the robot writes, after a failed attempt', async () => {
@@ -1299,13 +1314,13 @@ describe('TestPage evaluation', () => {
     expect(await screen.findByText(/^Robotul corectează lucrările trimise\./)).toBeInTheDocument();
     expect(screen.queryByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).not.toBeInTheDocument();
     await openStage('Rezultate');
-    expect(screen.getByRole('link', { name: 'Raportul clasei' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Deschide raportul' })).toBeInTheDocument();
   });
 
   it('shows the link to the class report only when something is graded', async () => {
     renderAdmin(`${PAGE}#rezultate`, evaluationApi({ status: 'evaluating' }, leftInGrading));
     expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Raportul clasei' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Deschide raportul' })).not.toBeInTheDocument();
     await openStage('Corectare');
     expect(await screen.findByText(/^Robotul (nu )?a verificat/)).toBeInTheDocument();
     expect(screen.queryByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).not.toBeInTheDocument();
@@ -1314,128 +1329,22 @@ describe('TestPage evaluation', () => {
   it('puts the class report in Rezultate once a result is graded', async () => {
     renderAdmin(PAGE, evaluationApi({ status: 'done' }, graded));
     const panel = await screen.findByRole('region', { name: 'Rezultate' });
-    const link = within(panel).getByRole('link', { name: 'Raportul clasei' });
+    const link = within(panel).getByRole('link', { name: 'Deschide raportul' });
     expect(link).toHaveAttribute('href', '/teste/6E2-26T1/raport');
     expect(link).toHaveClass('button-quiet', 'button-small');
-    expect(screen.getAllByRole('link', { name: 'Raportul clasei' })).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: 'Deschide raportul' })).toHaveLength(1);
   });
 
   it('has no report button before any grading', async () => {
     renderAdmin(`${PAGE}#rezultate`, evaluationApi({ status: 'evaluating' }, leftInGrading));
     expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Raportul clasei' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Deschide raportul' })).not.toBeInTheDocument();
   });
 
   it('says when the class analysis failed', async () => {
     renderAdmin(`${PAGE}#corectare`, evaluationApi({ status: 'done', analysis: { status: 'failed', stale: false, attempts: 0 } }, graded));
     expect(await screen.findByText('Robotul nu a putut scrie analiza clasei.')).toBeInTheDocument();
     await openStage('Rezultate');
-    expect(screen.getByRole('link', { name: 'Raportul clasei' })).toBeInTheDocument();
-  });
-
-  it('shows no publish button before anything is graded, and keeps the stop button once results are open', async () => {
-    const { unmount } = renderAdmin(`${PAGE}#rezultate`, apiWith({ status: 'done' }));
-    expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Publică rezultatele' })).not.toBeInTheDocument();
-    unmount();
-    renderAdmin(`${PAGE}#rezultate`, apiWith({ status: 'done', resultsOpen: true }));
-    expect(await screen.findByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
-  });
-
-  it('publishes the student results and stops them again', async () => {
-    const api = apiWith({ status: 'done', gradedCount: 1 });
-    renderAdmin(`${PAGE}#rezultate`, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Publică rezultatele' }));
-    expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);
-    expect(await screen.findByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Oprește accesul la rezultate' }));
-    expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', false);
-    expect(await screen.findByRole('button', { name: 'Publică rezultatele' })).toBeInTheDocument();
-  });
-
-  it('publishes one result while the rest stays unpublished', async () => {
-    const rows = [
-      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
-      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
-    ];
-    const api = createFakeApi({
-      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 2 }],
-      students: {},
-      tests: [fakeTest({ status: 'done' }, rows)],
-    });
-    renderAdmin(`${PAGE}#rezultate`, api);
-    expect(await screen.findAllByRole('button', { name: 'Publică' })).toHaveLength(2);
-    expect(screen.queryByText(/publicat individual/)).not.toBeInTheDocument();
-
-    const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
-    await userEvent.click(within(pop).getByRole('button', { name: 'Publică' }));
-    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, FAKE_STARTED_AT, true);
-    expect(await within(pop).findByRole('button', { name: 'Oprește publicarea' })).toBeInTheDocument();
-    expect(within(pop).getByText('Publicat')).toBeInTheDocument();
-    expect(screen.getByText('1 rezultat publicat individual.')).toBeInTheDocument();
-    const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
-    expect(within(stan).getByRole('button', { name: 'Publică' })).toBeInTheDocument();
-
-    await userEvent.click(within(pop).getByRole('button', { name: 'Oprește publicarea' }));
-    expect(api.setSubmissionResultsOpen).toHaveBeenCalledWith(5, FAKE_STARTED_AT, false);
-    expect(await within(pop).findByRole('button', { name: 'Publică' })).toBeInTheDocument();
-    expect(screen.queryByText(/publicat individual/)).not.toBeInTheDocument();
-  });
-
-  it('hides the single publish buttons once every result is published', async () => {
-    const rows = [
-      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, resultsOpen: true }),
-      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8, resultsOpen: true }),
-    ];
-    renderAdmin(
-      `${PAGE}#rezultate`,
-      createFakeApi({
-        classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 2 }],
-        students: {},
-        tests: [fakeTest({ status: 'done', resultsOpen: true }, rows)],
-      }),
-    );
-    expect(await screen.findByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Publică' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Oprește publicarea' })).not.toBeInTheDocument();
-    expect(screen.getAllByText('Publicat')).toHaveLength(2);
-  });
-
-  it('shows a result link per upload, with copy and WhatsApp share', async () => {
-    // Fresh rows: earlier tests reset the shared uploads above.
-    const rows = [
-      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
-      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
-    ];
-    const api = createFakeApi({
-      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 2 }],
-      students: {},
-      tests: [fakeTest({ status: 'done' }, rows)],
-    });
-    renderAdmin(`${PAGE}#rezultate`, api);
-    const links = await screen.findAllByRole('button', { name: 'Link rezultat' });
-    expect(links).toHaveLength(2);
-    await userEvent.click(links[0]!);
-    expect(api.getResultLink).toHaveBeenCalledWith(5, FAKE_STARTED_AT);
-    const url = `${window.location.origin}/u/rezultat/result-token-5`;
-    expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
-      'href',
-      `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul 6E2-26T1: ${url}`)}`,
-    );
-    await userEvent.click(screen.getByRole('button', { name: 'Copiază' }));
-    expect(await navigator.clipboard.readText()).toBe(url);
-  });
-
-  it('hides the result link while the upload is still on the phone', async () => {
-    // Pop Ion sent the upload, Stan Eva still uploads, Marin Dan did not start.
-    const api = createFakeApi({
-      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
-      students: {},
-      tests: [fakeTest({ status: 'done' }, uploads)],
-    });
-    renderAdmin(`${PAGE}#rezultate`, api);
-    expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Link rezultat' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Deschide raportul' })).toBeInTheDocument();
   });
 });

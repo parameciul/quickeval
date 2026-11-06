@@ -2183,6 +2183,11 @@ table.uploads .tag {
   margin-left: 0.4rem;
 }
 
+/* "Publicat" starts the state cell of "Linkurile elevilor": no gap before it. */
+table.uploads .result-state-cell .tag {
+  margin-left: 0;
+}
+
 .row-actions {
   display: inline-flex;
   flex-wrap: wrap;
@@ -2257,6 +2262,20 @@ table.uploads .tag {
     color: var(--muted);
     font-size: 0.85rem;
     font-weight: 700;
+  }
+
+  /* "Linkurile elevilor" in short cards: the points and the grade side by
+     side, then the link and the state, whose buttons need no caption. */
+  table.uploads.result-links tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 1rem;
+  }
+
+  table.uploads.result-links tbody th[scope="row"],
+  table.uploads.result-links tbody td.result-link-cell,
+  table.uploads.result-links tbody td.result-state-cell {
+    grid-column: 1 / -1;
   }
 
   table.uploads.is-selectable thead {
@@ -3376,7 +3395,8 @@ table.grades-table tbody .tag {
 
 /* A button alone on its line keeps its own width. */
 .print-test > button,
-.file-list > li > button {
+.file-list > li > button,
+.file-list > li > a.button-quiet {
   justify-self: start;
 }
 
