@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { displayClassName } from '../../../shared/classes.ts';
 import { parsePositiveId } from '../../../shared/ids.ts';
@@ -25,6 +25,10 @@ function ClassDetails({ classId }: { classId: number }) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<'note' | 'elevi'>('note');
   const detail = useQuery({ queryKey: ['class', classId], queryFn: () => api.getClass(classId) });
+  // Remember which class the teacher opened last, so /clase reopens it.
+  useEffect(() => {
+    localStorage.setItem('quickeval:lastClass', String(classId));
+  }, [classId]);
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['class', classId] });
     await queryClient.invalidateQueries({ queryKey: ['classes'] });

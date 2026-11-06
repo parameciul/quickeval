@@ -1,10 +1,9 @@
 import { Route, Routes } from 'react-router';
 import { Layout } from './Layout.tsx';
 import { AccountPage } from './pages/AccountPage.tsx';
-import { ClassesPage } from './pages/ClassesPage.tsx';
 import { ClassPage } from './pages/ClassPage.tsx';
-import { ClassStudentsPage } from './pages/ClassStudentsPage.tsx';
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage.tsx';
+import { LastClassPage } from './pages/LastClassPage.tsx';
 import { NewTestPage } from './pages/NewTestPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { ReportPage } from './pages/ReportPage.tsx';
@@ -26,9 +25,8 @@ export function AppRoutes() {
         <Route path="teste/:code/elevi/:submissionId" element={<SubmissionPage />} />
         <Route path="teste/:code/raport" element={<ReportPage />} />
         <Route path="teste/:code/verificare" element={<ReviewPage />} />
-        <Route path="clase" element={<ClassesPage />} />
+        <Route path="clase" element={<LastClassPage />} />
         <Route path="clase/:id" element={<ClassPage />} />
-        <Route path="clase/:id/elevi" element={<ClassStudentsPage />} />
         <Route path="elevi/:id" element={<StudentPage />} />
         <Route path="setari" element={<SettingsPage />} />
         <Route path="cont" element={<AccountPage />} />
