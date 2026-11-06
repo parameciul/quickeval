@@ -14,6 +14,7 @@ import type {
   PagesReview,
   PrintRetryAnswer,
   RegradeAnswer,
+  ReviewPoint,
   FinishedTest,
   ReopenAnswer,
   RobotStart,
@@ -212,9 +213,25 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     resultToken: null,
     resultsOpen: false,
     flagCount: 0,
+    // One made-up item for every point counted, unless the test names them.
+    reviewPoints: Array.from({ length: overrides.flagCount ?? 0 }, (_, index) => fakePoint(1000 + index)),
     model: null,
     effort: null,
     lastError: null,
+    ...overrides,
+  };
+}
+
+// One point to check, for building fake data in tests.
+export function fakePoint(itemId: number, overrides: Partial<Extract<ReviewPoint, { kind: 'item' }>> = {}): ReviewPoint {
+  return {
+    kind: 'item',
+    itemId,
+    exerciseId: `E${itemId}`,
+    label: `Exercițiul ${itemId}`,
+    points: 1,
+    maxPoints: 2,
+    reason: 'Scrisul se citește greu.',
     ...overrides,
   };
 }

@@ -218,6 +218,7 @@ describe('GET /api/admin/tests/:code', () => {
         resultToken: null,
         resultsOpen: false,
         flagCount: 0,
+        reviewPoints: [],
         model: null,
         effort: null,
         lastError: null,
@@ -239,6 +240,7 @@ describe('GET /api/admin/tests/:code', () => {
         resultToken: null,
         resultsOpen: false,
         flagCount: 0,
+        reviewPoints: [],
         model: null,
         effort: null,
         lastError: null,
@@ -333,6 +335,61 @@ describe('GET /api/admin/tests/:code', () => {
     const checked = await api.request('GET', `/api/admin/tests/${code}`);
     expect(checked.body.test.flagCount).toBe(2);
     expect(checked.body.uploads.find((row: { studentName: string }) => row.studentName === 'Pop Ion').flagCount).toBe(2);
+  });
+
+  it('lists the points to check of each paper, as many as its count', async () => {
+    const cls = await makeClass(api, '6E2', ['Pop Ion', 'Ionescu Ana', 'Stan Eva']);
+    const [pop, ionescu, stan] = cls.studentIds as [number, number, number];
+    const code = await makeTest(api, cls.id);
+    const first = await addSubmission(api, code, pop, { status: 'graded', files: 2 });
+    const firstEvaluation = await addEvaluation(api, first, {
+      items: [{ needsReview: true }, {}, { needsReview: true, reviewed: true }, { needsReview: true }],
+      unreadable: ['student/page-02.jpg'],
+    });
+    const second = await addSubmission(api, code, ionescu, { status: 'graded', files: 1 });
+    const secondEvaluation = await addEvaluation(api, second, { items: [{}, { needsReview: true }] });
+    await addSubmission(api, code, stan, { status: 'submitted', files: 1 });
+    await api.db
+      .prepare("UPDATE evaluation_items SET label = 'Subiectul I, 3)', points = 0.5, max_points = 2, review_reason = 'Cifra se citește greu.' WHERE evaluation_id = ? AND exercise_id = 'E4'")
+      .bind(firstEvaluation)
+      .run();
+    const itemId = async (evaluationId: number, exerciseId: string) =>
+      (await api.db.prepare('SELECT id FROM evaluation_items WHERE evaluation_id = ? AND exercise_id = ?').bind(evaluationId, exerciseId).first<{ id: number }>())!.id;
+
+    const res = await api.request('GET', `/api/admin/tests/${code}`);
+    const byName = Object.fromEntries(res.body.uploads.map((row: { studentName: string }) => [row.studentName, row]));
+    expect(byName['Pop Ion'].reviewPoints).toEqual([
+      { kind: 'pages', pages: ['student/page-02.jpg'] },
+      { kind: 'item', itemId: await itemId(firstEvaluation, 'E1'), exerciseId: 'E1', label: 'Exercițiu', points: 1, maxPoints: 1, reason: 'Verifică' },
+      { kind: 'item', itemId: await itemId(firstEvaluation, 'E4'), exerciseId: 'E4', label: 'Subiectul I, 3)', points: 0.5, maxPoints: 2, reason: 'Cifra se citește greu.' },
+    ]);
+    expect(byName['Ionescu Ana'].reviewPoints).toEqual([
+      { kind: 'item', itemId: await itemId(secondEvaluation, 'E2'), exerciseId: 'E2', label: 'Exercițiu', points: 1, maxPoints: 1, reason: 'Verifică' },
+    ]);
+    expect(byName['Stan Eva'].reviewPoints).toEqual([]);
+    for (const row of res.body.uploads) expect(row.reviewPoints).toHaveLength(row.flagCount);
+
+    // A checked point leaves the list, and the count goes down with it.
+    await api.db.prepare("UPDATE evaluations SET pages_reviewed_at = '2026-10-08T10:00:00.000Z' WHERE id = ?").bind(firstEvaluation).run();
+    await api.db.prepare("UPDATE evaluation_items SET reviewed_at = '2026-10-08T10:00:00.000Z' WHERE evaluation_id = ? AND exercise_id = 'E1'").bind(firstEvaluation).run();
+    const after = await api.request('GET', `/api/admin/tests/${code}`);
+    const pop2 = after.body.uploads.find((row: { studentName: string }) => row.studentName === 'Pop Ion');
+    expect(pop2.reviewPoints.map((point: { exerciseId?: string }) => point.exerciseId)).toEqual(['E4']);
+    expect(pop2.flagCount).toBe(1);
+  });
+
+  it('keeps the points of another test out of the list', async () => {
+    const cls = await makeClass(api, '6E2', ['Pop Ion']);
+    const [pop] = cls.studentIds as [number];
+    const code = await makeTest(api, cls.id);
+    const other = await makeTest(api, cls.id);
+    const mine = await addSubmission(api, code, pop, { status: 'graded', files: 1 });
+    await addEvaluation(api, mine, { items: [{}] });
+    const theirs = await addSubmission(api, other, pop, { status: 'graded', files: 1 });
+    await addEvaluation(api, theirs, { items: [{ needsReview: true }], unreadable: ['student/page-01.jpg'] });
+
+    const res = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(res.body.uploads[0]).toMatchObject({ studentName: 'Pop Ion', flagCount: 0, reviewPoints: [] });
   });
 
   it('reads the code in any letter case and answers 404 for unknown or foreign codes', async () => {

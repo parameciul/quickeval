@@ -564,6 +564,13 @@ export interface RobotSettings {
 // "none": the student has not started an upload.
 export type UploadStatus = 'none' | 'uploading' | 'submitted' | 'grading' | 'graded' | 'failed';
 
+// A point the teacher still has to check on a graded paper (redesign spec
+// §7): an exercise the robot was not sure of, with its reason, or the pages
+// the robot could not read, which count as one point.
+export type ReviewPoint =
+  | { kind: 'item'; itemId: number; exerciseId: string; label: string; points: number; maxPoints: number; reason: string }
+  | { kind: 'pages'; pages: string[] };
+
 // One row of the uploads table: an active student of the class, or a student
 // who left the class after starting an upload.
 export interface UploadRow {
@@ -592,6 +599,8 @@ export interface UploadRow {
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;
+  // Those points: the pages first, then the items in the barem's order.
+  reviewPoints: ReviewPoint[];
   // The model and effort of this upload's grading; null while it has none.
   model: string | null;
   effort: string | null;
