@@ -8,6 +8,7 @@ import { ConfirmEmailPage } from './pages/ConfirmEmailPage.tsx';
 import { NewTestPage } from './pages/NewTestPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { ReportPage } from './pages/ReportPage.tsx';
+import { ReviewPage } from './pages/ReviewPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { StudentPage } from './pages/StudentPage.tsx';
 import { SubmissionPage } from './pages/SubmissionPage.tsx';
@@ -24,6 +25,7 @@ export function AppRoutes() {
         <Route path="teste/:code" element={<TestPage />} />
         <Route path="teste/:code/elevi/:submissionId" element={<SubmissionPage />} />
         <Route path="teste/:code/raport" element={<ReportPage />} />
+        <Route path="teste/:code/verificare" element={<ReviewPage />} />
         <Route path="clase" element={<ClassesPage />} />
         <Route path="clase/:id" element={<ClassPage />} />
         <Route path="clase/:id/elevi" element={<ClassStudentsPage />} />

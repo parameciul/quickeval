@@ -1846,6 +1846,13 @@ table.tests .row-actions {
   overflow-wrap: anywhere;
 }
 
+.review-list-reason {
+  display: block;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
 .test-sheet {
   grid-area: sheet;
   font-size: 0.875rem;
@@ -1961,6 +1968,315 @@ table.tests .row-actions {
   /* The sheet's text is small, but a phone zooms into a field under 16px. */
   .test-sheet input {
     font-size: 1rem;
+  }
+}
+
+/* The review of the points to check (redesign spec §7): the papers, the page
+   of the paper and the decision side by side; below 1280px the papers go under
+   the page, which keeps its width; on a phone one column, the page first and
+   the papers last. */
+.review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.review-head h1 {
+  margin: 0;
+}
+
+.review-actions,
+.review-decide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.review-page > .alert,
+.review-done {
+  margin: 0 0 1rem;
+}
+
+.review-panes {
+  display: grid;
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-areas: "queue photo decision";
+  gap: 1rem;
+  align-items: start;
+}
+
+.review-queue,
+.review-photo,
+.review-decision,
+.review-loading {
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+}
+
+.review-queue {
+  grid-area: queue;
+  padding: 0.75rem 0.5rem;
+}
+
+.review-photo {
+  grid-area: photo;
+}
+
+.review-decision {
+  grid-area: decision;
+  overflow-wrap: anywhere;
+}
+
+.review-loading {
+  grid-area: photo;
+}
+
+.review-queue-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0.5rem 0.25rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.review-queue > p,
+.review-papers + .review-queue-head,
+.review-queue > .hint + .review-queue-head {
+  margin-top: 1rem;
+}
+
+.review-queue > p {
+  margin: 0 0.5rem;
+}
+
+.review-papers,
+.review-points,
+.review-others,
+.review-exercises {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-papers > li + li,
+.review-others > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.review-queue a {
+  display: block;
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.review-queue a:hover {
+  background: var(--raised);
+}
+
+.review-paper {
+  padding: 0.375rem 0.5rem;
+}
+
+.review-paper-name {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.review-grade {
+  font-variant-numeric: tabular-nums;
+}
+
+.review-points a {
+  padding: 0.25rem 0.5rem 0.25rem 1rem;
+  color: var(--orange);
+  font-size: 0.875rem;
+}
+
+.review-queue a[aria-current="true"] {
+  background: var(--marker);
+  font-weight: 700;
+}
+
+.review-others a[aria-current="true"] {
+  background: var(--active);
+}
+
+.review-photo-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.review-photo figcaption {
+  font-weight: 600;
+}
+
+.page-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.page-switch-button {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.page-switch-button[aria-current="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.review-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+}
+
+.review-photo .pdf-frame {
+  height: 70vh;
+}
+
+.review-decision h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.review-decision h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.review-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.review-doubt {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border-left: 3px solid var(--orange-mark);
+  border-radius: var(--radius);
+  background: var(--marker);
+}
+
+.review-doubt > p {
+  margin: 0 0 0.5rem;
+}
+
+.review-why {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stepper input {
+  width: 4.5rem;
+  text-align: center;
+}
+
+.review-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin: 0.75rem 0 0;
+}
+
+.review-total-grade {
+  font-size: 1.25rem;
+}
+
+.review-preview {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+.review-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.review-keys kbd {
+  padding: 0 0.3em;
+  border: 1px solid var(--control);
+  border-radius: 4px;
+  background: var(--raised);
+  font: inherit;
+}
+
+.review-exercises li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+
+.review-exercises li.is-current {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+@media (max-width: 80rem) {
+  .review-panes {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    grid-template-areas:
+      "photo decision"
+      "queue decision";
+  }
+}
+
+@media (max-width: 56.25rem) {
+  .review-panes {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "photo"
+      "decision"
+      "queue";
+  }
+
+  .review-keys {
+    display: none;
   }
 }
 

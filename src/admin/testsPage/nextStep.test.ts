@@ -7,6 +7,7 @@ import { nextStep, type NextStep } from './nextStep.ts';
 const started = { startedAt: '2026-10-06T07:15:00.000Z' };
 const graded = { ...started, evaluationStartedAt: '2026-10-07T07:15:00.000Z', submittedCount: 22, gradedCount: 22 };
 const page = (label: string): NextStep => ({ kind: 'link', label, to: '/teste/6E2-26T1' });
+const review = (label: string): NextStep => ({ kind: 'link', label, to: '/teste/6E2-26T1/verificare' });
 
 const CASES: [string, TestSummary, NextStep][] = [
   ['checks the generated barem', fakeSummary({ barem: { request: 'none', unchecked: true } }), page('Verifică baremul')],
@@ -29,8 +30,8 @@ const CASES: [string, TestSummary, NextStep][] = [
   ],
   ['waits for the time set for the grading', fakeSummary({ status: 'open', ...started, evaluationAt: '2026-10-06T12:00:00.000Z' }), null],
   ['waits while the papers are graded', fakeSummary({ status: 'evaluating', ...started, submittedCount: 22, gradedCount: 15 }), null],
-  ['checks the points that wait', fakeSummary({ status: 'done', ...graded, flagCount: 3 }), page('Verifică 3 puncte')],
-  ['checks one point', fakeSummary({ status: 'evaluating', ...graded, flagCount: 1 }), page('Verifică 1 punct')],
+  ['checks the points that wait in the review', fakeSummary({ status: 'done', ...graded, flagCount: 3 }), review('Verifică 3 puncte')],
+  ['checks one point', fakeSummary({ status: 'evaluating', ...graded, flagCount: 1 }), review('Verifică 1 punct')],
   ['publishes the results on the row', fakeSummary({ status: 'done', ...graded }), { kind: 'publish', label: 'Publică rezultatele' }],
   ['publishes for everyone after some students', fakeSummary({ status: 'done', ...graded, publishedCount: 2 }), { kind: 'publish', label: 'Publică pentru toți' }],
   ['opens the class report of published results', fakeSummary({ status: 'done', ...graded, resultsOpen: true }), { kind: 'link', label: 'Raportul clasei', to: '/teste/6E2-26T1/raport' }],

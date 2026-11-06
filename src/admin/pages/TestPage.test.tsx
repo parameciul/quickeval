@@ -6,7 +6,7 @@ import { ApiError } from '../api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import type { UploadRow } from '../../../shared/api.ts';
 import { robotStartMessage } from '../../ui/format.ts';
-import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakePoint, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { refreshInterval } from './TestPage.tsx';
 
@@ -659,43 +659,72 @@ describe('TestPage Verificare', () => {
     });
   }
 
-  it('lists the papers with points to check, each opening its page, and starts with the first', async () => {
+  it('lists each point with its reason, each opening the review at it, and starts with the first', async () => {
     renderAdmin(
       PAGE,
       reviewApi([
-        fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 8.75, flagCount: 1 }),
+        fakeUpload({
+          studentId: 10,
+          studentName: 'Pop Ion',
+          submissionId: 5,
+          status: 'graded',
+          fileCount: 2,
+          grade: 8.75,
+          flagCount: 1,
+          reviewPoints: [fakePoint(31, { label: 'Subiectul I, 3)', points: 0.5, maxPoints: 2, reason: 'Cifra se citește greu.' })],
+        }),
         fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
-        fakeUpload({ studentId: 12, studentName: 'Marin Dan', submissionId: 7, status: 'graded', fileCount: 1, grade: 6.5, flagCount: 3 }),
+        fakeUpload({
+          studentId: 12,
+          studentName: 'Marin Dan',
+          submissionId: 7,
+          status: 'graded',
+          fileCount: 1,
+          grade: 6.5,
+          flagCount: 2,
+          reviewPoints: [
+            { kind: 'pages', pages: ['student/page-02.jpg'] },
+            fakePoint(41, { label: 'Subiectul II, 1)', points: 3, maxPoints: 5, reason: 'Răspunsul e tăiat.' }),
+          ],
+        }),
       ]),
     );
     const panel = await screen.findByRole('region', { name: 'Verificare' });
-    expect(within(panel).getByRole('link', { name: 'Începe verificarea' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
+    expect(within(panel).getByRole('link', { name: 'Începe verificarea' })).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
     expect(within(panel).getByRole('link', { name: 'Începe verificarea' })).toHaveClass('button');
-    const papers = within(panel).getAllByRole('listitem');
-    expect(within(panel).getByRole('list', { name: 'Lucrări cu puncte de verificat' })).toBeInTheDocument();
-    expect(papers.map((paper) => paper.textContent)).toEqual([
-      'Pop Ionnota 8,751 punct de verificatDecide',
-      'Marin Dannota 6,53 puncte de verificatDecide',
+    const points = within(within(panel).getByRole('list', { name: 'Puncte de verificat' })).getAllByRole('listitem');
+    expect(points.map((point) => point.textContent)).toEqual([
+      'Pop Ion · Subiectul I, 3)Cifra se citește greu.propus 0,5p din 2pDecide',
+      'Marin Dan · Paginile necititeRobotul nu a putut citi: Pagina 2.Decide',
+      'Marin Dan · Subiectul II, 1)Răspunsul e tăiat.propus 3p din 5pDecide',
     ]);
-    expect(within(papers[1]!).getByText('3 puncte de verificat')).toHaveClass('tag', 'tag-wait');
-    expect(within(panel).getByRole('link', { name: 'Decide: Marin Dan' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/7');
+    expect(within(points[2]!).getByText('propus 3p din 5p')).toHaveClass('tag', 'tag-wait');
+    expect(within(panel).getByRole('link', { name: 'Decide: Pop Ion, Subiectul I, 3)' })).toHaveAttribute(
+      'href',
+      '/teste/6E2-26T1/verificare?lucrare=5&punct=31',
+    );
+    expect(within(panel).getByRole('link', { name: 'Decide: Marin Dan, Paginile necitite' })).toHaveAttribute(
+      'href',
+      '/teste/6E2-26T1/verificare?lucrare=7&punct=pagini',
+    );
     // The table of every paper follows.
     expect(within(panel).getByRole('rowheader', { name: 'Stan Eva' })).toBeInTheDocument();
   });
 
-  it('says when every point is checked', async () => {
+  it('says when every point is checked, and still opens the papers in the review', async () => {
     renderAdmin(
       `${PAGE}#verificare`,
       reviewApi([fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 })]),
     );
-    expect(await screen.findByText('Toate punctele sunt verificate.')).toBeInTheDocument();
+    expect(await screen.findByText(/^Toate punctele sunt verificate\./)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Vezi lucrările' })).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
     expect(screen.queryByRole('link', { name: 'Începe verificarea' })).not.toBeInTheDocument();
   });
 
   it('waits for the grading before it lists anything', async () => {
     renderAdmin(`${PAGE}#verificare`, apiWith({ status: 'evaluating' }));
     expect(await screen.findByText('Punctele nesigure apar după ce se corectează lucrările.')).toBeInTheDocument();
-    expect(screen.queryByRole('list', { name: 'Lucrări cu puncte de verificat' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Puncte de verificat' })).not.toBeInTheDocument();
     expect(screen.queryByText('Toate punctele sunt verificate.')).not.toBeInTheDocument();
   });
 });

@@ -9,6 +9,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { GradedResult } from '../submissionPage/GradedResult.tsx';
 import { PageFiles } from '../submissionPage/PageFiles.tsx';
+import { waitingText } from '../submissionPage/waitingText.ts';
 import { PdfActions } from '../pdf/PdfActions.tsx';
 import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentPdf.ts';
 import { ResultLink } from '../testPage/ResultLink.tsx';
@@ -213,12 +214,4 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
       </div>
     </section>
   );
-}
-
-// Where an upload without a result is.
-function waitingText(submission: SubmissionDetail): string {
-  if (submission.status === 'uploading') return 'Elevul nu a trimis încă lucrarea.';
-  if (submission.status === 'grading') return 'Robotul corectează acum lucrarea.';
-  if (submission.testStatus === 'evaluating') return 'Lucrarea așteaptă robotul.';
-  return 'Lucrarea se corectează după ce pornești evaluarea.';
 }

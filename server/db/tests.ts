@@ -1,5 +1,15 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { AnalysisInfo, BaremRequest, ExerciseListInfo, PrintStatus, TestInfo, TestSummary, UploadRow, UploadStatus } from '../../shared/api.ts';
+import type {
+  AnalysisInfo,
+  BaremRequest,
+  ExerciseListInfo,
+  PrintStatus,
+  ReviewPoint,
+  TestInfo,
+  TestSummary,
+  UploadRow,
+  UploadStatus,
+} from '../../shared/api.ts';
 import { DOCX_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { averageGrade } from '../../shared/stats.ts';
 import { compareStudentNames } from '../../shared/students.ts';
@@ -186,46 +196,93 @@ export async function requireTest(db: D1Database, teacherId: number, code: strin
   return record;
 }
 
-// The uploads table in one query: every active student of the class, and any
-// student who left the class after starting an upload. Sorted by name.
+interface UploadSqlRow {
+  student_id: number;
+  full_name: string;
+  active: number;
+  submission_id: number | null;
+  status: UploadStatus | null;
+  started_at: string | null;
+  submitted_at: string | null;
+  auto_submitted: number | null;
+  last_error: string | null;
+  grade: number | null;
+  total: number | null;
+  max_total: number | null;
+  graded_at: string | null;
+  model: string | null;
+  effort: string | null;
+  result_token: string | null;
+  submission_open: number | null;
+  test_open: number;
+  file_count: number;
+  unreadable_json: string | null;
+  pages_reviewed_at: string | null;
+  flag_count: number;
+}
+
+interface PointSqlRow {
+  submission_id: number;
+  id: number;
+  exercise_id: string;
+  label: string;
+  points: number;
+  max_points: number;
+  review_reason: string;
+}
+
+// The uploads table in one round trip: every active student of the class, and
+// any student who left the class after starting an upload, sorted by name;
+// and the points to check of each paper, counted as flagCountSql counts them.
 export async function listUploads(db: D1Database, testId: number, classId: number): Promise<UploadRow[]> {
-  const { results } = await db
-    .prepare(
-      `SELECT st.id AS student_id, st.full_name, e.active,
-         s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.total, ev.max_total, ev.created_at AS graded_at, ev.model, ev.effort,
-         s.result_token, s.results_open AS submission_open, (SELECT t.results_open FROM tests t WHERE t.id = ?) AS test_open,
-         (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
-         ${flagCountSql('ev')} AS flag_count
-       FROM enrollments e
-       JOIN students st ON st.id = e.student_id
-       LEFT JOIN submissions s ON s.test_id = ? AND s.student_id = e.student_id
-       LEFT JOIN evaluations ev ON ev.submission_id = s.id
-       WHERE e.class_id = ? AND (e.active = 1 OR s.id IS NOT NULL)`,
-    )
-    .bind(testId, testId, classId)
-    .all<{
-      student_id: number;
-      full_name: string;
-      active: number;
-      submission_id: number | null;
-      status: UploadStatus | null;
-      started_at: string | null;
-      submitted_at: string | null;
-      auto_submitted: number | null;
-      last_error: string | null;
-      grade: number | null;
-      total: number | null;
-      max_total: number | null;
-      graded_at: string | null;
-      model: string | null;
-      effort: string | null;
-      result_token: string | null;
-      submission_open: number | null;
-      test_open: number;
-      file_count: number;
-      flag_count: number;
-    }>();
-  return results
+  const [uploads, points] = await db.batch<UploadSqlRow | PointSqlRow>([
+    db
+      .prepare(
+        `SELECT st.id AS student_id, st.full_name, e.active,
+           s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.total, ev.max_total, ev.created_at AS graded_at, ev.model, ev.effort,
+           s.result_token, s.results_open AS submission_open, (SELECT t.results_open FROM tests t WHERE t.id = ?) AS test_open,
+           (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
+           ev.unreadable_json, ev.pages_reviewed_at,
+           ${flagCountSql('ev')} AS flag_count
+         FROM enrollments e
+         JOIN students st ON st.id = e.student_id
+         LEFT JOIN submissions s ON s.test_id = ? AND s.student_id = e.student_id
+         LEFT JOIN evaluations ev ON ev.submission_id = s.id
+         WHERE e.class_id = ? AND (e.active = 1 OR s.id IS NOT NULL)`,
+      )
+      .bind(testId, testId, classId),
+    db
+      .prepare(
+        `SELECT ev.submission_id, i.id, i.exercise_id, i.label, i.points, i.max_points, i.review_reason
+         FROM evaluation_items i
+         JOIN evaluations ev ON ev.id = i.evaluation_id
+         JOIN submissions s ON s.id = ev.submission_id
+         WHERE s.test_id = ? AND i.needs_review = 1 AND i.reviewed_at IS NULL
+         ORDER BY i.position, i.id`,
+      )
+      .bind(testId),
+  ]);
+  const itemsOf = new Map<number, ReviewPoint[]>();
+  for (const row of (points?.results ?? []) as PointSqlRow[]) {
+    const list = itemsOf.get(row.submission_id) ?? [];
+    list.push({
+      kind: 'item',
+      itemId: row.id,
+      exerciseId: row.exercise_id,
+      label: row.label,
+      points: row.points,
+      maxPoints: row.max_points,
+      reason: row.review_reason,
+    });
+    itemsOf.set(row.submission_id, list);
+  }
+  const pointsOf = (row: UploadSqlRow): ReviewPoint[] => {
+    if (row.submission_id === null) return [];
+    const pages = row.unreadable_json === null ? [] : (JSON.parse(row.unreadable_json) as string[]);
+    const items = itemsOf.get(row.submission_id) ?? [];
+    return pages.length > 0 && row.pages_reviewed_at === null ? [{ kind: 'pages', pages }, ...items] : items;
+  };
+  return ((uploads?.results ?? []) as UploadSqlRow[])
     .map((row) => ({
       studentId: row.student_id,
       studentName: row.full_name,
@@ -245,6 +302,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       resultToken: row.result_token,
       resultsOpen: row.submission_id !== null && (row.test_open === 1 || row.submission_open === 1),
       flagCount: row.flag_count,
+      reviewPoints: pointsOf(row),
       lastError: row.last_error,
     }))
     .sort((a, b) => compareStudentNames(a.studentName, b.studentName));

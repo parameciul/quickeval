@@ -1,5 +1,6 @@
 import type { TestSummary } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
+import { reviewPath } from '../reviewPage/points.ts';
 
 export type TodoStage = 'Pregătire' | 'Verificare' | 'Rezultate';
 
@@ -14,6 +15,12 @@ export interface TodoItem {
   action: string;
   // What waits, in a few words, after the stage ("Rezultate · nepublicate").
   short: string;
+}
+
+// Where the button of a thing to do goes: the review for the points to check
+// (redesign spec §7), the test page for the rest.
+export function todoPath(item: TodoItem): string {
+  return item.stage === 'Verificare' ? reviewPath(item.code) : `/teste/${item.code}`;
 }
 
 // What a test waits for from the teacher, if anything (redesign spec §5):

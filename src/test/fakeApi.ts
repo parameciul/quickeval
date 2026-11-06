@@ -14,6 +14,7 @@ import type {
   PagesReview,
   PrintRetryAnswer,
   RegradeAnswer,
+  ReviewPoint,
   FinishedTest,
   ReopenAnswer,
   RobotStart,
@@ -212,9 +213,25 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     resultToken: null,
     resultsOpen: false,
     flagCount: 0,
+    // One made-up item for every point counted, unless the test names them.
+    reviewPoints: Array.from({ length: overrides.flagCount ?? 0 }, (_, index) => fakePoint(1000 + index)),
     model: null,
     effort: null,
     lastError: null,
+    ...overrides,
+  };
+}
+
+// One point to check, for building fake data in tests.
+export function fakePoint(itemId: number, overrides: Partial<Extract<ReviewPoint, { kind: 'item' }>> = {}): ReviewPoint {
+  return {
+    kind: 'item',
+    itemId,
+    exerciseId: `E${itemId}`,
+    label: `Exercițiul ${itemId}`,
+    points: 1,
+    maxPoints: 2,
+    reason: 'Scrisul se citește greu.',
     ...overrides,
   };
 }
@@ -245,6 +262,45 @@ function recount(evaluation: EvaluationInfo): EvaluationInfo {
     evaluation.items.filter((item) => item.needsReview && !item.reviewed).length +
     (evaluation.unreadable.length > 0 && !evaluation.pagesReviewed ? 1 : 0);
   return evaluation;
+}
+
+// The points to check of a graded result, as the uploads list sends them:
+// the pages first, then the items in order.
+export function reviewPointsOf(evaluation: EvaluationInfo | null): ReviewPoint[] {
+  if (!evaluation) return [];
+  const items: ReviewPoint[] = evaluation.items
+    .filter((item) => item.needsReview && !item.reviewed)
+    .map((item) => ({
+      kind: 'item',
+      itemId: item.id,
+      exerciseId: item.exerciseId,
+      label: item.label,
+      points: item.points,
+      maxPoints: item.maxPoints,
+      reason: item.reviewReason,
+    }));
+  return evaluation.unreadable.length > 0 && !evaluation.pagesReviewed ? [{ kind: 'pages', pages: [...evaluation.unreadable] }, ...items] : items;
+}
+
+// One student's upload of the test 6E2-26T1, graded unless told, for building fake data in tests.
+export function fakeSubmission(overrides: Partial<SubmissionDetail> & Pick<SubmissionDetail, 'id'>): SubmissionDetail {
+  return {
+    testCode: '6E2-26T1',
+    testTitle: 'Fracții',
+    testStatus: 'done',
+    studentId: 10,
+    studentName: 'Pop Ion',
+    status: 'graded',
+    autoSubmitted: false,
+    startedAt: FAKE_STARTED_AT,
+    submittedAt: '2026-10-06T08:30:00.000Z',
+    lastError: null,
+    files: [],
+    evaluation: null,
+    resultToken: null,
+    resultsOpen: false,
+    ...overrides,
+  };
 }
 
 // A graded result out of 10 with 1 point "din oficiu", for building fake data in tests.
@@ -288,7 +344,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     if (current === null) throw notFound();
     if (current !== startedAt) throw uploadChanged();
   };
-  // The uploads table shows the grade and the items to check of the upload.
+  // The uploads table shows the grade and the points to check of the upload.
   const syncRow = (submission: SubmissionDetail) => {
     for (const detail of tests) {
       const row = detail.uploads.find((u) => u.submissionId === submission.id);
@@ -296,7 +352,9 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         Object.assign(row, {
           status: submission.status,
           grade: submission.evaluation?.grade ?? null,
+          total: submission.evaluation?.total ?? null,
           flagCount: submission.evaluation?.flagCount ?? 0,
+          reviewPoints: reviewPointsOf(submission.evaluation),
         });
       }
     }
@@ -717,7 +775,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) {
           const cleared = { submissionId: null, status: 'none', fileCount: 0, startedAt: null, submittedAt: null, autoSubmitted: false };
-          Object.assign(row, { ...cleared, grade: null, gradedAt: null, resultsOpen: false, flagCount: 0, lastError: null });
+          Object.assign(row, { ...cleared, grade: null, total: null, maxTotal: null, gradedAt: null, resultsOpen: false, flagCount: 0, reviewPoints: [], lastError: null });
         }
       }
       const index = submissions.findIndex((s) => s.id === submissionId);
@@ -749,7 +807,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const before = test?.test.status ?? found!.testStatus;
       const testStatus = before === 'done' ? 'evaluating' : before;
       if (found) Object.assign(found, { status: 'submitted', testStatus, evaluation: null });
-      if (row) Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0 });
+      if (row) Object.assign(row, { status: 'submitted', grade: null, total: null, maxTotal: null, gradedAt: null, flagCount: 0, reviewPoints: [] });
       if (test) test.test.status = testStatus;
       return { count: 1, testStatus, robot: testStatus === 'evaluating' ? 'next_check' : null };
     }),

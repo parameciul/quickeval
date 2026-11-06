@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TestSummary } from '../../../shared/api.ts';
 import { fakeTest } from '../../test/fakeApi.ts';
-import { inWork, todoList, todoOf } from './todo.ts';
+import { inWork, todoList, todoOf, todoPath } from './todo.ts';
 
 const summary = (overrides: Partial<TestSummary>): TestSummary => fakeTest({ title: 'Ecuații', ...overrides }).test;
 const generated = { request: 'none', unchecked: true } as const;
@@ -54,6 +54,12 @@ describe('todoOf', () => {
       text: '1 lucrare corectată. Punctele nesigure te așteaptă pe tine.',
       short: '1 punct nesigur',
     });
+  });
+
+  it('opens the review for the points to check, and the test page for the rest', () => {
+    expect(todoPath(todoOf(summary({ ...graded, flagCount: 3 }))!)).toBe('/teste/6E2-26T1/verificare');
+    expect(todoPath(todoOf(summary({ ...graded }))!)).toBe('/teste/6E2-26T1');
+    expect(todoPath(todoOf(summary({ status: 'draft', barem: generated }))!)).toBe('/teste/6E2-26T1');
   });
 
   it('asks to publish checked results that are not published', () => {

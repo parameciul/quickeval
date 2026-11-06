@@ -285,10 +285,11 @@ describe('De făcut', () => {
     ]);
     expect(cards[0]).toHaveTextContent('PregătireInducție · 6E3');
     expect(within(panel).getByText('Celălalt test în lucru nu are nevoie de tine acum.')).toBeInTheDocument();
+    expect(within(cards[0]!).getByRole('link')).toHaveAttribute('href', expect.not.stringContaining('verificare'));
     const start = within(cards[1]!).getByRole('link', { name: 'Începe: Ecuații, 6E2' });
-    expect(start).toHaveAttribute('href', '/teste/6E2-26T2');
+    expect(start).toHaveAttribute('href', '/teste/6E2-26T2/verificare');
     await userEvent.click(start);
-    await expectLocation('/teste/6E2-26T2');
+    await expectLocation('/teste/6E2-26T2/verificare');
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 
