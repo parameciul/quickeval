@@ -1,0 +1,7 @@
+# Local Python runtime and Chromium, created by
+# `python .claude/skills/seo/scripts/runtime.py setup`
+.venv/
+ms-playwright/
+runtime-state.json
+__pycache__/
+*.pyc
