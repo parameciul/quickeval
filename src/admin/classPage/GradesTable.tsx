@@ -53,12 +53,7 @@ function GradeCell({ grade }: { grade: ClassGrade | undefined }) {
     <td className={grade.flagCount > 0 ? 'flagged-cell' : undefined}>
       <Link to={`/teste/${grade.testCode}/elevi/${grade.submissionId}`}>
         <span className={`points points-${pointsLevel(grade.grade, 10)}`}>{formatPoints(grade.grade)}</span>
-        {grade.flagCount > 0 && (
-          <>
-            {' '}
-            <span className="sr-only">(de verificat)</span>
-          </>
-        )}
+        {grade.flagCount > 0 && <>{' '}<span className="flag-dot" aria-label="puncte de verificat"></span></>}
       </Link>
     </td>
   );
@@ -81,8 +76,8 @@ function AverageCell({ average }: { average: number | null }) {
   );
 }
 
-// The class page's grade table: a row for each student, a column for each test,
-// the newest test on the left (`tests` arrive newest first). Draft and open
+// The class page's grade table: a row per student, a narrow column per test,
+// the oldest test on the left (`tests` arrive newest first). Draft and open
 // tests keep a column, with their status, so the page still leads to them.
 export function GradesTable({
   classId,
@@ -106,7 +101,7 @@ export function GradesTable({
     );
   }
 
-  const shown = tests.filter((test) => showArchived || !test.archived);
+  const shown = tests.filter((test) => showArchived || !test.archived).reverse();
   if (shown.length === 0) {
     return <p className="hint">Toate testele clasei sunt arhivate. Apasă „Arată și testele arhivate”.</p>;
   }
@@ -143,7 +138,7 @@ export function GradesTable({
         </tbody>
         <tfoot>
           <tr>
-            <th scope="row">Media clasei</th>
+            <th scope="row">Media testului</th>
             {shown.map((test) => (
               <AverageCell key={test.code} average={testAverage(grades, test.code)} />
             ))}

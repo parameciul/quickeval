@@ -3624,6 +3624,17 @@ table.report-table td.flagged-cell {
   background: var(--marker);
 }
 
+// The orange dot of a grade whose items still wait on the teacher.
+.flag-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--marker);
+  vertical-align: middle;
+  margin-left: 0.2rem;
+}
+
 /* The students' table has one narrow column for each exercise, so many of
    them fit: points are centred with little padding, and a name stays on one
    line. */
