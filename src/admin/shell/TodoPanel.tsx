@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { countLabel } from '../../ui/format.ts';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { Panel } from './Panel.tsx';
-import type { TodoItem } from './todo.ts';
+import { todoPath, type TodoItem } from './todo.ts';
 
 // The line under the cards: the tests of the year in work that need nothing
 // now ("the other" ones only when a card stands above it).
@@ -57,7 +57,7 @@ export function TodoPanel({
               <p className="todo-text">{item.text}</p>
               <Link
                 className={index === 0 ? 'button button-small' : 'button-quiet button-small'}
-                to={`/teste/${item.code}`}
+                to={todoPath(item)}
                 aria-label={`${item.action}: ${item.testTitle}, ${item.className}`}
               >
                 {item.action}

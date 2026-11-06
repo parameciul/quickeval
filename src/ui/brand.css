@@ -1846,6 +1846,13 @@ table.tests .row-actions {
   overflow-wrap: anywhere;
 }
 
+.review-list-reason {
+  display: block;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
 .test-sheet {
   grid-area: sheet;
   font-size: 0.875rem;

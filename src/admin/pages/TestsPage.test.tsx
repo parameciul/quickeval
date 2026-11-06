@@ -133,7 +133,7 @@ describe('TestsPage, what waits', () => {
     ]);
     const first = within(list).getByRole('link', { name: 'Începe: Ecuații, Clasa 6E2' });
     expect(first).toHaveClass('button');
-    expect(first).toHaveAttribute('href', '/teste/6E2-26T1');
+    expect(first).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
     expect(within(list).getByRole('link', { name: 'Deschide: Logaritmi, Clasa 6E2' })).toHaveClass('button-quiet');
 
     await userEvent.click(toggle);
@@ -176,7 +176,7 @@ describe('TestsPage, what waits', () => {
     );
     const check = await screen.findByRole('link', { name: 'Verifică 3 puncte: Ecuații, Clasa 6E2' });
     expect(check).toHaveClass('button');
-    expect(check).toHaveAttribute('href', '/teste/6E2-26T1');
+    expect(check).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
     expect(screen.getByRole('link', { name: 'Pornește corectarea: Mulțimi, Clasa 6E2' })).toHaveClass('button-quiet');
     expect(within(rowOf('Simulare')).getByText('Nimic de făcut acum')).toBeInTheDocument();
   });
