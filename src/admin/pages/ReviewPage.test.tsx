@@ -434,6 +434,14 @@ describe('the review of the points to check', () => {
     await expectLocation(at('?lucrare=11&punct=pagini'));
   });
 
+  it('writes the address before it shows a paper', async () => {
+    renderAdmin(PAGE, apiWith(), <LocationProbe />);
+    // The first moment the papers show, the address already names the point:
+    // a decision is never made on a point the address does not hold.
+    await screen.findByRole('navigation', { name: 'Lucrările' });
+    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=11&punct=pagini'));
+  });
+
   it('keeps the address of a paper that is not graded yet', async () => {
     renderAdmin(`${PAGE}?lucrare=12`, apiWith(), <LocationProbe />);
     expect(await within(await screen.findByRole('region', { name: 'Decizia' })).findByRole('heading', { name: 'Ana Pop · Paginile necitite' })).toBeInTheDocument();

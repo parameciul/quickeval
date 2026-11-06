@@ -49,6 +49,15 @@ export function pointQueue(uploads: UploadRow[]): QueuedPoint[] {
   );
 }
 
+// Where the review opens without a paper in its address: the first point,
+// else the first other graded paper; null before any paper is graded.
+export function firstSpot(uploads: UploadRow[]): ReviewSpot | null {
+  const first = pointQueue(uploads)[0];
+  if (first) return { submissionId: first.submissionId, key: pointKey(first.point) };
+  const other = otherPapers(uploads)[0];
+  return other ? { submissionId: other.submissionId, key: null } : null;
+}
+
 export function isSpotOf(entry: QueuedPoint, spot: ReviewSpot | null): boolean {
   return spot !== null && entry.submissionId === spot.submissionId && pointKey(entry.point) === spot.key;
 }

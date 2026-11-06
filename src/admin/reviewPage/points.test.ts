@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ReviewPoint } from '../../../shared/api.ts';
 import { fakeEvaluation, fakeItem, fakePoint, fakeSubmission, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import {
+  firstSpot,
   otherPapers,
   pageIndex,
   papersToCheck,
@@ -41,6 +42,13 @@ describe('the points of the review', () => {
 
   it('queues the points paper by paper, the pages first', () => {
     expect(keys(pointQueue(uploads()))).toEqual(['11:pagini', '11:5', '14:9']);
+  });
+
+  it('opens on the first point, else the first other graded paper, else nowhere', () => {
+    expect(firstSpot(uploads())).toEqual({ submissionId: 11, key: 'pagini' });
+    const noPoints = uploads().map((row) => ({ ...row, reviewPoints: [] }));
+    expect(firstSpot(noPoints)).toEqual({ submissionId: 11, key: null });
+    expect(firstSpot(uploads().filter((row) => row.status !== 'graded'))).toBeNull();
   });
 
   it('steps to the next or the previous point, going round', () => {

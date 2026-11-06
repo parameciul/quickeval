@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import type { ItemChange, ReviewPoint, SubmissionDetail, TestDetail } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { parsePositiveId } from '../../../shared/ids.ts';
@@ -12,11 +12,13 @@ import { ReviewDecision, type ReviewView } from '../reviewPage/ReviewDecision.ts
 import { ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
 import { ReviewQueue } from '../reviewPage/ReviewQueue.tsx';
 import {
+  firstSpot,
   otherPapers,
   pageIndex,
   papersToCheck,
   pointKey,
   pointQueue,
+  reviewPath,
   stepPoint,
   withoutPoint,
   type QueuedPoint,
@@ -37,6 +39,7 @@ export function ReviewPage() {
 
 function ReviewLoader({ code }: { code: string }) {
   const api = useApi();
+  const [params] = useSearchParams();
   // The test page's data: while the robot grades, new papers come in.
   const detail = useQuery({
     queryKey: ['test', code],
@@ -45,6 +48,15 @@ function ReviewLoader({ code }: { code: string }) {
   });
   if (detail.isPending) return <p>Se încarcă…</p>;
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
+  // An address that names no paper of this test is first written with the
+  // spot the review opens on, and only then is a paper drawn: no decision is
+  // made on a spot the address does not hold, a refresh that brings a newly
+  // graded paper never moves the spot, and a reload comes back to it. A paper
+  // graded again keeps its address, so the page comes back to it when its
+  // grading is done.
+  const asked = parsePositiveId(params.get('lucrare') ?? undefined);
+  const opening = detail.data.uploads.some((row) => row.submissionId === asked) ? null : firstSpot(detail.data.uploads);
+  if (opening !== null) return <Navigate replace to={reviewPath(code, opening)} />;
   return <Review code={code} detail={detail.data} refreshError={detail.isRefetchError ? detail.error : null} />;
 }
 
@@ -73,18 +85,11 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   const others = otherPapers(uploads);
   const queue = pointQueue(uploads);
 
-  // The spot the address names. Without one, or for a paper that is not a
-  // graded paper of this test: the first point, else the first paper.
+  // The spot the address names. For a paper of this test that is not graded
+  // now (it is graded again): the first point, else the first paper.
   const asked = parsePositiveId(params.get('lucrare') ?? undefined);
   const askedRow = [...papers, ...others].find((row) => row.submissionId === asked);
-  const first = queue[0];
-  const spot: ReviewSpot | null = askedRow
-    ? { submissionId: askedRow.submissionId, key: params.get('punct') }
-    : first
-      ? { submissionId: first.submissionId, key: pointKey(first.point) }
-      : others[0]
-        ? { submissionId: others[0].submissionId, key: null }
-        : null;
+  const spot: ReviewSpot | null = askedRow ? { submissionId: askedRow.submissionId, key: params.get('punct') } : firstSpot(uploads);
   const row = [...papers, ...others].find((other) => other.submissionId === spot?.submissionId);
   const point = row?.reviewPoints.find((other) => pointKey(other) === spot?.key) ?? null;
   // The spot on the screen now, for a decision that comes back later.
@@ -120,15 +125,6 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
     setParams(next, { replace: true });
   };
   const goPoint = (entry: QueuedPoint | null) => go(entry && { submissionId: entry.submissionId, key: pointKey(entry.point) });
-
-  // An address that names no paper of this test gets the spot the page opens
-  // on: a refresh that brings a newly graded paper never moves it, and a
-  // reload comes back to it. A paper graded again keeps its address, so the
-  // page comes back to it when its grading is done.
-  const known = uploads.some((other) => other.submissionId === asked);
-  useEffect(() => {
-    if (!known && spot !== null) go(spot);
-  });
 
   // A decision on its way, known at once: `decide.isPending` changes only
   // with the next render, after a second press in the same moment.
