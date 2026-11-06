@@ -20,7 +20,11 @@ export function ReviewQueue({ code, papers, others, spot }: { code: string; pape
             <li key={row.submissionId}>
               <Link replace to={reviewPath(code, { submissionId: row.submissionId, key: pointKey(row.reviewPoints[0]!) })} className="review-paper">
                 <span className="review-paper-name">
-                  {row.studentName} {row.grade !== null && <span className="review-grade">{formatPoints(row.grade)}</span>}
+                  {row.studentName} {row.grade !== null && (
+                    <span className="review-grade">
+                      <span className="sr-only">nota</span> {formatPoints(row.grade)}
+                    </span>
+                  )}
                 </span>{' '}
                 <span className="hint">{countLabel(row.reviewPoints.length, 'punct de verificat', 'puncte de verificat')}</span>
               </Link>
@@ -56,7 +60,11 @@ export function ReviewQueue({ code, papers, others, spot }: { code: string; pape
                   aria-current={spot.submissionId === row.submissionId ? 'true' : undefined}
                 >
                   <span className="review-paper-name">
-                    {row.studentName} {row.grade !== null && <span className="review-grade">{formatPoints(row.grade)}</span>}
+                    {row.studentName} {row.grade !== null && (
+                    <span className="review-grade">
+                      <span className="sr-only">nota</span> {formatPoints(row.grade)}
+                    </span>
+                  )}
                   </span>
                 </Link>
               </li>

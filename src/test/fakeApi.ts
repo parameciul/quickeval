@@ -775,7 +775,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) {
           const cleared = { submissionId: null, status: 'none', fileCount: 0, startedAt: null, submittedAt: null, autoSubmitted: false };
-          Object.assign(row, { ...cleared, grade: null, gradedAt: null, resultsOpen: false, flagCount: 0, lastError: null });
+          Object.assign(row, { ...cleared, grade: null, total: null, maxTotal: null, gradedAt: null, resultsOpen: false, flagCount: 0, reviewPoints: [], lastError: null });
         }
       }
       const index = submissions.findIndex((s) => s.id === submissionId);
@@ -807,7 +807,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const before = test?.test.status ?? found!.testStatus;
       const testStatus = before === 'done' ? 'evaluating' : before;
       if (found) Object.assign(found, { status: 'submitted', testStatus, evaluation: null });
-      if (row) Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0 });
+      if (row) Object.assign(row, { status: 'submitted', grade: null, total: null, maxTotal: null, gradedAt: null, flagCount: 0, reviewPoints: [] });
       if (test) test.test.status = testStatus;
       return { count: 1, testStatus, robot: testStatus === 'evaluating' ? 'next_check' : null };
     }),

@@ -41,7 +41,9 @@ export function ReviewDecision({
           <p className="hint">Lucrarea se corectează din nou.</p>
         </>
       ) : view.kind === 'item' ? (
-        <ItemPoint key={view.item.id} submission={submission} evaluation={evaluation} item={view.item} pending={pending} onDecide={onDecide} />
+        // A new grading of the paper starts the stepper again: a value typed
+        // on the old one is not for it.
+        <ItemPoint key={`${evaluation.gradedAt}:${view.item.id}`} submission={submission} evaluation={evaluation} item={view.item} pending={pending} onDecide={onDecide} />
       ) : view.kind === 'pages' ? (
         <>
           <h2>{submission.studentName} · Paginile necitite</h2>
@@ -217,7 +219,7 @@ function Exercises({ code, submissionId, items, current }: { code: string; submi
           const toCheck = item.needsReview && !item.reviewed;
           const text = `${item.label} · ${pointsText(item.points)} din ${pointsText(item.maxPoints)}`;
           return (
-            <li key={item.id} className={item.id === current ? 'is-current' : toCheck ? 'is-doubt' : undefined}>
+            <li key={item.id} className={item.id === current ? 'is-current' : undefined}>
               {toCheck && item.id !== current ? (
                 <Link replace to={reviewPath(code, { submissionId, key: String(item.id) })}>
                   {text}

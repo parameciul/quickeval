@@ -100,12 +100,12 @@ describe('the review of the points to check', () => {
     expect(screen.getByText('Fracții · Clasa 6E2 · 3 puncte în 2 lucrări')).toBeInTheDocument();
     const list = queue();
     expect(within(list).getByRole('heading', { name: 'Cu puncte de verificat 2' })).toBeInTheDocument();
-    expect(within(list).getByRole('link', { name: 'Ana Pop 6,5 2 puncte de verificat' })).toBeInTheDocument();
+    expect(within(list).getByRole('link', { name: 'Ana Pop nota 6,5 2 puncte de verificat' })).toBeInTheDocument();
     expect(within(list).getByRole('link', { name: 'Paginile necitite' })).toHaveAttribute('aria-current', 'true');
     expect(within(list).getByRole('link', { name: 'Subiectul II, ex. 1 · 1p din 2p' })).not.toHaveAttribute('aria-current');
     expect(within(list).getByRole('link', { name: 'Subiectul I, ex. 3 · 3p din 5p' })).toHaveAttribute('href', `${PAGE}?lucrare=14&punct=41`);
     expect(within(list).getByRole('heading', { name: 'Celelalte lucrări 1' })).toBeInTheDocument();
-    expect(within(list).getByRole('link', { name: 'Eva Stan 5' })).toHaveAttribute('href', `${PAGE}?lucrare=13`);
+    expect(within(list).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('href', `${PAGE}?lucrare=13`);
     expect(within(list).queryByText(/Dan Marin/)).not.toBeInTheDocument();
   });
 
@@ -282,7 +282,7 @@ describe('the review of the points to check', () => {
     expect(within(panel).getByRole('link', { name: 'Deschide lucrarea' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/13');
     expect(within(panel).queryByRole('button', { name: /^Accept/ })).not.toBeInTheDocument();
     expect(screen.getByTitle('Pagina 1 a lucrării')).toHaveAttribute('src', submissionFileUrl(13, 131));
-    expect(within(queue()).getByRole('link', { name: 'Eva Stan 5' })).toHaveAttribute('aria-current', 'true');
+    expect(within(queue()).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('aria-current', 'true');
   });
 
   it('opens a point from the exercises of the paper', async () => {
@@ -369,7 +369,7 @@ describe('the review of the points to check', () => {
     renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
-    await userEvent.click(within(queue()).getByRole('link', { name: 'Eva Stan 5' }));
+    await userEvent.click(within(queue()).getByRole('link', { name: 'Eva Stan nota 5' }));
     await expectLocation(at('?lucrare=13'));
     await held.done();
     expect(within(queue()).queryByRole('link', { name: 'Subiectul II, ex. 1 · 1p din 2p' })).not.toBeInTheDocument();
@@ -397,6 +397,36 @@ describe('the review of the points to check', () => {
     expect(screen.queryByRole('complementary', { name: 'Ce ai de făcut' })).not.toBeInTheDocument();
     await userEvent.keyboard('j');
     await expectLocation(at('?lucrare=14&punct=41'));
+  });
+
+  it('writes once for two presses of A in the same moment', async () => {
+    const api = apiWith();
+    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await within(panel).findByRole('button', { name: 'Accept 1p' });
+    fireEvent.keyDown(document.body, { key: 'a' });
+    fireEvent.keyDown(document.body, { key: 'a' });
+    // Ion's paper loads in a new right pane: found through the screen.
+    expect(await screen.findByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toBeInTheDocument();
+    expect(api.correctItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a value typed on a grading that was replaced meanwhile', async () => {
+    const api = apiWith();
+    api.correctItem.mockRejectedValueOnce(new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.'));
+    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
+    // The paper is read again after the refusal: it has a new grading, with
+    // the same exercise to check.
+    const regraded = papers()[0]!;
+    regraded.evaluation = { ...regraded.evaluation!, gradedAt: '2026-10-08T09:00:00.000Z' };
+    api.getSubmission.mockResolvedValueOnce(regraded);
+    await userEvent.clear(input);
+    await userEvent.type(input, '1,5');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
+    await waitFor(() => expect(within(decision()).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue('1'));
+    expect(api.getSubmission).toHaveBeenCalledTimes(2);
   });
 
   it('names the point it opens on in the address', async () => {

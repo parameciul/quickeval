@@ -130,6 +130,9 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
     if (!known && spot !== null) go(spot);
   });
 
+  // A decision on its way, known at once: `decide.isPending` changes only
+  // with the next render, after a second press in the same moment.
+  const deciding = useRef(false);
   const decide = useMutation({
     mutationFn: ({ submission: shown, point: chosen, change }: Decision) => {
       const gradedAt = shown.evaluation!.gradedAt;
@@ -149,13 +152,17 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
       void queryClient.invalidateQueries({ queryKey: ['submission', shown.id] });
       void queryClient.invalidateQueries({ queryKey: ['test', code] });
     },
+    onSettled: () => {
+      deciding.current = false;
+    },
   });
   const failed = decide.variables;
   const decideError =
     decide.isError && failed && failed.submission.id === spot?.submissionId && pointKey(failed.point) === spot.key ? decide.error : null;
 
   const onDecide = (change: ItemChange) => {
-    if (!point || !submission || spot === null || view.kind === 'paper' || decide.isPending) return;
+    if (!point || !submission || spot === null || view.kind === 'paper' || decide.isPending || deciding.current) return;
+    deciding.current = true;
     const from = spot;
     const next = stepPoint(queue, spot, 1);
     decide.mutate(
