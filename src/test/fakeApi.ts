@@ -264,6 +264,45 @@ function recount(evaluation: EvaluationInfo): EvaluationInfo {
   return evaluation;
 }
 
+// The points to check of a graded result, as the uploads list sends them:
+// the pages first, then the items in order.
+export function reviewPointsOf(evaluation: EvaluationInfo | null): ReviewPoint[] {
+  if (!evaluation) return [];
+  const items: ReviewPoint[] = evaluation.items
+    .filter((item) => item.needsReview && !item.reviewed)
+    .map((item) => ({
+      kind: 'item',
+      itemId: item.id,
+      exerciseId: item.exerciseId,
+      label: item.label,
+      points: item.points,
+      maxPoints: item.maxPoints,
+      reason: item.reviewReason,
+    }));
+  return evaluation.unreadable.length > 0 && !evaluation.pagesReviewed ? [{ kind: 'pages', pages: [...evaluation.unreadable] }, ...items] : items;
+}
+
+// One student's upload of the test 6E2-26T1, graded unless told, for building fake data in tests.
+export function fakeSubmission(overrides: Partial<SubmissionDetail> & Pick<SubmissionDetail, 'id'>): SubmissionDetail {
+  return {
+    testCode: '6E2-26T1',
+    testTitle: 'Fracții',
+    testStatus: 'done',
+    studentId: 10,
+    studentName: 'Pop Ion',
+    status: 'graded',
+    autoSubmitted: false,
+    startedAt: FAKE_STARTED_AT,
+    submittedAt: '2026-10-06T08:30:00.000Z',
+    lastError: null,
+    files: [],
+    evaluation: null,
+    resultToken: null,
+    resultsOpen: false,
+    ...overrides,
+  };
+}
+
 // A graded result out of 10 with 1 point "din oficiu", for building fake data in tests.
 export function fakeEvaluation(items: EvaluationItemInfo[], overrides: Partial<EvaluationInfo> = {}): EvaluationInfo {
   return recount({
@@ -305,7 +344,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     if (current === null) throw notFound();
     if (current !== startedAt) throw uploadChanged();
   };
-  // The uploads table shows the grade and the items to check of the upload.
+  // The uploads table shows the grade and the points to check of the upload.
   const syncRow = (submission: SubmissionDetail) => {
     for (const detail of tests) {
       const row = detail.uploads.find((u) => u.submissionId === submission.id);
@@ -313,7 +352,9 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         Object.assign(row, {
           status: submission.status,
           grade: submission.evaluation?.grade ?? null,
+          total: submission.evaluation?.total ?? null,
           flagCount: submission.evaluation?.flagCount ?? 0,
+          reviewPoints: reviewPointsOf(submission.evaluation),
         });
       }
     }
