@@ -3624,7 +3624,7 @@ table.report-table td.flagged-cell {
   background: var(--marker);
 }
 
-// The orange dot of a grade whose items still wait on the teacher.
+/* The orange dot of a grade whose items still wait on the teacher. */
 .flag-dot {
   display: inline-block;
   width: 6px;
