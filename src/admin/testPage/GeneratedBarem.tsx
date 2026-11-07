@@ -69,7 +69,7 @@ export function useGeneratedBarem({
       {!hasTest && <p className="hint">Încarcă întâi testul.</p>}
       {waiting && <p role="status">Se generează baremul… Durează câteva minute.</p>}
       {failed && <p className="alert">Nu am putut genera baremul.</p>}
-      {unchecked && request === 'none' && <p className="alert">Barem generat automat. Verifică-l și corectează-l în Word dacă e nevoie.</p>}
+      {unchecked && request === 'none' && <p className="warning">Barem generat automat. Verifică-l și corectează-l în Word dacă e nevoie.</p>}
       {generate.error && <ErrorMessage error={generate.error} />}
       {confirm.error && <ErrorMessage error={confirm.error} />}
     </>

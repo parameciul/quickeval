@@ -122,7 +122,10 @@ describe('GeneratedBarem', () => {
       filesVersion: 7,
     });
     renderAdmin('/teste/6E2-26T1', api);
-    expect(await screen.findByText('Barem generat automat. Verifică-l și corectează-l în Word dacă e nevoie.')).toBeInTheDocument();
+    const notice = await screen.findByText('Barem generat automat. Verifică-l și corectează-l în Word dacă e nevoie.');
+    // A thing to look at, not an error: drawn as a marker, not in red.
+    expect(notice).toHaveClass('warning');
+    expect(notice).not.toHaveClass('alert');
     await userEvent.click(screen.getByRole('button', { name: 'Am verificat baremul' }));
     expect(api.confirmBarem).toHaveBeenCalledWith('6E2-26T1', 7);
     expect(await screen.findByRole('button', { name: 'Generează baremul' })).toBeInTheDocument();
