@@ -85,7 +85,7 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     }
     const now = nowIso();
     const corrected = item !== null && (await correctItem(c.env.DB, shown, itemId, change, now));
-    if (corrected && (await askAnalysisAfterCheck(c.env.DB, shown.teacherId, submissionId, now))) await startRobot(c.env);
+    if (corrected && change.reviewed === true && (await askAnalysisAfterCheck(c.env.DB, shown.teacherId, submissionId, now))) await startRobot(c.env);
     const found = await getTeacherSubmission(c.env.DB, shown.teacherId, submissionId);
     if (!found) throw notFound();
     if (!corrected) throw notGraded();
@@ -101,7 +101,7 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const { gradedAt, ...change } = await readJson(c, reviewPagesBody);
     const now = nowIso();
     const reviewed = await correctEvaluation(c.env.DB, { teacherId, submissionId, gradedAt }, change, now);
-    if (reviewed && (await askAnalysisAfterCheck(c.env.DB, teacherId, submissionId, now))) await startRobot(c.env);
+    if (reviewed && change.pagesReviewed === true && (await askAnalysisAfterCheck(c.env.DB, teacherId, submissionId, now))) await startRobot(c.env);
     const found = await getTeacherSubmission(c.env.DB, teacherId, submissionId);
     if (!found) throw notFound();
     if (!reviewed) throw notGraded();

@@ -79,7 +79,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Why an evaluation could not start or be scheduled. Read after the write
 // changed nothing, so it describes the test as it is now.
-async function evaluationBlocker(db: D1Database, teacherId: number, code: string, needsUploads: boolean): Promise<ApiError> {
+async function evaluationBlocker(db: D1Database, teacherId: number, code: string, needsUploads: boolean, scheduling = false): Promise<ApiError> {
   const test = await requireTest(db, teacherId, code);
   if (test.summary.status === 'draft') return new ApiError(409, 'not_started', 'Testul nu a început încă.');
   if (test.summary.status !== 'open') return new ApiError(409, 'already_evaluating', 'Evaluarea a pornit deja.');
@@ -87,7 +87,7 @@ async function evaluationBlocker(db: D1Database, teacherId: number, code: string
   if (test.barem.request === 'requested') return new ApiError(409, 'barem_generating', 'Baremul se generează încă.');
   if (!test.files.barem) return new ApiError(409, 'missing_barem', 'Încarcă baremul înainte de evaluare.');
   if (test.barem.unchecked) return new ApiError(409, 'barem_unchecked', 'Verifică baremul generat înainte de evaluare.');
-  if (await blockedByDemoLimit(db, test.id)) return demoLimit();
+  if (await blockedByDemoLimit(db, test.id, scheduling)) return demoLimit();
   if (needsUploads && !(await hasUploadedFiles(db, test.id))) {
     return new ApiError(409, 'no_uploads', 'Niciun elev nu a încărcat încă fișiere.');
   }
@@ -341,7 +341,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
         throw new ApiError(400, 'invalid', `Alege o oră din următoarele ${MAX_SCHEDULE_DAYS} de zile.`);
       }
       if (!(await scheduleEvaluation(c.env.DB, teacherId, test.id, at, now))) {
-        throw await evaluationBlocker(c.env.DB, teacherId, test.summary.code, false);
+        throw await evaluationBlocker(c.env.DB, teacherId, test.summary.code, false, true);
       }
       return c.json({ status: 'open', evaluationAt: at, robot: null } satisfies EvaluationStart);
     }

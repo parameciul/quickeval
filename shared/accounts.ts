@@ -10,7 +10,6 @@ export type AccountStatus = 'pending' | 'active' | 'disabled';
 // is one student's whole test, however many pages it has. A regrade counts as
 // one more.
 export const DEMO_PAPER_LIMIT = 35;
-export const DEMO_TEST_LIMIT = 1;
 
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 200;

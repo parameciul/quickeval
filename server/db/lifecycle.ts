@@ -42,7 +42,7 @@ export async function askAnalysisAfterCheck(db: D1Database, teacherId: number, s
     .prepare(
       `UPDATE tests SET analysis_status = 'requested', analysis_attempts = 0, updated_at = ?, archived = 0, status = 'evaluating'
        WHERE teacher_id = ? AND id = (SELECT test_id FROM submissions WHERE id = ?)
-         AND status IN ('evaluating', 'done') AND analysis_status = 'none' AND ${fullyChecked('tests')}
+         AND status IN ('evaluating', 'done') AND archived = 0 AND analysis_status = 'none' AND ${fullyChecked('tests')}
        RETURNING id`,
     )
     .bind(now, teacherId, submissionId)
@@ -141,9 +141,11 @@ const PAPERS_LEFT_TO_REGRADE = papersLeft("(x.status = 'evaluating' OR x.id = t.
 // A demo account grades one test only: no other test of the teacher has been
 // sent to the robot (a paper that is sent, being graded, graded or failed, in
 // a test whose evaluation started). A test that ended at once with nothing to
-// grade does not use the place. A regrade or retry is not checked here: its
-// test is the one that was graded.
+// grade does not use the place. The place stays used when the papers are reset
+// (teachers.graded_test_id, set when a paper is first graded). A regrade or
+// retry is not checked here: its test is the one that was graded.
 const ONLY_TEST = `(SELECT CASE WHEN q.demo = 0 THEN 1
+    WHEN q.graded_test_id IS NOT NULL AND q.graded_test_id <> t.id THEN 0
     WHEN EXISTS (SELECT 1 FROM tests o JOIN submissions os ON os.test_id = o.id
       WHERE o.teacher_id = q.id AND o.id <> t.id AND o.evaluation_started_at IS NOT NULL
         AND os.status IN ('submitted', 'grading', 'graded', 'failed')) THEN 0
@@ -192,8 +194,11 @@ async function countGradingAgain(db: D1Database, teacherId: number, regraded: { 
 }
 
 // True when the demo limit keeps this test from starting an evaluation.
-export async function blockedByDemoLimit(db: D1Database, testId: number): Promise<boolean> {
-  const row = await db.prepare(`SELECT 1 AS blocked FROM tests t WHERE t.id = ? AND NOT ${WITHIN_PAPER_LIMIT}`).bind(testId).first();
+export async function blockedByDemoLimit(db: D1Database, testId: number, scheduling = false): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT 1 AS blocked FROM tests t WHERE t.id = ? AND (NOT ${WITHIN_PAPER_LIMIT}${scheduling ? ` OR ${SCHEDULED_ELSEWHERE}` : ''})`)
+    .bind(testId)
+    .first();
   return row !== null;
 }
 
@@ -230,6 +235,11 @@ export async function regradeBlockedByDemoLimit(
             .bind(of.submissionId, of.startedAt);
   return (await statement.first()) !== null;
 }
+
+// A demo account has another test scheduled already: only one test can use its
+// place, so a second schedule would never run.
+const SCHEDULED_ELSEWHERE = `EXISTS (SELECT 1 FROM tests o JOIN teachers q ON q.id = o.teacher_id
+  WHERE o.teacher_id = t.teacher_id AND q.demo = 1 AND o.id <> t.id AND o.status = 'open' AND o.evaluation_at IS NOT NULL)`;
 
 // An open test whose scheduled evaluation time has come. A demo account at its
 // limit, or a barem that is not active, keeps the test open.
@@ -285,6 +295,14 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
       .bind(now),
     askForAnalysis(db),
     finishTests(db, now),
+    // A due test that the demo account's one test keeps out has no schedule
+    // left, so its students can upload again.
+    db
+      .prepare(
+        `UPDATE tests AS t SET evaluation_at = NULL, updated_at = ?1
+         WHERE t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND NOT ${ONLY_TEST}`,
+      )
+      .bind(now),
   ];
 }
 
@@ -410,7 +428,7 @@ export async function scheduleEvaluation(db: D1Database, teacherId: number, test
     .prepare(
       `UPDATE tests AS t SET evaluation_at = ?, updated_at = ?
        WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE}
-         AND ${WITHIN_PAPER_LIMIT}
+         AND ${WITHIN_PAPER_LIMIT} AND NOT ${SCHEDULED_ELSEWHERE}
        RETURNING id`,
     )
     .bind(at, now, testId, teacherId)

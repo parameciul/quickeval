@@ -266,6 +266,40 @@ describe('the demo limit', () => {
     expect((await evaluate(test.code)).status).toBe(200);
   });
 
+  it('keeps the place of the first test when its graded papers are reset', async () => {
+    await setPapers(0);
+    const first = await readyTest('Primul');
+    expect((await evaluate(first.code)).status).toBe(200);
+    await api.db.prepare("UPDATE submissions SET status = 'graded', graded_at = ? WHERE id = ?").bind(PAST, first.submissionId).run();
+    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(first.code).run();
+    await api.db.prepare('DELETE FROM submissions WHERE id = ?').bind(first.submissionId).run();
+    const second = await readyTest('Al doilea');
+    expect((await evaluate(second.code)).body.error).toBe('demo_limit');
+  });
+
+  it('refuses to schedule a second test, and says why', async () => {
+    await setPapers(0);
+    const first = await readyTest('Primul');
+    const second = await readyTest('Al doilea');
+    const at = new Date(Date.now() + 3600_000).toISOString();
+    expect((await evaluate(first.code, { at })).status).toBe(200);
+    const refused = await evaluate(second.code, { at });
+    expect(refused.body.error).toBe('demo_limit');
+  });
+
+  it('clears the schedule of a due test that the one test keeps out, so students can upload again', async () => {
+    await setPapers(0);
+    const first = await readyTest('Primul');
+    const second = await readyTest('Al doilea');
+    const at = new Date(Date.now() + 3600_000).toISOString();
+    expect((await evaluate(second.code, { at })).status).toBe(200);
+    expect((await evaluate(first.code)).status).toBe(200);
+    await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code = ?').bind(PAST, second.code).run();
+    await api.request('GET', '/api/admin/me');
+    const row = await api.db.prepare('SELECT status, evaluation_at FROM tests WHERE code = ?').bind(second.code).first();
+    expect(row).toEqual({ status: 'open', evaluation_at: null });
+  });
+
   it('keeps the one-test rule off for a complete account', async () => {
     await api.db.prepare('UPDATE teachers SET demo = 0 WHERE id = ?').bind(api.teacherId).run();
     const first = await readyTest('Primul');

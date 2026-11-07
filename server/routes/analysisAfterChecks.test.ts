@@ -59,6 +59,17 @@ describe('the class analysis after the checks', () => {
     expect(await test()).toEqual({ status: 'done', analysis_status: 'none' });
   });
 
+  it('is not asked for when the teacher only edits a comment, or when the test is archived', async () => {
+    await graded([{}], 'done');
+    const id = (await itemIds())[0]!;
+    const edit = await api.request('PATCH', `/api/admin/submissions/${submissionId}/items/${id}`, { gradedAt: GRADED_AT, comment: 'Nou.' });
+    expect(edit.status).toBe(200);
+    expect(await test()).toEqual({ status: 'done', analysis_status: 'none' });
+    await api.db.prepare('UPDATE tests SET archived = 1 WHERE code = ?').bind(code).run();
+    expect((await patchItem(id)).status).toBe(200);
+    expect(await test()).toEqual({ status: 'done', analysis_status: 'none' });
+  });
+
   it('is not asked for again when the teacher edits a paper after the analysis is ready', async () => {
     await graded([{}], 'done');
     await api.db.prepare("UPDATE tests SET analysis_status = 'ready' WHERE code = ?").bind(code).run();
