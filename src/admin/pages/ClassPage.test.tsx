@@ -1,17 +1,28 @@
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import type { TestDetail } from '../../../shared/api.ts';
 import { createFakeApi, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 
 // A class with two tests (T1 older, T2 newer) and three students (one left).
-const gradedClass = () => {
+const classData = (extra: TestDetail[] = []) => {
   const students = [
     { id: 10, fullName: 'Pop Ion', active: true, canDelete: false },
     { id: 11, fullName: 'Ionescu Ana', active: false, canDelete: false },
     { id: 12, fullName: 'Albu Dan', active: true, canDelete: false },
   ];
   const t2 = fakeTest(
-    { code: '6E2-26T2', title: 'Geometrie', status: 'open', startedAt: '2026-10-20T07:00:00.000Z' },
+    {
+      code: '6E2-26T2',
+      title: 'Geometrie',
+      status: 'open',
+      startedAt: '2026-10-20T07:00:00.000Z',
+      files: {
+        test: { name: 'test.pdf', type: 'application/pdf' },
+        barem: { name: 'barem.pdf', type: 'application/pdf' },
+      },
+    },
     [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 504, status: 'uploading' }),
       fakeUpload({ studentId: 12, studentName: 'Albu Dan', submissionId: 505, status: 'submitted' }),
@@ -21,17 +32,47 @@ const gradedClass = () => {
   const t1 = fakeTest(
     { code: '6E2-26T1', title: 'Fracții', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
     [
-      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 501, status: 'graded', grade: 9 }),
-      fakeUpload({ studentId: 12, studentName: 'Albu Dan', submissionId: 502, status: 'graded', grade: 6, flagCount: 2 }),
-      fakeUpload({ studentId: 11, studentName: 'Ionescu Ana', active: false, submissionId: 503, status: 'graded', grade: 5 }),
+      fakeUpload({
+        studentId: 10,
+        studentName: 'Pop Ion',
+        submissionId: 501,
+        status: 'graded',
+        grade: 9,
+        total: 9,
+        maxTotal: 10,
+        resultsOpen: true,
+      }),
+      fakeUpload({
+        studentId: 12,
+        studentName: 'Albu Dan',
+        submissionId: 502,
+        status: 'graded',
+        grade: 6,
+        total: 6,
+        maxTotal: 10,
+        flagCount: 2,
+      }),
+      fakeUpload({
+        studentId: 11,
+        studentName: 'Ionescu Ana',
+        active: false,
+        submissionId: 503,
+        status: 'graded',
+        grade: 5,
+        total: 5,
+        maxTotal: 10,
+        resultToken: 'token-ana',
+      }),
     ],
   );
-  return createFakeApi({
+  return {
     classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
     students: { 1: students },
-    tests: [t2, t1],
-  });
+    tests: [t2, t1, ...extra],
+  };
 };
+
+const gradedClass = () => createFakeApi(classData());
 
 describe('ClassPage', () => {
   it('shows the class name, the facts and the new-test link', async () => {
@@ -130,6 +171,7 @@ describe('ClassPage "Elevi" tab', () => {
     expect(screen.getByText('Pop Ion')).toBeInTheDocument();
     expect(screen.getByText('Albu Dan')).toBeInTheDocument();
     expect(screen.getByText('Ionescu Ana')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Arată și testele arhivate/ })).not.toBeInTheDocument();
   });
 
   it('marks a student whose test has items to check', async () => {
@@ -150,5 +192,98 @@ describe('ClassPage "Elevi" tab', () => {
     expect(screen.getByText('Fracții')).toBeInTheDocument();
     expect(screen.getByText('5 / 10')).toBeInTheDocument();
     expect(screen.getByText('Toate notele elevului, din toate clasele')).toBeInTheDocument();
+  });
+
+  it('shows a graded result as publicat or nepublicat, with the link to copy', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    await screen.findByRole('tab', { name: 'Elevi' }).then((el) => el.click());
+
+    await screen.findByText('Pop Ion').then((el) => el.click());
+    expect(await screen.findByText('Publicat')).toBeInTheDocument();
+    expect(screen.getByText('Încarcă…')).toBeInTheDocument();
+
+    await screen.findByRole('button', { name: '← Elevi' }).then((el) => el.click());
+    await screen.findByText('Ionescu Ana').then((el) => el.click());
+    expect(await screen.findByText('Nepublicat')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
+    expect(screen.getByText('Nu a trimis lucrarea')).toBeInTheDocument();
+  });
+
+  it('says a sent paper waits for the check, and links each paper', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    await screen.findByRole('tab', { name: 'Elevi' }).then((el) => el.click());
+    await screen.findByText('Albu Dan').then((el) => el.click());
+    expect(await screen.findByText('După verificare')).toBeInTheDocument();
+    expect(screen.getByText('2 puncte de verificat')).toBeInTheDocument();
+    const papers = screen.getAllByRole('link', { name: 'Vezi lucrarea' }).map((link) => link.getAttribute('href'));
+    expect(papers).toEqual(['/teste/6E2-26T2/elevi/505', '/teste/6E2-26T1/elevi/502']);
+  });
+});
+
+describe('ClassPage "Testele clasei"', () => {
+  const aside = async () => within(await screen.findByRole('complementary', { name: 'Testele clasei' }));
+
+  it('lists the tests newest first, with their date, papers, stage and next step', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    const list = await aside();
+    const items = list.getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    const [newest, oldest] = items;
+
+    expect(within(newest!).getByRole('link', { name: 'Geometrie' })).toHaveAttribute('href', '/teste/6E2-26T2');
+    expect(within(newest!).getByText('20.10')).toBeInTheDocument();
+    expect(within(newest!).getByText(/1 din 2 trimise/)).toBeInTheDocument();
+    expect(within(newest!).getByText('În clasă')).toBeInTheDocument();
+    expect(within(newest!).getByRole('link', { name: 'Pornește corectarea' })).toHaveAttribute(
+      'href',
+      '/teste/6E2-26T2#corectare',
+    );
+
+    expect(within(oldest!).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
+    expect(within(oldest!).getByText('06.10')).toBeInTheDocument();
+    expect(within(oldest!).getByRole('link', { name: 'Verifică 2 puncte' })).toHaveAttribute(
+      'href',
+      '/teste/6E2-26T1/verificare',
+    );
+  });
+
+  it('keeps the archived tests behind their toggle, in both the table and the list', async () => {
+    const archived = fakeTest({
+      code: '6E2-26T0',
+      title: 'Teză',
+      status: 'done',
+      startedAt: '2026-09-20T07:00:00.000Z',
+      archived: true,
+    });
+    renderAdmin('/clase/1', createFakeApi(classData([archived])));
+
+    const headers = () => screen.getByRole('table', { name: 'Notele elevilor la teste' }).querySelectorAll('thead th');
+    await screen.findByRole('table', { name: 'Notele elevilor la teste' });
+    expect(headers()).toHaveLength(3);
+    expect((await aside()).queryByRole('link', { name: 'Teză' })).not.toBeInTheDocument();
+
+    await userEvent.click((await aside()).getByRole('button', { name: 'Arată și testele arhivate (1)' }));
+
+    expect(headers()).toHaveLength(4);
+    expect((await aside()).getByRole('link', { name: 'Teză' })).toBeInTheDocument();
+    expect((await aside()).getByRole('button', { name: 'Arată și testele arhivate (1)' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('renames the class from its menu', async () => {
+    const api = gradedClass();
+    renderAdmin('/clase/1', api);
+    await screen.findByText('Clasa 6E2');
+
+    await userEvent.click(screen.getByRole('button', { name: '⋯' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Redenumește clasa' }));
+    const field = await screen.findByLabelText('Numele clasei');
+    await userEvent.clear(field);
+    await userEvent.type(field, '7A1');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
+
+    expect(api.updateClass).toHaveBeenCalledWith(1, { name: '7A1' });
   });
 });

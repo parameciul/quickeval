@@ -133,7 +133,7 @@ function ResultLinkRow({
 // has none yet: "Fă linkul" makes it first, so the copy runs in its own tap
 // (a browser may refuse a copy that comes after waiting for the API). When the
 // browser refuses to copy, the link shows in a field, to copy by hand.
-function CopyResultLink({
+export function CopyResultLink({
   submissionId,
   startedAt,
   resultToken,

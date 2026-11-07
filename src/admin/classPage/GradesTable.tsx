@@ -80,13 +80,11 @@ function AverageCell({ average }: { average: number | null }) {
 // the oldest test on the left (`tests` arrive newest first). Draft and open
 // tests keep a column, with their status, so the page still leads to them.
 export function GradesTable({
-  classId,
   students,
   tests,
   grades,
   showArchived,
 }: {
-  classId: number;
   students: StudentRow[];
   tests: TestSummary[];
   grades: ClassGrade[];
@@ -96,7 +94,7 @@ export function GradesTable({
   if (students.length === 0) {
     return (
       <p className="hint">
-        Clasa nu are încă elevi. <Link to={`/clase/${classId}/elevi`}>Adaugă elevi</Link>
+        Clasa nu are încă elevi. Adaugă-i din fila „Elevi”.
       </p>
     );
   }

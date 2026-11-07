@@ -5,8 +5,9 @@ import type { AdminApi } from '../api.ts';
 import type { ClassGrade, StudentRow, TestSummary } from '../../../shared/api.ts';
 import { MAX_NAMES_PER_REQUEST, parseStudentNames, studentNameKey } from '../../../shared/students.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
-import { formatDateTime, studentCountLabel, uploadStatusLabel } from '../../ui/format.ts';
+import { countLabel, formatDateTime, studentCountLabel, uploadStatusLabel } from '../../ui/format.ts';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { CopyResultLink } from '../testPage/ResultLinksTable.tsx';
 
 type TabState = { kind: 'list' } | { kind: 'student'; studentId: number } | { kind: 'add' };
 
@@ -66,23 +67,62 @@ export function ClassStudents({
         <ul className="row-list">
           {tests.map((test) => {
             const grade = gradeOf(student.id, test.code);
+            // The points as the paper earned them, once it is graded.
+            const points =
+              grade?.status === 'graded' && grade.total !== null && grade.maxTotal !== null
+                ? `${formatPoints(grade.total)} / ${formatPoints(grade.maxTotal)}`
+                : null;
             return (
               <li key={test.code} className="student-test">
                 <span className="student-test-head">
                   <Link to={`/teste/${test.code}`}>{test.title}</Link>
                   {test.startedAt && <span>{formatDateTime(test.startedAt)}</span>}
                 </span>
-                {grade ? (
+                {grade?.status === 'graded' && (
                   <span className="student-test-grade">
-                    {grade.status === 'graded'
-                      ? `${formatPoints(grade.grade ?? 0)} / ${formatPoints(grade.maxTotal ?? 10)}${
-                          grade.flagCount > 0 ? ' · 1 punct de verificat' : ''
-                        }`
-                      : uploadStatusLabel(grade.status)}
-                    {grade.resultsOpen ? ' · Publicat' : grade.resultToken ? ' · Nepublicat' : ''}
+                    <b>{points ?? '—'}</b>
+                    {grade.grade !== null && (
+                      <>
+                        {'· nota '}
+                        <b>{formatPoints(grade.grade)}</b>
+                      </>
+                    )}
+                    {grade.flagCount > 0 && (
+                      <span className="student-test-flags">
+                        <span className="flag-dot" aria-hidden="true" />{' '}
+                        {countLabel(grade.flagCount, 'punct de verificat', 'puncte de verificat')}
+                      </span>
+                    )}
                   </span>
-                ) : (
-                  <span className="student-test-grade">Nu a trimis lucrarea</span>
+                )}
+                <span className="student-test-result">
+                  {grade === undefined || grade.status === 'uploading' || grade.status === 'failed' ? (
+                    <span className="hint">
+                      {grade === undefined ? 'Nu a trimis lucrarea' : uploadStatusLabel(grade.status)}
+                    </span>
+                  ) : grade.status !== 'graded' ? (
+                    <span className="hint">După verificare</span>
+                  ) : grade.resultsOpen ? (
+                    <span className="tag tag-ok">Publicat</span>
+                  ) : (
+                    <>
+                      <span className="hint">Nepublicat</span>
+                      {grade.startedAt !== null && (
+                        <CopyResultLink
+                          key={grade.submissionId}
+                          submissionId={grade.submissionId}
+                          startedAt={grade.startedAt}
+                          resultToken={grade.resultToken}
+                          studentName={student.fullName}
+                        />
+                      )}
+                    </>
+                  )}
+                </span>
+                {grade !== undefined && (
+                  <Link className="button-quiet button-small" to={`/teste/${test.code}/elevi/${grade.submissionId}`}>
+                    Vezi lucrarea
+                  </Link>
                 )}
               </li>
             );

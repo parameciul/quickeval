@@ -10,6 +10,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { GradesTable } from '../classPage/GradesTable.tsx';
 import { ClassStudents } from '../classPage/ClassStudents.tsx';
+import { ClassTests } from '../classPage/ClassTests.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import type { AdminApi } from '../api.ts';
 
@@ -24,6 +25,7 @@ function ClassDetails({ classId }: { classId: number }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<'note' | 'elevi'>('note');
+  const [showArchived, setShowArchived] = useState(false);
   const detail = useQuery({ queryKey: ['class', classId], queryFn: () => api.getClass(classId) });
   // Remember which class the teacher opened last, so /clase reopens it.
   useEffect(() => {
@@ -38,7 +40,6 @@ function ClassDetails({ classId }: { classId: number }) {
   if (detail.error) return <ErrorMessage error={detail.error} />;
 
   const { class: info, students, tests, grades } = detail.data;
-  const archivedCount = tests.filter((test) => test.archived).length;
   const waiting = new Set(tests.filter((test) => test.flagCount > 0).map((test) => test.classId));
   return (
     <section>
@@ -53,7 +54,7 @@ function ClassDetails({ classId }: { classId: number }) {
             Test nou pentru această clasă
           </Link>
         )}
-        <ClassMenu api={api} classId={classId} archived={info.archived} onDone={refresh} />
+        <ClassMenu api={api} classId={classId} name={info.name} archived={info.archived} onDone={refresh} />
       </p>
 
       <nav className="class-tabs">
@@ -78,15 +79,17 @@ function ClassDetails({ classId }: { classId: number }) {
       </nav>
 
       {tab === 'note' ? (
-        <GradesTable classId={classId} students={students} tests={tests} grades={grades} showArchived={false} />
+        <div className="class-notes">
+          <GradesTable
+            students={students}
+            tests={tests}
+            grades={grades}
+            showArchived={showArchived}
+          />
+          <ClassTests tests={tests} showArchived={showArchived} onShowArchived={setShowArchived} onChanged={refresh} />
+        </div>
       ) : (
         <ClassStudents api={api} classId={classId} students={students} tests={tests} grades={grades} onChanged={refresh} />
-      )}
-
-      {archivedCount > 0 && (
-        <button type="button" className="button-quiet button-small" aria-pressed={false} onClick={() => {}}>
-          Arată și testele arhivate ({archivedCount})
-        </button>
       )}
     </section>
   );
@@ -189,18 +192,30 @@ function ClassSwitcher({
 function ClassMenu({
   api,
   classId,
+  name,
   archived,
   onDone,
 }: {
   api: AdminApi;
   classId: number;
+  name: string;
   archived: boolean;
   onDone: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [newName, setNewName] = useState(name);
   const archive = useMutation({
     mutationFn: () => api.updateClass(classId, { archived: !archived }),
     onSuccess: async () => {
+      await onDone();
+    },
+  });
+  const rename = useMutation({
+    mutationFn: () => api.updateClass(classId, { name: newName }),
+    onSuccess: async () => {
+      setRenameOpen(false);
+      setOpen(false);
       await onDone();
     },
   });
@@ -213,12 +228,52 @@ function ClassMenu({
       )}
       {open && (
         <div className="head-menu-list">
-          <button type="button" className="menu-item" onClick={() => setOpen(true)}>
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              setNewName(name);
+              setOpen(false);
+              setRenameOpen(true);
+            }}
+          >
             Redenumește clasa
           </button>
           <button type="button" className="menu-item" onClick={() => archive.mutate()}>
             {archived ? 'Scoate din arhivă' : 'Arhivează clasa'}
           </button>
+        </div>
+      )}
+      {renameOpen && (
+        <div className="dialog">
+          <p>Redenumește clasa</p>
+          <form
+            className="form-row"
+            onSubmit={(event: FormEvent) => {
+              event.preventDefault();
+              rename.mutate();
+            }}
+          >
+            <label htmlFor="class-name" className="sr-only">
+              Numele clasei
+            </label>
+            <input
+              id="class-name"
+              type="text"
+              value={newName}
+              onChange={(event) => setNewName(event.target.value)}
+              maxLength={8}
+              required
+              autoFocus
+            />
+            <button type="submit" className="button" disabled={rename.isPending}>
+              Salvează
+            </button>
+            <button type="button" className="button-quiet button-small" onClick={() => setRenameOpen(false)}>
+              Renunță
+            </button>
+            {rename.error && <ErrorMessage error={rename.error} />}
+          </form>
         </div>
       )}
     </span>

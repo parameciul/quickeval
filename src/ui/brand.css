@@ -3705,6 +3705,114 @@ table.grades-table tbody .tag {
   margin-left: 0.4rem;
 }
 
+/* The class page (redesign spec §9): the grades table with "Testele clasei"
+   beside it. On a narrow screen the list goes under the table. */
+.class-notes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
+  align-items: start;
+  gap: 1rem 1.5rem;
+}
+
+.class-tests {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.class-tests h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.class-test-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.class-test-list > li {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+}
+
+.class-test-list > li.is-muted {
+  color: var(--muted);
+}
+
+.class-test-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-weight: 700;
+}
+
+.class-test-date {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.class-test-facts {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.class-test-facts b {
+  color: var(--text);
+}
+
+@media (max-width: 1024px) {
+  .class-notes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* One test of the chosen student in the "Elevi" tab: the name and date, the
+   points and the grade, the result, and the paper's link, each on its line.
+   The tests are not a numbered list. */
+.row-list > li.student-test {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.row-list > li.student-test::before {
+  content: none;
+}
+
+.student-test-head,
+.student-test-grade,
+.student-test-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+}
+
+.student-test-head > span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.student-test-flags {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.student-test > a.button-quiet {
+  justify-self: start;
+}
+
 .file-title {
   margin: 0;
   overflow-wrap: anywhere;
