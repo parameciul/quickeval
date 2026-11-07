@@ -92,4 +92,14 @@ describe('brand.css', () => {
       expect(page).not.toContain('Atkinson');
     }
   });
+
+  it('leaves no width between the phone layout and the desktop layout', () => {
+    expect(css).not.toContain('min-width: 56.3125rem');
+    expect(css).toContain('not (max-width: 56.25rem)');
+  });
+
+  it('keeps anchored targets under the bar and stops the page bouncing', () => {
+    expect(value(declarations('html'), 'scroll-padding-top')).toBeDefined();
+    expect(value(declarations('html'), 'overscroll-behavior-y')).toBe('none');
+  });
 });

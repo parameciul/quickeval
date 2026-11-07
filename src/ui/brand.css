@@ -126,6 +126,8 @@
 html {
   -webkit-text-size-adjust: 100%;
   scrollbar-gutter: stable;
+  scroll-padding-top: 6rem;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -863,7 +865,7 @@ h2 {
   }
 }
 
-@media (min-width: 56.3125rem) {
+@media not (max-width: 56.25rem) {
   .phone-menu {
     display: none;
   }
