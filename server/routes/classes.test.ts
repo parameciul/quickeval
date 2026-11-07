@@ -455,4 +455,26 @@ describe('grades of a class', () => {
     expect(grades).toHaveLength(1);
     expect(grades[0].studentId).toBe(one.studentIds[0]);
   });
+
+  it('treats two students with the same name in different classes as different students', async () => {
+    const one = await makeClass(api, 'G5A', ['Pop Ion']);
+    const two = await makeClass(api, 'G5B', ['Pop Ion']);
+    expect(one.studentIds[0]).not.toBe(two.studentIds[0]);
+    const subOne = await addSubmission(api, await makeTest(api, one.id), one.studentIds[0]!, { status: 'graded' });
+    await addEvaluation(api, subOne, { grade: 6 });
+    const subTwo = await addSubmission(api, await makeTest(api, two.id), two.studentIds[0]!, { status: 'graded' });
+    await addEvaluation(api, subTwo, { grade: 9 });
+
+    const first = (await detailOf(one.id)).grades;
+    expect(first).toMatchObject([{ submissionId: subOne, studentId: one.studentIds[0], grade: 6 }]);
+    const second = (await detailOf(two.id)).grades;
+    expect(second).toMatchObject([{ submissionId: subTwo, studentId: two.studentIds[0], grade: 9 }]);
+
+    const historyOne = await api.request('GET', `/api/admin/students/${one.studentIds[0]}/history`);
+    expect(historyOne.body.classes).toHaveLength(1);
+    expect(historyOne.body.results).toMatchObject([{ submissionId: subOne, grade: 6 }]);
+    const historyTwo = await api.request('GET', `/api/admin/students/${two.studentIds[0]}/history`);
+    expect(historyTwo.body.classes).toHaveLength(1);
+    expect(historyTwo.body.results).toMatchObject([{ submissionId: subTwo, grade: 9 }]);
+  });
 });
