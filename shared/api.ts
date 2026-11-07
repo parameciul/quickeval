@@ -383,6 +383,8 @@ export interface ClassGrade {
   resultsOpen: boolean;
   // The secret of the student's result page, for "Copiază linkul".
   resultToken: string | null;
+  // When the upload started: what names it to the API for a link or a reset.
+  startedAt: string | null;
 }
 
 export interface ClassDetail {

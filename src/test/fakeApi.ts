@@ -434,6 +434,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
                       maxTotal: row.maxTotal,
                       resultsOpen: row.resultsOpen,
                       resultToken: row.resultToken,
+                      startedAt: row.startedAt,
                     },
                   ],
             ),
