@@ -6,9 +6,10 @@ export type Role = 'admin' | 'teacher';
 // "pending": waits for an administrator. "disabled": an administrator closed it.
 export type AccountStatus = 'pending' | 'active' | 'disabled';
 
-// A demo account may have this many papers graded. A paper is one student's
-// whole test, however many pages it has. A regrade counts as one more.
-export const DEMO_PAPER_LIMIT = 5;
+// A demo account may have this many papers graded, in one test only. A paper
+// is one student's whole test, however many pages it has. A regrade counts as
+// one more.
+export const DEMO_PAPER_LIMIT = 35;
 
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 200;

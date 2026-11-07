@@ -70,7 +70,7 @@ describe('the accounts on Setări', () => {
     renderAdmin('/setari', api);
     const teachers = await section('Profesori');
     expect(within(teachers).getAllByText('administrator · 0 teste · 0 lucrări')).toHaveLength(2);
-    expect(within(teachers).getByText('demo: 2 din 5 lucrări · 1 test')).toBeInTheDocument();
+    expect(within(teachers).getByText('demo: 2 din 35 lucrări · 1 test')).toBeInTheDocument();
     await userEvent.click(within(teachers).getByRole('button', { name: 'Fă cont complet: Bogdan' }));
     expect(api.updateAccount).toHaveBeenCalledWith(3, { demo: false });
     expect(await within(teachers).findByText('complet · 1 test · 2 lucrări')).toBeInTheDocument();

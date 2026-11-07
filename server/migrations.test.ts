@@ -112,5 +112,8 @@ describe('migration 0019', () => {
     await applyRest();
     const teachers = await db.prepare('SELECT papers_graded FROM teachers ORDER BY id').all();
     expect(teachers.results).toEqual([{ papers_graded: 1 }, { papers_graded: 0 }]);
+    // Migration 0021: the test that holds a graded paper is the teacher's graded test.
+    const marked = await db.prepare('SELECT graded_test_id FROM teachers ORDER BY id').all();
+    expect(marked.results).toEqual([{ graded_test_id: 1 }, { graded_test_id: null }]);
   });
 });

@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { correctItemBody, regradeBody, reviewPagesBody, shownUpload, type RegradeAnswer, type ResultsOpenAnswer } from '../../shared/api.ts';
 import { formatPoints, isValidCorrection } from '../../shared/scoring.ts';
 import { correctItem, correctEvaluation, findTeacherItem } from '../db/evaluations.ts';
-import { regradeBlockedByDemoLimit, regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
+import { askAnalysisAfterCheck, regradeBlockedByDemoLimit, regradeSubmission, retrySubmission } from '../db/lifecycle.ts';
 import { setSubmissionResultsOpen, teacherResultToken } from '../db/results.ts';
 import { deleteSubmissionRow, findTeacherFile, getTeacherSubmission, type ShownUpload, uploadStartedAt } from '../db/submissions.ts';
 import { robotStarter } from '../dispatch.ts';
@@ -83,7 +83,9 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (item && change.points !== undefined && !isValidCorrection(change.points, item.maxPoints)) {
       throw new ApiError(400, 'invalid_points', `Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
     }
-    const corrected = item !== null && (await correctItem(c.env.DB, shown, itemId, change, nowIso()));
+    const now = nowIso();
+    const corrected = item !== null && (await correctItem(c.env.DB, shown, itemId, change, now));
+    if (corrected && change.reviewed === true && (await askAnalysisAfterCheck(c.env.DB, shown.teacherId, submissionId, now))) await startRobot(c.env);
     const found = await getTeacherSubmission(c.env.DB, shown.teacherId, submissionId);
     if (!found) throw notFound();
     if (!corrected) throw notGraded();
@@ -97,7 +99,9 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const teacherId = c.var.teacher.id;
     const submissionId = parseId(c.req.param('id'));
     const { gradedAt, ...change } = await readJson(c, reviewPagesBody);
-    const reviewed = await correctEvaluation(c.env.DB, { teacherId, submissionId, gradedAt }, change, nowIso());
+    const now = nowIso();
+    const reviewed = await correctEvaluation(c.env.DB, { teacherId, submissionId, gradedAt }, change, now);
+    if (reviewed && change.pagesReviewed === true && (await askAnalysisAfterCheck(c.env.DB, teacherId, submissionId, now))) await startRobot(c.env);
     const found = await getTeacherSubmission(c.env.DB, teacherId, submissionId);
     if (!found) throw notFound();
     if (!reviewed) throw notGraded();

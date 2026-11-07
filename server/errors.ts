@@ -30,12 +30,13 @@ export function uploadChanged(): ApiError {
   return new ApiError(409, 'upload_changed', 'Încărcarea s-a schimbat. Reîncarcă pagina.');
 }
 
-// A demo account used all its papers (a regrade counts as one too).
+// A demo account used all its papers (a regrade counts as one too), or has
+// another test graded already.
 export function demoLimit(): ApiError {
   return new ApiError(
     403,
     'demo_limit',
-    `Contul demo poate corecta cel mult ${DEMO_PAPER_LIMIT} lucrări, cu tot cu recorectări. Cere unui administrator să-ți facă un cont complet.`,
+    `Contul demo poate corecta un singur test, cu cel mult ${DEMO_PAPER_LIMIT} lucrări în total, cu tot cu recorectări. Cere unui administrator să-ți facă un cont complet.`,
   );
 }
 

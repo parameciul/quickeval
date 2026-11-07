@@ -15,7 +15,7 @@ import {
 } from '../../shared/runner.ts';
 import type { CheckedExerciseList, ClassAnalysis, ExerciseList, Grading } from '../../shared/schemas.ts';
 import type { ExerciseListStatus } from '../../shared/tests.ts';
-import { finishTests, promoteStatements } from './lifecycle.ts';
+import { askForAnalysis, finishTests, promoteStatements } from './lifecycle.ts';
 import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
 
 // Queries of the robot API (spec §11.3). Each write checks its own rules in
@@ -688,6 +688,7 @@ export async function saveAnalysis(
          RETURNING id`,
       )
       .bind(JSON.stringify(analysis), now, robot.model, robot.effort, version, testId, runId),
+    askForAnalysis(db),
     finishTests(db, now),
   ]);
   return Boolean(saved?.results.length);
@@ -714,6 +715,7 @@ export async function failAnalysis(
          RETURNING analysis_status`,
       )
       .bind(counted, counted, MAX_ATTEMPTS, now, testId, runId),
+    askForAnalysis(db),
     finishTests(db, now),
   ]);
   return failed?.results[0]?.analysis_status ?? null;
@@ -816,6 +818,7 @@ export async function saveGrading(
          RETURNING id`,
       )
       .bind(now, submissionId, runId, startedAt),
+    askForAnalysis(db),
     finishTests(db, now),
   ]);
   return Boolean(results[5]?.results.length);
@@ -844,6 +847,7 @@ export async function failGrading(
          RETURNING status`,
       )
       .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], submissionId, runId, startedAt),
+    askForAnalysis(db),
     finishTests(db, now),
   ]);
   return updated?.results[0]?.status ?? null;
