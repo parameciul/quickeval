@@ -137,5 +137,15 @@ describe('the forgotten password', () => {
     expect(api.forgotPassword).toHaveBeenCalledWith('profesor@example.com');
     expect(await screen.findByRole('status')).toHaveTextContent('Dacă adresa are un cont');
   });
-});
 
+  it('shows why a link could not be sent', async () => {
+    const api = createFakeApi();
+    api.me.mockRejectedValueOnce(loginRequired());
+    api.forgotPassword.mockRejectedValueOnce(new ApiError(429, 'too_many_resets', 'Prea multe cereri de resetare. Încearcă din nou mâine.'));
+    renderAdmin('/', api);
+    await userEvent.click(await screen.findByRole('button', { name: /link pentru o parolă nouă/ }));
+    await userEvent.type(screen.getByLabelText('Email'), 'profesor@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite linkul' }));
+    expect(await screen.findByText(/Prea multe cereri de resetare/)).toBeInTheDocument();
+  });
+});

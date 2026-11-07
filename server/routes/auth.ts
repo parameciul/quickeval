@@ -13,6 +13,7 @@ import {
   forgetFailedLogins,
   requestPasswordReset,
   RESET_HOURS,
+  resetLinkWorks,
   resetPassword,
   takeDeviceAttempt,
   takeLoginAttempt,
@@ -237,11 +238,12 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // of the account ends.
   routes.post('/reset-password', async (c) => {
     const { token, newPassword } = await readJson(c, resetPasswordBody, BODY_LIMIT);
-    const passwordHash = await hashPassword(newPassword);
-    const changed = await resetPassword(c.env.DB, await sha256Hex(token), passwordHash, nowIso());
-    if (!changed) {
-      throw new ApiError(404, 'bad_link', 'Linkul nu mai este valabil. Cere altul de pe pagina de intrare.');
-    }
+    const badLink = () => new ApiError(404, 'bad_link', 'Linkul nu mai este valabil. Cere altul de pe pagina de intrare.');
+    const tokenHash = await sha256Hex(token);
+    // A cheap read first: a made-up link costs no password hash.
+    if (!(await resetLinkWorks(c.env.DB, tokenHash, nowIso()))) throw badLink();
+    const changed = await resetPassword(c.env.DB, tokenHash, await hashPassword(newPassword), nowIso());
+    if (!changed) throw badLink();
     inBackground(
       c,
       sendEmail(c.env, {

@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../../../shared/accounts.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -9,9 +9,15 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 // without a login. The token is after "#", so it never reaches a server log.
 export function NewPasswordPage() {
   const api = useApi();
-  const token = useLocation().hash.replace(/^#/, '');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const token = location.hash.replace(/^#/, '');
   const [password, setPassword] = useState('');
-  const reset = useMutation({ mutationFn: () => api.setNewPassword(token, password) });
+  const reset = useMutation({
+    mutationFn: () => api.setNewPassword(token, password),
+    // The used link leaves the address bar and the history.
+    onSuccess: () => navigate(location.pathname, { replace: true }),
+  });
 
   return (
     <section className="login-box">

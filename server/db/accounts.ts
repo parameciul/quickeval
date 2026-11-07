@@ -35,10 +35,11 @@ export const IP_WINDOW_MS = 15 * 60 * 1000;
 // A browser that logged in before stops being known after this long unused.
 export const DEVICE_DAYS = 365;
 // A link that resets a password works this long, once. An account gets at most
-// one link every RESET_RESEND_MINUTES, and one IP asks at most
+// one link every RESET_RESEND_MINUTES and MAX_RESETS_PER_ACCOUNT a day, and one IP asks at most
 // MAX_RESETS_PER_IP times a day, whatever the emails (each may send an email).
 export const RESET_HOURS = 1;
 export const RESET_RESEND_MINUTES = 5;
+export const MAX_RESETS_PER_ACCOUNT = 5;
 export const MAX_RESETS_PER_IP = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -423,11 +424,12 @@ export async function updateAccount(
   const [updated] = await db.batch([
     db
       .prepare(
-        `UPDATE teachers SET demo = COALESCE(?, demo), status = COALESCE(?, status)
+        `UPDATE teachers SET demo = COALESCE(?, demo), status = COALESCE(?, status),
+           reset_token_hash = CASE WHEN ? = 'disabled' THEN NULL ELSE reset_token_hash END
          WHERE id = ? AND role = 'teacher' AND status IN ('active', 'disabled')
          RETURNING id`,
       )
-      .bind(demo, status, teacherId),
+      .bind(demo, status, status, teacherId),
     db.prepare("DELETE FROM sessions WHERE teacher_id = ? AND EXISTS (SELECT 1 FROM teachers WHERE id = ? AND status = 'disabled')").bind(teacherId, teacherId),
   ]);
   return (updated?.results.length ?? 0) > 0;
@@ -454,7 +456,8 @@ export async function setPassword(
   const [updated] = await db.batch<{ email: string; name: string }>([
     db
       .prepare(
-        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL
+        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL,
+           reset_token_hash = NULL, reset_expires_at = NULL
          WHERE id = ? AND status IN ('active', 'disabled') ${teachersOnly ? "AND role = 'teacher'" : ''}
          RETURNING email, name`,
       )
@@ -491,16 +494,20 @@ export async function requestPasswordReset(
       .bind(input.ipHash, now),
     db
       .prepare(
-        `UPDATE teachers SET reset_token_hash = ?, reset_expires_at = ?, reset_requested_at = ?
-         WHERE email = ? AND status = 'active'
-           AND (reset_requested_at IS NULL OR reset_requested_at <= ?)
-           AND (SELECT attempts FROM reset_ips WHERE ip_hash = ?) <= ${MAX_RESETS_PER_IP}
+        `UPDATE teachers SET reset_token_hash = ?1, reset_expires_at = ?2, reset_requested_at = ?3,
+           reset_count = CASE WHEN reset_window_start IS NULL OR reset_window_start <= ?4 THEN 1 ELSE reset_count + 1 END,
+           reset_window_start = CASE WHEN reset_window_start IS NULL OR reset_window_start <= ?4 THEN ?3 ELSE reset_window_start END
+         WHERE email = ?5 AND status = 'active'
+           AND (reset_requested_at IS NULL OR reset_requested_at <= ?6)
+           AND (reset_window_start IS NULL OR reset_window_start <= ?4 OR reset_count < ${MAX_RESETS_PER_ACCOUNT})
+           AND (SELECT attempts FROM reset_ips WHERE ip_hash = ?7) <= ${MAX_RESETS_PER_IP}
          RETURNING name`,
       )
       .bind(
         input.tokenHash,
         new Date(Date.parse(now) + RESET_HOURS * 60 * 60 * 1000).toISOString(),
         now,
+        daysBefore(now, 1),
         input.email,
         msBefore(now, RESET_RESEND_MINUTES * 60 * 1000),
         input.ipHash,
@@ -511,10 +518,23 @@ export async function requestPasswordReset(
   return name === undefined ? null : { name };
 }
 
+// Whether a reset link still works, so the caller hashes a new password only
+// for a link that does. `resetPassword` checks it again in its own SQL.
+export async function resetLinkWorks(db: D1Database, tokenHash: string, now: string): Promise<boolean> {
+  const row = await db
+    .prepare("SELECT 1 AS found FROM teachers WHERE reset_token_hash = ? AND reset_expires_at > ? AND status = 'active'")
+    .bind(tokenHash, now)
+    .first();
+  return row !== null;
+}
+
 // The link of the reset email, with the new password: valid, unused and
 // unexpired, checked in the statement that sets it. The account's other logins
-// end, its lock and its browsers' counts start again, and the link is used up.
-// Null when the link no longer works.
+// end, its lock is lifted, its known browsers are forgotten (a browser that was
+// trusted before the reset must log in through the account again), and the
+// link is used up. The cleanup after the UPDATE finds the account by the new
+// hash: it is salted, so it names only the account just changed, and if the
+// UPDATE matched nothing no row has it. Null when the link no longer works.
 export async function resetPassword(
   db: D1Database,
   tokenHash: string,
@@ -537,7 +557,7 @@ export async function resetPassword(
       .bind(passwordHash),
     db
       .prepare(
-        `UPDATE trusted_devices SET failed_logins = 0
+        `DELETE FROM trusted_devices
          WHERE teacher_id IN (SELECT id FROM teachers WHERE password_hash = ? AND status = 'active')`,
       )
       .bind(passwordHash),
