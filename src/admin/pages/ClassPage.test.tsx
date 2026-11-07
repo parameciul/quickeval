@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { TestDetail } from '../../../shared/api.ts';
 import { createFakeApi, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
-import { renderAdmin } from '../../test/renderAdmin.tsx';
+import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 
 // A class with two tests (T1 older, T2 newer) and three students (one left).
 const classData = (extra: TestDetail[] = []) => {
@@ -102,6 +102,87 @@ describe('ClassPage', () => {
   it('shows the not-found page for a bad class id', async () => {
     renderAdmin('/clase/abc', gradedClass());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
+  });
+
+  it('marks a class whose test waits in the "Schimbă clasa" menu', async () => {
+    const data = classData();
+    const waiting = fakeTest(
+      {
+        code: '9R2-26T1',
+        title: 'Logaritmi',
+        status: 'done',
+        classId: 2,
+        className: '9R2',
+        startedAt: '2026-10-09T07:00:00.000Z',
+      },
+      [
+        fakeUpload({
+          studentId: 20,
+          studentName: 'Radu Ema',
+          status: 'graded',
+          grade: 9,
+          total: 9,
+          maxTotal: 10,
+          flagCount: 1,
+        }),
+      ],
+    );
+    renderAdmin(
+      '/clase/1',
+      createFakeApi({
+        classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 0 }],
+        students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false }] },
+        tests: [...data.tests, waiting],
+      }),
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa ˅' }));
+    const link = await screen.findByRole('link', { name: /9R2/ });
+    expect(link.querySelector('.flag-dot')).not.toBeNull();
+    const menu = link.closest('.head-switch-list');
+    expect(menu).not.toBeNull();
+    expect(within(menu as HTMLElement).queryByRole('link', { name: /6E2/ })).toBeNull();
+  });
+
+  it('closes the small menus when a class is picked, on Esc and on a click outside', async () => {
+    const data = classData();
+    renderAdmin(
+      '/clase/1',
+      createFakeApi({
+        classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 0 }],
+        students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false }] },
+      }),
+      <LocationProbe />,
+    );
+
+    const switcher = await screen.findByRole('button', { name: 'Schimbă clasa ˅' });
+    await userEvent.click(switcher);
+    await userEvent.click(await screen.findByRole('link', { name: 'Clasa 9R2' }));
+    await expectLocation('/clase/2');
+    expect(screen.queryByRole('link', { name: 'Clasa 9R2' })).not.toBeInTheDocument();
+
+    const reopened = await screen.findByRole('button', { name: 'Schimbă clasa ˅' });
+    await userEvent.click(reopened);
+    expect(await screen.findByRole('link', { name: 'Clasa 6E2' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('link', { name: 'Clasa 6E2' })).not.toBeInTheDocument();
+    expect(reopened).toHaveFocus();
+
+    await userEvent.click(reopened);
+    expect(await screen.findByRole('link', { name: 'Clasa 6E2' })).toBeInTheDocument();
+    await userEvent.click(document.body);
+    expect(screen.queryByRole('link', { name: 'Clasa 6E2' })).not.toBeInTheDocument();
+  });
+
+  it('closes the "⋯" menu on Esc and gives the focus back to its button', async () => {
+    renderAdmin('/clase/1', gradedClass());
+
+    const more = await screen.findByRole('button', { name: '⋯' });
+    await userEvent.click(more);
+    expect(await screen.findByRole('button', { name: 'Redenumește clasa' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('button', { name: 'Redenumește clasa' })).not.toBeInTheDocument();
+    expect(more).toHaveFocus();
   });
 });
 
