@@ -59,6 +59,16 @@ export function Layout() {
     refetchInterval: 60_000,
   });
   const todo = todoList(tests.data ?? []);
+  // For an administrator: the accounts that confirmed their email and wait to
+  // be approved. Setări reads the same list, so an approval there updates it.
+  const admin = me.data?.role === 'admin';
+  const accounts = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => api.listAccounts(),
+    enabled: admin,
+    refetchInterval: 60_000,
+  });
+  const approvals = admin ? (accounts.data ?? []).filter((account) => account.status === 'pending').length : 0;
   const others = (tests.data ?? []).filter((test) => !test.archived && test.status !== 'done' && !todo.some((item) => item.code === test.code)).length;
   // The open panel and the page it was opened on: another page closes it, and
   // it stays closed when Back or Forward returns to that page (the router gives
@@ -88,6 +98,7 @@ export function Layout() {
         const predicate = (query: Query) => query.state.dataUpdatedAt < since;
         void queryClient.invalidateQueries({ queryKey: ['me'], predicate }, { cancelRefetch: false });
         void queryClient.invalidateQueries({ queryKey: ['tests'], predicate }, { cancelRefetch: false });
+        void queryClient.invalidateQueries({ queryKey: ['accounts'], predicate }, { cancelRefetch: false });
       }),
     [queryClient],
   );
@@ -137,7 +148,7 @@ export function Layout() {
         {me.data && open === 'menu' && <PhoneMenu teacher={me.data} onClose={close} />}
       </header>
       {me.data && (
-        <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length} panel={open} onToggle={toggle} />
+        <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length + (approvals > 0 ? 1 : 0)} urgent={approvals > 0} panel={open} onToggle={toggle} />
       )}
       {/* The panels come right after the bar that opens them, for the keyboard
           and screen readers. */}
@@ -145,7 +156,7 @@ export function Layout() {
         <ClassesPanel year={year} todo={todo} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
       )}
       {me.data && open === 'todo' && (
-        <TodoPanel items={todo} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
+        <TodoPanel items={todo} approvals={approvals} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
       )}
       {/* On a phone a panel covers the page: the page under it is out of reach. */}
       <main className="page" inert={phone && (open === 'clase' || open === 'todo')}>

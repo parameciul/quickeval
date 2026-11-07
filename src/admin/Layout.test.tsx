@@ -2,7 +2,7 @@ import { act, cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useNavigate } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createFakeApi, fakeTeacher, fakeTest } from '../test/fakeApi.ts';
+import { createFakeApi, fakeAccount, fakeTeacher, fakeTest } from '../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../test/renderAdmin.tsx';
 import { ApiError } from './api.ts';
 
@@ -291,6 +291,50 @@ describe('De făcut', () => {
     await userEvent.click(start);
     await expectLocation('/teste/6E2-26T2/verificare');
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it('puts an urgent card first for an administrator when accounts wait for approval', async () => {
+    const api = createFakeApi({
+      classes: [],
+      students: {},
+      accounts: [
+        fakeAccount(),
+        fakeAccount({ id: 7, name: 'Nou Unu', email: 'unu@example.com', status: 'pending' }),
+        fakeAccount({ id: 8, name: 'Nou Doi', email: 'doi@example.com', status: 'pending' }),
+      ],
+    });
+    renderAdmin('/', api, <LocationProbe />);
+    const button = await within(await menu()).findByRole('button', { name: 'De făcut: 1 lucru, unul urgent' });
+    expect(button).toHaveTextContent('De făcut1');
+    await userEvent.click(button);
+    const panel = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
+    const card = within(panel).getAllByRole('listitem')[0]!;
+    expect(card).toHaveTextContent('Urgent');
+    expect(within(card).getByRole('heading')).toHaveTextContent('2 conturi noi așteaptă aprobarea');
+    await userEvent.click(within(card).getByRole('link', { name: /Setări/ }));
+    await expectLocation('/setari');
+  });
+
+  it('says one account in the singular, and counts it with the tests that wait', async () => {
+    const api = createFakeApi({
+      students: {},
+      accounts: [fakeAccount(), fakeAccount({ id: 7, status: 'pending' })],
+      tests: [fakeTest({ code: '6E2-26T3', title: 'Logaritmi', status: 'done', gradedCount: 20 })],
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
+    });
+    renderAdmin('/', api);
+    await userEvent.click(await within(await menu()).findByRole('button', { name: /^De făcut/ }));
+    const panel = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
+    const cards = within(panel).getAllByRole('listitem');
+    expect(within(cards[0]!).getByRole('heading')).toHaveTextContent('Un cont nou așteaptă aprobarea');
+    expect(cards).toHaveLength(2);
+  });
+
+  it('shows no account card to a teacher, and asks for no accounts', async () => {
+    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher' }) });
+    renderAdmin('/', api);
+    await within(await menu()).findByRole('button', { name: 'De făcut' });
+    expect(api.listAccounts).not.toHaveBeenCalled();
   });
 
   it('reads the tests of the year again after a change and every minute', async () => {

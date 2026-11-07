@@ -449,6 +449,10 @@ h2 {
   font-weight: 700;
 }
 
+.rail-badge-urgent {
+  background: var(--error-fg);
+}
+
 .shell > .page {
   grid-column: 2;
   grid-row: 2;
@@ -901,6 +905,15 @@ h2 {
   border-color: var(--orange-mark);
 }
 
+.todo-card.todo-urgent {
+  border-color: var(--error-fg);
+  background: var(--error-bg);
+}
+
+.todo-card.todo-urgent + .todo-card {
+  border-color: var(--rule);
+}
+
 .todo-test {
   display: flex;
   flex-wrap: wrap;
@@ -1090,6 +1103,11 @@ textarea {
 .tag-wait {
   background: var(--marker);
   color: var(--orange);
+}
+
+.tag-urgent {
+  background: var(--error-fg);
+  color: var(--sheet);
 }
 
 .tag-muted {
