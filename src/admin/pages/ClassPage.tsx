@@ -16,9 +16,10 @@ import { NewClassDialog, RenameDialog } from '../classPage/ClassDialogs.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import type { AdminApi } from '../api.ts';
 
-// The state a link passes to open "Clasă nouă" on arrival (the panel "Clasele
-// tale" and the empty /clase page).
-export type NewClassState = { newClass?: boolean } | null;
+// The state a link passes to the class page (the panel "Clasele tale"):
+// `newClass` opens "Clasă nouă" on arrival, `archived` opens "Schimbă clasa"
+// at its group "Arhivate".
+export type ClassLinkState = { newClass?: boolean; archived?: boolean } | null;
 
 export function ClassPage() {
   const classId = parsePositiveId(useParams().id);
@@ -38,15 +39,17 @@ function ClassDetails({ classId }: { classId: number }) {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'note' | 'elevi'>('note');
   const [showArchived, setShowArchived] = useState(false);
-  const [newClassOpen, setNewClassOpen] = useState(() => (location.state as NewClassState)?.newClass === true);
+  const [linkState] = useState(() => location.state as ClassLinkState);
+  const [newClassOpen, setNewClassOpen] = useState(linkState?.newClass === true);
   const detail = useQuery({ queryKey: ['class', classId], queryFn: () => api.getClass(classId) });
   // Remember which class the teacher opened last, so /clase reopens it.
   useEffect(() => {
     localStorage.setItem('quickeval:lastClass', String(classId));
   }, [classId]);
-  // "Clasă nouă" from a link opens once: Back or a reload does not open it again.
+  // What a link asked for opens once: Back or a reload does not open it again.
   useEffect(() => {
-    if ((location.state as NewClassState)?.newClass) navigate('.', { replace: true, state: null });
+    const state = location.state as ClassLinkState;
+    if (state?.newClass || state?.archived) navigate('.', { replace: true, state: null });
   }, [location.state, navigate]);
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['class', classId] });
@@ -65,7 +68,12 @@ function ClassDetails({ classId }: { classId: number }) {
         <div className="class-head-main">
           <h1>{displayClassName(info.name)}</h1>
           {info.archived && <span className="tag">Arhivată</span>}
-          <ClassSwitcher api={api} classId={classId} onNewClass={() => setNewClassOpen(true)} />
+          <ClassSwitcher
+            api={api}
+            classId={classId}
+            showArchived={linkState?.archived === true}
+            onNewClass={() => setNewClassOpen(true)}
+          />
           <p className="class-head-facts">
             {studentCountLabel(students.length)} · {testCountLabel(activeTests)} · anul școlar{' '}
             {formatSchoolYear(info.schoolYear)}
@@ -145,8 +153,8 @@ function ClassDetails({ classId }: { classId: number }) {
 // A small menu of the top line (the classes, or "⋯") closes on Esc, on a click
 // outside it, and when it runs its action; Esc gives the focus back to its
 // button. It takes Esc before an open panel (capture), as the account menu does.
-function useSmallMenu() {
-  const [open, setOpen] = useState(false);
+function useSmallMenu(startOpen = false) {
+  const [open, setOpen] = useState(startOpen);
   const box = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -189,9 +197,22 @@ function IconDots() {
 }
 
 // The menu beside the name: switch to another class of the year (a dot marks a
-// class whose test waits on the teacher), or start a new one.
-function ClassSwitcher({ api, classId, onNewClass }: { api: AdminApi; classId: number; onNewClass(): void }) {
-  const { open, setOpen, box, button } = useSmallMenu();
+// class whose test waits on the teacher), open an archived one (its own group,
+// at the end, so the teacher can take it out of the archive), or start a new
+// one. `showArchived` opens it at that group, for the panel's "Arhivate (n)".
+function ClassSwitcher({
+  api,
+  classId,
+  showArchived,
+  onNewClass,
+}: {
+  api: AdminApi;
+  classId: number;
+  showArchived: boolean;
+  onNewClass(): void;
+}) {
+  const { open, setOpen, box, button } = useSmallMenu(showArchived);
+  const archivedGroup = useRef<HTMLParagraphElement>(null);
   const { year } = useSchoolYear();
   const classes = useQuery({ queryKey: ['classes', year], queryFn: () => api.listClasses(year) });
   // The tests of the year, as the shell reads them, so the dots speak of every
@@ -199,6 +220,30 @@ function ClassSwitcher({ api, classId, onNewClass }: { api: AdminApi; classId: n
   const tests = useQuery({ queryKey: ['tests', year], queryFn: () => api.listTests(year) });
   const waiting = new Set((tests.data ?? []).filter((test) => todoOf(test) !== null).map((test) => test.classId));
   const list = (classes.data ?? []).filter((item) => !item.archived);
+  const archived = (classes.data ?? []).filter((item) => item.archived);
+  // Opened for the archived classes: once listed, the menu scrolls its group to
+  // its top (the menu is the group's offset parent; the page does not move).
+  const hasArchived = archived.length > 0;
+  useEffect(() => {
+    const title = archivedGroup.current;
+    const menu = title?.closest<HTMLElement>('.class-switch-menu');
+    if (showArchived && title && menu) menu.scrollTop = title.offsetTop - 6;
+  }, [showArchived, hasArchived]);
+  const item = (entry: (typeof list)[number]) => (
+    <Link
+      key={entry.id}
+      className={entry.archived ? 'class-menu-item is-muted' : 'class-menu-item'}
+      to={`/clase/${entry.id}`}
+      aria-current={entry.id === classId ? 'page' : undefined}
+      onClick={() => setOpen(false)}
+    >
+      <b>{displayClassName(entry.name)}</b>
+      <span className="class-menu-note">
+        {waiting.has(entry.id) && <span className="flag-dot" role="img" aria-label="te așteaptă"></span>}
+        {studentCountLabel(entry.studentCount)}
+      </span>
+    </Link>
+  );
   return (
     <div className="class-switch" ref={box}>
       <button
@@ -214,21 +259,15 @@ function ClassSwitcher({ api, classId, onNewClass }: { api: AdminApi; classId: n
       </button>
       {open && (
         <div className="class-menu class-switch-menu" id="class-switch-menu">
-          {list.map((item) => (
-            <Link
-              key={item.id}
-              className="class-menu-item"
-              to={`/clase/${item.id}`}
-              aria-current={item.id === classId ? 'page' : undefined}
-              onClick={() => setOpen(false)}
-            >
-              <b>{displayClassName(item.name)}</b>
-              <span className="class-menu-note">
-                {waiting.has(item.id) && <span className="flag-dot" role="img" aria-label="te așteaptă"></span>}
-                {studentCountLabel(item.studentCount)}
-              </span>
-            </Link>
-          ))}
+          {list.map(item)}
+          {hasArchived && (
+            <div className="class-menu-group" role="group" aria-labelledby="class-switch-archived">
+              <p ref={archivedGroup} id="class-switch-archived" className="class-menu-group-title">
+                Arhivate
+              </p>
+              {archived.map(item)}
+            </div>
+          )}
           <div className="class-menu-foot">
             <button
               type="button"

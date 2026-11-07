@@ -158,6 +158,53 @@ describe('ClassPage', () => {
     expect(current).toHaveAttribute('aria-current', 'page');
   });
 
+  it('lists the archived classes last in "Schimbă clasa", under "Arhivate"', async () => {
+    const data = classData();
+    renderAdmin(
+      '/clase/1',
+      createFakeApi({
+        ...data,
+        classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: true, studentCount: 0 }],
+      }),
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
+    const group = within(await screen.findByRole('group', { name: 'Arhivate' }));
+    const archived = group.getByRole('link', { name: /Clasa 9R2/ });
+    expect(archived).toHaveAttribute('href', '/clase/2');
+    expect(archived).toHaveClass('is-muted');
+    expect(group.queryByRole('link', { name: /Clasa 6E2/ })).not.toBeInTheDocument();
+  });
+
+  it('shows no "Arhivate" group when no class is archived', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
+    await screen.findByRole('link', { name: /Clasa 6E2/ });
+    expect(screen.queryByRole('group', { name: 'Arhivate' })).not.toBeInTheDocument();
+  });
+
+  it('opens "Schimbă clasa" at "Arhivate" when a link asks for it', async () => {
+    const data = classData();
+    renderAdmin(
+      { pathname: '/clase/1', state: { archived: true } },
+      createFakeApi({
+        ...data,
+        classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: true, studentCount: 0 }],
+      }),
+    );
+    expect(await screen.findByRole('group', { name: 'Arhivate' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Schimbă clasa' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('takes an archived class out of the archive from its menu', async () => {
+    const api = gradedClass();
+    await api.updateClass(1, { archived: true });
+    renderAdmin('/clase/1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Scoate din arhivă' }));
+    expect(api.updateClass).toHaveBeenLastCalledWith(1, { archived: false });
+    expect(await screen.findByRole('link', { name: 'Test nou pentru această clasă' })).toBeInTheDocument();
+  });
+
   it('closes the small menus when a class is picked, on Esc and on a click outside', async () => {
     const data = classData();
     renderAdmin(

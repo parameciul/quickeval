@@ -3815,6 +3815,30 @@ table.results-table td:nth-child(3) {
   font-size: 0.8125rem;
 }
 
+/* The archived classes, at the end of "Schimbă clasa": muted, under a title. */
+.class-menu-group {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.class-menu-group-title {
+  margin: 0;
+  padding: 0.375rem 0.625rem 0.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.class-menu-item.is-muted,
+.class-menu-item.is-muted b {
+  color: var(--muted);
+}
+
 .class-menu-foot {
   margin-top: 0.25rem;
   padding: 0.5rem 0.625rem 0.25rem;
@@ -3963,6 +3987,21 @@ table.results-table td:nth-child(3) {
 .class-empty p {
   margin: 0;
   color: var(--muted);
+}
+
+.class-empty .class-empty-archived {
+  flex-basis: 100%;
+  font-size: 0.875rem;
+}
+
+.class-empty-archived a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.class-empty-archived a:hover {
+  text-decoration: underline;
 }
 
 /* "Note și teste": the grades table as wide as its columns, "Testele clasei"
