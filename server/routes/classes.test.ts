@@ -417,6 +417,17 @@ describe('grades of a class', () => {
     ]);
   });
 
+  it('shows a result as open when the whole test is published', async () => {
+    const cls = await makeClass(api, 'G6', ['Ana Unu']);
+    const code = await makeTest(api, cls.id);
+    const sub = await addSubmission(api, code, cls.studentIds[0]!, { status: 'graded' });
+    await addEvaluation(api, sub, { grade: 8 });
+    await api.db.prepare('UPDATE tests SET results_open = 1 WHERE code = ?').bind(code).run();
+    const { grades } = await detailOf(cls.id);
+    expect(grades).toHaveLength(1);
+    expect(grades[0]).toMatchObject({ submissionId: sub, resultsOpen: true });
+  });
+
   it('keeps the grades of an archived test and of a student who left', async () => {
     const cls = await makeClass(api, 'G2', ['Ana Unu']);
     const code = await makeTest(api, cls.id);

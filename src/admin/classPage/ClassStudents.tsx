@@ -6,21 +6,16 @@ import type { ClassGrade, StudentRow, TestSummary } from '../../../shared/api.ts
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
-import { compareStudentNames } from '../../../shared/students.ts';
 import { countLabel, formatDayMonth, uploadStatusLabel } from '../../ui/format.ts';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { CopyResultLink } from '../testPage/ResultLinksTable.tsx';
 import { AddStudentsDialog, RenameDialog } from './ClassDialogs.tsx';
+import { orderedStudents } from './GradesTable.tsx';
 
 // A name as the search compares it: no case, no diacritics ("stef" finds
 // "Ștefan").
 function searchKey(name: string): string {
   return name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
-}
-
-// Active students first, then the ones who left; each group by name.
-function orderedStudents(students: StudentRow[]): StudentRow[] {
-  return [...students].sort((a, b) => Number(!a.active) - Number(!b.active) || compareStudentNames(a.fullName, b.fullName));
 }
 
 // "Elevi" tab of the class page (spec §9): the students on the left (search,
@@ -180,7 +175,11 @@ function StudentDetail({
   const [renameOpen, setRenameOpen] = useState(false);
   const gradeOf = (testCode: string) =>
     grades.find((grade) => grade.studentId === student.id && grade.testCode === testCode);
-  const papers = tests.filter((test) => gradeOf(test.code) !== undefined).length;
+  // The papers the student sent: an upload still under way or failed is not one.
+  const papers = tests.filter((test) => {
+    const status = gradeOf(test.code)?.status;
+    return status !== undefined && status !== 'uploading' && status !== 'failed';
+  }).length;
   const toggle = useMutation({
     mutationFn: () => api.setStudentActive(classId, student.id, !student.active),
     onSuccess: onChanged,

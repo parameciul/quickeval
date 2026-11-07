@@ -408,6 +408,19 @@ describe('ClassPage "Elevi" tab', () => {
     const student = await detail();
     expect(student.getByText('Publicat')).toBeInTheDocument();
     expect(student.getByText('Încarcă…')).toBeInTheDocument();
+    // The upload still under way is not a paper yet.
+    expect(student.getByText('Clasa 6E2 · 1 lucrare în 2026-2027')).toBeInTheDocument();
+  });
+
+  it('shows every result as published when the whole test is published', async () => {
+    const data = classData();
+    const [t2, t1] = data.tests;
+    renderAdmin('/clase/1', createFakeApi({ ...data, tests: [t2!, { ...t1!, test: { ...t1!.test, resultsOpen: true } }] }));
+    const list = await openStudents();
+    await userEvent.click(list.getByRole('button', { name: 'Ionescu Ana' }));
+    const student = await detail();
+    expect(student.getByText('Publicat')).toBeInTheDocument();
+    expect(student.queryByText('Nepublicat')).not.toBeInTheDocument();
   });
 
   it('says a result waits for the check, and links each paper', async () => {

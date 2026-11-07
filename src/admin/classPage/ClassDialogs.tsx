@@ -79,6 +79,8 @@ export function NewClassDialog({ onClose }: { onClose(): void }) {
       if (id === null) {
         id = (await api.createClass({ name, schoolYear: year })).id;
         setCreatedId(id);
+        // The class exists now, even if its students fail next: the lists show it.
+        void queryClient.invalidateQueries({ queryKey: ['classes'] });
       }
       if (field.names.length > 0) await api.addStudents(id, field.names);
       return id;

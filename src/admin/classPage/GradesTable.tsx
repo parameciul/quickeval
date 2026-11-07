@@ -12,7 +12,7 @@ function gradeKey(studentId: number, testCode: string): string {
 }
 
 // Active students first, then the ones who left; each group by name.
-function orderedStudents(students: StudentRow[]): StudentRow[] {
+export function orderedStudents(students: StudentRow[]): StudentRow[] {
   return [...students].sort((a, b) => Number(!a.active) - Number(!b.active) || compareStudentNames(a.fullName, b.fullName));
 }
 
