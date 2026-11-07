@@ -421,6 +421,8 @@ describe('ClassPage "Elevi" tab', () => {
     const student = await detail();
     expect(student.getByText('Publicat')).toBeInTheDocument();
     expect(student.queryByText('Nepublicat')).not.toBeInTheDocument();
+    // A published result keeps its link to copy, as in the design.
+    expect(student.getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
   });
 
   it('says a result waits for the check, and links each paper', async () => {

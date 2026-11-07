@@ -133,11 +133,10 @@ export function ClassStudents({
 function ResultCell({ grade, studentName }: { grade: ClassGrade | undefined; studentName: string }) {
   if (grade === undefined) return <span className="hint">Nu a trimis lucrarea.</span>;
   if (grade.status !== 'graded') return <span className="hint">{uploadStatusLabel(grade.status)}</span>;
-  if (grade.resultsOpen) return <span className="tag tag-ok">Publicat</span>;
-  if (grade.flagCount > 0) return <span className="hint">După verificare</span>;
+  if (!grade.resultsOpen && grade.flagCount > 0) return <span className="hint">După verificare</span>;
   return (
     <>
-      <span className="hint">Nepublicat</span>
+      {grade.resultsOpen ? <span className="tag tag-ok">Publicat</span> : <span className="hint">Nepublicat</span>}
       {grade.startedAt !== null && (
         <CopyResultLink
           key={grade.submissionId}
