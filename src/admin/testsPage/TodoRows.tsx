@@ -14,8 +14,7 @@ export function TodoRows({ id, items, hidden }: { id: string; items: TodoItem[];
             <li key={item.code}>
               <div className="what">
                 <b>
-                  <span className="tag tag-wait">{item.stage}</span>
-                  {item.task}
+                  <span className="tag tag-wait">{item.stage}</span> {item.task}
                 </b>
                 <span>
                   {item.testTitle} · {displayClassName(item.className)}

@@ -126,6 +126,8 @@
 html {
   -webkit-text-size-adjust: 100%;
   scrollbar-gutter: stable;
+  scroll-padding-top: 6rem;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -863,7 +865,7 @@ h2 {
   }
 }
 
-@media (min-width: 56.3125rem) {
+@media not (max-width: 56.25rem) {
   .phone-menu {
     display: none;
   }
@@ -1152,36 +1154,12 @@ a.class-badge:hover {
   font-weight: 700;
 }
 
-/* The foot of a card (the results label and the actions) sits at the bottom,
-   so the feet of cards in one row line up. */
-.card-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: auto;
-  padding-top: 0.25rem;
-}
-
 /* The buttons and links that act, at the foot of a card. A label (.tag,
    .status, .class-badge) is a flat tinted block, never a rounded outline. */
 .card-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-}
-
-.card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 0.5rem;
-}
-
-.results-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.6rem;
 }
 
 /* The grading bar: graded in blue, waiting in pale blue, the rest (not sent)

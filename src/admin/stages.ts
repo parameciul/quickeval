@@ -65,6 +65,7 @@ export function stagesOf(test: TestSummary): TestStages {
     if (evaluated || (testFile && baremActive)) return stage('Pregătire', 'done');
     if (!testFile) return stage('Pregătire', 'now', 'lipsește testul');
     if (test.barem.request === 'requested') return stage('Pregătire', 'now', 'baremul se generează');
+    if (test.barem.request === 'failed') return stage('Pregătire', 'now', 'baremul nu s-a generat');
     return stage('Pregătire', 'now', 'lipsește baremul');
   };
 
@@ -106,6 +107,10 @@ export function stagesOf(test: TestSummary): TestStages {
       return stage('Rezultate', 'done', `publicate${average}`);
     }
     if (done && test.gradedCount === 0) return stage('Rezultate', 'later', 'nicio lucrare corectată');
+    // An archived test has no "De făcut", but its results are still not out.
+    if (done && test.archived) {
+      return stage('Rezultate', 'later', test.publishedCount > 0 ? `publicate pentru ${countLabel(test.publishedCount, 'elev', 'elevi')}` : 'nepublicate');
+    }
     return stage('Rezultate', 'later');
   };
 

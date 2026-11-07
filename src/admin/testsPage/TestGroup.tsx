@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Link } from 'react-router';
 import type { TestSummary } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
@@ -12,13 +12,27 @@ import { nextStep } from './nextStep.ts';
 // "În lucru" or "Terminate" on the Teste page (redesign spec §5): a table
 // with the test, its stage, its papers and the next step. `first` is the
 // test of the first thing in "De făcut": its button is the filled one.
-export function TestGroup({ title, tests, first }: { title: string; tests: TestSummary[]; first: string | null }) {
+export function TestGroup({
+  title,
+  tests,
+  first,
+  focusCode,
+  onPublished,
+}: {
+  title: string;
+  tests: TestSummary[];
+  first: string | null;
+  // The test whose link takes the focus (after its row published and moved),
+  // and how a row reports that it published.
+  focusCode: string | null;
+  onPublished: (code: string | null) => void;
+}) {
   const id = useId();
   return (
     <section className="test-group" aria-labelledby={id}>
       <h2 id={id}>{title}</h2>
       <div className="table-wrap">
-        <table className="tests">
+        <table className="tests" aria-labelledby={id}>
           <thead>
             <tr>
               <th scope="col">Test</th>
@@ -33,7 +47,7 @@ export function TestGroup({ title, tests, first }: { title: string; tests: TestS
           </thead>
           <tbody>
             {tests.map((test) => (
-              <TestRow key={test.code} test={test} primary={test.code === first} />
+              <TestRow key={test.code} test={test} primary={test.code === first} focusCode={focusCode} onPublished={onPublished} />
             ))}
           </tbody>
         </table>
@@ -42,7 +56,17 @@ export function TestGroup({ title, tests, first }: { title: string; tests: TestS
   );
 }
 
-function TestRow({ test, primary }: { test: TestSummary; primary: boolean }) {
+function TestRow({
+  test,
+  primary,
+  focusCode,
+  onPublished,
+}: {
+  test: TestSummary;
+  primary: boolean;
+  focusCode: string | null;
+  onPublished: (code: string | null) => void;
+}) {
   const api = useApi();
   const queryClient = useQueryClient();
   // Publishing or stopping the results on the row (§1, decision 20). The row
@@ -54,8 +78,18 @@ function TestRow({ test, primary }: { test: TestSummary; primary: boolean }) {
         queryClient.invalidateQueries({ queryKey: ['tests'] }),
         queryClient.invalidateQueries({ queryKey: ['test', test.code] }),
       ]);
+      onPublished(test.code);
     },
   });
+
+  // The button that was pressed may be gone, or the row in another group:
+  // the focus goes to the test's link, where the row now is.
+  const link = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    if (focusCode !== test.code) return;
+    link.current?.focus();
+    onPublished(null);
+  }, [focusCode, test.code, onPublished]);
 
   const { stages, current } = stagesOf(test);
   const step = nextStep(test, current);
@@ -66,10 +100,13 @@ function TestRow({ test, primary }: { test: TestSummary; primary: boolean }) {
   return (
     <tr className={test.archived ? 'is-muted' : undefined}>
       <th scope="row" className="test-name">
-        <Link to={`/teste/${test.code}`}>{test.title}</Link>
+        <Link ref={link} to={`/teste/${test.code}`}>
+          {test.title}
+        </Link>
+        {test.archived && ' '}
         {test.archived && <span className="tag">Arhivat</span>}
         <span className="test-sub">
-          {className} · {test.startedAt ? `început ${startedLabel(test.startedAt, new Date())}` : 'ciornă'}
+          {className} · {startedText(test)}
         </span>
       </th>
       <td>
@@ -123,4 +160,11 @@ function TestRow({ test, primary }: { test: TestSummary; primary: boolean }) {
       </td>
     </tr>
   );
+}
+
+// "ciornă" for a test not started; a stopped test keeps its start date but is
+// a draft again.
+function startedText(test: TestSummary): string {
+  if (test.status === 'draft') return 'ciornă';
+  return test.startedAt ? `început ${startedLabel(test.startedAt, new Date())}` : 'fără dată';
 }
