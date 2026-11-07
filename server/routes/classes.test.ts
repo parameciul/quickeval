@@ -398,10 +398,22 @@ describe('grades of a class', () => {
     const { grades } = await detailOf(cls.id);
     const sorted = [...grades].sort((a: { submissionId: number }, b: { submissionId: number }) => a.submissionId - b.submissionId);
     expect(sorted).toEqual([
-      { studentId: cls.studentIds[0], testCode: first, submissionId: graded, status: 'graded', grade: 9, flagCount: 0 },
-      { studentId: cls.studentIds[1], testCode: first, submissionId: flagged, status: 'graded', grade: 7, flagCount: 1 },
-      { studentId: cls.studentIds[0], testCode: second, submissionId: uploading, status: 'uploading', grade: null, flagCount: 0 },
-      { studentId: cls.studentIds[2], testCode: second, submissionId: grading, status: 'grading', grade: null, flagCount: 0 },
+      { studentId: cls.studentIds[0], testCode: first, submissionId: graded, status: 'graded', grade: 9, flagCount: 0, total: 9, maxTotal: 10, resultsOpen: false, resultToken: null, startedAt: '2026-10-06T08:00:00.000Z' },
+      { studentId: cls.studentIds[1], testCode: first, submissionId: flagged, status: 'graded', grade: 7, flagCount: 1, total: 7, maxTotal: 10, resultsOpen: false, resultToken: null, startedAt: '2026-10-06T08:00:00.000Z' },
+      { studentId: cls.studentIds[0], testCode: second, submissionId: uploading, status: 'uploading', grade: null, flagCount: 0, total: null, maxTotal: null, resultsOpen: false, resultToken: null, startedAt: '2026-10-06T08:00:00.000Z' },
+      { studentId: cls.studentIds[2], testCode: second, submissionId: grading, status: 'grading', grade: null, flagCount: 0, total: null, maxTotal: null, resultsOpen: false, resultToken: null, startedAt: '2026-10-06T08:00:00.000Z' },
+    ]);
+  });
+
+  it('shows the result state and the result token of a graded upload', async () => {
+    const cls = await makeClass(api, 'G5', ['Ana Unu']);
+    const code = await makeTest(api, cls.id);
+    const sub = await addSubmission(api, code, cls.studentIds[0]!, { status: 'graded' });
+    await addEvaluation(api, sub, { grade: 8 });
+    await api.db.prepare('UPDATE submissions SET results_open = 1 WHERE id = ?').bind(sub).run();
+    const { grades } = await detailOf(cls.id);
+    expect(grades).toEqual([
+      { studentId: cls.studentIds[0], testCode: code, submissionId: sub, status: 'graded', grade: 8, flagCount: 0, total: 8, maxTotal: 10, resultsOpen: true, resultToken: null, startedAt: '2026-10-06T08:00:00.000Z' },
     ]);
   });
 

@@ -120,6 +120,7 @@ export async function listClassGrades(db: D1Database, teacherId: number, classId
   const { results } = await db
     .prepare(
       `SELECT s.student_id, t.code AS test_code, s.id AS submission_id, s.status, ev.grade,
+         ev.total, ev.max_total, s.results_open, s.result_token, s.started_at,
          CASE WHEN ev.id IS NULL THEN 0 ELSE ${flagCountSql('ev')} END AS flag_count
        FROM submissions s
        JOIN tests t ON t.id = s.test_id AND t.class_id = ? AND t.teacher_id = ?
@@ -132,6 +133,11 @@ export async function listClassGrades(db: D1Database, teacherId: number, classId
       submission_id: number;
       status: Exclude<UploadStatus, 'none'>;
       grade: number | null;
+      total: number | null;
+      max_total: number | null;
+      results_open: number | null;
+      result_token: string | null;
+      started_at: string | null;
       flag_count: number;
     }>();
   return results.map((row) => ({
@@ -141,5 +147,10 @@ export async function listClassGrades(db: D1Database, teacherId: number, classId
     status: row.status,
     grade: row.grade,
     flagCount: row.flag_count,
+    total: row.total,
+    maxTotal: row.max_total,
+    resultsOpen: row.results_open === 1,
+    resultToken: row.result_token,
+    startedAt: row.started_at,
   }));
 }

@@ -1,164 +1,201 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useNavigate } from 'react-router';
 import { describe, expect, it } from 'vitest';
+import type { TestDetail } from '../../../shared/api.ts';
 import { createFakeApi, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
-import { renderAdmin } from '../../test/renderAdmin.tsx';
+import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 
-// Direct jumps between class pages, as a link from one class to another would do.
-function Jumps() {
-  const navigate = useNavigate();
-  return (
-    <>
-      <button type="button" onClick={() => navigate('/clase/1')}>
-        Mergi la clasa 1
-      </button>
-      <button type="button" onClick={() => navigate('/clase/2')}>
-        Mergi la clasa 2
-      </button>
-    </>
-  );
-}
-
-const oneClass = () =>
-  createFakeApi({
-    classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
-    students: {
-      1: [
-        { id: 10, fullName: 'Pop Ion', active: true, canDelete: true },
-        { id: 11, fullName: 'Ionescu Ana', active: false, canDelete: true },
-      ],
-    },
-  });
-
-// A class with three students (one left) and two tests: T1 is done, with grades; T2 is open.
-const gradedClass = () => {
+// A class with two tests (T1 older, T2 newer) and three students (one left).
+const classData = (extra: TestDetail[] = []) => {
   const students = [
     { id: 10, fullName: 'Pop Ion', active: true, canDelete: false },
     { id: 11, fullName: 'Ionescu Ana', active: false, canDelete: false },
     { id: 12, fullName: 'Albu Dan', active: true, canDelete: false },
   ];
-  const t2 = fakeTest({ code: '6E2-26T2', title: 'Geometrie', status: 'open', startedAt: '2026-10-20T07:00:00.000Z' }, [
-    fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 504, status: 'uploading' }),
-    fakeUpload({ studentId: 12, studentName: 'Albu Dan', submissionId: 505, status: 'submitted' }),
-    fakeUpload({ studentId: 11, studentName: 'Ionescu Ana', active: false }),
-  ]);
-  const t1 = fakeTest({ code: '6E2-26T1', title: 'Fracții', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' }, [
-    fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 501, status: 'graded', grade: 9 }),
-    fakeUpload({ studentId: 12, studentName: 'Albu Dan', submissionId: 502, status: 'graded', grade: 6, flagCount: 2 }),
-    fakeUpload({ studentId: 11, studentName: 'Ionescu Ana', active: false, submissionId: 503, status: 'graded', grade: 5 }),
-  ]);
-  return createFakeApi({
+  const t2 = fakeTest(
+    {
+      code: '6E2-26T2',
+      title: 'Geometrie',
+      status: 'open',
+      startedAt: '2026-10-20T07:00:00.000Z',
+      files: {
+        test: { name: 'test.pdf', type: 'application/pdf' },
+        barem: { name: 'barem.pdf', type: 'application/pdf' },
+      },
+    },
+    [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 504, status: 'uploading' }),
+      fakeUpload({ studentId: 12, studentName: 'Albu Dan', submissionId: 505, status: 'submitted' }),
+      fakeUpload({ studentId: 11, studentName: 'Ionescu Ana', active: false }),
+    ],
+  );
+  const t1 = fakeTest(
+    { code: '6E2-26T1', title: 'Fracții', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
+    [
+      fakeUpload({
+        studentId: 10,
+        studentName: 'Pop Ion',
+        submissionId: 501,
+        status: 'graded',
+        grade: 9,
+        total: 9,
+        maxTotal: 10,
+        resultsOpen: true,
+      }),
+      fakeUpload({
+        studentId: 12,
+        studentName: 'Albu Dan',
+        submissionId: 502,
+        status: 'graded',
+        grade: 6,
+        total: 6,
+        maxTotal: 10,
+        flagCount: 2,
+      }),
+      fakeUpload({
+        studentId: 11,
+        studentName: 'Ionescu Ana',
+        active: false,
+        submissionId: 503,
+        status: 'graded',
+        grade: 5,
+        total: 5,
+        maxTotal: 10,
+        resultToken: 'token-ana',
+      }),
+    ],
+  );
+  return {
     classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
     students: { 1: students },
-    tests: [t2, t1],
-  });
+    tests: [t2, t1, ...extra],
+  };
 };
 
+const gradedClass = () => createFakeApi(classData());
+
 describe('ClassPage', () => {
-  it('shows the class name and year', async () => {
-    renderAdmin('/clase/1', oneClass());
-    expect(await screen.findByRole('heading', { name: 'Clasa 6E2 · 2026-2027' })).toBeInTheDocument();
-  });
-
-  it('links to the students page', async () => {
-    renderAdmin('/clase/1', oneClass());
-    expect(await screen.findByRole('link', { name: 'Elevii clasei' })).toHaveAttribute('href', '/clase/1/elevi');
-  });
-
-  it('no longer lists or adds students itself', async () => {
-    renderAdmin('/clase/1', oneClass());
-    await screen.findByRole('heading', { name: 'Clasa 6E2 · 2026-2027' });
-    expect(screen.queryByRole('heading', { name: /^Elevi \(/ })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Numele elevilor, câte unul pe rând')).not.toBeInTheDocument();
-  });
-
-  it('names each test in the table and offers a new one for the class', async () => {
-    const api = oneClass();
-    await api.createTest({ classId: 1, title: 'Fracții' });
+  it('shows the class name, the facts and the new-test link', async () => {
+    const api = gradedClass();
     renderAdmin('/clase/1', api);
-    expect(await screen.findByRole('link', { name: '6E2-26T1 · Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
-    expect(screen.getByRole('link', { name: 'Test nou pentru această clasă' })).toHaveAttribute('href', '/teste/nou?clasa=1');
+    expect(await screen.findByText('Clasa 6E2')).toBeInTheDocument();
+    expect(await screen.findByText(/3 elevi · 2 teste · anul școlar 2026-2027/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Test nou pentru această clasă' })).toHaveAttribute(
+      'href',
+      '/teste/nou?clasa=1',
+    );
+  });
+
+  it('shows the two tabs', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    expect(await screen.findByRole('tab', { name: 'Note și teste' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Elevi' })).toBeInTheDocument();
   });
 
   it('offers no new test for an archived class', async () => {
-    const api = oneClass();
+    const api = gradedClass();
     await api.updateClass(1, { archived: true });
     renderAdmin('/clase/1', api);
-    expect(await screen.findByText('Clasa nu are încă teste.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Test nou pentru această clasă' })).not.toBeInTheDocument();
   });
 
-  it('renames the class', async () => {
-    const api = oneClass();
-    renderAdmin('/clase/1', api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Redenumește clasa' }));
-    const input = screen.getByLabelText('Nume nou');
-    await userEvent.clear(input);
-    await userEvent.type(input, '6E3');
-    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
-    expect(api.updateClass).toHaveBeenCalledWith(1, { name: '6E3' });
-    expect(await screen.findByRole('heading', { name: 'Clasa 6E3 · 2026-2027' })).toBeInTheDocument();
-  });
-
-  it.each(['abc', '1e3', '01'])('shows the not-found page for the class id %j', async (id) => {
-    renderAdmin(`/clase/${id}`, oneClass());
+  it('shows the not-found page for a bad class id', async () => {
+    renderAdmin('/clase/abc', gradedClass());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
   });
 
-  it('starts with a closed rename form when it moves straight to another class', async () => {
-    const api = createFakeApi({
-      classes: [
-        { id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 },
-        { id: 2, name: '7E2', schoolYear: 2026, archived: false, studentCount: 0 },
+  it('marks a class whose test waits in the "Schimbă clasa" menu', async () => {
+    const data = classData();
+    const waiting = fakeTest(
+      {
+        code: '9R2-26T1',
+        title: 'Logaritmi',
+        status: 'done',
+        classId: 2,
+        className: '9R2',
+        startedAt: '2026-10-09T07:00:00.000Z',
+      },
+      [
+        fakeUpload({
+          studentId: 20,
+          studentName: 'Radu Ema',
+          status: 'graded',
+          grade: 9,
+          total: 9,
+          maxTotal: 10,
+          flagCount: 1,
+        }),
       ],
-      students: {},
-    });
-    // Class 2 is opened first, so later its page shows at once, without a loading step.
-    renderAdmin('/clase/2', api, <Jumps />);
-    await screen.findByRole('heading', { name: 'Clasa 7E2 · 2026-2027' });
-    await userEvent.click(screen.getByRole('button', { name: 'Mergi la clasa 1' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Redenumește clasa' }));
-    await userEvent.type(screen.getByLabelText('Nume nou'), 'X');
-    await userEvent.click(screen.getByRole('button', { name: 'Mergi la clasa 2' }));
-    expect(await screen.findByRole('heading', { name: 'Clasa 7E2 · 2026-2027' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('Nume nou')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Redenumește clasa' })).toBeInTheDocument();
+    );
+    renderAdmin(
+      '/clase/1',
+      createFakeApi({
+        classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 0 }],
+        students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false }] },
+        tests: [...data.tests, waiting],
+      }),
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa ˅' }));
+    const link = await screen.findByRole('link', { name: /9R2/ });
+    expect(link.querySelector('.flag-dot')).not.toBeNull();
+    const menu = link.closest('.head-switch-list');
+    expect(menu).not.toBeNull();
+    expect(within(menu as HTMLElement).queryByRole('link', { name: /6E2/ })).toBeNull();
   });
 
-  it('shows the class average of each test, students who left included, and a dash when nothing is graded', async () => {
+  it('closes the small menus when a class is picked, on Esc and on a click outside', async () => {
+    const data = classData();
+    renderAdmin(
+      '/clase/1',
+      createFakeApi({
+        classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 0 }],
+        students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false }] },
+      }),
+      <LocationProbe />,
+    );
+
+    const switcher = await screen.findByRole('button', { name: 'Schimbă clasa ˅' });
+    await userEvent.click(switcher);
+    await userEvent.click(await screen.findByRole('link', { name: 'Clasa 9R2' }));
+    await expectLocation('/clase/2');
+    expect(screen.queryByRole('link', { name: 'Clasa 9R2' })).not.toBeInTheDocument();
+
+    const reopened = await screen.findByRole('button', { name: 'Schimbă clasa ˅' });
+    await userEvent.click(reopened);
+    expect(await screen.findByRole('link', { name: 'Clasa 6E2' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('link', { name: 'Clasa 6E2' })).not.toBeInTheDocument();
+    expect(reopened).toHaveFocus();
+
+    await userEvent.click(reopened);
+    expect(await screen.findByRole('link', { name: 'Clasa 6E2' })).toBeInTheDocument();
+    await userEvent.click(document.body);
+    expect(screen.queryByRole('link', { name: 'Clasa 6E2' })).not.toBeInTheDocument();
+  });
+
+  it('closes the "⋯" menu on Esc and gives the focus back to its button', async () => {
     renderAdmin('/clase/1', gradedClass());
-    const row = (await screen.findByRole('rowheader', { name: 'Media clasei' })).closest('tr')!;
-    const cells = within(row).getAllByRole('cell');
-    // Newest test on the left: T2 is open, T1 has 9, 6 and 5.
-    expect(cells[0]).toHaveTextContent('—');
-    expect(cells[1]).toHaveTextContent('6,67');
-  });
 
-  it('shows the server message for a class that does not exist', async () => {
-    renderAdmin('/clase/999', oneClass());
-    expect(await screen.findByRole('alert')).toHaveTextContent('Nu am găsit ce cauți.');
+    const more = await screen.findByRole('button', { name: '⋯' });
+    await userEvent.click(more);
+    expect(await screen.findByRole('button', { name: 'Redenumește clasa' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('button', { name: 'Redenumește clasa' })).not.toBeInTheDocument();
+    expect(more).toHaveFocus();
   });
 });
 
 describe('ClassPage grade table', () => {
   const tableOf = async () => within(await screen.findByRole('table', { name: 'Notele elevilor la teste' }));
 
-  it('shows one column per test, newest first', async () => {
+  it('shows one column per test, the oldest test on the left', async () => {
     renderAdmin('/clase/1', gradedClass());
     const table = await tableOf();
     const headers = table.getAllByRole('columnheader');
     expect(headers).toHaveLength(3);
-    expect(headers[0]).toHaveTextContent('Elev');
-    expect(within(headers[1]!).getByText('T2')).toBeInTheDocument();
-    expect(within(headers[1]!).getByRole('link', { name: '6E2-26T2 · Geometrie' })).toHaveAttribute('href', '/teste/6E2-26T2');
-    expect(within(headers[2]!).getByText('T1')).toBeInTheDocument();
-    expect(within(headers[2]!).getByRole('link', { name: '6E2-26T1 · Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
-  });
-
-  it('shows the number of students in the heading', async () => {
-    renderAdmin('/clase/1', gradedClass());
-    expect(await screen.findByRole('heading', { name: 'Note (2 elevi)' })).toBeInTheDocument();
+    expect(within(headers[1]!).getByText('T1')).toBeInTheDocument();
+    expect(within(headers[2]!).getByText('T2')).toBeInTheDocument();
   });
 
   it('links a grade to the result of the student', async () => {
@@ -167,12 +204,12 @@ describe('ClassPage grade table', () => {
     expect(table.getByRole('link', { name: '9' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/501');
   });
 
-  it('marks a grade with items to check', async () => {
+  it('marks a grade with items to check with an orange dot', async () => {
     renderAdmin('/clase/1', gradedClass());
     const table = await tableOf();
-    const link = table.getByRole('link', { name: '6 (de verificat)' });
-    expect(link).toHaveAttribute('href', '/teste/6E2-26T1/elevi/502');
+    const link = table.getByRole('link', { name: '6 puncte de verificat' });
     expect(link.closest('td')).toHaveClass('flagged-cell');
+    expect(link.closest('td')!.querySelector('.flag-dot')).not.toBeNull();
     expect(table.getByRole('link', { name: '9' }).closest('td')).not.toHaveClass('flagged-cell');
   });
 
@@ -187,99 +224,147 @@ describe('ClassPage grade table', () => {
     expect(leftRow.getByText('—')).toBeInTheDocument();
   });
 
-  it('keeps a column for an open test, with its status', async () => {
+  it('shows the test average in the last row "Media testului"', async () => {
     renderAdmin('/clase/1', gradedClass());
     const table = await tableOf();
-    const header = within(table.getAllByRole('columnheader')[1]!);
-    expect(header.getByText('Deschis')).toBeInTheDocument();
-    expect(header.queryByText('20.10')).not.toBeInTheDocument();
-  });
-
-  it('shows the date of a finished test', async () => {
-    renderAdmin('/clase/1', gradedClass());
-    const table = await tableOf();
-    expect(within(table.getAllByRole('columnheader')[2]!).getByText('06.10')).toBeInTheDocument();
-  });
-
-  it('links the report from a test with graded work', async () => {
-    renderAdmin('/clase/1', gradedClass());
-    const table = await tableOf();
-    const headers = table.getAllByRole('columnheader');
-    expect(within(headers[2]!).getByRole('link', { name: 'raport' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
-    expect(within(headers[1]!).queryByRole('link', { name: 'raport' })).not.toBeInTheDocument();
+    const row = table.getByRole('rowheader', { name: 'Media testului' }).closest('tr')!;
+    const cells = within(row).getAllByRole('cell');
+    // Oldest first: T1 has 9, 6 and 5 -> 6,67; T2 has none graded -> —.
+    expect(cells[0]).toHaveTextContent('6,67');
+    expect(cells[1]).toHaveTextContent('—');
   });
 
   it('lists students who left after the others, marked', async () => {
     renderAdmin('/clase/1', gradedClass());
     const table = await tableOf();
     const names = table.getAllByRole('rowheader').map((cell) => cell.textContent);
-    expect(names).toEqual(['Albu Dan', 'Pop Ion', 'Ionescu Ana a plecat', 'Media clasei']);
-    const leftRow = table.getByRole('link', { name: 'Ionescu Ana' }).closest('tr')!;
-    expect(leftRow).toHaveClass('is-muted');
-    expect(within(leftRow).getByText('a plecat')).toHaveClass('tag');
-    expect(table.getByRole('link', { name: 'Ionescu Ana' })).toHaveAttribute('href', '/elevi/11');
+    expect(names).toEqual(['Albu Dan', 'Pop Ion', 'Ionescu Ana a plecat', 'Media testului']);
   });
+});
 
-  it('hides archived tests until asked', async () => {
-    const api = gradedClass();
-    await api.setTestArchived('6E2-26T1', true);
-    renderAdmin('/clase/1', api);
-    const table = await tableOf();
-    expect(table.getAllByRole('columnheader')).toHaveLength(2);
-    expect(table.queryByRole('link', { name: '6E2-26T1 · Fracții' })).not.toBeInTheDocument();
-    const toggle = screen.getByRole('button', { name: 'Arată și testele arhivate (1)' });
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    await userEvent.click(toggle);
-    expect(table.getByRole('link', { name: '6E2-26T1 · Fracții' })).toBeInTheDocument();
-    expect(table.getByText('Arhivat')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ascunde testele arhivate' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(screen.getByRole('button', { name: 'Ascunde testele arhivate' }));
-    expect(table.queryByRole('link', { name: '6E2-26T1 · Fracții' })).not.toBeInTheDocument();
-  });
-
-  it('puts the archived toggle with the actions at the top', async () => {
-    const api = gradedClass();
-    await api.setTestArchived('6E2-26T1', true);
-    renderAdmin('/clase/1', api);
-    await tableOf();
-    const toggle = screen.getByRole('button', { name: 'Arată și testele arhivate (1)' });
-    expect(toggle.parentElement).toHaveClass('head-actions');
-    expect(within(toggle.parentElement!).getByRole('link', { name: 'Elevii clasei' })).toBeInTheDocument();
-  });
-
-  it('says so when every test is archived and the toggle is off', async () => {
-    const api = createFakeApi({
-      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
-      students: { 1: [{ id: 10, fullName: 'Pop Ion', active: true, canDelete: false }] },
-      tests: [fakeTest({ code: '6E2-26T1', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' }, [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 501, status: 'graded', grade: 9 })])],
-    });
-    await api.setTestArchived('6E2-26T1', true);
-    renderAdmin('/clase/1', api);
-    expect(await screen.findByText(/Toate testele clasei sunt arhivate/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /Arată și testele arhivate/ }));
-    expect(await screen.findByRole('table')).toBeInTheDocument();
-  });
-
-  it('offers no toggle when no test is archived', async () => {
+describe('ClassPage "Elevi" tab', () => {
+  it('shows the students of the class with a search and an add button', async () => {
     renderAdmin('/clase/1', gradedClass());
-    await tableOf();
-    expect(screen.queryByRole('button', { name: /testele arhivate/ })).not.toBeInTheDocument();
+    await screen.findByRole('tab', { name: 'Elevi' }).then((el) => el.click());
+    expect(await screen.findByRole('heading', { name: 'Elevi (3 elevi)' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Caută elev')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Adaugă elevi' })).toBeInTheDocument();
+    expect(screen.getByText('Pop Ion')).toBeInTheDocument();
+    expect(screen.getByText('Albu Dan')).toBeInTheDocument();
+    expect(screen.getByText('Ionescu Ana')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Arată și testele arhivate/ })).not.toBeInTheDocument();
   });
 
-  it('says so when the class has students but no tests', async () => {
-    renderAdmin('/clase/1', oneClass());
-    expect(await screen.findByText('Clasa nu are încă teste.')).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  it('marks a student whose test has items to check', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    await screen.findByRole('tab', { name: 'Elevi' }).then((el) => el.click());
+    const albu = screen.getByText('Albu Dan').closest('li')!;
+    expect(albu.querySelector('.flag-dot')).not.toBeNull();
+    const pop = screen.getByText('Pop Ion').closest('li')!;
+    expect(pop.querySelector('.flag-dot')).toBeNull();
   });
 
-  it('offers to add students when the class has none', async () => {
-    const api = createFakeApi({
-      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
-      students: {},
-      tests: [fakeTest({ code: '6E2-26T1', status: 'done' })],
+  it('shows one student with each test, its date, points, grade and result', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    await screen.findByRole('tab', { name: 'Elevi' }).then((el) => el.click());
+    await screen.findByText('Ionescu Ana').then((el) => el.click());
+    expect(await screen.findByText('Geometrie')).toBeInTheDocument();
+    expect(screen.getByText('Nu a trimis lucrarea')).toBeInTheDocument();
+    expect(screen.getByText('Fracții')).toBeInTheDocument();
+    expect(screen.getByText('5 / 10')).toBeInTheDocument();
+    expect(screen.getByText('Toate notele elevului, din toate clasele')).toBeInTheDocument();
+  });
+
+  it('shows a graded result as publicat or nepublicat, with the link to copy', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    await screen.findByRole('tab', { name: 'Elevi' }).then((el) => el.click());
+
+    await screen.findByText('Pop Ion').then((el) => el.click());
+    expect(await screen.findByText('Publicat')).toBeInTheDocument();
+    expect(screen.getByText('Încarcă…')).toBeInTheDocument();
+
+    await screen.findByRole('button', { name: '← Elevi' }).then((el) => el.click());
+    await screen.findByText('Ionescu Ana').then((el) => el.click());
+    expect(await screen.findByText('Nepublicat')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
+    expect(screen.getByText('Nu a trimis lucrarea')).toBeInTheDocument();
+  });
+
+  it('says a sent paper waits for the check, and links each paper', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    await screen.findByRole('tab', { name: 'Elevi' }).then((el) => el.click());
+    await screen.findByText('Albu Dan').then((el) => el.click());
+    expect(await screen.findByText('După verificare')).toBeInTheDocument();
+    expect(screen.getByText('2 puncte de verificat')).toBeInTheDocument();
+    const papers = screen.getAllByRole('link', { name: 'Vezi lucrarea' }).map((link) => link.getAttribute('href'));
+    expect(papers).toEqual(['/teste/6E2-26T2/elevi/505', '/teste/6E2-26T1/elevi/502']);
+  });
+});
+
+describe('ClassPage "Testele clasei"', () => {
+  const aside = async () => within(await screen.findByRole('complementary', { name: 'Testele clasei' }));
+
+  it('lists the tests newest first, with their date, papers, stage and next step', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    const list = await aside();
+    const items = list.getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    const [newest, oldest] = items;
+
+    expect(within(newest!).getByRole('link', { name: 'Geometrie' })).toHaveAttribute('href', '/teste/6E2-26T2');
+    expect(within(newest!).getByText('20.10')).toBeInTheDocument();
+    expect(within(newest!).getByText(/1 din 2 trimise/)).toBeInTheDocument();
+    expect(within(newest!).getByText('În clasă')).toBeInTheDocument();
+    expect(within(newest!).getByRole('link', { name: 'Pornește corectarea' })).toHaveAttribute(
+      'href',
+      '/teste/6E2-26T2#corectare',
+    );
+
+    expect(within(oldest!).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
+    expect(within(oldest!).getByText('06.10')).toBeInTheDocument();
+    expect(within(oldest!).getByRole('link', { name: 'Verifică 2 puncte' })).toHaveAttribute(
+      'href',
+      '/teste/6E2-26T1/verificare',
+    );
+  });
+
+  it('keeps the archived tests behind their toggle, in both the table and the list', async () => {
+    const archived = fakeTest({
+      code: '6E2-26T0',
+      title: 'Teză',
+      status: 'done',
+      startedAt: '2026-09-20T07:00:00.000Z',
+      archived: true,
     });
+    renderAdmin('/clase/1', createFakeApi(classData([archived])));
+
+    const headers = () => screen.getByRole('table', { name: 'Notele elevilor la teste' }).querySelectorAll('thead th');
+    await screen.findByRole('table', { name: 'Notele elevilor la teste' });
+    expect(headers()).toHaveLength(3);
+    expect((await aside()).queryByRole('link', { name: 'Teză' })).not.toBeInTheDocument();
+
+    await userEvent.click((await aside()).getByRole('button', { name: 'Arată și testele arhivate (1)' }));
+
+    expect(headers()).toHaveLength(4);
+    expect((await aside()).getByRole('link', { name: 'Teză' })).toBeInTheDocument();
+    expect((await aside()).getByRole('button', { name: 'Arată și testele arhivate (1)' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('renames the class from its menu', async () => {
+    const api = gradedClass();
     renderAdmin('/clase/1', api);
-    expect(await screen.findByText('Clasa nu are încă elevi.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Adaugă elevi' })).toHaveAttribute('href', '/clase/1/elevi');
+    await screen.findByText('Clasa 6E2');
+
+    await userEvent.click(screen.getByRole('button', { name: '⋯' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Redenumește clasa' }));
+    const field = await screen.findByLabelText('Numele clasei');
+    await userEvent.clear(field);
+    await userEvent.type(field, '7A1');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
+
+    expect(api.updateClass).toHaveBeenCalledWith(1, { name: '7A1' });
   });
 });
