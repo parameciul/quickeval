@@ -14,6 +14,7 @@ export function Rail({
   onTests,
   onClasses,
   todoCount,
+  urgent,
   panel,
   onToggle,
 }: {
@@ -21,6 +22,8 @@ export function Rail({
   onTests: boolean;
   onClasses: boolean;
   todoCount: number;
+  // An administrator has an account to approve: the number is red.
+  urgent: boolean;
   panel: PanelName | null;
   onToggle(name: PanelName): void;
 }) {
@@ -50,7 +53,9 @@ export function Rail({
       <button
         type="button"
         className="rail-item"
-        aria-label={todoCount > 0 ? `De făcut: ${countLabel(todoCount, 'lucru', 'lucruri')}` : 'De făcut'}
+        aria-label={
+          todoCount > 0 ? `De făcut: ${countLabel(todoCount, 'lucru', 'lucruri')}${urgent ? ', unul urgent' : ''}` : 'De făcut'
+        }
         aria-expanded={panel === 'todo'}
         aria-controls={panel === 'todo' ? 'panel-todo' : undefined}
         onClick={() => onToggle('todo')}
@@ -58,7 +63,7 @@ export function Rail({
         <IconTodo />
         <span className="rail-word">De făcut</span>
         {todoCount > 0 && (
-          <span className="rail-badge" aria-hidden="true">
+          <span className={urgent ? 'rail-badge rail-badge-urgent' : 'rail-badge'} aria-hidden="true">
             {todoCount}
           </span>
         )}

@@ -23,12 +23,15 @@ function othersLine(others: number, alone: boolean): string {
 // the tests of the year arrive it says so, or why they could not be read.
 export function TodoPanel({
   items,
+  approvals,
   others,
   loading,
   error,
   onClose,
 }: {
   items: TodoItem[];
+  // Accounts that wait for an administrator's approval; 0 for a teacher.
+  approvals: number;
   others: number;
   loading: boolean;
   error: unknown;
@@ -43,10 +46,23 @@ export function TodoPanel({
         </div>
       ) : loading ? (
         <p className="panel-body hint">Se încarcă…</p>
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && approvals === 0 ? (
         <p className="panel-body hint">Nimic nu te așteaptă acum.</p>
       ) : (
         <ol className="todo-list">
+          {approvals > 0 && (
+            <li className="todo-card todo-urgent">
+              <p className="todo-test">
+                <span className="tag tag-urgent">Urgent</span>
+                Administrator
+              </p>
+              <h3>{approvals === 1 ? 'Un cont nou așteaptă aprobarea' : `${approvals} conturi noi așteaptă aprobarea`}</h3>
+              <p className="todo-text">Profesorul și-a confirmat emailul. Până aprobi contul, nu se poate conecta.</p>
+              <Link className="button button-small" to="/setari" aria-label="Deschide Setări: conturi de aprobat">
+                Deschide
+              </Link>
+            </li>
+          )}
           {items.map((item, index) => (
             <li key={item.code} className="todo-card">
               <p className="todo-test">
@@ -56,7 +72,7 @@ export function TodoPanel({
               <h3>{item.task}</h3>
               <p className="todo-text">{item.text}</p>
               <Link
-                className={index === 0 ? 'button button-small' : 'button-quiet button-small'}
+                className={index === 0 && approvals === 0 ? 'button button-small' : 'button-quiet button-small'}
                 to={todoPath(item)}
                 aria-label={`${item.action}: ${item.testTitle}, ${item.className}`}
               >

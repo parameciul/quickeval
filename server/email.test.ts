@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { sendBrevoEmail } from './email.ts';
+import { sendBrevoEmail, textToHtml } from './email.ts';
 import type { Env } from './env.ts';
 
 const env = { BREVO_API_KEY: ' key-123 ', EMAIL_FROM: 'quickeval@example.com' } as Env;
@@ -7,6 +7,24 @@ const message = { to: ['a@example.com', 'b@example.com'], subject: 'Subiect', te
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe('textToHtml', () => {
+  it('makes every web address a link, keeping the token after #', () => {
+    const html = textToHtml('Alege-o aici:\nhttps://mqgrader.ro/admin/parola-noua#abc-_9\nGata.');
+    expect(html).toContain('<a href="https://mqgrader.ro/admin/parola-noua#abc-_9">https://mqgrader.ro/admin/parola-noua#abc-_9</a>');
+    expect(html).toContain('Gata.');
+  });
+
+  it('escapes HTML in names and text', () => {
+    const html = textToHtml('Bună, <b>Ion</b> & "Ana"!');
+    expect(html).toContain('&lt;b&gt;Ion&lt;/b&gt; &amp; &quot;Ana&quot;!');
+    expect(html).not.toContain('<b>');
+  });
+
+  it('leaves text with no address as it is', () => {
+    expect(textToHtml('Fără link.')).not.toContain('<a ');
+  });
 });
 
 describe('sendBrevoEmail', () => {
@@ -21,6 +39,7 @@ describe('sendBrevoEmail', () => {
       to: [{ email: 'a@example.com' }, { email: 'b@example.com' }],
       subject: 'Subiect',
       textContent: 'Text.',
+      htmlContent: textToHtml('Text.'),
     });
   });
 

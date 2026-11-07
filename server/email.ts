@@ -6,7 +6,17 @@ export interface EmailMessage {
   text: string;
 }
 
-// Sends a plain-text email through Brevo's API (free plan: 300 emails a day,
+const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+// The HTML twin of a plain-text email: the text escaped, lines kept, and every
+// web address a link, so mail programs show it as one.
+export function textToHtml(text: string): string {
+  const escaped = text.replace(/[&<>"']/g, (char) => ESCAPES[char] ?? char);
+  const linked = escaped.replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}">${url}</a>`);
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;white-space:pre-line">${linked}</div>`;
+}
+
+// Sends an email (plain text, and its HTML twin with links) through Brevo's API (free plan: 300 emails a day,
 // no own domain needed). True when Brevo took it. False without the settings
 // BREVO_API_KEY and EMAIL_FROM, or when Brevo refuses or does not answer in 5
 // seconds. Never throws: an email only tells about something the app also
@@ -25,6 +35,7 @@ export async function sendBrevoEmail(env: Env, message: EmailMessage, fetchImpl:
         to: message.to.map((email) => ({ email })),
         subject: message.subject,
         textContent: message.text,
+        htmlContent: textToHtml(message.text),
       }),
       signal: AbortSignal.timeout(5000),
     });
