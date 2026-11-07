@@ -81,10 +81,14 @@ export function ClassesPanel({
         </>
       )}
       <div className="panel-actions">
-        <Link className="button-quiet button-small" to="/clase">
+        <Link className="button-quiet button-small" to="/clase" state={{ newClass: true }}>
           + Clasă nouă
         </Link>
-        {archived > 0 && <Link to="/clase">Arhivate ({archived})</Link>}
+        {archived > 0 && (
+          <Link to="/clase" state={{ archived: true }}>
+            Arhivate ({archived})
+          </Link>
+        )}
       </div>
     </Panel>
   );

@@ -432,7 +432,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
                       flagCount: row.status === 'graded' ? row.flagCount : 0,
                       total: row.total,
                       maxTotal: row.maxTotal,
-                      resultsOpen: row.resultsOpen,
+                      // Open when the whole test is published or this one alone, as on the server.
+                      resultsOpen: t.test.resultsOpen || row.resultsOpen,
                       resultToken: row.resultToken,
                       startedAt: row.startedAt,
                     },
