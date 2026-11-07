@@ -23,7 +23,7 @@ MQGrader (formerly QuickEval): a web app that helps Laura Miron (math teacher, L
 
 ## Commands
 
-- `npm test`: all tests (Vitest projects "web" and "node"). `npm run typecheck`: one strict config for everything. `npm run build`: typecheck, then the Vite build into `dist/`.
+- `npm test`: all tests (Vitest projects "web", "shared", "server", "runner"). Run less while you work: `npm run test:web`, `test:server`, `test:runner`, `test:changed` (files changed since the last commit and what imports them), `npm run test:related -- <file>`, `npm run test:watch`. Run the whole suite before a push. `npm run typecheck`: one strict config for everything. `npm run build`: typecheck, then the Vite build into `dist/`.
 - `npm run db:local`: apply the migrations to the local D1 and add the local teacher.
 - `npm run dev:api` and `npm run dev:web` (two terminals): hot reload at http://localhost:5173/admin/. A started test's student page is at `http://localhost:5173/u/<token>`.
 - `npm run db:local`, then `npm run preview`, then `npm run smoke` in a second terminal: the production build on http://127.0.0.1:8788 and its smoke test. Each smoke run leaves one class with one student in the local database, and makes a new local robot key.

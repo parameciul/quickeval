@@ -9,3 +9,4 @@ secrets
 .superpowers/
 docs/design-proposals/
 .taste-skill/
+.vitest/
