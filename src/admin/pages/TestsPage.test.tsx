@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api.ts';
@@ -128,8 +128,8 @@ describe('TestsPage, what waits', () => {
     expect(list).toBeVisible();
     const rows = within(list).getAllByRole('listitem');
     expect(rows.map((row) => row.textContent)).toEqual([
-      'VerificareDecide 3 puncte nesigureEcuații · Clasa 6E2Începe',
-      'RezultatePublică rezultateleLogaritmi · Clasa 6E2Deschide',
+      'Verificare Decide 3 puncte nesigureEcuații · Clasa 6E2Începe',
+      'Rezultate Publică rezultateleLogaritmi · Clasa 6E2Deschide',
     ]);
     const first = within(list).getByRole('link', { name: 'Începe: Ecuații, Clasa 6E2' });
     expect(first).toHaveClass('button');
@@ -459,5 +459,44 @@ describe('TestsPage results', () => {
     const graded = await findRow('Fracții');
     expect(within(graded).getByRole('link', { name: 'Raportul clasei: Fracții, Clasa 6E2' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
     expect(within(rowOf('Ecuații')).queryByRole('link', { name: /^Raportul clasei/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('TestsPage small details', () => {
+  it('puts a space between the title of an archived test and its tag', async () => {
+    renderAdmin('/?arhivate=1', createFakeApi({ classes: oneClass, students: {}, tests: [fakeTest({ code: '6E2-26T1', title: 'Vechi', status: 'done', archived: true })] }));
+    const row = await findRow('Vechi');
+    expect(row.querySelector('th')!.textContent).toMatch(/^Vechi Arhivat/);
+  });
+
+  it('calls a test a draft by its status, not by a start date it may keep', async () => {
+    renderAdmin('/', createFakeApi({ classes: oneClass, students: {}, tests: [fakeTest({ code: '6E2-26T1', title: 'Fracții', ...started })] }));
+    const row = await findRow('Fracții');
+    expect(within(row).getByText('Clasa 6E2 · ciornă')).toBeInTheDocument();
+  });
+
+  it('gives each table the name of its group', async () => {
+    renderAdmin('/', withTests());
+    await findRow('Ecuații');
+    expect(screen.getByRole('table', { name: 'În lucru' })).toBeInTheDocument();
+  });
+
+  it('moves the focus to the test link when a publish moves the row', async () => {
+    renderAdmin('/', withPublishing());
+    const row = await findRow('Fracții');
+    await userEvent.click(within(row).getByRole('button', { name: 'Publică rezultatele: Fracții, Clasa 6E2' }));
+    const finished = await screen.findByRole('region', { name: 'Terminate' });
+    await waitFor(() => expect(within(finished).getByRole('link', { name: 'Fracții' })).toHaveFocus());
+  });
+
+  it('changes the greeting when the hour passes while the page is open', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date('2026-11-04T08:59:30.000Z'));
+    renderAdmin('/', withTests());
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bună dimineața, Laura.' })).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByRole('heading', { level: 1, name: 'Bună ziua, Laura.' })).toBeInTheDocument();
   });
 });

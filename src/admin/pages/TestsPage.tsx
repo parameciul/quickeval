@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { displayClassName } from '../../../shared/classes.ts';
 import { countLabel } from '../../ui/format.ts';
+import { useNow } from '../../ui/useNow.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
@@ -23,7 +24,9 @@ export function TestsPage() {
   const tests = useQuery({ queryKey: ['tests', year], queryFn: () => api.listTests(year) });
   const classes = useQuery({ queryKey: ['classes', year], queryFn: () => api.listClasses(year) });
   const [todoOpen, setTodoOpen] = useState(false);
-  const now = new Date();
+  const now = useNow();
+  // The test whose row takes the focus once a publish has moved it.
+  const [focusCode, setFocusCode] = useState<string | null>(null);
 
   const requested = Number(params.get('clasa'));
   const chosenClass = classes.data?.find((item) => item.id === requested)?.id ?? null;
@@ -111,8 +114,8 @@ export function TestsPage() {
       {tests.data && tests.data.length > 0 && visible?.length === 0 && !classes.isPending && (
         <p className="hint">Nu ai teste pentru această alegere.</p>
       )}
-      {!classes.isPending && working.length > 0 && <TestGroup title="În lucru" tests={working} first={first} />}
-      {!classes.isPending && finished.length > 0 && <TestGroup title="Terminate" tests={finished} first={first} />}
+      {!classes.isPending && working.length > 0 && <TestGroup title="În lucru" tests={working} first={first} focusCode={focusCode} onPublished={setFocusCode} />}
+      {!classes.isPending && finished.length > 0 && <TestGroup title="Terminate" tests={finished} first={first} focusCode={focusCode} onPublished={setFocusCode} />}
     </section>
   );
 }
