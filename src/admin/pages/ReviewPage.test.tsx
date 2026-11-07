@@ -34,6 +34,7 @@ function papers(): SubmissionDetail[] {
             comment: 'Verifică semnul.',
             needsReview: true,
             reviewReason: 'Scrisul nu se citește.',
+            page: 3,
           }),
         ],
         { unreadable: ['student/page-02.jpg'] },
@@ -129,6 +130,22 @@ describe('the review of the points to check', () => {
     expect(within(queue()).queryByRole('link', { name: 'Paginile necitite' })).not.toBeInTheDocument();
   });
 
+  it('opens an item on the page where its answer is, and on page 1 when the page is unknown', async () => {
+    const api = apiWith();
+    renderAdmin(PAGE, api, <LocationProbe />);
+    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await userEvent.keyboard('j');
+    await expectLocation(at(`?lucrare=11&punct=32`));
+    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+    expect(screen.getByTitle('Pagina 3 a lucrării')).toHaveAttribute('src', submissionFileUrl(11, 103));
+    await userEvent.keyboard('1');
+    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    await userEvent.keyboard('k');
+    await userEvent.keyboard('k');
+    await expectLocation(at(`?lucrare=14&punct=41`));
+    expect(await screen.findByText('Ion Popa · pagina 1 din 1')).toBeInTheDocument();
+  });
+
   it("accepts the robot's points, and the next point opens", async () => {
     const api = apiWith();
     renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
@@ -137,7 +154,7 @@ describe('the review of the points to check', () => {
     expect(within(panel).getByText('Verifică semnul.')).toBeInTheDocument();
     expect(within(panel).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
     expect(within(panel).getByText('2p în barem')).toBeInTheDocument();
-    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
 
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     expect(api.correctItem).toHaveBeenCalledWith(11, 32, { reviewed: true, gradedAt: GRADED_AT });
@@ -243,7 +260,7 @@ describe('the review of the points to check', () => {
     expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
     await userEvent.keyboard('jk2');
     await expectLocation(at(`?lucrare=11&punct=32`));
-    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
   });
 
   it('says when every point is checked, with the way to Rezultate', async () => {

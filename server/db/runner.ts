@@ -15,6 +15,7 @@ import {
 } from '../../shared/runner.ts';
 import type { CheckedExerciseList, ClassAnalysis, ExerciseList, Grading } from '../../shared/schemas.ts';
 import type { ExerciseListStatus } from '../../shared/tests.ts';
+import { compareStudentNames } from '../../shared/students.ts';
 import { askForAnalysis, finishTests, promoteStatements } from './lifecycle.ts';
 import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
 
@@ -523,25 +524,38 @@ export async function holdsLease(db: D1Database, runId: string): Promise<boolean
   return row !== null;
 }
 
-// Takes the upload that waits longest among those with the fewest attempts,
-// and marks it as this run's: an upload whose grading just failed waits for
-// the others. One statement, so parallel claims never take the same upload. Null when there
-// is none, or when the run does not hold the lease. A run never takes back an
+// Takes the next upload in line and marks it as this run's: the uploads with
+// the fewest attempts first (an upload whose grading just failed waits for the
+// others), and among them the students in alphabetical order. Null when there
+// is none, or when the run does not hold the lease. The marking is one
+// statement that checks the status, so parallel claims never take the same
+// upload: one that lost the race looks again. A run never takes back an
 // upload that a reopen took from it (reopenTest keeps that run's id): the
 // run's old grading of it may still send a result, which must be refused.
 export async function claimSubmission(db: D1Database, runId: string): Promise<ClaimResult | null> {
-  const claimed = await db
-    .prepare(
-      `UPDATE submissions SET status = 'grading', run_id = ?
-       WHERE id = (
-           SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id
-           WHERE ${GRADABLE} AND (s.run_id IS NULL OR s.run_id <> ?)
-           ORDER BY s.attempts, s.submitted_at, s.id LIMIT 1)
-         AND status = 'submitted' AND ${HOLDS_LEASE}
-       RETURNING id, test_id, started_at`,
-    )
-    .bind(runId, runId, runId)
-    .first<{ id: number; test_id: number; started_at: string }>();
+  let claimed: { id: number; test_id: number; started_at: string } | null = null;
+  for (let tries = 0; tries < 5 && !claimed; tries++) {
+    const { results: waiting } = await db
+      .prepare(
+        `SELECT s.id, s.attempts, st.full_name FROM submissions s
+         JOIN tests t ON t.id = s.test_id JOIN students st ON st.id = s.student_id
+         WHERE ${GRADABLE} AND (s.run_id IS NULL OR s.run_id <> ?)`,
+      )
+      .bind(runId)
+      .all<{ id: number; attempts: number; full_name: string }>();
+    const next = waiting.sort((x, y) => x.attempts - y.attempts || compareStudentNames(x.full_name, y.full_name) || x.id - y.id)[0];
+    if (!next) return null;
+    claimed = await db
+      .prepare(
+        `UPDATE submissions SET status = 'grading', run_id = ?
+         WHERE id = ? AND status = 'submitted' AND ${HOLDS_LEASE}
+         RETURNING id, test_id, started_at`,
+      )
+      .bind(runId, next.id, runId)
+      .first<{ id: number; test_id: number; started_at: string }>();
+    // No row: another claim took it, or the run lost the lease.
+    if (!claimed && !(await holdsLease(db, runId))) return null;
+  }
   if (!claimed) return null;
   const { results } = await db
     .prepare('SELECT id, content_type, position FROM submission_files WHERE submission_id = ? ORDER BY position, id')
@@ -801,11 +815,11 @@ export async function saveGrading(
     db
       .prepare(
         `INSERT INTO evaluation_items (evaluation_id, exercise_id, position, label, max_points, ai_points, points,
-           student_answer, comment, confidence, needs_review, review_reason)
+           student_answer, comment, confidence, needs_review, review_reason, page)
          SELECT e.id, json_extract(j.value, '$.exerciseId'), json_extract(j.value, '$.position'), json_extract(j.value, '$.label'),
            json_extract(j.value, '$.maxPoints'), json_extract(j.value, '$.points'), json_extract(j.value, '$.points'),
            json_extract(j.value, '$.studentAnswer'), json_extract(j.value, '$.comment'), json_extract(j.value, '$.confidence'),
-           json_extract(j.value, '$.needsReview'), json_extract(j.value, '$.reviewReason')
+           json_extract(j.value, '$.needsReview'), json_extract(j.value, '$.reviewReason'), json_extract(j.value, '$.page')
          FROM json_each(?) j JOIN evaluations e ON e.submission_id = ?
          WHERE ${GRADED_BY_RUN}`,
       )

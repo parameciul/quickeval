@@ -248,6 +248,7 @@ export function fakeItem(overrides: Partial<EvaluationItemInfo> & Pick<Evaluatio
     confidence: 'high',
     needsReview: false,
     reviewReason: '',
+    page: 0,
     reviewed: false,
     changedByTeacher: false,
     ...overrides,
