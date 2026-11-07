@@ -102,10 +102,10 @@ export function Layout() {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
   // Nobody logged in: the login form takes the place of every page. The pages
-  // wait for the login, so they never ask the API without it. The page that
-  // confirms a new account's email needs no login.
+  // wait for the login, so they never ask the API without it. The pages that
+  // confirm a new account's email and set a new password need no login.
   const loggedOut = isLoginRequired(me.error);
-  const openPage = location.pathname === '/confirma-email';
+  const openPage = location.pathname === '/confirma-email' || location.pathname === '/parola-noua';
 
   return (
     <div className={me.data ? 'shell' : 'shell shell-bare'}>

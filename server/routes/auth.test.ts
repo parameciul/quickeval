@@ -9,7 +9,11 @@ import {
   MAX_PENDING_ACCOUNTS,
   MAX_SIGNUPS_PER_DAY,
   MAX_SIGNUPS_PER_IP,
+  MAX_RESETS_PER_ACCOUNT,
+  MAX_RESETS_PER_IP,
   PENDING_DAYS,
+  RESET_HOURS,
+  RESET_RESEND_MINUTES,
   REPLACE_MINUTES,
   RESEND_MINUTES,
 } from '../db/accounts.ts';
@@ -503,6 +507,152 @@ describe('a browser that logged in before', () => {
   it('opens nothing by itself', async () => {
     const device = await knownBrowser();
     expect((await api.request('GET', '/api/admin/me', undefined, { Cookie: device })).status).toBe(401);
+  });
+});
+
+const forgot = (email: string) => api.request('POST', '/api/auth/forgot-password', { email });
+const resetToken = () => /parola-noua#([\w-]+)/.exec(emails.at(-1)!.text)![1]!;
+const reset = (token: string, newPassword = 'parola-noua-lunga') => api.request('POST', '/api/auth/reset-password', { token, newPassword });
+const flush = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+describe('password reset by email', () => {
+  it('sends a link, sets the new password once, and ends every login', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-veche');
+    const old = cookieOf(await login('profesor@example.com', 'parola-veche'));
+    const res = await forgot('Profesor@Example.com');
+    expect(res.status).toBe(200);
+    await flush();
+    expect(emails.at(-1)!.to).toEqual(['profesor@example.com']);
+    expect(emails.at(-1)!.text).toMatch(/http:\/\/localhost\/admin\/parola-noua#[\w-]{43}/);
+    const token = resetToken();
+    expect((await reset(token)).status).toBe(200);
+    expect((await login('profesor@example.com', 'parola-veche')).status).toBe(401);
+    expect((await login('profesor@example.com', 'parola-noua-lunga')).status).toBe(200);
+    expect((await api.request('GET', '/api/admin/me', undefined, { Cookie: old })).status).toBe(401);
+    // The link is used up.
+    expect((await reset(token, 'alta-parola-lunga')).status).toBe(404);
+  });
+
+  it('answers an unknown email like a known one, and sends nothing', async () => {
+    const known = await forgot('profesor@example.com');
+    const unknown = await forgot('nimeni@example.com');
+    await flush();
+    expect(unknown.status).toBe(known.status);
+    expect(unknown.body).toEqual(known.body);
+    expect(emails).toHaveLength(1);
+  });
+
+  it('gives an account one link every few minutes', async () => {
+    await forgot('profesor@example.com');
+    await forgot('profesor@example.com');
+    await flush();
+    expect(emails).toHaveLength(1);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + (RESET_RESEND_MINUTES + 1) * 60 * 1000);
+    await forgot('profesor@example.com');
+    vi.useRealTimers();
+    await flush();
+    expect(emails).toHaveLength(2);
+  });
+
+  it('takes no link older than its hour', async () => {
+    await forgot('profesor@example.com');
+    await flush();
+    const token = resetToken();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + (RESET_HOURS * 60 + 1) * 60 * 1000);
+    expect((await reset(token)).status).toBe(404);
+    vi.useRealTimers();
+  });
+
+  it('refuses a made-up link and a common password', async () => {
+    expect((await reset('inventat')).status).toBe(404);
+    await forgot('profesor@example.com');
+    await flush();
+    expect((await reset(resetToken(), 'password')).status).toBe(400);
+  });
+
+  it('unlocks a locked account', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-veche');
+    for (let i = 0; i < MAX_FAILED_LOGINS; i++) await login('profesor@example.com', 'gresita');
+    await forgot('profesor@example.com');
+    await flush();
+    await reset(resetToken());
+    expect((await login('profesor@example.com', 'parola-noua-lunga')).status).toBe(200);
+  });
+
+  it('takes at most a few requests from one IP in a day, whatever the emails', async () => {
+    for (let i = 0; i < MAX_RESETS_PER_IP; i++) expect((await forgot(`x${i}@example.com`)).status).toBe(200);
+    expect((await forgot('profesor@example.com')).status).toBe(429);
+    await flush();
+    expect(emails).toHaveLength(0);
+  });
+
+  it('gives an account only a few links a day, then lets it ask again the next day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const start = Date.now();
+    for (let i = 0; i < MAX_RESETS_PER_ACCOUNT + 2; i++) {
+      vi.setSystemTime(start + i * (RESET_RESEND_MINUTES + 1) * 60 * 1000);
+      expect((await forgot('profesor@example.com')).status).toBe(200);
+    }
+    await flush();
+    expect(emails).toHaveLength(MAX_RESETS_PER_ACCOUNT);
+    vi.setSystemTime(start + 25 * 60 * 60 * 1000);
+    await forgot('profesor@example.com');
+    await flush();
+    expect(emails).toHaveLength(MAX_RESETS_PER_ACCOUNT + 1);
+  });
+
+  it('sends nothing to a pending or closed account, and answers the same', async () => {
+    await api.addTeacher('inchis@example.com', 'Închis', { role: 'teacher' });
+    await api.db.prepare("UPDATE teachers SET status = 'disabled' WHERE email = 'inchis@example.com'").run();
+    await signup({ name: 'Ana Pop', email: 'ana@example.com', password: 'parola-lunga' });
+    await flush();
+    const before = emails.length;
+    const known = await forgot('profesor@example.com');
+    for (const email of ['inchis@example.com', 'ana@example.com']) {
+      const res = await forgot(email);
+      expect(res.status).toBe(known.status);
+      expect(res.body).toEqual(known.body);
+    }
+    await flush();
+    expect(emails).toHaveLength(before + 1);
+  });
+
+  it('forgets the account\'s known browsers and leaves other accounts alone', async () => {
+    await api.addTeacher('alta@example.com', 'Altă Profesoară', { role: 'teacher' });
+    await setPasswordOf('profesor@example.com', 'parola-veche');
+    await setPasswordOf('alta@example.com', 'parola-alta-lunga');
+    const mine = await login('profesor@example.com', 'parola-veche');
+    const other = cookieOf(await login('alta@example.com', 'parola-alta-lunga'));
+    expect(cookieOf(mine, 'qe_device')).not.toBe('');
+    await forgot('profesor@example.com');
+    await flush();
+    await reset(resetToken());
+    const devices = (email: string) =>
+      api.db.prepare('SELECT COUNT(*) AS n FROM trusted_devices WHERE teacher_id = (SELECT id FROM teachers WHERE email = ?)').bind(email).first<{ n: number }>();
+    expect((await devices('profesor@example.com'))!.n).toBe(0);
+    expect((await devices('alta@example.com'))!.n).toBe(1);
+    expect((await api.request('GET', '/api/admin/me', undefined, { Cookie: other })).status).toBe(200);
+  });
+
+  it('is cancelled by a password change made another way', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-veche');
+    const cookie = cookieOf(await login('profesor@example.com', 'parola-veche'));
+    await forgot('profesor@example.com');
+    await flush();
+    const token = resetToken();
+    await api.request('POST', '/api/admin/account/password', { currentPassword: 'parola-veche', newPassword: 'parola-schimbata' }, { Cookie: cookie });
+    expect((await reset(token)).status).toBe(404);
+  });
+
+  it('is off while no email can go out', async () => {
+    const off = await startTestApi({ env: { DEV_TEACHER_EMAIL: undefined } });
+    try {
+      expect((await off.request('POST', '/api/auth/forgot-password', { email: 'profesor@example.com' })).status).toBe(503);
+    } finally {
+      await off.dispose();
+    }
   });
 });
 

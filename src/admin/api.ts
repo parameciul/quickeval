@@ -50,6 +50,10 @@ export interface AdminApi {
   signup(input: SignupInput): Promise<void>;
   // The link from the confirmation email (its token), with the password chosen at the sign-up.
   confirmEmail(token: string, password: string): Promise<void>;
+  // "Am uitat parola": a link goes to the email, if it has an account.
+  forgotPassword(email: string): Promise<void>;
+  // The link from the reset email (its token), with the new password.
+  setNewPassword(token: string, newPassword: string): Promise<void>;
   logout(): Promise<void>;
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
   // Setări, administrators only.
@@ -240,6 +244,12 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     },
     confirmEmail: async (token, password) => {
       await request('POST', '/confirm', { token, password }, undefined, '/api/auth');
+    },
+    forgotPassword: async (email) => {
+      await request('POST', '/forgot-password', { email }, undefined, '/api/auth');
+    },
+    setNewPassword: async (token, newPassword) => {
+      await request('POST', '/reset-password', { token, newPassword }, undefined, '/api/auth');
     },
     logout: async () => {
       await request('POST', '/logout', undefined, undefined, '/api/auth');

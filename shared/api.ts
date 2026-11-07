@@ -190,6 +190,15 @@ export const changePasswordBody = z.object({
   newPassword: passwordSchema,
 });
 
+// "Am uitat parola": the email asks for a link.
+export const forgotPasswordBody = z.object({ email: emailSchema });
+
+// The link from the reset email (its token), with the new password.
+export const resetPasswordBody = z.object({
+  token: z.string({ message: 'Linkul nu este întreg.' }).min(1, { message: 'Linkul nu este întreg.' }).max(100, { message: 'Linkul nu este întreg.' }),
+  newPassword: passwordSchema,
+});
+
 // An administrator changes another teacher's account. Each field is optional.
 export const updateAccountBody = z
   .object({

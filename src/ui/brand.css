@@ -3536,6 +3536,17 @@ table.items tr.edit-row > td {
   font-weight: 700;
 }
 
+/* A button that reads as a link inside a sentence ("Am uitat parola"). */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* The class report (spec §14.2) */
 
 .stats-grid {

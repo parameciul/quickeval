@@ -34,6 +34,13 @@ export const MAX_IP_FAILED_LOGINS = 100;
 export const IP_WINDOW_MS = 15 * 60 * 1000;
 // A browser that logged in before stops being known after this long unused.
 export const DEVICE_DAYS = 365;
+// A link that resets a password works this long, once. An account gets at most
+// one link every RESET_RESEND_MINUTES and MAX_RESETS_PER_ACCOUNT a day, and one IP asks at most
+// MAX_RESETS_PER_IP times a day, whatever the emails (each may send an email).
+export const RESET_HOURS = 1;
+export const RESET_RESEND_MINUTES = 5;
+export const MAX_RESETS_PER_ACCOUNT = 5;
+export const MAX_RESETS_PER_IP = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const daysBefore = (now: string, days: number) => new Date(Date.parse(now) - days * DAY_MS).toISOString();
@@ -417,11 +424,12 @@ export async function updateAccount(
   const [updated] = await db.batch([
     db
       .prepare(
-        `UPDATE teachers SET demo = COALESCE(?, demo), status = COALESCE(?, status)
+        `UPDATE teachers SET demo = COALESCE(?, demo), status = COALESCE(?, status),
+           reset_token_hash = CASE WHEN ? = 'disabled' THEN NULL ELSE reset_token_hash END
          WHERE id = ? AND role = 'teacher' AND status IN ('active', 'disabled')
          RETURNING id`,
       )
-      .bind(demo, status, teacherId),
+      .bind(demo, status, status, teacherId),
     db.prepare("DELETE FROM sessions WHERE teacher_id = ? AND EXISTS (SELECT 1 FROM teachers WHERE id = ? AND status = 'disabled')").bind(teacherId, teacherId),
   ]);
   return (updated?.results.length ?? 0) > 0;
@@ -448,7 +456,8 @@ export async function setPassword(
   const [updated] = await db.batch<{ email: string; name: string }>([
     db
       .prepare(
-        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL
+        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL,
+           reset_token_hash = NULL, reset_expires_at = NULL
          WHERE id = ? AND status IN ('active', 'disabled') ${teachersOnly ? "AND role = 'teacher'" : ''}
          RETURNING email, name`,
       )
@@ -461,4 +470,98 @@ export async function setPassword(
       .bind(teacherId, keepTokenHash, teacherId, passwordHash),
   ]);
   return updated?.results[0] ?? null;
+}
+
+// A teacher forgot the password: an active account gets a reset link
+// (`tokenHash` is the SHA-256 of its token) unless it got one in the last
+// RESET_RESEND_MINUTES. Every request counts against its IP, whatever the
+// email, and the same statements run for any email, so nothing tells which
+// emails have an account. "too_many" past MAX_RESETS_PER_IP in a day; the
+// account's name when a link was made (the caller sends it by email), else null.
+export async function requestPasswordReset(
+  db: D1Database,
+  input: { email: string; ipHash: string; tokenHash: string },
+  now: string,
+): Promise<'too_many' | { name: string } | null> {
+  const [, ip, account] = await db.batch<{ attempts?: number; name?: string }>([
+    db.prepare('DELETE FROM reset_ips WHERE window_start <= ?').bind(daysBefore(now, 1)),
+    db
+      .prepare(
+        `INSERT INTO reset_ips (ip_hash, attempts, window_start) VALUES (?, 1, ?)
+         ON CONFLICT (ip_hash) DO UPDATE SET attempts = MIN(attempts + 1, ${MAX_RESETS_PER_IP + 1})
+         RETURNING attempts`,
+      )
+      .bind(input.ipHash, now),
+    db
+      .prepare(
+        `UPDATE teachers SET reset_token_hash = ?1, reset_expires_at = ?2, reset_requested_at = ?3,
+           reset_count = CASE WHEN reset_window_start IS NULL OR reset_window_start <= ?4 THEN 1 ELSE reset_count + 1 END,
+           reset_window_start = CASE WHEN reset_window_start IS NULL OR reset_window_start <= ?4 THEN ?3 ELSE reset_window_start END
+         WHERE email = ?5 AND status = 'active'
+           AND (reset_requested_at IS NULL OR reset_requested_at <= ?6)
+           AND (reset_window_start IS NULL OR reset_window_start <= ?4 OR reset_count < ${MAX_RESETS_PER_ACCOUNT})
+           AND (SELECT attempts FROM reset_ips WHERE ip_hash = ?7) <= ${MAX_RESETS_PER_IP}
+         RETURNING name`,
+      )
+      .bind(
+        input.tokenHash,
+        new Date(Date.parse(now) + RESET_HOURS * 60 * 60 * 1000).toISOString(),
+        now,
+        daysBefore(now, 1),
+        input.email,
+        msBefore(now, RESET_RESEND_MINUTES * 60 * 1000),
+        input.ipHash,
+      ),
+  ]);
+  if (Number(ip?.results[0]?.attempts ?? 0) > MAX_RESETS_PER_IP) return 'too_many';
+  const name = account?.results[0]?.name;
+  return name === undefined ? null : { name };
+}
+
+// Whether a reset link still works, so the caller hashes a new password only
+// for a link that does. `resetPassword` checks it again in its own SQL.
+export async function resetLinkWorks(db: D1Database, tokenHash: string, now: string): Promise<boolean> {
+  const row = await db
+    .prepare("SELECT 1 AS found FROM teachers WHERE reset_token_hash = ? AND reset_expires_at > ? AND status = 'active'")
+    .bind(tokenHash, now)
+    .first();
+  return row !== null;
+}
+
+// The link of the reset email, with the new password: valid, unused and
+// unexpired, checked in the statement that sets it. The account's other logins
+// end, its lock is lifted, its known browsers are forgotten (a browser that was
+// trusted before the reset must log in through the account again), and the
+// link is used up. The cleanup after the UPDATE finds the account by the new
+// hash: it is salted, so it names only the account just changed, and if the
+// UPDATE matched nothing no row has it. Null when the link no longer works.
+export async function resetPassword(
+  db: D1Database,
+  tokenHash: string,
+  passwordHash: string,
+  now: string,
+): Promise<{ email: string; name: string } | null> {
+  const [updated] = await db.batch<{ id: number; email: string; name: string }>([
+    db
+      .prepare(
+        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL,
+           reset_token_hash = NULL, reset_expires_at = NULL
+         WHERE reset_token_hash = ? AND reset_expires_at > ? AND status = 'active'
+         RETURNING id, email, name`,
+      )
+      .bind(passwordHash, tokenHash, now),
+    db
+      .prepare(
+        `DELETE FROM sessions WHERE teacher_id IN (SELECT id FROM teachers WHERE password_hash = ? AND status = 'active')`,
+      )
+      .bind(passwordHash),
+    db
+      .prepare(
+        `DELETE FROM trusted_devices
+         WHERE teacher_id IN (SELECT id FROM teachers WHERE password_hash = ? AND status = 'active')`,
+      )
+      .bind(passwordHash),
+  ]);
+  const row = updated?.results[0];
+  return row ? { email: row.email, name: row.name } : null;
 }
