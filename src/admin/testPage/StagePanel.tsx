@@ -196,7 +196,7 @@ function ReviewPanel(props: PanelProps) {
 // "Pentru tine". The links table takes the place of the papers table here.
 function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
   if (test.status === 'draft') return <p className="hint">Rezultatele se publică după corectare.</p>;
-  const count = linksCount(uploads);
+  const count = linksCount(uploads, test.resultsOpen);
   return (
     <>
       <p>Linkul arată nota, punctajul pe fiecare exercițiu și comentariile. Elevul îl vede după ce îl publici.</p>

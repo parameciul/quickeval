@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { UploadRow } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
@@ -15,12 +15,13 @@ function hasLink(row: UploadRow): row is UploadRow & { submissionId: number; sta
 }
 
 // "1 publicat · 26 nepublicate", or "toate publicate"; nothing while no
-// student has a link.
-export function linksCount(uploads: UploadRow[]): string | null {
+// student has a link. When the test does not keep every result open, but each
+// paper was published alone, it says "toate publicate pe rând".
+export function linksCount(uploads: UploadRow[], testResultsOpen: boolean): string | null {
   const links = uploads.filter(hasLink);
   if (links.length === 0) return null;
   const published = links.filter((row) => row.resultsOpen).length;
-  if (published === links.length) return 'toate publicate';
+  if (published === links.length) return testResultsOpen ? 'toate publicate' : 'toate publicate pe rând';
   return `${countLabel(published, 'publicat', 'publicate')} · ${countLabel(links.length - published, 'nepublicat', 'nepublicate')}`;
 }
 
@@ -84,8 +85,9 @@ function ResultLinkRow({
       api.setSubmissionResultsOpen(submissionId, startedAt, open),
     onSuccess: onChanged,
   });
-  const points =
-    row.status === 'graded' && row.total !== null && row.maxTotal !== null ? `${formatPoints(row.total)} / ${formatPoints(row.maxTotal)}` : '—';
+  // The points and the grade show together, only for a paper graded now.
+  const graded = row.status === 'graded';
+  const points = graded && row.total !== null && row.maxTotal !== null ? `${formatPoints(row.total)} / ${formatPoints(row.maxTotal)}` : '—';
   return (
     <tr className={hasLink(row) ? undefined : 'is-muted'}>
       <th scope="row">
@@ -93,7 +95,7 @@ function ResultLinkRow({
         {!row.active && <span className="tag">a plecat</span>}
       </th>
       <td data-label="Punctaj">{points}</td>
-      <td data-label="Nota">{row.grade === null ? '—' : <strong>{formatPoints(row.grade)}</strong>}</td>
+      <td data-label="Nota">{graded && row.grade !== null ? <strong>{formatPoints(row.grade)}</strong> : '—'}</td>
       <td className="result-link-cell">
         {hasLink(row) ? (
           <CopyResultLink
@@ -102,6 +104,7 @@ function ResultLinkRow({
             startedAt={row.startedAt}
             resultToken={row.resultToken}
             studentName={row.studentName}
+            named
           />
         ) : (
           'Nu a trimis lucrarea.'
@@ -116,6 +119,7 @@ function ResultLinkRow({
                 type="button"
                 className="button-quiet button-small"
                 disabled={publish.isPending}
+                aria-label={`${row.resultsOpen ? 'Oprește publicarea' : 'Publică'}: ${row.studentName}`}
                 onClick={() => publish.mutate({ submissionId: row.submissionId, startedAt: row.startedAt, open: !row.resultsOpen })}
               >
                 {row.resultsOpen ? 'Oprește publicarea' : 'Publică'}
@@ -138,11 +142,14 @@ export function CopyResultLink({
   startedAt,
   resultToken,
   studentName,
+  named = false,
 }: {
   submissionId: number;
   startedAt: string;
   resultToken: string | null;
   studentName: string;
+  // Whether the buttons carry the student's name (a table of many students).
+  named?: boolean;
 }) {
   const api = useApi();
   const [made, setMade] = useState<string | null>(null);
@@ -153,11 +160,24 @@ export function CopyResultLink({
     onSuccess: setMade,
   });
   const token = resultToken ?? made;
+  const field = useRef<HTMLInputElement>(null);
+  // A refused copy leaves the link selected in its field, ready to copy by hand.
+  useEffect(() => {
+    if (!refused) return;
+    field.current?.focus();
+    field.current?.select();
+  }, [refused]);
 
   if (token === null) {
     return (
       <span className="result-share">
-        <button type="button" className="button-quiet button-small" disabled={make.isPending} onClick={() => make.mutate()}>
+        <button
+          type="button"
+          className="button-quiet button-small"
+          disabled={make.isPending}
+          aria-label={named ? `Fă linkul: ${studentName}` : undefined}
+          onClick={() => make.mutate()}
+        >
           Fă linkul
         </button>
         {make.error && <ErrorMessage error={make.error} />}
@@ -175,12 +195,19 @@ export function CopyResultLink({
   };
   return (
     <span className="result-share">
-      <button type="button" className="button-quiet button-small" onClick={copy}>
+      <button
+        type="button"
+        className="button-quiet button-small"
+        aria-label={named && !copied ? `Copiază linkul: ${studentName}` : undefined}
+        onClick={copy}
+      >
         {copied ? 'Copiat!' : 'Copiază linkul'}
       </button>
       {refused && (
         <span className="result-share-box">
+          <span className="hint">Nu am putut copia linkul. Copiază-l de aici.</span>
           <input
+            ref={field}
             type="text"
             readOnly
             value={url}
