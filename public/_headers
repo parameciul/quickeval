@@ -1,12 +1,35 @@
-# Cloudflare Pages headers. MQGrader is a private tool: no page is indexed.
+# Cloudflare Pages headers. The landing page (/) is public and may be indexed.
+# The teacher app and the student app are private: they carry noindex. The API
+# sets its own X-Robots-Tag (server/app.ts), because _headers does not reach Functions.
 /*
-  X-Robots-Tag: noindex, nofollow
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
+/admin
+  X-Robots-Tag: noindex, nofollow
+
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+
+/u/*
+  X-Robots-Tag: noindex, nofollow
+
+# The old address is being retired: keep it out of search so only mqgrader.ro ranks.
+https://quickeval.pages.dev/*
+  X-Robots-Tag: noindex, nofollow
+
 # Vite puts a content hash in every file name under /assets/, so a changed
 # file is always a new URL and can be cached for a year.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+/robots.txt
+  Cache-Control: public, max-age=3600
+
+/sitemap.xml
+  Cache-Control: public, max-age=3600
+
+/llms.txt
+  Cache-Control: public, max-age=3600

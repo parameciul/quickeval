@@ -46,6 +46,11 @@ const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x4
 
 const landing = await page('/');
 check('landing page', landing.res.status === 200 && landing.text.includes('Weekendul tău, fără teancul de lucrări.'), String(landing.res.status));
+check('landing page may be indexed', !(landing.res.headers.get('x-robots-tag') ?? '').includes('noindex') && !landing.text.includes('noindex'));
+for (const path of ['/robots.txt', '/sitemap.xml', '/llms.txt', '/og-image.png']) {
+  const file = await fetch(base + path);
+  check(`public file ${path}`, file.status === 200, String(file.status));
+}
 
 for (const path of ['/admin/', '/admin/clase', '/admin/teste/6E2-26T1']) {
   const admin = await page(path);
@@ -54,7 +59,7 @@ for (const path of ['/admin/', '/admin/clase', '/admin/teste/6E2-26T1']) {
 
 const student = await page('/u/abcdefghijkmnop2');
 check('student app at /u/<token>', student.res.status === 200 && student.text.includes('<title>MQGrader · Trimite lucrarea</title>'), String(student.res.status));
-for (const path of ['/admin/', '/u/abcdefghijkmnop2']) {
+for (const path of ['/admin/', '/admin/clase', '/u/abcdefghijkmnop2']) {
   const headers = (await page(path)).res.headers;
   check(`noindex header on ${path}`, (headers.get('x-robots-tag') ?? '').includes('noindex'));
   check(`content security policy on ${path}`, (headers.get('content-security-policy') ?? '').includes("default-src 'self'"));

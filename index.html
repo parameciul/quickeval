@@ -3,10 +3,125 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="robots" content="noindex, nofollow" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
     <title>MQGrader · corectarea testelor de matematică</title>
-    <meta name="description" content="Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului." />
+    <meta name="description" content="MQGrader corectează cu AI testele de matematică după barem: elevii trimit pozele de pe telefon, iar profesorul verifică punctele nesigure." />
+    <link rel="canonical" href="https://mqgrader.ro/" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="author" content="Laura Miron" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="MQGrader" />
+    <meta property="og:locale" content="ro_RO" />
+    <meta property="og:url" content="https://mqgrader.ro/" />
+    <meta property="og:title" content="MQGrader · corectarea testelor de matematică" />
+    <meta property="og:description" content="Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului, iar tu decizi punctajul final." />
+    <meta property="og:image" content="https://mqgrader.ro/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="MQGrader by Laura Miron: corectarea testelor de matematică" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MQGrader · corectarea testelor de matematică" />
+    <meta name="twitter:description" content="Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului." />
+    <meta name="twitter:image" content="https://mqgrader.ro/og-image.png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://mqgrader.ro/#organization",
+            "name": "MQGrader",
+            "url": "https://mqgrader.ro/",
+            "logo": "https://mqgrader.ro/favicon.svg",
+            "founder": { "@id": "https://mqgrader.ro/#laura-miron" }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://mqgrader.ro/#laura-miron",
+            "name": "Laura Miron",
+            "jobTitle": "Profesoară de matematică",
+            "worksFor": { "@type": "EducationalOrganization", "name": "Liceul William Shakespeare", "address": { "@type": "PostalAddress", "addressLocality": "Timișoara", "addressCountry": "RO" } }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://mqgrader.ro/#website",
+            "url": "https://mqgrader.ro/",
+            "name": "MQGrader",
+            "inLanguage": "ro",
+            "publisher": { "@id": "https://mqgrader.ro/#organization" }
+          },
+          {
+            "@type": "WebPage",
+            "@id": "https://mqgrader.ro/#webpage",
+            "url": "https://mqgrader.ro/",
+            "name": "MQGrader · corectarea testelor de matematică",
+            "inLanguage": "ro",
+            "isPartOf": { "@id": "https://mqgrader.ro/#website" },
+            "about": { "@id": "https://mqgrader.ro/#app" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://mqgrader.ro/#app",
+            "name": "MQGrader",
+            "alternateName": "MQGrader by Laura Miron",
+            "url": "https://mqgrader.ro/",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Web",
+            "inLanguage": "ro",
+            "audience": { "@type": "Audience", "audienceType": "Profesori de matematică" },
+            "description": "Platformă web care corectează testele de matematică după barem: elevii trimit pozele lucrărilor de pe telefon, iar profesorul verifică punctele nesigure și decide punctajul final.",
+            "author": { "@id": "https://mqgrader.ro/#laura-miron" },
+            "publisher": { "@id": "https://mqgrader.ro/#organization" }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Ce este MQGrader?",
+                "acceptedAnswer": { "@type": "Answer", "text": "MQGrader este o platformă web pentru profesorii de matematică. Elevii trimit pozele lucrărilor de pe telefon, iar fiecare lucrare primește punctaj pas cu pas, conform baremului. A fost creată de Laura Miron, profesoară de matematică la Liceul William Shakespeare din Timișoara." }
+              },
+              {
+                "@type": "Question",
+                "name": "Folosește MQGrader inteligență artificială (AI)?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Da. MQGrader folosește inteligență artificială (AI) ca să citească pozele lucrărilor și să propună punctajul, pas cu pas, conform baremului. AI nu decide singur: punctele nesigure te așteaptă la verificare, iar decizia finală este a profesorului." }
+              },
+              {
+                "@type": "Question",
+                "name": "Cum se corectează un test de matematică cu MQGrader?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Un test are șase etape: pregătire (încarci testul și baremul), tipărire (fiecare pagină are un cod QR), în clasă (elevii scanează codul și trimit pozele), corectare (fiecare lucrare primește punctaj conform baremului), verificare (tu decizi punctele nesigure) și rezultate (link pentru fiecare elev, raportul clasei, PDF și CSV)." }
+              },
+              {
+                "@type": "Question",
+                "name": "Au elevii nevoie de cont sau de aplicație?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Nu. Elevii scanează codul QR de pe test și trimit pozele lucrării de pe telefon, fără cont și fără aplicație." }
+              },
+              {
+                "@type": "Question",
+                "name": "Pot schimba eu punctajul?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Da. Controlul rămâne la profesor: poți accepta sau schimba oricând punctajul, mai ales în cazurile discutabile sau creative. Punctele nesigure te așteaptă la verificare, iar decizia finală este a ta." }
+              },
+              {
+                "@type": "Question",
+                "name": "Ce fac dacă nu am barem?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Primești o propunere de barem pe care o verifici tu. Nimic nu se corectează după un barem pe care nu l-ai confirmat." }
+              },
+              {
+                "@type": "Question",
+                "name": "Ce primesc la sfârșit profesorul și elevii?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Fiecare elev primește un link cu rezultatul lui. Profesorul primește raportul clasei, un PDF pentru fiecare elev și un fișier CSV pentru catalog." }
+              },
+              {
+                "@type": "Question",
+                "name": "Cum obțin un cont de profesor?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Apeși „Cere un cont de profesor” și completezi formularul de cont nou. Contul se confirmă prin email și apoi este aprobat." }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
     <script src="/theme.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -102,6 +217,22 @@
               <li class="task"><p class="kind"><span class="pill">Verificare</span>Ecuații de gradul al II-lea · a X-a B</p><h3>Decizi punctele nesigure</h3><p class="ctx">Vezi poza, itemul din barem și motivul. Alegi punctajul cu un clic.</p><span class="btn go">Începe</span></li>
               <li class="task"><p class="kind"><span class="pill">Rezultate</span>Logaritmi · a X-a B</p><h3>Publici rezultatele</h3><p class="ctx">Fiecare elev primește un link cu rezultatul lui. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.</p><span class="btn go">Publică</span></li>
             </ol>
+          </div>
+        </section>
+
+        <section class="sec" id="intrebari" aria-labelledby="intrebari-t">
+          <div class="wrap">
+            <h2 class="l-h2" id="intrebari-t">Întrebări frecvente</h2>
+            <ul class="benefits">
+              <li><h3>Ce este MQGrader?</h3><p>MQGrader este o platformă web pentru profesorii de matematică. Elevii trimit pozele lucrărilor de pe telefon, iar fiecare lucrare primește punctaj pas cu pas, conform baremului. A fost creată de Laura Miron, profesoară de matematică la Liceul William Shakespeare din Timișoara.</p></li>
+              <li><h3>Folosește MQGrader inteligență artificială (AI)?</h3><p>Da. MQGrader folosește inteligență artificială (AI) ca să citească pozele lucrărilor și să propună punctajul, pas cu pas, conform baremului. AI nu decide singur: punctele nesigure te așteaptă la verificare, iar decizia finală este a profesorului.</p></li>
+              <li><h3>Cum se corectează un test de matematică cu MQGrader?</h3><p>Un test are șase etape: pregătire (încarci testul și baremul), tipărire (fiecare pagină are un cod QR), în clasă (elevii scanează codul și trimit pozele), corectare (fiecare lucrare primește punctaj conform baremului), verificare (tu decizi punctele nesigure) și rezultate (link pentru fiecare elev, raportul clasei, PDF și CSV).</p></li>
+              <li><h3>Au elevii nevoie de cont sau de aplicație?</h3><p>Nu. Elevii scanează codul QR de pe test și trimit pozele lucrării de pe telefon, fără cont și fără aplicație.</p></li>
+              <li><h3>Pot schimba eu punctajul?</h3><p>Da. Controlul rămâne la profesor: poți accepta sau schimba oricând punctajul, mai ales în cazurile discutabile sau creative. Punctele nesigure te așteaptă la verificare, iar decizia finală este a ta.</p></li>
+              <li><h3>Ce fac dacă nu am barem?</h3><p>Primești o propunere de barem pe care o verifici tu. Nimic nu se corectează după un barem pe care nu l-ai confirmat.</p></li>
+              <li><h3>Ce primesc la sfârșit profesorul și elevii?</h3><p>Fiecare elev primește un link cu rezultatul lui. Profesorul primește raportul clasei, un PDF pentru fiecare elev și un fișier CSV pentru catalog.</p></li>
+              <li><h3>Cum obțin un cont de profesor?</h3><p>Apeși „Cere un cont de profesor” și completezi formularul de cont nou. Contul se confirmă prin email și apoi este aprobat.</p></li>
+            </ul>
           </div>
         </section>
       </main>

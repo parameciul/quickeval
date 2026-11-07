@@ -12,11 +12,13 @@ export function createApp(options: AppOptions = {}): Hono<AppEnv> {
   const app = new Hono<AppEnv>().basePath('/api');
 
   // public/_headers does not reach Function responses, so the API sets its own:
-  // browsers must not guess content types, and nothing private is cached.
+  // browsers must not guess content types, search engines must not index an
+  // answer, and nothing private is cached.
   // A route that sets its own Cache-Control keeps it.
   app.use('*', async (c, next) => {
     await next();
     c.res.headers.set('X-Content-Type-Options', 'nosniff');
+    c.res.headers.set('X-Robots-Tag', 'noindex, nofollow');
     if (!c.res.headers.has('Cache-Control')) c.res.headers.set('Cache-Control', 'no-store');
   });
 
