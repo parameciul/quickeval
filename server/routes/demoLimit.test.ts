@@ -230,10 +230,48 @@ describe('the demo limit', () => {
     await api.request('GET', '/api/admin/me');
     expect(await Promise.all(tests.map((test) => statusOf(test.code)))).toEqual(['open', 'open', 'evaluating']);
     expect(await testsEvaluated()).toBe(1);
-    // With one more paper allowed, the next earliest starts.
-    await setPapers(DEMO_PAPER_LIMIT - 2);
+    // With more papers allowed, the other tests still wait: one test only.
+    await setPapers(0);
     await api.request('GET', '/api/admin/me');
-    expect(await Promise.all(tests.map((test) => statusOf(test.code)))).toEqual(['evaluating', 'open', 'evaluating']);
+    expect(await Promise.all(tests.map((test) => statusOf(test.code)))).toEqual(['open', 'open', 'evaluating']);
+  });
+
+  it('grades one test only: a second test is refused while papers are left, and the first can be regraded', async () => {
+    await setPapers(0);
+    const first = await readyTest('Primul');
+    expect((await evaluate(first.code)).status).toBe(200);
+    await api.db.prepare("UPDATE submissions SET status = 'graded', graded_at = ? WHERE id = ?").bind(PAST, first.submissionId).run();
+    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(first.code).run();
+    const second = await readyTest('Al doilea');
+    const refused = await evaluate(second.code);
+    expect(refused.status).toBe(403);
+    expect(refused.body.error).toBe('demo_limit');
+    expect(refused.body.message).toContain('un singur test');
+    expect(await statusOf(second.code)).toBe('open');
+    expect((await evaluate(second.code, { at: new Date(Date.now() + 3600_000).toISOString() })).body.error).toBe('demo_limit');
+    // The graded test can be graded again.
+    expect((await api.request('POST', `/api/admin/tests/${first.code}/regrade`)).status).toBe(200);
+    expect(await uploadStatus(first.submissionId)).toBe('submitted');
+  });
+
+  it('does not use the one test of a demo account for a test that ended with nothing to grade', async () => {
+    await setPapers(0);
+    const empty = await makeTest(api, classId, 'Gol');
+    await startTest(api, empty);
+    await addTestFiles(api, empty);
+    await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code = ?').bind(PAST, empty).run();
+    await api.request('GET', '/api/admin/me');
+    expect(await statusOf(empty)).toBe('done');
+    const test = await readyTest('Primul');
+    expect((await evaluate(test.code)).status).toBe(200);
+  });
+
+  it('keeps the one-test rule off for a complete account', async () => {
+    await api.db.prepare('UPDATE teachers SET demo = 0 WHERE id = ?').bind(api.teacherId).run();
+    const first = await readyTest('Primul');
+    expect((await evaluate(first.code)).status).toBe(200);
+    const second = await readyTest('Al doilea');
+    expect((await evaluate(second.code)).status).toBe(200);
   });
 
   it('still counts a test that was deleted after its evaluation', async () => {
@@ -311,20 +349,16 @@ describe('the demo limit', () => {
     expect(await statuses(test.ids)).toEqual(['uploading', 'submitted', 'uploading']);
   });
 
-  it('shares the papers left between scheduled tests that come due at once, in order', async () => {
+  it('sends the papers of the first due test only, and keeps the other due tests open', async () => {
     await setPapers(DEMO_PAPER_LIMIT - 3);
     const first = await testWithPapers('Primul', 2);
     const second = await testWithPapers('Al doilea', 3);
-    const third = await testWithPapers('Al treilea', 1);
-    await api.db.prepare("UPDATE submissions SET status = 'submitted', submitted_at = ? WHERE id = ?").bind(PAST, third.ids[0]).run();
-    await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code IN (?, ?, ?)').bind(PAST, first.code, second.code, third.code).run();
+    await api.db.prepare('UPDATE tests SET evaluation_at = ? WHERE code IN (?, ?)').bind(PAST, first.code, second.code).run();
     await api.request('GET', '/api/admin/me');
     expect(await statuses(first.ids)).toEqual(['submitted', 'submitted']);
-    expect(await statuses(second.ids)).toEqual(['submitted', 'uploading', 'uploading']);
-    expect(await statusOf(second.code)).toBe('evaluating');
-    // No place left: the test stays open, as its students left it.
-    expect(await statusOf(third.code)).toBe('open');
-    expect(await statuses(third.ids)).toEqual(['submitted']);
+    expect(await statusOf(first.code)).toBe('evaluating');
+    expect(await statusOf(second.code)).toBe('open');
+    expect(await statuses(second.ids)).toEqual(['uploading', 'uploading', 'uploading']);
   });
 
   it('keeps the papers past the limit graded in "Recorectează tot"', async () => {

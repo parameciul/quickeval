@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { addSubmission, addTestFiles, makeClass, makeTest, ROBOT_KEY, robotRequest, setRobotKey, startTest, testIdOf } from '../test/fixtures.ts';
+import { addEvaluation, addSubmission, addTestFiles, makeClass, makeTest, ROBOT_KEY, robotRequest, setRobotKey, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -189,12 +189,32 @@ describe('POST /api/runner/check', () => {
     expect(await uploadStatus(id)).toEqual({ status: 'grading', run_id: 'run-1' });
   });
 
-  it('ends a test with nothing left to grade', async () => {
-    await addSubmission(api, code, studentIds[0]!, { status: 'graded', files: 1 });
+  it('ends a test with nothing left to grade, when a result is left for the teacher to check', async () => {
+    const id = await addSubmission(api, code, studentIds[0]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, id, { items: [{ needsReview: true }] });
     await setTest("status = 'evaluating', exercise_list_status = 'ready'");
     await robot('POST', '/check');
-    const row = await api.db.prepare('SELECT status FROM tests WHERE code = ?').bind(code).first();
-    expect(row).toEqual({ status: 'done' });
+    const row = await api.db.prepare('SELECT status, analysis_status FROM tests WHERE code = ?').bind(code).first();
+    expect(row).toEqual({ status: 'done', analysis_status: 'none' });
+  });
+
+  it('keeps a test in evaluation for the class analysis when nothing is left for the teacher to check', async () => {
+    const id = await addSubmission(api, code, studentIds[0]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, id, { items: [{}] });
+    await setTest("status = 'evaluating', exercise_list_status = 'ready'");
+    await robot('POST', '/check');
+    const row = await api.db.prepare('SELECT status, analysis_status FROM tests WHERE code = ?').bind(code).first();
+    expect(row).toEqual({ status: 'evaluating', analysis_status: 'requested' });
+  });
+
+  it('does not ask for the class analysis while a paper has failed', async () => {
+    const graded = await addSubmission(api, code, studentIds[0]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, graded, { items: [{}] });
+    await addSubmission(api, code, studentIds[1]!, { status: 'failed', files: 1 });
+    await setTest("status = 'evaluating', exercise_list_status = 'ready'");
+    await robot('POST', '/check');
+    const row = await api.db.prepare('SELECT status, analysis_status FROM tests WHERE code = ?').bind(code).first();
+    expect(row).toEqual({ status: 'done', analysis_status: 'none' });
   });
 });
 

@@ -53,9 +53,9 @@ describe('accountKindText', () => {
   it.each([
     [fakeTeacher({ testsEvaluated: 21, papersGraded: 300 }), 'Ești administrator. Până acum: 21 de teste și 300 de lucrări.'],
     [fakeTeacher({ role: 'teacher', testsEvaluated: 1, papersGraded: 1 }), 'Ai un cont complet. Până acum: 1 test și 1 lucrare.'],
-    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 1 }), 'Ai un cont demo: ai folosit 1 din 5 lucrări.'],
-    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 9, papersGraded: 9 }), 'Ai un cont demo: ai folosit 5 din 5 lucrări.'],
-    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 1, papersWaiting: 2 }), 'Ai un cont demo: ai folosit 3 din 5 lucrări.'],
+    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 1 }), 'Ai un cont demo: ai folosit 1 din 35 lucrări.'],
+    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 9, papersGraded: 9 }), 'Ai un cont demo: ai folosit 9 din 35 lucrări.'],
+    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 1, papersWaiting: 2 }), 'Ai un cont demo: ai folosit 3 din 35 lucrări.'],
   ])('describes %j', (teacher, text) => {
     expect(accountKindText(teacher)).toBe(text);
   });

@@ -26,7 +26,7 @@ export function demoText(teacher: Teacher): string {
   if (left === 0) {
     return `Cont demo: ai folosit toate cele ${DEMO_PAPER_LIMIT} lucrări ale contului. Cere unui administrator un cont complet.`;
   }
-  return `Cont demo: mai ai ${left} din ${DEMO_PAPER_LIMIT} lucrări. Fiecare lucrare corectată se numără, și o recorectare.`;
+  return `Cont demo: mai ai ${left} din ${DEMO_PAPER_LIMIT} lucrări. Fiecare lucrare corectată se numără, și o recorectare. Poți corecta un singur test.`;
 }
 
 // The phone layout of brand.css: the bar at the bottom, a panel over the page.

@@ -2,20 +2,53 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
 import type { AnalysisInfo } from '../../shared/api.ts';
 import type { AnalysisStatus, TestStatus } from '../../shared/tests.ts';
-import type { ShownResult } from './evaluations.ts';
+import { flagCountSql, type ShownResult } from './evaluations.ts';
 import type { ShownUpload } from './submissions.ts';
 
 // The test lifecycle after Start test (spec §8.3-§8.5). Each write checks its
 // own rules in its SQL, so two requests at once cannot both pass a check.
 
-// Entering an evaluation asks for a class analysis, the first one too: the
-// analysis is asked for when the status is none, ready, or failed (spec §8.5).
-// One already requested stays requested. The attempts start again in every
-// case, so a failed attempt from before a reopen does not count against the
-// new analysis.
+// Entering an evaluation does not ask for a class analysis: the grades will
+// probably change when the teacher checks the papers. An analysis made before
+// (ready or failed) is dropped, so a new one is asked for after the checks
+// (askForAnalysis, askAnalysisAfterCheck). One already requested stays
+// requested. The attempts start again in every case.
 const ASK_FOR_ANALYSIS = `
-  analysis_status = CASE WHEN analysis_status IN ('none', 'ready', 'failed') THEN 'requested' ELSE analysis_status END,
+  analysis_status = CASE WHEN analysis_status IN ('ready', 'failed') THEN 'none' ELSE analysis_status END,
   analysis_attempts = 0`;
+
+// The test (alias or table name `t`) is fully checked: no upload waits or has
+// failed (the teacher retries it), at least one is graded, and no item or unreadable page waits for the teacher.
+const fullyChecked = (t: string) => `NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = ${t}.id AND s.status IN ('submitted', 'grading', 'failed'))
+  AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = ${t}.id AND g.status = 'graded')
+  AND (SELECT COALESCE(SUM(${flagCountSql('ev')}), 0)
+         FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = ${t}.id AND s.status = 'graded') = 0`;
+
+// The class analysis is asked for only when nothing is left for the teacher to
+// check or decide. Runs just before finishTests, so a test that is fully
+// checked stays in evaluation until the robot writes the analysis.
+export function askForAnalysis(db: D1Database): D1PreparedStatement {
+  return db.prepare(
+    `UPDATE tests SET analysis_status = 'requested', analysis_attempts = 0
+     WHERE status = 'evaluating' AND analysis_status = 'none' AND ${fullyChecked('tests')}`,
+  );
+}
+
+// After the teacher's check of a paper: when this was the last thing to check,
+// the class analysis is asked for. A finished test goes back to evaluation,
+// where the robot writes it. True when it was asked for (the robot must start).
+export async function askAnalysisAfterCheck(db: D1Database, teacherId: number, submissionId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET analysis_status = 'requested', analysis_attempts = 0, updated_at = ?, archived = 0, status = 'evaluating'
+       WHERE teacher_id = ? AND id = (SELECT test_id FROM submissions WHERE id = ?)
+         AND status IN ('evaluating', 'done') AND analysis_status = 'none' AND ${fullyChecked('tests')}
+       RETURNING id`,
+    )
+    .bind(now, teacherId, submissionId)
+    .first<{ id: number }>();
+  return row !== null;
+}
 
 // The barem of test t can be graded against: it exists, the teacher checked it
 // when the robot generated it, and no generation is running.
@@ -105,7 +138,19 @@ const PAPERS_LEFT_TO_REGRADE = papersLeft("(x.status = 'evaluating' OR x.id = t.
 // The test t may send at least one paper to the robot. The trigger
 // tests_count_evaluation (migration 0018) counts the test, for every teacher,
 // when it moves into 'evaluating' with uploads to grade.
-export const WITHIN_PAPER_LIMIT = `${PAPERS_LEFT} > 0`;
+// A demo account grades one test only: no other test of the teacher has been
+// sent to the robot (a paper that is sent, being graded, graded or failed, in
+// a test whose evaluation started). A test that ended at once with nothing to
+// grade does not use the place. A regrade or retry is not checked here: its
+// test is the one that was graded.
+const ONLY_TEST = `(SELECT CASE WHEN q.demo = 0 THEN 1
+    WHEN EXISTS (SELECT 1 FROM tests o JOIN submissions os ON os.test_id = o.id
+      WHERE o.teacher_id = q.id AND o.id <> t.id AND o.evaluation_started_at IS NOT NULL
+        AND os.status IN ('submitted', 'grading', 'graded', 'failed')) THEN 0
+    ELSE 1 END
+  FROM teachers q WHERE q.id = t.teacher_id) = 1`;
+
+export const WITHIN_PAPER_LIMIT = `(${PAPERS_LEFT} > 0 AND ${ONLY_TEST})`;
 
 // A regrade or retry of test t sends a paper to the robot: a finished test goes
 // back to evaluation (the trigger counts it), and a test in evaluation takes it
@@ -117,15 +162,17 @@ const MAY_GRADE_AGAIN = `${PAPERS_LEFT_TO_REGRADE} > 0`;
 const SENDABLE = `(s.status = 'submitted' OR (s.status = 'uploading' AND EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = s.id)))`;
 
 // The papers the limit lets start, for the tests t of `scope`: by scheduled
-// time and test, then the papers the students confirmed, oldest first. The
-// rest wait for a later evaluation, as unselected uploads do.
+// time and test, then the papers the students confirmed, oldest first. A demo
+// account sends the papers of its first test only. The rest wait for a later evaluation, as unselected uploads do.
 function papersToSend(scope: string, only = 'TRUE'): string {
   return `SELECT p.id FROM (
     SELECT s.id, ${PAPERS_LEFT} AS allowed,
+      (SELECT q.demo FROM teachers q WHERE q.id = t.teacher_id) AS demo,
+      DENSE_RANK() OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id) AS test_place,
       ROW_NUMBER() OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id, s.status <> 'submitted', s.submitted_at, s.id) AS place
     FROM submissions s JOIN tests t ON t.id = s.test_id
     WHERE (${scope}) AND ${only} AND ${SENDABLE}) p
-  WHERE p.place <= p.allowed`;
+  WHERE p.place <= p.allowed AND (p.demo = 0 OR p.test_place = 1)`;
 }
 
 // A paper past the limit goes back to uploading (its files stay).
@@ -205,7 +252,7 @@ const STARTS = `${DUE} AND (NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test
 // started an evaluation that did not end at once: the robot has work. D1 runs
 // writes one at a time, so of two calls at once only one sees that test.
 export async function promoteDueTests(db: D1Database, now: string): Promise<boolean> {
-  const [, , started, finished] = await db.batch<{ id: number }>(promoteStatements(db, now));
+  const [, , started, , finished] = await db.batch<{ id: number }>(promoteStatements(db, now));
   const ended = new Set(finished?.results.map((row) => row.id));
   return Boolean(started?.results.some((row) => !ended.has(row.id)));
 }
@@ -236,6 +283,7 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
          RETURNING id`,
       )
       .bind(now),
+    askForAnalysis(db),
     finishTests(db, now),
   ];
 }
@@ -260,7 +308,7 @@ export async function startEvaluationNow(
   submissionIds?: number[],
 ): Promise<'evaluating' | 'done' | null> {
   if (submissionIds !== undefined) return startSelectiveEvaluation(db, teacherId, testId, now, submissionIds);
-  const [, , started, finished] = await db.batch<{ id: number }>([
+  const [, , started, , finished] = await db.batch<{ id: number }>([
     db
       .prepare(
         `UPDATE submissions SET ${HOLD_BACK}
@@ -282,6 +330,7 @@ export async function startEvaluationNow(
          RETURNING id`,
       )
       .bind(testId, teacherId, now),
+    askForAnalysis(db),
     finishTests(db, now),
   ]);
   if (!started?.results.length) return null;
@@ -324,7 +373,7 @@ async function startSelectiveEvaluation(
   const OPEN_WITH_FILES = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
     AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}`;
   const TO_SEND = papersToSend(OPEN_WITH_FILES, `s.id IN (${placeholders})`);
-  const [, , started, finished] = await db.batch<{ id: number }>([
+  const [, , started, , finished] = await db.batch<{ id: number }>([
     // Unselected confirmed uploads wait for a later evaluation.
     db
       .prepare(
@@ -347,6 +396,7 @@ async function startSelectiveEvaluation(
          RETURNING id`,
       )
       .bind(...params),
+    askForAnalysis(db),
     finishTests(db, now),
   ]);
   if (!started?.results.length) return null;

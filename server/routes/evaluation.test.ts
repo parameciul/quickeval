@@ -97,12 +97,12 @@ describe('POST /api/admin/tests/:code/evaluate (now)', () => {
     expect(await testRow()).toMatchObject({ status: 'done', analysis_status: 'none' });
   });
 
-  it('asks again for a class analysis that was ready', async () => {
+  it('drops a ready class analysis, to be asked for again after the checks', async () => {
     await addTestFiles(api, code);
     await addSubmission(api, code, studentIds[0]!, { files: 1 });
     await setTest("analysis_status = 'ready', analysis_attempts = 2");
     await evaluate();
-    expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'requested', analysis_attempts: 0 });
+    expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'none', analysis_attempts: 0 });
   });
 
   it('starts the attempts again for an analysis that is still requested', async () => {

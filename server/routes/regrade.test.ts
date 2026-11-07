@@ -55,8 +55,8 @@ describe('POST /api/admin/submissions/:id/regrade', () => {
     expect(await evaluationCount(id)).toBe(0);
     const items = await api.db.prepare('SELECT COUNT(*) AS n FROM evaluation_items').first<{ n: number }>();
     expect(items!.n).toBe(0);
-    // The class analysis is asked for again, after the new grades.
-    expect(await testRow()).toEqual({ status: 'evaluating', analysis_status: 'requested', analysis_attempts: 0 });
+    // The old class analysis is dropped; a new one is asked for after the checks.
+    expect(await testRow()).toEqual({ status: 'evaluating', analysis_status: 'none', analysis_attempts: 0 });
 
     // The robot finds the upload at its next check.
     await setRobotKey(api);

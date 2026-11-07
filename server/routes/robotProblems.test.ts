@@ -135,12 +135,12 @@ describe('POST /api/admin/submissions/:id/retry', () => {
     expect(await uploadRow(id)).toEqual({ status: 'submitted', attempts: 0, last_error: null, run_id: null });
   });
 
-  it('takes a finished test back to evaluation and asks again for its class analysis', async () => {
+  it('takes a finished test back to evaluation and drops its class analysis', async () => {
     await setTest("status = 'done', analysis_status = 'ready'");
     const id = await failedUpload();
     const res = await api.request('POST', `/api/admin/submissions/${id}/retry`, { startedAt: await startedAtOf(api, id) });
     expect(res.body.status).toBe('submitted');
-    expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'requested' });
+    expect(await testRow()).toMatchObject({ status: 'evaluating', analysis_status: 'none' });
   });
 
   it('leaves an open test open and does not start the robot', async () => {
