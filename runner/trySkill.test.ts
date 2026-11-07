@@ -18,8 +18,8 @@ const LIST: ExerciseList = {
 
 const GRADING: GradingResult = {
   items: [
-    { exerciseId: 'I.1', points: 4.5, studentAnswer: '3/4', comment: 'Corect.', confidence: 'high', needsReview: false, reviewReason: '' },
-    { exerciseId: 'II.1', points: 2, studentAnswer: 'x = 3', comment: 'Verifică semnul.', confidence: 'low', needsReview: true, reviewReason: 'Scris neclar.' },
+    { exerciseId: 'I.1', points: 4.5, studentAnswer: '3/4', comment: 'Corect.', confidence: 'high', needsReview: false, reviewReason: '', page: 1 },
+    { exerciseId: 'II.1', points: 2, studentAnswer: 'x = 3', comment: 'Verifică semnul.', confidence: 'low', needsReview: true, reviewReason: 'Scris neclar.', page: 1 },
   ],
   unreadable: [],
   summary: 'Ai lucrat bine.',

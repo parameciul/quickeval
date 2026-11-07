@@ -24,7 +24,7 @@ const LIST: ExerciseList = {
 };
 
 const GRADING: GradingResult = {
-  items: [{ exerciseId: 'I.1', points: 8, studentAnswer: '3/4', comment: 'Corect.', confidence: 'high', needsReview: true, reviewReason: 'Verifică.' }],
+  items: [{ exerciseId: 'I.1', points: 8, studentAnswer: '3/4', comment: 'Corect.', confidence: 'high', needsReview: true, reviewReason: 'Verifică.', page: 1 }],
   unreadable: [],
   summary: 'Ai lucrat bine.',
   strengths: ['Fracții'],
@@ -72,9 +72,16 @@ function options(claude: ReturnType<typeof scriptedClaude>, extra: Partial<RunOp
   return { api, claude: claude.run, runId: RUN, root: folder('qe-run-'), workdir: { skillDir: skill() }, heartbeatMs: 60_000, ...extra };
 }
 
+// In the order the robot takes them: the students' names.
 const uploads = async () =>
-  (await world!.api.db.prepare('SELECT status, attempts FROM submissions WHERE test_id = ? ORDER BY id').bind(world!.testId).all<{ status: string; attempts: number }>())
-    .results;
+  (
+    await world!.api.db
+      .prepare(
+        'SELECT s.status, s.attempts FROM submissions s JOIN students st ON st.id = s.student_id WHERE s.test_id = ? ORDER BY st.full_name, s.id',
+      )
+      .bind(world!.testId)
+      .all<{ status: string; attempts: number }>()
+  ).results;
 const runner = () =>
   world!.api.db.prepare('SELECT run_id, last_run_summary FROM runner_state WHERE id = 1').first<{ run_id: string | null; last_run_summary: string | null }>();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

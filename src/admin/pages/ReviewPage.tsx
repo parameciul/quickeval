@@ -123,10 +123,17 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   const pagesWait = point?.kind === 'pages' && evaluation !== null && evaluation !== undefined && evaluation.unreadable.length > 0 && !evaluation.pagesReviewed;
   const view: ReviewView = item ? { kind: 'item', item } : pagesWait && evaluation ? { kind: 'pages', pages: evaluation.unreadable } : { kind: 'paper' };
 
-  // The page of the paper: page 1, or the first page the robot could not read.
+  // The page of the paper: the page of the answer to check, or the first page
+  // the robot could not read, else page 1.
   const viewKey = `${spot?.submissionId}:${spot?.key ?? ''}`;
   const [pageChoice, setPageChoice] = useState<{ view: string; page: number } | null>(null);
-  const firstPage = view.kind === 'pages' ? (pageIndex(view.pages[0] ?? '') ?? 0) : 0;
+  const pageCount = submission?.files.length ?? 0;
+  const firstPage =
+    view.kind === 'pages'
+      ? (pageIndex(view.pages[0] ?? '') ?? 0)
+      : view.kind === 'item' && view.item.page >= 1 && view.item.page <= pageCount
+        ? view.item.page - 1
+        : 0;
   const shownPage = pageChoice?.view === viewKey ? pageChoice.page : firstPage;
 
   // After a decision, the point that opens takes the focus on its heading,

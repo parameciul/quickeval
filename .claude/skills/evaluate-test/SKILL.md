@@ -55,6 +55,7 @@ Read `exercises.json`, the test, the barem, and every page in `student/`. Then g
   - `confidence`: "very_high", "high", "medium", "low", or "very_low": how sure you are of the points, from 5 (very sure) to 1 (a guess).
   - `needsReview`: true when the teacher must check this item (see the rules).
   - `reviewReason`: to the teacher, in Romanian: why to check it; "" when `needsReview` is false.
+  - `page`: the number of the page in `student/` where the student's answer to this exercise is, counted from 1 (`page-01` is 1). If the answer is on more than one page, the page where it starts. 0 if the student did not answer or you cannot tell. The teacher's review opens this page.
 - `unreadable`: the names of the pages that you could not read, for example `["student/page-02.jpg"]`; `[]` if none.
 - `summary`: to the student, in Romanian, 2 to 4 sentences about the whole work.
 - `strengths`: 0 to 5 short Romanian phrases: what the student does well.

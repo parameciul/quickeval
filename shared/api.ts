@@ -817,6 +817,8 @@ export interface EvaluationItemInfo {
   // The robot asked the teacher to check this item, and why.
   needsReview: boolean;
   reviewReason: string;
+  // The page of the student's work where the answer is, counted from 1; 0 when unknown.
+  page: number;
   // The teacher marked the item as checked.
   reviewed: boolean;
   changedByTeacher: boolean;

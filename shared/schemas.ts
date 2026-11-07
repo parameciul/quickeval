@@ -39,6 +39,10 @@ export const gradingResultSchema = z.object({
       confidence: z.enum(CONFIDENCE_LEVELS),
       needsReview: z.boolean(),
       reviewReason: z.string(),
+      // The page of the student's work where the answer is, counted from 1 as
+      // in `student/`; 0 when it is not known. Gradings made before this field
+      // existed have none.
+      page: z.number().int().min(0).default(0),
     }),
   ),
   unreadable: z.array(z.string()),
@@ -328,6 +332,8 @@ export interface GradedItem {
   confidence: Confidence;
   needsReview: boolean;
   reviewReason: string;
+  // 1-based page of the answer; 0 when unknown.
+  page: number;
 }
 
 export interface Grading {
@@ -383,6 +389,7 @@ export function checkGrading(raw: unknown, list: ExerciseList): Checked<Grading>
       confidence: item.confidence,
       needsReview: reasons.length > 0,
       reviewReason: cutText(reasons.join('; '), TEXT_LIMITS.reviewReason),
+      page: item.page,
     };
   });
   const unreadable = cutList(parsed.data.unreadable, MAX_UNREADABLE, TEXT_LIMITS.fileName);

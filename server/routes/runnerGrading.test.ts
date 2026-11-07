@@ -60,7 +60,7 @@ beforeEach(async () => {
   api = await startTestApi();
   await setRobotKey(api);
   robot = robotRequest(api);
-  const cls = await makeClass(api, '6E2', ['Pop Ion', 'Ionescu Ana', 'Stan Eva']);
+  const cls = await makeClass(api, '6E2', ['Ionescu Ana', 'Pop Ion', 'Stan Eva']);
   studentIds = cls.studentIds;
   code = await makeTest(api, cls.id);
   testId = await testIdOf(api, code);
@@ -78,9 +78,9 @@ afterEach(async () => {
 });
 
 describe('POST /api/runner/claim', () => {
-  it('takes the oldest upload and gives its files in upload order, without names', async () => {
-    await upload(0, '2026-10-07T08:20:00.000Z');
-    const oldest = await upload(1, '2026-10-07T08:10:00.000Z', 2);
+  it('takes the first student in alphabetical order and gives its files in upload order, without names', async () => {
+    await upload(1, '2026-10-07T08:10:00.000Z');
+    const oldest = await upload(0, '2026-10-07T08:20:00.000Z', 2);
     const res = await claim();
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
@@ -96,6 +96,16 @@ describe('POST /api/runner/claim', () => {
     expect(await uploadRow(oldest)).toMatchObject({ status: 'grading', run_id: RUN });
   });
 
+  it('takes the uploads in the alphabetical order of the students, not in upload order', async () => {
+    const pop = await upload(1, '2026-10-07T08:10:00.000Z');
+    const stan = await upload(2, '2026-10-07T08:11:00.000Z');
+    const ionescu = await upload(0, '2026-10-07T08:12:00.000Z');
+    expect((await claim()).body.submissionId).toBe(ionescu);
+    expect((await claim()).body.submissionId).toBe(pop);
+    expect((await claim()).body.submissionId).toBe(stan);
+    expect((await claim()).status).toBe(204);
+  });
+
   it('never gives one upload to two parallel claims', async () => {
     const ids = [await upload(0, '2026-10-07T08:10:00.000Z'), await upload(1, '2026-10-07T08:11:00.000Z')];
     const answers = await Promise.all([claim(), claim(), claim()]);
@@ -105,8 +115,8 @@ describe('POST /api/runner/claim', () => {
   });
 
   it('takes an upload whose grading failed only after the others', async () => {
-    const failing = await upload(0, '2026-10-07T08:10:00.000Z');
-    const later = await upload(1, '2026-10-07T08:20:00.000Z');
+    const failing = await upload(0, '2026-10-07T08:20:00.000Z');
+    const later = await upload(1, '2026-10-07T08:10:00.000Z');
     expect((await claim()).body.submissionId).toBe(failing);
     await sendResult(failing, { ok: false, error: 'crash' });
     expect((await claim()).body.submissionId).toBe(later);
@@ -178,6 +188,19 @@ describe('GET /api/runner/submissions/:id/files/:fileId', () => {
 });
 
 describe('POST /api/runner/submissions/:id/result', () => {
+  it('keeps the page of each answer, and 0 when the robot gave none', async () => {
+    const id = await upload(0, '2026-10-07T08:10:00.000Z', 2);
+    await claim();
+    const graded = result([4, 2]) as { items: Record<string, unknown>[] };
+    graded.items[1]!.page = 2;
+    expect((await sendResult(id, { ok: true, result: graded, model: 'm' })).status).toBe(200);
+    const { results } = await api.db
+      .prepare('SELECT i.exercise_id, i.page FROM evaluation_items i JOIN evaluations e ON e.id = i.evaluation_id WHERE e.submission_id = ? ORDER BY i.position')
+      .bind(id)
+      .all<{ exercise_id: string; page: number }>();
+    expect(results.map((row) => [row.exercise_id, row.page])).toEqual([['I.1', 0], ['II.1', 2]]);
+  });
+
   it('saves the grading, computes the grade, and shows it to the teacher', async () => {
     const id = await upload(0, '2026-10-07T08:10:00.000Z');
     await claim();
@@ -435,7 +458,7 @@ describe('the student app after grading', () => {
     const link = await api.request('GET', `/api/u/${token}`);
     expect(link.body.students.find((student: { id: number }) => student.id === studentIds[0])).toEqual({
       id: studentIds[0],
-      name: 'Pop Ion',
+      name: 'Ionescu Ana',
       state: 'done',
     });
     const again = await api.request('POST', `/api/u/${token}/sessions`, { studentId: studentIds[0] }, { 'X-Upload-Session': 'phone-secret' });

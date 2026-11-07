@@ -67,6 +67,7 @@ interface ItemRow {
   confidence: Confidence;
   needs_review: number;
   review_reason: string;
+  page: number;
   reviewed_at: string | null;
   changed_by_teacher: number;
 }
@@ -84,6 +85,7 @@ function toItem(row: ItemRow): EvaluationItemInfo {
     confidence: row.confidence,
     needsReview: row.needs_review === 1,
     reviewReason: row.review_reason,
+    page: row.page,
     reviewed: row.reviewed_at !== null,
     changedByTeacher: row.changed_by_teacher === 1,
   };
@@ -103,7 +105,7 @@ export async function getEvaluation(db: D1Database, submissionId: number): Promi
     db
       .prepare(
         `SELECT i.id, i.exercise_id, i.label, i.max_points, i.ai_points, i.points, i.student_answer, i.comment, i.confidence,
-           i.needs_review, i.review_reason, i.reviewed_at, i.changed_by_teacher
+           i.needs_review, i.review_reason, i.page, i.reviewed_at, i.changed_by_teacher
          FROM evaluation_items i JOIN evaluations ev ON ev.id = i.evaluation_id
          WHERE ev.submission_id = ?
          ORDER BY i.position, i.id`,
