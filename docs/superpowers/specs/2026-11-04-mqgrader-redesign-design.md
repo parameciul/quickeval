@@ -116,7 +116,9 @@ A static page with its own stylesheet; it loads no React. The page's security po
 5. On the ground tone: "Pentru tine rămân trei lucruri." with the line "Când intri în cont, vezi doar ce te așteaptă azi, cu un singur buton pentru fiecare. Elevii trimit lucrările singuri, iar tu verifici doar punctele nesigure." and three example tasks, drawn as the app draws them (not buttons that act): Pregătire, "Verifici baremul"; Verificare, "Decizi punctele nesigure"; Rezultate, "Publici rezultatele" ("Fiecare elev primește un link cu rezultatul lui. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.").
 6. Footer on the dark band, one line, about 72 px: the lockup on the left; "Corectarea testelor de matematică · Timișoara · 2026" on the right.
 
-The page keeps `noindex`. Laura's texts appear without emoji and without the chat time stamp.
+7. "Întrebări frecvente" (added for search and answer engines, after the first release): eight questions and answers, also given as `FAQPage` data in the page's JSON-LD; the two must match word for word (`landing.test.ts` checks it).
+
+The landing page is indexed (SEO, GEO and AEO work: canonical, Open Graph, JSON-LD, `robots.txt`, `sitemap.xml`, `llms.txt`); the teacher app, the student app and the API keep `noindex`. Laura's texts appear without emoji and without the chat time stamp.
 
 ## 4. App shell (Phase 2)
 

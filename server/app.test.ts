@@ -24,6 +24,7 @@ describe('API app', () => {
       const res = await api.request('GET', path);
       expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
       expect(res.headers.get('Cache-Control')).toBe('no-store');
+      expect(res.headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     }
   });
 

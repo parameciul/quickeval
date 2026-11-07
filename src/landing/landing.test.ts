@@ -41,7 +41,7 @@ describe('the landing page', () => {
       'Ce o face diferită? Controlul rămâne 100% la tine. Știm că fiecare elev e unic și pot apărea situații nuanțate, așa că platforma îți permite să modifici oricând punctajele în cazurile discutabile sau creative.',
     ]);
     expect(text(doc.getElementById('ajutor-t'))).toBe('Cum te ajută platforma noastră?');
-    expect(all('.benefits h3').map(text)).toEqual(['Acuratețe după barem', 'Control total în situații discutabile', 'Economie masivă de timp']);
+    expect(all('#ajutor .benefits h3').map(text)).toEqual(['Acuratețe după barem', 'Control total în situații discutabile', 'Economie masivă de timp']);
   });
 
   it('leads to the login, and to a new account', () => {
@@ -62,12 +62,42 @@ describe('the landing page', () => {
     expect(page).not.toMatch(/Quantitative/i);
   });
 
-  it('stays out of search engines', () => {
-    expect(doc.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex, nofollow');
+  it('may be indexed, and names its own address', () => {
+    const robots = doc.querySelector('meta[name="robots"]')?.getAttribute('content') ?? '';
+    expect(robots).toMatch(/^index\b/);
+    expect(robots).not.toContain('noindex');
+    expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://mqgrader.ro/');
+    expect(doc.documentElement.getAttribute('lang')).toBe('ro');
+    expect(page).not.toContain('quickeval.pages.dev');
+  });
+
+  it('has a title and a description of a good length, and a share card', () => {
+    expect(doc.title.length).toBeLessThanOrEqual(65);
+    const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') ?? '';
+    expect(description.length).toBeGreaterThanOrEqual(70);
+    expect(description.length).toBeLessThanOrEqual(165);
+    const meta = (property: string) => doc.querySelector(`meta[property="${property}"]`)?.getAttribute('content');
+    expect(meta('og:url')).toBe('https://mqgrader.ro/');
+    expect(meta('og:image')).toBe('https://mqgrader.ro/og-image.png');
+    expect(meta('og:locale')).toBe('ro_RO');
+    expect(doc.querySelector('meta[name="twitter:card"]')?.getAttribute('content')).toBe('summary_large_image');
+  });
+
+  it('carries structured data that matches the visible questions', () => {
+    const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
+    const nodes: { '@type': string; mainEntity?: { name: string; acceptedAnswer: { text: string } }[] }[] = ld['@graph'];
+    expect(nodes.map((n) => n['@type'])).toEqual(
+      expect.arrayContaining(['Organization', 'Person', 'WebSite', 'WebPage', 'SoftwareApplication', 'FAQPage']),
+    );
+    const faq = nodes.find((n) => n['@type'] === 'FAQPage')!.mainEntity!;
+    const visible = all('#intrebari .benefits li').map((li) => [text(li.querySelector('h3')), text(li.querySelector('p'))]);
+    expect(faq.map((q) => [q.name, q.acceptedAnswer.text])).toEqual(visible);
+    expect(page).not.toMatch(/aggregateRating|"offers"/);
   });
 
   it('has no inline script or style, which the security policy blocks', () => {
-    expect(all('script').every((s) => s.getAttribute('src') && !text(s))).toBe(true);
+    const code = all('script').filter((s) => s.getAttribute('type') !== 'application/ld+json');
+    expect(code.every((s) => s.getAttribute('src') && !text(s))).toBe(true);
     expect(all('[style]')).toEqual([]);
     expect(all('*').filter((el) => Array.from(el.attributes).some((a) => a.name.startsWith('on')))).toEqual([]);
     expect(all('style')).toEqual([]);

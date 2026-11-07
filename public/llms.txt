@@ -1,0 +1,19 @@
+# MQGrader
+
+> MQGrader este o platformă web pentru profesorii de matematică din România. Elevii fotografiază lucrările cu telefonul, iar fiecare lucrare primește punctaj pas cu pas, conform baremului. Profesorul verifică punctele nesigure și decide punctajul final. MQGrader (by Laura Miron) este creat de Laura Miron, profesoară de matematică la Liceul William Shakespeare din Timișoara.
+
+MQGrader (also written MQ Grader) is a web app that helps math teachers in Romania grade tests. Students photograph their papers on a phone, no account and no app. Each paper is scored step by step against the teacher's marking scheme (barem). The teacher always has the final say and can change any score. The site and the product are in Romanian.
+
+## Pagini
+
+- [Prezentare și cum funcționează](https://mqgrader.ro/): cele șase etape ale unui test (pregătire, tipărire, în clasă, corectare, verificare, rezultate), beneficii și întrebări frecvente.
+- [Intră în cont](https://mqgrader.ro/admin/): autentificarea profesorilor și cererea unui cont nou.
+
+## Fapte pe scurt
+
+- Folosește inteligență artificială (AI) pentru a citi pozele lucrărilor și a propune punctajul; profesorul verifică punctele nesigure și decide punctajul final. / Uses AI to read the photos and propose scores; the teacher has the final say.
+- Public țintă: profesori de matematică (gimnaziu și liceu), în limba română.
+- Elevii nu au nevoie de cont sau aplicație: scanează codul QR de pe test și trimit pozele.
+- Punctajul urmează baremul; dacă profesorul nu are barem, primește o propunere pe care o verifică.
+- Rezultate: link pentru fiecare elev, raportul clasei, PDF pentru fiecare elev, CSV pentru catalog.
+- Conturile noi se creează pe bază de cerere.
