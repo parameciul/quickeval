@@ -5,7 +5,7 @@ import { DEMO_PAPER_LIMIT, MAX_PASSWORD_LENGTH, MAX_TEACHER_NAME_LENGTH, MIN_PAS
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
-type Mode = 'login' | 'signup';
+type Mode = 'login' | 'signup' | 'forgot';
 
 // The link "Cere un cont de profesor" of the landing page opens /admin/#cont-nou.
 export const SIGNUP_HASH = '#cont-nou';
@@ -17,21 +17,21 @@ export function LoginPage() {
   const [mode, setMode] = useState<Mode>(hash === SIGNUP_HASH ? 'signup' : 'login');
   return (
     <section className="login-box">
-      <h1>{mode === 'login' ? 'Intră în cont' : 'Cont nou'}</h1>
+      <h1>{mode === 'login' ? 'Intră în cont' : mode === 'signup' ? 'Cont nou' : 'Parolă nouă'}</h1>
       <div className="login-switch" role="group" aria-label="Alege">
-        <button type="button" className="button-quiet" aria-pressed={mode === 'login'} onClick={() => setMode('login')}>
+        <button type="button" className="button-quiet" aria-pressed={mode !== 'signup'} onClick={() => setMode('login')}>
           Am cont
         </button>
         <button type="button" className="button-quiet" aria-pressed={mode === 'signup'} onClick={() => setMode('signup')}>
           Vreau cont nou
         </button>
       </div>
-      {mode === 'login' ? <LoginForm /> : <SignupForm />}
+      {mode === 'login' ? <LoginForm onForgot={() => setMode('forgot')} /> : mode === 'signup' ? <SignupForm /> : <ForgotForm onBack={() => setMode('login')} />}
     </section>
   );
 }
 
-function LoginForm() {
+function LoginForm({ onForgot }: { onForgot: () => void }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
@@ -71,7 +71,53 @@ function LoginForm() {
         </button>
       </span>
       {login.error && <ErrorMessage error={login.error} />}
-      <p className="hint">Ai uitat parola? Scrie unui administrator: îți dă o parolă nouă.</p>
+      <p className="hint">
+        Ai uitat parola?{' '}
+        <button type="button" className="link-button" onClick={onForgot}>
+          Primești pe email un link pentru o parolă nouă
+        </button>
+        .
+      </p>
+    </form>
+  );
+}
+
+function ForgotForm({ onBack }: { onBack: () => void }) {
+  const api = useApi();
+  const [email, setEmail] = useState('');
+  const forgot = useMutation({ mutationFn: () => api.forgotPassword(email) });
+
+  if (forgot.isSuccess) {
+    return (
+      <div className="warning" role="status">
+        <p>Dacă adresa are un cont, ți-am trimis un email cu un link pentru o parolă nouă. Linkul merge o oră.</p>
+        <p>Nu găsești emailul? Uită-te și în Spam, sau cere altul peste câteva minute.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="form-stack"
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        forgot.mutate();
+      }}
+    >
+      <p>Scrie adresa de email a contului. Îți trimitem un link ca să alegi o parolă nouă.</p>
+      <label htmlFor="forgot-email">Email</label>
+      <input id="forgot-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+      <span>
+        <button className="button" type="submit" disabled={forgot.isPending}>
+          {forgot.isPending ? 'Se trimite…' : 'Trimite linkul'}
+        </button>
+      </span>
+      {forgot.error && <ErrorMessage error={forgot.error} />}
+      <p className="hint">
+        <button type="button" className="link-button" onClick={onBack}>
+          Înapoi la intrare
+        </button>
+      </p>
     </form>
   );
 }

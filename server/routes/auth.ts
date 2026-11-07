@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { confirmEmailBody, loginBody, signupBody } from '../../shared/api.ts';
+import { confirmEmailBody, forgotPasswordBody, loginBody, resetPasswordBody, signupBody } from '../../shared/api.ts';
 import { clearSessionCookie, deviceToken, SESSION_DAYS, sessionToken, setDeviceCookie, setSessionCookie } from '../auth/session.ts';
 import {
   adminEmails,
@@ -11,6 +11,9 @@ import {
   findTeacherBySession,
   findUnconfirmed,
   forgetFailedLogins,
+  requestPasswordReset,
+  RESET_HOURS,
+  resetPassword,
   takeDeviceAttempt,
   takeLoginAttempt,
 } from '../db/accounts.ts';
@@ -187,6 +190,72 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({
       teacher: await findTeacherBySession(c.env.DB, tokenHash, now),
     });
+  });
+
+  // "Am uitat parola": a link goes to the email of an active account. The
+  // answer is the same for any email, and the email goes out after it, so
+  // nothing tells which emails have an account. Only the IP's daily limit
+  // answers differently, and it counts every request.
+  routes.post('/forgot-password', async (c) => {
+    if (!canSendEmail(c.env, options)) {
+      throw new ApiError(503, 'reset_off', 'Parola nu se poate reseta prin email încă. Scrie unui administrator.');
+    }
+    const body = await readJson(c, forgotPasswordBody, BODY_LIMIT);
+    const token = newSessionToken();
+    const requested = await requestPasswordReset(
+      c.env.DB,
+      { email: body.email, ipHash: await sha256Hex(clientIpKey(c)), tokenHash: await sha256Hex(token) },
+      nowIso(),
+    );
+    if (requested === 'too_many') {
+      throw new ApiError(429, 'too_many_resets', 'Prea multe cereri de resetare. Încearcă din nou mâine.');
+    }
+    if (requested) {
+      // The token is after "#": it never reaches a server log or a Referer.
+      const url = `${new URL(c.req.url).origin}/admin/parola-noua#${token}`;
+      inBackground(
+        c,
+        sendEmail(c.env, {
+          to: [body.email],
+          subject: 'MQGrader: parolă nouă',
+          text: [
+            `Bună, ${requested.name}!`,
+            '',
+            'Ai cerut o parolă nouă pentru contul tău MQGrader. Alege-o aici:',
+            url,
+            '',
+            `Linkul merge ${RESET_HOURS} oră și o singură dată.`,
+            'Dacă nu ai cerut tu, ignoră acest email: parola ta rămâne cea veche.',
+          ].join('\n'),
+        }),
+      );
+    }
+    return c.json({ status: 'sent' });
+  });
+
+  // The link from the reset email, with the new password. Every other login
+  // of the account ends.
+  routes.post('/reset-password', async (c) => {
+    const { token, newPassword } = await readJson(c, resetPasswordBody, BODY_LIMIT);
+    const passwordHash = await hashPassword(newPassword);
+    const changed = await resetPassword(c.env.DB, await sha256Hex(token), passwordHash, nowIso());
+    if (!changed) {
+      throw new ApiError(404, 'bad_link', 'Linkul nu mai este valabil. Cere altul de pe pagina de intrare.');
+    }
+    inBackground(
+      c,
+      sendEmail(c.env, {
+        to: [changed.email],
+        subject: 'MQGrader: parola a fost schimbată',
+        text: [
+          `Bună, ${changed.name}!`,
+          '',
+          'Parola contului tău MQGrader tocmai a fost schimbată cu linkul din email.',
+          'Dacă nu ai făcut tu asta, scrie imediat unui administrator.',
+        ].join('\n'),
+      }),
+    );
+    return c.json({ reset: true });
   });
 
   routes.post('/logout', async (c) => {

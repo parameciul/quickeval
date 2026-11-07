@@ -4,6 +4,7 @@ import { AccountPage } from './pages/AccountPage.tsx';
 import { ClassPage } from './pages/ClassPage.tsx';
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage.tsx';
 import { LastClassPage } from './pages/LastClassPage.tsx';
+import { NewPasswordPage } from './pages/NewPasswordPage.tsx';
 import { NewTestPage } from './pages/NewTestPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { ReportPage } from './pages/ReportPage.tsx';
@@ -31,6 +32,7 @@ export function AppRoutes() {
         <Route path="setari" element={<SettingsPage />} />
         <Route path="cont" element={<AccountPage />} />
         <Route path="confirma-email" element={<ConfirmEmailPage />} />
+        <Route path="parola-noua" element={<NewPasswordPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

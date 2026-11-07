@@ -34,6 +34,12 @@ export const MAX_IP_FAILED_LOGINS = 100;
 export const IP_WINDOW_MS = 15 * 60 * 1000;
 // A browser that logged in before stops being known after this long unused.
 export const DEVICE_DAYS = 365;
+// A link that resets a password works this long, once. An account gets at most
+// one link every RESET_RESEND_MINUTES, and one IP asks at most
+// MAX_RESETS_PER_IP times a day, whatever the emails (each may send an email).
+export const RESET_HOURS = 1;
+export const RESET_RESEND_MINUTES = 5;
+export const MAX_RESETS_PER_IP = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const daysBefore = (now: string, days: number) => new Date(Date.parse(now) - days * DAY_MS).toISOString();
@@ -461,4 +467,81 @@ export async function setPassword(
       .bind(teacherId, keepTokenHash, teacherId, passwordHash),
   ]);
   return updated?.results[0] ?? null;
+}
+
+// A teacher forgot the password: an active account gets a reset link
+// (`tokenHash` is the SHA-256 of its token) unless it got one in the last
+// RESET_RESEND_MINUTES. Every request counts against its IP, whatever the
+// email, and the same statements run for any email, so nothing tells which
+// emails have an account. "too_many" past MAX_RESETS_PER_IP in a day; the
+// account's name when a link was made (the caller sends it by email), else null.
+export async function requestPasswordReset(
+  db: D1Database,
+  input: { email: string; ipHash: string; tokenHash: string },
+  now: string,
+): Promise<'too_many' | { name: string } | null> {
+  const [, ip, account] = await db.batch<{ attempts?: number; name?: string }>([
+    db.prepare('DELETE FROM reset_ips WHERE window_start <= ?').bind(daysBefore(now, 1)),
+    db
+      .prepare(
+        `INSERT INTO reset_ips (ip_hash, attempts, window_start) VALUES (?, 1, ?)
+         ON CONFLICT (ip_hash) DO UPDATE SET attempts = MIN(attempts + 1, ${MAX_RESETS_PER_IP + 1})
+         RETURNING attempts`,
+      )
+      .bind(input.ipHash, now),
+    db
+      .prepare(
+        `UPDATE teachers SET reset_token_hash = ?, reset_expires_at = ?, reset_requested_at = ?
+         WHERE email = ? AND status = 'active'
+           AND (reset_requested_at IS NULL OR reset_requested_at <= ?)
+           AND (SELECT attempts FROM reset_ips WHERE ip_hash = ?) <= ${MAX_RESETS_PER_IP}
+         RETURNING name`,
+      )
+      .bind(
+        input.tokenHash,
+        new Date(Date.parse(now) + RESET_HOURS * 60 * 60 * 1000).toISOString(),
+        now,
+        input.email,
+        msBefore(now, RESET_RESEND_MINUTES * 60 * 1000),
+        input.ipHash,
+      ),
+  ]);
+  if (Number(ip?.results[0]?.attempts ?? 0) > MAX_RESETS_PER_IP) return 'too_many';
+  const name = account?.results[0]?.name;
+  return name === undefined ? null : { name };
+}
+
+// The link of the reset email, with the new password: valid, unused and
+// unexpired, checked in the statement that sets it. The account's other logins
+// end, its lock and its browsers' counts start again, and the link is used up.
+// Null when the link no longer works.
+export async function resetPassword(
+  db: D1Database,
+  tokenHash: string,
+  passwordHash: string,
+  now: string,
+): Promise<{ email: string; name: string } | null> {
+  const [updated] = await db.batch<{ id: number; email: string; name: string }>([
+    db
+      .prepare(
+        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL,
+           reset_token_hash = NULL, reset_expires_at = NULL
+         WHERE reset_token_hash = ? AND reset_expires_at > ? AND status = 'active'
+         RETURNING id, email, name`,
+      )
+      .bind(passwordHash, tokenHash, now),
+    db
+      .prepare(
+        `DELETE FROM sessions WHERE teacher_id IN (SELECT id FROM teachers WHERE password_hash = ? AND status = 'active')`,
+      )
+      .bind(passwordHash),
+    db
+      .prepare(
+        `UPDATE trusted_devices SET failed_logins = 0
+         WHERE teacher_id IN (SELECT id FROM teachers WHERE password_hash = ? AND status = 'active')`,
+      )
+      .bind(passwordHash),
+  ]);
+  const row = updated?.results[0];
+  return row ? { email: row.email, name: row.name } : null;
 }
