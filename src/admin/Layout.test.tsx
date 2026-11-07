@@ -375,6 +375,14 @@ describe('the panel Clasele tale', () => {
     expect(within(panel).getByRole('button', { name: 'Închide' })).toHaveFocus();
   });
 
+  it('opens "Clasă nouă" from its link', async () => {
+    renderAdmin('/', withClasses());
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
+    await userEvent.click(within(panel).getByRole('link', { name: '+ Clasă nouă' }));
+    expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
+  });
+
   it('opens a class, closes, and marks Clase on the class page', async () => {
     renderAdmin('/', withClasses(), <LocationProbe />);
     const bar = await menu();

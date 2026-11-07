@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createFakeApi } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
@@ -42,8 +43,31 @@ describe('LastClassPage', () => {
     expect(await screen.findByText('Clasa 6E2')).toBeInTheDocument();
   });
 
-  it('says so when the year has no classes', async () => {
+  it('says so when the year has no classes, and offers "Clasă nouă"', async () => {
     renderAdmin('/clase', createFakeApi({ classes: [], students: {} }));
     expect(await screen.findByText('Nu ai nicio clasă în acest an școlar.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '+ Clasă nouă' }));
+    expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
+  });
+
+  it('opens "Clasă nouă" on the last class when a link asks for it', async () => {
+    localStorage.setItem('quickeval:lastClass', '2');
+    renderAdmin(
+      { pathname: '/clase', state: { newClass: true } },
+      createFakeApi({
+        classes: [
+          { id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 },
+          { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 0 },
+        ],
+        students: {},
+      }),
+    );
+    expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Clasa 9R2' })).toBeInTheDocument();
+  });
+
+  it('opens "Clasă nouă" at once when the year has no class and a link asks for it', async () => {
+    renderAdmin({ pathname: '/clase', state: { newClass: true } }, createFakeApi({ classes: [], students: {} }));
+    expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
   });
 });

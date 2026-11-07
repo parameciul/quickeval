@@ -3609,11 +3609,6 @@ table.report-table tfoot td {
   font-weight: 700;
 }
 
-table.grades-table tfoot th,
-table.grades-table tfoot td {
-  border-top: 2px solid var(--ink);
-}
-
 table.report-table th:first-child {
   position: sticky;
   left: 0;
@@ -3627,12 +3622,12 @@ table.report-table td.flagged-cell {
 /* The orange dot of a grade whose items still wait on the teacher. */
 .flag-dot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
+  flex: none;
   border-radius: 50%;
-  background: var(--marker);
+  background: var(--orange-mark);
   vertical-align: middle;
-  margin-left: 0.2rem;
 }
 
 /* The students' table has one narrow column for each exercise, so many of
@@ -3661,80 +3656,109 @@ table.results-table td:nth-child(3) {
   padding-right: 0.6rem;
 }
 
-/* The class grade table: narrow centred cells like the students' table, the
-   name column left-aligned, and a header that stacks the test code, its date
-   (or status) and the report link. */
-table.grades-table {
-  font-size: 0.9rem;
+/* The class page (redesign spec §9) */
+
+/* The top line: the name, "Schimbă clasa" and the facts on the left; "Test nou
+   pentru această clasă" and ⋯ on the right. */
+.class-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
 }
 
-table.grades-table th,
-table.grades-table td {
-  padding: 0.35rem 0.4rem;
-  text-align: center;
-  white-space: nowrap;
-}
-
-table.grades-table th:first-child {
-  padding-right: 0.75rem;
-  padding-left: 0.5rem;
-  text-align: left;
-}
-
-table.grades-table thead th a,
-table.grades-table thead th .grade-head-line {
-  display: block;
-}
-
-table.grades-table thead th .grade-head-line {
-  font-size: 0.8rem;
-  font-weight: 400;
-}
-
-table.grades-table thead th.is-muted,
-table.grades-table thead th.is-muted a {
-  color: var(--muted);
-}
-
-table.grades-table tr.is-muted th,
-table.grades-table tr.is-muted td {
-  color: var(--muted);
-}
-
-table.grades-table tbody .tag {
-  margin-left: 0.4rem;
-}
-
-/* The class page's top line (redesign spec §9): the name, "Schimbă clasa" with
-   its menu, the facts, and the actions. The two small menus float under their
-   buttons. */
-.head-line {
+.class-head-main {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.75rem;
-  margin: 0 0 0.75rem;
+  min-width: 0;
 }
 
-.head-name {
-  font-size: clamp(1.375rem, 1.1rem + 1vw, 1.75rem);
+.class-head-main h1 {
+  margin: 0;
+  font-size: clamp(1.375rem, 1.1rem + 1vw, 1.625rem);
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
-.head-facts {
+.class-head-facts {
+  margin: 0;
   color: var(--muted);
   font-size: 0.875rem;
 }
 
-.head-switch,
-.head-menu {
+.class-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.class-switch,
+.class-more {
   position: relative;
 }
 
-.head-switch-list,
-.head-menu-list {
+.class-switch-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.625rem 0 0.75rem;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.class-switch-button:hover,
+.class-switch-button[aria-expanded="true"] {
+  border-color: var(--muted);
+}
+
+.class-switch-button svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  transition: transform 150ms;
+}
+
+.class-switch-button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.class-more-button {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.class-more-button:hover,
+.class-more-button[aria-expanded="true"] {
+  border-color: var(--muted);
+  color: var(--text);
+}
+
+.class-more-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* The two small menus float under their buttons. */
+.class-menu {
   position: absolute;
   top: calc(100% + 0.5rem);
   left: 0;
@@ -3751,72 +3775,93 @@ table.grades-table tbody .tag {
   box-shadow: var(--float);
 }
 
-.head-menu-list {
-  left: auto;
+.class-more-menu {
   right: 0;
+  left: auto;
   width: 12.5rem;
 }
 
-.head-switch-item {
+.class-menu-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  min-height: 2.25rem;
-  padding: 0.5rem 0.625rem;
+  padding: 0.5625rem 0.625rem;
   border: 0;
   border-radius: 6px;
   background: none;
   color: var(--text);
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 500;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
 }
 
-.head-switch-item:hover,
-.head-menu-list .menu-item:hover {
+.class-menu-item:hover {
   background: var(--raised);
   color: var(--text);
 }
 
-.head-switch-item .flag-dot {
-  flex: none;
-  margin-left: 0;
+.class-menu-item[aria-current="page"] {
+  background: var(--ink-tint);
 }
 
-.head-switch-new {
+.class-menu-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.class-menu-foot {
   margin-top: 0.25rem;
+  padding: 0.5rem 0.625rem 0.25rem;
   border-top: 1px solid var(--line);
-  border-radius: 0 0 6px 6px;
-  color: var(--ink);
 }
 
-.head-menu-list .menu-item {
-  padding: 0.5rem 0.625rem;
+/* A button that reads as a link: blue, no box. */
+.text-button {
+  padding: 0;
   border: 0;
-  border-radius: 6px;
   background: none;
-  color: var(--text);
+  color: var(--ink);
   font: inherit;
   font-size: 0.875rem;
-  text-align: left;
+  font-weight: 600;
   cursor: pointer;
 }
 
-/* The two tabs of the class page: "Note și teste" and "Elevi". */
+.text-button:hover {
+  text-decoration: underline;
+}
+
+.text-button.is-quiet {
+  color: var(--muted);
+  font-size: 0.84375rem;
+}
+
+.text-button.is-quiet:hover {
+  color: var(--text);
+}
+
+.text-button.is-danger {
+  color: var(--red);
+  font-size: 0.84375rem;
+}
+
+/* The two tabs: "Note și teste" and "Elevi" with its count. */
 .class-tabs {
   display: inline-flex;
   gap: 0.25rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
   padding: 0.25rem;
   border-radius: 10px;
   background: var(--active);
 }
 
-.class-tabs .tab {
+.class-tab {
   height: 2.125rem;
   padding: 0 1rem;
   border: 0;
@@ -3829,37 +3874,234 @@ table.grades-table tbody .tag {
   cursor: pointer;
 }
 
-.class-tabs .tab:hover {
+.class-tab:hover {
   color: var(--text);
 }
 
-.class-tabs .tab-active {
+.class-tab[aria-selected="true"] {
   background: var(--sheet);
   color: var(--text);
 }
 
-/* The class page (redesign spec §9): the grades table with "Testele clasei"
-   beside it. On a narrow screen the list goes under the table. */
+.class-tab-count {
+  margin-left: 0.25rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* A white card of the class page, with an optional head and foot. */
+.class-card {
+  min-width: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+}
+
+.class-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.125rem 1.25rem 0.625rem;
+}
+
+.class-card-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.class-card-head span {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.class-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+  padding: 0.75rem 1.25rem 1rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.class-card-foot a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.class-card-foot a:hover {
+  text-decoration: underline;
+}
+
+.class-card-foot-end {
+  justify-content: flex-end;
+}
+
+.class-grades .class-card-foot {
+  justify-content: flex-start;
+}
+
+.class-grades .class-card-foot .flag-dot {
+  margin-right: -0.25rem;
+}
+
+.class-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 1.25rem;
+}
+
+.class-empty p {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* "Note și teste": the grades table as wide as its columns, "Testele clasei"
+   beside it in the rest. On a narrower screen the list goes under the table. */
 .class-notes {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
+  grid-template-columns: minmax(0, max-content) minmax(21rem, 1fr);
   align-items: start;
-  gap: 1rem 1.5rem;
+  gap: 1.5rem;
 }
 
-.class-tests {
-  display: grid;
-  gap: 0.5rem;
+.class-notes > .class-tests {
+  position: sticky;
+  top: calc(var(--top) + 1.5rem);
 }
 
-.class-tests h2 {
-  margin: 0;
-  font-size: 1.05rem;
+/* The grades table: a row per student, a 156px column per test, the numbers
+   on the right; orange only for a grade whose points wait on the teacher. */
+.class-grades {
+  overflow: hidden;
 }
 
+table.grades-table {
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+table.grades-table th,
+table.grades-table td {
+  padding: 0.5625rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  white-space: nowrap;
+}
+
+table.grades-table thead th {
+  padding-top: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom-color: var(--rule);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  vertical-align: bottom;
+}
+
+table.grades-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 12.5rem;
+  background: var(--sheet);
+  text-align: left;
+}
+
+table.grades-table th.grade-head {
+  width: 9.75rem;
+  min-width: 9.75rem;
+  max-width: 9.75rem;
+  white-space: normal;
+}
+
+table.grades-table th.grade-head a {
+  display: block;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+table.grades-table th.grade-head a:hover {
+  color: var(--ink);
+}
+
+.grade-head-note {
+  display: block;
+  font-weight: 400;
+}
+
+.grade-head-note.is-waiting {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+table.grades-table th.is-muted a {
+  color: var(--muted);
+}
+
+table.grades-table tbody th {
+  font-weight: 600;
+}
+
+table.grades-table tbody th a,
+table.grades-table td a {
+  color: inherit;
+  text-decoration: none;
+}
+
+table.grades-table tbody th a:hover,
+table.grades-table td a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+table.grades-table tbody th .tag {
+  margin-left: 0.5rem;
+}
+
+table.grades-table tr.is-muted th,
+table.grades-table tr.is-muted td {
+  color: var(--muted);
+}
+
+table.grades-table td.grade-none,
+table.grades-table td.grade-state {
+  color: var(--muted);
+}
+
+table.grades-table td.grade-state {
+  font-size: 0.8125rem;
+}
+
+table.grades-table td.grade-flag {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+table.grades-table td.grade-flag .flag-dot {
+  margin-right: 0.4375rem;
+}
+
+table.grades-table tfoot th,
+table.grades-table tfoot td {
+  border-top: 1px solid var(--rule);
+  border-bottom: 0;
+  background: var(--raised);
+  font-weight: 700;
+}
+
+/* "Testele clasei": one row per test, its next step on the right. */
 .class-test-list {
-  display: grid;
-  gap: 0.5rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3867,83 +4109,442 @@ table.grades-table tbody .tag {
 
 .class-test-list > li {
   display: grid;
-  justify-items: start;
-  gap: 0.25rem;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-panel);
-  background: var(--sheet);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--rule);
 }
 
-.class-test-list > li.is-muted {
+.class-test-text {
+  display: grid;
+  gap: 0.0625rem;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+a.class-test-title {
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.class-test-title:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.class-test-list > li.is-muted a.class-test-title {
   color: var(--muted);
 }
 
-.class-test-head {
+.class-test-stage.is-waiting {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+.class-tests-empty {
+  padding: 0.25rem 1.25rem 1.25rem;
+}
+
+.class-tests-error {
+  padding: 0 1.25rem;
+}
+
+/* "Elevi": the students on the left, one student on the right. */
+.student-split {
+  display: grid;
+  grid-template-columns: 16.25rem minmax(0, 1fr);
+}
+
+.student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-right: 1px solid var(--rule);
+}
+
+input.student-search {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+input.student-search:focus {
+  border-color: var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.student-list ul {
+  max-height: 28rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.student-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4375rem 0.625rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.student-pick:hover {
+  background: var(--raised);
+}
+
+.student-pick[aria-current="true"] {
+  background: var(--ink-tint);
+  font-weight: 600;
+}
+
+.student-pick.is-muted {
+  color: var(--muted);
+}
+
+.student-pick .flag-dot {
+  flex: none;
+}
+
+.student-list-empty {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.875rem;
+}
+
+.student-add {
+  align-self: flex-start;
+  padding: 0.375rem 0.625rem;
+}
+
+.student-detail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.student-detail > .alert {
+  margin-inline: 1.5rem;
+}
+
+.student-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.student-detail-head h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem 0.5rem;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.375rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-.class-test-date {
+.student-detail-head p {
+  margin: 0.125rem 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
+}
+
+.student-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.125rem;
+}
+
+.student-detail-empty {
+  padding: 0 1.5rem 1.25rem;
+}
+
+.student-detail .class-card-foot {
+  margin-top: auto;
+  padding-inline: 1.5rem;
+}
+
+table.student-results {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+table.student-results th,
+table.student-results td {
+  padding: 0.875rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+table.student-results th:first-child,
+table.student-results td:first-child {
+  padding-left: 1.5rem;
+}
+
+table.student-results th:last-child,
+table.student-results td:last-child {
+  padding-right: 1.5rem;
+  text-align: right;
+}
+
+table.student-results thead th {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-top: 1px solid var(--line);
+  border-bottom-color: var(--rule);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+table.student-results .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+table.student-results tbody th a {
+  display: block;
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+table.student-results tbody th a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+table.student-results tbody th span {
+  color: var(--muted);
+  font-size: 0.8125rem;
   font-weight: 400;
 }
 
-.class-test-facts {
-  color: var(--muted);
-  font-size: 0.9rem;
+table.student-results .is-waiting {
+  color: var(--orange);
 }
 
-.class-test-facts b {
+table.student-results .tag {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+}
+
+td.student-result {
+  white-space: nowrap;
+}
+
+td.student-result .hint,
+td.student-result .tag {
+  margin: 0 0.625rem 0 0;
+  font-size: 0.8125rem;
+}
+
+td.student-result .copy-link,
+td.student-result button {
+  vertical-align: middle;
+}
+
+td.student-paper a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+td.student-paper a:hover {
+  text-decoration: underline;
+}
+
+/* A dialog over the page (Modal.tsx): centred, on a dimmed backdrop. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(8 14 26 / 0.5);
+}
+
+.modal {
+  width: min(30rem, 100%);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  border-radius: 14px;
+  background: var(--sheet);
   color: var(--text);
+  box-shadow: var(--float);
 }
 
-@media (max-width: 1024px) {
+.modal:focus {
+  outline: none;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1.25rem 0 1.75rem;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  padding: 1.25rem 1.75rem 1.75rem;
+}
+
+.modal-body > .alert {
+  margin: 0;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modal-field label {
+  font-size: 0.875rem;
+}
+
+.modal-field input,
+.modal-field textarea {
+  width: 100%;
+  max-width: none;
+}
+
+.modal-field textarea {
+  min-height: 8.25rem;
+  resize: vertical;
+}
+
+.modal-field .hint {
+  font-size: 0.8125rem;
+}
+
+.modal-submit {
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+@media (max-width: 1180px) {
   .class-notes {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .class-notes > .class-tests {
+    position: static;
+  }
+
+  .class-grades {
+    justify-self: start;
+    max-width: 100%;
+  }
 }
 
-/* One test of the chosen student in the "Elevi" tab: the name and date, the
-   points and the grade, the result, and the paper's link, each on its line.
-   The tests are not a numbered list. */
-.row-list > li.student-test {
-  display: grid;
-  gap: 0.2rem;
-}
+@media (max-width: 760px) {
+  .class-head-actions {
+    width: 100%;
+  }
 
-.row-list > li.student-test::before {
-  content: none;
-}
+  .class-head-actions .button {
+    flex: 1;
+  }
 
-.student-test-head,
-.student-test-grade,
-.student-test-result {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.6rem;
-}
+  table.grades-table th,
+  table.grades-table td {
+    padding-inline: 0.75rem;
+  }
 
-.student-test-head > span {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
+  table.grades-table th:first-child {
+    min-width: 8.5rem;
+    max-width: 10rem;
+    white-space: normal;
+  }
 
-.student-test-flags {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
+  table.grades-table th.grade-head {
+    width: 7.5rem;
+    min-width: 7.5rem;
+    max-width: 7.5rem;
+  }
 
-.student-test > a.button-quiet {
-  justify-self: start;
+  .class-card-head,
+  .class-card-foot,
+  .class-test-list > li {
+    padding-inline: 1rem;
+  }
+
+  .student-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-list {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .student-list ul {
+    max-height: 13.75rem;
+  }
+
+  .student-detail-head {
+    padding: 1rem;
+  }
+
+  table.student-results .hide-phone {
+    display: none;
+  }
+
+  table.student-results th:first-child,
+  table.student-results td:first-child {
+    padding-left: 1rem;
+  }
+
+  table.student-results th:last-child,
+  table.student-results td:last-child {
+    padding-right: 1rem;
+  }
+
+  td.student-result {
+    white-space: normal;
+  }
+
+  .student-detail .class-card-foot {
+    padding-inline: 1rem;
+  }
 }
 
 .file-title {
