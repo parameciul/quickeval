@@ -336,7 +336,8 @@ The user picked one option per page on 2026-11-08 (decisions 29 to 39). The prot
 - A box after the lockup in the top bar: "Caută elevi, clase și teste". Typing opens a list under it, grouped "Elevi", "Clase", "Teste" (the match in bold, the class or the date on the right), and "Toate rezultatele pentru „stef”". The arrows move, Enter opens.
 - The results page: "Rezultate pentru „stef”", how many in the school year, the chips "Toate", "Elevi", "Clase", "Teste" with their counts, and one card per group. Diacritics do not count: "stef" finds "Ștefan".
 - On a phone a magnifier beside ☰ opens the search over the whole screen, with ← to close.
-- The API `/api/admin/search` is scoped by the teacher and stays within 15 D1 queries. A folded-name column may need a migration.
+- The API `/api/admin/search` is scoped by the teacher and stays within 15 D1 queries. No migration: it reads the year's students, classes and tests whole and matches their names in the Worker (`shared/search.ts`), because SQLite's `LIKE` folds only ASCII letters.
+- Built (8f): the search needs two letters. It matches anywhere in a name, a class by its own name ("10B"); archived classes and tests of the year are found and marked. A student in two classes of the year is one line, with both classes. The list under the box shows at most five of each group. A chosen line empties the box; the results page keeps the search in it.
 
 ## 12. Open questions
 
