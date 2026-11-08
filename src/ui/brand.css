@@ -2364,6 +2364,59 @@ input[type="file"] {
   font: inherit;
 }
 
+/* The drop area of "Test nou": a click picks a file, and a file can be dragged
+   onto it. The input is hidden but stays focusable; the area shows its focus
+   ring. Its children let the drag through, so leaving one of them is not
+   leaving the area. */
+.file-drop {
+  display: grid;
+  place-items: center;
+  gap: 0.25rem;
+  max-width: 34rem;
+  padding: 1.25rem;
+  border: 1px dashed var(--control);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  text-align: center;
+  cursor: pointer;
+}
+
+.file-drop > * {
+  pointer-events: none;
+}
+
+.file-drop b,
+.file-drop-name {
+  color: var(--text);
+}
+
+.file-drop-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.file-drop.is-over {
+  border-color: var(--ink);
+  background: var(--ink-tint);
+}
+
+.file-drop-field input:focus-visible + .file-drop {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.file-drop-field input:disabled + .file-drop {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.file-drop-field .alert {
+  margin: 0.5rem 0 0;
+}
+
 /* A test's state: draft is plain, open is green, being graded is pale blue,
    graded is blue. */
 .status {
