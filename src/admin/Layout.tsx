@@ -143,7 +143,12 @@ export function Layout() {
             aria-label="Caută"
             aria-expanded={open === 'search'}
             aria-controls={open === 'search' ? 'search-full' : undefined}
-            onClick={() => toggle('search')}
+            onClick={(event) => {
+              // iOS Safari does not focus a tapped button: focus it, so the
+              // search over the whole screen gives the focus back to it.
+              event.currentTarget.focus();
+              toggle('search');
+            }}
           >
             <IconSearch />
           </button>
