@@ -17,10 +17,10 @@ export function orderedStudents(students: StudentRow[]): StudentRow[] {
 }
 
 // The line under a test's name: its date (or "ciornă") and where it stands,
-// in orange when it waits on the teacher.
-function headNote(test: TestSummary): { text: string; waits: boolean } {
+// in orange when it waits on the teacher (never in an archived class).
+function headNote(test: TestSummary, readOnly: boolean): { text: string; waits: boolean } {
   const date = test.startedAt === null ? 'ciornă' : formatDayMonth(test.startedAt);
-  const waits = todoOf(test) !== null;
+  const waits = !readOnly && todoOf(test) !== null;
   if (test.flagCount > 0) return { text: `${date} · de verificat`, waits };
   if (test.status === 'done' && test.gradedCount > 0) {
     return { text: `${date} · ${test.resultsOpen ? 'publicat' : 'nepublicat'}`, waits };
@@ -28,8 +28,8 @@ function headNote(test: TestSummary): { text: string; waits: boolean } {
   return { text: `${date} · ${stagesOf(test).current.name.toLowerCase()}`, waits };
 }
 
-function TestHeader({ test }: { test: TestSummary }) {
-  const note = headNote(test);
+function TestHeader({ test, readOnly }: { test: TestSummary; readOnly: boolean }) {
+  const note = headNote(test, readOnly);
   return (
     <th scope="col" className={test.archived ? 'grade-head is-muted' : 'grade-head'}>
       <Link to={`/teste/${test.code}`}>{test.title}</Link>
@@ -77,23 +77,28 @@ function testAverage(grades: ClassGrade[], testCode: string): number | null {
 // The class page's grade table (spec §9): a row per student, a narrow column
 // per test, the oldest test on the left (`tests` arrive newest first), the last
 // row "Media testului", and no average per student. Draft and open tests keep a
-// column, so the page still leads to them.
+// column, so the page still leads to them. `readOnly` (an archived class)
+// offers no "Adaugă elevi".
 export function GradesTable({
   students,
   tests,
   grades,
   showArchived,
+  readOnly = false,
   onShowStudents,
 }: {
   students: StudentRow[];
   tests: TestSummary[];
   grades: ClassGrade[];
   showArchived: boolean;
+  readOnly?: boolean;
   onShowStudents(): void;
 }) {
   const shown = tests.filter((test) => showArchived || !test.archived).reverse();
   let empty: ReactNode = null;
-  if (students.length === 0) {
+  if (students.length === 0 && readOnly) {
+    empty = <p>Clasa nu are elevi.</p>;
+  } else if (students.length === 0) {
     empty = (
       <>
         <p>Clasa nu are încă elevi.</p>
@@ -119,7 +124,7 @@ export function GradesTable({
             <tr>
               <th scope="col">Elev</th>
               {shown.map((test) => (
-                <TestHeader key={test.code} test={test} />
+                <TestHeader key={test.code} test={test} readOnly={readOnly} />
               ))}
             </tr>
           </thead>
