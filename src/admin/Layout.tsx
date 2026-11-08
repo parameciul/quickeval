@@ -9,6 +9,7 @@ import { useApi } from './ApiContext.tsx';
 import { ErrorMessage, isLoginRequired } from './ErrorMessage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { useSchoolYear } from './SchoolYearContext.tsx';
+import { SearchBox } from './search/SearchBox.tsx';
 import { ClassesPanel } from './shell/ClassesPanel.tsx';
 import { DemoButton } from './shell/DemoButton.tsx';
 import { IconClose, IconMenu } from './shell/icons.tsx';
@@ -72,7 +73,8 @@ export function Layout() {
 
   // A start, a regrade or a retry changes the papers the demo button shows, and
   // a change can end or add a thing in "De făcut": every change a logged-in
-  // teacher makes reads the account and the tests of the year again. Only
+  // teacher makes reads the account and the tests of the year again, and what
+  // the search found (a new name, a new test). Only
   // what was not read since the change started, and joining a read already on
   // its way: a page that reads the list after its change does not cause a
   // second read, and nothing waits for this one.
@@ -89,6 +91,7 @@ export function Layout() {
         void queryClient.invalidateQueries({ queryKey: ['me'], predicate }, { cancelRefetch: false });
         void queryClient.invalidateQueries({ queryKey: ['tests'], predicate }, { cancelRefetch: false });
         void queryClient.invalidateQueries({ queryKey: ['accounts'], predicate }, { cancelRefetch: false });
+        void queryClient.invalidateQueries({ queryKey: ['search'], predicate }, { cancelRefetch: false });
       }),
     [queryClient],
   );
@@ -120,6 +123,8 @@ export function Layout() {
             <span className="brand-by">by Laura Miron</span>
           </span>
         </Link>
+        {/* On a phone the search opens over the whole screen instead. */}
+        {me.data && !phone && <SearchBox id="search" />}
         <div className="topbar-tools">
           {/* A demo account's papers come first; logged out, the top bar
               has only the lockup and the theme. */}

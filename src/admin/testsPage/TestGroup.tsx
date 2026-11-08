@@ -164,7 +164,7 @@ function TestRow({
 
 // "ciornă" for a test not started; a stopped test keeps its start date but is
 // a draft again.
-function startedText(test: TestSummary): string {
+export function startedText(test: TestSummary): string {
   if (test.status === 'draft') return 'ciornă';
   return test.startedAt ? `început ${startedLabel(test.startedAt, new Date())}` : 'fără dată';
 }
