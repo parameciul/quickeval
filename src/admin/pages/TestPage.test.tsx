@@ -25,6 +25,9 @@ const uploads = [
   fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
 ];
 
+// The same students, none of whom has uploaded a file.
+const notSent = () => uploads.map((row) => fakeUpload({ studentId: row.studentId, studentName: row.studentName }));
+
 function apiWith(overrides: Parameters<typeof fakeTest>[0] = {}) {
   return createFakeApi({
     classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
@@ -228,6 +231,52 @@ describe('TestPage', () => {
   it('locks the files while the test is being graded', async () => {
     renderAdmin(`${PAGE}#pregatire`, apiWith({ status: 'evaluating' }));
     expect(await screen.findByLabelText('Încarcă baremul')).toBeDisabled();
+  });
+
+  it('says no paper came yet while the test is open and nothing was uploaded, with the QR code on the whole screen', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, submittedCount: 0, studentCount: 3 }, notSent())],
+    });
+    renderAdmin(`${PAGE}#in-clasa`, api);
+    expect(await screen.findByRole('heading', { level: 3, name: 'Nicio lucrare trimisă încă' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Încărcările elevilor' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Oprește testul' })).toBeInTheDocument();
+    const empty = screen.getByRole('heading', { name: 'Nicio lucrare trimisă încă' }).parentElement!;
+    const show = within(empty).getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
+    await userEvent.click(show);
+    const dialog = await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
+    expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Închide' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(show).toHaveFocus();
+  });
+
+  it('lists the papers as soon as one student uploaded a file, and once the uploads are closed', async () => {
+    const one = [notSent()[0]!, uploads[1]!, notSent()[2]!];
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, submittedCount: 0, studentCount: 3 }, one)],
+    });
+    const first = renderAdmin(`${PAGE}#in-clasa`, api);
+    expect(await screen.findByRole('table', { name: 'Încărcările elevilor' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Nicio lucrare trimisă încă' })).not.toBeInTheDocument();
+    first.unmount();
+    renderAdmin(
+      `${PAGE}#in-clasa`,
+      createFakeApi({
+        classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+        students: {},
+        tests: [fakeTest({ status: 'done', submittedCount: 0, studentCount: 3 }, notSent())],
+      }),
+    );
+    expect(await screen.findByRole('table', { name: 'Încărcările elevilor' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Nicio lucrare trimisă încă' })).not.toBeInTheDocument();
   });
 
   it('lists the uploads of the students', async () => {
@@ -645,7 +694,7 @@ describe('TestPage stages', () => {
     await openStage('Verificare');
     expect(screen.getByText('Punctele nesigure apar după ce se corectează lucrările.')).toBeInTheDocument();
     await openStage('Rezultate');
-    expect(screen.getByText('Rezultatele se publică după corectare.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Rezultatele se publică după corectare' })).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 });

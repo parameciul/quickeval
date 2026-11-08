@@ -42,7 +42,10 @@ describe('the panel Rezultate', () => {
   it('has one line for a draft', async () => {
     renderAdmin(PAGE, apiWith({}, graded()));
     expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toBeInTheDocument();
-    expect(screen.getByText('Rezultatele se publică după corectare.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Rezultatele se publică după corectare' })).toBeInTheDocument();
+    expect(screen.getByText('Când lucrările sunt corectate, le publici de aici; fiecare elev primește linkul lui.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('link', { name: 'Mergi la Corectare' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Corectare' })).toHaveFocus();
     expect(screen.queryByRole('table', { name: 'Linkurile cu rezultatele elevilor' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Pentru tine' })).not.toBeInTheDocument();
   });
@@ -57,7 +60,8 @@ describe('the panel Rezultate', () => {
     expect(
       await screen.findByText('Linkul arată nota, punctajul pe fiecare exercițiu și comentariile. Elevul îl vede după ce îl publici.'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Rezultatele se publică după corectare.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Rezultatele se publică după corectare' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la Corectare' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Publică toate rezultatele' })).not.toBeInTheDocument();
     // A sent paper has its link before the grading; one still on the phone has none.
     expect(within(row('Pop Ion')).getByRole('button', { name: /^Fă linkul:/ })).toBeInTheDocument();
@@ -144,7 +148,7 @@ describe('the panel Rezultate', () => {
     const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
     renderAdmin(PAGE, apiWith({ status: 'evaluating', resultsOpen: true }, rows));
     expect(await screen.findByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
-    expect(screen.queryByText('Rezultatele se publică după corectare.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Rezultatele se publică după corectare' })).not.toBeInTheDocument();
   });
 
   it('says how many points still wait before the teacher publishes', async () => {

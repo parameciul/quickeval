@@ -1,12 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import type { RobotStart, TestDetail, TestInfo, UploadRow } from '../../../shared/api.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
 import { formatDateTime } from '../../ui/format.ts';
 import { GradingProgress } from '../../ui/GradingProgress.tsx';
 import { useApi } from '../ApiContext.tsx';
+import { EmptyState } from '../EmptyState.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { IconQr } from '../shell/icons.tsx';
 import type { StageName } from '../stages.ts';
 import { AnalysisState } from './AnalysisState.tsx';
 import { EvaluationControls } from './EvaluationControls.tsx';
@@ -16,12 +18,12 @@ import { RegradeAllButton } from './RegradeAllButton.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
 import { ResultFiles } from './ResultFiles.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
-import { ResultsAccess } from './ResultsAccess.tsx';
+import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
 import { ReviewList } from './ReviewList.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
-import { MultiUploadLink } from './UploadLink.tsx';
+import { MultiUploadLink, QrOverlay, uploadLink } from './UploadLink.tsx';
 import { UploadsTable } from './UploadsTable.tsx';
 
 export interface PanelProps {
@@ -132,12 +134,44 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
 }
 
 function ClassPanel(props: PanelProps) {
-  const { test, onChanged } = props;
+  const { test, uploads, onChanged } = props;
+  // While the test is open and no student has uploaded a file (as for
+  // "Oprește testul"), the papers table would only say "Nu a trimis".
+  const nothingYet = test.status === 'open' && uploads.every((row) => row.fileCount === 0);
   return (
     <>
       <TestActions {...props} />
       {test.status === 'open' && <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />}
-      {test.status !== 'draft' && <Papers {...props} selectable={false} />}
+      {nothingYet ? <NoPapersYet token={test.uploadToken} /> : test.status !== 'draft' && <Papers {...props} selectable={false} />}
+    </>
+  );
+}
+
+// An open test with no paper yet (redesign spec §11.9): its one next step is
+// the QR code on the whole screen, for the class projector. Closing it gives
+// the focus back to the button.
+function NoPapersYet({ token }: { token: string | null }) {
+  const [fullScreen, setFullScreen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const show = token && (
+    <button ref={button} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
+      Arată codul QR pe tot ecranul
+    </button>
+  );
+  return (
+    <>
+      <EmptyState icon={<IconQr />} title="Nicio lucrare trimisă încă" action={show || undefined}>
+        Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.
+      </EmptyState>
+      {fullScreen && token && (
+        <QrOverlay
+          url={uploadLink(token)}
+          onClose={() => {
+            setFullScreen(false);
+            button.current?.focus();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -195,7 +229,7 @@ function ReviewPanel(props: PanelProps) {
 // The results (redesign spec §8): publishing, the students' links, and
 // "Pentru tine". The links table takes the place of the papers table here.
 function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
-  if (test.status === 'draft') return <p className="hint">Rezultatele se publică după corectare.</p>;
+  if (test.status === 'draft') return <NoResultsYet />;
   const count = linksCount(uploads, test.resultsOpen);
   return (
     <>

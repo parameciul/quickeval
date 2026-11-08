@@ -117,7 +117,7 @@ function MultiUploadCreator({
 // The QR code as big as the screen allows. Escape or the button closes it.
 // It is above everything: it takes Esc first (capture), and marks it taken so
 // an open side panel stays open.
-function QrOverlay({ url, onClose }: { url: string; onClose: () => void }) {
+export function QrOverlay({ url, onClose }: { url: string; onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     close.current?.focus();
