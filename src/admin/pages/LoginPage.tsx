@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useLocation } from 'react-router';
-import { DEMO_PAPER_LIMIT, MAX_PASSWORD_LENGTH, MAX_TEACHER_NAME_LENGTH, MIN_PASSWORD_LENGTH } from '../../../shared/accounts.ts';
+import { DEMO_PAPER_LIMIT, MAX_PASSWORD_LENGTH, MAX_TEACHER_NAME_LENGTH, MIN_PASSWORD_LENGTH, normalizeEmail } from '../../../shared/accounts.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ApiError } from '../api.ts';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { State, WayIn } from '../wayIn/WayIn.tsx';
+import { State, useStateHeading, WayIn } from '../wayIn/WayIn.tsx';
 
 // What the left half shows: a form, or what happened after one. "pending" is
 // an account that confirmed its email and waits for an administrator: its
@@ -28,15 +28,7 @@ export const SIGNUP_HASH = '#cont-nou';
 export function LoginPage() {
   const { hash } = useLocation();
   const [mode, setMode] = useState<Mode>(hash === SIGNUP_HASH ? { name: 'signup' } : { name: 'login' });
-  const heading = useRef<HTMLHeadingElement>(null);
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    heading.current?.focus();
-  }, [mode]);
+  const heading = useStateHeading(mode.name);
 
   return (
     <WayIn>
@@ -125,7 +117,7 @@ function LoginForm({ onForgot, onPending }: { onForgot: () => void; onPending: (
     // An account that waits for approval has its own state; any other refusal
     // (a wrong password, an email not yet confirmed) shows under the form.
     onError: (error) => {
-      if (error instanceof ApiError && error.code === 'account_pending') onPending(email.trim());
+      if (error instanceof ApiError && error.code === 'account_pending') onPending(normalizeEmail(email));
     },
   });
   const pending = login.error instanceof ApiError && login.error.code === 'account_pending';

@@ -60,16 +60,19 @@ function DemoRing({ used }: { used: number }) {
   return (
     <svg className="demo-ring" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <circle cx="10" cy="10" r="7.5" fill="none" strokeWidth="3" />
-      <circle
-        cx="10"
-        cy="10"
-        r="7.5"
-        fill="none"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeDasharray={`${((used / DEMO_PAPER_LIMIT) * round).toFixed(1)} ${round.toFixed(1)}`}
-        transform="rotate(-90 10 10)"
-      />
+      {/* A round cap draws a dot even for a line of no length. */}
+      {used > 0 && (
+        <circle
+          cx="10"
+          cy="10"
+          r="7.5"
+          fill="none"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={`${((used / DEMO_PAPER_LIMIT) * round).toFixed(1)} ${round.toFixed(1)}`}
+          transform="rotate(-90 10 10)"
+        />
+      )}
     </svg>
   );
 }

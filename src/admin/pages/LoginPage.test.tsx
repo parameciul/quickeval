@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createFakeApi, fakeTeacher } from '../../test/fakeApi.ts';
@@ -45,7 +45,7 @@ describe('the login form', () => {
     api.me.mockRejectedValueOnce(loginRequired());
     api.login.mockRejectedValueOnce(new ApiError(403, 'account_pending', 'Contul tău așteaptă aprobarea unui administrator.'));
     renderAdmin('/', api);
-    await userEvent.type(await screen.findByLabelText('Adresa de email'), ' nou@example.com ');
+    await userEvent.type(await screen.findByLabelText('Adresa de email'), 'Nou@Example.com');
     await userEvent.type(screen.getByLabelText('Parola'), 'parola-buna');
     await userEvent.click(screen.getByRole('button', { name: 'Intră' }));
     const heading = await screen.findByRole('heading', { name: 'Contul tău așteaptă aprobarea' });
@@ -148,6 +148,20 @@ describe('the menu by role', () => {
     expect(screen.queryByRole('region', { name: 'Cont demo' })).not.toBeInTheDocument();
   });
 
+  it('opens one small menu at a time from the keyboard', async () => {
+    renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 }) }));
+    const demo = await screen.findByRole('button', { name: /^Demo · / });
+    demo.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(screen.getByRole('region', { name: 'Cont demo' })).toBeInTheDocument();
+    const initials = screen.getByRole('button', { name: /contul tău/ });
+    act(() => initials.focus());
+    expect(screen.queryByRole('region', { name: 'Cont demo' })).not.toBeInTheDocument();
+    await userEvent.keyboard('{Enter}');
+    expect(initials).toHaveAttribute('aria-expanded', 'true');
+    expect(demo).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('counts the papers on their way to the robot as used', async () => {
     const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 33, papersWaiting: 1 }) });
     renderAdmin('/clase', api);
@@ -195,7 +209,7 @@ describe('the forgotten password', () => {
     await userEvent.type(screen.getByLabelText('Adresa de email'), 'profesor@example.com');
     await userEvent.click(screen.getByRole('button', { name: 'Trimite linkul' }));
     expect(api.forgotPassword).toHaveBeenCalledWith('profesor@example.com');
-    expect(await screen.findByRole('heading', { name: 'Verifică-ți emailul' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Verifică-ți emailul' })).toHaveFocus();
     expect(screen.getByRole('status')).toHaveTextContent('Dacă adresa are un cont');
   });
 

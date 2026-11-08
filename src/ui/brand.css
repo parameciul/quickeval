@@ -3613,6 +3613,7 @@ table.items tr.edit-row > td {
 
 .way-in-inner [role="status"] > p {
   margin: 0.5rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 .way-in-muted {
@@ -4721,6 +4722,11 @@ table.results-table td:nth-last-child(-n + 2) {
 .class-card-head span {
   color: var(--muted);
   font-size: 0.8125rem;
+}
+
+/* A green tag in a card head ("Cont complet") keeps its own colour. */
+.class-card-head .tag-ok {
+  color: var(--ok-fg);
 }
 
 .class-card-foot {

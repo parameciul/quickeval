@@ -21,7 +21,7 @@ describe('ConfirmEmailPage', () => {
     await userEvent.type(screen.getByLabelText('Parola'), 'parola-lunga');
     await userEvent.click(button);
     expect(api.confirmEmail).toHaveBeenCalledWith('token-din-link', 'parola-lunga');
-    expect(await screen.findByRole('heading', { name: 'Adresa ta este confirmată' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Adresa ta este confirmată' })).toHaveFocus();
     expect(screen.getByRole('status')).toHaveTextContent('Acum un administrator trebuie să aprobe contul.');
     expect(screen.getByRole('link', { name: 'Înapoi la pagina de intrare' })).toHaveAttribute('href', '/');
   });

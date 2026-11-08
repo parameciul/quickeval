@@ -1,4 +1,4 @@
-import type { ReactNode, RefObject } from 'react';
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Link } from 'react-router';
 
 // One stage of a test, as the landing page (index.html) writes it, word for
@@ -158,6 +158,21 @@ export function StateIcon({ kind }: { kind: 'mail' | 'done' | 'wait' }) {
       </svg>
     </span>
   );
+}
+
+// The heading of the left half's state: it takes the focus when `state`
+// changes (a form sent, a link followed), never when the page opens. The
+// last state is kept, so a second run of the effect for the same state does
+// nothing.
+export function useStateHeading(state: string) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const last = useRef(state);
+  useEffect(() => {
+    if (last.current === state) return;
+    last.current = state;
+    heading.current?.focus();
+  }, [state]);
+  return heading;
 }
 
 // One state of the left half: its icon, its heading and the line under it.

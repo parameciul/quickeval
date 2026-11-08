@@ -4,7 +4,7 @@ import { useLocation } from 'react-router';
 import { MAX_PASSWORD_LENGTH } from '../../../shared/accounts.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { BackHome, State, WayIn } from '../wayIn/WayIn.tsx';
+import { BackHome, State, useStateHeading, WayIn } from '../wayIn/WayIn.tsx';
 
 // /confirma-email#<token>: the link from the email of a new account. Shown
 // without a login. It confirms only with the password chosen at the sign-up:
@@ -15,18 +15,19 @@ export function ConfirmEmailPage() {
   const token = useLocation().hash.replace(/^#/, '');
   const [password, setPassword] = useState('');
   const confirm = useMutation({ mutationFn: () => api.confirmEmail(token, password) });
+  const heading = useStateHeading(confirm.isSuccess ? 'done' : 'form');
 
   return (
     <WayIn>
       {confirm.isSuccess ? (
-        <State icon="done" title="Adresa ta este confirmată">
+        <State heading={heading} icon="done" title="Adresa ta este confirmată">
           <div role="status">
             <p>Acum un administrator trebuie să aprobe contul. Vei primi un email după aprobare.</p>
           </div>
           <BackHome />
         </State>
       ) : (
-        <State title="Confirmă adresa de email">
+        <State heading={heading} title="Confirmă adresa de email">
           {token === '' ? (
             <p>Linkul nu este întreg. Deschide-l din nou din email.</p>
           ) : (

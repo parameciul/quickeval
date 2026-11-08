@@ -92,8 +92,8 @@ export function Layout() {
       }),
     [queryClient],
   );
-  // Esc closes the open panel, unless a layer above it (the account menu, the
-  // QR code on the whole screen) took this Esc first.
+  // Esc closes the open panel, unless a layer above it (a small menu of the
+  // top bar, the QR code on the whole screen) took this Esc first.
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {

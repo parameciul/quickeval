@@ -16,7 +16,7 @@ describe('NewPasswordPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salvează parola' }));
     expect(api.setNewPassword).toHaveBeenCalledWith('token-din-link', 'parola-noua-lunga');
     expect(await screen.findByRole('status')).toHaveTextContent('parola a fost schimbată');
-    expect(screen.getByRole('heading', { level: 1, name: 'Parolă nouă' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Parolă nouă' })).toHaveFocus();
     expect(screen.getByRole('heading', { name: 'Weekendul tău, fără teancul de lucrări.' })).toBeInTheDocument();
   });
 
