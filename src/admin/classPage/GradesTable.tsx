@@ -6,6 +6,7 @@ import { compareStudentNames } from '../../../shared/students.ts';
 import { countLabel, formatDayMonth, uploadStatusLabel } from '../../ui/format.ts';
 import { stagesOf } from '../stages.ts';
 import { todoOf } from '../shell/todo.ts';
+import type { StudentLinkState } from '../pages/StudentPage.tsx';
 
 function gradeKey(studentId: number, testCode: string): string {
   return `${studentId}|${testCode}`;
@@ -39,7 +40,9 @@ function TestHeader({ test, readOnly }: { test: TestSummary; readOnly: boolean }
   );
 }
 
-function GradeCell({ grade }: { grade: ClassGrade | undefined }) {
+// A grade cell: the grade (orange with a dot when points wait), the state of an
+// upload not graded yet, or "—" for no paper. The student page draws it too.
+export function GradeCell({ grade }: { grade: ClassGrade | undefined }) {
   if (!grade) {
     return (
       <td className="grade-none" title="Nu a trimis lucrarea">
@@ -80,6 +83,7 @@ function testAverage(grades: ClassGrade[], testCode: string): number | null {
 // column, so the page still leads to them. `readOnly` (an archived class)
 // offers no "Adaugă elevi".
 export function GradesTable({
+  classId,
   students,
   tests,
   grades,
@@ -87,6 +91,7 @@ export function GradesTable({
   readOnly = false,
   onShowStudents,
 }: {
+  classId: number;
   students: StudentRow[];
   tests: TestSummary[];
   grades: ClassGrade[];
@@ -132,7 +137,9 @@ export function GradesTable({
             {orderedStudents(students).map((student) => (
               <tr key={student.id} className={student.active ? undefined : 'is-muted'}>
                 <th scope="row">
-                  <Link to={`/elevi/${student.id}`}>{student.fullName}</Link>
+                  <Link to={`/elevi/${student.id}`} state={{ fromClass: classId } satisfies StudentLinkState}>
+                    {student.fullName}
+                  </Link>
                   {!student.active && (
                     <>
                       {' '}

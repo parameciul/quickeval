@@ -1,11 +1,10 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { ClassGrade, ClassSummary, StudentRow, UploadStatus } from '../../shared/api.ts';
+import type { ClassGrade, ClassSummary, StudentRow } from '../../shared/api.ts';
 import { compareClassNames, displayClassName } from '../../shared/classes.ts';
 import { formatSchoolYear } from '../../shared/schoolYear.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
-import { flagCountSql } from './evaluations.ts';
-import { noWorkSql } from './students.ts';
+import { GRADE_COLUMNS, gradeOf, noWorkSql, type GradeRow } from './students.ts';
 
 interface ClassRow {
   id: number;
@@ -115,44 +114,16 @@ export async function listClassStudents(db: D1Database, teacherId: number, class
 
 // Every upload in the tests of the class, archived tests included, in one
 // query. The class must belong to the teacher; for any other class the list is
-// empty. The flag count is 0 until the upload is graded. A result is open when
-// the whole test is published or this one alone, as the student's page reads it.
+// empty.
 export async function listClassGrades(db: D1Database, teacherId: number, classId: number): Promise<ClassGrade[]> {
   const { results } = await db
     .prepare(
-      `SELECT s.student_id, t.code AS test_code, s.id AS submission_id, s.status, ev.grade,
-         ev.total, ev.max_total, s.result_token, s.started_at,
-         CASE WHEN t.results_open = 1 OR s.results_open = 1 THEN 1 ELSE 0 END AS results_open,
-         CASE WHEN ev.id IS NULL THEN 0 ELSE ${flagCountSql('ev')} END AS flag_count
+      `SELECT ${GRADE_COLUMNS}
        FROM submissions s
        JOIN tests t ON t.id = s.test_id AND t.class_id = ? AND t.teacher_id = ?
        LEFT JOIN evaluations ev ON ev.submission_id = s.id AND s.status = 'graded'`,
     )
     .bind(classId, teacherId)
-    .all<{
-      student_id: number;
-      test_code: string;
-      submission_id: number;
-      status: Exclude<UploadStatus, 'none'>;
-      grade: number | null;
-      total: number | null;
-      max_total: number | null;
-      results_open: number | null;
-      result_token: string | null;
-      started_at: string | null;
-      flag_count: number;
-    }>();
-  return results.map((row) => ({
-    studentId: row.student_id,
-    testCode: row.test_code,
-    submissionId: row.submission_id,
-    status: row.status,
-    grade: row.grade,
-    flagCount: row.flag_count,
-    total: row.total,
-    maxTotal: row.max_total,
-    resultsOpen: row.results_open === 1,
-    resultToken: row.result_token,
-    startedAt: row.started_at,
-  }));
+    .all<GradeRow>();
+  return results.map(gradeOf);
 }

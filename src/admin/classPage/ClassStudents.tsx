@@ -11,6 +11,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { CopyResultLink } from '../testPage/ResultLinksTable.tsx';
 import { AddStudentsDialog, RenameDialog } from './ClassDialogs.tsx';
 import { orderedStudents } from './GradesTable.tsx';
+import type { StudentLinkState } from '../pages/StudentPage.tsx';
 
 // A name as the search compares it: no case, no diacritics ("stef" finds
 // "Ștefan").
@@ -142,8 +143,8 @@ export function ClassStudents({
 }
 
 // The result of one paper for the student: published, not yet (with the link
-// to copy), after the check, or no paper.
-function ResultCell({ grade, studentName }: { grade: ClassGrade | undefined; studentName: string }) {
+// to copy), after the check, or no paper. The student page shows it too.
+export function ResultCell({ grade, studentName }: { grade: ClassGrade | undefined; studentName: string }) {
   if (grade === undefined) return <span className="hint">Nu a trimis lucrarea.</span>;
   if (grade.status !== 'graded') return <span className="hint">{uploadStatusLabel(grade.status)}</span>;
   if (!grade.resultsOpen && grade.flagCount > 0) return <span className="hint">După verificare</span>;
@@ -318,7 +319,9 @@ function StudentDetail({
       )}
       <p className="class-card-foot">
         <span>Elevul vede rezultatul pe linkul lui, după ce îl publici.</span>
-        <Link to={`/elevi/${student.id}`}>Toate notele elevului, din toate clasele</Link>
+        <Link to={`/elevi/${student.id}`} state={{ fromClass: classId } satisfies StudentLinkState}>
+          Toate notele elevului, din toate clasele
+        </Link>
       </p>
       {renameOpen && (
         <RenameDialog

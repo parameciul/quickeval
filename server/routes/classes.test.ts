@@ -488,9 +488,9 @@ describe('grades of a class', () => {
 
     const historyOne = await api.request('GET', `/api/admin/students/${one.studentIds[0]}/history`);
     expect(historyOne.body.classes).toHaveLength(1);
-    expect(historyOne.body.results).toMatchObject([{ submissionId: subOne, grade: 6 }]);
+    expect(historyOne.body.grades).toMatchObject([{ submissionId: subOne, grade: 6 }]);
     const historyTwo = await api.request('GET', `/api/admin/students/${two.studentIds[0]}/history`);
     expect(historyTwo.body.classes).toHaveLength(1);
-    expect(historyTwo.body.results).toMatchObject([{ submissionId: subTwo, grade: 9 }]);
+    expect(historyTwo.body.grades).toMatchObject([{ submissionId: subTwo, grade: 9 }]);
   });
 });

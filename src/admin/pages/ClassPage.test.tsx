@@ -406,6 +406,24 @@ describe('ClassPage grade table', () => {
     expect(within(headers[2]!).getByRole('link', { name: 'Geometrie' })).toHaveAttribute('href', '/teste/6E2-26T2');
   });
 
+  it('opens the student page from a name, which leads back to this class', async () => {
+    const histories = [
+      {
+        student: { id: 10, fullName: 'Pop Ion' },
+        classes: [
+          { id: 3, name: '7E2', schoolYear: 2027, active: true },
+          { id: 1, name: '6E2', schoolYear: 2026, active: true },
+        ],
+        tests: [],
+        grades: [],
+      },
+    ];
+    renderAdmin('/clase/1', createFakeApi({ ...classData(), histories }));
+    const table = within(await screen.findByRole('table', { name: 'Notele elevilor la teste' }));
+    await userEvent.click(table.getByRole('link', { name: 'Pop Ion' }));
+    expect(await screen.findByRole('link', { name: '← Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
+  });
+
   it('links a grade to the result of the student', async () => {
     renderAdmin('/clase/1', gradedClass());
     const table = await tableOf();

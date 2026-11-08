@@ -155,6 +155,7 @@ function ClassDetails({ classId }: { classId: number }) {
         {tab === 'note' ? (
           <div className="class-notes">
             <GradesTable
+              classId={classId}
               students={students}
               tests={tests}
               grades={grades}

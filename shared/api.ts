@@ -411,27 +411,24 @@ export interface StudentClass {
   active: boolean;
 }
 
-// One graded test of a student.
-export interface StudentResult {
-  submissionId: number;
-  testCode: string;
-  testTitle: string;
-  className: string;
-  schoolYear: number;
-  // The date and hour of the test.
-  date: string;
-  // Out of 10.
-  grade: number;
-  // Items of the result that the teacher has not checked yet.
-  flagCount: number;
+// One started test of a class the student is in, or was in.
+export interface StudentHistoryTest {
+  classId: number;
+  code: string;
+  title: string;
+  // When Start test opened the uploads: the date of the test.
+  startedAt: string;
 }
 
-// The student page (spec §9): every graded test of the student, in every
-// class and school year, newest first.
+// The student page (spec §11.2): the student's classes, the newest school year
+// first; their started tests, newest first; and the student's papers in them,
+// as the grades table of the class page reads them. An archived test, or a test
+// of a class the student left, is listed only when the student sent a paper.
 export interface StudentHistory {
   student: { id: number; fullName: string };
   classes: StudentClass[];
-  results: StudentResult[];
+  tests: StudentHistoryTest[];
+  grades: ClassGrade[];
 }
 
 export interface TestSummary {
