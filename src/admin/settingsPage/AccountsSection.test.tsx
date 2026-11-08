@@ -41,6 +41,21 @@ describe('the accounts on Setări', () => {
     expect(api.approveAccount).toHaveBeenCalledWith(2, ana.createdAt);
     expect(await within(await card('Toate conturile')).findByRole('rowheader', { name: /^Ana Pop/ })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /așteaptă aprobarea/ })).not.toBeInTheDocument();
+    // The card went with the focused button: the focus moves to the list.
+    expect(screen.getByRole('heading', { name: 'Toate conturile' })).toHaveFocus();
+  });
+
+  it('names its tables after their cards', async () => {
+    renderAdmin('/setari', withAccounts());
+    expect(await screen.findByRole('table', { name: '1 cont așteaptă aprobarea' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Toate conturile' })).toBeInTheDocument();
+  });
+
+  it('keeps the focus in the card when one of several waiting accounts is approved', async () => {
+    const carmen = fakeAccount({ id: 5, name: 'Carmen', email: 'carmen@example.com', role: 'teacher', demo: true, status: 'pending' });
+    renderAdmin('/setari', createFakeApi({ classes: [], students: {}, accounts: [structuredClone(ana), structuredClone(carmen), structuredClone(laura)] }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Aprobă Ana Pop' }));
+    expect(await screen.findByRole('heading', { name: '1 cont așteaptă aprobarea' })).toHaveFocus();
   });
 
   it('refuses an account after a confirmation', async () => {
@@ -111,6 +126,20 @@ describe('the accounts on Setări', () => {
     expect(screen.queryByRole('menuitem', { name: /^Fă cont/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('menuitem', { name: 'Redeschide contul' }));
     expect(api.updateAccount).toHaveBeenLastCalledWith(3, { status: 'active' });
+    expect(await within(row(all, 'Bogdan')).findByText('demo')).toBeInTheDocument();
+    expect(row(all, 'Bogdan')).not.toHaveClass('is-muted');
+    expect(screen.getByRole('button', { name: 'Mai multe pentru Bogdan' })).toHaveFocus();
+  });
+
+  it('gives the focus back to ⋯ before it asks', async () => {
+    let focused: string | null = null;
+    vi.spyOn(window, 'confirm').mockImplementation(() => {
+      focused = document.activeElement?.getAttribute('aria-label') ?? null;
+      return false;
+    });
+    renderAdmin('/setari', withAccounts());
+    await pick('Bogdan', 'Parolă nouă');
+    expect(focused).toBe('Mai multe pentru Bogdan');
   });
 
   it('keeps an account open when the closing is not confirmed', async () => {
@@ -127,9 +156,20 @@ describe('the accounts on Setări', () => {
     renderAdmin('/setari', api);
     await pick('Bogdan', 'Parolă nouă');
     expect(api.resetPassword).toHaveBeenCalledWith(3);
-    const shown = await screen.findByRole('status');
-    expect(shown).toHaveTextContent(`Parola nouă a lui Bogdan: ${FAKE_TEMPORARY_PASSWORD}`);
+    const all = await card('Toate conturile');
+    const under = row(all, 'Bogdan').nextElementSibling as HTMLElement;
+    expect(await within(under).findByRole('status')).toHaveTextContent(`Parola nouă a lui Bogdan: ${FAKE_TEMPORARY_PASSWORD}`);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('keeps a new password while the teacher looks at another tab', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin('/setari', withAccounts());
+    await pick('Bogdan', 'Parolă nouă');
+    expect(await screen.findByText(FAKE_TEMPORARY_PASSWORD)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Robotul' }));
+    await userEvent.click(screen.getByRole('tab', { name: /^Conturi/ }));
+    expect(screen.getByText(FAKE_TEMPORARY_PASSWORD)).toBeVisible();
   });
 
   it('closes ⋯ on Esc and gives the focus back to it', async () => {

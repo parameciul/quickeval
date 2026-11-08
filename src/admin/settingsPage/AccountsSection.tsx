@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Account } from '../../../shared/api.ts';
 import { DEMO_PAPER_LIMIT } from '../../../shared/accounts.ts';
 import { countLabel, formatDateTime } from '../../ui/format.ts';
@@ -16,6 +16,19 @@ export function AccountsSection() {
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api.listAccounts() });
   const pending = accounts.data?.filter((account) => account.status === 'pending') ?? [];
   const others = accounts.data?.filter((account) => account.status !== 'pending') ?? [];
+  const waitingHeading = useRef<HTMLHeadingElement>(null);
+  const allHeading = useRef<HTMLHeadingElement>(null);
+  const waitingBefore = useRef(pending.length);
+
+  // An approved or refused account takes its row (and the last one its card)
+  // with the focused button: the focus goes to the card's heading, or to the
+  // list's once the card is gone.
+  useEffect(() => {
+    const fewer = pending.length < waitingBefore.current;
+    waitingBefore.current = pending.length;
+    if (!fewer || (document.activeElement && document.activeElement !== document.body)) return;
+    (waitingHeading.current ?? allHeading.current)?.focus();
+  }, [pending.length]);
 
   return (
     <>
@@ -23,13 +36,15 @@ export function AccountsSection() {
       {accounts.error && <ErrorMessage error={accounts.error} />}
       {accounts.data && (
         <>
-          {pending.length > 0 && <WaitingCard pending={pending} />}
+          {pending.length > 0 && <WaitingCard pending={pending} heading={waitingHeading} />}
           <section className="class-card" aria-labelledby="accounts-all">
             <div className="class-card-head">
-              <h2 id="accounts-all">Toate conturile</h2>
+              <h2 id="accounts-all" ref={allHeading} tabIndex={-1}>
+                Toate conturile
+              </h2>
               <span>{countLabel(others.length, 'cont', 'conturi')}</span>
             </div>
-            <table className="accounts-table">
+            <table className="accounts-table" aria-labelledby="accounts-all">
               <thead>
                 <tr>
                   <th scope="col">Cont</th>
@@ -70,14 +85,16 @@ function Person({ account }: { account: Account }) {
 }
 
 // The accounts that wait, in a red-edged card; it goes when none waits.
-function WaitingCard({ pending }: { pending: Account[] }) {
+function WaitingCard({ pending, heading }: { pending: Account[]; heading: RefObject<HTMLHeadingElement | null> }) {
   return (
     <section className="class-card accounts-waiting" aria-labelledby="accounts-waiting">
       <div className="class-card-head">
-        <h2 id="accounts-waiting">{countLabel(pending.length, 'cont', 'conturi')} așteaptă aprobarea</h2>
+        <h2 id="accounts-waiting" ref={heading} tabIndex={-1}>
+          {countLabel(pending.length, 'cont', 'conturi')} așteaptă aprobarea
+        </h2>
         {pending.length > 1 && <RejectAll pending={pending} />}
       </div>
-      <table className="accounts-table">
+      <table className="accounts-table" aria-labelledby="accounts-waiting">
         <thead>
           <tr>
             <th scope="col">Cont</th>

@@ -1,6 +1,7 @@
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api.ts';
 import { createFakeApi, FAKE_ROBOT_KEY, fakeAccount, fakeSettings } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { lastRunText } from './SettingsPage.tsx';
@@ -48,6 +49,26 @@ describe('SettingsPage', () => {
     await expectLocation(/^\/setari$/);
   });
 
+  it('keeps a new robot key while the teacher looks at another tab', async () => {
+    const user = userEvent.setup();
+    renderAdmin(ROBOT, withSettings());
+    await user.click(await screen.findByRole('button', { name: 'Fă cheia robotului' }));
+    expect(await screen.findByLabelText('Cheia nouă a robotului')).toHaveValue(FAKE_ROBOT_KEY);
+    await user.click(screen.getByRole('tab', { name: 'Conturi' }));
+    expect(screen.getByRole('tabpanel', { name: 'Conturi' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Robotul' }));
+    expect(screen.getByLabelText('Cheia nouă a robotului')).toHaveValue(FAKE_ROBOT_KEY);
+  });
+
+  it('shows no tabs to a teacher who is not an administrator, not even while it loads', async () => {
+    const api = createFakeApi({ classes: [], students: {}, me: { ...fakeAccount(), role: 'teacher' } });
+    renderAdmin('/setari', api);
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByText('Doar administratorii văd această pagină.')).not.toBeInTheDocument();
+    expect(await screen.findByText('Doar administratorii au acces la Setări.')).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+
   it('opens the tab the address names, and Conturi for one it does not know', async () => {
     const first = renderAdmin(GRADING, withSettings());
     expect(await screen.findByRole('tab', { name: 'Corectarea' })).toHaveAttribute('aria-selected', 'true');
@@ -81,6 +102,27 @@ describe('SettingsPage', () => {
     expect(api.updateSettings).toHaveBeenCalledWith(3);
     expect(await screen.findByRole('status')).toHaveTextContent('Salvat.');
     expect(screen.getByLabelText('Lucrări corectate deodată')).toHaveValue('3');
+  });
+
+  it('shows the chosen number at once and keeps the select on while it saves', async () => {
+    const api = withSettings();
+    api.updateSettings.mockImplementationOnce(() => new Promise(() => {}));
+    renderAdmin(GRADING, api);
+    const select = await screen.findByLabelText('Lucrări corectate deodată');
+    await userEvent.selectOptions(select, '2');
+    expect(select).toHaveValue('2');
+    expect(select).toBeEnabled();
+    expect(select).toHaveFocus();
+  });
+
+  it('goes back to the saved number when the save is refused', async () => {
+    const api = withSettings();
+    api.updateSettings.mockRejectedValueOnce(new ApiError(400, 'bad_request', 'Alege între 1 și 4.'));
+    renderAdmin(GRADING, api);
+    const select = await screen.findByLabelText('Lucrări corectate deodată');
+    await userEvent.selectOptions(select, '4');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Alege între 1 și 4.');
+    expect(select).toHaveValue('1');
   });
 
   it('shows the model and effort of the latest grading and class analysis, and nothing when there are none', async () => {

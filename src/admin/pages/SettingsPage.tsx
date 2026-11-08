@@ -29,7 +29,9 @@ function tabOf(value: string | null): Tab {
 
 // Setări (redesign spec §11.8), for the administrators only: three tabs, the
 // teachers' accounts first (with a red count of those that wait), how the
-// robot grades, and the robot's state and key.
+// robot grades, and the robot's state and key. The three panels stay drawn
+// (the others hidden), so a new key or password shown once survives a look at
+// another tab.
 export function SettingsPage() {
   const api = useApi();
   const [params, setParams] = useSearchParams();
@@ -69,7 +71,7 @@ export function SettingsPage() {
             role="tab"
             id={`settings-tab-${id}`}
             aria-selected={tab === id}
-            aria-controls="settings-panel"
+            aria-controls={`settings-panel-${id}`}
             className="class-tab"
             onClick={() => show(id)}
           >
@@ -85,40 +87,66 @@ export function SettingsPage() {
           </button>
         ))}
       </div>
-      <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`} className="settings-panel">
-        {me.isPending && <p>Se încarcă…</p>}
-        {isAdmin && tab === 'conturi' && <AccountsSection />}
-        {isAdmin && tab !== 'conturi' && (
-          <>
-            {settings.isPending && <p>Se încarcă…</p>}
-            {settings.error && <ErrorMessage error={settings.error} />}
-            {settings.data && tab === 'corectarea' && <GradingCard settings={settings.data} />}
-            {settings.data && tab === 'robotul' && (
-              <>
-                <RobotState settings={settings.data} />
-                <RobotKey hasKey={settings.data.hasRobotKey} madeAt={settings.data.robotKeyAt} />
-              </>
-            )}
-          </>
-        )}
-      </div>
+      {me.isPending && <p>Se încarcă…</p>}
+      {TABS.map(({ id }) => (
+        <div
+          key={id}
+          id={`settings-panel-${id}`}
+          role="tabpanel"
+          aria-labelledby={`settings-tab-${id}`}
+          className="settings-panel"
+          hidden={tab !== id}
+        >
+          {isAdmin && id === 'conturi' && <AccountsSection />}
+          {isAdmin && id !== 'conturi' && (
+            <>
+              {settings.isPending && <p>Se încarcă…</p>}
+              {settings.error && <ErrorMessage error={settings.error} />}
+              {settings.data && id === 'corectarea' && <GradingCard settings={settings.data} />}
+              {settings.data && id === 'robotul' && (
+                <>
+                  <RobotState settings={settings.data} />
+                  <RobotKey hasKey={settings.data.hasRobotKey} madeAt={settings.data.robotKeyAt} />
+                </>
+              )}
+            </>
+          )}
+        </div>
+      ))}
     </section>
   );
 }
 
 // "Corectarea": one row per setting, with its sentence and its control. Each
-// control saves as soon as it changes.
+// control saves as soon as it changes: it shows the new value at once and
+// stays on while it saves (a control turned off loses the keyboard's focus);
+// a refusal puts back the value that was saved.
+function useSettingSave<Value>(save: (value: Value) => Promise<Settings>, change: (settings: Settings, value: Value) => Settings) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: save,
+    onMutate: (value: Value) => {
+      const before = queryClient.getQueryData<Settings>(['settings']);
+      if (before) queryClient.setQueryData(['settings'], change(before, value));
+      return { before };
+    },
+    onError: (_error, _value, context) => {
+      if (context?.before) queryClient.setQueryData(['settings'], context.before);
+    },
+    onSuccess: (saved) => queryClient.setQueryData(['settings'], saved),
+  });
+}
+
 function GradingCard({ settings }: { settings: Settings }) {
   const api = useApi();
-  const queryClient = useQueryClient();
-  const parallel = useMutation({
-    mutationFn: (value: number) => api.updateSettings(value),
-    onSuccess: (saved) => queryClient.setQueryData(['settings'], saved),
-  });
-  const model = useMutation({
-    mutationFn: (show: boolean) => api.setShowModelColumn(show),
-    onSuccess: (saved) => queryClient.setQueryData(['settings'], saved),
-  });
+  const parallel = useSettingSave(
+    (value: number) => api.updateSettings(value),
+    (before, value) => ({ ...before, maxParallelAgents: value }),
+  );
+  const model = useSettingSave(
+    (show: boolean) => api.setShowModelColumn(show),
+    (before, show) => ({ ...before, showModelColumn: show }),
+  );
 
   return (
     <section className="class-card" aria-label="Corectarea">
@@ -132,7 +160,7 @@ function GradingCard({ settings }: { settings: Settings }) {
             id="parallel"
             aria-describedby="parallel-hint"
             value={settings.maxParallelAgents}
-            disabled={parallel.isPending}
+            aria-busy={parallel.isPending}
             onChange={(event) => parallel.mutate(Number(event.target.value))}
           >
             {PARALLEL_OPTIONS.map((option) => (
@@ -155,7 +183,7 @@ function GradingCard({ settings }: { settings: Settings }) {
             type="checkbox"
             aria-describedby="model-hint"
             checked={settings.showModelColumn}
-            disabled={model.isPending}
+            aria-busy={model.isPending}
             onChange={(event) => model.mutate(event.target.checked)}
           />
           Arată coloana Model

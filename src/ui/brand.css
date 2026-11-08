@@ -4009,8 +4009,8 @@ table.items tr.edit-row > td {
   min-width: 0;
 }
 
-.settings-row label,
-.settings-row b {
+.settings-row > div:first-child label,
+.settings-row > div:first-child b {
   font-weight: 600;
 }
 
@@ -4054,7 +4054,7 @@ table.items tr.edit-row > td {
    ⋯ (or the two buttons of an account that waits) beside them. */
 .class-card.accounts-waiting {
   border-color: var(--red);
-  box-shadow: inset 3px 0 0 var(--red);
+  border-left-width: 3px;
 }
 
 .accounts-table {
@@ -4128,7 +4128,8 @@ table.items tr.edit-row > td {
   text-align: left;
 }
 
-.class-menu-item.is-danger {
+.class-menu-item.is-danger,
+.class-menu-item.is-danger:hover {
   color: var(--red);
 }
 
