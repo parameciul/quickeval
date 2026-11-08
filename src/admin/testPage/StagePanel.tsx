@@ -1,12 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import type { RobotStart, TestDetail, TestInfo, UploadRow } from '../../../shared/api.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
 import { formatDateTime } from '../../ui/format.ts';
 import { GradingProgress } from '../../ui/GradingProgress.tsx';
 import { useApi } from '../ApiContext.tsx';
+import { EmptyState } from '../EmptyState.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { IconQr } from '../shell/icons.tsx';
 import type { StageName } from '../stages.ts';
 import { AnalysisState } from './AnalysisState.tsx';
 import { EvaluationControls } from './EvaluationControls.tsx';
@@ -16,12 +18,12 @@ import { RegradeAllButton } from './RegradeAllButton.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
 import { ResultFiles } from './ResultFiles.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
-import { ResultsAccess } from './ResultsAccess.tsx';
+import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
 import { ReviewList } from './ReviewList.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
-import { MultiUploadLink } from './UploadLink.tsx';
+import { MultiUploadLink, QrOverlay, uploadLink } from './UploadLink.tsx';
 import { UploadsTable } from './UploadsTable.tsx';
 
 export interface PanelProps {
@@ -132,12 +134,47 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
 }
 
 function ClassPanel(props: PanelProps) {
-  const { test, onChanged } = props;
+  const { test, uploads, onChanged } = props;
+  // While the test is open and no student has started an upload, the papers
+  // table would only say "Nu a trimis". A started upload with no file yet is a
+  // row ("Încarcă…", with "Resetează").
+  const nothingYet = test.status === 'open' && uploads.every((row) => row.submissionId === null);
+  // The QR code on the whole screen belongs to the panel: it stays open when
+  // the first paper turns the empty state into the table. Closing it gives the
+  // focus back to its button, or to the panel's heading once the button is gone.
+  const [fullScreen, setFullScreen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const token = test.uploadToken;
   return (
     <>
       <TestActions {...props} />
       {test.status === 'open' && <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />}
-      {test.status !== 'draft' && <Papers {...props} selectable={false} />}
+      {nothingYet ? (
+        <EmptyState
+          icon={<IconQr />}
+          title="Nicio lucrare trimisă încă"
+          action={
+            token ? (
+              <button ref={button} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
+                Arată codul QR pe tot ecranul
+              </button>
+            ) : undefined
+          }
+        >
+          Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.
+        </EmptyState>
+      ) : (
+        test.status !== 'draft' && <Papers {...props} selectable={false} />
+      )}
+      {fullScreen && token && (
+        <QrOverlay
+          url={uploadLink(token)}
+          onClose={() => {
+            setFullScreen(false);
+            (button.current ?? document.querySelector<HTMLElement>('.stage-head h2'))?.focus();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -195,7 +232,7 @@ function ReviewPanel(props: PanelProps) {
 // The results (redesign spec §8): publishing, the students' links, and
 // "Pentru tine". The links table takes the place of the papers table here.
 function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
-  if (test.status === 'draft') return <p className="hint">Rezultatele se publică după corectare.</p>;
+  if (test.status === 'draft') return <NoResultsYet />;
   const count = linksCount(uploads, test.resultsOpen);
   return (
     <>

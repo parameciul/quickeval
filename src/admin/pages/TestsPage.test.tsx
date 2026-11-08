@@ -2,7 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api.ts';
-import { createFakeApi, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, fakeTeacher, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 
 // A test file, an active barem and the print PDF.
@@ -80,10 +80,77 @@ describe('TestsPage', () => {
     expect(within(screen.getByRole('main')).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/teste/nou');
   });
 
-  it('says so when the year has no tests', async () => {
-    renderAdmin('/', createFakeApi());
+  it('says so when the year has no tests, for a teacher who has had tests graded', async () => {
+    renderAdmin('/', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ testsEvaluated: 3 }) }));
     expect(await screen.findByText('Nu ai niciun test în acest an școlar.')).toBeInTheDocument();
     expect(screen.getByText(/Nimic nu te așteaptă acum\./)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Primii pași' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveTextContent('Bun venit');
+  });
+
+  it('welcomes a new teacher with the first steps, none done yet', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-07T10:00:00.000Z'));
+    renderAdmin('/', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ name: 'Maria Ionescu' }) }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bun venit, Maria.' })).toBeInTheDocument();
+    expect(screen.getByText('Sâmbătă, 7 noiembrie · Trei pași până la primul test corectat.')).toBeInTheDocument();
+    const card = await screen.findByRole('region', { name: 'Primii pași' });
+    expect(card).toHaveTextContent('0 din 3');
+    const steps = within(card).getAllByRole('listitem');
+    expect(steps.map((step) => within(step).getByRole('heading', { level: 3 }).textContent)).toEqual([
+      'Adaugă o clasă',
+      'Fă un test',
+      'Tipărește-l cu cod QR',
+    ]);
+    expect(steps[0]).toHaveTextContent('Numele clasei și elevii, câte unul pe rând. Poți lipi lista din catalog.');
+    expect(steps[1]).toHaveTextContent('Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.');
+    expect(steps[2]).toHaveTextContent('Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.');
+    expect(within(steps[1]!).getByRole('button', { name: 'Test nou' })).toBeDisabled();
+    expect(within(steps[2]!).queryByRole('button')).not.toBeInTheDocument();
+    // The card is the page: no filters, no "Test nou" in the head, no line about no tests.
+    const page = screen.getByRole('main');
+    expect(within(page).queryByRole('group', { name: 'Clasa' })).not.toBeInTheDocument();
+    expect(within(page).queryByRole('checkbox', { name: 'Arată și testele arhivate' })).not.toBeInTheDocument();
+    expect(within(page).queryByText('Nu ai niciun test în acest an școlar.')).not.toBeInTheDocument();
+    expect(within(page).queryAllByRole('link', { name: 'Test nou' })).toHaveLength(0);
+    await userEvent.click(within(steps[0]!).getByRole('button', { name: 'Clasă nouă' }));
+    expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
+  });
+
+  it('ticks the class once there is one, and opens "Test nou" next', async () => {
+    renderAdmin('/', createFakeApi({ classes: oneClass, students: {} }));
+    const card = await screen.findByRole('region', { name: 'Primii pași' });
+    expect(await within(card).findByText('1 din 3')).toBeInTheDocument();
+    const [first, second] = within(card).getAllByRole('listitem');
+    expect(first).toHaveClass('is-done');
+    expect(within(first!).getByRole('heading', { level: 3 })).toHaveAccessibleName('Adaugă o clasă gata');
+    expect(within(first!).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(second!).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/teste/nou');
+  });
+
+  it('counts an archived class as no class for the first step', async () => {
+    renderAdmin('/', createFakeApi({ classes: [{ ...oneClass[0]!, archived: true }], students: {} }));
+    const card = await screen.findByRole('region', { name: 'Primii pași' });
+    expect(await within(card).findByRole('button', { name: 'Clasă nouă' })).toBeInTheDocument();
+    expect(card).toHaveTextContent('0 din 3');
+  });
+
+  it('shows a new teacher neither the filters nor another greeting while the tests load', async () => {
+    const api = createFakeApi({ classes: oneClass, students: {} });
+    api.listTests.mockImplementation(() => new Promise(() => {}));
+    renderAdmin('/', api);
+    await screen.findByRole('navigation', { name: 'Meniu' });
+    const page = screen.getByRole('main');
+    expect(await within(page).findByText('Se încarcă…')).toBeInTheDocument();
+    expect(within(page).queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    expect(within(page).queryByRole('group', { name: 'Clasa' })).not.toBeInTheDocument();
+    expect(within(page).queryByRole('link', { name: 'Test nou' })).not.toBeInTheDocument();
+  });
+
+  it('shows no first steps once a test exists', async () => {
+    renderAdmin('/', createFakeApi({ classes: oneClass, students: {}, tests: [fakeTest({ code: '6E2-26T1', title: 'Fracții' })] }));
+    expect(await screen.findByRole('link', { name: 'Fracții' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Primii pași' })).not.toBeInTheDocument();
   });
 
   it('marks Teste in the menu on test pages', async () => {

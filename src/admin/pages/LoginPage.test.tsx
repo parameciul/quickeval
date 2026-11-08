@@ -24,7 +24,7 @@ describe('the login form', () => {
     await userEvent.type(screen.getByLabelText('Parola'), 'parola-buna');
     await userEvent.click(screen.getByRole('button', { name: 'Intră' }));
     expect(api.login).toHaveBeenCalledWith('profesor@example.com', 'parola-buna');
-    expect(await screen.findByText('Nu ai nicio clasă în acest an școlar.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Încă nu ai nicio clasă' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Meniu' })).toBeInTheDocument();
   });
 
@@ -193,7 +193,7 @@ describe('the menu by role', () => {
 
   it('shows no demo button to a complete account', async () => {
     renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher' }) }));
-    await screen.findByText('Nu ai nicio clasă în acest an școlar.');
+    await screen.findByRole('heading', { name: 'Încă nu ai nicio clasă' });
     expect(screen.queryByRole('button', { name: /^Demo/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Cont demo/)).not.toBeInTheDocument();
   });

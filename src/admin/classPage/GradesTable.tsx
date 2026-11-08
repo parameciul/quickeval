@@ -1,15 +1,34 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { ClassGrade, StudentRow, TestSummary } from '../../../shared/api.ts';
+import { displayClassName } from '../../../shared/classes.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { compareStudentNames } from '../../../shared/students.ts';
 import { countLabel, formatDayMonth, uploadStatusLabel } from '../../ui/format.ts';
+import { EmptyState } from '../EmptyState.tsx';
+import { IconClasses, IconTests } from '../shell/icons.tsx';
 import { stagesOf } from '../stages.ts';
 import { todoOf } from '../shell/todo.ts';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
 
 function gradeKey(studentId: number, testCode: string): string {
   return `${studentId}|${testCode}`;
+}
+
+// A class with no students (redesign spec §11.9), on both tabs: its one next
+// step is "Adaugă elevi" (`action`). An archived class adds none.
+export function NoStudents({ name, readOnly, action }: { name: string; readOnly: boolean; action: ReactNode }) {
+  const display = displayClassName(name);
+  return (
+    <EmptyState
+      icon={<IconClasses />}
+      title={readOnly ? `${display} nu are elevi` : `${display} nu are încă elevi`}
+      level={2}
+      action={readOnly ? undefined : action}
+    >
+      {readOnly ? 'Clasa e arhivată: nu i se mai adaugă elevi.' : 'Lipește lista din catalog, câte un elev pe rând.'}
+    </EmptyState>
+  );
 }
 
 // Active students first, then the ones who left; each group by name.
@@ -80,10 +99,12 @@ function testAverage(grades: ClassGrade[], testCode: string): number | null {
 // The class page's grade table (spec §9): a row per student, a narrow column
 // per test, the oldest test on the left (`tests` arrive newest first), the last
 // row "Media testului", and no average per student. Draft and open tests keep a
-// column, so the page still leads to them. `readOnly` (an archived class)
-// offers no "Adaugă elevi".
+// column, so the page still leads to them. With no students, or no tests, the
+// card is an empty state with its one next step; `readOnly` (an archived
+// class) offers none.
 export function GradesTable({
   classId,
+  name,
   students,
   tests,
   grades,
@@ -92,6 +113,7 @@ export function GradesTable({
   onShowStudents,
 }: {
   classId: number;
+  name: string;
   students: StudentRow[];
   tests: TestSummary[];
   grades: ClassGrade[];
@@ -100,24 +122,39 @@ export function GradesTable({
   onShowStudents(): void;
 }) {
   const shown = tests.filter((test) => showArchived || !test.archived).reverse();
-  let empty: ReactNode = null;
-  if (students.length === 0 && readOnly) {
-    empty = <p>Clasa nu are elevi.</p>;
-  } else if (students.length === 0) {
-    empty = (
-      <>
-        <p>Clasa nu are încă elevi.</p>
-        <button type="button" className="button-quiet button-small" onClick={onShowStudents}>
-          Adaugă elevi
-        </button>
-      </>
+  if (students.length === 0) {
+    const add = (
+      <button type="button" className="button button-small" onClick={onShowStudents}>
+        Adaugă elevi
+      </button>
     );
-  } else if (tests.length === 0) {
-    empty = <p>Clasa nu are încă teste. Notele apar aici după primul test.</p>;
-  } else if (shown.length === 0) {
-    empty = <p>Toate testele clasei sunt arhivate. Apasă „Arată și testele arhivate”.</p>;
+    return (
+      <div className="class-card">
+        <NoStudents name={name} readOnly={readOnly} action={add} />
+      </div>
+    );
   }
-  if (empty !== null) return <div className="class-card class-empty">{empty}</div>;
+  if (tests.length === 0) {
+    const newTest = (
+      <Link className="button button-small" to={`/teste/nou?clasa=${classId}`}>
+        Test nou pentru această clasă
+      </Link>
+    );
+    return (
+      <div className="class-card">
+        <EmptyState icon={<IconTests />} title={`Niciun test pentru ${displayClassName(name)}`} level={2} action={readOnly ? undefined : newTest}>
+          {readOnly ? 'Clasa e arhivată: nu i se mai fac teste.' : 'Testele clasei și notele lor apar aici.'}
+        </EmptyState>
+      </div>
+    );
+  }
+  if (shown.length === 0) {
+    return (
+      <div className="class-card class-empty">
+        <p>Toate testele clasei sunt arhivate. Apasă „Arată și testele arhivate”.</p>
+      </div>
+    );
+  }
 
   const byCell = new Map(grades.map((grade) => [gradeKey(grade.studentId, grade.testCode), grade]));
   return (

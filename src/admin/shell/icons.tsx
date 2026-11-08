@@ -71,3 +71,29 @@ export function IconClose() {
     </svg>
   );
 }
+
+export function IconDone() {
+  return (
+    <svg {...LINE} strokeWidth={2}>
+      <path d="m4.5 10.5 3.5 3.5 7.5-8" />
+    </svg>
+  );
+}
+
+export function IconQr() {
+  return (
+    <svg {...LINE}>
+      <path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3z" />
+      <path d="M12 12h2v2h-2zM15 15h2v2h-2zM15 12h2M12 16v1" />
+    </svg>
+  );
+}
+
+export function IconClock() {
+  return (
+    <svg {...LINE}>
+      <circle cx="10" cy="10" r="7" />
+      <path d="M10 6v4l2.5 2" />
+    </svg>
+  );
+}

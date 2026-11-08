@@ -8,14 +8,17 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { inWork, todoList } from '../shell/todo.ts';
-import { greeting, todayLine } from '../testsPage/greeting.ts';
+import { FirstSteps } from '../testsPage/FirstSteps.tsx';
+import { greeting, todayLine, welcome } from '../testsPage/greeting.ts';
 import { TestGroup } from '../testsPage/TestGroup.tsx';
 import { TodoRows } from '../testsPage/TodoRows.tsx';
 
 // The start page (redesign spec §5): a greeting with what waits on the
 // teacher, the class chips, and the tests of the selected school year in two
 // groups, newest first. The class and the archived choice live in the
-// address, so a link or a reload keeps them.
+// address, so a link or a reload keeps them. A new teacher (no test in the
+// year, and none ever sent to grading) sees "Bun venit" and "Primii pași"
+// instead (redesign spec §11.9).
 export function TestsPage() {
   const api = useApi();
   const { year } = useSchoolYear();
@@ -55,6 +58,24 @@ export function TestsPage() {
   const working = visible?.filter(inWork) ?? [];
   const finished = visible?.filter((test) => !inWork(test)) ?? [];
   const first = todo[0]?.code ?? null;
+  const firstVisit = tests.data?.length === 0 && me.data?.testsEvaluated === 0;
+  const hasClass = classes.data?.some((item) => !item.archived) ?? false;
+
+  if (tests.isPending && me.data?.testsEvaluated === 0) return <p>Se încarcă…</p>;
+  if (firstVisit) {
+    return (
+      <section className="tests-page">
+        <div className="page-head">
+          <div className="greet">
+            <h1>{welcome(me.data?.name ?? '')}</h1>
+            <p>{todayLine(now)} · Trei pași până la primul test corectat.</p>
+          </div>
+        </div>
+        {classes.error && <ErrorMessage error={classes.error} />}
+        {classes.data && <FirstSteps hasClass={hasClass} />}
+      </section>
+    );
+  }
 
   return (
     <section className="tests-page">

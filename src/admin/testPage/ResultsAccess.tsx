@@ -2,13 +2,34 @@ import { useMutation } from '@tanstack/react-query';
 import type { TestInfo } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
+import { EmptyState } from '../EmptyState.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { IconClock } from '../shell/icons.tsx';
+import { MoveOnLink } from './MoveOnLink.tsx';
 
 // Whether a test has results to publish or to stop: something is graded, or
 // results are already open (for all, or for single uploads). Before that the
 // teacher has nothing to decide, so the panel shows no button.
 export function hasResultsToManage(test: Pick<TestInfo, 'status' | 'gradedCount' | 'resultsOpen' | 'publishedCount'>): boolean {
   return test.status !== 'draft' && (test.gradedCount > 0 || test.resultsOpen || test.publishedCount > 0);
+}
+
+// Rezultate before there is anything to publish (redesign spec §11.9): its
+// one next step is the stage Corectare.
+export function NoResultsYet() {
+  return (
+    <EmptyState
+      icon={<IconClock />}
+      title="Rezultatele se publică după corectare"
+      action={
+        <MoveOnLink stage="Corectare" className="button-quiet button-small">
+          Mergi la Corectare
+        </MoveOnLink>
+      }
+    >
+      Când lucrările sunt corectate, le publici de aici; fiecare elev primește linkul lui.
+    </EmptyState>
+  );
 }
 
 // Opening and closing the students' result pages of a test for all students
@@ -22,7 +43,7 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
     mutationFn: () => api.setResultsOpen(test.code, !test.resultsOpen),
     onSuccess: onChanged,
   });
-  if (!hasResultsToManage(test)) return <p className="hint">Rezultatele se publică după corectare.</p>;
+  if (!hasResultsToManage(test)) return <NoResultsYet />;
   return (
     <div className="results-access">
       {test.resultsOpen ? (

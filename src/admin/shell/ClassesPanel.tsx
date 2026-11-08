@@ -3,7 +3,9 @@ import { Link } from 'react-router';
 import type { TestSummary } from '../../../shared/api.ts';
 import { studentCountLabel, testStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
+import { EmptyState } from '../EmptyState.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { IconClasses } from './icons.tsx';
 import { Panel } from './Panel.tsx';
 import { inWork, type TodoItem } from './todo.ts';
 
@@ -12,7 +14,8 @@ import { inWork, type TodoItem } from './todo.ts';
 // waits on the teacher is orange and says what waits ("Logaritmi · Rezultate ·
 // nepublicate"). The class of the page is marked. Until the tests of the year
 // arrive a class shows no line about them (or the panel says why they could
-// not be read), never "Nimic în lucru".
+// not be read), never "Nimic în lucru". With no class, its empty state holds
+// the one "+ Clasă nouă"; "Arhivate (n)" stays at the foot.
 export function ClassesPanel({
   year,
   todo,
@@ -40,7 +43,17 @@ export function ClassesPanel({
       ) : !classes.data ? (
         <p className="panel-body hint">Se încarcă…</p>
       ) : active.length === 0 ? (
-        <p className="panel-body hint">Nu ai nicio clasă în acest an școlar.</p>
+        <EmptyState
+          icon={<IconClasses />}
+          title={archived > 0 ? 'Nu ai nicio clasă activă' : 'Încă nu ai nicio clasă'}
+          action={
+            <Link className="button button-small" to="/clase" state={{ newClass: true }}>
+              + Clasă nouă
+            </Link>
+          }
+        >
+          Adaugă clasa cu numele elevilor, câte unul pe rând.
+        </EmptyState>
       ) : (
         <>
           {!tests.data && tests.error ? (
@@ -81,9 +94,11 @@ export function ClassesPanel({
         </>
       )}
       <div className="panel-actions">
-        <Link className="button-quiet button-small" to="/clase" state={{ newClass: true }}>
-          + Clasă nouă
-        </Link>
+        {(classes.data === undefined || active.length > 0) && (
+          <Link className="button-quiet button-small" to="/clase" state={{ newClass: true }}>
+            + Clasă nouă
+          </Link>
+        )}
         {archived > 0 && (
           <Link to="/clase" state={{ archived: true }}>
             Arhivate ({archived})
