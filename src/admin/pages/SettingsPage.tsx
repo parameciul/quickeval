@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import type { RobotSettings, RobotStatus, Settings } from '../../../shared/api.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from '../../../shared/runner.ts';
-import { countLabel, formatDateTime } from '../../ui/format.ts';
+import { countLabel, formatDate, formatDateTime } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { AccountsSection } from '../settingsPage/AccountsSection.tsx';
@@ -13,11 +14,26 @@ const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) 
 // every 10 minutes, and the robot line moves on by itself).
 const REFRESH_MS = 60_000;
 
-// Setări (spec §9), for the administrators only: the teachers' accounts, how
-// many uploads the robot grades at the same time, the robot's key, and what the
-// robot did last.
+type Tab = 'conturi' | 'corectarea' | 'robotul';
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'conturi', label: 'Conturi' },
+  { id: 'corectarea', label: 'Corectarea' },
+  { id: 'robotul', label: 'Robotul' },
+];
+
+// The tab in the address: `?tab=corectarea` or `?tab=robotul`; none (or one it
+// does not know) is "Conturi".
+function tabOf(value: string | null): Tab {
+  return value === 'corectarea' || value === 'robotul' ? value : 'conturi';
+}
+
+// Setări (redesign spec §11.8), for the administrators only: three tabs, the
+// teachers' accounts first (with a red count of those that wait), how the
+// robot grades, and the robot's state and key.
 export function SettingsPage() {
   const api = useApi();
+  const [params, setParams] = useSearchParams();
+  const tab = tabOf(params.get('tab'));
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   const isAdmin = me.data?.role === 'admin';
   const settings = useQuery({
@@ -26,6 +42,9 @@ export function SettingsPage() {
     refetchInterval: REFRESH_MS,
     enabled: isAdmin,
   });
+  // On every tab: the count of "Conturi" comes from it.
+  const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api.listAccounts(), enabled: isAdmin });
+  const waiting = accounts.data?.filter((account) => account.status === 'pending').length ?? 0;
 
   if (me.data && !isAdmin) {
     return (
@@ -36,63 +55,119 @@ export function SettingsPage() {
     );
   }
 
+  const show = (next: Tab) => setParams(next === 'conturi' ? {} : { tab: next }, { replace: true });
+
   return (
-    <section>
+    <section className="settings-page">
       <h1>Setări</h1>
-      {(me.isPending || settings.isPending) && <p>Se încarcă…</p>}
-      {settings.error && <ErrorMessage error={settings.error} />}
-      {isAdmin && <AccountsSection />}
-      {settings.data && (
-        <>
-          <ParallelForm current={settings.data.maxParallelAgents} />
-          <RobotKey hasKey={settings.data.hasRobotKey} />
-          <RobotState settings={settings.data} />
-        </>
-      )}
+      <p className="settings-sub">Doar administratorii văd această pagină.</p>
+      <div className="class-tabs" role="tablist" aria-label="Setări">
+        {TABS.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`settings-tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls="settings-panel"
+            className="class-tab"
+            onClick={() => show(id)}
+          >
+            {label}
+            {id === 'conturi' && waiting > 0 && (
+              <>
+                {' '}
+                <span className="tag tag-urgent settings-count">
+                  {waiting} <span className="sr-only">așteaptă aprobarea</span>
+                </span>
+              </>
+            )}
+          </button>
+        ))}
+      </div>
+      <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`} className="settings-panel">
+        {me.isPending && <p>Se încarcă…</p>}
+        {isAdmin && tab === 'conturi' && <AccountsSection />}
+        {isAdmin && tab !== 'conturi' && (
+          <>
+            {settings.isPending && <p>Se încarcă…</p>}
+            {settings.error && <ErrorMessage error={settings.error} />}
+            {settings.data && tab === 'corectarea' && <GradingCard settings={settings.data} />}
+            {settings.data && tab === 'robotul' && (
+              <>
+                <RobotState settings={settings.data} />
+                <RobotKey hasKey={settings.data.hasRobotKey} madeAt={settings.data.robotKeyAt} />
+              </>
+            )}
+          </>
+        )}
+      </div>
     </section>
   );
 }
 
-function ParallelForm({ current }: { current: number }) {
+// "Corectarea": one row per setting, with its sentence and its control. Each
+// control saves as soon as it changes.
+function GradingCard({ settings }: { settings: Settings }) {
   const api = useApi();
   const queryClient = useQueryClient();
-  const [value, setValue] = useState(current);
-  const save = useMutation({
-    mutationFn: () => api.updateSettings(value),
+  const parallel = useMutation({
+    mutationFn: (value: number) => api.updateSettings(value),
+    onSuccess: (saved) => queryClient.setQueryData(['settings'], saved),
+  });
+  const model = useMutation({
+    mutationFn: (show: boolean) => api.setShowModelColumn(show),
     onSuccess: (saved) => queryClient.setQueryData(['settings'], saved),
   });
 
   return (
-    <>
-      <h2>Corectarea</h2>
-      <form
-        className="form-row"
-        onSubmit={(event: FormEvent) => {
-          event.preventDefault();
-          save.mutate();
-        }}
-      >
-        <label htmlFor="parallel">Lucrări corectate deodată</label>
-        <select id="parallel" value={value} onChange={(event) => setValue(Number(event.target.value))}>
-          {PARALLEL_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <button className="button button-small" type="submit" disabled={save.isPending}>
-          Salvează
-        </button>
-        {save.isSuccess && <span role="status">Salvat.</span>}
-      </form>
-      <p className="hint">Mai multe lucrări deodată termină mai repede, dar ajung mai repede la limita planului Claude.</p>
-      {save.error && <ErrorMessage error={save.error} />}
-    </>
+    <section className="class-card" aria-label="Corectarea">
+      <div className="settings-row">
+        <div>
+          <label htmlFor="parallel">Lucrări corectate deodată</label>
+          <p id="parallel-hint">Mai multe lucrări deodată termină mai repede, dar ajung mai repede la limita planului Claude.</p>
+        </div>
+        <div className="settings-control">
+          <select
+            id="parallel"
+            aria-describedby="parallel-hint"
+            value={settings.maxParallelAgents}
+            disabled={parallel.isPending}
+            onChange={(event) => parallel.mutate(Number(event.target.value))}
+          >
+            {PARALLEL_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          {parallel.isSuccess && <span role="status">Salvat.</span>}
+        </div>
+      </div>
+      {parallel.error && <ErrorMessage error={parallel.error} />}
+      <div className="settings-row">
+        <div>
+          <b id="model-title">Coloana Model</b>
+          <p id="model-hint">Arată în tabelul lucrărilor cu ce model a fost corectată fiecare lucrare.</p>
+        </div>
+        <label className="check-label settings-control">
+          <input
+            type="checkbox"
+            aria-describedby="model-hint"
+            checked={settings.showModelColumn}
+            disabled={model.isPending}
+            onChange={(event) => model.mutate(event.target.checked)}
+          />
+          Arată coloana Model
+        </label>
+      </div>
+      {model.error && <ErrorMessage error={model.error} />}
+    </section>
   );
 }
 
 // The key is shown once, right after it is made: only its hash is stored.
-function RobotKey({ hasKey }: { hasKey: boolean }) {
+function RobotKey({ hasKey, madeAt }: { hasKey: boolean; madeAt: string | null }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState<'yes' | 'failed' | null>(null);
@@ -115,22 +190,29 @@ function RobotKey({ hasKey }: { hasKey: boolean }) {
   };
 
   return (
-    <>
-      <h2>Cheia robotului</h2>
-      <p>{hasKey ? 'Robotul are o cheie.' : 'Robotul nu are încă o cheie.'}</p>
-      <button
-        type="button"
-        className="button-quiet"
-        disabled={create.isPending}
-        onClick={() => {
-          if (!hasKey || window.confirm('Faci o cheie nouă? Cheia de acum nu va mai funcționa.')) create.mutate();
-        }}
-      >
-        {hasKey ? 'Fă o cheie nouă' : 'Fă cheia robotului'}
-      </button>
+    <section className="class-card" aria-labelledby="robot-key-title">
+      <div className="class-card-head">
+        <h2 id="robot-key-title">Cheia robotului</h2>
+      </div>
+      <div className="settings-row">
+        <div>
+          <b>{hasKey ? 'Robotul are o cheie.' : 'Robotul nu are încă o cheie.'}</b>
+          {hasKey && madeAt && <p>Făcută pe {formatDate(madeAt)}.</p>}
+        </div>
+        <button
+          type="button"
+          className="button-quiet settings-control"
+          disabled={create.isPending}
+          onClick={() => {
+            if (!hasKey || window.confirm('Faci o cheie nouă? Cheia de acum nu va mai funcționa.')) create.mutate();
+          }}
+        >
+          {hasKey ? 'Fă o cheie nouă' : 'Fă cheia robotului'}
+        </button>
+      </div>
       {create.error && <ErrorMessage error={create.error} />}
       {key && (
-        <div className="warning">
+        <div className="warning settings-key">
           <p>
             Copiaz-o acum în GitHub, în secretul <code>QUICKEVAL_RUNNER_KEY</code>. După ce pleci de pe pagină, nu o mai vezi.
           </p>
@@ -147,7 +229,7 @@ function RobotKey({ hasKey }: { hasKey: boolean }) {
           </div>
         </div>
       )}
-    </>
+    </section>
   );
 }
 
@@ -186,58 +268,39 @@ export function modelLines(models: RobotSettings): string[] {
   ].filter((text): text is string => text !== null);
 }
 
-function ShowModelColumn({ checked }: { checked: boolean }) {
-  const api = useApi();
-  const queryClient = useQueryClient();
-  const save = useMutation({
-    mutationFn: (show: boolean) => api.setShowModelColumn(show),
-    onSuccess: (saved) => queryClient.setQueryData(['settings'], saved),
-  });
-  return (
-    <>
-      <div className="form-row">
-        <input
-          id="show-model"
-          type="checkbox"
-          checked={checked}
-          disabled={save.isPending}
-          onChange={(event) => save.mutate(event.target.checked)}
-        />
-        <label htmlFor="show-model">Arată coloana Model în tabelul Încărcări</label>
-      </div>
-      {save.error && <ErrorMessage error={save.error} />}
-    </>
-  );
-}
-
+// "Starea robotului": a tag in the head says whether it works now; then
+// today's lines.
 function RobotState({ settings }: { settings: Settings }) {
   const lastRun = lastRunText(settings.robot);
   return (
-    <>
-      <h2>Starea robotului</h2>
-      {settings.robot.running && <p>Robotul lucrează acum.</p>}
-      <RobotLine lastCheckAt={settings.robot.lastCheckAt} />
-      {settings.configuredModel !== null && (
+    <section className="class-card" aria-labelledby="robot-state-title">
+      <div className="class-card-head">
+        <h2 id="robot-state-title">Starea robotului</h2>
+        {settings.robot.running ? <span className="tag tag-ok">lucrează acum</span> : <span className="tag">nu lucrează acum</span>}
+      </div>
+      <div className="settings-body">
+        <RobotLine lastCheckAt={settings.robot.lastCheckAt} />
+        {settings.configuredModel !== null && (
+          <p>
+            Setat pentru robot: {settings.configuredModel}
+            {settings.configuredEffort ? `, efort ${settings.configuredEffort}` : ''}
+            {settings.configuredAt ? ` (la ultima verificare, ${agoText(settings.configuredAt, Date.now())})` : ''}
+          </p>
+        )}
+        <p>{lastRun ?? 'Robotul nu a terminat încă nicio rulare.'}</p>
         <p>
-          Setat pentru robot: {settings.configuredModel}
-          {settings.configuredEffort ? `, efort ${settings.configuredEffort}` : ''}
-          {settings.configuredAt ? ` (la ultima verificare, ${agoText(settings.configuredAt, Date.now())})` : ''}
+          {settings.lastGradedAt
+            ? `Ultima lucrare corectată: ${formatDateTime(settings.lastGradedAt)}.`
+            : 'Nicio lucrare nu a fost corectată încă.'}
         </p>
-      )}
-      <p>{lastRun ?? 'Robotul nu a terminat încă nicio rulare.'}</p>
-      <p>
-        {settings.lastGradedAt
-          ? `Ultima lucrare corectată: ${formatDateTime(settings.lastGradedAt)}.`
-          : 'Nicio lucrare nu a fost corectată încă.'}
-      </p>
-      {modelLines(settings.lastModels).map((text) => (
-        <p key={text}>{text}</p>
-      ))}
-      <ShowModelColumn checked={settings.showModelColumn} />
-      <p className="hint">
-        Robotul corectează cu planul Claude prin tokenul din secretul GitHub <code>CLAUDE_CODE_OAUTH_TOKEN</code>. Tokenul ține un an: dacă
-        lucrările nu se mai corectează, fă unul nou.
-      </p>
-    </>
+        {modelLines(settings.lastModels).map((text) => (
+          <p key={text}>{text}</p>
+        ))}
+        <p className="hint">
+          Robotul corectează cu planul Claude prin tokenul din secretul GitHub <code>CLAUDE_CODE_OAUTH_TOKEN</code>. Tokenul ține un an: dacă
+          lucrările nu se mai corectează, fă unul nou.
+        </p>
+      </div>
+    </section>
   );
 }
