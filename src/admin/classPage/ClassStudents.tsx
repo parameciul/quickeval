@@ -6,18 +6,13 @@ import type { ClassGrade, StudentRow, TestSummary } from '../../../shared/api.ts
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
+import { foldForSearch, searchMatcher } from '../../../shared/search.ts';
 import { countLabel, formatDayMonth, uploadStatusLabel } from '../../ui/format.ts';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { CopyResultLink } from '../testPage/ResultLinksTable.tsx';
 import { AddStudentsDialog, RenameDialog } from './ClassDialogs.tsx';
 import { NoStudents, orderedStudents } from './GradesTable.tsx';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
-
-// A name as the search compares it: no case, no diacritics ("stef" finds
-// "Ștefan").
-function searchKey(name: string): string {
-  return name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
-}
 
 // "Elevi" tab of the class page (spec §9): the students on the left (search,
 // an orange dot for points to check, "+ Adaugă elevi"), one student on the
@@ -49,8 +44,9 @@ export function ClassStudents({
   const [addOpen, setAddOpen] = useState(false);
 
   const ordered = orderedStudents(students);
-  const needle = searchKey(search);
-  const visible = needle === '' ? ordered : ordered.filter((student) => searchKey(student.fullName).includes(needle));
+  // No case, no diacritics: "stef" finds "Ștefan".
+  const matches = searchMatcher(search);
+  const visible = foldForSearch(search) === '' ? ordered : ordered.filter((student) => matches(student.fullName));
   const chosen = ordered.find((student) => student.id === chosenId) ?? ordered[0] ?? null;
   const waits = (studentId: number) => grades.some((grade) => grade.studentId === studentId && grade.flagCount > 0);
 
