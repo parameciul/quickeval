@@ -15,6 +15,12 @@ export function greeting(now: Date, name: string): string {
   return first ? `${words}, ${first}.` : `${words}.`;
 }
 
+// "Bun venit, Maria." for a new teacher: the first word of the name, or none.
+export function welcome(name: string): string {
+  const first = name.trim().split(/\s+/)[0];
+  return first ? `Bun venit, ${first}.` : 'Bun venit.';
+}
+
 // "Miercuri, 4 noiembrie".
 export function todayLine(now: Date): string {
   const text = TODAY.format(now);

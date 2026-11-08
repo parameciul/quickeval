@@ -5311,6 +5311,76 @@ table.results-table td:nth-last-child(-n + 2) {
   margin-top: 0.5rem;
 }
 
+/* "Primii pași" of a new teacher's Teste page: three numbered steps, the
+   current one marked blue, a done one ticked green. */
+.first-steps {
+  max-width: 48rem;
+}
+
+.first-steps-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.first-steps-list li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.25rem 0.875rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.first-steps-list li > :not(.first-step-mark) {
+  grid-column: 2;
+}
+
+.first-step-mark {
+  grid-row: 1 / span 3;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--active);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.first-step-mark svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.first-steps-list li.is-now .first-step-mark {
+  background: var(--ink-tint);
+  color: var(--ink);
+}
+
+.first-steps-list li.is-done .first-step-mark {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.first-steps-list h3 {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+}
+
+.first-steps-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.first-steps-list .button,
+.first-steps-list .button-quiet {
+  justify-self: start;
+  margin-top: 0.5rem;
+}
+
 /* "Note și teste": the grades table as wide as its columns, "Testele clasei"
    beside it in the rest. On a narrower screen the list goes under the table. */
 .class-notes {

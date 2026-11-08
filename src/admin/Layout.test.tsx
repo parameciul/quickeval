@@ -226,7 +226,7 @@ describe('the phone menu', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mai mult' }));
     await userEvent.selectOptions(within(screen.getByRole('region', { name: 'Mai mult' })).getByLabelText('Anul școlar'), '2027');
     // The Teste page shows the tests of the new year: none.
-    expect(await within(screen.getByRole('main')).findByText('Nu ai niciun test în acest an școlar.')).toBeInTheDocument();
+    await vi.waitFor(() => expect(within(screen.getByRole('main')).queryByRole('link', { name: 'Ecuații' })).not.toBeInTheDocument());
     expect(api.listTests).toHaveBeenCalledWith(2027);
   });
 
