@@ -2,8 +2,9 @@ import { Link, NavLink } from 'react-router';
 import { countLabel } from '../../ui/format.ts';
 import { IconClasses, IconPlus, IconSettings, IconTests, IconTodo } from './icons.tsx';
 
-// The side panels, and the phone menu under ☰: one open at a time.
-export type PanelName = 'clase' | 'todo' | 'menu';
+// The side panels, the phone menu under ☰ and the phone's search over the
+// whole screen: one open at a time.
+export type PanelName = 'clase' | 'todo' | 'menu' | 'search';
 
 // The 80px bar on the left (redesign spec §4): Test nou, Teste, Clase and De
 // făcut (each opens its panel; De făcut shows how many things wait) and, at

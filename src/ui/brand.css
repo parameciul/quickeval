@@ -461,6 +461,86 @@ h2 {
   font-size: 0.875rem;
 }
 
+/* The magnifier beside ☰, and the search over the whole screen, on a phone
+   only (the Layout draws them there). The list fills the screen under the box. */
+.search-button,
+.search-back {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.search-button {
+  margin-left: auto;
+}
+
+.search-button + .menu-button {
+  margin-left: -0.5rem;
+}
+
+.search-back {
+  flex-shrink: 0;
+  border-color: transparent;
+}
+
+.search-button svg,
+.search-back svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.search-full {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--sheet);
+}
+
+.search-full-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 3.5rem;
+  padding: 0 max(1rem, env(safe-area-inset-right, 0px)) 0 max(0.5rem, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--rule);
+}
+
+.search-full .search {
+  flex: 1;
+  margin-left: 0;
+}
+
+.search-full .search input[type="text"] {
+  min-height: 2.5rem;
+  font-size: 1rem;
+}
+
+.search-full .search-pop {
+  position: fixed;
+  top: 3.5rem;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  min-width: 0;
+  max-height: none;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.search-full .search-item {
+  padding-block: 0.65rem;
+  font-size: 1rem;
+}
+
 /* The results page: the chips, then one card per group. */
 .search-results h1 + .hint {
   margin: -0.25rem 0 1rem;

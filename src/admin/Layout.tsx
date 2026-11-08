@@ -12,7 +12,8 @@ import { useSchoolYear } from './SchoolYearContext.tsx';
 import { SearchBox } from './search/SearchBox.tsx';
 import { ClassesPanel } from './shell/ClassesPanel.tsx';
 import { DemoButton } from './shell/DemoButton.tsx';
-import { IconClose, IconMenu } from './shell/icons.tsx';
+import { SearchLayer } from './search/SearchLayer.tsx';
+import { IconClose, IconMenu, IconSearch } from './shell/icons.tsx';
 import { PhoneMenu } from './shell/PhoneMenu.tsx';
 import { Rail, type PanelName } from './shell/Rail.tsx';
 import { TodoPanel } from './shell/TodoPanel.tsx';
@@ -133,6 +134,18 @@ export function Layout() {
           <ThemeButton />
           {me.data && <UserMenu teacher={me.data} />}
         </div>
+        {me.data && phone && (
+          <button
+            type="button"
+            className="search-button"
+            aria-label="Caută"
+            aria-expanded={open === 'search'}
+            aria-controls={open === 'search' ? 'search-full' : undefined}
+            onClick={() => toggle('search')}
+          >
+            <IconSearch />
+          </button>
+        )}
         {me.data && (
           <button
             type="button"
@@ -158,8 +171,9 @@ export function Layout() {
       {me.data && open === 'todo' && (
         <TodoPanel items={todo} approvals={approvals} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
       )}
+      {me.data && phone && open === 'search' && <SearchLayer onClose={close} />}
       {/* On a phone a panel covers the page: the page under it is out of reach. */}
-      <main className={wayIn ? 'page page-way-in' : 'page'} inert={phone && (open === 'clase' || open === 'todo')}>
+      <main className={wayIn ? 'page page-way-in' : 'page'} inert={phone && (open === 'clase' || open === 'todo' || open === 'search')}>
         {openPage ? (
           <Outlet />
         ) : loggedOut ? (
