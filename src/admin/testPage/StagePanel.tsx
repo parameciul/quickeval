@@ -135,40 +135,43 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
 
 function ClassPanel(props: PanelProps) {
   const { test, uploads, onChanged } = props;
-  // While the test is open and no student has uploaded a file (as for
-  // "Oprește testul"), the papers table would only say "Nu a trimis".
-  const nothingYet = test.status === 'open' && uploads.every((row) => row.fileCount === 0);
+  // While the test is open and no student has started an upload, the papers
+  // table would only say "Nu a trimis". A started upload with no file yet is a
+  // row ("Încarcă…", with "Resetează").
+  const nothingYet = test.status === 'open' && uploads.every((row) => row.submissionId === null);
+  // The QR code on the whole screen belongs to the panel: it stays open when
+  // the first paper turns the empty state into the table. Closing it gives the
+  // focus back to its button, or to the panel's heading once the button is gone.
+  const [fullScreen, setFullScreen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const token = test.uploadToken;
   return (
     <>
       <TestActions {...props} />
       {test.status === 'open' && <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />}
-      {nothingYet ? <NoPapersYet token={test.uploadToken} /> : test.status !== 'draft' && <Papers {...props} selectable={false} />}
-    </>
-  );
-}
-
-// An open test with no paper yet (redesign spec §11.9): its one next step is
-// the QR code on the whole screen, for the class projector. Closing it gives
-// the focus back to the button.
-function NoPapersYet({ token }: { token: string | null }) {
-  const [fullScreen, setFullScreen] = useState(false);
-  const button = useRef<HTMLButtonElement>(null);
-  const show = token && (
-    <button ref={button} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
-      Arată codul QR pe tot ecranul
-    </button>
-  );
-  return (
-    <>
-      <EmptyState icon={<IconQr />} title="Nicio lucrare trimisă încă" action={show || undefined}>
-        Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.
-      </EmptyState>
+      {nothingYet ? (
+        <EmptyState
+          icon={<IconQr />}
+          title="Nicio lucrare trimisă încă"
+          action={
+            token ? (
+              <button ref={button} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
+                Arată codul QR pe tot ecranul
+              </button>
+            ) : undefined
+          }
+        >
+          Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.
+        </EmptyState>
+      ) : (
+        test.status !== 'draft' && <Papers {...props} selectable={false} />
+      )}
       {fullScreen && token && (
         <QrOverlay
           url={uploadLink(token)}
           onClose={() => {
             setFullScreen(false);
-            button.current?.focus();
+            (button.current ?? document.querySelector<HTMLElement>('.stage-head h2'))?.focus();
           }}
         />
       )}

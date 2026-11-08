@@ -552,7 +552,7 @@ describe('the panel Clasele tale', () => {
     renderAdmin('/', api);
     await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
     const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
-    expect(await within(panel).findByRole('heading', { name: 'Încă nu ai nicio clasă' })).toBeInTheDocument();
+    expect(await within(panel).findByRole('heading', { name: 'Nu ai nicio clasă activă' })).toBeInTheDocument();
     expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toBeInTheDocument();
     expect(within(panel).getAllByRole('link', { name: '+ Clasă nouă' })).toHaveLength(1);
   });

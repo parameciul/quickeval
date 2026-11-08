@@ -76,7 +76,8 @@ describe('LastClassPage', () => {
       }),
     );
     expect(await screen.findByRole('heading', { level: 1, name: 'Nu ai nicio clasă activă' })).toBeInTheDocument();
-    expect(screen.getByText(/^Arhivate:/)).toBeInTheDocument();
+    // One line: the word and the links stay together.
+    expect(screen.getByText(/^Arhivate:/).parentElement).toHaveClass('class-empty-archived');
     expect(screen.getByRole('link', { name: 'Clasa 9R2' })).toHaveAttribute('href', '/clase/2');
     expect(screen.getByRole('button', { name: '+ Clasă nouă' })).toBeInTheDocument();
   });

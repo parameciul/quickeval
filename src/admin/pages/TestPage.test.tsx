@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useNavigate, useNavigationType } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -254,6 +254,48 @@ describe('TestPage', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Închide' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(show).toHaveFocus();
+    await userEvent.click(show);
+    await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(show).toHaveFocus();
+  });
+
+  it('keeps the QR code on the whole screen when the first paper arrives', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, studentCount: 3 }, notSent());
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [detail],
+    });
+    renderAdmin(`${PAGE}#in-clasa`, api);
+    const empty = (await screen.findByRole('heading', { name: 'Nicio lucrare trimisă încă' })).parentElement!;
+    await userEvent.click(within(empty).getByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
+    expect(await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
+    detail.uploads[1] = fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 });
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(await screen.findByRole('table', { name: 'Încărcările elevilor' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Închide' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'În clasă' })).toHaveFocus();
+    vi.useRealTimers();
+  });
+
+  it('lists a student who started an upload with no file yet, so the teacher can reset it', async () => {
+    const rows = [notSent()[0]!, fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 0 }), notSent()[2]!];
+    renderAdmin(
+      `${PAGE}#in-clasa`,
+      createFakeApi({
+        classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+        students: {},
+        tests: [fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, studentCount: 3 }, rows)],
+      }),
+    );
+    expect(await screen.findByRole('rowheader', { name: 'Stan Eva' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Nicio lucrare trimisă încă' })).not.toBeInTheDocument();
   });
 
   it('lists the papers as soon as one student uploaded a file, and once the uploads are closed', async () => {

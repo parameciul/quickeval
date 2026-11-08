@@ -135,6 +135,18 @@ describe('TestsPage', () => {
     expect(card).toHaveTextContent('0 din 3');
   });
 
+  it('shows a new teacher neither the filters nor another greeting while the tests load', async () => {
+    const api = createFakeApi({ classes: oneClass, students: {} });
+    api.listTests.mockImplementation(() => new Promise(() => {}));
+    renderAdmin('/', api);
+    await screen.findByRole('navigation', { name: 'Meniu' });
+    const page = screen.getByRole('main');
+    expect(await within(page).findByText('Se încarcă…')).toBeInTheDocument();
+    expect(within(page).queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    expect(within(page).queryByRole('group', { name: 'Clasa' })).not.toBeInTheDocument();
+    expect(within(page).queryByRole('link', { name: 'Test nou' })).not.toBeInTheDocument();
+  });
+
   it('shows no first steps once a test exists', async () => {
     renderAdmin('/', createFakeApi({ classes: oneClass, students: {}, tests: [fakeTest({ code: '6E2-26T1', title: 'Fracții' })] }));
     expect(await screen.findByRole('link', { name: 'Fracții' })).toBeInTheDocument();

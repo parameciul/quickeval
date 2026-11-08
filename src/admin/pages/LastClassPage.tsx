@@ -57,13 +57,15 @@ export function LastClassPage() {
       </EmptyState>
       {archived.length > 0 && (
         <p className="class-card-foot class-empty-archived">
-          Arhivate:{' '}
-          {archived.map((item, index) => (
-            <span key={item.id}>
-              {index > 0 && ', '}
-              <Link to={`/clase/${item.id}`}>{displayClassName(item.name)}</Link>
-            </span>
-          ))}
+          <span>
+            Arhivate:{' '}
+            {archived.map((item, index) => (
+              <span key={item.id}>
+                {index > 0 && ', '}
+                <Link to={`/clase/${item.id}`}>{displayClassName(item.name)}</Link>
+              </span>
+            ))}
+          </span>
         </p>
       )}
       {newClassOpen && <NewClassDialog onClose={() => setNewClassOpen(false)} />}

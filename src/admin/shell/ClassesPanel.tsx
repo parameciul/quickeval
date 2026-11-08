@@ -45,7 +45,7 @@ export function ClassesPanel({
       ) : active.length === 0 ? (
         <EmptyState
           icon={<IconClasses />}
-          title="Încă nu ai nicio clasă"
+          title={archived > 0 ? 'Nu ai nicio clasă activă' : 'Încă nu ai nicio clasă'}
           action={
             <Link className="button button-small" to="/clase" state={{ newClass: true }}>
               + Clasă nouă

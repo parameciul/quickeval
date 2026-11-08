@@ -5311,6 +5311,11 @@ table.results-table td:nth-last-child(-n + 2) {
   margin-top: 0.5rem;
 }
 
+/* In a stage's panel the empty state lines up with the panel's text. */
+.stage-body > .empty-state {
+  padding: 0.5rem 0 0;
+}
+
 /* "Primii pași" of a new teacher's Teste page: three numbered steps, the
    current one marked blue, a done one ticked green. */
 .first-steps {

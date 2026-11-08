@@ -61,6 +61,7 @@ export function TestsPage() {
   const firstVisit = tests.data?.length === 0 && me.data?.testsEvaluated === 0;
   const hasClass = classes.data?.some((item) => !item.archived) ?? false;
 
+  if (tests.isPending && me.data?.testsEvaluated === 0) return <p>Se încarcă…</p>;
   if (firstVisit) {
     return (
       <section className="tests-page">
