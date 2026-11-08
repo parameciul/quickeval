@@ -1,44 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link } from 'react-router';
 import type { Teacher } from '../../../shared/api.ts';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { initials } from './initials.ts';
 import { useLogout } from './useLogout.ts';
+import { useSmallMenu } from './useSmallMenu.ts';
 
 // The teacher's initials in the top bar open a small menu: who is logged in,
-// "Contul meu" and "Ieși din cont". It closes on Esc (the focus goes back to
-// the initials), on a click outside it, and when a page opens.
+// "Contul meu" and "Ieși din cont".
 export function UserMenu({ teacher }: { teacher: Teacher }) {
-  const location = useLocation();
-  // The page the menu was opened on: another page closes it, and it stays
-  // closed when Back or Forward returns to that page.
-  const [openOn, setOpenOn] = useState<string | null>(null);
-  if (openOn !== null && openOn !== location.key) setOpenOn(null);
-  const open = openOn === location.key;
-  const box = useRef<HTMLDivElement>(null);
-  const button = useRef<HTMLButtonElement>(null);
+  const { open, toggle, box, button } = useSmallMenu();
   const logout = useLogout();
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (event: MouseEvent) => {
-      if (!box.current?.contains(event.target as Node)) setOpenOn(null);
-    };
-    // The menu is above the panels: it takes Esc first (capture), and marks it
-    // taken so an open panel stays open.
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      if (box.current?.contains(document.activeElement)) button.current?.focus();
-      setOpenOn(null);
-    };
-    document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey, true);
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey, true);
-    };
-  }, [open]);
 
   return (
     <div className="user" ref={box}>
@@ -49,7 +20,7 @@ export function UserMenu({ teacher }: { teacher: Teacher }) {
         aria-label={`${initials(teacher.name)}, contul tău: ${teacher.name}`}
         aria-expanded={open}
         aria-controls={open ? 'user-menu' : undefined}
-        onClick={() => setOpenOn(open ? null : location.key)}
+        onClick={toggle}
       >
         {initials(teacher.name)}
       </button>

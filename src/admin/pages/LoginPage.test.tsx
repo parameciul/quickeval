@@ -114,39 +114,73 @@ describe('the menu by role', () => {
     expect(api.listAccounts).not.toHaveBeenCalled();
   });
 
-  it('tells a demo account how many papers it has left', async () => {
-    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 }) });
+  it('tells a demo account how many papers it has left, in the top bar before the school year', async () => {
+    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 2 }) });
     renderAdmin('/clase', api);
-    expect(await screen.findByText(/^Cont demo: mai ai 33 din 35 lucrări\./)).toBeInTheDocument();
+    const button = await screen.findByRole('button', { name: 'Demo · 33 de lucrări rămase' });
+    expect(button.compareDocumentPosition(screen.getByLabelText('Anul școlar')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(button).not.toHaveClass('is-full');
+    expect(screen.queryByRole('region', { name: 'Cont demo' })).not.toBeInTheDocument();
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    const menu = screen.getByRole('region', { name: 'Cont demo' });
+    expect(within(menu).getByText('Teste corectate').nextElementSibling).toHaveTextContent('1 din 1');
+    expect(within(menu).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('2 din 35');
+    expect(menu).toHaveTextContent('Mai ai 33 de lucrări, pentru testul tău.');
+    // The paragraph under the top bar is gone.
+    expect(document.querySelector('.page > .warning')).toBeNull();
+    await userEvent.click(within(menu).getByRole('link', { name: 'Contul meu' }));
+    expect(await screen.findByRole('heading', { name: 'Contul meu' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Cont demo' })).not.toBeInTheDocument();
+  });
+
+  it('closes the demo menu on Esc, with the focus back on its button, and on a click outside it', async () => {
+    renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 }) }));
+    const button = await screen.findByRole('button', { name: /^Demo · / });
+    await userEvent.click(button);
+    await userEvent.tab();
+    expect(within(screen.getByRole('region', { name: 'Cont demo' })).getByRole('link', { name: 'Contul meu' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('region', { name: 'Cont demo' })).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
+    await userEvent.click(button);
+    await userEvent.click(document.body);
+    expect(screen.queryByRole('region', { name: 'Cont demo' })).not.toBeInTheDocument();
   });
 
   it('counts the papers on their way to the robot as used', async () => {
-    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2, papersWaiting: 1 }) });
+    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 33, papersWaiting: 1 }) });
     renderAdmin('/clase', api);
-    expect(await screen.findByText(/^Cont demo: mai ai 32 din 35 lucrări\./)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Demo · 1 lucrare rămasă' })).toBeInTheDocument();
   });
 
-  it('reads the demo line again after a change, so it shows the papers left', async () => {
+  it('reads the demo button again after a change, so it shows the papers left', async () => {
     const teacher = fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 });
     const api = createFakeApi({ classes: [], students: {}, me: teacher });
     renderAdmin('/cont', api);
-    expect(await screen.findByText(/^Cont demo: mai ai 33 din 35 lucrări\./)).toBeInTheDocument();
-    teacher.papersGraded = 3;
+    expect(await screen.findByRole('button', { name: 'Demo · 33 de lucrări rămase' })).toBeInTheDocument();
+    teacher.papersGraded = 20;
     await userEvent.type(screen.getByLabelText('Parola de acum'), 'parola-veche');
     await userEvent.type(screen.getByLabelText(/^Parola nouă/), 'parola-noua');
     await userEvent.click(screen.getByRole('button', { name: 'Schimbă parola' }));
-    expect(await screen.findByText(/^Cont demo: mai ai 32 din 35 lucrări\./)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Demo · 15 lucrări rămase' })).toBeInTheDocument();
   });
 
-  it('tells a demo account when its papers are used up', async () => {
-    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 35 }) });
+  it('turns the ring orange and asks for a complete account when the papers are used up', async () => {
+    const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 2, papersGraded: 35 }) });
     renderAdmin('/clase', api);
-    expect(await screen.findByText(/ai folosit toate cele 35 lucrări ale contului/)).toBeInTheDocument();
+    const button = await screen.findByRole('button', { name: 'Demo · 0 lucrări rămase' });
+    expect(button).toHaveClass('is-full');
+    await userEvent.click(button);
+    expect(screen.getByRole('region', { name: 'Cont demo' })).toHaveTextContent(
+      'Ai folosit toate cele 35 de lucrări ale contului demo. Cere unui administrator un cont complet.',
+    );
   });
 
-  it('shows no demo line to a complete account', async () => {
+  it('shows no demo button to a complete account', async () => {
     renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher' }) }));
     await screen.findByText('Nu ai nicio clasă în acest an școlar.');
+    expect(screen.queryByRole('button', { name: /^Demo/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Cont demo/)).not.toBeInTheDocument();
   });
 });

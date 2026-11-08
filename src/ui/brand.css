@@ -3956,6 +3956,86 @@ table.items tr.edit-row > td {
   margin: 0;
 }
 
+/* The demo account's button of the top bar (redesign spec §11.6): a ring of
+   the papers used, orange when none are left, and a small menu under it. */
+.demo {
+  position: relative;
+}
+
+.demo-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--control);
+  border-radius: 999px;
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.demo-button:hover,
+.demo-button[aria-expanded="true"] {
+  border-color: var(--muted);
+}
+
+.demo-ring {
+  width: 1rem;
+  height: 1rem;
+  stroke: var(--ink);
+}
+
+.demo-ring circle:first-child {
+  stroke: var(--active);
+}
+
+.demo-button.is-full .demo-ring {
+  stroke: var(--orange-mark);
+}
+
+.demo-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  gap: 0.75rem;
+  width: 20rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+  box-shadow: var(--float);
+  font-size: 0.875rem;
+}
+
+.demo-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.demo-line {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.demo-line.is-muted {
+  color: var(--muted);
+}
+
+.phone-demo {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--rule);
+}
+
 /* The two meters of a demo account: its one test and its papers; the papers'
    bar is orange when none are left. */
 .demo-meters {

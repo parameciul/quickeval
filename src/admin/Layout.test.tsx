@@ -202,6 +202,22 @@ describe('the phone menu', () => {
     localStorage.clear();
   });
 
+  it('shows a demo account its papers in ☰, and only to a demo account', async () => {
+    renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 20 }) }));
+    await menu();
+    await userEvent.click(screen.getByRole('button', { name: 'Mai mult' }));
+    const more = screen.getByRole('region', { name: 'Mai mult' });
+    expect(within(more).getByText('Cont demo')).toBeInTheDocument();
+    expect(within(more).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('20 din 35');
+    expect(more).toHaveTextContent('Mai ai 15 lucrări, pentru testul tău.');
+    cleanup();
+
+    renderAdmin('/', withClasses());
+    await menu();
+    await userEvent.click(screen.getByRole('button', { name: 'Mai mult' }));
+    expect(within(screen.getByRole('region', { name: 'Mai mult' })).queryByText('Cont demo')).not.toBeInTheDocument();
+  });
+
   it('changes the school year for every page', async () => {
     const api = withClasses();
     renderAdmin('/', api);

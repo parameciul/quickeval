@@ -1,8 +1,6 @@
 import { useQuery, useQueryClient, type Query } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, matchPath, Outlet, useLocation } from 'react-router';
-import { demoPapersLeft, DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
-import type { Teacher } from '../../shared/api.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
@@ -12,6 +10,7 @@ import { ErrorMessage, isLoginRequired } from './ErrorMessage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { useSchoolYear } from './SchoolYearContext.tsx';
 import { ClassesPanel } from './shell/ClassesPanel.tsx';
+import { DemoButton } from './shell/DemoButton.tsx';
 import { IconClose, IconMenu } from './shell/icons.tsx';
 import { PhoneMenu } from './shell/PhoneMenu.tsx';
 import { Rail, type PanelName } from './shell/Rail.tsx';
@@ -19,15 +18,6 @@ import { TodoPanel } from './shell/TodoPanel.tsx';
 import { todoList } from './shell/todo.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
 import { YearSelect } from './shell/YearSelect.tsx';
-
-// The line a demo account sees on every page.
-export function demoText(teacher: Teacher): string {
-  const left = demoPapersLeft(teacher.papersGraded + teacher.papersWaiting);
-  if (left === 0) {
-    return `Cont demo: ai folosit toate cele ${DEMO_PAPER_LIMIT} lucrări ale contului. Cere unui administrator un cont complet.`;
-  }
-  return `Cont demo: mai ai ${left} din ${DEMO_PAPER_LIMIT} lucrări. Fiecare lucrare corectată se numără, și o recorectare. Poți corecta un singur test.`;
-}
 
 // The phone layout of brand.css: the bar at the bottom, a panel over the page.
 const PHONE = '(max-width: 56.25rem)';
@@ -80,7 +70,7 @@ export function Layout() {
   const close = useCallback(() => setPanel(null), []);
   const phone = useMediaQuery(PHONE);
 
-  // A start, a regrade or a retry changes the papers the demo line shows, and
+  // A start, a regrade or a retry changes the papers the demo button shows, and
   // a change can end or add a thing in "De făcut": every change a logged-in
   // teacher makes reads the account and the tests of the year again. Only
   // what was not read since the change started, and joining a read already on
@@ -131,7 +121,9 @@ export function Layout() {
           </span>
         </Link>
         <div className="topbar-tools">
-          {/* Logged out, the top bar has only the lockup and the theme. */}
+          {/* A demo account's papers come first; logged out, the top bar
+              has only the lockup and the theme. */}
+          {me.data?.demo && <DemoButton teacher={me.data} />}
           {me.data && <YearSelect id="school-year" labelClassName="sr-only" />}
           <ThemeButton />
           {me.data && <UserMenu teacher={me.data} />}
@@ -163,7 +155,6 @@ export function Layout() {
       )}
       {/* On a phone a panel covers the page: the page under it is out of reach. */}
       <main className={wayIn ? 'page page-way-in' : 'page'} inert={phone && (open === 'clase' || open === 'todo')}>
-        {me.data?.demo && <p className="warning">{demoText(me.data)}</p>}
         {openPage ? (
           <Outlet />
         ) : loggedOut ? (
