@@ -5,6 +5,7 @@ import { displayClassName } from '../../../shared/classes.ts';
 import { parsePositiveId } from '../../../shared/ids.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { countLabel, studentCountLabel } from '../../ui/format.ts';
+import { onTabKeyDown } from '../../ui/tabKeys.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
@@ -28,6 +29,8 @@ export function ClassPage() {
   return <ClassDetails key={classId} classId={classId} />;
 }
 
+const CLASS_TABS = ['note', 'elevi'] as const;
+
 function testCountLabel(count: number): string {
   return count === 0 ? 'niciun test' : countLabel(count, 'test', 'teste');
 }
@@ -37,7 +40,7 @@ function ClassDetails({ classId }: { classId: number }) {
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'note' | 'elevi'>('note');
+  const [tab, setTab] = useState<(typeof CLASS_TABS)[number]>('note');
   const [showArchived, setShowArchived] = useState(false);
   const [linkState] = useState(() => location.state as ClassLinkState);
   const [newClassOpen, setNewClassOpen] = useState(linkState?.newClass === true);
@@ -130,12 +133,18 @@ function ClassDetails({ classId }: { classId: number }) {
       </div>
       {archive.error && <ErrorMessage error={archive.error} />}
 
-      <div className="class-tabs" role="tablist" aria-label="Ce vezi">
+      <div
+        className="class-tabs"
+        role="tablist"
+        aria-label="Ce vezi"
+        onKeyDown={(event) => onTabKeyDown(event, CLASS_TABS, tab, setTab, (id) => `class-tab-${id}`)}
+      >
         <button
           type="button"
           role="tab"
           id="class-tab-note"
           aria-selected={tab === 'note'}
+          tabIndex={tab === 'note' ? 0 : -1}
           aria-controls="class-panel"
           className="class-tab"
           onClick={() => setTab('note')}
@@ -147,6 +156,7 @@ function ClassDetails({ classId }: { classId: number }) {
           role="tab"
           id="class-tab-elevi"
           aria-selected={tab === 'elevi'}
+          tabIndex={tab === 'elevi' ? 0 : -1}
           aria-controls="class-panel"
           className="class-tab"
           onClick={() => setTab('elevi')}

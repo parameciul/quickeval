@@ -105,6 +105,31 @@ describe('ClassPage', () => {
     expect(await screen.findByRole('tab', { name: 'Elevi 3' })).toHaveAttribute('aria-selected', 'false');
   });
 
+  it('moves between the tabs with the arrow keys, Home and End, and Tab reaches only the chosen one', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    const notes = await screen.findByRole('tab', { name: 'Note și teste' });
+    const students = screen.getByRole('tab', { name: 'Elevi 3' });
+    expect(notes).toHaveAttribute('tabindex', '0');
+    expect(students).toHaveAttribute('tabindex', '-1');
+    notes.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(students).toHaveFocus();
+    expect(students).toHaveAttribute('aria-selected', 'true');
+    expect(students).toHaveAttribute('tabindex', '0');
+    expect(notes).toHaveAttribute('tabindex', '-1');
+    // The last tab wraps round to the first, and the first back to the last.
+    await userEvent.keyboard('{ArrowRight}');
+    expect(notes).toHaveFocus();
+    expect(notes).toHaveAttribute('aria-selected', 'true');
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(students).toHaveFocus();
+    await userEvent.keyboard('{Home}');
+    expect(notes).toHaveFocus();
+    await userEvent.keyboard('{End}');
+    expect(students).toHaveFocus();
+    expect(screen.getByRole('tabpanel', { name: 'Elevi 3' })).toBeInTheDocument();
+  });
+
   it('offers no new test for an archived class', async () => {
     const api = gradedClass();
     await api.updateClass(1, { archived: true });

@@ -49,6 +49,29 @@ describe('SettingsPage', () => {
     await expectLocation(/^\/setari$/);
   });
 
+  it('moves between the tabs with the arrow keys, Home and End', async () => {
+    renderAdmin('/setari', withSettings(), <LocationProbe />);
+    const tabs = await screen.findByRole('tablist', { name: 'Setări' });
+    const [accounts, grading, robot] = within(tabs).getAllByRole('tab');
+    expect(accounts).toHaveAttribute('tabindex', '0');
+    expect(grading).toHaveAttribute('tabindex', '-1');
+    accounts!.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(grading).toHaveFocus();
+    expect(grading).toHaveAttribute('aria-selected', 'true');
+    await expectLocation('/setari?tab=corectarea');
+    await userEvent.keyboard('{End}');
+    expect(robot).toHaveFocus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(accounts).toHaveFocus();
+    await expectLocation(/^\/setari$/);
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(robot).toHaveFocus();
+    await userEvent.keyboard('{Home}');
+    expect(accounts).toHaveFocus();
+    expect(accounts).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('keeps a new robot key while the teacher looks at another tab', async () => {
     const user = userEvent.setup();
     renderAdmin(ROBOT, withSettings());
