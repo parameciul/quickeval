@@ -21,6 +21,7 @@ import type {
   ResultLinkAnswer,
   RobotStart,
   RobotStartAnswer,
+  SearchResults,
   Settings,
   SignupInput,
   StartedTest,
@@ -76,6 +77,8 @@ export interface AdminApi {
   deleteStudent(classId: number, studentId: number): Promise<void>;
   renameStudent(studentId: number, fullName: string): Promise<{ id: number; fullName: string }>;
   getStudentHistory(studentId: number): Promise<StudentHistory>;
+  // The students, classes and tests of the year whose name holds the search.
+  search(query: string, schoolYear: number): Promise<SearchResults>;
   listTests(schoolYear: number): Promise<TestSummary[]>;
   // Returns the code of the new test.
   createTest(input: CreateTestInput): Promise<string>;
@@ -284,6 +287,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     renameStudent: async (studentId, fullName) =>
       (await request<{ student: { id: number; fullName: string } }>('PATCH', `/students/${studentId}`, { fullName })).student,
     getStudentHistory: (studentId) => request<StudentHistory>('GET', `/students/${studentId}/history`),
+    search: (query, schoolYear) => request<SearchResults>('GET', `/search?q=${encodeURIComponent(query)}&year=${schoolYear}`),
     listTests: async (schoolYear) => (await request<{ tests: TestSummary[] }>('GET', `/tests?year=${schoolYear}`)).tests,
     createTest: async (input) => (await request<{ code: string }>('POST', '/tests', input)).code,
     getTest: (code) => request<TestDetail>('GET', test(code)),

@@ -431,6 +431,24 @@ export interface StudentHistory {
   grades: ClassGrade[];
 }
 
+// A student the search found: the classes of the school year the student is
+// in (the ones the student left, when none is left), and the grade of the
+// student's latest graded paper of the year.
+export interface SearchStudent {
+  id: number;
+  fullName: string;
+  classes: { id: number; name: string }[];
+  lastGrade: number | null;
+}
+
+// What /api/admin/search found in one school year: names of students, classes
+// and tests that hold the search, diacritics aside (shared/search.ts).
+export interface SearchResults {
+  students: SearchStudent[];
+  classes: ClassSummary[];
+  tests: TestSummary[];
+}
+
 export interface TestSummary {
   code: string;
   title: string;

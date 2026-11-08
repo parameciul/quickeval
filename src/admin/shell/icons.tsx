@@ -97,3 +97,20 @@ export function IconClock() {
     </svg>
   );
 }
+
+export function IconSearch() {
+  return (
+    <svg {...LINE} strokeWidth={1.7}>
+      <circle cx="8.75" cy="8.75" r="5.25" />
+      <path d="m12.75 12.75 4 4" />
+    </svg>
+  );
+}
+
+export function IconBack() {
+  return (
+    <svg {...LINE} strokeWidth={1.8}>
+      <path d="M12.5 4.5 7 10l5.5 5.5" />
+    </svg>
+  );
+}

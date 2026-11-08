@@ -18,6 +18,7 @@ import type {
   FinishedTest,
   ReopenAnswer,
   RobotStart,
+  SearchResults,
   Settings,
   StartedTest,
   StoppedTest,
@@ -35,6 +36,7 @@ import { normalizeClassName } from '../../shared/classes.ts';
 import { DOCX_TYPE, uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
 import type { CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
+import { searchMatcher } from '../../shared/search.ts';
 import { averageGrade } from '../../shared/stats.ts';
 import { studentNameKey } from '../../shared/students.ts';
 import { buildTestCode } from '../../shared/tests.ts';
@@ -512,6 +514,25 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = data.histories?.find((history) => history.student.id === studentId);
       if (!found) throw notFound();
       return structuredClone(found);
+    }),
+    // As the API: the active students of the year's classes (no grades), its
+    // classes and its tests whose name holds the search.
+    search: vi.fn(async (query: string, schoolYear: number): Promise<SearchResults> => {
+      const matches = searchMatcher(query);
+      const classes = data.classes.filter((c) => c.schoolYear === schoolYear);
+      const students = new Map<number, SearchResults['students'][number]>();
+      for (const cls of classes) {
+        for (const student of (data.students[cls.id] ?? []).filter((s) => s.active && matches(s.fullName))) {
+          const found = students.get(student.id) ?? { id: student.id, fullName: student.fullName, classes: [], lastGrade: null };
+          found.classes.push({ id: cls.id, name: cls.name });
+          students.set(student.id, found);
+        }
+      }
+      return {
+        students: [...students.values()].sort((a, b) => a.fullName.localeCompare(b.fullName, 'ro')),
+        classes: classes.filter((c) => matches(c.name)).map((c) => ({ ...c, studentCount: countActive(c.id) })),
+        tests: tests.filter((t) => t.test.schoolYear === schoolYear && matches(t.test.title)).map(summaryOf),
+      };
     }),
     listTests: vi.fn(async (schoolYear: number) =>
       tests.filter((t) => t.test.schoolYear === schoolYear).map(summaryOf),

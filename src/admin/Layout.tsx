@@ -9,9 +9,11 @@ import { useApi } from './ApiContext.tsx';
 import { ErrorMessage, isLoginRequired } from './ErrorMessage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { useSchoolYear } from './SchoolYearContext.tsx';
+import { SearchBox } from './search/SearchBox.tsx';
 import { ClassesPanel } from './shell/ClassesPanel.tsx';
 import { DemoButton } from './shell/DemoButton.tsx';
-import { IconClose, IconMenu } from './shell/icons.tsx';
+import { SearchLayer } from './search/SearchLayer.tsx';
+import { IconClose, IconMenu, IconSearch } from './shell/icons.tsx';
 import { PhoneMenu } from './shell/PhoneMenu.tsx';
 import { Rail, type PanelName } from './shell/Rail.tsx';
 import { TodoPanel } from './shell/TodoPanel.tsx';
@@ -64,15 +66,18 @@ export function Layout() {
   // it stays closed when Back or Forward returns to that page (the router gives
   // the page its old key again).
   const [panel, setPanel] = useState<{ name: PanelName; on: string } | null>(null);
-  if (panel && panel.on !== location.key) setPanel(null);
+  const phone = useMediaQuery(PHONE);
+  // The phone's search over the whole screen closes when the screen grows.
+  if (panel && (panel.on !== location.key || (panel.name === 'search' && !phone))) setPanel(null);
   const open = panel?.on === location.key ? panel.name : null;
   const toggle = (name: PanelName) => setPanel(open === name ? null : { name, on: location.key });
   const close = useCallback(() => setPanel(null), []);
-  const phone = useMediaQuery(PHONE);
+  const searching = phone && open === 'search';
 
   // A start, a regrade or a retry changes the papers the demo button shows, and
   // a change can end or add a thing in "De făcut": every change a logged-in
-  // teacher makes reads the account and the tests of the year again. Only
+  // teacher makes reads the account and the tests of the year again, and what
+  // the search found (a new name, a new test). Only
   // what was not read since the change started, and joining a read already on
   // its way: a page that reads the list after its change does not cause a
   // second read, and nothing waits for this one.
@@ -89,6 +94,7 @@ export function Layout() {
         void queryClient.invalidateQueries({ queryKey: ['me'], predicate }, { cancelRefetch: false });
         void queryClient.invalidateQueries({ queryKey: ['tests'], predicate }, { cancelRefetch: false });
         void queryClient.invalidateQueries({ queryKey: ['accounts'], predicate }, { cancelRefetch: false });
+        void queryClient.invalidateQueries({ queryKey: ['search'], predicate }, { cancelRefetch: false });
       }),
     [queryClient],
   );
@@ -112,7 +118,7 @@ export function Layout() {
 
   return (
     <div className={me.data ? 'shell' : 'shell shell-bare'}>
-      <header className="topbar">
+      <header className="topbar" inert={searching}>
         <Link className="brand" to="/" aria-label="MQGrader by Laura Miron">
           <BrandMark />
           <span className="brand-text">
@@ -120,6 +126,8 @@ export function Layout() {
             <span className="brand-by">by Laura Miron</span>
           </span>
         </Link>
+        {/* On a phone the search opens over the whole screen instead. */}
+        {me.data && !phone && <SearchBox id="search" />}
         <div className="topbar-tools">
           {/* A demo account's papers come first; logged out, the top bar
               has only the lockup and the theme. */}
@@ -128,6 +136,18 @@ export function Layout() {
           <ThemeButton />
           {me.data && <UserMenu teacher={me.data} />}
         </div>
+        {me.data && phone && (
+          <button
+            type="button"
+            className="search-button"
+            aria-label="Caută"
+            aria-expanded={open === 'search'}
+            aria-controls={open === 'search' ? 'search-full' : undefined}
+            onClick={() => toggle('search')}
+          >
+            <IconSearch />
+          </button>
+        )}
         {me.data && (
           <button
             type="button"
@@ -143,7 +163,7 @@ export function Layout() {
         {me.data && open === 'menu' && <PhoneMenu teacher={me.data} onClose={close} />}
       </header>
       {me.data && (
-        <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length + (approvals > 0 ? 1 : 0)} urgent={approvals > 0} panel={open} onToggle={toggle} />
+        <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length + (approvals > 0 ? 1 : 0)} urgent={approvals > 0} panel={open} onToggle={toggle} inert={searching} />
       )}
       {/* The panels come right after the bar that opens them, for the keyboard
           and screen readers. */}
@@ -153,8 +173,9 @@ export function Layout() {
       {me.data && open === 'todo' && (
         <TodoPanel items={todo} approvals={approvals} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
       )}
+      {me.data && searching && <SearchLayer onClose={close} />}
       {/* On a phone a panel covers the page: the page under it is out of reach. */}
-      <main className={wayIn ? 'page page-way-in' : 'page'} inert={phone && (open === 'clase' || open === 'todo')}>
+      <main className={wayIn ? 'page page-way-in' : 'page'} inert={searching || (phone && (open === 'clase' || open === 'todo'))}>
         {openPage ? (
           <Outlet />
         ) : loggedOut ? (
