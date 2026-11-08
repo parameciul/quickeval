@@ -64,8 +64,9 @@ function useNamesField(students: StudentRow[]) {
 
 // "Clasă nouă": the name and the students, one per line, in one step (spec §9).
 // The students may come later. A class made before the students failed is not
-// made twice: a second try only adds the students.
-export function NewClassDialog({ onClose }: { onClose(): void }) {
+// made twice: a second try only adds the students. The new class's page opens,
+// unless `onCreated` takes the class (on "Test nou", which chooses it).
+export function NewClassDialog({ onClose, onCreated }: { onClose(): void; onCreated?(id: number): void }) {
   const api = useApi();
   const { year } = useSchoolYear();
   const navigate = useNavigate();
@@ -88,7 +89,8 @@ export function NewClassDialog({ onClose }: { onClose(): void }) {
     onSuccess: async (id) => {
       await queryClient.invalidateQueries({ queryKey: ['classes'] });
       onClose();
-      navigate(`/clase/${id}`);
+      if (onCreated) onCreated(id);
+      else navigate(`/clase/${id}`);
     },
   });
   return (

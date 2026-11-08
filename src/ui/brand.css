@@ -2417,6 +2417,185 @@ input[type="file"] {
   margin: 0.5rem 0 0;
 }
 
+/* "Test nou": the form of three numbered steps, and the card of what comes
+   next beside it, sticky under the top bar; one column below 73.75rem, where
+   the card goes under the form. */
+.new-test {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 1rem;
+  align-items: start;
+}
+
+.steps {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+  counter-increment: step;
+}
+
+.step::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--ink-tint);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.step h2 {
+  margin: 0.2rem 0 0.25rem;
+  font-size: 1rem;
+}
+
+.step > div > p {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.step .form-field {
+  max-width: 34rem;
+  margin-bottom: 0.875rem;
+}
+
+.step .form-field:last-child {
+  margin-bottom: 0;
+}
+
+.step .form-field select {
+  width: 100%;
+}
+
+/* The barem's three choices: the chosen one is tinted blue. */
+.choices {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 34rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.choice:has(input:checked) {
+  border-color: var(--ink);
+  background: var(--ink-tint);
+}
+
+.choice:has(input:disabled) {
+  cursor: not-allowed;
+}
+
+.choice:has(input:disabled) b {
+  color: var(--muted);
+}
+
+.choice input {
+  margin: 0.2rem 0 0;
+  accent-color: var(--ink);
+}
+
+.choice b {
+  display: block;
+  font-weight: 600;
+}
+
+.choice span span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.choice .choice-extra {
+  color: var(--text);
+}
+
+.choice-drop {
+  margin: -0.25rem 0 0.25rem 2rem;
+}
+
+.new-test-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1.25rem;
+}
+
+.new-test-next {
+  position: sticky;
+  top: calc(var(--top) + 1.5rem);
+}
+
+.new-test-next ul {
+  display: grid;
+  gap: 0.875rem;
+  margin: 0;
+  padding: 0.25rem 1.25rem 1.25rem;
+  list-style: none;
+}
+
+.new-test-next li {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: 0.625rem;
+  font-size: 0.875rem;
+}
+
+.new-test-next svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.1rem;
+  color: var(--ink);
+}
+
+.new-test-next b {
+  display: block;
+  font-size: 0.9375rem;
+}
+
+.new-test-next span {
+  color: var(--muted);
+}
+
+@media (max-width: 73.75rem) {
+  .new-test {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .new-test-next {
+    position: static;
+  }
+}
+
 /* A test's state: draft is plain, open is green, being graded is pale blue,
    graded is blue. */
 .status {
