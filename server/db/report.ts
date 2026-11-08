@@ -60,6 +60,7 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
         title: string;
         status: TestStatus;
         started_at: string | null;
+        class_id: number;
         class_name: string;
         exercise_list_json: string | null;
         analysis_status: AnalysisStatus;
@@ -125,7 +126,14 @@ export async function getClassReport(db: D1Database, teacherId: number, testId: 
     .sort((a, b) => compareStudentNames(a.studentName, b.studentName));
 
   return {
-    test: { code: head.code, title: head.title, className: head.class_name, status: head.status, startedAt: head.started_at },
+    test: {
+      code: head.code,
+      title: head.title,
+      classId: head.class_id,
+      className: head.class_name,
+      status: head.status,
+      startedAt: head.started_at,
+    },
     exercises: exerciseColumns(list, storedItems).map(({ id, label, maxPoints }) => ({ id, label, maxPoints })),
     rows,
     missing: notGraded,

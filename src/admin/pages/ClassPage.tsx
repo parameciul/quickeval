@@ -41,6 +41,7 @@ function ClassDetails({ classId }: { classId: number }) {
   const [showArchived, setShowArchived] = useState(false);
   const [linkState] = useState(() => location.state as ClassLinkState);
   const [newClassOpen, setNewClassOpen] = useState(linkState?.newClass === true);
+  const heading = useRef<HTMLHeadingElement>(null);
   const detail = useQuery({ queryKey: ['class', classId], queryFn: () => api.getClass(classId) });
   // Remember which class the teacher opened last, so /clase reopens it.
   useEffect(() => {
@@ -55,6 +56,12 @@ function ClassDetails({ classId }: { classId: number }) {
     await queryClient.invalidateQueries({ queryKey: ['class', classId] });
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
   };
+  // "Arhivează clasa" and "Scoate din arhivă", from ⋯ and from the strip of an
+  // archived class.
+  const archive = useMutation({
+    mutationFn: (archived: boolean) => api.updateClass(classId, { archived }),
+    onSuccess: refresh,
+  });
 
   const newClass = newClassOpen && <NewClassDialog onClose={() => setNewClassOpen(false)} />;
   if (detail.isPending) return <p>Se încarcă…{newClass}</p>;
@@ -62,12 +69,32 @@ function ClassDetails({ classId }: { classId: number }) {
 
   const { class: info, students, tests, grades } = detail.data;
   const activeTests = tests.filter((test) => !test.archived).length;
+  // An archived class is read only: its grades and tests stay, and nothing new
+  // is added to it until it is out of the archive.
+  const readOnly = info.archived;
   return (
     <section className="class-page">
+      {readOnly && (
+        <div className="class-archived">
+          <p>
+            <b>Clasă arhivată.</b> Notele și testele rămân aici. Nu poți face un test nou și nu poți adăuga elevi.
+          </p>
+          <button
+            type="button"
+            className="button-quiet"
+            disabled={archive.isPending}
+            // The strip goes with the write: the focus moves to the class name.
+            onClick={() => archive.mutate(false, { onSuccess: () => heading.current?.focus() })}
+          >
+            Scoate din arhivă
+          </button>
+        </div>
+      )}
       <div className="class-head">
         <div className="class-head-main">
-          <h1>{displayClassName(info.name)}</h1>
-          {info.archived && <span className="tag">Arhivată</span>}
+          <h1 ref={heading} tabIndex={-1}>
+            {displayClassName(info.name)}
+          </h1>
           <ClassSwitcher
             api={api}
             classId={classId}
@@ -75,6 +102,11 @@ function ClassDetails({ classId }: { classId: number }) {
             onNewClass={() => setNewClassOpen(true)}
           />
           <p className="class-head-facts">
+            {readOnly && (
+              <>
+                <span className="tag">Arhivată</span>{' '}
+              </>
+            )}
             {studentCountLabel(students.length)} · {testCountLabel(activeTests)} · anul școlar{' '}
             {formatSchoolYear(info.schoolYear)}
           </p>
@@ -85,9 +117,18 @@ function ClassDetails({ classId }: { classId: number }) {
               Test nou pentru această clasă
             </Link>
           )}
-          <ClassMenu api={api} classId={classId} name={info.name} archived={info.archived} onDone={refresh} />
+          <ClassMenu
+            api={api}
+            classId={classId}
+            name={info.name}
+            archived={info.archived}
+            archiving={archive.isPending}
+            onArchive={() => archive.mutate(!info.archived)}
+            onDone={refresh}
+          />
         </div>
       </div>
+      {archive.error && <ErrorMessage error={archive.error} />}
 
       <div className="class-tabs" role="tablist" aria-label="Ce vezi">
         <button
@@ -118,15 +159,18 @@ function ClassDetails({ classId }: { classId: number }) {
         {tab === 'note' ? (
           <div className="class-notes">
             <GradesTable
+              classId={classId}
               students={students}
               tests={tests}
               grades={grades}
               showArchived={showArchived}
+              readOnly={readOnly}
               onShowStudents={() => setTab('elevi')}
             />
             <ClassTests
               tests={tests}
               schoolYear={info.schoolYear}
+              readOnly={readOnly}
               showArchived={showArchived}
               onShowArchived={setShowArchived}
               onChanged={refresh}
@@ -141,6 +185,7 @@ function ClassDetails({ classId }: { classId: number }) {
             students={students}
             tests={tests}
             grades={grades}
+            readOnly={readOnly}
             onChanged={refresh}
           />
         )}
@@ -286,29 +331,43 @@ function ClassSwitcher({
   );
 }
 
-// "⋯": "Redenumește clasa" (a dialog) and "Arhivează clasa".
+// "⋯": "Redenumește clasa" (a dialog) and "Arhivează clasa"; for an archived
+// class, "Scoate din arhivă" first.
 function ClassMenu({
   api,
   classId,
   name,
   archived,
+  archiving,
+  onArchive,
   onDone,
 }: {
   api: AdminApi;
   classId: number;
   name: string;
   archived: boolean;
+  archiving: boolean;
+  onArchive(): void;
   onDone: () => Promise<void>;
 }) {
   const { open, setOpen, box, button } = useSmallMenu();
   const [renameOpen, setRenameOpen] = useState(false);
-  const archive = useMutation({
-    mutationFn: () => api.updateClass(classId, { archived: !archived }),
-    onSuccess: async () => {
-      setOpen(false);
-      await onDone();
-    },
-  });
+  const archiveItem = (
+    <button
+      type="button"
+      role="menuitem"
+      className="class-menu-item"
+      disabled={archiving}
+      onClick={() => {
+        // The menu closes with its item: the focus goes back to ⋯.
+        setOpen(false);
+        button.current?.focus();
+        onArchive();
+      }}
+    >
+      {archived ? 'Scoate din arhivă' : 'Arhivează clasa'}
+    </button>
+  );
   return (
     <div className="class-more" ref={box}>
       <button
@@ -325,6 +384,7 @@ function ClassMenu({
       </button>
       {open && (
         <div className="class-menu class-more-menu" id="class-more-menu" role="menu">
+          {archived && archiveItem}
           <button
             type="button"
             role="menuitem"
@@ -336,16 +396,7 @@ function ClassMenu({
           >
             Redenumește clasa
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="class-menu-item"
-            disabled={archive.isPending}
-            onClick={() => archive.mutate()}
-          >
-            {archived ? 'Scoate din arhivă' : 'Arhivează clasa'}
-          </button>
-          {archive.error && <ErrorMessage error={archive.error} />}
+          {!archived && archiveItem}
         </div>
       )}
       {renameOpen && (

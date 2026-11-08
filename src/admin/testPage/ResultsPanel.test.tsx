@@ -195,7 +195,7 @@ describe('the panel Rezultate', () => {
 
   it('downloads the CSV of the class report', async () => {
     const report: ClassReport = {
-      test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
+      test: { code: '6E2-26T1', title: 'Fracții', classId: 1, className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
       exercises: [{ id: 'I.1', label: 'Subiectul I, exercițiul 1', maxPoints: 4.5 }],
       rows: [
         {

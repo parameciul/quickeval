@@ -215,7 +215,7 @@ const gradedAt = result.body?.submission?.evaluation?.gradedAt;
 const corrected = await api('PATCH', `/api/admin/submissions/${row?.submissionId}/items/${item?.id}`, { gradedAt, points: 8, reviewed: true });
 check('the teacher corrects the points', corrected.status === 200 && corrected.body?.submission?.evaluation?.grade === 9, JSON.stringify(corrected.body));
 const history = await api('GET', `/api/admin/students/${studentId}/history`);
-check('the student page lists the grade', history.status === 200 && history.body?.results?.[0]?.grade === 9, JSON.stringify(history.body));
+check('the student page lists the grade', history.status === 200 && history.body?.tests?.[0]?.code === code && history.body?.grades?.[0]?.grade === 9, JSON.stringify(history.body));
 const regraded = await api('POST', `/api/admin/tests/${code}/regrade`);
 check('regrade the test', regraded.status === 200 && regraded.body?.count === 1 && regraded.body?.testStatus === 'evaluating', JSON.stringify(regraded.body));
 

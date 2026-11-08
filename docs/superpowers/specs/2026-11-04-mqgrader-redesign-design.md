@@ -1,12 +1,12 @@
 # MQGrader redesign: design
 
-Date: 2026-11-04. Status: agreed with the user after six rounds of prototypes. Phases 1 to 5 (landing page and light theme, look and shell, Teste page, test page, Rezultate) are live; Phase 6 (the review of the points to check) is being built; the other phases are not.
+Date: 2026-11-04, updated 2026-11-08. Status: agreed with the user after seven rounds of prototypes. Phases 1 to 7 are live. Phase 8 (the pages of §11, designed in round 7) is built in six groups (§13).
 
 ## 0. Plain summary
 
 The teacher app and the landing page get a new look and a new layout. The pages use the full width of a desktop screen. Light is the default theme; dark is one click away. A narrow bar on the left holds the menu. Every test goes through six stages, shown as a vertical list, and each page shows only what the current stage needs. The student pages keep their flow; they get the new look and show only the mark and the name.
 
-The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (git-ignored, on the developer's PC) and online as private pages: round 3 https://claude.ai/artifact/Qr3qcjNTTqk43rJqRBa6m5, round 4 https://claude.ai/artifact/WGhwJYiScewGpZpnXM3fGk, round 5 https://claude.ai/artifact/JfoJqXjZVryZCHebhG8QHw, round 6 (the phone menu) https://claude.ai/artifact/9L44SEwAxWb7Fxe1Hra4S9. This document holds every decision, so the build does not depend on them.
+The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (git-ignored, on the developer's PC) and online as private pages: round 3 https://claude.ai/artifact/Qr3qcjNTTqk43rJqRBa6m5, round 4 https://claude.ai/artifact/WGhwJYiScewGpZpnXM3fGk, round 5 https://claude.ai/artifact/JfoJqXjZVryZCHebhG8QHw, round 6 (the phone menu) https://claude.ai/artifact/9L44SEwAxWb7Fxe1Hra4S9, round 7 (the pages of §11, with the user's picks) https://claude.ai/artifact/NTc1cfWBhUF4EkkCZN2uNm. This document holds every decision, so the build does not depend on them.
 
 ## 1. Decisions, in the order the user made them
 
@@ -28,7 +28,7 @@ The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (
 16. The app and the student pages take the mark "Trei subiecte" too, for now; the byline stays "by Laura Miron" (Phase 2).
 17. On a phone, a bar at the bottom of the screen holds the four items of the 80 px bar, and ☰ holds the rest (round 6, design M2).
 18. "De făcut" comes with the shell, in Phase 2, with all three of its cases; the tests list of the API says when a generated barem waits.
-19. No search box until search is designed (§11).
+19. No search box until search is built (§11.10).
 20. The rows of the Teste page keep the results buttons of the old cards: "Publică rezultatele" publishes from the list, and "Oprește accesul" stays on a test whose results are open (Phase 3).
 21. A finished test shows "media testului" on the Teste page, the same number as its class report (Phase 3).
 22. The test page's Verificare lists the papers with points to check, each opening the paper's page. The list of each point with its reason comes with the review of Phase 6: the API gives only a count per paper (Phase 4).
@@ -38,6 +38,18 @@ The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (
 26. "Publică toate rezultatele" opens the link of every student, and "Oprește accesul la rezultate" closes every link, also the ones published alone. While all are published, one result cannot be stopped alone (Phase 5).
 27. The review has no marks on the photo: the robot does not say where an answer is on a page, nor on which page. The middle pane shows the student's pages with the page switch (Phase 6).
 28. The review is a page of its own, `/admin/teste/:code/verificare`. "Începe verificarea" and "Decide" in the panel Verificare, "Verifică 3 puncte" on the Teste page, and the button of "Decide 3 puncte nesigure" in "De făcut" open it (Phase 6).
+
+29. The mark "Trei subiecte" is final (2026-11-07). Search is built, last (§11.10). Round 7 designed every page of §11 at once.
+30. An archived class opens as the normal class page, read only (round 7, A).
+31. The student's history is one table per school year (A).
+32. The class report is one page, with a list of its parts on the left (B).
+33. Login and sign-up are a split screen, white on both halves: the form on the left, the statement and the six stages on the right (B, from the user's sketch).
+34. Contul meu is one column (A). It has no pay button while nothing is on sale.
+35. The demo account line is a button in the top bar (B).
+36. "Test nou" is its own page, three numbered steps with a side card (A, the user's pick changed from B on 2026-11-08). The barem can be uploaded, generated from the test, or added later.
+37. Setări has three tabs, "Conturi" first (A).
+38. A new teacher sees "Primii pași" on the Teste page (A).
+39. Search is a box in the top bar, with a list under it and a results page (A).
 
 ## 2. Look
 
@@ -91,7 +103,7 @@ The prototypes used the mark "Trei subiecte": three arcs of one ring, two blue a
 </g></svg>
 ```
 
-`--mk-a` is blue and `--mk-b` is orange-mark; on the dark band they are #80b1ff and #ff8a3d. From Phase 2 it is also the mark of the teacher app and the student pages (`src/ui/BrandMark.tsx`) and the favicon (`public/favicon.svg`). It may still change (§12); those files and the landing page are the only places that draw it.
+`--mk-a` is blue and `--mk-b` is orange-mark; on the dark band they are #80b1ff and #ff8a3d. From Phase 2 it is also the mark of the teacher app and the student pages (`src/ui/BrandMark.tsx`) and the favicon (`public/favicon.svg`). It is final (decision 29); those files and the landing page are the only places that draw it.
 
 The lockup on teacher pages and the landing page is the mark, "MQGrader" (bold) and, under it, "by Laura Miron" (small, muted). Student pages show only the mark and "MQGrader": no byline, no other brand text, no link (rule of the root `AGENTS.md`).
 
@@ -123,11 +135,11 @@ The landing page is indexed (SEO, GEO and AEO work: canonical, Open Graph, JSON-
 ## 4. App shell (Phase 2)
 
 - A bar of 80 px on the left (the menu "Meniu"), from top to bottom: "Test nou" (a blue square with +, the word under it; to `/teste/nou`), "Teste" (link; current on every `/teste` page), "Clase" (opens the panel "Clasele tale"; marked on every `/clase` page), "De făcut" (opens the panel "Ce ai de făcut"; a number shows how many things wait), and at the bottom "Setări" (only for an administrator, as `adminOnly` is today). Each item has its icon and a short word under it.
-- A top bar over the page: the lockup (the mark sits at the top of the 80 px bar, "MQGrader" and "by Laura Miron" start the top bar), the school year, the theme button, and the user's initials, which open a small menu with the name and email, "Contul meu" and "Ieși din cont". No search box until search is designed (§11). The old footer goes.
+- A top bar over the page: the lockup (the mark sits at the top of the 80 px bar, "MQGrader" and "by Laura Miron" start the top bar), the school year, the theme button, and the user's initials, which open a small menu with the name and email, "Contul meu" and "Ieși din cont". The search box comes with Phase 8f (§11.10). The old footer goes.
 - The panels open beside the bar, over the page, 384 px wide. Only one is open at a time; Esc and × close it, and so does opening a page. Small menus (the initials, Schimbă clasa, ⋯) close on a click outside them and on Esc.
 - "Clasele tale": the classes of the chosen school year that are not archived, each with its number of students and its tests in work (draft, open, in evaluation, or done with a thing in "De făcut"); a test in "De făcut" is orange; the class of the page is marked. "+ Clasă nouă" and "Arhivate (n)" open the page Clase (`/clase`) until Phase 7 replaces it.
 - "Ce ai de făcut": one card per thing in "De făcut" (§5): the stage as a pill, the test and its class, what to do, one sentence, and one button to the test (to the review for Verificare, §7); the first card's button is the filled one. Under them, how many other tests of the year are in work. With nothing: "Nimic nu te așteaptă acum."
-- The demo line stays at the top of the page, under the top bar.
+- The demo line is a button in the top bar (§11.6), from Phase 8b. Until then it stays at the top of the page, under the top bar.
 - On a phone (below 900 px; round 6, design M2): the top bar holds the lockup and ☰. The 80 px bar becomes a bar at the bottom of the screen with the same four items in the same order (Test nou, Teste, Clase, De făcut with its number); Setări leaves it. ☰ drops a menu from the top bar: Setări (administrators), the school year, "Temă întunecată" (a switch), the user's name and email, "Contul meu" and "Ieși din cont". The panels cover the screen between the two bars.
 
 ## 5. Teste page (`/admin/`, Phase 3)
@@ -235,14 +247,100 @@ The panel of the stage Rezultate (§6). A draft has one line: "Rezultatele se pu
 
 The flow and the texts stay. They take the new type and colours, light by default. The header shows only the mark and "MQGrader". No word says how the work is graded.
 
-## 11. Not designed yet
+## 11. The pages of Phase 8 (round 7)
 
-Search and its results (no box in the top bar until then); the "Test nou" form; Setări; login and sign-up; Contul meu; the first visit of a new teacher and the empty states; an archived class; the student's history page; the class report page; where the demo account line goes (Phase 2 keeps it at the top of the page).
+The user picked one option per page on 2026-11-08 (decisions 29 to 39). The prototypes are in `docs/design-proposals/round-7` (git-ignored) and online (link at the top). The words in quotes are the page's text.
+
+### 11.1 An archived class (8a)
+
+- "Schimbă clasa" and the panel lead to it (Phase 7). It is the class page of §9, read only.
+- Above the class head, a strip on the raised tone: "**Clasă arhivată.** Notele și testele rămân aici. Nu poți face un test nou și nu poți adăuga elevi." and "Scoate din arhivă" (outline). No date: classes keep no archive date, and 8a needs no migration.
+- The head: the name, "Schimbă clasa", and the facts with the tag "Arhivată" first. No "Test nou pentru această clasă". ⋯ has "Scoate din arhivă" and "Redenumește clasa".
+- "Note și teste": the grades table as in §9. "Testele clasei": each test with "Raportul clasei" (when a paper is graded) as its step.
+- "Elevi": the list and one student, with no "Redenumește", "A plecat din clasă", "Șterge" or "+ Adaugă elevi". "Toate notele elevului, din toate clasele" stays.
+
+### 11.2 The student's history (8a, `/admin/elevi/:id`)
+
+- "← Clasa 10B" (the class the teacher came from, else the student's current class). Title: the name. Under it: the current class and year, and the earlier ones ("înainte în Clasa 9B (2025-2026)"), each a link. "Redenumește" on the right.
+- One card per school year and class, newest first, under the heading "2026-2027 · Clasa 10B". A row per test, newest first: the test (a link) with its date; "Punctaj" ("76,4 / 100"); "Nota" as the grades table draws it (the grade; orange with a dot when points wait; "—" when no paper); "Rezultatul" ("Publicat" with "Copiază linkul", "Nepublicat", "După verificare", "Nu a trimis lucrarea."); and "Lucrarea" (a link to the paper's page).
+- The rows are the started tests of that class. A draft is not listed. An archived test, or a test of a class the student left, is listed only when the student sent a paper to it. A class with no started test says "Niciun test început în această clasă."
+- Under each card, the legend of the grades table. No average per student (decision 12).
+- On a phone the table scrolls inside its card.
+
+### 11.3 The class report (8a, `/admin/teste/:code/raport`)
+
+- "←" and the test's name. Title "Raportul clasei"; under it the test, the class (a link) and the date. On the right "Descarcă PDF" and "Descarcă CSV" (made in the browser).
+- Left, 17 rem, sticky: a list of the parts ("Pe scurt", "Rezultatele elevilor" with its count, "Pe exerciții" with its count, "Analiza clasei"), the current one marked; under it the card "Notele pe grupe": 1–4,99, 5–6,99, 7–8,99, 9–10, each a blue bar with its count.
+- Right, one after the other: the tiles "Media testului", "Mediana", "Cea mai mică notă", "Cea mai mare notă" and "Corectate 8 din 9 elevi"; the card "Rezultatele elevilor" (a row per student: the points of each exercise, with the exercise's maximum under its short name, "Total", "Nota"; a student with no paper says "Nu a trimis lucrarea.", one whose paper is not graded yet says its state; the list "Fără rezultat" goes); the card "Pe exerciții" ("Media", "% din maxim" with a bar, "Tot", "Parțial", "Nimic"); the card "Analiza clasei" with "Regenerează" (starts the robot) and its sections ("Greșeli frecvente", "Ce exersați în continuare" and the others). No date: the app does not store when the analysis was written. Its other states keep today's texts.
+- On a phone: one column, and the list of parts goes.
+
+### 11.4 Login and sign-up (8b, `/admin/` logged out)
+
+- The top bar holds only the lockup and the theme button: no school year (this ends the 14 px select of Phase 2).
+- Under it, two halves of equal width on the surface tone, a 1 px line between them, as tall as the screen.
+- Left: the form, centred, 24 rem wide, with no card around it. At the bottom, small and muted: "Elevii nu au nevoie de cont: trimit lucrarea de pe linkul testului."
+- Right, centred, 38 rem wide: "Weekendul tău, fără teancul de lucrări." (the landing page's heading), the landing page's line, and in one box on the raised tone "UN TEST, ÎN ȘASE ETAPE": the six stages of the landing page, word for word, as a small vertical list (icon, name, "Tu" / "Elevii" / "MQGrader", the sentence). Under the box: an orange dot with "Tu faci 4 din 6 etape, câteva minute fiecare." and a blue dot with "Restul se fac singure."
+- The left half has these states, each with its own heading:
+  - "Intră în cont", "Bine ai revenit.": the email, "Parola" with "Am uitat parola", "Intră"; "Nu ai cont? Cere un cont de profesor".
+  - "Cont nou de profesor" (`#cont-nou`), "Primești un cont demo, ca să încerci MQGrader cu o clasă a ta.": "Numele tău", the email, "Parola (cel puțin 8 caractere)", "Cere contul"; the note "**Contul demo:** poți corecta un test, cu cel mult 35 de lucrări. Întâi confirmi adresa de email, apoi un administrator aprobă contul."; "Ai deja cont? Intră în cont".
+  - "Verifică-ți emailul" (after sign-up), "Adresa ta este confirmată" (`/admin/confirma-email`), "Contul tău așteaptă aprobarea" (a pending account that logs in, with "Ieși"), "Am uitat parola" and "Parolă nouă". Each keeps today's text and adds an icon on a tint: mail blue, done green, waiting orange.
+- On a phone: the form first, the right half under it.
+
+### 11.5 Contul meu (8b, `/admin/cont`)
+
+- One column, 40 rem: "Contul meu", then three cards.
+- "Contul tău": the tag ("Cont demo", "Cont complet" or "Administrator"), the initials, the name and the email.
+  - A demo account: two meters, "Teste corectate 1 din 1" and "Lucrări corectate 20 din 35" (orange when full), and "Mai ai 15 lucrări, pentru testul tău. Fiecare lucrare corectată se numără, și o recorectare." When none are left: "Ai folosit toate cele 35 de lucrări ale contului demo. Cere unui administrator un cont complet."
+  - A full account: "Teste corectate" and "Lucrări corectate". An administrator also: "Conturile și robotul sunt în Setări."
+- "Parola": today's form. Then "Ieși din cont pe acest dispozitiv." with "Ieși din cont".
+- No pay button: nothing is on sale (`docs/payments.md`). A paid feature later goes here.
+
+### 11.6 The demo line (8b)
+
+- A demo account has a button in the top bar, before the school year: a small ring of the papers used and "Demo · 15 lucrări rămase". It opens a small menu "Cont demo" with the two meters of §11.5, one line, and "Contul meu". When none are left, the ring is orange and the line asks for a full account.
+- On a phone it is in ☰. The paragraph under the top bar goes.
+
+### 11.7 "Test nou" (8c, `/admin/teste/nou`)
+
+- Its own page, as today. "Test nou" in the bar and on the Teste page lead to it; "Test nou pentru această clasă" leads to it with that class chosen. "← Toate testele" and the title "Test nou".
+- Left, a form of three numbered steps:
+  1. "Clasa și titlul", "Titlul îl văd și elevii, pe pagina lor.": "Clasa" (a select; "Nu e în listă? Clasă nouă" under it when no class was chosen) and "Titlul testului".
+  2. "Testul", "Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.": a drop area, "Alege fișierul sau trage-l aici".
+  3. "Baremul", "După el se dă punctajul.": three choices. "Încarc baremul acum" ("PDF sau Word.", with its drop area under it); "Generează baremul din test" ("Primești o propunere în câteva minute. O verifici și o confirmi înainte de corectare."; it needs the test file); "Mai târziu" ("Îl adaugi din pagina testului, la Pregătire. Corectarea nu începe fără barem.").
+- Under the form: "Creează testul" (filled) and "Testul rămâne ciornă până apeși „Începe testul”." Then the test page opens, as today. The upload link is made with the test, as today. A generated barem starts the robot and stays unchecked until the teacher confirms it.
+- Right, sticky: the card "După ce creezi testul": "Linkul elevilor e gata imediat" ("Testul primește linkul și codul QR din prima clipă, ca ciornă."), "Tipărești testul cu cod QR" ("Din ciornă, cu zile înainte. Fiecare pagină are codul."), "În ziua testului: Începe testul" ("Elevii scanează codul și trimit pozele. Fără cont și fără aplicație.").
+- On a phone: one column, the card under the form.
+
+### 11.8 Setări (8d, administrators only)
+
+- "Setări", "Doar administratorii văd această pagină.", and three tabs: "Conturi" (with a red count of the accounts that wait), "Corectarea", "Robotul". The address keeps the tab.
+- "Conturi":
+  - A red-edged card "2 conturi așteaptă aprobarea" with "Refuză toate": a row per account (the name and email, when it asked, "confirmat"), "Aprobă" and "Refuză". Under it: "Un cont aprobat este un cont demo: un test, cel mult 35 de lucrări. Îl faci complet din lista de mai jos." With none waiting, this card goes.
+  - "Toate conturile": the name and email, the kind as a tag, what it used ("1 test · 20 din 35 de lucrări"), and ⋯ ("Fă cont complet" or "Fă cont demo", "Parolă nouă", "Închide contul" in red).
+- "Corectarea": "Lucrări corectate deodată" and the Model column, each a row with its sentence and its control.
+- "Robotul": "Starea robotului" (a tag, the last run) and "Cheia robotului" (when it was made, "Fă o cheie nouă"), with today's texts.
+
+### 11.9 The first visit and the empty states (8e)
+
+- A teacher with no class and no test sees on the Teste page "Bun venit, Maria.", "Trei pași până la primul test corectat." and the card "Primii pași" ("0 din 3"): 1 "Adaugă o clasă" ("Clasă nouă", filled), 2 "Fă un test" ("Test nou", off until a class exists), 3 "Tipărește-l cu cod QR". A done step shows a tick. The card goes once a test exists.
+- Each empty state has an icon, a heading, one sentence and at most one button:
+  - "Clasele tale" with no class: "Încă nu ai nicio clasă", "+ Clasă nouă".
+  - "De făcut" with nothing: "Nimic nu te așteaptă acum".
+  - A class with no students: "Clasa 7A nu are încă elevi", "Adaugă elevi".
+  - A class with no tests: "Niciun test pentru Clasa 7A", "Test nou pentru această clasă".
+  - A started test with no paper: "Nicio lucrare trimisă încă", "Arată codul QR pe tot ecranul".
+  - Rezultate with nothing graded: "Rezultatele se publică după corectare", "Mergi la Corectare".
+
+### 11.10 Search (8f)
+
+- A box after the lockup in the top bar: "Caută elevi, clase și teste". Typing opens a list under it, grouped "Elevi", "Clase", "Teste" (the match in bold, the class or the date on the right), and "Toate rezultatele pentru „stef”". The arrows move, Enter opens.
+- The results page: "Rezultate pentru „stef”", how many in the school year, the chips "Toate", "Elevi", "Clase", "Teste" with their counts, and one card per group. Diacritics do not count: "stef" finds "Ștefan".
+- On a phone a magnifier beside ☰ opens the search over the whole screen, with ← to close.
+- The API `/api/admin/search` is scoped by the teacher and stays within 15 D1 queries. A folded-name column may need a migration.
 
 ## 12. Open questions
 
-- The final mark: the user found the old ring-and-tick mark too common and liked "Score ring" and "Ring and tick" in the brand study; the prototypes use "Trei subiecte" (§2.4), which the user chose for Phase 2 "for now".
-- Settled: the byline stays "by Laura Miron" (asked on 2026-11-04).
+- Settled: the mark "Trei subiecte" (decision 29) and the byline "by Laura Miron".
 - "Use Z2 design for tests" was read as the Teste page of Z2 (§5), not the blocks per test inside a class.
 
 ## 13. Phases
@@ -256,4 +354,4 @@ Each phase is its own branch and pull request, with tests. From Phase 2 on, each
 5. Rezultate.
 6. Verificarea punctelor.
 7. Clase.
-8. The pages of §11.
+8. The pages of §11, one branch each: 8a an archived class, the student's history, the class report (§11.1–3); 8b login and sign-up, Contul meu, the demo line (§11.4–6); 8c "Test nou" (§11.7); 8d Setări (§11.8); 8e the first visit and the empty states (§11.9); 8f search (§11.10).

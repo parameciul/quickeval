@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { StudentClass, StudentHistory, StudentResult, StudentRow } from '../../shared/api.ts';
+import type { ClassGrade, StudentClass, StudentHistory, StudentHistoryTest, StudentRow, UploadStatus } from '../../shared/api.ts';
 import { studentNameKey, studentNameKeySql } from '../../shared/students.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { flagCountSql } from './evaluations.ts';
@@ -29,7 +29,8 @@ export async function addStudentsToClass(
     key: studentNameKey(fullName),
   }));
   const json = JSON.stringify(rows);
-  const ownsClass = 'EXISTS (SELECT 1 FROM classes WHERE id = ? AND teacher_id = ?)';
+  // The class is the teacher's and not archived: an archived class is read only.
+  const ownsClass = 'EXISTS (SELECT 1 FROM classes WHERE id = ? AND teacher_id = ? AND archived = 0)';
   const noClash = `NOT EXISTS (
     SELECT 1 FROM json_each(?) n
     JOIN enrollments e ON e.class_id = ?
@@ -64,15 +65,21 @@ export async function addStudentsToClass(
   return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true, canDelete: true }));
 }
 
-// Why an add changed nothing: the class is not the teacher's (404), or names of
-// the list are already in it (409). This read never decides whether to write.
+// Why an add changed nothing: the class is not the teacher's (404), it is
+// archived (409), or names of the list are already in it (409). This read never
+// decides whether to write.
 async function refusedAdd(db: D1Database, teacherId: number, classId: number, names: string[]): Promise<ApiError> {
-  const [owned, existing] = await db.batch<{ full_name: string }>([
-    db.prepare('SELECT id AS full_name FROM classes WHERE id = ? AND teacher_id = ?').bind(classId, teacherId),
+  const [owned, existing] = await db.batch<Record<string, unknown>>([
+    db.prepare('SELECT archived FROM classes WHERE id = ? AND teacher_id = ?').bind(classId, teacherId),
     db.prepare('SELECT s.full_name FROM enrollments e JOIN students s ON s.id = e.student_id WHERE e.class_id = ?').bind(classId),
   ]);
-  if (!owned || owned.results.length === 0) return notFound();
-  const taken = new Set((existing?.results ?? []).map((row) => studentNameKey(row.full_name)));
+  const cls = owned?.results[0] as { archived: number } | undefined;
+  if (!cls) return notFound();
+  if (cls.archived === 1) {
+    return new ApiError(409, 'class_archived', 'Clasa este arhivată. Scoate-o din arhivă ca să adaugi elevi.');
+  }
+  const rows = (existing?.results ?? []) as { full_name: string }[];
+  const taken = new Set(rows.map((row) => studentNameKey(row.full_name)));
   const clashes = names.filter((name) => taken.has(studentNameKey(name)));
   if (clashes.length === 0) return new ApiError(409, 'busy', 'Altcineva a adăugat elevi în același timp. Încearcă din nou.');
   const quoted = clashes.slice(0, 3).map((name) => `„${name}”`);
@@ -220,10 +227,52 @@ export async function renameClashMessage(
     : `Există deja un elev cu numele „${fullName}” în clasă.`;
 }
 
-// The student page: the student, the student's classes, and every graded test,
-// newest first. Null when the student is not the teacher's.
+// The columns of a paper as the grades table reads it, over `submissions s`,
+// `tests t` and `evaluations ev` (left-joined on graded papers). The flag count
+// is 0 until the upload is graded. A result is open when the whole test is
+// published or this one alone, as the student's page reads it.
+export const GRADE_COLUMNS = `s.student_id, t.code AS test_code, s.id AS submission_id, s.status, ev.grade,
+  ev.total, ev.max_total, s.result_token, s.started_at,
+  CASE WHEN t.results_open = 1 OR s.results_open = 1 THEN 1 ELSE 0 END AS results_open,
+  CASE WHEN ev.id IS NULL THEN 0 ELSE ${flagCountSql('ev')} END AS flag_count`;
+
+export interface GradeRow {
+  student_id: number;
+  test_code: string;
+  submission_id: number;
+  status: Exclude<UploadStatus, 'none'>;
+  grade: number | null;
+  total: number | null;
+  max_total: number | null;
+  results_open: number | null;
+  result_token: string | null;
+  started_at: string | null;
+  flag_count: number;
+}
+
+export function gradeOf(row: GradeRow): ClassGrade {
+  return {
+    studentId: row.student_id,
+    testCode: row.test_code,
+    submissionId: row.submission_id,
+    status: row.status,
+    grade: row.grade,
+    flagCount: row.flag_count,
+    total: row.total,
+    maxTotal: row.max_total,
+    resultsOpen: row.results_open === 1,
+    resultToken: row.result_token,
+    startedAt: row.started_at,
+  };
+}
+
+// The student page: the student, the student's classes, their started tests and
+// the student's papers in them, in one batch. A test that is archived, or of a
+// class the student left, is listed only when the student sent a paper to it (an
+// upload still under way is not sent).
+// Null when the student is not the teacher's.
 export async function getStudentHistory(db: D1Database, teacherId: number, studentId: number): Promise<StudentHistory | null> {
-  const [student, classes, results] = await db.batch<Record<string, unknown>>([
+  const [student, classes, tests, grades] = await db.batch<Record<string, unknown>>([
     db.prepare('SELECT id, full_name FROM students WHERE id = ? AND teacher_id = ?').bind(studentId, teacherId),
     db
       .prepare(
@@ -234,16 +283,23 @@ export async function getStudentHistory(db: D1Database, teacherId: number, stude
       .bind(studentId, teacherId),
     db
       .prepare(
-        `SELECT s.id AS submission_id, t.code, t.title, c.name AS class_name, c.school_year,
-           COALESCE(t.started_at, t.created_at) AS date, ev.grade, ${flagCountSql('ev')} AS flag_count
-         FROM submissions s
-         JOIN tests t ON t.id = s.test_id
-         JOIN classes c ON c.id = t.class_id
-         JOIN evaluations ev ON ev.submission_id = s.id
-         WHERE s.student_id = ? AND t.teacher_id = ? AND s.status = 'graded'
-         ORDER BY date DESC, t.id DESC`,
+        `SELECT t.class_id, t.code, t.title, t.started_at FROM tests t
+         JOIN enrollments e ON e.class_id = t.class_id AND e.student_id = ?
+         WHERE t.teacher_id = ? AND t.started_at IS NOT NULL
+           AND ((e.active = 1 AND t.archived = 0)
+             OR EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.student_id = e.student_id AND s.status <> 'uploading'))
+         ORDER BY t.started_at DESC, t.id DESC`,
       )
       .bind(studentId, teacherId),
+    db
+      .prepare(
+        `SELECT ${GRADE_COLUMNS}
+         FROM submissions s
+         JOIN tests t ON t.id = s.test_id AND t.teacher_id = ?
+         LEFT JOIN evaluations ev ON ev.submission_id = s.id AND s.status = 'graded'
+         WHERE s.student_id = ?`,
+      )
+      .bind(teacherId, studentId),
   ]);
   const row = student?.results[0] as { id: number; full_name: string } | undefined;
   if (!row) return null;
@@ -252,28 +308,9 @@ export async function getStudentHistory(db: D1Database, teacherId: number, stude
     classes: ((classes?.results ?? []) as { id: number; name: string; school_year: number; active: number }[]).map(
       (cls): StudentClass => ({ id: cls.id, name: cls.name, schoolYear: cls.school_year, active: cls.active === 1 }),
     ),
-    results: (
-      (results?.results ?? []) as {
-        submission_id: number;
-        code: string;
-        title: string;
-        class_name: string;
-        school_year: number;
-        date: string;
-        grade: number;
-        flag_count: number;
-      }[]
-    ).map(
-      (result): StudentResult => ({
-        submissionId: result.submission_id,
-        testCode: result.code,
-        testTitle: result.title,
-        className: result.class_name,
-        schoolYear: result.school_year,
-        date: result.date,
-        grade: result.grade,
-        flagCount: result.flag_count,
-      }),
+    tests: ((tests?.results ?? []) as { class_id: number; code: string; title: string; started_at: string }[]).map(
+      (test): StudentHistoryTest => ({ classId: test.class_id, code: test.code, title: test.title, startedAt: test.started_at }),
     ),
+    grades: ((grades?.results ?? []) as unknown as GradeRow[]).map(gradeOf),
   };
 }

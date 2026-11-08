@@ -171,7 +171,7 @@ function report(exerciseCount: number): ClassReport {
   const items = (flaggedAt: number) =>
     exercises.map((exercise, index) => ({ exerciseId: exercise.id, points: index % 2 === 0 ? 1 : 0.5, maxPoints: 1, flagged: index === flaggedAt }));
   return {
-    test: { code: '6E2-26T1', title: 'Fracții și ecuații', className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
+    test: { code: '6E2-26T1', title: 'Fracții și ecuații', classId: 1, className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
     exercises,
     rows: [
       { submissionId: 5, studentId: 10, studentName: 'Ștefănescu Țicu', active: true, total: 12, maxTotal: exerciseCount, grade: 8, flagCount: 1, items: items(1) },

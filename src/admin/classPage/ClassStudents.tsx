@@ -11,6 +11,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { CopyResultLink } from '../testPage/ResultLinksTable.tsx';
 import { AddStudentsDialog, RenameDialog } from './ClassDialogs.tsx';
 import { orderedStudents } from './GradesTable.tsx';
+import type { StudentLinkState } from '../pages/StudentPage.tsx';
 
 // A name as the search compares it: no case, no diacritics ("stef" finds
 // "Ștefan").
@@ -21,6 +22,7 @@ function searchKey(name: string): string {
 // "Elevi" tab of the class page (spec §9): the students on the left (search,
 // an orange dot for points to check, "+ Adaugă elevi"), one student on the
 // right with each test of the class. The first student is chosen at first.
+// `readOnly` (an archived class): no adding, renaming, leaving or deleting.
 export function ClassStudents({
   api,
   classId,
@@ -29,6 +31,7 @@ export function ClassStudents({
   students,
   tests,
   grades,
+  readOnly = false,
   onChanged,
 }: {
   api: AdminApi;
@@ -38,6 +41,7 @@ export function ClassStudents({
   students: StudentRow[];
   tests: TestSummary[];
   grades: ClassGrade[];
+  readOnly?: boolean;
   onChanged: () => Promise<void>;
 }) {
   const [search, setSearch] = useState('');
@@ -60,6 +64,13 @@ export function ClassStudents({
     />
   );
 
+  if (students.length === 0 && readOnly) {
+    return (
+      <div className="class-card class-empty">
+        <p>Clasa nu are elevi.</p>
+      </div>
+    );
+  }
   if (students.length === 0) {
     return (
       <div className="class-card class-empty">
@@ -105,9 +116,11 @@ export function ClassStudents({
             ))}
           </ul>
         )}
-        <button type="button" className="text-button student-add" onClick={() => setAddOpen(true)}>
-          + Adaugă elevi
-        </button>
+        {!readOnly && (
+          <button type="button" className="text-button student-add" onClick={() => setAddOpen(true)}>
+            + Adaugă elevi
+          </button>
+        )}
         {addDialog}
       </div>
       {chosen && (
@@ -120,6 +133,7 @@ export function ClassStudents({
           student={chosen}
           tests={tests}
           grades={grades}
+          readOnly={readOnly}
           onChanged={onChanged}
           onDeleted={() => setChosenId(null)}
         />
@@ -129,8 +143,8 @@ export function ClassStudents({
 }
 
 // The result of one paper for the student: published, not yet (with the link
-// to copy), after the check, or no paper.
-function ResultCell({ grade, studentName }: { grade: ClassGrade | undefined; studentName: string }) {
+// to copy), after the check, or no paper. The student page shows it too.
+export function ResultCell({ grade, studentName }: { grade: ClassGrade | undefined; studentName: string }) {
   if (grade === undefined) return <span className="hint">Nu a trimis lucrarea.</span>;
   if (grade.status !== 'graded') return <span className="hint">{uploadStatusLabel(grade.status)}</span>;
   if (!grade.resultsOpen && grade.flagCount > 0) return <span className="hint">După verificare</span>;
@@ -158,6 +172,7 @@ function StudentDetail({
   student,
   tests,
   grades,
+  readOnly,
   onChanged,
   onDeleted,
 }: {
@@ -168,6 +183,7 @@ function StudentDetail({
   student: StudentRow;
   tests: TestSummary[];
   grades: ClassGrade[];
+  readOnly: boolean;
   onChanged: () => Promise<void>;
   onDeleted(): void;
 }) {
@@ -213,24 +229,26 @@ function StudentDetail({
             {displayClassName(className)} · {countLabel(papers, 'lucrare', 'lucrări')} în {formatSchoolYear(schoolYear)}
           </p>
         </div>
-        <div className="student-detail-actions">
-          <button type="button" className="text-button is-quiet" onClick={() => setRenameOpen(true)}>
-            Redenumește
-          </button>
-          <button
-            type="button"
-            className="text-button is-quiet"
-            disabled={toggle.isPending}
-            onClick={() => toggle.mutate()}
-          >
-            {student.active ? 'A plecat din clasă' : 'Revine în clasă'}
-          </button>
-          {student.canDelete && (
-            <button type="button" className="text-button is-danger" disabled={remove.isPending} onClick={askRemove}>
-              Șterge
+        {!readOnly && (
+          <div className="student-detail-actions">
+            <button type="button" className="text-button is-quiet" onClick={() => setRenameOpen(true)}>
+              Redenumește
             </button>
-          )}
-        </div>
+            <button
+              type="button"
+              className="text-button is-quiet"
+              disabled={toggle.isPending}
+              onClick={() => toggle.mutate()}
+            >
+              {student.active ? 'A plecat din clasă' : 'Revine în clasă'}
+            </button>
+            {student.canDelete && (
+              <button type="button" className="text-button is-danger" disabled={remove.isPending} onClick={askRemove}>
+                Șterge
+              </button>
+            )}
+          </div>
+        )}
       </div>
       {toggle.error && <ErrorMessage error={toggle.error} />}
       {remove.error && <ErrorMessage error={remove.error} />}
@@ -301,7 +319,9 @@ function StudentDetail({
       )}
       <p className="class-card-foot">
         <span>Elevul vede rezultatul pe linkul lui, după ce îl publici.</span>
-        <Link to={`/elevi/${student.id}`}>Toate notele elevului, din toate clasele</Link>
+        <Link to={`/elevi/${student.id}`} state={{ fromClass: classId } satisfies StudentLinkState}>
+          Toate notele elevului, din toate clasele
+        </Link>
       </p>
       {renameOpen && (
         <RenameDialog

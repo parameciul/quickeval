@@ -203,6 +203,7 @@ describe('ClassPage', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Scoate din arhivă' }));
     expect(api.updateClass).toHaveBeenLastCalledWith(1, { archived: false });
     expect(await screen.findByRole('link', { name: 'Test nou pentru această clasă' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mai multe pentru Clasa 6E2' })).toHaveFocus();
   });
 
   it('closes the small menus when a class is picked, on Esc and on a click outside', async () => {
@@ -320,6 +321,79 @@ describe('ClassPage', () => {
   });
 });
 
+describe('ClassPage, an archived class', () => {
+  const archivedClass = async (data = classData()) => {
+    const api = createFakeApi(data);
+    await api.updateClass(1, { archived: true });
+    return api;
+  };
+
+  it('says it is archived in a strip and in the facts, and offers no new test', async () => {
+    renderAdmin('/clase/1', await archivedClass());
+    expect(await screen.findByText('Clasă arhivată.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Notele și testele rămân aici. Nu poți face un test nou și nu poți adăuga elevi.', { exact: false }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/3 elevi · 2 teste · anul școlar 2026-2027/).textContent).toMatch(/^Arhivată 3 elevi/);
+    expect(screen.queryByRole('link', { name: 'Test nou pentru această clasă' })).not.toBeInTheDocument();
+  });
+
+  it('takes the class out of the archive from its strip', async () => {
+    const api = await archivedClass();
+    renderAdmin('/clase/1', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Scoate din arhivă' }));
+    expect(api.updateClass).toHaveBeenLastCalledWith(1, { archived: false });
+    expect(await screen.findByRole('link', { name: 'Test nou pentru această clasă' })).toBeInTheDocument();
+    expect(screen.queryByText('Clasă arhivată.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Arhivată')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Clasa 6E2' })).toHaveFocus();
+  });
+
+  it('lists "Scoate din arhivă" first in ⋯, then "Redenumește clasa"', async () => {
+    renderAdmin('/clase/1', await archivedClass());
+    await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Scoate din arhivă',
+      'Redenumește clasa',
+    ]);
+  });
+
+  it('gives each test with a graded paper its report as the one step, and nothing to publish', async () => {
+    renderAdmin('/clase/1', await archivedClass());
+    const list = within(await screen.findByRole('complementary', { name: 'Testele clasei' }));
+    const items = list.getAllByRole('listitem');
+    // T2 (newest, nothing graded) has no step; T1 leads to its report.
+    expect(within(items[0]!).queryByRole('link', { name: 'Raportul clasei' })).not.toBeInTheDocument();
+    expect(within(items[0]!).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(items[1]!).getByRole('link', { name: 'Raportul clasei' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+    // Nothing waits on the teacher in an archived class: no orange stage.
+    expect(screen.getByRole('complementary', { name: 'Testele clasei' }).querySelectorAll('.is-waiting')).toHaveLength(0);
+    const heads = screen.getByRole('table', { name: 'Notele elevilor la teste' }).querySelectorAll('.grade-head-note.is-waiting');
+    expect(heads).toHaveLength(0);
+    expect(list.queryByRole('button', { name: /Publică/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the students read only, with the link to all their grades', async () => {
+    renderAdmin('/clase/1', await archivedClass());
+    await openStudents();
+    const chosen = await detail();
+    expect(chosen.getByRole('link', { name: 'Toate notele elevului, din toate clasele' })).toBeInTheDocument();
+    expect(chosen.queryByRole('button', { name: 'Redenumește' })).not.toBeInTheDocument();
+    expect(chosen.queryByRole('button', { name: 'A plecat din clasă' })).not.toBeInTheDocument();
+    expect(chosen.queryByRole('button', { name: 'Șterge' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Adaugă elevi' })).not.toBeInTheDocument();
+  });
+
+  it('offers no "Adaugă elevi" when the archived class has no students', async () => {
+    renderAdmin('/clase/1', await archivedClass({ ...classData(), students: { 1: [] } }));
+    expect(await screen.findByText('Clasa nu are elevi.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Adaugă elevi/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: /^Elevi/ }));
+    expect(await screen.findByText('Clasa nu are elevi.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Adaugă elevi/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('ClassPage grade table', () => {
   const tableOf = async () => within(await screen.findByRole('table', { name: 'Notele elevilor la teste' }));
 
@@ -332,6 +406,24 @@ describe('ClassPage grade table', () => {
     expect(headers[1]).toHaveTextContent('06.10 · de verificat');
     expect(within(headers[1]!).getByText('06.10 · de verificat')).toHaveClass('is-waiting');
     expect(within(headers[2]!).getByRole('link', { name: 'Geometrie' })).toHaveAttribute('href', '/teste/6E2-26T2');
+  });
+
+  it('opens the student page from a name, which leads back to this class', async () => {
+    const histories = [
+      {
+        student: { id: 10, fullName: 'Pop Ion' },
+        classes: [
+          { id: 3, name: '7E2', schoolYear: 2027, active: true },
+          { id: 1, name: '6E2', schoolYear: 2026, active: true },
+        ],
+        tests: [],
+        grades: [],
+      },
+    ];
+    renderAdmin('/clase/1', createFakeApi({ ...classData(), histories }));
+    const table = within(await screen.findByRole('table', { name: 'Notele elevilor la teste' }));
+    await userEvent.click(table.getByRole('link', { name: 'Pop Ion' }));
+    expect(await screen.findByRole('link', { name: '← Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
   });
 
   it('links a grade to the result of the student', async () => {

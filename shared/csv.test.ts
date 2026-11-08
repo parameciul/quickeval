@@ -6,7 +6,7 @@ const label = (status: UploadStatus) => (status === 'none' ? 'Nu a trimis' : sta
 
 function report(overrides: Partial<ClassReport> = {}): ClassReport {
   return {
-    test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'done', startedAt: null },
+    test: { code: '6E2-26T1', title: 'Fracții', classId: 1, className: '6E2', status: 'done', startedAt: null },
     exercises: [
       { id: 'I.1', label: 'Exercițiul 1', maxPoints: 4.5 },
       { id: 'II.1', label: 'Exercițiul 2', maxPoints: 4.5 },

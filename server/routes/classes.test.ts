@@ -131,6 +131,22 @@ describe('students in a class', () => {
     expect(back.body.student.active).toBe(true);
   });
 
+  it('refuses to add students to an archived class, and adds them once it is out of the archive', async () => {
+    const created = await createClass('10E');
+    await api.request('PATCH', `/api/admin/classes/${created.id}`, { archived: true });
+    const refused = await api.request('POST', `/api/admin/classes/${created.id}/students`, { names: ['Pop Ion'] });
+    expect(refused.status).toBe(409);
+    expect(refused.body).toEqual({
+      error: 'class_archived',
+      message: 'Clasa este arhivată. Scoate-o din arhivă ca să adaugi elevi.',
+    });
+    expect((await api.request('GET', `/api/admin/classes/${created.id}`)).body.students).toEqual([]);
+
+    await api.request('PATCH', `/api/admin/classes/${created.id}`, { archived: false });
+    const added = await api.request('POST', `/api/admin/classes/${created.id}/students`, { names: ['Pop Ion'] });
+    expect(added.status).toBe(201);
+  });
+
   it('refuses to add students to a class that does not exist', async () => {
     const res = await api.request('POST', '/api/admin/classes/99999/students', { names: ['Pop Ion'] });
     expect(res.status).toBe(404);
@@ -472,9 +488,9 @@ describe('grades of a class', () => {
 
     const historyOne = await api.request('GET', `/api/admin/students/${one.studentIds[0]}/history`);
     expect(historyOne.body.classes).toHaveLength(1);
-    expect(historyOne.body.results).toMatchObject([{ submissionId: subOne, grade: 6 }]);
+    expect(historyOne.body.grades).toMatchObject([{ submissionId: subOne, grade: 6 }]);
     const historyTwo = await api.request('GET', `/api/admin/students/${two.studentIds[0]}/history`);
     expect(historyTwo.body.classes).toHaveLength(1);
-    expect(historyTwo.body.results).toMatchObject([{ submissionId: subTwo, grade: 9 }]);
+    expect(historyTwo.body.grades).toMatchObject([{ submissionId: subTwo, grade: 9 }]);
   });
 });
