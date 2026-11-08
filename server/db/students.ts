@@ -29,7 +29,8 @@ export async function addStudentsToClass(
     key: studentNameKey(fullName),
   }));
   const json = JSON.stringify(rows);
-  const ownsClass = 'EXISTS (SELECT 1 FROM classes WHERE id = ? AND teacher_id = ?)';
+  // The class is the teacher's and not archived: an archived class is read only.
+  const ownsClass = 'EXISTS (SELECT 1 FROM classes WHERE id = ? AND teacher_id = ? AND archived = 0)';
   const noClash = `NOT EXISTS (
     SELECT 1 FROM json_each(?) n
     JOIN enrollments e ON e.class_id = ?
@@ -64,15 +65,21 @@ export async function addStudentsToClass(
   return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true, canDelete: true }));
 }
 
-// Why an add changed nothing: the class is not the teacher's (404), or names of
-// the list are already in it (409). This read never decides whether to write.
+// Why an add changed nothing: the class is not the teacher's (404), it is
+// archived (409), or names of the list are already in it (409). This read never
+// decides whether to write.
 async function refusedAdd(db: D1Database, teacherId: number, classId: number, names: string[]): Promise<ApiError> {
-  const [owned, existing] = await db.batch<{ full_name: string }>([
-    db.prepare('SELECT id AS full_name FROM classes WHERE id = ? AND teacher_id = ?').bind(classId, teacherId),
+  const [owned, existing] = await db.batch<Record<string, unknown>>([
+    db.prepare('SELECT archived FROM classes WHERE id = ? AND teacher_id = ?').bind(classId, teacherId),
     db.prepare('SELECT s.full_name FROM enrollments e JOIN students s ON s.id = e.student_id WHERE e.class_id = ?').bind(classId),
   ]);
-  if (!owned || owned.results.length === 0) return notFound();
-  const taken = new Set((existing?.results ?? []).map((row) => studentNameKey(row.full_name)));
+  const cls = owned?.results[0] as { archived: number } | undefined;
+  if (!cls) return notFound();
+  if (cls.archived === 1) {
+    return new ApiError(409, 'class_archived', 'Clasa este arhivată. Scoate-o din arhivă ca să adaugi elevi.');
+  }
+  const rows = (existing?.results ?? []) as { full_name: string }[];
+  const taken = new Set(rows.map((row) => studentNameKey(row.full_name)));
   const clashes = names.filter((name) => taken.has(studentNameKey(name)));
   if (clashes.length === 0) return new ApiError(409, 'busy', 'Altcineva a adăugat elevi în același timp. Încearcă din nou.');
   const quoted = clashes.slice(0, 3).map((name) => `„${name}”`);

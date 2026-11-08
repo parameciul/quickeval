@@ -6,6 +6,7 @@ import { startTestApi, type TestApi } from '../test/testApi.ts';
 let api: TestApi;
 let code: string;
 let testId: number;
+let classId: number;
 let studentIds: number[];
 
 const LIST: ExerciseList = {
@@ -24,6 +25,7 @@ beforeEach(async () => {
   api = await startTestApi();
   const cls = await makeClass(api, '6E2', ['Stan Eva', 'Avram Dan', 'Pop Ion', 'Ionescu Ana']);
   studentIds = cls.studentIds;
+  classId = cls.id;
   code = await makeTest(api, cls.id, 'Fracții');
   testId = await testIdOf(api, code);
   await api.db.prepare('UPDATE tests SET exercise_list_json = ?, exercise_list_status = ? WHERE id = ?').bind(JSON.stringify(LIST), 'ready', testId).run();
@@ -44,7 +46,7 @@ describe('GET /api/admin/tests/:code/report', () => {
     const res = await report();
     expect(res.status).toBe(200);
     const { report: body } = res.body;
-    expect(body.test).toMatchObject({ code, title: 'Fracții', className: '6E2', status: 'draft' });
+    expect(body.test).toMatchObject({ code, title: 'Fracții', classId, className: '6E2', status: 'draft' });
     expect(body.exercises).toEqual([
       { id: 'E1', label: 'Exercițiul 1', maxPoints: 4.5 },
       { id: 'E2', label: 'Exercițiul 2', maxPoints: 4.5 },

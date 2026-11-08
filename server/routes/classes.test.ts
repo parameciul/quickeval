@@ -131,6 +131,22 @@ describe('students in a class', () => {
     expect(back.body.student.active).toBe(true);
   });
 
+  it('refuses to add students to an archived class, and adds them once it is out of the archive', async () => {
+    const created = await createClass('10E');
+    await api.request('PATCH', `/api/admin/classes/${created.id}`, { archived: true });
+    const refused = await api.request('POST', `/api/admin/classes/${created.id}/students`, { names: ['Pop Ion'] });
+    expect(refused.status).toBe(409);
+    expect(refused.body).toEqual({
+      error: 'class_archived',
+      message: 'Clasa este arhivată. Scoate-o din arhivă ca să adaugi elevi.',
+    });
+    expect((await api.request('GET', `/api/admin/classes/${created.id}`)).body.students).toEqual([]);
+
+    await api.request('PATCH', `/api/admin/classes/${created.id}`, { archived: false });
+    const added = await api.request('POST', `/api/admin/classes/${created.id}/students`, { names: ['Pop Ion'] });
+    expect(added.status).toBe(201);
+  });
+
   it('refuses to add students to a class that does not exist', async () => {
     const res = await api.request('POST', '/api/admin/classes/99999/students', { names: ['Pop Ion'] });
     expect(res.status).toBe(404);

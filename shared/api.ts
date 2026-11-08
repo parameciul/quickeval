@@ -523,7 +523,7 @@ export interface ReportMissing {
 // The class report of a test (spec §14.2). The statistics come from
 // `classStats` (shared/stats.ts), in the browser.
 export interface ClassReport {
-  test: { code: string; title: string; className: string; status: TestStatus; startedAt: string | null };
+  test: { code: string; title: string; classId: number; className: string; status: TestStatus; startedAt: string | null };
   // The exercises of the test, in barem order.
   exercises: { id: string; label: string; maxPoints: number }[];
   rows: ReportRow[];

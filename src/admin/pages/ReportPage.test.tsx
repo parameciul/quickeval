@@ -16,7 +16,7 @@ const ANALYSIS = {
 
 function report(overrides: Partial<ClassReport> = {}): ClassReport {
   return {
-    test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
+    test: { code: '6E2-26T1', title: 'Fracții', classId: 1, className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
     exercises: [
       { id: 'I.1', label: 'Subiectul I, exercițiul 1', maxPoints: 4.5 },
       { id: 'II.1', label: 'Subiectul II, exercițiul 1', maxPoints: 4.5 },
@@ -184,7 +184,7 @@ describe('ReportPage', () => {
 
   it('says that the analysis waits for the next evaluation of a reopened test, with no buttons and no refresh', async () => {
     const reopened = report({
-      test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'open', startedAt: '2026-10-06T07:15:00.000Z' },
+      test: { code: '6E2-26T1', title: 'Fracții', classId: 1, className: '6E2', status: 'open', startedAt: '2026-10-06T07:15:00.000Z' },
       analysis: { status: 'requested', stale: false, attempts: 0, content: null },
     });
     renderAdmin('/teste/6E2-26T1/raport', apiWith(reopened));
