@@ -374,7 +374,9 @@ describe('De făcut', () => {
     renderAdmin('/', withClasses());
     await userEvent.click(await within(await menu()).findByRole('button', { name: 'De făcut' }));
     const panel = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
-    expect(within(panel).getByText('Nimic nu te așteaptă acum.')).toBeInTheDocument();
+    expect(within(panel).getByRole('heading', { level: 3, name: 'Nimic nu te așteaptă acum' })).toBeInTheDocument();
+    expect(panel).toHaveTextContent('Când un barem, un punct nesigur sau niște rezultate au nevoie de tine, apar aici.');
+    expect(within(panel).queryByRole('link')).not.toBeInTheDocument();
     expect(await within(panel).findByText('Testul în lucru nu are nevoie de tine acum.')).toBeInTheDocument();
   });
 
@@ -534,10 +536,25 @@ describe('the panel Clasele tale', () => {
     expect(within(list).getByRole('link', { name: /^6E3/ })).toHaveTextContent('Inducție · Pregătire · baremul de verificatMulțimi · Deschis');
   });
 
-  it('says so when the year has no class', async () => {
+  it('says so when the year has no class, with one "Clasă nouă"', async () => {
     renderAdmin('/', createFakeApi({ classes: [], students: {}, me: fakeTeacher() }));
     await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
-    expect(screen.getByText('Nu ai nicio clasă în acest an școlar.')).toBeInTheDocument();
+    const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
+    expect(within(panel).getByRole('heading', { level: 3, name: 'Încă nu ai nicio clasă' })).toBeInTheDocument();
+    expect(panel).toHaveTextContent('Adaugă clasa cu numele elevilor, câte unul pe rând.');
+    expect(within(panel).getAllByRole('link', { name: '+ Clasă nouă' })).toHaveLength(1);
+    await userEvent.click(within(panel).getByRole('link', { name: '+ Clasă nouă' }));
+    expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
+  });
+
+  it('keeps the way to the archived classes when the year has only those', async () => {
+    const api = createFakeApi({ classes: [{ id: 2, name: '9R2', schoolYear: 2026, archived: true, studentCount: 0 }], students: {}, me: fakeTeacher() });
+    renderAdmin('/', api);
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
+    expect(await within(panel).findByRole('heading', { name: 'Încă nu ai nicio clasă' })).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toBeInTheDocument();
+    expect(within(panel).getAllByRole('link', { name: '+ Clasă nouă' })).toHaveLength(1);
   });
 });
 
@@ -550,7 +567,7 @@ describe('the panels before the tests of the year arrive', () => {
     await userEvent.click(within(bar).getByRole('button', { name: 'De făcut' }));
     const todo = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
     expect(within(todo).getByText('Se încarcă…')).toBeInTheDocument();
-    expect(within(todo).queryByText('Nimic nu te așteaptă acum.')).not.toBeInTheDocument();
+    expect(within(todo).queryByRole('heading', { name: 'Nimic nu te așteaptă acum' })).not.toBeInTheDocument();
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
     const classes = screen.getByRole('complementary', { name: 'Clasele tale' });
     expect(await within(classes).findByRole('link', { name: /^6E2/ })).not.toHaveTextContent('Nimic în lucru');
@@ -564,7 +581,7 @@ describe('the panels before the tests of the year arrive', () => {
     await userEvent.click(within(bar).getByRole('button', { name: 'De făcut' }));
     const todo = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
     expect(await within(todo).findByText('Serverul nu răspunde acum.')).toBeInTheDocument();
-    expect(within(todo).queryByText('Nimic nu te așteaptă acum.')).not.toBeInTheDocument();
+    expect(within(todo).queryByRole('heading', { name: 'Nimic nu te așteaptă acum' })).not.toBeInTheDocument();
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
     const classes = screen.getByRole('complementary', { name: 'Clasele tale' });
     expect(await within(classes).findByText('Serverul nu răspunde acum.')).toBeInTheDocument();

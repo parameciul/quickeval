@@ -1,6 +1,8 @@
 import { Link } from 'react-router';
 import { countLabel } from '../../ui/format.ts';
+import { EmptyState } from '../EmptyState.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { IconDone } from './icons.tsx';
 import { Panel } from './Panel.tsx';
 import { todoPath, type TodoItem } from './todo.ts';
 
@@ -47,7 +49,9 @@ export function TodoPanel({
       ) : loading ? (
         <p className="panel-body hint">Se încarcă…</p>
       ) : items.length === 0 && approvals === 0 ? (
-        <p className="panel-body hint">Nimic nu te așteaptă acum.</p>
+        <EmptyState icon={<IconDone />} title="Nimic nu te așteaptă acum">
+          Când un barem, un punct nesigur sau niște rezultate au nevoie de tine, apar aici.
+        </EmptyState>
       ) : (
         <ol className="todo-list">
           {approvals > 0 && (

@@ -45,7 +45,8 @@ describe('LastClassPage', () => {
 
   it('says so when the year has no classes, and offers "Clasă nouă"', async () => {
     renderAdmin('/clase', createFakeApi({ classes: [], students: {} }));
-    expect(await screen.findByText('Nu ai nicio clasă în acest an școlar.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Încă nu ai nicio clasă' })).toBeInTheDocument();
+    expect(screen.getByText('Adaugă clasa cu numele elevilor, câte unul pe rând.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '+ Clasă nouă' }));
     expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
   });
@@ -74,7 +75,8 @@ describe('LastClassPage', () => {
         students: {},
       }),
     );
-    expect(await screen.findByText('Nu ai nicio clasă activă în acest an școlar.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nu ai nicio clasă activă' })).toBeInTheDocument();
+    expect(screen.getByText(/^Arhivate:/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Clasa 9R2' })).toHaveAttribute('href', '/clase/2');
     expect(screen.getByRole('button', { name: '+ Clasă nouă' })).toBeInTheDocument();
   });
