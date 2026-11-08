@@ -4049,6 +4049,152 @@ table.items tr.edit-row > td {
   flex: 1 1 14rem;
 }
 
+/* "Conturi": the accounts that wait in a red-edged card, then every account.
+   On a phone each row is a block: the person, then the kind and the use, with
+   ⋯ (or the two buttons of an account that waits) beside them. */
+.class-card.accounts-waiting {
+  border-color: var(--red);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.accounts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.accounts-table th,
+.accounts-table td {
+  padding: 0.75rem;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.accounts-table th:first-child,
+.accounts-table td:first-child {
+  padding-left: 1.25rem;
+}
+
+.accounts-table th:last-child,
+.accounts-table td:last-child {
+  padding-right: 1.25rem;
+  text-align: right;
+}
+
+.accounts-table thead th {
+  padding-block: 0.625rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.accounts-table tbody th {
+  font-weight: 400;
+}
+
+.account-person {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.account-person span {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.accounts-table tr.is-muted .account-person {
+  color: var(--muted);
+}
+
+.account-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.account-more {
+  display: inline-block;
+}
+
+.account-more .class-menu {
+  text-align: left;
+}
+
+.class-menu-item.is-danger {
+  color: var(--red);
+}
+
+.accounts-table .accounts-follow td {
+  padding-top: 0;
+  border-top: 0;
+  text-align: left;
+}
+
+.accounts-follow .warning,
+.accounts-follow .alert {
+  margin: 0;
+}
+
+.accounts-follow .warning + .alert {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .accounts-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .accounts-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.25rem 0.75rem;
+    padding: 0.875rem 1rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .accounts-table tbody th,
+  .accounts-table tbody td,
+  .accounts-table tbody th:first-child,
+  .accounts-table tbody td:first-child,
+  .accounts-table tbody td:last-child {
+    grid-column: 1;
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+
+  .accounts-table tbody td:last-child {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+
+  .accounts-waiting .accounts-table tbody td:last-child {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    margin-top: 0.375rem;
+  }
+
+  .accounts-table tbody tr.accounts-follow {
+    display: block;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
 /* The demo account's button of the top bar (redesign spec §11.6): a ring of
    the papers used, orange when none are left, and a small menu under it. */
 .demo {
