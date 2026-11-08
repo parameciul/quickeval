@@ -7,60 +7,60 @@ import { pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
 const dash = '—';
 const grade = (value: number | null) => (value === null ? dash : formatPoints(value));
 
-// The numbers of the class (spec §14.2): who was graded, the average, the
-// median, the lowest and the highest grade, and the groups of grades.
-export function StatsSummary({ stats }: { stats: ClassStats }) {
+// "Pe scurt" (spec §11.3): the average, the median, the lowest and the highest
+// grade, and how many active students were graded.
+export function ReportTiles({ stats }: { stats: ClassStats }) {
+  const tiles: [string, string][] = [
+    ['Media testului', grade(stats.average)],
+    ['Mediana', grade(stats.median)],
+    ['Cea mai mică notă', grade(stats.min)],
+    ['Cea mai mare notă', grade(stats.max)],
+  ];
   return (
-    <section aria-label="Statistici">
-      <h2>Statistici</h2>
-      <p>
-        Corectate {stats.gradedCount} din {stats.activeCount} elevi
-        {stats.flaggedCount > 0 && ` · de verificat ${stats.flaggedCount}`}
-      </p>
-      <dl className="stats-grid">
-        <div>
-          <dt>Media</dt>
-          <dd>{grade(stats.average)}</dd>
+    <dl className="report-tiles">
+      {tiles.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
         </div>
-        <div>
-          <dt>Mediana</dt>
-          <dd>{grade(stats.median)}</dd>
-        </div>
-        <div>
-          <dt>Cea mai mică notă</dt>
-          <dd>{grade(stats.min)}</dd>
-        </div>
-        <div>
-          <dt>Cea mai mare notă</dt>
-          <dd>{grade(stats.max)}</dd>
-        </div>
-      </dl>
-      <div className="table-wrap">
-        <table className="report-table">
-          <caption className="sr-only">Notele pe grupe</caption>
-          <thead>
-            <tr>
-              <th scope="col">Nota</th>
-              <th scope="col">Elevi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.groups.map((group) => (
-              <tr key={group.label}>
-                <th scope="row">{group.label}</th>
-                <td>{group.count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      ))}
+      <div>
+        <dt>Corectate</dt>
+        <dd>
+          {stats.gradedCount} <small>din {stats.activeCount} elevi</small>
+          {stats.flaggedCount > 0 && <small className="is-waiting">de verificat {stats.flaggedCount}</small>}
+        </dd>
       </div>
+    </dl>
+  );
+}
+
+// "Notele pe grupe": a bar per group of grades, with its count.
+export function GradeGroups({ stats }: { stats: ClassStats }) {
+  const most = Math.max(1, ...stats.groups.map((group) => group.count));
+  return (
+    <section className="class-card report-groups" aria-labelledby="report-groups-title">
+      <div className="class-card-head">
+        <h2 id="report-groups-title">Notele pe grupe</h2>
+      </div>
+      <ul className="report-bars" aria-labelledby="report-groups-title">
+        {stats.groups.map((group) => (
+          <li key={group.label}>
+            <span>{group.label}</span>
+            <span className="report-bar" aria-hidden="true">
+              <span style={{ width: `${(group.count / most) * 100}%` }}></span>
+            </span>
+            <b>{group.count}</b>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
 
-// One row for each graded student: the grade and the total right after the
-// name, then one column for each exercise. An item that waits for the
-// teacher's check is marked.
+// One row for each graded student: the points of each exercise (an item that
+// waits for the teacher's check is marked), the total and the grade. An active
+// student with no graded paper has a row that says why.
 export function ResultsTable({ code, report }: { code: string; report: ClassReport }) {
   return (
     <div className="table-wrap">
@@ -69,13 +69,18 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
         <thead>
           <tr>
             <th scope="col">Elev</th>
-            <th scope="col">Nota</th>
-            <th scope="col">Total</th>
             {report.exercises.map((exercise) => (
-              <th key={exercise.id} scope="col" title={`${exercise.label}, ${formatPoints(exercise.maxPoints)} puncte`}>
+              <th key={exercise.id} scope="col" className="num" title={exercise.label}>
                 {exercise.id}
+                <span className="report-max">{formatPoints(exercise.maxPoints)}p</span>
               </th>
             ))}
+            <th scope="col" className="num">
+              Total
+            </th>
+            <th scope="col" className="num">
+              Nota
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -84,23 +89,37 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
               <th scope="row">
                 <Link to={`/teste/${code}/elevi/${row.submissionId}`}>{row.studentName}</Link>
               </th>
-              <td>
-                <strong>{formatPoints(row.grade)}</strong>
-                {row.flagCount > 0 && <span className="tag tag-wait">de verificat {row.flagCount}</span>}
-              </td>
-              <td>
-                {formatPoints(row.total)} / {formatPoints(row.maxTotal)}
-              </td>
               {report.exercises.map((exercise) => {
                 const item = row.items.find((candidate) => candidate.exerciseId === exercise.id);
-                if (!item) return <td key={exercise.id}>{dash}</td>;
+                if (!item) {
+                  return (
+                    <td key={exercise.id} className="num">
+                      {dash}
+                    </td>
+                  );
+                }
                 return (
-                  <td key={exercise.id} className={item.flagged ? 'flagged-cell' : undefined}>
+                  <td key={exercise.id} className={item.flagged ? 'num flagged-cell' : 'num'}>
                     <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>{formatPoints(item.points)}</span>
                     {item.flagged && <span className="sr-only"> (de verificat)</span>}
                   </td>
                 );
               })}
+              <td className="num">
+                {formatPoints(row.total)} / {formatPoints(row.maxTotal)}
+              </td>
+              <td className="num report-grade">
+                <strong className={row.flagCount > 0 ? 'is-waiting' : undefined}>{formatPoints(row.grade)}</strong>
+                {row.flagCount > 0 && <span className="tag tag-wait">de verificat {row.flagCount}</span>}
+              </td>
+            </tr>
+          ))}
+          {report.missing.map((student) => (
+            <tr key={`missing-${student.studentId}`} className="is-muted">
+              <th scope="row">{student.studentName}</th>
+              <td colSpan={report.exercises.length + 2}>
+                {student.status === 'none' ? 'Nu a trimis lucrarea.' : uploadStatusLabel(student.status)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -109,7 +128,8 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
   );
 }
 
-// Average points and how many students got all, some, and none of the points.
+// Average points, the share of the maximum (with a bar), and how many students
+// got all, some, and none of the points.
 export function ExerciseStatsTable({ stats }: { stats: ClassStats }) {
   return (
     <div className="table-wrap">
@@ -118,48 +138,49 @@ export function ExerciseStatsTable({ stats }: { stats: ClassStats }) {
         <thead>
           <tr>
             <th scope="col">Exercițiul</th>
-            <th scope="col">Media</th>
-            <th scope="col">% din maxim</th>
-            <th scope="col">Tot</th>
-            <th scope="col">Parțial</th>
-            <th scope="col">Nimic</th>
+            <th scope="col" className="num">
+              Media
+            </th>
+            <th scope="col" className="report-share">
+              % din maxim
+            </th>
+            <th scope="col" className="num">
+              Tot
+            </th>
+            <th scope="col" className="num">
+              Parțial
+            </th>
+            <th scope="col" className="num">
+              Nimic
+            </th>
           </tr>
         </thead>
         <tbody>
           {stats.perExercise.map((exercise) => (
             <tr key={exercise.exerciseId}>
-              <th scope="row" title={exercise.label}>
-                {exercise.exerciseId}
-                <span className="sr-only"> {exercise.label}</span>
-              </th>
-              <td>
+              <th scope="row">{exercise.label}</th>
+              <td className="num">
                 {exercise.averagePoints === null ? dash : `${formatPoints(exercise.averagePoints)} din ${formatPoints(exercise.maxPoints)}`}
               </td>
-              <td>{exercise.averagePercent === null ? dash : `${exercise.averagePercent}%`}</td>
-              <td>{exercise.full}</td>
-              <td>{exercise.partial}</td>
-              <td>{exercise.zero}</td>
+              <td className="report-share">
+                {exercise.averagePercent === null ? (
+                  dash
+                ) : (
+                  <span className="report-share-line">
+                    <span className="report-bar" aria-hidden="true">
+                      <span style={{ width: `${exercise.averagePercent}%` }}></span>
+                    </span>
+                    <b>{exercise.averagePercent}%</b>
+                  </span>
+                )}
+              </td>
+              <td className="num">{exercise.full}</td>
+              <td className="num">{exercise.partial}</td>
+              <td className="num">{exercise.zero}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  );
-}
-
-// The active students that have no graded result, and why.
-export function MissingList({ missing }: { missing: ClassReport['missing'] }) {
-  if (missing.length === 0) return null;
-  return (
-    <section aria-label="Fără rezultat">
-      <h2>Fără rezultat</h2>
-      <ul>
-        {missing.map((student) => (
-          <li key={student.studentId}>
-            {student.studentName} <span className="hint">· {uploadStatusLabel(student.status)}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

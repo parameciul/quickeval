@@ -3565,28 +3565,263 @@ table.items tr.edit-row > td {
   cursor: pointer;
 }
 
-/* The class report (spec §14.2) */
+/* The class report (spec §11.3): the list of its parts and the grade groups on
+   the left, sticky under the top bar; the parts one after the other on the
+   right. On a phone: one column, and the list of parts goes. */
 
-.stats-grid {
+.report-head {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
-  margin: 0.5rem 0 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
-.stats-grid > div {
-  min-width: 7rem;
+.report-head h1 {
+  margin: 0 0 0.25rem;
 }
 
-.stats-grid dt {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.stats-grid dd {
+.report-head .lead-line {
   margin: 0;
-  font-size: 1.5rem;
+}
+
+.report-head .pdf-actions {
+  margin: 0;
+}
+
+.report-layout {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.report-side {
+  position: sticky;
+  top: calc(var(--top, 0px) + 1.5rem);
+  display: grid;
+  gap: 1rem;
+}
+
+.report-toc ul {
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+  list-style: none;
+}
+
+.report-toc a {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.report-toc a:hover {
+  background: var(--raised);
+}
+
+.report-toc a[aria-current='true'] {
+  background: var(--ink-tint);
+  color: var(--ink);
+}
+
+.report-toc a span {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.report-bars {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0 1.25rem 1.125rem;
+  list-style: none;
+}
+
+.report-bars li {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) 2rem;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.report-bars b {
+  text-align: right;
+}
+
+.report-bar {
+  display: block;
+  height: 0.75rem;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--active);
+}
+
+.report-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--ink);
+}
+
+.report-part {
+  scroll-margin-top: calc(var(--top, 0px) + 1rem);
+}
+
+.report-part + .report-part {
+  margin-top: 1.5rem;
+}
+
+.report-tiles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.report-tiles > div {
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+}
+
+.report-tiles dt {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.report-tiles dd {
+  margin: 0.125rem 0 0;
+  font-size: 1.625rem;
   font-weight: 700;
+  line-height: 1.2;
+}
+
+.report-tiles dd small {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.report-tiles dd small.is-waiting {
+  display: block;
+  color: var(--orange);
+}
+
+.report-part .table-wrap {
+  padding: 0 0 0.5rem;
+}
+
+.report-part table.report-table {
+  width: 100%;
+  background: none;
+}
+
+table.report-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+table.results-table tr.is-muted td {
+  text-align: left;
+}
+
+.report-max {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+td.report-grade .is-waiting {
+  color: var(--orange);
+}
+
+td.report-grade .tag {
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+}
+
+table.report-table tr.is-muted th,
+table.report-table tr.is-muted td {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.report-share {
+  min-width: 9rem;
+}
+
+.report-share-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-share-line .report-bar {
+  height: 0.5rem;
+}
+
+.report-share-line b {
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+.report-analysis {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.report-analysis > p:first-child {
+  margin-top: 0;
+}
+
+.report-analysis h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.report-analysis ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+@media (max-width: 64rem) {
+  .report-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 56.25rem) {
+  .report-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .report-side {
+    position: static;
+  }
+
+  .report-toc {
+    display: none;
+  }
+}
+
+@media (max-width: 30rem) {
+  .report-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* The report tables keep their columns on a phone: the table scrolls inside

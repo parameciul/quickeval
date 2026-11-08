@@ -263,6 +263,7 @@ The user picked one option per page on 2026-11-08 (decisions 29 to 39). The prot
 
 - "← Clasa 10B" (the class the teacher came from, else the student's current class). Title: the name. Under it: the current class and year, and the earlier ones ("înainte în Clasa 9B (2025-2026)"), each a link. "Redenumește" on the right.
 - One card per school year and class, newest first, under the heading "2026-2027 · Clasa 10B". A row per test, newest first: the test (a link) with its date; "Punctaj" ("76,4 / 100"); "Nota" as the grades table draws it (the grade; orange with a dot when points wait; "—" when no paper); "Rezultatul" ("Publicat" with "Copiază linkul", "Nepublicat", "După verificare", "Nu a trimis lucrarea."); and "Lucrarea" (a link to the paper's page).
+- The rows are the started tests of that class. A draft is not listed. An archived test, or a test of a class the student left, is listed only when the student sent a paper to it. A class with no started test says "Niciun test început în această clasă."
 - Under each card, the legend of the grades table. No average per student (decision 12).
 - On a phone the table scrolls inside its card.
 
@@ -270,7 +271,7 @@ The user picked one option per page on 2026-11-08 (decisions 29 to 39). The prot
 
 - "←" and the test's name. Title "Raportul clasei"; under it the test, the class (a link) and the date. On the right "Descarcă PDF" and "Descarcă CSV" (made in the browser).
 - Left, 17 rem, sticky: a list of the parts ("Pe scurt", "Rezultatele elevilor" with its count, "Pe exerciții" with its count, "Analiza clasei"), the current one marked; under it the card "Notele pe grupe": 1–4,99, 5–6,99, 7–8,99, 9–10, each a blue bar with its count.
-- Right, one after the other: the tiles "Media testului", "Mediana", "Cea mai mică notă", "Cea mai mare notă" and "Corectate 8 din 9 elevi"; the card "Rezultatele elevilor" (a row per student: the points of each exercise, with the exercise's maximum under its short name, "Total", "Nota"; a student with no paper says "Nu a trimis lucrarea."); the card "Pe exerciții" ("Media", "% din maxim" with a bar, "Tot", "Parțial", "Nimic"); the card "Analiza clasei" with "Regenerează" (starts the robot), the date it was written, "Greșeli frecvente" and "Ce exersați în continuare". Its other states keep today's texts.
+- Right, one after the other: the tiles "Media testului", "Mediana", "Cea mai mică notă", "Cea mai mare notă" and "Corectate 8 din 9 elevi"; the card "Rezultatele elevilor" (a row per student: the points of each exercise, with the exercise's maximum under its short name, "Total", "Nota"; a student with no paper says "Nu a trimis lucrarea.", one whose paper is not graded yet says its state; the list "Fără rezultat" goes); the card "Pe exerciții" ("Media", "% din maxim" with a bar, "Tot", "Parțial", "Nimic"); the card "Analiza clasei" with "Regenerează" (starts the robot) and its sections ("Greșeli frecvente", "Ce exersați în continuare" and the others). No date: the app does not store when the analysis was written. Its other states keep today's texts.
 - On a phone: one column, and the list of parts goes.
 
 ### 11.4 Login and sign-up (8b, `/admin/` logged out)

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { ClassReport } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
@@ -7,11 +8,11 @@ import { normalizeTestCode } from '../../../shared/tests.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { classCsv } from '../../../shared/csv.ts';
-import { uploadStatusLabel } from '../../ui/format.ts';
+import { countLabel, formatDate, uploadStatusLabel } from '../../ui/format.ts';
 import { classPdf, classPdfFileName } from '../pdf/classPdf.ts';
 import { PdfActions } from '../pdf/PdfActions.tsx';
 import { AnalysisSection } from '../reportPage/AnalysisSection.tsx';
-import { ExerciseStatsTable, MissingList, ResultsTable, StatsSummary } from '../reportPage/ReportTables.tsx';
+import { ExerciseStatsTable, GradeGroups, ReportTiles, ResultsTable } from '../reportPage/ReportTables.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
 // While the robot writes the analysis, the page asks for news every 10 seconds.
@@ -21,12 +22,44 @@ export function reportRefreshInterval(report: ClassReport | undefined): number |
   return report.analysis.status === 'requested' && robotCanWrite ? 10_000 : false;
 }
 
-// /teste/:code/raport: the class report (spec §14.2): the table of the graded
-// students, the statistics, and the analysis of the class.
+// /teste/:code/raport: the class report (spec §11.3): one page, with the list
+// of its parts on the left.
 export function ReportPage() {
   const code = normalizeTestCode(useParams().code ?? '');
   if (code === null) return <NotFoundPage />;
   return <ReportView key={code} code={code} />;
+}
+
+const PARTS = [
+  { id: 'pe-scurt', name: 'Pe scurt' },
+  { id: 'rezultate', name: 'Rezultatele elevilor' },
+  { id: 'exercitii', name: 'Pe exerciții' },
+  { id: 'analiza', name: 'Analiza clasei' },
+] as const;
+type PartId = (typeof PARTS)[number]['id'];
+
+// The part the teacher reads: the last one whose top has passed the upper third
+// of the screen. Without IntersectionObserver the first part stays marked.
+function useCurrentPart(ready: boolean): PartId {
+  const [current, setCurrent] = useState<PartId>('pe-scurt');
+  useEffect(() => {
+    if (!ready || typeof IntersectionObserver === 'undefined') return;
+    const passed = new Map<string, boolean>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) passed.set(entry.target.id, entry.boundingClientRect.top < window.innerHeight / 3);
+        const read = PARTS.filter((part) => passed.get(part.id));
+        setCurrent(read.length > 0 ? read[read.length - 1]!.id : 'pe-scurt');
+      },
+      { threshold: [0, 1], rootMargin: '0px 0px -66% 0px' },
+    );
+    for (const part of PARTS) {
+      const element = document.getElementById(part.id);
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [ready]);
+  return current;
 }
 
 function ReportView({ code }: { code: string }) {
@@ -36,40 +69,83 @@ function ReportView({ code }: { code: string }) {
     queryFn: () => api.getReport(code),
     refetchInterval: (state) => reportRefreshInterval(state.state.data),
   });
+  const graded = (query.data?.rows.length ?? 0) > 0;
+  const current = useCurrentPart(graded);
 
   if (query.isPending) return <p>Se încarcă…</p>;
   if (query.data === undefined) return <ErrorMessage error={query.error} />;
   const report = query.data;
   const stats = classStats(report);
+  const counts: Partial<Record<PartId, string>> = {
+    rezultate: String(report.rows.length),
+    exercitii: String(report.exercises.length),
+  };
 
   return (
-    <section>
+    <section className="report-page">
       <p className="back-link">
-        <Link to={`/teste/${code}`}>← {code}</Link>
+        <Link to={`/teste/${code}`}>← {report.test.title}</Link>
       </p>
       {query.isRefetchError && <ErrorMessage error={query.error} />}
-      <h1>Raportul clasei</h1>
-      <p className="lead-line">
-        {report.test.code} · {report.test.title} · {displayClassName(report.test.className)}
-      </p>
-
-      {report.rows.length === 0 ? (
-        <p className="hint">Nicio lucrare nu este corectată încă. Raportul apare după prima corectare.</p>
-      ) : (
-        <>
+      <div className="report-head">
+        <div>
+          <h1>Raportul clasei</h1>
+          <p className="lead-line">
+            {report.test.title} · <Link to={`/clase/${report.test.classId}`}>{displayClassName(report.test.className)}</Link>
+            {report.test.startedAt !== null && ` · ${formatDate(report.test.startedAt)}`}
+          </p>
+        </div>
+        {graded && (
           <PdfActions
             pdf={{ build: () => classPdf(report), fileName: classPdfFileName(report), title: `Raportul clasei · ${report.test.code}` }}
             csv={{ build: () => classCsv(report, uploadStatusLabel), fileName: `${report.test.code}-raport.csv` }}
           />
-          <StatsSummary stats={stats} />
-          <h2>Rezultatele elevilor</h2>
-          <ResultsTable code={code} report={report} />
-          <h2>Pe exerciții</h2>
-          <ExerciseStatsTable stats={stats} />
-        </>
+        )}
+      </div>
+
+      {!graded ? (
+        <p className="hint">Nicio lucrare nu este corectată încă. Raportul apare după prima corectare.</p>
+      ) : (
+        <div className="report-layout">
+          <aside className="report-side">
+            <nav className="report-toc" aria-label="Părțile raportului">
+              <ul>
+                {PARTS.map((part) => (
+                  <li key={part.id}>
+                    <a href={`#${part.id}`} aria-current={part.id === current ? 'true' : undefined}>
+                      {part.name}
+                      {counts[part.id] !== undefined && <span>{counts[part.id]}</span>}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            <GradeGroups stats={stats} />
+          </aside>
+          <div className="report-main">
+            <section id="pe-scurt" className="report-part" aria-label="Pe scurt">
+              <ReportTiles stats={stats} />
+            </section>
+            <section id="rezultate" className="report-part class-card" aria-labelledby="rezultate-title">
+              <div className="class-card-head">
+                <h2 id="rezultate-title">Rezultatele elevilor</h2>
+                <span>
+                  {stats.gradedCount} din {stats.activeCount} elevi
+                </span>
+              </div>
+              <ResultsTable code={code} report={report} />
+            </section>
+            <section id="exercitii" className="report-part class-card" aria-labelledby="exercitii-title">
+              <div className="class-card-head">
+                <h2 id="exercitii-title">Pe exerciții</h2>
+                <span>{countLabel(report.exercises.length, 'exercițiu', 'exerciții')}</span>
+              </div>
+              <ExerciseStatsTable stats={stats} />
+            </section>
+            <AnalysisSection code={code} report={report} />
+          </div>
+        </div>
       )}
-      <MissingList missing={report.missing} />
-      <AnalysisSection code={code} report={report} />
     </section>
   );
 }
