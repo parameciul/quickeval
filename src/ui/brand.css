@@ -461,6 +461,64 @@ h2 {
   font-size: 0.875rem;
 }
 
+/* The results page: the chips, then one card per group. */
+.search-results h1 + .hint {
+  margin: -0.25rem 0 1rem;
+}
+
+.search-results .chips {
+  margin-bottom: 1rem;
+}
+
+.search-results .class-card + .class-card {
+  margin-top: 1rem;
+}
+
+.search-results .class-card + .hint {
+  margin-top: 1rem;
+}
+
+.chip-count {
+  margin-left: 0.25rem;
+  opacity: 0.75;
+}
+
+table.search-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.search-table th,
+.search-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.search-table tr:last-child > * {
+  border-bottom: 0;
+}
+
+.search-table th {
+  padding-left: 1.25rem;
+  font-weight: 600;
+}
+
+.search-table td:last-child {
+  padding-right: 1.25rem;
+}
+
+.search-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.search-table .is-muted {
+  color: var(--muted);
+}
+
 .rail {
   position: sticky;
   top: var(--top);

@@ -9,6 +9,7 @@ import { NewTestPage } from './pages/NewTestPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { ReportPage } from './pages/ReportPage.tsx';
 import { ReviewPage } from './pages/ReviewPage.tsx';
+import { SearchPage } from './pages/SearchPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { StudentPage } from './pages/StudentPage.tsx';
 import { SubmissionPage } from './pages/SubmissionPage.tsx';
@@ -29,6 +30,7 @@ export function AppRoutes() {
         <Route path="clase" element={<LastClassPage />} />
         <Route path="clase/:id" element={<ClassPage />} />
         <Route path="elevi/:id" element={<StudentPage />} />
+        <Route path="cautare" element={<SearchPage />} />
         <Route path="setari" element={<SettingsPage />} />
         <Route path="cont" element={<AccountPage />} />
         <Route path="confirma-email" element={<ConfirmEmailPage />} />
