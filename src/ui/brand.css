@@ -4189,6 +4189,245 @@ table.items tr.edit-row > td {
   margin: 0;
 }
 
+/* Setări (redesign spec §11.8): three tabs ("Conturi" with a red count of the
+   accounts that wait), then white cards. A card of settings has one row per
+   setting: its name and sentence on the left, its control on the right. */
+.settings-page {
+  max-width: 60rem;
+}
+
+.settings-page h1 {
+  margin-bottom: 0.25rem;
+}
+
+.settings-sub {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+}
+
+.settings-count {
+  margin-left: 0.375rem;
+  font-size: 0.75rem;
+}
+
+.settings-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.settings-panel .class-card > .alert {
+  margin: 0 1.25rem 1rem;
+}
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid var(--line);
+}
+
+.class-card-head + .settings-row {
+  padding-top: 0.25rem;
+}
+
+.settings-row > div:first-child {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.settings-row > div:first-child label,
+.settings-row > div:first-child b {
+  font-weight: 600;
+}
+
+.settings-row p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.settings-control {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.settings-body {
+  padding: 0.25rem 1.25rem 1.25rem;
+}
+
+.settings-body > p,
+.settings-body > .warning {
+  margin: 0 0 0.5rem;
+}
+
+.settings-body > :last-child {
+  margin-bottom: 0;
+}
+
+.settings-key {
+  margin: 0 1.25rem 1.25rem;
+}
+
+.settings-key input {
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+
+/* "Conturi": the accounts that wait in a red-edged card, then every account.
+   On a phone each row is a block: the person, then the kind and the use, with
+   ⋯ (or the two buttons of an account that waits) beside them. */
+.class-card.accounts-waiting {
+  border-color: var(--red);
+  border-left-width: 3px;
+}
+
+.accounts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.accounts-table th,
+.accounts-table td {
+  padding: 0.75rem;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.accounts-table th:first-child,
+.accounts-table td:first-child {
+  padding-left: 1.25rem;
+}
+
+.accounts-table th:last-child,
+.accounts-table td:last-child {
+  padding-right: 1.25rem;
+  text-align: right;
+}
+
+.accounts-table thead th {
+  padding-block: 0.625rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.accounts-table tbody th {
+  font-weight: 400;
+}
+
+.account-person {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.account-person span {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.accounts-table tr.is-muted .account-person {
+  color: var(--muted);
+}
+
+.account-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.account-more {
+  display: inline-block;
+}
+
+.account-more .class-menu {
+  text-align: left;
+}
+
+.class-menu-item.is-danger,
+.class-menu-item.is-danger:hover {
+  color: var(--red);
+}
+
+.accounts-table .accounts-follow td {
+  padding-top: 0;
+  border-top: 0;
+  text-align: left;
+}
+
+.accounts-follow .warning,
+.accounts-follow .alert {
+  margin: 0;
+}
+
+.accounts-follow .warning + .alert {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .accounts-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .accounts-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.25rem 0.75rem;
+    padding: 0.875rem 1rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .accounts-table tbody th,
+  .accounts-table tbody td,
+  .accounts-table tbody th:first-child,
+  .accounts-table tbody td:first-child,
+  .accounts-table tbody td:last-child {
+    grid-column: 1;
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+
+  .accounts-table tbody td:last-child {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+
+  .accounts-waiting .accounts-table tbody td:last-child {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    margin-top: 0.375rem;
+  }
+
+  .accounts-table tbody tr.accounts-follow {
+    display: block;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
 /* The demo account's button of the top bar (redesign spec §11.6): a ring of
    the papers used, orange when none are left, and a small menu under it. */
 .demo {

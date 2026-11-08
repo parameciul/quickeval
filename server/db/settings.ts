@@ -7,6 +7,7 @@ import { LEASE_STALE_MS, MAX_PARALLEL_AGENTS, runSummarySchema, type RunSummary 
 
 const PARALLEL = 'max_parallel_agents';
 const ROBOT_KEY_HASH = 'runner_key_hash';
+const ROBOT_KEY_AT = 'runner_key_at';
 const SHOW_MODEL = 'show_model_column';
 
 export const DEFAULT_PARALLEL_AGENTS = 1;
@@ -38,6 +39,7 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
     .prepare(
       `SELECT (SELECT value FROM settings WHERE key = ?) AS parallel,
          EXISTS (SELECT 1 FROM settings WHERE key = ?) AS has_key,
+         (SELECT value FROM settings WHERE key = ?) AS key_at,
          r.run_id, r.heartbeat_at, r.last_check_at, r.last_run_finished_at, r.last_run_summary,
          (SELECT MAX(s.graded_at) FROM submissions s JOIN tests t ON t.id = s.test_id WHERE t.teacher_id = ?) AS last_graded_at,
          (SELECT value FROM settings WHERE key = ?) AS show_model,
@@ -58,10 +60,11 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
          (SELECT value FROM settings WHERE key = 'robot_settings_at') AS configured_at
        FROM runner_state r WHERE r.id = 1`,
     )
-    .bind(PARALLEL, ROBOT_KEY_HASH, teacherId, SHOW_MODEL, teacherId, teacherId, teacherId, teacherId)
+    .bind(PARALLEL, ROBOT_KEY_HASH, ROBOT_KEY_AT, teacherId, SHOW_MODEL, teacherId, teacherId, teacherId, teacherId)
     .first<{
       parallel: string | null;
       has_key: number;
+      key_at: string | null;
       run_id: string | null;
       heartbeat_at: string | null;
       last_check_at: string | null;
@@ -85,6 +88,7 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
   return {
     maxParallelAgents: parseParallel(row?.parallel ?? null),
     hasRobotKey: row?.has_key === 1,
+    robotKeyAt: row?.has_key === 1 ? (row.key_at ?? null) : null,
     robot: {
       running: Boolean(row?.run_id) && Date.parse(now) - heartbeat < LEASE_STALE_MS,
       lastCheckAt: row?.last_check_at ?? null,
@@ -132,9 +136,11 @@ export async function getRobotKeyHash(db: D1Database): Promise<string | null> {
   return row?.value ?? null;
 }
 
-// A new key replaces the old one at once: the old key stops working.
-export async function setRobotKeyHash(db: D1Database, hash: string): Promise<void> {
-  await setValue(db, ROBOT_KEY_HASH, hash);
+// A new key replaces the old one at once: the old key stops working. Its
+// time is kept with it, for "Făcută pe …" in Setări.
+export async function setRobotKeyHash(db: D1Database, hash: string, now: string): Promise<void> {
+  const put = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value');
+  await db.batch([put.bind(ROBOT_KEY_HASH, hash), put.bind(ROBOT_KEY_AT, now)]);
 }
 
 // The robot on the test page. startFailed: GitHub did not take the last

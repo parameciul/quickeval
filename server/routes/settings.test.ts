@@ -24,6 +24,7 @@ describe('GET /api/admin/settings', () => {
       settings: {
         maxParallelAgents: 1,
         hasRobotKey: false,
+        robotKeyAt: null,
         robot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
         lastGradedAt: null,
         lastModels: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
@@ -163,6 +164,23 @@ describe('POST /api/admin/settings/robot-key', () => {
     const stored = await api.db.prepare("SELECT value FROM settings WHERE key = 'runner_key_hash'").first<{ value: string }>();
     expect(stored?.value).toBe(await sha256Hex(res.body.key));
     expect((await api.request('GET', '/api/admin/settings')).body.settings.hasRobotKey).toBe(true);
+  });
+
+  it('keeps when the key was made, and the time of the newest key', async () => {
+    const before = new Date().toISOString();
+    await api.request('POST', '/api/admin/settings/robot-key');
+    const first = (await api.request('GET', '/api/admin/settings')).body.settings.robotKeyAt as string;
+    expect(first >= before).toBe(true);
+    await api.db.prepare("UPDATE settings SET value = '2026-01-01T00:00:00.000Z' WHERE key = 'runner_key_at'").run();
+    await api.request('POST', '/api/admin/settings/robot-key');
+    const second = (await api.request('GET', '/api/admin/settings')).body.settings.robotKeyAt as string;
+    expect(second >= first).toBe(true);
+  });
+
+  it('has no time for a key made before the time was kept', async () => {
+    await api.db.prepare("INSERT INTO settings (key, value) VALUES ('runner_key_hash', 'x')").run();
+    const settings = (await api.request('GET', '/api/admin/settings')).body.settings;
+    expect(settings).toMatchObject({ hasRobotKey: true, robotKeyAt: null });
   });
 
   it('replaces the old key', async () => {
