@@ -40,8 +40,8 @@ type PartId = (typeof PARTS)[number]['id'];
 
 // The part the teacher reads: the last one whose top has passed the upper third
 // of the screen, or the last part once the page is scrolled to its end (a short
-// last part never reaches that third). Measured on scroll and resize, once per
-// frame. A part that is not laid out (no height, as in the tests) never counts,
+// last part never reaches that third). Measured on every scroll and resize
+// (four boxes: cheap; no animation frame, which a hidden tab never runs). A part that is not laid out (no height, as in the tests) never counts,
 // so "Pe scurt" stays marked.
 export function currentPart(tops: (DOMRect | undefined)[], viewport: number, atEnd: boolean): PartId {
   let current: PartId = PARTS[0].id;
@@ -57,24 +57,18 @@ function useCurrentPart(ready: boolean): PartId {
   const [current, setCurrent] = useState<PartId>('pe-scurt');
   useEffect(() => {
     if (!ready) return;
-    let frame = 0;
     const measure = () => {
-      frame = 0;
       const rects = PARTS.map((part) => document.getElementById(part.id)?.getBoundingClientRect());
       const root = document.documentElement;
       const atEnd = window.innerHeight + window.scrollY >= root.scrollHeight - 2;
       setCurrent(currentPart(rects, window.innerHeight, atEnd));
     };
-    const later = () => {
-      if (frame === 0) frame = requestAnimationFrame(measure);
-    };
     measure();
-    document.addEventListener('scroll', later, { passive: true, capture: true });
-    window.addEventListener('resize', later);
+    document.addEventListener('scroll', measure, { passive: true, capture: true });
+    window.addEventListener('resize', measure);
     return () => {
-      document.removeEventListener('scroll', later, { capture: true });
-      window.removeEventListener('resize', later);
-      if (frame !== 0) cancelAnimationFrame(frame);
+      document.removeEventListener('scroll', measure, { capture: true });
+      window.removeEventListener('resize', measure);
     };
   }, [ready]);
   return current;
