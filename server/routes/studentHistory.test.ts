@@ -75,6 +75,8 @@ describe('GET /api/admin/students/:id/history', () => {
     await started(archivedSent, '2026-10-07T07:15:00.000Z');
     await api.db.prepare('UPDATE tests SET archived = 1 WHERE code IN (?, ?)').bind(archived, archivedSent).run();
     await addSubmission(api, archivedSent, studentId, { status: 'submitted', files: 1 });
+    // A name tapped on the student page, with nothing sent: not a paper.
+    await addSubmission(api, archived, studentId, { status: 'uploading' });
     expect((await history()).tests.map((test: { code: string }) => test.code)).toEqual([archivedSent]);
     expect(draft).toBeTruthy();
 

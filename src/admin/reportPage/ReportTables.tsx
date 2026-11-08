@@ -27,7 +27,7 @@ export function ReportTiles({ stats }: { stats: ClassStats }) {
       <div>
         <dt>Corectate</dt>
         <dd>
-          {stats.gradedCount} <small>din {stats.activeCount} elevi</small>
+          {stats.gradedCount} <small>din {stats.activeCount} elevi</small>{' '}
           {stats.flaggedCount > 0 && <small className="is-waiting">de verificat {stats.flaggedCount}</small>}
         </dd>
       </div>

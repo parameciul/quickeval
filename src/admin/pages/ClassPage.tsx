@@ -41,6 +41,7 @@ function ClassDetails({ classId }: { classId: number }) {
   const [showArchived, setShowArchived] = useState(false);
   const [linkState] = useState(() => location.state as ClassLinkState);
   const [newClassOpen, setNewClassOpen] = useState(linkState?.newClass === true);
+  const heading = useRef<HTMLHeadingElement>(null);
   const detail = useQuery({ queryKey: ['class', classId], queryFn: () => api.getClass(classId) });
   // Remember which class the teacher opened last, so /clase reopens it.
   useEffect(() => {
@@ -82,7 +83,8 @@ function ClassDetails({ classId }: { classId: number }) {
             type="button"
             className="button-quiet"
             disabled={archive.isPending}
-            onClick={() => archive.mutate(false)}
+            // The strip goes with the write: the focus moves to the class name.
+            onClick={() => archive.mutate(false, { onSuccess: () => heading.current?.focus() })}
           >
             Scoate din arhivă
           </button>
@@ -90,7 +92,9 @@ function ClassDetails({ classId }: { classId: number }) {
       )}
       <div className="class-head">
         <div className="class-head-main">
-          <h1>{displayClassName(info.name)}</h1>
+          <h1 ref={heading} tabIndex={-1}>
+            {displayClassName(info.name)}
+          </h1>
           <ClassSwitcher
             api={api}
             classId={classId}
@@ -355,7 +359,9 @@ function ClassMenu({
       className="class-menu-item"
       disabled={archiving}
       onClick={() => {
+        // The menu closes with its item: the focus goes back to ⋯.
         setOpen(false);
+        button.current?.focus();
         onArchive();
       }}
     >

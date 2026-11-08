@@ -268,7 +268,8 @@ export function gradeOf(row: GradeRow): ClassGrade {
 
 // The student page: the student, the student's classes, their started tests and
 // the student's papers in them, in one batch. A test that is archived, or of a
-// class the student left, is listed only when the student sent a paper to it.
+// class the student left, is listed only when the student sent a paper to it (an
+// upload still under way is not sent).
 // Null when the student is not the teacher's.
 export async function getStudentHistory(db: D1Database, teacherId: number, studentId: number): Promise<StudentHistory | null> {
   const [student, classes, tests, grades] = await db.batch<Record<string, unknown>>([
@@ -286,7 +287,7 @@ export async function getStudentHistory(db: D1Database, teacherId: number, stude
          JOIN enrollments e ON e.class_id = t.class_id AND e.student_id = ?
          WHERE t.teacher_id = ? AND t.started_at IS NOT NULL
            AND ((e.active = 1 AND t.archived = 0)
-             OR EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.student_id = e.student_id))
+             OR EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.student_id = e.student_id AND s.status <> 'uploading'))
          ORDER BY t.started_at DESC, t.id DESC`,
       )
       .bind(studentId, teacherId),

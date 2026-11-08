@@ -203,6 +203,7 @@ describe('ClassPage', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Scoate din arhivă' }));
     expect(api.updateClass).toHaveBeenLastCalledWith(1, { archived: false });
     expect(await screen.findByRole('link', { name: 'Test nou pentru această clasă' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mai multe pentru Clasa 6E2' })).toHaveFocus();
   });
 
   it('closes the small menus when a class is picked, on Esc and on a click outside', async () => {
@@ -345,6 +346,7 @@ describe('ClassPage, an archived class', () => {
     expect(await screen.findByRole('link', { name: 'Test nou pentru această clasă' })).toBeInTheDocument();
     expect(screen.queryByText('Clasă arhivată.')).not.toBeInTheDocument();
     expect(screen.queryByText('Arhivată')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Clasa 6E2' })).toHaveFocus();
   });
 
   it('lists "Scoate din arhivă" first in ⋯, then "Redenumește clasa"', async () => {

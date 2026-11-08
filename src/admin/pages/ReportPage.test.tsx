@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { ClassReport } from '../../../shared/api.ts';
 import { createFakeApi, fakeSettings, fakeTest } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
-import { reportRefreshInterval } from './ReportPage.tsx';
+import { currentPart, reportRefreshInterval } from './ReportPage.tsx';
 
 const ANALYSIS = {
   overview: 'Clasa a lucrat bine la fracții.',
@@ -79,7 +79,7 @@ describe('ReportPage', () => {
     const links = parts.getAllByRole('link');
     expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Pe scurt', '#pe-scurt'],
-      ['Rezultatele elevilor2', '#rezultate'],
+      ['Rezultatele elevilor3', '#rezultate'],
       ['Pe exerciții2', '#exercitii'],
       ['Analiza clasei', '#analiza'],
     ]);
@@ -94,7 +94,7 @@ describe('ReportPage', () => {
     expect(tiles.getByText('Mediana').nextSibling).toHaveTextContent('7,75');
     expect(tiles.getByText('Cea mai mică notă').nextSibling).toHaveTextContent('5,5');
     expect(tiles.getByText('Cea mai mare notă').nextSibling).toHaveTextContent('10');
-    expect(tiles.getByText('Corectate').nextSibling).toHaveTextContent('2 din 3 elevide verificat 2');
+    expect(tiles.getByText('Corectate').nextSibling).toHaveTextContent('2 din 3 elevi de verificat 2');
   });
 
   it('shows a row per student, the items to check marked, and the students with no paper', async () => {
@@ -231,6 +231,18 @@ describe('ReportPage', () => {
     expect(screen.queryByRole('button', { name: 'Regenerează' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fă analiza clasei' })).not.toBeInTheDocument();
     expect(reportRefreshInterval(reopened)).toBe(false);
+  });
+
+  it('marks the last part whose top passed the upper third, and the last part at the end of the page', () => {
+    const at = (top: number, height = 400) => ({ top, height }) as DOMRect;
+    // A screen 900px tall: the line is at 300px.
+    expect(currentPart([at(-500), at(250), at(700), at(1400)], 900, false)).toBe('rezultate');
+    expect(currentPart([at(-500), at(-100), at(299), at(1400)], 900, false)).toBe('exercitii');
+    expect(currentPart([at(100), at(600), at(1200), at(1800)], 900, false)).toBe('pe-scurt');
+    // A short last part at the end of the page never reaches the line.
+    expect(currentPart([at(-900), at(-600), at(-200), at(500, 120)], 900, true)).toBe('analiza');
+    // Not laid out (no height): nothing passed.
+    expect(currentPart([at(0, 0), at(0, 0), at(0, 0), at(0, 0)], 900, true)).toBe('pe-scurt');
   });
 
   it('refreshes every 10 seconds only while the robot can write the analysis', () => {

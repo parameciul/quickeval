@@ -39,25 +39,43 @@ const PARTS = [
 type PartId = (typeof PARTS)[number]['id'];
 
 // The part the teacher reads: the last one whose top has passed the upper third
-// of the screen. Without IntersectionObserver the first part stays marked.
+// of the screen, or the last part once the page is scrolled to its end (a short
+// last part never reaches that third). Measured on scroll and resize, once per
+// frame. A part that is not laid out (no height, as in the tests) never counts,
+// so "Pe scurt" stays marked.
+export function currentPart(tops: (DOMRect | undefined)[], viewport: number, atEnd: boolean): PartId {
+  let current: PartId = PARTS[0].id;
+  tops.forEach((rect, index) => {
+    if (rect && rect.height > 0 && rect.top <= viewport / 3) current = PARTS[index]!.id;
+  });
+  const last = tops[tops.length - 1];
+  if (atEnd && last && last.height > 0 && last.top < viewport) current = 'analiza';
+  return current;
+}
+
 function useCurrentPart(ready: boolean): PartId {
   const [current, setCurrent] = useState<PartId>('pe-scurt');
   useEffect(() => {
-    if (!ready || typeof IntersectionObserver === 'undefined') return;
-    const passed = new Map<string, boolean>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) passed.set(entry.target.id, entry.boundingClientRect.top < window.innerHeight / 3);
-        const read = PARTS.filter((part) => passed.get(part.id));
-        setCurrent(read.length > 0 ? read[read.length - 1]!.id : 'pe-scurt');
-      },
-      { threshold: [0, 1], rootMargin: '0px 0px -66% 0px' },
-    );
-    for (const part of PARTS) {
-      const element = document.getElementById(part.id);
-      if (element) observer.observe(element);
-    }
-    return () => observer.disconnect();
+    if (!ready) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const rects = PARTS.map((part) => document.getElementById(part.id)?.getBoundingClientRect());
+      const root = document.documentElement;
+      const atEnd = window.innerHeight + window.scrollY >= root.scrollHeight - 2;
+      setCurrent(currentPart(rects, window.innerHeight, atEnd));
+    };
+    const later = () => {
+      if (frame === 0) frame = requestAnimationFrame(measure);
+    };
+    measure();
+    document.addEventListener('scroll', later, { passive: true, capture: true });
+    window.addEventListener('resize', later);
+    return () => {
+      document.removeEventListener('scroll', later, { capture: true });
+      window.removeEventListener('resize', later);
+      if (frame !== 0) cancelAnimationFrame(frame);
+    };
   }, [ready]);
   return current;
 }
@@ -77,7 +95,7 @@ function ReportView({ code }: { code: string }) {
   const report = query.data;
   const stats = classStats(report);
   const counts: Partial<Record<PartId, string>> = {
-    rezultate: String(report.rows.length),
+    rezultate: String(report.rows.length + report.missing.length),
     exercitii: String(report.exercises.length),
   };
 

@@ -3892,8 +3892,7 @@ table.results-table th:first-child {
   text-align: left;
 }
 
-table.results-table td:nth-child(2),
-table.results-table td:nth-child(3) {
+table.results-table td:nth-last-child(-n + 2) {
   padding-left: 0.6rem;
   padding-right: 0.6rem;
 }
@@ -4697,11 +4696,8 @@ table.history-table td:nth-child(3) {
   white-space: nowrap;
 }
 
-table.history-table td a {
-  color: inherit;
-}
-
 table.history-table td:nth-child(3) a {
+  color: inherit;
   text-decoration: none;
 }
 
