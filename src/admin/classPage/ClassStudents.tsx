@@ -10,7 +10,7 @@ import { countLabel, formatDayMonth, uploadStatusLabel } from '../../ui/format.t
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { CopyResultLink } from '../testPage/ResultLinksTable.tsx';
 import { AddStudentsDialog, RenameDialog } from './ClassDialogs.tsx';
-import { orderedStudents } from './GradesTable.tsx';
+import { NoStudents, orderedStudents } from './GradesTable.tsx';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
 
 // A name as the search compares it: no case, no diacritics ("stef" finds
@@ -64,20 +64,15 @@ export function ClassStudents({
     />
   );
 
-  if (students.length === 0 && readOnly) {
-    return (
-      <div className="class-card class-empty">
-        <p>Clasa nu are elevi.</p>
-      </div>
-    );
-  }
   if (students.length === 0) {
+    const add = (
+      <button type="button" className="button button-small" onClick={() => setAddOpen(true)}>
+        Adaugă elevi
+      </button>
+    );
     return (
-      <div className="class-card class-empty">
-        <p>Clasa nu are încă elevi. Poți lipi lista din catalog.</p>
-        <button type="button" className="button button-small" onClick={() => setAddOpen(true)}>
-          + Adaugă elevi
-        </button>
+      <div className="class-card">
+        <NoStudents name={className} readOnly={readOnly} action={add} />
         {addDialog}
       </div>
     );

@@ -384,12 +384,21 @@ describe('ClassPage, an archived class', () => {
     expect(screen.queryByRole('button', { name: '+ Adaugă elevi' })).not.toBeInTheDocument();
   });
 
+  it('offers no new test for an archived class with no tests', async () => {
+    renderAdmin('/clase/1', await archivedClass({ ...classData(), tests: [] }));
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Niciun test pentru Clasa 6E2' });
+    const card = heading.closest('.class-card') as HTMLElement;
+    expect(card).toHaveTextContent('Clasa e arhivată: nu i se mai fac teste.');
+    expect(within(card).queryByRole('link')).not.toBeInTheDocument();
+  });
+
   it('offers no "Adaugă elevi" when the archived class has no students', async () => {
     renderAdmin('/clase/1', await archivedClass({ ...classData(), students: { 1: [] } }));
-    expect(await screen.findByText('Clasa nu are elevi.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Clasa 6E2 nu are elevi' })).toBeInTheDocument();
+    expect(screen.getByText('Clasa e arhivată: nu i se mai adaugă elevi.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Adaugă elevi/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('tab', { name: /^Elevi/ }));
-    expect(await screen.findByText('Clasa nu are elevi.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Clasa 6E2 nu are elevi' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Adaugă elevi/ })).not.toBeInTheDocument();
   });
 });
@@ -472,15 +481,20 @@ describe('ClassPage grade table', () => {
 
   it('says what to do when the class has no students, and leads to "Elevi"', async () => {
     renderAdmin('/clase/1', createFakeApi({ ...classData(), students: { 1: [] } }));
-    expect(await screen.findByText('Clasa nu are încă elevi.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Clasa 6E2 nu are încă elevi' })).toBeInTheDocument();
+    expect(screen.getByText('Lipește lista din catalog, câte un elev pe rând.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Adaugă elevi' }));
     expect(screen.getByRole('tab', { name: 'Elevi 0' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('says so when the class has no tests', async () => {
+  it('says so when the class has no tests, with "Test nou pentru această clasă"', async () => {
     renderAdmin('/clase/1', createFakeApi({ ...classData(), tests: [] }));
-    expect(await screen.findByText(/Clasa nu are încă teste\. Notele apar aici/)).toBeInTheDocument();
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Niciun test pentru Clasa 6E2' });
+    const card = heading.closest('.class-card') as HTMLElement;
+    expect(card).toHaveTextContent('Testele clasei și notele lor apar aici.');
+    expect(within(card).getByRole('link', { name: 'Test nou pentru această clasă' })).toHaveAttribute('href', '/teste/nou?clasa=1');
   });
+
 });
 
 describe('ClassPage "Elevi" tab', () => {
@@ -620,8 +634,8 @@ describe('ClassPage "Elevi" tab', () => {
   it('offers to add students when the class has none', async () => {
     renderAdmin('/clase/1', createFakeApi({ ...classData(), students: { 1: [] } }));
     await userEvent.click(await screen.findByRole('tab', { name: 'Elevi 0' }));
-    expect(screen.getByText(/Clasa nu are încă elevi/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '+ Adaugă elevi' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Clasa 6E2 nu are încă elevi' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Adaugă elevi' }));
     expect(await screen.findByRole('dialog', { name: 'Adaugă elevi în Clasa 6E2' })).toBeInTheDocument();
   });
 });

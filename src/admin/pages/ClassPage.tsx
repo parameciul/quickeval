@@ -160,6 +160,7 @@ function ClassDetails({ classId }: { classId: number }) {
           <div className="class-notes">
             <GradesTable
               classId={classId}
+              name={info.name}
               students={students}
               tests={tests}
               grades={grades}
