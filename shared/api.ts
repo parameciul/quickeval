@@ -647,6 +647,8 @@ export interface Settings {
   // How many uploads the robot grades at the same time.
   maxParallelAgents: number;
   hasRobotKey: boolean;
+  // When the robot's key was made; null for a key made before this was kept.
+  robotKeyAt: string | null;
   robot: RobotStatus;
   // When one of this teacher's uploads was last graded.
   lastGradedAt: string | null;

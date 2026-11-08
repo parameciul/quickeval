@@ -73,6 +73,7 @@ export function fakeSettings(overrides: Partial<Settings> = {}): Settings {
   return {
     maxParallelAgents: 1,
     hasRobotKey: false,
+    robotKeyAt: null,
     robot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
     lastModels: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
     showModelColumn: false,
@@ -85,6 +86,7 @@ export function fakeSettings(overrides: Partial<Settings> = {}): Settings {
 }
 
 export const FAKE_ROBOT_KEY = 'fake-robot-key-0123456789abcdefghijklmnopqr';
+export const FAKE_ROBOT_KEY_AT = '2026-10-12T09:30:00.000Z';
 
 export const FAKE_TOKEN = 'abcdefghijkmnop2';
 export const FAKE_MULTI_TOKEN = 'bbbbbbbbbbbbbbbb';
@@ -859,6 +861,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     }),
     newRobotKey: vi.fn(async () => {
       settings.hasRobotKey = true;
+      settings.robotKeyAt = FAKE_ROBOT_KEY_AT;
       return FAKE_ROBOT_KEY;
     }),
     listPayments: vi.fn(async (): Promise<PaymentRow[]> => []),

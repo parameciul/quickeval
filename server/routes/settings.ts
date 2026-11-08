@@ -26,7 +26,7 @@ export function settingsRoutes(): Hono<AppEnv> {
   // secret QUICKEVAL_RUNNER_KEY; the old key stops working.
   routes.post('/robot-key', async (c) => {
     const key = newRobotKey();
-    await setRobotKeyHash(c.env.DB, await sha256Hex(key));
+    await setRobotKeyHash(c.env.DB, await sha256Hex(key), nowIso());
     return c.json({ key }, 201);
   });
 
