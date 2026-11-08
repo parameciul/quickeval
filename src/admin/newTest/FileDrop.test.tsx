@@ -61,6 +61,45 @@ describe('FileDrop', () => {
     expect(onPick).toHaveBeenLastCalledWith(file);
   });
 
+  it('takes the same file again after a refused drop', async () => {
+    const { onPick, area } = setup();
+    const input = screen.getByLabelText(/^Fișierul testului/);
+    const file = pdf('Test.pdf');
+    await userEvent.upload(input, file);
+    fireEvent.drop(area, { dataTransfer: { files: [text()] } });
+    expect(input).toHaveValue('');
+    await userEvent.upload(input, file);
+    expect(onPick).toHaveBeenLastCalledWith(file);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('keeps the chosen file when what is dropped is not a file', () => {
+    const { onPick, area } = setup();
+    const file = pdf('Test.pdf');
+    fireEvent.drop(area, { dataTransfer: { files: [file] } });
+    fireEvent.dragOver(area, { dataTransfer: { files: [] } });
+    fireEvent.drop(area, { dataTransfer: { files: [] } });
+    expect(area).not.toHaveClass('is-over');
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(area.querySelector('.file-drop-name')).toHaveTextContent('Test.pdf');
+  });
+
+  it('tells a screen reader on the field why its file was refused', () => {
+    const { area } = setup();
+    fireEvent.drop(area, { dataTransfer: { files: [text()] } });
+    expect(screen.getByLabelText(/^Fișierul testului/)).toHaveAccessibleDescription('Încarcă un fișier PDF sau Word (.docx).');
+  });
+
+  it('stops the browser from opening a file dropped beside the area, while it is shown', () => {
+    const { unmount } = render(<FileDrop id="other" name="Fișierul baremului" onPick={() => {}} />);
+    const files = { types: ['Files'], files: [pdf('Test.pdf')] };
+    expect(fireEvent.dragOver(document.body, { dataTransfer: files })).toBe(false);
+    expect(fireEvent.drop(document.body, { dataTransfer: files })).toBe(false);
+    expect(fireEvent.drop(document.body, { dataTransfer: { types: ['text/plain'], files: [] } })).toBe(true);
+    unmount();
+    expect(fireEvent.drop(document.body, { dataTransfer: files })).toBe(true);
+  });
+
   it('ignores a drop while it is off', () => {
     const { onPick, area } = setup(true);
     fireEvent.dragOver(area, { dataTransfer: { files: [] } });

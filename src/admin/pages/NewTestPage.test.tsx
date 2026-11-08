@@ -30,8 +30,9 @@ async function fillClassAndTitle(classId = '1') {
 describe('NewTestPage', () => {
   it('shows the three steps and what comes after', async () => {
     renderAdmin('/teste/nou', classes());
-    const steps = await screen.findAllByRole('listitem');
-    expect(within(steps[0]!).getByRole('heading', { level: 2 })).toHaveTextContent('Clasa și titlul');
+    const first = (await screen.findByRole('heading', { level: 2, name: 'Clasa și titlul' })).closest('li')!;
+    expect(first.parentElement).toHaveClass('steps');
+    expect(first.parentElement!.firstElementChild).toBe(first);
     expect(screen.getByRole('heading', { level: 2, name: 'Testul' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Baremul' })).toBeInTheDocument();
     const next = screen.getByRole('region', { name: 'După ce creezi testul' });

@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 import { DOCX_TYPE, fileProblem, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE } from '../../../shared/files.ts';
 
 const ACCEPT = ['.pdf', '.docx', PDF_TYPE, DOCX_TYPE].join(',');
@@ -8,7 +8,9 @@ const ACCEPT = ['.pdf', '.docx', PDF_TYPE, DOCX_TYPE].join(',');
 // file goes through the check of `TestFileInput` (PDF or Word, at most
 // 25 MB): one that cannot be sent shows its problem and is not passed on, and
 // the file picked before it is dropped too. `name` says to a screen reader
-// which file this is ("Fișierul testului").
+// which file this is ("Fișierul testului"). While the area is shown, a file
+// dropped beside it does nothing, so a near miss does not open the file in the
+// tab and lose the form.
 export function FileDrop({
   id,
   name,
@@ -23,6 +25,19 @@ export function FileDrop({
   const [problem, setProblem] = useState<string | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
   const [over, setOver] = useState(false);
+  const problemId = `${id}-problem`;
+
+  useEffect(() => {
+    const keepPage = (event: globalThis.DragEvent) => {
+      if (event.dataTransfer?.types?.includes('Files')) event.preventDefault();
+    };
+    window.addEventListener('dragover', keepPage);
+    window.addEventListener('drop', keepPage);
+    return () => {
+      window.removeEventListener('dragover', keepPage);
+      window.removeEventListener('drop', keepPage);
+    };
+  }, []);
 
   const take = (picked: File | null) => {
     const found = picked ? fileProblem(picked, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE) : null;
@@ -38,7 +53,9 @@ export function FileDrop({
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
     setOver(false);
-    if (!disabled) take(event.dataTransfer.files[0] ?? null);
+    // A dragged text or link carries no file: the file chosen before stays.
+    const dropped = event.dataTransfer.files[0];
+    if (!disabled && dropped) take(dropped);
   };
 
   return (
@@ -49,7 +66,13 @@ export function FileDrop({
         className="sr-only"
         accept={ACCEPT}
         disabled={disabled}
-        onChange={(event) => take(event.target.files?.[0] ?? null)}
+        aria-describedby={problem ? problemId : undefined}
+        onChange={(event) => {
+          take(event.target.files?.[0] ?? null);
+          // Emptied, so picking the same file again (after a refused drop) is
+          // still a change.
+          event.target.value = '';
+        }}
       />
       <label
         htmlFor={id}
@@ -69,7 +92,7 @@ export function FileDrop({
         {chosen && <span className="file-drop-name">{chosen}</span>}
       </label>
       {problem && (
-        <p className="alert" role="alert">
+        <p className="alert" role="alert" id={problemId}>
           {problem}
         </p>
       )}
