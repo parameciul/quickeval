@@ -59,6 +59,18 @@ describe('matchRange', () => {
     expect(matchRange('Groß Ana', 'ana')).toEqual({ start: 5, end: 8 });
   });
 
+  it('agrees with the matcher on every slice of a name', () => {
+    const names = ['Ștefan Radu', 'Ioana  Stefănescu', 'S\u0326tefan Ţăran', 'Groß Łukasz', 'Éva Öztürk', 'Ana-Maria Îonescu'];
+    for (const name of names) {
+      for (let start = 0; start < name.length; start++) {
+        for (let end = start + 1; end <= name.length; end++) {
+          const query = name.slice(start, end);
+          expect(matchRange(name, query) !== null, `${name} / ${query}`).toBe(searchMatcher(query)(name));
+        }
+      }
+    }
+  });
+
   it('gives null when the search is not there', () => {
     expect(matchRange('Ana', 'pop')).toBeNull();
     expect(matchRange('Ana', '')).toBeNull();

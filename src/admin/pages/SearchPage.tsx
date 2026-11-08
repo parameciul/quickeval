@@ -39,7 +39,8 @@ export function SearchPage() {
     );
   }
 
-  const results = search.data;
+  // An older answer, kept while the new one comes, is not shown here.
+  const results = search.isPlaceholderData ? undefined : search.data;
   const counts = results ? countsOf(results) : null;
   const total = counts ? counts.elevi + counts.clase + counts.teste : 0;
   // A chip whose group is empty cannot be chosen; an old link to one shows all.

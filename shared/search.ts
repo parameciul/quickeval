@@ -7,6 +7,7 @@ export const MAX_SEARCH_LENGTH = 80;
 
 // Letters that keep no diacritic to strip: their plain form.
 const PLAIN_LETTERS: Readonly<Record<string, string>> = { ł: 'l', ß: 'ss', đ: 'd', ø: 'o', æ: 'ae', œ: 'oe' };
+const PLAIN = /[łßđøæœ]/gu;
 
 interface Folded {
   text: string;
@@ -15,7 +16,8 @@ interface Folded {
 }
 
 // Folds one letter at a time, so a match in the folded text can be mapped
-// back onto the original (for the bold part of a result).
+// back onto the original (for the bold part of a result). It gives the same
+// text as foldForSearch, which is faster and used for matching.
 function foldWithMap(text: string): Folded {
   let out = '';
   const starts: number[] = [];
@@ -32,7 +34,13 @@ function foldWithMap(text: string): Folded {
 }
 
 export function foldForSearch(text: string): string {
-  return foldWithMap(text).text.trim();
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(PLAIN, (letter) => PLAIN_LETTERS[letter]!)
+    .replace(/\s+/gu, ' ')
+    .trim();
 }
 
 // Whether a search is long enough to run: at least two letters once folded.

@@ -461,6 +461,10 @@ h2 {
   font-size: 0.875rem;
 }
 
+.search-none:empty {
+  display: none;
+}
+
 /* The magnifier beside ☰, and the search over the whole screen, on a phone
    only (the Layout draws them there). The list fills the screen under the box. */
 .search-button,

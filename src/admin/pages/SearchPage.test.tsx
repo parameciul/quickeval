@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { StudentRow } from '../../../shared/api.ts';
@@ -91,6 +91,25 @@ describe('the search results page', () => {
     await openPage('/cautare?q=stef&arata=clase');
     expect(await screen.findByRole('table', { name: 'Elevi' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Toate 3' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('shows no old results under a new search', async () => {
+    const api = searchApi();
+    renderAdmin('/', api, <LocationProbe />);
+    await screen.findByRole('navigation', { name: 'Meniu' });
+    const box = screen.getByRole('combobox', { name: 'Caută elevi, clase și teste' });
+    await userEvent.type(box, 'stef{Enter}');
+    expect(await screen.findByRole('table', { name: 'Elevi' })).toBeInTheDocument();
+    const real = api.search.getMockImplementation()!;
+    let answer = () => {};
+    api.search.mockImplementation((query, year) => new Promise((resolve) => (answer = () => resolve(real(query, year)))));
+    await userEvent.clear(box);
+    await userEvent.type(box, 'stew{Enter}');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rezultate pentru „stew”' })).toBeInTheDocument();
+    expect(screen.getByText('Se încarcă…')).toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Elevi' })).not.toBeInTheDocument();
+    await act(async () => answer());
+    expect(await screen.findByRole('table', { name: 'Teste' })).toBeInTheDocument();
   });
 
   it('says when it finds nothing', async () => {

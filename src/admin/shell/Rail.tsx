@@ -18,6 +18,7 @@ export function Rail({
   urgent,
   panel,
   onToggle,
+  inert = false,
 }: {
   admin: boolean;
   onTests: boolean;
@@ -27,9 +28,11 @@ export function Rail({
   urgent: boolean;
   panel: PanelName | null;
   onToggle(name: PanelName): void;
+  // Under the phone's search over the whole screen.
+  inert?: boolean;
 }) {
   return (
-    <nav className="rail" aria-label="Meniu">
+    <nav className="rail" aria-label="Meniu" inert={inert}>
       <Link className="rail-new" to="/teste/nou">
         <span className="rail-square">
           <IconPlus />

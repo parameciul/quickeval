@@ -55,8 +55,8 @@ describe('GET /api/admin/search', () => {
 
   it('lists a student in two classes of the year once, with the classes the student is in', async () => {
     const first = await makeClass(api, '9A', ['Ștefan Radu']);
+    const third = await makeClass(api, '10C');
     const second = await makeClass(api, '9B');
-    const third = await makeClass(api, '9C');
     const [id] = first.studentIds as [number];
     for (const cls of [second, third]) {
       await api.db.prepare('INSERT INTO enrollments (class_id, student_id) VALUES (?, ?)').bind(cls.id, id).run();
@@ -64,12 +64,12 @@ describe('GET /api/admin/search', () => {
     await api.request('PATCH', `/api/admin/classes/${first.id}/students/${id}`, { active: false });
 
     const [student] = (await search('stef')).body.students;
-    expect(student.classes.map((c: { name: string }) => c.name).sort()).toEqual(['9B', '9C']);
+    expect(student.classes.map((c: { name: string }) => c.name)).toEqual(['9B', '10C']);
 
     // A student who left every class of the year still shows, with those classes.
     for (const cls of [second, third]) await api.request('PATCH', `/api/admin/classes/${cls.id}/students/${id}`, { active: false });
     const [left] = (await search('stef')).body.students;
-    expect(left.classes.map((c: { name: string }) => c.name).sort()).toEqual(['9A', '9B', '9C']);
+    expect(left.classes.map((c: { name: string }) => c.name)).toEqual(['9A', '9B', '10C']);
   });
 
   it("gives each student the grade of the latest graded paper of the year", async () => {

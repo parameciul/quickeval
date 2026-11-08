@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { StudentRow } from '../../../shared/api.ts';
@@ -102,6 +102,38 @@ describe('the search box', () => {
     await userEvent.type(box, 'stew');
     await userEvent.click(await screen.findByRole('option', { name: 'Teorema lui Stewart, Clasa 9A · ciornă' }));
     await expectLocation('/teste/9A-26T1');
+  });
+
+  it('opens no list before the first answer', async () => {
+    const api = searchApi();
+    let answer: (value: Awaited<ReturnType<typeof api.search>>) => void = () => {};
+    api.search.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    const box = await openSearch(api);
+    await userEvent.type(box, 'stef');
+    await waitFor(() => expect(api.search).toHaveBeenCalled());
+    expect(box).toHaveAttribute('aria-expanded', 'false');
+    expect(document.querySelector('.search-pop')).toBeNull();
+    await act(async () => answer({ students: [], classes: [], tests: [] }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Nimic găsit în acest an școlar.');
+    expect(box).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('forgets the chosen line when a new answer comes', async () => {
+    const api = searchApi();
+    const box = await openSearch(api);
+    await userEvent.type(box, 'stef');
+    await screen.findByRole('option', { name: 'Ștefan Radu, Clasa 10B' });
+    const real = api.search.getMockImplementation()!;
+    let answer = () => {};
+    api.search.mockImplementation((query, year) => new Promise((resolve) => (answer = () => resolve(real(query, year)))));
+    // A line chosen from the older answer, while the new one is on its way.
+    await userEvent.type(box, 'a');
+    await waitFor(() => expect(api.search).toHaveBeenLastCalledWith('stefa', 2026));
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}');
+    expect(box).toHaveAttribute('aria-activedescendant');
+    await act(async () => answer());
+    await waitFor(() => expect(box).not.toHaveAttribute('aria-activedescendant'));
+    expect(screen.getByRole('option', { name: 'Ștefan Radu, Clasa 10B' })).toHaveAttribute('aria-selected', 'false');
   });
 
   it('says when it finds nothing, with no line to choose', async () => {

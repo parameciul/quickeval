@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { SearchResults, SearchStudent } from '../../shared/api.ts';
+import { compareClassNames } from '../../shared/classes.ts';
 import { searchMatcher } from '../../shared/search.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { listClasses } from './classes.ts';
@@ -13,10 +14,16 @@ interface EnrolledRow {
   active: number;
 }
 
-// The students of the teacher's classes of one school year, with their
-// classes, and the grade of each one's latest graded paper of the year, in one
-// batch. A student in two classes of the year is one student.
-async function listYearStudents(db: D1Database, teacherId: number, schoolYear: number): Promise<SearchStudent[]> {
+// The students of the teacher's classes of one school year whose name
+// matches, with their classes, and the grade of each one's latest graded
+// paper of the year, in one batch. A student in two classes of the year is
+// one student.
+async function findYearStudents(
+  db: D1Database,
+  teacherId: number,
+  schoolYear: number,
+  matches: (text: string) => boolean,
+): Promise<SearchStudent[]> {
   const [enrolled, latest] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
@@ -43,6 +50,7 @@ async function listYearStudents(db: D1Database, teacherId: number, schoolYear: n
   const grades = new Map(((latest?.results ?? []) as { student_id: number; grade: number }[]).map((row) => [row.student_id, row.grade]));
   const students = new Map<number, { fullName: string; active: SearchStudent['classes']; left: SearchStudent['classes'] }>();
   for (const row of (enrolled?.results ?? []) as unknown as EnrolledRow[]) {
+    if (!students.has(row.id) && !matches(row.full_name)) continue;
     const student = students.get(row.id) ?? { fullName: row.full_name, active: [], left: [] };
     (row.active === 1 ? student.active : student.left).push({ id: row.class_id, name: row.class_name });
     students.set(row.id, student);
@@ -51,7 +59,7 @@ async function listYearStudents(db: D1Database, teacherId: number, schoolYear: n
     .map(([id, student]) => ({
       id,
       fullName: student.fullName,
-      classes: student.active.length > 0 ? student.active : student.left,
+      classes: (student.active.length > 0 ? student.active : student.left).sort((a, b) => compareClassNames(a.name, b.name)),
       lastGrade: grades.get(id) ?? null,
     }))
     .sort((a, b) => compareStudentNames(a.fullName, b.fullName));
@@ -63,12 +71,12 @@ async function listYearStudents(db: D1Database, teacherId: number, schoolYear: n
 export async function search(db: D1Database, teacherId: number, schoolYear: number, query: string): Promise<SearchResults> {
   const matches = searchMatcher(query);
   const [students, classes, tests] = await Promise.all([
-    listYearStudents(db, teacherId, schoolYear),
+    findYearStudents(db, teacherId, schoolYear, matches),
     listClasses(db, teacherId, schoolYear),
     listTests(db, teacherId, schoolYear),
   ]);
   return {
-    students: students.filter((student) => matches(student.fullName)),
+    students,
     classes: classes.filter((cls) => matches(cls.name)),
     tests: tests.filter((test) => matches(test.title)),
   };

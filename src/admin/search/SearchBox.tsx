@@ -79,11 +79,20 @@ export function SearchBox({ id, always = false }: { id: string; always?: boolean
   const ready = isSearchable(text);
   const shown = ready && (always || open);
   const groups = ready && search.data ? groupsOf(search.data, text) : [];
-  // With nothing found the list says so, and has no line to choose.
-  const empty = search.data !== undefined && groups.length === 0;
+  // The list opens with the first answer. With nothing found it says so and
+  // has no line to choose; an older answer, still on screen while the new one
+  // comes, does not say so.
+  const answered = search.data !== undefined;
+  const empty = answered && !search.isPlaceholderData && groups.length === 0;
   const all: Option = { to: resultsPath(text), name: `Toate rezultatele pentru „${text.trim()}”` };
-  const options: Option[] = ready && !empty ? [...groups.flatMap((group) => group.options), all] : [];
+  const options: Option[] = ready && answered && !empty ? [...groups.flatMap((group) => group.options), all] : [];
   const listed = shown && options.length > 0;
+  // A new answer forgets the chosen line: it may be gone or another one.
+  const [answer, setAnswer] = useState(search.data);
+  if (answer !== search.data) {
+    setAnswer(search.data);
+    setActive(-1);
+  }
   const listId = `${id}-list`;
   const optionId = (index: number) => `${id}-option-${index}`;
 
@@ -159,7 +168,7 @@ export function SearchBox({ id, always = false }: { id: string; always?: boolean
         aria-label={SEARCH_LABEL}
         placeholder={SEARCH_LABEL}
         aria-autocomplete="list"
-        aria-expanded={shown}
+        aria-expanded={listed}
         aria-controls={listed ? listId : undefined}
         aria-activedescendant={listed && active >= 0 ? optionId(active) : undefined}
         autoComplete="off"
@@ -174,10 +183,11 @@ export function SearchBox({ id, always = false }: { id: string; always?: boolean
         onFocus={() => setOpen(true)}
         onKeyDown={onKey}
       />
-      {shown && (
+      {shown && (answered || search.error) && (
         <div className="search-pop">
-          {empty && <p className="search-none">Nimic găsit în acest an școlar.</p>}
-          {search.error && !search.data && <p className="search-none">Căutarea nu a mers. Încearcă din nou.</p>}
+          <p className="search-none" role="status">
+            {empty ? 'Nimic găsit în acest an școlar.' : search.error && !answered ? 'Căutarea nu a mers. Încearcă din nou.' : null}
+          </p>
           {listed && (
             <div id={listId} role="listbox" aria-label={`Rezultate pentru „${text.trim()}”`}>
               {groups.map((group) => (

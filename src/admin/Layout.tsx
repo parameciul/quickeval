@@ -66,11 +66,13 @@ export function Layout() {
   // it stays closed when Back or Forward returns to that page (the router gives
   // the page its old key again).
   const [panel, setPanel] = useState<{ name: PanelName; on: string } | null>(null);
-  if (panel && panel.on !== location.key) setPanel(null);
+  const phone = useMediaQuery(PHONE);
+  // The phone's search over the whole screen closes when the screen grows.
+  if (panel && (panel.on !== location.key || (panel.name === 'search' && !phone))) setPanel(null);
   const open = panel?.on === location.key ? panel.name : null;
   const toggle = (name: PanelName) => setPanel(open === name ? null : { name, on: location.key });
   const close = useCallback(() => setPanel(null), []);
-  const phone = useMediaQuery(PHONE);
+  const searching = phone && open === 'search';
 
   // A start, a regrade or a retry changes the papers the demo button shows, and
   // a change can end or add a thing in "De făcut": every change a logged-in
@@ -116,7 +118,7 @@ export function Layout() {
 
   return (
     <div className={me.data ? 'shell' : 'shell shell-bare'}>
-      <header className="topbar">
+      <header className="topbar" inert={searching}>
         <Link className="brand" to="/" aria-label="MQGrader by Laura Miron">
           <BrandMark />
           <span className="brand-text">
@@ -161,7 +163,7 @@ export function Layout() {
         {me.data && open === 'menu' && <PhoneMenu teacher={me.data} onClose={close} />}
       </header>
       {me.data && (
-        <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length + (approvals > 0 ? 1 : 0)} urgent={approvals > 0} panel={open} onToggle={toggle} />
+        <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length + (approvals > 0 ? 1 : 0)} urgent={approvals > 0} panel={open} onToggle={toggle} inert={searching} />
       )}
       {/* The panels come right after the bar that opens them, for the keyboard
           and screen readers. */}
@@ -171,9 +173,9 @@ export function Layout() {
       {me.data && open === 'todo' && (
         <TodoPanel items={todo} approvals={approvals} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
       )}
-      {me.data && phone && open === 'search' && <SearchLayer onClose={close} />}
+      {me.data && searching && <SearchLayer onClose={close} />}
       {/* On a phone a panel covers the page: the page under it is out of reach. */}
-      <main className={wayIn ? 'page page-way-in' : 'page'} inert={phone && (open === 'clase' || open === 'todo' || open === 'search')}>
+      <main className={wayIn ? 'page page-way-in' : 'page'} inert={searching || (phone && (open === 'clase' || open === 'todo'))}>
         {openPage ? (
           <Outlet />
         ) : loggedOut ? (

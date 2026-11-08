@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi } from '../../test/fakeApi.ts';
@@ -46,7 +46,10 @@ describe('the search on a phone', () => {
     expect(magnifier).toHaveAttribute('aria-controls', layer.id);
     const box = within(layer).getByRole('combobox', { name: 'Caută elevi, clase și teste' });
     expect(box).toHaveFocus();
+    // Nothing under the layer takes the focus: the page, the top bar, the bar.
     expect(screen.getByRole('main', { hidden: true })).toHaveAttribute('inert');
+    expect(magnifier.closest('header')).toHaveAttribute('inert');
+    expect(screen.getByRole('navigation', { name: 'Meniu', hidden: true })).toHaveAttribute('inert');
     await userEvent.type(box, 'stef');
     expect(await within(layer).findByRole('option', { name: 'Ștefan Radu, Clasa 10B' })).toBeInTheDocument();
     // The list stays open while the focus moves inside the layer.
@@ -54,6 +57,35 @@ describe('the search on a phone', () => {
     expect(screen.queryByRole('dialog', { name: 'Caută' })).not.toBeInTheDocument();
     expect(magnifier).toHaveFocus();
     expect(screen.getByRole('main')).not.toHaveAttribute('inert');
+    expect(magnifier.closest('header')).not.toHaveAttribute('inert');
+    expect(screen.getByRole('navigation', { name: 'Meniu' })).not.toHaveAttribute('inert');
+  });
+
+  it('closes when the screen grows past a phone', async () => {
+    const listeners = new Set<() => void>();
+    let narrow = true;
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return narrow && query === '(max-width: 56.25rem)';
+      },
+      media: query,
+      addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+    }));
+    const magnifier = await openPhone();
+    await userEvent.click(magnifier);
+    expect(screen.getByRole('dialog', { name: 'Caută' })).toBeInTheDocument();
+    act(() => {
+      narrow = false;
+      listeners.forEach((listener) => listener());
+    });
+    expect(screen.queryByRole('dialog', { name: 'Caută' })).not.toBeInTheDocument();
+    expect(screen.getByRole('main')).not.toHaveAttribute('inert');
+    act(() => {
+      narrow = true;
+      listeners.forEach((listener) => listener());
+    });
+    expect(screen.queryByRole('dialog', { name: 'Caută' })).not.toBeInTheDocument();
   });
 
   it('closes with Esc, even with the list open', async () => {
