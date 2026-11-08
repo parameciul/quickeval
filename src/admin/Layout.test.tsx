@@ -97,7 +97,9 @@ describe('the shell', () => {
     expect(screen.getByText('profesor@example.com')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('link', { name: 'Contul meu' }));
     await expectLocation('/cont');
-    expect(screen.queryByText('profesor@example.com')).not.toBeInTheDocument();
+    // The new page closes the menu (Contul meu shows the email on its own).
+    expect(screen.getByRole('button', { name: 'LM, contul tău: Laura Miron' })).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('user-menu')).toBeNull();
   });
 
   it('logs out from the account menu', async () => {

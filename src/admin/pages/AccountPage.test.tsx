@@ -1,20 +1,57 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi, fakeTeacher } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import { ApiError } from '../api.ts';
-import { accountKindText } from './AccountPage.tsx';
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe('AccountPage', () => {
-  it('shows who is logged in and the kind of account', async () => {
-    renderAdmin('/cont', createFakeApi());
-    expect(await screen.findByText('Laura Miron (profesor@example.com)')).toBeInTheDocument();
-    expect(screen.getByText('Ești administrator. Până acum: 0 teste și 0 lucrări.')).toBeInTheDocument();
+  it('shows an administrator who is logged in, the counts and where Setări is', async () => {
+    renderAdmin('/cont', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ testsEvaluated: 21, papersGraded: 596 }) }));
+    const card = await screen.findByRole('region', { name: 'Contul tău' });
+    expect(within(card).getByText('Administrator')).toHaveClass('tag-ok');
+    expect(within(card).getByText('Laura Miron')).toBeInTheDocument();
+    expect(within(card).getByText('profesor@example.com')).toBeInTheDocument();
+    expect(within(card).getByText('LM')).toBeInTheDocument();
+    expect(within(card).getByText('Teste corectate').nextElementSibling).toHaveTextContent('21');
+    expect(within(card).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('596');
+    expect(within(card).getByRole('link', { name: 'Setări' })).toHaveAttribute('href', '/setari');
+    // No pay button: nothing is on sale.
+    expect(screen.queryByRole('button', { name: /plătește|cumpără/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Parola' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Ieșire' })).toHaveTextContent('Ieși din cont pe acest dispozitiv.');
+  });
+
+  it('shows a complete account with its counts and no link to Setări', async () => {
+    renderAdmin('/cont', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', testsEvaluated: 1, papersGraded: 28 }) }));
+    const card = await screen.findByRole('region', { name: 'Contul tău' });
+    expect(within(card).getByText('Cont complet')).toBeInTheDocument();
+    expect(within(card).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('28');
+    expect(within(card).queryByRole('link', { name: 'Setări' })).not.toBeInTheDocument();
+  });
+
+  it('shows a demo account its one test and its papers, and what is left', async () => {
+    renderAdmin('/cont', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 18, papersWaiting: 2 }) }));
+    const card = await screen.findByRole('region', { name: 'Contul tău' });
+    expect(within(card).getByText('Cont demo')).not.toHaveClass('tag-ok');
+    expect(within(card).getByText('Teste corectate').nextElementSibling).toHaveTextContent('1 din 1');
+    expect(within(card).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('20 din 35');
+    expect(card).toHaveTextContent('Mai ai 15 lucrări, pentru testul tău. Fiecare lucrare corectată se numără, și o recorectare.');
+    expect(card.querySelector('.demo-meter.is-full')).toBeNull();
+  });
+
+  it('turns the papers meter orange and asks for a complete account when none are left', async () => {
+    renderAdmin('/cont', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 3, papersGraded: 34, papersWaiting: 4 }) }));
+    const card = await screen.findByRole('region', { name: 'Contul tău' });
+    // A regrade counts the test again, but the account has one test.
+    expect(within(card).getByText('Teste corectate').nextElementSibling).toHaveTextContent('1 din 1');
+    expect(within(card).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('35 din 35');
+    expect(within(card).getByText('Lucrări corectate').closest('.demo-meter')).toHaveClass('is-full');
+    expect(card).toHaveTextContent('Ai folosit toate cele 35 de lucrări ale contului demo. Cere unui administrator un cont complet.');
   });
 
   it('changes the password', async () => {
@@ -46,17 +83,5 @@ describe('AccountPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Ieși din cont' }));
     expect(api.logout).toHaveBeenCalled();
     await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/admin/'));
-  });
-});
-
-describe('accountKindText', () => {
-  it.each([
-    [fakeTeacher({ testsEvaluated: 21, papersGraded: 300 }), 'Ești administrator. Până acum: 21 de teste și 300 de lucrări.'],
-    [fakeTeacher({ role: 'teacher', testsEvaluated: 1, papersGraded: 1 }), 'Ai un cont complet. Până acum: 1 test și 1 lucrare.'],
-    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 1 }), 'Ai un cont demo: ai folosit 1 din 35 lucrări.'],
-    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 9, papersGraded: 9 }), 'Ai un cont demo: ai folosit 9 din 35 lucrări.'],
-    [fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 1, papersWaiting: 2 }), 'Ai un cont demo: ai folosit 3 din 35 lucrări.'],
-  ])('describes %j', (teacher, text) => {
-    expect(accountKindText(teacher)).toBe(text);
   });
 });
