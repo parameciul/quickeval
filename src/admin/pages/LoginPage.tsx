@@ -1,37 +1,116 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation } from 'react-router';
 import { DEMO_PAPER_LIMIT, MAX_PASSWORD_LENGTH, MAX_TEACHER_NAME_LENGTH, MIN_PASSWORD_LENGTH } from '../../../shared/accounts.ts';
+import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
+import { ApiError } from '../api.ts';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { State, WayIn } from '../wayIn/WayIn.tsx';
 
-type Mode = 'login' | 'signup' | 'forgot';
+// What the left half shows: a form, or what happened after one. "pending" is
+// an account that confirmed its email and waits for an administrator: its
+// login is refused, so it has no session.
+type Mode =
+  | { name: 'login' }
+  | { name: 'signup' }
+  | { name: 'forgot' }
+  | { name: 'signup-sent' }
+  | { name: 'forgot-sent' }
+  | { name: 'pending'; email: string };
 
 // The link "Cere un cont de profesor" of the landing page opens /admin/#cont-nou.
 export const SIGNUP_HASH = '#cont-nou';
 
-// Shown instead of every page while nobody is logged in: "Intră" with email
-// and password, or "Cont nou", which asks an administrator for an account.
+// Shown instead of every page while nobody is logged in (redesign spec §11.4):
+// "Intră în cont", "Cont nou de profesor", "Am uitat parola", and the state
+// after each. A new state moves the focus to its heading.
 export function LoginPage() {
   const { hash } = useLocation();
-  const [mode, setMode] = useState<Mode>(hash === SIGNUP_HASH ? 'signup' : 'login');
+  const [mode, setMode] = useState<Mode>(hash === SIGNUP_HASH ? { name: 'signup' } : { name: 'login' });
+  const heading = useRef<HTMLHeadingElement>(null);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    heading.current?.focus();
+  }, [mode]);
+
   return (
-    <section className="login-box">
-      <h1>{mode === 'login' ? 'Intră în cont' : mode === 'signup' ? 'Cont nou' : 'Parolă nouă'}</h1>
-      <div className="login-switch" role="group" aria-label="Alege">
-        <button type="button" className="button-quiet" aria-pressed={mode !== 'signup'} onClick={() => setMode('login')}>
-          Am cont
-        </button>
-        <button type="button" className="button-quiet" aria-pressed={mode === 'signup'} onClick={() => setMode('signup')}>
-          Vreau cont nou
-        </button>
-      </div>
-      {mode === 'login' ? <LoginForm onForgot={() => setMode('forgot')} /> : mode === 'signup' ? <SignupForm /> : <ForgotForm onBack={() => setMode('login')} />}
-    </section>
+    <WayIn>
+      {mode.name === 'login' ? (
+        <State heading={heading} title="Intră în cont" lead="Bine ai revenit.">
+          <LoginForm onForgot={() => setMode({ name: 'forgot' })} onPending={(email) => setMode({ name: 'pending', email })} />
+          <p className="way-in-alt">
+            Nu ai cont?{' '}
+            <button type="button" className="link-button" onClick={() => setMode({ name: 'signup' })}>
+              Cere un cont de profesor
+            </button>
+          </p>
+        </State>
+      ) : mode.name === 'signup' ? (
+        <State heading={heading} title="Cont nou de profesor" lead="Primești un cont demo, ca să încerci MQGrader cu o clasă a ta.">
+          <SignupForm onSent={() => setMode({ name: 'signup-sent' })} />
+          <p className="way-in-alt">
+            Ai deja cont?{' '}
+            <button type="button" className="link-button" onClick={() => setMode({ name: 'login' })}>
+              Intră în cont
+            </button>
+          </p>
+        </State>
+      ) : mode.name === 'forgot' ? (
+        <State heading={heading} title="Am uitat parola" lead="Scrie adresa de email a contului. Îți trimitem un link ca să alegi o parolă nouă.">
+          <ForgotForm onSent={() => setMode({ name: 'forgot-sent' })} />
+          <BackToLogin onClick={() => setMode({ name: 'login' })} />
+        </State>
+      ) : mode.name === 'signup-sent' ? (
+        <State heading={heading} icon="mail" title="Verifică-ți emailul">
+          <div role="status">
+            <p>Ți-am trimis un email cu un link. Deschide-l în 24 de ore ca să confirmi adresa; apoi un administrator aprobă contul.</p>
+            <p className="way-in-muted">
+              După aprobare, intră cu emailul și parola alese. Nu găsești emailul? Uită-te și în Spam. Dacă ai deja un cont cu acest email,
+              intră în el cu parola ta.
+            </p>
+          </div>
+          <BackToLogin onClick={() => setMode({ name: 'login' })} />
+        </State>
+      ) : mode.name === 'forgot-sent' ? (
+        <State heading={heading} icon="mail" title="Verifică-ți emailul">
+          <div role="status">
+            <p>Dacă adresa are un cont, ți-am trimis un email cu un link pentru o parolă nouă. Linkul merge o oră.</p>
+            <p className="way-in-muted">Nu găsești emailul? Uită-te și în Spam, sau cere altul peste câteva minute.</p>
+          </div>
+          <BackToLogin onClick={() => setMode({ name: 'login' })} />
+        </State>
+      ) : (
+        <State heading={heading} icon="wait" title="Contul tău așteaptă aprobarea">
+          <div role="status">
+            <p>
+              Adresa <b>{mode.email}</b> este confirmată. Un administrator aprobă contul; vei primi un email după aprobare.
+            </p>
+          </div>
+          <button type="button" className="button-quiet way-in-wide" onClick={() => setMode({ name: 'login' })}>
+            Ieși
+          </button>
+        </State>
+      )}
+    </WayIn>
   );
 }
 
-function LoginForm({ onForgot }: { onForgot: () => void }) {
+function BackToLogin({ onClick }: { onClick: () => void }) {
+  return (
+    <p className="way-in-alt">
+      <button type="button" className="link-button" onClick={onClick}>
+        Înapoi la pagina de intrare
+      </button>
+    </p>
+  );
+}
+
+function LoginForm({ onForgot, onPending }: { onForgot: () => void; onPending: (email: string) => void }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
@@ -43,145 +122,132 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
       queryClient.setQueryData(['me'], teacher);
       await queryClient.invalidateQueries();
     },
+    // An account that waits for approval has its own state; any other refusal
+    // (a wrong password, an email not yet confirmed) shows under the form.
+    onError: (error) => {
+      if (error instanceof ApiError && error.code === 'account_pending') onPending(email.trim());
+    },
   });
+  const pending = login.error instanceof ApiError && login.error.code === 'account_pending';
 
   return (
     <form
-      className="form-stack"
+      className="form-fields"
       onSubmit={(event: FormEvent) => {
         event.preventDefault();
         login.mutate();
       }}
     >
-      <label htmlFor="login-email">Email</label>
-      <input id="login-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-      <label htmlFor="login-password">Parola</label>
-      <input
-        id="login-password"
-        type="password"
-        autoComplete="current-password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        maxLength={MAX_PASSWORD_LENGTH}
-        required
-      />
-      <span>
-        <button className="button" type="submit" disabled={login.isPending}>
-          {login.isPending ? 'Se verifică…' : 'Intră'}
-        </button>
-      </span>
-      {login.error && <ErrorMessage error={login.error} />}
-      <p className="hint">
-        Ai uitat parola?{' '}
-        <button type="button" className="link-button" onClick={onForgot}>
-          Primești pe email un link pentru o parolă nouă
-        </button>
-        .
-      </p>
+      <div className="form-field">
+        <label htmlFor="login-email">Adresa de email</label>
+        <input id="login-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+      </div>
+      <div className="form-field">
+        <div className="way-in-label-row">
+          <label htmlFor="login-password">Parola</label>
+          <button type="button" className="link-button" onClick={onForgot}>
+            Am uitat parola
+          </button>
+        </div>
+        <input
+          id="login-password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          maxLength={MAX_PASSWORD_LENGTH}
+          required
+        />
+      </div>
+      <button className="button way-in-wide" type="submit" disabled={login.isPending}>
+        {login.isPending ? 'Se verifică…' : 'Intră'}
+      </button>
+      {login.error && !pending && <ErrorMessage error={login.error} />}
     </form>
   );
 }
 
-function ForgotForm({ onBack }: { onBack: () => void }) {
+function ForgotForm({ onSent }: { onSent: () => void }) {
   const api = useApi();
   const [email, setEmail] = useState('');
-  const forgot = useMutation({ mutationFn: () => api.forgotPassword(email) });
-
-  if (forgot.isSuccess) {
-    return (
-      <div className="warning" role="status">
-        <p>Dacă adresa are un cont, ți-am trimis un email cu un link pentru o parolă nouă. Linkul merge o oră.</p>
-        <p>Nu găsești emailul? Uită-te și în Spam, sau cere altul peste câteva minute.</p>
-      </div>
-    );
-  }
+  const forgot = useMutation({ mutationFn: () => api.forgotPassword(email), onSuccess: onSent });
 
   return (
     <form
-      className="form-stack"
+      className="form-fields"
       onSubmit={(event: FormEvent) => {
         event.preventDefault();
         forgot.mutate();
       }}
     >
-      <p>Scrie adresa de email a contului. Îți trimitem un link ca să alegi o parolă nouă.</p>
-      <label htmlFor="forgot-email">Email</label>
-      <input id="forgot-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-      <span>
-        <button className="button" type="submit" disabled={forgot.isPending}>
-          {forgot.isPending ? 'Se trimite…' : 'Trimite linkul'}
-        </button>
-      </span>
+      <div className="form-field">
+        <label htmlFor="forgot-email">Adresa de email</label>
+        <input id="forgot-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+      </div>
+      <button className="button way-in-wide" type="submit" disabled={forgot.isPending}>
+        {forgot.isPending ? 'Se trimite…' : 'Trimite linkul'}
+      </button>
       {forgot.error && <ErrorMessage error={forgot.error} />}
-      <p className="hint">
-        <button type="button" className="link-button" onClick={onBack}>
-          Înapoi la intrare
-        </button>
-      </p>
     </form>
   );
 }
 
-function SignupForm() {
+function SignupForm({ onSent }: { onSent: () => void }) {
   const api = useApi();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const signup = useMutation({ mutationFn: () => api.signup({ name, email, password }) });
-
-  if (signup.isSuccess) {
-    return (
-      <div className="warning" role="status">
-        <p>Ți-am trimis un email cu un link. Deschide-l în 24 de ore ca să confirmi adresa; apoi un administrator aprobă contul.</p>
-        <p>
-          După aprobare, intră cu emailul și parola alese. Nu găsești emailul? Uită-te și în Spam. Dacă ai deja un cont cu acest email, intră
-          în el cu parola ta.
-        </p>
-      </div>
-    );
-  }
+  const signup = useMutation({ mutationFn: () => api.signup({ name, email, password }), onSuccess: onSent });
 
   return (
-    <form
-      className="form-stack"
-      onSubmit={(event: FormEvent) => {
-        event.preventDefault();
-        signup.mutate();
-      }}
-    >
-      <label htmlFor="signup-name">Numele tău</label>
-      <input
-        id="signup-name"
-        type="text"
-        autoComplete="name"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        maxLength={MAX_TEACHER_NAME_LENGTH}
-        required
-      />
-      <label htmlFor="signup-email">Email</label>
-      <input id="signup-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-      <label htmlFor="signup-password">Parola (cel puțin {MIN_PASSWORD_LENGTH} caractere)</label>
-      <input
-        id="signup-password"
-        type="password"
-        autoComplete="new-password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        minLength={MIN_PASSWORD_LENGTH}
-        maxLength={MAX_PASSWORD_LENGTH}
-        required
-      />
-      <span>
-        <button className="button" type="submit" disabled={signup.isPending}>
+    <>
+      <form
+        className="form-fields"
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          signup.mutate();
+        }}
+      >
+        <div className="form-field">
+          <label htmlFor="signup-name">Numele tău</label>
+          <input
+            id="signup-name"
+            type="text"
+            autoComplete="name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={MAX_TEACHER_NAME_LENGTH}
+            required
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="signup-email">Adresa de email</label>
+          <input id="signup-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        </div>
+        <div className="form-field">
+          <label htmlFor="signup-password">
+            Parola <span className="form-hint">(cel puțin {MIN_PASSWORD_LENGTH} caractere)</span>
+          </label>
+          <input
+            id="signup-password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            minLength={MIN_PASSWORD_LENGTH}
+            maxLength={MAX_PASSWORD_LENGTH}
+            required
+          />
+        </div>
+        <button className="button way-in-wide" type="submit" disabled={signup.isPending}>
           {signup.isPending ? 'Se trimite…' : 'Cere contul'}
         </button>
-      </span>
-      {signup.error && <ErrorMessage error={signup.error} />}
-      <p className="hint">
-        Un cont nou este un cont demo: poți corecta un singur test, cu cel mult {DEMO_PAPER_LIMIT} lucrări în total. Contul se poate folosi după ce confirmi adresa de email și îl
-        aprobă un administrator.
+        {signup.error && <ErrorMessage error={signup.error} />}
+      </form>
+      <p className="way-in-note">
+        <b>Contul demo:</b> poți corecta un test, cu cel mult {countLabel(DEMO_PAPER_LIMIT, 'lucrare', 'lucrări')}. Întâi confirmi adresa de email,
+        apoi un administrator aprobă contul.
       </p>
-    </form>
+    </>
   );
 }

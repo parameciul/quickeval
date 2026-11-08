@@ -14,9 +14,13 @@ describe('the login form', () => {
     renderAdmin('/clase', api);
     expect(await screen.findByRole('heading', { name: 'Intră în cont' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Meniu' })).not.toBeInTheDocument();
+    // Logged out, the top bar has the lockup and the theme, no school year.
+    expect(screen.queryByLabelText('Anul școlar')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Weekendul tău, fără teancul de lucrări.' })).toBeInTheDocument();
+    expect(screen.getByText('Elevii nu au nevoie de cont: trimit lucrarea de pe linkul testului.')).toBeInTheDocument();
     expect(api.listClasses).not.toHaveBeenCalled();
 
-    await userEvent.type(screen.getByLabelText('Email'), 'profesor@example.com');
+    await userEvent.type(screen.getByLabelText('Adresa de email'), 'profesor@example.com');
     await userEvent.type(screen.getByLabelText('Parola'), 'parola-buna');
     await userEvent.click(screen.getByRole('button', { name: 'Intră' }));
     expect(api.login).toHaveBeenCalledWith('profesor@example.com', 'parola-buna');
@@ -24,39 +28,61 @@ describe('the login form', () => {
     expect(screen.getByRole('navigation', { name: 'Meniu' })).toBeInTheDocument();
   });
 
-  it('shows the reason a login is refused', async () => {
+  it('shows the reason a login is refused under the form', async () => {
+    const api = createFakeApi();
+    api.me.mockRejectedValueOnce(loginRequired());
+    api.login.mockRejectedValueOnce(new ApiError(403, 'email_unconfirmed', 'Confirmă mai întâi adresa de email, cu linkul primit pe email.'));
+    renderAdmin('/', api);
+    await userEvent.type(await screen.findByLabelText('Adresa de email'), 'nou@example.com');
+    await userEvent.type(screen.getByLabelText('Parola'), 'parola-buna');
+    await userEvent.click(screen.getByRole('button', { name: 'Intră' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Confirmă mai întâi adresa de email');
+    expect(screen.getByRole('heading', { name: 'Intră în cont' })).toBeInTheDocument();
+  });
+
+  it('tells an account that waits for approval, and "Ieși" goes back to the login', async () => {
     const api = createFakeApi();
     api.me.mockRejectedValueOnce(loginRequired());
     api.login.mockRejectedValueOnce(new ApiError(403, 'account_pending', 'Contul tău așteaptă aprobarea unui administrator.'));
     renderAdmin('/', api);
-    await userEvent.type(await screen.findByLabelText('Email'), 'nou@example.com');
+    await userEvent.type(await screen.findByLabelText('Adresa de email'), ' nou@example.com ');
     await userEvent.type(screen.getByLabelText('Parola'), 'parola-buna');
     await userEvent.click(screen.getByRole('button', { name: 'Intră' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Contul tău așteaptă aprobarea unui administrator.');
+    const heading = await screen.findByRole('heading', { name: 'Contul tău așteaptă aprobarea' });
+    expect(heading).toHaveFocus();
+    expect(screen.getByRole('status')).toHaveTextContent('Adresa nou@example.com este confirmată.');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ieși' }));
+    expect(screen.getByRole('heading', { name: 'Intră în cont' })).toHaveFocus();
+    expect(screen.getByLabelText('Adresa de email')).toHaveValue('');
   });
 
   it('asks for a new account, which waits for an administrator', async () => {
     const api = createFakeApi();
     api.me.mockRejectedValueOnce(loginRequired());
     renderAdmin('/', api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Vreau cont nou' }));
-    expect(screen.getByRole('heading', { name: 'Cont nou' })).toBeInTheDocument();
-    expect(screen.getByText(/cont demo: poți corecta un singur test, cu cel mult 35 lucrări/)).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: 'Cere un cont de profesor' }));
+    expect(screen.getByRole('heading', { name: 'Cont nou de profesor' })).toHaveFocus();
+    expect(screen.getByText(/poți corecta un test, cu cel mult 35 de lucrări\. Întâi confirmi adresa de email/)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Numele tău'), 'Ana Pop');
-    await userEvent.type(screen.getByLabelText('Email'), 'ana@example.com');
+    await userEvent.type(screen.getByLabelText('Adresa de email'), 'ana@example.com');
     await userEvent.type(screen.getByLabelText(/^Parola/), 'parola-lunga');
     await userEvent.click(screen.getByRole('button', { name: 'Cere contul' }));
     expect(api.signup).toHaveBeenCalledWith({ name: 'Ana Pop', email: 'ana@example.com', password: 'parola-lunga' });
-    expect(await screen.findByRole('status')).toHaveTextContent('Ți-am trimis un email cu un link.');
+    expect(await screen.findByRole('heading', { name: 'Verifică-ți emailul' })).toHaveFocus();
+    expect(screen.getByRole('status')).toHaveTextContent('Ți-am trimis un email cu un link.');
+    await userEvent.click(screen.getByRole('button', { name: 'Înapoi la pagina de intrare' }));
+    expect(screen.getByRole('heading', { name: 'Intră în cont' })).toBeInTheDocument();
   });
 
   it('opens on the new account form from the link "#cont-nou" of the landing page', async () => {
     const api = createFakeApi();
     api.me.mockRejectedValueOnce(loginRequired());
     renderAdmin('/#cont-nou', api);
-    expect(await screen.findByRole('heading', { name: 'Cont nou' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Vreau cont nou' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(screen.getByRole('button', { name: 'Am cont' }));
+    const heading = await screen.findByRole('heading', { name: 'Cont nou de profesor' });
+    // The first state takes no focus: the page has just opened.
+    expect(heading).not.toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Intră în cont' }));
     expect(screen.getByRole('heading', { name: 'Intră în cont' })).toBeInTheDocument();
   });
 
@@ -130,12 +156,13 @@ describe('the forgotten password', () => {
     const api = createFakeApi();
     api.me.mockRejectedValueOnce(loginRequired());
     renderAdmin('/', api);
-    await userEvent.click(await screen.findByRole('button', { name: /link pentru o parolă nouă/ }));
-    expect(screen.getByRole('heading', { name: 'Parolă nouă' })).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText('Email'), 'profesor@example.com');
+    await userEvent.click(await screen.findByRole('button', { name: 'Am uitat parola' }));
+    expect(screen.getByRole('heading', { name: 'Am uitat parola' })).toHaveFocus();
+    await userEvent.type(screen.getByLabelText('Adresa de email'), 'profesor@example.com');
     await userEvent.click(screen.getByRole('button', { name: 'Trimite linkul' }));
     expect(api.forgotPassword).toHaveBeenCalledWith('profesor@example.com');
-    expect(await screen.findByRole('status')).toHaveTextContent('Dacă adresa are un cont');
+    expect(await screen.findByRole('heading', { name: 'Verifică-ți emailul' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Dacă adresa are un cont');
   });
 
   it('shows why a link could not be sent', async () => {
@@ -143,9 +170,12 @@ describe('the forgotten password', () => {
     api.me.mockRejectedValueOnce(loginRequired());
     api.forgotPassword.mockRejectedValueOnce(new ApiError(429, 'too_many_resets', 'Prea multe cereri de resetare. Încearcă din nou mâine.'));
     renderAdmin('/', api);
-    await userEvent.click(await screen.findByRole('button', { name: /link pentru o parolă nouă/ }));
-    await userEvent.type(screen.getByLabelText('Email'), 'profesor@example.com');
+    await userEvent.click(await screen.findByRole('button', { name: 'Am uitat parola' }));
+    await userEvent.type(screen.getByLabelText('Adresa de email'), 'profesor@example.com');
     await userEvent.click(screen.getByRole('button', { name: 'Trimite linkul' }));
     expect(await screen.findByText(/Prea multe cereri de resetare/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Am uitat parola' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Înapoi la pagina de intrare' }));
+    expect(screen.getByRole('heading', { name: 'Intră în cont' })).toBeInTheDocument();
   });
 });

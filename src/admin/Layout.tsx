@@ -117,6 +117,8 @@ export function Layout() {
   // confirm a new account's email and set a new password need no login.
   const loggedOut = isLoginRequired(me.error);
   const openPage = location.pathname === '/confirma-email' || location.pathname === '/parola-noua';
+  // These fill the screen under the top bar with the two halves of the way in.
+  const wayIn = !me.data && (openPage || loggedOut);
 
   return (
     <div className={me.data ? 'shell' : 'shell shell-bare'}>
@@ -129,7 +131,8 @@ export function Layout() {
           </span>
         </Link>
         <div className="topbar-tools">
-          <YearSelect id="school-year" labelClassName="sr-only" />
+          {/* Logged out, the top bar has only the lockup and the theme. */}
+          {me.data && <YearSelect id="school-year" labelClassName="sr-only" />}
           <ThemeButton />
           {me.data && <UserMenu teacher={me.data} />}
         </div>
@@ -159,7 +162,7 @@ export function Layout() {
         <TodoPanel items={todo} approvals={approvals} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
       )}
       {/* On a phone a panel covers the page: the page under it is out of reach. */}
-      <main className="page" inert={phone && (open === 'clase' || open === 'todo')}>
+      <main className={wayIn ? 'page page-way-in' : 'page'} inert={phone && (open === 'clase' || open === 'todo')}>
         {me.data?.demo && <p className="warning">{demoText(me.data)}</p>}
         {openPage ? (
           <Outlet />

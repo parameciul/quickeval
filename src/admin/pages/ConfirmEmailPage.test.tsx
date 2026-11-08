@@ -13,12 +13,17 @@ describe('ConfirmEmailPage', () => {
     api.me.mockRejectedValue(loginRequired());
     renderAdmin('/confirma-email#token-din-link', api);
     const button = await screen.findByRole('button', { name: 'Confirmă adresa' });
+    expect(screen.getByRole('heading', { level: 1, name: 'Confirmă adresa de email' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Intră în cont' })).not.toBeInTheDocument();
+    // The same two halves as the login.
+    expect(screen.getByRole('heading', { name: 'Weekendul tău, fără teancul de lucrări.' })).toBeInTheDocument();
     expect(api.confirmEmail).not.toHaveBeenCalled();
     await userEvent.type(screen.getByLabelText('Parola'), 'parola-lunga');
     await userEvent.click(button);
     expect(api.confirmEmail).toHaveBeenCalledWith('token-din-link', 'parola-lunga');
-    expect(await screen.findByRole('status')).toHaveTextContent('adresa ta este confirmată');
+    expect(await screen.findByRole('heading', { name: 'Adresa ta este confirmată' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Acum un administrator trebuie să aprobe contul.');
+    expect(screen.getByRole('link', { name: 'Înapoi la pagina de intrare' })).toHaveAttribute('href', '/');
   });
 
   it('shows the server message for a link that no longer works', async () => {
