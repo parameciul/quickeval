@@ -1068,6 +1068,36 @@ textarea {
   margin-block: 0.75rem;
 }
 
+/* A form of fields one under the other, each label over its input, the
+   inputs as wide as the form (the way in, Contul meu). */
+.form-fields {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-fields > p {
+  margin: 0;
+}
+
+.form-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.form-field label {
+  font-size: 0.875rem;
+}
+
+.form-field input {
+  width: 100%;
+}
+
+.form-hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
 .hint {
   margin: 0;
   color: var(--muted);
@@ -3537,21 +3567,511 @@ table.items tr.edit-row > td {
   margin-bottom: 0;
 }
 
-/* The login page: the form, and the switch between "Intră" and "Cont nou". */
-.login-box {
-  max-width: 26rem;
-  margin: 2rem auto;
+/* The way in (redesign spec §11.4): two halves of equal width on the white
+   surface, as tall as the screen under the top bar, a line between them. The
+   form on the left, 24rem wide with no card; what MQGrader does on the right.
+   On a phone the form comes first. */
+.shell-bare > .page-way-in {
+  max-width: none;
+  padding: 0;
 }
 
-.login-switch {
+.way-in {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: calc(100vh - var(--top));
+  min-height: calc(100dvh - var(--top));
+  background: var(--sheet);
+}
+
+.way-in-form {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  padding: 3rem 2rem 1.5rem;
+  border-right: 1px solid var(--rule);
+}
+
+.way-in-form .way-in-inner {
+  align-self: center;
+  width: min(24rem, 100%);
+}
+
+.way-in-form h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.way-in-form h1:focus {
+  outline: none;
+}
+
+.way-in-lead {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+}
+
+.way-in-inner [role="status"] > p {
+  margin: 0.5rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.way-in-muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.way-in-label-row {
   display: flex;
-  gap: 0.5rem;
-  margin-block: 1rem;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
 }
 
-.login-switch [aria-pressed="true"] {
-  border-color: var(--ink);
+.way-in-label-row .link-button {
+  font-size: 0.8125rem;
+}
+
+.way-in-wide {
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+/* "Ieși" of the account that waits, under its text. */
+.way-in-inner > .way-in-wide {
+  margin-top: 1.5rem;
+}
+
+.way-in-inner .alert {
+  margin: 0;
+}
+
+.way-in-note {
+  margin: 1rem 0 0;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.way-in-note b {
+  color: var(--text);
+}
+
+.way-in-alt {
+  margin: 1.5rem 0 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.way-in-foot {
+  width: min(24rem, 100%);
+  margin: 2rem 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+/* The icon over a state with no form: mail blue, done green, waiting orange. */
+.way-in-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1rem;
+  border-radius: 999px;
+}
+
+.way-in-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.way-in-icon.is-mail {
+  background: var(--ink-tint);
+  color: var(--ink);
+}
+
+.way-in-icon.is-done {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.way-in-icon.is-wait {
+  background: var(--marker);
+  color: var(--orange);
+}
+
+.way-in-pitch {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding: 3rem clamp(2rem, 5vw, 5rem);
+}
+
+.way-in-pitch .way-in-inner {
+  width: min(38rem, 100%);
+}
+
+.way-in-pitch h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.way-in-line {
+  margin: 0.75rem 0 1.5rem;
+  color: var(--muted);
+  font-size: 1.0625rem;
+}
+
+/* The six stages of the landing page, small, in a box on the raised tone:
+   orange for the teacher's, blue for the others. */
+.way-in-flow {
+  padding: 1.125rem 1.25rem 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--raised);
+}
+
+.way-in-flow-title {
+  margin: 0 0 0.875rem;
+  color: var(--muted);
+  font-size: 0.75rem;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.way-in-flow ol {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.way-in-flow li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  column-gap: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.way-in-flow li:last-child {
+  padding-bottom: 0;
+}
+
+.way-in-flow li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 1.75rem;
+  bottom: 0;
+  left: calc(0.875rem - 1px);
+  width: 2px;
+  border-radius: 2px;
+  background: var(--active);
+}
+
+.way-in-node {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--ink-tint);
+  color: var(--ink);
+}
+
+.way-in-node svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+}
+
+.way-in-flow h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding-top: 0.2rem;
+  font-size: 0.875rem;
+}
+
+.way-in-who {
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--ink-tint);
+  color: var(--ink);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.way-in-flow li.is-you .way-in-node,
+.way-in-flow li.is-you .way-in-who {
+  background: var(--marker);
+  color: var(--orange);
+}
+
+.way-in-flow p {
+  margin: 0.1rem 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.way-in-flow p b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.way-in-legend {
+  margin: 0.875rem 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.way-in-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.375rem;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.way-in-dot.is-you {
+  background: var(--orange-mark);
+}
+
+.way-in-legend .way-in-dot:not(:first-child) {
+  margin-left: 0.75rem;
+}
+
+@media (max-width: 56.25rem) {
+  .way-in {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .way-in-form {
+    padding: 2rem max(1rem, env(safe-area-inset-right, 0px)) 1.5rem max(1rem, env(safe-area-inset-left, 0px));
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .way-in-pitch {
+    padding: 2rem max(1rem, env(safe-area-inset-right, 0px)) calc(2rem + env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  }
+}
+
+/* Contul meu (redesign spec §11.5): one column of white cards. */
+.account-page {
+  display: grid;
+  gap: 1rem;
+  max-width: 40rem;
+}
+
+.account-page h1 {
+  margin-bottom: 0.25rem;
+}
+
+.account-body {
+  padding: 0.25rem 1.25rem 1.25rem;
+}
+
+.account-who {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.account-who b {
+  display: block;
+  font-size: 1.125rem;
+}
+
+.account-who span {
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: var(--ink-tint);
+  color: var(--ink);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.account-counts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.account-counts dt {
+  color: var(--muted);
+}
+
+.account-counts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.account-line {
+  margin: 0.875rem 0 0;
+  font-size: 0.875rem;
+}
+
+.account-line.is-muted {
+  color: var(--muted);
+}
+
+.account-out {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.account-out .alert {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* The demo account's button of the top bar (redesign spec §11.6): a ring of
+   the papers used, orange when none are left, and a small menu under it. */
+.demo {
+  position: relative;
+}
+
+.demo-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--control);
+  border-radius: 999px;
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.demo-button:hover,
+.demo-button[aria-expanded="true"] {
+  border-color: var(--muted);
+}
+
+.demo-ring {
+  width: 1rem;
+  height: 1rem;
+  stroke: var(--ink);
+}
+
+.demo-ring circle:first-child {
+  stroke: var(--active);
+}
+
+.demo-button.is-full .demo-ring {
+  stroke: var(--orange-mark);
+}
+
+.demo-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  gap: 0.75rem;
+  width: 20rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+  box-shadow: var(--float);
+  font-size: 0.875rem;
+}
+
+.demo-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.demo-line {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.demo-line.is-muted {
+  color: var(--muted);
+}
+
+.phone-demo {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+/* The two meters of a demo account: its one test and its papers; the papers'
+   bar is orange when none are left. */
+.demo-meters {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.demo-meter {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.demo-meter-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.demo-meter-bar {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--active);
+}
+
+.demo-meter-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.demo-meter.is-full .demo-meter-bar > span {
+  background: var(--orange-mark);
 }
 
 /* A button that reads as a link inside a sentence ("Am uitat parola"). */
@@ -4202,6 +4722,11 @@ table.results-table td:nth-last-child(-n + 2) {
 .class-card-head span {
   color: var(--muted);
   font-size: 0.8125rem;
+}
+
+/* A green tag in a card head ("Cont complet") keeps its own colour. */
+.class-card-head .tag-ok {
+  color: var(--ok-fg);
 }
 
 .class-card-foot {

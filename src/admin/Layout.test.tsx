@@ -97,7 +97,9 @@ describe('the shell', () => {
     expect(screen.getByText('profesor@example.com')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('link', { name: 'Contul meu' }));
     await expectLocation('/cont');
-    expect(screen.queryByText('profesor@example.com')).not.toBeInTheDocument();
+    // The new page closes the menu (Contul meu shows the email on its own).
+    expect(screen.getByRole('button', { name: 'LM, contul tău: Laura Miron' })).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('user-menu')).toBeNull();
   });
 
   it('logs out from the account menu', async () => {
@@ -198,6 +200,22 @@ describe('the phone menu', () => {
     expect(within(screen.getByRole('banner')).getByRole('button', { name: 'Temă luminoasă' })).toBeInTheDocument();
     document.documentElement.removeAttribute('data-theme');
     localStorage.clear();
+  });
+
+  it('shows a demo account its papers in ☰, and only to a demo account', async () => {
+    renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 20 }) }));
+    await menu();
+    await userEvent.click(screen.getByRole('button', { name: 'Mai mult' }));
+    const more = screen.getByRole('region', { name: 'Mai mult' });
+    expect(within(more).getByText('Cont demo')).toBeInTheDocument();
+    expect(within(more).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('20 din 35');
+    expect(more).toHaveTextContent('Mai ai 15 lucrări, pentru testul tău.');
+    cleanup();
+
+    renderAdmin('/', withClasses());
+    await menu();
+    await userEvent.click(screen.getByRole('button', { name: 'Mai mult' }));
+    expect(within(screen.getByRole('region', { name: 'Mai mult' })).queryByText('Cont demo')).not.toBeInTheDocument();
   });
 
   it('changes the school year for every page', async () => {

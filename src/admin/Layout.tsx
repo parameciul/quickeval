@@ -1,8 +1,6 @@
 import { useQuery, useQueryClient, type Query } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, matchPath, Outlet, useLocation } from 'react-router';
-import { demoPapersLeft, DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
-import type { Teacher } from '../../shared/api.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
@@ -12,6 +10,7 @@ import { ErrorMessage, isLoginRequired } from './ErrorMessage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { useSchoolYear } from './SchoolYearContext.tsx';
 import { ClassesPanel } from './shell/ClassesPanel.tsx';
+import { DemoButton } from './shell/DemoButton.tsx';
 import { IconClose, IconMenu } from './shell/icons.tsx';
 import { PhoneMenu } from './shell/PhoneMenu.tsx';
 import { Rail, type PanelName } from './shell/Rail.tsx';
@@ -19,15 +18,6 @@ import { TodoPanel } from './shell/TodoPanel.tsx';
 import { todoList } from './shell/todo.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
 import { YearSelect } from './shell/YearSelect.tsx';
-
-// The line a demo account sees on every page.
-export function demoText(teacher: Teacher): string {
-  const left = demoPapersLeft(teacher.papersGraded + teacher.papersWaiting);
-  if (left === 0) {
-    return `Cont demo: ai folosit toate cele ${DEMO_PAPER_LIMIT} lucrări ale contului. Cere unui administrator un cont complet.`;
-  }
-  return `Cont demo: mai ai ${left} din ${DEMO_PAPER_LIMIT} lucrări. Fiecare lucrare corectată se numără, și o recorectare. Poți corecta un singur test.`;
-}
 
 // The phone layout of brand.css: the bar at the bottom, a panel over the page.
 const PHONE = '(max-width: 56.25rem)';
@@ -80,7 +70,7 @@ export function Layout() {
   const close = useCallback(() => setPanel(null), []);
   const phone = useMediaQuery(PHONE);
 
-  // A start, a regrade or a retry changes the papers the demo line shows, and
+  // A start, a regrade or a retry changes the papers the demo button shows, and
   // a change can end or add a thing in "De făcut": every change a logged-in
   // teacher makes reads the account and the tests of the year again. Only
   // what was not read since the change started, and joining a read already on
@@ -102,8 +92,8 @@ export function Layout() {
       }),
     [queryClient],
   );
-  // Esc closes the open panel, unless a layer above it (the account menu, the
-  // QR code on the whole screen) took this Esc first.
+  // Esc closes the open panel, unless a layer above it (a small menu of the
+  // top bar, the QR code on the whole screen) took this Esc first.
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -117,6 +107,8 @@ export function Layout() {
   // confirm a new account's email and set a new password need no login.
   const loggedOut = isLoginRequired(me.error);
   const openPage = location.pathname === '/confirma-email' || location.pathname === '/parola-noua';
+  // These fill the screen under the top bar with the two halves of the way in.
+  const wayIn = !me.data && (openPage || loggedOut);
 
   return (
     <div className={me.data ? 'shell' : 'shell shell-bare'}>
@@ -129,7 +121,10 @@ export function Layout() {
           </span>
         </Link>
         <div className="topbar-tools">
-          <YearSelect id="school-year" labelClassName="sr-only" />
+          {/* A demo account's papers come first; logged out, the top bar
+              has only the lockup and the theme. */}
+          {me.data?.demo && <DemoButton teacher={me.data} />}
+          {me.data && <YearSelect id="school-year" labelClassName="sr-only" />}
           <ThemeButton />
           {me.data && <UserMenu teacher={me.data} />}
         </div>
@@ -159,8 +154,7 @@ export function Layout() {
         <TodoPanel items={todo} approvals={approvals} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
       )}
       {/* On a phone a panel covers the page: the page under it is out of reach. */}
-      <main className="page" inert={phone && (open === 'clase' || open === 'todo')}>
-        {me.data?.demo && <p className="warning">{demoText(me.data)}</p>}
+      <main className={wayIn ? 'page page-way-in' : 'page'} inert={phone && (open === 'clase' || open === 'todo')}>
         {openPage ? (
           <Outlet />
         ) : loggedOut ? (
