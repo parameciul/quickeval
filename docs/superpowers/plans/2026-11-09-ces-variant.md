@@ -45,11 +45,12 @@ Settled while building the prototype on 2026-11-09. Every action that works toda
 6. **The skill's CES reference** (`references/barem-example-ces.md`) is built from the teacher's two Word files with pandoc: the whole test without the class letter and the date, and only the barem's "Reguli de notare" and table (with the "Observații"), without the student's name; the rule "dacă elevul îl clarifică oral" is dropped (the robot cannot hear the student). The plan gives the file whole.
 7. **Totals.** A CES barem always totals 90 + 10 (the user's answer). The CES block warns when the CES list's total differs from the class list's (100 when the class list is not made yet); it does not block grading.
 8. **Tables.** The CES mark (`CesTag`) shows in every teacher table that lists students; the student mark or a paper of the CES variant shows it. Tables of the final score only (the class page) keep one column. The class report splits the CES papers into their own table only when their exercises are not the class ones (`sameExercises`: the same ids, each with the same maximum); its per-exercise statistics follow the tables; the grades (average, median, groups) stay the whole class's. The CSV puts the CES rows in a block of their own after an empty line, with their own header, and never writes "CES".
-9. **Deferred** (not in the spec, small): the CES files in Fișa testului, a CES mark in the review queue, the student page's header and the search results.
+9. **Not built yet** (the user is asked before this plan runs): the CES mark in the review queue (`/teste/:code/verificare`), in the search results and on the student page's header (the spec asks for it in every teacher table that lists students); the CES files in Fișa testului; and a generated CES barem that waits for its check in "De făcut" (the class barem is there).
+10. **The paper's pages need no variant.** The paper page, the review and the student's PDF show the graded items and the pages, never the test or the barem file, so a CES paper shows nothing of the class test there.
 
 ## Review Focus
 
-1. A CES paper never reaches the robot before its CES barem is active, also when the mark changes between the look and the claim (tests in Task 4: "waits while the CES barem is not active, and the test stays in evaluation"; the claim's own `GRADABLE`).
+1. A CES paper never reaches the robot before its CES barem is active (test in Task 4: "waits while the CES barem is not active, and the test stays in evaluation"). The claim's UPDATE checks `GRADABLE` again, for a mark or a CES barem that changes between the claim's look and its write; no test makes that race: read it in `claimSubmission`.
 2. A paper keeps its variant through a regrade whatever happens to the mark, and that blocks the removal of the variant (test in Task 4).
 3. A CES result is checked against the CES list, not the class list (test in Task 4: "is saved against the CES list").
 4. The CES and class files never share an R2 key, and deleting a test deletes the CES files (tests in Task 2).
@@ -11119,6 +11120,9 @@ Expected: `Test Files  136 passed | 1 skipped (137)`, `Tests  2150 passed | 3 sk
 Run `npm run db:local` and `npm run build`; load the sample of the prototype check (a class with a CES student, a done test whose CES papers have their own exercises, an evaluating test whose CES paper waits for its barem, a draft with a generated CES barem to check) into the local database with `npx wrangler d1 execute quickeval --local --file <sample.sql>`, start `npm run preview`, and look at: the class page (both tabs, the CES mark), Pregătire of the draft ("Varianta CES", "Am verificat baremul CES"), Tipărire (the CES download), Corectare of the evaluating test (the waiting notice), and the class report of the done test (the CES table and its statistics), at desktop width and at 375 px (no sideways scroll). Stop the preview and end the leftover `workerd.exe` (root `AGENTS.md`, Gotchas).
 
 - [ ] **Step 3: Run the migration on the live database — ask the user first**
+
+Run: `npx wrangler d1 migrations list quickeval --remote`
+Expected: only `0024_ces_variant.sql` to apply. If another migration is listed, stop and ask the user.
 
 Ask the user, then run: `npx wrangler d1 migrations apply quickeval --remote`
 Expected: `0024_ces_variant.sql` applied. Only then may the code reach `main`.
