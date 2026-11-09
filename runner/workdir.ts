@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DOCX_TYPE, extensionFor, PDF_TYPE } from '../shared/files.ts';
-import type { TestFileKind } from '../shared/files.ts';
+import type { TestFileKind, TestVariant } from '../shared/files.ts';
 import type { ClassResults } from '../shared/runner.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
 
@@ -21,6 +21,9 @@ import type { ExerciseList } from '../shared/schemas.ts';
 //   student/page-01.jpg, …          (grade) the pages, in upload order
 //   notes.md                        (barem) the teacher's comments for the barem to write; no barem/ folder
 //   class-results.json              (class-report) the graded class, anonymized; no test, no barem
+//   ces.md                          (CES variant) says that test/ and barem/ are the CES variant's
+//   class/exercises.json            (CES exercise list, CES barem) the class list, whose ids the CES list reuses
+//   class/barem.pdf                 or class/barem.md and class/media/… (CES barem) the class barem
 
 export const SKILL_DIR = fileURLToPath(new URL('../.claude/skills/evaluate-test/', import.meta.url));
 
@@ -43,7 +46,19 @@ export interface WorkFolderInput {
   requestNotes?: string;
   // Class-report mode: the graded class, anonymized.
   classResults?: ClassResults;
+  // "ces": the task is for the CES variant of the test; ces.md says so.
+  variant?: TestVariant;
+  // The CES variant's tasks: the class exercise list and the class barem.
+  classExerciseList?: ExerciseList | null;
+  classBarem?: TaskFile | null;
 }
+
+// What ces.md says, for the skill: the files are the CES variant's.
+export const CES_NOTE = [
+  'This task is for the CES variant of the test: an adapted test for the students of the class',
+  'with special educational needs (CES, "cerințe educaționale speciale"). test/ (and barem/, when it is here)',
+  'are the CES variant\'s files. Follow the CES notes of your mode in SKILL.md.',
+].join('\n');
 
 // Runs pandoc with these arguments in this folder.
 export type Pandoc = (args: string[], cwd: string) => Promise<void>;
@@ -104,6 +119,12 @@ export async function makeWorkFolder(root: string, taskId: string, input: WorkFo
   if (input.classResults) {
     await writeFile(path.join(folder, 'class-results.json'), `${JSON.stringify(input.classResults, null, 2)}\n`);
   }
+  if (input.variant === 'ces') await writeFile(path.join(folder, 'ces.md'), `${CES_NOTE}\n`);
+  if (input.classBarem) await writeTeacherFile(folder, 'barem', input.classBarem, pandoc, 'class');
+  if (input.classExerciseList) {
+    await mkdir(path.join(folder, 'class'), { recursive: true });
+    await writeFile(path.join(folder, 'class', 'exercises.json'), `${JSON.stringify(input.classExerciseList, null, 2)}\n`);
+  }
   if (input.pages) {
     await mkdir(path.join(folder, 'student'));
     for (const [index, page] of input.pages.entries()) {
@@ -115,20 +136,21 @@ export async function makeWorkFolder(root: string, taskId: string, input: WorkFo
 }
 
 // A PDF stays as it is: Claude reads PDFs. A Word file becomes pandoc's
-// Markdown, with TeX math between $ and its pictures in <kind>/media/. Not
+// Markdown, with TeX math between $ and its pictures in <dir>/media/. Not
 // GitHub's Markdown: it turns "a)" and "b)" into "1)" and "2)", and the
-// exercise names are lost.
-async function writeTeacherFile(folder: string, kind: TestFileKind, file: TaskFile, pandoc: Pandoc): Promise<void> {
-  await mkdir(path.join(folder, kind));
+// exercise names are lost. The folder is the kind's own, or `class` for the
+// class barem of a CES task.
+async function writeTeacherFile(folder: string, kind: TestFileKind, file: TaskFile, pandoc: Pandoc, dir: string = kind): Promise<void> {
+  await mkdir(path.join(folder, dir), { recursive: true });
   if (file.contentType === PDF_TYPE) {
-    await writeFile(path.join(folder, kind, `${kind}.pdf`), file.bytes);
+    await writeFile(path.join(folder, dir, `${kind}.pdf`), file.bytes);
     return;
   }
   if (file.contentType !== DOCX_TYPE) throw new Error(`unknown ${kind} file type`);
-  const source = `${kind}/source.docx`;
+  const source = `${dir}/source.docx`;
   await writeFile(path.join(folder, source), file.bytes);
   // Relative paths with "/", run in the work folder: the picture links then work from it.
-  await pandoc(['--sandbox', source, '-t', 'markdown', `--extract-media=${kind}`, '-o', `${kind}/${kind}.md`], folder);
+  await pandoc(['--sandbox', source, '-t', 'markdown', `--extract-media=${dir}`, '-o', `${dir}/${kind}.md`], folder);
   await rm(path.join(folder, source));
 }
 

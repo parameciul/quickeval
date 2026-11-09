@@ -506,6 +506,41 @@ describe('runRobot and the generated barems', () => {
     };
     expect((await runRobot({ ...run, api: older })).summary).toMatchObject({ graded: 1, barems: 0, stop: 'done' });
   });
+
+  it('makes the CES print PDF and the CES barem after the class ones', async () => {
+    await setUp(1, 1, false);
+    const open = await addOpenTest(world!.api, 'pdf');
+    await requestBarem(world!.api, open.testId);
+    await world!.api.db
+      .prepare(
+        "UPDATE tests SET ces_test_file_key = 'fixture/ces.pdf', ces_test_file_name = 'ces.pdf', ces_test_file_type = 'application/pdf', ces_barem_request = 'requested' WHERE id = ?",
+      )
+      .bind(open.testId)
+      .run();
+    await world!.api.env.FILES.put('fixture/ces.pdf', '%PDF-1.7 ces');
+    const claude = scriptedClaude(answer(BAREM), answer(BAREM), answer(LIST), answer(GRADING));
+    const { run, requests } = recordedRun(claude);
+    const tools = {
+      prepare: async () => undefined,
+      run: async (args: string[], dir: string) => {
+        if (args[1] === '/app/stamp_qr.py') writeFileSync(path.join(dir, 'out.pdf'), '%PDF-1.7 stamped');
+      },
+    };
+    const report = await runRobot({ ...run, print: { tools, siteUrl: API_URL } });
+    expect(report.summary).toMatchObject({ prints: 2, barems: 2, stop: 'done' });
+    const puts = requests.filter((line) => line.startsWith('PUT '));
+    expect(puts).toEqual([
+      `PUT /tests/${open.testId}/print`,
+      `PUT /tests/${open.testId}/print?variant=ces`,
+      `PUT /tests/${open.testId}/barem`,
+      `PUT /tests/${open.testId}/barem?variant=ces`,
+    ]);
+    const row = await world!.api.db
+      .prepare('SELECT ces_print_status, ces_barem_unchecked, barem_unchecked FROM tests WHERE id = ?')
+      .bind(open.testId)
+      .first();
+    expect(row).toEqual({ ces_print_status: 'ready', ces_barem_unchecked: 1, barem_unchecked: 1 });
+  });
 });
 
 describe('main', () => {

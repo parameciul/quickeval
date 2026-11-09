@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
 import type { ExerciseListInfo } from '../../shared/api.ts';
-import { DOCX_TYPE, generatedBaremKey, isTestFileKind, PDF_TYPE, printFileKey } from '../../shared/files.ts';
+import { DOCX_TYPE, generatedBaremKey, isTestFileKind, PDF_TYPE, printFileKey, type TestVariant } from '../../shared/files.ts';
 import {
   analysisBody,
   baremFailedBody,
@@ -57,6 +57,14 @@ const invalidResult = () => new ApiError(422, 'invalid_result', 'Rezultatul robo
 const baremNotNeeded = () => new ApiError(409, 'not_needed', 'Baremul nu mai este cerut.');
 const printNotNeeded = () => new ApiError(409, 'not_needed', 'Testul cu cod QR nu mai este cerut.');
 
+// ?variant=ces names the CES variant of a test (its own files, barem, list and
+// print PDF); none names the class test, as an older robot asks.
+function parseVariant(raw: string | undefined): TestVariant {
+  if (raw === undefined) return 'class';
+  if (raw === 'ces') return 'ces';
+  throw notFound();
+}
+
 // Why a robot write changed nothing: the test is gone (404, the robot drops
 // the result), another run holds the lease, or the work is no longer needed.
 async function refusedWrite(c: Context<AppEnv>, runId: string, exists: boolean, notNeeded: () => ApiError): Promise<ApiError> {
@@ -101,7 +109,7 @@ export function runnerRoutes(): Hono<AppEnv> {
   routes.get('/tasks', async (c) => c.json(await listTasks(c.env.DB)));
 
   routes.get('/tests/:id', async (c) => {
-    const found = await findRobotTest(c.env.DB, parseId(c.req.param('id')));
+    const found = await findRobotTest(c.env.DB, parseId(c.req.param('id')), parseVariant(c.req.query('variant')));
     if (!found) throw notFound();
     return c.json({ test: found.test });
   });
@@ -110,7 +118,7 @@ export function runnerRoutes(): Hono<AppEnv> {
     const kind = c.req.param('kind');
     const testId = parseId(c.req.param('id'));
     if (!isTestFileKind(kind)) throw notFound();
-    const found = await findRobotTest(c.env.DB, testId);
+    const found = await findRobotTest(c.env.DB, testId, parseVariant(c.req.query('variant')));
     if (!found) throw notFound();
     const key = found.keys[kind];
     const type = found.test.files[kind]?.contentType;
@@ -123,13 +131,13 @@ export function runnerRoutes(): Hono<AppEnv> {
   // reads of a test before its evaluation. 404 unless the test waits for its
   // print PDF.
   routes.get('/tests/:id/print-job', async (c) => {
-    const found = await findPrintJob(c.env.DB, parseId(c.req.param('id')));
+    const found = await findPrintJob(c.env.DB, parseId(c.req.param('id')), parseVariant(c.req.query('variant')));
     if (!found) throw notFound();
     return c.json({ job: found.job });
   });
 
   routes.get('/tests/:id/print-job/file', async (c) => {
-    const found = await findPrintJob(c.env.DB, parseId(c.req.param('id')));
+    const found = await findPrintJob(c.env.DB, parseId(c.req.param('id')), parseVariant(c.req.query('variant')));
     const object = found ? await c.env.FILES.get(found.testFileKey) : null;
     if (!found || !object) throw notFound();
     return fileResponse(object, 'test', found.job.contentType);
@@ -140,12 +148,13 @@ export function runnerRoutes(): Hono<AppEnv> {
   // (two runs that made the same version).
   routes.put('/tests/:id/print', async (c) => {
     const testId = parseId(c.req.param('id'));
+    const variant = parseVariant(c.req.query('variant'));
     const runId = runIdSchema.safeParse(c.req.header('X-Run-Id'));
     if (!runId.success) throw new ApiError(400, 'invalid', runId.error.issues[0]?.message ?? 'Datele trimise nu sunt valide.');
     const versionText = c.req.header('X-Files-Version') ?? '';
     const version = Number(versionText);
     if (!/^\d+$/.test(versionText) || !Number.isSafeInteger(version)) throw new ApiError(400, 'invalid', 'Versiunea fișierelor nu este validă.');
-    const found = await findPrintJob(c.env.DB, testId);
+    const found = await findPrintJob(c.env.DB, testId, variant);
     if (!found) throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), printNotNeeded);
     // The key is shared by every run that made this version: a run without the
     // lease, or one that read an older file, must not touch the object.
@@ -155,10 +164,10 @@ export function runnerRoutes(): Hono<AppEnv> {
     if (createdAt !== null && createdAt !== found.job.createdAt) throw printNotNeeded();
     if (!(await holdsLease(c.env.DB, runId.data))) throw leaseLost();
     const file = await readUpload(c, [PDF_TYPE], 'Fișierul trebuie să fie un PDF.');
-    const key = printFileKey(found.teacherId, found.schoolYear, found.code, found.testFileName, version);
+    const key = printFileKey(found.teacherId, found.schoolYear, found.code, found.testFileName, version, variant);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: PDF_TYPE } });
-    if (!(await savePrint(c.env.DB, testId, runId.data, version, createdAt, key, nowIso()))) {
-      if (!(await printKeyIs(c.env.DB, testId, key))) await deleteFilesQuietly(c.env.FILES, [key]);
+    if (!(await savePrint(c.env.DB, testId, runId.data, version, createdAt, key, nowIso(), variant))) {
+      if (!(await printKeyIs(c.env.DB, testId, key, variant))) await deleteFilesQuietly(c.env.FILES, [key]);
       throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), printNotNeeded);
     }
     return c.json({ status: 'ready' });
@@ -168,7 +177,8 @@ export function runnerRoutes(): Hono<AppEnv> {
   routes.post('/tests/:id/print-failed', async (c) => {
     const testId = parseId(c.req.param('id'));
     const body = await readJson(c, printFailedBody);
-    const status = await failPrint(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, nowIso());
+    const variant = parseVariant(c.req.query('variant'));
+    const status = await failPrint(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, nowIso(), variant);
     if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), printNotNeeded);
     return c.json({ status });
   });
@@ -176,16 +186,26 @@ export function runnerRoutes(): Hono<AppEnv> {
   // The barem job of a draft or open test: 404 unless the test waits for its
   // generated barem.
   routes.get('/tests/:id/barem-job', async (c) => {
-    const found = await findBaremJob(c.env.DB, parseId(c.req.param('id')));
+    const found = await findBaremJob(c.env.DB, parseId(c.req.param('id')), parseVariant(c.req.query('variant')));
     if (!found) throw notFound();
     return c.json({ job: found.job });
   });
 
   routes.get('/tests/:id/barem-job/file', async (c) => {
-    const found = await findBaremJob(c.env.DB, parseId(c.req.param('id')));
+    const found = await findBaremJob(c.env.DB, parseId(c.req.param('id')), parseVariant(c.req.query('variant')));
     const object = found ? await c.env.FILES.get(found.testFileKey) : null;
     if (!found || !object) throw notFound();
     return fileResponse(object, 'test', found.job.contentType);
+  });
+
+  // The class barem, for a CES barem job only: the CES barem reuses its
+  // exercise names and points.
+  routes.get('/tests/:id/barem-job/class-barem', async (c) => {
+    const found = await findBaremJob(c.env.DB, parseId(c.req.param('id')), 'ces');
+    const type = found?.job.classBarem?.contentType;
+    const object = found?.classBaremKey ? await c.env.FILES.get(found.classBaremKey) : null;
+    if (!found || !object || !type) throw notFound();
+    return fileResponse(object, 'barem', type);
   });
 
   // The generated barem, a Word file. Like the print PDF, the object is
@@ -193,12 +213,13 @@ export function runnerRoutes(): Hono<AppEnv> {
   // the row already names it. The barem it replaces is deleted after the save.
   routes.put('/tests/:id/barem', async (c) => {
     const testId = parseId(c.req.param('id'));
+    const variant = parseVariant(c.req.query('variant'));
     const runId = runIdSchema.safeParse(c.req.header('X-Run-Id'));
     if (!runId.success) throw new ApiError(400, 'invalid', runId.error.issues[0]?.message ?? 'Datele trimise nu sunt valide.');
     const versionText = c.req.header('X-Files-Version') ?? '';
     const version = Number(versionText);
     if (!/^\d+$/.test(versionText) || !Number.isSafeInteger(version)) throw new ApiError(400, 'invalid', 'Versiunea fișierelor nu este validă.');
-    const found = await findBaremJob(c.env.DB, testId);
+    const found = await findBaremJob(c.env.DB, testId, variant);
     if (!found) throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), baremNotNeeded);
     // The key is shared by every run that made this version: a run without the
     // lease, or one that read an older file, must not touch the object.
@@ -207,11 +228,12 @@ export function runnerRoutes(): Hono<AppEnv> {
     if (createdAt !== null && createdAt !== found.job.createdAt) throw baremNotNeeded();
     if (!(await holdsLease(c.env.DB, runId.data))) throw leaseLost();
     const file = await readUpload(c, [DOCX_TYPE], 'Fișierul trebuie să fie un document Word.');
-    const key = generatedBaremKey(found.teacherId, found.schoolYear, found.code, version);
+    const key = generatedBaremKey(found.teacherId, found.schoolYear, found.code, version, variant);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: DOCX_TYPE } });
-    const saved = await saveGeneratedBarem(c.env.DB, testId, runId.data, version, createdAt, key, `${found.code} - barem generat.docx`, nowIso());
+    const name = variant === 'ces' ? `${found.code} - barem CES generat.docx` : `${found.code} - barem generat.docx`;
+    const saved = await saveGeneratedBarem(c.env.DB, testId, runId.data, version, createdAt, key, name, nowIso(), variant);
     if (!saved) {
-      if (!(await baremKeyIs(c.env.DB, testId, key))) await deleteFilesQuietly(c.env.FILES, [key]);
+      if (!(await baremKeyIs(c.env.DB, testId, key, variant))) await deleteFilesQuietly(c.env.FILES, [key]);
       throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), baremNotNeeded);
     }
     if (saved.oldKey && saved.oldKey !== key) await deleteFilesQuietly(c.env.FILES, [saved.oldKey]);
@@ -222,7 +244,8 @@ export function runnerRoutes(): Hono<AppEnv> {
   routes.post('/tests/:id/barem-failed', async (c) => {
     const testId = parseId(c.req.param('id'));
     const body = await readJson(c, baremFailedBody);
-    const status = await failBaremJob(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, nowIso());
+    const variant = parseVariant(c.req.query('variant'));
+    const status = await failBaremJob(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, nowIso(), variant);
     if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), baremNotNeeded);
     return c.json({ status });
   });
@@ -231,15 +254,16 @@ export function runnerRoutes(): Hono<AppEnv> {
   // made from files that the teacher replaced meanwhile is no longer needed.
   routes.post('/tests/:id/exercise-list', async (c) => {
     const testId = parseId(c.req.param('id'));
+    const variant = parseVariant(c.req.query('variant'));
     const body = await readJson(c, exerciseListBody, MAX_ROBOT_BODY_BYTES);
     const now = nowIso();
     let saved: ExerciseListInfo | null;
     if (body.ok) {
       const checked = checkExerciseList(body.exerciseList);
       if (!checked.ok) throw invalidResult();
-      saved = await saveExerciseList(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, checked.value, now);
+      saved = await saveExerciseList(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, checked.value, now, variant);
     } else {
-      saved = await failExerciseList(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, now);
+      saved = await failExerciseList(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, now, variant);
     }
     if (!saved) {
       throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));

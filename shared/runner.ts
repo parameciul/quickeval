@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TestVariant } from './files.ts';
 import type { ExerciseList } from './schemas.ts';
 
 // The robot API (/api/runner, spec §11.3): request bodies and answers, shared
@@ -41,6 +42,8 @@ export interface CheckResult {
   analyses: number;
   prints: number;
   barems: number;
+  // The CES variants' print PDFs, barems and exercise lists. An older API sends none.
+  ces?: number;
 }
 
 // A run's id, made by the robot: 8-64 characters from A-Z, a-z, 0-9, "_" and "-".
@@ -114,13 +117,18 @@ export interface LeaseResult {
   maxParallel: number;
 }
 
-// GET /tasks: test ids, and how many uploads wait for grading.
+// GET /tasks: test ids, and how many uploads wait for grading. The ces…
+// lists are the tests whose CES variant waits for that work; the robot asks
+// for it with ?variant=ces. An older API sends none.
 export interface TasksResult {
   exerciseLists: number[];
   pendingGrading: number;
   analyses: number[];
   prints: number[];
   barems: number[];
+  cesPrints?: number[];
+  cesBarems?: number[];
+  cesExerciseLists?: number[];
 }
 
 // One print PDF to make: the test file's type and version, and the students'
@@ -134,13 +142,19 @@ export interface PrintJob {
 }
 
 // One barem to write from the test file: the file's type and version, and the
-// teacher's comments for the barem.
+// teacher's comments for the barem. For a CES barem (`variant` "ces") also the
+// class barem's type (it is read from GET /tests/:id/barem-job/class-barem)
+// and the class exercise list, when they exist: the CES barem reuses their
+// exercise names and points.
 export interface BaremJob {
   testId: number;
   createdAt: string;
   filesVersion: number;
   contentType: string;
   baremNotes: string;
+  variant?: TestVariant;
+  classBarem?: { contentType: string } | null;
+  classExerciseList?: ExerciseList | null;
 }
 
 export const baremFailedBody = z.object({ runId: runIdSchema, filesVersion: z.number().int().min(0), createdAt: createdAtSchema, error: robotErrorSchema });
@@ -159,6 +173,10 @@ export interface RobotTest {
   exerciseList: ExerciseList | null;
   // Extra teacher comments for the barem, as part of it.
   baremNotes: string;
+  // GET /tests/:id?variant=ces: the CES variant's files, list and comments,
+  // and the class exercise list, whose exercise ids the CES list reuses.
+  variant?: TestVariant;
+  classExerciseList?: ExerciseList | null;
 }
 
 // The time the upload started, from the claim. Ids of deleted uploads come back,

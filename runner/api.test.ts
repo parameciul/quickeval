@@ -36,10 +36,10 @@ describe('robotApi with the real API', () => {
     const [submissionId] = world.submissionIds;
     const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(world.api) });
 
-    expect(await robot.check()).toEqual({ hasWork: true, exerciseLists: 1, pendingGrading: 0, analyses: 0, prints: 0, barems: 0 });
+    expect(await robot.check()).toEqual({ hasWork: true, exerciseLists: 1, pendingGrading: 0, analyses: 0, prints: 0, barems: 0, ces: 0 });
     expect(await robot.lease(RUN)).toEqual({ granted: true, maxParallel: 1 });
     await robot.heartbeat(RUN);
-    expect(await robot.tasks()).toEqual({ exerciseLists: [testId], pendingGrading: 0, analyses: [], prints: [], barems: [] });
+    expect(await robot.tasks()).toEqual({ exerciseLists: [testId], pendingGrading: 0, analyses: [], prints: [], barems: [], cesPrints: [], cesBarems: [], cesExerciseLists: [] });
     expect(await robot.test(testId)).toEqual({
       id: testId,
       createdAt: expect.any(String),

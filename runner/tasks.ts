@@ -1,4 +1,5 @@
 import path from 'node:path';
+import type { TestVariant } from '../shared/files.ts';
 import type { ClaimResult, RobotError } from '../shared/runner.ts';
 import { MAX_ROBOT_BODY_BYTES } from '../shared/runner.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
@@ -137,9 +138,14 @@ export async function sendOutcome(
   }
 }
 
-async function teacherFiles(ctx: TaskContext, testId: number, files: { test: { contentType: string } | null; barem: { contentType: string } | null }) {
+async function teacherFiles(
+  ctx: TaskContext,
+  testId: number,
+  files: { test: { contentType: string } | null; barem: { contentType: string } | null },
+  variant: TestVariant = 'class',
+) {
   if (!files.test || !files.barem) return null;
-  const [test, barem] = await Promise.all([ctx.api.testFile(testId, 'test'), ctx.api.testFile(testId, 'barem')]);
+  const [test, barem] = await Promise.all([ctx.api.testFile(testId, 'test', variant), ctx.api.testFile(testId, 'barem', variant)]);
   return { test: { bytes: test, contentType: files.test.contentType }, barem: { bytes: barem, contentType: files.barem.contentType } };
 }
 
@@ -178,21 +184,30 @@ async function inWorkFolder(ctx: TaskContext, taskId: string, work: (makeFolder:
   }
 }
 
-export async function makeExerciseList(ctx: TaskContext, testId: number): Promise<TaskEnd> {
-  const end = await inWorkFolder(ctx, `exercise-list-${testId}`, async (makeFolder) => {
+// The exercise list of a test, or of its CES variant: the CES list is made
+// from the CES files, with the class list beside them (class/exercises.json),
+// so it reuses the class exercise ids.
+export async function makeExerciseList(ctx: TaskContext, testId: number, variant: TestVariant = 'class'): Promise<TaskEnd> {
+  const ces = variant === 'ces';
+  const end = await inWorkFolder(ctx, `exercise-list-${ces ? 'ces-' : ''}${testId}`, async (makeFolder) => {
     // The files' version is read before the files: a file replaced after this
     // read makes the API refuse the list.
-    const test = await ctx.api.test(testId);
+    const test = await ctx.api.test(testId, variant);
     const post = { runId: ctx.runId, filesVersion: test.filesVersion, createdAt: test.createdAt };
-    const sendError = async (error: RobotError) => (await ctx.api.sendExerciseList(testId, { ...post, ok: false, error })).status === 'failed';
-    const files = await teacherFiles(ctx, testId, test.files);
+    const sendError = async (error: RobotError) =>
+      (await ctx.api.sendExerciseList(testId, { ...post, ok: false, error }, variant)).status === 'failed';
+    const files = await teacherFiles(ctx, testId, test.files, variant);
     if (!files) return sendOutcome({ ok: false, problem: 'crash', detail: 'missing file' }, async () => undefined, sendError);
-    const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes });
+    const cwd = await makeFolder({
+      ...files,
+      baremNotes: test.baremNotes,
+      ...(ces ? { variant, classExerciseList: test.classExerciseList ?? null } : {}),
+    });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'exercise-list', cwd, (output) => checkExerciseList(output).ok);
-    return sendOutcome(outcome, (exerciseList) => ctx.api.sendExerciseList(testId, { ...post, ok: true, exerciseList }), sendError);
+    return sendOutcome(outcome, (exerciseList) => ctx.api.sendExerciseList(testId, { ...post, ok: true, exerciseList }, variant), sendError);
   });
-  log('exercise list', { test: testId, end });
+  log('exercise list', ces ? { test: testId, variant, end } : { test: testId, end });
   return end;
 }
 
