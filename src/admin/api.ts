@@ -4,6 +4,7 @@ import type {
   BaremCheckedAnswer,
   BaremGenerateAnswer,
   BaremNotesAnswer,
+  CesOffAnswer,
   CesRemovedAnswer,
   ClassDetail,
   ClassReport,
@@ -98,6 +99,7 @@ export interface AdminApi {
   confirmBarem(code: string, filesVersion: number, variant?: TestVariant): Promise<BaremCheckedAnswer>;
   // "Șterge varianta CES": only while no paper went to grading with it.
   removeCesVariant(code: string): Promise<CesRemovedAnswer>;
+  setCesOff(code: string, off: boolean): Promise<CesOffAnswer>;
   startTest(code: string): Promise<StartedTest>;
   // "Oprește testul": an open test with no student file is a draft again.
   stopTest(code: string): Promise<StoppedTest>;
@@ -315,6 +317,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     confirmBarem: (code, filesVersion, variant) =>
       request<BaremCheckedAnswer>('POST', `${variantPath(code, variant)}/barem/checked`, { filesVersion }),
     removeCesVariant: (code) => request<CesRemovedAnswer>('DELETE', `${test(code)}/ces`),
+    setCesOff: (code, off) => request<CesOffAnswer>('PUT', `${test(code)}/ces/off`, { off }),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
     stopTest: (code) => request<StoppedTest>('POST', `${test(code)}/stop`),
     createMultiUploadLink: async (code) =>

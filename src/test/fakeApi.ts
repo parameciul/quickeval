@@ -5,6 +5,7 @@ import type {
   BaremCheckedAnswer,
   BaremGenerateAnswer,
   BaremNotesAnswer,
+  CesOffAnswer,
   CesRemovedAnswer,
   CesVariantInfo,
   ClassReport,
@@ -116,6 +117,12 @@ function withDerived({ test, ...detail }: TestDetail): TestDetail {
         baremFile: test.files.barem !== null,
         print: test.print.status,
         uploadLink: test.uploadToken !== null,
+        ces: {
+          wanted: test.ces.studentCount > 0 && !test.ces.off,
+          testFile: test.ces.files.test !== null,
+          baremFile: test.ces.files.barem !== null,
+          baremRequest: test.ces.barem.request,
+        },
       },
       cesBarem:
         test.ces.files.test === null
@@ -131,11 +138,15 @@ function summaryOf(detail: TestDetail): TestSummary {
   return summary;
 }
 
+// The CES part of `prepared` for a class with no CES student.
+export const NO_CES_PREPARED = { wanted: false, testFile: false, baremFile: false, baremRequest: 'none' } as const;
+
 // A test as the API returns it, for building fake data in tests.
 // A test with no CES variant, in a class with no CES student.
 export function noCesVariant(overrides: Partial<CesVariantInfo> = {}): CesVariantInfo {
   return {
     studentCount: 0,
+    off: false,
     files: { test: null, barem: null },
     baremNotes: '',
     barem: { request: 'none', unchecked: false },
@@ -182,7 +193,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       print: { status: 'none', fromWord: false },
       ces: noCesVariant(),
       // Made again from the files and the uploads (withDerived).
-      prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
+      prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false, ces: NO_CES_PREPARED },
       cesBarem: null,
       averageGrade: null,
       ...overrides,
@@ -218,7 +229,7 @@ export function fakeSummary({ prepared, ...overrides }: SummaryOverrides = {}): 
     publishedCount: 0,
     archived: false,
     barem: { request: 'none', unchecked: false },
-    prepared: { testFile: true, baremFile: true, print: 'ready', uploadLink: true, ...prepared },
+    prepared: { testFile: true, baremFile: true, print: 'ready', uploadLink: true, ces: NO_CES_PREPARED, ...prepared },
     cesBarem: null,
     averageGrade: null,
     ...overrides,
@@ -580,14 +591,21 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     listTests: vi.fn(async (schoolYear: number) =>
       tests.filter((t) => t.test.schoolYear === schoolYear).map(summaryOf),
     ),
-    createTest: vi.fn(async (input: { classId: number; title: string }) => {
+    createTest: vi.fn(async (input: { classId: number; title: string; cesOff?: boolean }) => {
       const cls = data.classes.find((c) => c.id === input.classId);
       if (!cls) throw notFound();
       const number = tests.filter((t) => t.test.classId === cls.id).length + 1;
       const students = (data.students[cls.id] ?? []).filter((s) => s.active);
       const uploads = students.map((s) => fakeUpload({ studentId: s.id, studentName: s.fullName }));
       const created = fakeTest(
-        { code: buildTestCode(cls.name, cls.schoolYear, number), title: input.title, classId: cls.id, className: cls.name, schoolYear: cls.schoolYear },
+        {
+          code: buildTestCode(cls.name, cls.schoolYear, number),
+          title: input.title,
+          classId: cls.id,
+          className: cls.name,
+          schoolYear: cls.schoolYear,
+          ces: noCesVariant({ studentCount: students.filter((s) => s.ces).length, off: input.cesOff ?? false }),
+        },
         uploads,
       );
       tests.unshift(created);
@@ -607,7 +625,9 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = findTest(code).test;
       const info = { name: file.name, type: uploadTypeOf(file) };
       if (variant === 'ces') {
-        // Like the server: the CES variant's own files, print PDF and list.
+        // Like the server: the CES variant's own files, print PDF and list; a
+        // CES file turns the CES switch on.
+        found.ces.off = false;
         found.ces.files[kind] = info;
         found.ces.filesVersion += 1;
         if (kind === 'test') found.ces.print = { status: 'none', fromWord: info.type === DOCX_TYPE };
@@ -650,6 +670,16 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       parts.barem = { ...parts.barem, unchecked: false };
       if (variant === 'ces') return { barem: parts.barem, robot: found.status === 'evaluating' ? 'dispatched' : null };
       return { barem: parts.barem };
+    }),
+    // Like the server: off removes the CES files, only while no paper went to
+    // grading with the CES variant.
+    setCesOff: vi.fn(async (code: string, off: boolean): Promise<CesOffAnswer> => {
+      const found = findTest(code).test;
+      if (off && found.ces.papers > 0) {
+        throw new ApiError(409, 'ces_papers', 'Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi oprită.');
+      }
+      found.ces = off ? noCesVariant({ studentCount: found.ces.studentCount, filesVersion: found.ces.filesVersion + 1, off: true }) : { ...found.ces, off: false };
+      return { ces: found.ces, robot: off && found.status === 'evaluating' ? 'dispatched' : null };
     }),
     // Like the server: only while no paper went to grading with the CES variant.
     removeCesVariant: vi.fn(async (code: string): Promise<CesRemovedAnswer> => {

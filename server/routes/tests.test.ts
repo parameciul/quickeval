@@ -147,10 +147,11 @@ describe('GET /api/admin/tests', () => {
 
     const res = await api.request('GET', '/api/admin/tests?year=2026');
     const prepared = Object.fromEntries(res.body.tests.map((t: { title: string; prepared: unknown }) => [t.title, t.prepared]));
+    const ces = { wanted: false, testFile: false, baremFile: false, baremRequest: 'none' };
     expect(prepared).toEqual({
-      Gol: { testFile: false, baremFile: false, print: 'none', uploadLink: true },
-      Gata: { testFile: true, baremFile: true, print: 'ready', uploadLink: true },
-      Vechi: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
+      Gol: { testFile: false, baremFile: false, print: 'none', uploadLink: true, ces },
+      Gata: { testFile: true, baremFile: true, print: 'ready', uploadLink: true, ces },
+      Vechi: { testFile: false, baremFile: false, print: 'none', uploadLink: false, ces },
     });
   });
 

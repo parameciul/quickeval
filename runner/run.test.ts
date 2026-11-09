@@ -508,6 +508,8 @@ describe('runRobot and the generated barems', () => {
   });
 
   it('makes the CES print PDF and the CES barem after the class ones', async () => {
+    // The CES barem waits while the class barem is being generated: the robot
+    // makes it in its next round, after the open test's grading.
     await setUp(1, 1, false);
     const open = await addOpenTest(world!.api, 'pdf');
     await requestBarem(world!.api, open.testId);
@@ -518,7 +520,7 @@ describe('runRobot and the generated barems', () => {
       .bind(open.testId)
       .run();
     await world!.api.env.FILES.put('fixture/ces.pdf', '%PDF-1.7 ces');
-    const claude = scriptedClaude(answer(BAREM), answer(BAREM), answer(LIST), answer(GRADING));
+    const claude = scriptedClaude(answer(BAREM), answer(LIST), answer(GRADING), answer(BAREM));
     const { run, requests } = recordedRun(claude);
     const tools = {
       prepare: async () => undefined,

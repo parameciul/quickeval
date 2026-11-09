@@ -48,6 +48,7 @@ export interface TestRecord extends VariantRecord {
   analysis: AnalysisInfo;
   ces: VariantRecord & {
     studentCount: number;
+    off: boolean;
     papers: number;
     waiting: number;
     // CES papers the robot is grading now: their files must not change.
@@ -110,6 +111,7 @@ interface TestRow {
   ces_exercise_list_message: string | null;
   ces_print_status: PrintStatus;
   ces_print_file_key: string | null;
+  ces_off: number;
   ces_total_points: number | null;
   class_total_points: number | null;
   ces_student_count: number;
@@ -132,7 +134,7 @@ const SELECT_TEST = `
     t.print_status, t.print_file_key,
     t.ces_test_file_key, t.ces_test_file_name, t.ces_test_file_type,
     t.ces_barem_file_key, t.ces_barem_file_name, t.ces_barem_file_type, t.ces_barem_notes, t.ces_barem_request, t.ces_barem_unchecked,
-    t.ces_files_version, t.ces_exercise_list_status, t.ces_exercise_list_message, t.ces_print_status, t.ces_print_file_key,
+    t.ces_files_version, t.ces_exercise_list_status, t.ces_exercise_list_message, t.ces_print_status, t.ces_print_file_key, t.ces_off,
     json_extract(t.ces_exercise_list_json, '$.totalPoints') AS ces_total_points,
     json_extract(t.exercise_list_json, '$.totalPoints') AS class_total_points,
     (SELECT COUNT(*) FROM enrollments e JOIN students st ON st.id = e.student_id
@@ -182,6 +184,12 @@ function toRecord(row: TestRow): TestRecord {
         baremFile: row.barem_file_key !== null,
         print: row.print_status,
         uploadLink: row.upload_token !== null,
+        ces: {
+          wanted: row.ces_student_count > 0 && row.ces_off === 0,
+          testFile: row.ces_test_file_key !== null,
+          baremFile: row.ces_barem_file_key !== null,
+          baremRequest: row.ces_barem_request,
+        },
       },
       cesBarem:
         row.ces_test_file_key === null
@@ -217,6 +225,7 @@ function toRecord(row: TestRow): TestRecord {
       filesVersion: row.ces_files_version,
       print: { status: row.ces_print_status, key: row.ces_print_file_key, fromWord: row.ces_test_file_type === DOCX_TYPE },
       studentCount: row.ces_student_count,
+      off: row.ces_off === 1,
       papers: row.ces_papers,
       waiting: row.ces_waiting,
       grading: row.ces_grading,
@@ -232,6 +241,7 @@ const fileInfo = (file: StoredFile | null) => (file ? { name: file.name, type: f
 export function toCesInfo(ces: TestRecord['ces']): CesVariantInfo {
   return {
     studentCount: ces.studentCount,
+    off: ces.off,
     files: { test: fileInfo(ces.files.test), barem: fileInfo(ces.files.barem) },
     baremNotes: ces.baremNotes,
     barem: ces.barem,
@@ -415,7 +425,7 @@ const MAX_CODE_TRIES = 3;
 // unique, so a test made at the same moment, or a class that had this name
 // before a rename, can already hold them: the counter then moves past that
 // number and the next try takes a new one (and a new link). At most 12 queries.
-export async function createTest(db: D1Database, teacherId: number, classId: number, title: string, now: string): Promise<string> {
+export async function createTest(db: D1Database, teacherId: number, classId: number, title: string, now: string, cesOff = false): Promise<string> {
   for (let attempt = 1; attempt <= MAX_CODE_TRIES; attempt++) {
     const cls = await db
       .prepare('SELECT name, school_year, next_test_number, archived FROM classes WHERE id = ? AND teacher_id = ?')
@@ -431,9 +441,9 @@ export async function createTest(db: D1Database, teacherId: number, classId: num
       await db.batch([
         db
           .prepare(
-            'INSERT INTO tests (teacher_id, class_id, number, code, title, upload_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO tests (teacher_id, class_id, number, code, title, upload_token, ces_off, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
           )
-          .bind(teacherId, classId, number, code, title, newUploadToken(), now, now),
+          .bind(teacherId, classId, number, code, title, newUploadToken(), cesOff ? 1 : 0, now, now),
         db.prepare('UPDATE classes SET next_test_number = ? WHERE id = ? AND teacher_id = ?').bind(number + 1, classId, teacherId),
       ]);
       return code;
@@ -606,16 +616,18 @@ export async function saveTestFile(
 ): Promise<{ status: TestStatus; clearedPrintKey: string | null; replacedKey: string | null } | null> {
   const c = columns(variant);
   const statuses = baremStatuses(variant);
+  // A CES file turns the CES switch on.
+  const on = variant === 'ces' ? 'ces_off = 0, ' : '';
   const sql =
     kind === 'test'
-      ? `UPDATE tests SET ${c('test_file_key')} = ?, ${c('test_file_name')} = ?, ${c('test_file_type')} = ?, updated_at = ?,
+      ? `UPDATE tests SET ${on}${c('test_file_key')} = ?, ${c('test_file_name')} = ?, ${c('test_file_type')} = ?, updated_at = ?,
            ${c('files_version')} = ${c('files_version')} + 1,
            ${c('print_status')} = 'none', ${c('print_attempts')} = 0, ${c('print_file_key')} = NULL, upload_token = COALESCE(upload_token, ?),
            ${c('barem_request')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 'requested' ELSE ${c('barem_request')} END,
            ${c('barem_request_attempts')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 0 ELSE ${c('barem_request_attempts')} END
          WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)}
          RETURNING status`
-      : `UPDATE tests SET ${c('barem_file_key')} = ?, ${c('barem_file_name')} = ?, ${c('barem_file_type')} = ?, updated_at = ?,
+      : `UPDATE tests SET ${on}${c('barem_file_key')} = ?, ${c('barem_file_name')} = ?, ${c('barem_file_type')} = ?, updated_at = ?,
            ${c('files_version')} = ${c('files_version')} + 1,
            ${c('exercise_list_status')} = 'none', ${c('exercise_list_json')} = NULL, ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0,
            ${c('barem_unchecked')} = 0, ${c('barem_request')} = 'none', ${c('barem_request_attempts')} = 0
@@ -784,6 +796,39 @@ export async function removeCesVariant(db: D1Database, teacherId: number, testId
       .bind(now, testId, teacherId),
   ]);
   if (!removed?.results[0]) return null;
+  const row = before?.results[0];
+  return [row?.ces_test_file_key, row?.ces_barem_file_key, row?.ces_print_file_key].filter((key): key is string => typeof key === 'string');
+}
+
+// The CES switch. Off: no separate test for the CES students; the CES files go,
+// in the same guarded write as removeCesVariant (refused once a paper went to
+// grading with the CES variant). Returns the R2 keys to delete, or null when
+// the test is not the teacher's or a CES paper blocks it. On: the switch only.
+export async function setCesOff(db: D1Database, teacherId: number, testId: number, off: boolean, now: string): Promise<string[] | null> {
+  if (!off) {
+    const row = await db
+      .prepare('UPDATE tests SET ces_off = 0, updated_at = ? WHERE id = ? AND teacher_id = ? RETURNING id')
+      .bind(now, testId, teacherId)
+      .first<{ id: number }>();
+    return row ? [] : null;
+  }
+  const [before, written] = await db.batch<{ ces_test_file_key?: string | null; ces_barem_file_key?: string | null; ces_print_file_key?: string | null; id?: number }>([
+    db.prepare('SELECT ces_test_file_key, ces_barem_file_key, ces_print_file_key FROM tests WHERE id = ? AND teacher_id = ?').bind(testId, teacherId),
+    db
+      .prepare(
+        `UPDATE tests SET ces_off = 1, ces_test_file_key = NULL, ces_test_file_name = NULL, ces_test_file_type = NULL,
+           ces_barem_file_key = NULL, ces_barem_file_name = NULL, ces_barem_file_type = NULL, ces_barem_notes = NULL,
+           ces_barem_request = 'none', ces_barem_request_attempts = 0, ces_barem_unchecked = 0,
+           ces_exercise_list_json = NULL, ces_exercise_list_status = 'none', ces_exercise_list_message = NULL, ces_exercise_list_attempts = 0,
+           ces_print_status = 'none', ces_print_file_key = NULL, ces_print_attempts = 0,
+           ces_files_version = ces_files_version + 1, updated_at = ?
+         WHERE id = ? AND teacher_id = ?
+           AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = tests.id AND s.variant = 'ces')
+         RETURNING id`,
+      )
+      .bind(now, testId, teacherId),
+  ]);
+  if (!written?.results[0]) return null;
   const row = before?.results[0];
   return [row?.ces_test_file_key, row?.ces_barem_file_key, row?.ces_print_file_key].filter((key): key is string => typeof key === 'string');
 }

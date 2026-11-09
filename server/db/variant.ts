@@ -54,10 +54,13 @@ export function needsPrintSql(variant: TestVariant, t = 't'): string {
 }
 
 // A test (alias `t`) with a test file of the variant whose barem the teacher
-// asked the robot to generate. A flat condition, like needsPrintSql.
+// asked the robot to generate. A flat condition, like needsPrintSql. The CES
+// barem waits while the class barem is being generated: it is written with the
+// class barem beside it, and reuses its exercise ids.
 export function needsBaremSql(variant: TestVariant, t = 't'): string {
   const c = columns(variant);
-  return `${t}.status IN (${baremStatuses(variant)}) AND ${t}.${c('test_file_key')} IS NOT NULL AND ${t}.${c('barem_request')} = 'requested'`;
+  const afterClass = variant === 'ces' ? ` AND ${t}.barem_request <> 'requested'` : '';
+  return `${t}.status IN (${baremStatuses(variant)}) AND ${t}.${c('test_file_key')} IS NOT NULL AND ${t}.${c('barem_request')} = 'requested'${afterClass}`;
 }
 
 // The barem of the variant can be graded against: it exists, the teacher
