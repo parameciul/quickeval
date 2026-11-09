@@ -16,7 +16,7 @@ The prototypes are static HTML in `docs/design-proposals/round-1` to `round-5` (
 4. The review of doubtful points lists the papers on the left, so the teacher moves from one point to the next without going back to the test.
 5. "Fișa testului": a card with the facts and files of a test.
 6. Top bar: search on the left; school year, theme and the user's menu on the right. Setări at the bottom of the left menu.
-7. The landing page carries the statement "Weekendul tău, fără teancul de lucrări.", the line "Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.", Laura Miron's texts word for word, and the six stages.
+7. The landing page carries the statement "Weekendul tău, fără teancul de lucrări." (above the heading, small and muted), the heading "Corectarea testelor de matematică, după barem", the line "MQGrader este o platformă web pentru profesorii de matematică din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.", Laura Miron's texts word for word, and the six stages.
 8. The brand shows "MQGrader by Laura Miron". "Math & Quantitative" is wrong: never show a meaning of MQ.
 9. The footer is one line, about as high as the header.
 10. The left menu is a narrow bar of 80 px (design Z): Test nou, Teste, Clase, De făcut, Setări.
@@ -116,7 +116,7 @@ Buttons are 8 px rounded: outline by default, filled blue for the one main actio
 A static page with its own stylesheet; it loads no React. The page's security policy (`public/_headers`) allows no inline script and no inline style.
 
 1. Header: the lockup; links "Cum funcționează" (to the six stages) and "Cum te ajută"; the theme button; "Intră în cont" (outline, to `/admin/`).
-2. Hero, in two columns. Left: the heading "Weekendul tău, fără teancul de lucrări.", the line "Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.", the button "Intră în cont" (to `/admin/`) and the link "Cere un cont de profesor" (to `/admin/`, where the login form offers the new account). Right, on the ground tone: "Un test, în șase etape", a vertical list; each stage has an icon, its name, who does it ("Tu", "Elevii", "MQGrader") and one sentence:
+2. Hero, in two columns. Left: the statement "Weekendul tău, fără teancul de lucrări." as a small muted eyebrow, the heading "Corectarea testelor de matematică, după barem", the line "MQGrader este o platformă web pentru profesorii de matematică din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.", the button "Intră în cont" (to `/admin/`) and the link "Cere un cont de profesor" (to `/admin/`, where the login form offers the new account). Right, on the ground tone: "Un test, în șase etape", a vertical list; each stage has an icon, its name, who does it ("Tu", "Elevii", "MQGrader") and one sentence:
    - Pregătire (Tu): Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.
    - Tipărire (Tu): Tipărești testul. Fiecare pagină are un cod QR.
    - În clasă (Elevii): Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.
@@ -279,7 +279,7 @@ The user picked one option per page on 2026-11-08 (decisions 29 to 39). The prot
 - The top bar holds only the lockup and the theme button: no school year (this ends the 14 px select of Phase 2).
 - Under it, two halves of equal width on the surface tone, a 1 px line between them, as tall as the screen.
 - Left: the form, centred, 24 rem wide, with no card around it. At the bottom, small and muted: "Elevii nu au nevoie de cont: trimit lucrarea de pe linkul testului."
-- Right, centred, 38 rem wide: "Weekendul tău, fără teancul de lucrări." (the landing page's heading), the landing page's line, and in one box on the raised tone "UN TEST, ÎN ȘASE ETAPE": the six stages of the landing page, word for word, as a small vertical list (icon, name, "Tu" / "Elevii" / "MQGrader", the sentence). Under the box: an orange dot with "Tu faci 4 din 6 etape, câteva minute fiecare." and a blue dot with "Restul se fac singure."
+- Right, centred, 38 rem wide: "Weekendul tău, fără teancul de lucrări." (the landing page's statement), the landing page's line, and in one box on the raised tone "UN TEST, ÎN ȘASE ETAPE": the six stages of the landing page, word for word, as a small vertical list (icon, name, "Tu" / "Elevii" / "MQGrader", the sentence). Under the box: an orange dot with "Tu faci 4 din 6 etape, câteva minute fiecare." and a blue dot with "Restul se fac singure."
 - The left half has these states, each with its own heading:
   - "Intră în cont", "Bine ai revenit.": the email, "Parola" with "Am uitat parola", "Intră"; "Nu ai cont? Cere un cont de profesor".
   - "Cont nou de profesor" (`#cont-nou`), "Primești un cont demo, ca să încerci MQGrader cu o clasă a ta.": "Numele tău", the email, "Parola (cel puțin 8 caractere)", "Cere contul"; the note "**Contul demo:** poți corecta un test, cu cel mult 35 de lucrări. Întâi confirmi adresa de email, apoi un administrator aprobă contul."; "Ai deja cont? Intră în cont".

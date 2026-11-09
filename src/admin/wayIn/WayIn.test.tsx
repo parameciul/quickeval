@@ -5,7 +5,7 @@ import { PITCH_HEADING, PITCH_LINE, STAGES, STAGES_TITLE, WayIn } from './WayIn.
 
 describe('the way in', () => {
   it('says what the landing page says, word for word', () => {
-    expect(landing).toContain(`>${PITCH_HEADING}</h1>`);
+    expect(landing).toContain(`<p class="l-kicker">${PITCH_HEADING}</p>`);
     expect(landing).toContain(`<p class="l-lede">${PITCH_LINE}</p>`);
     expect(landing).toContain(`<h2>${STAGES_TITLE}</h2>`);
     const landingStages = [...landing.matchAll(/<h3>([^<]+) <span class="who-tag">([^<]+)<\/span><\/h3><p>(.+?)<\/p>/g)];
