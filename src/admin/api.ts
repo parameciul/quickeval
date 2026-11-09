@@ -4,6 +4,7 @@ import type {
   BaremCheckedAnswer,
   BaremGenerateAnswer,
   BaremNotesAnswer,
+  CesRemovedAnswer,
   ClassDetail,
   ClassReport,
   ClassSummary,
@@ -35,7 +36,7 @@ import type {
   TestSummary,
   UpdateClassInput,
 } from '../../shared/api.ts';
-import { uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
+import { uploadTypeOf, type TestFileKind, type TestVariant } from '../../shared/files.ts';
 import type { CheckoutAnswer, CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { studentResultPath } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
@@ -76,6 +77,8 @@ export interface AdminApi {
   // Removes the student from the class; refused when the student has sent or graded work there.
   deleteStudent(classId: number, studentId: number): Promise<void>;
   renameStudent(studentId: number, fullName: string): Promise<{ id: number; fullName: string }>;
+  // Marks the student as CES, or takes the mark away.
+  setStudentCes(studentId: number, ces: boolean): Promise<{ id: number; ces: boolean }>;
   getStudentHistory(studentId: number): Promise<StudentHistory>;
   // The students, classes and tests of the year whose name holds the search.
   search(query: string, schoolYear: number): Promise<SearchResults>;
@@ -85,13 +88,16 @@ export interface AdminApi {
   getTest(code: string): Promise<TestDetail>;
   renameTest(code: string, title: string): Promise<{ code: string; title: string }>;
   deleteTest(code: string): Promise<void>;
-  uploadTestFile(code: string, kind: TestFileKind, file: File): Promise<TestFileAnswer>;
+  // `variant` "ces": the CES variant's file, comments, barem, print PDF or exercise list.
+  uploadTestFile(code: string, kind: TestFileKind, file: File, variant?: TestVariant): Promise<TestFileAnswer>;
   // Extra teacher comments for the barem, read by the robot as part of it.
-  saveBaremNotes(code: string, notes: string): Promise<BaremNotesAnswer>;
+  saveBaremNotes(code: string, notes: string, variant?: TestVariant): Promise<BaremNotesAnswer>;
   // "Generează baremul": the robot writes a barem from the test file.
-  generateBarem(code: string): Promise<BaremGenerateAnswer>;
+  generateBarem(code: string, variant?: TestVariant): Promise<BaremGenerateAnswer>;
   // "Am verificat baremul": names the files version the page showed.
-  confirmBarem(code: string, filesVersion: number): Promise<BaremCheckedAnswer>;
+  confirmBarem(code: string, filesVersion: number, variant?: TestVariant): Promise<BaremCheckedAnswer>;
+  // "Șterge varianta CES": only while no paper went to grading with it.
+  removeCesVariant(code: string): Promise<CesRemovedAnswer>;
   startTest(code: string): Promise<StartedTest>;
   // "Oprește testul": an open test with no student file is a draft again.
   stopTest(code: string): Promise<StoppedTest>;
@@ -100,7 +106,7 @@ export interface AdminApi {
   finishTest(code: string): Promise<FinishedTest>;
   // "Încearcă din nou" on a print PDF that failed, and "Pregătește testul cu
   // cod QR" on a draft made before tests got their link at once.
-  retryPrint(code: string): Promise<PrintRetryAnswer>;
+  retryPrint(code: string, variant?: TestVariant): Promise<PrintRetryAnswer>;
   // Puts a finished test in the archive, or takes it out. Resolves to the new mark.
   setTestArchived(code: string, archived: boolean): Promise<boolean>;
   // The link that uploads for many students on one phone, made only on demand.
@@ -115,8 +121,8 @@ export interface AdminApi {
   evaluateTest(code: string, at?: string, submissionIds?: number[]): Promise<EvaluationStart>;
   cancelSchedule(code: string): Promise<void>;
   // The robot answers are null when the robot was not needed.
-  acceptExerciseList(code: string): Promise<RobotStart | null>;
-  retryExerciseList(code: string): Promise<RobotStart | null>;
+  acceptExerciseList(code: string, variant?: TestVariant): Promise<RobotStart | null>;
+  retryExerciseList(code: string, variant?: TestVariant): Promise<RobotStart | null>;
   // "Pornește robotul": work that a stopped run left in the test.
   startRobot(code: string): Promise<RobotStart>;
   // "Regenerează": the class analysis is written again.
@@ -148,14 +154,20 @@ export interface AdminApi {
   startCheckout(input: CheckoutInput): Promise<string>;
 }
 
+// The part of a test's address that names its variant: the CES variant's
+// routes are under /ces.
+function variantPath(code: string, variant: TestVariant | undefined): string {
+  return `/tests/${encodeURIComponent(code)}${variant === 'ces' ? '/ces' : ''}`;
+}
+
 // Files open straight from the API: the browser sends the login cookie.
-export function testFileUrl(code: string, kind: TestFileKind): string {
-  return `/api/admin/tests/${encodeURIComponent(code)}/files/${kind}`;
+export function testFileUrl(code: string, kind: TestFileKind, variant?: TestVariant): string {
+  return `/api/admin${variantPath(code, variant)}/files/${kind}`;
 }
 
 // The test with the QR code, made for printing.
-export function printFileUrl(code: string): string {
-  return `/api/admin/tests/${encodeURIComponent(code)}/print`;
+export function printFileUrl(code: string, variant?: TestVariant): string {
+  return `/api/admin${variantPath(code, variant)}/print`;
 }
 
 export function submissionFileUrl(submissionId: number, fileId: number): string {
@@ -286,6 +298,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     },
     renameStudent: async (studentId, fullName) =>
       (await request<{ student: { id: number; fullName: string } }>('PATCH', `/students/${studentId}`, { fullName })).student,
+    setStudentCes: async (studentId, ces) =>
+      (await request<{ student: { id: number; ces: boolean } }>('PUT', `/students/${studentId}/ces`, { ces })).student,
     getStudentHistory: (studentId) => request<StudentHistory>('GET', `/students/${studentId}/history`),
     search: (query, schoolYear) => request<SearchResults>('GET', `/search?q=${encodeURIComponent(query)}&year=${schoolYear}`),
     listTests: async (schoolYear) => (await request<{ tests: TestSummary[] }>('GET', `/tests?year=${schoolYear}`)).tests,
@@ -295,10 +309,12 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     deleteTest: async (code) => {
       await request('DELETE', test(code));
     },
-    uploadTestFile: (code, kind, file) => request<TestFileAnswer>('PUT', `${test(code)}/files/${kind}`, undefined, file),
-    saveBaremNotes: (code, notes) => request<BaremNotesAnswer>('PUT', `${test(code)}/barem-notes`, { notes }),
-    generateBarem: (code) => request<BaremGenerateAnswer>('POST', `${test(code)}/barem/generate`),
-    confirmBarem: (code, filesVersion) => request<BaremCheckedAnswer>('POST', `${test(code)}/barem/checked`, { filesVersion }),
+    uploadTestFile: (code, kind, file, variant) => request<TestFileAnswer>('PUT', `${variantPath(code, variant)}/files/${kind}`, undefined, file),
+    saveBaremNotes: (code, notes, variant) => request<BaremNotesAnswer>('PUT', `${variantPath(code, variant)}/barem-notes`, { notes }),
+    generateBarem: (code, variant) => request<BaremGenerateAnswer>('POST', `${variantPath(code, variant)}/barem/generate`),
+    confirmBarem: (code, filesVersion, variant) =>
+      request<BaremCheckedAnswer>('POST', `${variantPath(code, variant)}/barem/checked`, { filesVersion }),
+    removeCesVariant: (code) => request<CesRemovedAnswer>('DELETE', `${test(code)}/ces`),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
     stopTest: (code) => request<StoppedTest>('POST', `${test(code)}/stop`),
     createMultiUploadLink: async (code) =>
@@ -309,7 +325,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       (await request<ResultsOpenAnswer>('POST', `/submissions/${submissionId}/results/${open ? 'open' : 'close'}`, { startedAt })).resultsOpen,
     reopenTest: (code) => request<ReopenAnswer>('POST', `${test(code)}/reopen`),
     finishTest: (code) => request<FinishedTest>('POST', `${test(code)}/finish`),
-    retryPrint: (code) => request<PrintRetryAnswer>('POST', `${test(code)}/print/retry`),
+    retryPrint: (code, variant) => request<PrintRetryAnswer>('POST', `${variantPath(code, variant)}/print/retry`),
     setTestArchived: async (code, archived) =>
       (await request<{ archived: boolean }>('POST', `${test(code)}/${archived ? 'archive' : 'unarchive'}`)).archived,
     evaluateTest: (code, at, submissionIds) =>
@@ -321,10 +337,10 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     cancelSchedule: async (code) => {
       await request('DELETE', `${test(code)}/schedule`);
     },
-    acceptExerciseList: async (code) =>
-      (await request<ExerciseListAnswer>('POST', `${test(code)}/exercise-list/accept`)).robot,
-    retryExerciseList: async (code) =>
-      (await request<ExerciseListAnswer>('POST', `${test(code)}/exercise-list/retry`)).robot,
+    acceptExerciseList: async (code, variant) =>
+      (await request<ExerciseListAnswer>('POST', `${variantPath(code, variant)}/exercise-list/accept`)).robot,
+    retryExerciseList: async (code, variant) =>
+      (await request<ExerciseListAnswer>('POST', `${variantPath(code, variant)}/exercise-list/retry`)).robot,
     startRobot: async (code) => (await request<RobotStartAnswer>('POST', `${test(code)}/robot`)).robot,
     regenerateAnalysis: (code) => request<AnalysisAnswer>('POST', `${test(code)}/analysis/regenerate`),
     getReport: async (code) => (await request<{ report: ClassReport }>('GET', `${test(code)}/report`)).report,

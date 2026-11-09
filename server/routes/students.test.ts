@@ -98,3 +98,44 @@ describe('PATCH /api/admin/students/:id', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('PUT /api/admin/students/:id/ces', () => {
+  it('marks a student as CES and the class list shows it, then takes the mark away', async () => {
+    const created = await api.request('POST', '/api/admin/classes', { name: '9R2', schoolYear: 2026 });
+    const classId = created.body.class.id as number;
+    const added = await api.request('POST', `/api/admin/classes/${classId}/students`, { names: ['Bursașiu Teodor', 'Ene Ana'] });
+    expect(added.body.students.map((s: { ces: boolean }) => s.ces)).toEqual([false, false]);
+    const id = added.body.students[0].id as number;
+
+    const marked = await api.request('PUT', `/api/admin/students/${id}/ces`, { ces: true });
+    expect(marked.status).toBe(200);
+    expect(marked.body.student).toEqual({ id, ces: true });
+    const detail = await api.request('GET', `/api/admin/classes/${classId}`);
+    const ces = Object.fromEntries(detail.body.students.map((s: { fullName: string; ces: boolean }) => [s.fullName, s.ces]));
+    expect(ces).toEqual({ 'Bursașiu Teodor': true, 'Ene Ana': false });
+
+    // Leaving the class keeps the mark.
+    const left = await api.request('PATCH', `/api/admin/classes/${classId}/students/${id}`, { active: false });
+    expect(left.body.student.ces).toBe(true);
+
+    const unmarked = await api.request('PUT', `/api/admin/students/${id}/ces`, { ces: false });
+    expect(unmarked.body.student).toEqual({ id, ces: false });
+  });
+
+  it('refuses a body without the mark', async () => {
+    const res = await api.request('PUT', `/api/admin/students/${studentId}/ces`, { ces: 'da' });
+    expect(res.status).toBe(400);
+  });
+
+  it('answers 404 for a student of another teacher', async () => {
+    const otherId = await api.addTeacher('other-ces@example.com', 'Alt Profesor');
+    const row = await api.db
+      .prepare("INSERT INTO students (teacher_id, full_name, created_at) VALUES (?, 'Alt Elev', '2026-10-06') RETURNING id")
+      .bind(otherId)
+      .first<{ id: number }>();
+    const res = await api.request('PUT', `/api/admin/students/${row!.id}/ces`, { ces: true });
+    expect(res.status).toBe(404);
+    const kept = await api.db.prepare('SELECT ces FROM students WHERE id = ?').bind(row!.id).first<{ ces: number }>();
+    expect(kept!.ces).toBe(0);
+  });
+});

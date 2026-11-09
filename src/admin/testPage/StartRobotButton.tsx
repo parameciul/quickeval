@@ -1,20 +1,23 @@
 import { useMutation } from '@tanstack/react-query';
 import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
+import { cesBaremActive } from './variant.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // The print PDF of a draft or open test waits for the robot: the test has its
 // link and its file, and the PDF is neither made nor failed.
 export function waitsForPrint(test: TestInfo): boolean {
-  return (
-    (test.status === 'draft' || test.status === 'open') && test.uploadToken !== null && test.files.test !== null && test.print.status === 'none'
-  );
+  const open = (test.status === 'draft' || test.status === 'open') && test.uploadToken !== null;
+  return open && ((test.files.test !== null && test.print.status === 'none') || (test.ces.files.test !== null && test.ces.print.status === 'none'));
 }
 
 // The barem the teacher asked for waits for the robot: the test is a draft or
-// open, has its test file, and the request is neither answered nor failed.
+// open, has its test file, and the request is neither answered nor failed. The
+// CES barem may also wait during the evaluation.
 export function waitsForBarem(test: TestInfo): boolean {
-  return (test.status === 'draft' || test.status === 'open') && test.files.test !== null && test.barem.request === 'requested';
+  const classBarem = (test.status === 'draft' || test.status === 'open') && test.files.test !== null && test.barem.request === 'requested';
+  const cesBarem = test.status !== 'done' && test.ces.files.test !== null && test.ces.barem.request === 'requested';
+  return classBarem || cesBarem;
 }
 
 // Work waits for the robot: the print PDF or a requested barem waits, or the
@@ -25,7 +28,11 @@ export function waitsForRobot(test: TestInfo, uploads: UploadRow[]): boolean {
   if (waitsForPrint(test) || waitsForBarem(test)) return true;
   if (test.status !== 'evaluating') return false;
   if (test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed') return false;
-  if (uploads.some((row) => row.status === 'submitted' || row.status === 'grading')) return true;
+  // The CES papers that wait for an active CES barem, or for the teacher to
+  // settle their exercise list, are no work for the robot.
+  const cesList = test.ces.exerciseList.status;
+  const held = cesBaremActive(test) && cesList !== 'problem' && cesList !== 'failed' ? 0 : test.ces.waiting;
+  if (uploads.filter((row) => row.status === 'submitted' || row.status === 'grading').length > held) return true;
   return test.analysis.status === 'requested' && test.gradedCount > 0;
 }
 

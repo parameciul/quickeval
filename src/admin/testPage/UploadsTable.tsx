@@ -5,6 +5,7 @@ import type { RobotStart, UploadRow } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDateTime, modelCell, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
+import { CesTag } from '../CesTag.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
 
@@ -170,6 +171,7 @@ function UploadTableRow({
       )}
       <th scope="row">
         {row.studentName}
+        {(row.ces || row.variant === 'ces') && <CesTag />}
         {!row.active && <span className="tag">a plecat</span>}
       </th>
       <td data-label="Stare">

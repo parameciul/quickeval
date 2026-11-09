@@ -8,6 +8,7 @@ import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { foldForSearch, searchMatcher } from '../../../shared/search.ts';
 import { countLabel, formatDayMonth, uploadStatusLabel } from '../../ui/format.ts';
+import { CesTag } from '../CesTag.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { CopyResultLink } from '../testPage/ResultLinksTable.tsx';
 import { AddStudentsDialog, RenameDialog } from './ClassDialogs.tsx';
@@ -101,6 +102,7 @@ export function ClassStudents({
                   onClick={() => setChosenId(student.id)}
                 >
                   <span>{student.fullName}</span>
+                  {student.ces && <CesTag />}
                   {waits(student.id) && <span className="flag-dot" role="img" aria-label="puncte de verificat"></span>}
                 </button>
               </li>
@@ -190,6 +192,10 @@ function StudentDetail({
     mutationFn: () => api.setStudentActive(classId, student.id, !student.active),
     onSuccess: onChanged,
   });
+  const ces = useMutation({
+    mutationFn: () => api.setStudentCes(student.id, !student.ces),
+    onSuccess: onChanged,
+  });
   const remove = useMutation({
     mutationFn: () => api.deleteStudent(classId, student.id),
     onSuccess: async () => {
@@ -209,6 +215,12 @@ function StudentDetail({
         <div>
           <h2 id="student-detail-name">
             {student.fullName}
+            {student.ces && (
+              <>
+                {' '}
+                <CesTag />
+              </>
+            )}
             {!student.active && (
               <>
                 {' '}
@@ -219,11 +231,15 @@ function StudentDetail({
           <p>
             {displayClassName(className)} · {countLabel(papers, 'lucrare', 'lucrări')} în {formatSchoolYear(schoolYear)}
           </p>
+          {student.ces && <p className="hint">Primește varianta CES a testelor care au una.</p>}
         </div>
         {!readOnly && (
           <div className="student-detail-actions">
             <button type="button" className="text-button is-quiet" onClick={() => setRenameOpen(true)}>
               Redenumește
+            </button>
+            <button type="button" className="text-button is-quiet" disabled={ces.isPending} onClick={() => ces.mutate()}>
+              {student.ces ? 'Scoate marcajul CES' : 'Marchează CES'}
             </button>
             <button
               type="button"
@@ -242,6 +258,7 @@ function StudentDetail({
         )}
       </div>
       {toggle.error && <ErrorMessage error={toggle.error} />}
+      {ces.error && <ErrorMessage error={ces.error} />}
       {remove.error && <ErrorMessage error={remove.error} />}
       {tests.length === 0 ? (
         <p className="hint student-detail-empty">Clasa nu are încă teste.</p>

@@ -97,6 +97,20 @@ export function TestSheet({ test, onChanged }: { test: TestInfo; onChanged: () =
               <span className="hint">PDF de tipărit</span>
             </li>
           )}
+          {test.ces.files.test !== null && (
+            <SheetFile title="Testul CES" name={test.ces.files.test.name} href={testFileUrl(test.code, 'test', 'ces')} />
+          )}
+          {test.ces.files.barem !== null && (
+            <SheetFile title="Baremul CES" name={test.ces.files.barem.name} href={testFileUrl(test.code, 'barem', 'ces')} />
+          )}
+          {test.ces.print.status === 'ready' && (
+            <li>
+              <a href={printFileUrl(test.code, 'ces')} download>
+                Testul CES cu cod QR
+              </a>
+              <span className="hint">PDF de tipărit</span>
+            </li>
+          )}
         </ul>
       </div>
 

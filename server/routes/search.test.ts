@@ -26,7 +26,7 @@ describe('GET /api/admin/search', () => {
     const res = await search('stef');
     expect(res.status).toBe(200);
     expect(res.body.students.map((s: { fullName: string }) => s.fullName)).toEqual(['Ioana Stefănescu', 'Ștefan Radu', 'Ştefania Pop']);
-    expect(res.body.students[1]).toEqual({ id: tenth.studentIds[0], fullName: 'Ștefan Radu', classes: [{ id: tenth.id, name: '10B' }], lastGrade: null });
+    expect(res.body.students[1]).toEqual({ id: tenth.studentIds[0], fullName: 'Ștefan Radu', ces: false, classes: [{ id: tenth.id, name: '10B' }], lastGrade: null });
     expect(res.body.classes).toEqual([]);
     expect(res.body.tests).toEqual([]);
 

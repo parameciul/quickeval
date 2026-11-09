@@ -2,8 +2,10 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
 import type { AnalysisInfo } from '../../shared/api.ts';
 import type { AnalysisStatus, TestStatus } from '../../shared/tests.ts';
+import type { TestVariant } from '../../shared/files.ts';
 import { flagCountSql, type ShownResult } from './evaluations.ts';
 import type { ShownUpload } from './submissions.ts';
+import { baremActiveSql, columns } from './variant.ts';
 
 // The test lifecycle after Start test (spec §8.3-§8.5). Each write checks its
 // own rules in its SQL, so two requests at once cannot both pass a check.
@@ -52,7 +54,7 @@ export async function askAnalysisAfterCheck(db: D1Database, teacherId: number, s
 
 // The barem of test t can be graded against: it exists, the teacher checked it
 // when the robot generated it, and no generation is running.
-export const BAREM_ACTIVE = "t.barem_file_key IS NOT NULL AND t.barem_unchecked = 0 AND t.barem_request <> 'requested'";
+export const BAREM_ACTIVE = baremActiveSql('class');
 
 const HAS_FILES = 'EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)';
 
@@ -460,11 +462,18 @@ export async function hasUploadedFiles(db: D1Database, testId: number): Promise<
 
 // "Folosește oricum": the teacher accepts an exercise list whose points do
 // not add up. Returns the test's status, or null when the list had no problem.
-export async function acceptExerciseList(db: D1Database, teacherId: number, testId: number, now: string): Promise<TestStatus | null> {
+export async function acceptExerciseList(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  now: string,
+  variant: TestVariant = 'class',
+): Promise<TestStatus | null> {
+  const c = columns(variant);
   const row = await db
     .prepare(
-      `UPDATE tests SET exercise_list_status = 'accepted', updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND exercise_list_status = 'problem'
+      `UPDATE tests SET ${c('exercise_list_status')} = 'accepted', updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND ${c('exercise_list_status')} = 'problem'
        RETURNING status`,
     )
     .bind(now, testId, teacherId)
@@ -474,11 +483,18 @@ export async function acceptExerciseList(db: D1Database, teacherId: number, test
 
 // Lets the robot try again to make an exercise list it failed to make.
 // Returns the test's status, or null when the list had not failed.
-export async function retryExerciseList(db: D1Database, teacherId: number, testId: number, now: string): Promise<TestStatus | null> {
+export async function retryExerciseList(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  now: string,
+  variant: TestVariant = 'class',
+): Promise<TestStatus | null> {
+  const c = columns(variant);
   const row = await db
     .prepare(
-      `UPDATE tests SET exercise_list_status = 'none', exercise_list_message = NULL, exercise_list_attempts = 0, updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND exercise_list_status = 'failed'
+      `UPDATE tests SET ${c('exercise_list_status')} = 'none', ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND ${c('exercise_list_status')} = 'failed'
        RETURNING status`,
     )
     .bind(now, testId, teacherId)
@@ -486,8 +502,11 @@ export async function retryExerciseList(db: D1Database, teacherId: number, testI
   return row?.status ?? null;
 }
 
-// A regraded upload waits for the robot again, as if just sent.
-const GRADE_AGAIN = "status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, graded_at = NULL";
+// A regraded upload waits for the robot again, as if just sent. It went to
+// grading before, so it keeps its variant; a paper graded before the variants
+// existed has none written, and was graded as a class paper.
+const KEEP_VARIANT = "variant = COALESCE(variant, 'class')";
+const GRADE_AGAIN = `status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, graded_at = NULL, ${KEEP_VARIANT}`;
 
 // The end of a batch that made one upload wait for the robot again: a
 // finished test goes back to evaluation (spec §8.5), then the test's status
@@ -603,7 +622,7 @@ export async function retrySubmission(db: D1Database, shown: ShownUpload, now: s
   const [retried, , test] = await db.batch<{ test_id?: number; test_status?: TestStatus; status?: TestStatus }>([
     db
       .prepare(
-        `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL
+        `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, ${KEEP_VARIANT}
          WHERE id = ? AND started_at = ? AND status = 'failed'
            AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ? AND ${MAY_GRADE_AGAIN})
          RETURNING test_id, ${STATUS_BEFORE}`,

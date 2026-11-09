@@ -173,11 +173,12 @@ function report(exerciseCount: number): ClassReport {
   return {
     test: { code: '6E2-26T1', title: 'Fracții și ecuații', classId: 1, className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
     exercises,
+    cesExercises: null,
     rows: [
-      { submissionId: 5, studentId: 10, studentName: 'Ștefănescu Țicu', active: true, total: 12, maxTotal: exerciseCount, grade: 8, flagCount: 1, items: items(1) },
-      { submissionId: 6, studentId: 11, studentName: 'Avram Dan', active: true, total: 10, maxTotal: exerciseCount, grade: 7, flagCount: 0, items: items(-1) },
+      { submissionId: 5, studentId: 10, studentName: 'Ștefănescu Țicu', active: true, total: 12, maxTotal: exerciseCount, grade: 8, flagCount: 1, ces: false, variant: 'class', items: items(1) },
+      { submissionId: 6, studentId: 11, studentName: 'Avram Dan', active: true, total: 10, maxTotal: exerciseCount, grade: 7, flagCount: 0, ces: false, variant: 'class', items: items(-1) },
     ],
-    missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none' }],
+    missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none', ces: false }],
     analysis: {
       status: 'ready',
       stale: true,
@@ -186,6 +187,18 @@ function report(exerciseCount: number): ClassReport {
     },
   };
 }
+
+describe('classPdf with CES papers', () => {
+  it('adds the CES table and its exercises under "Varianta CES"', () => {
+    const base = report(2);
+    const ces = { ...base.rows[1]!, submissionId: 7, studentName: 'Bursașiu Teodor', variant: 'ces' as const, ces: true, items: [{ exerciseId: 'C1', points: 8, maxPoints: 9, flagged: false }] };
+    const text = textsOf(classPdf({ ...base, cesExercises: [{ id: 'C1', label: 'Exercițiul CES', maxPoints: 9 }], rows: [...base.rows, ces] }).content).join('\n');
+    expect(text.match(/Varianta CES/g)).toHaveLength(2);
+    expect(text).toContain('C1 · Exercițiul CES');
+    expect(text).toContain('Bursașiu Teodor');
+    expect(textsOf(classPdf(base).content).join('\n')).not.toContain('Varianta CES');
+  });
+});
 
 describe('classPdf', () => {
   it('is landscape, with the statistics, the table, the missing students, and the analysis', () => {

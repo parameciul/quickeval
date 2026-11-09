@@ -10,7 +10,7 @@ import {
   type Role,
 } from './accounts.ts';
 import { normalizeClassName } from './classes.ts';
-import type { TestFileKind } from './files.ts';
+import type { TestFileKind, TestVariant } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
 import { type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
@@ -78,6 +78,10 @@ export const addStudentsBody = z.object({
 export const setEnrollmentBody = z.object({ active: z.boolean() });
 
 export const renameStudentBody = z.object({ fullName: studentNameSchema });
+
+// The CES mark of a student ("cerințe educaționale speciale"): such a student
+// gets the CES variant of a test that has one.
+export const studentCesBody = z.object({ ces: z.boolean() });
 
 export const testTitleSchema = z
   .string()
@@ -374,6 +378,9 @@ export interface StudentRow {
   // False when the student has a sent, grading or graded upload in this class's
   // tests: such a student can be marked as left but not deleted.
   canDelete: boolean;
+  // The teacher marked the student as CES: the student gets the CES variant of
+  // a test that has one. For the teacher only.
+  ces: boolean;
 }
 
 // One upload of a student in a test of the class, for the class grade table.
@@ -425,7 +432,7 @@ export interface StudentHistoryTest {
 // as the grades table of the class page reads them. An archived test, or a test
 // of a class the student left, is listed only when the student sent a paper.
 export interface StudentHistory {
-  student: { id: number; fullName: string };
+  student: { id: number; fullName: string; ces: boolean };
   classes: StudentClass[];
   tests: StudentHistoryTest[];
   grades: ClassGrade[];
@@ -437,6 +444,8 @@ export interface StudentHistory {
 export interface SearchStudent {
   id: number;
   fullName: string;
+  // The teacher marked the student as CES.
+  ces: boolean;
   classes: { id: number; name: string }[];
   lastGrade: number | null;
 }
@@ -485,6 +494,11 @@ export interface TestSummary {
   // their link when made has none, and no print PDF is made for it until the
   // teacher asks on the test page. The Teste page draws the stages from it.
   prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus; uploadLink: boolean };
+  // The CES variant's barem, while the test has a CES test file: "De făcut"
+  // asks the teacher to check a generated one, or to give one when CES papers
+  // wait for it (`missing`: no CES barem file, and a CES paper waits). Null
+  // with no CES variant.
+  cesBarem: { request: BaremRequest; unchecked: boolean; missing: boolean } | null;
   // The average of the graded papers, as the class report gives it; null
   // while no paper is graded.
   averageGrade: number | null;
@@ -526,6 +540,10 @@ export interface ReportRow {
   // that could not be read.
   flagCount: number;
   items: ReportItem[];
+  // The student is marked CES (the report shows the mark), and the variant
+  // the paper was graded with.
+  ces: boolean;
+  variant: TestVariant;
 }
 
 // An active student of the class with no graded result, and why.
@@ -533,6 +551,7 @@ export interface ReportMissing {
   studentId: number;
   studentName: string;
   status: UploadStatus;
+  ces: boolean;
 }
 
 // The class report of a test (spec §14.2). The statistics come from
@@ -541,6 +560,12 @@ export interface ClassReport {
   test: { code: string; title: string; classId: number; className: string; status: TestStatus; startedAt: string | null };
   // The exercises of the test, in barem order.
   exercises: { id: string; label: string; maxPoints: number }[];
+  // The CES variant's exercises, when CES papers are graded and their
+  // exercises differ from the class test's (other ids, or another maximum):
+  // the CES papers then go in a table of their own (reportTables in
+  // shared/stats.ts). Null when there is no CES paper or the exercises are
+  // the same: the CES rows then share the class columns.
+  cesExercises: { id: string; label: string; maxPoints: number }[] | null;
   rows: ReportRow[];
   missing: ReportMissing[];
   analysis: AnalysisInfo & { content: ClassAnalysis | null };
@@ -569,6 +594,32 @@ export type PrintStatus = 'none' | 'ready' | 'failed';
 // "requested" while it runs, "failed" when it gave up.
 export type BaremRequest = 'none' | 'requested' | 'failed';
 
+// The CES variant of a test (spec: CES variant), for the teacher only: the
+// adapted test that the CES students of the class get, with its own barem,
+// exercise list and print PDF. The test has a CES variant while `files.test`
+// is set.
+export interface CesVariantInfo {
+  // Active students of the class marked CES: the page offers the variant only
+  // when there is one (or the test already has a variant).
+  studentCount: number;
+  files: Record<TestFileKind, TestFileInfo | null>;
+  baremNotes: string;
+  barem: { request: BaremRequest; unchecked: boolean };
+  // Goes up with every new CES file or CES barem comments.
+  filesVersion: number;
+  exerciseList: ExerciseListInfo;
+  print: { status: PrintStatus; fromWord: boolean };
+  // Papers that went to grading with the CES variant: while there is one, the
+  // variant cannot be removed.
+  papers: number;
+  // CES papers sent and not graded yet: they wait for an active CES barem.
+  waiting: number;
+  // The highest total of the CES exercise list and of the class list, once the
+  // robot made them. The CES barem should total as much as the class barem.
+  totalPoints: number | null;
+  classTotalPoints: number | null;
+}
+
 export interface TestInfo extends TestSummary {
   // The upload link (/u/<uploadToken>), made with the test, so the print PDF
   // is ready before the test starts. Null only for a draft made before that.
@@ -583,6 +634,7 @@ export interface TestInfo extends TestSummary {
   analysis: AnalysisInfo;
   // fromWord: the test file is a Word file, so the PDF is made from it.
   print: { status: PrintStatus; fromWord: boolean };
+  ces: CesVariantInfo;
 }
 
 // The model and effort of the latest grading and of the latest class
@@ -639,6 +691,10 @@ export interface UploadRow {
   effort: string | null;
   // Why grading failed, for the teacher.
   lastError: string | null;
+  // The student is marked CES (the page shows the mark), and the variant the
+  // paper went to grading with (null until then).
+  ces: boolean;
+  variant: TestVariant | null;
 }
 
 export interface TestDetail {
@@ -723,9 +779,17 @@ export interface BaremGenerateAnswer {
   robot: RobotStart | null;
 }
 
-// The teacher checked the generated barem.
+// The teacher checked the generated barem. `robot`: only for the CES barem,
+// set when CES papers that waited for it go to the robot now.
 export interface BaremCheckedAnswer {
   barem: TestInfo['barem'];
+  robot?: RobotStart | null;
+}
+
+// "Șterge varianta CES".
+export interface CesRemovedAnswer {
+  ces: CesVariantInfo;
+  robot: RobotStart | null;
 }
 
 // "Încearcă din nou" on a print PDF that failed.

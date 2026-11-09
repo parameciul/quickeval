@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { TestSummary } from '../../../shared/api.ts';
-import { fakeTest } from '../../test/fakeApi.ts';
+import type { TestInfo, TestSummary } from '../../../shared/api.ts';
+import { fakeTest, noCesVariant } from '../../test/fakeApi.ts';
+import { stagesOf } from '../stages.ts';
 import { inWork, todoList, todoOf, todoPath } from './todo.ts';
 
 const summary = (overrides: Partial<TestSummary>): TestSummary => fakeTest({ title: 'Ecuații', ...overrides }).test;
@@ -109,5 +110,53 @@ describe('inWork', () => {
     expect(inWork(summary({ ...graded, resultsOpen: true }))).toBe(false);
     expect(inWork(summary({ status: 'done', gradedCount: 0 }))).toBe(false);
     expect(inWork(summary({ ...graded, flagCount: 2, archived: true }))).toBe(false);
+  });
+});
+
+describe('the CES barem in "De făcut"', () => {
+  const withCes = (overrides: Partial<TestInfo>): TestSummary => fakeTest({ title: 'Ecuații', ...overrides }).test;
+  const ces = (barem: { request: 'none' | 'requested' | 'failed'; unchecked: boolean }) =>
+    noCesVariant({ studentCount: 1, files: { test: { name: 't.pdf', type: 'application/pdf' }, barem: null }, barem });
+
+  it('asks to check a generated CES barem, also during the evaluation, and marks Pregătire', () => {
+    for (const status of ['draft', 'open', 'evaluating'] as const) {
+      const test = withCes({ status, ces: ces(generated) });
+      expect(todoOf(test)).toMatchObject({
+        stage: 'Pregătire',
+        task: 'Verifică baremul CES generat',
+        text: 'Până îl confirmi, lucrările CES nu se corectează.',
+        short: 'baremul CES de verificat',
+      });
+      expect(stagesOf(test).stages[0]).toMatchObject({ name: 'Pregătire', state: 'wait', note: 'baremul CES de verificat' });
+    }
+  });
+
+  it('asks to generate the CES barem again when its new generation failed', () => {
+    expect(todoOf(withCes({ status: 'evaluating', ces: ces({ request: 'failed', unchecked: true }) }))).toMatchObject({
+      task: 'Generează din nou baremul CES',
+      short: 'baremul CES nu s-a generat',
+    });
+  });
+
+  it('asks for the class barem first, and nothing once the test is done or while the CES barem is made', () => {
+    expect(todoOf(withCes({ status: 'open', barem: generated, ces: ces(generated) }))?.task).toBe('Verifică baremul generat');
+    expect(todoOf(withCes({ ...graded, resultsOpen: true, ces: ces(generated) }))).toBeNull();
+    expect(todoOf(withCes({ status: 'open', ces: ces({ request: 'requested', unchecked: true }) }))).toBeNull();
+    // No CES test file: no CES variant to ask about.
+    expect(todoOf(withCes({ status: 'open', ces: noCesVariant({ barem: generated }) }))).toBeNull();
+  });
+
+  it('asks for the CES barem while CES papers wait for it during the evaluation', () => {
+    const missing = noCesVariant({ studentCount: 1, files: { test: { name: 't.pdf', type: 'application/pdf' }, barem: null }, waiting: 1 });
+    const test = withCes({ status: 'evaluating', ces: missing });
+    expect(todoOf(test)).toMatchObject({
+      stage: 'Pregătire',
+      task: 'Încarcă baremul CES',
+      text: 'Lucrările CES așteaptă baremul CES. Celelalte lucrări se corectează între timp.',
+      short: 'baremul CES lipsește',
+    });
+    expect(stagesOf(test).stages[0]).toMatchObject({ name: 'Pregătire', state: 'wait', note: 'baremul CES lipsește' });
+    // No CES paper waits yet: nothing to ask.
+    expect(todoOf(withCes({ status: 'evaluating', ces: { ...missing, waiting: 0 } }))).toBeNull();
   });
 });

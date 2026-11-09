@@ -2906,6 +2906,24 @@ input[type="file"] {
   background: var(--sheet);
 }
 
+/* "Varianta CES" in Pregătire: the adapted test's own files, under the class files. */
+.ces-variant {
+  max-width: 44rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1.5px solid var(--rule);
+}
+
+.ces-variant > h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+/* The mark of a CES student next to the name. */
+.tag-ces {
+  margin-left: 0.4rem;
+}
+
 .button-danger {
   color: var(--error-fg);
 }
@@ -5142,6 +5160,16 @@ table.report-table td.flagged-cell {
 /* The students' table has one narrow column for each exercise, so many of
    them fit: points are centred with little padding, and a name stays on one
    line. */
+/* "Varianta CES" in the class report: the CES papers' own table, under the class one. */
+.report-subhead {
+  margin: 1.25rem 0 0.25rem;
+  font-size: 1rem;
+}
+
+.report-subhead-line {
+  margin: 0 0 0.5rem;
+}
+
 table.results-table {
   font-size: 0.9rem;
 }

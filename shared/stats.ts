@@ -1,4 +1,5 @@
-import type { ClassReport } from './api.ts';
+import type { ClassReport, ReportRow } from './api.ts';
+import type { TestVariant } from './files.ts';
 import { round2, toCents } from './scoring.ts';
 
 // The statistics of the class report (spec §14.2): pure functions of the
@@ -38,9 +39,41 @@ export interface ClassStats {
   min: number | null;
   max: number | null;
   groups: { label: string; count: number }[];
+  // The exercises of the class table, from its papers only.
   perExercise: ExerciseStats[];
+  // The exercises of the CES table, when the report has one (reportTables).
+  cesPerExercise: ExerciseStats[] | null;
   // Items to check that the teacher has not checked yet, in all the results.
   flaggedCount: number;
+}
+
+type ReportExercise = ClassReport['exercises'][number];
+
+// Two exercise lists that the same columns can show: the same ids, each with
+// the same maximum, in any order.
+export function sameExercises(a: readonly ReportExercise[], b: readonly ReportExercise[]): boolean {
+  if (a.length !== b.length) return false;
+  const max = new Map(a.map((exercise) => [exercise.id, Math.round(exercise.maxPoints * 100)]));
+  return b.every((exercise) => max.get(exercise.id) === Math.round(exercise.maxPoints * 100));
+}
+
+// One table of points per exercise in the class report, the CSV and the
+// class PDF.
+export interface ReportTable {
+  variant: TestVariant;
+  exercises: ReportExercise[];
+  rows: ReportRow[];
+}
+
+// The tables of the report: one for the whole class while the CES papers
+// share the class columns; else the class papers, then the CES papers with
+// the CES exercises. The final scores and grades stay together in the tiles.
+export function reportTables(report: Pick<ClassReport, 'exercises' | 'cesExercises' | 'rows'>): ReportTable[] {
+  if (report.cesExercises === null) return [{ variant: 'class', exercises: report.exercises, rows: report.rows }];
+  return [
+    { variant: 'class', exercises: report.exercises, rows: report.rows.filter((row) => row.variant !== 'ces') },
+    { variant: 'ces', exercises: report.cesExercises, rows: report.rows.filter((row) => row.variant === 'ces') },
+  ];
 }
 
 // The average grade of a test, as the class report and the Teste page show
@@ -57,14 +90,10 @@ function median(sorted: number[]): number | null {
   return sorted.length % 2 === 1 ? sorted[middle]! : round2((sorted[middle - 1]! + sorted[middle]!) / 2);
 }
 
-export function classStats(report: Pick<ClassReport, 'exercises' | 'rows' | 'missing'>): ClassStats {
-  const grades = report.rows.map((row) => row.grade).sort((a, b) => a - b);
-  const groups = GRADE_GROUPS.map((group, index) => {
-    const until = GRADE_GROUPS[index + 1]?.from ?? Infinity;
-    return { label: group.label, count: grades.filter((grade) => grade >= group.from && grade < until).length };
-  });
-  const perExercise = report.exercises.map((exercise): ExerciseStats => {
-    const points = report.rows.flatMap((row) => row.items.filter((item) => item.exerciseId === exercise.id).map((item) => item.points));
+// The statistics of each exercise of one table, from the papers of that table.
+function exerciseStats(table: Pick<ReportTable, 'exercises' | 'rows'>): ExerciseStats[] {
+  return table.exercises.map((exercise): ExerciseStats => {
+    const points = table.rows.flatMap((row) => row.items.filter((item) => item.exerciseId === exercise.id).map((item) => item.points));
     const maxCents = Math.round(exercise.maxPoints * 100);
     const cents = points.map((value) => toCents(value) ?? Math.round(value * 100));
     const averagePoints = points.length === 0 ? null : round2(points.reduce((total, value) => total + value, 0) / points.length);
@@ -80,6 +109,18 @@ export function classStats(report: Pick<ClassReport, 'exercises' | 'rows' | 'mis
       zero: cents.filter((value) => value <= 0).length,
     };
   });
+}
+
+// The grades are the whole class's, CES papers included; the exercises are
+// each table's own.
+export function classStats(report: Pick<ClassReport, 'exercises' | 'cesExercises' | 'rows' | 'missing'>): ClassStats {
+  const grades = report.rows.map((row) => row.grade).sort((a, b) => a - b);
+  const groups = GRADE_GROUPS.map((group, index) => {
+    const until = GRADE_GROUPS[index + 1]?.from ?? Infinity;
+    return { label: group.label, count: grades.filter((grade) => grade >= group.from && grade < until).length };
+  });
+  const [classTable, cesTable] = reportTables(report);
+  const perExercise = exerciseStats(classTable!);
   const activeGraded = report.rows.filter((row) => row.active).length;
   return {
     gradedCount: activeGraded,
@@ -90,6 +131,7 @@ export function classStats(report: Pick<ClassReport, 'exercises' | 'rows' | 'mis
     max: grades.at(-1) ?? null,
     groups,
     perExercise,
+    cesPerExercise: cesTable ? exerciseStats(cesTable) : null,
     flaggedCount: report.rows.reduce((total, row) => total + row.flagCount, 0),
   };
 }

@@ -47,7 +47,7 @@ describe('GET /api/admin/students/:id/history', () => {
 
     const res = await api.request('GET', `/api/admin/students/${studentId}/history`);
     expect(res.status).toBe(200);
-    expect(res.body.student).toEqual({ id: studentId, fullName: 'Pop Ion' });
+    expect(res.body.student).toEqual({ id: studentId, fullName: 'Pop Ion', ces: false });
     expect(res.body.classes).toEqual([
       { id: next.id, name: '7E2', schoolYear: 2027, active: true },
       { id: classId, name: '6E2', schoolYear: 2026, active: false },

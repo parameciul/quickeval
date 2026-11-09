@@ -16,8 +16,10 @@ import {
 import type { CheckedExerciseList, ClassAnalysis, ExerciseList, Grading } from '../../shared/schemas.ts';
 import type { ExerciseListStatus } from '../../shared/tests.ts';
 import { compareStudentNames } from '../../shared/students.ts';
+import type { TestVariant } from '../../shared/files.ts';
 import { askForAnalysis, finishTests, promoteStatements } from './lifecycle.ts';
 import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
+import { baremActiveSql, columns, needsBaremSql, needsPrintSql, paperVariantSql } from './variant.ts';
 
 // Queries of the robot API (spec §11.3). Each write checks its own rules in
 // its SQL: runs can overlap, and parallel tasks of one run call at once.
@@ -31,8 +33,16 @@ export function staleBefore(now: string): string {
 // A test in evaluation that waits for its exercise list.
 export const NEEDS_EXERCISE_LIST = `t.status = 'evaluating' AND t.exercise_list_status = 'none'
   AND EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status = 'submitted')`;
-// An upload (s) that can be graded: its test (t) is in evaluation with a usable exercise list.
-export const GRADABLE = `s.status = 'submitted' AND t.status = 'evaluating' AND t.exercise_list_status IN ('ready', 'accepted')`;
+// An upload (alias `s`) of test `t` that can be graded: the test is in
+// evaluation with a usable exercise list of the paper's variant. A CES paper
+// also needs an active CES barem: until then it waits, sent, and the class
+// papers are graded meanwhile.
+function gradableSql(s: string): string {
+  return `${s}.status = 'submitted' AND t.status = 'evaluating' AND CASE ${paperVariantSql(s, 't')}
+    WHEN 'ces' THEN (${baremActiveSql('ces')} AND t.ces_exercise_list_status IN ('ready', 'accepted'))
+    ELSE t.exercise_list_status IN ('ready', 'accepted') END`;
+}
+export const GRADABLE = gradableSql('s');
 // A test whose class analysis was asked for, with nothing left to grade and at
 // least one graded upload to analyze.
 export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = 'requested'
@@ -43,11 +53,20 @@ export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = '
 // made, so the teacher prints it before the day of the test and starts it on
 // that day. Keep it a flat condition on the alias t: the print writes rewrite
 // t. to tests.
-export const NEEDS_PRINT =
-  "t.status IN ('draft', 'open') AND t.upload_token IS NOT NULL AND t.test_file_key IS NOT NULL AND t.print_status = 'none'";
+export const NEEDS_PRINT = needsPrintSql('class');
 // A draft or open test with a test file whose barem the teacher asked the robot
 // to generate. Keep it a flat condition on the alias t.
-export const NEEDS_BAREM = "t.status IN ('draft', 'open') AND t.test_file_key IS NOT NULL AND t.barem_request = 'requested'";
+export const NEEDS_BAREM = needsBaremSql('class');
+
+// The CES variant's print PDF and generated barem, as NEEDS_PRINT and NEEDS_BAREM.
+export const NEEDS_CES_PRINT = needsPrintSql('ces');
+export const NEEDS_CES_BAREM = needsBaremSql('ces');
+// A test in evaluation whose CES papers wait for the CES exercise list: the
+// CES barem is active, and the class list is made (the CES list reuses its
+// exercise ids).
+export const NEEDS_CES_EXERCISE_LIST = `t.status = 'evaluating' AND t.ces_exercise_list_status = 'none' AND ${baremActiveSql('ces')}
+  AND t.exercise_list_status IN ('ready', 'accepted')
+  AND EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status = 'submitted' AND ${paperVariantSql('s', 't')} = 'ces')`;
 
 // The state of the grades of a test: how many graded results there are and
 // when the last one changed (a correction writes `evaluations.updated_at`, a
@@ -71,11 +90,14 @@ export async function testHasRobotWork(db: D1Database, testId: number, now: stri
          OR (${NEEDS_ANALYSIS})
          OR (${NEEDS_PRINT})
          OR (${NEEDS_BAREM})
+         OR (${NEEDS_CES_PRINT})
+         OR (${NEEDS_CES_BAREM})
+         OR (${NEEDS_CES_EXERCISE_LIST})
          OR EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND ${GRADABLE})
          OR EXISTS (
            SELECT 1 FROM submissions s
            WHERE s.test_id = t.id AND s.status = 'grading' AND t.status = 'evaluating'
-             AND t.exercise_list_status IN ('ready', 'accepted')
+             AND CASE s.variant WHEN 'ces' THEN t.ces_exercise_list_status ELSE t.exercise_list_status END IN ('ready', 'accepted')
              AND NOT EXISTS (SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = s.run_id AND r.heartbeat_at >= ?)))`,
     )
     .bind(testId, staleBefore(now))
@@ -94,7 +116,7 @@ export async function runCheck(
   now: string,
   configured: { model?: string; effort?: string } = {},
 ): Promise<CheckResult> {
-  const results = await db.batch<{ exercise_lists: number; pending_grading: number; analyses: number; prints: number; barems: number }>([
+  const results = await db.batch<{ exercise_lists: number; pending_grading: number; analyses: number; prints: number; barems: number; ces: number }>([
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', run_id = NULL
@@ -110,7 +132,8 @@ export async function runCheck(
          (SELECT COUNT(*) FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}) AS pending_grading,
          (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_ANALYSIS}) AS analyses,
          (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_PRINT}) AS prints,
-         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_BAREM}) AS barems`,
+         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_BAREM}) AS barems,
+         (SELECT COUNT(*) FROM tests t WHERE (${NEEDS_CES_PRINT}) OR (${NEEDS_CES_BAREM}) OR (${NEEDS_CES_EXERCISE_LIST})) AS ces`,
     ),
   ]);
   const counts = results.at(-1)?.results[0];
@@ -119,7 +142,16 @@ export async function runCheck(
   const analyses = counts?.analyses ?? 0;
   const prints = counts?.prints ?? 0;
   const barems = counts?.barems ?? 0;
-  return { hasWork: exerciseLists + pendingGrading + analyses + prints + barems > 0, exerciseLists, pendingGrading, analyses, prints, barems };
+  const ces = counts?.ces ?? 0;
+  return {
+    hasWork: exerciseLists + pendingGrading + analyses + prints + barems + ces > 0,
+    exerciseLists,
+    pendingGrading,
+    analyses,
+    prints,
+    barems,
+    ces,
+  };
 }
 
 // The model and effort the robot is set to use, kept for Setări. A robot that
@@ -197,16 +229,22 @@ export async function releaseLease(db: D1Database, runId: string, summary: RunSu
 }
 
 export async function listTasks(db: D1Database): Promise<TasksResult> {
-  const [lists, grading, analyses, prints, barems] = await db.batch<{ id?: number; count?: number }>([
+  const [lists, grading, analyses, prints, barems, cesPrints, cesBarems, cesLists] = await db.batch<{ id?: number; count?: number }>([
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
     db.prepare(`SELECT COUNT(*) AS count FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}`),
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_ANALYSIS} ORDER BY t.id`),
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_PRINT} ORDER BY t.created_at, t.id`),
     db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_BAREM} ORDER BY t.updated_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_CES_PRINT} ORDER BY t.created_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_CES_BAREM} ORDER BY t.updated_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_CES_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
   ]);
   const ids = (rows: { id?: number }[] | undefined) => (rows ?? []).map((row) => row.id!);
   return { exerciseLists: ids(lists?.results), pendingGrading: grading?.results[0]?.count ?? 0, analyses: ids(analyses?.results), prints: ids(prints?.results),
     barems: ids(barems?.results),
+    cesPrints: ids(cesPrints?.results),
+    cesBarems: ids(cesBarems?.results),
+    cesExerciseLists: ids(cesLists?.results),
   };
 }
 
@@ -217,11 +255,15 @@ export interface RobotTestRecord {
 }
 
 // A test in evaluation, the only kind the robot reads: a leaked robot key
-// shows nothing of an open test or of one that is done.
-export async function findRobotTest(db: D1Database, testId: number): Promise<RobotTestRecord | null> {
+// shows nothing of an open test or of one that is done. With `variant` "ces":
+// the CES variant's files, list and comments, and the class list.
+export async function findRobotTest(db: D1Database, testId: number, variant: TestVariant = 'class'): Promise<RobotTestRecord | null> {
+  const c = columns(variant);
   const row = await db
     .prepare(
-      `SELECT id, created_at, files_version, test_file_key, test_file_type, barem_file_key, barem_file_type, barem_notes, exercise_list_json
+      `SELECT id, created_at, ${c('files_version')} AS files_version, ${c('test_file_key')} AS test_file_key, ${c('test_file_type')} AS test_file_type,
+         ${c('barem_file_key')} AS barem_file_key, ${c('barem_file_type')} AS barem_file_type, ${c('barem_notes')} AS barem_notes,
+         ${c('exercise_list_json')} AS exercise_list_json, exercise_list_json AS class_list_json
        FROM tests WHERE id = ? AND status = 'evaluating'`,
     )
     .bind(testId)
@@ -235,17 +277,20 @@ export async function findRobotTest(db: D1Database, testId: number): Promise<Rob
       barem_file_type: string | null;
       barem_notes: string | null;
       exercise_list_json: string | null;
+      class_list_json: string | null;
     }>();
   if (!row) return null;
   const file = (key: string | null, type: string | null) => (key && type ? { contentType: type } : null);
+  const list = (json: string | null) => (json ? (JSON.parse(json) as ExerciseList) : null);
   return {
     test: {
       id: row.id,
       createdAt: row.created_at,
       filesVersion: row.files_version,
       files: { test: file(row.test_file_key, row.test_file_type), barem: file(row.barem_file_key, row.barem_file_type) },
-      exerciseList: row.exercise_list_json ? (JSON.parse(row.exercise_list_json) as ExerciseList) : null,
+      exerciseList: list(row.exercise_list_json),
       baremNotes: row.barem_notes ?? '',
+      ...(variant === 'ces' ? { variant, classExerciseList: list(row.class_list_json) } : {}),
     },
     keys: { test: row.test_file_key, barem: row.barem_file_key },
   };
@@ -263,7 +308,11 @@ export async function testExists(db: D1Database, testId: number): Promise<boolea
 // the time it was made: ids of deleted tests come back (no AUTOINCREMENT), so
 // an answer made for a deleted test must not land in the next one with its id.
 // `(? IS NULL OR created_at = ?)` takes the time twice; an older robot sends none.
-const WAITS_FOR_LIST = `id = ? AND files_version = ? AND (? IS NULL OR created_at = ?) AND status = 'evaluating' AND exercise_list_status = 'none' AND ${HOLDS_LEASE}`;
+// The list of the CES variant names its own files version.
+const waitsForList = (variant: TestVariant) => {
+  const c = columns(variant);
+  return `id = ? AND ${c('files_version')} = ? AND (? IS NULL OR created_at = ?) AND status = 'evaluating' AND ${c('exercise_list_status')} = 'none' AND ${HOLDS_LEASE}`;
+};
 
 function listInfo(row: { exercise_list_status: ExerciseListStatus; exercise_list_message: string | null } | null): ExerciseListInfo | null {
   return row ? { status: row.exercise_list_status, message: row.exercise_list_message } : null;
@@ -278,12 +327,14 @@ export async function saveExerciseList(
   createdAt: string | null,
   checked: CheckedExerciseList,
   now: string,
+  variant: TestVariant = 'class',
 ): Promise<ExerciseListInfo | null> {
+  const c = columns(variant);
   const row = await db
     .prepare(
-      `UPDATE tests SET exercise_list_json = ?, exercise_list_status = ?, exercise_list_message = ?, updated_at = ?
-       WHERE ${WAITS_FOR_LIST}
-       RETURNING exercise_list_status, exercise_list_message`,
+      `UPDATE tests SET ${c('exercise_list_json')} = ?, ${c('exercise_list_status')} = ?, ${c('exercise_list_message')} = ?, updated_at = ?
+       WHERE ${waitsForList(variant)}
+       RETURNING ${c('exercise_list_status')} AS exercise_list_status, ${c('exercise_list_message')} AS exercise_list_message`,
     )
     .bind(JSON.stringify(checked.list), checked.status, checked.message, now, testId, filesVersion, createdAt, createdAt, runId)
     .first<{ exercise_list_status: ExerciseListStatus; exercise_list_message: string | null }>();
@@ -301,16 +352,18 @@ export async function failExerciseList(
   createdAt: string | null,
   error: RobotError,
   now: string,
+  variant: TestVariant = 'class',
 ): Promise<ExerciseListInfo | null> {
   const counted = error === 'usage_limit' ? 0 : 1;
+  const c = columns(variant);
   const row = await db
     .prepare(
-      `UPDATE tests SET exercise_list_attempts = exercise_list_attempts + ?,
-         exercise_list_status = CASE WHEN exercise_list_attempts + ? >= ? THEN 'failed' ELSE 'none' END,
-         exercise_list_message = CASE WHEN exercise_list_attempts + ? >= ? THEN ? ELSE NULL END,
+      `UPDATE tests SET ${c('exercise_list_attempts')} = ${c('exercise_list_attempts')} + ?,
+         ${c('exercise_list_status')} = CASE WHEN ${c('exercise_list_attempts')} + ? >= ? THEN 'failed' ELSE 'none' END,
+         ${c('exercise_list_message')} = CASE WHEN ${c('exercise_list_attempts')} + ? >= ? THEN ? ELSE NULL END,
          updated_at = ?
-       WHERE ${WAITS_FOR_LIST}
-       RETURNING exercise_list_status, exercise_list_message`,
+       WHERE ${waitsForList(variant)}
+       RETURNING ${c('exercise_list_status')} AS exercise_list_status, ${c('exercise_list_message')} AS exercise_list_message`,
     )
     .bind(counted, counted, MAX_ATTEMPTS, counted, MAX_ATTEMPTS, ROBOT_ERROR_TEXT[error], now, testId, filesVersion, createdAt, createdAt, runId)
     .first<{ exercise_list_status: ExerciseListStatus; exercise_list_message: string | null }>();
@@ -319,16 +372,20 @@ export async function failExerciseList(
 
 // The print job of a test that waits for its print PDF, with what the route
 // needs to read the test file and name the result. Null for any other test:
-// the robot sees a draft or open test only through this job.
+// the robot sees a draft or open test only through this job. The CES print
+// carries the same upload link as the class print.
 export async function findPrintJob(
   db: D1Database,
   testId: number,
+  variant: TestVariant = 'class',
 ): Promise<{ job: PrintJob; testFileKey: string; teacherId: number; schoolYear: number; code: string; testFileName: string } | null> {
+  const v = columns(variant);
   const row = await db
     .prepare(
-      `SELECT t.id, t.created_at, t.files_version, t.test_file_key, t.test_file_type, t.test_file_name, t.upload_token, t.teacher_id, t.code, c.school_year
+      `SELECT t.id, t.created_at, t.${v('files_version')} AS files_version, t.${v('test_file_key')} AS test_file_key,
+         t.${v('test_file_type')} AS test_file_type, t.${v('test_file_name')} AS test_file_name, t.upload_token, t.teacher_id, t.code, c.school_year
        FROM tests t JOIN classes c ON c.id = t.class_id
-       WHERE t.id = ? AND ${NEEDS_PRINT}`,
+       WHERE t.id = ? AND ${needsPrintSql(variant)}`,
     )
     .bind(testId)
     .first<{
@@ -360,7 +417,8 @@ export async function findPrintJob(
 // The local engine refuses `UPDATE tests AS t`, so the writes name the table:
 // the shared condition is used with `tests.` for its `t.`.
 // Like the list, a print names the test by the time it was made.
-const WAITS_FOR_PRINT = `tests.id = ? AND tests.files_version = ? AND (? IS NULL OR tests.created_at = ?) AND ${NEEDS_PRINT.replace(/\bt\./g, 'tests.')} AND ${HOLDS_LEASE}`;
+const waitsForPrint = (variant: TestVariant) =>
+  `tests.id = ? AND tests.${columns(variant)('files_version')} = ? AND (? IS NULL OR tests.created_at = ?) AND ${needsPrintSql(variant, 'tests')} AND ${HOLDS_LEASE}`;
 
 // False when nothing was saved.
 export async function savePrint(
@@ -371,11 +429,13 @@ export async function savePrint(
   createdAt: string | null,
   key: string,
   now: string,
+  variant: TestVariant = 'class',
 ): Promise<boolean> {
+  const c = columns(variant);
   const row = await db
     .prepare(
-      `UPDATE tests SET print_status = 'ready', print_file_key = ?, updated_at = ?
-       WHERE ${WAITS_FOR_PRINT}
+      `UPDATE tests SET ${c('print_status')} = 'ready', ${c('print_file_key')} = ?, updated_at = ?
+       WHERE ${waitsForPrint(variant)}
        RETURNING id`,
     )
     .bind(key, now, testId, filesVersion, createdAt, createdAt, runId)
@@ -383,9 +443,12 @@ export async function savePrint(
   return row !== null;
 }
 
-// Whether the test's print PDF is stored under this key.
-export async function printKeyIs(db: D1Database, testId: number, key: string): Promise<boolean> {
-  const row = await db.prepare('SELECT 1 AS found FROM tests WHERE id = ? AND print_file_key = ?').bind(testId, key).first<{ found: number }>();
+// Whether the variant's print PDF is stored under this key.
+export async function printKeyIs(db: D1Database, testId: number, key: string, variant: TestVariant = 'class'): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT 1 AS found FROM tests WHERE id = ? AND ${columns(variant)('print_file_key')} = ?`)
+    .bind(testId, key)
+    .first<{ found: number }>();
   return row !== null;
 }
 
@@ -400,15 +463,17 @@ export async function failPrint(
   createdAt: string | null,
   error: RobotError,
   now: string,
+  variant: TestVariant = 'class',
 ): Promise<'none' | 'failed' | null> {
   const counted = error === 'usage_limit' ? 0 : 1;
+  const c = columns(variant);
   const row = await db
     .prepare(
-      `UPDATE tests SET print_attempts = print_attempts + ?,
-         print_status = CASE WHEN print_attempts + ? >= ? THEN 'failed' ELSE 'none' END,
+      `UPDATE tests SET ${c('print_attempts')} = ${c('print_attempts')} + ?,
+         ${c('print_status')} = CASE WHEN ${c('print_attempts')} + ? >= ? THEN 'failed' ELSE 'none' END,
          updated_at = ?
-       WHERE ${WAITS_FOR_PRINT}
-       RETURNING print_status`,
+       WHERE ${waitsForPrint(variant)}
+       RETURNING ${c('print_status')} AS print_status`,
     )
     .bind(counted, counted, MAX_ATTEMPTS, now, testId, filesVersion, createdAt, createdAt, runId)
     .first<{ print_status: 'none' | 'failed' }>();
@@ -416,16 +481,21 @@ export async function failPrint(
 }
 
 // The barem job of a test that waits for its generated barem, with what the
-// route needs to read the test file. Null for any other test.
+// route needs to read the test file. Null for any other test. A CES job also
+// names the class barem (its key stays here) and the class exercise list.
 export async function findBaremJob(
   db: D1Database,
   testId: number,
-): Promise<{ job: BaremJob; testFileKey: string; teacherId: number; schoolYear: number; code: string } | null> {
+  variant: TestVariant = 'class',
+): Promise<{ job: BaremJob; testFileKey: string; classBaremKey: string | null; teacherId: number; schoolYear: number; code: string } | null> {
+  const v = columns(variant);
   const row = await db
     .prepare(
-      `SELECT t.id, t.created_at, t.files_version, t.test_file_key, t.test_file_type, t.barem_notes, t.teacher_id, t.code, c.school_year
+      `SELECT t.id, t.created_at, t.${v('files_version')} AS files_version, t.${v('test_file_key')} AS test_file_key,
+         t.${v('test_file_type')} AS test_file_type, t.${v('barem_notes')} AS barem_notes, t.teacher_id, t.code, c.school_year,
+         t.barem_file_key AS class_barem_key, t.barem_file_type AS class_barem_type, t.exercise_list_json AS class_list_json
        FROM tests t JOIN classes c ON c.id = t.class_id
-       WHERE t.id = ? AND ${NEEDS_BAREM}`,
+       WHERE t.id = ? AND ${needsBaremSql(variant)}`,
     )
     .bind(testId)
     .first<{
@@ -434,15 +504,32 @@ export async function findBaremJob(
       files_version: number;
       test_file_key: string;
       test_file_type: string | null;
-      barem_notes: string;
+      barem_notes: string | null;
       teacher_id: number;
       code: string;
       school_year: number;
+      class_barem_key: string | null;
+      class_barem_type: string | null;
+      class_list_json: string | null;
     }>();
   if (!row || !row.test_file_type) return null;
+  const job: BaremJob = {
+    testId: row.id,
+    createdAt: row.created_at,
+    filesVersion: row.files_version,
+    contentType: row.test_file_type,
+    baremNotes: row.barem_notes ?? '',
+  };
+  const ces = variant === 'ces';
+  if (ces) {
+    job.variant = 'ces';
+    job.classBarem = row.class_barem_key && row.class_barem_type ? { contentType: row.class_barem_type } : null;
+    job.classExerciseList = row.class_list_json ? (JSON.parse(row.class_list_json) as ExerciseList) : null;
+  }
   return {
-    job: { testId: row.id, createdAt: row.created_at, filesVersion: row.files_version, contentType: row.test_file_type, baremNotes: row.barem_notes },
+    job,
     testFileKey: row.test_file_key,
+    classBaremKey: ces ? row.class_barem_key : null,
     teacherId: row.teacher_id,
     schoolYear: row.school_year,
     code: row.code,
@@ -453,7 +540,8 @@ export async function findBaremJob(
 // only from the run that holds the lease, and only when no file changed after
 // the robot read the test (a barem the teacher uploads meanwhile also moves
 // files_version and clears the request).
-const WAITS_FOR_BAREM = `tests.id = ? AND tests.files_version = ? AND (? IS NULL OR tests.created_at = ?) AND ${NEEDS_BAREM.replace(/\bt\./g, 'tests.')} AND ${HOLDS_LEASE}`;
+const waitsForBarem = (variant: TestVariant) =>
+  `tests.id = ? AND tests.${columns(variant)('files_version')} = ? AND (? IS NULL OR tests.created_at = ?) AND ${needsBaremSql(variant, 'tests')} AND ${HOLDS_LEASE}`;
 
 // The new barem waits for the teacher's check (barem_unchecked), and the
 // exercise list made from the old barem is cleared. Returns the key of the
@@ -467,16 +555,18 @@ export async function saveGeneratedBarem(
   key: string,
   name: string,
   now: string,
+  variant: TestVariant = 'class',
 ): Promise<{ oldKey: string | null } | null> {
+  const c = columns(variant);
   const [before, written] = await db.batch<{ barem_file_key?: string | null; id?: number }>([
-    db.prepare('SELECT barem_file_key FROM tests WHERE id = ?').bind(testId),
+    db.prepare(`SELECT ${c('barem_file_key')} AS barem_file_key FROM tests WHERE id = ?`).bind(testId),
     db
       .prepare(
-        `UPDATE tests SET barem_file_key = ?, barem_file_name = ?, barem_file_type = ?, barem_unchecked = 1,
-           barem_request = 'none', barem_request_attempts = 0, files_version = files_version + 1,
-           exercise_list_status = 'none', exercise_list_json = NULL, exercise_list_message = NULL, exercise_list_attempts = 0,
+        `UPDATE tests SET ${c('barem_file_key')} = ?, ${c('barem_file_name')} = ?, ${c('barem_file_type')} = ?, ${c('barem_unchecked')} = 1,
+           ${c('barem_request')} = 'none', ${c('barem_request_attempts')} = 0, ${c('files_version')} = ${c('files_version')} + 1,
+           ${c('exercise_list_status')} = 'none', ${c('exercise_list_json')} = NULL, ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0,
            updated_at = ?
-         WHERE ${WAITS_FOR_BAREM}
+         WHERE ${waitsForBarem(variant)}
          RETURNING id`,
       )
       .bind(key, name, DOCX_TYPE, now, testId, filesVersion, createdAt, createdAt, runId),
@@ -485,9 +575,12 @@ export async function saveGeneratedBarem(
   return { oldKey: before?.results[0]?.barem_file_key ?? null };
 }
 
-// Whether the test's barem is stored under this key.
-export async function baremKeyIs(db: D1Database, testId: number, key: string): Promise<boolean> {
-  const row = await db.prepare('SELECT 1 AS found FROM tests WHERE id = ? AND barem_file_key = ?').bind(testId, key).first<{ found: number }>();
+// Whether the variant's barem is stored under this key.
+export async function baremKeyIs(db: D1Database, testId: number, key: string, variant: TestVariant = 'class'): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT 1 AS found FROM tests WHERE id = ? AND ${columns(variant)('barem_file_key')} = ?`)
+    .bind(testId, key)
+    .first<{ found: number }>();
   return row !== null;
 }
 
@@ -502,15 +595,17 @@ export async function failBaremJob(
   createdAt: string | null,
   error: RobotError,
   now: string,
+  variant: TestVariant = 'class',
 ): Promise<'none' | 'failed' | null> {
   const counted = error === 'usage_limit' ? 0 : 1;
+  const c = columns(variant);
   const row = await db
     .prepare(
-      `UPDATE tests SET barem_request_attempts = barem_request_attempts + ?,
-         barem_request = CASE WHEN barem_request_attempts + ? >= ? THEN 'failed' ELSE 'requested' END,
+      `UPDATE tests SET ${c('barem_request_attempts')} = ${c('barem_request_attempts')} + ?,
+         ${c('barem_request')} = CASE WHEN ${c('barem_request_attempts')} + ? >= ? THEN 'failed' ELSE 'requested' END,
          updated_at = ?
-       WHERE ${WAITS_FOR_BAREM}
-       RETURNING barem_request`,
+       WHERE ${waitsForBarem(variant)}
+       RETURNING ${c('barem_request')} AS barem_request`,
     )
     .bind(counted, counted, MAX_ATTEMPTS, now, testId, filesVersion, createdAt, createdAt, runId)
     .first<{ barem_request: 'requested' | 'failed' }>();
@@ -532,8 +627,13 @@ export async function holdsLease(db: D1Database, runId: string): Promise<boolean
 // upload: one that lost the race looks again. A run never takes back an
 // upload that a reopen took from it (reopenTest keeps that run's id): the
 // run's old grading of it may still send a result, which must be refused.
+// The claim writes the paper's variant (paperVariantSql) when it has none yet:
+// from then on the paper keeps it, through a regrade or a retry, whatever
+// happens to the student's CES mark. The claim checks GRADABLE again in its
+// SQL, so a mark that changed since the look still sends no CES paper to the
+// robot before its CES barem is active.
 export async function claimSubmission(db: D1Database, runId: string): Promise<ClaimResult | null> {
-  let claimed: { id: number; test_id: number; started_at: string } | null = null;
+  let claimed: { id: number; test_id: number; started_at: string; variant: TestVariant } | null = null;
   for (let tries = 0; tries < 5 && !claimed; tries++) {
     const { results: waiting } = await db
       .prepare(
@@ -547,12 +647,14 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
     if (!next) return null;
     claimed = await db
       .prepare(
-        `UPDATE submissions SET status = 'grading', run_id = ?
+        `UPDATE submissions SET status = 'grading', run_id = ?,
+           variant = (SELECT ${paperVariantSql('submissions', 't')} FROM tests t WHERE t.id = submissions.test_id)
          WHERE id = ? AND status = 'submitted' AND ${HOLDS_LEASE}
-         RETURNING id, test_id, started_at`,
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND ${gradableSql('submissions')})
+         RETURNING id, test_id, started_at, variant`,
       )
       .bind(runId, next.id, runId)
-      .first<{ id: number; test_id: number; started_at: string }>();
+      .first<{ id: number; test_id: number; started_at: string; variant: TestVariant }>();
     // No row: another claim took it, or the run lost the lease.
     if (!claimed && !(await holdsLease(db, runId))) return null;
   }
@@ -565,15 +667,20 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
     submissionId: claimed.id,
     testId: claimed.test_id,
     startedAt: claimed.started_at,
+    variant: claimed.variant,
     files: results.map((row) => ({ id: row.id, contentType: row.content_type, position: row.position })),
   };
 }
 
 // The graded class for the analysis (spec §11.3). Null unless the test is in
-// evaluation, like the rest of what the robot reads.
+// evaluation, like the rest of what the robot reads. The CES papers come with
+// their variant, and their exercises in `cesExercises`, made the same way as
+// the class columns from the CES list and the CES papers' items.
 export async function findClassResults(db: D1Database, testId: number): Promise<ClassResults | null> {
   const [test, rows] = await db.batch<{
     exercise_list_json?: string | null;
+    ces_exercise_list_json?: string | null;
+    variant?: string | null;
     version?: string;
     exercise_id?: string;
     label?: string;
@@ -591,11 +698,13 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
     comment?: string;
   }>([
     db
-      .prepare(`SELECT t.exercise_list_json, ${gradesVersionSql('t')} AS version FROM tests t WHERE t.id = ? AND t.status = 'evaluating'`)
+      .prepare(
+        `SELECT t.exercise_list_json, t.ces_exercise_list_json, ${gradesVersionSql('t')} AS version FROM tests t WHERE t.id = ? AND t.status = 'evaluating'`,
+      )
       .bind(testId),
     db
       .prepare(
-        `SELECT s.id AS submission_id, ev.total, ev.grade, ev.id AS evaluation_id, ev.created_at AS graded_at,
+        `SELECT s.id AS submission_id, s.variant, ev.total, ev.grade, ev.id AS evaluation_id, ev.created_at AS graded_at,
            ev.max_total, ev.office_points, i.exercise_id, i.label, i.max_points, i.position, i.points,
            i.student_answer, i.comment
          FROM submissions s
@@ -609,12 +718,15 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   const head = test?.results[0];
   if (!head) return null;
   const list = head.exercise_list_json ? (JSON.parse(head.exercise_list_json) as ExerciseList) : null;
+  const cesList = head.ces_exercise_list_json ? (JSON.parse(head.ces_exercise_list_json) as ExerciseList) : null;
   const students: ClassResults['students'] = [];
   const stored: StoredItem[] = [];
+  const cesStored: StoredItem[] = [];
   let latest: { gradedAt: string; evaluationId: number; maxTotal: number; officePoints: number } | null = null;
   let current = -1;
   for (const row of rows?.results ?? []) {
-    stored.push({
+    const ces = row.variant === 'ces';
+    (ces ? cesStored : stored).push({
       evaluationId: row.evaluation_id!,
       gradedAt: row.graded_at!,
       exerciseId: row.exercise_id!,
@@ -627,7 +739,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
     }
     if (row.submission_id !== current) {
       current = row.submission_id!;
-      students.push({ label: `Elev ${students.length + 1}`, total: row.total!, grade: row.grade!, items: [] });
+      students.push({ label: `Elev ${students.length + 1}`, total: row.total!, grade: row.grade!, variant: ces ? 'ces' : 'class', items: [] });
     }
     students.at(-1)!.items.push({
       exerciseId: row.exercise_id!,
@@ -642,6 +754,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
     maxTotal: list?.totalPoints ?? latest?.maxTotal ?? 0,
     officePoints: list?.officePoints ?? latest?.officePoints ?? 0,
     exercises: exerciseColumns(list, stored),
+    cesExercises: cesStored.length > 0 ? exerciseColumns(cesList, cesStored) : null,
     students,
   };
 }
@@ -748,13 +861,18 @@ export async function findRobotFile(db: D1Database, submissionId: number, fileId
   return row ? { key: row.r2_key, contentType: row.content_type } : null;
 }
 
-// An upload as the result route sees it, with the exercise list of its test.
+// An upload as the result route sees it, with the exercise list of its test,
+// the CES variant's for a CES paper.
 export async function findGrading(
   db: D1Database,
   submissionId: number,
 ): Promise<{ status: string; runId: string | null; startedAt: string; exerciseList: ExerciseList | null } | null> {
   const row = await db
-    .prepare('SELECT s.status, s.run_id, s.started_at, t.exercise_list_json FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?')
+    .prepare(
+      `SELECT s.status, s.run_id, s.started_at,
+         CASE WHEN s.variant = 'ces' THEN t.ces_exercise_list_json ELSE t.exercise_list_json END AS exercise_list_json
+       FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?`,
+    )
     .bind(submissionId)
     .first<{ status: string; run_id: string | null; started_at: string; exercise_list_json: string | null }>();
   if (!row) return null;

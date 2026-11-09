@@ -7,7 +7,7 @@ import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdm
 function searchApi() {
   return createFakeApi({
     classes: [{ id: 1, name: '10B', schoolYear: 2026, archived: false, studentCount: 1 }],
-    students: { 1: [{ id: 10, fullName: 'Ștefan Radu', active: true, canDelete: true }] },
+    students: { 1: [{ id: 10, fullName: 'Ștefan Radu', active: true, canDelete: true, ces: false }] },
   });
 }
 

@@ -200,6 +200,7 @@ describe('the panel Rezultate', () => {
   it('downloads the CSV of the class report', async () => {
     const report: ClassReport = {
       test: { code: '6E2-26T1', title: 'Fracții', classId: 1, className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
+      cesExercises: null,
       exercises: [{ id: 'I.1', label: 'Subiectul I, exercițiul 1', maxPoints: 4.5 }],
       rows: [
         {
@@ -210,11 +211,11 @@ describe('the panel Rezultate', () => {
           total: 9,
           maxTotal: 10,
           grade: 9,
-          flagCount: 0,
+          flagCount: 0, ces: false, variant: 'class',
           items: [{ exerciseId: 'I.1', points: 4.5, maxPoints: 4.5, flagged: false }],
         },
       ],
-      missing: [{ studentId: 12, studentName: 'Marin Dan', status: 'none' }],
+      missing: [{ studentId: 12, studentName: 'Marin Dan', status: 'none', ces: false }],
       analysis: { status: 'none', stale: false, attempts: 0, content: null },
     };
     const api = apiWith({ status: 'done' }, graded(), { '6E2-26T1': report });

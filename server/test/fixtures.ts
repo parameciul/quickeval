@@ -111,6 +111,21 @@ export async function addTestFiles(api: TestApi, code: string, kinds: ('test' | 
   }
 }
 
+// Marks the CES test file and the CES barem as uploaded (rows only; nothing in R2).
+export async function addCesFiles(api: TestApi, code: string, kinds: ('test' | 'barem')[] = ['test', 'barem']): Promise<void> {
+  for (const kind of kinds) {
+    await api.db
+      .prepare(`UPDATE tests SET ces_${kind}_file_key = ?, ces_${kind}_file_name = ?, ces_${kind}_file_type = 'application/pdf' WHERE code = ?`)
+      .bind(`fixture/${code}/ces/${kind}.pdf`, `ces-${kind}.pdf`, code)
+      .run();
+  }
+}
+
+// Marks students as CES, straight in the database.
+export async function markCes(api: TestApi, ...studentIds: number[]): Promise<void> {
+  for (const id of studentIds) await api.db.prepare('UPDATE students SET ces = 1 WHERE id = ?').bind(id).run();
+}
+
 // Start test through the teacher API; returns the upload token of the link.
 export async function startTest(api: TestApi, code: string): Promise<string> {
   const res = await api.request('POST', `/api/admin/tests/${code}/start`);

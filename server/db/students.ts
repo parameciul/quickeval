@@ -62,7 +62,7 @@ export async function addStudentsToClass(
     throw err;
   }
   if (inserted === 0) throw await refusedAdd(db, teacherId, classId, names);
-  return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true, canDelete: true }));
+  return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true, canDelete: true, ces: false }));
 }
 
 // Why an add changed nothing: the class is not the teacher's (404), it is
@@ -108,10 +108,39 @@ export async function setEnrollmentActive(
     .first<{ student_id: number }>();
   if (!row) return null;
   const student = await db
-    .prepare(`SELECT st.full_name, ${noWorkSql('st.id', '?')} AS can_delete FROM students st WHERE st.id = ? AND st.teacher_id = ?`)
+    .prepare(`SELECT st.full_name, st.ces, ${noWorkSql('st.id', '?')} AS can_delete FROM students st WHERE st.id = ? AND st.teacher_id = ?`)
     .bind(classId, studentId, teacherId)
-    .first<{ full_name: string; can_delete: number }>();
-  return { id: studentId, fullName: student!.full_name, active, canDelete: student!.can_delete === 1 };
+    .first<{ full_name: string; ces: number; can_delete: number }>();
+  return { id: studentId, fullName: student!.full_name, active, canDelete: student!.can_delete === 1, ces: student!.ces === 1 };
+}
+
+// Marks the student as CES, or takes the mark away. The mark goes with the
+// student, in every class: it decides the variant of a paper only when the
+// paper first goes to grading, so papers already graded keep theirs. Null when
+// the student is not the teacher's.
+// `robotWork`: a test of the student's classes is in evaluation with a CES
+// variant, so the mark may change which papers the robot can take (a CES
+// paper waits for its CES barem, a class paper does not) and which exercise
+// lists it must make.
+export async function setStudentCes(
+  db: D1Database,
+  teacherId: number,
+  studentId: number,
+  ces: boolean,
+): Promise<{ student: { id: number; ces: boolean }; robotWork: boolean } | null> {
+  const [updated, work] = await db.batch<{ id?: number; ces?: number; robot_work?: number }>([
+    db.prepare('UPDATE students SET ces = ? WHERE id = ? AND teacher_id = ? RETURNING id, ces').bind(ces ? 1 : 0, studentId, teacherId),
+    db
+      .prepare(
+        `SELECT EXISTS (
+           SELECT 1 FROM enrollments e JOIN tests t ON t.class_id = e.class_id
+           WHERE e.student_id = ? AND t.teacher_id = ? AND t.status = 'evaluating' AND t.ces_test_file_key IS NOT NULL) AS robot_work`,
+      )
+      .bind(studentId, teacherId),
+  ]);
+  const row = updated?.results[0];
+  if (!row) return null;
+  return { student: { id: row.id!, ces: row.ces === 1 }, robotWork: work?.results[0]?.robot_work === 1 };
 }
 
 // True when the student has no sent, grading or graded upload in the tests of
@@ -273,7 +302,7 @@ export function gradeOf(row: GradeRow): ClassGrade {
 // Null when the student is not the teacher's.
 export async function getStudentHistory(db: D1Database, teacherId: number, studentId: number): Promise<StudentHistory | null> {
   const [student, classes, tests, grades] = await db.batch<Record<string, unknown>>([
-    db.prepare('SELECT id, full_name FROM students WHERE id = ? AND teacher_id = ?').bind(studentId, teacherId),
+    db.prepare('SELECT id, full_name, ces FROM students WHERE id = ? AND teacher_id = ?').bind(studentId, teacherId),
     db
       .prepare(
         `SELECT c.id, c.name, c.school_year, e.active FROM enrollments e JOIN classes c ON c.id = e.class_id
@@ -301,10 +330,10 @@ export async function getStudentHistory(db: D1Database, teacherId: number, stude
       )
       .bind(teacherId, studentId),
   ]);
-  const row = student?.results[0] as { id: number; full_name: string } | undefined;
+  const row = student?.results[0] as { id: number; full_name: string; ces: number } | undefined;
   if (!row) return null;
   return {
-    student: { id: row.id, fullName: row.full_name },
+    student: { id: row.id, fullName: row.full_name, ces: row.ces === 1 },
     classes: ((classes?.results ?? []) as { id: number; name: string; school_year: number; active: number }[]).map(
       (cls): StudentClass => ({ id: cls.id, name: cls.name, schoolYear: cls.school_year, active: cls.active === 1 }),
     ),

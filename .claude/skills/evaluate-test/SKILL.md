@@ -24,6 +24,8 @@ Files:
 
 Read both. A Markdown file shows math as TeX between `$` signs, and links its pictures: open every picture that an exercise needs. Make the list of the exercises that get points, in barem order.
 
+When `ces.md` is in the folder, the test and the barem are the CES variant's: an adapted test for the students with special educational needs. `class/exercises.json` is then the exercise list of the class test. For each item of the CES test that is the same item as one of the class test (the same subject, number and letter), copy that item's `id` and `label` from `class/exercises.json`, so the teacher sees both in the same column. Give a new `id` only to an item that the class test does not have. The points, the answers and the scoring notes are always the CES barem's, even when they differ from the class list.
+
 - `totalPoints`: the highest total a student can get, "din oficiu" included (for example 10 or 100).
 - `officePoints`: the "din oficiu" points (for example 1 or 10); 0 if the barem gives none.
 - `exercises`: one entry for each item that the barem scores on its own.
@@ -63,6 +65,8 @@ Read `exercises.json`, the test, the barem, and every page in `student/`. Then g
 
 Do not add up the points, and do not give a grade: the platform does that.
 
+When `ces.md` is in the folder, the student has special educational needs and wrote the CES variant of the test: the test, the barem and `exercises.json` are the CES variant's. Grade by its barem, which often has blanks to fill in and guided steps. A blank filled in correctly earns the points of its step, with no other justification. Do not take points off for spelling, for hard-to-read writing, or for digits or signs swapped while copying, when the next calculations show that the student worked with the correct value. When you cannot read an answer at all, set `needsReview` to true and say so in `reviewReason`: the teacher reads it. Never write "CES", "adaptat", "variantă", or any word about special needs in a text the student sees (`comment`, `summary`, `strengths`, `recommendations`): the student's result looks like everyone else's.
+
 ## Mode `class-report`
 
 Files:
@@ -70,9 +74,13 @@ Files:
 - `class-results.json`: the graded class, without names. It holds:
   - `exercises`: the exercise list: `id`, `label`, `maxPoints`, `topic`, `answer`, and `scoringNotes` of each exercise;
   - `maxTotal` and `officePoints`;
-  - `students`: one entry for each graded student, named "Elev 1", "Elev 2", …, with `total`, `grade`, and `items`. Each item has the `exerciseId`, the final `points`, the `studentAnswer`, and the `comment` that the student got.
+  - `students`: one entry for each graded student, named "Elev 1", "Elev 2", …, with `total`, `grade`, `variant`, and `items`. Each item has the `exerciseId`, the final `points`, the `studentAnswer`, and the `comment` that the student got.
+  - `variant`: "class" for a paper of the class test, "ces" for a paper of the CES variant (an adapted test for the students with special educational needs, graded out of the same total);
+  - `cesExercises`: the exercise list of the CES variant, when a CES paper is graded; `null` otherwise. The items of a CES paper name these exercises.
 
 There are no pages and no test files in this mode. Read `class-results.json` and write the analysis for the teacher. Base every statement on the data: do not invent a mistake that no student made. Name an exercise by its `label` or its `topic`, and say how many students (or about what share of them) it concerns. Do not name or describe a single student, and do not write "Elev 3": write "mai mulți elevi" or "doi elevi".
+
+The CES papers belong to the class: count them in the grades and in the topics, by the exercise they answered (an exercise of `cesExercises` with the same `id` is the same exercise as in the class list). A CES exercise was guided, so a point lost there weighs more than the same point lost on the class test. Speak of the CES papers apart only when there are at least two of them, and never so that one student can be told apart.
 
 - `overview`: 2 to 5 sentences in Romanian about the class: how the test went, the spread of the grades, and the strongest and the weakest part.
 - `strengths`: 0 to 8 short Romanian phrases: topics that most students did well.
@@ -93,6 +101,8 @@ Files:
 The grading rules do not apply in this mode, except for these: the barem gives the points for each item, and often partial points for steps; points are whole numbers here; write Romanian. The rules about students, comments, flags, confidence and plain Unicode math are for grading. They do not apply here. In this mode math is TeX (see below).
 
 Read `references/barem-writing.md` and `references/barem-example.md` first. The example is a real test and barem from the teacher: copy its style.
+
+When `ces.md` is in the folder, the test is the CES variant: an adapted test for the students with special educational needs. Then also read `references/barem-example-ces.md`, a real CES test and the part of its barem that grading needs, and follow the section "Barem pentru varianta CES" of `references/barem-writing.md`. Two more files may be here: `class/barem.pdf` (or `class/barem.md` with its pictures in `class/media/`), the barem of the class test, and `class/exercises.json`, its exercise list. Use them to keep the class test's subjects, numbering and points.
 
 Then read the test and `notes.md`. A Markdown file shows math as TeX between `$` signs, and links its pictures: open every picture that an exercise needs. Solve every exercise yourself, with care, and check each result. Write the barem so that a teacher can grade from it.
 

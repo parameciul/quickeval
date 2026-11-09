@@ -9,6 +9,7 @@ import { listTests } from './tests.ts';
 interface EnrolledRow {
   id: number;
   full_name: string;
+  ces: number;
   class_id: number;
   class_name: string;
   active: number;
@@ -27,7 +28,7 @@ async function findYearStudents(
   const [enrolled, latest] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
-        `SELECT s.id, s.full_name, c.id AS class_id, c.name AS class_name, e.active
+        `SELECT s.id, s.full_name, s.ces, c.id AS class_id, c.name AS class_name, e.active
          FROM enrollments e
          JOIN classes c ON c.id = e.class_id AND c.teacher_id = ? AND c.school_year = ?
          JOIN students s ON s.id = e.student_id AND s.teacher_id = c.teacher_id`,
@@ -48,10 +49,10 @@ async function findYearStudents(
       .bind(teacherId, schoolYear),
   ]);
   const grades = new Map(((latest?.results ?? []) as { student_id: number; grade: number }[]).map((row) => [row.student_id, row.grade]));
-  const students = new Map<number, { fullName: string; active: SearchStudent['classes']; left: SearchStudent['classes'] }>();
+  const students = new Map<number, { fullName: string; ces: boolean; active: SearchStudent['classes']; left: SearchStudent['classes'] }>();
   for (const row of (enrolled?.results ?? []) as unknown as EnrolledRow[]) {
     if (!students.has(row.id) && !matches(row.full_name)) continue;
-    const student = students.get(row.id) ?? { fullName: row.full_name, active: [], left: [] };
+    const student = students.get(row.id) ?? { fullName: row.full_name, ces: row.ces === 1, active: [], left: [] };
     (row.active === 1 ? student.active : student.left).push({ id: row.class_id, name: row.class_name });
     students.set(row.id, student);
   }
@@ -59,6 +60,7 @@ async function findYearStudents(
     .map(([id, student]) => ({
       id,
       fullName: student.fullName,
+      ces: student.ces,
       classes: (student.active.length > 0 ? student.active : student.left).sort((a, b) => compareClassNames(a.name, b.name)),
       lastGrade: grades.get(id) ?? null,
     }))

@@ -41,7 +41,7 @@ const withClasses = () =>
       { id: 2, name: '6E3', schoolYear: 2026, archived: false, studentCount: 0 },
       { id: 3, name: '5A', schoolYear: 2026, archived: true, studentCount: 0 },
     ],
-    students: { 1: [{ id: 10, fullName: 'Pop Ion', active: true, canDelete: true }] },
+    students: { 1: [{ id: 10, fullName: 'Pop Ion', active: true, canDelete: true, ces: false }] },
     tests: [
       fakeTest({ code: '6E2-26T2', title: 'Ecuații', status: 'open' }),
       fakeTest({ code: '6E2-26T1', title: 'Fracții', status: 'done' }),

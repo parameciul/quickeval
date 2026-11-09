@@ -12,6 +12,7 @@ import { IconQr } from '../shell/icons.tsx';
 import type { StageName } from '../stages.ts';
 import { AnalysisState } from './AnalysisState.tsx';
 import { EvaluationControls } from './EvaluationControls.tsx';
+import { CesVariant, CesWaiting } from './CesVariant.tsx';
 import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { PrintTest } from './PrintTest.tsx';
 import { RegradeAllButton } from './RegradeAllButton.tsx';
@@ -107,6 +108,7 @@ function PreparePanel({ test, robot, onChanged, onRobot }: PanelProps) {
   return (
     <>
       <TestFiles test={test} onChanged={onChanged} onRobot={onRobot} />
+      <CesVariant test={test} onChanged={onChanged} onRobot={onRobot} />
       {waitsForBarem(test) && (
         <RobotLine lastCheckAt={robot.lastCheckAt} lateText="Baremul poate întârzia.">
           <StartRobotButton code={test.code} onChanged={onChanged} onRobot={onRobot} />
@@ -124,6 +126,7 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
   return (
     <>
       <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />
+      {test.ces.files.test !== null && <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />}
       {waitsForPrint(test) && (
         <RobotLine lastCheckAt={robot.lastCheckAt} lateText="Testul cu cod QR poate întârzia.">
           <StartRobotButton code={test.code} onChanged={onChanged} onRobot={onRobot} />
@@ -187,6 +190,8 @@ function GradingPanel(props: PanelProps) {
   return (
     <>
       <ExerciseListBanner test={test} onChanged={onChanged} onRobot={onRobot} />
+      <ExerciseListBanner test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
+      <CesWaiting test={test} />
       {test.status === 'open' ? (
         <EvaluationControls
           test={test}

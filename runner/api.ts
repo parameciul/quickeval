@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import type { ExerciseListInfo } from '../shared/api.ts';
-import { DOCX_TYPE } from '../shared/files.ts';
+import { DOCX_TYPE, type TestVariant } from '../shared/files.ts';
 import type {
   analysisBody,
   BaremJob,
@@ -52,9 +52,10 @@ export interface RobotApi {
   heartbeat(runId: string): Promise<void>;
   release(runId: string, summary: RunSummary): Promise<void>;
   tasks(): Promise<TasksResult>;
-  test(testId: number): Promise<RobotTest>;
-  testFile(testId: number, kind: 'test' | 'barem'): Promise<Uint8Array>;
-  sendExerciseList(testId: number, body: ExerciseListPost): Promise<ExerciseListInfo>;
+  // `variant` "ces": the CES variant of the test (?variant=ces); none: the class test.
+  test(testId: number, variant?: TestVariant): Promise<RobotTest>;
+  testFile(testId: number, kind: 'test' | 'barem', variant?: TestVariant): Promise<Uint8Array>;
+  sendExerciseList(testId: number, body: ExerciseListPost, variant?: TestVariant): Promise<ExerciseListInfo>;
   // Null when nothing can be graded now.
   claim(runId: string): Promise<ClaimResult | null>;
   page(submissionId: number, fileId: number): Promise<Uint8Array>;
@@ -65,19 +66,27 @@ export interface RobotApi {
   // for another try. "failed": the last attempt failed.
   sendAnalysis(testId: number, body: AnalysisPost): Promise<'ready' | 'requested' | 'failed'>;
   // An open test that waits for its print PDF; 404 for any other test.
-  printJob(testId: number): Promise<PrintJob>;
-  printSource(testId: number): Promise<Uint8Array>;
+  printJob(testId: number, variant?: TestVariant): Promise<PrintJob>;
+  printSource(testId: number, variant?: TestVariant): Promise<Uint8Array>;
   // The test with the QR code, made from the test file of `filesVersion`.
-  sendPrint(testId: number, runId: string, filesVersion: number, pdf: Uint8Array, createdAt?: string): Promise<void>;
+  sendPrint(testId: number, runId: string, filesVersion: number, pdf: Uint8Array, createdAt?: string, variant?: TestVariant): Promise<void>;
   // "failed": the last attempt failed. "none": the print waits for another try.
-  sendPrintFailed(testId: number, body: PrintFailedPost): Promise<'none' | 'failed'>;
+  sendPrintFailed(testId: number, body: PrintFailedPost, variant?: TestVariant): Promise<'none' | 'failed'>;
   // A draft or open test that waits for its generated barem; 404 for any other test.
-  baremJob(testId: number): Promise<BaremJob>;
-  baremSource(testId: number): Promise<Uint8Array>;
+  baremJob(testId: number, variant?: TestVariant): Promise<BaremJob>;
+  baremSource(testId: number, variant?: TestVariant): Promise<Uint8Array>;
+  // The class barem of a CES barem job (BaremJob.classBarem).
+  baremClassBarem(testId: number): Promise<Uint8Array>;
   // The barem as a Word file, written from the test file of `filesVersion`.
-  sendBarem(testId: number, runId: string, filesVersion: number, docx: Uint8Array, createdAt?: string): Promise<void>;
+  sendBarem(testId: number, runId: string, filesVersion: number, docx: Uint8Array, createdAt?: string, variant?: TestVariant): Promise<void>;
   // "failed": the last attempt failed. "none": the barem waits for another try.
-  sendBaremFailed(testId: number, body: BaremFailedPost): Promise<'none' | 'failed'>;
+  sendBaremFailed(testId: number, body: BaremFailedPost, variant?: TestVariant): Promise<'none' | 'failed'>;
+}
+
+// The query of a request about one variant: none for the class test, so an
+// older API still understands it.
+function ofVariant(variant: TestVariant | undefined): string {
+  return variant === 'ces' ? '?variant=ces' : '';
 }
 
 export interface RobotApiOptions {
@@ -133,10 +142,10 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
     heartbeat: (runId) => send('POST', '/heartbeat', { runId }, nothing),
     release: (runId, summary) => send('POST', '/release', { runId, summary }, nothing),
     tasks: () => json<TasksResult>('GET', '/tasks'),
-    test: async (testId) => (await json<{ test: RobotTest }>('GET', `/tests/${testId}`)).test,
-    testFile: (testId, kind) => bytes(`/tests/${testId}/files/${kind}`),
-    sendExerciseList: async (testId, body) =>
-      (await json<{ exerciseList: ExerciseListInfo }>('POST', `/tests/${testId}/exercise-list`, body)).exerciseList,
+    test: async (testId, variant) => (await json<{ test: RobotTest }>('GET', `/tests/${testId}${ofVariant(variant)}`)).test,
+    testFile: (testId, kind, variant) => bytes(`/tests/${testId}/files/${kind}${ofVariant(variant)}`),
+    sendExerciseList: async (testId, body, variant) =>
+      (await json<{ exerciseList: ExerciseListInfo }>('POST', `/tests/${testId}/exercise-list${ofVariant(variant)}`, body)).exerciseList,
     claim: (runId) => send('POST', '/claim', { runId }, async (res) => (res.status === 204 ? null : ((await res.json()) as ClaimResult))),
     page: (submissionId, fileId) => bytes(`/submissions/${submissionId}/files/${fileId}`),
     sendResult: async (submissionId, body) =>
@@ -144,12 +153,12 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
     classResults: async (testId) => (await json<{ results: ClassResults }>('GET', `/tests/${testId}/results`)).results,
     sendAnalysis: async (testId, body) =>
       (await json<{ status: 'ready' | 'requested' | 'failed' }>('POST', `/tests/${testId}/analysis`, body)).status,
-    printJob: async (testId) => (await json<{ job: PrintJob }>('GET', `/tests/${testId}/print-job`)).job,
-    printSource: (testId) => bytes(`/tests/${testId}/print-job/file`),
-    sendPrint: (testId, runId, filesVersion, pdf, createdAt) =>
+    printJob: async (testId, variant) => (await json<{ job: PrintJob }>('GET', `/tests/${testId}/print-job${ofVariant(variant)}`)).job,
+    printSource: (testId, variant) => bytes(`/tests/${testId}/print-job/file${ofVariant(variant)}`),
+    sendPrint: (testId, runId, filesVersion, pdf, createdAt, variant) =>
       send(
         'PUT',
-        `/tests/${testId}/print`,
+        `/tests/${testId}/print${ofVariant(variant)}`,
         new Raw(pdf, {
           'Content-Type': 'application/pdf',
           'X-Run-Id': runId,
@@ -158,14 +167,15 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
         }),
         nothing,
       ),
-    sendPrintFailed: async (testId, body) =>
-      (await json<{ status: 'none' | 'failed' }>('POST', `/tests/${testId}/print-failed`, body)).status,
-    baremJob: async (testId) => (await json<{ job: BaremJob }>('GET', `/tests/${testId}/barem-job`)).job,
-    baremSource: (testId) => bytes(`/tests/${testId}/barem-job/file`),
-    sendBarem: (testId, runId, filesVersion, docx, createdAt) =>
+    sendPrintFailed: async (testId, body, variant) =>
+      (await json<{ status: 'none' | 'failed' }>('POST', `/tests/${testId}/print-failed${ofVariant(variant)}`, body)).status,
+    baremJob: async (testId, variant) => (await json<{ job: BaremJob }>('GET', `/tests/${testId}/barem-job${ofVariant(variant)}`)).job,
+    baremSource: (testId, variant) => bytes(`/tests/${testId}/barem-job/file${ofVariant(variant)}`),
+    baremClassBarem: (testId) => bytes(`/tests/${testId}/barem-job/class-barem`),
+    sendBarem: (testId, runId, filesVersion, docx, createdAt, variant) =>
       send(
         'PUT',
-        `/tests/${testId}/barem`,
+        `/tests/${testId}/barem${ofVariant(variant)}`,
         new Raw(docx, {
           'Content-Type': DOCX_TYPE,
           'X-Run-Id': runId,
@@ -174,8 +184,8 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
         }),
         nothing,
       ),
-    sendBaremFailed: async (testId, body) =>
-      (await json<{ status: 'none' | 'failed' }>('POST', `/tests/${testId}/barem-failed`, body)).status,
+    sendBaremFailed: async (testId, body, variant) =>
+      (await json<{ status: 'none' | 'failed' }>('POST', `/tests/${testId}/barem-failed${ofVariant(variant)}`, body)).status,
   };
 }
 

@@ -26,7 +26,10 @@ export function todoPath(item: TodoItem): string {
 // What a test waits for from the teacher, if anything (redesign spec §5):
 // exactly three cases, checked in this order. The first has two forms: the
 // generated barem waits to be checked, or its new generation failed (it can
-// be neither confirmed nor used until the teacher asks for it again).
+// be neither confirmed nor used until the teacher asks for it again). The
+// generated CES barem of the CES variant counts the same way, after the
+// class barem, also while the test is in evaluation (its CES papers wait); so
+// does a missing CES barem that CES papers wait for.
 export function todoOf(test: TestSummary): TodoItem | null {
   if (test.archived) return null;
   const item = { code: test.code, testTitle: test.title, className: test.className };
@@ -49,6 +52,37 @@ export function todoOf(test: TestSummary): TodoItem | null {
       text: 'Baremul nu s-a putut genera din nou. Fără el, testul nu se poate corecta.',
       action: 'Deschide',
       short: 'baremul nu s-a generat',
+    };
+  }
+  const ces = test.status !== 'done' && test.cesBarem !== null && test.cesBarem.unchecked ? test.cesBarem : null;
+  if (ces && ces.request === 'none') {
+    return {
+      ...item,
+      stage: 'Pregătire',
+      task: 'Verifică baremul CES generat',
+      text: 'Până îl confirmi, lucrările CES nu se corectează.',
+      action: 'Deschide',
+      short: 'baremul CES de verificat',
+    };
+  }
+  if (ces && ces.request === 'failed') {
+    return {
+      ...item,
+      stage: 'Pregătire',
+      task: 'Generează din nou baremul CES',
+      text: 'Baremul CES nu s-a putut genera din nou. Fără el, lucrările CES nu se corectează.',
+      action: 'Deschide',
+      short: 'baremul CES nu s-a generat',
+    };
+  }
+  if (test.status === 'evaluating' && test.cesBarem?.missing) {
+    return {
+      ...item,
+      stage: 'Pregătire',
+      task: 'Încarcă baremul CES',
+      text: 'Lucrările CES așteaptă baremul CES. Celelalte lucrări se corectează între timp.',
+      action: 'Deschide',
+      short: 'baremul CES lipsește',
     };
   }
   if (test.flagCount > 0) {

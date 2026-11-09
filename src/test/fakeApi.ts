@@ -5,6 +5,8 @@ import type {
   BaremCheckedAnswer,
   BaremGenerateAnswer,
   BaremNotesAnswer,
+  CesRemovedAnswer,
+  CesVariantInfo,
   ClassReport,
   ClassSummary,
   EvaluationInfo,
@@ -33,7 +35,7 @@ import type {
   UploadRow,
 } from '../../shared/api.ts';
 import { normalizeClassName } from '../../shared/classes.ts';
-import { DOCX_TYPE, uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
+import { DOCX_TYPE, uploadTypeOf, type TestFileKind, type TestVariant } from '../../shared/files.ts';
 import type { CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
 import { searchMatcher } from '../../shared/search.ts';
@@ -115,6 +117,10 @@ function withDerived({ test, ...detail }: TestDetail): TestDetail {
         print: test.print.status,
         uploadLink: test.uploadToken !== null,
       },
+      cesBarem:
+        test.ces.files.test === null
+          ? null
+          : { request: test.ces.barem.request, unchecked: test.ces.barem.unchecked, missing: test.ces.files.barem === null && test.ces.waiting > 0 },
       averageGrade: averageGrade(grades),
     },
   };
@@ -126,6 +132,24 @@ function summaryOf(detail: TestDetail): TestSummary {
 }
 
 // A test as the API returns it, for building fake data in tests.
+// A test with no CES variant, in a class with no CES student.
+export function noCesVariant(overrides: Partial<CesVariantInfo> = {}): CesVariantInfo {
+  return {
+    studentCount: 0,
+    files: { test: null, barem: null },
+    baremNotes: '',
+    barem: { request: 'none', unchecked: false },
+    filesVersion: 0,
+    exerciseList: { status: 'none', message: null },
+    print: { status: 'none', fromWord: false },
+    papers: 0,
+    waiting: 0,
+    totalPoints: null,
+    classTotalPoints: null,
+    ...overrides,
+  };
+}
+
 export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[] = []): TestDetail {
   return withDerived({
     test: {
@@ -156,8 +180,10 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       filesVersion: 0,
       analysis: { status: 'none', stale: false, attempts: 0 },
       print: { status: 'none', fromWord: false },
+      ces: noCesVariant(),
       // Made again from the files and the uploads (withDerived).
       prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
+      cesBarem: null,
       averageGrade: null,
       ...overrides,
     },
@@ -193,6 +219,7 @@ export function fakeSummary({ prepared, ...overrides }: SummaryOverrides = {}): 
     archived: false,
     barem: { request: 'none', unchecked: false },
     prepared: { testFile: true, baremFile: true, print: 'ready', uploadLink: true, ...prepared },
+    cesBarem: null,
     averageGrade: null,
     ...overrides,
   };
@@ -222,6 +249,8 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     model: null,
     effort: null,
     lastError: null,
+    ces: false,
+    variant: null,
     ...overrides,
   };
 }
@@ -468,7 +497,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
             : `Elevii ${quoted.join(', ')}${clashes.length > 3 ? ` și încă ${clashes.length - 3}` : ''} sunt deja în clasă.`;
         throw new ApiError(409, 'student_exists', message);
       }
-      const added = names.map((fullName) => ({ id: nextId++, fullName, active: true, canDelete: true }));
+      const added = names.map((fullName) => ({ id: nextId++, fullName, active: true, canDelete: true, ces: false }));
       data.students[classId] = [...(data.students[classId] ?? []), ...added];
       return added;
     }),
@@ -510,6 +539,20 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       }
       return { id: studentId, fullName };
     }),
+    // The mark goes with the student, in every class. New rows, as the API
+    // answers with: the page sees the change.
+    setStudentCes: vi.fn(async (studentId: number, ces: boolean) => {
+      let found = false;
+      for (const list of Object.values(data.students)) {
+        const index = list.findIndex((s) => s.id === studentId);
+        if (index >= 0) {
+          list[index] = { ...list[index]!, ces };
+          found = true;
+        }
+      }
+      if (!found) throw notFound();
+      return { id: studentId, ces };
+    }),
     getStudentHistory: vi.fn(async (studentId: number) => {
       const found = data.histories?.find((history) => history.student.id === studentId);
       if (!found) throw notFound();
@@ -523,7 +566,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const students = new Map<number, SearchResults['students'][number]>();
       for (const cls of classes) {
         for (const student of (data.students[cls.id] ?? []).filter((s) => s.active && matches(s.fullName))) {
-          const found = students.get(student.id) ?? { id: student.id, fullName: student.fullName, classes: [], lastGrade: null };
+          const found = students.get(student.id) ?? { id: student.id, fullName: student.fullName, ces: student.ces, classes: [], lastGrade: null };
           found.classes.push({ id: cls.id, name: cls.name });
           students.set(student.id, found);
         }
@@ -560,9 +603,17 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     }),
     // Like the server: a new barem clears the exercise list, and during
     // evaluation the robot makes it again.
-    uploadTestFile: vi.fn(async (code: string, kind: TestFileKind, file: File): Promise<TestFileAnswer> => {
+    uploadTestFile: vi.fn(async (code: string, kind: TestFileKind, file: File, variant: TestVariant = 'class'): Promise<TestFileAnswer> => {
       const found = findTest(code).test;
       const info = { name: file.name, type: uploadTypeOf(file) };
+      if (variant === 'ces') {
+        // Like the server: the CES variant's own files, print PDF and list.
+        found.ces.files[kind] = info;
+        found.ces.filesVersion += 1;
+        if (kind === 'test') found.ces.print = { status: 'none', fromWord: info.type === DOCX_TYPE };
+        else found.ces = { ...found.ces, exerciseList: { status: 'none', message: null }, barem: { request: 'none', unchecked: false } };
+        return { file: info, robot: kind === 'barem' && found.status === 'evaluating' ? 'next_check' : null };
+      }
       found.files[kind] = info;
       if (kind === 'test') {
         // Like the server: a new test file needs a new print PDF, and an old draft gets its link.
@@ -575,25 +626,37 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     }),
     // Like the server: new barem comments clear the exercise list, and during
     // evaluation the robot makes it again.
-    saveBaremNotes: vi.fn(async (code: string, notes: string): Promise<BaremNotesAnswer> => {
+    saveBaremNotes: vi.fn(async (code: string, notes: string, variant: TestVariant = 'class'): Promise<BaremNotesAnswer> => {
       const found = findTest(code).test;
-      found.baremNotes = notes.trim();
-      found.exerciseList = { status: 'none', message: null };
-      return { baremNotes: found.baremNotes, robot: found.status === 'evaluating' ? 'next_check' : null };
+      const parts = variant === 'ces' ? found.ces : found;
+      parts.baremNotes = notes.trim();
+      parts.exerciseList = { status: 'none', message: null };
+      return { baremNotes: parts.baremNotes, robot: found.status === 'evaluating' ? 'next_check' : null };
     }),
     // Like the server: only a draft or open test with a test file asks the robot.
-    generateBarem: vi.fn(async (code: string): Promise<BaremGenerateAnswer> => {
+    generateBarem: vi.fn(async (code: string, variant: TestVariant = 'class'): Promise<BaremGenerateAnswer> => {
       const found = findTest(code).test;
-      if (!found.files.test) throw new ApiError(409, 'no_test_file', 'Încarcă întâi testul.');
-      found.barem = { ...found.barem, request: 'requested' };
-      return { barem: found.barem, robot: 'dispatched' };
+      const parts = variant === 'ces' ? found.ces : found;
+      if (!parts.files.test) throw new ApiError(409, 'no_test_file', 'Încarcă întâi testul.');
+      parts.barem = { ...parts.barem, request: 'requested' };
+      return { barem: parts.barem, robot: 'dispatched' };
     }),
-    // Like the server: a stale files version is refused.
-    confirmBarem: vi.fn(async (code: string, filesVersion: number): Promise<BaremCheckedAnswer> => {
+    // Like the server: a stale files version is refused; a checked CES barem
+    // sends the CES papers that waited to the robot.
+    confirmBarem: vi.fn(async (code: string, filesVersion: number, variant: TestVariant = 'class'): Promise<BaremCheckedAnswer> => {
       const found = findTest(code).test;
-      if (found.filesVersion !== filesVersion) throw new ApiError(409, 'stale', 'Baremul s-a schimbat. Reîncarcă pagina.');
-      found.barem = { ...found.barem, unchecked: false };
-      return { barem: found.barem };
+      const parts = variant === 'ces' ? found.ces : found;
+      if (parts.filesVersion !== filesVersion) throw new ApiError(409, 'stale', 'Baremul s-a schimbat. Reîncarcă pagina.');
+      parts.barem = { ...parts.barem, unchecked: false };
+      if (variant === 'ces') return { barem: parts.barem, robot: found.status === 'evaluating' ? 'dispatched' : null };
+      return { barem: parts.barem };
+    }),
+    // Like the server: only while no paper went to grading with the CES variant.
+    removeCesVariant: vi.fn(async (code: string): Promise<CesRemovedAnswer> => {
+      const found = findTest(code).test;
+      if (found.ces.papers > 0) throw new ApiError(409, 'ces_papers', 'Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi ștearsă.');
+      found.ces = noCesVariant({ studentCount: found.ces.studentCount, filesVersion: found.ces.filesVersion + 1 });
+      return { ces: found.ces, robot: found.status === 'evaluating' ? 'dispatched' : null };
     }),
     // Like the server: the test keeps its link (a draft made before tests got
     // their link at once gets one now), and a print PDF that still waits is
@@ -687,8 +750,13 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     }),
     // Like the server: a failed print PDF is made again, by the robot, and a
     // draft without a link gets one and its print PDF.
-    retryPrint: vi.fn(async (code: string): Promise<PrintRetryAnswer> => {
+    retryPrint: vi.fn(async (code: string, variant: TestVariant = 'class'): Promise<PrintRetryAnswer> => {
       const found = findTest(code).test;
+      if (variant === 'ces') {
+        if (found.ces.print.status !== 'failed') throw new ApiError(409, 'not_failed', 'Testul CES cu cod QR nu poate fi încercat din nou.');
+        found.ces.print = { status: 'none', fromWord: found.ces.print.fromWord };
+        return { print: found.ces.print, robot: 'dispatched' };
+      }
       const beforeEvaluation = found.status === 'draft' || found.status === 'open';
       const lacksLink = found.uploadToken === null && found.files.test !== null;
       if (!beforeEvaluation || (found.print.status !== 'failed' && !lacksLink)) {
@@ -733,14 +801,14 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     cancelSchedule: vi.fn(async (code: string) => {
       findTest(code).test.evaluationAt = null;
     }),
-    acceptExerciseList: vi.fn(async (code: string): Promise<RobotStart | null> => {
+    acceptExerciseList: vi.fn(async (code: string, variant: TestVariant = 'class'): Promise<RobotStart | null> => {
       const found = findTest(code).test;
-      found.exerciseList.status = 'accepted';
+      (variant === 'ces' ? found.ces : found).exerciseList.status = 'accepted';
       return found.status === 'evaluating' ? 'next_check' : null;
     }),
-    retryExerciseList: vi.fn(async (code: string): Promise<RobotStart | null> => {
+    retryExerciseList: vi.fn(async (code: string, variant: TestVariant = 'class'): Promise<RobotStart | null> => {
       const found = findTest(code).test;
-      found.exerciseList = { status: 'none', message: null };
+      (variant === 'ces' ? found.ces : found).exerciseList = { status: 'none', message: null };
       return found.status === 'evaluating' ? 'next_check' : null;
     }),
     // Like the server: graded and failed uploads wait for the robot again.

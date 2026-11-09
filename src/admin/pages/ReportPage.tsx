@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { ClassReport } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
-import { classStats } from '../../../shared/stats.ts';
+import { classStats, reportTables } from '../../../shared/stats.ts';
 import { normalizeTestCode } from '../../../shared/tests.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -88,6 +88,7 @@ function ReportView({ code }: { code: string }) {
   if (query.data === undefined) return <ErrorMessage error={query.error} />;
   const report = query.data;
   const stats = classStats(report);
+  const [classTable, cesTable] = reportTables(report);
   const counts: Partial<Record<PartId, string>> = {
     rezultate: String(report.rows.length + report.missing.length),
     exercitii: String(report.exercises.length),
@@ -145,14 +146,27 @@ function ReportView({ code }: { code: string }) {
                   {stats.gradedCount} din {stats.activeCount} elevi
                 </span>
               </div>
-              <ResultsTable code={code} report={report} />
+              <ResultsTable code={code} table={classTable!} missing={report.missing} />
+              {cesTable && (
+                <>
+                  <h3 className="report-subhead">Varianta CES</h3>
+                  <p className="hint report-subhead-line">Lucrările variantei CES, cu exercițiile ei. Notele lor intră în media clasei.</p>
+                  <ResultsTable code={code} table={cesTable} missing={[]} caption="Punctajele elevilor pe exerciții, varianta CES" />
+                </>
+              )}
             </section>
             <section id="exercitii" className="report-part class-card" aria-labelledby="exercitii-title">
               <div className="class-card-head">
                 <h2 id="exercitii-title">Pe exerciții</h2>
                 <span>{countLabel(report.exercises.length, 'exercițiu', 'exerciții')}</span>
               </div>
-              <ExerciseStatsTable stats={stats} />
+              <ExerciseStatsTable perExercise={stats.perExercise} />
+              {stats.cesPerExercise && (
+                <>
+                  <h3 className="report-subhead">Varianta CES</h3>
+                  <ExerciseStatsTable perExercise={stats.cesPerExercise} caption="Statistici pe exerciții, varianta CES" />
+                </>
+              )}
             </section>
             <AnalysisSection code={code} report={report} />
           </div>

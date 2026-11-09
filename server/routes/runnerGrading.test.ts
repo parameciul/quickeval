@@ -87,6 +87,7 @@ describe('POST /api/runner/claim', () => {
       submissionId: oldest,
       testId,
       startedAt: await startedAtOf(api, oldest),
+      variant: 'class',
       files: [
         { id: expect.any(Number), contentType: 'image/jpeg', position: 1 },
         { id: expect.any(Number), contentType: 'image/jpeg', position: 2 },

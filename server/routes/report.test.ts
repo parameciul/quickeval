@@ -35,6 +35,48 @@ afterEach(async () => {
   await api.dispose();
 });
 
+describe('the CES papers in the class report', () => {
+  // Avram Dan wrote the CES variant; Pop Ion the class test.
+  async function gradeBoth(cesList: ExerciseList): Promise<void> {
+    await api.db.prepare('UPDATE tests SET ces_exercise_list_json = ? WHERE id = ?').bind(JSON.stringify(cesList), testId).run();
+    await api.db.prepare('UPDATE students SET ces = 1 WHERE id = ?').bind(studentIds[1]).run();
+    const pop = await addSubmission(api, code, studentIds[2]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, pop, { grade: 8, items: [{}, {}] });
+    const avram = await addSubmission(api, code, studentIds[1]!, { status: 'graded', files: 1 });
+    await addEvaluation(api, avram, { grade: 9, items: [{}, {}] });
+    await api.db.prepare("UPDATE submissions SET variant = 'ces' WHERE id = ?").bind(avram).run();
+  }
+
+  it('keeps one table when the CES exercises are the class ones, and marks the CES row', async () => {
+    await gradeBoth(LIST);
+    const { report: body } = (await report()).body;
+    expect(body.cesExercises).toBeNull();
+    expect(body.exercises.map((e: { id: string }) => e.id)).toEqual(['E1', 'E2']);
+    expect(body.rows.map((row: { studentName: string; ces: boolean; variant: string }) => [row.studentName, row.ces, row.variant])).toEqual([
+      ['Avram Dan', true, 'ces'],
+      ['Pop Ion', false, 'class'],
+    ]);
+  });
+
+  it('gives the CES exercises apart when their ids or maximums differ', async () => {
+    await gradeBoth({ ...LIST, exercises: [{ ...LIST.exercises[0]!, maxPoints: 9 }] });
+    const { report: body } = (await report()).body;
+    expect(body.exercises.map((e: { id: string; maxPoints: number }) => [e.id, e.maxPoints])).toEqual([
+      ['E1', 4.5],
+      ['E2', 4.5],
+    ]);
+    // The CES list first, then what only the CES papers' items name.
+    expect(body.cesExercises.map((e: { id: string; maxPoints: number }) => [e.id, e.maxPoints])).toEqual([
+      ['E1', 9],
+      ['E2', 1],
+    ]);
+    expect(body.missing.map((m: { studentName: string; ces: boolean }) => [m.studentName, m.ces])).toEqual([
+      ['Ionescu Ana', false],
+      ['Stan Eva', false],
+    ]);
+  });
+});
+
 describe('GET /api/admin/tests/:code/report', () => {
   it('lists the graded students by name with their items, and the others below', async () => {
     const pop = await addSubmission(api, code, studentIds[2]!, { status: 'graded', files: 1 });
@@ -60,8 +102,8 @@ describe('GET /api/admin/tests/:code/report', () => {
     // Pages that were not checked count as one item to check.
     expect(body.rows[0]).toMatchObject({ grade: 9.5, flagCount: 1 });
     expect(body.missing).toEqual([
-      { studentId: studentIds[3], studentName: 'Ionescu Ana', status: 'none' },
-      { studentId: studentIds[0], studentName: 'Stan Eva', status: 'failed' },
+      { studentId: studentIds[3], studentName: 'Ionescu Ana', status: 'none', ces: false },
+      { studentId: studentIds[0], studentName: 'Stan Eva', status: 'failed', ces: false },
     ]);
   });
 

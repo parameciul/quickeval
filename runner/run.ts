@@ -137,19 +137,27 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
     // A barem is tried again in the next round only while it waits for another
     // attempt; any other end is tried once per run.
     const baremsTried = new Set<number>();
+    // The CES variants' work, tried by the same rules as the class work.
+    const cesPrintsTried = new Set<number>();
+    const cesBaremsTried = new Set<number>();
+    const cesListsTried = new Set<number>();
     const print = options.print;
     let printsOff = false;
     while (canTake()) {
       const tasks = await api.tasks();
       let started = 0;
       // The print PDFs first: the teacher waits for them, and they are quick.
-      // An older API sends no print jobs.
-      for (const testId of tasks.prints ?? []) {
-        if (!print || printsOff || printsTried.has(testId) || !canTake()) continue;
+      // An older API sends no print jobs, and no CES work.
+      const prints = [
+        ...(tasks.prints ?? []).map((testId) => ({ testId, variant: 'class' as const, tried: printsTried })),
+        ...(tasks.cesPrints ?? []).map((testId) => ({ testId, variant: 'ces' as const, tried: cesPrintsTried })),
+      ];
+      for (const { testId, variant, tried } of prints) {
+        if (!print || printsOff || tried.has(testId) || !canTake()) continue;
         started += 1;
         try {
-          const end = await makePrint(ctx, print, testId);
-          if (end !== 'retry') printsTried.add(testId);
+          const end = await makePrint(ctx, print, testId, variant);
+          if (end !== 'retry') tried.add(testId);
           record(end, 'prints');
         } catch (err) {
           if (!(err instanceof PrintSetupError)) throw err;
@@ -159,18 +167,26 @@ export async function runRobot(options: RunOptions): Promise<RunReport> {
         }
       }
       // The generated barems next: the teacher waits for them too.
-      for (const testId of tasks.barems ?? []) {
-        if (baremsTried.has(testId) || !canTake()) continue;
+      const barems = [
+        ...(tasks.barems ?? []).map((testId) => ({ testId, variant: 'class' as const, tried: baremsTried })),
+        ...(tasks.cesBarems ?? []).map((testId) => ({ testId, variant: 'ces' as const, tried: cesBaremsTried })),
+      ];
+      for (const { testId, variant, tried } of barems) {
+        if (tried.has(testId) || !canTake()) continue;
         started += 1;
-        const end = await makeBarem(ctx, testId);
-        if (end !== 'retry') baremsTried.add(testId);
+        const end = await makeBarem(ctx, testId, variant);
+        if (end !== 'retry') tried.add(testId);
         record(end, 'barems');
       }
-      for (const testId of tasks.exerciseLists) {
-        if (listsTried.has(testId) || !canTake()) continue;
-        listsTried.add(testId);
+      const lists = [
+        ...tasks.exerciseLists.map((testId) => ({ testId, variant: 'class' as const, tried: listsTried })),
+        ...(tasks.cesExerciseLists ?? []).map((testId) => ({ testId, variant: 'ces' as const, tried: cesListsTried })),
+      ];
+      for (const { testId, variant, tried } of lists) {
+        if (tried.has(testId) || !canTake()) continue;
+        tried.add(testId);
         started += 1;
-        record(await makeExerciseList(ctx, testId), 'exerciseLists');
+        record(await makeExerciseList(ctx, testId, variant), 'exerciseLists');
       }
       if (canTake()) started += await gradeAll();
       // A test whose uploads are all graded now waits for its analysis: the

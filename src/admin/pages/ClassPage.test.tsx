@@ -8,9 +8,9 @@ import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdm
 // A class with two tests (T1 older, T2 newer) and three students (one left).
 const classData = (extra: TestDetail[] = []) => {
   const students = [
-    { id: 10, fullName: 'Pop Ion', active: true, canDelete: false },
-    { id: 11, fullName: 'Ionescu Ana', active: false, canDelete: false },
-    { id: 12, fullName: 'Albu Dan', active: true, canDelete: false },
+    { id: 10, fullName: 'Pop Ion', active: true, canDelete: false, ces: false },
+    { id: 11, fullName: 'Ionescu Ana', active: false, canDelete: false, ces: false },
+    { id: 12, fullName: 'Albu Dan', active: true, canDelete: false, ces: false },
   ];
   const t2 = fakeTest(
     {
@@ -170,7 +170,7 @@ describe('ClassPage', () => {
       '/clase/1',
       createFakeApi({
         classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 1 }],
-        students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false }] },
+        students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false, ces: false }] },
         tests: [...data.tests, waiting],
       }),
     );
@@ -237,7 +237,7 @@ describe('ClassPage', () => {
       '/clase/1',
       createFakeApi({
         classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 0 }],
-        students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false }] },
+        students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false, ces: false }] },
       }),
       <LocationProbe />,
     );
@@ -445,7 +445,7 @@ describe('ClassPage grade table', () => {
   it('opens the student page from a name, which leads back to this class', async () => {
     const histories = [
       {
-        student: { id: 10, fullName: 'Pop Ion' },
+        student: { id: 10, fullName: 'Pop Ion', ces: false },
         classes: [
           { id: 3, name: '7E2', schoolYear: 2027, active: true },
           { id: 1, name: '6E2', schoolYear: 2026, active: true },
@@ -540,7 +540,7 @@ describe('ClassPage "Elevi" tab', () => {
       '/clase/1',
       createFakeApi({
         ...data,
-        students: { 1: [...data.students[1]!, { id: 13, fullName: 'Ștefănescu Ioana', active: true, canDelete: true }] },
+        students: { 1: [...data.students[1]!, { id: 13, fullName: 'Ștefănescu Ioana', active: true, canDelete: true, ces: false }] },
       }),
     );
     await openStudents();
@@ -620,6 +620,40 @@ describe('ClassPage "Elevi" tab', () => {
     await openStudents();
     await userEvent.click((await detail()).getByRole('button', { name: 'A plecat din clasă' }));
     expect(api.setStudentActive).toHaveBeenCalledWith(1, 12, false);
+  });
+
+  it('marks the chosen student as CES, shows the mark in both tabs, and takes it away', async () => {
+    const api = gradedClass();
+    renderAdmin('/clase/1', api);
+    await openStudents();
+    const before = await detail();
+    expect(before.queryByText('CES')).not.toBeInTheDocument();
+    await userEvent.click(before.getByRole('button', { name: 'Marchează CES' }));
+    expect(api.setStudentCes).toHaveBeenCalledWith(12, true);
+
+    const after = await detail();
+    expect(await after.findByText('Primește varianta CES a testelor care au una.')).toBeInTheDocument();
+    expect(after.getByText('CES')).toHaveAttribute('title', 'Cerințe educaționale speciale');
+    const list = within(screen.getByRole('list', { name: 'Elevii clasei' }));
+    expect(within(list.getByRole('button', { name: /Albu Dan/ })).getByText('CES')).toBeInTheDocument();
+    expect(within(list.getByRole('button', { name: /Pop Ion/ })).queryByText('CES')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Note și teste' }));
+    const row = (await screen.findByRole('rowheader', { name: /Albu Dan/ })).closest('tr')!;
+    expect(within(row).getByText('CES')).toBeInTheDocument();
+    expect(within(screen.getByRole('rowheader', { name: /Pop Ion/ })).queryByText('CES')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: /^Elevi/ }));
+    await userEvent.click((await detail()).getByRole('button', { name: 'Scoate marcajul CES' }));
+    expect(api.setStudentCes).toHaveBeenLastCalledWith(12, false);
+    await waitFor(async () => expect((await detail()).queryByText('CES')).not.toBeInTheDocument());
+  });
+
+  it('offers no CES button in an archived class', async () => {
+    const data = classData();
+    renderAdmin('/clase/1', createFakeApi({ ...data, classes: [{ ...data.classes[0]!, archived: true }] }));
+    await openStudents();
+    expect((await detail()).queryByRole('button', { name: 'Marchează CES' })).not.toBeInTheDocument();
   });
 
   it('renames the chosen student in a dialog', async () => {

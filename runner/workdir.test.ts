@@ -77,7 +77,8 @@ describe('makeWorkFolder', () => {
       maxTotal: 10,
       officePoints: 1,
       exercises: [],
-      students: [{ label: 'Elev 1', total: 8, grade: 8, items: [] }],
+      cesExercises: null,
+      students: [{ label: 'Elev 1', total: 8, grade: 8, variant: 'class' as const, items: [] }],
     };
     const folder = await makeWorkFolder(root, 'class-report-3', { classResults }, { skillDir });
     expect(filesIn(folder)).toEqual([

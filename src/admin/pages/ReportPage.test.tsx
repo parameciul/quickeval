@@ -17,6 +17,7 @@ const ANALYSIS = {
 function report(overrides: Partial<ClassReport> = {}): ClassReport {
   return {
     test: { code: '6E2-26T1', title: 'Fracții', classId: 1, className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
+    cesExercises: null,
     exercises: [
       { id: 'I.1', label: 'Subiectul I, exercițiul 1', maxPoints: 4.5 },
       { id: 'II.1', label: 'Subiectul II, exercițiul 1', maxPoints: 4.5 },
@@ -29,7 +30,7 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
         total: 10,
         maxTotal: 10,
         grade: 10,
-        flagCount: 0,
+        flagCount: 0, ces: false, variant: 'class',
         items: [
           { exerciseId: 'I.1', points: 4.5, maxPoints: 4.5, flagged: false },
           { exerciseId: 'II.1', points: 4.5, maxPoints: 4.5, flagged: false },
@@ -42,14 +43,14 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
         total: 5.5,
         maxTotal: 10,
         grade: 5.5,
-        flagCount: 2,
+        flagCount: 2, ces: false, variant: 'class',
         items: [
           { exerciseId: 'I.1', points: 4.5, maxPoints: 4.5, flagged: false },
           { exerciseId: 'II.1', points: 0, maxPoints: 4.5, flagged: true },
         ],
       },
     ],
-    missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none' }],
+    missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none', ces: false }],
     analysis: { status: 'ready', stale: false, attempts: 0, content: ANALYSIS },
     ...overrides,
   };
@@ -62,6 +63,44 @@ const apiWith = (value: ClassReport = report()) =>
     tests: [fakeTest({ status: 'done', gradedCount: 2 })],
     reports: { '6E2-26T1': value },
   });
+
+describe('ReportPage with CES papers', () => {
+  const cesRow = {
+    ...report().rows[0]!,
+    submissionId: 7,
+    studentId: 13,
+    studentName: 'Bursașiu Teodor',
+    ces: true,
+    variant: 'ces' as const,
+    total: 9,
+    grade: 9,
+    items: [{ exerciseId: 'C1', points: 8, maxPoints: 9, flagged: false }],
+  };
+
+  it('shows the CES papers in a table of their own, with the mark, when their exercises differ', async () => {
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ cesExercises: [{ id: 'C1', label: 'Exercițiul CES 1', maxPoints: 9 }], rows: [...report().rows, cesRow] })));
+    const results = within(await screen.findByRole('region', { name: 'Rezultatele elevilor' }));
+    const tables = results.getAllByRole('table');
+    expect(tables).toHaveLength(2);
+    expect(within(tables[0]!).queryByText('Bursașiu Teodor')).not.toBeInTheDocument();
+    expect(results.getByRole('heading', { level: 3, name: 'Varianta CES' })).toBeInTheDocument();
+    const ces = within(tables[1]!);
+    expect(ces.getByRole('columnheader', { name: /C1/ })).toBeInTheDocument();
+    const row = ces.getByRole('rowheader', { name: /Bursașiu Teodor/ });
+    expect(within(row).getByText('CES')).toBeInTheDocument();
+    const exercises = within(screen.getByRole('region', { name: 'Pe exerciții' }));
+    expect(exercises.getAllByRole('table')).toHaveLength(2);
+    expect(exercises.getByRole('rowheader', { name: 'Exercițiul CES 1' })).toBeInTheDocument();
+  });
+
+  it('keeps one table, with the mark, when the CES papers share the class columns', async () => {
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ rows: [...report().rows, { ...cesRow, items: report().rows[0]!.items }] })));
+    const results = within(await screen.findByRole('region', { name: 'Rezultatele elevilor' }));
+    expect(results.getAllByRole('table')).toHaveLength(1);
+    expect(results.queryByRole('heading', { name: 'Varianta CES' })).not.toBeInTheDocument();
+    expect(within(results.getByRole('rowheader', { name: /Bursașiu Teodor/ })).getByText('CES')).toBeInTheDocument();
+  });
+});
 
 describe('ReportPage', () => {
   it('names the test, its class and its date, and leads back to the test', async () => {
@@ -114,7 +153,7 @@ describe('ReportPage', () => {
   });
 
   it('says why a student with a paper has no result yet', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'submitted' }] })));
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'submitted', ces: false }] })));
     const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
     const row = within(table).getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
     expect(within(row).getByRole('cell')).toHaveTextContent('Trimis');
@@ -280,7 +319,7 @@ describe('ReportPage', () => {
           total: 40,
           maxTotal: 40,
           grade: 10,
-          flagCount: 0,
+          flagCount: 0, ces: false, variant: 'class',
           items: exercises.map((exercise) => ({ exerciseId: exercise.id, points: 1, maxPoints: 1, flagged: false })),
         },
       ],

@@ -188,7 +188,7 @@ describe('TestPage', () => {
     const api = apiWith({ uploadToken: null, files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null } });
     renderAdmin(`${PAGE}#tiparire`, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Pregătește testul cu cod QR' }));
-    expect(api.retryPrint).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.retryPrint).toHaveBeenCalledWith('6E2-26T1', 'class');
     expect(await screen.findByText('Se pregătește testul cu cod QR…')).toBeInTheDocument();
     expect(screen.getByText(robotStartMessage('dispatched'))).toBeInTheDocument();
   });
@@ -216,7 +216,7 @@ describe('TestPage', () => {
     renderAdmin(PAGE, api);
     const file = new File(['%PDF-1.7'], 'Test.pdf', { type: PDF_TYPE });
     await userEvent.upload(await screen.findByLabelText('Încarcă testul'), file);
-    expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'test', file);
+    expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'test', file, 'class');
     expect(await screen.findByRole('link', { name: 'Test.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/test');
     expect(screen.getByLabelText('Înlocuiește testul')).toBeInTheDocument();
     expect(within(sheet()).getByRole('link', { name: 'Testul' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/test');
@@ -1106,7 +1106,7 @@ describe('TestPage evaluation', () => {
     expect(screen.getByText('Robotul le citește ca parte din barem.')).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Comentarii la barem'), 'Acceptă și metoda cu proporții.');
     await userEvent.click(screen.getByRole('button', { name: 'Salvează comentariile' }));
-    expect(api.saveBaremNotes).toHaveBeenCalledWith('6E2-26T1', 'Acceptă și metoda cu proporții.');
+    expect(api.saveBaremNotes).toHaveBeenCalledWith('6E2-26T1', 'Acceptă și metoda cu proporții.', 'class');
     expect(await screen.findByText(/Acceptă și metoda cu proporții/)).toBeInTheDocument();
   });
 
@@ -1164,7 +1164,7 @@ describe('TestPage evaluation', () => {
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeEnabled();
     await openStage('Corectare');
     await userEvent.click(screen.getByRole('button', { name: 'Folosește oricum' }));
-    expect(api.acceptExerciseList).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.acceptExerciseList).toHaveBeenCalledWith('6E2-26T1', 'class');
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
     await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
     await openStage('Pregătire');
@@ -1197,7 +1197,7 @@ describe('TestPage evaluation', () => {
     const file = new File(['%PDF-1.7'], 'nou.pdf', { type: PDF_TYPE });
     await userEvent.upload(await screen.findByLabelText('Înlocuiește baremul'), file);
     expect(api.uploadTestFile).toHaveBeenCalledTimes(1);
-    expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'barem', file);
+    expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'barem', file, 'class');
   });
 
   it('does not ask for the first barem', async () => {
@@ -1225,7 +1225,7 @@ describe('TestPage evaluation', () => {
     renderAdmin(`${PAGE}#pregatire`, api);
     const file = new File(['%PDF-1.7'], 'Barem nou.pdf', { type: PDF_TYPE });
     await userEvent.upload(await screen.findByLabelText('Înlocuiește baremul'), file);
-    expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'barem', file);
+    expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'barem', file, 'class');
     expect(await screen.findByText('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled());
     await openStage('Corectare');
@@ -1250,7 +1250,7 @@ describe('TestPage evaluation', () => {
     const api = evaluationApi({ exerciseList: { status: 'problem', message } });
     renderAdmin(`${PAGE}#corectare`, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Folosește oricum' }));
-    expect(api.acceptExerciseList).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.acceptExerciseList).toHaveBeenCalledWith('6E2-26T1', 'class');
     await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
@@ -1260,7 +1260,7 @@ describe('TestPage evaluation', () => {
     renderAdmin(`${PAGE}#corectare`, api);
     expect(await screen.findByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }));
-    expect(api.retryExerciseList).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.retryExerciseList).toHaveBeenCalledWith('6E2-26T1', 'class');
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
   });
 
@@ -1410,7 +1410,7 @@ describe('TestPage evaluation', () => {
     const api = failedStartApi({ status: 'evaluating', exerciseList: { status: 'failed', message: failed } });
     renderAdmin(`${PAGE}#corectare`, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Încearcă din nou' }));
-    expect(api.retryExerciseList).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.retryExerciseList).toHaveBeenCalledWith('6E2-26T1', 'class');
     await waitFor(() => expect(screen.queryByText(failed)).not.toBeInTheDocument());
     expect(screen.getAllByText(NOT_STARTED)).toHaveLength(1);
   });

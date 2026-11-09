@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DOCX_TYPE, PDF_TYPE } from '../shared/files.ts';
+import { DOCX_TYPE, PDF_TYPE, type TestVariant } from '../shared/files.ts';
 import type { RobotError } from '../shared/runner.ts';
 import { RobotApiError } from './api.ts';
 import { log } from './log.ts';
@@ -95,22 +95,31 @@ const isTimeout = (err: unknown) => typeof err === 'object' && err !== null && (
 // of refusal()'s 413 and 422.
 const refusedPdf = (err: unknown) => err instanceof RobotApiError && (err.status === 400 || err.status === 415);
 
-// Makes the print PDF of a test and sends it, or sends why it failed. A
-// PrintSetupError goes up to the run loop, with nothing sent.
-export async function makePrint(ctx: TaskContext, print: { tools: PrintTools; siteUrl: string }, testId: number): Promise<TaskEnd> {
+// Makes the print PDF of a test, or of its CES variant, and sends it, or sends
+// why it failed. The CES test gets the same QR code: the CES students upload on
+// the class link. A PrintSetupError goes up to the run loop, with nothing sent.
+export async function makePrint(
+  ctx: TaskContext,
+  print: { tools: PrintTools; siteUrl: string },
+  testId: number,
+  variant: TestVariant = 'class',
+): Promise<TaskEnd> {
   const started = Date.now();
-  const folder = path.join(ctx.root, `print-${testId}`);
+  const ces = variant === 'ces';
+  const folder = path.join(ctx.root, `print-${ces ? 'ces-' : ''}${testId}`);
   let type: 'pdf' | 'docx' | null = null;
   let end: TaskEnd;
   try {
     end = await (async (): Promise<TaskEnd> => {
-      const job = await ctx.api.printJob(testId);
+      const job = await ctx.api.printJob(testId, variant);
       const sendError = async (error: RobotError): Promise<TaskEnd> =>
-        (await ctx.api.sendPrintFailed(testId, { runId: ctx.runId, filesVersion: job.filesVersion, createdAt: job.createdAt, error })) === 'failed' ? 'failed' : 'retry';
+        (await ctx.api.sendPrintFailed(testId, { runId: ctx.runId, filesVersion: job.filesVersion, createdAt: job.createdAt, error }, variant)) === 'failed'
+          ? 'failed'
+          : 'retry';
       const fileType = job.contentType === PDF_TYPE ? 'pdf' : job.contentType === DOCX_TYPE ? 'docx' : null;
       type = fileType;
       if (!fileType) return sendError('crash');
-      const source = await ctx.api.printSource(testId);
+      const source = await ctx.api.printSource(testId, variant);
       await mkdir(folder, { recursive: true });
       await writeFile(path.join(folder, `in.${fileType}`), source);
       await print.tools.prepare();
@@ -132,7 +141,7 @@ export async function makePrint(ctx: TaskContext, print: { tools: PrintTools; si
         return sendError(isTimeout(err) ? 'timeout' : 'crash');
       }
       try {
-        await ctx.api.sendPrint(testId, ctx.runId, job.filesVersion, pdf, job.createdAt);
+        await ctx.api.sendPrint(testId, ctx.runId, job.filesVersion, pdf, job.createdAt, variant);
         return 'saved';
       } catch (err) {
         // A PDF that the API refuses (a bad request, not a PDF, too large,
@@ -150,6 +159,7 @@ export async function makePrint(ctx: TaskContext, print: { tools: PrintTools; si
     await removeFolder(folder);
   }
   const seconds = Math.round((Date.now() - started) / 1000);
-  log('print', type ? { test: testId, type, end, seconds } : { test: testId, end, seconds });
+  const fields: Record<string, string | number> = ces ? { test: testId, variant } : { test: testId };
+  log('print', type ? { ...fields, type, end, seconds } : { ...fields, end, seconds });
   return end;
 }

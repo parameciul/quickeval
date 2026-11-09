@@ -6,6 +6,7 @@ import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { isSearchable } from '../../../shared/search.ts';
 import { countLabel, studentCountLabel } from '../../ui/format.ts';
+import { CesTag } from '../CesTag.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { Highlight } from '../search/Highlight.tsx';
@@ -84,6 +85,7 @@ export function SearchPage() {
                     <Link to={`/elevi/${student.id}`}>
                       <Highlight text={student.fullName} query={text} />
                     </Link>
+                    {student.ces && <CesTag />}
                   </th>
                   <td>{student.classes.map((cls) => displayClassName(cls.name)).join(', ')}</td>
                   <td className={student.lastGrade === null ? 'num is-muted' : 'num'}>

@@ -6,6 +6,7 @@ import { isSearchable } from '../../../shared/search.ts';
 import { studentCountLabel } from '../../ui/format.ts';
 import { IconSearch } from '../shell/icons.tsx';
 import { startedText } from '../testsPage/TestGroup.tsx';
+import { CesTag } from '../CesTag.tsx';
 import { Highlight } from './Highlight.tsx';
 import { useSearch } from './useSearch.ts';
 
@@ -37,7 +38,12 @@ function groupsOf(results: SearchResults, text: string): Group[] {
       title: 'Elevi',
       options: results.students.slice(0, SHOWN_PER_GROUP).map((student) => ({
         to: `/elevi/${student.id}`,
-        name: <Highlight text={student.fullName} query={text} />,
+        name: (
+          <>
+            <Highlight text={student.fullName} query={text} />
+            {student.ces && <CesTag />}
+          </>
+        ),
         meta: student.classes.map((cls) => displayClassName(cls.name)).join(', '),
       })),
     },
