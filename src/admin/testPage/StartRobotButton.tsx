@@ -28,8 +28,10 @@ export function waitsForRobot(test: TestInfo, uploads: UploadRow[]): boolean {
   if (waitsForPrint(test) || waitsForBarem(test)) return true;
   if (test.status !== 'evaluating') return false;
   if (test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed') return false;
-  // The CES papers that wait for an active CES barem are no work for the robot.
-  const held = cesBaremActive(test) ? 0 : test.ces.waiting;
+  // The CES papers that wait for an active CES barem, or for the teacher to
+  // settle their exercise list, are no work for the robot.
+  const cesList = test.ces.exerciseList.status;
+  const held = cesBaremActive(test) && cesList !== 'problem' && cesList !== 'failed' ? 0 : test.ces.waiting;
   if (uploads.filter((row) => row.status === 'submitted' || row.status === 'grading').length > held) return true;
   return test.analysis.status === 'requested' && test.gradedCount > 0;
 }

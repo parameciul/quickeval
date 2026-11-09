@@ -49,7 +49,7 @@ export function CesVariant({
       )}
       {hasFiles &&
         (ces.papers > 0 ? (
-          <p className="hint">Varianta CES are lucrări corectate, așa că nu mai poate fi ștearsă. Poți înlocui fișierele ei.</p>
+          <p className="hint">Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi ștearsă. Poți înlocui fișierele ei.</p>
         ) : (
           <p>
             <button type="button" className="text-button is-danger" disabled={remove.isPending} onClick={askRemove}>

@@ -39,6 +39,8 @@ function parseFileKind(raw: string | undefined): TestFileKind {
 
 // While the robot grades a CES paper, it reads the CES files: they stay as they
 // are until it ends. The class files have their own rule (the test's routes).
+// The routes look first, for a quick answer; the writes check it again in
+// their SQL, for a paper the robot takes in between.
 function refuseWhileCesGrading(test: TestRecord): void {
   if (test.ces.grading > 0) {
     throw new ApiError(409, 'ces_grading', 'Robotul corectează acum o lucrare CES. Poți schimba varianta CES după ce termină.');
@@ -60,7 +62,12 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
     const stored = { key, name: file.name, type: file.contentType };
     const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, stored, nowIso(), newUploadToken(), 'ces');
-    if (!saved) throw notFound();
+    if (!saved) {
+      // Refused: the new file goes, unless it took the old file's key.
+      if (key !== test.ces.files[kind]?.key) await deleteFilesQuietly(c.env.FILES, [key]);
+      refuseWhileCesGrading(await requireTest(c.env.DB, teacherId, test.summary.code));
+      throw notFound();
+    }
     const replaced = saved.replacedKey;
     const stale = [replaced !== key ? replaced : null, saved.clearedPrintKey].filter((k) => k !== null);
     if (stale.length > 0) await deleteFilesQuietly(c.env.FILES, stale);
@@ -92,7 +99,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
     const keys = await removeCesVariant(c.env.DB, teacherId, test.id, nowIso());
     if (keys === null) {
       if (test.ces.papers > 0) {
-        throw new ApiError(409, 'ces_papers', 'Varianta CES are lucrări corectate, așa că nu mai poate fi ștearsă. Poți înlocui fișierele ei.');
+        throw new ApiError(409, 'ces_papers', 'Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi ștearsă. Poți înlocui fișierele ei.');
       }
       throw new ApiError(409, 'no_ces', 'Testul nu are o variantă CES.');
     }
@@ -109,7 +116,10 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
     refuseWhileCesGrading(test);
     const body = await readJson(c, baremNotesBody);
     const status = await saveBaremNotes(c.env.DB, teacherId, test.id, body.notes, nowIso(), 'ces');
-    if (status === null) throw notFound();
+    if (status === null) {
+      refuseWhileCesGrading(await requireTest(c.env.DB, teacherId, test.summary.code));
+      throw notFound();
+    }
     const robot = status === 'evaluating' || (await needsBarem(c.env.DB, test.id, 'ces')) ? await startRobot(c.env) : null;
     return c.json({ baremNotes: body.notes, robot } satisfies BaremNotesAnswer);
   });
@@ -118,7 +128,9 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
   // only, from the CES test and the class barem.
   routes.post('/:code/ces/barem/generate', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+    refuseWhileCesGrading(test);
     if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, nowIso(), 'ces'))) {
+      refuseWhileCesGrading(await requireTest(c.env.DB, c.var.teacher.id, test.summary.code));
       if (!test.ces.files.test) throw new ApiError(409, 'missing_test_file', 'Încarcă testul CES înainte să generezi baremul CES.');
       throw new ApiError(409, 'not_editable', 'Baremul CES nu se mai poate genera după ce s-a terminat corectarea.');
     }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PDF_TYPE } from '../../shared/files.ts';
-import { addCesFiles, addSubmission, addTestFiles, makeClass, makeTest, markCes, otherTeacherTest, startTest } from '../test/fixtures.ts';
+import { requestBarem, saveBaremNotes, saveTestFile } from '../db/tests.ts';
+import { addCesFiles, addSubmission, addTestFiles, makeClass, makeTest, markCes, otherTeacherTest, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 // The CES variant of a test, as the teacher sees and changes it (spec: CES
@@ -94,13 +95,25 @@ describe('the CES variant of a test page', () => {
     expect(await list()).toBeNull();
     await addCesFiles(api, code, ['test', 'barem']);
     await setTest("ces_barem_unchecked = 1");
-    expect(await list()).toEqual({ request: 'none', unchecked: true });
+    expect(await list()).toEqual({ request: 'none', unchecked: true, missing: false });
 
     await markCes(api, students[0]!);
     const search = await api.request('GET', '/api/admin/search?q=burs&year=2026');
     expect(search.body.students.map((s: { fullName: string; ces: boolean }) => [s.fullName, s.ces])).toEqual([['Bursașiu Teodor', true]]);
     const history = await api.request('GET', `/api/admin/students/${students[0]}/history`);
     expect(history.body.student).toMatchObject({ fullName: 'Bursașiu Teodor', ces: true });
+  });
+
+  it('says in the tests list when CES papers wait for a missing CES barem', async () => {
+    const list = async () => (await api.request('GET', '/api/admin/tests?year=2026')).body.tests[0].cesBarem;
+    await startTest(api, code);
+    await addCesFiles(api, code, ['test']);
+    await markCes(api, students[0]!);
+    await addSubmission(api, code, students[0]!, { status: 'submitted', files: 1 });
+    await setTest("status = 'evaluating'");
+    expect(await list()).toEqual({ request: 'none', unchecked: false, missing: true });
+    await addCesFiles(api, code, ['barem']);
+    expect((await list()).missing).toBe(false);
   });
 
   it('gives the totals of the CES and the class exercise lists', async () => {
@@ -158,6 +171,31 @@ describe('PUT /ces/files/:kind', () => {
     expect(res.body.error).toBe('ces_grading');
     const notes = await api.request('PUT', `/api/admin/tests/${code}/ces/barem-notes`, { notes: 'Altfel.' });
     expect(notes.body.error).toBe('ces_grading');
+    await addCesFiles(api, code, ['test']);
+    const generate = await api.request('POST', `/api/admin/tests/${code}/ces/barem/generate`);
+    expect(generate.status).toBe(409);
+    expect(generate.body.error).toBe('ces_grading');
+    expect((await row())!.ces_barem_request).toBe('none');
+  });
+
+  it('checks that no CES paper is in grading inside the write itself', async () => {
+    // A paper the robot takes between the route's look and its write.
+    await startTest(api, code);
+    await addCesFiles(api, code, ['test']);
+    await setTest("status = 'evaluating'");
+    const id = await addSubmission(api, code, students[0]!, { status: 'grading', files: 1 });
+    await api.db.prepare("UPDATE submissions SET variant = 'ces' WHERE id = ?").bind(id).run();
+    const testId = await testIdOf(api, code);
+    const now = '2026-11-09T10:00:00.000Z';
+    const file = { key: 'k/ces-barem.pdf', name: 'b.pdf', type: PDF_TYPE };
+    expect(await saveTestFile(api.db, 1, testId, 'barem', file, now, 'tokentokentoken2', 'ces')).toBeNull();
+    expect(await saveBaremNotes(api.db, 1, testId, 'Altfel.', now, 'ces')).toBeNull();
+    expect(await requestBarem(api.db, 1, testId, now, 'ces')).toBe(false);
+    // The class files keep their own rule.
+    expect(await saveBaremNotes(api.db, 1, testId, 'Clasa.', now)).toBe('evaluating');
+    // Once the robot ends, the CES files may change again.
+    await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(id).run();
+    expect(await saveBaremNotes(api.db, 1, testId, 'Altfel.', now, 'ces')).toBe('evaluating');
   });
 
   it('answers 404 for the test of another teacher', async () => {

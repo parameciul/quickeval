@@ -103,7 +103,7 @@ describe('Varianta CES in Pregătire', () => {
   it('says why a variant with graded CES papers cannot be removed', async () => {
     renderAdmin(`${PAGE}#pregatire`, apiWith({ status: 'done', ces: noCesVariant({ studentCount: 1, files: FILES, papers: 1 }) }));
     const ces = await block();
-    expect(ces.getByText('Varianta CES are lucrări corectate, așa că nu mai poate fi ștearsă. Poți înlocui fișierele ei.')).toBeInTheDocument();
+    expect(ces.getByText('Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi ștearsă. Poți înlocui fișierele ei.')).toBeInTheDocument();
     expect(ces.queryByRole('button', { name: 'Șterge varianta CES' })).not.toBeInTheDocument();
   });
 

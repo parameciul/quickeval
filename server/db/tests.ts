@@ -18,7 +18,7 @@ import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestS
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { newUploadToken } from '../secrets.ts';
 import { flagCountSql } from './evaluations.ts';
-import { baremStatuses, columns, needsBaremSql, needsPrintSql, paperVariantSql } from './variant.ts';
+import { baremStatuses, columns, needsBaremSql, needsPrintSql, noCesGradingSql, paperVariantSql } from './variant.ts';
 
 export interface StoredFile {
   key: string;
@@ -183,7 +183,14 @@ function toRecord(row: TestRow): TestRecord {
         print: row.print_status,
         uploadLink: row.upload_token !== null,
       },
-      cesBarem: row.ces_test_file_key === null ? null : { request: row.ces_barem_request, unchecked: row.ces_barem_unchecked === 1 },
+      cesBarem:
+        row.ces_test_file_key === null
+          ? null
+          : {
+              request: row.ces_barem_request,
+              unchecked: row.ces_barem_unchecked === 1,
+              missing: row.ces_barem_file_key === null && row.ces_waiting > 0,
+            },
       // The grades of the class report's rows, averaged the same way.
       averageGrade: averageGrade(JSON.parse(row.grades_json) as number[]),
     },
@@ -606,13 +613,13 @@ export async function saveTestFile(
            ${c('print_status')} = 'none', ${c('print_attempts')} = 0, ${c('print_file_key')} = NULL, upload_token = COALESCE(upload_token, ?),
            ${c('barem_request')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 'requested' ELSE ${c('barem_request')} END,
            ${c('barem_request_attempts')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 0 ELSE ${c('barem_request_attempts')} END
-         WHERE id = ? AND teacher_id = ?
+         WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)}
          RETURNING status`
       : `UPDATE tests SET ${c('barem_file_key')} = ?, ${c('barem_file_name')} = ?, ${c('barem_file_type')} = ?, updated_at = ?,
            ${c('files_version')} = ${c('files_version')} + 1,
            ${c('exercise_list_status')} = 'none', ${c('exercise_list_json')} = NULL, ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0,
            ${c('barem_unchecked')} = 0, ${c('barem_request')} = 'none', ${c('barem_request_attempts')} = 0
-         WHERE id = ? AND teacher_id = ?
+         WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)}
          RETURNING status`;
   const [before, written] = await db.batch<{ print_file_key?: string | null; replaced_key?: string | null; status?: TestStatus }>([
     db
@@ -648,7 +655,7 @@ export async function saveBaremNotes(
     .prepare(
       `UPDATE tests SET ${c('barem_notes')} = ?, updated_at = ?, ${c('files_version')} = ${c('files_version')} + 1,
          ${c('exercise_list_status')} = 'none', ${c('exercise_list_json')} = NULL, ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0
-       WHERE id = ? AND teacher_id = ?
+       WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)}
        RETURNING status`,
     )
     .bind(notes, now, testId, teacherId)
@@ -694,7 +701,7 @@ export async function requestBarem(db: D1Database, teacherId: number, testId: nu
     .prepare(
       `UPDATE tests SET ${c('barem_request')} = 'requested', ${c('barem_request_attempts')} = 0,
          ${variant === 'class' ? 'evaluation_at = NULL,' : ''} updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND status IN (${baremStatuses(variant)}) AND ${c('test_file_key')} IS NOT NULL
+       WHERE id = ? AND teacher_id = ? AND status IN (${baremStatuses(variant)}) AND ${c('test_file_key')} IS NOT NULL ${noCesGradingSql(variant)}
        RETURNING id`,
     )
     .bind(now, testId, teacherId)

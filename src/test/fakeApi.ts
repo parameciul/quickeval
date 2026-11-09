@@ -117,7 +117,10 @@ function withDerived({ test, ...detail }: TestDetail): TestDetail {
         print: test.print.status,
         uploadLink: test.uploadToken !== null,
       },
-      cesBarem: test.ces.files.test === null ? null : { request: test.ces.barem.request, unchecked: test.ces.barem.unchecked },
+      cesBarem:
+        test.ces.files.test === null
+          ? null
+          : { request: test.ces.barem.request, unchecked: test.ces.barem.unchecked, missing: test.ces.files.barem === null && test.ces.waiting > 0 },
       averageGrade: averageGrade(grades),
     },
   };
@@ -651,7 +654,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     // Like the server: only while no paper went to grading with the CES variant.
     removeCesVariant: vi.fn(async (code: string): Promise<CesRemovedAnswer> => {
       const found = findTest(code).test;
-      if (found.ces.papers > 0) throw new ApiError(409, 'ces_papers', 'Varianta CES are lucrări corectate, așa că nu mai poate fi ștearsă.');
+      if (found.ces.papers > 0) throw new ApiError(409, 'ces_papers', 'Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi ștearsă.');
       found.ces = noCesVariant({ studentCount: found.ces.studentCount, filesVersion: found.ces.filesVersion + 1 });
       return { ces: found.ces, robot: found.status === 'evaluating' ? 'dispatched' : null };
     }),

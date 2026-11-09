@@ -36,6 +36,15 @@ export function baremStatuses(variant: TestVariant): string {
   return variant === 'ces' ? "'draft', 'open', 'evaluating'" : "'draft', 'open'";
 }
 
+// The CES files, comments and barem stay as they are while the robot grades a
+// CES paper with them: a condition on the `tests` row being written, empty for
+// the class variant (its files have their own rule, in the routes).
+export function noCesGradingSql(variant: TestVariant): string {
+  return variant === 'ces'
+    ? "AND NOT EXISTS (SELECT 1 FROM submissions cg WHERE cg.test_id = tests.id AND cg.status = 'grading' AND cg.variant = 'ces')"
+    : '';
+}
+
 // A draft or open test (alias `t`) with an upload link and a test file of the
 // variant whose print PDF is not made yet. A flat condition: the print writes
 // pass the table name for `t`.

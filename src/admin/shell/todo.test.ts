@@ -145,4 +145,18 @@ describe('the CES barem in "De făcut"', () => {
     // No CES test file: no CES variant to ask about.
     expect(todoOf(withCes({ status: 'open', ces: noCesVariant({ barem: generated }) }))).toBeNull();
   });
+
+  it('asks for the CES barem while CES papers wait for it during the evaluation', () => {
+    const missing = noCesVariant({ studentCount: 1, files: { test: { name: 't.pdf', type: 'application/pdf' }, barem: null }, waiting: 1 });
+    const test = withCes({ status: 'evaluating', ces: missing });
+    expect(todoOf(test)).toMatchObject({
+      stage: 'Pregătire',
+      task: 'Încarcă baremul CES',
+      text: 'Lucrările CES așteaptă baremul CES. Celelalte lucrări se corectează între timp.',
+      short: 'baremul CES lipsește',
+    });
+    expect(stagesOf(test).stages[0]).toMatchObject({ name: 'Pregătire', state: 'wait', note: 'baremul CES lipsește' });
+    // No CES paper waits yet: nothing to ask.
+    expect(todoOf(withCes({ status: 'evaluating', ces: { ...missing, waiting: 0 } }))).toBeNull();
+  });
 });

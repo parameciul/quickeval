@@ -28,7 +28,8 @@ export function todoPath(item: TodoItem): string {
 // generated barem waits to be checked, or its new generation failed (it can
 // be neither confirmed nor used until the teacher asks for it again). The
 // generated CES barem of the CES variant counts the same way, after the
-// class barem, also while the test is in evaluation (its CES papers wait).
+// class barem, also while the test is in evaluation (its CES papers wait); so
+// does a missing CES barem that CES papers wait for.
 export function todoOf(test: TestSummary): TodoItem | null {
   if (test.archived) return null;
   const item = { code: test.code, testTitle: test.title, className: test.className };
@@ -72,6 +73,16 @@ export function todoOf(test: TestSummary): TodoItem | null {
       text: 'Baremul CES nu s-a putut genera din nou. Fără el, lucrările CES nu se corectează.',
       action: 'Deschide',
       short: 'baremul CES nu s-a generat',
+    };
+  }
+  if (test.status === 'evaluating' && test.cesBarem?.missing) {
+    return {
+      ...item,
+      stage: 'Pregătire',
+      task: 'Încarcă baremul CES',
+      text: 'Lucrările CES așteaptă baremul CES. Celelalte lucrări se corectează între timp.',
+      action: 'Deschide',
+      short: 'baremul CES lipsește',
     };
   }
   if (test.flagCount > 0) {

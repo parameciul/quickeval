@@ -495,8 +495,10 @@ export interface TestSummary {
   // teacher asks on the test page. The Teste page draws the stages from it.
   prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus; uploadLink: boolean };
   // The CES variant's barem, while the test has a CES test file: "De făcut"
-  // asks the teacher to check a generated one. Null with no CES variant.
-  cesBarem: { request: BaremRequest; unchecked: boolean } | null;
+  // asks the teacher to check a generated one, or to give one when CES papers
+  // wait for it (`missing`: no CES barem file, and a CES paper waits). Null
+  // with no CES variant.
+  cesBarem: { request: BaremRequest; unchecked: boolean; missing: boolean } | null;
   // The average of the graded papers, as the class report gives it; null
   // while no paper is graded.
   averageGrade: number | null;
