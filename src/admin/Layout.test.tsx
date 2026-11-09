@@ -110,7 +110,7 @@ describe('the shell', () => {
     await userEvent.click(await screen.findByRole('button', { name: /contul tău/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Ieși din cont' }));
     expect(api.logout).toHaveBeenCalled();
-    await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/admin/'));
+    await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/teacher/'));
     vi.restoreAllMocks();
   });
 

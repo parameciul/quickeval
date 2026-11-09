@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, type Query } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, matchPath, Outlet, useLocation } from 'react-router';
+import { matchPath, Outlet, useLocation } from 'react-router';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
@@ -119,13 +119,13 @@ export function Layout() {
   return (
     <div className={me.data ? 'shell' : 'shell shell-bare'}>
       <header className="topbar" inert={searching}>
-        <Link className="brand" to="/" aria-label="MQGrader by Laura Miron">
+        <a className="brand" href="/" aria-label="MQGrader by Laura Miron">
           <BrandMark />
           <span className="brand-text">
             <span className="brand-name">MQGrader</span>
             <span className="brand-by">by Laura Miron</span>
           </span>
-        </Link>
+        </a>
         {/* On a phone the search opens over the whole screen instead. */}
         {me.data && !phone && <SearchBox id="search" />}
         <div className="topbar-tools">

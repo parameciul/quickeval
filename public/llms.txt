@@ -7,7 +7,7 @@ MQGrader (also written MQ Grader) is a web app that helps math teachers in Roman
 ## Pagini
 
 - [Prezentare și cum funcționează](https://mqgrader.ro/): cele șase etape ale unui test (pregătire, tipărire, în clasă, corectare, verificare, rezultate), beneficii și întrebări frecvente.
-- [Intră în cont](https://mqgrader.ro/admin/): autentificarea profesorilor și cererea unui cont nou.
+- [Intră în cont](https://mqgrader.ro/teacher/): autentificarea profesorilor și cererea unui cont nou.
 
 ## Fapte pe scurt
 
@@ -15,5 +15,5 @@ MQGrader (also written MQ Grader) is a web app that helps math teachers in Roman
 - Public țintă: profesori de matematică (gimnaziu și liceu), în limba română.
 - Elevii nu au nevoie de cont sau aplicație: scanează codul QR de pe test și trimit pozele.
 - Punctajul urmează baremul; dacă profesorul nu are barem, primește o propunere pe care o verifică.
-- Rezultate: link pentru fiecare elev, raportul clasei, PDF pentru fiecare elev, CSV pentru catalog.
+- Rezultate: link pentru fiecare elev (cu nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări), raportul clasei, PDF pentru fiecare elev, CSV pentru catalog.
 - Conturile noi se creează pe bază de cerere.

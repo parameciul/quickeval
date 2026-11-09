@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import adminPage from '../../admin/index.html?raw';
+import adminPage from '../../teacher/index.html?raw';
 import uploadPage from '../../u/index.html?raw';
 
 // Read from the disk (Vitest runs in the project's root): Vitest hands a

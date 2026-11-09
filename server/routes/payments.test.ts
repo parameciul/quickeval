@@ -70,7 +70,7 @@ const countPayments = async () => api.db.prepare('SELECT COUNT(*) AS n FROM paym
 describe('payments before the Stripe account', () => {
   it('answer 503 payments_off for a checkout and for the webhook', async () => {
     await start({});
-    const res = await checkout({ feature: 'pro', returnPath: '/admin/' });
+    const res = await checkout({ feature: 'pro', returnPath: '/teacher/' });
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ error: 'payments_off', message: 'Plățile nu sunt încă active.' });
     expect((await webhook(completed('cs_x', 1))).status).toBe(503);
@@ -81,7 +81,7 @@ describe('payments before the Stripe account', () => {
 describe('POST /api/admin/payments/checkout', () => {
   it('makes a pending payment with the catalog price and returns the Stripe page', async () => {
     await start();
-    const res = await checkout({ feature: 'pro', returnPath: '/admin/setari' });
+    const res = await checkout({ feature: 'pro', returnPath: '/teacher/setari' });
     expect(res.status).toBe(201);
     expect(res.body.url).toMatch(/^https:\/\/checkout\.stripe\.com\/c\/\d+$/);
     expect(sessions).toHaveLength(1);
@@ -89,8 +89,8 @@ describe('POST /api/admin/payments/checkout', () => {
       amount: 4900,
       currency: 'ron',
       name: 'Cont Pro',
-      successUrl: 'http://localhost/admin/setari?plata=reusita&session_id={CHECKOUT_SESSION_ID}',
-      cancelUrl: 'http://localhost/admin/setari?plata=anulata',
+      successUrl: 'http://localhost/teacher/setari?plata=reusita&session_id={CHECKOUT_SESSION_ID}',
+      cancelUrl: 'http://localhost/teacher/setari?plata=anulata',
     });
     const row = await api.db.prepare('SELECT * FROM payments').first<Record<string, unknown>>();
     expect(row).toMatchObject({ teacher_id: api.teacherId, student_id: null, feature: 'pro', amount: 4900, status: 'pending' });
@@ -104,21 +104,21 @@ describe('POST /api/admin/payments/checkout', () => {
 
   it('gives a unique idempotency key to each payment', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
-    await checkout({ feature: 'extra', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
+    await checkout({ feature: 'extra', returnPath: '/teacher/' });
     expect(new Set(sessions.map((s) => s.idempotencyKey)).size).toBe(2);
   });
 
   it('ignores an amount sent by the browser', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/', amount: 1 });
+    await checkout({ feature: 'pro', returnPath: '/teacher/', amount: 1 });
     expect(sessions[0]!.amount).toBe(4900);
   });
 
   it('refuses an unknown feature, a student feature, and an inherited key', async () => {
     await start();
     for (const feature of ['nope', 'student_extra', 'constructor']) {
-      const res = await checkout({ feature, returnPath: '/admin/' });
+      const res = await checkout({ feature, returnPath: '/teacher/' });
       expect(res.status).toBe(404);
       expect(res.body.error).toBe('unknown_feature');
     }
@@ -127,7 +127,7 @@ describe('POST /api/admin/payments/checkout', () => {
 
   it('refuses return addresses outside the teacher app', async () => {
     await start();
-    for (const returnPath of ['//evil.test/admin/', '/admin/../u/x', '/admin/%2e%2e/u/x', '/admin/%2F%2Fevil.test', '/u/abc', 'https://evil.test/admin/']) {
+    for (const returnPath of ['//evil.test/teacher/', '/teacher/../u/x', '/teacher/%2e%2e/u/x', '/teacher/%2F%2Fevil.test', '/u/abc', 'https://evil.test/teacher/']) {
       expect((await checkout({ feature: 'pro', returnPath })).status).toBe(400);
     }
     expect(sessions).toHaveLength(0);
@@ -137,10 +137,10 @@ describe('POST /api/admin/payments/checkout', () => {
     await start();
     const cls = await makeClass(api, '6E2');
     const code = await makeTest(api, cls.id);
-    expect((await checkout({ feature: 'test_report', returnPath: '/admin/' })).status).toBe(400);
+    expect((await checkout({ feature: 'test_report', returnPath: '/teacher/' })).status).toBe(400);
     const foreign = await otherTeacherTest(api);
-    expect((await checkout({ feature: 'test_report', returnPath: '/admin/', testCode: foreign.code })).status).toBe(404);
-    const res = await checkout({ feature: 'test_report', returnPath: '/admin/', testCode: code.toLowerCase() });
+    expect((await checkout({ feature: 'test_report', returnPath: '/teacher/', testCode: foreign.code })).status).toBe(404);
+    const res = await checkout({ feature: 'test_report', returnPath: '/teacher/', testCode: code.toLowerCase() });
     expect(res.status).toBe(201);
     const row = await api.db.prepare('SELECT test_id, test_code, test_created_at FROM payments').first<Record<string, unknown>>();
     expect(row).toMatchObject({ test_id: await testIdOf(api, code), test_code: code });
@@ -149,7 +149,7 @@ describe('POST /api/admin/payments/checkout', () => {
 
   it('does not read a test for an account feature', async () => {
     await start();
-    const res = await checkout({ feature: 'pro', returnPath: '/admin/', testCode: 'NU-EXISTA' });
+    const res = await checkout({ feature: 'pro', returnPath: '/teacher/', testCode: 'NU-EXISTA' });
     expect(res.status).toBe(201);
     expect(await api.db.prepare('SELECT test_id FROM payments').first('test_id')).toBeNull();
   });
@@ -157,11 +157,11 @@ describe('POST /api/admin/payments/checkout', () => {
   it('marks the payment failed when Stripe makes no page, and lets the user try again', async () => {
     await start(KEYS, true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const res = await checkout({ feature: 'pro', returnPath: '/admin/' });
+    const res = await checkout({ feature: 'pro', returnPath: '/teacher/' });
     expect(res.status).toBe(502);
     expect(res.body.error).toBe('payment_page');
     expect(await api.db.prepare('SELECT status FROM payments').first('status')).toBe('failed');
-    expect((await checkout({ feature: 'pro', returnPath: '/admin/' })).status).toBe(502);
+    expect((await checkout({ feature: 'pro', returnPath: '/teacher/' })).status).toBe(502);
     expect(await countPayments()).toBe(2);
   });
 });
@@ -169,8 +169,8 @@ describe('POST /api/admin/payments/checkout', () => {
 describe('a second checkout of the same feature', () => {
   it('gives the page that is still open, with no second charge', async () => {
     await start();
-    const first = await checkout({ feature: 'pro', returnPath: '/admin/' });
-    const again = await checkout({ feature: 'pro', returnPath: '/admin/' });
+    const first = await checkout({ feature: 'pro', returnPath: '/teacher/' });
+    const again = await checkout({ feature: 'pro', returnPath: '/teacher/' });
     expect(again.status).toBe(200);
     expect(again.body.url).toBe(first.body.url);
     expect(sessions).toHaveLength(1);
@@ -179,7 +179,7 @@ describe('a second checkout of the same feature', () => {
 
   it('makes one row for two clicks at once', async () => {
     await start();
-    const answers = await Promise.all([checkout({ feature: 'pro', returnPath: '/admin/' }), checkout({ feature: 'pro', returnPath: '/admin/' })]);
+    const answers = await Promise.all([checkout({ feature: 'pro', returnPath: '/teacher/' }), checkout({ feature: 'pro', returnPath: '/teacher/' })]);
     expect(await countPayments()).toBe(1);
     expect(sessions).toHaveLength(1);
     for (const res of answers) expect([200, 201, 409]).toContain(res.status);
@@ -191,28 +191,28 @@ describe('a second checkout of the same feature', () => {
       .prepare("INSERT INTO payments (teacher_id, feature, amount, currency, status, created_at) VALUES (?, 'pro', 4900, 'ron', 'pending', ?)")
       .bind(api.teacherId, new Date().toISOString())
       .run();
-    const res = await checkout({ feature: 'pro', returnPath: '/admin/' });
+    const res = await checkout({ feature: 'pro', returnPath: '/teacher/' });
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('payment_busy');
   });
 
   it('makes a new page when the open one is about to close, or a request died', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     await api.db.prepare('UPDATE payments SET checkout_expires_at = ?').bind(new Date(Date.now() + 5 * 60_000).toISOString()).run();
-    expect((await checkout({ feature: 'pro', returnPath: '/admin/' })).status).toBe(201);
+    expect((await checkout({ feature: 'pro', returnPath: '/teacher/' })).status).toBe(201);
     await api.db
       .prepare("INSERT INTO payments (teacher_id, feature, amount, currency, status, created_at) VALUES (?, 'extra', 700, 'ron', 'pending', '2026-01-01T00:00:00.000Z')")
       .bind(api.teacherId)
       .run();
-    expect((await checkout({ feature: 'extra', returnPath: '/admin/' })).status).toBe(201);
+    expect((await checkout({ feature: 'extra', returnPath: '/teacher/' })).status).toBe(201);
   });
 
   it('answers 409 already_paid once the feature is paid', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     await webhook(completed(sessionOf(0), 4900));
-    const res = await checkout({ feature: 'pro', returnPath: '/admin/' });
+    const res = await checkout({ feature: 'pro', returnPath: '/teacher/' });
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('already_paid');
     expect(sessions).toHaveLength(1);
@@ -223,15 +223,15 @@ describe('a second checkout of the same feature', () => {
     const cls = await makeClass(api, '6E2');
     const one = await makeTest(api, cls.id);
     const two = await makeTest(api, cls.id, 'Alt test');
-    expect((await checkout({ feature: 'test_report', returnPath: '/admin/', testCode: one })).status).toBe(201);
-    expect((await checkout({ feature: 'test_report', returnPath: '/admin/', testCode: two })).status).toBe(201);
+    expect((await checkout({ feature: 'test_report', returnPath: '/teacher/', testCode: one })).status).toBe(201);
+    expect((await checkout({ feature: 'test_report', returnPath: '/teacher/', testCode: two })).status).toBe(201);
   });
 });
 
 describe('POST /api/payments/webhook', () => {
   it('marks the payment paid once, and the gate opens', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     await expect(requirePaid(api.env, options, teacherPayer(), 'pro')).rejects.toMatchObject({ status: 402, code: 'payment_required' });
 
     expect(await webhook(completed(sessionOf(0), 4900))).toEqual({ status: 200, body: { received: true } });
@@ -250,7 +250,7 @@ describe('POST /api/payments/webhook', () => {
 
   it('refuses a bad signature and changes nothing', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     const res = await webhook(completed(sessionOf(0), 4900), 'whsec_wrong');
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('bad_signature');
@@ -278,8 +278,8 @@ describe('POST /api/payments/webhook', () => {
 
   it('does not mark paid a wrong amount or an unpaid session, and logs the lost payment', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
-    await checkout({ feature: 'extra', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
+    await checkout({ feature: 'extra', returnPath: '/teacher/' });
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     await webhook(completed(sessionOf(0), 100));
     expect(errors).toHaveBeenCalledWith('Stripe paid session matches no payment:', sessionOf(0), 100, 'ron');
@@ -293,7 +293,7 @@ describe('POST /api/payments/webhook', () => {
 
   it('keeps a paid payment paid when an expiry comes late', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     const sessionId = sessionOf(0);
     await webhook({ type: 'checkout.session.async_payment_succeeded', data: { object: { id: sessionId, payment_status: 'paid', amount_total: 4900, currency: 'RON' } } });
     await webhook({ type: 'checkout.session.expired', data: { object: { id: sessionId } } });
@@ -302,8 +302,8 @@ describe('POST /api/payments/webhook', () => {
 
   it('marks paid a session Stripe says is paid, after it was marked expired or failed', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
-    await checkout({ feature: 'extra', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
+    await checkout({ feature: 'extra', returnPath: '/teacher/' });
     await webhook({ type: 'checkout.session.expired', data: { object: { id: sessionOf(0) } } });
     await webhook({ type: 'checkout.session.async_payment_failed', data: { object: { id: sessionOf(1) } } });
     await webhook(completed(sessionOf(0), 4900));
@@ -323,7 +323,7 @@ describe('POST /api/payments/webhook', () => {
     const cls = await makeClass(api, '6E2');
     const code = await makeTest(api, cls.id);
     const other = await makeTest(api, cls.id, 'Alt test');
-    await checkout({ feature: 'test_report', returnPath: '/admin/', testCode: code });
+    await checkout({ feature: 'test_report', returnPath: '/teacher/', testCode: code });
     await webhook(completed(sessionOf(0), 1500));
     const testOf = async (c: string) =>
       (await api.db.prepare('SELECT id, created_at AS createdAt, code FROM tests WHERE code = ?').bind(c).first<{ id: number; createdAt: string; code: string }>())!;
@@ -342,7 +342,7 @@ describe('requirePaid', () => {
     const cls = await makeClass(api, '6E2');
     const code = await makeTest(api, cls.id);
     const test = (await api.db.prepare('SELECT id, created_at AS createdAt, code FROM tests WHERE code = ?').bind(code).first<{ id: number; createdAt: string; code: string }>())!;
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     await webhook(completed(sessionOf(0), 4900));
     // An account feature opens on every test.
     await expect(requirePaid(api.env, options, teacherPayer(), 'pro', test)).resolves.toBeUndefined();
@@ -390,7 +390,7 @@ describe('student payments', () => {
 
     expect((await pay(null, body)).status).toBe(401);
     expect((await pay(secrets[0]!, { feature: 'pro', returnPath: `/u/${token}` })).status).toBe(404);
-    expect((await pay(secrets[0]!, { feature: 'student_extra', returnPath: '/admin/' })).status).toBe(400);
+    expect((await pay(secrets[0]!, { feature: 'student_extra', returnPath: '/teacher/' })).status).toBe(400);
 
     const res = await pay(secrets[0]!, body);
     expect(res.status).toBe(201);
@@ -469,7 +469,7 @@ const dispute = (type: 'charge.dispute.created' | 'charge.dispute.closed', sessi
 });
 
 const paidPro = async () => {
-  await checkout({ feature: 'pro', returnPath: '/admin/' });
+  await checkout({ feature: 'pro', returnPath: '/teacher/' });
   await webhook(completed(sessionOf(0), 4900));
 };
 
@@ -488,7 +488,7 @@ const myPayments = async () => (await api.request('GET', '/api/admin/payments'))
 describe('the payment intent of a paid session', () => {
   it('is saved when the session is paid, and filled in by a repeated event', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     const intent = () => api.db.prepare('SELECT stripe_payment_intent FROM payments').first('stripe_payment_intent');
     await webhook(completed(sessionOf(0), 4900, { payment_intent: null }));
     expect(await intent()).toBeNull();
@@ -501,7 +501,7 @@ describe('the payment intent of a paid session', () => {
 
   it('is not saved for a session paid in another currency', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     await webhook(completed(sessionOf(0), 4900, { currency: 'eur' }));
     expect(errors).toHaveBeenCalledWith('Stripe paid session matches no payment:', sessionOf(0), 4900, 'eur');
@@ -523,7 +523,7 @@ describe('refunds', () => {
       expect.objectContaining({ status: 'paid', amountRefunded: 4900, refundedAt: expect.any(String), disputeStatus: null, active: false }),
     ]);
 
-    expect((await checkout({ feature: 'pro', returnPath: '/admin/' })).status).toBe(201);
+    expect((await checkout({ feature: 'pro', returnPath: '/teacher/' })).status).toBe(201);
     await webhook(completed(sessionOf(1), 4900));
     expect(await gateOpen()).toBe(true);
     expect((await myPayments()).map((p) => p.active)).toEqual([true, false]);
@@ -536,7 +536,7 @@ describe('refunds', () => {
     expect(await gateOpen()).toBe(true);
     expect(await myPayments()).toEqual([expect.objectContaining({ amountRefunded: 1000, refundedAt: null, active: true })]);
     // Still bought: no second payment.
-    expect((await checkout({ feature: 'pro', returnPath: '/admin/' })).body.error).toBe('already_paid');
+    expect((await checkout({ feature: 'pro', returnPath: '/teacher/' })).body.error).toBe('already_paid');
     // A second refund that completes the amount closes it.
     await webhook(refunded(sessionOf(0), 4900));
     expect(await gateOpen()).toBe(false);
@@ -544,7 +544,7 @@ describe('refunds', () => {
 
   it('a refund that comes before the paid session closes the feature once the session is paid', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect((await webhook(refunded(sessionOf(0), 4900))).status).toBe(200);
     expect(errors).toHaveBeenCalledWith('Stripe charge event matches no payment yet:', 'charge.refunded', `ch_${sessionOf(0)}`, intentOf(sessionOf(0)));
@@ -607,7 +607,7 @@ describe('disputes', () => {
     expect(await gateOpen()).toBe(false);
     expect(await myPayments()).toEqual([expect.objectContaining({ disputeStatus: 'needs_response', active: false })]);
     // No second payment while the bank looks at the first.
-    const res = await checkout({ feature: 'pro', returnPath: '/admin/' });
+    const res = await checkout({ feature: 'pro', returnPath: '/teacher/' });
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('payment_disputed');
     await webhook(dispute('charge.dispute.closed', sessionOf(0), 'won'));
@@ -624,7 +624,7 @@ describe('disputes', () => {
     await webhook(dispute('charge.dispute.created', sessionOf(0), 'needs_response'));
     await webhook(dispute('charge.dispute.closed', sessionOf(0), 'lost'));
     expect(await gateOpen()).toBe(false);
-    expect((await checkout({ feature: 'pro', returnPath: '/admin/' })).status).toBe(201);
+    expect((await checkout({ feature: 'pro', returnPath: '/teacher/' })).status).toBe(201);
   });
 
   it('a dispute closed before its created event arrives stays closed', async () => {
@@ -638,7 +638,7 @@ describe('disputes', () => {
 
   it('a dispute that comes before the paid session closes the feature', async () => {
     await start();
-    await checkout({ feature: 'pro', returnPath: '/admin/' });
+    await checkout({ feature: 'pro', returnPath: '/teacher/' });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await webhook(dispute('charge.dispute.created', sessionOf(0), 'needs_response'));
     await webhook(completed(sessionOf(0), 4900));

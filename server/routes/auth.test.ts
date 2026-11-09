@@ -81,7 +81,7 @@ describe('POST /api/auth/signup', () => {
     // Only the administrators' email waits for the confirmation.
     expect(emails).toHaveLength(1);
     expect(emails[0]!.to).toEqual(['ana.pop@example.com']);
-    expect(emails[0]!.text).toMatch(/http:\/\/localhost\/admin\/confirma-email#[\w-]{43}/);
+    expect(emails[0]!.text).toMatch(/http:\/\/localhost\/teacher\/confirma-email#[\w-]{43}/);
     expect(row!.confirm_token_hash).not.toBe(linkToken());
   });
 
@@ -96,7 +96,7 @@ describe('POST /api/auth/signup', () => {
     expect(emails[1]!.to).toEqual(['profesor@example.com', 'admin2@example.com']);
     expect(emails[1]!.text).toContain('Ana Pop');
     expect(emails[1]!.text).toContain('ana.pop@example.com');
-    expect(emails[1]!.text).toContain('http://localhost/admin/setari');
+    expect(emails[1]!.text).toContain('http://localhost/teacher/setari');
     const again = await confirm(token);
     expect(again.status).toBe(404);
     expect(again.body.error).toBe('bad_link');
@@ -523,7 +523,7 @@ describe('password reset by email', () => {
     expect(res.status).toBe(200);
     await flush();
     expect(emails.at(-1)!.to).toEqual(['profesor@example.com']);
-    expect(emails.at(-1)!.text).toMatch(/http:\/\/localhost\/admin\/parola-noua#[\w-]{43}/);
+    expect(emails.at(-1)!.text).toMatch(/http:\/\/localhost\/teacher\/parola-noua#[\w-]{43}/);
     const token = resetToken();
     expect((await reset(token)).status).toBe(200);
     expect((await login('profesor@example.com', 'parola-veche')).status).toBe(401);

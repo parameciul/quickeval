@@ -14,8 +14,8 @@ After the fixes in this branch: the landing page can be crawled, indexed and cit
 
 | # | Severity | Finding | Fix (done in this branch) |
 |---|----------|---------|---------------------------|
-| 1 | Critical | Live `robots.txt` was `Disallow: /` for all bots. Nothing could be crawled. | New `robots.txt`: landing open; `/u/` and `/api/` closed; `/admin/` left crawlable so its noindex is seen. |
-| 2 | Critical | `X-Robots-Tag: noindex, nofollow` on every URL (`public/_headers`). | Header moved to `/admin`, `/admin/*`, `/u/*`, the old host quickeval.pages.dev (so it cannot compete as a copy), and the API's own headers (`server/app.ts`). |
+| 1 | Critical | Live `robots.txt` was `Disallow: /` for all bots. Nothing could be crawled. | New `robots.txt`: landing open; `/u/` and `/api/` closed; `/teacher/` left crawlable so its noindex is seen. |
+| 2 | Critical | `X-Robots-Tag: noindex, nofollow` on every URL (`public/_headers`). | Header moved to `/teacher`, `/teacher/*`, `/u/*`, the old host quickeval.pages.dev (so it cannot compete as a copy), and the API's own headers (`server/app.ts`). |
 | 3 | Critical | `<meta name="robots" content="noindex, nofollow">` on the landing page. | Now `index, follow` with `max-snippet:-1, max-image-preview:large`. |
 | 4 | High | No canonical URL. | `<link rel="canonical" href="https://mqgrader.ro/">`. This also points the old pages.dev copy to mqgrader.ro. |
 | 5 | High | No `sitemap.xml`. | Added, and listed in `robots.txt`. |
@@ -37,7 +37,7 @@ Also check in the Cloudflare dashboard for mqgrader.ro: "Block AI bots" and "Man
 ## Decisions I made (tell me if you disagree)
 
 - "AI" appears only in visible places that are not Laura's texts: the meta description, a new FAQ question, the matching JSON-LD, and `llms.txt`. No hidden text (Google treats it as spam). Student pages never say it.
-- The `/admin/` login page stays crawlable with noindex. A page that robots.txt blocks can still show up as a bare URL.
+- The `/teacher/` login page stays crawlable with noindex. A page that robots.txt blocks can still show up as a bare URL.
 - No `sameAs` links in the Person/Organization data. Add the Laura Miron site link there if you want to tie the brands together.
 - `www.mqgrader.ro` is not handled in code.
 

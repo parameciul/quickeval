@@ -11,8 +11,8 @@ afterEach(() => {
 
 describe('textToHtml', () => {
   it('makes every web address a link, keeping the token after #', () => {
-    const html = textToHtml('Alege-o aici:\nhttps://mqgrader.ro/admin/parola-noua#abc-_9\nGata.');
-    expect(html).toContain('<a href="https://mqgrader.ro/admin/parola-noua#abc-_9">https://mqgrader.ro/admin/parola-noua#abc-_9</a>');
+    const html = textToHtml('Alege-o aici:\nhttps://mqgrader.ro/teacher/parola-noua#abc-_9\nGata.');
+    expect(html).toContain('<a href="https://mqgrader.ro/teacher/parola-noua#abc-_9">https://mqgrader.ro/teacher/parola-noua#abc-_9</a>');
     expect(html).toContain('Gata.');
   });
 

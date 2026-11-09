@@ -30,8 +30,10 @@ describe('the landing page', () => {
       'Rezultate Tu',
     ]);
     expect(text(stages[5]!.querySelector('p'))).toBe(
-      'Fiecare elev primește un link cu rezultatul lui. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.',
+      'Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.',
     );
+    // The sentence is not a bold lead: it reads like the rest of the stage.
+    expect(stages[5]!.querySelector('b')).toBeNull();
   });
 
   it("keeps Laura Miron's texts word for word", () => {
@@ -47,10 +49,10 @@ describe('the landing page', () => {
   it('leads to the login, and to a new account', () => {
     const links = all('a').map((a) => [text(a), a.getAttribute('href')]);
     expect(links.filter(([name]) => name === 'Intră în cont')).toEqual([
-      ['Intră în cont', '/admin/'],
-      ['Intră în cont', '/admin/'],
+      ['Intră în cont', '/teacher/'],
+      ['Intră în cont', '/teacher/'],
     ]);
-    expect(links).toContainEqual(['Cere un cont de profesor', `/admin/${SIGNUP_HASH}`]);
+    expect(links).toContainEqual(['Cere un cont de profesor', `/teacher/${SIGNUP_HASH}`]);
   });
 
   it('shows the brand with its byline and never a meaning of MQ', () => {

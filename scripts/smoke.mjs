@@ -1,5 +1,5 @@
 // Smoke test against a running local server: `npm run preview` in one
-// terminal, then `npm run smoke` in another. Checks the pages, the /admin and
+// terminal, then `npm run smoke` in another. Checks the pages, the /teacher and
 // /u rewrites, the security headers, one full upload with the local login
 // (class, student, test, barem, start, a student's photo, confirm), and one
 // grading by a pretend robot (robot key, schedule, start evaluation, check,
@@ -52,14 +52,14 @@ for (const path of ['/robots.txt', '/sitemap.xml', '/llms.txt', '/og-image.png']
   check(`public file ${path}`, file.status === 200, String(file.status));
 }
 
-for (const path of ['/admin/', '/admin/clase', '/admin/teste/6E2-26T1']) {
+for (const path of ['/teacher/', '/teacher/clase', '/teacher/teste/6E2-26T1']) {
   const admin = await page(path);
   check(`teacher app at ${path}`, admin.res.status === 200 && admin.text.includes('<title>MQGrader · Profesor</title>'), String(admin.res.status));
 }
 
 const student = await page('/u/abcdefghijkmnop2');
 check('student app at /u/<token>', student.res.status === 200 && student.text.includes('<title>MQGrader · Trimite lucrarea</title>'), String(student.res.status));
-for (const path of ['/admin/', '/admin/clase', '/u/abcdefghijkmnop2']) {
+for (const path of ['/teacher/', '/teacher/clase', '/u/abcdefghijkmnop2']) {
   const headers = (await page(path)).res.headers;
   check(`noindex header on ${path}`, (headers.get('x-robots-tag') ?? '').includes('noindex'));
   check(`content security policy on ${path}`, (headers.get('content-security-policy') ?? '').includes("default-src 'self'"));

@@ -70,8 +70,7 @@ export const STAGES: Stage[] = [
   {
     name: 'Rezultate',
     who: 'Tu',
-    lead: 'Fiecare elev primește un link cu rezultatul lui.',
-    text: 'Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.',
+    text: 'Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.',
     icon: (
       <>
         <path d="M8.5 11.5l3-3" />
