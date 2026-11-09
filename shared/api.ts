@@ -10,7 +10,7 @@ import {
   type Role,
 } from './accounts.ts';
 import { normalizeClassName } from './classes.ts';
-import type { TestFileKind } from './files.ts';
+import type { TestFileKind, TestVariant } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
 import { type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
@@ -673,6 +673,10 @@ export interface UploadRow {
   effort: string | null;
   // Why grading failed, for the teacher.
   lastError: string | null;
+  // The student is marked CES (the page shows the mark), and the variant the
+  // paper went to grading with (null until then).
+  ces: boolean;
+  variant: TestVariant | null;
 }
 
 export interface TestDetail {

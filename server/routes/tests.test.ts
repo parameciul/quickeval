@@ -222,6 +222,8 @@ describe('GET /api/admin/tests/:code', () => {
         model: null,
         effort: null,
         lastError: null,
+        ces: false,
+        variant: null,
       },
       {
         studentId: pop,
@@ -244,6 +246,8 @@ describe('GET /api/admin/tests/:code', () => {
         model: null,
         effort: null,
         lastError: null,
+        ces: false,
+        variant: null,
       },
       expect.objectContaining({ studentName: 'Stan Eva', active: false, status: 'uploading', fileCount: 1 }),
     ]);

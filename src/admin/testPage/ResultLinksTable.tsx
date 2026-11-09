@@ -6,6 +6,7 @@ import { formatPoints } from '../../../shared/scoring.ts';
 import { countLabel } from '../../ui/format.ts';
 import { studentResultUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
+import { CesTag } from '../CesTag.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 
 // A paper the student sent has a result link; a student who did not send one
@@ -92,6 +93,7 @@ function ResultLinkRow({
     <tr className={hasLink(row) ? undefined : 'is-muted'}>
       <th scope="row">
         {row.submissionId === null ? row.studentName : <Link to={`/teste/${code}/elevi/${row.submissionId}`}>{row.studentName}</Link>}
+        {(row.ces || row.variant === 'ces') && <CesTag />}
         {!row.active && <span className="tag">a plecat</span>}
       </th>
       <td data-label="Punctaj">{points}</td>

@@ -78,6 +78,17 @@ describe('the CES variant of a test page', () => {
     expect(await info()).toMatchObject({ waiting: 0, papers: 0 });
   });
 
+  it('marks the CES students in the uploads table, with the variant their paper went to grading with', async () => {
+    await markCes(api, students[0]!);
+    const id = await addSubmission(api, code, students[0]!, { status: 'graded', files: 1 });
+    await api.db.prepare("UPDATE submissions SET variant = 'ces' WHERE id = ?").bind(id).run();
+    const rows = (await api.request('GET', `/api/admin/tests/${code}`)).body.uploads as { studentName: string; ces: boolean; variant: string | null }[];
+    expect(rows.map((r) => [r.studentName, r.ces, r.variant])).toEqual([
+      ['Bursașiu Teodor', true, 'ces'],
+      ['Ene Ana', false, null],
+    ]);
+  });
+
   it('gives the totals of the CES and the class exercise lists', async () => {
     await setTest(
       `exercise_list_json = '{"totalPoints":100}', ces_exercise_list_json = '{"totalPoints":90}'`,

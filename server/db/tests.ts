@@ -287,6 +287,8 @@ interface UploadSqlRow {
   student_id: number;
   full_name: string;
   active: number;
+  ces: number;
+  variant: TestVariant | null;
   submission_id: number | null;
   status: UploadStatus | null;
   started_at: string | null;
@@ -325,7 +327,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
   const [uploads, points] = await db.batch<UploadSqlRow | PointSqlRow>([
     db
       .prepare(
-        `SELECT st.id AS student_id, st.full_name, e.active,
+        `SELECT st.id AS student_id, st.full_name, e.active, st.ces, s.variant,
            s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.total, ev.max_total, ev.created_at AS graded_at, ev.model, ev.effort,
            s.result_token, s.results_open AS submission_open, (SELECT t.results_open FROM tests t WHERE t.id = ?) AS test_open,
            (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
@@ -391,6 +393,8 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       flagCount: row.flag_count,
       reviewPoints: pointsOf(row),
       lastError: row.last_error,
+      ces: row.ces === 1,
+      variant: row.variant,
     }))
     .sort((a, b) => compareStudentNames(a.studentName, b.studentName));
 }

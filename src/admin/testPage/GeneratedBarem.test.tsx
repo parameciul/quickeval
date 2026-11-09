@@ -27,7 +27,7 @@ describe('GeneratedBarem', () => {
     const api = apiWith();
     renderAdmin('/teste/6E2-26T1', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Generează baremul' }));
-    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1', 'class');
     expect(confirm).not.toHaveBeenCalled();
     expect(await screen.findByText('Se generează baremul… Durează câteva minute.')).toBeInTheDocument();
   });
@@ -41,7 +41,7 @@ describe('GeneratedBarem', () => {
     expect(confirm).toHaveBeenLastCalledWith(REPLACE);
     expect(api.generateBarem).not.toHaveBeenCalled();
     await userEvent.click(button);
-    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1', 'class');
   });
 
   it('says that a scheduled evaluation is cancelled, with or without a barem', async () => {
@@ -85,7 +85,7 @@ describe('GeneratedBarem', () => {
     renderAdmin('/teste/6E2-26T1', api);
     expect(await screen.findByText('Nu am putut genera baremul.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }));
-    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1', 'class');
     expect(await screen.findByText('Se generează baremul… Durează câteva minute.')).toBeInTheDocument();
   });
 
@@ -98,7 +98,7 @@ describe('GeneratedBarem', () => {
     expect(confirm).toHaveBeenLastCalledWith(REPLACE);
     expect(api.generateBarem).not.toHaveBeenCalled();
     await userEvent.click(button);
-    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1', 'class');
   });
 
   it('offers no confirm after a failed regeneration of an unchecked barem', async () => {
@@ -127,7 +127,7 @@ describe('GeneratedBarem', () => {
     expect(notice).toHaveClass('warning');
     expect(notice).not.toHaveClass('alert');
     await userEvent.click(screen.getByRole('button', { name: 'Am verificat baremul' }));
-    expect(api.confirmBarem).toHaveBeenCalledWith('6E2-26T1', 7);
+    expect(api.confirmBarem).toHaveBeenCalledWith('6E2-26T1', 7, 'class');
     expect(await screen.findByRole('button', { name: 'Generează baremul' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Am verificat baremul' })).not.toBeInTheDocument();
   });

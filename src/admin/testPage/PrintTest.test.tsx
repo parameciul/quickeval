@@ -51,7 +51,7 @@ describe('PrintTest', () => {
     renderAdmin('/teste/6E2-26T1#tiparire', api);
     expect(await screen.findByText('Nu am putut pregăti testul cu cod QR.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }));
-    expect(api.retryPrint).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.retryPrint).toHaveBeenCalledWith('6E2-26T1', 'class');
     expect(await screen.findByText('Se pregătește testul cu cod QR…')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Încearcă din nou' })).not.toBeInTheDocument());
   });
