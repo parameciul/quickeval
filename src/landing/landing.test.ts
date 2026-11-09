@@ -15,8 +15,12 @@ afterEach(() => {
 
 describe('the landing page', () => {
   it('says what MQGrader does on the first screen', () => {
-    expect(all('h1').map(text)).toEqual(['Weekendul tău, fără teancul de lucrări.']);
-    expect(text(doc.querySelector('.l-lede'))).toBe('Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.');
+    // The heading names the product; Laura's statement is the eyebrow above it.
+    expect(all('h1').map(text)).toEqual(['Corectarea testelor de matematică, după barem']);
+    expect(text(doc.querySelector('.l-kicker'))).toBe('Weekendul tău, fără teancul de lucrări.');
+    expect(text(doc.querySelector('.l-lede'))).toBe(
+      'MQGrader este o platformă web pentru profesorii de matematică din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.',
+    );
   });
 
   it('shows the six stages in order, with who does each one', () => {

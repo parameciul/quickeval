@@ -91,6 +91,10 @@ a { color: inherit; }
 .site-top nav a:not(.btn):hover { color: var(--text); }
 
 /* Type */
+/* The hero: Laura's statement above (an eyebrow), then the heading that names
+   the product, then the line that says how it works. */
+.headline { display: flex; flex-direction: column; gap: 16px; }
+.l-kicker { font-size: 17px; line-height: 1.45; font-weight: 600; color: var(--muted); max-width: 44ch; }
 .l-h1 { font-size: clamp(36px, 4.6vw, 80px); line-height: 0.98; letter-spacing: -0.045em; font-weight: 800; }
 .l-h2 { font-size: clamp(30px, 3.6vw, 56px); line-height: 1.04; letter-spacing: -0.035em; font-weight: 800; }
 .l-lede { font-size: 21px; line-height: 1.5; max-width: 40ch; }
@@ -162,6 +166,7 @@ a { color: inherit; }
   .side-flow { padding: 20px; }
   .sec { padding-block: 72px; }
   .l-lede { font-size: 18px; }
+  .l-kicker { font-size: 15px; }
   .site-foot .note { font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
