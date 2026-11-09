@@ -5,8 +5,12 @@ import { displayClassName } from '../../../shared/classes.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { MAX_TITLE_LENGTH } from '../../../shared/tests.ts';
 import { useApi } from '../ApiContext.tsx';
+import { CesSwitch } from '../CesSwitch.tsx';
+import { CesTag } from '../CesTag.tsx';
 import { NewClassDialog } from '../classPage/ClassDialogs.tsx';
 import { ErrorMessage, errorText } from '../ErrorMessage.tsx';
+import { missingParts } from '../missing.ts';
+import { MissingList } from '../MissingList.tsx';
 import { FileDrop } from '../newTest/FileDrop.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 
@@ -16,7 +20,10 @@ type BaremChoice = 'upload' | 'generate' | 'later';
 // /teste/nou (redesign spec §11.7): three numbered steps, the class and the
 // title, the test, and the barem, with what happens next on the side.
 // ?clasa=<id> picks the class (the class page links here). The test and the
-// barem can come now or later; the test page holds them too.
+// barem can come now or later; the test page holds them too. A class with a CES
+// student shows them and the CES switch, on by default (spec: CES switch); on,
+// the CES test and the CES barem sit beside the class ones. Under the button,
+// what the test would still miss.
 export function NewTestPage() {
   const api = useApi();
   const navigate = useNavigate();
@@ -30,16 +37,24 @@ export function NewTestPage() {
   const [baremFile, setBaremFile] = useState<File | null>(null);
   const [barem, setBarem] = useState<BaremChoice>('upload');
   const [newClass, setNewClass] = useState(false);
+  const [cesOn, setCesOn] = useState(true);
+  const [cesTestFile, setCesTestFile] = useState<File | null>(null);
+  const [cesBaremFile, setCesBaremFile] = useState<File | null>(null);
+  const [cesBarem, setCesBarem] = useState<BaremChoice>('upload');
+  const chosen = classes.data?.some((item) => !item.archived && String(item.id) === classId) ?? false;
+  const detail = useQuery({ queryKey: ['class', Number(classId)], queryFn: () => api.getClass(Number(classId)), enabled: chosen });
+  const cesNames = chosen ? (detail.data?.students.filter((student) => student.active && student.ces).map((student) => student.fullName) ?? []) : [];
+  const withCes = cesNames.length > 0 && cesOn;
 
   const create = useMutation({
     mutationFn: async () => {
-      const code = await api.createTest({ classId: Number(classId), title });
+      const code = await api.createTest({ classId: Number(classId), title, ...(cesNames.length > 0 ? { cesOff: !cesOn } : {}) });
       // The test exists now. What fails next can be done again from the test
       // page, so the teacher goes there with a notice.
       let notice: string | null = null;
-      const send = async (file: File, kind: 'test' | 'barem') => {
+      const send = async (file: File, kind: 'test' | 'barem', variant?: 'ces') => {
         try {
-          await api.uploadTestFile(code, kind, file);
+          await (variant ? api.uploadTestFile(code, kind, file, variant) : api.uploadTestFile(code, kind, file));
           return true;
         } catch (err) {
           notice ??= `Testul a fost creat, dar fișierul ${file.name} nu s-a încărcat: ${errorText(err)}`;
@@ -54,6 +69,17 @@ export function NewTestPage() {
           await api.generateBarem(code);
         } catch (err) {
           notice ??= `Testul a fost creat, dar baremul nu s-a putut genera: ${errorText(err)}`;
+        }
+      }
+      if (withCes) {
+        const cesTestSent = cesTestFile !== null && (await send(cesTestFile, 'test', 'ces'));
+        if (cesBarem === 'upload' && cesBaremFile) await send(cesBaremFile, 'barem', 'ces');
+        if (cesBarem === 'generate' && cesTestSent) {
+          try {
+            await api.generateBarem(code, 'ces');
+          } catch (err) {
+            notice ??= `Testul a fost creat, dar baremul CES nu s-a putut genera: ${errorText(err)}`;
+          }
         }
       }
       return { code, notice };
@@ -72,21 +98,38 @@ export function NewTestPage() {
     setTestFile(file);
     if (file === null && barem === 'generate') setBarem('later');
   };
+  const pickCesTest = (file: File | null) => {
+    setCesTestFile(file);
+    if (file === null && cesBarem === 'generate') setCesBarem('later');
+  };
+
+  // What the new test would still miss, as the test page will say it.
+  const missing = missingParts({
+    testFile: testFile !== null,
+    baremFile: barem === 'upload' && baremFile !== null,
+    baremRequest: barem === 'generate' && testFile !== null ? 'requested' : 'none',
+    ces: {
+      wanted: withCes,
+      testFile: cesTestFile !== null,
+      baremFile: cesBarem === 'upload' && cesBaremFile !== null,
+      baremRequest: cesBarem === 'generate' && cesTestFile !== null ? 'requested' : 'none',
+    },
+  });
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     create.mutate();
   };
 
-  const choice = (value: BaremChoice, label: string, line: string, extra?: string) => (
+  const choiceOf = (group: 'barem' | 'ces-barem') => (value: BaremChoice, label: string, line: string, extra?: string) => (
     <label className="choice">
       <input
         type="radio"
-        name="barem"
+        name={group}
         value={value}
-        checked={barem === value}
-        disabled={value === 'generate' && testFile === null}
-        onChange={() => setBarem(value)}
+        checked={(group === 'barem' ? barem : cesBarem) === value}
+        disabled={value === 'generate' && (group === 'barem' ? testFile : cesTestFile) === null}
+        onChange={() => (group === 'barem' ? setBarem(value) : setCesBarem(value))}
       />
       <span>
         <b>{label}</b>
@@ -95,6 +138,8 @@ export function NewTestPage() {
       </span>
     </label>
   );
+  const choice = choiceOf('barem');
+  const cesChoice = choiceOf('ces-barem');
 
   return (
     <section>
@@ -151,32 +196,74 @@ export function NewTestPage() {
                   </div>
                 </div>
               </li>
+              {cesNames.length > 0 && (
+                <li className="new-test-ces">
+                  <CesSwitch names={cesNames} on={cesOn} onToggle={setCesOn} />
+                </li>
+              )}
               <li className="step">
-                <div>
-                  <h2>Testul</h2>
-                  <p>Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.</p>
-                  <FileDrop id="new-test-file" name="Fișierul testului" onPick={pickTest} />
+                <div className={withCes ? 'step-pair' : undefined}>
+                  <div>
+                    <h2>Testul</h2>
+                    <p>Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.</p>
+                    <FileDrop id="new-test-file" name="Fișierul testului" onPick={pickTest} />
+                  </div>
+                  {withCes && (
+                    <div>
+                      <h2>
+                        Testul CES
+                        <CesTag />
+                      </h2>
+                      <p>Testul elevilor cu CES, tipărit cu același cod QR. Poți să-l adaugi și mai târziu.</p>
+                      <FileDrop id="new-ces-test-file" name="Fișierul testului CES" onPick={pickCesTest} />
+                    </div>
+                  )}
                 </div>
               </li>
               <li className="step">
-                <div>
-                  <h2>Baremul</h2>
-                  <p>După el se dă punctajul.</p>
-                  <fieldset className="choices">
-                    <legend className="sr-only">Baremul</legend>
-                    {choice('upload', 'Încarc baremul acum', 'PDF sau Word.')}
-                    {/* Kept while another choice is made, so the file comes back with it. */}
-                    <div className="choice-drop" hidden={barem !== 'upload'}>
-                      <FileDrop id="new-barem-file" name="Fișierul baremului" onPick={setBaremFile} />
+                <div className={withCes ? 'step-pair' : undefined}>
+                  <div>
+                    <h2>Baremul</h2>
+                    <p>După el se dă punctajul.</p>
+                    <fieldset className="choices">
+                      <legend className="sr-only">Baremul</legend>
+                      {choice('upload', 'Încarc baremul acum', 'PDF sau Word.')}
+                      {/* Kept while another choice is made, so the file comes back with it. */}
+                      <div className="choice-drop" hidden={barem !== 'upload'}>
+                        <FileDrop id="new-barem-file" name="Fișierul baremului" onPick={setBaremFile} />
+                      </div>
+                      {choice(
+                        'generate',
+                        'Generează baremul din test',
+                        'Primești o propunere în câteva minute. O verifici și o confirmi înainte de corectare.',
+                        testFile === null ? 'Alege întâi testul, la pasul 2.' : undefined,
+                      )}
+                      {choice('later', 'Mai târziu', 'Îl adaugi din pagina testului, la Pregătire. Corectarea nu începe fără barem.')}
+                    </fieldset>
+                  </div>
+                  {withCes && (
+                    <div>
+                      <h2>
+                        Baremul CES
+                        <CesTag />
+                      </h2>
+                      <p>Doar pentru corectare: 90 de puncte și 10 din oficiu.</p>
+                      <fieldset className="choices">
+                        <legend className="sr-only">Baremul CES</legend>
+                        {cesChoice('upload', 'Încarc baremul CES acum', 'PDF sau Word.')}
+                        <div className="choice-drop" hidden={cesBarem !== 'upload'}>
+                          <FileDrop id="new-ces-barem-file" name="Fișierul baremului CES" onPick={setCesBaremFile} />
+                        </div>
+                        {cesChoice(
+                          'generate',
+                          'Generează baremul CES din testul CES',
+                          'Pornește de la baremul clasei. Îl verifici și îl confirmi înainte de corectare.',
+                          cesTestFile === null ? 'Alege întâi testul CES, la pasul 2.' : undefined,
+                        )}
+                        {cesChoice('later', 'Mai târziu', 'Îl adaugi din pagina testului, la Pregătire. Lucrările CES nu se corectează fără el.')}
+                      </fieldset>
                     </div>
-                    {choice(
-                      'generate',
-                      'Generează baremul din test',
-                      'Primești o propunere în câteva minute. O verifici și o confirmi înainte de corectare.',
-                      testFile === null ? 'Alege întâi testul, la pasul 2.' : undefined,
-                    )}
-                    {choice('later', 'Mai târziu', 'Îl adaugi din pagina testului, la Pregătire. Corectarea nu începe fără barem.')}
-                  </fieldset>
+                  )}
                 </div>
               </li>
             </ol>
@@ -186,6 +273,7 @@ export function NewTestPage() {
               </button>
               <span className="form-hint">Testul rămâne ciornă până apeși „Începe testul”.</span>
             </div>
+            {selected !== '' && <MissingList missing={missing} lead="Încă" after="Poți crea testul acum și le adaugi mai târziu." />}
             {create.error && <ErrorMessage error={create.error} />}
           </form>
 

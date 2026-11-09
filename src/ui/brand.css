@@ -2798,6 +2798,33 @@ input[type="file"] {
   margin: -0.25rem 0 0.25rem 2rem;
 }
 
+/* A class with a CES student (spec: CES switch): the switch between the first
+   step and the files, and the CES files beside the class ones, under them on a
+   narrow screen. */
+.new-test-ces .ces-switch {
+  max-width: none;
+  margin: 0;
+  background: var(--sheet);
+}
+
+.step-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 767px) {
+  .step-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.step-pair > div > p {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .new-test-foot {
   display: flex;
   flex-wrap: wrap;

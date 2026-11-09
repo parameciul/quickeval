@@ -229,3 +229,87 @@ describe('NewTestPage', () => {
     expect(await screen.findByRole('link', { name: 'Adaugă întâi o clasă.' })).toHaveAttribute('href', '/clase');
   });
 });
+
+describe('NewTestPage, a class with a CES student', () => {
+  const withCes = () =>
+    createFakeApi({
+      classes: [
+        { id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 1 },
+        { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 2 },
+      ],
+      students: {
+        1: [{ id: 10, fullName: 'Pop Ion', active: true, canDelete: true, ces: false }],
+        2: [
+          { id: 20, fullName: 'Bursașiu Teodor', active: true, canDelete: true, ces: true },
+          { id: 21, fullName: 'Ene Ana', active: true, canDelete: true, ces: false },
+        ],
+      },
+    });
+  const missingItems = () => [...document.querySelectorAll('.missing-list li')].map((item) => item.textContent);
+  const cesBaremChoices = () => within(screen.getByRole('group', { name: 'Baremul CES' }));
+
+  it('shows the CES students and the switch, on, with the CES files beside the class ones', async () => {
+    renderAdmin('/teste/nou', withCes());
+    await fillClassAndTitle('2');
+    const toggle = await screen.findByRole('switch', { name: 'Test separat pentru elevii cu CES' });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('Clasa are 1 elev cu CES')).toBeInTheDocument();
+    expect(screen.getByText('Bursașiu Teodor')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /^Testul CES/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /^Baremul CES/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Fișierul testului CES/)).toBeInTheDocument();
+  });
+
+  it('shows no switch for a class without a CES student', async () => {
+    renderAdmin('/teste/nou', withCes());
+    await fillClassAndTitle('1');
+    expect(await screen.findByText('Încă lipsesc:')).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(missingItems()).toEqual(['testul', 'baremul']);
+  });
+
+  it('lists under the button what the test would still miss, and updates it', async () => {
+    renderAdmin('/teste/nou', withCes());
+    await fillClassAndTitle('2');
+    await screen.findByRole('switch');
+    expect(screen.getByText('Încă lipsesc:')).toBeInTheDocument();
+    expect(missingItems()).toEqual(['testul', 'baremul', 'testul CES', 'baremul CES']);
+    expect(screen.getByText('Poți crea testul acum și le adaugi mai târziu.')).toBeInTheDocument();
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului CES/), pdf('Test adaptat.pdf'));
+    await userEvent.click(cesBaremChoices().getByRole('radio', { name: /^Generează baremul CES/ }));
+    expect(missingItems()).toEqual(['testul', 'baremul']);
+  });
+
+  it('creates the test with the CES test, and asks for the CES barem after the class files', async () => {
+    const api = withCes();
+    renderAdmin('/teste/nou', api, <LocationProbe />);
+    await fillClassAndTitle('2');
+    await screen.findByRole('switch');
+    const test = pdf('Test.pdf');
+    const ces = pdf('Test adaptat.pdf');
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului:/), test);
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului CES/), ces);
+    await userEvent.click(choice(/^Generează baremul din test/));
+    await userEvent.click(cesBaremChoices().getByRole('radio', { name: /^Generează baremul CES/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
+
+    await expectLocation('/teste/9R2-26T1');
+    expect(api.createTest).toHaveBeenCalledWith({ classId: 2, title: 'Fracții', cesOff: false });
+    expect(api.uploadTestFile).toHaveBeenCalledWith('9R2-26T1', 'test', ces, 'ces');
+    expect(api.generateBarem.mock.calls).toEqual([['9R2-26T1'], ['9R2-26T1', 'ces']]);
+  });
+
+  it('turned off, hides the CES files, asks nothing for them, and creates the test without them', async () => {
+    const api = withCes();
+    renderAdmin('/teste/nou', api, <LocationProbe />);
+    await fillClassAndTitle('2');
+    await userEvent.click(await screen.findByRole('switch', { name: 'Test separat pentru elevii cu CES' }));
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    expect(screen.queryByRole('heading', { level: 2, name: /^Testul CES/ })).not.toBeInTheDocument();
+    expect(missingItems()).toEqual(['testul', 'baremul']);
+    await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
+    await expectLocation('/teste/9R2-26T1');
+    expect(api.createTest).toHaveBeenCalledWith({ classId: 2, title: 'Fracții', cesOff: true });
+    expect(api.uploadTestFile).not.toHaveBeenCalled();
+  });
+});
