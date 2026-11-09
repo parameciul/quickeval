@@ -112,7 +112,7 @@ An uploaded CES barem is always active, as an uploaded class barem is. It may be
 ### Which variant a paper uses
 
 - A paper's variant is fixed when the paper first goes to grading: a CES paper if the student is marked CES and the test has a CES variant at that moment, a class paper otherwise. It is written on the submission.
-- A regrade, a retry and a reset keep the paper's variant. Removing or adding the CES mark later does not change papers that already went to grading; it changes only papers that have not yet gone.
+- A regrade and a retry keep the paper's variant. A reset deletes the paper, so the student's next paper gets its variant when it goes to grading. Removing or adding the CES mark later does not change papers that already went to grading; it changes only papers that have not yet gone.
 - A CES student on a test with no CES variant is graded as a class paper, with the class test and barem. (Teacher's choice: the variant is optional.)
 - The review page, the paper's page and the per-paper PDF show the test and barem of the paper's own variant.
 
