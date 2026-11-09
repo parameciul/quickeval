@@ -1,4 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
+import type { SubmissionFile, Teacher } from '../../shared/api.ts';
 import {
   bucharestDay,
   QUICK_TRY_CLASS,
@@ -44,7 +45,10 @@ export type QuickTryRefusal = 'ip_limit' | 'daily_limit';
 
 export interface QuickTryRow {
   teacherId: number;
+  testId: number;
   code: string;
+  schoolYear: number;
+  studentId: number;
   submissionId: number;
   sessionHash: string;
   createdAt: string;
@@ -117,19 +121,50 @@ export async function dailyLimitReached(db: D1Database, now: string): Promise<bo
 export async function findQuickTry(db: D1Database, tokenHash: string): Promise<QuickTryRow | null> {
   const row = await db
     .prepare(
-      `SELECT q.teacher_id, t.code, s.id AS submission_id, s.session_hash, q.created_at, q.expires_at
-       FROM quick_tries q JOIN tests t ON t.teacher_id = q.teacher_id JOIN submissions s ON s.test_id = t.id
+      `SELECT q.teacher_id, t.id AS test_id, t.code, c.school_year, s.student_id, s.id AS submission_id, s.session_hash,
+         q.created_at, q.expires_at
+       FROM quick_tries q JOIN tests t ON t.teacher_id = q.teacher_id JOIN classes c ON c.id = t.class_id
+         JOIN submissions s ON s.test_id = t.id
        WHERE q.token_hash = ?`,
     )
     .bind(tokenHash)
-    .first<{ teacher_id: number; code: string; submission_id: number; session_hash: string; created_at: string; expires_at: string }>();
+    .first<{
+      teacher_id: number;
+      test_id: number;
+      code: string;
+      school_year: number;
+      student_id: number;
+      submission_id: number;
+      session_hash: string;
+      created_at: string;
+      expires_at: string;
+    }>();
   if (!row) return null;
   return {
     teacherId: row.teacher_id,
+    testId: row.test_id,
     code: row.code,
+    schoolYear: row.school_year,
+    studentId: row.student_id,
     submissionId: row.submission_id,
     sessionHash: row.session_hash,
     createdAt: row.created_at,
     expiresAt: row.expires_at,
   };
+}
+
+// The guest teacher of a try, as the teacher API's routes read it from
+// c.var.teacher: only its id names rows; it is never an administrator and
+// never a demo account.
+export function guestTeacher(teacherId: number): Teacher {
+  return { id: teacherId, email: '', name: QUICK_TRY_GUEST, role: 'teacher', demo: false, testsEvaluated: 0, papersGraded: 0, papersWaiting: 0 };
+}
+
+// The pages of the try's paper, in upload order.
+export async function listPaperFiles(db: D1Database, submissionId: number): Promise<SubmissionFile[]> {
+  const rows = await db
+    .prepare('SELECT id, original_name, content_type, size, position FROM submission_files WHERE submission_id = ? ORDER BY position, id')
+    .bind(submissionId)
+    .all<{ id: number; original_name: string; content_type: string; size: number; position: number }>();
+  return rows.results.map((row) => ({ id: row.id, name: row.original_name, contentType: row.content_type, size: row.size, position: row.position }));
 }

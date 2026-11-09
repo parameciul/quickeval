@@ -1,5 +1,6 @@
 import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 import type { Teacher } from '../shared/api.ts';
+import type { QuickTryRow } from './db/quickTry.ts';
 import type { EmailMessage } from './email.ts';
 import type { PaidFeatures } from '../shared/payments.ts';
 import type { CreateCheckoutSession } from './payments/stripe.ts';
@@ -42,5 +43,6 @@ export interface AppOptions {
 
 export interface AppEnv {
   Bindings: Env;
-  Variables: { teacher: Teacher };
+  // quickTry: the try of a /api/try/<token> request (routes/quickTry.ts).
+  Variables: { teacher: Teacher; quickTry: QuickTryRow };
 }

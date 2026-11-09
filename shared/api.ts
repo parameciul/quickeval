@@ -129,6 +129,18 @@ export interface QuickTryAvailability {
   admin: boolean;
 }
 
+// GET /api/try/<token>: the try's test code and paper, and until when its link works.
+export interface QuickTryInfo {
+  code: string;
+  submissionId: number;
+  expiresAt: string;
+  expired: boolean;
+}
+
+// "Pornește corectarea": the files version of the barem the page showed, when
+// the robot made it (the barem then counts as checked).
+export const quickTryStartBody = z.object({ filesVersion: z.number().int().min(0).optional() });
+
 export const baremNotesBody = z.object({
   notes: z
     .string()

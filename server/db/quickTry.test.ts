@@ -86,7 +86,10 @@ describe('createQuickTry', () => {
     expect(paper).toEqual({ status: 'uploading', full_name: 'Elev', active: 1 });
     expect(await findQuickTry(api.db, 'th-1')).toEqual({
       teacherId,
+      testId: expect.any(Number),
       code: 'PROBA-26T1',
+      schoolYear: 2026,
+      studentId: expect.any(Number),
       submissionId: expect.any(Number),
       sessionHash: 'sh-1',
       createdAt: NOW,

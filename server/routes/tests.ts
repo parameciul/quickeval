@@ -80,7 +80,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Why an evaluation could not start or be scheduled. Read after the write
 // changed nothing, so it describes the test as it is now.
-async function evaluationBlocker(db: D1Database, teacherId: number, code: string, needsUploads: boolean, scheduling = false): Promise<ApiError> {
+export async function evaluationBlocker(db: D1Database, teacherId: number, code: string, needsUploads: boolean, scheduling = false): Promise<ApiError> {
   const test = await requireTest(db, teacherId, code);
   if (test.summary.status === 'draft') return new ApiError(409, 'not_started', 'Testul nu a început încă.');
   if (test.summary.status !== 'open') return new ApiError(409, 'already_evaluating', 'Evaluarea a pornit deja.');
