@@ -143,7 +143,12 @@ export function Layout() {
             aria-label="Caută"
             aria-expanded={open === 'search'}
             aria-controls={open === 'search' ? 'search-full' : undefined}
-            onClick={() => toggle('search')}
+            onClick={(event) => {
+              // iOS Safari does not focus a tapped button: focus it, so the
+              // search over the whole screen gives the focus back to it.
+              event.currentTarget.focus();
+              toggle('search');
+            }}
           >
             <IconSearch />
           </button>
@@ -171,7 +176,7 @@ export function Layout() {
         <ClassesPanel year={year} todo={todo} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
       )}
       {me.data && open === 'todo' && (
-        <TodoPanel items={todo} approvals={approvals} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
+        <TodoPanel items={todo} admin={admin} approvals={approvals} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />
       )}
       {me.data && searching && <SearchLayer onClose={close} />}
       {/* On a phone a panel covers the page: the page under it is out of reach. */}

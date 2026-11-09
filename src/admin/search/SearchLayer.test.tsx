@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi } from '../../test/fakeApi.ts';
@@ -59,6 +59,19 @@ describe('the search on a phone', () => {
     expect(screen.getByRole('main')).not.toHaveAttribute('inert');
     expect(magnifier.closest('header')).not.toHaveAttribute('inert');
     expect(screen.getByRole('navigation', { name: 'Meniu' })).not.toHaveAttribute('inert');
+  });
+
+  // iOS Safari does not focus a tapped button: fireEvent clicks without the
+  // focus a real mouse gives, as a tap there does.
+  it('gives the focus back to the magnifier when a tap did not focus it', async () => {
+    const magnifier = await openPhone();
+    expect(document.body).toHaveFocus();
+    fireEvent.click(magnifier);
+    const layer = screen.getByRole('dialog', { name: 'Caută' });
+    expect(within(layer).getByRole('combobox', { name: 'Caută elevi, clase și teste' })).toHaveFocus();
+    fireEvent.click(within(layer).getByRole('button', { name: 'Închide căutarea' }));
+    expect(screen.queryByRole('dialog', { name: 'Caută' })).not.toBeInTheDocument();
+    expect(magnifier).toHaveFocus();
   });
 
   it('closes when the screen grows past a phone', async () => {

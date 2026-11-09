@@ -375,9 +375,19 @@ describe('De făcut', () => {
     await userEvent.click(await within(await menu()).findByRole('button', { name: 'De făcut' }));
     const panel = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
     expect(within(panel).getByRole('heading', { level: 3, name: 'Nimic nu te așteaptă acum' })).toBeInTheDocument();
-    expect(panel).toHaveTextContent('Când un barem, un punct nesigur sau niște rezultate au nevoie de tine, apar aici.');
+    // The fake teacher is an administrator: a new account would wait here too.
+    expect(panel).toHaveTextContent('Când un barem, un punct nesigur, niște rezultate sau un cont nou au nevoie de tine, apar aici.');
     expect(within(panel).queryByRole('link')).not.toBeInTheDocument();
     expect(await within(panel).findByText('Testul în lucru nu are nevoie de tine acum.')).toBeInTheDocument();
+  });
+
+  it('names no accounts in the empty sentence for a teacher who is not an administrator', async () => {
+    renderAdmin('/', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher' }) }));
+    await userEvent.click(await within(await menu()).findByRole('button', { name: 'De făcut' }));
+    const panel = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
+    expect(await within(panel).findByRole('heading', { level: 3, name: 'Nimic nu te așteaptă acum' })).toBeInTheDocument();
+    expect(panel).toHaveTextContent('Când un barem, un punct nesigur sau niște rezultate au nevoie de tine, apar aici.');
+    expect(panel).not.toHaveTextContent('cont nou');
   });
 
   it('counts several tests in work when nothing waits', async () => {

@@ -1,10 +1,12 @@
 import { useMutation } from '@tanstack/react-query';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import type { RobotStart, UploadRow } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDateTime, modelCell, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { useSmallMenu } from '../shell/useSmallMenu.ts';
 
 // Who uploaded what: one row per student of the class, with the grade once
 // the robot graded it. While the uploads are open, the teacher selects the
@@ -195,32 +197,35 @@ function UploadTableRow({
                 Reîncearcă
               </button>
             )}
-            {gradedAt !== null && (
-              <button
-                type="button"
-                className="button-quiet button-small"
-                disabled={regrade.isPending}
-                onClick={() => {
-                  if (window.confirm(`Recorectezi lucrarea elevului ${row.studentName}? Corecturile tale se pierd.`)) {
-                    regrade.mutate({ submissionId, gradedAt });
-                  }
-                }}
-              >
-                Recorectează
-              </button>
-            )}
-            <button
-              type="button"
-              className="button-quiet button-small"
-              disabled={reset.isPending}
-              onClick={() => {
-                if (window.confirm(`Ștergi încărcarea elevului ${row.studentName}? Elevul o poate lua de la capăt.`)) {
-                  reset.mutate({ submissionId, startedAt });
-                }
-              }}
-            >
-              Resetează
-            </button>
+            <RowMenu
+              studentName={row.studentName}
+              menuId={`upload-menu-${submissionId}`}
+              items={[
+                ...(gradedAt !== null
+                  ? [
+                      {
+                        label: 'Recorectează',
+                        busy: regrade.isPending,
+                        onChoose: () => {
+                          if (window.confirm(`Recorectezi lucrarea elevului ${row.studentName}? Corecturile tale se pierd.`)) {
+                            regrade.mutate({ submissionId, gradedAt });
+                          }
+                        },
+                      },
+                    ]
+                  : []),
+                {
+                  label: 'Resetează',
+                  danger: true,
+                  busy: reset.isPending,
+                  onChoose: () => {
+                    if (window.confirm(`Ștergi încărcarea elevului ${row.studentName}? Elevul o poate lua de la capăt.`)) {
+                      reset.mutate({ submissionId, startedAt });
+                    }
+                  },
+                },
+              ]}
+            />
           </span>
         )}
         {reset.error && <ErrorMessage error={reset.error} />}
@@ -230,3 +235,88 @@ function UploadTableRow({
     </tr>
   );
 }
+
+type RowMenuItem = { label: string; danger?: boolean; busy: boolean; onChoose(): void };
+
+// A row's rarer actions under ⋯ (the link to the paper and "Reîncearcă" stay
+// on the row, so a row fits on one line). The table scrolls sideways in its
+// box, which would cut off a menu inside it: the menu is fixed to the screen,
+// under ⋯ (or over it when the screen ends below), and closes when anything
+// scrolls or the screen changes size. An item closes the menu and gives the
+// focus back to ⋯ before it asks or acts.
+function RowMenu({ studentName, menuId, items }: { studentName: string; menuId: string; items: RowMenuItem[] }) {
+  const { open, toggle, box, button } = useSmallMenu<HTMLSpanElement>();
+  const menu = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<CSSProperties>({});
+
+  useLayoutEffect(() => {
+    if (!open || !button.current) return;
+    const at = button.current.getBoundingClientRect();
+    const height = menu.current?.offsetHeight ?? 0;
+    // The screen without its scrollbars: what `right` and `bottom` count from.
+    const { clientWidth, clientHeight } = document.documentElement;
+    const right = clientWidth - at.right;
+    const below = at.bottom + GAP + height <= clientHeight;
+    setPlace(below ? { top: at.bottom + GAP, right } : { bottom: clientHeight - at.top + GAP, right });
+  }, [open, button]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: Event) => {
+      if (event.type === 'scroll' && menu.current?.contains(event.target as Node)) return;
+      toggle();
+    };
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open, toggle]);
+
+  const run = (action: () => void) => () => {
+    toggle();
+    button.current?.focus();
+    action();
+  };
+
+  return (
+    <span className="class-more row-more" ref={box}>
+      <button
+        ref={button}
+        type="button"
+        className="class-more-button row-more-button"
+        aria-label={`Mai multe pentru ${studentName}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        onClick={toggle}
+      >
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <circle cx="3.5" cy="8" r="1.4" />
+          <circle cx="8" cy="8" r="1.4" />
+          <circle cx="12.5" cy="8" r="1.4" />
+        </svg>
+      </button>
+      {open && (
+        <div ref={menu} className="class-menu row-menu" id={menuId} role="menu" style={place}>
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              className={item.danger ? 'class-menu-item is-danger' : 'class-menu-item'}
+              disabled={item.busy}
+              onClick={run(item.onChoose)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+// The space between ⋯ and its menu, in pixels.
+const GAP = 8;

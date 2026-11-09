@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router';
 import type { RobotSettings, RobotStatus, Settings } from '../../../shared/api.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from '../../../shared/runner.ts';
 import { countLabel, formatDate, formatDateTime } from '../../ui/format.ts';
+import { onTabKeyDown } from '../../ui/tabKeys.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { AccountsSection } from '../settingsPage/AccountsSection.tsx';
@@ -20,6 +21,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'corectarea', label: 'Corectarea' },
   { id: 'robotul', label: 'Robotul' },
 ];
+const TAB_IDS = TABS.map(({ id }) => id);
 
 // The tab in the address: `?tab=corectarea` or `?tab=robotul`; none (or one it
 // does not know) is "Conturi".
@@ -63,7 +65,12 @@ export function SettingsPage() {
     <section className="settings-page">
       <h1>Setări</h1>
       <p className="settings-sub">Doar administratorii văd această pagină.</p>
-      <div className="class-tabs" role="tablist" aria-label="Setări">
+      <div
+        className="class-tabs"
+        role="tablist"
+        aria-label="Setări"
+        onKeyDown={(event) => onTabKeyDown(event, TAB_IDS, tab, show, (id) => `settings-tab-${id}`)}
+      >
         {TABS.map(({ id, label }) => (
           <button
             key={id}
@@ -71,6 +78,7 @@ export function SettingsPage() {
             role="tab"
             id={`settings-tab-${id}`}
             aria-selected={tab === id}
+            tabIndex={tab === id ? 0 : -1}
             aria-controls={`settings-panel-${id}`}
             className="class-tab"
             onClick={() => show(id)}

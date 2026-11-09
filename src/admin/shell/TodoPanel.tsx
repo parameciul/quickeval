@@ -23,8 +23,10 @@ function othersLine(others: number, alone: boolean): string {
 // teacher, with one button to its test; the first button is the filled one.
 // `others` counts the tests of the year in work that need nothing now. Until
 // the tests of the year arrive it says so, or why they could not be read.
+// For an administrator the empty sentence names the new accounts too.
 export function TodoPanel({
   items,
+  admin,
   approvals,
   others,
   loading,
@@ -32,6 +34,7 @@ export function TodoPanel({
   onClose,
 }: {
   items: TodoItem[];
+  admin: boolean;
   // Accounts that wait for an administrator's approval; 0 for a teacher.
   approvals: number;
   others: number;
@@ -50,7 +53,9 @@ export function TodoPanel({
         <p className="panel-body hint">Se încarcă…</p>
       ) : items.length === 0 && approvals === 0 ? (
         <EmptyState icon={<IconDone />} title="Nimic nu te așteaptă acum">
-          Când un barem, un punct nesigur sau niște rezultate au nevoie de tine, apar aici.
+          {admin
+            ? 'Când un barem, un punct nesigur, niște rezultate sau un cont nou au nevoie de tine, apar aici.'
+            : 'Când un barem, un punct nesigur sau niște rezultate au nevoie de tine, apar aici.'}
         </EmptyState>
       ) : (
         <ol className="todo-list">
