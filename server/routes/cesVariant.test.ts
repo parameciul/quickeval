@@ -264,6 +264,42 @@ describe('DELETE /ces', () => {
     expect(again.status).toBe(409);
     expect(again.body.error).toBe('no_ces');
   });
+
+  it('starts the robot during the evaluation: the CES papers that waited go as class papers', async () => {
+    await addCesFiles(api, code, ['test']);
+    await markCes(api, students[0]!);
+    expect((await api.request('DELETE', `/api/admin/tests/${code}/ces`)).body.robot).toBeNull();
+    expect(dispatchRobot).not.toHaveBeenCalled();
+
+    await startTest(api, code);
+    await addCesFiles(api, code, ['test']);
+    await addSubmission(api, code, students[0]!, { status: 'submitted', files: 1 });
+    await setTest("status = 'evaluating'");
+    const res = await api.request('DELETE', `/api/admin/tests/${code}/ces`);
+    expect(res.status).toBe(200);
+    expect(res.body.robot).toBe('dispatched');
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('PUT /students/:id/ces', () => {
+  it('starts the robot when a test of the student is in evaluation with a CES variant', async () => {
+    const mark = (ces: boolean) => api.request('PUT', `/api/admin/students/${students[0]}/ces`, { ces });
+    expect((await mark(true)).body).toEqual({ student: { id: students[0], ces: true } });
+    await startTest(api, code);
+    // A sent paper keeps the test in evaluation.
+    await addSubmission(api, code, students[1]!, { status: 'submitted', files: 1 });
+    await setTest("status = 'evaluating'");
+    // No CES variant: the mark changes nothing for the robot.
+    await mark(false);
+    expect(dispatchRobot).not.toHaveBeenCalled();
+
+    await addCesFiles(api, code, ['test']);
+    expect((await mark(true)).body).toEqual({ student: { id: students[0], ces: true } });
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+    await mark(false);
+    expect(dispatchRobot).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('the CES print PDF and exercise list', () => {

@@ -178,4 +178,18 @@ describe('a CES paper', () => {
     // Its variant blocks the removal of the CES variant.
     expect((await api.request('DELETE', `/api/admin/tests/${code}/ces`)).body.error).toBe('ces_papers');
   });
+
+  it('stays a class paper when graded again, if it went to grading before the variants existed', async () => {
+    // Papers graded before the migration have no variant written.
+    await markCes(api, other);
+    const startedAt = '2026-10-20T10:00:00.000Z';
+    await api.db.prepare("UPDATE submissions SET status = 'graded', variant = NULL WHERE id = ?").bind(cesPaper).run();
+    await api.db.prepare("UPDATE submissions SET status = 'failed', variant = NULL, started_at = ? WHERE id = ?").bind(startedAt, classPaper).run();
+
+    expect((await api.request('POST', `/api/admin/submissions/${classPaper}/retry`, { startedAt })).status).toBe(200);
+    expect(await variantOf(classPaper)).toEqual({ variant: 'class', status: 'submitted' });
+    expect((await api.request('POST', `/api/admin/tests/${code}/regrade`)).status).toBe(200);
+    expect(await variantOf(cesPaper)).toEqual({ variant: 'class', status: 'submitted' });
+    expect(await claim()).toMatchObject({ submissionId: cesPaper, variant: 'class' });
+  });
 });

@@ -1,13 +1,15 @@
 import { Hono } from 'hono';
 import { renameStudentBody, studentCesBody } from '../../shared/api.ts';
 import { getStudentHistory, renameClashMessage, renameStudent, setStudentCes } from '../db/students.ts';
-import type { AppEnv } from '../env.ts';
+import { robotStarter } from '../dispatch.ts';
+import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError, notFound } from '../errors.ts';
 import { parseId, readJson } from '../http.ts';
 
 // /api/admin/students
-export function studentRoutes(): Hono<AppEnv> {
+export function studentRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
+  const startRobot = robotStarter(options);
 
   routes.patch('/:id', async (c) => {
     const id = parseId(c.req.param('id'));
@@ -21,11 +23,14 @@ export function studentRoutes(): Hono<AppEnv> {
   });
 
   // The CES mark: the student gets the CES variant of the tests that have one.
+  // During an evaluation the mark can free a waiting paper or make the CES
+  // exercise list due: the robot starts.
   routes.put('/:id/ces', async (c) => {
     const body = await readJson(c, studentCesBody);
-    const student = await setStudentCes(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), body.ces);
-    if (!student) throw notFound();
-    return c.json({ student });
+    const saved = await setStudentCes(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), body.ces);
+    if (!saved) throw notFound();
+    if (saved.robotWork) await startRobot(c.env);
+    return c.json({ student: saved.student });
   });
 
   // The student page: every graded test of the student, in every class and year.

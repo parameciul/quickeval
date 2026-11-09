@@ -84,7 +84,8 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
   });
 
   // "Șterge varianta CES": only while no paper went to grading with it. Its
-  // students then get the class test again.
+  // students then get the class test again: during the evaluation, the CES
+  // papers that waited for the CES barem go to the robot as class papers.
   routes.delete('/:code/ces', async (c) => {
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
@@ -97,7 +98,8 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
     }
     await deleteFilesQuietly(c.env.FILES, keys);
     const current = await requireTest(c.env.DB, teacherId, test.summary.code);
-    return c.json({ ces: toCesInfo(current.ces) } satisfies CesRemovedAnswer);
+    const robot = current.summary.status === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ ces: toCesInfo(current.ces), robot } satisfies CesRemovedAnswer);
   });
 
   // The teacher's comments for the CES barem, read by the robot as part of it.

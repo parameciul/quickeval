@@ -118,12 +118,29 @@ export async function setEnrollmentActive(
 // student, in every class: it decides the variant of a paper only when the
 // paper first goes to grading, so papers already graded keep theirs. Null when
 // the student is not the teacher's.
-export async function setStudentCes(db: D1Database, teacherId: number, studentId: number, ces: boolean): Promise<{ id: number; ces: boolean } | null> {
-  const row = await db
-    .prepare('UPDATE students SET ces = ? WHERE id = ? AND teacher_id = ? RETURNING id, ces')
-    .bind(ces ? 1 : 0, studentId, teacherId)
-    .first<{ id: number; ces: number }>();
-  return row ? { id: row.id, ces: row.ces === 1 } : null;
+// `robotWork`: a test of the student's classes is in evaluation with a CES
+// variant, so the mark may change which papers the robot can take (a CES
+// paper waits for its CES barem, a class paper does not) and which exercise
+// lists it must make.
+export async function setStudentCes(
+  db: D1Database,
+  teacherId: number,
+  studentId: number,
+  ces: boolean,
+): Promise<{ student: { id: number; ces: boolean }; robotWork: boolean } | null> {
+  const [updated, work] = await db.batch<{ id?: number; ces?: number; robot_work?: number }>([
+    db.prepare('UPDATE students SET ces = ? WHERE id = ? AND teacher_id = ? RETURNING id, ces').bind(ces ? 1 : 0, studentId, teacherId),
+    db
+      .prepare(
+        `SELECT EXISTS (
+           SELECT 1 FROM enrollments e JOIN tests t ON t.class_id = e.class_id
+           WHERE e.student_id = ? AND t.teacher_id = ? AND t.status = 'evaluating' AND t.ces_test_file_key IS NOT NULL) AS robot_work`,
+      )
+      .bind(studentId, teacherId),
+  ]);
+  const row = updated?.results[0];
+  if (!row) return null;
+  return { student: { id: row.id!, ces: row.ces === 1 }, robotWork: work?.results[0]?.robot_work === 1 };
 }
 
 // True when the student has no sent, grading or graded upload in the tests of

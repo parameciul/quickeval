@@ -502,8 +502,11 @@ export async function retryExerciseList(
   return row?.status ?? null;
 }
 
-// A regraded upload waits for the robot again, as if just sent.
-const GRADE_AGAIN = "status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, graded_at = NULL";
+// A regraded upload waits for the robot again, as if just sent. It went to
+// grading before, so it keeps its variant; a paper graded before the variants
+// existed has none written, and was graded as a class paper.
+const KEEP_VARIANT = "variant = COALESCE(variant, 'class')";
+const GRADE_AGAIN = `status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, graded_at = NULL, ${KEEP_VARIANT}`;
 
 // The end of a batch that made one upload wait for the robot again: a
 // finished test goes back to evaluation (spec §8.5), then the test's status
@@ -619,7 +622,7 @@ export async function retrySubmission(db: D1Database, shown: ShownUpload, now: s
   const [retried, , test] = await db.batch<{ test_id?: number; test_status?: TestStatus; status?: TestStatus }>([
     db
       .prepare(
-        `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL
+        `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, ${KEEP_VARIANT}
          WHERE id = ? AND started_at = ? AND status = 'failed'
            AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ? AND ${MAY_GRADE_AGAIN})
          RETURNING test_id, ${STATUS_BEFORE}`,

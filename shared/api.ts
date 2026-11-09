@@ -787,6 +787,7 @@ export interface BaremCheckedAnswer {
 // "Șterge varianta CES".
 export interface CesRemovedAnswer {
   ces: CesVariantInfo;
+  robot: RobotStart | null;
 }
 
 // "Încearcă din nou" on a print PDF that failed.

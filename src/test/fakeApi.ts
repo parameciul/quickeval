@@ -653,7 +653,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = findTest(code).test;
       if (found.ces.papers > 0) throw new ApiError(409, 'ces_papers', 'Varianta CES are lucrări corectate, așa că nu mai poate fi ștearsă.');
       found.ces = noCesVariant({ studentCount: found.ces.studentCount, filesVersion: found.ces.filesVersion + 1 });
-      return { ces: found.ces };
+      return { ces: found.ces, robot: found.status === 'evaluating' ? 'dispatched' : null };
     }),
     // Like the server: the test keeps its link (a draft made before tests got
     // their link at once gets one now), and a print PDF that still waits is

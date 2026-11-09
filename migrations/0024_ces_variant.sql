@@ -31,3 +31,7 @@ ALTER TABLE tests ADD COLUMN ces_print_attempts INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE tests ADD COLUMN ces_files_version INTEGER NOT NULL DEFAULT 0;
 
 ALTER TABLE submissions ADD COLUMN variant TEXT CHECK (variant IN ('class', 'ces'));
+
+-- Papers that went to grading before this migration were graded as class
+-- papers: they keep that variant.
+UPDATE submissions SET variant = 'class' WHERE status IN ('grading', 'graded', 'failed');

@@ -18,7 +18,7 @@ export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.use('*', sameOriginWrites, teacherAuth(), promoteDue(options));
   routes.get('/me', (c) => c.json({ teacher: c.var.teacher }));
   routes.route('/classes', classRoutes());
-  routes.route('/students', studentRoutes());
+  routes.route('/students', studentRoutes(options));
   routes.route('/tests', testRoutes(options));
   routes.route('/search', searchRoutes());
   routes.route('/submissions', submissionRoutes(options));
