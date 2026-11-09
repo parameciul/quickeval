@@ -32,9 +32,11 @@ export function missingParts(parts: PreparedParts): MissingPart[] {
   return missing;
 }
 
-// What a test of the tests list misses: nothing once it is in evaluation or done.
+// What a test of the tests list misses: nothing once it is in evaluation or
+// done, or reopened after an evaluation (its students already wrote it).
 export function missingOf(test: TestSummary): MissingPart[] {
   if (test.status !== 'draft' && test.status !== 'open') return [];
+  if (test.evaluationStartedAt !== null) return [];
   const { testFile, baremFile, ces } = test.prepared;
   return missingParts({ testFile, baremFile, baremRequest: test.barem.request, ces });
 }

@@ -120,6 +120,11 @@ describe('what a draft or open test misses, in "De făcut"', () => {
     expect(todoOf(missingCes({ status: 'evaluating', gradedCount: 1 }))).toBeNull();
     expect(todoOf(missingCes({ status: 'draft', barem: generated }))?.task).toBe('Verifică baremul generat');
   });
+
+  it('asks nothing of a test reopened after its evaluation: its points to check come first', () => {
+    const reopened = { ...missingCes({ status: 'open', flagCount: 3, gradedCount: 5 }), evaluationStartedAt: '2026-11-02T08:00:00.000Z' };
+    expect(todoOf(reopened)).toMatchObject({ stage: 'Verificare', task: 'Decide 3 puncte nesigure' });
+  });
 });
 
 describe('todoList', () => {
