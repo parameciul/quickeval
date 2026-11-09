@@ -183,6 +183,7 @@ function toRecord(row: TestRow): TestRecord {
         print: row.print_status,
         uploadLink: row.upload_token !== null,
       },
+      cesBarem: row.ces_test_file_key === null ? null : { request: row.ces_barem_request, unchecked: row.ces_barem_unchecked === 1 },
       // The grades of the class report's rows, averaged the same way.
       averageGrade: averageGrade(JSON.parse(row.grades_json) as number[]),
     },

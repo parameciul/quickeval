@@ -8,6 +8,7 @@ import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDate } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
+import { CesTag } from '../CesTag.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { RenameDialog } from '../classPage/ClassDialogs.tsx';
 import { ResultCell } from '../classPage/ClassStudents.tsx';
@@ -60,7 +61,10 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
       )}
       <div className="history-head">
         <div>
-          <h1>{student.fullName}</h1>
+          <h1>
+            {student.fullName}
+            {student.ces && <CesTag />}
+          </h1>
           {now && (
             <p className="lead-line">
               <ClassLink cls={now} /> în {formatSchoolYear(now.schoolYear)}

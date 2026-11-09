@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { countLabel } from '../../ui/format.ts';
+import { CesTag } from '../CesTag.tsx';
 import { pointKey, pointName, reviewPath, type GradedRow, type ReviewSpot } from './points.ts';
 
 // The left pane of the review (redesign spec §7): the papers with points to
@@ -20,7 +21,8 @@ export function ReviewQueue({ code, papers, others, spot }: { code: string; pape
             <li key={row.submissionId}>
               <Link replace to={reviewPath(code, { submissionId: row.submissionId, key: pointKey(row.reviewPoints[0]!) })} className="review-paper">
                 <span className="review-paper-name">
-                  {row.studentName} {row.grade !== null && (
+                  {row.studentName}
+                  {(row.ces || row.variant === 'ces') && <CesTag />} {row.grade !== null && (
                     <span className="review-grade">
                       <span className="sr-only">nota</span> {formatPoints(row.grade)}
                     </span>
@@ -60,7 +62,8 @@ export function ReviewQueue({ code, papers, others, spot }: { code: string; pape
                   aria-current={spot.submissionId === row.submissionId ? 'true' : undefined}
                 >
                   <span className="review-paper-name">
-                    {row.studentName} {row.grade !== null && (
+                    {row.studentName}
+                    {(row.ces || row.variant === 'ces') && <CesTag />} {row.grade !== null && (
                     <span className="review-grade">
                       <span className="sr-only">nota</span> {formatPoints(row.grade)}
                     </span>

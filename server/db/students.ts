@@ -285,7 +285,7 @@ export function gradeOf(row: GradeRow): ClassGrade {
 // Null when the student is not the teacher's.
 export async function getStudentHistory(db: D1Database, teacherId: number, studentId: number): Promise<StudentHistory | null> {
   const [student, classes, tests, grades] = await db.batch<Record<string, unknown>>([
-    db.prepare('SELECT id, full_name FROM students WHERE id = ? AND teacher_id = ?').bind(studentId, teacherId),
+    db.prepare('SELECT id, full_name, ces FROM students WHERE id = ? AND teacher_id = ?').bind(studentId, teacherId),
     db
       .prepare(
         `SELECT c.id, c.name, c.school_year, e.active FROM enrollments e JOIN classes c ON c.id = e.class_id
@@ -313,10 +313,10 @@ export async function getStudentHistory(db: D1Database, teacherId: number, stude
       )
       .bind(teacherId, studentId),
   ]);
-  const row = student?.results[0] as { id: number; full_name: string } | undefined;
+  const row = student?.results[0] as { id: number; full_name: string; ces: number } | undefined;
   if (!row) return null;
   return {
-    student: { id: row.id, fullName: row.full_name },
+    student: { id: row.id, fullName: row.full_name, ces: row.ces === 1 },
     classes: ((classes?.results ?? []) as { id: number; name: string; school_year: number; active: number }[]).map(
       (cls): StudentClass => ({ id: cls.id, name: cls.name, schoolYear: cls.school_year, active: cls.active === 1 }),
     ),

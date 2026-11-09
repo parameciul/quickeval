@@ -117,6 +117,7 @@ function withDerived({ test, ...detail }: TestDetail): TestDetail {
         print: test.print.status,
         uploadLink: test.uploadToken !== null,
       },
+      cesBarem: test.ces.files.test === null ? null : { request: test.ces.barem.request, unchecked: test.ces.barem.unchecked },
       averageGrade: averageGrade(grades),
     },
   };
@@ -179,6 +180,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       ces: noCesVariant(),
       // Made again from the files and the uploads (withDerived).
       prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
+      cesBarem: null,
       averageGrade: null,
       ...overrides,
     },
@@ -214,6 +216,7 @@ export function fakeSummary({ prepared, ...overrides }: SummaryOverrides = {}): 
     archived: false,
     barem: { request: 'none', unchecked: false },
     prepared: { testFile: true, baremFile: true, print: 'ready', uploadLink: true, ...prepared },
+    cesBarem: null,
     averageGrade: null,
     ...overrides,
   };
@@ -560,7 +563,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const students = new Map<number, SearchResults['students'][number]>();
       for (const cls of classes) {
         for (const student of (data.students[cls.id] ?? []).filter((s) => s.active && matches(s.fullName))) {
-          const found = students.get(student.id) ?? { id: student.id, fullName: student.fullName, classes: [], lastGrade: null };
+          const found = students.get(student.id) ?? { id: student.id, fullName: student.fullName, ces: student.ces, classes: [], lastGrade: null };
           found.classes.push({ id: cls.id, name: cls.name });
           students.set(student.id, found);
         }

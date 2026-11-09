@@ -89,6 +89,20 @@ describe('the CES variant of a test page', () => {
     ]);
   });
 
+  it('gives the CES barem to the tests list once the test has a CES test file, and the CES mark to search and history', async () => {
+    const list = async () => (await api.request('GET', '/api/admin/tests?year=2026')).body.tests[0].cesBarem;
+    expect(await list()).toBeNull();
+    await addCesFiles(api, code, ['test', 'barem']);
+    await setTest("ces_barem_unchecked = 1");
+    expect(await list()).toEqual({ request: 'none', unchecked: true });
+
+    await markCes(api, students[0]!);
+    const search = await api.request('GET', '/api/admin/search?q=burs&year=2026');
+    expect(search.body.students.map((s: { fullName: string; ces: boolean }) => [s.fullName, s.ces])).toEqual([['Bursașiu Teodor', true]]);
+    const history = await api.request('GET', `/api/admin/students/${students[0]}/history`);
+    expect(history.body.student).toMatchObject({ fullName: 'Bursașiu Teodor', ces: true });
+  });
+
   it('gives the totals of the CES and the class exercise lists', async () => {
     await setTest(
       `exercise_list_json = '{"totalPoints":100}', ces_exercise_list_json = '{"totalPoints":90}'`,

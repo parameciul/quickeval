@@ -432,7 +432,7 @@ export interface StudentHistoryTest {
 // as the grades table of the class page reads them. An archived test, or a test
 // of a class the student left, is listed only when the student sent a paper.
 export interface StudentHistory {
-  student: { id: number; fullName: string };
+  student: { id: number; fullName: string; ces: boolean };
   classes: StudentClass[];
   tests: StudentHistoryTest[];
   grades: ClassGrade[];
@@ -444,6 +444,8 @@ export interface StudentHistory {
 export interface SearchStudent {
   id: number;
   fullName: string;
+  // The teacher marked the student as CES.
+  ces: boolean;
   classes: { id: number; name: string }[];
   lastGrade: number | null;
 }
@@ -492,6 +494,9 @@ export interface TestSummary {
   // their link when made has none, and no print PDF is made for it until the
   // teacher asks on the test page. The Teste page draws the stages from it.
   prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus; uploadLink: boolean };
+  // The CES variant's barem, while the test has a CES test file: "De făcut"
+  // asks the teacher to check a generated one. Null with no CES variant.
+  cesBarem: { request: BaremRequest; unchecked: boolean } | null;
   // The average of the graded papers, as the class report gives it; null
   // while no paper is graded.
   averageGrade: number | null;

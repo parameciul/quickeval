@@ -22,7 +22,7 @@ const paper = (overrides: Partial<ClassGrade>): ClassGrade => ({
 
 // Pop Ion is in 7E2 now (2027-2028) and was in 6E2 (2026-2027).
 const history: StudentHistory = {
-  student: { id: 10, fullName: 'Pop Ion' },
+  student: { id: 10, fullName: 'Pop Ion', ces: false },
   classes: [
     { id: 2, name: '7E2', schoolYear: 2027, active: true },
     { id: 1, name: '6E2', schoolYear: 2026, active: false },

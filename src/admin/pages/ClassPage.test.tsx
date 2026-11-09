@@ -445,7 +445,7 @@ describe('ClassPage grade table', () => {
   it('opens the student page from a name, which leads back to this class', async () => {
     const histories = [
       {
-        student: { id: 10, fullName: 'Pop Ion' },
+        student: { id: 10, fullName: 'Pop Ion', ces: false },
         classes: [
           { id: 3, name: '7E2', schoolYear: 2027, active: true },
           { id: 1, name: '6E2', schoolYear: 2026, active: true },
