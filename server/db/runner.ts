@@ -18,6 +18,7 @@ import type { ExerciseListStatus } from '../../shared/tests.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { askForAnalysis, finishTests, promoteStatements } from './lifecycle.ts';
 import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
+import { needsBaremSql, needsPrintSql } from './variant.ts';
 
 // Queries of the robot API (spec §11.3). Each write checks its own rules in
 // its SQL: runs can overlap, and parallel tasks of one run call at once.
@@ -43,11 +44,10 @@ export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = '
 // made, so the teacher prints it before the day of the test and starts it on
 // that day. Keep it a flat condition on the alias t: the print writes rewrite
 // t. to tests.
-export const NEEDS_PRINT =
-  "t.status IN ('draft', 'open') AND t.upload_token IS NOT NULL AND t.test_file_key IS NOT NULL AND t.print_status = 'none'";
+export const NEEDS_PRINT = needsPrintSql('class');
 // A draft or open test with a test file whose barem the teacher asked the robot
 // to generate. Keep it a flat condition on the alias t.
-export const NEEDS_BAREM = "t.status IN ('draft', 'open') AND t.test_file_key IS NOT NULL AND t.barem_request = 'requested'";
+export const NEEDS_BAREM = needsBaremSql('class');
 
 // The state of the grades of a test: how many graded results there are and
 // when the last one changed (a correction writes `evaluations.updated_at`, a

@@ -5,6 +5,7 @@ import type {
   BaremCheckedAnswer,
   BaremGenerateAnswer,
   BaremNotesAnswer,
+  CesVariantInfo,
   ClassReport,
   ClassSummary,
   EvaluationInfo,
@@ -126,6 +127,24 @@ function summaryOf(detail: TestDetail): TestSummary {
 }
 
 // A test as the API returns it, for building fake data in tests.
+// A test with no CES variant, in a class with no CES student.
+export function noCesVariant(overrides: Partial<CesVariantInfo> = {}): CesVariantInfo {
+  return {
+    studentCount: 0,
+    files: { test: null, barem: null },
+    baremNotes: '',
+    barem: { request: 'none', unchecked: false },
+    filesVersion: 0,
+    exerciseList: { status: 'none', message: null },
+    print: { status: 'none', fromWord: false },
+    papers: 0,
+    waiting: 0,
+    totalPoints: null,
+    classTotalPoints: null,
+    ...overrides,
+  };
+}
+
 export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[] = []): TestDetail {
   return withDerived({
     test: {
@@ -156,6 +175,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       filesVersion: 0,
       analysis: { status: 'none', stale: false, attempts: 0 },
       print: { status: 'none', fromWord: false },
+      ces: noCesVariant(),
       // Made again from the files and the uploads (withDerived).
       prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
       averageGrade: null,

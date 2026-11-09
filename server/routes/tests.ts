@@ -64,6 +64,7 @@ import {
   toTestInfo,
 } from '../db/tests.ts';
 import { robotStarter } from '../dispatch.ts';
+import { cesVariantRoutes } from './cesVariant.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError, demoLimit, isUniqueViolation, notFound } from '../errors.ts';
 import { nowIso, parseSchoolYear, parseTestCode, readJson } from '../http.ts';
@@ -98,6 +99,7 @@ async function evaluationBlocker(db: D1Database, teacherId: number, code: string
 export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
   const startRobot = robotStarter(options);
+  cesVariantRoutes(routes, startRobot);
 
   routes.get('/', async (c) => {
     const year = parseSchoolYear(c.req.query('year'));

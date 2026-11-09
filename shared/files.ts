@@ -22,6 +22,11 @@ export const FILE_TOO_BIG = 'Fișierul are peste 25 MB.';
 
 export type TestFileKind = 'test' | 'barem';
 
+// Which version of a test a file or a paper belongs to: the class test, or its
+// CES variant ("cerințe educaționale speciale"), an adapted test with its own
+// barem for the CES students of the class.
+export type TestVariant = 'class' | 'ces';
+
 export function isTestFileKind(raw: string): raw is TestFileKind {
   return raw === 'test' || raw === 'barem';
 }
@@ -116,17 +121,30 @@ export function testFolder(teacherId: number, schoolYear: number, code: string):
   return `t/${teacherId}/${schoolYear}/${code}/`;
 }
 
+// The files of a variant: the CES variant's under ces/ in the test's folder, so
+// a CES file never takes the key of a class file with the same name.
+function variantFolder(teacherId: number, schoolYear: number, code: string, variant: TestVariant): string {
+  return `${testFolder(teacherId, schoolYear, code)}${variant === 'ces' ? 'ces/' : ''}`;
+}
+
 // t/1/2026/6E2-26T1/print/test-final-v3-qr.pdf: the test file with the QR code,
 // named after the test file and the files version it was made from.
-export function printFileKey(teacherId: number, schoolYear: number, code: string, testFileName: string, filesVersion: number): string {
-  return `${testFolder(teacherId, schoolYear, code)}print/${slugify(withoutExtension(testFileName))}-v${filesVersion}-qr.pdf`;
+export function printFileKey(
+  teacherId: number,
+  schoolYear: number,
+  code: string,
+  testFileName: string,
+  filesVersion: number,
+  variant: TestVariant = 'class',
+): string {
+  return `${variantFolder(teacherId, schoolYear, code, variant)}print/${slugify(withoutExtension(testFileName))}-v${filesVersion}-qr.pdf`;
 }
 
 // t/1/2026/6E2-26T1/barem/generat_v4.docx: the barem the robot wrote, named
 // after the files version it was made from. The underscore is a character
 // slugify never writes, so no teacher upload gets this key.
-export function generatedBaremKey(teacherId: number, schoolYear: number, code: string, filesVersion: number): string {
-  return `${testFolder(teacherId, schoolYear, code)}barem/generat_v${filesVersion}.docx`;
+export function generatedBaremKey(teacherId: number, schoolYear: number, code: string, filesVersion: number, variant: TestVariant = 'class'): string {
+  return `${variantFolder(teacherId, schoolYear, code, variant)}barem/generat_v${filesVersion}.docx`;
 }
 
 // t/1/2026/6E2-26T1/barem/barem-final.pdf
@@ -137,8 +155,9 @@ export function testFileKey(
   kind: TestFileKind,
   originalName: string,
   contentType: string,
+  variant: TestVariant = 'class',
 ): string {
-  return `${testFolder(teacherId, schoolYear, code)}${kind}/${slugify(withoutExtension(originalName))}.${extensionFor(contentType)}`;
+  return `${variantFolder(teacherId, schoolYear, code, variant)}${kind}/${slugify(withoutExtension(originalName))}.${extensionFor(contentType)}`;
 }
 
 // t/1/2026/6E2-26T1/students/14-popescu-ana/01-k3f9q2xa.jpg. The random part

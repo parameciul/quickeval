@@ -576,6 +576,32 @@ export type PrintStatus = 'none' | 'ready' | 'failed';
 // "requested" while it runs, "failed" when it gave up.
 export type BaremRequest = 'none' | 'requested' | 'failed';
 
+// The CES variant of a test (spec: CES variant), for the teacher only: the
+// adapted test that the CES students of the class get, with its own barem,
+// exercise list and print PDF. The test has a CES variant while `files.test`
+// is set.
+export interface CesVariantInfo {
+  // Active students of the class marked CES: the page offers the variant only
+  // when there is one (or the test already has a variant).
+  studentCount: number;
+  files: Record<TestFileKind, TestFileInfo | null>;
+  baremNotes: string;
+  barem: { request: BaremRequest; unchecked: boolean };
+  // Goes up with every new CES file or CES barem comments.
+  filesVersion: number;
+  exerciseList: ExerciseListInfo;
+  print: { status: PrintStatus; fromWord: boolean };
+  // Papers that went to grading with the CES variant: while there is one, the
+  // variant cannot be removed.
+  papers: number;
+  // CES papers sent and not graded yet: they wait for an active CES barem.
+  waiting: number;
+  // The highest total of the CES exercise list and of the class list, once the
+  // robot made them. The CES barem should total as much as the class barem.
+  totalPoints: number | null;
+  classTotalPoints: number | null;
+}
+
 export interface TestInfo extends TestSummary {
   // The upload link (/u/<uploadToken>), made with the test, so the print PDF
   // is ready before the test starts. Null only for a draft made before that.
@@ -590,6 +616,7 @@ export interface TestInfo extends TestSummary {
   analysis: AnalysisInfo;
   // fromWord: the test file is a Word file, so the PDF is made from it.
   print: { status: PrintStatus; fromWord: boolean };
+  ces: CesVariantInfo;
 }
 
 // The model and effort of the latest grading and of the latest class
@@ -730,9 +757,16 @@ export interface BaremGenerateAnswer {
   robot: RobotStart | null;
 }
 
-// The teacher checked the generated barem.
+// The teacher checked the generated barem. `robot`: only for the CES barem,
+// set when CES papers that waited for it go to the robot now.
 export interface BaremCheckedAnswer {
   barem: TestInfo['barem'];
+  robot?: RobotStart | null;
+}
+
+// "Șterge varianta CES".
+export interface CesRemovedAnswer {
+  ces: CesVariantInfo;
 }
 
 // "Încearcă din nou" on a print PDF that failed.
