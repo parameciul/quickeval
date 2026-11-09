@@ -51,6 +51,10 @@ for (const path of ['/robots.txt', '/sitemap.xml', '/llms.txt', '/og-image.png']
   const file = await fetch(base + path);
   check(`public file ${path}`, file.status === 200, String(file.status));
 }
+// public/404.html is what keeps Pages from answering like a single-page app.
+const missingPage = await page('/pagina-care-nu-exista');
+check('a missing page answers 404', missingPage.res.status === 404, String(missingPage.res.status));
+check('a missing page is not the landing page', !missingPage.text.includes('Weekendul tău, fără teancul de lucrări.'));
 
 for (const path of ['/teacher/', '/teacher/clase', '/teacher/teste/6E2-26T1']) {
   const admin = await page(path);
