@@ -48,6 +48,12 @@ async function openStage(name: string) {
 
 const sheet = () => screen.getByRole('region', { name: 'Fișa testului' });
 
+// Opens a papers-table row's ⋯ and picks one of its items.
+async function chooseInRow(row: HTMLElement, student: string, item: string) {
+  await userEvent.click(within(row).getByRole('button', { name: `Mai multe pentru ${student}` }));
+  await userEvent.click(within(row).getByRole('menuitem', { name: item }));
+}
+
 // How the app came to this address: a stage link replaces it, so Back leaves the page.
 function NavigationProbe() {
   return <p data-testid="navigation">{useNavigationType()}</p>;
@@ -331,7 +337,7 @@ describe('TestPage', () => {
     expect(within(pop).getByRole('link', { name: 'Vezi lucrarea' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
     const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
     expect(within(marin).getByText('Nu a trimis')).toBeInTheDocument();
-    expect(within(marin).queryByRole('button', { name: 'Resetează' })).not.toBeInTheDocument();
+    expect(within(marin).queryByRole('button', { name: 'Mai multe pentru Marin Dan' })).not.toBeInTheDocument();
   });
 
   it('puts checkboxes in the table of Corectare only, while the test is open', async () => {
@@ -413,12 +419,52 @@ describe('TestPage', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin(`${PAGE}#in-clasa`, api);
     const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
-    await userEvent.click(within(stan).getByRole('button', { name: 'Resetează' }));
+    await chooseInRow(stan, 'Stan Eva', 'Resetează');
     expect(api.resetSubmission).not.toHaveBeenCalled();
-    await userEvent.click(within(stan).getByRole('button', { name: 'Resetează' }));
+    await chooseInRow(stan, 'Stan Eva', 'Resetează');
     expect(confirm).toHaveBeenLastCalledWith('Ștergi încărcarea elevului Stan Eva? Elevul o poate lua de la capăt.');
     expect(api.resetSubmission).toHaveBeenCalledWith(6, '2026-10-06T07:25:00.000Z');
     expect(await within(stan).findByText('Nu a trimis')).toBeInTheDocument();
+  });
+
+  it('keeps a row\'s rarer actions under ⋯, which Esc closes with the focus back on it', async () => {
+    // Its own rows: the shared rows above were already reset by the test before.
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [
+        fakeTest({ status: 'open', uploadToken: FAKE_TOKEN }, [
+          fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1, startedAt: '2026-10-06T07:25:00.000Z' }),
+        ]),
+      ],
+    });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderAdmin(`${PAGE}#in-clasa`, api);
+    const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
+    // Only the link to the paper and ⋯ show on the row.
+    expect(within(stan).getByRole('link', { name: 'Vezi lucrarea' })).toBeInTheDocument();
+    expect(within(stan).queryByRole('button', { name: 'Resetează' })).not.toBeInTheDocument();
+    const more = within(stan).getByRole('button', { name: 'Mai multe pentru Stan Eva' });
+    expect(more).toHaveAttribute('aria-haspopup', 'menu');
+    expect(more).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(more);
+    expect(more).toHaveAttribute('aria-expanded', 'true');
+    const menu = within(stan).getByRole('menu');
+    expect(more).toHaveAttribute('aria-controls', menu.id);
+    await userEvent.keyboard('{Escape}');
+    expect(within(stan).queryByRole('menu')).not.toBeInTheDocument();
+    expect(more).toHaveFocus();
+    // The menu is fixed to the screen: a scroll (of the table too) closes it.
+    await userEvent.click(more);
+    fireEvent.scroll(stan.closest('.table-wrap')!);
+    expect(within(stan).queryByRole('menu')).not.toBeInTheDocument();
+    // An item closes the menu and gives the focus back to ⋯ before it asks.
+    await userEvent.click(more);
+    await userEvent.click(within(stan).getByRole('menuitem', { name: 'Resetează' }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(within(stan).queryByRole('menu')).not.toBeInTheDocument();
+    expect(more).toHaveFocus();
+    expect(api.resetSubmission).not.toHaveBeenCalled();
   });
 
   it('keeps the page when a refresh fails, and says why', async () => {
@@ -436,7 +482,7 @@ describe('TestPage', () => {
     renderAdmin(`${PAGE}#in-clasa`, api);
     const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
     vi.mocked(api.getTest).mockRejectedValue(new ApiError(503, 'unavailable', 'Serverul nu răspunde. Încearcă din nou.'));
-    await userEvent.click(within(stan).getByRole('button', { name: 'Resetează' }));
+    await chooseInRow(stan, 'Stan Eva', 'Resetează');
     expect(await screen.findByText('Serverul nu răspunde. Încearcă din nou.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Fracții' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'În clasă' })).toBeInTheDocument();
@@ -1317,8 +1363,13 @@ describe('TestPage evaluation', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(`${PAGE}#corectare`, api);
     const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
-    expect(within(screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!).queryByRole('button', { name: 'Recorectează' })).toBeNull();
-    await userEvent.click(within(pop).getByRole('button', { name: 'Recorectează' }));
+    // A failed paper keeps "Reîncearcă" on the row, and its ⋯ has no regrade.
+    const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
+    expect(within(stan).getByRole('button', { name: 'Reîncearcă' })).toBeInTheDocument();
+    await userEvent.click(within(stan).getByRole('button', { name: 'Mai multe pentru Stan Eva' }));
+    expect(within(stan).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Resetează']);
+    await userEvent.keyboard('{Escape}');
+    await chooseInRow(pop, 'Pop Ion', 'Recorectează');
     expect(confirm).toHaveBeenCalledWith('Recorectezi lucrarea elevului Pop Ion? Corecturile tale se pierd.');
     expect(api.regradeSubmission).toHaveBeenCalledWith(5, '2026-10-07T09:00:00.000Z');
     expect(await within(pop).findByText('Trimis')).toBeInTheDocument();

@@ -3025,6 +3025,26 @@ table.uploads .result-state-cell .tag {
   gap: 0.25rem 0.75rem;
 }
 
+/* ⋯ of a papers-table row: as tall as a small button. Its menu is fixed to
+   the screen (placed by RowMenu), so the table's sideways scroll does not cut
+   it off. */
+table.uploads .row-actions {
+  flex-wrap: nowrap;
+}
+
+.class-more-button.row-more-button {
+  width: 2rem;
+  height: 2rem;
+}
+
+.class-menu.row-menu {
+  position: fixed;
+  top: auto;
+  left: auto;
+  width: max-content;
+  min-width: 10rem;
+}
+
 /* The select-all checkbox in the uploads header: only the box shows, the
    words stay for screen readers. On a narrow screen the header becomes a
    toolbar above the cards and the words show. */
