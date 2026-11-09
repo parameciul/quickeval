@@ -169,7 +169,7 @@ export function studentResultUrl(resultToken: string): string {
 
 
 // A login page in front of the app (Cloudflare Access, while it still guards
-// /admin) answered instead of the API. The app reloads the page so it shows.
+// /teacher) answered instead of the API. The app reloads the page so it shows.
 export class LoginExpiredError extends Error {
   constructor() {
     super('Sesiunea a expirat. Reîncarcă pagina ca să intri din nou.');

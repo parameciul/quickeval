@@ -80,7 +80,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
     }
     if (created === 'created') {
       // The token is after "#": it never reaches a server log or a Referer.
-      const confirmUrl = `${new URL(c.req.url).origin}/admin/confirma-email#${confirmToken}`;
+      const confirmUrl = `${new URL(c.req.url).origin}/teacher/confirma-email#${confirmToken}`;
       inBackground(
         c,
         sendEmail(c.env, {
@@ -122,7 +122,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
     }
     const confirmed = await confirmEmail(c.env.DB, { teacherId: account.id, tokenHash }, now);
     if (!confirmed) throw badLink();
-    const settingsUrl = `${new URL(c.req.url).origin}/admin/setari`;
+    const settingsUrl = `${new URL(c.req.url).origin}/teacher/setari`;
     inBackground(
       c,
       adminEmails(c.env.DB).then((to) =>
@@ -213,7 +213,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
     }
     if (requested) {
       // The token is after "#": it never reaches a server log or a Referer.
-      const url = `${new URL(c.req.url).origin}/admin/parola-noua#${token}`;
+      const url = `${new URL(c.req.url).origin}/teacher/parola-noua#${token}`;
       inBackground(
         c,
         sendEmail(c.env, {

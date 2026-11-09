@@ -6,6 +6,6 @@ export function useLogout() {
   const api = useApi();
   return useMutation({
     mutationFn: () => api.logout(),
-    onSuccess: () => window.location.assign('/admin/'),
+    onSuccess: () => window.location.assign('/teacher/'),
   });
 }

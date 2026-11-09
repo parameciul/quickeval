@@ -14,7 +14,7 @@ export function App({ api }: { api: AdminApi }) {
     <ApiProvider api={api}>
       <QueryClientProvider client={queryClient}>
         <SchoolYearProvider>
-          <BrowserRouter basename="/admin">
+          <BrowserRouter basename="/teacher">
             <AppRoutes />
           </BrowserRouter>
         </SchoolYearProvider>

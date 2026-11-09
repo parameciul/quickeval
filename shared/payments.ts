@@ -74,7 +74,7 @@ export function isReturnPath(path: string, payer: Payer): boolean {
   // No dot segments and no encoded dots, slashes or backslashes: the path
   // must stay in the payer's own app.
   if (/%(2e|2f|5c)/i.test(path) || /\/\.{1,2}(\/|\?|$)/.test(path)) return false;
-  return payer === 'teacher' ? path.startsWith('/admin/') : path.startsWith('/u/');
+  return payer === 'teacher' ? path.startsWith('/teacher/') : path.startsWith('/u/');
 }
 
 // The return address for one outcome. `{CHECKOUT_SESSION_ID}` is filled in by Stripe.

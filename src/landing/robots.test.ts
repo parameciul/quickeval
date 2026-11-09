@@ -43,7 +43,7 @@ describe('robots.txt', () => {
   });
 
   it('lets the teacher login be crawled, so its noindex is seen', () => {
-    expect(lines).not.toContain('Disallow: /admin/');
+    expect(lines).not.toContain('Disallow: /teacher/');
   });
 
   it('names the sitemap on mqgrader.ro', () => {

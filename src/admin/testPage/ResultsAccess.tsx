@@ -27,7 +27,7 @@ export function NoResultsYet() {
         </MoveOnLink>
       }
     >
-      Când lucrările sunt corectate, le publici de aici; fiecare elev primește linkul lui.
+      Când lucrările sunt corectate, le publici de aici; fiecare elev primește linkul lui, cu explicații detaliate pentru fiecare problemă și o sinteză finală cu ce merge bine și recomandări.
     </EmptyState>
   );
 }

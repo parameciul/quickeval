@@ -1,4 +1,4 @@
-# Only the landing page is public. The teacher app (/admin/) answers with noindex,
+# Only the landing page is public. The teacher app (/teacher/) answers with noindex,
 # so it must stay crawlable for that to be seen. Student links and the API are closed.
 User-agent: *
 Allow: /

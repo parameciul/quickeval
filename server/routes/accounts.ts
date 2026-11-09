@@ -70,7 +70,7 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
           `Bună, ${approved.name}!`,
           '',
           'Contul tău MQGrader a fost aprobat. Intră cu emailul și parola alese:',
-          `${new URL(c.req.url).origin}/admin/`,
+          `${new URL(c.req.url).origin}/teacher/`,
         ].join('\n'),
       }),
     );

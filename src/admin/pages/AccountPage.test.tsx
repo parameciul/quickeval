@@ -82,6 +82,6 @@ describe('AccountPage', () => {
     renderAdmin('/cont', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Ieși din cont' }));
     expect(api.logout).toHaveBeenCalled();
-    await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/admin/'));
+    await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/teacher/'));
   });
 });

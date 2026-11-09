@@ -16,7 +16,7 @@ import { SubmissionPage } from './pages/SubmissionPage.tsx';
 import { TestPage } from './pages/TestPage.tsx';
 import { TestsPage } from './pages/TestsPage.tsx';
 
-// Paths are relative to the /admin basename set in App.tsx.
+// Paths are relative to the /teacher basename set in App.tsx.
 export function AppRoutes() {
   return (
     <Routes>

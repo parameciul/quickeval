@@ -1,6 +1,10 @@
-# The teacher app and the student app are single-page apps: every /admin page
-# loads /admin/ (admin/index.html), every /u/<token> page loads /u/
+# The teacher app and the student app are single-page apps: every /teacher page
+# loads /teacher/ (teacher/index.html), every /u/<token> page loads /u/
 # (u/index.html). Keep this directory form: wrangler refuses
-# "/admin/* /admin/index.html 200" as a redirect loop.
-/admin/* /admin/ 200
+# "/teacher/* /teacher/index.html 200" as a redirect loop.
+/teacher/* /teacher/ 200
 /u/* /u/ 200
+
+# The teacher app moved from /admin to /teacher. Old links keep working.
+/admin /teacher/ 301
+/admin/* /teacher/:splat 301

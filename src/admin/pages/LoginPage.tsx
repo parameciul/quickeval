@@ -19,7 +19,7 @@ type Mode =
   | { name: 'forgot-sent' }
   | { name: 'pending'; email: string };
 
-// The link "Cere un cont de profesor" of the landing page opens /admin/#cont-nou.
+// The link "Cere un cont de profesor" of the landing page opens /teacher/#cont-nou.
 export const SIGNUP_HASH = '#cont-nou';
 
 // Shown instead of every page while nobody is logged in (redesign spec §11.4):

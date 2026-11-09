@@ -46,7 +46,7 @@ const SENTENCES: Record<StageName, string> = {
   'În clasă': 'Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.',
   Corectare: 'Fiecare lucrare primește punctaj conform baremului, pas cu pas, cu 10 puncte din oficiu.',
   Verificare: 'Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.',
-  Rezultate: 'Fiecare elev primește un link cu rezultatul lui. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.',
+  Rezultate: 'Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.',
 };
 
 const NEXT: Partial<Record<StageName, StageName>> = {
@@ -236,7 +236,7 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
   const count = linksCount(uploads, test.resultsOpen);
   return (
     <>
-      <p>Linkul arată nota, punctajul pe fiecare exercițiu și comentariile. Elevul îl vede după ce îl publici.</p>
+      <p>Linkul arată nota, punctajul pe fiecare exercițiu, explicațiile detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Elevul îl vede după ce îl publici.</p>
       <ResultsAccess test={test} onChanged={onChanged} />
       <h3>Linkurile elevilor</h3>
       {count && <p className="hint">{count}</p>}

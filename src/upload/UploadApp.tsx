@@ -280,7 +280,11 @@ export function ResultLinkBox({ resultToken, studentName, fresh = false }: { res
           {copied ? 'Copiat!' : 'Copiază linkul'}
         </button>
       </div>
-      {fresh && <p className="hint">Rezultatul apare aici după ce profesorul publică rezultatele.</p>}
+      {fresh && (
+        <p className="hint">
+          Rezultatul apare aici după ce profesorul publică rezultatele: nota, punctajul pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.
+        </p>
+      )}
     </div>
   );
 }

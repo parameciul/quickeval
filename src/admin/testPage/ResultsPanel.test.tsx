@@ -43,7 +43,7 @@ describe('the panel Rezultate', () => {
     renderAdmin(PAGE, apiWith({}, graded()));
     expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Rezultatele se publică după corectare' })).toBeInTheDocument();
-    expect(screen.getByText('Când lucrările sunt corectate, le publici de aici; fiecare elev primește linkul lui.')).toBeInTheDocument();
+    expect(screen.getByText('Când lucrările sunt corectate, le publici de aici; fiecare elev primește linkul lui, cu explicații detaliate pentru fiecare problemă și o sinteză finală cu ce merge bine și recomandări.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('link', { name: 'Mergi la Corectare' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Corectare' })).toHaveFocus();
     expect(screen.queryByRole('table', { name: 'Linkurile cu rezultatele elevilor' })).not.toBeInTheDocument();
@@ -58,7 +58,7 @@ describe('the panel Rezultate', () => {
     ];
     renderAdmin(PAGE, apiWith({ status: 'evaluating' }, rows));
     expect(
-      await screen.findByText('Linkul arată nota, punctajul pe fiecare exercițiu și comentariile. Elevul îl vede după ce îl publici.'),
+      await screen.findByText('Linkul arată nota, punctajul pe fiecare exercițiu, explicațiile detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Elevul îl vede după ce îl publici.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Rezultatele se publică după corectare' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Corectare' })).toBeInTheDocument();

@@ -8,14 +8,14 @@ MQGrader (formerly QuickEval): a web app that helps Laura Miron (math teacher, L
 
 ## Structure
 
-- `index.html` (landing page), `admin/index.html` (teacher app, `/admin/`), `u/index.html` (student app, `/u/<token>`).
+- `index.html` (landing page), `teacher/index.html` (teacher app, `/teacher/`), `u/index.html` (student app, `/u/<token>`).
 - `src/`: the two React apps (`admin/`, `upload/`), the landing page's stylesheet and theme button (`landing/`, no React), shared UI (`ui/`), test helpers (`test/`).
 - `functions/api/[[route]].ts`: the Cloudflare Pages entry for `/api/*`; it serves the Hono app from `server/app.ts`.
 - `server/`: the API (routes, D1 queries, auth, R2 files, secrets, emails).
 - `shared/`: code for the API, the browser, and the robot: zod request schemas and response types (`api.ts`), roles and the demo paper limit (`accounts.ts`), school year, class and student names, ids, test codes (`tests.ts`), file rules and R2 keys (`files.ts`), the robot's output contracts and their JSON Schemas (`schemas.ts`), points and grades (`scoring.ts`), robot API bodies (`runner.ts`), the search fold that ignores case and diacritics (`search.ts`).
 - Payments with Stripe Checkout: `docs/payments.md`.
 - `migrations/`: D1 SQL migrations, numbered. One statement per `;` at a line end (the test helper splits on that), and no `;` inside strings.
-- `public/`: copied as-is into `dist/` (`_routes.json`: only `/api/*` runs Functions; `_redirects`, `_headers`, `theme.js`, `favicon.svg`, `robots.txt`, `sitemap.xml`, `llms.txt`, `og-image.png`). Only the landing page (https://mqgrader.ro/) is indexed: it has a canonical, Open Graph tags and JSON-LD in `index.html`; `_headers` gives `/admin`, `/admin/*`, `/u/*` and the whole old host quickeval.pages.dev `X-Robots-Tag: noindex` (the API sets its own, in `server/app.ts`), and `robots.txt` closes `/u/` and `/api/` but leaves `/admin/` crawlable so its noindex is seen. SEO work targets mqgrader.ro only, never quickeval.pages.dev. `_redirects` must use the directory form `/admin/* /admin/ 200` and `/u/* /u/ 200`: Wrangler refuses `/admin/* /admin/index.html 200` as a redirect loop.
+- `public/`: copied as-is into `dist/` (`_routes.json`: only `/api/*` runs Functions; `_redirects`, `_headers`, `theme.js`, `favicon.svg`, `robots.txt`, `sitemap.xml`, `llms.txt`, `og-image.png`). Only the landing page (https://mqgrader.ro/) is indexed: it has a canonical, Open Graph tags and JSON-LD in `index.html`; `_headers` gives `/teacher`, `/teacher/*`, `/u/*` and the whole old host quickeval.pages.dev `X-Robots-Tag: noindex` (the API sets its own, in `server/app.ts`), and `robots.txt` closes `/u/` and `/api/` but leaves `/teacher/` crawlable so its noindex is seen. SEO work targets mqgrader.ro only, never quickeval.pages.dev. `_redirects` must use the directory form `/teacher/* /teacher/ 200` and `/u/* /u/ 200`: Wrangler refuses `/teacher/* /teacher/index.html 200` as a redirect loop. The old `/admin` paths redirect to `/teacher` with 301.
 - `scripts/`: `seed-local.sql` (the local teacher, an administrator), `setPassword.ts` (`npm run set-password -- <email> [--local]`: an account's password straight in D1), `smoke.mjs` (checks a running local server, with one full upload graded by a pretend robot).
 - `runner/`: the grading robot (spec §12), run by `.github/workflows/evaluate.yml`. `.claude/skills/evaluate-test/`: its grading skill (spec §13).
 - `runner/print/`: the print container (pinned LibreOffice and the QR stamp) that makes the test's print PDF.
@@ -25,7 +25,7 @@ MQGrader (formerly QuickEval): a web app that helps Laura Miron (math teacher, L
 
 - `npm test`: all tests (Vitest projects "web", "shared", "server", "runner"). Run less while you work: `npm run test:web`, `test:server`, `test:runner`, `test:changed` (files changed since the last commit and what imports them), `npm run test:related -- <file>`, `npm run test:watch`. Run the whole suite before a push. `npm run typecheck`: one strict config for everything. `npm run build`: typecheck, then the Vite build into `dist/`.
 - `npm run db:local`: apply the migrations to the local D1 and add the local teacher.
-- `npm run dev:api` and `npm run dev:web` (two terminals): hot reload at http://localhost:5173/admin/. A started test's student page is at `http://localhost:5173/u/<token>`.
+- `npm run dev:api` and `npm run dev:web` (two terminals): hot reload at http://localhost:5173/teacher/. A started test's student page is at `http://localhost:5173/u/<token>`.
 - `npm run db:local`, then `npm run preview`, then `npm run smoke` in a second terminal: the production build on http://127.0.0.1:8788 and its smoke test. Each smoke run leaves one class with one student in the local database, and makes a new local robot key.
 - `npm run try:skill`: try the grading skill on this PC (see `runner/AGENTS.md`).
 - Claude Code preview servers (`.claude/launch.json`): `api` (8788) and `web` (5173) for development, `preview` (8788) for the production build.
