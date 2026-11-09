@@ -439,14 +439,21 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (test.summary.status === 'evaluating' && !listBlocked) {
       throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba fișierul după ce se termină corectarea.');
     }
+    // A file key has no random part, so a refused upload with the stored
+    // file's name would overwrite it: a try past its limit is refused before
+    // R2 is written. The SQL of saveTestFile stays the rule.
+    const filesUsedUp = new ApiError(409, 'quick_try_files', `Într-o încercare rapidă poți încărca testul și baremul de cel mult ${QUICK_TRY_FILE_CHANGES} ori în total.`);
+    if (test.filesVersion >= QUICK_TRY_FILE_CHANGES && (await isQuickTryTest(c.env.DB, test.id))) throw filesUsedUp;
     const file = await readUpload(c, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
     const key = testFileKey(teacherId, test.summary.schoolYear, test.summary.code, kind, file.name, file.contentType);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
     const stored = { key, name: file.name, type: file.contentType };
     const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, stored, nowIso(), newUploadToken());
     if (saved === null && (await isQuickTryTest(c.env.DB, test.id))) {
-      await deleteFilesQuietly(c.env.FILES, [key]);
-      throw new ApiError(409, 'quick_try_files', `Într-o încercare rapidă poți încărca testul și baremul de cel mult ${QUICK_TRY_FILE_CHANGES} ori în total.`);
+      const kept = test.files[kind];
+      const keptKey = kept ? testFileKey(teacherId, test.summary.schoolYear, test.summary.code, kind, kept.name, kept.type) : null;
+      if (key !== keptKey) await deleteFilesQuietly(c.env.FILES, [key]);
+      throw filesUsedUp;
     }
     // The replaced file is read in the write's own batch: the robot may have
     // saved a generated barem after this route read the test.

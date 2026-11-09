@@ -63,6 +63,22 @@ describe('the file changes of a try', () => {
     expect((await row())!.files_version).toBe(QUICK_TRY_FILE_CHANGES);
   });
 
+  it('keep the stored file when a change past the limit has the same name', async () => {
+    for (let i = 0; i < QUICK_TRY_FILE_CHANGES; i++) expect((await putFile(i % 2 === 0 ? 'test' : 'barem')).status).toBe(200);
+    const before = await api.fetch(`/api/try/${token}/tests/${code}/files/test`);
+    expect(before.status).toBe(200);
+    const kept = await before.text();
+    const res = await api.fetch(`/api/try/${token}/tests/${code}/files/test`, {
+      method: 'PUT',
+      body: pdf('other content'),
+      headers: { 'Content-Type': PDF_TYPE, 'X-File-Name': 'test.pdf' },
+    });
+    expect(res.status).toBe(409);
+    const after = await api.fetch(`/api/try/${token}/tests/${code}/files/test`);
+    expect(after.status).toBe(200);
+    expect(await after.text()).toBe(kept);
+  });
+
   it("do not limit a real teacher's test", async () => {
     const cls = await makeClass(api, '6E2', ['Pop Ion']);
     const own = await makeTest(api, cls.id);
