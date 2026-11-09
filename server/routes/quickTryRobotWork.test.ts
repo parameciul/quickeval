@@ -45,6 +45,14 @@ describe('the barem generation of a try', () => {
     expect(dispatchRobot).toHaveBeenCalledTimes(1);
   });
 
+  it('gives the real reason when the try still had its generation', async () => {
+    await putFile('test');
+    await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE quick_try = 1").run();
+    const res = await generate();
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('not_editable');
+  });
+
   it('is refused once the try has its own barem', async () => {
     await putFile('test');
     await putFile('barem');

@@ -263,7 +263,9 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
       if (!test.files.test) throw new ApiError(409, 'missing_test_file', 'Încarcă testul înainte să generezi baremul.');
-      if (await isQuickTryTest(c.env.DB, test.id)) {
+      // The try's own rule (requestBarem's SQL): no request before and no barem.
+      const generationUsed = test.barem.request !== 'none' || test.barem.unchecked || test.files.barem !== null;
+      if (generationUsed && (await isQuickTryTest(c.env.DB, test.id))) {
         throw new ApiError(409, 'quick_try_barem', 'Într-o încercare rapidă, baremul se generează o singură dată și doar dacă nu ai încărcat unul.');
       }
       throw new ApiError(409, 'not_editable', 'Baremul se poate genera doar înainte de evaluare.');

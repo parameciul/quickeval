@@ -83,6 +83,8 @@ export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const verify = options.verifyTurnstile ?? ((env, token, ip) => verifyTurnstile(env, token, ip));
   const startRobot = robotStarter(options);
   routes.use('*', sameOriginWrites);
+  // No promoteDue here: a try never schedules (evaluate and schedule are not
+  // on the allow-list). A route that schedules must add it first.
 
   routes.get('/availability', async (c) => {
     const teacher = await optionalTeacher(c);

@@ -711,7 +711,9 @@ export async function needsBarem(db: D1Database, testId: number, variant: TestVa
 // because the barem must be checked first; the CES barem holds back only the
 // CES papers, so the schedule stays. False when the test is gone, is not the
 // teacher's, is past the statuses of baremStatuses, or has no test file of the
-// variant. A Quick Try test asks once, and only when it has no barem.
+// variant. A Quick Try test asks here only when it has no barem and never
+// asked before; a new test file can still ask again while a generated barem
+// waits for its check, within the try's QUICK_TRY_FILE_CHANGES.
 export async function requestBarem(db: D1Database, teacherId: number, testId: number, now: string, variant: TestVariant = 'class'): Promise<boolean> {
   const c = columns(variant);
   const row = await db
