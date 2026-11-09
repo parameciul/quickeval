@@ -27,12 +27,12 @@ const fullyChecked = (t: string) => `NOT EXISTS (SELECT 1 FROM submissions s WHE
          FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = ${t}.id AND s.status = 'graded') = 0`;
 
 // The class analysis is asked for only when nothing is left for the teacher to
-// check or decide. Runs just before finishTests, so a test that is fully
+// check or decide, and never for a Quick Try test (one paper, no class). Runs just before finishTests, so a test that is fully
 // checked stays in evaluation until the robot writes the analysis.
 export function askForAnalysis(db: D1Database): D1PreparedStatement {
   return db.prepare(
     `UPDATE tests SET analysis_status = 'requested', analysis_attempts = 0
-     WHERE status = 'evaluating' AND analysis_status = 'none' AND ${fullyChecked('tests')}`,
+     WHERE status = 'evaluating' AND quick_try = 0 AND analysis_status = 'none' AND ${fullyChecked('tests')}`,
   );
 }
 
@@ -44,7 +44,7 @@ export async function askAnalysisAfterCheck(db: D1Database, teacherId: number, s
     .prepare(
       `UPDATE tests SET analysis_status = 'requested', analysis_attempts = 0, updated_at = ?, archived = 0, status = 'evaluating'
        WHERE teacher_id = ? AND id = (SELECT test_id FROM submissions WHERE id = ?)
-         AND status IN ('evaluating', 'done') AND archived = 0 AND analysis_status = 'none' AND ${fullyChecked('tests')}
+         AND status IN ('evaluating', 'done') AND archived = 0 AND quick_try = 0 AND analysis_status = 'none' AND ${fullyChecked('tests')}
        RETURNING id`,
     )
     .bind(now, teacherId, submissionId)
