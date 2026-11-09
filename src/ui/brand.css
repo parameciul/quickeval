@@ -2919,6 +2919,77 @@ input[type="file"] {
   font-size: 1rem;
 }
 
+/* "Test separat pentru elevii cu CES" (spec: CES switch): who the CES students
+   are, and the switch, framed in the blue so the teacher cannot miss it. */
+.ces-switch {
+  max-width: 44rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+}
+
+.ces-switch > p {
+  margin: 0;
+}
+
+.ces-switch-who {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ces-switch-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.6rem 0 0.35rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ces-switch-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* A file of the test: "gata" in green, "lipsește" in orange while a draft or
+   open test needs it. */
+.file-mark {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.file-mark.is-ready {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.file-mark.is-missing {
+  border: 1px solid var(--orange-mark);
+  background: var(--marker);
+  color: var(--orange);
+}
+
+/* What a test still misses, under "Creează testul" and "Începe testul". */
+.missing-list strong {
+  color: var(--orange);
+}
+
+.missing-list ul {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+}
+
 /* The mark of a CES student next to the name. */
 .tag-ces {
   margin-left: 0.4rem;

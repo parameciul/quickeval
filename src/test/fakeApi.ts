@@ -6,7 +6,6 @@ import type {
   BaremGenerateAnswer,
   BaremNotesAnswer,
   CesOffAnswer,
-  CesRemovedAnswer,
   CesVariantInfo,
   ClassReport,
   ClassSummary,
@@ -680,13 +679,6 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       }
       found.ces = off ? noCesVariant({ studentCount: found.ces.studentCount, filesVersion: found.ces.filesVersion + 1, off: true }) : { ...found.ces, off: false };
       return { ces: found.ces, robot: off && found.status === 'evaluating' ? 'dispatched' : null };
-    }),
-    // Like the server: only while no paper went to grading with the CES variant.
-    removeCesVariant: vi.fn(async (code: string): Promise<CesRemovedAnswer> => {
-      const found = findTest(code).test;
-      if (found.ces.papers > 0) throw new ApiError(409, 'ces_papers', 'Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi ștearsă.');
-      found.ces = noCesVariant({ studentCount: found.ces.studentCount, filesVersion: found.ces.filesVersion + 1 });
-      return { ces: found.ces, robot: found.status === 'evaluating' ? 'dispatched' : null };
     }),
     // Like the server: the test keeps its link (a draft made before tests got
     // their link at once gets one now), and a print PDF that still waits is

@@ -5,9 +5,16 @@ import type { TestFileKind, TestVariant } from '../../../shared/files.ts';
 import { testFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { missingOf, type MissingPart } from '../missing.ts';
 import { TestFileInput } from '../TestFileInput.tsx';
 import { useGeneratedBarem } from './GeneratedBarem.tsx';
 import { partsOf } from './variant.ts';
+
+// The part of the missing list (missingOf) that each file is.
+const PART: Record<TestVariant, Record<TestFileKind, MissingPart>> = {
+  class: { test: 'test', barem: 'barem' },
+  ces: { test: 'cesTest', barem: 'cesBarem' },
+};
 
 const NAMES: Record<TestVariant, Record<TestFileKind, { title: string; upload: string; replace: string }>> = {
   class: {
@@ -40,6 +47,7 @@ export function TestFiles({
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const parts = partsOf(test, variant);
+  const missing = missingOf(test);
   const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
   const locked = variant === 'class' && test.status === 'evaluating' && !listBlocked;
   const generated = useGeneratedBarem({ test, variant, onChanged, onRobot });
@@ -49,12 +57,22 @@ export function TestFiles({
     <>
       {locked && <p className="hint">Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.</p>}
       <ul className="file-list">
-        <TestFileRow code={test.code} variant={variant} kind="test" file={parts.files.test} locked={locked} onChanged={onChanged} onRobot={onRobot} />
+        <TestFileRow
+          code={test.code}
+          variant={variant}
+          kind="test"
+          file={parts.files.test}
+          missing={missing.includes(PART[variant].test)}
+          locked={locked}
+          onChanged={onChanged}
+          onRobot={onRobot}
+        />
         <TestFileRow
           code={test.code}
           variant={variant}
           kind="barem"
           file={parts.files.barem}
+          missing={missing.includes(PART[variant].barem)}
           locked={locked}
           onChanged={onChanged}
           onRobot={onRobot}
@@ -72,6 +90,7 @@ function TestFileRow({
   variant,
   kind,
   file,
+  missing,
   locked,
   onChanged,
   onRobot,
@@ -83,6 +102,8 @@ function TestFileRow({
   variant: TestVariant;
   kind: TestFileKind;
   file: TestInfo['files'][TestFileKind];
+  // A draft or open test needs this file (missingOf): an orange mark.
+  missing: boolean;
   locked: boolean;
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
@@ -108,9 +129,14 @@ function TestFileRow({
       <p className="file-title">
         <strong>{names.title}:</strong>{' '}
         {file ? (
-          <a href={testFileUrl(code, kind, variant)} target="_blank" rel="noopener">
-            {file.name}
-          </a>
+          <>
+            <a href={testFileUrl(code, kind, variant)} target="_blank" rel="noopener">
+              {file.name}
+            </a>{' '}
+            <span className="file-mark is-ready">gata</span>
+          </>
+        ) : missing ? (
+          <span className="file-mark is-missing">lipsește</span>
         ) : (
           <span className="hint">lipsește</span>
         )}
