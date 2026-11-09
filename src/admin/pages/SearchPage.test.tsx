@@ -5,7 +5,7 @@ import type { StudentRow } from '../../../shared/api.ts';
 import { createFakeApi, fakeTest } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 
-const student = (id: number, fullName: string): StudentRow => ({ id, fullName, active: true, canDelete: true });
+const student = (id: number, fullName: string): StudentRow => ({ id, fullName, active: true, canDelete: true, ces: false });
 
 function searchApi() {
   const api = createFakeApi({

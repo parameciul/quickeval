@@ -5,6 +5,7 @@ import { displayClassName } from '../../../shared/classes.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { compareStudentNames } from '../../../shared/students.ts';
 import { countLabel, formatDayMonth, uploadStatusLabel } from '../../ui/format.ts';
+import { CesTag } from '../CesTag.tsx';
 import { EmptyState } from '../EmptyState.tsx';
 import { IconClasses, IconTests } from '../shell/icons.tsx';
 import { stagesOf } from '../stages.ts';
@@ -177,6 +178,12 @@ export function GradesTable({
                   <Link to={`/elevi/${student.id}`} state={{ fromClass: classId } satisfies StudentLinkState}>
                     {student.fullName}
                   </Link>
+                  {student.ces && (
+                    <>
+                      {' '}
+                      <CesTag />
+                    </>
+                  )}
                   {!student.active && (
                     <>
                       {' '}

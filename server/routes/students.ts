@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { renameStudentBody } from '../../shared/api.ts';
-import { getStudentHistory, renameClashMessage, renameStudent } from '../db/students.ts';
+import { renameStudentBody, studentCesBody } from '../../shared/api.ts';
+import { getStudentHistory, renameClashMessage, renameStudent, setStudentCes } from '../db/students.ts';
 import type { AppEnv } from '../env.ts';
 import { ApiError, notFound } from '../errors.ts';
 import { parseId, readJson } from '../http.ts';
@@ -17,6 +17,14 @@ export function studentRoutes(): Hono<AppEnv> {
     if (student === 'duplicate') {
       throw new ApiError(409, 'student_exists', await renameClashMessage(c.env.DB, c.var.teacher.id, id, body.fullName));
     }
+    return c.json({ student });
+  });
+
+  // The CES mark: the student gets the CES variant of the tests that have one.
+  routes.put('/:id/ces', async (c) => {
+    const body = await readJson(c, studentCesBody);
+    const student = await setStudentCes(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), body.ces);
+    if (!student) throw notFound();
     return c.json({ student });
   });
 

@@ -121,11 +121,11 @@ describe('students in a class', () => {
 
     const left = await api.request('PATCH', `/api/admin/classes/${created.id}/students/${studentId}`, { active: false });
     expect(left.status).toBe(200);
-    expect(left.body.student).toEqual({ id: studentId, fullName: 'Pop Ion', active: false, canDelete: true });
+    expect(left.body.student).toEqual({ id: studentId, fullName: 'Pop Ion', active: false, canDelete: true, ces: false });
 
     const detail = await api.request('GET', `/api/admin/classes/${created.id}`);
     expect(detail.body.class.studentCount).toBe(0);
-    expect(detail.body.students).toEqual([{ id: studentId, fullName: 'Pop Ion', active: false, canDelete: true }]);
+    expect(detail.body.students).toEqual([{ id: studentId, fullName: 'Pop Ion', active: false, canDelete: true, ces: false }]);
 
     const back = await api.request('PATCH', `/api/admin/classes/${created.id}/students/${studentId}`, { active: true });
     expect(back.body.student.active).toBe(true);

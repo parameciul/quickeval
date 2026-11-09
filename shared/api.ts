@@ -79,6 +79,10 @@ export const setEnrollmentBody = z.object({ active: z.boolean() });
 
 export const renameStudentBody = z.object({ fullName: studentNameSchema });
 
+// The CES mark of a student ("cerințe educaționale speciale"): such a student
+// gets the CES variant of a test that has one.
+export const studentCesBody = z.object({ ces: z.boolean() });
+
 export const testTitleSchema = z
   .string()
   .transform(cleanTitle)
@@ -374,6 +378,9 @@ export interface StudentRow {
   // False when the student has a sent, grading or graded upload in this class's
   // tests: such a student can be marked as left but not deleted.
   canDelete: boolean;
+  // The teacher marked the student as CES: the student gets the CES variant of
+  // a test that has one. For the teacher only.
+  ces: boolean;
 }
 
 // One upload of a student in a test of the class, for the class grade table.

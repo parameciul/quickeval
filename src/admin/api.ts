@@ -76,6 +76,8 @@ export interface AdminApi {
   // Removes the student from the class; refused when the student has sent or graded work there.
   deleteStudent(classId: number, studentId: number): Promise<void>;
   renameStudent(studentId: number, fullName: string): Promise<{ id: number; fullName: string }>;
+  // Marks the student as CES, or takes the mark away.
+  setStudentCes(studentId: number, ces: boolean): Promise<{ id: number; ces: boolean }>;
   getStudentHistory(studentId: number): Promise<StudentHistory>;
   // The students, classes and tests of the year whose name holds the search.
   search(query: string, schoolYear: number): Promise<SearchResults>;
@@ -286,6 +288,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     },
     renameStudent: async (studentId, fullName) =>
       (await request<{ student: { id: number; fullName: string } }>('PATCH', `/students/${studentId}`, { fullName })).student,
+    setStudentCes: async (studentId, ces) =>
+      (await request<{ student: { id: number; ces: boolean } }>('PUT', `/students/${studentId}/ces`, { ces })).student,
     getStudentHistory: (studentId) => request<StudentHistory>('GET', `/students/${studentId}/history`),
     search: (query, schoolYear) => request<SearchResults>('GET', `/search?q=${encodeURIComponent(query)}&year=${schoolYear}`),
     listTests: async (schoolYear) => (await request<{ tests: TestSummary[] }>('GET', `/tests?year=${schoolYear}`)).tests,

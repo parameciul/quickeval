@@ -468,7 +468,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
             : `Elevii ${quoted.join(', ')}${clashes.length > 3 ? ` și încă ${clashes.length - 3}` : ''} sunt deja în clasă.`;
         throw new ApiError(409, 'student_exists', message);
       }
-      const added = names.map((fullName) => ({ id: nextId++, fullName, active: true, canDelete: true }));
+      const added = names.map((fullName) => ({ id: nextId++, fullName, active: true, canDelete: true, ces: false }));
       data.students[classId] = [...(data.students[classId] ?? []), ...added];
       return added;
     }),
@@ -509,6 +509,20 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         if (student) student.fullName = fullName;
       }
       return { id: studentId, fullName };
+    }),
+    // The mark goes with the student, in every class. New rows, as the API
+    // answers with: the page sees the change.
+    setStudentCes: vi.fn(async (studentId: number, ces: boolean) => {
+      let found = false;
+      for (const list of Object.values(data.students)) {
+        const index = list.findIndex((s) => s.id === studentId);
+        if (index >= 0) {
+          list[index] = { ...list[index]!, ces };
+          found = true;
+        }
+      }
+      if (!found) throw notFound();
+      return { id: studentId, ces };
     }),
     getStudentHistory: vi.fn(async (studentId: number) => {
       const found = data.histories?.find((history) => history.student.id === studentId);

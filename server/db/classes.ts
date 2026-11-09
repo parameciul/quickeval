@@ -98,7 +98,7 @@ export async function updateClass(
 export async function listClassStudents(db: D1Database, teacherId: number, classId: number): Promise<StudentRow[]> {
   const { results } = await db
     .prepare(
-      `SELECT s.id, s.full_name, e.active,
+      `SELECT s.id, s.full_name, e.active, s.ces,
          ${noWorkSql('s.id', 'e.class_id')} AS can_delete
        FROM enrollments e
        JOIN classes c ON c.id = e.class_id AND c.teacher_id = ?
@@ -106,9 +106,9 @@ export async function listClassStudents(db: D1Database, teacherId: number, class
        WHERE e.class_id = ?`,
     )
     .bind(teacherId, classId)
-    .all<{ id: number; full_name: string; active: number; can_delete: number }>();
+    .all<{ id: number; full_name: string; active: number; ces: number; can_delete: number }>();
   return results
-    .map((row) => ({ id: row.id, fullName: row.full_name, active: row.active === 1, canDelete: row.can_delete === 1 }))
+    .map((row) => ({ id: row.id, fullName: row.full_name, active: row.active === 1, canDelete: row.can_delete === 1, ces: row.ces === 1 }))
     .sort((a, b) => compareStudentNames(a.fullName, b.fullName));
 }
 

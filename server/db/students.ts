@@ -62,7 +62,7 @@ export async function addStudentsToClass(
     throw err;
   }
   if (inserted === 0) throw await refusedAdd(db, teacherId, classId, names);
-  return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true, canDelete: true }));
+  return rows.map((row) => ({ id: row.id, fullName: row.fullName, active: true, canDelete: true, ces: false }));
 }
 
 // Why an add changed nothing: the class is not the teacher's (404), it is
@@ -108,10 +108,22 @@ export async function setEnrollmentActive(
     .first<{ student_id: number }>();
   if (!row) return null;
   const student = await db
-    .prepare(`SELECT st.full_name, ${noWorkSql('st.id', '?')} AS can_delete FROM students st WHERE st.id = ? AND st.teacher_id = ?`)
+    .prepare(`SELECT st.full_name, st.ces, ${noWorkSql('st.id', '?')} AS can_delete FROM students st WHERE st.id = ? AND st.teacher_id = ?`)
     .bind(classId, studentId, teacherId)
-    .first<{ full_name: string; can_delete: number }>();
-  return { id: studentId, fullName: student!.full_name, active, canDelete: student!.can_delete === 1 };
+    .first<{ full_name: string; ces: number; can_delete: number }>();
+  return { id: studentId, fullName: student!.full_name, active, canDelete: student!.can_delete === 1, ces: student!.ces === 1 };
+}
+
+// Marks the student as CES, or takes the mark away. The mark goes with the
+// student, in every class: it decides the variant of a paper only when the
+// paper first goes to grading, so papers already graded keep theirs. Null when
+// the student is not the teacher's.
+export async function setStudentCes(db: D1Database, teacherId: number, studentId: number, ces: boolean): Promise<{ id: number; ces: boolean } | null> {
+  const row = await db
+    .prepare('UPDATE students SET ces = ? WHERE id = ? AND teacher_id = ? RETURNING id, ces')
+    .bind(ces ? 1 : 0, studentId, teacherId)
+    .first<{ id: number; ces: number }>();
+  return row ? { id: row.id, ces: row.ces === 1 } : null;
 }
 
 // True when the student has no sent, grading or graded upload in the tests of
