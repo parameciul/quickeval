@@ -2986,7 +2986,8 @@ input[type="file"] {
 }
 
 /* A file of the test: "gata" in green, "lipsește" in orange while a draft or
-   open test needs it. */
+   open test needs it, "de verificat" in orange for a generated barem not yet
+   checked. */
 .file-mark {
   display: inline-block;
   margin-left: 0.25rem;

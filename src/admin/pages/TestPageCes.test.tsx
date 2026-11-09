@@ -129,6 +129,29 @@ describe('Varianta CES in Pregătire', () => {
     expect(ces.getByText('lipsește')).toHaveClass('file-mark', 'is-missing');
   });
 
+  it('marks a generated barem that waits to be checked as "de verificat", not "gata"', async () => {
+    renderAdmin(
+      `${PAGE}#pregatire`,
+      apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES, barem: { request: 'none', unchecked: true } }) }),
+    );
+    const ces = await block();
+    expect(ces.getByText('de verificat')).toHaveClass('file-mark', 'is-missing');
+    expect(ces.getAllByText('gata')).toHaveLength(1);
+  });
+
+  it('says the CES barem waits while the class barem is generated', async () => {
+    renderAdmin(
+      `${PAGE}#pregatire`,
+      apiWith({
+        files: { test: FILES.test, barem: null },
+        barem: { request: 'requested', unchecked: false },
+        ces: noCesVariant({ studentCount: 1, files: { test: FILES.test, barem: null }, barem: { request: 'requested', unchecked: false } }),
+      }),
+    );
+    const ces = await block();
+    expect(ces.getByText('Baremul CES se generează după baremul clasei. Durează câteva minute.')).toBeInTheDocument();
+  });
+
   it('stays while it has files, even with no CES student left, and can be removed', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const api = apiWith({ ces: noCesVariant({ files: { test: FILES.test, barem: null } }) });

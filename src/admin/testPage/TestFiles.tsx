@@ -73,6 +73,7 @@ export function TestFiles({
           kind="barem"
           file={parts.files.barem}
           missing={missing.includes(PART[variant].barem)}
+          unchecked={parts.barem.unchecked}
           locked={locked}
           onChanged={onChanged}
           onRobot={onRobot}
@@ -91,6 +92,7 @@ function TestFileRow({
   kind,
   file,
   missing,
+  unchecked = false,
   locked,
   onChanged,
   onRobot,
@@ -104,6 +106,8 @@ function TestFileRow({
   file: TestInfo['files'][TestFileKind];
   // A draft or open test needs this file (missingOf): an orange mark.
   missing: boolean;
+  // A generated barem that waits for the teacher's check: orange, not "gata".
+  unchecked?: boolean;
   locked: boolean;
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
@@ -133,7 +137,7 @@ function TestFileRow({
             <a href={testFileUrl(code, kind, variant)} target="_blank" rel="noopener">
               {file.name}
             </a>{' '}
-            <span className="file-mark is-ready">gata</span>
+            {unchecked ? <span className="file-mark is-missing">de verificat</span> : <span className="file-mark is-ready">gata</span>}
           </>
         ) : missing ? (
           <span className="file-mark is-missing">lipsește</span>
