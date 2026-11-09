@@ -1,5 +1,6 @@
 import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 import type { Teacher } from '../shared/api.ts';
+import type { QuickTryRow } from './db/quickTry.ts';
 import type { EmailMessage } from './email.ts';
 import type { PaidFeatures } from '../shared/payments.ts';
 import type { CreateCheckoutSession } from './payments/stripe.ts';
@@ -22,6 +23,9 @@ export interface Env {
   // secret. Without both, paid features answer 503 payments_off.
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  // Quick Try's Cloudflare Turnstile secret key. Without it, only an
+  // administrator can make a try.
+  TURNSTILE_SECRET_KEY?: string;
 }
 
 // Parts of the app that tests replace.
@@ -33,9 +37,12 @@ export interface AppOptions {
   // The features on sale (default PAID_FEATURES), and the call that makes a Stripe payment page.
   paidFeatures?: PaidFeatures;
   createCheckoutSession?: CreateCheckoutSession;
+  // Checks a Quick Try form's Turnstile answer (default verifyTurnstile).
+  verifyTurnstile?: (env: Env, token: string, ip: string) => Promise<boolean>;
 }
 
 export interface AppEnv {
   Bindings: Env;
-  Variables: { teacher: Teacher };
+  // quickTry: the try of a /api/try/<token> request (routes/quickTry.ts).
+  Variables: { teacher: Teacher; quickTry: QuickTryRow };
 }

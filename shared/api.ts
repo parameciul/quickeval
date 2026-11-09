@@ -112,6 +112,35 @@ export const MAX_BAREM_NOTES_LENGTH = 2000;
 // The teacher checked the generated barem as the page showed it.
 export const baremCheckedBody = z.object({ filesVersion: z.number().int().min(0) });
 
+// Quick Try (spec docs/superpowers/specs/2026-11-09-quick-try-design.md): the
+// form's Turnstile answer. An administrator may send none.
+export const quickTryCreateBody = z.object({ turnstileToken: z.string().max(4096).optional() });
+
+// A new try: the secret part of its link, and its test's code.
+export interface QuickTryCreated {
+  token: string;
+  code: string;
+}
+
+// What the landing page reads before the form: whether today's tries are all
+// used, and whether the visitor is an administrator (who skips the limits).
+export interface QuickTryAvailability {
+  dailyLimitReached: boolean;
+  admin: boolean;
+}
+
+// GET /api/try/<token>: the try's test code and paper, and until when its link works.
+export interface QuickTryInfo {
+  code: string;
+  submissionId: number;
+  expiresAt: string;
+  expired: boolean;
+}
+
+// "Pornește corectarea": the files version of the barem the page showed, when
+// the robot made it (the barem then counts as checked).
+export const quickTryStartBody = z.object({ filesVersion: z.number().int().min(0).optional() });
+
 export const baremNotesBody = z.object({
   notes: z
     .string()

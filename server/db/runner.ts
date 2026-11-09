@@ -45,7 +45,7 @@ function gradableSql(s: string): string {
 export const GRADABLE = gradableSql('s');
 // A test whose class analysis was asked for, with nothing left to grade and at
 // least one graded upload to analyze.
-export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = 'requested'
+export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.quick_try = 0 AND t.analysis_status = 'requested'
   AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status IN ('submitted', 'grading'))
   AND EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = t.id AND g.status = 'graded')`;
 // A draft or open test with an upload link and a test file whose print PDF

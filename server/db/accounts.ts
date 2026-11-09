@@ -364,12 +364,13 @@ export async function adminEmails(db: D1Database): Promise<string[]> {
 }
 
 // Pending accounts first, then by name. A pending account whose email is not
-// confirmed yet is not shown: nobody may approve it.
+// confirmed yet is not shown: nobody may approve it. Quick Try's guest teachers
+// are not accounts.
 export async function listAccounts(db: D1Database): Promise<Account[]> {
   const rows = await db
     .prepare(
       `SELECT ${TEACHER_COLUMNS}, t.status, t.created_at, t.approved_at FROM teachers t
-       WHERE t.status <> 'pending' OR t.email_confirmed_at IS NOT NULL
+       WHERE t.quick_try = 0 AND (t.status <> 'pending' OR t.email_confirmed_at IS NOT NULL)
        ORDER BY CASE t.status WHEN 'pending' THEN 0 ELSE 1 END, t.name COLLATE NOCASE, t.id`,
     )
     .all<AccountRow>();

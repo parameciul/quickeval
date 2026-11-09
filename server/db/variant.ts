@@ -46,11 +46,11 @@ export function noCesGradingSql(variant: TestVariant): string {
 }
 
 // A draft or open test (alias `t`) with an upload link and a test file of the
-// variant whose print PDF is not made yet. A flat condition: the print writes
+// variant whose print PDF is not made yet. A Quick Try test is never printed. A flat condition: the print writes
 // pass the table name for `t`.
 export function needsPrintSql(variant: TestVariant, t = 't'): string {
   const c = columns(variant);
-  return `${t}.status IN ('draft', 'open') AND ${t}.upload_token IS NOT NULL AND ${t}.${c('test_file_key')} IS NOT NULL AND ${t}.${c('print_status')} = 'none'`;
+  return `${t}.status IN ('draft', 'open') AND ${t}.quick_try = 0 AND ${t}.upload_token IS NOT NULL AND ${t}.${c('test_file_key')} IS NOT NULL AND ${t}.${c('print_status')} = 'none'`;
 }
 
 // A test (alias `t`) with a test file of the variant whose barem the teacher

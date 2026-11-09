@@ -12,6 +12,7 @@ import type {
   UploadStatus,
 } from '../../shared/api.ts';
 import { DOCX_TYPE, type TestFileKind, type TestVariant } from '../../shared/files.ts';
+import { QUICK_TRY_FILE_CHANGES } from '../../shared/quickTry.ts';
 import { averageGrade } from '../../shared/stats.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
@@ -604,6 +605,10 @@ export async function setTestArchived(
 // (the caller deletes their objects), or null when the test is gone. The keys
 // are read in the same batch as the write, so a print or a generated barem the
 // robot saves meanwhile is not left in R2.
+// A Quick Try test (table tests) changes its files at most
+// QUICK_TRY_FILE_CHANGES times: each change can make robot work.
+const QUICK_TRY_FILES_LEFT = `(quick_try = 0 OR files_version < ${QUICK_TRY_FILE_CHANGES})`;
+
 export async function saveTestFile(
   db: D1Database,
   teacherId: number,
@@ -625,13 +630,13 @@ export async function saveTestFile(
            ${c('print_status')} = 'none', ${c('print_attempts')} = 0, ${c('print_file_key')} = NULL, upload_token = COALESCE(upload_token, ?),
            ${c('barem_request')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 'requested' ELSE ${c('barem_request')} END,
            ${c('barem_request_attempts')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 0 ELSE ${c('barem_request_attempts')} END
-         WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)}
+         WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)} AND ${QUICK_TRY_FILES_LEFT}
          RETURNING status`
       : `UPDATE tests SET ${on}${c('barem_file_key')} = ?, ${c('barem_file_name')} = ?, ${c('barem_file_type')} = ?, updated_at = ?,
            ${c('files_version')} = ${c('files_version')} + 1,
            ${c('exercise_list_status')} = 'none', ${c('exercise_list_json')} = NULL, ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0,
            ${c('barem_unchecked')} = 0, ${c('barem_request')} = 'none', ${c('barem_request_attempts')} = 0
-         WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)}
+         WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)} AND ${QUICK_TRY_FILES_LEFT}
          RETURNING status`;
   const [before, written] = await db.batch<{ print_file_key?: string | null; replaced_key?: string | null; status?: TestStatus }>([
     db
@@ -706,7 +711,9 @@ export async function needsBarem(db: D1Database, testId: number, variant: TestVa
 // because the barem must be checked first; the CES barem holds back only the
 // CES papers, so the schedule stays. False when the test is gone, is not the
 // teacher's, is past the statuses of baremStatuses, or has no test file of the
-// variant.
+// variant. A Quick Try test asks here only when it has no barem and never
+// asked before; a new test file can still ask again while a generated barem
+// waits for its check, within the try's QUICK_TRY_FILE_CHANGES.
 export async function requestBarem(db: D1Database, teacherId: number, testId: number, now: string, variant: TestVariant = 'class'): Promise<boolean> {
   const c = columns(variant);
   const row = await db
@@ -714,6 +721,7 @@ export async function requestBarem(db: D1Database, teacherId: number, testId: nu
       `UPDATE tests SET ${c('barem_request')} = 'requested', ${c('barem_request_attempts')} = 0,
          ${variant === 'class' ? 'evaluation_at = NULL,' : ''} updated_at = ?
        WHERE id = ? AND teacher_id = ? AND status IN (${baremStatuses(variant)}) AND ${c('test_file_key')} IS NOT NULL ${noCesGradingSql(variant)}
+         AND (quick_try = 0 OR (barem_request = 'none' AND barem_unchecked = 0 AND barem_file_key IS NULL))
        RETURNING id`,
     )
     .bind(now, testId, teacherId)
