@@ -7,6 +7,9 @@ export const QUICK_TRY_IP_LIMIT = 10;
 export const QUICK_TRY_DAILY_LIMIT = 30;
 // A try's link works this many days.
 export const QUICK_TRY_DAYS = 7;
+// A try may change its test and barem files this many times in all (each
+// change can make robot work), and ask the robot for a barem once.
+export const QUICK_TRY_FILE_CHANGES = 6;
 
 // The guest teacher's name, class and student, and the test's title.
 export const QUICK_TRY_GUEST = 'Încercare';

@@ -168,3 +168,9 @@ export async function listPaperFiles(db: D1Database, submissionId: number): Prom
     .all<{ id: number; original_name: string; content_type: string; size: number; position: number }>();
   return rows.results.map((row) => ({ id: row.id, name: row.original_name, contentType: row.content_type, size: row.size, position: row.position }));
 }
+
+// Whether the test is a Quick Try test: its refusals have their own messages.
+export async function isQuickTryTest(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db.prepare('SELECT quick_try FROM tests WHERE id = ?').bind(testId).first<{ quick_try: number }>();
+  return row?.quick_try === 1;
+}

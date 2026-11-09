@@ -21,6 +21,7 @@ import {
   type TestFileAnswer,
 } from '../../shared/api.ts';
 import { isTestFileKind, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
+import { QUICK_TRY_FILE_CHANGES } from '../../shared/quickTry.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
 import { acceptExerciseList,
   blockedByDemoLimit,
@@ -36,6 +37,7 @@ import { acceptExerciseList,
   selectedHaveFiles,
   startEvaluationNow,
 } from '../db/lifecycle.ts';
+import { isQuickTryTest } from '../db/quickTry.ts';
 import { getClassReport } from '../db/report.ts';
 import { setResultsOpen } from '../db/results.ts';
 import { testHasRobotWork } from '../db/runner.ts';
@@ -261,6 +263,9 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
       if (!test.files.test) throw new ApiError(409, 'missing_test_file', 'Încarcă testul înainte să generezi baremul.');
+      if (await isQuickTryTest(c.env.DB, test.id)) {
+        throw new ApiError(409, 'quick_try_barem', 'Într-o încercare rapidă, baremul se generează o singură dată și doar dacă nu ai încărcat unul.');
+      }
       throw new ApiError(409, 'not_editable', 'Baremul se poate genera doar înainte de evaluare.');
     }
     const barem = { request: 'requested', unchecked: test.barem.unchecked } as const;
@@ -439,6 +444,10 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: file.contentType } });
     const stored = { key, name: file.name, type: file.contentType };
     const saved = await saveTestFile(c.env.DB, teacherId, test.id, kind, stored, nowIso(), newUploadToken());
+    if (saved === null && (await isQuickTryTest(c.env.DB, test.id))) {
+      await deleteFilesQuietly(c.env.FILES, [key]);
+      throw new ApiError(409, 'quick_try_files', `Într-o încercare rapidă poți încărca testul și baremul de cel mult ${QUICK_TRY_FILE_CHANGES} ori în total.`);
+    }
     // The replaced file is read in the write's own batch: the robot may have
     // saved a generated barem after this route read the test.
     const replaced = saved?.replacedKey ?? null;
