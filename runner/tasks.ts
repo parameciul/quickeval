@@ -233,25 +233,29 @@ export async function analyzeClass(ctx: TaskContext, testId: number): Promise<Ta
   return end;
 }
 
+// Grades one paper with the files of its variant: a CES paper with the CES
+// test, the CES barem and the CES list, and ces.md in the work folder.
 export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Promise<TaskEnd> {
   const { submissionId, testId, startedAt } = claim;
+  const variant: TestVariant = claim.variant ?? 'class';
   const end = await inWorkFolder(ctx, `grade-${submissionId}`, async (makeFolder) => {
     const sendError = async (error: RobotError) => (await ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: false, error })) === 'failed';
-    const test = await ctx.api.test(testId);
+    const test = await ctx.api.test(testId, variant);
     const list: ExerciseList | null = test.exerciseList;
-    const files = await teacherFiles(ctx, testId, test.files);
+    const files = await teacherFiles(ctx, testId, test.files, variant);
     if (!list || !files) return sendOutcome({ ok: false, problem: 'crash', detail: 'missing list or file' }, async () => undefined, sendError);
     const pages: TaskFile[] = [];
     for (const file of [...claim.files].sort((a, b) => a.position - b.position)) {
       pages.push({ bytes: await ctx.api.page(submissionId, file.id), contentType: file.contentType });
     }
-    const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes, exerciseList: list, pages });
+    const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes, exerciseList: list, pages, ...(variant === 'ces' ? { variant } : {}) });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list).ok);
     return sendOutcome(outcome, (result, model, effort) => ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: true, result, model, effort }),
       sendError,
     );
   });
-  log('grade', { submission: submissionId, test: testId, pages: claim.files.length, end });
+  const fields = { submission: submissionId, test: testId, pages: claim.files.length, end };
+  log('grade', variant === 'ces' ? { ...fields, variant } : fields);
   return end;
 }

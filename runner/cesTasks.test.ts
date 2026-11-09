@@ -11,7 +11,7 @@ import { makeBarem } from './baremTask.ts';
 import type { PrintTools } from './printTask.ts';
 import { makePrint } from './printTask.ts';
 import type { TaskContext } from './tasks.ts';
-import { makeExerciseList } from './tasks.ts';
+import { gradeSubmission, makeExerciseList } from './tasks.ts';
 import { addOpenTest, API_URL, evaluatingTest, fetchFrom, ROBOT_KEY } from './test/robotWorld.ts';
 import { answer, scriptedClaude } from './test/scriptedClaude.ts';
 import { CES_NOTE, type Pandoc } from './workdir.ts';
@@ -176,6 +176,57 @@ describe('makeBarem for the CES variant', () => {
     const claude = scriptedClaude(answer(CES_BAREM));
     expect(await makeBarem(context(claude), open.testId, 'ces')).toBe('saved');
     expect(claude.calls[0]!.files).toEqual(['.claude/skills/evaluate-test/SKILL.md', 'ces.md', 'test/test.pdf']);
+  });
+});
+
+describe('gradeSubmission of a CES paper', () => {
+  it('grades the paper with the CES test, barem and list, and says so in ces.md', async () => {
+    const world = await evaluatingTest({ uploads: 1, pages: 1 });
+    api = world.api;
+    const studentId = (await api.db.prepare('SELECT student_id FROM submissions WHERE id = ?').bind(world.submissionIds[0]).first<{ student_id: number }>())!
+      .student_id;
+    await markCes(api, studentId);
+    const cesList = { ...CLASS_LIST, exercises: [{ ...CLASS_LIST.exercises[0]!, maxPoints: 9 }] };
+    await setTest(
+      world.testId,
+      `exercise_list_json = ?, exercise_list_status = 'ready', ces_exercise_list_json = ?, ces_exercise_list_status = 'ready',
+       ces_test_file_key = 'fixture/ces/test.pdf', ces_test_file_name = 't.pdf', ces_test_file_type = ?,
+       ces_barem_file_key = 'fixture/ces/barem.pdf', ces_barem_file_name = 'b.pdf', ces_barem_file_type = ?, ces_barem_notes = 'Scrisul nu se depunctează.'`,
+      JSON.stringify(CLASS_LIST),
+      JSON.stringify(cesList),
+      PDF_TYPE,
+      PDF_TYPE,
+    );
+    await api.env.FILES.put('fixture/ces/test.pdf', '%PDF-1.7 test CES');
+    await api.env.FILES.put('fixture/ces/barem.pdf', '%PDF-1.7 barem CES');
+    await lease();
+    const claimed = await robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(api), retryDelayMs: 0 }).claim(RUN);
+    expect(claimed).toMatchObject({ submissionId: world.submissionIds[0], variant: 'ces' });
+
+    let seen = { test: '', barem: '', notes: '', list: '' };
+    const claude = scriptedClaude((task) => {
+      seen = {
+        test: readFileSync(path.join(task.cwd, 'test', 'test.pdf'), 'utf8'),
+        barem: readFileSync(path.join(task.cwd, 'barem', 'barem.pdf'), 'utf8'),
+        notes: readFileSync(path.join(task.cwd, 'barem', 'notes.md'), 'utf8'),
+        list: readFileSync(path.join(task.cwd, 'exercises.json'), 'utf8'),
+      };
+      return answer({
+        items: [{ exerciseId: 'I.1', points: 7, studentAnswer: '1', comment: 'Bine.', confidence: 'high', needsReview: false, reviewReason: '', page: 1 }],
+        unreadable: [],
+        summary: 'Bine.',
+        strengths: [],
+        recommendations: ['Exersează.'],
+      });
+    });
+    expect(await gradeSubmission(context(claude), claimed!)).toBe('saved');
+    expect(claude.calls[0]!.files).toContain('ces.md');
+    expect(seen.test).toBe('%PDF-1.7 test CES');
+    expect(seen.barem).toBe('%PDF-1.7 barem CES');
+    expect(seen.notes).toContain('Scrisul nu se depunctează.');
+    expect(JSON.parse(seen.list)).toEqual(cesList);
+    const evaluation = await api.db.prepare('SELECT total, max_total FROM evaluations WHERE submission_id = ?').bind(world.submissionIds[0]).first();
+    expect(evaluation).toEqual({ total: 8, max_total: 10 });
   });
 });
 

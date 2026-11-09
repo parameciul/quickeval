@@ -33,8 +33,16 @@ export function staleBefore(now: string): string {
 // A test in evaluation that waits for its exercise list.
 export const NEEDS_EXERCISE_LIST = `t.status = 'evaluating' AND t.exercise_list_status = 'none'
   AND EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status = 'submitted')`;
-// An upload (s) that can be graded: its test (t) is in evaluation with a usable exercise list.
-export const GRADABLE = `s.status = 'submitted' AND t.status = 'evaluating' AND t.exercise_list_status IN ('ready', 'accepted')`;
+// An upload (alias `s`) of test `t` that can be graded: the test is in
+// evaluation with a usable exercise list of the paper's variant. A CES paper
+// also needs an active CES barem: until then it waits, sent, and the class
+// papers are graded meanwhile.
+function gradableSql(s: string): string {
+  return `${s}.status = 'submitted' AND t.status = 'evaluating' AND CASE ${paperVariantSql(s, 't')}
+    WHEN 'ces' THEN (${baremActiveSql('ces')} AND t.ces_exercise_list_status IN ('ready', 'accepted'))
+    ELSE t.exercise_list_status IN ('ready', 'accepted') END`;
+}
+export const GRADABLE = gradableSql('s');
 // A test whose class analysis was asked for, with nothing left to grade and at
 // least one graded upload to analyze.
 export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.analysis_status = 'requested'
@@ -89,7 +97,7 @@ export async function testHasRobotWork(db: D1Database, testId: number, now: stri
          OR EXISTS (
            SELECT 1 FROM submissions s
            WHERE s.test_id = t.id AND s.status = 'grading' AND t.status = 'evaluating'
-             AND t.exercise_list_status IN ('ready', 'accepted')
+             AND CASE s.variant WHEN 'ces' THEN t.ces_exercise_list_status ELSE t.exercise_list_status END IN ('ready', 'accepted')
              AND NOT EXISTS (SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = s.run_id AND r.heartbeat_at >= ?)))`,
     )
     .bind(testId, staleBefore(now))
@@ -619,8 +627,13 @@ export async function holdsLease(db: D1Database, runId: string): Promise<boolean
 // upload: one that lost the race looks again. A run never takes back an
 // upload that a reopen took from it (reopenTest keeps that run's id): the
 // run's old grading of it may still send a result, which must be refused.
+// The claim writes the paper's variant (paperVariantSql) when it has none yet:
+// from then on the paper keeps it, through a regrade or a retry, whatever
+// happens to the student's CES mark. The claim checks GRADABLE again in its
+// SQL, so a mark that changed since the look still sends no CES paper to the
+// robot before its CES barem is active.
 export async function claimSubmission(db: D1Database, runId: string): Promise<ClaimResult | null> {
-  let claimed: { id: number; test_id: number; started_at: string } | null = null;
+  let claimed: { id: number; test_id: number; started_at: string; variant: TestVariant } | null = null;
   for (let tries = 0; tries < 5 && !claimed; tries++) {
     const { results: waiting } = await db
       .prepare(
@@ -634,12 +647,14 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
     if (!next) return null;
     claimed = await db
       .prepare(
-        `UPDATE submissions SET status = 'grading', run_id = ?
+        `UPDATE submissions SET status = 'grading', run_id = ?,
+           variant = (SELECT ${paperVariantSql('submissions', 't')} FROM tests t WHERE t.id = submissions.test_id)
          WHERE id = ? AND status = 'submitted' AND ${HOLDS_LEASE}
-         RETURNING id, test_id, started_at`,
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND ${gradableSql('submissions')})
+         RETURNING id, test_id, started_at, variant`,
       )
       .bind(runId, next.id, runId)
-      .first<{ id: number; test_id: number; started_at: string }>();
+      .first<{ id: number; test_id: number; started_at: string; variant: TestVariant }>();
     // No row: another claim took it, or the run lost the lease.
     if (!claimed && !(await holdsLease(db, runId))) return null;
   }
@@ -652,6 +667,7 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
     submissionId: claimed.id,
     testId: claimed.test_id,
     startedAt: claimed.started_at,
+    variant: claimed.variant,
     files: results.map((row) => ({ id: row.id, contentType: row.content_type, position: row.position })),
   };
 }
@@ -835,13 +851,18 @@ export async function findRobotFile(db: D1Database, submissionId: number, fileId
   return row ? { key: row.r2_key, contentType: row.content_type } : null;
 }
 
-// An upload as the result route sees it, with the exercise list of its test.
+// An upload as the result route sees it, with the exercise list of its test,
+// the CES variant's for a CES paper.
 export async function findGrading(
   db: D1Database,
   submissionId: number,
 ): Promise<{ status: string; runId: string | null; startedAt: string; exerciseList: ExerciseList | null } | null> {
   const row = await db
-    .prepare('SELECT s.status, s.run_id, s.started_at, t.exercise_list_json FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?')
+    .prepare(
+      `SELECT s.status, s.run_id, s.started_at,
+         CASE WHEN s.variant = 'ces' THEN t.ces_exercise_list_json ELSE t.exercise_list_json END AS exercise_list_json
+       FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?`,
+    )
     .bind(submissionId)
     .first<{ status: string; run_id: string | null; started_at: string; exercise_list_json: string | null }>();
   if (!row) return null;

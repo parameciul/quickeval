@@ -197,5 +197,8 @@ export interface ClaimResult {
   testId: number;
   // The time the upload started: the robot sends it back with the result.
   startedAt: string;
+  // "ces": grade the paper with the CES variant's files and list
+  // (GET /tests/:id?variant=ces). An older API sends none: the class test.
+  variant?: TestVariant;
   files: { id: number; contentType: string; position: number }[];
 }
