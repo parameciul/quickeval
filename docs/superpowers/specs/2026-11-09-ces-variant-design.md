@@ -56,7 +56,7 @@ All the rules of `AGENTS.md`, `server/AGENTS.md`, `runner/AGENTS.md` and `src/AG
 
 ### The CES variant on the test page
 
-- When the class has at least one active CES student, the test page shows an optional "Varianta CES" block. When the class has none, the block is not shown, unless the test already has a CES variant (then it stays, so the teacher can see and remove it).
+- When the class has at least one active CES student, the test page shows an optional "Varianta CES" block. When the class has none, the block is not shown, unless the test already has a CES variant (then it stays, so the teacher can see and remove it). Since the CES switch (`2026-11-09-ces-switch-and-missing-warnings-design.md`), the block holds the switch "Test separat pentru elevii cu CES", on by default; off removes the CES files and replaces "Șterge varianta CES".
 - The block has: the CES test file, the CES barem (upload or "Generează baremul"), the comments for the CES barem, and the CES print PDF.
 - The CES print PDF carries the same QR code and the same upload link as the class print PDF.
 
