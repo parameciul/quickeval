@@ -15,6 +15,16 @@ const CASES: [string, TestSummary, NextStep][] = [
   ['uploads the missing test file', fakeSummary({ prepared: { testFile: false, baremFile: false, print: 'none' } }), page('Încarcă testul')],
   ['uploads the missing barem', fakeSummary({ prepared: { testFile: true, baremFile: false, print: 'ready' } }), page('Încarcă baremul')],
   [
+    'uploads the missing CES test',
+    fakeSummary({ prepared: { ces: { wanted: true, testFile: false, baremFile: false, baremRequest: 'none' } } }),
+    page('Încarcă testul CES'),
+  ],
+  [
+    'uploads the missing CES barem',
+    fakeSummary({ prepared: { ces: { wanted: true, testFile: true, baremFile: false, baremRequest: 'none' } } }),
+    page('Încarcă baremul CES'),
+  ],
+  [
     'waits while the barem is generated',
     fakeSummary({ barem: { request: 'requested', unchecked: false }, prepared: { testFile: true, baremFile: false, print: 'ready' } }),
     null,

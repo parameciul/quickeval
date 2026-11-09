@@ -10,14 +10,32 @@ const graded = { ...started, evaluationStartedAt: '2026-10-07T07:15:00.000Z', su
 // Each case: the test, its bar (d done, w waits on the teacher, n in
 // progress, l later) and its current stage with its state.
 const CASES: [string, TestSummary, string, string][] = [
-  ['a draft without its test file', summary({ prepared: { testFile: false, baremFile: false, print: 'none' } }), 'nlllll', 'Pregătire · lipsește testul'],
+  ['a draft without its test file', summary({ prepared: { testFile: false, baremFile: false, print: 'none' } }), 'wlllll', 'Pregătire · lipsesc testul și baremul'],
   [
     'a draft whose barem is generated',
     summary({ barem: { request: 'requested', unchecked: false }, prepared: { testFile: true, baremFile: false, print: 'none' } }),
     'nnllll',
     'Pregătire · baremul se generează',
   ],
-  ['a draft without a barem, printed', summary({ prepared: { testFile: true, baremFile: false, print: 'ready' } }), 'ndllll', 'Pregătire · lipsește baremul'],
+  ['a draft without a barem, printed', summary({ prepared: { testFile: true, baremFile: false, print: 'ready' } }), 'wdllll', 'Pregătire · lipsește baremul'],
+  [
+    'a draft of a class with a CES student, without the CES files',
+    summary({ prepared: { ces: { wanted: true, testFile: false, baremFile: false, baremRequest: 'none' } } }),
+    'wdllll',
+    'Pregătire · lipsesc testul CES și baremul CES',
+  ],
+  [
+    'a draft of a class with a CES student, the CES barem generated',
+    summary({ prepared: { ces: { wanted: true, testFile: true, baremFile: false, baremRequest: 'requested' } } }),
+    'ddllll',
+    'În clasă · testul nu a început',
+  ],
+  [
+    'an open test whose CES test is missing',
+    summary({ status: 'open', ...started, prepared: { ces: { wanted: true, testFile: false, baremFile: true, baremRequest: 'none' } } }),
+    'wdnlll',
+    'Pregătire · lipsește testul CES',
+  ],
   ['a draft whose generated barem waits', summary({ barem: { request: 'none', unchecked: true } }), 'wdllll', 'Pregătire · baremul de verificat'],
   ['a draft whose new barem failed', summary({ barem: { request: 'failed', unchecked: true } }), 'wdllll', 'Pregătire · baremul nu s-a generat'],
   ['a draft whose print PDF failed', summary({ prepared: { testFile: true, baremFile: true, print: 'failed' } }), 'dnllll', 'Tipărire · nu s-a putut pregăti'],
@@ -56,7 +74,7 @@ const CASES: [string, TestSummary, string, string][] = [
   ],
   ['a done test whose papers were all published one by one', summary({ status: 'done', ...graded, publishedCount: 22 }), 'dddddd', 'Rezultate · publicate'],
   ['a done test without a graded paper', summary({ status: 'done', ...started, submittedCount: 2 }), 'dddddl', 'Rezultate · nicio lucrare corectată'],
-  ['a draft whose first barem generation failed', summary({ barem: { request: 'failed', unchecked: false }, prepared: { testFile: true, baremFile: false, print: 'ready' } }), 'ndllll', 'Pregătire · baremul nu s-a generat'],
+  ['a draft whose first barem generation failed', summary({ barem: { request: 'failed', unchecked: false }, prepared: { testFile: true, baremFile: false, print: 'ready' } }), 'wdllll', 'Pregătire · lipsește baremul'],
   ['an archived test with unpublished results', summary({ status: 'done', ...graded, archived: true }), 'dddddl', 'Rezultate · nepublicate'],
   ['an archived test published for some students', summary({ status: 'done', ...graded, archived: true, publishedCount: 3 }), 'dddddl', 'Rezultate · publicate pentru 3 elevi'],
   ['an archived test whose points still wait', summary({ status: 'done', ...graded, flagCount: 2, archived: true }), 'ddddnl', 'Verificare · 2 puncte nesigure'],

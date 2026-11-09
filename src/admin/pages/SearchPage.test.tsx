@@ -68,7 +68,7 @@ describe('the search results page', () => {
     const tests = screen.getByRole('table', { name: 'Teste' });
     expect(within(tests).getAllByRole('row').map((row) => row.textContent)).toEqual([
       'Teorema lui StewartClasa 9A · arhivatRezultate · publicate',
-      'Ștergerea fracțiilorClasa 10B · ciornăPregătire · lipsește testul',
+      'Ștergerea fracțiilorClasa 10B · ciornăPregătire · lipsesc testul și baremul',
     ]);
     expect(within(tests).getByRole('link', { name: 'Teorema lui Stewart' })).toHaveAttribute('href', '/teste/9A-26T1');
   });

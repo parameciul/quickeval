@@ -1,5 +1,7 @@
 import type { TestSummary } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
+import { missingName, missingOf } from '../missing.ts';
+import { MISSING_TASK, todoOf } from '../shell/todo.ts';
 import { reviewPath } from '../reviewPage/points.ts';
 import { stageHash, type Stage } from '../stages.ts';
 
@@ -14,10 +16,14 @@ export function nextStep(test: TestSummary, current: Stage): NextStep {
   const page = `/teste/${test.code}`;
   const link = (label: string, to = page): NextStep => ({ kind: 'link', label, to });
   switch (current.name) {
-    case 'Pregătire':
+    case 'Pregătire': {
+      // What "De făcut" asks: a part the test misses, the first one first.
+      const missing = missingOf(test);
+      if (current.state === 'wait' && todoOf(test)?.task === MISSING_TASK) return link(`Încarcă ${missingName(missing[0]!)}`);
       if (current.state === 'wait') return link(test.barem.request === 'failed' ? 'Generează din nou baremul' : 'Verifică baremul');
       if (!test.prepared.testFile) return link('Încarcă testul');
       return test.barem.request === 'requested' ? null : link('Încarcă baremul');
+    }
     case 'Tipărire':
       return test.prepared.print === 'failed' || !test.prepared.uploadLink ? link('Deschide') : null;
     case 'În clasă':

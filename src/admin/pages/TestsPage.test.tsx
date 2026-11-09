@@ -50,7 +50,7 @@ describe('TestsPage', () => {
 
     const draft = rowOf('Fracții');
     expect(within(draft).getByText('Clasa 6E2 · ciornă')).toBeInTheDocument();
-    expect(stageText(draft)).toHaveTextContent('Pregătire · lipsește testul');
+    expect(stageText(draft)).toHaveTextContent('Pregătire · lipsesc testul și baremul');
     expect(within(draft).getByText('—')).toBeInTheDocument();
     expect(screen.queryByText('Anul viitor')).not.toBeInTheDocument();
     expect(api.listTests).toHaveBeenCalledWith(2026);
@@ -221,7 +221,9 @@ describe('TestsPage, what waits', () => {
   });
 
   it('says so when nothing waits, with no button', async () => {
-    renderAdmin('/', createFakeApi({ classes: oneClass, students: {}, tests: [fakeTest({ code: '6E2-26T1', title: 'Fracții' })] }));
+    const file = { name: 'f.pdf', type: 'application/pdf' };
+    const ready = fakeTest({ code: '6E2-26T1', title: 'Fracții', files: { test: file, barem: file } });
+    renderAdmin('/', createFakeApi({ classes: oneClass, students: {}, tests: [ready] }));
     expect(await screen.findByText(/Nimic nu te așteaptă acum\./)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /te așteaptă/ })).not.toBeInTheDocument();
   });
