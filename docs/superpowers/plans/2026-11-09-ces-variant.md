@@ -30,7 +30,7 @@
 - **Create** `path`: the file is new; write exactly the content given.
 - **Edit** `path`: find the first block in the file (it occurs once) and put the second block in its place; change nothing else. A task's Edit steps for one file run in the order given.
 - The expected test totals are exact. If a run shows other numbers or other errors, stop and report.
-- The tested prototype of this plan is in the repo as `refs/protoces/g1` … `refs/protoces/g8`, one per task, on `refs/protoces/gbase` (the same files as `feature/ces-variant` at `08a5db1`). After Task N, `git diff --stat refs/protoces/gN HEAD -- . ':!docs/superpowers/plans'` prints nothing.
+- The tested prototype of this plan is in the repo as `refs/protoces/g1` … `refs/protoces/g9`, one per task, on `refs/protoces/gbase` (the same files as `feature/ces-variant` at `08a5db1`). After Task N, `git diff --stat refs/protoces/gN HEAD -- . ':!docs/superpowers/plans'` prints nothing.
 - The totals below are for a PC with pandoc. The steady `1 skipped` file and `3 skipped` tests are the print container (`runner/print/container.test.ts`, run only with `QE_PRINT_IMAGE_TESTS=1`). Four tests run the real pandoc (`runner/baremDocx.test.ts`, `runner/baremTask.test.ts`, `runner/workdir.test.ts`): without pandoc they skip too, so every total shows 4 fewer passed and 4 more skipped.
 
 ## Rulings made while planning
@@ -45,7 +45,7 @@ Settled while building the prototype on 2026-11-09. Every action that works toda
 6. **The skill's CES reference** (`references/barem-example-ces.md`) is built from the teacher's two Word files with pandoc: the whole test without the class letter and the date, and only the barem's "Reguli de notare" and table (with the "Observații"), without the student's name; the rule "dacă elevul îl clarifică oral" is dropped (the robot cannot hear the student). The plan gives the file whole.
 7. **Totals.** A CES barem always totals 90 + 10 (the user's answer). The CES block warns when the CES list's total differs from the class list's (100 when the class list is not made yet); it does not block grading.
 8. **Tables.** The CES mark (`CesTag`) shows in every teacher table that lists students; the student mark or a paper of the CES variant shows it. Tables of the final score only (the class page) keep one column. The class report splits the CES papers into their own table only when their exercises are not the class ones (`sameExercises`: the same ids, each with the same maximum); its per-exercise statistics follow the tables; the grades (average, median, groups) stay the whole class's. The CSV puts the CES rows in a block of their own after an empty line, with their own header, and never writes "CES".
-9. **Not built yet** (the user is asked before this plan runs): the CES mark in the review queue (`/teste/:code/verificare`), in the search results and on the student page's header (the spec asks for it in every teacher table that lists students); the CES files in Fișa testului; and a generated CES barem that waits for its check in "De făcut" (the class barem is there).
+9. **The other lists, and "De făcut"** (Task 9, added at the user's request after the first draft): the CES mark also shows in the review queue, in the search and in the student page's heading; Fișa testului lists the CES files; and "De făcut" asks to check a generated CES barem (or to generate it again) after the class barem's case, in draft, open and evaluating, so Pregătire turns orange.
 10. **The paper's pages need no variant.** The paper page, the review and the student's PDF show the graded items and the pages, never the test or the barem file, so a CES paper shows nothing of the class test there.
 
 ## Review Focus
@@ -11108,16 +11108,830 @@ git add AGENTS.md server/AGENTS.md runner/AGENTS.md src/AGENTS.md docs/superpowe
 git commit -m "Write down the CES variant in the AGENTS.md files and the spec"
 ```
 
-### Task 9: Check, live database, push (main session only)
+### Task 9: Show the CES mark in the review, the search and the student page, the CES files in Fișa testului, and the CES barem in De făcut
+
+The places the first eight tasks leave out (ruling 9): the CES mark in the review queue, in the search (the list under the box and the results page) and in the student page's heading; the CES files and the CES print PDF in Fișa testului; and "De făcut" asks to check a generated CES barem, or to generate it again (`TestSummary.cesBarem`), after the class barem's case and until the test is done, so the stage Pregătire turns orange.
+
+**Files:**
+- Create: `src/admin/cesMarks.test.tsx`
+- Modify: `shared/api.ts`, `server/db/tests.ts`, `server/db/search.ts`, `server/db/students.ts`, `src/admin/shell/todo.ts`, `src/admin/reviewPage/ReviewQueue.tsx`, `src/admin/search/SearchBox.tsx`, `src/admin/pages/SearchPage.tsx`, `src/admin/pages/StudentPage.tsx`, `src/admin/testPage/TestSheet.tsx`, `src/test/fakeApi.ts`, `src/AGENTS.md`
+- Test: `src/admin/cesMarks.test.tsx`, `src/admin/shell/todo.test.ts`, `server/routes/cesVariant.test.ts`, `server/routes/search.test.ts`, `server/routes/studentHistory.test.ts`, `src/admin/pages/ClassPage.test.tsx`, `src/admin/pages/StudentPage.test.tsx` (the history fixtures get `ces: false`)
+
+**Interfaces:**
+- Consumes: Task 1's `CesTag` and `StudentRow.ces`; Task 2's `noCesVariant`, `testFileUrl(…, 'ces')`, `printFileUrl(…, 'ces')`; Task 6's `UploadRow.ces` and `UploadRow.variant`.
+- Produces: `SearchStudent.ces: boolean`; `StudentHistory.student.ces: boolean`; `TestSummary.cesBarem: { request: BaremRequest; unchecked: boolean } | null` (null while the test has no CES test file).
+
+- [ ] **Step 1: Create `src/admin/cesMarks.test.tsx`**
+
+```tsx
+import { screen, within } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import type { StudentHistory } from '../../shared/api.ts';
+import { PDF_TYPE } from '../../shared/files.ts';
+import { createFakeApi, fakeTest, fakeUpload, noCesVariant } from '../test/fakeApi.ts';
+import { renderAdmin } from '../test/renderAdmin.tsx';
+
+// The CES mark in the teacher's other lists of students (spec: CES variant),
+// and the CES files in Fișa testului.
+
+const student = (id: number, fullName: string, ces = false) => ({ id, fullName, active: true, canDelete: true, ces });
+
+describe('the CES mark', () => {
+  it('shows in the review queue', async () => {
+    const uploads = [
+      fakeUpload({ studentId: 1, studentName: 'Bursașiu Teodor', submissionId: 11, status: 'graded', grade: 8, flagCount: 1, ces: true, variant: 'ces' }),
+      fakeUpload({ studentId: 2, studentName: 'Ene Ana', submissionId: 12, status: 'graded', grade: 7, flagCount: 1 }),
+    ];
+    renderAdmin('/teste/6E2-26T1/verificare', createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, uploads)] }));
+    const queue = within(await screen.findByRole('navigation', { name: 'Lucrările' }));
+    expect(within(queue.getByRole('link', { name: /^Bursașiu Teodor/ })).getByText('CES')).toBeInTheDocument();
+    expect(within(queue.getByRole('link', { name: /^Ene Ana/ })).queryByText('CES')).not.toBeInTheDocument();
+  });
+
+  it('shows in the search results', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '9R2', schoolYear: 2026, archived: false, studentCount: 2 }],
+      students: { 1: [student(10, 'Bursașiu Teodor', true), student(11, 'Bursuc Ana')] },
+      tests: [],
+    });
+    renderAdmin('/cautare?q=burs', api);
+    const row = (await screen.findByRole('rowheader', { name: /Bursașiu Teodor/ })).closest('tr')!;
+    expect(within(row).getByText('CES')).toHaveAttribute('title', 'Cerințe educaționale speciale');
+    expect(within(screen.getByRole('rowheader', { name: /Bursuc Ana/ })).queryByText('CES')).not.toBeInTheDocument();
+  });
+
+  it("shows on the student's page", async () => {
+    const history: StudentHistory = {
+      student: { id: 10, fullName: 'Bursașiu Teodor', ces: true },
+      classes: [{ id: 1, name: '9R2', schoolYear: 2026, active: true }],
+      tests: [],
+      grades: [],
+    };
+    renderAdmin('/elevi/10', createFakeApi({ classes: [], students: {}, histories: [history] }));
+    const heading = await screen.findByRole('heading', { level: 1, name: /Bursașiu Teodor/ });
+    expect(within(heading).getByText('CES')).toBeInTheDocument();
+  });
+});
+
+describe('Fișa testului', () => {
+  it('lists the CES files and the CES print PDF', async () => {
+    const file = { name: 'Test adaptat.pdf', type: PDF_TYPE };
+    const test = fakeTest({
+      files: { test: { name: 'test.pdf', type: PDF_TYPE }, barem: null },
+      ces: noCesVariant({ studentCount: 1, files: { test: file, barem: { name: 'Barem adaptat.pdf', type: PDF_TYPE } }, print: { status: 'ready', fromWord: false } }),
+    });
+    renderAdmin('/teste/6E2-26T1', createFakeApi({ classes: [], students: {}, tests: [test] }));
+    const sheet = within(await screen.findByRole('region', { name: 'Fișa testului' }));
+    expect(sheet.getByRole('link', { name: 'Testul CES' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/test');
+    expect(sheet.getByRole('link', { name: 'Baremul CES' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/barem');
+    expect(sheet.getByRole('link', { name: 'Testul CES cu cod QR' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/print');
+  });
+
+  it('lists no CES file without a CES variant', async () => {
+    renderAdmin('/teste/6E2-26T1', createFakeApi({ classes: [], students: {}, tests: [fakeTest()] }));
+    const sheet = within(await screen.findByRole('region', { name: 'Fișa testului' }));
+    expect(sheet.queryByRole('link', { name: /CES/ })).not.toBeInTheDocument();
+  });
+});
+```
+
+- [ ] **Step 2: Edit `src/admin/shell/todo.test.ts`**
+
+Find this block:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import type { TestSummary } from '../../../shared/api.ts';
+import { fakeTest } from '../../test/fakeApi.ts';
+import { inWork, todoList, todoOf, todoPath } from './todo.ts';
+```
+
+Replace it with:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import type { TestInfo, TestSummary } from '../../../shared/api.ts';
+import { fakeTest, noCesVariant } from '../../test/fakeApi.ts';
+import { stagesOf } from '../stages.ts';
+import { inWork, todoList, todoOf, todoPath } from './todo.ts';
+```
+
+- [ ] **Step 3: Edit `src/admin/shell/todo.test.ts`**
+
+Find this block:
+
+```ts
+    expect(inWork(summary({ ...graded, flagCount: 2, archived: true }))).toBe(false);
+  });
+});
+```
+
+Replace it with:
+
+```ts
+    expect(inWork(summary({ ...graded, flagCount: 2, archived: true }))).toBe(false);
+  });
+});
+
+describe('the CES barem in "De făcut"', () => {
+  const withCes = (overrides: Partial<TestInfo>): TestSummary => fakeTest({ title: 'Ecuații', ...overrides }).test;
+  const ces = (barem: { request: 'none' | 'requested' | 'failed'; unchecked: boolean }) =>
+    noCesVariant({ studentCount: 1, files: { test: { name: 't.pdf', type: 'application/pdf' }, barem: null }, barem });
+
+  it('asks to check a generated CES barem, also during the evaluation, and marks Pregătire', () => {
+    for (const status of ['draft', 'open', 'evaluating'] as const) {
+      const test = withCes({ status, ces: ces(generated) });
+      expect(todoOf(test)).toMatchObject({
+        stage: 'Pregătire',
+        task: 'Verifică baremul CES generat',
+        text: 'Până îl confirmi, lucrările CES nu se corectează.',
+        short: 'baremul CES de verificat',
+      });
+      expect(stagesOf(test).stages[0]).toMatchObject({ name: 'Pregătire', state: 'wait', note: 'baremul CES de verificat' });
+    }
+  });
+
+  it('asks to generate the CES barem again when its new generation failed', () => {
+    expect(todoOf(withCes({ status: 'evaluating', ces: ces({ request: 'failed', unchecked: true }) }))).toMatchObject({
+      task: 'Generează din nou baremul CES',
+      short: 'baremul CES nu s-a generat',
+    });
+  });
+
+  it('asks for the class barem first, and nothing once the test is done or while the CES barem is made', () => {
+    expect(todoOf(withCes({ status: 'open', barem: generated, ces: ces(generated) }))?.task).toBe('Verifică baremul generat');
+    expect(todoOf(withCes({ ...graded, resultsOpen: true, ces: ces(generated) }))).toBeNull();
+    expect(todoOf(withCes({ status: 'open', ces: ces({ request: 'requested', unchecked: true }) }))).toBeNull();
+    // No CES test file: no CES variant to ask about.
+    expect(todoOf(withCes({ status: 'open', ces: noCesVariant({ barem: generated }) }))).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 4: Edit `server/routes/cesVariant.test.ts`**
+
+Find this block:
+
+```ts
+    ]);
+  });
+```
+
+Replace it with:
+
+```ts
+    ]);
+  });
+
+  it('gives the CES barem to the tests list once the test has a CES test file, and the CES mark to search and history', async () => {
+    const list = async () => (await api.request('GET', '/api/admin/tests?year=2026')).body.tests[0].cesBarem;
+    expect(await list()).toBeNull();
+    await addCesFiles(api, code, ['test', 'barem']);
+    await setTest("ces_barem_unchecked = 1");
+    expect(await list()).toEqual({ request: 'none', unchecked: true });
+
+    await markCes(api, students[0]!);
+    const search = await api.request('GET', '/api/admin/search?q=burs&year=2026');
+    expect(search.body.students.map((s: { fullName: string; ces: boolean }) => [s.fullName, s.ces])).toEqual([['Bursașiu Teodor', true]]);
+    const history = await api.request('GET', `/api/admin/students/${students[0]}/history`);
+    expect(history.body.student).toMatchObject({ fullName: 'Bursașiu Teodor', ces: true });
+  });
+```
+
+- [ ] **Step 5: Edit `server/routes/search.test.ts`**
+
+Find this block:
+
+```ts
+    expect(res.body.students.map((s: { fullName: string }) => s.fullName)).toEqual(['Ioana Stefănescu', 'Ștefan Radu', 'Ştefania Pop']);
+    expect(res.body.students[1]).toEqual({ id: tenth.studentIds[0], fullName: 'Ștefan Radu', classes: [{ id: tenth.id, name: '10B' }], lastGrade: null });
+    expect(res.body.classes).toEqual([]);
+```
+
+Replace it with:
+
+```ts
+    expect(res.body.students.map((s: { fullName: string }) => s.fullName)).toEqual(['Ioana Stefănescu', 'Ștefan Radu', 'Ştefania Pop']);
+    expect(res.body.students[1]).toEqual({ id: tenth.studentIds[0], fullName: 'Ștefan Radu', ces: false, classes: [{ id: tenth.id, name: '10B' }], lastGrade: null });
+    expect(res.body.classes).toEqual([]);
+```
+
+- [ ] **Step 6: Edit `server/routes/studentHistory.test.ts`**
+
+Find this block:
+
+```ts
+    expect(res.status).toBe(200);
+    expect(res.body.student).toEqual({ id: studentId, fullName: 'Pop Ion' });
+    expect(res.body.classes).toEqual([
+```
+
+Replace it with:
+
+```ts
+    expect(res.status).toBe(200);
+    expect(res.body.student).toEqual({ id: studentId, fullName: 'Pop Ion', ces: false });
+    expect(res.body.classes).toEqual([
+```
+
+- [ ] **Step 7: Edit `src/admin/pages/ClassPage.test.tsx`**
+
+Find this block:
+
+```tsx
+      {
+        student: { id: 10, fullName: 'Pop Ion' },
+        classes: [
+```
+
+Replace it with:
+
+```tsx
+      {
+        student: { id: 10, fullName: 'Pop Ion', ces: false },
+        classes: [
+```
+
+- [ ] **Step 8: Edit `src/admin/pages/StudentPage.test.tsx`**
+
+Find this block:
+
+```tsx
+const history: StudentHistory = {
+  student: { id: 10, fullName: 'Pop Ion' },
+  classes: [
+```
+
+Replace it with:
+
+```tsx
+const history: StudentHistory = {
+  student: { id: 10, fullName: 'Pop Ion', ces: false },
+  classes: [
+```
+
+- [ ] **Step 9: Edit `src/test/fakeApi.ts`**
+
+Find this block:
+
+```ts
+      },
+      averageGrade: averageGrade(grades),
+```
+
+Replace it with:
+
+```ts
+      },
+      cesBarem: test.ces.files.test === null ? null : { request: test.ces.barem.request, unchecked: test.ces.barem.unchecked },
+      averageGrade: averageGrade(grades),
+```
+
+- [ ] **Step 10: Edit `src/test/fakeApi.ts`**
+
+Find this block:
+
+```ts
+      prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
+      averageGrade: null,
+```
+
+Replace it with:
+
+```ts
+      prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false },
+      cesBarem: null,
+      averageGrade: null,
+```
+
+- [ ] **Step 11: Edit `src/test/fakeApi.ts`**
+
+Find this block:
+
+```ts
+    prepared: { testFile: true, baremFile: true, print: 'ready', uploadLink: true, ...prepared },
+    averageGrade: null,
+```
+
+Replace it with:
+
+```ts
+    prepared: { testFile: true, baremFile: true, print: 'ready', uploadLink: true, ...prepared },
+    cesBarem: null,
+    averageGrade: null,
+```
+
+- [ ] **Step 12: Edit `src/test/fakeApi.ts`**
+
+Find this block:
+
+```ts
+        for (const student of (data.students[cls.id] ?? []).filter((s) => s.active && matches(s.fullName))) {
+          const found = students.get(student.id) ?? { id: student.id, fullName: student.fullName, classes: [], lastGrade: null };
+          found.classes.push({ id: cls.id, name: cls.name });
+```
+
+Replace it with:
+
+```ts
+        for (const student of (data.students[cls.id] ?? []).filter((s) => s.active && matches(s.fullName))) {
+          const found = students.get(student.id) ?? { id: student.id, fullName: student.fullName, ces: student.ces, classes: [], lastGrade: null };
+          found.classes.push({ id: cls.id, name: cls.name });
+```
+
+- [ ] **Step 13: Run the new tests to see them fail**
+
+Run: `npx vitest run src/admin/cesMarks.test.tsx src/admin/shell/todo.test.ts server/routes/cesVariant.test.ts server/routes/search.test.ts server/routes/studentHistory.test.ts src/admin/pages/ClassPage.test.tsx src/admin/pages/StudentPage.test.tsx`
+Expected: FAIL. `Test Files  5 failed | 2 passed (7)`, `Tests  9 failed | 101 passed (110)`: the tests list has no `cesBarem` (`expected undefined to be null`), the search and the history have no `ces`, the review queue, the search page and the student page show no "CES", Fișa testului has no "Testul CES", and "De făcut" asks nothing for the CES barem (`expected null to match object`).
+
+- [ ] **Step 14: Edit `shared/api.ts`**
+
+Find this block:
+
+```ts
+export interface StudentHistory {
+  student: { id: number; fullName: string };
+  classes: StudentClass[];
+```
+
+Replace it with:
+
+```ts
+export interface StudentHistory {
+  student: { id: number; fullName: string; ces: boolean };
+  classes: StudentClass[];
+```
+
+- [ ] **Step 15: Edit `shared/api.ts`**
+
+Find this block:
+
+```ts
+  fullName: string;
+  classes: { id: number; name: string }[];
+```
+
+Replace it with:
+
+```ts
+  fullName: string;
+  // The teacher marked the student as CES.
+  ces: boolean;
+  classes: { id: number; name: string }[];
+```
+
+- [ ] **Step 16: Edit `shared/api.ts`**
+
+Find this block:
+
+```ts
+  prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus; uploadLink: boolean };
+  // The average of the graded papers, as the class report gives it; null
+```
+
+Replace it with:
+
+```ts
+  prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus; uploadLink: boolean };
+  // The CES variant's barem, while the test has a CES test file: "De făcut"
+  // asks the teacher to check a generated one. Null with no CES variant.
+  cesBarem: { request: BaremRequest; unchecked: boolean } | null;
+  // The average of the graded papers, as the class report gives it; null
+```
+
+- [ ] **Step 17: Edit `server/db/tests.ts`**
+
+Find this block:
+
+```ts
+      },
+      // The grades of the class report's rows, averaged the same way.
+```
+
+Replace it with:
+
+```ts
+      },
+      cesBarem: row.ces_test_file_key === null ? null : { request: row.ces_barem_request, unchecked: row.ces_barem_unchecked === 1 },
+      // The grades of the class report's rows, averaged the same way.
+```
+
+- [ ] **Step 18: Edit `server/db/search.ts`**
+
+Find this block:
+
+```ts
+  full_name: string;
+  class_id: number;
+```
+
+Replace it with:
+
+```ts
+  full_name: string;
+  ces: number;
+  class_id: number;
+```
+
+- [ ] **Step 19: Edit `server/db/search.ts`**
+
+Find this block:
+
+```ts
+      .prepare(
+        `SELECT s.id, s.full_name, c.id AS class_id, c.name AS class_name, e.active
+         FROM enrollments e
+```
+
+Replace it with:
+
+```ts
+      .prepare(
+        `SELECT s.id, s.full_name, s.ces, c.id AS class_id, c.name AS class_name, e.active
+         FROM enrollments e
+```
+
+- [ ] **Step 20: Edit `server/db/search.ts`**
+
+Find this block:
+
+```ts
+  const grades = new Map(((latest?.results ?? []) as { student_id: number; grade: number }[]).map((row) => [row.student_id, row.grade]));
+  const students = new Map<number, { fullName: string; active: SearchStudent['classes']; left: SearchStudent['classes'] }>();
+  for (const row of (enrolled?.results ?? []) as unknown as EnrolledRow[]) {
+    if (!students.has(row.id) && !matches(row.full_name)) continue;
+    const student = students.get(row.id) ?? { fullName: row.full_name, active: [], left: [] };
+    (row.active === 1 ? student.active : student.left).push({ id: row.class_id, name: row.class_name });
+```
+
+Replace it with:
+
+```ts
+  const grades = new Map(((latest?.results ?? []) as { student_id: number; grade: number }[]).map((row) => [row.student_id, row.grade]));
+  const students = new Map<number, { fullName: string; ces: boolean; active: SearchStudent['classes']; left: SearchStudent['classes'] }>();
+  for (const row of (enrolled?.results ?? []) as unknown as EnrolledRow[]) {
+    if (!students.has(row.id) && !matches(row.full_name)) continue;
+    const student = students.get(row.id) ?? { fullName: row.full_name, ces: row.ces === 1, active: [], left: [] };
+    (row.active === 1 ? student.active : student.left).push({ id: row.class_id, name: row.class_name });
+```
+
+- [ ] **Step 21: Edit `server/db/search.ts`**
+
+Find this block:
+
+```ts
+      fullName: student.fullName,
+      classes: (student.active.length > 0 ? student.active : student.left).sort((a, b) => compareClassNames(a.name, b.name)),
+```
+
+Replace it with:
+
+```ts
+      fullName: student.fullName,
+      ces: student.ces,
+      classes: (student.active.length > 0 ? student.active : student.left).sort((a, b) => compareClassNames(a.name, b.name)),
+```
+
+- [ ] **Step 22: Edit `server/db/students.ts`**
+
+Find this block:
+
+```ts
+  const [student, classes, tests, grades] = await db.batch<Record<string, unknown>>([
+    db.prepare('SELECT id, full_name FROM students WHERE id = ? AND teacher_id = ?').bind(studentId, teacherId),
+    db
+```
+
+Replace it with:
+
+```ts
+  const [student, classes, tests, grades] = await db.batch<Record<string, unknown>>([
+    db.prepare('SELECT id, full_name, ces FROM students WHERE id = ? AND teacher_id = ?').bind(studentId, teacherId),
+    db
+```
+
+- [ ] **Step 23: Edit `server/db/students.ts`**
+
+Find this block:
+
+```ts
+  ]);
+  const row = student?.results[0] as { id: number; full_name: string } | undefined;
+  if (!row) return null;
+  return {
+    student: { id: row.id, fullName: row.full_name },
+    classes: ((classes?.results ?? []) as { id: number; name: string; school_year: number; active: number }[]).map(
+```
+
+Replace it with:
+
+```ts
+  ]);
+  const row = student?.results[0] as { id: number; full_name: string; ces: number } | undefined;
+  if (!row) return null;
+  return {
+    student: { id: row.id, fullName: row.full_name, ces: row.ces === 1 },
+    classes: ((classes?.results ?? []) as { id: number; name: string; school_year: number; active: number }[]).map(
+```
+
+- [ ] **Step 24: Edit `src/admin/shell/todo.ts`**
+
+Find this block:
+
+```ts
+// generated barem waits to be checked, or its new generation failed (it can
+// be neither confirmed nor used until the teacher asks for it again).
+export function todoOf(test: TestSummary): TodoItem | null {
+```
+
+Replace it with:
+
+```ts
+// generated barem waits to be checked, or its new generation failed (it can
+// be neither confirmed nor used until the teacher asks for it again). The
+// generated CES barem of the CES variant counts the same way, after the
+// class barem, also while the test is in evaluation (its CES papers wait).
+export function todoOf(test: TestSummary): TodoItem | null {
+```
+
+- [ ] **Step 25: Edit `src/admin/shell/todo.ts`**
+
+Find this block:
+
+```ts
+      short: 'baremul nu s-a generat',
+    };
+```
+
+Replace it with:
+
+```ts
+      short: 'baremul nu s-a generat',
+    };
+  }
+  const ces = test.status !== 'done' && test.cesBarem !== null && test.cesBarem.unchecked ? test.cesBarem : null;
+  if (ces && ces.request === 'none') {
+    return {
+      ...item,
+      stage: 'Pregătire',
+      task: 'Verifică baremul CES generat',
+      text: 'Până îl confirmi, lucrările CES nu se corectează.',
+      action: 'Deschide',
+      short: 'baremul CES de verificat',
+    };
+  }
+  if (ces && ces.request === 'failed') {
+    return {
+      ...item,
+      stage: 'Pregătire',
+      task: 'Generează din nou baremul CES',
+      text: 'Baremul CES nu s-a putut genera din nou. Fără el, lucrările CES nu se corectează.',
+      action: 'Deschide',
+      short: 'baremul CES nu s-a generat',
+    };
+```
+
+- [ ] **Step 26: Edit `src/admin/reviewPage/ReviewQueue.tsx`**
+
+Find this block:
+
+```tsx
+import { countLabel } from '../../ui/format.ts';
+import { pointKey, pointName, reviewPath, type GradedRow, type ReviewSpot } from './points.ts';
+```
+
+Replace it with:
+
+```tsx
+import { countLabel } from '../../ui/format.ts';
+import { CesTag } from '../CesTag.tsx';
+import { pointKey, pointName, reviewPath, type GradedRow, type ReviewSpot } from './points.ts';
+```
+
+- [ ] **Step 27: Edit `src/admin/reviewPage/ReviewQueue.tsx`**
+
+Find this block:
+
+```tsx
+                <span className="review-paper-name">
+                  {row.studentName} {row.grade !== null && (
+                    <span className="review-grade">
+```
+
+Replace it with:
+
+```tsx
+                <span className="review-paper-name">
+                  {row.studentName}
+                  {(row.ces || row.variant === 'ces') && <CesTag />} {row.grade !== null && (
+                    <span className="review-grade">
+```
+
+- [ ] **Step 28: Edit `src/admin/reviewPage/ReviewQueue.tsx`**
+
+Find this block:
+
+```tsx
+                  <span className="review-paper-name">
+                    {row.studentName} {row.grade !== null && (
+                    <span className="review-grade">
+```
+
+Replace it with:
+
+```tsx
+                  <span className="review-paper-name">
+                    {row.studentName}
+                    {(row.ces || row.variant === 'ces') && <CesTag />} {row.grade !== null && (
+                    <span className="review-grade">
+```
+
+- [ ] **Step 29: Edit `src/admin/search/SearchBox.tsx`**
+
+Find this block:
+
+```tsx
+import { startedText } from '../testsPage/TestGroup.tsx';
+import { Highlight } from './Highlight.tsx';
+```
+
+Replace it with:
+
+```tsx
+import { startedText } from '../testsPage/TestGroup.tsx';
+import { CesTag } from '../CesTag.tsx';
+import { Highlight } from './Highlight.tsx';
+```
+
+- [ ] **Step 30: Edit `src/admin/search/SearchBox.tsx`**
+
+Find this block:
+
+```tsx
+        to: `/elevi/${student.id}`,
+        name: <Highlight text={student.fullName} query={text} />,
+        meta: student.classes.map((cls) => displayClassName(cls.name)).join(', '),
+```
+
+Replace it with:
+
+```tsx
+        to: `/elevi/${student.id}`,
+        name: (
+          <>
+            <Highlight text={student.fullName} query={text} />
+            {student.ces && <CesTag />}
+          </>
+        ),
+        meta: student.classes.map((cls) => displayClassName(cls.name)).join(', '),
+```
+
+- [ ] **Step 31: Edit `src/admin/pages/SearchPage.tsx`**
+
+Find this block:
+
+```tsx
+import { countLabel, studentCountLabel } from '../../ui/format.ts';
+import { ErrorMessage } from '../ErrorMessage.tsx';
+```
+
+Replace it with:
+
+```tsx
+import { countLabel, studentCountLabel } from '../../ui/format.ts';
+import { CesTag } from '../CesTag.tsx';
+import { ErrorMessage } from '../ErrorMessage.tsx';
+```
+
+- [ ] **Step 32: Edit `src/admin/pages/SearchPage.tsx`**
+
+Find this block:
+
+```tsx
+                      <Highlight text={student.fullName} query={text} />
+                    </Link>
+                  </th>
+                  <td>{student.classes.map((cls) => displayClassName(cls.name)).join(', ')}</td>
+```
+
+Replace it with:
+
+```tsx
+                      <Highlight text={student.fullName} query={text} />
+                    </Link>
+                    {student.ces && <CesTag />}
+                  </th>
+                  <td>{student.classes.map((cls) => displayClassName(cls.name)).join(', ')}</td>
+```
+
+- [ ] **Step 33: Edit `src/admin/pages/StudentPage.tsx`**
+
+Find this block:
+
+```tsx
+import { useApi } from '../ApiContext.tsx';
+import { ErrorMessage } from '../ErrorMessage.tsx';
+```
+
+Replace it with:
+
+```tsx
+import { useApi } from '../ApiContext.tsx';
+import { CesTag } from '../CesTag.tsx';
+import { ErrorMessage } from '../ErrorMessage.tsx';
+```
+
+- [ ] **Step 34: Edit `src/admin/pages/StudentPage.tsx`**
+
+Find this block:
+
+```tsx
+        <div>
+          <h1>{student.fullName}</h1>
+          {now && (
+```
+
+Replace it with:
+
+```tsx
+        <div>
+          <h1>
+            {student.fullName}
+            {student.ces && <CesTag />}
+          </h1>
+          {now && (
+```
+
+- [ ] **Step 35: Edit `src/admin/testPage/TestSheet.tsx`**
+
+Find this block:
+
+```tsx
+                Testul cu cod QR
+              </a>
+```
+
+Replace it with:
+
+```tsx
+                Testul cu cod QR
+              </a>
+              <span className="hint">PDF de tipărit</span>
+            </li>
+          )}
+          {test.ces.files.test !== null && (
+            <SheetFile title="Testul CES" name={test.ces.files.test.name} href={testFileUrl(test.code, 'test', 'ces')} />
+          )}
+          {test.ces.files.barem !== null && (
+            <SheetFile title="Baremul CES" name={test.ces.files.barem.name} href={testFileUrl(test.code, 'barem', 'ces')} />
+          )}
+          {test.ces.print.status === 'ready' && (
+            <li>
+              <a href={printFileUrl(test.code, 'ces')} download>
+                Testul CES cu cod QR
+              </a>
+```
+
+- [ ] **Step 36: Edit `src/AGENTS.md`**
+
+Find this block:
+
+```markdown
+- `classPage/GradesTable.tsx` is the class page's grade table, in a card (students by tests, the oldest test on the left, a 156px column per test headed by its name and "date · state", orange when the test waits; a cell shows the grade, orange with a dot when points wait, the upload's state, or "—" when no paper was sent; the last row is "Media testului", no per-student average; draft and open tests keep a column; archived tests show only when asked). `classPage/ClassTests.tsx` is "Testele clasei", beside the table (under it below 1180px): the newest test first, each with its date, the papers sent, its stage (orange when it waits) and its one next step (from `testsPage/nextStep.ts`, the button that publishes the results included; filled blue when it waits), and the toggle "Arată și testele arhivate (n)" that reveals the archived tests in the table too. `classPage/ClassStudents.tsx` is the "Elevi" tab, one card split in two (stacked below 760px): the students on the left (search that ignores case and diacritics, orange dot when points wait, "+ Adaugă elevi"), the chosen student on the right (the first one at first; "Redenumește", "A plecat din clasă", "Șterge"; a table of the class's tests with the date, the points, the grade and "N puncte de verificat", the result ("Publicat", "Nepublicat" with "Copiază linkul", "După verificare", "Nu a trimis lucrarea."), and "Lucrarea"; link "Toate notele elevului, din toate clasele"). An archived class is the same page, read only (`readOnly` on `GradesTable`, `ClassTests` and `ClassStudents`): a strip "Clasă arhivată." with "Scoate din arhivă" above the head (one write with ⋯'s item), the tag "Arhivată" first in the facts, no "Test nou pentru această clasă", no "+ Adaugă elevi", no "Redenumește", "A plecat din clasă" or "Șterge" for a student, nothing orange, and "Raportul clasei" as each test's one step once a paper is graded. `classPage/ClassDialogs.tsx` holds the class page's dialogs: "Clasă nouă" (the name and the students, one per line, in one step; a class made before its students failed is not made twice), "Adaugă elevi" (early warnings for names already in the class or pasted twice), and the rename of a class or a student. They use `Modal.tsx`, the app's dialog: a title, ×, a dimmed backdrop, the focus on the first field and kept inside, Esc (in the capture phase, before a panel), and the focus back to the opener (or to `returnFocus` when the opener closed with its menu). `pages/ClassPage.tsx` is the class page (`/clase/:id`): the top line (the name, "Schimbă clasa" with the classes of the year, the current one marked, a dot for one that waits, the archived classes last in their muted group "Arhivate" (the only list that leads to them; an archived class's ⋯ has "Scoate din arhivă"), and "+ Clasă nouă"; the facts; "Test nou pentru această clasă"; ⋯ with "Redenumește clasa"/"Arhivează clasa") and the two tabs ("Elevi" with its count). `pages/LastClassPage.tsx` is `/clase`: it opens the last class the teacher saw (kept in `localStorage` as `quickeval:lastClass`, else the first active one of the year), or, with no active class, offers "+ Clasă nouă" and links the archived classes. A link's state (`ClassLinkState`) goes on to that class page: `{ newClass: true }` (the panel's "+ Clasă nouă") opens that dialog on arrival, `{ archived: true }` (the panel's "Arhivate (n)") opens "Schimbă clasa" at "Arhivate". The old "page with all classes" (`ClassesPage`) and `ClassStudentsPage` no longer exist.
+- The CES variant: `CesTag.tsx` is the mark next to a CES student's name in every teacher table that lists students (the class page's two tabs, the papers table, the links table, the class report); `testPage/CesVariant.tsx` holds "Varianta CES" in Pregătire (shown while the class has a CES student or the variant has a file: its own `TestFiles` with `variant="ces"`, the total warning, "Șterge varianta CES") and the notice of the CES papers that wait for their barem in Corectare (`CesWaiting`); `testPage/variant.ts` picks a variant's parts of a test. `TestFiles`, `useGeneratedBarem`, `PrintTest` and `ExerciseListBanner` take `variant`. The class report, its CSV and the class PDF draw the tables of `reportTables` (`shared/stats.ts`): one, or the class papers then the CES papers with their own exercises; the CSV never names CES.
+- `testPage/PrintTest.tsx` shows the test with the QR code ("Testul pentru tipărit") on a draft and an open test, its failure and retry, and "Pregătește testul cu cod QR" for a draft made before tests got their link at once. `TestActions` in `testPage/StagePanel.tsx` (the panel În clasă) holds "Începe testul" and "Oprește testul" (only while no upload has a file and the test was never evaluated). The student app also shows that screen when a name pick answers `not_started` (the test was stopped meanwhile). The student app shows "Testul nu a început încă." for a draft's link (the printed QR code is scanned before the start).
+```
+
+Replace it with:
+
+```markdown
+- `classPage/GradesTable.tsx` is the class page's grade table, in a card (students by tests, the oldest test on the left, a 156px column per test headed by its name and "date · state", orange when the test waits; a cell shows the grade, orange with a dot when points wait, the upload's state, or "—" when no paper was sent; the last row is "Media testului", no per-student average; draft and open tests keep a column; archived tests show only when asked). `classPage/ClassTests.tsx` is "Testele clasei", beside the table (under it below 1180px): the newest test first, each with its date, the papers sent, its stage (orange when it waits) and its one next step (from `testsPage/nextStep.ts`, the button that publishes the results included; filled blue when it waits), and the toggle "Arată și testele arhivate (n)" that reveals the archived tests in the table too. `classPage/ClassStudents.tsx` is the "Elevi" tab, one card split in two (stacked below 760px): the students on the left (search that ignores case and diacritics, orange dot when points wait, "+ Adaugă elevi"), the chosen student on the right (the first one at first; "Redenumește", "A plecat din clasă", "Șterge"; a table of the class's tests with the date, the points, the grade and "N puncte de verificat", the result ("Publicat", "Nepublicat" with "Copiază linkul", "După verificare", "Nu a trimis lucrarea."), and "Lucrarea"; link "Toate notele elevului, din toate clasele"). An archived class is the same page, read only (`readOnly` on `GradesTable`, `ClassTests` and `ClassStudents`): a strip "Clasă arhivată." with "Scoate din arhivă" above the head (one write with ⋯'s item), the tag "Arhivată" first in the facts, no "Test nou pentru această clasă", no "+ Adaugă elevi", no "Redenumește", "A plecat din clasă" or "Șterge" for a student, nothing orange, and "Raportul clasei" as each test's one step once a paper is graded. `classPage/ClassDialogs.tsx` holds the class page's dialogs: "Clasă nouă" (the name and the students, one per line, in one step; a class made before its students failed is not made twice), "Adaugă elevi" (early warnings for names already in the class or pasted twice), and the rename of a class or a student. They use `Modal.tsx`, the app's dialog: a title, ×, a dimmed backdrop, the focus on the first field and kept inside, Esc (in the capture phase, before a panel), and the focus back to the opener (or to `returnFocus` when the opener closed with its menu). `pages/ClassPage.tsx` is the class page (`/clase/:id`): the top line (the name, "Schimbă clasa" with the classes of the year, the current one marked, a dot for one that waits, the archived classes last in their muted group "Arhivate" (the only list that leads to them; an archived class's ⋯ has "Scoate din arhivă"), and "+ Clasă nouă"; the facts; "Test nou pentru această clasă"; ⋯ with "Redenumește clasa"/"Arhivează clasa") and the two tabs ("Elevi" with its count). `pages/LastClassPage.tsx` is `/clase`: it opens the last class the teacher saw (kept in `localStorage` as `quickeval:lastClass`, else the first active one of the year), or, with no active class, offers "+ Clasă nouă" and links the archived classes. A link's state (`ClassLinkState`) goes on to that class page: `{ newClass: true }` (the panel's "+ Clasă nouă") opens that dialog on arrival, `{ archived: true }` (the panel's "Arhivate (n)") opens "Schimbă clasa" at "Arhivate". The old "page with all classes" (`ClassesPage`) and `ClassStudentsPage` no longer exist.
+- The CES variant: `CesTag.tsx` is the mark next to a CES student's name in every teacher table that lists students (the class page's two tabs, the papers table, the links table, the class report, the review queue, the search, the student page's heading); Fișa testului lists the CES files; "De făcut" (`shell/todo.ts`) also asks to check a generated CES barem, or to generate it again (`TestSummary.cesBarem`), after the class barem's case and until the test is done; `testPage/CesVariant.tsx` holds "Varianta CES" in Pregătire (shown while the class has a CES student or the variant has a file: its own `TestFiles` with `variant="ces"`, the total warning, "Șterge varianta CES") and the notice of the CES papers that wait for their barem in Corectare (`CesWaiting`); `testPage/variant.ts` picks a variant's parts of a test. `TestFiles`, `useGeneratedBarem`, `PrintTest` and `ExerciseListBanner` take `variant`. The class report, its CSV and the class PDF draw the tables of `reportTables` (`shared/stats.ts`): one, or the class papers then the CES papers with their own exercises; the CSV never names CES.
+- `testPage/PrintTest.tsx` shows the test with the QR code ("Testul pentru tipărit") on a draft and an open test, its failure and retry, and "Pregătește testul cu cod QR" for a draft made before tests got their link at once. `TestActions` in `testPage/StagePanel.tsx` (the panel În clasă) holds "Începe testul" and "Oprește testul" (only while no upload has a file and the test was never evaluated). The student app also shows that screen when a name pick answers `not_started` (the test was stopped meanwhile). The student app shows "Testul nu a început încă." for a draft's link (the printed QR code is scanned before the start).
+```
+
+- [ ] **Step 37: Typecheck and run every test**
+
+Run: `npm run typecheck`, then `npm test`
+Expected: no type error; `Test Files  137 passed | 1 skipped (138)`, `Tests  2159 passed | 3 skipped (2162)`.
+
+- [ ] **Step 38: Commit**
+
+```bash
+git add shared/api.ts server/db/tests.ts server/db/search.ts server/db/students.ts server/routes/cesVariant.test.ts server/routes/search.test.ts server/routes/studentHistory.test.ts src/admin/shell/todo.ts src/admin/shell/todo.test.ts src/admin/reviewPage/ReviewQueue.tsx src/admin/search/SearchBox.tsx src/admin/pages/SearchPage.tsx src/admin/pages/StudentPage.tsx src/admin/pages/StudentPage.test.tsx src/admin/pages/ClassPage.test.tsx src/admin/testPage/TestSheet.tsx src/admin/cesMarks.test.tsx src/test/fakeApi.ts src/AGENTS.md
+git commit -m "Show the CES mark in the review, the search and the student page, the CES files in Fișa testului, and the CES barem in De făcut"
+```
+
+### Task 10: Check, live database, push (main session only)
 
 - [ ] **Step 1: Run every test once more, in UTC**
 
 Run (Git Bash): `TZ=UTC npm test`
-Expected: `Test Files  136 passed | 1 skipped (137)`, `Tests  2150 passed | 3 skipped (2153)`.
+Expected: `Test Files  137 passed | 1 skipped (138)`, `Tests  2159 passed | 3 skipped (2162)`.
 
 - [ ] **Step 2: Look at the pages in the browser**
 
-Run `npm run db:local` and `npm run build`; load the sample of the prototype check (a class with a CES student, a done test whose CES papers have their own exercises, an evaluating test whose CES paper waits for its barem, a draft with a generated CES barem to check) into the local database with `npx wrangler d1 execute quickeval --local --file <sample.sql>`, start `npm run preview`, and look at: the class page (both tabs, the CES mark), Pregătire of the draft ("Varianta CES", "Am verificat baremul CES"), Tipărire (the CES download), Corectare of the evaluating test (the waiting notice), and the class report of the done test (the CES table and its statistics), at desktop width and at 375 px (no sideways scroll). Stop the preview and end the leftover `workerd.exe` (root `AGENTS.md`, Gotchas).
+Run `npm run db:local` and `npm run build`; load the sample of the prototype check (a class with a CES student, a done test whose CES papers have their own exercises, an evaluating test whose CES paper waits for its barem, a draft with a generated CES barem to check) into the local database with `npx wrangler d1 execute quickeval --local --file <sample.sql>`, start `npm run preview`, and look at: the class page (both tabs, the CES mark), Pregătire of the draft ("Varianta CES", "Am verificat baremul CES"), Tipărire (the CES download), Corectare of the evaluating test (the waiting notice), the class report of the done test (the CES table and its statistics), "De făcut" (the draft's CES barem to check), the search for the CES student, and the student's page, at desktop width and at 375 px (no sideways scroll). Stop the preview and end the leftover `workerd.exe` (root `AGENTS.md`, Gotchas).
 
 - [ ] **Step 3: Run the migration on the live database — ask the user first**
 
@@ -11129,4 +11943,4 @@ Expected: `0024_ces_variant.sql` applied. Only then may the code reach `main`.
 
 - [ ] **Step 4: Push and open the pull request — ask the user first**
 
-Ask the user, then push `feature/ces-variant` and open a pull request to `main` with a body that lists the eight commits, the migration, and the deferred items of ruling 9.
+Ask the user, then push `feature/ces-variant` and open a pull request to `main` with a body that lists the nine commits and the migration.
