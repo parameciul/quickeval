@@ -22,6 +22,9 @@ export interface Env {
   // secret. Without both, paid features answer 503 payments_off.
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  // Quick Try's Cloudflare Turnstile secret key. Without it, only an
+  // administrator can make a try.
+  TURNSTILE_SECRET_KEY?: string;
 }
 
 // Parts of the app that tests replace.
@@ -33,6 +36,8 @@ export interface AppOptions {
   // The features on sale (default PAID_FEATURES), and the call that makes a Stripe payment page.
   paidFeatures?: PaidFeatures;
   createCheckoutSession?: CreateCheckoutSession;
+  // Checks a Quick Try form's Turnstile answer (default verifyTurnstile).
+  verifyTurnstile?: (env: Env, token: string, ip: string) => Promise<boolean>;
 }
 
 export interface AppEnv {

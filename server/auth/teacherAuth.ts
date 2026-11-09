@@ -25,6 +25,16 @@ async function loggedInTeacher(c: Context<AppEnv>): Promise<Teacher> {
   return teacher;
 }
 
+// The logged-in teacher, or null for a visitor who is not logged in.
+export async function optionalTeacher(c: Context<AppEnv>): Promise<Teacher | null> {
+  try {
+    return await loggedInTeacher(c);
+  } catch (err) {
+    if (err instanceof ApiError) return null;
+    throw err;
+  }
+}
+
 // Puts the logged-in teacher in c.var.teacher, or refuses the request.
 export function teacherAuth(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
