@@ -673,10 +673,14 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
 }
 
 // The graded class for the analysis (spec §11.3). Null unless the test is in
-// evaluation, like the rest of what the robot reads.
+// evaluation, like the rest of what the robot reads. The CES papers come with
+// their variant, and their exercises in `cesExercises`, made the same way as
+// the class columns from the CES list and the CES papers' items.
 export async function findClassResults(db: D1Database, testId: number): Promise<ClassResults | null> {
   const [test, rows] = await db.batch<{
     exercise_list_json?: string | null;
+    ces_exercise_list_json?: string | null;
+    variant?: string | null;
     version?: string;
     exercise_id?: string;
     label?: string;
@@ -694,11 +698,13 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
     comment?: string;
   }>([
     db
-      .prepare(`SELECT t.exercise_list_json, ${gradesVersionSql('t')} AS version FROM tests t WHERE t.id = ? AND t.status = 'evaluating'`)
+      .prepare(
+        `SELECT t.exercise_list_json, t.ces_exercise_list_json, ${gradesVersionSql('t')} AS version FROM tests t WHERE t.id = ? AND t.status = 'evaluating'`,
+      )
       .bind(testId),
     db
       .prepare(
-        `SELECT s.id AS submission_id, ev.total, ev.grade, ev.id AS evaluation_id, ev.created_at AS graded_at,
+        `SELECT s.id AS submission_id, s.variant, ev.total, ev.grade, ev.id AS evaluation_id, ev.created_at AS graded_at,
            ev.max_total, ev.office_points, i.exercise_id, i.label, i.max_points, i.position, i.points,
            i.student_answer, i.comment
          FROM submissions s
@@ -712,12 +718,15 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   const head = test?.results[0];
   if (!head) return null;
   const list = head.exercise_list_json ? (JSON.parse(head.exercise_list_json) as ExerciseList) : null;
+  const cesList = head.ces_exercise_list_json ? (JSON.parse(head.ces_exercise_list_json) as ExerciseList) : null;
   const students: ClassResults['students'] = [];
   const stored: StoredItem[] = [];
+  const cesStored: StoredItem[] = [];
   let latest: { gradedAt: string; evaluationId: number; maxTotal: number; officePoints: number } | null = null;
   let current = -1;
   for (const row of rows?.results ?? []) {
-    stored.push({
+    const ces = row.variant === 'ces';
+    (ces ? cesStored : stored).push({
       evaluationId: row.evaluation_id!,
       gradedAt: row.graded_at!,
       exerciseId: row.exercise_id!,
@@ -730,7 +739,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
     }
     if (row.submission_id !== current) {
       current = row.submission_id!;
-      students.push({ label: `Elev ${students.length + 1}`, total: row.total!, grade: row.grade!, items: [] });
+      students.push({ label: `Elev ${students.length + 1}`, total: row.total!, grade: row.grade!, variant: ces ? 'ces' : 'class', items: [] });
     }
     students.at(-1)!.items.push({
       exerciseId: row.exercise_id!,
@@ -745,6 +754,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
     maxTotal: list?.totalPoints ?? latest?.maxTotal ?? 0,
     officePoints: list?.officePoints ?? latest?.officePoints ?? 0,
     exercises: exerciseColumns(list, stored),
+    cesExercises: cesStored.length > 0 ? exerciseColumns(cesList, cesStored) : null,
     students,
   };
 }

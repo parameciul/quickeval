@@ -96,19 +96,32 @@ export const analysisBody = z.discriminatedUnion('ok', [
 
 // GET /tests/:id/results: the graded class, anonymized for the analysis
 // (spec §11.3). Students are "Elev 1" … "Elev n" in grading order: no names, and
-// the points are the final ones, with the teacher's corrections.
+// the points are the final ones, with the teacher's corrections. A paper of
+// the CES variant has `variant` "ces", and its items name the exercises of
+// `cesExercises` (null while no CES paper is graded).
 export interface ClassResults {
   testId: number;
   version: string;
   maxTotal: number;
   officePoints: number;
-  exercises: { id: string; label: string; maxPoints: number; topic: string; answer: string; scoringNotes: string }[];
+  exercises: ClassResultsExercise[];
+  cesExercises: ClassResultsExercise[] | null;
   students: {
     label: string;
     total: number;
     grade: number;
+    variant: TestVariant;
     items: { exerciseId: string; points: number; studentAnswer: string; comment: string }[];
   }[];
+}
+
+export interface ClassResultsExercise {
+  id: string;
+  label: string;
+  maxPoints: number;
+  topic: string;
+  answer: string;
+  scoringNotes: string;
 }
 
 // POST /lease.

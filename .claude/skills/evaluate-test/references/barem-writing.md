@@ -42,6 +42,22 @@ These rules come from a real barem of the teacher (see `barem-example.md`). The 
 - When the test clearly allows two ways (for example a table or a formula), write the usual one in the steps and add a short clause to the step: "sau o altă justificare corectă".
 - Do not invent partial points for wrong methods: the barem rewards correct steps only.
 
+## Barem pentru varianta CES
+
+When `ces.md` is in the folder, the test is the CES variant of a class test: an adapted test for the students with special educational needs, with guided steps, blanks to fill in, and sometimes fewer exercises. `references/barem-example-ces.md` is a real one. Its barem is only for grading: the robot grades the CES papers with it.
+
+- Write only what grading needs: the grading rules, and the steps with their points. Never write what was adapted and why, how to give the test, the competences assessed, or any word for the teacher only, and never a student's name.
+- The total is always 90 + 10 "din oficiu" (100), like the class barem. When the CES test drops an exercise, its points go to the other exercises, as the CES test shows them.
+- Keep the subjects, the numbering and the letters of the CES test. `class/barem.*` and `class/exercises.json`, when they are here, show the class test: an item with the same number is the same item, so keep its points when the CES test shows no others.
+- The "Precizări" are the CES rules, in four short bullets (from the example's "Reguli de notare"):
+  1. The 10 "din oficiu" points, and the grade is the total points divided by 10.
+  2. Any correct solution gets the full points, even if it does not follow the steps of the test; a blank filled in correctly gets the points of its step, with no other written justification.
+  3. No points are taken off for spelling, for hard-to-read writing, or for digits or signs swapped while copying, when the next calculations show that the student worked with the correct value.
+  4. No fractions of a point; partial points are given by steps only, inside the points of the barem.
+- Do not write the rule of the class barem that a correct result without its justifications gets at most half of the points: in a guided test, the blanks are the justifications.
+- The steps follow the blanks of the test: one step is one blank, or a few blanks that make one result. Give the real values of each blank ("spațiile: $-3$ și $-2$").
+- When an item needs a note (how the points of a table are shared, or another correct way to solve it), add it to the end of the step it concerns, as the example's "Observații" do, in one line.
+
 ## Check before you answer
 
 - Every exercise and every part of the test has steps. Every variant is complete.

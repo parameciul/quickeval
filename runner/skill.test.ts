@@ -53,6 +53,27 @@ describe('the grading skill', () => {
     expect(rules).toContain("Never write the student's name");
   });
 
+  it('tells Claude what the CES variant changes in each mode', () => {
+    for (const file of ['ces.md', 'class/exercises.json', 'class/barem.pdf', 'references/barem-example-ces.md']) {
+      expect(skill).toContain(`\`${file}\``);
+    }
+    expect(skill).toContain('copy that item\'s `id` and `label` from `class/exercises.json`');
+    expect(skill).toContain('Never write "CES", "adaptat", "variantă", or any word about special needs in a text the student sees');
+    expect(skill).toContain('`cesExercises`');
+    const writing = readFileSync(path.join(SKILL_DIR, 'references', 'barem-writing.md'), 'utf8');
+    expect(writing).toContain('## Barem pentru varianta CES');
+    expect(writing).toContain('The total is always 90 + 10 "din oficiu" (100)');
+  });
+
+  it('keeps the CES example to what grading needs, with no name, class or date', () => {
+    const example = readFileSync(path.join(SKILL_DIR, 'references', 'barem-example-ces.md'), 'utf8');
+    expect(example).toContain('**Reguli de notare**');
+    expect(example).toContain('**Observații.**');
+    for (const left of ['Ce s-a adaptat', 'Cum se administrează', 'Competențe evaluate', 'confidențial', 'Bursașiu', 'R2', 'octombrie', 'clarifică oral']) {
+      expect(example).not.toContain(left);
+    }
+  });
+
   it('names the barem mode and its references', () => {
     expect(skill).toContain('## Mode `barem`');
     expect(skill).toContain('references/barem-writing.md');

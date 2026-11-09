@@ -145,6 +145,27 @@ describe('a CES paper', () => {
     expect(await claim()).toMatchObject({ submissionId: cesPaper, variant: 'class' });
   });
 
+  it('goes to the class analysis with its variant and the CES exercises, without a name', async () => {
+    for (const expected of [cesPaper, classPaper]) {
+      const claimed = (await claim()) as { submissionId: number };
+      expect(claimed.submissionId).toBe(expected);
+      const items = expected === cesPaper ? [item('I.1', 4), item('I.2', 4)] : [item('I.1', 7)];
+      await robot('POST', `/submissions/${expected}/result`, { runId: RUN, ok: true, result: grading(items), model: 'claude-test' });
+    }
+    expect(await testStatus()).toEqual({ status: 'evaluating', analysis_status: 'requested' });
+    const results = (await robot('GET', `/tests/${testId}/results`)).body.results;
+    expect(results.students.map((s: { label: string; variant: string; total: number }) => [s.label, s.variant, s.total])).toEqual([
+      ['Elev 1', 'ces', 9],
+      ['Elev 2', 'class', 8],
+    ]);
+    expect(results.exercises.map((e: { id: string; maxPoints: number }) => [e.id, e.maxPoints])).toEqual([['I.1', 9]]);
+    expect(results.cesExercises.map((e: { id: string; maxPoints: number }) => [e.id, e.maxPoints])).toEqual([
+      ['I.1', 5],
+      ['I.2', 4],
+    ]);
+    expect(JSON.stringify(results)).not.toMatch(/Bursașiu|Ene/);
+  });
+
   it('keeps its variant through a regrade, whatever happens to the mark', async () => {
     await claim();
     await robot('POST', `/submissions/${cesPaper}/result`, { runId: RUN, ok: true, result: grading([item('I.1', 5), item('I.2', 4)]), model: 'claude-test' });
