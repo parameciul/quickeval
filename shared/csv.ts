@@ -1,5 +1,6 @@
-import type { ClassReport, UploadStatus } from './api.ts';
+import type { ClassReport, ReportRow, UploadStatus } from './api.ts';
 import { round2 } from './scoring.ts';
+import { reportTables } from './stats.ts';
 
 // The class report as a CSV file for Romanian Excel (spec §14.2): UTF-8 with a
 // byte order mark, ";" between cells, a decimal comma, and lines that end with
@@ -27,14 +28,14 @@ export function csvText(text: string): string {
   return /[";\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
-// `statusLabel` names why a student has no result ("Nu a trimis"), in the words of the app.
-export function classCsv(report: ClassReport, statusLabel: (status: UploadStatus) => string): string {
-  const header = ['Elev', ...report.exercises.map((exercise) => exercise.id), 'Total', 'Nota', 'Observații'].map(csvText);
+// The header and the rows of one table of exercises.
+function tableLines(exercises: ClassReport['exercises'], rows: ReportRow[]): string[] {
+  const header = ['Elev', ...exercises.map((exercise) => exercise.id), 'Total', 'Nota', 'Observații'].map(csvText);
   const lines = [header.join(SEPARATOR)];
-  for (const row of report.rows) {
+  for (const row of rows) {
     const cells = [
       csvText(row.studentName),
-      ...report.exercises.map((exercise) => {
+      ...exercises.map((exercise) => {
         const item = row.items.find((candidate) => candidate.exerciseId === exercise.id);
         return item ? csvNumber(item.points) : '';
       }),
@@ -44,9 +45,20 @@ export function classCsv(report: ClassReport, statusLabel: (status: UploadStatus
     ];
     lines.push(cells.join(SEPARATOR));
   }
+  return lines;
+}
+
+// `statusLabel` names why a student has no result ("Nu a trimis"), in the words of the app.
+// The CSV is often shared, so it says nothing of the CES mark: when the CES
+// papers have their own exercises, they come in a block of their own, after an
+// empty line, with their own exercise header.
+export function classCsv(report: ClassReport, statusLabel: (status: UploadStatus) => string): string {
+  const [classTable, cesTable] = reportTables(report);
+  const lines = tableLines(classTable!.exercises, classTable!.rows);
   for (const student of report.missing) {
-    const cells = [csvText(student.studentName), ...report.exercises.map(() => ''), '', '', csvText(statusLabel(student.status))];
+    const cells = [csvText(student.studentName), ...classTable!.exercises.map(() => ''), '', '', csvText(statusLabel(student.status))];
     lines.push(cells.join(SEPARATOR));
   }
+  if (cesTable) lines.push('', ...tableLines(cesTable.exercises, cesTable.rows));
   return `${BOM}${lines.join('\r\n')}\r\n`;
 }

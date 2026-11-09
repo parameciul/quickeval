@@ -1,8 +1,9 @@
 import { Link } from 'react-router';
 import type { ClassReport } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
-import type { ClassStats } from '../../../shared/stats.ts';
+import type { ExerciseStats, ClassStats, ReportTable } from '../../../shared/stats.ts';
 import { pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
+import { CesTag } from '../CesTag.tsx';
 
 const dash = '—';
 const grade = (value: number | null) => (value === null ? dash : formatPoints(value));
@@ -58,18 +59,30 @@ export function GradeGroups({ stats }: { stats: ClassStats }) {
   );
 }
 
-// One row for each graded student: the points of each exercise (an item that
-// waits for the teacher's check is marked), the total and the grade. An active
-// student with no graded paper has a row that says why.
-export function ResultsTable({ code, report }: { code: string; report: ClassReport }) {
+// One row for each graded student of one table: the points of each exercise
+// (an item that waits for the teacher's check is marked), the total and the
+// grade. An active student with no graded paper has a row that says why (in the
+// class table: `missing` is empty for the CES table).
+export function ResultsTable({
+  code,
+  table,
+  missing,
+  caption = 'Punctajele elevilor pe exerciții',
+}: {
+  code: string;
+  table: ReportTable;
+  missing: ClassReport['missing'];
+  caption?: string;
+}) {
+  const { exercises, rows } = table;
   return (
     <div className="table-wrap">
       <table className="report-table results-table">
-        <caption className="sr-only">Punctajele elevilor pe exerciții</caption>
+        <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
             <th scope="col">Elev</th>
-            {report.exercises.map((exercise) => (
+            {exercises.map((exercise) => (
               <th key={exercise.id} scope="col" className="num" title={exercise.label}>
                 {exercise.id}
                 <span className="report-max">{formatPoints(exercise.maxPoints)}p</span>
@@ -84,12 +97,13 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
           </tr>
         </thead>
         <tbody>
-          {report.rows.map((row) => (
+          {rows.map((row) => (
             <tr key={row.submissionId}>
               <th scope="row">
                 <Link to={`/teste/${code}/elevi/${row.submissionId}`}>{row.studentName}</Link>
+                {(row.ces || row.variant === 'ces') && <CesTag />}
               </th>
-              {report.exercises.map((exercise) => {
+              {exercises.map((exercise) => {
                 const item = row.items.find((candidate) => candidate.exerciseId === exercise.id);
                 if (!item) {
                   return (
@@ -114,10 +128,13 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
               </td>
             </tr>
           ))}
-          {report.missing.map((student) => (
+          {missing.map((student) => (
             <tr key={`missing-${student.studentId}`} className="is-muted">
-              <th scope="row">{student.studentName}</th>
-              <td colSpan={report.exercises.length + 2}>
+              <th scope="row">
+                {student.studentName}
+                {student.ces && <CesTag />}
+              </th>
+              <td colSpan={exercises.length + 2}>
                 {student.status === 'none' ? 'Nu a trimis lucrarea.' : uploadStatusLabel(student.status)}
               </td>
             </tr>
@@ -129,12 +146,12 @@ export function ResultsTable({ code, report }: { code: string; report: ClassRepo
 }
 
 // Average points, the share of the maximum (with a bar), and how many students
-// got all, some, and none of the points.
-export function ExerciseStatsTable({ stats }: { stats: ClassStats }) {
+// got all, some, and none of the points: of the class table, or of the CES one.
+export function ExerciseStatsTable({ perExercise, caption = 'Statistici pe exerciții' }: { perExercise: ExerciseStats[]; caption?: string }) {
   return (
     <div className="table-wrap">
       <table className="report-table">
-        <caption className="sr-only">Statistici pe exerciții</caption>
+        <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
             <th scope="col">Exercițiul</th>
@@ -156,7 +173,7 @@ export function ExerciseStatsTable({ stats }: { stats: ClassStats }) {
           </tr>
         </thead>
         <tbody>
-          {stats.perExercise.map((exercise) => (
+          {perExercise.map((exercise) => (
             <tr key={exercise.exerciseId}>
               <th scope="row">{exercise.label}</th>
               <td className="num">

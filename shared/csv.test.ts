@@ -7,6 +7,7 @@ const label = (status: UploadStatus) => (status === 'none' ? 'Nu a trimis' : sta
 function report(overrides: Partial<ClassReport> = {}): ClassReport {
   return {
     test: { code: '6E2-26T1', title: 'Fracții', classId: 1, className: '6E2', status: 'done', startedAt: null },
+    cesExercises: null,
     exercises: [
       { id: 'I.1', label: 'Exercițiul 1', maxPoints: 4.5 },
       { id: 'II.1', label: 'Exercițiul 2', maxPoints: 4.5 },
@@ -19,14 +20,14 @@ function report(overrides: Partial<ClassReport> = {}): ClassReport {
         total: 7.25,
         maxTotal: 10,
         grade: 7.25,
-        flagCount: 0,
+        flagCount: 0, ces: false, variant: 'class',
         items: [
           { exerciseId: 'I.1', points: 4.5, maxPoints: 4.5, flagged: false },
           { exerciseId: 'II.1', points: 1.75, maxPoints: 4.5, flagged: false },
         ],
       },
     ],
-    missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none' }],
+    missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'none', ces: false }],
     analysis: { status: 'none', stale: false, attempts: 0, content: null },
     ...overrides,
   };
@@ -88,7 +89,7 @@ describe('classCsv', () => {
     const odd = report({
       exercises: [{ id: '=A1', label: 'x', maxPoints: 1 }],
       rows: [{ ...base.rows[0]!, items: [{ exerciseId: '=A1', points: 1, maxPoints: 1, flagged: false }] }],
-      missing: [{ studentId: 1, studentName: 'Ion', status: 'failed' }],
+      missing: [{ studentId: 1, studentName: 'Ion', status: 'failed', ces: false }],
     });
     const lines = classCsv(odd, () => '=cmd').split('\r\n');
     expect(lines[0]).toBe("﻿Elev;'=A1;Total;Nota;Observații");
@@ -107,5 +108,41 @@ describe('classCsv', () => {
     expect(csvNumber(2.675)).toBe('2,68');
     expect(csvNumber(-1)).toBe('-1');
     expect(csvNumber(0)).toBe('0');
+  });
+});
+
+describe('classCsv with CES papers', () => {
+  const cesRow = {
+    ...report().rows[0]!,
+    submissionId: 7,
+    studentId: 13,
+    studentName: 'Bursașiu Teodor',
+    ces: true,
+    variant: 'ces' as const,
+    total: 9,
+    grade: 9,
+    items: [{ exerciseId: 'C1', points: 8, maxPoints: 9, flagged: false }],
+  };
+
+  it('keeps the CES rows in the class block while they share its columns, and never names CES', () => {
+    const csv = classCsv(report({ rows: [...report().rows, { ...cesRow, items: report().rows[0]!.items }] }), label);
+    const lines = csv.slice(1).split('\r\n');
+    expect(lines[0]).toBe('Elev;I.1;II.1;Total;Nota;Observații');
+    expect(lines.filter((line) => line.startsWith('Elev;'))).toHaveLength(1);
+    expect(csv).not.toContain('CES');
+  });
+
+  it('puts the CES rows in a block of their own, after an empty line, with their own header', () => {
+    const csv = classCsv(report({ cesExercises: [{ id: 'C1', label: 'CES', maxPoints: 9 }], rows: [...report().rows, cesRow] }), label);
+    expect(csv.slice(1).split('\r\n')).toEqual([
+      'Elev;I.1;II.1;Total;Nota;Observații',
+      'Ștefănescu Ana;4,5;1,75;7,25;7,25;',
+      'Stan Eva;;;;;Nu a trimis',
+      '',
+      'Elev;C1;Total;Nota;Observații',
+      'Bursașiu Teodor;8;9;9;',
+      '',
+    ]);
+    expect(csv).not.toContain('CES');
   });
 });

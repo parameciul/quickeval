@@ -2,7 +2,7 @@ import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interface
 import type { ClassReport } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
-import { classStats } from '../../../shared/stats.ts';
+import { classStats, type ExerciseStats, reportTables, type ReportTable } from '../../../shared/stats.ts';
 import { formatDate, uploadStatusLabel } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
 import { pdfText } from './pdfSymbols.ts';
@@ -31,13 +31,13 @@ function chunks<T>(items: T[], size: number): T[][] {
 
 const headerCell = (text: string) => ({ text, bold: true, fontSize: 8, color: MUTED });
 
-// One block of the results table: the students and a part of the exercises.
+// One block of a results table: the students and a part of the exercises.
 // The last block also holds the total and the grade.
-function resultsTable(report: ClassReport, exerciseIds: string[], last: boolean): Content {
-  const exercises = report.exercises.filter((exercise) => exerciseIds.includes(exercise.id));
+function resultsTable(table: ReportTable, exerciseIds: string[], last: boolean): Content {
+  const exercises = table.exercises.filter((exercise) => exerciseIds.includes(exercise.id));
   const header: TableCell[] = [headerCell('Elev'), ...exercises.map((exercise) => ({ ...headerCell(exercise.id), alignment: 'center' as const }))];
   if (last) header.push(headerCell('Total'), headerCell('Nota'));
-  const body: TableCell[][] = report.rows.map((row) => {
+  const body: TableCell[][] = table.rows.map((row) => {
     const cells: TableCell[] = [{ text: row.studentName, fontSize: 9 }];
     for (const exercise of exercises) {
       const item = row.items.find((candidate) => candidate.exerciseId === exercise.id);
@@ -61,6 +61,39 @@ function resultsTable(report: ClassReport, exerciseIds: string[], last: boolean)
   };
 }
 
+// A results table in blocks of at most BLOCK exercises.
+function resultsBlocks(table: ReportTable): Content[] {
+  const blocks = chunks(
+    table.exercises.map((exercise) => exercise.id),
+    BLOCK,
+  );
+  if (blocks.length === 0) return [resultsTable(table, [], true)];
+  return blocks.map((ids, index) => resultsTable(table, ids, index === blocks.length - 1));
+}
+
+// The statistics of each exercise of one table.
+function exerciseTable(perExercise: ExerciseStats[]): Content {
+  return {
+    table: {
+      headerRows: 1,
+      dontBreakRows: true,
+      widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
+      body: [
+        ['Exercițiul', 'Media', '% din maxim', 'Tot', 'Parțial', 'Nimic'].map(headerCell),
+        ...perExercise.map((exercise): TableCell[] => [
+          { text: `${exercise.exerciseId} · ${exercise.label}`, fontSize: 9 },
+          { text: exercise.averagePoints === null ? dash : `${formatPoints(exercise.averagePoints)} din ${formatPoints(exercise.maxPoints)}`, fontSize: 9 },
+          { text: exercise.averagePercent === null ? dash : `${exercise.averagePercent}%`, fontSize: 9 },
+          { text: String(exercise.full), fontSize: 9 },
+          { text: String(exercise.partial), fontSize: 9 },
+          { text: String(exercise.zero), fontSize: 9 },
+        ]),
+      ],
+    },
+    layout: 'lightHorizontalLines',
+  };
+}
+
 const list = (title: string, entries: string[]): Content[] =>
   entries.length === 0 ? [] : [{ text: title, style: 'h3' }, { ul: entries, margin: [0, 0, 0, 4] }];
 
@@ -73,6 +106,7 @@ function drawable(source: ClassReport): ClassReport {
     ...source,
     test: { ...source.test, title: pdfText(source.test.title) },
     exercises: source.exercises.map((exercise) => ({ ...exercise, id: pdfText(exercise.id), label: pdfText(exercise.label) })),
+    cesExercises: source.cesExercises && source.cesExercises.map((exercise) => ({ ...exercise, id: pdfText(exercise.id), label: pdfText(exercise.label) })),
     rows: source.rows.map((row) => ({ ...row, items: row.items.map((item) => ({ ...item, exerciseId: pdfText(item.exerciseId) })) })),
     analysis: {
       ...source.analysis,
@@ -87,13 +121,13 @@ function drawable(source: ClassReport): ClassReport {
   };
 }
 
+// With CES papers that have their own exercises, their table and statistics
+// come after the class ones, under "Varianta CES": the class PDF is for the
+// teacher only.
 export function classPdf(source: ClassReport): TDocumentDefinitions {
   const report = drawable(source);
   const stats = classStats(report);
-  const blocks = chunks(
-    report.exercises.map((exercise) => exercise.id),
-    BLOCK,
-  );
+  const [classTable, cesTable] = reportTables(report);
   const anyFlagged = report.rows.some((row) => row.items.some((item) => item.flagged));
   const { content: analysis, stale } = report.analysis;
 
@@ -118,29 +152,12 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
     },
     { text: stats.groups.map((group) => `${group.label}: ${group.count}`).join('   ·   '), color: MUTED },
     { text: 'Rezultatele elevilor', style: 'h2' },
-    ...blocks.map((ids, index) => resultsTable(report, ids, index === blocks.length - 1)),
-    ...(blocks.length === 0 ? [resultsTable(report, [], true)] : []),
+    ...resultsBlocks(classTable!),
+    ...(cesTable ? [{ text: 'Varianta CES', style: 'h3' } as Content, ...resultsBlocks(cesTable)] : []),
     ...(anyFlagged ? [{ text: 'Fundalul galben marchează punctajele încă în verificare.', color: MUTED, fontSize: 9 } as Content] : []),
     { text: 'Pe exerciții', style: 'h2' },
-    {
-      table: {
-        headerRows: 1,
-        dontBreakRows: true,
-        widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
-        body: [
-          ['Exercițiul', 'Media', '% din maxim', 'Tot', 'Parțial', 'Nimic'].map(headerCell),
-          ...stats.perExercise.map((exercise): TableCell[] => [
-            { text: `${exercise.exerciseId} · ${exercise.label}`, fontSize: 9 },
-            { text: exercise.averagePoints === null ? dash : `${formatPoints(exercise.averagePoints)} din ${formatPoints(exercise.maxPoints)}`, fontSize: 9 },
-            { text: exercise.averagePercent === null ? dash : `${exercise.averagePercent}%`, fontSize: 9 },
-            { text: String(exercise.full), fontSize: 9 },
-            { text: String(exercise.partial), fontSize: 9 },
-            { text: String(exercise.zero), fontSize: 9 },
-          ]),
-        ],
-      },
-      layout: 'lightHorizontalLines',
-    },
+    exerciseTable(stats.perExercise),
+    ...(stats.cesPerExercise ? [{ text: 'Varianta CES', style: 'h3' } as Content, exerciseTable(stats.cesPerExercise)] : []),
   ];
   if (report.missing.length > 0) {
     content.push(

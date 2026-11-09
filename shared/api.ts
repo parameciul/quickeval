@@ -533,6 +533,10 @@ export interface ReportRow {
   // that could not be read.
   flagCount: number;
   items: ReportItem[];
+  // The student is marked CES (the report shows the mark), and the variant
+  // the paper was graded with.
+  ces: boolean;
+  variant: TestVariant;
 }
 
 // An active student of the class with no graded result, and why.
@@ -540,6 +544,7 @@ export interface ReportMissing {
   studentId: number;
   studentName: string;
   status: UploadStatus;
+  ces: boolean;
 }
 
 // The class report of a test (spec §14.2). The statistics come from
@@ -548,6 +553,12 @@ export interface ClassReport {
   test: { code: string; title: string; classId: number; className: string; status: TestStatus; startedAt: string | null };
   // The exercises of the test, in barem order.
   exercises: { id: string; label: string; maxPoints: number }[];
+  // The CES variant's exercises, when CES papers are graded and their
+  // exercises differ from the class test's (other ids, or another maximum):
+  // the CES papers then go in a table of their own (reportTables in
+  // shared/stats.ts). Null when there is no CES paper or the exercises are
+  // the same: the CES rows then share the class columns.
+  cesExercises: { id: string; label: string; maxPoints: number }[] | null;
   rows: ReportRow[];
   missing: ReportMissing[];
   analysis: AnalysisInfo & { content: ClassAnalysis | null };
