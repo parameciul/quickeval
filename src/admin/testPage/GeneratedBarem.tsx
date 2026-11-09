@@ -78,7 +78,15 @@ export function useGeneratedBarem({
   const status = (
     <>
       {!hasTest && <p className="hint">{ces ? 'Încarcă întâi testul CES.' : 'Încarcă întâi testul.'}</p>}
-      {waiting && <p role="status">{ces ? 'Se generează baremul CES… Durează câteva minute.' : 'Se generează baremul… Durează câteva minute.'}</p>}
+      {waiting && (
+        <p role="status">
+          {!ces
+            ? 'Se generează baremul… Durează câteva minute.'
+            : test.barem.request === 'requested'
+              ? 'Baremul CES se generează după baremul clasei. Durează câteva minute.'
+              : 'Se generează baremul CES… Durează câteva minute.'}
+        </p>
+      )}
       {failed && <p className="alert">{ces ? 'Nu am putut genera baremul CES.' : 'Nu am putut genera baremul.'}</p>}
       {unchecked && request === 'none' && (
         <p className="warning">

@@ -96,7 +96,12 @@ export const testTitleSchema = z
 export const createTestBody = z.object({
   classId: z.number({ message: 'Alege clasa.' }).int({ message: 'Alege clasa.' }).positive({ message: 'Alege clasa.' }),
   title: testTitleSchema,
+  // The CES switch turned off on Test nou: no separate test for the CES students.
+  cesOff: z.boolean().optional(),
 });
+
+// The CES switch of a test: off removes the CES files.
+export const cesOffBody = z.object({ off: z.boolean() });
 
 export const renameTestBody = z.object({ title: testTitleSchema });
 
@@ -458,6 +463,16 @@ export interface SearchResults {
   tests: TestSummary[];
 }
 
+// What the CES variant of a test has, for the list of what is missing.
+// `wanted`: the class has an active CES student and the teacher did not turn
+// the CES switch off.
+export interface CesPrepared {
+  wanted: boolean;
+  testFile: boolean;
+  baremFile: boolean;
+  baremRequest: BaremRequest;
+}
+
 export interface TestSummary {
   code: string;
   title: string;
@@ -493,7 +508,7 @@ export interface TestSummary {
   // its upload link (never the link itself). A draft made before tests got
   // their link when made has none, and no print PDF is made for it until the
   // teacher asks on the test page. The Teste page draws the stages from it.
-  prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus; uploadLink: boolean };
+  prepared: { testFile: boolean; baremFile: boolean; print: PrintStatus; uploadLink: boolean; ces: CesPrepared };
   // The CES variant's barem, while the test has a CES test file: "De făcut"
   // asks the teacher to check a generated one, or to give one when CES papers
   // wait for it (`missing`: no CES barem file, and a CES paper waits). Null
@@ -602,6 +617,9 @@ export interface CesVariantInfo {
   // Active students of the class marked CES: the page offers the variant only
   // when there is one (or the test already has a variant).
   studentCount: number;
+  // The CES switch is off: the teacher wants no separate test for the CES
+  // students of this test.
+  off: boolean;
   files: Record<TestFileKind, TestFileInfo | null>;
   baremNotes: string;
   barem: { request: BaremRequest; unchecked: boolean };
@@ -791,6 +809,8 @@ export interface CesRemovedAnswer {
   ces: CesVariantInfo;
   robot: RobotStart | null;
 }
+
+export type CesOffAnswer = CesRemovedAnswer;
 
 // "Încearcă din nou" on a print PDF that failed.
 export interface PrintRetryAnswer {

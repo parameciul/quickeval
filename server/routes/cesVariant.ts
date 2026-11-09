@@ -2,9 +2,11 @@ import type { Hono } from 'hono';
 import {
   baremCheckedBody,
   baremNotesBody,
+  cesOffBody,
   type BaremCheckedAnswer,
   type BaremGenerateAnswer,
   type BaremNotesAnswer,
+  type CesOffAnswer,
   type CesRemovedAnswer,
   type ExerciseListAnswer,
   type PrintRetryAnswer,
@@ -22,6 +24,7 @@ import {
   retryPrint,
   saveBaremNotes,
   saveTestFile,
+  setCesOff,
   toCesInfo,
   type TestRecord,
 } from '../db/tests.ts';
@@ -107,6 +110,24 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
     const current = await requireTest(c.env.DB, teacherId, test.summary.code);
     const robot = current.summary.status === 'evaluating' ? await startRobot(c.env) : null;
     return c.json({ ces: toCesInfo(current.ces), robot } satisfies CesRemovedAnswer);
+  });
+
+  // The CES switch (spec: CES switch). Off: the CES students get the class
+  // test, and the CES files go; refused once a paper went to grading with the
+  // CES variant. During the evaluation, the CES papers that waited go to the
+  // robot as class papers. On: the page asks for the CES files again.
+  routes.put('/:code/ces/off', async (c) => {
+    const teacherId = c.var.teacher.id;
+    const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
+    const body = await readJson(c, cesOffBody);
+    const keys = await setCesOff(c.env.DB, teacherId, test.id, body.off, nowIso());
+    if (keys === null) {
+      throw new ApiError(409, 'ces_papers', 'Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi oprită. Poți înlocui fișierele ei.');
+    }
+    if (keys.length > 0) await deleteFilesQuietly(c.env.FILES, keys);
+    const current = await requireTest(c.env.DB, teacherId, test.summary.code);
+    const robot = body.off && current.summary.status === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ ces: toCesInfo(current.ces), robot } satisfies CesOffAnswer);
   });
 
   // The teacher's comments for the CES barem, read by the robot as part of it.

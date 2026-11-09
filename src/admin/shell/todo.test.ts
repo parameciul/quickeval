@@ -4,7 +4,10 @@ import { fakeTest, noCesVariant } from '../../test/fakeApi.ts';
 import { stagesOf } from '../stages.ts';
 import { inWork, todoList, todoOf, todoPath } from './todo.ts';
 
-const summary = (overrides: Partial<TestSummary>): TestSummary => fakeTest({ title: 'Ecuații', ...overrides }).test;
+// A test with its test file and barem, so that it misses nothing.
+const file = { name: 'f.pdf', type: 'application/pdf' };
+const withFiles = { files: { test: file, barem: file } };
+const summary = (overrides: Partial<TestInfo>): TestSummary => fakeTest({ title: 'Ecuații', ...withFiles, ...overrides }).test;
 const generated = { request: 'none', unchecked: true } as const;
 const graded = { status: 'done', gradedCount: 24, submittedCount: 24 } as const;
 
@@ -87,6 +90,43 @@ describe('todoOf', () => {
   });
 });
 
+describe('what a draft or open test misses, in "De făcut"', () => {
+  const missingCes = (overrides: Partial<TestInfo> = {}) =>
+    summary({ ces: noCesVariant({ studentCount: 1 }), ...overrides });
+
+  it('asks for the test file and the barem, at Pregătire', () => {
+    expect(todoOf(summary({ files: { test: null, barem: null } }))).toMatchObject({
+      stage: 'Pregătire',
+      task: 'Adaugă ce lipsește',
+      text: 'Lipsesc: testul și baremul.',
+      action: 'Deschide',
+      short: 'lipsesc testul și baremul',
+    });
+    expect(todoOf(summary({ status: 'open', files: { test: file, barem: null } }))).toMatchObject({ text: 'Lipsește: baremul.', short: 'lipsește baremul' });
+    // A barem being generated is not missing.
+    expect(todoOf(summary({ files: { test: file, barem: null }, barem: { request: 'requested', unchecked: false } }))).toBeNull();
+  });
+
+  it('asks for the CES test and the CES barem while the class has a CES student and the switch is on', () => {
+    expect(todoOf(missingCes())).toMatchObject({ text: 'Lipsesc: testul CES și baremul CES.', short: 'lipsesc testul CES și baremul CES' });
+    expect(todoOf(summary({ files: { test: null, barem: file }, ces: noCesVariant({ studentCount: 2 }) }))?.text).toBe(
+      'Lipsesc: testul, testul CES și baremul CES.',
+    );
+    expect(todoOf(missingCes({ ces: noCesVariant({ studentCount: 1, off: true }) }))).toBeNull();
+    expect(todoOf(missingCes({ ces: noCesVariant({ studentCount: 1, files: { test: file, barem: null }, barem: { request: 'requested', unchecked: false } }) }))).toBeNull();
+  });
+
+  it('asks nothing of a test in evaluation or done, and checks a generated barem first', () => {
+    expect(todoOf(missingCes({ status: 'evaluating', gradedCount: 1 }))).toBeNull();
+    expect(todoOf(missingCes({ status: 'draft', barem: generated }))?.task).toBe('Verifică baremul generat');
+  });
+
+  it('asks nothing of a test reopened after its evaluation: its points to check come first', () => {
+    const reopened = { ...missingCes({ status: 'open', flagCount: 3, gradedCount: 5 }), evaluationStartedAt: '2026-11-02T08:00:00.000Z' };
+    expect(todoOf(reopened)).toMatchObject({ stage: 'Verificare', task: 'Decide 3 puncte nesigure' });
+  });
+});
+
 describe('todoList', () => {
   it('lists Pregătire, then Verificare, then Rezultate, newest first within each', () => {
     const items = todoList([
@@ -114,7 +154,7 @@ describe('inWork', () => {
 });
 
 describe('the CES barem in "De făcut"', () => {
-  const withCes = (overrides: Partial<TestInfo>): TestSummary => fakeTest({ title: 'Ecuații', ...overrides }).test;
+  const withCes = (overrides: Partial<TestInfo>): TestSummary => fakeTest({ title: 'Ecuații', ...withFiles, ...overrides }).test;
   const ces = (barem: { request: 'none' | 'requested' | 'failed'; unchecked: boolean }) =>
     noCesVariant({ studentCount: 1, files: { test: { name: 't.pdf', type: 'application/pdf' }, barem: null }, barem });
 

@@ -49,6 +49,7 @@ describe('the CES variant of a test page', () => {
   it('is empty on a new test, and counts the active CES students of the class', async () => {
     expect(await info()).toEqual({
       studentCount: 0,
+      off: false,
       files: { test: null, barem: null },
       baremNotes: '',
       barem: { request: 'none', unchecked: false },

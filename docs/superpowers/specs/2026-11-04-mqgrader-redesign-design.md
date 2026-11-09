@@ -153,7 +153,7 @@ The landing page is indexed (SEO, GEO and AEO work: canonical, Open Graph, JSON-
   - "În lucru" holds the tests in work, as the panel "Clasele tale" counts them: not archived, and not done, or done with a thing in "De făcut". "Terminate" holds the other done tests, and the archived ones with `?arhivate=1`, marked "Arhivat". A group with no test is left out.
   - The stage: a bar of six segments, one per stage (blue done, orange waits on the teacher, pale in progress, grey later), then the current stage's name and its state. The bar is for the eye only; the words say the same.
   - The stages of a test (`src/admin/stages.ts`, for the test page of Phase 4 too). A segment is orange exactly when "De făcut" has the test, at that stage.
-    - Pregătire: orange with the case of "De făcut". Done when the test file is there and the barem is active, and always once the test is in evaluation or done. Else in progress: "lipsește testul", "baremul se generează", "lipsește baremul".
+    - Pregătire: orange with the case of "De făcut". Done when the test file is there and the barem is active, and always once the test is in evaluation or done. Else in progress: "lipsește testul", "baremul se generează", "lipsește baremul". Since the CES switch (spec `2026-11-09-ces-switch-and-missing-warnings-design.md`), a draft or open test that misses a part waits instead: orange, with its note ("lipsesc testul și baremul", "lipsește testul CES").
     - Tipărire: done when the print PDF exists, and once the test has started. In progress while the print PDF is made ("se pregătește"), after it failed ("nu s-a putut pregăti"), or for a draft made before tests got their link when made ("fără cod QR": no print PDF is made until the teacher presses "Pregătește testul cu cod QR" on the test page). Later without a test file.
     - În clasă: later for a draft ("testul nu a început"), in progress while open ("elevii trimit lucrările"), done after.
     - Corectare: later before the evaluation, in progress during it ("15 din 22 corectate"), done when the test is done.
@@ -170,8 +170,9 @@ The landing page is indexed (SEO, GEO and AEO work: canonical, Open Graph, JSON-
     - Nothing: "Nimic de făcut acum".
     - Every other step is a link to the test page; "Verifică 3 puncte" opens the review (§7). A test whose results are open also has "Oprește accesul" on its row. The button of the first thing in "De făcut" is filled; the others are outlines.
   - On a phone (below 768 px) each row becomes a block: the test, the stage, the papers and the next step, one under the other.
-- "De făcut" counts exactly three cases, from the tests of the chosen school year that are not archived (`src/admin/shell/todo.ts`, Phase 2):
+- "De făcut" counts four cases (the fourth since the CES switch, 2026-11-09), from the tests of the chosen school year that are not archived (`src/admin/shell/todo.ts`, Phase 2):
   - Pregătire, "Verifică baremul generat": a draft or open test whose generated barem waits for "Am verificat baremul" (`barem.unchecked`, no request running). The tests list carries `barem` from Phase 2. The same case says "Generează din nou baremul" when the new generation of an unchecked barem failed (`request` is `failed`): that barem can be neither confirmed nor used until the teacher asks for it again.
+  - Pregătire, "Adaugă ce lipsește": a draft or open test that misses its test file, its barem, or, while the class has an active CES student and the CES switch is on, its CES test or CES barem (`missingOf` in `src/admin/missing.ts`). A barem being generated is not missing. It comes after the generated-barem cases.
   - Verificare, "Decide N puncte nesigure": a test with points to check (`flagCount` above 0).
   - Rezultate, "Publică rezultatele": a done test with nothing to check, at least one graded paper, the results not open, and not every graded paper published one by one.
 

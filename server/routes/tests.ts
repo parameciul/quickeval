@@ -108,7 +108,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
 
   routes.post('/', async (c) => {
     const body = await readJson(c, createTestBody);
-    const code = await createTest(c.env.DB, c.var.teacher.id, body.classId, body.title, nowIso());
+    const code = await createTest(c.env.DB, c.var.teacher.id, body.classId, body.title, nowIso(), body.cesOff ?? false);
     return c.json({ code }, 201);
   });
 

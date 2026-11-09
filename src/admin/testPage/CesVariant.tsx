@@ -1,63 +1,72 @@
 import { useMutation } from '@tanstack/react-query';
-import type { RobotStart, TestInfo } from '../../../shared/api.ts';
+import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
+import { CesSwitch } from '../CesSwitch.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { MoveOnLink } from './MoveOnLink.tsx';
 import { TestFiles } from './TestFiles.tsx';
 import { cesBaremActive, showsCes } from './variant.ts';
 
-// "Varianta CES" in the panel Pregătire (spec: CES variant): the adapted test
-// that the CES students of the class get, with its own barem. Optional: without
-// it, they get the class test. Shown while the class has a CES student, or
-// while the variant has a file.
+// "Varianta CES" in the panel Pregătire (spec: CES variant, CES switch): the
+// adapted test that the CES students of the class get, with its own barem.
+// The switch "Test separat pentru elevii cu CES" is on unless the teacher
+// turned it off; off removes the CES files, and the CES students get the class
+// test. Shown while the class has a CES student, or while the variant has a file.
 export function CesVariant({
   test,
+  uploads,
   onChanged,
   onRobot,
 }: {
   test: TestInfo;
+  uploads: UploadRow[];
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const api = useApi();
-  const remove = useMutation({ mutationFn: () => api.removeCesVariant(test.code), onSuccess: onChanged });
+  const toggle = useMutation({
+    mutationFn: (off: boolean) => api.setCesOff(test.code, off),
+    onSuccess: async (answer) => {
+      onRobot(answer.robot);
+      await onChanged();
+    },
+  });
   if (!showsCes(test)) return null;
   const { ces } = test;
   const hasFiles = ces.files.test !== null || ces.files.barem !== null;
   const expected = ces.classTotalPoints ?? 100;
-  const askRemove = () => {
-    if (window.confirm('Ștergi varianta CES? Elevii cu CES primesc atunci testul clasei.')) remove.mutate();
+  const names = uploads.filter((row) => row.ces && row.active).map((row) => row.studentName);
+  const onToggle = (on: boolean) => {
+    if (!on && hasFiles && !window.confirm('Oprești testul separat? Fișierele CES se șterg, iar elevii cu CES primesc testul clasei.')) return;
+    toggle.mutate(!on);
   };
 
   return (
     <section className="ces-variant" aria-labelledby="ces-variant-title">
       <h3 id="ces-variant-title">Varianta CES</h3>
-      <p className="hint">
-        {ces.studentCount > 0
-          ? `${countLabel(ces.studentCount, 'elev cu CES primește', 'elevi cu CES primesc')} acest test, corectat cu baremul lui.`
-          : 'Nu mai e niciun elev cu CES în clasă.'}{' '}
-        Varianta e opțională: fără ea, elevii cu CES primesc testul clasei.
-      </p>
-      <TestFiles test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
+      {ces.studentCount > 0 ? (
+        <CesSwitch names={names} on={!ces.off} disabled={toggle.isPending || ces.papers > 0} onToggle={onToggle} />
+      ) : (
+        <p className="hint">Nu mai e niciun elev cu CES în clasă.</p>
+      )}
+      {ces.papers > 0 && <p className="hint">Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi oprită. Poți înlocui fișierele ei.</p>}
+      {toggle.error && <ErrorMessage error={toggle.error} />}
+      {(!ces.off || hasFiles) && <TestFiles test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />}
       {ces.totalPoints !== null && ces.totalPoints !== expected && (
         <p className="warning">
           Baremul CES are {formatPoints(ces.totalPoints)} puncte, iar baremul clasei {formatPoints(expected)}. Baremul CES ar trebui să aibă tot atâtea
           puncte.
         </p>
       )}
-      {hasFiles &&
-        (ces.papers > 0 ? (
-          <p className="hint">Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi ștearsă. Poți înlocui fișierele ei.</p>
-        ) : (
-          <p>
-            <button type="button" className="text-button is-danger" disabled={remove.isPending} onClick={askRemove}>
-              Șterge varianta CES
-            </button>
-          </p>
-        ))}
-      {remove.error && <ErrorMessage error={remove.error} />}
+      {ces.studentCount === 0 && hasFiles && ces.papers === 0 && (
+        <p>
+          <button type="button" className="text-button is-danger" disabled={toggle.isPending} onClick={() => onToggle(false)}>
+            Șterge varianta CES
+          </button>
+        </p>
+      )}
     </section>
   );
 }

@@ -12,6 +12,8 @@ import { IconQr } from '../shell/icons.tsx';
 import type { StageName } from '../stages.ts';
 import { AnalysisState } from './AnalysisState.tsx';
 import { EvaluationControls } from './EvaluationControls.tsx';
+import { missingOf } from '../missing.ts';
+import { MissingList } from '../MissingList.tsx';
 import { CesVariant, CesWaiting } from './CesVariant.tsx';
 import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { PrintTest } from './PrintTest.tsx';
@@ -104,11 +106,11 @@ export function StagePanel({ stage, ...props }: PanelProps & { stage: StageName 
   );
 }
 
-function PreparePanel({ test, robot, onChanged, onRobot }: PanelProps) {
+function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) {
   return (
     <>
       <TestFiles test={test} onChanged={onChanged} onRobot={onRobot} />
-      <CesVariant test={test} onChanged={onChanged} onRobot={onRobot} />
+      <CesVariant test={test} uploads={uploads} onChanged={onChanged} onRobot={onRobot} />
       {waitsForBarem(test) && (
         <RobotLine lastCheckAt={robot.lastCheckAt} lateText="Baremul poate întârzia.">
           <StartRobotButton code={test.code} onChanged={onChanged} onRobot={onRobot} />
@@ -318,6 +320,7 @@ function TestActions({ test, uploads, onChanged, onRobot }: PanelProps) {
             Începe testul
           </button>
         </p>
+        <MissingList missing={missingOf(test)} lead="Înainte să începi," after="Poți începe oricum." why />
         {start.error && <ErrorMessage error={start.error} />}
       </>
     );

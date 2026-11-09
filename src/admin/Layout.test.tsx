@@ -2,11 +2,16 @@ import { act, cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useNavigate } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { TestInfo } from '../../shared/api.ts';
 import { createFakeApi, fakeAccount, fakeTeacher, fakeTest } from '../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../test/renderAdmin.tsx';
 import { ApiError } from './api.ts';
 
 // A screen as narrow as a phone (below 900px), for the code that asks.
+// The files of a draft or open test that misses nothing.
+const file = { name: 'f.pdf', type: 'application/pdf' };
+const files = { test: file, barem: file };
+
 const onPhone = () =>
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query === '(max-width: 56.25rem)',
@@ -34,7 +39,8 @@ const withBack = (
 );
 const back = () => userEvent.click(screen.getByRole('button', { name: 'Înapoi în istoric' }));
 
-const withClasses = () =>
+// The open test misses its files unless given them.
+const withClasses = (open: Partial<TestInfo> = {}) =>
   createFakeApi({
     classes: [
       { id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 },
@@ -43,7 +49,7 @@ const withClasses = () =>
     ],
     students: { 1: [{ id: 10, fullName: 'Pop Ion', active: true, canDelete: true, ces: false }] },
     tests: [
-      fakeTest({ code: '6E2-26T2', title: 'Ecuații', status: 'open' }),
+      fakeTest({ code: '6E2-26T2', title: 'Ecuații', status: 'open', ...open }),
       fakeTest({ code: '6E2-26T1', title: 'Fracții', status: 'done' }),
     ],
   });
@@ -59,8 +65,8 @@ const withTodo = () =>
     tests: [
       fakeTest({ code: '6E2-26T3', title: 'Logaritmi', status: 'done', gradedCount: 20 }),
       fakeTest({ code: '6E2-26T2', title: 'Ecuații', status: 'done', gradedCount: 24, flagCount: 3 }),
-      fakeTest({ code: '6E3-26T1', title: 'Inducție', classId: 2, className: '6E3', barem: { request: 'none', unchecked: true } }),
-      fakeTest({ code: '6E3-26T2', title: 'Mulțimi', classId: 2, className: '6E3', status: 'open' }),
+      fakeTest({ code: '6E3-26T1', title: 'Inducție', classId: 2, className: '6E3', barem: { request: 'none', unchecked: true }, files }),
+      fakeTest({ code: '6E3-26T2', title: 'Mulțimi', classId: 2, className: '6E3', status: 'open', files }),
       fakeTest({ code: '6E2-26T1', title: 'Fracții', status: 'done', gradedCount: 20, resultsOpen: true }),
     ],
   });
@@ -371,7 +377,7 @@ describe('De făcut', () => {
   });
 
   it('says so when nothing waits, and names the tests in work without "other"', async () => {
-    renderAdmin('/', withClasses());
+    renderAdmin('/', withClasses({ files }));
     await userEvent.click(await within(await menu()).findByRole('button', { name: 'De făcut' }));
     const panel = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
     expect(within(panel).getByRole('heading', { level: 3, name: 'Nimic nu te așteaptă acum' })).toBeInTheDocument();
@@ -396,7 +402,7 @@ describe('De făcut', () => {
       createFakeApi({
         classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
         students: {},
-        tests: [fakeTest({ code: '6E2-26T2', status: 'open' }), fakeTest({ code: '6E2-26T1', status: 'draft' })],
+        tests: [fakeTest({ code: '6E2-26T2', status: 'open', files }), fakeTest({ code: '6E2-26T1', status: 'draft', files })],
       }),
     );
     await userEvent.click(await within(await menu()).findByRole('button', { name: 'De făcut' }));
@@ -442,7 +448,8 @@ describe('the panel Clasele tale', () => {
     expect(list).not.toHaveAttribute('aria-label');
     const links = within(list).getAllByRole('link');
     expect(links.map((link) => link.getAttribute('href'))).toEqual(['/clase/1', '/clase/2']);
-    expect(links[0]).toHaveTextContent('6E21 elevEcuații · Deschis');
+    // The open test misses its files: they wait on the teacher.
+    expect(links[0]).toHaveTextContent('6E21 elevEcuații · Pregătire · lipsesc testul și baremul');
     expect(links[1]).toHaveTextContent('Nimic în lucru');
     expect(within(panel).getByRole('link', { name: '+ Clasă nouă' })).toHaveAttribute('href', '/clase');
     expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toHaveAttribute('href', '/clase');

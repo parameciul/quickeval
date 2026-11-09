@@ -1,6 +1,10 @@
 import type { TestSummary } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
+import { missingNames, missingNote, missingOf } from '../missing.ts';
 import { reviewPath } from '../reviewPage/points.ts';
+
+// The task of a test that misses a part (missingOf).
+export const MISSING_TASK = 'Adaugă ce lipsește';
 
 export type TodoStage = 'Pregătire' | 'Verificare' | 'Rezultate';
 
@@ -23,13 +27,14 @@ export function todoPath(item: TodoItem): string {
   return item.stage === 'Verificare' ? reviewPath(item.code) : `/teste/${item.code}`;
 }
 
-// What a test waits for from the teacher, if anything (redesign spec §5):
-// exactly three cases, checked in this order. The first has two forms: the
+// What a test waits for from the teacher, if anything (redesign spec §5, and
+// the CES switch spec): four cases, checked in this order. The first has two forms: the
 // generated barem waits to be checked, or its new generation failed (it can
 // be neither confirmed nor used until the teacher asks for it again). The
 // generated CES barem of the CES variant counts the same way, after the
 // class barem, also while the test is in evaluation (its CES papers wait); so
-// does a missing CES barem that CES papers wait for.
+// does a missing CES barem that CES papers wait for. Then what a draft or open
+// test still misses (missingOf): its files, and the CES ones.
 export function todoOf(test: TestSummary): TodoItem | null {
   if (test.archived) return null;
   const item = { code: test.code, testTitle: test.title, className: test.className };
@@ -83,6 +88,17 @@ export function todoOf(test: TestSummary): TodoItem | null {
       text: 'Lucrările CES așteaptă baremul CES. Celelalte lucrări se corectează între timp.',
       action: 'Deschide',
       short: 'baremul CES lipsește',
+    };
+  }
+  const missing = missingOf(test);
+  if (missing.length > 0) {
+    return {
+      ...item,
+      stage: 'Pregătire',
+      task: MISSING_TASK,
+      text: `${missing.length === 1 ? 'Lipsește' : 'Lipsesc'}: ${missingNames(missing)}.`,
+      action: 'Deschide',
+      short: missingNote(missing),
     };
   }
   if (test.flagCount > 0) {

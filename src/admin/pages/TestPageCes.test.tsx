@@ -41,7 +41,7 @@ describe('Varianta CES in Pregătire', () => {
     const api = apiWith({ ces: noCesVariant({ studentCount: 1 }) });
     renderAdmin(`${PAGE}#pregatire`, api);
     const ces = await block();
-    expect(ces.getByText(/1 elev cu CES primește acest test, corectat cu baremul lui\./)).toBeInTheDocument();
+    expect(ces.getByText('Clasa are 1 elev cu CES')).toBeInTheDocument();
     const file = new File(['%PDF-1.7'], 'Test adaptat.pdf', { type: PDF_TYPE });
     await userEvent.upload(ces.getByLabelText('Încarcă testul CES'), file);
     expect(api.uploadTestFile).toHaveBeenCalledWith('9R2-26T1', 'test', file, 'ces');
@@ -90,26 +90,99 @@ describe('Varianta CES in Pregătire', () => {
     expect((await block()).getByText('Baremul CES are 90 puncte, iar baremul clasei 100. Baremul CES ar trebui să aibă tot atâtea puncte.')).toBeInTheDocument();
   });
 
-  it('removes the variant after asking, and keeps it once a CES paper was graded', async () => {
+  it('shows the CES students and the switch, on by default, and turns it off after asking', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const api = apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES }) });
     renderAdmin(`${PAGE}#pregatire`, api);
-    await userEvent.click((await block()).getByRole('button', { name: 'Șterge varianta CES' }));
-    expect(window.confirm).toHaveBeenCalledWith('Ștergi varianta CES? Elevii cu CES primesc atunci testul clasei.');
-    expect(api.removeCesVariant).toHaveBeenCalledWith('9R2-26T1');
-    await waitFor(async () => expect((await block()).queryByRole('link', { name: 'test.pdf' })).not.toBeInTheDocument());
+    const ces = await block();
+    expect(ces.getByText('Bursașiu Teodor')).toBeInTheDocument();
+    const toggle = ces.getByRole('switch', { name: 'Test separat pentru elevii cu CES' });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(toggle);
+    expect(window.confirm).toHaveBeenCalledWith('Oprești testul separat? Fișierele CES se șterg, iar elevii cu CES primesc testul clasei.');
+    expect(api.setCesOff).toHaveBeenCalledWith('9R2-26T1', true);
+    await waitFor(async () => expect((await block()).getByRole('switch')).toHaveAttribute('aria-checked', 'false'));
+    expect((await block()).queryByText('Testul CES:')).not.toBeInTheDocument();
   });
 
-  it('says why a variant with graded CES papers cannot be removed', async () => {
+  it('turns the switch on again without asking, and asks for the CES files', async () => {
+    vi.spyOn(window, 'confirm');
+    const api = apiWith({ ces: noCesVariant({ studentCount: 1, off: true }) });
+    renderAdmin(`${PAGE}#pregatire`, api);
+    await userEvent.click((await block()).getByRole('switch', { name: 'Test separat pentru elevii cu CES' }));
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(api.setCesOff).toHaveBeenCalledWith('9R2-26T1', false);
+    expect(await screen.findByLabelText('Încarcă testul CES')).toBeInTheDocument();
+  });
+
+  it('says why a variant with graded CES papers cannot be turned off', async () => {
     renderAdmin(`${PAGE}#pregatire`, apiWith({ status: 'done', ces: noCesVariant({ studentCount: 1, files: FILES, papers: 1 }) }));
     const ces = await block();
-    expect(ces.getByText('Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi ștearsă. Poți înlocui fișierele ei.')).toBeInTheDocument();
-    expect(ces.queryByRole('button', { name: 'Șterge varianta CES' })).not.toBeInTheDocument();
+    expect(ces.getByText('Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi oprită. Poți înlocui fișierele ei.')).toBeInTheDocument();
+    expect(ces.getByRole('switch')).toBeDisabled();
   });
 
-  it('stays while it has files, even with no CES student left', async () => {
-    renderAdmin(`${PAGE}#pregatire`, apiWith({ ces: noCesVariant({ files: { test: FILES.test, barem: null } }) }));
-    expect((await block()).getByText(/Nu mai e niciun elev cu CES în clasă\./)).toBeInTheDocument();
+  it('marks the missing CES files in orange, and the files it has as ready', async () => {
+    renderAdmin(`${PAGE}#pregatire`, apiWith({ ces: noCesVariant({ studentCount: 1, files: { test: FILES.test, barem: null } }) }));
+    const ces = await block();
+    expect(ces.getByText('gata')).toHaveClass('file-mark', 'is-ready');
+    expect(ces.getByText('lipsește')).toHaveClass('file-mark', 'is-missing');
+  });
+
+  it('marks a generated barem that waits to be checked as "de verificat", not "gata"', async () => {
+    renderAdmin(
+      `${PAGE}#pregatire`,
+      apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES, barem: { request: 'none', unchecked: true } }) }),
+    );
+    const ces = await block();
+    expect(ces.getByText('de verificat')).toHaveClass('file-mark', 'is-missing');
+    expect(ces.getAllByText('gata')).toHaveLength(1);
+  });
+
+  it('says the CES barem waits while the class barem is generated', async () => {
+    renderAdmin(
+      `${PAGE}#pregatire`,
+      apiWith({
+        files: { test: FILES.test, barem: null },
+        barem: { request: 'requested', unchecked: false },
+        ces: noCesVariant({ studentCount: 1, files: { test: FILES.test, barem: null }, barem: { request: 'requested', unchecked: false } }),
+      }),
+    );
+    const ces = await block();
+    expect(ces.getByText('Baremul CES se generează după baremul clasei. Durează câteva minute.')).toBeInTheDocument();
+  });
+
+  it('stays while it has files, even with no CES student left, and can be removed', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const api = apiWith({ ces: noCesVariant({ files: { test: FILES.test, barem: null } }) });
+    renderAdmin(`${PAGE}#pregatire`, api);
+    const ces = await block();
+    expect(ces.getByText(/Nu mai e niciun elev cu CES în clasă\./)).toBeInTheDocument();
+    expect(ces.queryByRole('switch')).not.toBeInTheDocument();
+    await userEvent.click(ces.getByRole('button', { name: 'Șterge varianta CES' }));
+    expect(api.setCesOff).toHaveBeenCalledWith('9R2-26T1', true);
+  });
+});
+
+describe('what a draft misses, under "Începe testul"', () => {
+  it('lists each missing part and why it matters, and still starts', async () => {
+    const api = apiWith({ ces: noCesVariant({ studentCount: 1 }) });
+    renderAdmin(`${PAGE}#in-clasa`, api);
+    const list = await screen.findByText('Înainte să începi, lipsesc:');
+    const box = within(list.closest('.missing-list') as HTMLElement);
+    expect(box.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'testul CES: elevii cu CES nu au ce primi pe hârtie',
+      'baremul CES: lucrările CES vor aștepta baremul CES',
+    ]);
+    expect(box.getByText('Poți începe oricum.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Începe testul' }));
+    expect(api.startTest).toHaveBeenCalledWith('9R2-26T1');
+  });
+
+  it('shows nothing when the draft misses nothing, or the switch is off', async () => {
+    renderAdmin(`${PAGE}#in-clasa`, apiWith({ ces: noCesVariant({ studentCount: 1, off: true }) }));
+    expect(await screen.findByRole('button', { name: 'Începe testul' })).toBeInTheDocument();
+    expect(screen.queryByText(/Înainte să începi/)).not.toBeInTheDocument();
   });
 });
 

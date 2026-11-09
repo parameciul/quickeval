@@ -2798,6 +2798,33 @@ input[type="file"] {
   margin: -0.25rem 0 0.25rem 2rem;
 }
 
+/* A class with a CES student (spec: CES switch): the switch between the first
+   step and the files, and the CES files beside the class ones, under them on a
+   narrow screen. */
+.new-test-ces .ces-switch {
+  max-width: none;
+  margin: 0;
+  background: var(--sheet);
+}
+
+.step-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 767px) {
+  .step-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.step-pair > div > p {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .new-test-foot {
   display: flex;
   flex-wrap: wrap;
@@ -2917,6 +2944,78 @@ input[type="file"] {
 .ces-variant > h3 {
   margin: 0 0 0.25rem;
   font-size: 1rem;
+}
+
+/* "Test separat pentru elevii cu CES" (spec: CES switch): who the CES students
+   are, and the switch, framed in the blue so the teacher cannot miss it. */
+.ces-switch {
+  max-width: 44rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+}
+
+.ces-switch > p {
+  margin: 0;
+}
+
+.ces-switch-who {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ces-switch-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.6rem 0 0.35rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ces-switch-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* A file of the test: "gata" in green, "lipsește" in orange while a draft or
+   open test needs it, "de verificat" in orange for a generated barem not yet
+   checked. */
+.file-mark {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.file-mark.is-ready {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.file-mark.is-missing {
+  border: 1px solid var(--orange-mark);
+  background: var(--marker);
+  color: var(--orange);
+}
+
+/* What a test still misses, under "Creează testul" and "Începe testul". */
+.missing-list strong {
+  color: var(--orange);
+}
+
+.missing-list ul {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
 }
 
 /* The mark of a CES student next to the name. */
