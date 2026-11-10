@@ -2433,11 +2433,87 @@ table.tests .row-actions {
   color: var(--on-ink);
 }
 
-.review-photo img {
+/* A page of the paper zooms inside the pane: the pane has the photo's shape
+   (--page-ratio, width / height) and fits the screen's height, so the whole
+   page shows at once; the layer moves and grows inside it. */
+.zoom-pane {
+  position: relative;
+  overflow: hidden;
+  width: min(100%, calc((100vh - 12rem) * var(--page-ratio)));
+  aspect-ratio: var(--page-ratio);
+  margin-inline: auto;
+  border-radius: var(--radius);
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.zoom-pane.is-zoomed {
+  cursor: grab;
+  touch-action: none;
+}
+
+.zoom-pane.is-zoomed:active {
+  cursor: grabbing;
+}
+
+.zoom-layer {
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+}
+
+.zoom-layer img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+}
+
+/* The answer to check: an orange dashed border that looks drawn by hand (a
+   little uneven, a little tilted), its label outside it. Clicks go through it
+   to the page. */
+.answer-frame {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed var(--orange-mark);
+  border-radius: 5px 3px 6px 4px / 4px 6px 3px 5px;
+  transform: rotate(-0.3deg);
+  pointer-events: none;
+}
+
+.answer-frame-label {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: -2px;
+  padding: 0.0625rem 0.375rem;
   border-radius: var(--radius);
+  background: var(--orange);
+  color: var(--sheet);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.answer-frame-label.is-below {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+.review-photo-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.answer-parts {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-weight: 600;
 }
 
 .review-photo .pdf-frame {

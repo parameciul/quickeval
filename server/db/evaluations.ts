@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { EvaluationInfo, EvaluationItemInfo, ItemChange } from '../../shared/api.ts';
-import type { Confidence } from '../../shared/schemas.ts';
+import type { AnswerArea, Confidence } from '../../shared/schemas.ts';
 import { round2 } from '../../shared/scoring.ts';
 
 // Graded results and the teacher's checks of them (spec §14.1). Each write
@@ -68,6 +68,8 @@ interface ItemRow {
   needs_review: number;
   review_reason: string;
   page: number;
+  // JSON: AnswerArea[].
+  areas: string;
   reviewed_at: string | null;
   changed_by_teacher: number;
 }
@@ -86,6 +88,7 @@ function toItem(row: ItemRow): EvaluationItemInfo {
     needsReview: row.needs_review === 1,
     reviewReason: row.review_reason,
     page: row.page,
+    areas: JSON.parse(row.areas) as AnswerArea[],
     reviewed: row.reviewed_at !== null,
     changedByTeacher: row.changed_by_teacher === 1,
   };
@@ -105,7 +108,7 @@ export async function getEvaluation(db: D1Database, submissionId: number): Promi
     db
       .prepare(
         `SELECT i.id, i.exercise_id, i.label, i.max_points, i.ai_points, i.points, i.student_answer, i.comment, i.confidence,
-           i.needs_review, i.review_reason, i.page, i.reviewed_at, i.changed_by_teacher
+           i.needs_review, i.review_reason, i.page, i.areas, i.reviewed_at, i.changed_by_teacher
          FROM evaluation_items i JOIN evaluations ev ON ev.id = i.evaluation_id
          WHERE ev.submission_id = ?
          ORDER BY i.position, i.id`,

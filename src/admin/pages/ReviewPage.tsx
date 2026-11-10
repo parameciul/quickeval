@@ -8,9 +8,11 @@ import { normalizeTestCode } from '../../../shared/tests.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { drawnAreas, saveFrames, savedFrames } from '../reviewPage/areas.ts';
 import { ReviewDecision, type ReviewView } from '../reviewPage/ReviewDecision.tsx';
-import { ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
+import { type ReviewFocus, ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
 import { ReviewQueue } from '../reviewPage/ReviewQueue.tsx';
+import { isReviewKey } from '../reviewPage/keys.ts';
 import {
   firstSpot,
   otherPapers,
@@ -68,16 +70,6 @@ interface Decision {
   change: ItemChange;
 }
 
-// A key typed in a field is text, not a command.
-function isTyping(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
-}
-
-// What opens over the page from the bars (a panel, the phone menu, the account
-// menu) and the button of one while it is open: a key there is not for the
-// review. A closed panel's button, where the focus goes back, is.
-const BAR_BOXES = '.panel, .phone-menu, .user-menu, [aria-expanded="true"]';
-
 function Review({ code, detail, refreshError }: { code: string; detail: TestDetail; refreshError: Error | null }) {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -123,17 +115,32 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   const pagesWait = point?.kind === 'pages' && evaluation !== null && evaluation !== undefined && evaluation.unreadable.length > 0 && !evaluation.pagesReviewed;
   const view: ReviewView = item ? { kind: 'item', item } : pagesWait && evaluation ? { kind: 'pages', pages: evaluation.unreadable } : { kind: 'paper' };
 
-  // The page of the paper: the page of the answer to check, or the first page
+  // The answer to check, with the areas the review can draw ("Arată chenarul").
+  const [frames, setFrames] = useState(savedFrames);
+  const focus: ReviewFocus | null =
+    view.kind === 'item' && submission
+      ? { key: `${submission.id}:${view.item.id}`, label: view.item.exerciseId, areas: drawnAreas(view.item.areas, submission.files) }
+      : null;
+  const onFrames = (on: boolean) => {
+    setFrames(on);
+    saveFrames(on);
+  };
+
+  // The page of the paper: the page of the first area of the answer to check
+  // (while its border shows), else the page of the answer, or the first page
   // the robot could not read, else page 1.
   const viewKey = `${spot?.submissionId}:${spot?.key ?? ''}`;
   const [pageChoice, setPageChoice] = useState<{ view: string; page: number } | null>(null);
   const pageCount = submission?.files.length ?? 0;
+  const firstArea = frames ? focus?.areas[0] : undefined;
   const firstPage =
     view.kind === 'pages'
       ? (pageIndex(view.pages[0] ?? '') ?? 0)
-      : view.kind === 'item' && view.item.page >= 1 && view.item.page <= pageCount
-        ? view.item.page - 1
-        : 0;
+      : firstArea
+        ? firstArea.page - 1
+        : view.kind === 'item' && view.item.page >= 1 && view.item.page <= pageCount
+          ? view.item.page - 1
+          : 0;
   const shownPage = pageChoice?.view === viewKey ? pageChoice.page : firstPage;
 
   // After a decision, the point that opens takes the focus on its heading,
@@ -214,8 +221,7 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   // repeats would accept points the teacher never saw.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented || isTyping(event.target)) return;
-      if (event.target instanceof Element && event.target.closest(BAR_BOXES)) return;
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || !isReviewKey(event)) return;
       // While a decision is on its way, no key acts: the next point opens after it.
       if (decide.isPending) return;
       const key = event.key.toLowerCase();
@@ -267,7 +273,14 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
               <div className="review-loading">{paper.isError ? <ErrorMessage error={paper.error} /> : <p className="hint">Se încarcă lucrarea…</p>}</div>
             ) : (
               <>
-                <ReviewPhoto submission={submission} page={shownPage} onPage={(index) => setPageChoice({ view: viewKey, page: index })} />
+                <ReviewPhoto
+                  submission={submission}
+                  page={shownPage}
+                  onPage={(index) => setPageChoice({ view: viewKey, page: index })}
+                  focus={focus}
+                  frames={frames}
+                  onFrames={onFrames}
+                />
                 <ReviewDecision
                   code={code}
                   submission={submission}

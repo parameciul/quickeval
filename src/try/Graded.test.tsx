@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StudentResultView } from '../../shared/api.ts';
 import { PDF_TYPE } from '../../shared/files.ts';
 import { QUICK_TRY_STUDENT, QUICK_TRY_TITLE } from '../../shared/quickTry.ts';
+import type { AnswerArea } from '../../shared/schemas.ts';
 import { formatPoints } from '../../shared/scoring.ts';
 import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission, reviewPointsOf } from '../test/fakeApi.ts';
 import { createFakeTryApi, renderTry, TRY_CODE, TRY_SUBMISSION, TRY_TOKEN, tryTest } from '../test/fakeTryApi.tsx';
@@ -32,10 +33,10 @@ const studentResult: StudentResultView = {
   },
 };
 
-// A graded try: I.1 waits for a check unless `checked`.
-function setup(path = '/', checked = false, unreadable: string[] = []) {
+// A graded try: I.1 waits for a check unless `checked`; `areas` say where its answer is.
+function setup(path = '/', checked = false, unreadable: string[] = [], areas: AnswerArea[] = []) {
   const evaluation = fakeEvaluation(
-    [fakeItem({ id: 71, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 3, needsReview: !checked, reviewReason: 'Scrisul se citește greu.', page: 1 })],
+    [fakeItem({ id: 71, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 3, needsReview: !checked, reviewReason: 'Scrisul se citește greu.', page: 1, areas })],
     { unreadable },
   );
   const paper = fakeSubmission({ id: TRY_SUBMISSION, testCode: TRY_CODE, testTitle: QUICK_TRY_TITLE, studentName: QUICK_TRY_STUDENT, files: [photo], evaluation });
@@ -72,6 +73,15 @@ describe('a graded try', () => {
     await waitFor(() => expect(api.correctItem).toHaveBeenCalledWith(TRY_SUBMISSION, 71, expect.objectContaining({ reviewed: true })));
     await userEvent.click(screen.getByRole('link', { name: 'Înapoi la test' }));
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
+  });
+
+  it("opens the review zoomed on the answer, with the border the teacher's review draws", async () => {
+    setup('/', false, [], [{ page: 1, x0: 0.1, y0: 0.3, x1: 0.7, y1: 0.5 }]);
+    await userEvent.click(await screen.findByRole('link', { name: 'Verifică 1 punct' }));
+    const frame = await screen.findByTestId('answer-frame');
+    expect(within(frame).getByText('I.1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Toată pagina' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Arată chenarul' })).toBeChecked();
   });
 
   it('shows the grade and the points to check above the views', async () => {

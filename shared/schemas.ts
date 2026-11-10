@@ -29,6 +29,21 @@ export type ExerciseList = z.infer<typeof exerciseListSchema>;
 // Mode "grade": one student's work, graded against the exercise list.
 export const CONFIDENCE_LEVELS = ['very_low', 'low', 'medium', 'high', 'very_high'] as const;
 
+// One block of the student's work for an exercise: its page, counted from 1 as
+// in `student/`, and its corners as fractions (0 to 1) of the page's width (x)
+// and height (y), from the top left corner of the page as it is shown. The
+// shape only: `checkGrading` drops an area that cannot be drawn, so a bad
+// area never throws away a grading.
+export const answerAreaSchema = z.object({
+  page: z.number(),
+  x0: z.number(),
+  y0: z.number(),
+  x1: z.number(),
+  y1: z.number(),
+});
+
+export type AnswerArea = z.infer<typeof answerAreaSchema>;
+
 export const gradingResultSchema = z.object({
   items: z.array(
     z.object({
@@ -43,6 +58,10 @@ export const gradingResultSchema = z.object({
       // in `student/`; 0 when it is not known. Gradings made before this field
       // existed have none.
       page: z.number().int().min(0).default(0),
+      // Where the answer is on the pages, so the review can frame it; [] when
+      // the student did not answer or the robot is not sure. Gradings made
+      // before this field existed have none.
+      areas: z.array(answerAreaSchema).default([]),
     }),
   ),
   unreadable: z.array(z.string()),
@@ -85,6 +104,8 @@ const MAX_TOTAL_POINTS = 1000;
 const MAX_LIST_ENTRIES = 5;
 const MAX_UNREADABLE = 20;
 const MAX_ANALYSIS_ENTRIES = 8;
+// Areas kept per exercise: the real papers tried needed at most 3.
+export const MAX_AREAS = 6;
 
 // Longest texts, in characters. A longer text is cut and ends with "…".
 export const TEXT_LIMITS = {
@@ -121,6 +142,20 @@ function cutList(list: string[], entries: number, max: number): string[] {
     .map((entry) => cutText(entry, max))
     .filter((entry) => entry !== '')
     .slice(0, entries);
+}
+
+const fraction = (value: number) => Number.isFinite(value) && value >= 0 && value <= 1;
+const round4 = (value: number) => Math.round(value * 10000) / 10000;
+
+// The areas that can be drawn: a page from 1, corners inside the page and in
+// order (top left, then bottom right), at most MAX_AREAS, rounded to 4 decimals.
+// An area on a page the paper does not have is left to the review to skip.
+export function drawableAreas(areas: readonly AnswerArea[]): AnswerArea[] {
+  return areas
+    .filter((area) => Number.isInteger(area.page) && area.page >= 1)
+    .filter((area) => [area.x0, area.y0, area.x1, area.y1].every(fraction) && area.x0 < area.x1 && area.y0 < area.y1)
+    .slice(0, MAX_AREAS)
+    .map((area) => ({ page: area.page, x0: round4(area.x0), y0: round4(area.y0), x1: round4(area.x1), y1: round4(area.y1) }));
 }
 
 // The JSON Schema that the robot gives Claude (`claude --json-schema`).
@@ -334,6 +369,8 @@ export interface GradedItem {
   reviewReason: string;
   // 1-based page of the answer; 0 when unknown.
   page: number;
+  // Where the answer is on the pages (drawableAreas); [] when unknown.
+  areas: AnswerArea[];
 }
 
 export interface Grading {
@@ -390,6 +427,7 @@ export function checkGrading(raw: unknown, list: ExerciseList): Checked<Grading>
       needsReview: reasons.length > 0,
       reviewReason: cutText(reasons.join('; '), TEXT_LIMITS.reviewReason),
       page: item.page,
+      areas: drawableAreas(item.areas),
     };
   });
   const unreadable = cutList(parsed.data.unreadable, MAX_UNREADABLE, TEXT_LIMITS.fileName);

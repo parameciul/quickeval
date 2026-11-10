@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { SubmissionDetail, UploadRow } from '../../../shared/api.ts';
+import type { AnswerArea } from '../../../shared/schemas.ts';
 import { ApiError, submissionFileUrl } from '../api.ts';
 import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission, fakeTest, fakeUpload, reviewPointsOf } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
@@ -503,5 +504,248 @@ describe('the review of the points to check', () => {
     // The keys still act from there.
     await userEvent.keyboard('k');
     await expectLocation(at('?lucrare=14&punct=41'));
+  });
+});
+
+// The page of the paper zooms inside the middle pane. jsdom lays nothing out:
+// the pane is given a size of 400 × 400 px.
+const pane = () => screen.getByTestId('zoom-pane');
+const layer = () => pane().firstElementChild as HTMLElement;
+function sizedPane(): HTMLElement {
+  const element = pane();
+  element.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 400, width: 400, height: 400, x: 0, y: 0, toJSON: () => ({}) });
+  return element;
+}
+function clickAt(element: HTMLElement, clientX: number, clientY: number, button = 0) {
+  fireEvent.pointerDown(element, { pointerId: 1, button, clientX, clientY });
+  fireEvent.pointerUp(element, { pointerId: 1, button, clientX, clientY });
+}
+const WHOLE = 'translate(0%, 0%) scale(1)';
+
+describe('the zoom of a page', () => {
+  it('zooms in where the photo is clicked, moves with a drag, and shows the whole page with "Toată pagina"', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const photo = sizedPane();
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Pagina 1 a lucrării/ })).not.toBeInTheDocument();
+
+    clickAt(photo, 100, 150);
+    expect(layer().style.transform).toBe('translate(-12.5%, -43.75%) scale(2.5)');
+    // A click on the zoomed page does nothing.
+    clickAt(photo, 300, 300);
+    expect(layer().style.transform).toBe('translate(-12.5%, -43.75%) scale(2.5)');
+    fireEvent.pointerDown(photo, { pointerId: 1, button: 0, clientX: 200, clientY: 200 });
+    fireEvent.pointerMove(photo, { pointerId: 1, button: 0, clientX: 240, clientY: 200 });
+    fireEvent.pointerUp(photo, { pointerId: 1, button: 0, clientX: 240, clientY: 200 });
+    expect(layer().style.transform).toBe('translate(-2.5%, -43.75%) scale(2.5)');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Toată pagina' }));
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+  });
+
+  it('shows the whole page again with a right click or Esc, and a right button never zooms', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const photo = sizedPane();
+    clickAt(photo, 200, 200, 2);
+    expect(layer().style.transform).toBe(WHOLE);
+    clickAt(photo, 200, 200);
+    // The browser's menu does not open over the photo.
+    expect(fireEvent.contextMenu(photo)).toBe(false);
+    expect(layer().style.transform).toBe(WHOLE);
+    clickAt(photo, 200, 200);
+    await userEvent.keyboard('{Escape}');
+    expect(layer().style.transform).toBe(WHOLE);
+  });
+
+  it('closes only the panel of the bar with Esc while the page is zoomed', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    clickAt(sizedPane(), 200, 200);
+    await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary', { name: 'Ce ai de făcut' })).not.toBeInTheDocument();
+    expect(layer().style.transform).toBe('translate(-75%, -75%) scale(2.5)');
+  });
+
+  it('closes only the panel with Esc when the focus left the bar, and keeps the zoom', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    clickAt(sizedPane(), 200, 200);
+    await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
+    (document.activeElement as HTMLElement).blur();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary', { name: 'Ce ai de făcut' })).not.toBeInTheDocument();
+    expect(layer().style.transform).toBe('translate(-75%, -75%) scale(2.5)');
+  });
+
+  it('zooms with the wheel around the pointer, and lets the page scroll at the whole page', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const photo = sizedPane();
+    expect(fireEvent.wheel(photo, { deltaY: 100, clientX: 200, clientY: 200 })).toBe(true);
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(fireEvent.wheel(photo, { deltaY: -200, clientX: 200, clientY: 200 })).toBe(false);
+    expect(layer().style.transform).toBe('translate(-17.493%, -17.493%) scale(1.35)');
+  });
+
+  it('shows a page whole again when the teacher comes back to it', async () => {
+    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
+    await screen.findByText('Ana Pop · pagina 2 din 3');
+    clickAt(sizedPane(), 200, 200);
+    expect(layer().style.transform).not.toBe(WHOLE);
+    await userEvent.keyboard('1');
+    await userEvent.keyboard('2');
+    expect(screen.getByText('Ana Pop · pagina 2 din 3')).toBeInTheDocument();
+    expect(layer().style.transform).toBe(WHOLE);
+  });
+
+  it('gives a new page the usual shape until its photo loads', async () => {
+    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
+    await screen.findByText('Ana Pop · pagina 2 din 3');
+    const image = layer().querySelector('img')!;
+    Object.defineProperty(image, 'naturalWidth', { value: 2000 });
+    Object.defineProperty(image, 'naturalHeight', { value: 1000 });
+    fireEvent.load(image);
+    expect(pane().style.getPropertyValue('--page-ratio')).toBe('2');
+    await userEvent.keyboard('1');
+    expect(pane().style.getPropertyValue('--page-ratio')).toBe('0.75');
+  });
+
+  it('zooms faster with a trackpad pinch than with a wheel', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    fireEvent.wheel(sizedPane(), { deltaY: -20, ctrlKey: true, clientX: 200, clientY: 200 });
+    expect(layer().style.transform).toMatch(/scale\(1\.22\d*\)$/);
+  });
+
+  it('opens another page whole, and a PDF page has no zoom', async () => {
+    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
+    await screen.findByText('Ana Pop · pagina 2 din 3');
+    clickAt(sizedPane(), 200, 200);
+    expect(layer().style.transform).not.toBe(WHOLE);
+    await userEvent.keyboard('1');
+    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(layer().style.transform).toBe(WHOLE);
+    await userEvent.keyboard('3');
+    expect(screen.queryByTestId('zoom-pane')).not.toBeInTheDocument();
+    expect(screen.getByTitle('Pagina 3 a lucrării')).toHaveAttribute('src', submissionFileUrl(11, 103));
+    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+  });
+});
+
+// Ion's I.3 in two parts, given out of page order: the second page, then the
+// first. II.4 waits too, on the first page. Ion has two photo pages here.
+const TOP = { page: 1, x0: 0.2, y0: 0.3, x1: 0.6, y1: 0.4 };
+const LOW = { page: 2, x0: 0.1, y0: 0.5, x1: 0.9, y1: 0.8 };
+const OTHER = { page: 1, x0: 0.1, y0: 0.02, x1: 0.5, y1: 0.12 };
+function framed(areas: AnswerArea[] = [LOW, TOP]): SubmissionDetail[] {
+  const list = papers();
+  const ion = list[1]!;
+  ion.files = [photo(141, 'i1.jpg'), photo(142, 'i2.jpg')];
+  ion.evaluation = fakeEvaluation([
+    fakeItem({ id: 41, exerciseId: 'I.3', label: 'Subiectul I, ex. 3', points: 3, maxPoints: 5, needsReview: true, reviewReason: 'Răspunsul e tăiat.', areas }),
+    fakeItem({ id: 42, exerciseId: 'II.4', label: 'Subiectul II, ex. 4', points: 1, maxPoints: 2, needsReview: true, reviewReason: 'Neclar.', areas: [OTHER] }),
+  ]);
+  return list;
+}
+const frame = () => screen.getByTestId('answer-frame');
+const ION_I3 = `${PAGE}?lucrare=14&punct=41`;
+
+describe('the border of the answer to check', () => {
+  it('opens the answer on its first part, zoomed, with an orange border and its label outside it', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    expect(await screen.findByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
+    expect(layer().style.transform).toBe('translate(-25%, -15.625%) scale(1.875)');
+    expect(frame().style).toMatchObject({ left: '12.5%', top: '40.625%', width: '75%', height: '18.75%' });
+    expect(within(frame()).getByText('I.3 · partea 1 din 2')).not.toHaveClass('is-below');
+    expect(screen.getByText('Partea 1 din 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Partea anterioară' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Arată chenarul' })).toBeChecked();
+  });
+
+  it('steps to the next part on its page and back, zoomed on each', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await userEvent.click(screen.getByRole('button', { name: 'Partea următoare' }));
+    expect(screen.getByText('Ion Popa · pagina 2 din 2')).toBeInTheDocument();
+    // A part this big shows on the whole page.
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(frame().style).toMatchObject({ left: '10%', top: '50%', width: '80%', height: '30%' });
+    expect(within(frame()).getByText('I.3 · partea 2 din 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Partea următoare' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Partea anterioară' }));
+    expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
+    expect(layer().style.transform).toBe('translate(-25%, -15.625%) scale(1.875)');
+  });
+
+  it('draws the border on a page picked by hand, on the whole page', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina 2' }));
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(within(frame()).getByText('I.3 · partea 2 din 2')).toBeInTheDocument();
+  });
+
+  it('puts the label below the border when there is no room above it', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=42`, apiWith(framed()));
+    await screen.findByText('Ion Popa · pagina 1 din 2');
+    expect(within(frame()).getByText('II.4')).toHaveClass('is-below');
+    expect(screen.queryByText(/Partea 1/)).not.toBeInTheDocument();
+  });
+
+  it("moves to the next point's area after a decision, on the same page", async () => {
+    renderAdmin(ION_I3, apiWith(framed([TOP])));
+    await screen.findByText('Ion Popa · pagina 1 din 2');
+    clickAt(sizedPane(), 200, 200);
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
+    expect(await within(decision()).findByRole('heading', { name: 'Ion Popa · Subiectul II, ex. 4' })).toBeInTheDocument();
+    expect(within(frame()).getByText('II.4')).toBeInTheDocument();
+    expect(layer().style.transform).toBe('translate(-6.25%, 0%) scale(1.875)');
+  });
+
+  it('opens the next point whole after a decision while the border is off', async () => {
+    renderAdmin(ION_I3, apiWith(framed([TOP])));
+    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Arată chenarul' }));
+    clickAt(sizedPane(), 200, 200);
+    expect(layer().style.transform).not.toBe(WHOLE);
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
+    expect(await within(decision()).findByRole('heading', { name: 'Ion Popa · Subiectul II, ex. 4' })).toBeInTheDocument();
+    expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
+    expect(layer().style.transform).toBe(WHOLE);
+  });
+
+  it('turns the border off and on, and remembers the choice in this browser', async () => {
+    const first = renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Arată chenarul' }));
+    expect(screen.queryByTestId('answer-frame')).not.toBeInTheDocument();
+    expect(screen.queryByText('Partea 1 din 2')).not.toBeInTheDocument();
+    expect(layer().style.transform).toBe(WHOLE);
+    first.unmount();
+
+    // Off: the answer opens on its page, whole, as before.
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · pagina 1 din 2');
+    expect(screen.getByRole('checkbox', { name: 'Arată chenarul' })).not.toBeChecked();
+    expect(screen.queryByTestId('answer-frame')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Arată chenarul' }));
+    expect(within(frame()).getByText('I.3 · partea 1 din 2')).toBeInTheDocument();
+    expect(layer().style.transform).toBe('translate(-25%, -15.625%) scale(1.875)');
+  });
+
+  it('opens as before an answer with no area it can draw: on a PDF page, or on a page the paper does not have', async () => {
+    const list = papers();
+    list[0]!.evaluation!.items[1]!.areas = [{ ...TOP, page: 3 }, { ...TOP, page: 9 }];
+    renderAdmin(`${PAGE}?lucrare=11&punct=32`, apiWith(list));
+    expect(await screen.findByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Arată chenarul' })).not.toBeInTheDocument();
+    await userEvent.keyboard('1');
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(screen.queryByTestId('answer-frame')).not.toBeInTheDocument();
   });
 });

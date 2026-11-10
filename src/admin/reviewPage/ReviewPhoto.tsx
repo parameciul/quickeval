@@ -1,28 +1,105 @@
+import { useState } from 'react';
 import type { SubmissionDetail } from '../../../shared/api.ts';
+import type { AnswerArea } from '../../../shared/schemas.ts';
 import { submissionFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
+import { AnswerFrame } from './AnswerFrame.tsx';
+import { isZoomed, viewOfBox, WHOLE_PAGE, type ZoomView } from './zoom.ts';
+import { ZoomPhoto } from './ZoomPhoto.tsx';
+
+// The answer to check: `key` names it (the paper and the item), `label` is the
+// exercise ("II.1"), `areas` are the ones the review can draw (drawnAreas).
+export interface ReviewFocus {
+  key: string;
+  label: string;
+  areas: AnswerArea[];
+}
 
 // The middle pane of the review: one page of the paper at a time, with the
-// page switch. No marks on the photo: the robot does not say where an answer
-// is (redesign spec §7, decision 27). A photo opens full size on a click.
-export function ReviewPhoto({ submission, page, onPage }: { submission: SubmissionDetail; page: number; onPage: (page: number) => void }) {
+// page switch. A photo zooms inside the pane (ZoomPhoto); "Toată pagina", a
+// right click or Esc shows the whole page again. A PDF shows in a frame.
+// While "Arată chenarul" is on, the answer to check opens zoomed on its first
+// area with an orange border; an answer in more parts steps through them.
+export function ReviewPhoto({
+  submission,
+  page,
+  onPage,
+  focus,
+  frames,
+  onFrames,
+}: {
+  submission: SubmissionDetail;
+  page: number;
+  onPage: (page: number) => void;
+  focus: ReviewFocus | null;
+  frames: boolean;
+  onFrames: (on: boolean) => void;
+}) {
   const { base } = useApi();
   const files = submission.files;
-  if (files.length === 0) {
+  const index = Math.min(Math.max(page, 0), Math.max(files.length - 1, 0));
+  const file = files[index];
+
+  // The answer framed now: none while the switch is off or it has no area.
+  const framed = frames && focus !== null && focus.areas.length > 0 ? focus : null;
+  // Every answer has its own key, framed or not, so a zoom never follows the
+  // teacher to the next answer.
+  const focusKey = framed ? `framed:${framed.key}` : `plain:${focus?.key ?? ''}`;
+  const [part, setPart] = useState<{ key: string; index: number } | null>(null);
+  const partIndex = part !== null && part.key === focusKey ? Math.min(part.index, (framed?.areas.length ?? 1) - 1) : 0;
+  const partArea = framed?.areas[partIndex];
+
+  // The zoom of the page shown. An answer that opens shows its part zoomed;
+  // a page the teacher picks herself opens whole.
+  const fileKey = `${submission.id}:${file?.id ?? ''}`;
+  const [zoom, setZoom] = useState<{ focusKey: string; fileKey: string; view: ZoomView } | null>(null);
+  // Another page forgets the zoom, so coming back to a page shows it as it opens.
+  const [shownFile, setShownFile] = useState(fileKey);
+  if (shownFile !== fileKey) {
+    setShownFile(fileKey);
+    if (zoom !== null && zoom.fileKey !== fileKey) setZoom(null);
+  }
+  const view =
+    zoom !== null && zoom.focusKey === focusKey
+      ? zoom.fileKey === fileKey
+        ? zoom.view
+        : WHOLE_PAGE
+      : partArea && partArea.page === index + 1
+        ? viewOfBox(partArea)
+        : WHOLE_PAGE;
+  const setView = (next: ZoomView) => setZoom({ focusKey, fileKey, view: next });
+
+  // The next or the previous part: its page, zoomed on it.
+  const goPart = (next: number) => {
+    const area = framed?.areas[next];
+    const target = area && files[area.page - 1];
+    if (!area || !target) return;
+    setPart({ key: focusKey, index: next });
+    setZoom({ focusKey, fileKey: `${submission.id}:${target.id}`, view: viewOfBox(area) });
+    onPage(area.page - 1);
+  };
+
+  if (!file) {
     return (
       <div className="review-photo">
         <p className="hint">Elevul nu a încărcat niciun fișier.</p>
       </div>
     );
   }
-  const index = Math.min(Math.max(page, 0), files.length - 1);
-  const file = files[index]!;
   const url = submissionFileUrl(submission.id, file.id, base);
   const caption = `${submission.studentName} · pagina ${index + 1} din ${files.length}`;
+  const photo = file.contentType.startsWith('image/');
+  const parts = framed?.areas.length ?? 0;
+  const partLabel = (number: number) => (parts > 1 ? `${framed!.label} · partea ${number + 1} din ${parts}` : framed!.label);
   return (
     <figure className="review-photo">
       <div className="review-photo-top">
         <figcaption>{caption}</figcaption>
+        {photo && isZoomed(view) && (
+          <button type="button" className="button-quiet button-small" onClick={() => setView(WHOLE_PAGE)}>
+            Toată pagina
+          </button>
+        )}
         {files.length > 1 && (
           <span className="page-switch" role="group" aria-label="Paginile lucrării">
             {files.map((other, number) => (
@@ -40,10 +117,33 @@ export function ReviewPhoto({ submission, page, onPage }: { submission: Submissi
           </span>
         )}
       </div>
-      {file.contentType.startsWith('image/') ? (
-        <a href={url} target="_blank" rel="noopener" title="Deschide poza mare">
-          <img src={url} alt={`Pagina ${index + 1} a lucrării`} />
-        </a>
+      {focus !== null && focus.areas.length > 0 && (
+        <div className="review-photo-tools">
+          {parts > 1 && (
+            <span className="answer-parts" role="group" aria-label="Părțile răspunsului">
+              <button type="button" className="button-quiet button-small" aria-label="Partea anterioară" disabled={partIndex === 0} onClick={() => goPart(partIndex - 1)}>
+                ‹
+              </button>
+              <span>
+                Partea {partIndex + 1} din {parts}
+              </span>
+              <button type="button" className="button-quiet button-small" aria-label="Partea următoare" disabled={partIndex === parts - 1} onClick={() => goPart(partIndex + 1)}>
+                ›
+              </button>
+            </span>
+          )}
+          <label className="check-label">
+            <input type="checkbox" checked={frames} onChange={(event) => onFrames(event.target.checked)} />
+            Arată chenarul
+          </label>
+        </div>
+      )}
+      {photo ? (
+        <ZoomPhoto src={url} alt={`Pagina ${index + 1} a lucrării`} view={view} onView={setView}>
+          {framed?.areas.map((area, number) =>
+            area.page === index + 1 ? <AnswerFrame key={number} view={view} box={area} label={partLabel(number)} /> : null,
+          )}
+        </ZoomPhoto>
       ) : (
         <>
           <iframe className="pdf-frame" src={url} title={`Pagina ${index + 1} a lucrării`} />
