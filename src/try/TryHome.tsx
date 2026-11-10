@@ -6,6 +6,7 @@ import type { TryApi } from './api.ts';
 import { phaseOf, refreshOf } from './phase.ts';
 import { Prepare } from './Prepare.tsx';
 import { Expired, isExpired } from './TryNotice.tsx';
+import { BaremProblem, Failed, Grading } from './Working.tsx';
 
 // The try's page: the test read through the teacher app's client (the cache
 // key of the test page and the review), and the part of the phase it is in.
@@ -24,6 +25,9 @@ export function TryHome({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi }
       <h1>Încercare rapidă</h1>
       <p className="test-sub">Corectezi o lucrare, fără cont. Linkul acestei pagini merge 7 zile.</p>
       {phase === 'prepare' && <Prepare detail={detail.data} tryApi={tryApi} />}
+      {phase === 'grading' && <Grading />}
+      {phase === 'problem' && <BaremProblem detail={detail.data} />}
+      {phase === 'failed' && <Failed detail={detail.data} />}
     </section>
   );
 }

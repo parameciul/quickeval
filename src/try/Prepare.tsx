@@ -84,7 +84,7 @@ function useUpload(code: string, kind: TestFileKind) {
 }
 
 // A file of the test: its name opens it, and a new file replaces it.
-function TestFile({ code, kind, name, disabled }: { code: string; kind: TestFileKind; name: string | null; disabled: boolean }) {
+export function TestFile({ code, kind, name, disabled }: { code: string; kind: TestFileKind; name: string | null; disabled: boolean }) {
   const api = useApi();
   const upload = useUpload(code, kind);
   const label = kind === 'test' ? 'Fișierul testului' : 'Fișierul baremului';

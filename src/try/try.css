@@ -33,3 +33,7 @@ label.button-quiet.is-disabled {
   opacity: 0.55;
   pointer-events: none;
 }
+
+.try-state {
+  margin: 1.5rem 0;
+}
