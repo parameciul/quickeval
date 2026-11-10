@@ -228,15 +228,23 @@ describe('the pages that answer a search', () => {
     expect(despre).toContain('https://lauramiron.pages.dev/');
   });
 
-  it('shows the account in a picture the page can describe', () => {
-    const img = landingDoc.querySelector('.shot img');
-    expect(img).not.toBeNull();
-    expect(img?.getAttribute('src')).toBe('/app-teste.png');
-    expect((img?.getAttribute('alt') ?? '').length).toBeGreaterThan(30);
-    expect(img?.getAttribute('loading')).toBe('lazy');
-    // The width and height are the picture's own, so the page does not jump.
-    expect(img?.getAttribute('width')).toBe('1600');
-    expect(img?.getAttribute('height')).toBe('1000');
+  it('gives the contact address on the page about the author', () => {
+    const doc = parse(despre);
+    const mail = Array.from(doc.querySelectorAll('a[href^="mailto:"]')).map((a) => a.getAttribute('href'));
+    expect(mail).toEqual(['mailto:contact@mqgrader.ro', 'mailto:contact@mqgrader.ro']);
+    expect(text(doc.getElementById('contact'))).toBe('Contact');
+  });
+
+  it("gives advice in the guide that fits MQGrader's way of grading", () => {
+    const doc = parse(ghid);
+    const habits = Array.from(doc.querySelectorAll('#obiceiuri + ol > li b')).map(text);
+    expect(habits).toEqual([
+      'Confirmă baremul înainte de prima lucrare.',
+      'Cere pozele în clasă, la sfârșitul orei.',
+      'Publică rezultatele înainte de următorul test.',
+    ]);
+    // Grading one exercise across the whole class is how a teacher grades by hand.
+    expect(ghid).not.toContain('Corectează exercițiul, nu lucrarea');
   });
 
   it('shows the review screen in the guide, with the same picture in the data', () => {

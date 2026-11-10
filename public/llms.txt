@@ -21,3 +21,4 @@ MQGrader (also written MQ Grader) is a web app that helps math teachers in Roman
 - Punctajul urmează baremul; dacă profesorul nu are barem, primește o propunere pe care o verifică.
 - Rezultate: link pentru fiecare elev (cu nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări), raportul clasei, PDF pentru fiecare elev, CSV pentru catalog.
 - Conturile noi se creează pe bază de cerere.
+- Contact: contact@mqgrader.ro (Laura Miron, profesoară de matematică la Liceul William Shakespeare din Timișoara).

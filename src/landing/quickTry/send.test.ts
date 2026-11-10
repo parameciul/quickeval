@@ -13,7 +13,7 @@ const photo = (name: string) => new File(['jpg'], name, { type: 'image/jpeg' });
 function fakeLandingApi() {
   const calls: string[] = [];
   const api = {
-    availability: vi.fn(async () => ({ dailyLimitReached: false, admin: false, siteKey: 'site' })),
+    availability: vi.fn(async () => ({ dailyLimitReached: false, admin: false, signedIn: false, siteKey: 'site' })),
     create: vi.fn(async (_turnstileToken?: string, _title?: string) => {
       calls.push('create');
       return { token: TOKEN, code: 'PROBA-26T1' };

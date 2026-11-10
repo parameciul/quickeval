@@ -7,7 +7,7 @@ const files = { test: { name: 'test.pdf', type: PDF_TYPE }, barem: { name: 'bare
 const TOKEN = 'abcdefghijkmnopqrstuvwxyz2345672';
 const today = { token: TOKEN, code: 'PROBA-26T1', madeAt: '2026-11-10T08:00:00.000Z' };
 const now = new Date('2026-11-10T12:00:00.000Z');
-const open = { dailyLimitReached: false, admin: false, siteKey: 'site' };
+const open = { dailyLimitReached: false, admin: false, signedIn: false, siteKey: 'site' };
 
 describe('the status line under the button', () => {
   it('follows the robot while it makes the barem, then waits for her start', () => {

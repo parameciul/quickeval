@@ -18,9 +18,8 @@ afterEach(() => {
 
 describe('the landing page', () => {
   it('says what MQGrader does on the first screen', () => {
-    // The heading names the product; Laura's statement is the eyebrow above it.
-    expect(all('h1').map(text)).toEqual(['Corectarea testelor de matematică, după barem']);
-    expect(text(doc.querySelector('.l-kicker'))).toBe('Weekendul tău, fără teancul de lucrări.');
+    // Laura's statement is the heading, the one h1 of the page.
+    expect(all('h1').map(text)).toEqual(['Weekendul tău, fără teancul de lucrări.']);
     expect(text(doc.querySelector('.l-lede'))).toBe(
       'MQGrader este o platformă web pentru profesorii de matematică din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.',
     );
@@ -55,6 +54,9 @@ describe('the landing page', () => {
 
   it('leads to the login, and to a new account', () => {
     const links = all('a').map((a) => [text(a), a.getAttribute('href')]);
+    // The page is served signed out: the account links wait, hidden, for the API's answer.
+    expect(all('[data-member]').every((el) => el.hasAttribute('hidden'))).toBe(true);
+    expect(all('[data-guest]').some((el) => el.hasAttribute('hidden'))).toBe(false);
     expect(links.filter(([name]) => name === 'Intră în cont')).toEqual([
       ['Intră în cont', '/teacher/'],
       ['Intră în cont', '/teacher/'],
@@ -81,8 +83,23 @@ describe('the landing page', () => {
     ]);
     // Every card says what the page is about, in one line.
     for (const a of all('#mai-multe .more-list a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
-    // And one link in the text beside the account picture, where it belongs.
-    expect(all('.shot-sec .l-body a').map((a) => a.getAttribute('href'))).toEqual(['/ghid/']);
+    // The header's menu names the same four pages.
+    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['#cum', '#ajutor', '/ghid/', '/barem/', '/despre/', '/preturi/']);
+    // The account picture waits until the app's look settles.
+    expect(doc.getElementById('aplicatia')).toBeNull();
+  });
+
+  it('gives the contact address and says who builds MQGrader', () => {
+    const contact = doc.getElementById('contact');
+    expect(text(contact?.querySelector('h2') ?? null)).toBe('Contact');
+    expect(Array.from(contact?.querySelectorAll('a') ?? []).map((a) => [text(a), a.getAttribute('href')])).toEqual([
+      ['contact@mqgrader.ro', 'mailto:contact@mqgrader.ro'],
+    ]);
+    expect(text(contact)).toContain('Laura Miron, profesoară de matematică la Liceul William Shakespeare din Timișoara');
+    const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
+    const org = ld['@graph'].find((n: { '@type': string }) => n['@type'] === 'Organization');
+    expect(org.email).toBe('contact@mqgrader.ro');
+    expect(org.contactPoint.email).toBe('contact@mqgrader.ro');
   });
 
   it('may be indexed, and names its own address', () => {

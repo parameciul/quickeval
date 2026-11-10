@@ -136,6 +136,9 @@ export interface QuickTryCreated {
 export interface QuickTryAvailability {
   dailyLimitReached: boolean;
   admin: boolean;
+  // A teacher is logged in on this browser: the landing page shows the account
+  // link instead of the login.
+  signedIn: boolean;
   siteKey: string | null;
 }
 
