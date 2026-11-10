@@ -55,6 +55,17 @@ describe('ResultApp', () => {
     expectNoGradingWords();
   });
 
+  it('has a footer with only the mqgrader.ro link', async () => {
+    const api = createFakeUploadApi();
+    api.getResult.mockResolvedValue(structuredClone(graded));
+    render(<ResultApp api={api} resultToken="result-token-11" />);
+    await screen.findByRole('heading', { name: 'Pop Ion' });
+    const foot = screen.getByRole('contentinfo');
+    expect(within(foot).getAllByRole('link')).toHaveLength(1);
+    expect(within(foot).getByRole('link', { name: 'mqgrader.ro' })).toHaveAttribute('href', 'https://mqgrader.ro/');
+    expect(foot).toHaveTextContent(/^mqgrader\.ro$/);
+  });
+
   it('shows the grade, the mistakes, and the final words, without any teacher controls', async () => {
     const api = createFakeUploadApi();
     api.getResult.mockResolvedValue(structuredClone(graded));

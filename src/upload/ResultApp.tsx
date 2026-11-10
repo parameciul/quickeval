@@ -6,7 +6,7 @@ import { resultFileUrl, type UploadApi } from './api.ts';
 import { forgetResultLinkByToken } from './resultLinks.ts';
 import { StudentResult } from './StudentResult.tsx';
 import type { StudentResultView } from '../../shared/api.ts';
-import { StudentHeader } from './StudentHeader.tsx';
+import { SITE_URL, StudentHeader } from './StudentHeader.tsx';
 
 export const UNKNOWN_RESULT_LINK = 'Link greșit. Cere profesorului linkul nou.';
 
@@ -58,6 +58,11 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
           )}
         </ErrorBoundary>
       </main>
+      <footer className="result-foot">
+        <div className="wrap result-foot-bar">
+          <a href={SITE_URL}>mqgrader.ro</a>
+        </div>
+      </footer>
     </>
   );
 }
