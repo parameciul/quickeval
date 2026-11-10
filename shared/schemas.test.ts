@@ -13,6 +13,7 @@ import {
   generatedBaremSchema,
   gradingResultSchema,
   LOW_CONFIDENCE,
+  MAX_AREAS,
   OUT_OF_RANGE,
 } from './schemas.ts';
 
@@ -201,6 +202,33 @@ describe('checkGrading', () => {
     expect(checked.ok && checked.value.unreadable).toEqual(pages.slice(0, 20));
   });
 
+  it('keeps the areas of each answer, rounded to 4 decimals, and none for a grading made before them', () => {
+    const area = { page: 2, x0: 0.123456, y0: 0.2, x1: 0.9, y1: 0.45 };
+    const checked = checkGrading(grading([item('I.1', 4, { areas: [area] }), item('I.2', 2), item('II.1', 2, { areas: [] })]), LIST);
+    if (!checked.ok) throw new Error(checked.reason);
+    expect(checked.value.items.map((graded) => graded.areas)).toEqual([[{ page: 2, x0: 0.1235, y0: 0.2, x1: 0.9, y1: 0.45 }], [], []]);
+  });
+
+  it.each([
+    ['page 0', { page: 0, x0: 0.1, y0: 0.1, x1: 0.5, y1: 0.5 }],
+    ['a page that is not whole', { page: 1.5, x0: 0.1, y0: 0.1, x1: 0.5, y1: 0.5 }],
+    ['a corner past the page', { page: 1, x0: 0.1, y0: 0.1, x1: 1.2, y1: 0.5 }],
+    ['a corner before the page', { page: 1, x0: -0.1, y0: 0.1, x1: 0.5, y1: 0.5 }],
+    ['corners in the wrong order', { page: 1, x0: 0.5, y0: 0.1, x1: 0.1, y1: 0.5 }],
+    ['an empty area', { page: 1, x0: 0.1, y0: 0.5, x1: 0.5, y1: 0.5 }],
+  ])('drops an area with %s and keeps the grading', (_name, bad) => {
+    const good = { page: 1, x0: 0, y0: 0, x1: 1, y1: 1 };
+    const checked = checkGrading(grading([item('I.1', 4, { areas: [bad, good] }), item('I.2', 2), item('II.1', 2)]), LIST);
+    if (!checked.ok) throw new Error(checked.reason);
+    expect(checked.value.items[0]!.areas).toEqual([good]);
+  });
+
+  it(`keeps at most ${MAX_AREAS} areas of an answer`, () => {
+    const areas = Array.from({ length: MAX_AREAS + 2 }, (_, i) => ({ page: i + 1, x0: 0.1, y0: 0.1, x1: 0.5, y1: 0.5 }));
+    const checked = checkGrading(grading([item('I.1', 4, { areas }), item('I.2', 2), item('II.1', 2)]), LIST);
+    expect(checked.ok && checked.value.items[0]!.areas.map((area) => area.page)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
   it('flags the whole grading when a page could not be read', () => {
     const checked = checkGrading(grading([item('I.1', 4), item('I.2', 2), item('II.1', 2)], { unreadable: ['page-02.jpg'] }), LIST);
     expect(checked.ok && checked.value.needsReview).toBe(true);
@@ -247,6 +275,13 @@ describe('claudeJsonSchema', () => {
   it('asks for every field of a grading', () => {
     const json = claudeJsonSchema(gradingResultSchema) as { required: string[] };
     expect(json.required).toEqual(['items', 'unreadable', 'summary', 'strengths', 'recommendations']);
+  });
+
+  it('asks for the areas of every answer, so Claude never leaves them out', () => {
+    const json = claudeJsonSchema(gradingResultSchema) as { properties: { items: { items: { required: string[]; properties: Record<string, { items: { required: string[] } }> } } } };
+    const answer = json.properties.items.items;
+    expect(answer.required).toContain('areas');
+    expect(answer.properties.areas!.items.required).toEqual(['page', 'x0', 'y0', 'x1', 'y1']);
   });
 });
 

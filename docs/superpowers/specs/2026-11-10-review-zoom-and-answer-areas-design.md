@@ -55,7 +55,7 @@ The teacher's choice: the Quick Try review behaves the same. It already is the s
   - `[]` when the student did not answer or the robot is not sure.
 - The field is required in the JSON Schema that Claude gets, so it is never left out silently. A grading made before the field existed has no areas (zod default `[]`).
 - The skill text (`.claude/skills/evaluate-test/SKILL.md`, mode "grade") gets the rule used in the spike: one area per separate block of the student's work for that exercise (the statement's line when the answer is written there, a solution lower on the page, the rest on another page); frame only that exercise's handwriting with a small margin; leave out any block not sure to belong to it, because a missing frame is better than a frame around the wrong exercise. `skill.test.ts` checks the field name.
-- `checkGrading` keeps the areas: it drops an area whose page is outside the paper's pages, whose numbers are outside 0–1, or whose corners are not in order (x0 < x1, y0 < y1). It caps the number of areas per item (builder picks the cap; the spike never passed 3).
+- `checkGrading` keeps the areas (`drawableAreas`, `shared/schemas.ts`): it drops an area whose page is not a whole number from 1, whose numbers are outside 0–1, or whose corners are not in order (x0 < x1, y0 < y1), keeps at most 6 per item (`MAX_AREAS`; the spike never passed 3), and rounds the numbers to 4 decimals. A bad area never throws away the grading. `checkGrading` does not know how many pages the paper has: the review skips an area on a page the paper does not have.
 - The item's `page` stays as it is. When an item has areas, the review uses the page of its first area.
 
 ## Storage

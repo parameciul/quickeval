@@ -22,7 +22,7 @@ const LIST: ExerciseList = {
 };
 
 const GRADING: GradingResult = {
-  items: [{ exerciseId: 'I.1', points: 8, studentAnswer: '3/4', comment: 'Corect.', confidence: 'high', needsReview: false, reviewReason: '', page: 1 }],
+  items: [{ exerciseId: 'I.1', points: 8, studentAnswer: '3/4', comment: 'Corect.', confidence: 'high', needsReview: false, reviewReason: '', page: 1, areas: [] }],
   unreadable: [],
   summary: 'Ai lucrat bine.',
   strengths: ['Fracții'],

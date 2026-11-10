@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { classAnalysisSchema, exerciseListSchema, generatedBaremSchema, gradingResultSchema } from '../shared/schemas.ts';
+import { answerAreaSchema, classAnalysisSchema, exerciseListSchema, generatedBaremSchema, gradingResultSchema } from '../shared/schemas.ts';
 import { SKILL_DIR } from './workdir.ts';
 
 // The grading skill (spec §13) must match what the robot gives Claude: the
@@ -33,6 +33,7 @@ describe('the grading skill', () => {
       ...Object.keys(exerciseListSchema.shape.exercises.element.shape),
       ...Object.keys(gradingResultSchema.shape),
       ...Object.keys(gradingResultSchema.shape.items.element.shape),
+      ...Object.keys(answerAreaSchema.shape),
       ...Object.keys(classAnalysisSchema.shape),
     ];
     for (const field of fields) expect(skill).toContain(`\`${field}\``);
