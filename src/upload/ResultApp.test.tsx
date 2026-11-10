@@ -92,13 +92,13 @@ describe('ResultApp', () => {
     expectNoGradingWords();
   });
 
-  it('shows only the files button, and the files after it', async () => {
+  it('shows only the send, PDF and files buttons, and the files after it', async () => {
     const api = createFakeUploadApi();
     api.getResult.mockResolvedValue(structuredClone(graded));
     render(<ResultApp api={api} resultToken="result-token-11" />);
     await screen.findByRole('heading', { name: 'Pop Ion' });
     const buttons = within(screen.getByRole('main')).getAllByRole('button');
-    expect(buttons.map((button) => button.textContent)).toEqual(['Arată fișierele']);
+    expect(buttons.map((button) => button.textContent)).toEqual(['Trimite linkul', 'Descarcă PDF', 'Arată fișierele']);
     await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
     expect(await screen.findByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', '/api/u/rezultat/result-token-11/files/21');
     expect(screen.getByTitle('Pagina 2')).toHaveAttribute('src', '/api/u/rezultat/result-token-11/files/22');

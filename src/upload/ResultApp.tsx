@@ -4,6 +4,7 @@ import { ApiError, messageOf } from '../ui/ApiError.ts';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { resultFileUrl, type UploadApi } from './api.ts';
 import { forgetResultLinkByToken } from './resultLinks.ts';
+import { ResultActions } from './ResultActions.tsx';
 import { StudentResult } from './StudentResult.tsx';
 import type { StudentResultView } from '../../shared/api.ts';
 import { SITE_URL, StudentHeader } from './StudentHeader.tsx';
@@ -53,6 +54,7 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
               <p className="hint">
                 {displayClassName(phase.result.className)} · {phase.result.testCode}
               </p>
+              <ResultActions result={phase.result} url={window.location.href} />
               <StudentResult result={phase.result} fileUrl={(fileId) => resultFileUrl(resultToken!, fileId)} />
             </>
           )}

@@ -4309,6 +4309,20 @@ table.items tr.edit-row > td {
   line-height: 1;
 }
 
+.result-actions {
+  margin-block: 0.75rem;
+}
+
+.result-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.result-actions p {
+  margin: 0.5rem 0 0;
+}
+
 .result-columns {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
