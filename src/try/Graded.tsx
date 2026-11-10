@@ -9,7 +9,7 @@ import { pointKey, reviewPath } from '../admin/reviewPage/points.ts';
 import { GradedResult } from '../admin/submissionPage/GradedResult.tsx';
 import { PageFiles } from '../admin/submissionPage/PageFiles.tsx';
 import { StudentResult } from '../upload/StudentResult.tsx';
-import { countLabel } from '../ui/format.ts';
+import { countLabel, pageLabel } from '../ui/format.ts';
 import { MathText } from '../ui/MathText.tsx';
 import { onTabKeyDown } from '../ui/tabKeys.ts';
 import { pageFileUrl, type TryApi } from './api.ts';
@@ -132,10 +132,10 @@ function Checking({ code, submissionId, points }: { code: string; submissionId: 
                 {formatPoints(point.points)} din {formatPoints(point.maxPoints)}
               </span>
             ) : (
-              <span className="try-point-score">{point.pages.join(', ')}</span>
+              <span className="try-point-score">{countLabel(point.pages.length, 'pagină', 'pagini')}</span>
             )}
             <span className="try-point-why">
-              {point.kind === 'item' ? <MathText text={point.reason} /> : 'Robotul nu a putut citi aceste pagini.'}
+              {point.kind === 'item' ? <MathText text={point.reason} /> : `Robotul nu a putut citi: ${point.pages.map(pageLabel).join(', ')}.`}
             </span>
             <Link className="button-quiet" to={reviewPath(code, { submissionId, key: pointKey(point) })} aria-label={`Verifică ${name}`}>
               Verifică

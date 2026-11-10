@@ -4,12 +4,19 @@ import type { Env } from './env.ts';
 
 // Deletes a few tries whose 7 days are over (spec §5): their R2 files first,
 // then their rows. When R2 fails, the rows stay and the next call finds the
-// files again. Each try's rows go in their own batch, so a try that cannot be
-// deleted keeps only its own rows. Answers how many tries it deleted.
+// files again. The rows go in one batch (within the request's 15 queries);
+// when it fails, each try's rows go in their own batch, so a try that cannot
+// be deleted keeps only its own rows. Answers how many tries it deleted.
 export async function cleanUpTries(env: Env, now: string): Promise<number> {
   const { teacherIds, keys } = await expiredTries(env.DB, now, QUICK_TRY_CLEANUP_BATCH);
   if (teacherIds.length === 0) return 0;
   if (keys.length > 0) await env.FILES.delete(keys);
+  try {
+    await deleteTries(env.DB, teacherIds);
+    return teacherIds.length;
+  } catch {
+    // One of them cannot be deleted: the others go one by one.
+  }
   const done = await Promise.allSettled(teacherIds.map((id) => deleteTries(env.DB, [id])));
   for (const one of done) {
     if (one.status === 'rejected') console.warn('A Quick Try could not be deleted.', one.reason);

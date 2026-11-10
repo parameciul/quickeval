@@ -159,6 +159,28 @@ describe('deleting tries whose 7 days are over', () => {
     for (const one of stuck) expect(await rowsOf(one.teacherId)).toBeGreaterThan(0);
   });
 
+  it(`stays within 15 D1 queries when it deletes ${QUICK_TRY_CLEANUP_BATCH} tries`, async () => {
+    const tries = [];
+    for (let i = 0; i < QUICK_TRY_CLEANUP_BATCH; i++) tries.push(await fullTry(`198.51.100.${i}`));
+    for (const one of tries) await expire(one.teacherId);
+    const db = api.env.DB;
+    let queries = 0;
+    api.env.DB = new Proxy(db, {
+      get(target, key) {
+        const value = Reflect.get(target, key) as unknown;
+        if (key === 'prepare') return (sql: string) => ((queries += 1), target.prepare(sql));
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    try {
+      expect((await visit()).status).toBe(200);
+    } finally {
+      api.env.DB = db;
+    }
+    for (const one of tries) expect(await rowsOf(one.teacherId)).toBe(0);
+    expect(queries).toBeLessThanOrEqual(15);
+  });
+
   it('keeps the rows when the files could not be deleted, so the next visit finds them again', async () => {
     const old = await fullTry();
     await expire(old.teacherId);

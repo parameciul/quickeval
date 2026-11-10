@@ -33,10 +33,11 @@ const studentResult: StudentResultView = {
 };
 
 // A graded try: I.1 waits for a check unless `checked`.
-function setup(path = '/', checked = false) {
-  const evaluation = fakeEvaluation([
-    fakeItem({ id: 71, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 3, needsReview: !checked, reviewReason: 'Scrisul se citește greu.', page: 1 }),
-  ]);
+function setup(path = '/', checked = false, unreadable: string[] = []) {
+  const evaluation = fakeEvaluation(
+    [fakeItem({ id: 71, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 3, needsReview: !checked, reviewReason: 'Scrisul se citește greu.', page: 1 })],
+    { unreadable },
+  );
   const paper = fakeSubmission({ id: TRY_SUBMISSION, testCode: TRY_CODE, testTitle: QUICK_TRY_TITLE, studentName: QUICK_TRY_STUDENT, files: [photo], evaluation });
   const test = tryTest(
     { status: 'done', files },
@@ -99,6 +100,18 @@ describe('a graded try', () => {
     const tab = await screen.findByRole('tab', { name: 'Rezultatul profesorului' });
     expect(within(tab).getByText('Profesor')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByRole('tab', { name: 'Rezultatul elevului' })).toHaveTextContent('Elev');
+  });
+
+  it('names the pages the robot could not read as the review does', async () => {
+    setup('/', true, ['student/page-02.jpg', 'student/page-03.jpg']);
+    const panel = await screen.findByRole('tabpanel');
+    expect(within(panel).getByText('Pagini greu de citit')).toBeInTheDocument();
+    expect(within(panel).getByText('Robotul nu a putut citi: Pagina 2, Pagina 3.')).toBeInTheDocument();
+    expect(panel).not.toHaveTextContent('page-02');
+    expect(within(panel).getByRole('link', { name: 'Verifică Pagini greu de citit' })).toHaveAttribute(
+      'href',
+      `/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&punct=pagini`,
+    );
   });
 
   it('counts the points to check on the Verificare tab', async () => {
