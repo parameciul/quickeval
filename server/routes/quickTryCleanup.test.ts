@@ -208,6 +208,6 @@ describe('GET /api/try/availability', () => {
     expect((await visit()).body.siteKey).toBeNull();
     await api.dispose();
     api = await startTestApi({ env: { DEV_TEACHER_EMAIL: undefined, TURNSTILE_SITE_KEY: '1x00000000000000000000AA' } });
-    expect((await visit()).body).toEqual({ dailyLimitReached: false, admin: false, siteKey: '1x00000000000000000000AA' });
+    expect((await visit()).body).toEqual({ dailyLimitReached: false, admin: false, signedIn: false, siteKey: '1x00000000000000000000AA' });
   });
 });

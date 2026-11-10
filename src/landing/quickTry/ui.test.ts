@@ -24,7 +24,7 @@ afterEach(() => {
 
 function fakeLandingApi(availability: Partial<QuickTryAvailability> = {}) {
   return {
-    availability: vi.fn(async () => ({ dailyLimitReached: false, admin: false, siteKey: 'site-key', ...availability })),
+    availability: vi.fn(async () => ({ dailyLimitReached: false, admin: false, signedIn: false, siteKey: 'site-key', ...availability })),
     create: vi.fn(async (_turnstileToken?: string, _title?: string) => ({ token: TOKEN, code: CODE })),
     uploadTestFile: vi.fn(async () => {}),
     generateBarem: vi.fn(async () => {}),
@@ -321,6 +321,31 @@ describe("the landing page's Quick Try", () => {
     await new Promise((done) => setTimeout(done, 10));
     expect(within(dialog()).getByRole('alert')).toHaveTextContent('Verificarea nu s-a putut încărca. Reîncarcă pagina și încearcă din nou.');
     expect(api.create).not.toHaveBeenCalled();
+  });
+
+  it('shows a visitor the login and the new-account link, not the account', async () => {
+    await mount();
+    expect(screen.getAllByRole('link', { name: 'Intră în cont' })).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Cere un cont de profesor' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Contul tău' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Deschide contul tău' })).toBeNull();
+  });
+
+  it('shows a logged-in teacher the account instead of the login, and keeps the try', async () => {
+    await mount(fakeLandingApi({ signedIn: true }));
+    expect(screen.queryByRole('link', { name: 'Intră în cont' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Cere un cont de profesor' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Contul tău' })).toHaveAttribute('href', '/teacher/');
+    expect(screen.getByRole('link', { name: 'Deschide contul tău' })).toHaveAttribute('href', '/teacher/');
+    expect(button()).not.toBeNull();
+  });
+
+  it('keeps the login when the page cannot ask the server', async () => {
+    const api = fakeLandingApi();
+    api.availability.mockRejectedValue(new ApiError(0, 'network', 'Nu mă pot conecta la server.'));
+    await mount(api);
+    expect(screen.getAllByRole('link', { name: 'Intră în cont' })).toHaveLength(2);
+    expect(screen.queryByRole('link', { name: 'Contul tău' })).toBeNull();
   });
 
   it('shows no button when the page cannot ask the server, and still follows her try', async () => {

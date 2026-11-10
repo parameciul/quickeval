@@ -99,6 +99,7 @@ export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const answer: QuickTryAvailability = {
       dailyLimitReached: !admin && (await dailyLimitReached(c.env.DB, now)),
       admin,
+      signedIn: teacher !== null,
       siteKey: c.env.TURNSTILE_SITE_KEY || null,
     };
     inBackground(c, cleanUpTries(c.env, now));

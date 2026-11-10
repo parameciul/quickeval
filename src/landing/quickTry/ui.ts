@@ -34,6 +34,14 @@ const NO_CHECK_TEXT = 'Verificarea nu s-a putut încărca. Reîncarcă pagina ș
 const tryPath = (token: string) => `/try/${token}`;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// A logged-in teacher sees the link to the account where a visitor sees the
+// login and the new-account link. The page is served signed out, so a crawler
+// and a browser without the API's answer keep the login.
+export function showAccount(root: ParentNode, signedIn: boolean): void {
+  for (const el of root.querySelectorAll<HTMLElement>('[data-guest]')) el.hidden = signedIn;
+  for (const el of root.querySelectorAll<HTMLElement>('[data-member]')) el.hidden = !signedIn;
+}
+
 function openDialog(dialog: HTMLDialogElement): void {
   if (typeof dialog.showModal === 'function') dialog.showModal();
   else dialog.setAttribute('open', '');
@@ -260,6 +268,9 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   }
 
   const [answer] = await Promise.allSettled([deps.api.availability(), stored ? follow(stored) : Promise.resolve()]);
-  if (answer.status === 'fulfilled') availability = answer.value;
+  if (answer.status === 'fulfilled') {
+    availability = answer.value;
+    showAccount(root, availability.signedIn);
+  }
   refreshButton();
 }
