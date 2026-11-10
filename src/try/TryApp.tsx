@@ -41,8 +41,8 @@ export function TryRoutes({ token, api, tryApi }: { token: string | null; api: A
 function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
   const info = useQuery({ queryKey: ['try'], queryFn: () => tryApi.info() });
   if (info.isPending) return <p>Se încarcă…</p>;
+  if (isExpired(info.error)) return <Expired />;
   if (info.data === undefined) {
-    if (isExpired(info.error)) return <Expired />;
     if (info.error instanceof ApiError && info.error.code === 'unknown_try') return <BadLink />;
     return <ErrorMessage error={info.error} />;
   }

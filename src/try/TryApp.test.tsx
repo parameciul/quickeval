@@ -1,4 +1,5 @@
-import { screen } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../ui/ApiError.ts';
 import { createFakeApi } from '../test/fakeApi.ts';
@@ -44,4 +45,30 @@ describe("a Quick Try's page", () => {
     renderTry('/teste/PROBA-26T1/raport', api, tryApi);
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
   });
+  it('says the try expired when its test answers so while the page is open', async () => {
+    const api = createFakeApi({ classes: [], students: {}, tests: [tryTest({ status: 'evaluating' }, { status: 'submitted' })] });
+    renderTry('/', api, createFakeTryApi());
+    expect(await screen.findByRole('heading', { name: 'Lucrarea se corectează' })).toBeInTheDocument();
+    api.getTest.mockRejectedValue(new ApiError(410, 'expired', 'Încercarea a expirat.'));
+    refocus();
+    expect(await screen.findByRole('heading', { name: 'Încercarea a expirat' })).toBeInTheDocument();
+  });
+
+  it('says the try expired when its info answers so while the page is open', async () => {
+    const { api, tryApi } = fakes();
+    renderTry('/', api, tryApi);
+    expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
+    tryApi.info.mockRejectedValue(new ApiError(410, 'expired', 'Încercarea a expirat.'));
+    refocus();
+    expect(await screen.findByRole('heading', { name: 'Încercarea a expirat' })).toBeInTheDocument();
+  });
 });
+
+// The browser tab comes back into view: the page reads the try again.
+function refocus() {
+  act(() => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  });
+  focusManager.setFocused(undefined);
+}

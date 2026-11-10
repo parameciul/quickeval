@@ -17,10 +17,12 @@ export function TryHome({ info, token, tryApi }: { info: QuickTryInfo; token: st
   const detail = useQuery({
     queryKey: ['test', info.code],
     queryFn: () => api.getTest(info.code),
-    refetchInterval: (query) => refreshOf(query.state.data),
+    refetchInterval: (query) => (query.state.error ? false : refreshOf(query.state.data)),
   });
   if (detail.isPending) return <p>Se încarcă…</p>;
-  if (detail.data === undefined) return isExpired(detail.error) ? <Expired /> : <ErrorMessage error={detail.error} />;
+  // Also after a first good read: the try's 7 days can end while the page is open.
+  if (isExpired(detail.error)) return <Expired />;
+  if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
   const phase = phaseOf(detail.data);
   return (
     <section className="try-home">
