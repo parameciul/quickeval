@@ -169,6 +169,52 @@ export async function listPaperFiles(db: D1Database, submissionId: number): Prom
   return rows.results.map((row) => ({ id: row.id, name: row.original_name, contentType: row.content_type, size: row.size, position: row.position }));
 }
 
+// The guest teachers of the tries whose days are over, the oldest first.
+const EXPIRED = `SELECT q.teacher_id FROM quick_tries q JOIN teachers g ON g.id = q.teacher_id AND g.quick_try = 1
+  WHERE q.expires_at <= ? ORDER BY q.expires_at, q.id LIMIT ?`;
+
+// The ids of a JSON list, kept to guest teachers: a cleanup never reaches an account.
+const GUESTS = 'SELECT id FROM teachers WHERE quick_try = 1 AND id IN (SELECT value FROM json_each(?1))';
+
+// Up to `limit` tries whose days are over, and the R2 keys of their files,
+// read from the rows (never from listing R2).
+export async function expiredTries(db: D1Database, now: string, limit: number): Promise<{ teacherIds: number[]; keys: string[] }> {
+  const found = await db.prepare(EXPIRED).bind(now, limit).all<{ teacher_id: number }>();
+  const teacherIds = found.results.map((row) => row.teacher_id);
+  if (teacherIds.length === 0) return { teacherIds, keys: [] };
+  // One row per test with its six file keys, and one per page (D1 allows few
+  // parts in a compound SELECT).
+  const rows = await db
+    .prepare(
+      `SELECT test_file_key AS a, barem_file_key AS b, print_file_key AS c, ces_test_file_key AS d, ces_barem_file_key AS e, ces_print_file_key AS f
+       FROM tests WHERE teacher_id IN (${GUESTS})
+       UNION ALL
+       SELECT p.r2_key, NULL, NULL, NULL, NULL, NULL FROM submission_files p JOIN submissions s ON s.id = p.submission_id JOIN tests t ON t.id = s.test_id
+       WHERE t.teacher_id IN (${GUESTS})`,
+    )
+    .bind(JSON.stringify(teacherIds))
+    .all<Record<string, string | null>>();
+  const keys = rows.results.flatMap((row) => Object.values(row).filter((key): key is string => typeof key === 'string'));
+  return { teacherIds, keys };
+}
+
+// Deletes the tries' rows in one batch, in the order the foreign keys need:
+// the test (its paper, pages, grading and points go with it), the class
+// list, the student, the class, the try and the guest teacher (its sessions go with it).
+export async function deleteTries(db: D1Database, teacherIds: number[]): Promise<void> {
+  const list = JSON.stringify(teacherIds);
+  await db.batch(
+    [
+      `DELETE FROM tests WHERE teacher_id IN (${GUESTS})`,
+      `DELETE FROM enrollments WHERE class_id IN (SELECT id FROM classes WHERE teacher_id IN (${GUESTS}))`,
+      `DELETE FROM students WHERE teacher_id IN (${GUESTS})`,
+      `DELETE FROM classes WHERE teacher_id IN (${GUESTS})`,
+      `DELETE FROM quick_tries WHERE teacher_id IN (${GUESTS})`,
+      `DELETE FROM teachers WHERE id IN (${GUESTS})`,
+    ].map((sql) => db.prepare(sql).bind(list)),
+  );
+}
+
 // Whether the test is a Quick Try test: its refusals have their own messages.
 export async function isQuickTryTest(db: D1Database, testId: number): Promise<boolean> {
   const row = await db.prepare('SELECT quick_try FROM tests WHERE id = ?').bind(testId).first<{ quick_try: number }>();

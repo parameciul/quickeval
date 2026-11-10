@@ -8,3 +8,6 @@ DEV_TEACHER_EMAIL=profesor@example.com
 # Stripe test-mode keys (docs/payments.md). Leave empty: payments then answer 503.
 # STRIPE_SECRET_KEY=sk_test_...
 # STRIPE_WEBHOOK_SECRET=whsec_...
+# Quick Try's Turnstile (docs/deploy.md, "Quick Try"): Cloudflare's test keys, whose check always passes.
+# TURNSTILE_SITE_KEY=1x00000000000000000000AA
+# TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA

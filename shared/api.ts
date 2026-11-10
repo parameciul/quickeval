@@ -123,10 +123,12 @@ export interface QuickTryCreated {
 }
 
 // What the landing page reads before the form: whether today's tries are all
-// used, and whether the visitor is an administrator (who skips the limits).
+// used, whether the visitor is an administrator (who skips the limits), and
+// the form's Turnstile site key (public; null when it is not set).
 export interface QuickTryAvailability {
   dailyLimitReached: boolean;
   admin: boolean;
+  siteKey: string | null;
 }
 
 // GET /api/try/<token>: the try's test code and paper, and until when its link works.

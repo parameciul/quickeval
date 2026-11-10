@@ -1,7 +1,10 @@
-// The landing page's only script: the theme button. public/theme.js has
-// already painted the theme; this keeps the button's name in step and saves
-// the reader's choice, the same way the app's ThemeButton does.
+// The landing page's script: the theme button and the Quick Try form.
+// public/theme.js has already painted the theme; the button keeps its name in
+// step and saves the reader's choice, the same way the app's ThemeButton does.
 import { currentTheme, otherTheme, saveTheme, storedTheme, type Theme } from '../ui/theme.ts';
+import { createLandingApi } from './quickTry/api.ts';
+import { loadTurnstile } from './quickTry/turnstile.ts';
+import { initQuickTry } from './quickTry/ui.ts';
 
 // The button names the theme it switches to.
 export function themeLabel(theme: Theme): string {
@@ -20,4 +23,14 @@ export function initThemeButton(root: ParentNode = document): void {
   });
 }
 
+// The device's storage, or one that keeps nothing where the browser refuses it.
+function deviceStorage(): Storage {
+  try {
+    return window.localStorage;
+  } catch {
+    return { length: 0, clear: () => {}, getItem: () => null, key: () => null, removeItem: () => {}, setItem: () => {} };
+  }
+}
+
 initThemeButton();
+void initQuickTry(document, { api: createLandingApi(), storage: deviceStorage(), now: () => new Date(), loadTurnstile });

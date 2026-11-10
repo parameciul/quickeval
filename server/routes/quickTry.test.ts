@@ -70,7 +70,7 @@ describe('POST /api/try', () => {
     const res = await create(undefined, '192.0.2.1');
     expect(res.status).toBe(429);
     expect(res.body.error).toBe('quick_try_daily_limit');
-    expect((await api.request('GET', '/api/try/availability')).body).toEqual({ dailyLimitReached: true, admin: false });
+    expect((await api.request('GET', '/api/try/availability')).body).toEqual({ dailyLimitReached: true, admin: false, siteKey: null });
   });
 
   it('lets an administrator skip Turnstile and the limits', async () => {
@@ -80,14 +80,14 @@ describe('POST /api/try', () => {
     expect(verify).not.toHaveBeenCalled();
     const counted = await api.db.prepare('SELECT COUNT(*) AS n FROM quick_tries WHERE by_admin = 0').first<{ n: number }>();
     expect(counted!.n).toBe(0);
-    expect((await api.request('GET', '/api/try/availability')).body).toEqual({ dailyLimitReached: false, admin: true });
+    expect((await api.request('GET', '/api/try/availability')).body).toEqual({ dailyLimitReached: false, admin: true, siteKey: null });
   });
 
   it('does not count a teacher who is not an administrator as one', async () => {
     api = await startTestApi({ env: { DEV_TEACHER_EMAIL: 'altul@example.com' }, app: { verifyTurnstile: async () => false } });
     await api.addTeacher('altul@example.com', 'Alt Profesor');
     expect((await create({})).status).toBe(403);
-    expect((await api.request('GET', '/api/try/availability')).body).toEqual({ dailyLimitReached: false, admin: false });
+    expect((await api.request('GET', '/api/try/availability')).body).toEqual({ dailyLimitReached: false, admin: false, siteKey: null });
   });
 });
 

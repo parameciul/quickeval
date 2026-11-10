@@ -27,6 +27,12 @@
 
 - **What the code cannot stop**: every request to `/api/*` counts toward the free plan's 100 000 Function requests a day, refused or not, so a flood of requests to the login page could use them up for the day. Only Cloudflare's rate limiting stops requests before the Function, and it needs a custom domain (a zone) instead of `quickeval.pages.dev`. If that ever happens: add a domain to Cloudflare, serve the project on it, and add a rate-limiting rule for `/api/auth/*`.
 
+## Quick Try
+
+- **Turnstile** (needed for visitors' tries; spec `docs/superpowers/specs/2026-11-09-quick-try-design.md` §4). In the Cloudflare dashboard (Turnstile, Add widget): name "MQGrader Quick Try", hostnames `mqgrader.ro` and `quickeval.pages.dev`, mode Managed. Then `npx wrangler pages secret put TURNSTILE_SECRET_KEY --project-name quickeval` (the widget's secret key) and `npx wrangler pages secret put TURNSTILE_SITE_KEY --project-name quickeval` (its site key, which is public: the landing page reads it from `GET /api/try/availability`). Both apply from the next deployment. Without the site key the landing page shows no Quick Try button; without the secret key every visitor's try is refused (403 `not_human`). An administrator who is logged in skips Turnstile either way.
+- Locally, `.dev.vars` may use Cloudflare's test keys (`.dev.vars.example`): the check always passes.
+- Old tries need no job: each visit of the landing page deletes up to three tries whose 7 days are over (`server/quickTryCleanup.ts`). The day's limits are constants in `shared/quickTry.ts`.
+
 ## The robot
 
 - The robot (`.github/workflows/evaluate.yml`) runs on "evaluate-now" and by hand (GitHub, Actions, evaluate, Run workflow, or `gh workflow run evaluate.yml`). Its 10-minute schedule does not fire today (`docs/superpowers/plans/plan-3b-followups.md`, "From the go-live"). When a run stops before its work is done, the test page shows "Pornește robotul" after 30 minutes without a check, and that button starts a new run. A run by hand is the fallback only, for example when the site cannot reach GitHub. Its GitHub settings (Settings, Secrets and variables, Actions): the variable `QUICKEVAL_URL` (`https://quickeval.pages.dev`), the secrets `QUICKEVAL_RUNNER_KEY` (Setări, "Fă o cheie nouă") and `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`; it lasts a year: renew it before), and optional variables `QE_MODEL` (default `opus`) and `QE_EFFORT` (default `high`). Without the variable or the key, every run finds no work and passes.

@@ -106,11 +106,12 @@ When a limit is reached, the form says so in Romanian, in the spirit of: "Limita
 
 ## 5. Deleting old tries
 
-- On the last day of each month, every try older than 7 days is deleted: its rows and its R2 files (test, barem, photos, generated files) **(owner, option B)**.
+- A try is deleted once its 7 days are over: its rows and its R2 files (test, barem, photos, generated files) **(owner, 2026-11-10; this replaces the monthly cleanup, option B)**.
+- The trigger: Pages runs no timer and the GitHub schedule does not fire reliably, so each visit of the landing page (`GET /api/try/availability`) deletes, after its answer, up to `QUICK_TRY_CLEANUP_BATCH` (3) tries whose days are over, the oldest first: their R2 files, then their rows. When R2 fails, the rows stay and a later visit tries again **(builder call, made while planning part C)**.
 - R2 keys come from rows, never from listing R2 (project rule).
-- Note: the GitHub schedule does not fire reliably in this project (see root `AGENTS.md`: every path that makes robot work starts the robot). The cleanup needs a trigger that works; see "Left to the builder".
+- A deleted try's link answers like an unknown link; the try's page then says that a try is deleted after 7 days **(builder call, made while planning part C)**.
 
-Privacy **(owner)**: the form has no consent checkbox and no "cover the name" warning. The owner accepts that photos, which may show a student's name, can stay up to about 37 days with the monthly cleanup.
+Privacy **(owner)**: the form has no consent checkbox and no "cover the name" warning. The owner accepts that photos, which may show a student's name, stay about 7 days, a little longer when nobody visits the landing page.
 
 ## 6. Constraints from the project
 
@@ -147,7 +148,7 @@ Data model: **each try is a hidden guest teacher** named "Încercare", with its 
 
 - **Robot work order.** Whether Quick Try jobs go before or after teachers' class work in a robot round.
 - **Pages.** Whether the try's page is a new entry (for example `/try/<token>`) or a route in an existing app, and how much of the admin review and results components it reuses. The look follows the redesign spec (`docs/superpowers/specs/2026-11-04-mqgrader-redesign-design.md`).
-- **The cleanup trigger.** A trigger that really runs on the last day of the month (for example a check in a request path, or the robot's run calling a cleanup endpoint), and that stays within the per-request limits (delete in chunks).
+- **The cleanup trigger.** Settled while planning part C: each visit of the landing page (§5).
 - **Where the global limit lives** (a constant like `DEMO_PAPER_LIMIT`, or a Setări value).
 - **Turnstile keys** as secrets, with test keys for local development and tests. The owner creates the Turnstile widget in Cloudflare; its hostnames are mqgrader.ro and quickeval.pages.dev (Quick Try works on both hosts) **(builder call, made in design)**. Add the step and the secret to `docs/deploy.md`.
 - Exact Romanian wording of all new text.
