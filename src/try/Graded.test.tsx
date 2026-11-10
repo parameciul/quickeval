@@ -118,6 +118,7 @@ describe('a graded try', () => {
     setup();
     const tab = await screen.findByRole('tab', { name: 'Verificare' });
     expect(tab).toHaveTextContent('Verificare1');
+    expect(tab).toHaveAccessibleDescription('1 punct de verificat');
   });
 
   it("says when nothing is left to check", async () => {

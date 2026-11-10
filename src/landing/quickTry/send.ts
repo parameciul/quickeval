@@ -45,11 +45,12 @@ export function formProblem(form: TryForm): string | null {
 }
 
 // The try's name: the one she writes, else the test file's name without its
-// extension, cut to a test title's length. Empty when neither has one: the
+// extension (.pdf or .docx only: "Test cap. 3" keeps its dot), cut to a test
+// title's length. Empty when neither has one: the
 // server then gives the default name.
 export function tryTitle(form: TryForm): string {
   const own = cleanTitle(form.title);
-  const name = own || cleanTitle((form.test?.name ?? '').replace(/\.[^.]*$/, ''));
+  const name = own || cleanTitle((form.test?.name ?? '').replace(/\.(pdf|docx)$/i, ''));
   return name.slice(0, MAX_TITLE_LENGTH).trim();
 }
 

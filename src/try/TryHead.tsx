@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { QuickTryInfo, TestDetail } from '../../shared/api.ts';
 import type { TestFileKind } from '../../shared/files.ts';
 import { QUICK_TRY_TITLE } from '../../shared/quickTry.ts';
@@ -56,6 +56,15 @@ function TryTitle({ code, title }: { code: string; title: string }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<string | null>(null);
+  // After a rename or "Renunță", the focus goes back to the pencil.
+  const pencil = useRef<HTMLButtonElement>(null);
+  const edited = useRef(false);
+  useEffect(() => {
+    if (draft === null && edited.current) {
+      edited.current = false;
+      pencil.current?.focus();
+    }
+  }, [draft]);
   const rename = useMutation({
     mutationFn: (next: string) => api.renameTest(code, next),
     onSuccess: async () => {
@@ -67,7 +76,17 @@ function TryTitle({ code, title }: { code: string; title: string }) {
     return (
       <div className="try-title">
         <h1>{title}</h1>
-        <button type="button" className="try-title-edit" aria-label="Schimbă numele" title="Schimbă numele" onClick={() => setDraft(title)}>
+        <button
+          ref={pencil}
+          type="button"
+          className="try-title-edit"
+          aria-label="Schimbă numele"
+          title="Schimbă numele"
+          onClick={() => {
+            edited.current = true;
+            setDraft(title);
+          }}
+        >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
             <path d="M13.5 3.5l3 3-9 9H4.5v-3z" />
           </svg>

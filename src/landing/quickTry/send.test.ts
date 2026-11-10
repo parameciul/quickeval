@@ -60,6 +60,9 @@ describe("the try's name", () => {
     expect(tryTitle(full)).toBe('test');
     expect(tryTitle({ ...full, test: pdf('Teză  semestrul I.final.docx') })).toBe('Teză semestrul I.final');
     expect(tryTitle({ ...full, test: pdf('.pdf') })).toBe('');
+    expect(tryTitle({ ...full, test: pdf('Test cap. 3.pdf') })).toBe('Test cap. 3');
+    expect(tryTitle({ ...full, test: pdf('Test cap. 3') })).toBe('Test cap. 3');
+    expect(tryTitle({ ...full, test: pdf('Teză.DOCX') })).toBe('Teză');
     expect(tryTitle({ ...full, test: null })).toBe('');
   });
 

@@ -49,6 +49,7 @@ export function Graded({ detail, token, tryApi }: { detail: TestDetail; token: s
             aria-selected={view === id}
             tabIndex={view === id ? 0 : -1}
             aria-controls={`try-panel-${id}`}
+            aria-describedby={id === 'verificare' && paper.flagCount > 0 ? 'try-tab-flags' : undefined}
             className="try-tab"
             onClick={() => setView(id)}
           >
@@ -63,9 +64,14 @@ export function Graded({ detail, token, tryApi }: { detail: TestDetail; token: s
               label
             )}
             {id === 'verificare' && paper.flagCount > 0 && (
-              <span className="try-tab-count" aria-hidden="true">
-                {paper.flagCount}
-              </span>
+              <>
+                <span className="try-tab-count" aria-hidden="true">
+                  {paper.flagCount}
+                </span>
+                <span id="try-tab-flags" hidden>
+                  {countLabel(paper.flagCount, 'punct de verificat', 'puncte de verificat')}
+                </span>
+              </>
             )}
           </button>
         ))}

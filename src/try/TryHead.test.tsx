@@ -50,6 +50,7 @@ describe("the try's header", () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
     expect(await screen.findByRole('heading', { name: 'Teză semestrul I', level: 1 })).toBeInTheDocument();
     expect(api.renameTest).toHaveBeenCalledWith(TRY_CODE, 'Teză semestrul I');
+    expect(screen.getByRole('button', { name: 'Schimbă numele' })).toHaveFocus();
   });
 
   it('keeps the name when she gives up the rename', async () => {
@@ -59,6 +60,7 @@ describe("the try's header", () => {
     await userEvent.click(screen.getByRole('button', { name: 'Renunță' }));
     expect(screen.getByRole('heading', { name: 'Test funcții 9B', level: 1 })).toBeInTheDocument();
     expect(api.renameTest).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Schimbă numele' })).toHaveFocus();
   });
 
   it("shows the server's refusal of a name and keeps the form open", async () => {
