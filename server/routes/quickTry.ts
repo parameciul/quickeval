@@ -19,7 +19,8 @@ import { confirmBarem, requireTest } from '../db/tests.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError } from '../errors.ts';
-import { clientIpKey, nowIso, parseId, readJson, sameOriginWrites } from '../http.ts';
+import { clientIpKey, inBackground, nowIso, parseId, readJson, sameOriginWrites } from '../http.ts';
+import { cleanUpTries } from '../quickTryCleanup.ts';
 import { newDeviceSecret, newResultToken, randomBase32, sha256Hex } from '../secrets.ts';
 import { verifyTurnstile } from '../turnstile.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
@@ -87,10 +88,18 @@ export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // No promoteDue here: a try never schedules (evaluate and schedule are not
   // on the allow-list). A route that schedules must add it first.
 
+  // The landing page reads this on every visit: after the answer, the visit
+  // also deletes a few tries whose days are over (no timer runs on Pages).
   routes.get('/availability', async (c) => {
+    const now = nowIso();
     const teacher = await optionalTeacher(c);
     const admin = teacher?.role === 'admin';
-    const answer: QuickTryAvailability = { dailyLimitReached: !admin && (await dailyLimitReached(c.env.DB, nowIso())), admin };
+    const answer: QuickTryAvailability = {
+      dailyLimitReached: !admin && (await dailyLimitReached(c.env.DB, now)),
+      admin,
+      siteKey: c.env.TURNSTILE_SITE_KEY || null,
+    };
+    inBackground(c, cleanUpTries(c.env, now));
     return c.json(answer);
   });
 

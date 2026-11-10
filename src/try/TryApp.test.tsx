@@ -31,6 +31,8 @@ describe("a Quick Try's page", () => {
     tryApi.info.mockRejectedValue(new ApiError(404, 'unknown_try', 'Linkul nu este bun.'));
     renderTry('/', api, tryApi);
     expect(await screen.findByRole('heading', { name: 'Linkul nu este bun' })).toBeInTheDocument();
+    // A try is deleted once its 7 days are over: its link then answers as unknown.
+    expect(screen.getByText('Verifică dacă l-ai copiat întreg. O încercare se șterge după 7 zile.')).toBeInTheDocument();
   });
 
   it('says an expired try expired when the test answers so', async () => {

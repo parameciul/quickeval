@@ -10,6 +10,9 @@ export const QUICK_TRY_DAYS = 7;
 // A try may change its test and barem files this many times in all (each
 // change can make robot work), and ask the robot for a barem once.
 export const QUICK_TRY_FILE_CHANGES = 6;
+// Tries whose days are over that one visit of the landing page deletes (each
+// costs one R2 call and a few D1 statements, inside a request's limits).
+export const QUICK_TRY_CLEANUP_BATCH = 3;
 
 // The guest teacher's name, class and student, and the test's title.
 export const QUICK_TRY_GUEST = 'Încercare';

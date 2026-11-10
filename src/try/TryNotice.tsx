@@ -13,7 +13,7 @@ export function BadLink() {
   return (
     <section className="try-notice">
       <h1>Linkul nu este bun</h1>
-      <p>Verifică dacă l-ai copiat întreg.</p>
+      <p>Verifică dacă l-ai copiat întreg. O încercare se șterge după 7 zile.</p>
       <a className="button" href="/">
         Mergi la pagina principală
       </a>

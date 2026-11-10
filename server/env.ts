@@ -26,6 +26,8 @@ export interface Env {
   // Quick Try's Cloudflare Turnstile secret key. Without it, only an
   // administrator can make a try.
   TURNSTILE_SECRET_KEY?: string;
+  // The Turnstile site key of the same widget: public, given to the form.
+  TURNSTILE_SITE_KEY?: string;
 }
 
 // Parts of the app that tests replace.
