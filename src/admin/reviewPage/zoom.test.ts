@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLICK_SCALE, clampView, layerTransform, MAX_SCALE, panBy, WHOLE_PAGE, wheelScale, zoomAround, zoomInAt } from './zoom.ts';
+import { boxInPane, CLICK_SCALE, clampView, layerTransform, MAX_SCALE, panBy, viewOfBox, WHOLE_PAGE, wheelScale, zoomAround, zoomInAt } from './zoom.ts';
 
 describe('the zoom of a page', () => {
   it('zooms in on the point clicked', () => {
@@ -34,5 +34,27 @@ describe('the zoom of a page', () => {
   it('turns a view into the transform of the page layer', () => {
     expect(layerTransform(WHOLE_PAGE)).toBe('translate(0%, 0%) scale(1)');
     expect(layerTransform({ scale: 2.5, cx: 0.25, cy: 0.375 })).toBe('translate(-12.5%, -43.75%) scale(2.5)');
+  });
+});
+
+describe('the view of an answer', () => {
+  it('shows a box in the middle of the pane, as big as fits', () => {
+    const view = viewOfBox({ x0: 0.2, y0: 0.3, x1: 0.6, y1: 0.4 });
+    expect(view.scale).toBeCloseTo(1.875);
+    expect(view.cx).toBeCloseTo(0.4);
+    expect(view.cy).toBeCloseTo(0.35);
+    // A big box shows the whole page; a tiny one stops at the biggest zoom.
+    expect(viewOfBox({ x0: 0.1, y0: 0.5, x1: 0.9, y1: 0.8 })).toEqual(WHOLE_PAGE);
+    expect(viewOfBox({ x0: 0.5, y0: 0.5, x1: 0.51, y1: 0.505 }).scale).toBe(MAX_SCALE);
+  });
+
+  it('puts a box of the page where it is in the pane', () => {
+    const whole = boxInPane(WHOLE_PAGE, { x0: 0.1, y0: 0.5, x1: 0.9, y1: 0.8 });
+    expect([whole.x0, whole.y0, whole.x1, whole.y1].map((value) => Math.round(value * 1000) / 1000)).toEqual([0.1, 0.5, 0.9, 0.8]);
+    const box = boxInPane({ scale: 1.875, cx: 0.4, cy: 0.35 }, { x0: 0.2, y0: 0.3, x1: 0.6, y1: 0.4 });
+    expect(box.x0).toBeCloseTo(0.125);
+    expect(box.y0).toBeCloseTo(0.40625);
+    expect(box.x1).toBeCloseTo(0.875);
+    expect(box.y1).toBeCloseTo(0.59375);
   });
 });

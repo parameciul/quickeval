@@ -9,10 +9,21 @@ export interface ZoomView {
   cy: number;
 }
 
+// A box on the page, as fractions of its width and height (AnswerArea without
+// its page).
+export interface PageBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
 export const WHOLE_PAGE: ZoomView = { scale: 1, cx: 0.5, cy: 0.5 };
 // A click zooms this much: enough to read handwriting on a phone photo.
 export const CLICK_SCALE = 2.5;
 export const MAX_SCALE = 6;
+// An area fills this share of the pane, so its border and label fit around it.
+const AREA_FILL = 0.75;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -52,6 +63,18 @@ export function wheelScale(scale: number, deltaPixels: number): number {
 // A drag: the page follows the pointer. `dx`, `dy` are fractions of the pane.
 export function panBy(view: ZoomView, dx: number, dy: number): ZoomView {
   return clampView({ ...view, cx: view.cx - dx / view.scale, cy: view.cy - dy / view.scale });
+}
+
+// The view that shows a box in the middle of the pane, as big as fits.
+export function viewOfBox(box: PageBox): ZoomView {
+  const size = Math.max(box.x1 - box.x0, box.y1 - box.y0, 0.01);
+  return clampView({ scale: AREA_FILL / size, cx: (box.x0 + box.x1) / 2, cy: (box.y0 + box.y1) / 2 });
+}
+
+// Where a box of the page is in the pane, as fractions of the pane.
+export function boxInPane(view: ZoomView, box: PageBox): PageBox {
+  const at = (value: number, middle: number) => 0.5 + (value - middle) * view.scale;
+  return { x0: at(box.x0, view.cx), y0: at(box.y0, view.cy), x1: at(box.x1, view.cx), y1: at(box.y1, view.cy) };
 }
 
 // The CSS transform of the page's layer (origin at its top left corner): a

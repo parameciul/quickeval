@@ -8,8 +8,9 @@ import { normalizeTestCode } from '../../../shared/tests.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { drawnAreas, saveFrames, savedFrames } from '../reviewPage/areas.ts';
 import { ReviewDecision, type ReviewView } from '../reviewPage/ReviewDecision.tsx';
-import { ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
+import { type ReviewFocus, ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
 import { ReviewQueue } from '../reviewPage/ReviewQueue.tsx';
 import { isReviewKey } from '../reviewPage/keys.ts';
 import {
@@ -114,17 +115,32 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   const pagesWait = point?.kind === 'pages' && evaluation !== null && evaluation !== undefined && evaluation.unreadable.length > 0 && !evaluation.pagesReviewed;
   const view: ReviewView = item ? { kind: 'item', item } : pagesWait && evaluation ? { kind: 'pages', pages: evaluation.unreadable } : { kind: 'paper' };
 
-  // The page of the paper: the page of the answer to check, or the first page
+  // The answer to check, with the areas the review can draw ("Arată chenarul").
+  const [frames, setFrames] = useState(savedFrames);
+  const focus: ReviewFocus | null =
+    view.kind === 'item' && submission
+      ? { key: `${submission.id}:${view.item.id}`, label: view.item.exerciseId, areas: drawnAreas(view.item.areas, submission.files) }
+      : null;
+  const onFrames = (on: boolean) => {
+    setFrames(on);
+    saveFrames(on);
+  };
+
+  // The page of the paper: the page of the first area of the answer to check
+  // (while its border shows), else the page of the answer, or the first page
   // the robot could not read, else page 1.
   const viewKey = `${spot?.submissionId}:${spot?.key ?? ''}`;
   const [pageChoice, setPageChoice] = useState<{ view: string; page: number } | null>(null);
   const pageCount = submission?.files.length ?? 0;
+  const firstArea = frames ? focus?.areas[0] : undefined;
   const firstPage =
     view.kind === 'pages'
       ? (pageIndex(view.pages[0] ?? '') ?? 0)
-      : view.kind === 'item' && view.item.page >= 1 && view.item.page <= pageCount
-        ? view.item.page - 1
-        : 0;
+      : firstArea
+        ? firstArea.page - 1
+        : view.kind === 'item' && view.item.page >= 1 && view.item.page <= pageCount
+          ? view.item.page - 1
+          : 0;
   const shownPage = pageChoice?.view === viewKey ? pageChoice.page : firstPage;
 
   // After a decision, the point that opens takes the focus on its heading,
@@ -257,7 +273,14 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
               <div className="review-loading">{paper.isError ? <ErrorMessage error={paper.error} /> : <p className="hint">Se încarcă lucrarea…</p>}</div>
             ) : (
               <>
-                <ReviewPhoto submission={submission} page={shownPage} onPage={(index) => setPageChoice({ view: viewKey, page: index })} />
+                <ReviewPhoto
+                  submission={submission}
+                  page={shownPage}
+                  onPage={(index) => setPageChoice({ view: viewKey, page: index })}
+                  focus={focus}
+                  frames={frames}
+                  onFrames={onFrames}
+                />
                 <ReviewDecision
                   code={code}
                   submission={submission}
