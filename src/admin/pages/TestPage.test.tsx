@@ -502,6 +502,8 @@ describe('TestPage', () => {
     expect(await screen.findByText('Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.')).toBeInTheDocument();
     expect(screen.queryByText('Arhivat')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Arhivează testul' }));
+    // Nothing published: no question.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.setTestArchived).toHaveBeenCalledWith('6E2-26T1', true);
     expect(await within(sheet()).findByText('Arhivat')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Arhivează testul' })).not.toBeInTheDocument();
@@ -510,6 +512,30 @@ describe('TestPage', () => {
     expect(api.setTestArchived).toHaveBeenLastCalledWith('6E2-26T1', false);
     expect(await screen.findByRole('button', { name: 'Arhivează testul' })).toBeInTheDocument();
     expect(screen.queryByText('Arhivat')).not.toBeInTheDocument();
+  });
+
+  it('asks before an archive that closes open results, and changes nothing on "Renunță"', async () => {
+    const api = apiWith({ status: 'done', resultsOpen: true });
+    renderAdmin(PAGE, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Arhivează testul' }));
+    const dialog = screen.getByRole('dialog', { name: 'Arhivezi testul?' });
+    expect(within(dialog).getByText('Elevii nu își vor mai putea vedea rezultatele. Le poți publica din nou oricând.')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Renunță' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.setTestArchived).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Arhivează testul' })).toHaveFocus();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Arhivează testul' }));
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Arhivezi testul?' })).getByRole('button', { name: 'Arhivează' }));
+    expect(api.setTestArchived).toHaveBeenCalledWith('6E2-26T1', true);
+    expect(await within(sheet()).findByText('Arhivat')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('asks also when the results are published for some students only', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', publishedCount: 1 }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Arhivează testul' }));
+    expect(screen.getByRole('dialog', { name: 'Arhivezi testul?' })).toBeInTheDocument();
   });
 
   it('offers no archive while the test is not finished', async () => {

@@ -6350,6 +6350,17 @@ td.student-paper a:hover {
   min-height: 2.75rem;
 }
 
+.modal-text {
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
 @media (max-width: 1180px) {
   .class-notes {
     grid-template-columns: minmax(0, 1fr);

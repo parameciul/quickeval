@@ -7,6 +7,7 @@ import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { countLabel, studentCountLabel } from '../../ui/format.ts';
 import { onTabKeyDown } from '../../ui/tabKeys.ts';
 import { useApi } from '../ApiContext.tsx';
+import { ArchiveDialog, hasOpenResults } from '../ArchiveDialog.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { todoOf } from '../shell/todo.ts';
@@ -65,6 +66,9 @@ function ClassDetails({ classId }: { classId: number }) {
     mutationFn: (archived: boolean) => api.updateClass(classId, { archived }),
     onSuccess: refresh,
   });
+  // Archiving the class closes the result pages of its tests: it asks first
+  // while some are open.
+  const [askArchive, setAskArchive] = useState(false);
 
   const newClass = newClassOpen && <NewClassDialog onClose={() => setNewClassOpen(false)} />;
   if (detail.isPending) return <p>Se încarcă…{newClass}</p>;
@@ -126,11 +130,19 @@ function ClassDetails({ classId }: { classId: number }) {
             name={info.name}
             archived={info.archived}
             archiving={archive.isPending}
-            onArchive={() => archive.mutate(!info.archived)}
+            onArchive={() => (!info.archived && tests.some(hasOpenResults) ? setAskArchive(true) : archive.mutate(!info.archived))}
             onDone={refresh}
           />
         </div>
       </div>
+      {askArchive && (
+        <ArchiveDialog
+          title="Arhivezi clasa?"
+          text="Elevii nu își vor mai putea vedea rezultatele testelor acestei clase. Le poți publica din nou oricând."
+          onConfirm={() => archive.mutate(true)}
+          onClose={() => setAskArchive(false)}
+        />
+      )}
       {archive.error && <ErrorMessage error={archive.error} />}
 
       <div
