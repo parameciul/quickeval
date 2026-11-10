@@ -6,14 +6,15 @@ import { formatDayMonth } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { stagesOf } from '../stages.ts';
-import { todoOf } from '../shell/todo.ts';
+import { archivedPublished, todoOf } from '../shell/todo.ts';
 import { nextStep, type NextStep } from '../testsPage/nextStep.ts';
 
 // "Testele clasei", beside the grades table (spec §9): the newest test first,
 // each with its date, the papers sent, its stage (orange when it waits on the
 // teacher) and the one thing to do next. The archived tests show only when the
 // teacher asks, here and in the table. In an archived class (`readOnly`) the
-// one step of a test is its report, once a paper is graded.
+// one step of a test is its report, once a paper is graded, and nothing waits;
+// only an archived test with open results waits there too, as in "De făcut".
 export function ClassTests({
   tests,
   schoolYear,
@@ -57,12 +58,13 @@ export function ClassTests({
         <ol className="class-test-list">
           {shown.map((test) => {
             const { current } = stagesOf(test);
-            const step: NextStep = !readOnly
+            const live = !readOnly || archivedPublished(test);
+            const step: NextStep = live
               ? nextStep(test, current)
               : test.gradedCount > 0
                 ? { kind: 'link', label: 'Raportul clasei', to: `/teste/${test.code}/raport` }
                 : null;
-            const waits = !readOnly && todoOf(test) !== null;
+            const waits = live && todoOf(test) !== null;
             return (
               <li key={test.code} className={test.archived ? 'is-muted' : undefined}>
                 <div className="class-test-text">

@@ -462,6 +462,18 @@ describe('TestsPage results', () => {
     expect(stageText(within(working).getByRole('link', { name: 'Fracții' }).closest('tr')!)).toHaveTextContent('Rezultate · nepublicate');
   });
 
+  it('gives an archived test with open results one way to close them: its next step', async () => {
+    for (const open of [{ resultsOpen: true }, { publishedCount: 1 }]) {
+      const view = renderAdmin('/?arhivate=1', withPublishing({ archived: true, ...open }));
+      const row = await findRow('Fracții');
+      expect(stageText(row)).toHaveTextContent('Rezultate · publicate · test arhivat');
+      expect(within(row).getAllByRole('link', { name: /^Oprește accesul/ })).toHaveLength(1);
+      expect(within(row).getByRole('link', { name: 'Oprește accesul: Fracții, Clasa 6E2' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
+      expect(within(row).queryByRole('button', { name: /Oprește accesul|Publică/ })).not.toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
   it('shows results published for some students, and publishes for all', async () => {
     const api = withPublishing({ gradedCount: 3, publishedCount: 2 });
     renderAdmin('/', api);

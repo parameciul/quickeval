@@ -144,7 +144,8 @@ function TestRow({
               {step.label}
             </button>
           )}
-          {test.resultsOpen && (
+          {/* An archived test's next step is already the way to close them. */}
+          {test.resultsOpen && !test.archived && (
             <button
               type="button"
               className="button-quiet button-small"

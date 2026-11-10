@@ -398,6 +398,28 @@ describe('ClassPage, an archived class', () => {
     expect(list.queryByRole('button', { name: /Publică/ })).not.toBeInTheDocument();
   });
 
+  it('warns of an archived test with open results, as "De făcut" does', async () => {
+    const api = await archivedClass();
+    await api.setTestArchived('6E2-26T1', true);
+    await api.setResultsOpen('6E2-26T1', true);
+    renderAdmin('/clase/1', api);
+    const aside = await screen.findByRole('complementary', { name: 'Testele clasei' });
+    await userEvent.click(within(aside).getByRole('button', { name: /Arată și testele arhivate/ }));
+    const items = within(aside).getAllByRole('listitem');
+    // T2 stays calm; T1 waits, with its link to close the results.
+    expect(within(items[0]!).queryByRole('link', { name: 'Oprește accesul' })).not.toBeInTheDocument();
+    expect(within(items[1]!).getByText('Rezultate · publicate · test arhivat')).toHaveClass('is-waiting');
+    const stop = within(items[1]!).getByRole('link', { name: 'Oprește accesul' });
+    expect(stop).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
+    expect(stop).toHaveClass('button');
+    expect(aside.querySelectorAll('.is-waiting')).toHaveLength(1);
+    const heads = screen.getByRole('table', { name: 'Notele elevilor la teste' }).querySelectorAll('.grade-head-note.is-waiting');
+    expect(heads).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Schimbă clasa' }));
+    const current = screen.getByRole('link', { name: /Clasa 6E2/ });
+    expect(within(current).getByRole('img', { name: 'te așteaptă' })).toBeInTheDocument();
+  });
+
   it('shows the students read only, with the link to all their grades', async () => {
     renderAdmin('/clase/1', await archivedClass());
     await openStudents();

@@ -9,7 +9,7 @@ import { CesTag } from '../CesTag.tsx';
 import { EmptyState } from '../EmptyState.tsx';
 import { IconClasses, IconTests } from '../shell/icons.tsx';
 import { stagesOf } from '../stages.ts';
-import { todoOf } from '../shell/todo.ts';
+import { archivedPublished, todoOf } from '../shell/todo.ts';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
 
 function gradeKey(studentId: number, testCode: string): string {
@@ -38,10 +38,11 @@ export function orderedStudents(students: StudentRow[]): StudentRow[] {
 }
 
 // The line under a test's name: its date (or "ciornă") and where it stands,
-// in orange when it waits on the teacher (never in an archived class).
+// in orange when it waits on the teacher (in an archived class, only an
+// archived test with open results).
 function headNote(test: TestSummary, readOnly: boolean): { text: string; waits: boolean } {
   const date = test.startedAt === null ? 'ciornă' : formatDayMonth(test.startedAt);
-  const waits = !readOnly && todoOf(test) !== null;
+  const waits = (!readOnly || archivedPublished(test)) && todoOf(test) !== null;
   if (test.flagCount > 0) return { text: `${date} · de verificat`, waits };
   if (test.status === 'done' && test.gradedCount > 0) {
     return { text: `${date} · ${test.resultsOpen ? 'publicat' : 'nepublicat'}`, waits };
