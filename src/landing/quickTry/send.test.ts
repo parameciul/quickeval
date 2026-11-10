@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MAX_STUDENT_FILES } from '../../../shared/files.ts';
 import { ApiError } from '../../ui/ApiError.ts';
 import type { LandingApi } from './api.ts';
-import { formProblem, sendTry, type TryForm } from './send.ts';
+import { formProblem, sendTry, tryTitle, type TryForm } from './send.ts';
 
 const TOKEN = 'abcdefghijkmnopqrstuvwxyz2345672';
 const NOW = new Date('2026-11-10T08:00:00.000Z');
@@ -14,7 +14,7 @@ function fakeLandingApi() {
   const calls: string[] = [];
   const api = {
     availability: vi.fn(async () => ({ dailyLimitReached: false, admin: false, siteKey: 'site' })),
-    create: vi.fn(async (_turnstileToken?: string) => {
+    create: vi.fn(async (_turnstileToken?: string, _title?: string) => {
       calls.push('create');
       return { token: TOKEN, code: 'PROBA-26T1' };
     }),
@@ -27,7 +27,7 @@ function fakeLandingApi() {
   return { api, calls };
 }
 
-const full: TryForm = { test: pdf('test.pdf'), barem: pdf('barem.pdf'), robotBarem: false, pages: [photo('p1.jpg'), photo('p2.jpg')] };
+const full: TryForm = { title: '', test: pdf('test.pdf'), barem: pdf('barem.pdf'), robotBarem: false, pages: [photo('p1.jpg'), photo('p2.jpg')] };
 
 describe('the form before it is sent', () => {
   it('asks for the test, a barem or the robot, and the pages', () => {
@@ -54,6 +54,24 @@ describe('the form before it is sent', () => {
   });
 });
 
+describe("the try's name", () => {
+  it('is the name she writes, else the name of the test file', () => {
+    expect(tryTitle({ ...full, title: '  Test   funcții 9B ' })).toBe('Test funcții 9B');
+    expect(tryTitle(full)).toBe('test');
+    expect(tryTitle({ ...full, test: pdf('Teză  semestrul I.final.docx') })).toBe('Teză semestrul I.final');
+    expect(tryTitle({ ...full, test: pdf('.pdf') })).toBe('');
+    expect(tryTitle({ ...full, test: pdf('Test cap. 3.pdf') })).toBe('Test cap. 3');
+    expect(tryTitle({ ...full, test: pdf('Test cap. 3') })).toBe('Test cap. 3');
+    expect(tryTitle({ ...full, test: pdf('Teză.DOCX') })).toBe('Teză');
+    expect(tryTitle({ ...full, test: null })).toBe('');
+  });
+
+  it('is cut to the length a test title may have', () => {
+    expect(tryTitle({ ...full, title: 'x'.repeat(200) })).toHaveLength(120);
+    expect(tryTitle({ ...full, test: pdf(`${'y'.repeat(200)}.pdf`) })).toHaveLength(120);
+  });
+});
+
 describe('sending a try', () => {
   it('makes the try, sends the files in order and starts the grading with her barem', async () => {
     const { api, calls } = fakeLandingApi();
@@ -61,7 +79,7 @@ describe('sending a try', () => {
     const progress = vi.fn();
     const stored = await sendTry(api, full, 'raspuns', { onCreated: created, onProgress: progress }, () => NOW);
     expect(calls).toEqual(['create', 'test:test.pdf', 'barem:barem.pdf', 'page:p1.jpg', 'page:p2.jpg', 'start']);
-    expect(api.create).toHaveBeenCalledWith('raspuns');
+    expect(api.create).toHaveBeenCalledWith('raspuns', 'test');
     expect(stored).toEqual({ token: TOKEN, code: 'PROBA-26T1', madeAt: NOW.toISOString() });
     expect(created).toHaveBeenCalledWith(stored);
     expect(progress.mock.calls.map(([text]) => text)).toEqual([
@@ -78,7 +96,7 @@ describe('sending a try', () => {
     const { api, calls } = fakeLandingApi();
     await sendTry(api, { ...full, barem: null, robotBarem: true }, undefined, { onCreated: vi.fn(), onProgress: vi.fn() }, () => NOW);
     expect(calls).toEqual(['create', 'test:test.pdf', 'generate', 'page:p1.jpg', 'page:p2.jpg']);
-    expect(api.create).toHaveBeenCalledWith(undefined);
+    expect(api.create).toHaveBeenCalledWith(undefined, 'test');
   });
 
   it('keeps the try as soon as it is made, so a send that breaks half-way can go on from its page', async () => {

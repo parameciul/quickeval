@@ -6,7 +6,7 @@ import type { TryApi } from './api.ts';
 import { Graded } from './Graded.tsx';
 import { phaseOf, refreshOf } from './phase.ts';
 import { Prepare } from './Prepare.tsx';
-import { ShareButton } from './Share.tsx';
+import { TryHead } from './TryHead.tsx';
 import { Expired, isExpired } from './TryNotice.tsx';
 import { BaremProblem, Failed, Grading } from './Working.tsx';
 
@@ -26,13 +26,7 @@ export function TryHome({ info, token, tryApi }: { info: QuickTryInfo; token: st
   const phase = phaseOf(detail.data);
   return (
     <section className="try-home">
-      <div className="try-head">
-        <div>
-          <h1>Încercare rapidă</h1>
-          <p className="test-sub">Corectezi o lucrare, fără cont. Linkul acestei pagini merge 7 zile.</p>
-        </div>
-        <ShareButton token={token} />
-      </div>
+      <TryHead detail={detail.data} info={info} token={token} />
       {phase === 'prepare' && <Prepare detail={detail.data} tryApi={tryApi} />}
       {phase === 'grading' && <Grading />}
       {phase === 'problem' && <BaremProblem detail={detail.data} />}

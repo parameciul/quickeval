@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StudentResultView } from '../../shared/api.ts';
 import { PDF_TYPE } from '../../shared/files.ts';
 import { QUICK_TRY_STUDENT, QUICK_TRY_TITLE } from '../../shared/quickTry.ts';
+import { formatPoints } from '../../shared/scoring.ts';
 import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission, reviewPointsOf } from '../test/fakeApi.ts';
 import { createFakeTryApi, renderTry, TRY_CODE, TRY_SUBMISSION, TRY_TOKEN, tryTest } from '../test/fakeTryApi.tsx';
 import { expectNoGradingWords } from '../test/gradingWords.ts';
@@ -32,10 +33,11 @@ const studentResult: StudentResultView = {
 };
 
 // A graded try: I.1 waits for a check unless `checked`.
-function setup(path = '/', checked = false) {
-  const evaluation = fakeEvaluation([
-    fakeItem({ id: 71, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 3, needsReview: !checked, reviewReason: 'Scrisul se citește greu.', page: 1 }),
-  ]);
+function setup(path = '/', checked = false, unreadable: string[] = []) {
+  const evaluation = fakeEvaluation(
+    [fakeItem({ id: 71, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 3, needsReview: !checked, reviewReason: 'Scrisul se citește greu.', page: 1 })],
+    { unreadable },
+  );
   const paper = fakeSubmission({ id: TRY_SUBMISSION, testCode: TRY_CODE, testTitle: QUICK_TRY_TITLE, studentName: QUICK_TRY_STUDENT, files: [photo], evaluation });
   const test = tryTest(
     { status: 'done', files },
@@ -72,10 +74,59 @@ describe('a graded try', () => {
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
   });
 
+  it('shows the grade and the points to check above the views', async () => {
+    const { api } = setup();
+    const paper = (await api.getTest(TRY_CODE)).uploads[0]!;
+    const summary = await screen.findByRole('region', { name: 'Rezultatul încercării' });
+    expect(within(summary).getByText('Nota')).toBeInTheDocument();
+    expect(within(summary).getByText(formatPoints(paper.grade!))).toBeInTheDocument();
+    expect(within(summary).getByText(`${formatPoints(paper.total!)} din 10 puncte`)).toBeInTheDocument();
+    expect(within(summary).getByText('1 punct nesigur')).toBeInTheDocument();
+    expect(within(summary).getByRole('link', { name: 'Verifică 1 punct' })).toHaveAttribute('href', '/teste/PROBA-26T1/verificare');
+  });
+
+  it('lists each point to check with its reason, and opens the review at it', async () => {
+    setup();
+    const panel = await screen.findByRole('tabpanel');
+    expect(within(panel).getByText('Subiectul I, ex. 1')).toBeInTheDocument();
+    expect(within(panel).getByText('Scrisul se citește greu.')).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('link', { name: 'Verifică Subiectul I, ex. 1' }));
+    expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&punct=71`);
+  });
+
+  it('gives the result tabs a short name for a phone, and keeps their full name', async () => {
+    setup();
+    const tab = await screen.findByRole('tab', { name: 'Rezultatul profesorului' });
+    expect(within(tab).getByText('Profesor')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('tab', { name: 'Rezultatul elevului' })).toHaveTextContent('Elev');
+  });
+
+  it('names the pages the robot could not read as the review does', async () => {
+    setup('/', true, ['student/page-02.jpg', 'student/page-03.jpg']);
+    const panel = await screen.findByRole('tabpanel');
+    expect(within(panel).getByText('Pagini greu de citit')).toBeInTheDocument();
+    expect(within(panel).getByText('Robotul nu a putut citi: Pagina 2, Pagina 3.')).toBeInTheDocument();
+    expect(panel).not.toHaveTextContent('page-02');
+    expect(within(panel).getByRole('link', { name: 'Verifică Pagini greu de citit' })).toHaveAttribute(
+      'href',
+      `/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&punct=pagini`,
+    );
+  });
+
+  it('counts the points to check on the Verificare tab', async () => {
+    setup();
+    const tab = await screen.findByRole('tab', { name: 'Verificare' });
+    expect(tab).toHaveTextContent('Verificare1');
+    expect(tab).toHaveAccessibleDescription('1 punct de verificat');
+  });
+
   it("says when nothing is left to check", async () => {
     setup('/', true);
-    expect(await screen.findByText(/Toate punctele sunt verificate/)).toBeInTheDocument();
+    expect(await screen.findByText('Toate punctele sunt verificate.')).toBeInTheDocument();
+    expect(screen.getByText('Nu mai ai puncte de verificat. Rezultatul profesorului și cel al elevului sunt gata.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Verifică/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Verificare' })).toHaveTextContent(/^Verificare$/);
   });
 
   it("shows the teacher's result with its pages", async () => {

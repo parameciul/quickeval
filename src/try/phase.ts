@@ -1,5 +1,7 @@
 import type { TestDetail, UploadRow } from '../../shared/api.ts';
 import { QUICK_TRY_FILE_CHANGES } from '../../shared/quickTry.ts';
+import { formatPoints } from '../../shared/scoring.ts';
+import { countLabel } from '../ui/format.ts';
 
 // Where a try stands (spec §3.3), from its test:
 // - prepare: the files are being sent, or the robot's barem is made or waits
@@ -38,4 +40,12 @@ export function refreshOf(detail: TestDetail | undefined): number | false {
 // the robot's own barem counts as one).
 export function fileChangesLeft(detail: TestDetail): number {
   return Math.max(0, QUICK_TRY_FILE_CHANGES - detail.test.filesVersion);
+}
+
+// The graded paper's grade and points ("6,7", "67 din 100 de puncte"); null
+// before it is graded.
+export function scoreOf(detail: TestDetail): { grade: string; points: string } | null {
+  const paper = paperOf(detail);
+  if (phaseOf(detail) !== 'graded' || paper?.grade == null || paper.total == null || paper.maxTotal == null) return null;
+  return { grade: formatPoints(paper.grade), points: `${formatPoints(paper.total)} din ${countLabel(paper.maxTotal, 'punct', 'puncte')}` };
 }

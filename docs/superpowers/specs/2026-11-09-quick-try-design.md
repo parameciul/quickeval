@@ -44,18 +44,22 @@ All visitor text is Romanian. Code and docs are English.
 ### 3.1 Landing page (`index.html`)
 
 - A prominent button next to the existing calls to action, for example "Încearcă acum, fără cont" **(builder call: exact words)**. The landing page has no React today; keep it that way if practical (the form can be a small script or a separate page; see "Left to the builder").
-- After she sends a try, the visitor stays on the landing page **(owner)**. Under the button: a live status ("Se corectează…", "Baremul este gata", "Lucrarea este corectată") and a link to the try's page. She may open the link at any time, or wait.
+- The button sits under "Intră în cont", as wide as it, with one line under it: "Gratuit: trimiți lucrarea unui elev și o primești corectată în câteva minute." **(owner, design review 2026-11-10)**. The line hides with the button.
+- After she sends a try, the visitor stays on the landing page **(owner)**. Under the button: a card of her try **(owner, design review 2026-11-10)** with its name, when she sent it and until when its link works, a tag of its state (blue while the robot works, orange when she has something to do, green when it is graded and checked, grey when it failed), a line on the state ("Se corectează…", "Baremul este gata", "Lucrarea este corectată"), the grade once the paper is graded, and "Deschide încercarea". She may open the link at any time, or wait.
 - The link and the time it was made are kept in `localStorage` on her device for 7 days **(owner)**. A new try on a later day replaces the stored link. After 7 days the landing page stops showing it.
 
 ### 3.2 The form
 
-A window (modal) over the landing page **(builder call, made in design)** with three inputs:
+A window (modal) over the landing page **(builder call, made in design)** with an optional name and three files:
 
+0. "Numele testului (opțional)" **(owner, design review 2026-11-10)**. Empty: the test file's name without its extension. Neither: the default name "Încercare rapidă". At most 120 characters, like a test title.
 1. The test file. **Required (owner).**
 2. The barem file, or a choice "I have no barem: make one for me". One of the two is required.
 3. The student's work: photos or a PDF, same file types, sizes and count as the app's student upload (`shared/files.ts`: 25 MB per file, at most 20 files) **(builder call, made in design)**.
 
 The student may have written on the test sheet itself; that is fine, because the clean test file tells the robot what was printed.
+
+Each file is a row in the app's style, not the browser's file button **(owner, design review 2026-11-10)**: what to choose, then the chosen file's name and size (the pages: their count and names). The real file inputs stay in the form, out of sight but reachable with the keyboard.
 
 The form also runs a Cloudflare Turnstile check (see 4).
 
@@ -63,11 +67,13 @@ The form also runs a Cloudflare Turnstile check (see 4).
 
 The page has the states below. It refreshes itself while work runs.
 
+Its head is the same in every state and view **(owner, design review 2026-11-10)**: the try's name (a pencil button renames it), when it was sent to grading (or started, before that), until when its link works, the test and the barem to download (once the grading started; before, the files part of the page has them), and "Distribuie". The page keeps one width in every view, so changing views moves nothing sideways.
+
 1. **Robot barem in progress** (only when she asked for one).
 2. **Robot barem ready.** She can download the barem (the Word file the robot makes today). Grading does **not** start by itself **(owner)**: she presses "Pornește corectarea". She may also replace the barem with her own file before starting **(builder call, made in design)**.
 3. **Grading in progress.** Expect a few minutes: the robot starts in about a minute, then makes the exercise list and grades.
-4. **Graded.** Three views **(owner)**:
-   - **Verification:** the unsure points and unreadable pages to check, with the photos beside the points, and points she can change. It mirrors the app's review page.
+4. **Graded.** Above the views, the grade and the points to check **(owner, design review 2026-11-10)**: "N puncte nesigure" with "Verifică N puncte" in orange (hers to do), or, in green, that every point is checked. Then three views, whose tabs stay at the top while she scrolls; the Verificare tab counts the points left **(owner)**:
+   - **Verification:** the unsure points and unreadable pages to check, one row each with its points and the robot's reason; each row opens the app's review page at that point, with the photos beside the points, and points she can change.
    - **Teacher result:** the paper's full result as the teacher sees it in the app (points per exercise, explanations, notes).
    - **Student result:** the page the student would see, made from the same data as the app's student result page.
    At the end of the page, the invitation: "Îți place? Creează un cont: corectezi gratuit un test pentru toată clasa." **(builder call: exact words)**, linking to `/teacher/#cont-nou`.
@@ -107,7 +113,7 @@ When a limit is reached, the form says so in Romanian, in the spirit of: "Limita
 ## 5. Deleting old tries
 
 - A try is deleted once its 7 days are over: its rows and its R2 files (test, barem, photos, generated files) **(owner, 2026-11-10; this replaces the monthly cleanup, option B)**.
-- The trigger: Pages runs no timer and the GitHub schedule does not fire reliably, so each visit of the landing page (`GET /api/try/availability`) deletes, after its answer, up to `QUICK_TRY_CLEANUP_BATCH` (3) tries whose days are over, the oldest first: their R2 files, then their rows. When R2 fails, the rows stay and a later visit tries again **(builder call, made while planning part C)**.
+- The trigger: Pages runs no timer and the GitHub schedule does not fire reliably, so each visit of the landing page (`GET /api/try/availability`) deletes, after its answer, up to `QUICK_TRY_CLEANUP_BATCH` (3) tries whose days are over, picked in random order: their R2 files, then their rows in one batch (10 queries in all, within the 15 a request may make); when that batch fails, each try's rows go in a batch of their own, so a try that cannot be deleted never blocks the others. When R2 fails, the rows stay and a later visit tries again **(builder call, made while planning part C)**.
 - R2 keys come from rows, never from listing R2 (project rule).
 - A deleted try's link answers like an unknown link; the try's page then says that a try is deleted after 7 days **(builder call, made while planning part C)**.
 

@@ -6,12 +6,15 @@ import {
   TEACHER_FILE_TYPES,
   TEACHER_WRONG_TYPE,
 } from '../../../shared/files.ts';
+import { cleanTitle, MAX_TITLE_LENGTH } from '../../../shared/tests.ts';
 import type { LandingApi } from './api.ts';
 import type { StoredTry } from './storage.ts';
 
-// What the form holds (spec §3.2): the test, her barem or the robot's, and
-// the student's pages.
+// What the form holds (spec §3.2): the try's name, the test, her barem or
+// the robot's, and the student's pages.
 export interface TryForm {
+  // The name she writes; may be empty.
+  title: string;
   test: File | null;
   barem: File | null;
   // "Nu am barem": the barem is made from the test. Her own file wins.
@@ -41,6 +44,16 @@ export function formProblem(form: TryForm): string | null {
   return null;
 }
 
+// The try's name: the one she writes, else the test file's name without its
+// extension (.pdf or .docx only: "Test cap. 3" keeps its dot), cut to a test
+// title's length. Empty when neither has one: the
+// server then gives the default name.
+export function tryTitle(form: TryForm): string {
+  const own = cleanTitle(form.title);
+  const name = own || cleanTitle((form.test?.name ?? '').replace(/\.(pdf|docx)$/i, ''));
+  return name.slice(0, MAX_TITLE_LENGTH).trim();
+}
+
 export interface SendEvents {
   // The try exists: keep its link now, so a send that breaks half-way goes
   // on from the try's page.
@@ -59,7 +72,7 @@ export async function sendTry(
   now: () => Date = () => new Date(),
 ): Promise<StoredTry> {
   events.onProgress('Se pregătește încercarea…');
-  const { token, code } = await api.create(turnstileToken);
+  const { token, code } = await api.create(turnstileToken, tryTitle(form));
   const stored: StoredTry = { token, code, madeAt: now().toISOString() };
   events.onCreated(stored);
   events.onProgress('Se trimite testul…');

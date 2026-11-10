@@ -1,6 +1,8 @@
 import type { QuickTryAvailability } from '../../../shared/api.ts';
+import { QUICK_TRY_DAYS } from '../../../shared/quickTry.ts';
 import { ApiError, messageOf } from '../../ui/ApiError.ts';
-import { phaseOf, type TryPhase } from '../../try/phase.ts';
+import { phaseOf, scoreOf, type TryPhase } from '../../try/phase.ts';
+import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import type { LandingApi } from './api.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf } from './status.ts';
@@ -30,6 +32,7 @@ const USED_TEXT = 'Ai făcut încercarea de azi. Mâine poți face alta.';
 const NO_CHECK_TEXT = 'Verificarea nu s-a putut încărca. Reîncarcă pagina și încearcă din nou.';
 
 const tryPath = (token: string) => `/try/${token}`;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function openDialog(dialog: HTMLDialogElement): void {
   if (typeof dialog.showModal === 'function') dialog.showModal();
@@ -46,6 +49,26 @@ function show(el: HTMLElement, text?: string): void {
   el.hidden = false;
 }
 
+// A file row of the form: what to choose (its data-empty and data-hint), or
+// the chosen file with its size, or the count and names of the chosen pages.
+function showPick(input: HTMLInputElement, chosen: File[]): void {
+  const row = input.closest<HTMLElement>('[data-try-pick]');
+  if (!row) return;
+  const name = row.querySelector<HTMLElement>('[data-try-pick-name]')!;
+  const hint = row.querySelector<HTMLElement>('[data-try-pick-hint]')!;
+  const action = row.querySelector<HTMLElement>('[data-try-pick-action]')!;
+  row.classList.toggle('is-chosen', chosen.length > 0);
+  if (chosen.length === 0) {
+    name.textContent = row.dataset.empty ?? '';
+    hint.textContent = row.dataset.hint ?? '';
+    action.textContent = input.multiple ? 'Alege fișierele' : 'Alege fișierul';
+    return;
+  }
+  name.textContent = input.multiple ? countLabel(chosen.length, 'pagină', 'pagini') : chosen[0]!.name;
+  hint.textContent = input.multiple ? chosen.map((file) => file.name).join(', ') : formatFileSize(chosen[0]!.size);
+  action.textContent = 'Schimbă';
+}
+
 // The landing page's Quick Try (spec §3.1, §3.2): the button, the form in a
 // window over the page, and the status line of the visitor's try with its
 // link. The page has no React: this works on the page's own elements.
@@ -56,8 +79,15 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const form = root.querySelector<HTMLFormElement>('[data-try-form]');
   if (!box || !openButton || !dialog || !form) return;
   const note = box.querySelector<HTMLElement>('[data-try-note]')!;
+  const hint = root.querySelector<HTMLElement>('[data-try-hint]');
   const status = box.querySelector<HTMLElement>('[data-try-status]')!;
+  const statusTitle = box.querySelector<HTMLElement>('[data-try-title]')!;
+  const statusChip = box.querySelector<HTMLElement>('[data-try-chip]')!;
+  const statusMeta = box.querySelector<HTMLElement>('[data-try-meta]')!;
   const statusText = box.querySelector<HTMLElement>('[data-try-status-text]')!;
+  const statusScore = box.querySelector<HTMLElement>('[data-try-score]')!;
+  const statusGrade = box.querySelector<HTMLElement>('[data-try-grade]')!;
+  const statusPoints = box.querySelector<HTMLElement>('[data-try-points]')!;
   const statusLink = box.querySelector<HTMLAnchorElement>('[data-try-link]')!;
   const error = form.querySelector<HTMLElement>('[data-try-error]')!;
   const recover = form.querySelector<HTMLElement>('[data-try-recover]')!;
@@ -79,6 +109,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   function refreshButton(): void {
     const answer = availability ? canStart(availability, stored, phase, deps.now()) : 'off';
     openButton!.hidden = answer !== 'yes';
+    if (hint) hint.hidden = openButton!.hidden;
     note.hidden = true;
     if (answer === 'used') show(note, USED_TEXT);
     if (answer === 'full') show(note, FULL_TEXT);
@@ -90,13 +121,23 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   async function follow(current: StoredTry): Promise<void> {
     if (timer) clearTimeout(timer);
     statusLink.href = tryPath(current.token);
+    const expires = new Date(Date.parse(current.madeAt) + QUICK_TRY_DAYS * DAY_MS).toISOString();
+    statusMeta.textContent = `Trimisă ${formatDateTime(current.madeAt)} · Linkul merge până pe ${formatDate(expires)}`;
     try {
       const detail = await deps.api.getTest(current.token, current.code);
       if (stored !== current) return;
       const line = statusOf(detail);
+      const score = scoreOf(detail);
       phase = phaseOf(detail);
       show(status);
+      statusTitle.textContent = detail.test.title;
+      statusChip.textContent = line.label;
+      statusChip.className = `try-chip is-${line.tone}`;
       statusText.textContent = line.text;
+      statusScore.hidden = score === null;
+      statusGrade.textContent = score?.grade ?? '';
+      statusPoints.textContent = score?.points ?? '';
+      statusLink.classList.toggle('btn-primary', !line.working);
       if (line.working) timer = setTimeout(() => void follow(current), refreshMs);
     } catch (err) {
       if (stored !== current) return;
@@ -107,6 +148,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         forgetStoredTry(deps.storage);
       } else {
         show(status);
+        statusChip.textContent = '';
+        statusChip.className = 'try-chip';
         statusText.textContent = 'Nu am putut citi încercarea acum.';
       }
     }
@@ -116,6 +159,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   function formValues(): TryForm {
     const files = (name: string) => Array.from((form!.elements.namedItem(name) as HTMLInputElement).files ?? []);
     return {
+      title: (form!.elements.namedItem('title') as HTMLInputElement).value,
       test: files('test')[0] ?? null,
       barem: files('barem')[0] ?? null,
       robotBarem: (form!.elements.namedItem('robotBarem') as HTMLInputElement).checked,
@@ -142,6 +186,9 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   });
 
   closeButton.addEventListener('click', () => closeDialog(dialog));
+
+  const pickInputs = Array.from(form.querySelectorAll<HTMLInputElement>('[data-try-pick] input[type="file"]'));
+  for (const input of pickInputs) input.addEventListener('change', () => showPick(input, Array.from(input.files ?? [])));
   // Esc and a phone's back button close a dialog: not while it sends, so the
   // form stays to show how the send ended.
   dialog.addEventListener('cancel', (event) => {
@@ -191,6 +238,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       sending = false;
       closeDialog(dialog!);
       form!.reset();
+      for (const input of pickInputs) showPick(input, []);
       await follow(done);
       statusLink.focus();
     } catch (err) {

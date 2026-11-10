@@ -9,16 +9,16 @@ function fakeFetch(answer: unknown = {}, status = 200) {
 }
 
 describe("the landing page's client", () => {
-  it('reads the availability and makes a try with the Turnstile answer', async () => {
+  it("reads the availability and makes a try with the Turnstile answer and the try's name", async () => {
     const fetchImpl = fakeFetch({ token: TOKEN, code: 'PROBA-26T1' });
     const api = createLandingApi(fetchImpl);
     await api.availability();
-    expect(await api.create('raspuns')).toEqual({ token: TOKEN, code: 'PROBA-26T1' });
+    expect(await api.create('raspuns', 'Test 9B')).toEqual({ token: TOKEN, code: 'PROBA-26T1' });
     expect(fetchImpl.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
       ['/api/try/availability', 'GET'],
       ['/api/try', 'POST'],
     ]);
-    expect(JSON.parse(fetchImpl.mock.calls[1]![1]!.body as string)).toEqual({ turnstileToken: 'raspuns' });
+    expect(JSON.parse(fetchImpl.mock.calls[1]![1]!.body as string)).toEqual({ turnstileToken: 'raspuns', title: 'Test 9B' });
   });
 
   it("sends the files and the start to the try's own link", async () => {
@@ -46,7 +46,7 @@ describe("the landing page's client", () => {
 
   it("gives the server's refusal as an ApiError with its message", async () => {
     const api = createLandingApi(fakeFetch({ error: 'quick_try_daily_limit', message: 'Limita de încercări gratuite pentru azi a fost atinsă.' }, 429));
-    await expect(api.create('x')).rejects.toEqual(new ApiError(429, 'quick_try_daily_limit', 'Limita de încercări gratuite pentru azi a fost atinsă.'));
+    await expect(api.create('x', '')).rejects.toEqual(new ApiError(429, 'quick_try_daily_limit', 'Limita de încercări gratuite pentru azi a fost atinsă.'));
   });
 
   it('says so when there is no network', async () => {

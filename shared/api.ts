@@ -114,7 +114,15 @@ export const baremCheckedBody = z.object({ filesVersion: z.number().int().min(0)
 
 // Quick Try (spec docs/superpowers/specs/2026-11-09-quick-try-design.md): the
 // form's Turnstile answer. An administrator may send none.
-export const quickTryCreateBody = z.object({ turnstileToken: z.string().max(4096).optional() });
+// The try's name is optional: an empty one gives the default name.
+export const quickTryCreateBody = z.object({
+  turnstileToken: z.string().max(4096).optional(),
+  title: z
+    .string()
+    .transform(cleanTitle)
+    .pipe(z.string().max(MAX_TITLE_LENGTH, { message: `Numele are cel mult ${MAX_TITLE_LENGTH} de caractere.` }))
+    .optional(),
+});
 
 // A new try: the secret part of its link, and its test's code.
 export interface QuickTryCreated {

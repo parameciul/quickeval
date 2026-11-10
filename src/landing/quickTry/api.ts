@@ -7,7 +7,7 @@ import { apiRequest, tryBase } from '../../try/api.ts';
 // the test the status line follows. Tests pass a fake.
 export interface LandingApi {
   availability(): Promise<QuickTryAvailability>;
-  create(turnstileToken: string | undefined): Promise<QuickTryCreated>;
+  create(turnstileToken: string | undefined, title: string): Promise<QuickTryCreated>;
   uploadTestFile(token: string, code: string, kind: TestFileKind, file: File): Promise<void>;
   generateBarem(token: string, code: string): Promise<void>;
   addPage(token: string, file: File): Promise<void>;
@@ -20,7 +20,7 @@ export function createLandingApi(fetchImpl: typeof fetch = (input, init) => fetc
   const test = (token: string, code: string) => `${tryBase(token)}/tests/${encodeURIComponent(code)}`;
   return {
     availability: () => call<QuickTryAvailability>('/api/try/availability', 'GET'),
-    create: (turnstileToken) => call<QuickTryCreated>('/api/try', 'POST', turnstileToken === undefined ? {} : { turnstileToken }),
+    create: (turnstileToken, title) => call<QuickTryCreated>('/api/try', 'POST', turnstileToken === undefined ? { title } : { turnstileToken, title }),
     uploadTestFile: async (token, code, kind, file) => {
       await call(`${test(token, code)}/files/${kind}`, 'PUT', undefined, file);
     },

@@ -155,16 +155,30 @@
               <p class="l-lede">MQGrader este o platformă web pentru profesorii de matematică din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.</p>
             </div>
             <div class="cta">
-              <a class="btn btn-primary btn-large" href="/teacher/">Intră în cont</a>
-              <a class="link" href="/teacher/#cont-nou">Cere un cont de profesor</a>
+              <div class="cta-row">
+                <a class="btn btn-primary btn-large" href="/teacher/">Intră în cont</a>
+                <a class="link" href="/teacher/#cont-nou">Cere un cont de profesor</a>
+              </div>
               <button class="btn btn-large btn-try" type="button" data-try-open hidden>Încearcă acum, fără cont</button>
+              <p class="cta-hint" data-try-hint hidden>Gratuit: trimiți lucrarea unui elev și o primești corectată în câteva minute.</p>
             </div>
             <div class="try-line" data-try hidden>
               <p class="try-note" data-try-note hidden></p>
-              <p class="try-status" data-try-status role="status" hidden>
-                <span data-try-status-text></span>
-                <a class="link" data-try-link href="/">Deschide încercarea</a>
-              </p>
+              <div class="try-card" data-try-status role="status" hidden>
+                <div class="try-card-top">
+                  <div class="try-card-head">
+                    <p class="try-card-kicker">Încercarea ta</p>
+                    <p class="try-card-title" data-try-title></p>
+                  </div>
+                  <span class="try-chip" data-try-chip></span>
+                </div>
+                <p class="try-card-meta" data-try-meta></p>
+                <p class="try-card-text" data-try-status-text></p>
+                <div class="try-card-bottom">
+                  <p class="try-score" data-try-score hidden><span class="try-grade" data-try-grade></span> <span class="try-points" data-try-points></span></p>
+                  <a class="btn btn-small" data-try-link href="/">Deschide încercarea</a>
+                </div>
+              </div>
             </div>
           </div>
           <div class="side-flow" id="cum">
@@ -262,17 +276,36 @@
         <h2 id="try-title">Încearcă o corectare, fără cont</h2>
         <p class="try-lede">Trimiți testul, baremul și lucrarea unui elev. Primești lucrarea corectată, cu punctele de verificat, rezultatul tău și pe cel al elevului.</p>
         <label class="try-field">
-          <span>Testul (PDF sau Word)</span>
-          <input type="file" name="test" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+          <span>Numele testului <small>(opțional)</small></span>
+          <input class="try-input" type="text" name="title" maxlength="120" autocomplete="off" placeholder="De exemplu: Test funcții, clasa a 9-a" />
         </label>
-        <label class="try-field">
-          <span>Baremul (PDF sau Word)</span>
-          <input type="file" name="barem" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        <label class="try-pick" data-try-pick data-empty="Alege testul" data-hint="PDF sau Word">
+          <span class="try-pick-label">Testul</span>
+          <input class="try-pick-input" type="file" name="test" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+          <span class="try-pick-box">
+            <span class="try-pick-icon"><svg class="try-pick-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><path d="M5 2.75h7l3 3v11.5H5z" /><path d="M8 9h4.5M8 12h4.5" /></svg><svg class="try-pick-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
+            <span class="try-pick-text"><span class="try-pick-name" data-try-pick-name>Alege testul</span><span class="try-pick-hint" data-try-pick-hint>PDF sau Word</span></span>
+            <span class="btn btn-small try-pick-action" aria-hidden="true" data-try-pick-action>Alege fișierul</span>
+          </span>
+        </label>
+        <label class="try-pick" data-try-pick data-empty="Alege baremul" data-hint="PDF sau Word">
+          <span class="try-pick-label">Baremul</span>
+          <input class="try-pick-input" type="file" name="barem" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+          <span class="try-pick-box">
+            <span class="try-pick-icon"><svg class="try-pick-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><path d="M5 2.75h7l3 3v11.5H5z" /><path d="M8 9h4.5M8 12h4.5" /></svg><svg class="try-pick-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
+            <span class="try-pick-text"><span class="try-pick-name" data-try-pick-name>Alege baremul</span><span class="try-pick-hint" data-try-pick-hint>PDF sau Word</span></span>
+            <span class="btn btn-small try-pick-action" aria-hidden="true" data-try-pick-action>Alege fișierul</span>
+          </span>
         </label>
         <label class="try-check"><input type="checkbox" name="robotBarem" /> Nu am barem: fă-l din test</label>
-        <label class="try-field">
-          <span>Lucrarea elevului (poze sau PDF, cel mult 20)</span>
-          <input type="file" name="pages" multiple accept="image/jpeg,image/png,image/webp,application/pdf" />
+        <label class="try-pick" data-try-pick data-empty="Alege paginile" data-hint="Poze sau PDF, cel mult 20 de fișiere">
+          <span class="try-pick-label">Lucrarea elevului</span>
+          <input class="try-pick-input" type="file" name="pages" multiple accept="image/jpeg,image/png,image/webp,application/pdf" />
+          <span class="try-pick-box">
+            <span class="try-pick-icon"><svg class="try-pick-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><rect x="2.75" y="4.5" width="14.5" height="11" rx="2" /><circle cx="10" cy="10" r="2.6" /></svg><svg class="try-pick-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
+            <span class="try-pick-text"><span class="try-pick-name" data-try-pick-name>Alege paginile</span><span class="try-pick-hint" data-try-pick-hint>Poze sau PDF, cel mult 20 de fișiere</span></span>
+            <span class="btn btn-small try-pick-action" aria-hidden="true" data-try-pick-action>Alege fișierele</span>
+          </span>
         </label>
         <div class="try-turnstile" data-try-turnstile></div>
         <p class="try-error" data-try-error role="alert" hidden></p>
