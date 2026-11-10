@@ -98,6 +98,16 @@ describe('student result links', () => {
     expect(JSON.stringify(res.body)).not.toMatch(/confidence|needsReview|reviewReason|aiPoints|robot/i);
   });
 
+  it('gives the date the upload was sent, for the student PDF', async () => {
+    const { resultToken } = await uploadAndConfirm(pop);
+    const submissionId = await submissionIdOf(pop);
+    await api.db.prepare('UPDATE submissions SET submitted_at = ? WHERE id = ?').bind('2026-11-03T08:15:00.000Z', submissionId).run();
+    await api.request('POST', `/api/admin/tests/${code}/results/open`);
+    const res = await api.request('GET', `/api/u/rezultat/${resultToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.result.submittedAt).toBe('2026-11-03T08:15:00.000Z');
+  });
+
   it('streams the files only while the results are open', async () => {
     const { resultToken } = await uploadAndConfirm(pop);
     const submissionId = await submissionIdOf(pop);

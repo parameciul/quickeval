@@ -9,6 +9,7 @@ const result: StudentResultView = {
   testTitle: 'Încercare rapidă',
   className: 'PROBA',
   studentName: 'Elev',
+  submittedAt: '2026-11-03T08:15:00.000Z',
   status: 'graded',
   files: [{ id: 21, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 1024, position: 1 }],
   evaluation: null,

@@ -17,6 +17,7 @@ const graded: StudentResultView = {
   testTitle: 'Fracții',
   className: '6E2',
   studentName: 'Pop Ion',
+  submittedAt: '2026-11-03T08:15:00.000Z',
   status: 'graded',
   files: [
     { id: 21, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 1 },

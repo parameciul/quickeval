@@ -1052,6 +1052,8 @@ export interface StudentResultView {
   testTitle: string;
   className: string;
   studentName: string;
+  // When the student sent the upload (ISO 8601 UTC); null if never sent.
+  submittedAt: string | null;
   status: Exclude<UploadStatus, 'none'>;
   files: SubmissionFile[];
   evaluation: StudentEvaluation | null;

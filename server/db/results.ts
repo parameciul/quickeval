@@ -155,6 +155,7 @@ interface ResultRow {
   submission_id: number;
   status: Exclude<UploadStatus, 'none'>;
   student_name: string;
+  submitted_at: string | null;
 }
 
 // One student's result page by its secret link. Null for an unknown link. The
@@ -162,7 +163,7 @@ interface ResultRow {
 // While closed the answer carries no files and no grading, so polling an
 // unpublished link costs one query.
 const RESULT_SELECT = `SELECT t.code, t.title, c.name AS class_name, t.results_open AS test_open, s.results_open AS submission_open,
-    s.id AS submission_id, s.status, st.full_name AS student_name
+    s.id AS submission_id, s.status, st.full_name AS student_name, s.submitted_at
   FROM submissions s
   JOIN tests t ON t.id = s.test_id
   JOIN classes c ON c.id = t.class_id
@@ -181,6 +182,7 @@ export async function findResultByToken(
       testTitle: row.title,
       className: row.class_name,
       studentName: row.student_name,
+      submittedAt: row.submitted_at,
       status: row.status,
       files: [],
       evaluation: null,
@@ -205,6 +207,7 @@ async function openResult(db: D1Database, row: ResultRow): Promise<StudentResult
     testTitle: row.title,
     className: row.class_name,
     studentName: row.student_name,
+    submittedAt: row.submitted_at,
     status: row.status,
     files: files satisfies SubmissionFile[],
     evaluation: evaluation ? toStudentEvaluation(evaluation) : null,

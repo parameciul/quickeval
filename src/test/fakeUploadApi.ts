@@ -99,6 +99,7 @@ export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
       testTitle: info.test.title,
       className: info.test.className,
       studentName: 'Pop Ion',
+      submittedAt: '2026-11-03T08:15:00.000Z',
       status: 'graded',
       files: [],
       evaluation: null,

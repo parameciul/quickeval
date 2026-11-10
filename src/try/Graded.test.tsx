@@ -19,6 +19,7 @@ const studentResult: StudentResultView = {
   testTitle: QUICK_TRY_TITLE,
   className: 'PROBA',
   studentName: QUICK_TRY_STUDENT,
+  submittedAt: '2026-11-03T08:15:00.000Z',
   status: 'graded',
   files: [photo],
   evaluation: {
