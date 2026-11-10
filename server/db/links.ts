@@ -136,6 +136,22 @@ export async function createSubmission(
   return row ? row.id : null;
 }
 
+// A student who leaves a name gives it back: the upload of this phone is
+// deleted, but only while it is not sent and has no file (checked in the
+// statement, so a file that lands at the same moment keeps the upload). True
+// when an upload was deleted.
+export async function releaseSubmission(db: D1Database, testId: number, sessionHash: string): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `DELETE FROM submissions
+       WHERE test_id = ? AND session_hash = ? AND status = 'uploading'
+         AND NOT EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)`,
+    )
+    .bind(testId, sessionHash)
+    .run();
+  return result.meta.changes > 0;
+}
+
 export async function findSession(db: D1Database, testId: number, sessionHash: string): Promise<SessionRecord | null> {
   const row = await db
     .prepare(
