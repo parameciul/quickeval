@@ -34,7 +34,7 @@ The grading skill was run with `npm run try:skill` on two real papers (one stude
 
 - PDF pages. A PDF page keeps its frame and its "Deschide PDF-ul" link, with no zoom and no border.
 - The photo files. Nothing is drawn into a file; the border is drawn by the page, over the photo.
-- Other pages: the paper's page (`src/admin/submissionPage/PageFiles.tsx`), the Quick Try page (`src/try/`), the student pages and the PDFs and CSV made in the browser stay as they are. (Builder's call to not include them: the teacher asked for the Verificare page.)
+- Other pages: the paper's page (`src/admin/submissionPage/PageFiles.tsx`, also shown in the Quick Try tab "Rezultatul profesorului"), the student pages and the PDFs and CSV made in the browser stay as they are. (Builder's call to not include them: the teacher asked for the review.)
 - Touch gestures beyond what pointer events give for free. The teacher has not used the review on a tablet or phone.
 - Regrading old papers to get areas. Old gradings have none and behave as today.
 
@@ -42,6 +42,10 @@ The grading skill was run with `npm run try:skill` on two real papers (one stude
 
 - A border around the wrong exercise. The teacher named this as the worst outcome. A missing border is acceptable; a wrong one is not. The robot is told to leave out any area it is not sure of.
 - Losing sight of the points on the right while zoomed.
+
+## Quick Try
+
+The teacher's choice: the Quick Try review behaves the same. It already is the same page: the try's "Verifică" links open the app's `ReviewPage` at `/try/<token>/teste/<code>/verificare` (`src/try/TryApp.tsx`), and its data comes from the teacher API's own routes behind the try's allow-list (`ALLOWED` in `server/routes/quickTry.ts`). So the zoom, the border, the parts and the switch work there with no code of their own, as long as the areas ride in the routes the allow-list already lets through (no new route). Tests prove it on the try's review too.
 
 ## The robot's part
 
