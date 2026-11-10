@@ -6,7 +6,7 @@ import type { AnswerArea } from '../../../shared/schemas.ts';
 // with none opens as one the robot gave no area for.
 export function drawnAreas(areas: readonly AnswerArea[], files: readonly SubmissionFile[]): AnswerArea[] {
   return areas
-    .filter((area) => area.page <= files.length && files[area.page - 1]!.contentType.startsWith('image/'))
+    .filter((area) => area.page >= 1 && area.page <= files.length && files[area.page - 1]!.contentType.startsWith('image/'))
     .sort((a, b) => a.page - b.page);
 }
 

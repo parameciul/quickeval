@@ -55,9 +55,11 @@ export function zoomAround(view: ZoomView, scale: number, px: number, py: number
 }
 
 // The wheel's step: about 1.0015 per pixel scrolled (a mouse notch of 100 px
-// zooms by about 1.16), so a trackpad's many small steps zoom smoothly too.
-export function wheelScale(scale: number, deltaPixels: number): number {
-  return scale * Math.exp(-deltaPixels * 0.0015);
+// zooms by about 1.16), so a trackpad's many small steps zoom smoothly too. A
+// trackpad pinch (the browser marks it with ctrlKey) sends far smaller steps,
+// so it zooms about 1.01 per pixel.
+export function wheelScale(scale: number, deltaPixels: number, pinch = false): number {
+  return scale * Math.exp(-deltaPixels * (pinch ? 0.01 : 0.0015));
 }
 
 // A drag: the page follows the pointer. `dx`, `dy` are fractions of the pane.

@@ -53,6 +53,12 @@ export function ReviewPhoto({
   // a page the teacher picks herself opens whole.
   const fileKey = `${submission.id}:${file?.id ?? ''}`;
   const [zoom, setZoom] = useState<{ focusKey: string; fileKey: string; view: ZoomView } | null>(null);
+  // Another page forgets the zoom, so coming back to a page shows it as it opens.
+  const [shownFile, setShownFile] = useState(fileKey);
+  if (shownFile !== fileKey) {
+    setShownFile(fileKey);
+    if (zoom !== null && zoom.fileKey !== fileKey) setZoom(null);
+  }
   const view =
     zoom !== null && zoom.focusKey === focusKey
       ? zoom.fileKey === fileKey

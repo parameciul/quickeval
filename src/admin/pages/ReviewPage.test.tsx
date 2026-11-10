@@ -592,6 +592,36 @@ describe('the zoom of a page', () => {
     expect(layer().style.transform).toBe('translate(-17.493%, -17.493%) scale(1.35)');
   });
 
+  it('shows a page whole again when the teacher comes back to it', async () => {
+    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
+    await screen.findByText('Ana Pop · pagina 2 din 3');
+    clickAt(sizedPane(), 200, 200);
+    expect(layer().style.transform).not.toBe(WHOLE);
+    await userEvent.keyboard('1');
+    await userEvent.keyboard('2');
+    expect(screen.getByText('Ana Pop · pagina 2 din 3')).toBeInTheDocument();
+    expect(layer().style.transform).toBe(WHOLE);
+  });
+
+  it('gives a new page the usual shape until its photo loads', async () => {
+    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
+    await screen.findByText('Ana Pop · pagina 2 din 3');
+    const image = layer().querySelector('img')!;
+    Object.defineProperty(image, 'naturalWidth', { value: 2000 });
+    Object.defineProperty(image, 'naturalHeight', { value: 1000 });
+    fireEvent.load(image);
+    expect(pane().style.getPropertyValue('--page-ratio')).toBe('2');
+    await userEvent.keyboard('1');
+    expect(pane().style.getPropertyValue('--page-ratio')).toBe('0.75');
+  });
+
+  it('zooms faster with a trackpad pinch than with a wheel', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    fireEvent.wheel(sizedPane(), { deltaY: -20, ctrlKey: true, clientX: 200, clientY: 200 });
+    expect(layer().style.transform).toMatch(/scale\(1\.22\d*\)$/);
+  });
+
   it('opens another page whole, and a PDF page has no zoom', async () => {
     renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
     await screen.findByText('Ana Pop · pagina 2 din 3');

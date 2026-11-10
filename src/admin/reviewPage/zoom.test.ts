@@ -26,6 +26,11 @@ describe('the zoom of a page', () => {
     expect(zoomAround(WHOLE_PAGE, wheelScale(1, 100), 0.5, 0.5)).toEqual(WHOLE_PAGE);
   });
 
+  it('zooms a trackpad pinch faster than a wheel, since a pinch sends small steps', () => {
+    expect(wheelScale(1, -50, true)).toBeCloseTo(Math.exp(0.5));
+    expect(wheelScale(1, -50)).toBeCloseTo(Math.exp(0.075));
+  });
+
   it('moves the zoomed page with the pointer', () => {
     expect(panBy({ scale: 2.5, cx: 0.5, cy: 0.5 }, 0.1, -0.05)).toEqual({ scale: 2.5, cx: 0.46, cy: 0.52 });
     expect(panBy({ scale: 2.5, cx: 0.5, cy: 0.5 }, -1, 0).cx).toBe(0.8);

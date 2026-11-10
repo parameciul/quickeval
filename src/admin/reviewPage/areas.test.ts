@@ -10,6 +10,10 @@ describe('the areas the review draws', () => {
     expect(drawnAreas([area(3), area(1), area(2), area(4)], [photo(1), pdf(2), photo(3)])).toEqual([area(1), area(3)]);
     expect(drawnAreas([area(2)], [photo(1)])).toEqual([]);
   });
+
+  it('skips an area before the first page instead of breaking the review', () => {
+    expect(drawnAreas([area(0), area(-1), area(1)], [photo(1)])).toEqual([area(1)]);
+  });
 });
 
 describe('"Arată chenarul"', () => {

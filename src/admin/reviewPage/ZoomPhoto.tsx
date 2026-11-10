@@ -9,8 +9,10 @@ import { isZoomed, layerTransform, panBy, WHOLE_PAGE, wheelScale, zoomAround, zo
 // over the page (the border of an answer), in the pane's own coordinates.
 export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; alt: string; view: ZoomView; onView: (view: ZoomView) => void; children?: ReactNode }) {
   const pane = useRef<HTMLDivElement>(null);
-  // Width / height of the photo: the pane takes its shape. A phone page until it loads.
-  const [ratio, setRatio] = useState(3 / 4);
+  // Width / height of the photo: the pane takes its shape. A phone page until it
+  // loads, also when another page comes in its place.
+  const [loaded, setLoaded] = useState<{ src: string; ratio: number } | null>(null);
+  const ratio = loaded !== null && loaded.src === src ? loaded.ratio : 3 / 4;
   const zoomed = isZoomed(view);
   // The drag under way: where it started, and whether it moved yet.
   const drag = useRef<{ id: number; x: number; y: number; view: ZoomView; moved: boolean } | null>(null);
@@ -32,7 +34,7 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
       const { view: now, onView: set } = current.current;
       const { px, py, rect } = at(event.clientX, event.clientY);
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height || 800 : 1;
-      const next = zoomAround(now, wheelScale(now.scale, event.deltaY * unit), px, py);
+      const next = zoomAround(now, wheelScale(now.scale, event.deltaY * unit, event.ctrlKey), px, py);
       if (!isZoomed(now) && !isZoomed(next)) return;
       event.preventDefault();
       set(next);
@@ -107,7 +109,7 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
           draggable={false}
           onLoad={(event) => {
             const { naturalWidth, naturalHeight } = event.currentTarget;
-            if (naturalWidth > 0 && naturalHeight > 0) setRatio(naturalWidth / naturalHeight);
+            if (naturalWidth > 0 && naturalHeight > 0) setLoaded({ src, ratio: naturalWidth / naturalHeight });
           }}
         />
       </div>
