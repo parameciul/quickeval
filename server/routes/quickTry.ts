@@ -44,6 +44,7 @@ const fileNotFound = () => new ApiError(404, 'not_found', 'Nu am găsit fișieru
 // else of the teacher API answers 404.
 const ALLOWED: readonly [string, RegExp][] = [
   ['GET', /^\/tests\/[^/]+$/],
+  ['PATCH', /^\/tests\/[^/]+$/],
   ['GET', /^\/tests\/[^/]+\/files\/(test|barem)$/],
   ['PUT', /^\/tests\/[^/]+\/files\/(test|barem)$/],
   ['POST', /^\/tests\/[^/]+\/barem\/generate$/],
@@ -122,6 +123,7 @@ export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
       email: `try-${randomBase32(20)}@quick-try.invalid`,
       sessionHash: await sha256Hex(newDeviceSecret()),
       resultToken: newResultToken(),
+      title: body.title,
       now: nowIso(),
     });
     if (made === 'ip_limit') throw new ApiError(429, 'quick_try_ip_limit', LIMIT_MESSAGE);

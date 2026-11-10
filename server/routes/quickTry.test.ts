@@ -36,6 +36,24 @@ describe('POST /api/try', () => {
     expect(row).toEqual({ ip_hash: await sha256Hex('203.0.113.5'), by_admin: 0 });
   });
 
+  it("names the try's test with the name it gets, or with the default name", async () => {
+    await visitorApi();
+    const title = async (token: string) =>
+      (
+        await api.db
+          .prepare('SELECT t.title FROM tests t JOIN quick_tries q ON q.teacher_id = t.teacher_id WHERE q.token_hash = ?')
+          .bind(await sha256Hex(token))
+          .first<{ title: string }>()
+      )!.title;
+    const named = await create({ turnstileToken: 'ok', title: '  Test   funcții 9B ' });
+    expect(named.status).toBe(201);
+    expect(await title(named.body.token)).toBe('Test funcții 9B');
+    expect(await title((await create({ turnstileToken: 'ok', title: '   ' }, '203.0.113.6')).body.token)).toBe('Încercare rapidă');
+    expect(await title((await create({ turnstileToken: 'ok' }, '203.0.113.7')).body.token)).toBe('Încercare rapidă');
+    const long = await create({ turnstileToken: 'ok', title: 'x'.repeat(500) }, '203.0.113.8');
+    expect(long.status).toBe(400);
+  });
+
   it('refuses a visitor without a Turnstile answer, or with one Cloudflare refuses', async () => {
     await visitorApi();
     for (const body of [{}, { turnstileToken: 'bot' }]) {

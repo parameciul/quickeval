@@ -113,6 +113,12 @@ describe('the teacher API through the link', () => {
     expect((await api.fetch(`/api/try/${token}/tests/${code}/files/test`)).status).toBe(200);
   });
 
+  it("renames the try's test", async () => {
+    const res = await api.request('PATCH', `/api/try/${token}/tests/${code}`, { title: 'Test funcții 9B' });
+    expect(res.status).toBe(200);
+    expect((await api.request('GET', `/api/try/${token}/tests/${code}`)).body.test.title).toBe('Test funcții 9B');
+  });
+
   it("never reaches a real teacher's test", async () => {
     const other = await realTeacherTest();
     expect((await api.request('GET', `/api/try/${token}/tests/${other}`)).status).toBe(404);
@@ -124,7 +130,6 @@ describe('the teacher API through the link', () => {
       ['GET', `/tests`],
       ['POST', `/tests`],
       ['DELETE', `/tests/${code}`],
-      ['PATCH', `/tests/${code}`],
       ['POST', `/tests/${code}/evaluate`],
       ['POST', `/tests/${code}/regrade`],
       ['POST', `/tests/${code}/exercise-list/retry`],

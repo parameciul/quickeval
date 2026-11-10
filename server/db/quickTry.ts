@@ -38,6 +38,8 @@ export interface NewQuickTry {
   // The hash of the paper's session secret, and the paper's result token.
   sessionHash: string;
   resultToken: string;
+  // The test's name; empty for the default name.
+  title?: string;
   now: string;
 }
 
@@ -97,7 +99,7 @@ export async function createQuickTry(db: D1Database, input: NewQuickTry): Promis
         `INSERT INTO tests (teacher_id, class_id, number, code, title, status, started_at, quick_try, created_at, updated_at)
          SELECT c.teacher_id, c.id, 1, ?, ?, 'open', ?, 1, ?, ? FROM classes c WHERE c.teacher_id = (${guest})`,
       )
-      .bind(code, QUICK_TRY_TITLE, input.now, input.now, input.now, input.email),
+      .bind(code, input.title || QUICK_TRY_TITLE, input.now, input.now, input.now, input.email),
     db
       .prepare(
         `INSERT INTO submissions (test_id, student_id, status, session_hash, result_token, started_at)
