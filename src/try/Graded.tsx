@@ -1,23 +1,26 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
-import type { SubmissionDetail, TestDetail } from '../../shared/api.ts';
+import type { ReviewPoint, SubmissionDetail, TestDetail } from '../../shared/api.ts';
+import { formatPoints } from '../../shared/scoring.ts';
 import { useApi } from '../admin/ApiContext.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
-import { reviewPath } from '../admin/reviewPage/points.ts';
+import { pointKey, reviewPath } from '../admin/reviewPage/points.ts';
 import { GradedResult } from '../admin/submissionPage/GradedResult.tsx';
 import { PageFiles } from '../admin/submissionPage/PageFiles.tsx';
 import { StudentResult } from '../upload/StudentResult.tsx';
 import { countLabel } from '../ui/format.ts';
+import { MathText } from '../ui/MathText.tsx';
 import { onTabKeyDown } from '../ui/tabKeys.ts';
 import { pageFileUrl, type TryApi } from './api.ts';
-import { paperOf } from './phase.ts';
+import { paperOf, scoreOf } from './phase.ts';
 
 type View = 'verificare' | 'profesor' | 'elev';
-const VIEWS: { id: View; label: string }[] = [
-  { id: 'verificare', label: 'Verificare' },
-  { id: 'profesor', label: 'Rezultatul profesorului' },
-  { id: 'elev', label: 'Rezultatul elevului' },
+// Each view's name, and the short one a phone shows.
+const VIEWS: { id: View; label: string; short: string | null }[] = [
+  { id: 'verificare', label: 'Verificare', short: null },
+  { id: 'profesor', label: 'Rezultatul profesorului', short: 'Profesor' },
+  { id: 'elev', label: 'Rezultatul elevului', short: 'Elev' },
 ];
 const VIEW_IDS = VIEWS.map((view) => view.id);
 
@@ -26,16 +29,18 @@ function viewOfHash(hash: string): View {
   return hash === '#rezultate' ? 'profesor' : 'verificare';
 }
 
-// The graded paper (spec §3.3, state 4), in the app's three views: the points
-// to check (the app's own review), the teacher's result with its corrections,
-// and the page the student would see.
+// The graded paper (spec §3.3, state 4): its grade and the points to check,
+// then the app's three views: the points to check (each opens the app's own
+// review), the teacher's result with its corrections, and the page the
+// student would see. The tabs stay at the top while she scrolls.
 export function Graded({ detail, token, tryApi }: { detail: TestDetail; token: string; tryApi: TryApi }) {
   const [view, setView] = useState<View>(viewOfHash(useLocation().hash));
   const paper = paperOf(detail)!;
   return (
     <>
-      <div className="class-tabs" role="tablist" aria-label="Lucrarea corectată" onKeyDown={(event) => onTabKeyDown(event, VIEW_IDS, view, setView, (id) => `try-tab-${id}`)}>
-        {VIEWS.map(({ id, label }) => (
+      <Summary detail={detail} />
+      <div className="try-tabs" role="tablist" aria-label="Lucrarea corectată" onKeyDown={(event) => onTabKeyDown(event, VIEW_IDS, view, setView, (id) => `try-tab-${id}`)}>
+        {VIEWS.map(({ id, label, short }) => (
           <button
             key={id}
             type="button"
@@ -44,15 +49,29 @@ export function Graded({ detail, token, tryApi }: { detail: TestDetail; token: s
             aria-selected={view === id}
             tabIndex={view === id ? 0 : -1}
             aria-controls={`try-panel-${id}`}
-            className="class-tab"
+            className="try-tab"
             onClick={() => setView(id)}
           >
-            {label}
+            {short ? (
+              <>
+                <span className="try-tab-full">{label}</span>
+                <span className="try-tab-short" aria-hidden="true">
+                  {short}
+                </span>
+              </>
+            ) : (
+              label
+            )}
+            {id === 'verificare' && paper.flagCount > 0 && (
+              <span className="try-tab-count" aria-hidden="true">
+                {paper.flagCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
-      <div role="tabpanel" id={`try-panel-${view}`} aria-labelledby={`try-tab-${view}`}>
-        {view === 'verificare' && <Checking code={detail.test.code} flagCount={paper.flagCount} />}
+      <div className="try-panel" role="tabpanel" id={`try-panel-${view}`} aria-labelledby={`try-tab-${view}`}>
+        {view === 'verificare' && <Checking code={detail.test.code} submissionId={paper.submissionId!} points={paper.reviewPoints} />}
         {view === 'profesor' && <TeacherResult code={detail.test.code} submissionId={paper.submissionId!} />}
         {view === 'elev' && <StudentView token={token} tryApi={tryApi} />}
       </div>
@@ -60,21 +79,71 @@ export function Graded({ detail, token, tryApi }: { detail: TestDetail; token: s
   );
 }
 
-// The review opens on its first point (the app's review picks it).
-function Checking({ code, flagCount }: { code: string; flagCount: number }) {
-  if (flagCount === 0) {
-    return <p className="review-done">Toate punctele sunt verificate. Rezultatul profesorului și cel al elevului sunt gata.</p>;
+// The grade, and what waits for her: the points the robot was not sure of
+// (orange: hers to do), or nothing (green).
+function Summary({ detail }: { detail: TestDetail }) {
+  const paper = paperOf(detail)!;
+  const score = scoreOf(detail);
+  return (
+    <section className="try-summary" aria-label="Rezultatul încercării">
+      {score && (
+        <div className="try-score">
+          <span className="try-score-label">Nota</span>
+          <span className="try-grade">{score.grade}</span>
+          <span className="try-score-points">{score.points}</span>
+        </div>
+      )}
+      {paper.flagCount > 0 ? (
+        <div className="try-todo">
+          <div>
+            <p className="try-todo-title">{countLabel(paper.flagCount, 'punct nesigur', 'puncte nesigure')}</p>
+            <p>Robotul nu a fost sigur de ele. Le verifici cu pagina lucrării alături și schimbi punctajul dacă e nevoie.</p>
+          </div>
+          <Link className="button" to={reviewPath(detail.test.code)}>
+            Verifică {countLabel(paper.flagCount, 'punct', 'puncte')}
+          </Link>
+        </div>
+      ) : (
+        <div className="try-todo is-done">
+          <div>
+            <p className="try-todo-title">Toate punctele sunt verificate.</p>
+            <p>Rezultatul profesorului și cel al elevului sunt gata.</p>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// The points to check, each with its reason; each opens the app's review at it.
+function Checking({ code, submissionId, points }: { code: string; submissionId: number; points: ReviewPoint[] }) {
+  if (points.length === 0) {
+    return <p className="try-empty">Nu mai ai puncte de verificat. Rezultatul profesorului și cel al elevului sunt gata.</p>;
   }
   return (
-    <div className="try-state">
-      <p>
-        Robotul nu a fost sigur de {countLabel(flagCount, 'punct', 'puncte')}. Le verifici una câte una, cu pagina lucrării alături, și schimbi punctajul
-        dacă e nevoie.
-      </p>
-      <Link className="button" to={reviewPath(code)}>
-        Verifică {countLabel(flagCount, 'punct', 'puncte')}
-      </Link>
-    </div>
+    <ul className="try-points">
+      {points.map((point) => {
+        const name = point.kind === 'item' ? point.label : 'Pagini greu de citit';
+        return (
+          <li key={pointKey(point)} className="try-point">
+            <span className="try-point-name">{name}</span>
+            {point.kind === 'item' ? (
+              <span className="try-point-score">
+                {formatPoints(point.points)} din {formatPoints(point.maxPoints)}
+              </span>
+            ) : (
+              <span className="try-point-score">{point.pages.join(', ')}</span>
+            )}
+            <span className="try-point-why">
+              {point.kind === 'item' ? <MathText text={point.reason} /> : 'Robotul nu a putut citi aceste pagini.'}
+            </span>
+            <Link className="button-quiet" to={reviewPath(code, { submissionId, key: pointKey(point) })} aria-label={`Verifică ${name}`}>
+              Verifică
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

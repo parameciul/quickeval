@@ -1,9 +1,16 @@
-/* A Quick Try's page: the teacher app's top bar and look, in one column. */
+/* A Quick Try's page: the teacher app's top bar and look, in one column of
+   one width, whatever the view shows. The scrollbar's room is always kept,
+   so a short view and a long one start at the same place. */
+html {
+  scrollbar-gutter: stable;
+}
+
 .try-topbar {
   position: static;
 }
 
 .try-page {
+  width: 100%;
   max-width: 72rem;
   margin: 0 auto;
   padding: 1.5rem 1rem 3rem;
@@ -38,20 +45,334 @@ label.button-quiet.is-disabled {
   margin: 1.5rem 0;
 }
 
+/* The head: the try's name, its times, its files and "Distribuie". */
 .try-head {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--sheet);
+}
+
+.try-head-main {
+  flex: 1 1 24rem;
+  min-width: 0;
+}
+
+.try-kicker {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.try-title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.try-title h1 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.try-title-edit {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.try-title-edit:hover {
+  background: var(--active);
+  color: var(--text);
+}
+
+.try-title-edit svg,
+.try-file svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.try-rename {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 32rem;
+}
+
+.try-rename-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.try-meta {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.try-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.try-files:empty {
+  display: none;
+}
+
+.try-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.try-file svg {
+  color: var(--ink);
+}
+
+.try-file:hover {
+  border-color: var(--control);
+  background: var(--raised);
+}
+
+/* The grade, and the points to check: orange is hers to do. */
+.try-summary {
+  display: grid;
+  grid-template-columns: minmax(10rem, auto) 1fr;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.try-score {
+  display: grid;
+  align-content: center;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--sheet);
+}
+
+.try-score-label,
+.try-score-points {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.try-grade {
+  color: var(--ink);
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.try-todo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background: var(--marker);
+}
+
+.try-todo p {
+  margin: 0.125rem 0 0;
+  max-width: 60ch;
+  font-size: 0.875rem;
+}
+
+.try-todo .try-todo-title {
+  margin: 0;
+  color: var(--orange);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.try-todo .button {
+  border-color: var(--orange-mark);
+  background: var(--orange-mark);
+  color: var(--on-ink);
+}
+
+.try-todo.is-done {
+  background: var(--ok-bg);
+}
+
+.try-todo.is-done .try-todo-title {
+  color: var(--ok-fg);
+}
+
+/* The three views: tabs that stay at the top while she scrolls. */
+.try-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--paper);
+  box-shadow: inset 0 -1px 0 var(--rule);
+}
+
+.try-tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.75rem;
+  padding: 0 0.875rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.try-tab:hover {
+  color: var(--text);
+}
+
+.try-tab[aria-selected="true"] {
+  border-bottom-color: var(--ink);
+  color: var(--text);
+}
+
+.try-tab-short {
+  display: none;
+}
+
+.try-tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  padding: 0 0.375rem;
+  border-radius: 999px;
+  background: var(--orange-mark);
+  color: var(--on-ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.try-panel {
+  min-height: 24rem;
+}
+
+/* The points to check, one row each. */
+.try-points {
+  display: grid;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.try-point {
+  display: grid;
+  grid-template-columns: minmax(6rem, 12rem) 6rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--orange-mark);
+  border-radius: 10px;
+  background: var(--sheet);
+}
+
+.try-point-name {
+  font-weight: 700;
+}
+
+.try-point-score {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+.try-point-why {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.try-empty {
+  color: var(--muted);
+}
+
+/* Narrow: "Distribuie" goes under the name, on the left. */
+@media (max-width: 48rem) {
+  .try-head .try-share {
+    justify-items: start;
+    max-width: none;
+    text-align: left;
+  }
+}
+
+@media (max-width: 40rem) {
+  .try-head {
+    padding: 1rem;
+  }
+
+  .try-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .try-point {
+    grid-template-columns: 1fr auto;
+  }
+
+  /* The tabs' short names, so the three fit on a phone; the full name stays for screen readers. */
+  .try-tab-full {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .try-tab-short {
+    display: inline;
+  }
+
+  .try-point-why {
+    grid-column: 1 / -1;
+  }
 }
 
 .try-share {
   display: grid;
   justify-items: end;
   gap: 0.25rem;
-  max-width: 22rem;
+  max-width: 16rem;
   text-align: right;
 }
 

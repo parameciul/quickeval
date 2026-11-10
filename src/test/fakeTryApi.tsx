@@ -17,7 +17,7 @@ export const TRY_SUBMISSION = 501;
 
 // The calls of the teacher app's client a try's link allows (the allow-list of
 // server/routes/quickTry.ts). A page test that reaches any other call fails.
-export const TRY_ADMIN_CALLS = ['getTest', 'uploadTestFile', 'generateBarem', 'acceptExerciseList', 'getSubmission', 'correctItem', 'reviewPages'] as const;
+export const TRY_ADMIN_CALLS = ['getTest', 'renameTest', 'uploadTestFile', 'generateBarem', 'acceptExerciseList', 'getSubmission', 'correctItem', 'reviewPages'] as const;
 
 // The fake teacher app's client as a try's link sees it: base /api/try/<token>,
 // and every call outside TRY_ADMIN_CALLS throws.

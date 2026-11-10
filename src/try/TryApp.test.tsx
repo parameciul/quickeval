@@ -16,7 +16,7 @@ describe("a Quick Try's page", () => {
     renderTry('/', api, tryApi);
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'MQGrader by Laura Miron' })).toHaveAttribute('href', '/');
-    expect(screen.getByText('Corectezi o lucrare, fără cont. Linkul acestei pagini merge 7 zile.')).toBeInTheDocument();
+    expect(screen.getByText(/Linkul merge până pe 17 noiembrie 2026/)).toBeInTheDocument();
   });
 
   it('says an expired try expired, and leads to a new one', async () => {
