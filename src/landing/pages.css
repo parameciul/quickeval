@@ -50,7 +50,8 @@
 /* The band at the end of a page: the one next step. */
 .band .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px 40px; flex-wrap: wrap; }
 .band h2 { font-size: clamp(24px, 3vw, 36px); line-height: 1.1; letter-spacing: -0.03em; font-weight: 800; max-width: 22ch; }
-.band p { margin-top: 10px; max-width: 46ch; color: var(--muted); font-size: 17px; }
+/* The line under the heading; the .cta paragraph keeps the landing page's own rule. */
+.band p:not(.cta) { margin-top: 10px; max-width: 46ch; color: var(--muted); font-size: 17px; }
 
 @media (max-width: 900px) {
   .page { padding-block: 32px 64px; }

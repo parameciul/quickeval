@@ -92,7 +92,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" />
     <link rel="stylesheet" href="/src/landing/landing.css" />
     <link rel="stylesheet" href="/src/landing/pages.css" />
-    <script type="module" src="/src/landing/landing.ts"></script>
+    <script type="module" src="/src/landing/pages.ts"></script>
   </head>
   <body>
     <div class="site">
@@ -143,12 +143,12 @@
             </ul>
 
             <h2>Cum obții un barem în MQGrader</h2>
-            <p>Ai două căi, iar alegerea se face în momentul în care creezi testul:</p>
+            <p>Ai două căi. Alegi una când creezi testul sau mai târziu, din pagina testului:</p>
             <ol>
               <li><b>Încarci baremul tău.</b> Un fișier cu punctajul, așa cum îl ai. Se folosește ca atare.</li>
               <li><b>Generezi baremul din test.</b> Încarci doar testul, iar platforma propune un barem: pașii fiecărui exercițiu și punctajul. Propunerea stă la vedere până o confirmi.</li>
             </ol>
-            <p>Al doilea caz e util când testul e gata și baremul nu, dar are o regulă simplă: <b>nimic nu se corectează după un barem pe care nu l-ai confirmat.</b> Poți citi propunerea, o poți schimba, iar dacă nu îți place, înlocuiești fișierul cu al tău și corectarea pornește după el.</p>
+            <p>Al doilea caz e util când testul e gata și baremul nu, dar are o regulă simplă: <b>nimic nu se corectează după un barem pe care nu l-ai confirmat.</b> Poți citi propunerea, o poți schimba, iar dacă nu îți place, înlocuiești fișierul cu al tău, iar corectarea, când o pornești, se face după el.</p>
             <div class="callout">
               <h3>De ce se confirmă baremul</h3>
               <p>Un barem generat e o propunere, nu o decizie. Dacă ar corecta direct, ai avea 30 de lucrări punctate după un barem pe care nu l-ai citit — iar corectarea lor ar trebui luată de la capăt.</p>
@@ -183,21 +183,7 @@
         </section>
       </main>
 
-      <footer class="site-foot">
-        <div class="wrap">
-          <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
-            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
-            <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
-          </a>
-          <nav class="foot-nav" aria-label="Pagini">
-            <a href="/ghid/">Ghidul corectării</a>
-            <a href="/barem/">Baremul</a>
-            <a href="/despre/">Despre</a>
-            <a href="/preturi/">Cât costă</a>
-          </nav>
-          <span class="note">Corectarea testelor de matematică · Timișoara · 2026</span>
-        </div>
-      </footer>
+      <!--#include site-foot -->
     </div>
   </body>
 </html>

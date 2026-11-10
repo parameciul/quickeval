@@ -58,7 +58,7 @@ for (const path of ['/ghid/', '/barem/', '/despre/', '/preturi/']) {
   check(`content page ${path}`, content.res.status === 200, String(content.res.status));
   check(`content page ${path} may be indexed`, !(content.res.headers.get('x-robots-tag') ?? '').includes('noindex'));
   check(`content page ${path} points at itself`, content.text.includes(`<link rel="canonical" href="https://mqgrader.ro${path}"`));
-  check(`content page ${path} links the others`, content.text.includes('href="/ghid/"') && content.text.includes('href="/preturi/"'));
+  check(`content page ${path} links the others`, ['/ghid/', '/barem/', '/despre/', '/preturi/'].every((link) => content.text.includes(`href="${link}"`)));
 }
 // public/404.html is what keeps Pages from answering like a single-page app.
 const missingPage = await page('/pagina-care-nu-exista');

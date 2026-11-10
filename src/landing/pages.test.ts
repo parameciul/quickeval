@@ -1,15 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import barem from '../../barem/index.html?raw';
-import despre from '../../despre/index.html?raw';
-import ghid from '../../ghid/index.html?raw';
-import landing from '../../index.html?raw';
-import preturi from '../../preturi/index.html?raw';
+import baremRaw from '../../barem/index.html?raw';
+import despreRaw from '../../despre/index.html?raw';
+import ghidRaw from '../../ghid/index.html?raw';
+import landingRaw from '../../index.html?raw';
+import preturiRaw from '../../preturi/index.html?raw';
 import llms from '../../public/llms.txt?raw';
-import sitemap from '../../public/sitemap.xml?raw';
+import { expandPartials } from './partials.ts';
 
 // The pages that answer a search, beside the landing page. They are plain
 // HTML, built by Vite (vite.config.ts lists them), and they share the landing
-// page's look: src/landing/landing.css, then src/landing/pages.css.
+// page's look: src/landing/landing.css, then src/landing/pages.css. Their
+// footer is a shared part that Vite puts in place, so the tests read each page
+// as it is served.
+
+const RAW = [ghidRaw, baremRaw, despreRaw, preturiRaw];
+const [ghid, barem, despre, preturi, landing] = [...RAW, landingRaw].map(expandPartials) as [
+  string,
+  string,
+  string,
+  string,
+  string,
+];
 
 type Page = { path: string; url: string; html: string; name: string };
 
@@ -92,13 +103,26 @@ describe('the pages that answer a search', () => {
     }
   });
 
-  it('is listed in the sitemap and in llms.txt', () => {
+  it('loads only the theme button script, not the Quick Try form', () => {
+    for (const html of PAGES.map((p) => p.html)) {
+      const scripts = all(parse(html), 'script[type="module"]').map((s) => s.getAttribute('src'));
+      expect(scripts).toEqual(['/src/landing/pages.ts']);
+    }
+  });
+
+  it('takes its footer from the shared part, once', () => {
+    for (const raw of [...RAW, landingRaw]) {
+      expect(raw.match(/<!--#include site-foot -->/g)).toHaveLength(1);
+      expect(raw).not.toContain('<footer');
+    }
+  });
+
+  // The sitemap's exact list is checked in robots.test.ts.
+  it('is listed in llms.txt', () => {
     for (const page of PAGES) {
-      expect(sitemap).toContain(`<loc>${page.url}</loc>`);
       expect(llms).toContain(page.url);
       expect(llms).toContain(page.name);
     }
-    expect(sitemap).toContain('<loc>https://mqgrader.ro/</loc>');
   });
 
   it('writes the barem page questions twice, in the same words', () => {
