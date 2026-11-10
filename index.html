@@ -157,6 +157,14 @@
             <div class="cta">
               <a class="btn btn-primary btn-large" href="/teacher/">Intră în cont</a>
               <a class="link" href="/teacher/#cont-nou">Cere un cont de profesor</a>
+              <button class="btn btn-large btn-try" type="button" data-try-open hidden>Încearcă acum, fără cont</button>
+            </div>
+            <div class="try-line" data-try hidden>
+              <p class="try-note" data-try-note hidden></p>
+              <p class="try-status" data-try-status role="status" hidden>
+                <span data-try-status-text></span>
+                <a class="link" data-try-link href="/">Deschide încercarea</a>
+              </p>
             </div>
           </div>
           <div class="side-flow" id="cum">
@@ -249,5 +257,32 @@
         </div>
       </footer>
     </div>
+    <dialog class="try-dialog" data-try-dialog aria-labelledby="try-title">
+      <form class="try-form" data-try-form novalidate>
+        <h2 id="try-title">Încearcă o corectare, fără cont</h2>
+        <p class="try-lede">Trimiți testul, baremul și lucrarea unui elev. Primești lucrarea corectată, cu punctele de verificat, rezultatul tău și pe cel al elevului.</p>
+        <label class="try-field">
+          <span>Testul (PDF sau Word)</span>
+          <input type="file" name="test" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        </label>
+        <label class="try-field">
+          <span>Baremul (PDF sau Word)</span>
+          <input type="file" name="barem" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        </label>
+        <label class="try-check"><input type="checkbox" name="robotBarem" /> Nu am barem: fă-l din test</label>
+        <label class="try-field">
+          <span>Lucrarea elevului (poze sau PDF, cel mult 20)</span>
+          <input type="file" name="pages" multiple accept="image/jpeg,image/png,image/webp,application/pdf" />
+        </label>
+        <div class="try-turnstile" data-try-turnstile></div>
+        <p class="try-error" data-try-error role="alert" hidden></p>
+        <p class="try-recover" data-try-recover hidden>Încercarea a fost făcută. <a class="link" data-try-recover-link href="/">Deschide încercarea</a> ca să trimiți ce lipsește.</p>
+        <p class="try-progress" data-try-progress aria-live="polite" hidden></p>
+        <div class="try-actions">
+          <button class="btn" type="button" data-try-close>Renunță</button>
+          <button class="btn btn-primary" type="submit" data-try-send>Trimite</button>
+        </div>
+      </form>
+    </dialog>
   </body>
 </html>

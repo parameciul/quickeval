@@ -145,6 +145,28 @@ a { color: inherit; }
 .task .go { margin-top: auto; align-self: flex-start; height: 36px; cursor: default; }
 .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--orange-tint); color: var(--orange); }
 
+/* Quick Try: the button beside the account links, the line under them, and
+   the form in a window over the page. */
+.try-line { display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+.try-line[hidden], .try-line [hidden] { display: none; }
+.try-note { color: var(--muted); max-width: 52ch; }
+.try-status { display: flex; gap: 4px 12px; flex-wrap: wrap; align-items: baseline; font-weight: 600; }
+.try-dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); color: var(--text); }
+.try-dialog::backdrop { background: rgb(12 21 36 / 0.55); }
+.try-form { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.try-form h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.try-lede { color: var(--muted); font-size: 15px; }
+.try-field { display: flex; flex-direction: column; gap: 6px; font-size: 15px; font-weight: 600; }
+.try-field input { min-width: 0; max-width: 100%; font: 400 14px var(--font); color: var(--text); }
+.try-check { display: flex; gap: 8px; align-items: center; font-size: 15px; }
+.try-turnstile:empty { display: none; }
+.try-error { color: var(--orange); font-weight: 600; }
+.try-error[hidden], .try-recover[hidden], .try-progress[hidden] { display: none; }
+.try-progress { color: var(--muted); }
+.try-actions { display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+.try-actions .btn:disabled { opacity: 0.6; cursor: default; }
+.btn-try[hidden] { display: none; }
+
 /* Footer: one line, about as high as the header. */
 .site-foot { background: var(--band); color: var(--on-band); }
 .site-foot .wrap { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 8px 24px; flex-wrap: wrap; padding-block: 14px; font-size: 14px; }

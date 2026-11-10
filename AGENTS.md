@@ -9,7 +9,7 @@ MQGrader (formerly QuickEval): a web app that helps Laura Miron (math teacher, L
 ## Structure
 
 - `index.html` (landing page), `teacher/index.html` (teacher app, `/teacher/`), `u/index.html` (student app, `/u/<token>`), `try/index.html` (a Quick Try's page, `/try/<token>`).
-- `src/`: the two React apps (`admin/`, `upload/`), the landing page's stylesheet and theme button (`landing/`, no React), shared UI (`ui/`), test helpers (`test/`).
+- `src/`: the two React apps (`admin/`, `upload/`), the landing page's stylesheet, theme button and Quick Try form (`landing/`, no React), shared UI (`ui/`), test helpers (`test/`).
 - `functions/api/[[route]].ts`: the Cloudflare Pages entry for `/api/*`; it serves the Hono app from `server/app.ts`.
 - `server/`: the API (routes, D1 queries, auth, R2 files, secrets, emails).
 - `shared/`: code for the API, the browser, and the robot: zod request schemas and response types (`api.ts`), roles and the demo paper limit (`accounts.ts`), school year, class and student names, ids, test codes (`tests.ts`), file rules and R2 keys (`files.ts`), the robot's output contracts and their JSON Schemas (`schemas.ts`), points and grades (`scoring.ts`), robot API bodies (`runner.ts`), the search fold that ignores case and diacritics (`search.ts`).
