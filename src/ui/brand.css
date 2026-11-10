@@ -2433,11 +2433,40 @@ table.tests .row-actions {
   color: var(--on-ink);
 }
 
-.review-photo img {
+/* A page of the paper zooms inside the pane: the pane has the photo's shape
+   (--page-ratio, width / height) and fits the screen's height, so the whole
+   page shows at once; the layer moves and grows inside it. */
+.zoom-pane {
+  position: relative;
+  overflow: hidden;
+  width: min(100%, calc((100vh - 12rem) * var(--page-ratio)));
+  aspect-ratio: var(--page-ratio);
+  margin-inline: auto;
+  border-radius: var(--radius);
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.zoom-pane.is-zoomed {
+  cursor: grab;
+  touch-action: none;
+}
+
+.zoom-pane.is-zoomed:active {
+  cursor: grabbing;
+}
+
+.zoom-layer {
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+}
+
+.zoom-layer img {
   display: block;
   width: 100%;
-  height: auto;
-  border-radius: var(--radius);
+  height: 100%;
 }
 
 .review-photo .pdf-frame {

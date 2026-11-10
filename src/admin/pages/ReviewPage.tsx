@@ -11,6 +11,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ReviewDecision, type ReviewView } from '../reviewPage/ReviewDecision.tsx';
 import { ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
 import { ReviewQueue } from '../reviewPage/ReviewQueue.tsx';
+import { isReviewKey } from '../reviewPage/keys.ts';
 import {
   firstSpot,
   otherPapers,
@@ -67,16 +68,6 @@ interface Decision {
   point: ReviewPoint;
   change: ItemChange;
 }
-
-// A key typed in a field is text, not a command.
-function isTyping(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
-}
-
-// What opens over the page from the bars (a panel, the phone menu, the account
-// menu) and the button of one while it is open: a key there is not for the
-// review. A closed panel's button, where the focus goes back, is.
-const BAR_BOXES = '.panel, .phone-menu, .user-menu, [aria-expanded="true"]';
 
 function Review({ code, detail, refreshError }: { code: string; detail: TestDetail; refreshError: Error | null }) {
   const api = useApi();
@@ -214,8 +205,7 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
   // repeats would accept points the teacher never saw.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented || isTyping(event.target)) return;
-      if (event.target instanceof Element && event.target.closest(BAR_BOXES)) return;
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || !isReviewKey(event)) return;
       // While a decision is on its way, no key acts: the next point opens after it.
       if (decide.isPending) return;
       const key = event.key.toLowerCase();

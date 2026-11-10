@@ -505,3 +505,92 @@ describe('the review of the points to check', () => {
     await expectLocation(at('?lucrare=14&punct=41'));
   });
 });
+
+// The page of the paper zooms inside the middle pane. jsdom lays nothing out:
+// the pane is given a size of 400 × 400 px.
+const pane = () => screen.getByTestId('zoom-pane');
+const layer = () => pane().firstElementChild as HTMLElement;
+function sizedPane(): HTMLElement {
+  const element = pane();
+  element.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 400, width: 400, height: 400, x: 0, y: 0, toJSON: () => ({}) });
+  return element;
+}
+function clickAt(element: HTMLElement, clientX: number, clientY: number, button = 0) {
+  fireEvent.pointerDown(element, { pointerId: 1, button, clientX, clientY });
+  fireEvent.pointerUp(element, { pointerId: 1, button, clientX, clientY });
+}
+const WHOLE = 'translate(0%, 0%) scale(1)';
+
+describe('the zoom of a page', () => {
+  it('zooms in where the photo is clicked, moves with a drag, and shows the whole page with "Toată pagina"', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const photo = sizedPane();
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Pagina 1 a lucrării/ })).not.toBeInTheDocument();
+
+    clickAt(photo, 100, 150);
+    expect(layer().style.transform).toBe('translate(-12.5%, -43.75%) scale(2.5)');
+    // A click on the zoomed page does nothing.
+    clickAt(photo, 300, 300);
+    expect(layer().style.transform).toBe('translate(-12.5%, -43.75%) scale(2.5)');
+    fireEvent.pointerDown(photo, { pointerId: 1, button: 0, clientX: 200, clientY: 200 });
+    fireEvent.pointerMove(photo, { pointerId: 1, button: 0, clientX: 240, clientY: 200 });
+    fireEvent.pointerUp(photo, { pointerId: 1, button: 0, clientX: 240, clientY: 200 });
+    expect(layer().style.transform).toBe('translate(-2.5%, -43.75%) scale(2.5)');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Toată pagina' }));
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+  });
+
+  it('shows the whole page again with a right click or Esc, and a right button never zooms', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const photo = sizedPane();
+    clickAt(photo, 200, 200, 2);
+    expect(layer().style.transform).toBe(WHOLE);
+    clickAt(photo, 200, 200);
+    // The browser's menu does not open over the photo.
+    expect(fireEvent.contextMenu(photo)).toBe(false);
+    expect(layer().style.transform).toBe(WHOLE);
+    clickAt(photo, 200, 200);
+    await userEvent.keyboard('{Escape}');
+    expect(layer().style.transform).toBe(WHOLE);
+  });
+
+  it('closes only the panel of the bar with Esc while the page is zoomed', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    clickAt(sizedPane(), 200, 200);
+    await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary', { name: 'Ce ai de făcut' })).not.toBeInTheDocument();
+    expect(layer().style.transform).toBe('translate(-75%, -75%) scale(2.5)');
+  });
+
+  it('zooms with the wheel around the pointer, and lets the page scroll at the whole page', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const photo = sizedPane();
+    expect(fireEvent.wheel(photo, { deltaY: 100, clientX: 200, clientY: 200 })).toBe(true);
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(fireEvent.wheel(photo, { deltaY: -200, clientX: 200, clientY: 200 })).toBe(false);
+    expect(layer().style.transform).toBe('translate(-17.493%, -17.493%) scale(1.35)');
+  });
+
+  it('opens another page whole, and a PDF page has no zoom', async () => {
+    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
+    await screen.findByText('Ana Pop · pagina 2 din 3');
+    clickAt(sizedPane(), 200, 200);
+    expect(layer().style.transform).not.toBe(WHOLE);
+    await userEvent.keyboard('1');
+    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(layer().style.transform).toBe(WHOLE);
+    await userEvent.keyboard('3');
+    expect(screen.queryByTestId('zoom-pane')).not.toBeInTheDocument();
+    expect(screen.getByTitle('Pagina 3 a lucrării')).toHaveAttribute('src', submissionFileUrl(11, 103));
+    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+  });
+});
