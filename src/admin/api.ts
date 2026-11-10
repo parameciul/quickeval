@@ -46,6 +46,9 @@ export { ApiError };
 // Everything the teacher app asks the server. Pages get it from useApi(), so
 // tests can pass a fake.
 export interface AdminApi {
+  // The address the calls and the file links start with: /api/admin, or
+  // /api/try/<token> for a Quick Try's link.
+  base: string;
   me(): Promise<Teacher>;
   login(email: string, password: string): Promise<Teacher>;
   // A new account first confirms its email, then waits for an administrator's approval.
@@ -160,9 +163,12 @@ function variantPath(code: string, variant: TestVariant | undefined): string {
   return `/tests/${encodeURIComponent(code)}${variant === 'ces' ? '/ces' : ''}`;
 }
 
-// Files open straight from the API: the browser sends the login cookie.
-export function testFileUrl(code: string, kind: TestFileKind, variant?: TestVariant): string {
-  return `/api/admin${variantPath(code, variant)}/files/${kind}`;
+export const ADMIN_BASE = '/api/admin';
+
+// Files open straight from the API: the browser sends the login cookie (or
+// the address carries a Quick Try's token, in `base`).
+export function testFileUrl(code: string, kind: TestFileKind, variant?: TestVariant, base = ADMIN_BASE): string {
+  return `${base}${variantPath(code, variant)}/files/${kind}`;
 }
 
 // The test with the QR code, made for printing.
@@ -170,8 +176,8 @@ export function printFileUrl(code: string, variant?: TestVariant): string {
   return `/api/admin${variantPath(code, variant)}/print`;
 }
 
-export function submissionFileUrl(submissionId: number, fileId: number): string {
-  return `/api/admin/submissions/${submissionId}/files/${fileId}`;
+export function submissionFileUrl(submissionId: number, fileId: number, base = ADMIN_BASE): string {
+  return `${base}/submissions/${submissionId}/files/${fileId}`;
 }
 
 // The address to share with a student for one result page.
@@ -207,15 +213,19 @@ export function reloadForLogin(reload: () => void = () => window.location.reload
 export interface ApiClientOptions {
   fetchImpl?: typeof fetch;
   onLoginExpired?: () => void;
+  // /api/admin by default; a Quick Try's page passes /api/try/<token>. The
+  // login calls keep /api/auth.
+  base?: string;
 }
 
 export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
   const onLoginExpired = options.onLoginExpired ?? reloadForLogin;
+  const apiBase = options.base ?? ADMIN_BASE;
 
   // A JSON body, or a file sent raw with its type and URI-encoded name.
-  // `base` is /api/admin, or /api/auth for the login page.
-  async function request<T>(method: string, path: string, body?: unknown, file?: File, base = '/api/admin'): Promise<T> {
+  // `base` is the client's base, or /api/auth for the login page.
+  async function request<T>(method: string, path: string, body?: unknown, file?: File, base = apiBase): Promise<T> {
     const headers: Record<string, string> = { Accept: 'application/json' };
     let payload: BodyInit | undefined;
     if (file) {
@@ -251,6 +261,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   const test = (code: string) => `/tests/${encodeURIComponent(code)}`;
 
   return {
+    base: apiBase,
     me: async () => (await request<{ teacher: Teacher }>('GET', '/me')).teacher,
     login: async (email, password) =>
       (await request<{ teacher: Teacher }>('POST', '/login', { email, password }, undefined, '/api/auth')).teacher,

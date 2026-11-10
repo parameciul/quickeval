@@ -1,10 +1,12 @@
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { submissionFileUrl } from '../api.ts';
+import { useApi } from '../ApiContext.tsx';
 
 // The middle pane of the review: one page of the paper at a time, with the
 // page switch. No marks on the photo: the robot does not say where an answer
 // is (redesign spec §7, decision 27). A photo opens full size on a click.
 export function ReviewPhoto({ submission, page, onPage }: { submission: SubmissionDetail; page: number; onPage: (page: number) => void }) {
+  const { base } = useApi();
   const files = submission.files;
   if (files.length === 0) {
     return (
@@ -15,7 +17,7 @@ export function ReviewPhoto({ submission, page, onPage }: { submission: Submissi
   }
   const index = Math.min(Math.max(page, 0), files.length - 1);
   const file = files[index]!;
-  const url = submissionFileUrl(submission.id, file.id);
+  const url = submissionFileUrl(submission.id, file.id, base);
   const caption = `${submission.studentName} · pagina ${index + 1} din ${files.length}`;
   return (
     <figure className="review-photo">
