@@ -571,6 +571,17 @@ describe('the zoom of a page', () => {
     expect(layer().style.transform).toBe('translate(-75%, -75%) scale(2.5)');
   });
 
+  it('closes only the panel with Esc when the focus left the bar, and keeps the zoom', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    clickAt(sizedPane(), 200, 200);
+    await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
+    (document.activeElement as HTMLElement).blur();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary', { name: 'Ce ai de făcut' })).not.toBeInTheDocument();
+    expect(layer().style.transform).toBe('translate(-75%, -75%) scale(2.5)');
+  });
+
   it('zooms with the wheel around the pointer, and lets the page scroll at the whole page', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
     await screen.findByText('Ion Popa · pagina 1 din 1');
@@ -664,6 +675,18 @@ describe('the border of the answer to check', () => {
     expect(await within(decision()).findByRole('heading', { name: 'Ion Popa · Subiectul II, ex. 4' })).toBeInTheDocument();
     expect(within(frame()).getByText('II.4')).toBeInTheDocument();
     expect(layer().style.transform).toBe('translate(-6.25%, 0%) scale(1.875)');
+  });
+
+  it('opens the next point whole after a decision while the border is off', async () => {
+    renderAdmin(ION_I3, apiWith(framed([TOP])));
+    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Arată chenarul' }));
+    clickAt(sizedPane(), 200, 200);
+    expect(layer().style.transform).not.toBe(WHOLE);
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
+    expect(await within(decision()).findByRole('heading', { name: 'Ion Popa · Subiectul II, ex. 4' })).toBeInTheDocument();
+    expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
+    expect(layer().style.transform).toBe(WHOLE);
   });
 
   it('turns the border off and on, and remembers the choice in this browser', async () => {

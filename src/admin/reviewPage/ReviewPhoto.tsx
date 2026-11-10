@@ -42,7 +42,9 @@ export function ReviewPhoto({
 
   // The answer framed now: none while the switch is off or it has no area.
   const framed = frames && focus !== null && focus.areas.length > 0 ? focus : null;
-  const focusKey = framed?.key ?? '';
+  // Every answer has its own key, framed or not, so a zoom never follows the
+  // teacher to the next answer.
+  const focusKey = framed ? `framed:${framed.key}` : `plain:${focus?.key ?? ''}`;
   const [part, setPart] = useState<{ key: string; index: number } | null>(null);
   const partIndex = part !== null && part.key === focusKey ? Math.min(part.index, (framed?.areas.length ?? 1) - 1) : 0;
   const partArea = framed?.areas[partIndex];

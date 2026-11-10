@@ -103,7 +103,10 @@ export function Layout() {
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented) setPanel(null);
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      // This Esc is taken: a layer under the panel (a zoomed page) keeps its state.
+      event.preventDefault();
+      setPanel(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
