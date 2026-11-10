@@ -166,6 +166,11 @@ a { color: inherit; }
 .try-actions { display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
 .try-actions .btn:disabled { opacity: 0.6; cursor: default; }
 .btn-try[hidden] { display: none; }
+/* Turnstile's check is 300 px wide: on a phone the form keeps room for it. */
+@media (max-width: 420px) {
+  .try-dialog { width: calc(100vw - 16px); max-width: calc(100vw - 16px); }
+  .try-form { padding: 20px 16px; }
+}
 
 /* Footer: one line, about as high as the header. */
 .site-foot { background: var(--band); color: var(--on-band); }
