@@ -55,6 +55,22 @@ describe('brand.css', () => {
     ]);
   });
 
+  it('prints the student result in one light column, without the buttons, files and footer', () => {
+    const start = css.indexOf('@media print {');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const print = css.slice(start);
+    const hidden = print.slice(0, print.indexOf('display: none'));
+    for (const selector of ['.student-nav', '.result-actions', '.result-page .files-head', '.result-page .page-files', '.result-foot']) {
+      expect(hidden).toContain(selector);
+    }
+    expect(print).toMatch(/\.result-columns \{\s*grid-template-columns: minmax\(0, 1fr\);/);
+    const light = declarations(':root');
+    const printed = print.slice(print.indexOf(':root[data-theme="dark"]'));
+    for (const name of ['--paper', '--sheet', '--text', '--muted', '--rule', '--ink']) {
+      expect(printed).toContain(`${name}: ${value(light, name)};`);
+    }
+  });
+
   it('wraps a long word inside the cards of the panels', () => {
     expect(value(declarations('.class-item'), 'overflow-wrap')).toBe('anywhere');
     expect(value(declarations('.todo-card'), 'overflow-wrap')).toBe('anywhere');

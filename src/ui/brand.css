@@ -4380,6 +4380,49 @@ table.items tr.edit-row > td {
   }
 }
 
+/* A printed result (a parent may keep it on paper): the content alone, in one
+   column and in the light colours, whatever theme is on. */
+@media print {
+  .student-nav,
+  .result-actions,
+  .result-page .files-head,
+  .result-page .page-files,
+  .result-foot {
+    display: none;
+  }
+
+  .site-header {
+    position: static;
+  }
+
+  .result-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root,
+  :root[data-theme="dark"],
+  :root:not([data-theme="light"]) {
+    --paper: #f3f5f8;
+    --sheet: #ffffff;
+    --rule: #e0e5ec;
+    --line: #edf0f4;
+    --text: #0c1524;
+    --muted: #4a566a;
+    --ink: #1b5cc8;
+    --ok-bg: #e1f3e9;
+    --ok-fg: #1d7a4c;
+    --error-bg: #fbe9e7;
+    --error-fg: #b42318;
+    --mk-a: #1b5cc8;
+    --mk-b: #e2590b;
+    --conf-5: #1b6b43;
+    --conf-4: #2f9e44;
+    --conf-3: #8a6d00;
+    --conf-2: #b85c00;
+    --conf-1: #cf3a2f;
+  }
+}
+
 /* A small button of the teacher app is still a finger's size here. */
 .upload-page .button-small {
   min-height: 2.75rem;
