@@ -27,29 +27,33 @@ export function pageFileUrl(token: string, fileId: number): string {
   return `${tryBase(token)}/paper/${fileId}`;
 }
 
+// One call of the API: a JSON body, or one file as the whole body (its name
+// in X-File-Name). The answer is JSON; a refusal throws its ApiError. The
+// landing page's form uses it too.
+export async function apiRequest<T>(fetchImpl: typeof fetch, url: string, method: string, body?: unknown, file?: File): Promise<T> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  let payload: BodyInit | undefined;
+  if (file) {
+    headers['Content-Type'] = uploadTypeOf(file) || 'application/octet-stream';
+    headers['X-File-Name'] = encodeURIComponent(file.name);
+    payload = file;
+  } else if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    payload = JSON.stringify(body);
+  }
+  let res: Response;
+  try {
+    res = await fetchImpl(url, { method, headers, credentials: 'same-origin', ...(payload === undefined ? {} : { body: payload }) });
+  } catch {
+    throw new ApiError(0, 'network', NETWORK_MESSAGE);
+  }
+  return readAnswer<T>(res);
+}
+
 export function createTryClient(token: string, options: { fetchImpl?: typeof fetch } = {}): TryApi {
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
   const base = tryBase(token);
-
-  async function request<T>(method: string, path: string, body?: unknown, file?: File): Promise<T> {
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    let payload: BodyInit | undefined;
-    if (file) {
-      headers['Content-Type'] = uploadTypeOf(file) || 'application/octet-stream';
-      headers['X-File-Name'] = encodeURIComponent(file.name);
-      payload = file;
-    } else if (body !== undefined) {
-      headers['Content-Type'] = 'application/json';
-      payload = JSON.stringify(body);
-    }
-    let res: Response;
-    try {
-      res = await fetchImpl(`${base}${path}`, { method, headers, credentials: 'same-origin', ...(payload === undefined ? {} : { body: payload }) });
-    } catch {
-      throw new ApiError(0, 'network', NETWORK_MESSAGE);
-    }
-    return readAnswer<T>(res);
-  }
+  const request = <T>(method: string, path: string, body?: unknown, file?: File) => apiRequest<T>(fetchImpl, `${base}${path}`, method, body, file);
 
   return {
     info: () => request<QuickTryInfo>('GET', ''),
