@@ -47,9 +47,18 @@ const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x4
 const landing = await page('/');
 check('landing page', landing.res.status === 200 && landing.text.includes('Weekendul tău, fără teancul de lucrări.'), String(landing.res.status));
 check('landing page may be indexed', !(landing.res.headers.get('x-robots-tag') ?? '').includes('noindex') && !landing.text.includes('noindex'));
-for (const path of ['/robots.txt', '/sitemap.xml', '/llms.txt', '/og-image.png']) {
+for (const path of ['/robots.txt', '/sitemap.xml', '/llms.txt', '/og-image.png', '/app-teste.png', '/logo.png']) {
   const file = await fetch(base + path);
   check(`public file ${path}`, file.status === 200, String(file.status));
+}
+// The pages that answer a search: built by Vite from their own folders, open
+// to search engines, each with the address the sitemap lists.
+for (const path of ['/ghid/', '/barem/', '/despre/', '/preturi/']) {
+  const content = await page(path);
+  check(`content page ${path}`, content.res.status === 200, String(content.res.status));
+  check(`content page ${path} may be indexed`, !(content.res.headers.get('x-robots-tag') ?? '').includes('noindex'));
+  check(`content page ${path} points at itself`, content.text.includes(`<link rel="canonical" href="https://mqgrader.ro${path}"`));
+  check(`content page ${path} links the others`, content.text.includes('href="/ghid/"') && content.text.includes('href="/preturi/"'));
 }
 // public/404.html is what keeps Pages from answering like a single-page app.
 const missingPage = await page('/pagina-care-nu-exista');

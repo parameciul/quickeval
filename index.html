@@ -33,14 +33,22 @@
             "@id": "https://mqgrader.ro/#organization",
             "name": "MQGrader",
             "url": "https://mqgrader.ro/",
-            "logo": "https://mqgrader.ro/favicon.svg",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://mqgrader.ro/logo.png",
+              "width": 512,
+              "height": 512
+            },
+            "sameAs": ["https://lauramiron.pages.dev/"],
             "founder": { "@id": "https://mqgrader.ro/#laura-miron" }
           },
           {
             "@type": "Person",
             "@id": "https://mqgrader.ro/#laura-miron",
             "name": "Laura Miron",
+            "url": "https://mqgrader.ro/despre/",
             "jobTitle": "Profesoară de matematică",
+            "sameAs": ["https://lauramiron.pages.dev/"],
             "worksFor": { "@type": "EducationalOrganization", "name": "Liceul William Shakespeare", "address": { "@type": "PostalAddress", "addressLocality": "Timișoara", "addressCountry": "RO" } }
           },
           {
@@ -71,6 +79,15 @@
             "inLanguage": "ro",
             "audience": { "@type": "Audience", "audienceType": "Profesori de matematică" },
             "description": "Platformă web care corectează testele de matematică după barem: elevii trimit pozele lucrărilor de pe telefon, iar profesorul verifică punctele nesigure și decide punctajul final.",
+            "featureList": [
+              "Elevii trimit pozele lucrării de pe telefon, fără cont și fără aplicație, printr-un cod QR pe fiecare pagină a testului",
+              "Punctaj pas cu pas conform baremului, cu puncte parțiale pentru pașii făcuți",
+              "Barem propus din testul încărcat, pe care profesorul îl confirmă înainte de corectare",
+              "Punctele nesigure ajung la profesor, cu motivul, ca să le hotărască el",
+              "Rezultat pentru fiecare elev, cu punctele pe fiecare exercițiu și explicații",
+              "Raportul clasei, un PDF pentru fiecare elev și un CSV pentru catalog"
+            ],
+            "screenshot": "https://mqgrader.ro/app-teste.png",
             "author": { "@id": "https://mqgrader.ro/#laura-miron" },
             "publisher": { "@id": "https://mqgrader.ro/#organization" }
           },
@@ -212,6 +229,17 @@
           </div>
         </section>
 
+        <section class="sec shot-sec" id="aplicatia" aria-labelledby="aplicatia-t">
+          <div class="wrap">
+            <h2 class="l-h2" id="aplicatia-t">Așa arată contul tău</h2>
+            <p class="l-body l-intro">Testele anului, etapa la care e fiecare și singurul lucru care te așteaptă azi. Restul se vede când deschizi un test.</p>
+            <figure class="shot">
+              <img src="/app-teste.png" width="1600" height="1000" alt="Pagina Teste din MQGrader: testele anului, fiecare cu etapele lui, și o listă cu ce are profesorul de făcut azi." loading="lazy" decoding="async" />
+              <figcaption>Captură din aplicație, cu date de test.</figcaption>
+            </figure>
+          </div>
+        </section>
+
         <section class="sec ink" aria-labelledby="gata-t">
           <div class="wrap">
             <h2 class="l-h2" id="gata-t">Gata cu orele pierdute noaptea târziu corectând teze și teste!</h2>
@@ -267,6 +295,12 @@
             <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
             <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
           </a>
+          <nav class="foot-nav" aria-label="Pagini">
+            <a href="/ghid/">Ghidul corectării</a>
+            <a href="/barem/">Baremul</a>
+            <a href="/despre/">Despre</a>
+            <a href="/preturi/">Cât costă</a>
+          </nav>
           <span class="note">Corectarea testelor de matematică · Timișoara · 2026</span>
         </div>
       </footer>

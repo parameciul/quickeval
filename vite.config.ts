@@ -39,6 +39,12 @@ export default defineConfig({
         teacher: page('./teacher/index.html'),
         upload: page('./u/index.html'),
         try: page('./try/index.html'),
+        // The pages that answer a search: the guide, the barem, the author
+        // and the prices. Static HTML, like the landing page.
+        ghid: page('./ghid/index.html'),
+        barem: page('./barem/index.html'),
+        despre: page('./despre/index.html'),
+        preturi: page('./preturi/index.html'),
       },
     },
   },
