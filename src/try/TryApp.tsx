@@ -10,13 +10,7 @@ import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
 import type { TryApi } from './api.ts';
 import { TryHome } from './TryHome.tsx';
-import { BadLink, Expired } from './TryNotice.tsx';
-
-// An answer that says the try's 7 days are over (410 `expired`): every call
-// of the link answers so once they are.
-export function isExpired(error: unknown): boolean {
-  return error instanceof ApiError && error.code === 'expired';
-}
+import { BadLink, Expired, isExpired } from './TryNotice.tsx';
 
 // A Quick Try's page at /try/<token>: the try's states, and the teacher app's
 // own review at /teste/<code>/verificare (its links to /teste/<code> come back

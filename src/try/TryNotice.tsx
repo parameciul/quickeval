@@ -1,3 +1,11 @@
+import { ApiError } from '../ui/ApiError.ts';
+
+// An answer that says the try's 7 days are over (410 `expired`): every call
+// of the link answers so once they are.
+export function isExpired(error: unknown): boolean {
+  return error instanceof ApiError && error.code === 'expired';
+}
+
 // The two ends of a try's link: a link that is not a try's, and a try whose
 // 7 days are over (spec §3.3, state 6). Both lead to a new try from the
 // landing page.

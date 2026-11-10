@@ -1,12 +1,29 @@
+import { useQuery } from '@tanstack/react-query';
 import type { QuickTryInfo } from '../../shared/api.ts';
+import { useApi } from '../admin/ApiContext.tsx';
+import { ErrorMessage } from '../admin/ErrorMessage.tsx';
 import type { TryApi } from './api.ts';
+import { phaseOf, refreshOf } from './phase.ts';
+import { Prepare } from './Prepare.tsx';
+import { Expired, isExpired } from './TryNotice.tsx';
 
-// The try's page: its states come in the next tasks.
-export function TryHome({ info }: { info: QuickTryInfo; tryApi: TryApi }) {
+// The try's page: the test read through the teacher app's client (the cache
+// key of the test page and the review), and the part of the phase it is in.
+export function TryHome({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi }) {
+  const api = useApi();
+  const detail = useQuery({
+    queryKey: ['test', info.code],
+    queryFn: () => api.getTest(info.code),
+    refetchInterval: (query) => refreshOf(query.state.data),
+  });
+  if (detail.isPending) return <p>Se încarcă…</p>;
+  if (detail.data === undefined) return isExpired(detail.error) ? <Expired /> : <ErrorMessage error={detail.error} />;
+  const phase = phaseOf(detail.data);
   return (
-    <section>
+    <section className="try-home">
       <h1>Încercare rapidă</h1>
-      <p className="hint">{info.code}</p>
+      <p className="test-sub">Corectezi o lucrare, fără cont. Linkul acestei pagini merge 7 zile.</p>
+      {phase === 'prepare' && <Prepare detail={detail.data} tryApi={tryApi} />}
     </section>
   );
 }

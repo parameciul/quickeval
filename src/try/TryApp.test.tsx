@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../ui/ApiError.ts';
 import { createFakeApi } from '../test/fakeApi.ts';
-import { createFakeTryApi, renderTry, TRY_CODE, tryTest } from '../test/fakeTryApi.tsx';
+import { createFakeTryApi, renderTry, tryTest } from '../test/fakeTryApi.tsx';
 
 const fakes = (data: Parameters<typeof createFakeTryApi>[0] = {}) => {
   const api = createFakeApi({ classes: [], students: {}, tests: [tryTest()] });
@@ -15,7 +15,7 @@ describe("a Quick Try's page", () => {
     renderTry('/', api, tryApi);
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'MQGrader by Laura Miron' })).toHaveAttribute('href', '/');
-    expect(screen.getByText(TRY_CODE)).toBeInTheDocument();
+    expect(screen.getByText('Corectezi o lucrare, fără cont. Linkul acestei pagini merge 7 zile.')).toBeInTheDocument();
   });
 
   it('says an expired try expired, and leads to a new one', async () => {
@@ -30,6 +30,13 @@ describe("a Quick Try's page", () => {
     tryApi.info.mockRejectedValue(new ApiError(404, 'unknown_try', 'Linkul nu este bun.'));
     renderTry('/', api, tryApi);
     expect(await screen.findByRole('heading', { name: 'Linkul nu este bun' })).toBeInTheDocument();
+  });
+
+  it('says an expired try expired when the test answers so', async () => {
+    const { api, tryApi } = fakes();
+    api.getTest.mockRejectedValue(new ApiError(410, 'expired', 'Încercarea a expirat.'));
+    renderTry('/', api, tryApi);
+    expect(await screen.findByRole('heading', { name: 'Încercarea a expirat' })).toBeInTheDocument();
   });
 
   it('comes back to the try from an address of the teacher app that it does not have', async () => {
