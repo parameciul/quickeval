@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { StudentResultView } from '../../shared/api.ts';
 import { formatPoints } from '../../shared/scoring.ts';
 import { formatFileSize, pointsLevel } from '../ui/format.ts';
@@ -9,8 +9,9 @@ import { MathText } from '../ui/MathText.tsx';
 // hides the files. On a wide screen the exercises and the final words sit side
 // by side.
 // Nothing here tells how the work was graded. `fileUrl` gives the address of a
-// page: the student app's result link, or a Quick Try's link.
-export function StudentResult({ result, fileUrl }: { result: StudentResultView; fileUrl: (fileId: number) => string }) {
+// page: the student app's result link, or a Quick Try's link. `actions`, the
+// result page's own buttons, sit under the name and the test title.
+export function StudentResult({ result, fileUrl, actions }: { result: StudentResultView; fileUrl: (fileId: number) => string; actions?: ReactNode }) {
   const [filesOpen, setFilesOpen] = useState(false);
   const evaluation = result.evaluation;
   return (
@@ -19,6 +20,7 @@ export function StudentResult({ result, fileUrl }: { result: StudentResultView; 
       <p className="hint">
         {result.testTitle} · {result.testCode}
       </p>
+      {actions}
       {evaluation ? (
         <>
           <div className="result-grade">

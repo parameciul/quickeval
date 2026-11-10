@@ -54,8 +54,11 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
               <p className="hint">
                 {displayClassName(phase.result.className)} · {phase.result.testCode}
               </p>
-              <ResultActions result={phase.result} url={window.location.href} />
-              <StudentResult result={phase.result} fileUrl={(fileId) => resultFileUrl(resultToken!, fileId)} />
+              <StudentResult
+                result={phase.result}
+                fileUrl={(fileId) => resultFileUrl(resultToken!, fileId)}
+                actions={<ResultActions result={phase.result} url={window.location.href} />}
+              />
             </>
           )}
         </ErrorBoundary>

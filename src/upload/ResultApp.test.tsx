@@ -56,6 +56,18 @@ describe('ResultApp', () => {
     expectNoGradingWords();
   });
 
+  it('puts the send and PDF buttons under the name and the test title', async () => {
+    const api = createFakeUploadApi();
+    api.getResult.mockResolvedValue(structuredClone(graded));
+    render(<ResultApp api={api} resultToken="result-token-11" />);
+    const name = await screen.findByRole('heading', { name: 'Pop Ion' });
+    const title = screen.getByText('Fracții · 6E2-26T1');
+    const send = screen.getByRole('button', { name: 'Trimite linkul' });
+    expect(name.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(title.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(send.compareDocumentPosition(screen.getByRole('heading', { name: 'Rezultatul tău' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('has a footer with only the mqgrader.ro link', async () => {
     const api = createFakeUploadApi();
     api.getResult.mockResolvedValue(structuredClone(graded));
