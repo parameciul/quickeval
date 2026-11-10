@@ -1,0 +1,67 @@
+/* A Quick Try's page: the teacher app's top bar and look, in one column. */
+.try-topbar {
+  position: static;
+}
+
+.try-page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.try-notice {
+  max-width: 36rem;
+  margin: 3rem auto;
+  text-align: center;
+}
+
+.try-pages {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.try-pages li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+label.button-quiet.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.try-state {
+  margin: 1.5rem 0;
+}
+
+.try-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.try-share {
+  display: grid;
+  justify-items: end;
+  gap: 0.25rem;
+  max-width: 22rem;
+  text-align: right;
+}
+
+.try-share-url {
+  word-break: break-all;
+}
+
+.try-invite {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-weight: 600;
+}

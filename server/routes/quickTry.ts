@@ -14,6 +14,7 @@ import { optionalTeacher } from '../auth/teacherAuth.ts';
 import { startEvaluationNow } from '../db/lifecycle.ts';
 import { addSubmissionFile, deleteSessionFile, fileSlots, findSessionFile } from '../db/links.ts';
 import { createQuickTry, dailyLimitReached, findQuickTry, guestTeacher, listPaperFiles } from '../db/quickTry.ts';
+import { findResultBySubmission } from '../db/results.ts';
 import { confirmBarem, requireTest } from '../db/tests.ts';
 import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
@@ -183,6 +184,14 @@ export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (!(await deleteSessionFile(c.env.DB, found.submissionId, found.sessionHash, fileId, nowIso()))) throw paperClosed();
     await deleteFilesQuietly(c.env.FILES, [file.key]);
     return c.json({ deleted: true });
+  });
+
+  // The page the try's student would see: the student app's result view,
+  // open without publishing.
+  routes.get('/:token/result', async (c) => {
+    const result = await findResultBySubmission(c.env.DB, c.var.quickTry.submissionId);
+    if (!result) throw unknownTry();
+    return c.json({ result });
   });
 
   // "Pornește corectarea": a barem the robot made counts as checked (she

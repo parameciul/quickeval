@@ -410,6 +410,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
   };
 
   const api = {
+    base: '/api/admin',
     me: vi.fn(async () => structuredClone(me)),
     login: vi.fn(async (_email: string, _password: string) => structuredClone(me)),
     signup: vi.fn(async (_input: { name: string; email: string; password: string }) => {}),

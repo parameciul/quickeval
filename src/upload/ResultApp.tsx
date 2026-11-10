@@ -3,7 +3,7 @@ import { displayClassName } from '../../shared/classes.ts';
 import { ApiError, messageOf } from '../ui/ApiError.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
-import type { UploadApi } from './api.ts';
+import { resultFileUrl, type UploadApi } from './api.ts';
 import { forgetResultLinkByToken } from './resultLinks.ts';
 import { StudentResult } from './StudentResult.tsx';
 import type { StudentResultView } from '../../shared/api.ts';
@@ -62,7 +62,7 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
               <p className="hint">
                 {displayClassName(phase.result.className)} · {phase.result.testCode}
               </p>
-              <StudentResult result={phase.result} resultToken={resultToken!} />
+              <StudentResult result={phase.result} fileUrl={(fileId) => resultFileUrl(resultToken!, fileId)} />
             </>
           )}
         </ErrorBoundary>

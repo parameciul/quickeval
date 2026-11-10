@@ -209,6 +209,23 @@ describe('createApiClient tests and uploads', () => {
     ]);
   });
 
+  it("sends a Quick Try's calls and file links to its own base, and the login calls to /api/auth", async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, { test: {}, uploads: [], teacher: {} }));
+    const api = createApiClient({ fetchImpl, base: '/api/try/abc' });
+    expect(api.base).toBe('/api/try/abc');
+    await api.getTest('PROBA-26T1');
+    await api.getSubmission(7);
+    await api.login('a@b.ro', 'parola123');
+    expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
+      'GET /api/try/abc/tests/PROBA-26T1',
+      'GET /api/try/abc/submissions/7',
+      'POST /api/auth/login',
+    ]);
+    expect(createApiClient({ fetchImpl }).base).toBe('/api/admin');
+    expect(testFileUrl('PROBA-26T1', 'barem', undefined, '/api/try/abc')).toBe('/api/try/abc/tests/PROBA-26T1/files/barem');
+    expect(submissionFileUrl(7, 12, '/api/try/abc')).toBe('/api/try/abc/submissions/7/files/12');
+  });
+
   it('opens and closes the student results and reads one result link', async () => {
     const fetchImpl = vi.fn(async (url: RequestInfo | URL, _init?: RequestInit) =>
       jsonResponse(200, String(url).includes('/result-link') ? { resultToken: 'abcdefghijkmnop2abcdefcd' } : { resultsOpen: true }),

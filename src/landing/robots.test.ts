@@ -32,12 +32,13 @@ describe('robots.txt', () => {
     expect(lines).not.toContain('Disallow: /');
   });
 
-  it('keeps student links and the API closed in every group', () => {
+  it('keeps student links, Quick Try links and the API closed in every group', () => {
     const all = groups();
     expect(all.length).toBeGreaterThan(1);
     for (const group of all) {
       expect(group.rules, group.agents.join(',')).toContain('Allow: /');
       expect(group.rules, group.agents.join(',')).toContain('Disallow: /u/');
+      expect(group.rules, group.agents.join(',')).toContain('Disallow: /try/');
       expect(group.rules, group.agents.join(',')).toContain('Disallow: /api/');
     }
   });

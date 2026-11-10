@@ -1,9 +1,11 @@
-# The teacher app and the student app are single-page apps: every /teacher page
-# loads /teacher/ (teacher/index.html), every /u/<token> page loads /u/
-# (u/index.html). Keep this directory form: wrangler refuses
+# The teacher app, the student app and a Quick Try's page are single-page apps:
+# every /teacher page loads /teacher/ (teacher/index.html), every /u/<token>
+# page loads /u/ (u/index.html), every /try/<token> page loads /try/
+# (try/index.html). Keep this directory form: wrangler refuses
 # "/teacher/* /teacher/index.html 200" as a redirect loop.
 /teacher/* /teacher/ 200
 /u/* /u/ 200
+/try/* /try/ 200
 
 # The teacher app moved from /admin to /teacher. Old links keep working.
 /admin /teacher/ 301

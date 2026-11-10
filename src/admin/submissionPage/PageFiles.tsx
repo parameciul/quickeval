@@ -1,6 +1,7 @@
 import type { SubmissionFile } from '../../../shared/api.ts';
 import { formatFileSize } from '../../ui/format.ts';
 import { submissionFileUrl } from '../api.ts';
+import { useApi } from '../ApiContext.tsx';
 
 // A student's pages in upload order, numbered as the robot numbers them:
 // photos inline (a click opens them full size, to zoom), PDFs in a frame with
@@ -17,7 +18,7 @@ export function PageFiles({ submissionId, files }: { submissionId: number; files
 }
 
 function PageFile({ submissionId, file, number }: { submissionId: number; file: SubmissionFile; number: number }) {
-  const url = submissionFileUrl(submissionId, file.id);
+  const url = submissionFileUrl(submissionId, file.id, useApi().base);
   const caption = `Pagina ${number}: ${file.name} · ${formatFileSize(file.size)}`;
   if (file.contentType.startsWith('image/')) {
     return (
