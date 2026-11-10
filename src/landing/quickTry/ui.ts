@@ -1,6 +1,7 @@
 import type { QuickTryAvailability } from '../../../shared/api.ts';
 import { ApiError, messageOf } from '../../ui/ApiError.ts';
 import { phaseOf, type TryPhase } from '../../try/phase.ts';
+import { countLabel, formatFileSize } from '../../ui/format.ts';
 import type { LandingApi } from './api.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf } from './status.ts';
@@ -44,6 +45,26 @@ function closeDialog(dialog: HTMLDialogElement): void {
 function show(el: HTMLElement, text?: string): void {
   if (text !== undefined) el.textContent = text;
   el.hidden = false;
+}
+
+// A file row of the form: what to choose (its data-empty and data-hint), or
+// the chosen file with its size, or the count and names of the chosen pages.
+function showPick(input: HTMLInputElement, chosen: File[]): void {
+  const row = input.closest<HTMLElement>('[data-try-pick]');
+  if (!row) return;
+  const name = row.querySelector<HTMLElement>('[data-try-pick-name]')!;
+  const hint = row.querySelector<HTMLElement>('[data-try-pick-hint]')!;
+  const action = row.querySelector<HTMLElement>('[data-try-pick-action]')!;
+  row.classList.toggle('is-chosen', chosen.length > 0);
+  if (chosen.length === 0) {
+    name.textContent = row.dataset.empty ?? '';
+    hint.textContent = row.dataset.hint ?? '';
+    action.textContent = input.multiple ? 'Alege fișierele' : 'Alege fișierul';
+    return;
+  }
+  name.textContent = input.multiple ? countLabel(chosen.length, 'pagină', 'pagini') : chosen[0]!.name;
+  hint.textContent = input.multiple ? chosen.map((file) => file.name).join(', ') : formatFileSize(chosen[0]!.size);
+  action.textContent = 'Schimbă';
 }
 
 // The landing page's Quick Try (spec §3.1, §3.2): the button, the form in a
@@ -116,6 +137,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   function formValues(): TryForm {
     const files = (name: string) => Array.from((form!.elements.namedItem(name) as HTMLInputElement).files ?? []);
     return {
+      title: (form!.elements.namedItem('title') as HTMLInputElement).value,
       test: files('test')[0] ?? null,
       barem: files('barem')[0] ?? null,
       robotBarem: (form!.elements.namedItem('robotBarem') as HTMLInputElement).checked,
@@ -142,6 +164,9 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   });
 
   closeButton.addEventListener('click', () => closeDialog(dialog));
+
+  const pickInputs = Array.from(form.querySelectorAll<HTMLInputElement>('[data-try-pick] input[type="file"]'));
+  for (const input of pickInputs) input.addEventListener('change', () => showPick(input, Array.from(input.files ?? [])));
   // Esc and a phone's back button close a dialog: not while it sends, so the
   // form stays to show how the send ended.
   dialog.addEventListener('cancel', (event) => {
@@ -191,6 +216,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       sending = false;
       closeDialog(dialog!);
       form!.reset();
+      for (const input of pickInputs) showPick(input, []);
       await follow(done);
       statusLink.focus();
     } catch (err) {

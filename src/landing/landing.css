@@ -19,6 +19,8 @@
   --orange: #b9480a;
   --orange-mark: #e2590b;
   --orange-tint: #fdeee3;
+  --ok-bg: #e1f3e9;
+  --ok-fg: #1d7a4c;
   --active: #e7ecf3;
   --band: #0c1524;
   --on-band: #f3f5f8;
@@ -35,7 +37,7 @@
   :root:not([data-theme="light"]) {
     --ground: #0e1116; --surface: #161a21; --border: #272d38; --rule: #1f242d; --control: #3b4351;
     --text: #eef1f5; --muted: #a9b2c0; --blue: #80b1ff; --blue-hover: #a3c6ff; --on-blue: #0c1524;
-    --blue-tint: #1a2740; --orange: #ff9a57; --orange-mark: #ff8a3d; --orange-tint: #33200f;
+    --blue-tint: #1a2740; --orange: #ff9a57; --orange-mark: #ff8a3d; --orange-tint: #33200f; --ok-bg: #13291e; --ok-fg: #5fd39a;
     --active: #252b36; --band: #05070a; --on-band: #eef1f5;
     color-scheme: dark;
   }
@@ -43,7 +45,7 @@
 :root[data-theme="dark"] {
   --ground: #0e1116; --surface: #161a21; --border: #272d38; --rule: #1f242d; --control: #3b4351;
   --text: #eef1f5; --muted: #a9b2c0; --blue: #80b1ff; --blue-hover: #a3c6ff; --on-blue: #0c1524;
-  --blue-tint: #1a2740; --orange: #ff9a57; --orange-mark: #ff8a3d; --orange-tint: #33200f;
+  --blue-tint: #1a2740; --orange: #ff9a57; --orange-mark: #ff8a3d; --orange-tint: #33200f; --ok-bg: #13291e; --ok-fg: #5fd39a;
   --active: #252b36; --band: #05070a; --on-band: #eef1f5;
   color-scheme: dark;
 }
@@ -75,6 +77,7 @@ a { color: inherit; }
 .btn-primary { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
 .btn-primary:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
 .btn-large { height: 48px; padding: 0 22px; font-size: 16px; }
+.btn-small { height: 32px; padding: 0 12px; font-size: 14px; }
 .link { color: var(--blue); font-weight: 600; text-decoration: none; }
 .link:hover { text-decoration: underline; }
 .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--control); border-radius: var(--r-sm); background: var(--surface); color: var(--muted); cursor: pointer; }
@@ -158,7 +161,28 @@ a { color: inherit; }
 .try-form h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
 .try-lede { color: var(--muted); font-size: 15px; }
 .try-field { display: flex; flex-direction: column; gap: 6px; font-size: 15px; font-weight: 600; }
-.try-field input { min-width: 0; max-width: 100%; font: 400 14px var(--font); color: var(--text); }
+.try-field small { color: var(--muted); font-weight: 400; }
+.try-input { height: 42px; min-width: 0; padding: 0 12px; border: 1px solid var(--control); border-radius: var(--r-sm); background: var(--surface); color: var(--text); font: 400 15px var(--font); }
+.try-input::placeholder { color: var(--muted); opacity: 0.8; }
+/* A file row: the real input stays in the label, out of sight but focusable;
+   the box shows what to choose or what was chosen. */
+.try-pick { position: relative; display: flex; flex-direction: column; gap: 6px; font-size: 15px; cursor: pointer; }
+.try-pick-label { font-weight: 600; }
+.try-pick-input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
+.try-pick-box { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px dashed var(--control); border-radius: var(--r); background: var(--ground); }
+.try-pick:hover .try-pick-box { border-color: var(--blue); }
+.try-pick-input:focus-visible + .try-pick-box { outline: 2px solid var(--blue); outline-offset: 2px; }
+.try-pick-icon { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: var(--r-sm); background: var(--blue-tint); color: var(--blue); }
+.try-pick-icon svg { width: 20px; height: 20px; }
+.try-pick-done, .try-pick.is-chosen .try-pick-file { display: none; }
+.try-pick.is-chosen .try-pick-done { display: block; }
+.try-pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.try-pick-name, .try-pick-hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.try-pick-name { font-weight: 600; }
+.try-pick-hint { color: var(--muted); font-size: 13px; }
+.try-pick-action { flex: none; pointer-events: none; }
+.try-pick.is-chosen .try-pick-box { border-style: solid; border-color: var(--border); background: var(--surface); }
+.try-pick.is-chosen .try-pick-icon { background: var(--ok-bg); color: var(--ok-fg); }
 .try-check { display: flex; gap: 8px; align-items: center; font-size: 15px; }
 .try-turnstile:empty { display: none; }
 .try-error { color: var(--orange); font-weight: 600; }
