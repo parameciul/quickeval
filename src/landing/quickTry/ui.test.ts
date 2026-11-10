@@ -196,6 +196,20 @@ describe("the landing page's Quick Try", () => {
     expect(localStorage.getItem(STORED_TRY_KEY)).not.toBeNull();
   });
 
+  it('makes no second try after a send broke half-way: the try page takes what is missing', async () => {
+    const api = fakeLandingApi();
+    api.addPage.mockRejectedValueOnce(new ApiError(0, 'network', 'Nu mă pot conecta la server.'));
+    await mount(api);
+    button()!.click();
+    fillForm();
+    send();
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent('Nu mă pot conecta la server.'));
+    expect(within(dialog()).getByRole('button', { name: 'Trimite' })).toBeDisabled();
+    send();
+    await new Promise((done) => setTimeout(done, 10));
+    expect(api.create).toHaveBeenCalledTimes(1);
+  });
+
   it('lets an administrator send without Turnstile and past the limits', async () => {
     store();
     const turnstile = fakeTurnstile();

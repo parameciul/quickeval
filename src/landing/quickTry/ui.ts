@@ -128,6 +128,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   openButton.addEventListener('click', () => {
     error.hidden = true;
     recover.hidden = true;
+    sendButton.disabled = false;
     openDialog(dialog);
     if (availability && !availability.admin && availability.siteKey && !widget) {
       widget = deps.loadTurnstile(turnstileBox, availability.siteKey);
@@ -191,7 +192,9 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       }
     } finally {
       progress.hidden = true;
-      sendButton.disabled = false;
+      // A try that exists but broke half-way is not sent again (that would
+      // make a second try): its page takes what is missing.
+      sendButton.disabled = made !== null;
       closeButton.disabled = false;
       check?.reset();
     }
