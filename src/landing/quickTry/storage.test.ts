@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readStoredTry, saveStoredTry, STORED_TRY_KEY, usedToday, type StoredTry } from './storage.ts';
+import { forgetStoredTry, readStoredTry, saveStoredTry, STORED_TRY_KEY, usedToday, type StoredTry } from './storage.ts';
 
 const TOKEN = 'abcdefghijkmnopqrstuvwxyz2345672';
 
@@ -40,6 +40,12 @@ describe("the try kept on the visitor's device", () => {
     expect(readStoredTry(storage, new Date('2026-11-11T10:00:00.000Z'))).toEqual(next);
   });
 
+  it('forgets a try whose link no longer works', () => {
+    const storage = memory({ [STORED_TRY_KEY]: JSON.stringify(stored) });
+    forgetStoredTry(storage);
+    expect(storage.getItem(STORED_TRY_KEY)).toBeNull();
+  });
+
   it('ignores what is not a try', () => {
     for (const raw of ['nu e JSON', '{}', JSON.stringify({ ...stored, token: 'scurt' }), JSON.stringify({ ...stored, madeAt: 'ieri' })]) {
       expect(readStoredTry(memory({ [STORED_TRY_KEY]: raw }), new Date('2026-11-10T09:00:00.000Z'))).toBeNull();
@@ -56,6 +62,10 @@ describe("the try kept on the visitor's device", () => {
     };
     expect(readStoredTry(refusing, new Date())).toBeNull();
     expect(() => saveStoredTry(refusing, stored)).not.toThrow();
+    refusing.removeItem = () => {
+      throw new Error('denied');
+    };
+    expect(() => forgetStoredTry(refusing)).not.toThrow();
   });
 
   it("says whether it was made today, Bucharest's day", () => {

@@ -88,8 +88,9 @@ export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // No promoteDue here: a try never schedules (evaluate and schedule are not
   // on the allow-list). A route that schedules must add it first.
 
-  // The landing page reads this on every visit: after the answer, the visit
-  // also deletes a few tries whose days are over (no timer runs on Pages).
+  // The landing page reads this on every visit: the visit also deletes a few
+  // tries whose days are over, as work the answer does not wait for (no timer
+  // runs on Pages).
   routes.get('/availability', async (c) => {
     const now = nowIso();
     const teacher = await optionalTeacher(c);

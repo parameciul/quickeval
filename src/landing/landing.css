@@ -152,6 +152,7 @@ a { color: inherit; }
 .try-note { color: var(--muted); max-width: 52ch; }
 .try-status { display: flex; gap: 4px 12px; flex-wrap: wrap; align-items: baseline; font-weight: 600; }
 .try-dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); color: var(--text); }
+.try-dialog { overscroll-behavior: contain; }
 .try-dialog::backdrop { background: rgb(12 21 36 / 0.55); }
 .try-form { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
 .try-form h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }

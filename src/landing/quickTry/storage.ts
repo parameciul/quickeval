@@ -43,6 +43,15 @@ export function saveStoredTry(storage: Storage, stored: StoredTry): void {
   }
 }
 
+// Forgets the stored try: its link no longer works (deleted or expired).
+export function forgetStoredTry(storage: Storage): void {
+  try {
+    storage.removeItem(STORED_TRY_KEY);
+  } catch {
+    // A storage that refuses keeps nothing anyway.
+  }
+}
+
 // Whether the stored try was made on today's Bucharest day: one try per device per day.
 export function usedToday(stored: StoredTry | null, now: Date): boolean {
   return stored !== null && bucharestDay(new Date(stored.madeAt)) === bucharestDay(now);

@@ -123,6 +123,7 @@ describe("the landing page's Quick Try", () => {
     await mount(api);
     expect(screen.queryByRole('status')).toBeNull();
     expect(button()).toBeVisible();
+    expect(localStorage.getItem(STORED_TRY_KEY)).toBeNull();
   });
 
   it('sends the form with the Turnstile answer, keeps the link and follows the try', async () => {
@@ -139,6 +140,34 @@ describe("the landing page's Quick Try", () => {
     expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toHaveAttribute('href', `/try/${TOKEN}`);
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Se corectează… Durează câteva minute.'));
     expect(button()).toBeNull();
+  });
+
+  it("moves the focus to the try's link once the form is sent", async () => {
+    await mount();
+    button()!.click();
+    fillForm();
+    send();
+    await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Deschide încercarea' })));
+  });
+
+  it('keeps the form open while it sends, also on Esc or the back button', async () => {
+    const api = fakeLandingApi();
+    let finish = () => {};
+    api.addPage.mockImplementationOnce(() => new Promise<void>((done) => (finish = done)));
+    await mount(api);
+    button()!.click();
+    fillForm();
+    send();
+    await waitFor(() => expect(api.addPage).toHaveBeenCalled());
+    const cancel = new Event('cancel', { cancelable: true });
+    dialog().dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(true);
+    finish();
+    await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
+    const later = new Event('cancel', { cancelable: true });
+    dialog().dispatchEvent(later);
+    expect(later.defaultPrevented).toBe(false);
   });
 
   it('asks the robot for the barem when she has none', async () => {
@@ -166,7 +195,9 @@ describe("the landing page's Quick Try", () => {
     button()!.click();
     fillForm();
     send();
-    await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent('Bifează verificarea de mai jos, apoi trimite din nou.'));
+    await waitFor(() =>
+      expect(within(dialog()).getByRole('alert')).toHaveTextContent('Așteaptă să se termine verificarea de mai jos, apoi trimite din nou.'),
+    );
     expect(api.create).not.toHaveBeenCalled();
   });
 

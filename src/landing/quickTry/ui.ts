@@ -4,7 +4,7 @@ import { phaseOf, type TryPhase } from '../../try/phase.ts';
 import type { LandingApi } from './api.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf } from './status.ts';
-import { readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
+import { forgetStoredTry, readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
 
 // The Turnstile check in the form: its answer once the visitor passed it,
 // and a new check (an answer is good for one send).
@@ -73,6 +73,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   let phase: TryPhase | null = null;
   let widget: Promise<TurnstileWidget> | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let sending = false;
 
   // The button, or the line that says why there is none.
   function refreshButton(): void {
@@ -103,6 +104,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         stored = null;
         phase = null;
         status.hidden = true;
+        forgetStoredTry(deps.storage);
       } else {
         show(status);
         statusText.textContent = 'Nu am putut citi încercarea acum.';
@@ -140,6 +142,11 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   });
 
   closeButton.addEventListener('click', () => closeDialog(dialog));
+  // Esc and a phone's back button close a dialog: not while it sends, so the
+  // form stays to show how the send ended.
+  dialog.addEventListener('cancel', (event) => {
+    if (sending) event.preventDefault();
+  });
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -159,8 +166,9 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       check = widget ? await widget.catch(() => null) : null;
       if (!check) return sayError(NO_CHECK_TEXT);
       answer = check.token();
-      if (!answer) return sayError('Bifează verificarea de mai jos, apoi trimite din nou.');
+      if (!answer) return sayError('Așteaptă să se termine verificarea de mai jos, apoi trimite din nou.');
     }
+    sending = true;
     sendButton.disabled = true;
     closeButton.disabled = true;
     let made: StoredTry | null = null;
@@ -180,9 +188,11 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         },
         deps.now,
       );
+      sending = false;
       closeDialog(dialog!);
       form!.reset();
       await follow(done);
+      statusLink.focus();
     } catch (err) {
       sayError(messageOf(err));
       if (made) {
@@ -191,6 +201,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         void follow(made);
       }
     } finally {
+      sending = false;
       progress.hidden = true;
       // A try that exists but broke half-way is not sent again (that would
       // make a second try): its page takes what is missing.

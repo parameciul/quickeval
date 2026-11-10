@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PDF_TYPE } from '../../shared/files.ts';
 import { QUICK_TRY_CLEANUP_BATCH } from '../../shared/quickTry.ts';
 import { sha256Hex } from '../secrets.ts';
+import { addEvaluation } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 // Each visit of the landing page (GET /api/try/availability) deletes a few
@@ -96,6 +97,23 @@ describe('deleting tries whose 7 days are over', () => {
     expect(left).toEqual([...Array<boolean>(QUICK_TRY_CLEANUP_BATCH).fill(false), true]);
     await visit();
     expect(await rowsOf(tries[QUICK_TRY_CLEANUP_BATCH]!.teacherId)).toBe(0);
+  });
+
+  it('deletes a graded try with its grading and points', async () => {
+    const old = await fullTry();
+    const paper = await api.db
+      .prepare('SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id WHERE t.teacher_id = ?')
+      .bind(old.teacherId)
+      .first<{ id: number }>();
+    await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(paper!.id).run();
+    await addEvaluation(api, paper!.id, { items: [{ needsReview: true }, {}] });
+    await expire(old.teacherId);
+    await visit();
+    expect(await rowsOf(old.teacherId)).toBe(0);
+    const left = await api.db
+      .prepare('SELECT (SELECT COUNT(*) FROM evaluations) + (SELECT COUNT(*) FROM evaluation_items) + (SELECT COUNT(*) FROM submissions) AS n')
+      .first<{ n: number }>();
+    expect(left!.n).toBe(0);
   });
 
   it("never touches a teacher's own classes, students and tests", async () => {
