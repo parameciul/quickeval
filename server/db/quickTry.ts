@@ -169,9 +169,10 @@ export async function listPaperFiles(db: D1Database, submissionId: number): Prom
   return rows.results.map((row) => ({ id: row.id, name: row.original_name, contentType: row.content_type, size: row.size, position: row.position }));
 }
 
-// The guest teachers of the tries whose days are over, the oldest first.
+// The guest teachers of the tries whose days are over, in random order: a try
+// that cannot be deleted then never keeps the others waiting behind it.
 const EXPIRED = `SELECT q.teacher_id FROM quick_tries q JOIN teachers g ON g.id = q.teacher_id AND g.quick_try = 1
-  WHERE q.expires_at <= ? ORDER BY q.expires_at, q.id LIMIT ?`;
+  WHERE q.expires_at <= ? ORDER BY random() LIMIT ?`;
 
 // The ids of a JSON list, kept to guest teachers: a cleanup never reaches an account.
 const GUESTS = 'SELECT id FROM teachers WHERE quick_try = 1 AND id IN (SELECT value FROM json_each(?1))';

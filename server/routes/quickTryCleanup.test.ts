@@ -88,15 +88,15 @@ describe('deleting tries whose 7 days are over', () => {
     for (const key of await keysOf(fresh.teacherId)) expect(await api.env.FILES.head(key)).not.toBeNull();
   });
 
-  it(`deletes at most ${QUICK_TRY_CLEANUP_BATCH} tries per visit, the oldest first`, async () => {
+  it(`deletes at most ${QUICK_TRY_CLEANUP_BATCH} tries per visit`, async () => {
     const tries = [];
     for (let i = 0; i <= QUICK_TRY_CLEANUP_BATCH; i++) tries.push(await fullTry(`198.51.100.${i}`));
     for (const [i, one] of tries.entries()) await expire(one.teacherId, `2020-01-0${i + 1}T00:00:00.000Z`);
     await visit();
     const left = await Promise.all(tries.map(async (one) => (await rowsOf(one.teacherId)) > 0));
-    expect(left).toEqual([...Array<boolean>(QUICK_TRY_CLEANUP_BATCH).fill(false), true]);
+    expect(left.filter(Boolean)).toHaveLength(1);
     await visit();
-    expect(await rowsOf(tries[QUICK_TRY_CLEANUP_BATCH]!.teacherId)).toBe(0);
+    for (const one of tries) expect(await rowsOf(one.teacherId)).toBe(0);
   });
 
   it('deletes a graded try with its grading and points', async () => {
@@ -122,6 +122,41 @@ describe('deleting tries whose 7 days are over', () => {
     await expire(old.teacherId);
     await visit();
     expect(await rowsOf(api.teacherId)).toBe(before);
+  });
+
+  // A row the cleanup does not know (here a payment of the guest teacher)
+  // makes that one try's delete fail every time.
+  const stick = (teacherId: number) =>
+    api.db
+      .prepare("INSERT INTO payments (teacher_id, feature, amount, currency, created_at) VALUES (?, 'x', 1, 'ron', '2020-01-01T00:00:00.000Z')")
+      .bind(teacherId)
+      .run();
+
+  it('deletes the other tries of a visit when one try cannot be deleted', async () => {
+    const tries = [];
+    for (let i = 0; i < QUICK_TRY_CLEANUP_BATCH; i++) tries.push(await fullTry(`198.51.100.${i}`));
+    for (const [i, one] of tries.entries()) await expire(one.teacherId, `2020-01-0${i + 1}T00:00:00.000Z`);
+    await stick(tries[0]!.teacherId);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect((await visit()).status).toBe(200);
+    const left = await Promise.all(tries.map(async (one) => (await rowsOf(one.teacherId)) > 0));
+    expect(left).toEqual([true, ...Array<boolean>(QUICK_TRY_CLEANUP_BATCH - 1).fill(false)]);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('reaches the tries behind tries that cannot be deleted', async () => {
+    const stuck = [];
+    for (let i = 0; i < QUICK_TRY_CLEANUP_BATCH; i++) stuck.push(await fullTry(`198.51.100.${i}`));
+    for (const [i, one] of stuck.entries()) {
+      await expire(one.teacherId, `2020-01-0${i + 1}T00:00:00.000Z`);
+      await stick(one.teacherId);
+    }
+    const last = await fullTry('198.51.100.9');
+    await expire(last.teacherId, '2020-02-01T00:00:00.000Z');
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    for (let i = 0; i < 30 && (await rowsOf(last.teacherId)) > 0; i++) await visit();
+    expect(await rowsOf(last.teacherId)).toBe(0);
+    for (const one of stuck) expect(await rowsOf(one.teacherId)).toBeGreaterThan(0);
   });
 
   it('keeps the rows when the files could not be deleted, so the next visit finds them again', async () => {

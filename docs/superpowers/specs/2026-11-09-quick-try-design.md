@@ -107,7 +107,7 @@ When a limit is reached, the form says so in Romanian, in the spirit of: "Limita
 ## 5. Deleting old tries
 
 - A try is deleted once its 7 days are over: its rows and its R2 files (test, barem, photos, generated files) **(owner, 2026-11-10; this replaces the monthly cleanup, option B)**.
-- The trigger: Pages runs no timer and the GitHub schedule does not fire reliably, so each visit of the landing page (`GET /api/try/availability`) deletes, after its answer, up to `QUICK_TRY_CLEANUP_BATCH` (3) tries whose days are over, the oldest first: their R2 files, then their rows. When R2 fails, the rows stay and a later visit tries again **(builder call, made while planning part C)**.
+- The trigger: Pages runs no timer and the GitHub schedule does not fire reliably, so each visit of the landing page (`GET /api/try/availability`) deletes, after its answer, up to `QUICK_TRY_CLEANUP_BATCH` (3) tries whose days are over, picked in random order: their R2 files, then the rows of each try in its own batch, so a try that cannot be deleted never blocks the others. When R2 fails, the rows stay and a later visit tries again **(builder call, made while planning part C)**.
 - R2 keys come from rows, never from listing R2 (project rule).
 - A deleted try's link answers like an unknown link; the try's page then says that a try is deleted after 7 days **(builder call, made while planning part C)**.
 
