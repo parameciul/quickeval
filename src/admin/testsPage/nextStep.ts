@@ -34,6 +34,8 @@ export function nextStep(test: TestSummary, current: Stage): NextStep {
     case 'Verificare':
       return link(`Verifică ${countLabel(test.flagCount, 'punct', 'puncte')}`, reviewPath(test.code));
     case 'Rezultate':
+      // An archived test waits only for its open results to close.
+      if (current.state === 'wait' && test.archived) return link('Oprește accesul', `${page}${stageHash('Rezultate')}`);
       if (current.state === 'wait') return { kind: 'publish', label: test.publishedCount > 0 ? 'Publică pentru toți' : 'Publică rezultatele' };
       return current.state === 'done' && test.gradedCount > 0 ? link('Raportul clasei', `${page}/raport`) : null;
   }

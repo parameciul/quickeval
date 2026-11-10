@@ -77,6 +77,63 @@ describe('POST /api/admin/tests/:code/archive', () => {
   });
 });
 
+describe('the result pages of an archived test', () => {
+  const pages = async () => {
+    const test = await api.db.prepare('SELECT results_open FROM tests WHERE code = ?').bind(code).first<{ results_open: number }>();
+    const { results } = await api.db
+      .prepare('SELECT s.results_open FROM submissions s JOIN tests t ON t.id = s.test_id WHERE t.code = ? ORDER BY s.id')
+      .bind(code)
+      .all<{ results_open: number }>();
+    return { test: test!.results_open, students: results.map((row) => row.results_open) };
+  };
+
+  async function publishedDone(): Promise<number[]> {
+    const pop = await addSubmission(api, code, studentIds[0]!, { status: 'graded', files: 1 });
+    const ana = await addSubmission(api, code, studentIds[1]!, { status: 'graded', files: 1 });
+    await setTest("status = 'done', results_open = 1");
+    await api.db.prepare('UPDATE submissions SET results_open = 1 WHERE id IN (?, ?)').bind(pop, ana).run();
+    return [pop, ana];
+  }
+
+  it('closes the pages for all and for single students', async () => {
+    await publishedDone();
+    expect((await archive()).status).toBe(200);
+    expect(await pages()).toEqual({ test: 0, students: [0, 0] });
+    expect(await summary()).toMatchObject({ archived: true, resultsOpen: false, publishedCount: 0 });
+  });
+
+  it('closes nothing when the archive is refused', async () => {
+    await publishedDone();
+    await setTest("status = 'open'");
+    expect((await archive()).status).toBe(409);
+    expect(await pages()).toEqual({ test: 1, students: [1, 1] });
+  });
+
+  it('closes nothing of a test of another teacher', async () => {
+    const foreign = await otherTeacherTest(api);
+    await api.db.prepare("UPDATE tests SET status = 'done', results_open = 1 WHERE code = ?").bind(foreign.code).run();
+    expect((await archive(foreign.code)).status).toBe(404);
+    const row = await api.db.prepare('SELECT results_open FROM tests WHERE code = ?').bind(foreign.code).first<{ results_open: number }>();
+    expect(row!.results_open).toBe(1);
+  });
+
+  it('opens nothing when the test leaves the archive', async () => {
+    await publishedDone();
+    await archive();
+    expect((await unarchive()).status).toBe(200);
+    expect(await pages()).toEqual({ test: 0, students: [0, 0] });
+  });
+
+  it('lets the teacher publish on an archived test, for all and for one student', async () => {
+    const [pop] = await publishedDone();
+    await archive();
+    expect((await api.request('POST', `/api/admin/submissions/${pop}/results/open`, { startedAt: await startedAtOf(api, pop!) })).status).toBe(200);
+    expect(await summary()).toMatchObject({ archived: true, resultsOpen: false, publishedCount: 1 });
+    expect((await api.request('POST', `/api/admin/tests/${code}/results/open`)).status).toBe(200);
+    expect(await summary()).toMatchObject({ archived: true, resultsOpen: true });
+  });
+});
+
 describe('POST /api/admin/tests/:code/unarchive', () => {
   it('takes a test out of the archive', async () => {
     await setTest("status = 'done'");

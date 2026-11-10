@@ -75,9 +75,17 @@ const CASES: [string, TestSummary, string, string][] = [
   ['a done test whose papers were all published one by one', summary({ status: 'done', ...graded, publishedCount: 22 }), 'dddddd', 'Rezultate · publicate'],
   ['a done test without a graded paper', summary({ status: 'done', ...started, submittedCount: 2 }), 'dddddl', 'Rezultate · nicio lucrare corectată'],
   ['a draft whose first barem generation failed', summary({ barem: { request: 'failed', unchecked: false }, prepared: { testFile: true, baremFile: false, print: 'ready' } }), 'wdllll', 'Pregătire · lipsește baremul'],
-  ['an archived test with unpublished results', summary({ status: 'done', ...graded, archived: true }), 'dddddl', 'Rezultate · nepublicate'],
-  ['an archived test published for some students', summary({ status: 'done', ...graded, archived: true, publishedCount: 3 }), 'dddddl', 'Rezultate · publicate pentru 3 elevi'],
-  ['an archived test whose points still wait', summary({ status: 'done', ...graded, flagCount: 2, archived: true }), 'ddddnl', 'Verificare · 2 puncte nesigure'],
+  ['an archived test with its results closed', summary({ status: 'done', ...graded, archived: true }), 'dddddd', 'Rezultate · închise · test arhivat'],
+  ['an archived test without a graded paper', summary({ status: 'done', ...started, submittedCount: 2, archived: true }), 'dddddl', 'Rezultate · nicio lucrare corectată'],
+  ['an archived test with its results open', summary({ status: 'done', ...graded, archived: true, resultsOpen: true }), 'dddddw', 'Rezultate · publicate · test arhivat'],
+  ['an archived test published for some students', summary({ status: 'done', ...graded, archived: true, publishedCount: 3 }), 'dddddw', 'Rezultate · publicate · test arhivat'],
+  ['an archived test whose points still wait', summary({ status: 'done', ...graded, flagCount: 2, archived: true }), 'ddddnd', 'Verificare · 2 puncte nesigure'],
+  [
+    'an archived test with open results whose points still wait',
+    summary({ status: 'done', ...graded, flagCount: 2, archived: true, publishedCount: 3 }),
+    'ddddnw',
+    'Rezultate · publicate · test arhivat',
+  ],
 ];
 
 const bar = (test: TestSummary) =>

@@ -346,6 +346,44 @@ describe('ClassPage', () => {
   });
 });
 
+describe('ClassPage, archiving a class with open results', () => {
+  const archiveFromMenu = async () => {
+    await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Arhivează clasa' }));
+  };
+
+  it('asks first, and changes nothing on "Renunță"', async () => {
+    // T1 is published for Pop Ion.
+    const data = classData();
+    data.tests[1]!.test.publishedCount = 1;
+    const api = createFakeApi(data);
+    renderAdmin('/clase/1', api);
+    await archiveFromMenu();
+    const dialog = screen.getByRole('dialog', { name: 'Arhivezi clasa?' });
+    expect(
+      within(dialog).getByText('Elevii nu își vor mai putea vedea rezultatele testelor acestei clase. Le poți publica din nou oricând.'),
+    ).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Renunță' }));
+    expect(api.updateClass).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Mai multe pentru Clasa 6E2' })).toHaveFocus();
+
+    await archiveFromMenu();
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Arhivezi clasa?' })).getByRole('button', { name: 'Arhivează' }));
+    expect(api.updateClass).toHaveBeenCalledWith(1, { archived: true });
+    expect(await screen.findByText('Clasă arhivată.')).toBeInTheDocument();
+  });
+
+  it('archives at once when no result is open', async () => {
+    const data = classData();
+    for (const detail of data.tests) detail.test.publishedCount = 0;
+    const api = createFakeApi(data);
+    renderAdmin('/clase/1', api);
+    await archiveFromMenu();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.updateClass).toHaveBeenCalledWith(1, { archived: true });
+  });
+});
+
 describe('ClassPage, an archived class', () => {
   const archivedClass = async (data = classData()) => {
     const api = createFakeApi(data);
@@ -396,6 +434,28 @@ describe('ClassPage, an archived class', () => {
     const heads = screen.getByRole('table', { name: 'Notele elevilor la teste' }).querySelectorAll('.grade-head-note.is-waiting');
     expect(heads).toHaveLength(0);
     expect(list.queryByRole('button', { name: /Publică/ })).not.toBeInTheDocument();
+  });
+
+  it('warns of an archived test with open results, as "De făcut" does', async () => {
+    const api = await archivedClass();
+    await api.setTestArchived('6E2-26T1', true);
+    await api.setResultsOpen('6E2-26T1', true);
+    renderAdmin('/clase/1', api);
+    const aside = await screen.findByRole('complementary', { name: 'Testele clasei' });
+    await userEvent.click(within(aside).getByRole('button', { name: /Arată și testele arhivate/ }));
+    const items = within(aside).getAllByRole('listitem');
+    // T2 stays calm; T1 waits, with its link to close the results.
+    expect(within(items[0]!).queryByRole('link', { name: 'Oprește accesul' })).not.toBeInTheDocument();
+    expect(within(items[1]!).getByText('Rezultate · publicate · test arhivat')).toHaveClass('is-waiting');
+    const stop = within(items[1]!).getByRole('link', { name: 'Oprește accesul' });
+    expect(stop).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
+    expect(stop).toHaveClass('button');
+    expect(aside.querySelectorAll('.is-waiting')).toHaveLength(1);
+    const heads = screen.getByRole('table', { name: 'Notele elevilor la teste' }).querySelectorAll('.grade-head-note.is-waiting');
+    expect(heads).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Schimbă clasa' }));
+    const current = screen.getByRole('link', { name: /Clasa 6E2/ });
+    expect(within(current).getByRole('img', { name: 'te așteaptă' })).toBeInTheDocument();
   });
 
   it('shows the students read only, with the link to all their grades', async () => {

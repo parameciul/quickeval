@@ -408,6 +408,18 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     if (!found) throw notFound();
     return found;
   };
+  // Like the server: closes every result page of a test, the ones published
+  // alone included.
+  const closeResults = (detail: TestDetail) => {
+    detail.test.resultsOpen = false;
+    detail.test.publishedCount = 0;
+    for (const row of detail.uploads) {
+      if (row.submissionId !== null) row.resultsOpen = false;
+    }
+    for (const sub of submissions) {
+      if (sub.testCode === detail.test.code) sub.resultsOpen = false;
+    }
+  };
 
   const api = {
     base: '/api/admin',
@@ -493,6 +505,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = data.classes.find((c) => c.id === classId)!;
       if (input.name !== undefined) found.name = normalizeClassName(input.name) ?? found.name;
       if (input.archived !== undefined) found.archived = input.archived;
+      // Like the server: archiving the class closes the result pages of its tests.
+      if (input.archived === true) {
+        for (const detail of tests) if (detail.test.classId === classId) closeResults(detail);
+      }
       return { ...found };
     }),
     // Like the server: a name already in the class (students who left count,
@@ -796,6 +812,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         throw new ApiError(409, 'not_done', 'Poți arhiva un test după ce s-a terminat corectarea.');
       }
       found.archived = archived;
+      // Like the server: the archive closes the result pages.
+      if (archived) closeResults(findTest(code));
       return archived;
     }),
     // Like the server: a time that has passed starts now. With submissionIds,

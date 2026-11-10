@@ -8,6 +8,7 @@ import { MAX_TITLE_LENGTH } from '../../../shared/tests.ts';
 import { formatDateTime, studentCountLabel } from '../../ui/format.ts';
 import { printFileUrl, testFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
+import { ArchiveDialog, hasOpenResults } from '../ArchiveDialog.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { StatusChip } from '../StatusChip.tsx';
 import { UploadLink } from './UploadLink.tsx';
@@ -34,6 +35,8 @@ export function TestSheet({ test, onChanged }: { test: TestInfo; onChanged: () =
   const id = useId();
   // The rename form opens in place of its button.
   const [renameOpen, setRenameOpen] = useState(false);
+  // The archive closes the result pages: it asks first while some are open.
+  const [askArchive, setAskArchive] = useState(false);
   const remove = useMutation({
     mutationFn: () => api.deleteTest(test.code),
     onSuccess: async () => {
@@ -140,12 +143,25 @@ export function TestSheet({ test, onChanged }: { test: TestInfo; onChanged: () =
         ) : (
           test.status === 'done' && (
             <>
-              <button type="button" className="button-quiet button-small" disabled={archive.isPending} onClick={() => archive.mutate(true)}>
+              <button
+                type="button"
+                className="button-quiet button-small"
+                disabled={archive.isPending}
+                onClick={() => (hasOpenResults(test) ? setAskArchive(true) : archive.mutate(true))}
+              >
                 Arhivează testul
               </button>
               <p className="hint">Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.</p>
             </>
           )
+        )}
+        {askArchive && (
+          <ArchiveDialog
+            title="Arhivezi testul?"
+            text="Elevii nu își vor mai putea vedea rezultatele. Le poți publica din nou oricând."
+            onConfirm={() => archive.mutate(true)}
+            onClose={() => setAskArchive(false)}
+          />
         )}
         {archive.error && <ErrorMessage error={archive.error} />}
         <button

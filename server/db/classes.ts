@@ -81,11 +81,31 @@ export async function updateClass(
   if (!current) throw notFound();
   const name = changes.name ?? current.name;
   const archived = changes.archived ?? current.archived;
+  const update = db
+    .prepare('UPDATE classes SET name = ?, archived = ? WHERE id = ? AND teacher_id = ?')
+    .bind(name, archived ? 1 : 0, classId, teacherId);
+  // Archiving the class closes every result page of its tests (for all, and
+  // for single students); the tests stay as they are. A rename or taking the
+  // class out of the archive opens nothing.
+  const ARCHIVED_CLASS = 'SELECT 1 FROM classes c WHERE c.id = ? AND c.teacher_id = ? AND c.archived = 1';
   try {
-    await db
-      .prepare('UPDATE classes SET name = ?, archived = ? WHERE id = ? AND teacher_id = ?')
-      .bind(name, archived ? 1 : 0, classId, teacherId)
-      .run();
+    if (changes.archived === true) {
+      await db.batch([
+        update,
+        db
+          .prepare(`UPDATE tests SET results_open = 0 WHERE class_id = ? AND teacher_id = ? AND results_open = 1 AND EXISTS (${ARCHIVED_CLASS})`)
+          .bind(classId, teacherId, classId, teacherId),
+        db
+          .prepare(
+            `UPDATE submissions SET results_open = 0 WHERE results_open = 1
+              AND test_id IN (SELECT t.id FROM tests t WHERE t.class_id = ? AND t.teacher_id = ?)
+              AND EXISTS (${ARCHIVED_CLASS})`,
+          )
+          .bind(classId, teacherId, classId, teacherId),
+      ]);
+    } else {
+      await update.run();
+    }
   } catch (err) {
     if (isUniqueViolation(err)) throw duplicateClass(name, current.schoolYear);
     throw err;

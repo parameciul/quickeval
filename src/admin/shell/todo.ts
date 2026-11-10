@@ -27,8 +27,17 @@ export function todoPath(item: TodoItem): string {
   return item.stage === 'Verificare' ? reviewPath(item.code) : `/teste/${item.code}`;
 }
 
+// An archived test with a result page open (for all, or for some students).
+// The archive closes them, so this is an exception the teacher made, and
+// "De făcut" keeps it until she closes them or takes the test out of the archive.
+export function archivedPublished(test: TestSummary): boolean {
+  return test.archived && (test.resultsOpen || test.publishedCount > 0);
+}
+
 // What a test waits for from the teacher, if anything (redesign spec §5, and
-// the CES switch spec): four cases, checked in this order. The first has two forms: the
+// the CES switch spec): an archived test waits only when its results are open
+// (archivedPublished), and nothing else of it waits. Then four cases, checked
+// in this order. The first has two forms: the
 // generated barem waits to be checked, or its new generation failed (it can
 // be neither confirmed nor used until the teacher asks for it again). The
 // generated CES barem of the CES variant counts the same way, after the
@@ -36,8 +45,18 @@ export function todoPath(item: TodoItem): string {
 // does a missing CES barem that CES papers wait for. Then what a draft or open
 // test still misses (missingOf): its files, and the CES ones.
 export function todoOf(test: TestSummary): TodoItem | null {
-  if (test.archived) return null;
   const item = { code: test.code, testTitle: test.title, className: test.className };
+  if (test.archived) {
+    if (!archivedPublished(test)) return null;
+    return {
+      ...item,
+      stage: 'Rezultate',
+      task: 'Rezultate publicate pe un test arhivat',
+      text: 'Elevii își văd rezultatele. Oprește accesul sau scoate testul din arhivă.',
+      action: 'Deschide',
+      short: 'publicate · test arhivat',
+    };
+  }
   const preparing = (test.status === 'draft' || test.status === 'open') && test.barem.unchecked;
   if (preparing && test.barem.request === 'none') {
     return {

@@ -67,7 +67,7 @@ describe('the search results page', () => {
     expect(within(classes).getByRole('link', { name: 'Clasa 12STE' })).toHaveAttribute('href', '/clase/3');
     const tests = screen.getByRole('table', { name: 'Teste' });
     expect(within(tests).getAllByRole('row').map((row) => row.textContent)).toEqual([
-      'Teorema lui StewartClasa 9A · arhivatRezultate · publicate',
+      'Teorema lui StewartClasa 9A · arhivatRezultate · publicate · test arhivat',
       'Ștergerea fracțiilorClasa 10B · ciornăPregătire · lipsesc testul și baremul',
     ]);
     expect(within(tests).getByRole('link', { name: 'Teorema lui Stewart' })).toHaveAttribute('href', '/teste/9A-26T1');

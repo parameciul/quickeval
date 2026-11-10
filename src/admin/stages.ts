@@ -93,7 +93,7 @@ export function stagesOf(test: TestSummary): TestStages {
     const wait = waits('Verificare');
     if (wait !== null) return stage('Verificare', 'wait', wait);
     if (done && test.flagCount === 0) return stage('Verificare', 'done');
-    // An archived test has no "De făcut", but its points still wait.
+    // An archived test's points are not in "De făcut", but they still wait.
     if (test.flagCount > 0) return stage('Verificare', 'now', countLabel(test.flagCount, 'punct nesigur', 'puncte nesigure'));
     return stage('Verificare', 'later');
   };
@@ -107,10 +107,9 @@ export function stagesOf(test: TestSummary): TestStages {
       return stage('Rezultate', 'done', `publicate${average}`);
     }
     if (done && test.gradedCount === 0) return stage('Rezultate', 'later', 'nicio lucrare corectată');
-    // An archived test has no "De făcut", but its results are still not out.
-    if (done && test.archived) {
-      return stage('Rezultate', 'later', test.publishedCount > 0 ? `publicate pentru ${countLabel(test.publishedCount, 'elev', 'elevi')}` : 'nepublicate');
-    }
+    // The archive closes the results: closed is the normal end of an archived
+    // test (open ones wait, above).
+    if (done && test.archived) return stage('Rezultate', 'done', 'închise · test arhivat');
     return stage('Rezultate', 'later');
   };
 

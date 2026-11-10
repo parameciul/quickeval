@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TestInfo, TestSummary } from '../../../shared/api.ts';
 import { fakeTest, noCesVariant } from '../../test/fakeApi.ts';
 import { stagesOf } from '../stages.ts';
-import { inWork, todoList, todoOf, todoPath } from './todo.ts';
+import { archivedPublished, inWork, todoList, todoOf, todoPath } from './todo.ts';
 
 // A test with its test file and barem, so that it misses nothing.
 const file = { name: 'f.pdf', type: 'application/pdf' };
@@ -87,6 +87,39 @@ describe('todoOf', () => {
     expect(todoOf(summary({ status: 'open' }))).toBeNull();
     expect(todoOf(summary({ status: 'evaluating', gradedCount: 3 }))).toBeNull();
     expect(todoOf(summary({ ...graded, flagCount: 2, archived: true }))).toBeNull();
+  });
+});
+
+describe('an archived test with open results, in "De făcut"', () => {
+  const item = {
+    stage: 'Rezultate',
+    task: 'Rezultate publicate pe un test arhivat',
+    text: 'Elevii își văd rezultatele. Oprește accesul sau scoate testul din arhivă.',
+    action: 'Deschide',
+    short: 'publicate · test arhivat',
+  };
+
+  it('asks to close the results open for all, or for some students', () => {
+    expect(todoOf(summary({ ...graded, archived: true, resultsOpen: true }))).toMatchObject(item);
+    expect(todoOf(summary({ ...graded, archived: true, publishedCount: 1 }))).toMatchObject(item);
+    expect(archivedPublished(summary({ ...graded, archived: true, publishedCount: 24 }))).toBe(true);
+  });
+
+  it('asks only that, even while points still wait', () => {
+    expect(todoOf(summary({ ...graded, archived: true, resultsOpen: true, flagCount: 2 }))).toMatchObject(item);
+  });
+
+  it('asks nothing once the results are closed, or of a test that is not archived', () => {
+    expect(todoOf(summary({ ...graded, archived: true }))).toBeNull();
+    expect(archivedPublished(summary({ ...graded, archived: true }))).toBe(false);
+    expect(archivedPublished(summary({ ...graded, resultsOpen: true }))).toBe(false);
+  });
+
+  it('opens the test page, and keeps the test out of "În lucru"', () => {
+    const test = summary({ ...graded, archived: true, resultsOpen: true });
+    expect(todoPath(todoOf(test)!)).toBe('/teste/6E2-26T1');
+    expect(stagesOf(test).current).toEqual({ name: 'Rezultate', state: 'wait', note: 'publicate · test arhivat' });
+    expect(inWork(test)).toBe(false);
   });
 });
 

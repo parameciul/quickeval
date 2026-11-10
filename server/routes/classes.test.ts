@@ -494,3 +494,54 @@ describe('grades of a class', () => {
     expect(historyTwo.body.grades).toMatchObject([{ submissionId: subTwo, grade: 9 }]);
   });
 });
+
+describe('the result pages of an archived class', () => {
+  // A test with a graded paper, published for all and for its one student.
+  async function publishedTest(classId: number, studentId: number): Promise<string> {
+    const code = await makeTest(api, classId);
+    const id = await addSubmission(api, code, studentId, { status: 'graded', files: 1 });
+    await api.db.prepare("UPDATE tests SET status = 'done', results_open = 1 WHERE code = ?").bind(code).run();
+    await api.db.prepare('UPDATE submissions SET results_open = 1 WHERE id = ?').bind(id).run();
+    return code;
+  }
+
+  const pagesOf = async (code: string) => {
+    const row = await api.db
+      .prepare(
+        `SELECT t.results_open AS test, t.archived AS archived, s.results_open AS student
+          FROM tests t JOIN submissions s ON s.test_id = t.id WHERE t.code = ?`,
+      )
+      .bind(code)
+      .first<{ test: number; archived: number; student: number }>();
+    return row!;
+  };
+
+  it('closes the pages of every test of the class, and archives none of them', async () => {
+    const cls = await makeClass(api, 'H7A', ['Pop Ion']);
+    const first = await publishedTest(cls.id, cls.studentIds[0]!);
+    const second = await publishedTest(cls.id, cls.studentIds[0]!);
+    const res = await api.request('PATCH', `/api/admin/classes/${cls.id}`, { archived: true });
+    expect(res.status).toBe(200);
+    expect(await pagesOf(first)).toEqual({ test: 0, archived: 0, student: 0 });
+    expect(await pagesOf(second)).toEqual({ test: 0, archived: 0, student: 0 });
+  });
+
+  it('leaves the pages of the other classes open', async () => {
+    const cls = await makeClass(api, 'H7B', ['Pop Ion']);
+    const other = await makeClass(api, 'H7C', ['Ionescu Ana']);
+    const kept = await publishedTest(other.id, other.studentIds[0]!);
+    await api.request('PATCH', `/api/admin/classes/${cls.id}`, { archived: true });
+    expect(await pagesOf(kept)).toEqual({ test: 1, archived: 0, student: 1 });
+  });
+
+  it('closes nothing on a rename, and opens nothing when the class leaves the archive', async () => {
+    const cls = await makeClass(api, 'H7D', ['Pop Ion']);
+    const code = await publishedTest(cls.id, cls.studentIds[0]!);
+    expect((await api.request('PATCH', `/api/admin/classes/${cls.id}`, { name: 'H7E' })).status).toBe(200);
+    expect(await pagesOf(code)).toEqual({ test: 1, archived: 0, student: 1 });
+    await api.request('PATCH', `/api/admin/classes/${cls.id}`, { archived: true });
+    expect((await api.request('PATCH', `/api/admin/classes/${cls.id}`, { archived: false })).status).toBe(200);
+    expect(await pagesOf(code)).toEqual({ test: 0, archived: 0, student: 0 });
+  });
+
+});
