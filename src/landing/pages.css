@@ -9,6 +9,32 @@
 .page-h1 { font-size: clamp(32px, 4.4vw, 56px); line-height: 1.02; letter-spacing: -0.04em; font-weight: 800; text-wrap: balance; }
 .page-lede { font-size: 21px; line-height: 1.5; max-width: 46ch; color: var(--muted); }
 
+/* The trail above the heading, the same one the structured data carries. */
+.crumbs { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.crumbs a { color: var(--muted); font-weight: 600; text-decoration: none; }
+.crumbs a:hover { color: var(--text); text-decoration: underline; }
+.crumbs span[aria-hidden] { color: var(--control); }
+
+/* Who wrote the page and when, under the lede: the page's own claim. */
+.byline { font-size: 15px; color: var(--muted); }
+.byline a { color: var(--muted); font-weight: 600; text-decoration: none; }
+.byline a:hover { color: var(--text); text-decoration: underline; }
+
+/* The page's sections, for a reader and for a search engine that quotes one
+   passage out of the page. */
+.toc { max-width: 68ch; margin-top: 48px; padding: 20px 24px; border: 1px solid var(--border); border-radius: var(--r); background: var(--ground); }
+.toc-t { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.toc ol { margin-top: 12px; padding-left: 1.3em; font-size: 16px; line-height: 1.5; }
+.toc li + li { margin-top: 6px; }
+.toc a { color: var(--text); font-weight: 600; text-decoration: none; }
+.toc a:hover { color: var(--blue); text-decoration: underline; }
+
+/* The three pages beside this one, at the end of the text. */
+.read-on { list-style: none; padding: 0; margin-top: 24px; border-top: 1px solid var(--border); }
+.read-on li { padding: 16px 0; border-bottom: 1px solid var(--border); font-size: 17px; line-height: 1.6; color: var(--muted); }
+.read-on li + li { margin-top: 0; }
+.read-on a { color: var(--blue); font-weight: 600; }
+
 /* Long text: one column, 68 characters, headings that step down from the
    page heading. */
 .prose { max-width: 68ch; margin-top: 56px; font-size: 18px; line-height: 1.65; }
@@ -24,6 +50,12 @@
 .prose b, .prose strong { font-weight: 700; }
 .prose blockquote { margin: 32px 0; padding-left: 20px; border-left: 3px solid var(--orange-mark); font-size: 20px; line-height: 1.5; }
 .prose blockquote p { margin: 0; }
+
+/* A screenshot inside the text column: the app as the teacher sees it. */
+.prose .shot { margin-top: 40px; }
+.prose .shot img { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); }
+.prose .shot figcaption { margin-top: 12px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.prose .shot + * { margin-top: 40px; }
 
 /* A box for the one thing the reader must not miss. */
 .callout { margin-top: 36px; padding: 20px 24px; border: 1px solid var(--border); border-left: 3px solid var(--orange-mark); border-radius: var(--r); background: var(--ground); }

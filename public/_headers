@@ -37,3 +37,11 @@ https://quickeval.pages.dev/*
 
 /llms.txt
   Cache-Control: public, max-age=3600
+
+# The pictures keep their names: a new one is a new file, so a day is enough
+# and a teacher who comes back does not wait for them again.
+/*.png
+  Cache-Control: public, max-age=86400
+
+/favicon.svg
+  Cache-Control: public, max-age=86400

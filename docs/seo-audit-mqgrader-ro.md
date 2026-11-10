@@ -27,6 +27,20 @@ After the fixes in this branch: the landing page can be crawled, indexed and cit
 
 Also check in the Cloudflare dashboard for mqgrader.ro: "Block AI bots" and "Managed robots.txt" (AI Crawl Control) must be off, or they override this `robots.txt`.
 
+## Round 2 (2026-11-10, branch `feature/seo-p2`)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| 11 | High | A content cluster whose pages only meet in the footer, so a crawler sees four leaves and no hub. | The landing page links all four pages in its own text (one link beside the account picture, four cards in "Mai multe despre corectare"); each page ends with "Citește și" and links the other three. |
+| 12 | Medium (AEO) | Long pages with no table of contents, so an answer engine quotes a random paragraph. | `/ghid/` and `/barem/` open with a "Cuprins" whose links go to `id`s on their `h2`s. |
+| 13 | Medium (E-E-A-T) | No visible author or date, and `WebPage` carried neither. | A byline under the lede ("Scris de Laura Miron … actualizat 10 noiembrie 2026"), and `datePublished`, `dateModified`, `publisher` in the JSON-LD. A test keeps the sitemap's `lastmod` equal to `dateModified`. |
+| 14 | Medium | The breadcrumb existed only in structured data. | A visible `nav.crumbs` with the same two names, checked against `BreadcrumbList`. |
+| 15 | Medium | The guide argued about the review screen without showing it. | A real capture of the review page (`app-verificare.png`, 1600x1000, test data) in a figure, and as the page's `primaryImageOfPage`. |
+| 16 | Low | One share card for four different pages. | `og-ghid.png`, `og-barem.png`, `og-despre.png`, `og-preturi.png` (1200x630), each also in `twitter:image`. |
+| 17 | Low | Bing and Yandex learn about a change in days. | `npm run indexnow` (`scripts/indexnow.mjs`) posts the sitemap's addresses to IndexNow; the key is filed at the site root (`public/<key>.txt`). Google ignores IndexNow. |
+| 18 | Low | The unhashed pictures had no cache rule. | A day for `/*.png` and `favicon.svg` (`public/_headers`); hashed `/assets/*` keeps its year. |
+
+
 ## What was already good
 
 - Server-rendered static HTML: crawlers and AI bots see all the text without running JavaScript.
@@ -50,4 +64,5 @@ Also check in the Cloudflare dashboard for mqgrader.ro: "Block AI bots" and "Man
 5. Backlinks: link to mqgrader.ro from the Laura Miron site (lauramiron.pages.dev), the school page and teacher groups. This is the biggest ranking lever for a new domain.
 6. Google Business Profile does not apply (no storefront).
 7. Later content ideas (each one a page that can rank): "corectare teste matematică după barem", "barem pentru evaluarea națională", a short demo video and a real screenshot of a graded paper.
-8. Recheck in 4 weeks: pages indexed, impressions in Search Console, and ask ChatGPT, Perplexity and Gemini "cum pot corecta mai repede testele de matematică?".
+8. After a deploy that changes a public page: `npm run indexnow` (Bing, Yandex). In Bing Webmaster Tools you can see the key file the site answers at `https://mqgrader.ro/4c7f1a9db35e6280f4b7a1c9d2e6085f.txt`.
+9. Recheck in 4 weeks: pages indexed, impressions in Search Console, and ask ChatGPT, Perplexity and Gemini "cum pot corecta mai repede testele de matematică?".

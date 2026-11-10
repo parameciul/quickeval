@@ -71,6 +71,20 @@ describe('the landing page', () => {
     expect(page).not.toMatch(/Quantitative/i);
   });
 
+  it('sends readers from its own text to the pages that answer a search', () => {
+    const more = all('#mai-multe .more-list a').map((a) => [text(a.querySelector('b')), a.getAttribute('href')]);
+    expect(more).toEqual([
+      ['Cum corectezi testele de matematică după barem', '/ghid/'],
+      ['Baremul de corectare', '/barem/'],
+      ['Despre MQGrader', '/despre/'],
+      ['Cât costă', '/preturi/'],
+    ]);
+    // Every card says what the page is about, in one line.
+    for (const a of all('#mai-multe .more-list a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
+    // And one link in the text beside the account picture, where it belongs.
+    expect(all('.shot-sec .l-body a').map((a) => a.getAttribute('href'))).toEqual(['/ghid/']);
+  });
+
   it('may be indexed, and names its own address', () => {
     const robots = doc.querySelector('meta[name="robots"]')?.getAttribute('content') ?? '';
     expect(robots).toMatch(/^index\b/);

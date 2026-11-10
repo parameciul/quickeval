@@ -15,14 +15,14 @@
     <meta property="og:url" content="https://mqgrader.ro/barem/" />
     <meta property="og:title" content="Barem de corectare la matematică: ce este" />
     <meta property="og:description" content="De unde vine baremul unui test, cum arată unul bun și cum obții unul în MQGrader." />
-    <meta property="og:image" content="https://mqgrader.ro/og-image.png" />
+    <meta property="og:image" content="https://mqgrader.ro/og-barem.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="MQGrader by Laura Miron: corectarea testelor de matematică" />
+    <meta property="og:image:alt" content="MQGrader: baremul de corectare la matematică" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Barem de corectare la matematică: ce este" />
     <meta name="twitter:description" content="De unde vine baremul unui test, cum arată unul bun și cum obții unul în MQGrader." />
-    <meta name="twitter:image" content="https://mqgrader.ro/og-image.png" />
+    <meta name="twitter:image" content="https://mqgrader.ro/og-barem.png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script type="application/ld+json">
       {
@@ -38,7 +38,10 @@
             "isPartOf": { "@id": "https://mqgrader.ro/#website" },
             "about": { "@id": "https://mqgrader.ro/#app" },
             "breadcrumb": { "@id": "https://mqgrader.ro/barem/#breadcrumb" },
-            "author": { "@id": "https://mqgrader.ro/#laura-miron" }
+            "author": { "@id": "https://mqgrader.ro/#laura-miron" },
+            "publisher": { "@id": "https://mqgrader.ro/#organization" },
+            "datePublished": "2026-11-10",
+            "dateModified": "2026-11-10"
           },
           {
             "@type": "BreadcrumbList",
@@ -115,17 +118,33 @@
       <main>
         <article class="page wrap">
           <div class="page-head">
-            <p class="eyebrow">Baremul</p>
+            <nav class="crumbs" aria-label="Traseul paginii">
+              <a href="/">MQGrader</a>
+              <span aria-hidden="true">›</span>
+              <span>Baremul</span>
+            </nav>
             <h1 class="page-h1">Baremul de corectare la matematică: ce este și cum îl folosești</h1>
             <p class="page-lede">Baremul e lista de pași după care dai punctajul. Fără el, fiecare lucrare se corectează după memoria ultimei lucrări. Aici e ce conține un barem bun, de unde vine și cum obții unul pentru testele tale.</p>
+            <p class="byline">Scris de <a href="/despre/">Laura Miron</a>, profesoară de matematică · actualizat 10 noiembrie 2026</p>
           </div>
 
+          <nav class="toc" aria-labelledby="cuprins">
+            <h2 class="toc-t" id="cuprins">Cuprins</h2>
+            <ol>
+              <li><a href="#ce-este">Ce este baremul de corectare</a></li>
+              <li><a href="#de-unde-vine">De unde vine baremul unui test</a></li>
+              <li><a href="#barem-bun">Cum arată un barem bun pentru un test de clasă</a></li>
+              <li><a href="#in-mqgrader">Cum obții un barem în MQGrader</a></li>
+              <li><a href="#intrebari">Întrebări frecvente</a></li>
+            </ol>
+          </nav>
+
           <div class="prose">
-            <h2>Ce este baremul de corectare</h2>
+            <h2 id="ce-este">Ce este baremul de corectare</h2>
             <p>Baremul este descrierea punctajului unui test: pentru fiecare exercițiu, pașii care se punctează și câte puncte valorează fiecare. Nu e încă o rezolvare — e contractul după care se dă nota.</p>
             <p>Un barem bun răspunde la trei întrebări, pentru fiecare exercițiu: ce trebuie să apară în lucrare ca să se acorde punctul, cât valorează fiecare pas și ce nu se punctează. Restul — cât de frumos e scris, dacă e ordonat, dacă are chenar — nu intră în punctaj.</p>
 
-            <h2>De unde vine baremul unui test</h2>
+            <h2 id="de-unde-vine">De unde vine baremul unui test</h2>
             <p>Depinde de test:</p>
             <ul>
               <li><b>La evaluările naționale</b> (Evaluarea Națională, bacalaureat), baremul e al ministerului și se publică după probă. Nu îl ai înainte, iar la corectare se aplică exact așa cum apare.</li>
@@ -133,7 +152,7 @@
               <li><b>La lucrările de la clasă</b> pe care le corectezi pe loc, uneori baremul e doar în cap. E în regulă până când ai două clase în aceeași zi.</li>
             </ul>
 
-            <h2>Cum arată un barem bun pentru un test de clasă</h2>
+            <h2 id="barem-bun">Cum arată un barem bun pentru un test de clasă</h2>
             <p>Nu are nevoie de un format anume. Are nevoie de câteva lucruri:</p>
             <ul>
               <li><b>Un rând pentru fiecare punct</b>, cu punctajul scris lângă el. „Rezolvare corectă — 5p” nu se poate urmări; „ecuația scrisă corect — 1p, discriminantul calculat — 1p, rădăcinile — 2p, verificarea — 1p” se poate.</li>
@@ -142,7 +161,7 @@
               <li><b>Ce nu se punctează</b>: calculele greșite care nu schimbă rezultatul, lipsa unității de măsură, desenul neatins. Spune-le o dată, ca să nu le hotărăști diferit la fiecare lucrare.</li>
             </ul>
 
-            <h2>Cum obții un barem în MQGrader</h2>
+            <h2 id="in-mqgrader">Cum obții un barem în MQGrader</h2>
             <p>Ai două căi. Alegi una când creezi testul sau mai târziu, din pagina testului:</p>
             <ol>
               <li><b>Încarci baremul tău.</b> Un fișier cu punctajul, așa cum îl ai. Se folosește ca atare.</li>
@@ -154,7 +173,7 @@
               <p>Un barem generat e o propunere, nu o decizie. Dacă ar corecta direct, ai avea 30 de lucrări punctate după un barem pe care nu l-ai citit — iar corectarea lor ar trebui luată de la capăt.</p>
             </div>
 
-            <h2>Întrebări frecvente</h2>
+            <h2 id="intrebari">Întrebări frecvente</h2>
             <ul class="qa">
               <li><h3>Pot corecta fără barem?</h3><p>Poți, dar atunci punctajul depinde de memoria ultimei lucrări corectate. MQGrader îți propune un barem din testul încărcat, iar tu îl verifici înainte să se corecteze ceva.</p></li>
               <li><h3>Cine stabilește punctajul final?</h3><p>Profesorul. Propunerea urmează baremul, iar punctele nesigure te așteaptă la verificare: accepți sau schimbi, iar decizia rămâne a ta.</p></li>
@@ -164,8 +183,12 @@
               <li><h3>Ce se întâmplă dacă un elev rezolvă altfel decât în barem?</h3><p>Punctul ajunge la tine ca punct de verificat, cu motivul. Dacă rezolvarea e corectă, îi dai punctajul întreg, chiar dacă metoda nu e cea din barem.</p></li>
             </ul>
 
-            <h2>Mai departe</h2>
-            <p>Cum se leagă baremul de restul corecturii, etapă cu etapă: <a href="/ghid/">Cum corectezi testele de matematică după barem</a>.</p>
+            <h2 id="citeste-si">Citește și</h2>
+            <ul class="read-on">
+              <li><a href="/ghid/">Cum corectezi testele de matematică după barem</a> — cele șase etape, unde se duce timpul și ce rămâne de hotărât profesorului.</li>
+              <li><a href="/despre/">Despre MQGrader și Laura Miron</a> — cine construiește platforma, de ce a apărut și ce nu face.</li>
+              <li><a href="/preturi/">Cât costă MQGrader</a> — ce include un cont demo și ce se întâmplă până apare un abonament.</li>
+            </ul>
           </div>
         </article>
 
