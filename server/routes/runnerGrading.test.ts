@@ -202,6 +202,20 @@ describe('POST /api/runner/submissions/:id/result', () => {
     expect(results.map((row) => [row.exercise_id, row.page])).toEqual([['I.1', 0], ['II.1', 2]]);
   });
 
+  it('keeps the areas of each answer for the teacher, and [] when the robot gave none', async () => {
+    const id = await upload(0, '2026-10-07T08:10:00.000Z', 2);
+    await claim();
+    const graded = result([4, 2]) as { items: Record<string, unknown>[] };
+    const area = { page: 2, x0: 0.1, y0: 0.25, x1: 0.8, y1: 0.5 };
+    graded.items[1]!.areas = [area, { page: 1, x0: 0.9, y0: 0.1, x1: 0.2, y1: 0.3 }];
+    expect((await sendResult(id, { ok: true, result: graded, model: 'm' })).status).toBe(200);
+    const read = await api.request('GET', `/api/admin/submissions/${id}`);
+    expect(read.body.submission.evaluation.items.map((item: { exerciseId: string; areas: unknown }) => [item.exerciseId, item.areas])).toEqual([
+      ['I.1', []],
+      ['II.1', [area]],
+    ]);
+  });
+
   it('saves the grading, computes the grade, and shows it to the teacher', async () => {
     const id = await upload(0, '2026-10-07T08:10:00.000Z');
     await claim();

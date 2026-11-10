@@ -933,11 +933,12 @@ export async function saveGrading(
     db
       .prepare(
         `INSERT INTO evaluation_items (evaluation_id, exercise_id, position, label, max_points, ai_points, points,
-           student_answer, comment, confidence, needs_review, review_reason, page)
+           student_answer, comment, confidence, needs_review, review_reason, page, areas)
          SELECT e.id, json_extract(j.value, '$.exerciseId'), json_extract(j.value, '$.position'), json_extract(j.value, '$.label'),
            json_extract(j.value, '$.maxPoints'), json_extract(j.value, '$.points'), json_extract(j.value, '$.points'),
            json_extract(j.value, '$.studentAnswer'), json_extract(j.value, '$.comment'), json_extract(j.value, '$.confidence'),
-           json_extract(j.value, '$.needsReview'), json_extract(j.value, '$.reviewReason'), json_extract(j.value, '$.page')
+           json_extract(j.value, '$.needsReview'), json_extract(j.value, '$.reviewReason'), json_extract(j.value, '$.page'),
+           COALESCE(json_extract(j.value, '$.areas'), '[]')
          FROM json_each(?) j JOIN evaluations e ON e.submission_id = ?
          WHERE ${GRADED_BY_RUN}`,
       )

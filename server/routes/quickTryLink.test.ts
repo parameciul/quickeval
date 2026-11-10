@@ -160,8 +160,11 @@ describe('the review through the link', () => {
     await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE quick_try = 1").run();
     await api.db.prepare("UPDATE submissions SET status = 'graded', graded_at = '2026-10-07T09:00:00.000Z' WHERE id = ?").bind(submissionId).run();
     await addEvaluation(api, submissionId, { items: [{ needsReview: true }] });
+    const area = { page: 1, x0: 0.1, y0: 0.2, x1: 0.6, y1: 0.4 };
+    await api.db.prepare('UPDATE evaluation_items SET areas = ?').bind(JSON.stringify([area])).run();
     const read = await api.request('GET', `/api/try/${token}/submissions/${submissionId}`);
     expect(read.status).toBe(200);
+    expect(read.body.submission.evaluation.items[0].areas).toEqual([area]);
     const itemId = read.body.submission.evaluation.items[0].id as number;
     const corrected = await api.request('PATCH', `/api/try/${token}/submissions/${submissionId}/items/${itemId}`, {
       gradedAt: '2026-10-07T09:00:00.000Z',

@@ -71,7 +71,7 @@ describe('GET /api/admin/submissions/:id', () => {
       .run();
     const itemId = async (exerciseId: string) =>
       (await api.db.prepare('SELECT id FROM evaluation_items WHERE exercise_id = ?').bind(exerciseId).first<{ id: number }>())!.id;
-    const item = { label: 'Exercițiu', maxPoints: 1, aiPoints: 1, points: 1, studentAnswer: 'r', comment: 'c', confidence: 'high', page: 0 };
+    const item = { label: 'Exercițiu', maxPoints: 1, aiPoints: 1, points: 1, studentAnswer: 'r', comment: 'c', confidence: 'high', page: 0, areas: [] };
 
     const res = await api.request('GET', `/api/admin/submissions/${submissionId}`);
     expect(res.body.submission.status).toBe('graded');

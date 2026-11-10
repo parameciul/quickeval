@@ -12,7 +12,7 @@ import {
 import { normalizeClassName } from './classes.ts';
 import type { TestFileKind, TestVariant } from './files.ts';
 import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
-import { type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
+import { type AnswerArea, type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST, studentNameKey } from './students.ts';
 import { type AnalysisStatus, cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
@@ -968,6 +968,9 @@ export interface EvaluationItemInfo {
   reviewReason: string;
   // The page of the student's work where the answer is, counted from 1; 0 when unknown.
   page: number;
+  // Where the answer is on the pages, as the robot saw it; [] when it gave none.
+  // Only the teacher's review reads it: no student page gets it.
+  areas: AnswerArea[];
   // The teacher marked the item as checked.
   reviewed: boolean;
   changedByTeacher: boolean;
