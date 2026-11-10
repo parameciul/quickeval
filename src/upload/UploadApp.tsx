@@ -301,12 +301,16 @@ export function ResultLinkBox({ resultToken, studentName, fresh = false }: { res
       <p>
         <a href={url}>Vezi rezultatul</a>
       </p>
-      <div className="form-row">
-        <input type="text" readOnly value={url} aria-label={`Linkul cu rezultatul${studentName ? ` pentru ${studentName}` : ''}`} />
+      {/* The whole address as text, never cut off: students often keep it as
+          a screenshot, and a cut address in the picture is a broken link. */}
+      <p className="result-link-url">
+        {url}
+      </p>
+      <p>
         <button type="button" className="button-quiet button-small" onClick={copy}>
           {copied ? 'Copiat!' : 'Copiază linkul'}
         </button>
-      </div>
+      </p>
       {fresh && (
         <p className="hint">
           Rezultatul apare aici după ce profesorul publică rezultatele: nota, punctajul pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.

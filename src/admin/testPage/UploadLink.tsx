@@ -1,7 +1,8 @@
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { saveFile } from '../pdf/share.ts';
 
 // The address students open: https://<host>/u/<token>.
 export function uploadLink(token: string): string {
@@ -9,8 +10,21 @@ export function uploadLink(token: string): string {
 }
 
 // The link for the students: the address with a Copy button, a QR code, and a
-// full-screen QR code for the class projector.
-export function UploadLink({ token, label = 'Linkul pentru elevi', inputId = 'upload-url' }: { token: string; label?: string; inputId?: string }) {
+// full-screen QR code for the class projector. `qr` false shows the address
+// alone; `downloadName` adds a button that saves the QR code as a PNG file.
+export function UploadLink({
+  token,
+  label = 'Linkul pentru elevi',
+  inputId = 'upload-url',
+  qr = true,
+  downloadName,
+}: {
+  token: string;
+  label?: string;
+  inputId?: string;
+  qr?: boolean;
+  downloadName?: string;
+}) {
   const url = uploadLink(token);
   const [copied, setCopied] = useState<'yes' | 'failed' | null>(null);
   const [fullScreen, setFullScreen] = useState(false);
@@ -35,16 +49,67 @@ export function UploadLink({ token, label = 'Linkul pentru elevi', inputId = 'up
         {copied === 'yes' && <span role="status">Copiat!</span>}
         {copied === 'failed' && <span role="status">Nu am putut copia. Selectează linkul și copiază-l de mână.</span>}
       </div>
-      <div className="qr-row">
-        <QRCodeSVG value={url} size={200} marginSize={4} title="Codul QR al linkului" className="qr" />
-        <button type="button" className="button-quiet button-small qr-full" onClick={() => setFullScreen(true)}>
-          Arată codul QR pe tot ecranul
-        </button>
-      </div>
+      {qr && (
+        <div className="qr-row">
+          <QRCodeSVG value={url} size={200} marginSize={4} title="Codul QR al linkului" className="qr" />
+          <div className="qr-actions">
+            {downloadName && <QrDownload url={url} fileName={downloadName} />}
+            <button type="button" className="button-quiet button-small qr-full" onClick={() => setFullScreen(true)}>
+              Arată codul QR pe tot ecranul
+            </button>
+          </div>
+        </div>
+      )}
       {fullScreen && <QrOverlay url={url} onClose={() => setFullScreen(false)} />}
     </div>
   );
 }
+
+// Saves the QR code as a PNG file, big enough to print or to send to the
+// class in a chat. The canvas is drawn hidden, only on a click: the QR
+// library draws it in its own effect, which runs before this one.
+function QrDownload({ url, fileName }: { url: string; fileName: string }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [drawing, setDrawing] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!drawing) return;
+    const drawn = canvas.current;
+    if (!drawn || typeof drawn.toBlob !== 'function') {
+      setFailed(true);
+      setDrawing(false);
+      return;
+    }
+    drawn.toBlob((blob) => {
+      if (blob) saveFile(blob, fileName);
+      else setFailed(true);
+      setDrawing(false);
+    }, 'image/png');
+  }, [drawing, fileName]);
+  return (
+    <>
+      {drawing && <QRCodeCanvas ref={canvas} value={url} size={1024} marginSize={4} hidden aria-hidden="true" />}
+      <button
+        type="button"
+        className="button-quiet button-small"
+        disabled={drawing}
+        onClick={() => {
+          setFailed(false);
+          setDrawing(true);
+        }}
+      >
+        Descarcă codul QR
+      </button>
+      {failed && <span role="status">Nu am putut descărca codul QR.</span>}
+    </>
+  );
+}
+
+// The multi-upload link is the teacher's: students who open it do not find
+// the result links their own phone kept, so it is named as the teacher's.
+export const MULTI_LABEL = 'Doar pentru profesor: linkul pentru mai multe încărcări';
+const MULTI_HINT =
+  'Cu acest link încarci tu, pe rând, lucrările mai multor elevi de pe un singur telefon (de exemplu, pentru elevii fără telefon). Nu-l da elevilor: ei folosesc linkul pentru elevi.';
 
 // The link that uploads for many students on one phone: for students without
 // a device, or for the teacher. Made only when the teacher asks for it, so
@@ -64,8 +129,8 @@ export function MultiUploadLink({
   if (token) {
     return (
       <div className="upload-link">
-        <p className="hint">Pentru elevii fără telefon sau pentru profesor: cu acest link se trimit lucrări pentru mai mulți elevi, pe rând.</p>
-        <UploadLink token={token} label="Linkul pentru mai multe încărcări" inputId="multi-upload-url" />
+        <p className="hint">{MULTI_HINT}</p>
+        <UploadLink token={token} label={MULTI_LABEL} inputId="multi-upload-url" />
       </div>
     );
   }
@@ -104,8 +169,8 @@ function MultiUploadCreator({
 
   return (
     <div className="upload-link">
-      <h3>Linkul pentru mai multe încărcări</h3>
-      <p className="hint">Pentru elevii fără telefon sau pentru profesor: cu acest link se trimit lucrări pentru mai mulți elevi, pe rând.</p>
+      <h3>{MULTI_LABEL}</h3>
+      <p className="hint">{MULTI_HINT}</p>
       <button type="button" className="button-quiet" disabled={busy} onClick={createLink}>
         Creează linkul pentru mai multe încărcări
       </button>

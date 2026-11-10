@@ -3139,6 +3139,42 @@ input[type="file"] {
   margin-left: auto;
 }
 
+/* The QR code's buttons: full screen, and the PNG download when offered. */
+.qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.qr-actions .qr-full {
+  margin-left: 0;
+}
+
+/* Rezultate, once published: where students find their results. Green edge:
+   a done step, not something that waits. */
+.student-access {
+  gap: 0.75rem;
+  margin-block: 1rem;
+  border-color: var(--ok-fg);
+  border-left-width: 4px;
+}
+
+.student-access h3 {
+  margin: 0;
+  color: var(--ok-fg);
+}
+
+.student-access p {
+  margin: 0;
+}
+
+.student-access-teacher {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--rule);
+}
+
 .qr-overlay {
   position: fixed;
   inset: 0;
@@ -4118,9 +4154,20 @@ table.items tr.edit-row > td {
   margin: 0 0 0.5rem;
 }
 
-.result-link-box input[type="text"] {
-  flex: 1 1 16rem;
+/* The whole result link, as text that wraps: students keep it as a
+   screenshot, so no part of it may be cut off, on a phone too. */
+.result-link-url {
   min-width: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
 }
 
 .tips {

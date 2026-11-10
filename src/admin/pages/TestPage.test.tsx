@@ -643,10 +643,10 @@ describe('TestPage', () => {
     const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN });
     renderAdmin(`${PAGE}#in-clasa`, api);
     expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(screen.queryByLabelText('Linkul pentru mai multe încărcări')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Doar pentru profesor: linkul pentru mai multe încărcări')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Creează linkul pentru mai multe încărcări' }));
     expect(api.createMultiUploadLink).toHaveBeenCalledWith('6E2-26T1');
-    expect(await screen.findByLabelText('Linkul pentru mai multe încărcări')).toHaveValue(
+    expect(await screen.findByLabelText('Doar pentru profesor: linkul pentru mai multe încărcări')).toHaveValue(
       `${window.location.origin}/u/${FAKE_MULTI_TOKEN}`,
     );
   });
@@ -654,7 +654,7 @@ describe('TestPage', () => {
   it('shows both upload links when the multi-upload link already exists', async () => {
     renderAdmin(`${PAGE}#in-clasa`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN, multiUploadToken: FAKE_MULTI_TOKEN }));
     expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(screen.getByLabelText('Linkul pentru mai multe încărcări')).toHaveValue(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
+    expect(screen.getByLabelText('Doar pentru profesor: linkul pentru mai multe încărcări')).toHaveValue(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
     expect(screen.queryByRole('button', { name: 'Creează linkul pentru mai multe încărcări' })).not.toBeInTheDocument();
   });
 
