@@ -16,6 +16,7 @@ import {
   findStudentSubmission,
   findTestByToken,
   listLinkStudents,
+  releaseSubmission,
   type LinkTest,
   type SessionRecord,
 } from '../db/links.ts';
@@ -140,6 +141,17 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (submissionId === null) throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
     const created: UploadSession = { submissionId, studentId, studentName: student.fullName, status: 'uploading', files: [] };
     return c.json({ secret, session: created }, 201);
+  });
+
+  // "Alege alt nume": the student leaves the name, so the name is free again.
+  // Only an upload with no file and not sent is deleted; one with files stays
+  // for the teacher.
+  routes.delete('/:token/sessions', async (c) => {
+    const test = await linkTest(c);
+    const secret = c.req.header(SESSION_HEADER);
+    if (!secret) throw new ApiError(401, 'no_session', 'Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
+    const released = await releaseSubmission(c.env.DB, test.id, await sha256Hex(secret));
+    return c.json({ released });
   });
 
   // The student's payments for this test. The payer is the student of this

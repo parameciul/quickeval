@@ -66,6 +66,15 @@ export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
       return { secret: created.secret, session: view(created) };
     }),
     getSession: vi.fn(async (_token: string, secret: string) => view(bySecret(secret))),
+    releaseSession: vi.fn(async (_token: string, secret: string) => {
+      const index = sessions.findIndex((s) => s.secret === secret);
+      const session = sessions[index];
+      if (!session || session.sent || session.files.length > 0) return false;
+      sessions.splice(index, 1);
+      const student = info.students.find((s) => s.id === session.studentId);
+      if (student) student.state = 'none';
+      return true;
+    }),
     uploadFile: vi.fn(async (_token: string, secret: string, file: Blob, name: string, onProgress: (sent: number) => void) => {
       const session = bySecret(secret);
       onProgress(1);

@@ -175,7 +175,14 @@ function UploadTableRow({
         {!row.active && <span className="tag">a plecat</span>}
       </th>
       <td data-label="Stare">
-        {uploadStatusLabel(row.status)}
+        {row.status === 'uploading' ? (row.fileCount > 0 ? 'Deschis, cu fișiere' : 'Deschis, fără fișiere') : uploadStatusLabel(row.status)}
+        {row.status === 'uploading' && (
+          <p className="hint">
+            {row.fileCount > 0
+              ? 'Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”. Numele rămâne blocat până termină sau până îl deblochezi.'
+              : 'Elevul a ales numele, dar nu a adăugat nimic. Dacă a ales numele greșit, deblochează-l.'}
+          </p>
+        )}
         {row.autoSubmitted && row.status !== 'graded' && <span className="tag">Fără confirmare</span>}
         {row.resultsOpen && <span className="tag">Publicat</span>}
         {row.status === 'failed' && row.lastError && <p className="hint">{row.lastError}</p>}
@@ -199,35 +206,53 @@ function UploadTableRow({
                 Reîncearcă
               </button>
             )}
-            <RowMenu
-              studentName={row.studentName}
-              menuId={`upload-menu-${submissionId}`}
-              items={[
-                ...(gradedAt !== null
-                  ? [
-                      {
-                        label: 'Recorectează',
-                        busy: regrade.isPending,
-                        onChoose: () => {
-                          if (window.confirm(`Recorectezi lucrarea elevului ${row.studentName}? Corecturile tale se pierd.`)) {
-                            regrade.mutate({ submissionId, gradedAt });
-                          }
+            {row.status === 'uploading' && (
+              <button
+                type="button"
+                className="button-quiet button-small"
+                disabled={reset.isPending}
+                onClick={() => {
+                  const message =
+                    row.fileCount > 0
+                      ? `Ștergi cele ${row.fileCount} fișiere ale elevului ${row.studentName} și deblochezi numele? Elevul poate începe de la capăt.`
+                      : `Deblochezi numele ${row.studentName}? Elevul poate alege din nou numele. Nu se pierde nimic.`;
+                  if (window.confirm(message)) reset.mutate({ submissionId, startedAt });
+                }}
+              >
+                {row.fileCount > 0 ? 'Șterge și deblochează' : 'Deblochează'}
+              </button>
+            )}
+            {row.status !== 'uploading' && (
+              <RowMenu
+                studentName={row.studentName}
+                menuId={`upload-menu-${submissionId}`}
+                items={[
+                  ...(gradedAt !== null
+                    ? [
+                        {
+                          label: 'Recorectează',
+                          busy: regrade.isPending,
+                          onChoose: () => {
+                            if (window.confirm(`Recorectezi lucrarea elevului ${row.studentName}? Corecturile tale se pierd.`)) {
+                              regrade.mutate({ submissionId, gradedAt });
+                            }
+                          },
                         },
-                      },
-                    ]
-                  : []),
-                {
-                  label: 'Resetează',
-                  danger: true,
-                  busy: reset.isPending,
-                  onChoose: () => {
-                    if (window.confirm(`Ștergi încărcarea elevului ${row.studentName}? Elevul o poate lua de la capăt.`)) {
-                      reset.mutate({ submissionId, startedAt });
-                    }
+                      ]
+                    : []),
+                  {
+                    label: 'Resetează',
+                    danger: true,
+                    busy: reset.isPending,
+                    onChoose: () => {
+                      if (window.confirm(`Ștergi încărcarea elevului ${row.studentName}? Elevul o poate lua de la capăt.`)) {
+                        reset.mutate({ submissionId, startedAt });
+                      }
+                    },
                   },
-                },
-              ]}
-            />
+                ]}
+              />
+            )}
           </span>
         )}
         {reset.error && <ErrorMessage error={reset.error} />}

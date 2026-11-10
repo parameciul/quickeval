@@ -414,17 +414,55 @@ describe('TestPage', () => {
     expect(marin).not.toHaveClass('has-select');
   });
 
-  it('resets an upload only after the teacher confirms', async () => {
+  it('unlocks an open upload with files only after the teacher confirms', async () => {
     const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin(`${PAGE}#in-clasa`, api);
     const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
-    await chooseInRow(stan, 'Stan Eva', 'Resetează');
+    expect(within(stan).getByText('Deschis, cu fișiere')).toBeInTheDocument();
+    expect(within(stan).queryByRole('button', { name: 'Mai multe pentru Stan Eva' })).not.toBeInTheDocument();
+    await userEvent.click(within(stan).getByRole('button', { name: 'Șterge și deblochează' }));
     expect(api.resetSubmission).not.toHaveBeenCalled();
-    await chooseInRow(stan, 'Stan Eva', 'Resetează');
-    expect(confirm).toHaveBeenLastCalledWith('Ștergi încărcarea elevului Stan Eva? Elevul o poate lua de la capăt.');
+    await userEvent.click(within(stan).getByRole('button', { name: 'Șterge și deblochează' }));
+    expect(confirm).toHaveBeenLastCalledWith('Ștergi cele 1 fișiere ale elevului Stan Eva și deblochezi numele? Elevul poate începe de la capăt.');
     expect(api.resetSubmission).toHaveBeenCalledWith(6, '2026-10-06T07:25:00.000Z');
     expect(await within(stan).findByText('Nu a trimis')).toBeInTheDocument();
+  });
+
+  it('shows an open upload with no files as such, with a plain Deblochează button', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [
+        fakeTest({ status: 'open', uploadToken: FAKE_TOKEN }, [
+          fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 0, startedAt: '2026-10-06T07:25:00.000Z' }),
+        ]),
+      ],
+    });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin(`${PAGE}#in-clasa`, api);
+    const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
+    expect(within(stan).getByText('Deschis, fără fișiere')).toBeInTheDocument();
+    await userEvent.click(within(stan).getByRole('button', { name: 'Deblochează' }));
+    expect(confirm).toHaveBeenCalledWith('Deblochezi numele Stan Eva? Elevul poate alege din nou numele. Nu se pierde nimic.');
+    expect(api.resetSubmission).toHaveBeenCalledWith(6, '2026-10-06T07:25:00.000Z');
+  });
+
+  it('keeps Resetează under ⋯ for a sent upload, and no Deblochează button', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [
+        fakeTest({ status: 'open', uploadToken: FAKE_TOKEN }, [
+          fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1, startedAt: '2026-10-06T07:25:00.000Z' }),
+        ]),
+      ],
+    });
+    renderAdmin(`${PAGE}#in-clasa`, api);
+    const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
+    expect(within(stan).queryByRole('button', { name: /deblochează/i })).not.toBeInTheDocument();
+    await userEvent.click(within(stan).getByRole('button', { name: 'Mai multe pentru Stan Eva' }));
+    expect(within(stan).getByRole('menuitem', { name: 'Resetează' })).toBeInTheDocument();
   });
 
   it('keeps a row\'s rarer actions under ⋯, which Esc closes with the focus back on it', async () => {
@@ -434,7 +472,7 @@ describe('TestPage', () => {
       students: {},
       tests: [
         fakeTest({ status: 'open', uploadToken: FAKE_TOKEN }, [
-          fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1, startedAt: '2026-10-06T07:25:00.000Z' }),
+          fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1, startedAt: '2026-10-06T07:25:00.000Z' }),
         ]),
       ],
     });
@@ -474,7 +512,7 @@ describe('TestPage', () => {
       students: {},
       tests: [
         fakeTest({ status: 'open', uploadToken: FAKE_TOKEN }, [
-          fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1, startedAt: '2026-10-06T07:25:00.000Z' }),
+          fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1, startedAt: '2026-10-06T07:25:00.000Z' }),
         ]),
       ],
     });

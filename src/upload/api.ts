@@ -9,6 +9,9 @@ export interface UploadApi {
   // `secret`: the one this phone saved for the student, if any.
   startSession(token: string, studentId: number, secret: string | null): Promise<SessionStart>;
   getSession(token: string, secret: string): Promise<UploadSession>;
+  // The student leaves the name. The server frees it when the upload has no
+  // file and was not sent; the answer says whether it did.
+  releaseSession(token: string, secret: string): Promise<boolean>;
   // onProgress gets the sent share of the file, from 0 to 1.
   uploadFile(token: string, secret: string, file: Blob, name: string, onProgress: (sent: number) => void): Promise<SubmissionFile>;
   deleteFile(token: string, secret: string, fileId: number): Promise<void>;
@@ -119,6 +122,7 @@ export function createUploadClient(options: UploadClientOptions = {}): UploadApi
     getLink: (token) => json<LinkInfo>('GET', base(token), null),
     startSession: (token, studentId, secret) => json<SessionStart>('POST', `${base(token)}/sessions`, secret, { studentId }),
     getSession: async (token, secret) => (await json<{ session: UploadSession }>('GET', `${base(token)}/files`, secret)).session,
+    releaseSession: async (token, secret) => (await json<{ released: boolean }>('DELETE', `${base(token)}/sessions`, secret)).released,
     uploadFile: (token, secret, file, name, onProgress) => upload(`${base(token)}/files`, secret, file, name, onProgress),
     deleteFile: async (token, secret, fileId) => {
       await json('DELETE', `${base(token)}/files/${fileId}`, secret);

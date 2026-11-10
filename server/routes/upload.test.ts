@@ -177,6 +177,53 @@ describe('POST /api/u/:token/sessions', () => {
   });
 });
 
+describe('DELETE /api/u/:token/sessions', () => {
+  const release = (secret?: string) => api.request('DELETE', `/api/u/${token}/sessions`, undefined, session(secret));
+  const uploads = (studentId: number) =>
+    api.db.prepare('SELECT COUNT(*) AS n FROM submissions WHERE student_id = ?').bind(studentId).first<{ n: number }>();
+
+  it('frees the name of an upload with no file, so another phone can take it', async () => {
+    const secret = await newSession(pop);
+    expect((await startSession(pop)).status).toBe(409);
+    const res = await release(secret);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ released: true });
+    expect(await uploads(pop)).toEqual({ n: 0 });
+    expect((await startSession(pop)).status).toBe(201);
+  });
+
+  it('keeps an upload that has files', async () => {
+    const secret = await newSession(pop);
+    expect((await putFile(secret, jpeg(), 'image/jpeg')).status).toBe(201);
+    expect((await release(secret)).body).toEqual({ released: false });
+    expect(await uploads(pop)).toEqual({ n: 1 });
+    expect((await startSession(pop)).status).toBe(409);
+  });
+
+  it('keeps an upload that was sent', async () => {
+    const secret = await newSession(pop);
+    await putFile(secret, jpeg(), 'image/jpeg');
+    await api.request('POST', `/api/u/${token}/confirm`, undefined, session(secret));
+    expect((await release(secret)).body).toEqual({ released: false });
+    expect(await uploads(pop)).toEqual({ n: 1 });
+  });
+
+  it('does nothing for a wrong secret, and refuses a request with none', async () => {
+    await newSession(pop);
+    expect((await release('wrong-secret')).body).toEqual({ released: false });
+    expect(await uploads(pop)).toEqual({ n: 1 });
+    expect((await release()).status).toBe(401);
+  });
+
+  it('frees only the upload of this phone', async () => {
+    const popSecret = await newSession(pop);
+    await newSession(ionescu);
+    await release(popSecret);
+    expect(await uploads(pop)).toEqual({ n: 0 });
+    expect(await uploads(ionescu)).toEqual({ n: 1 });
+  });
+});
+
 describe('PUT /api/u/:token/files', () => {
   it('stores each file in the student folder, in upload order', async () => {
     const secret = await newSession(pop);

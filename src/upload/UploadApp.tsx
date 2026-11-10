@@ -80,6 +80,31 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
     [api],
   );
 
+  // "Alege alt nume": gives the name back when the upload is still empty, then
+  // shows the names. A failed call changes nothing: the name stays locked and
+  // the teacher can unlock it.
+  const leaveName = useCallback(
+    async (linkToken: string, info: LinkInfo, session: ActiveSession) => {
+      let freed = false;
+      try {
+        freed = await api.releaseSession(linkToken, session.secret);
+      } catch {
+        // Network trouble: go on to the names as before.
+      }
+      let current = info;
+      if (freed) {
+        forgetSecret(linkToken, session.studentId);
+        try {
+          current = await api.getLink(linkToken);
+        } catch {
+          // Keep the names already on screen.
+        }
+      }
+      setPhase({ kind: 'names', info: current, message: null });
+    },
+    [api],
+  );
+
   // Loads the link page; `message` is shown above the names.
   const load = useCallback(
     async (message: string | null, isCurrent: () => boolean = () => true) => {
@@ -186,13 +211,15 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           {phase.kind === 'upload' && token && (
             <>
               {/* On a shared phone the app may reopen a classmate's upload: this
-                  goes back to the names and keeps that upload's secret. */}
+                  goes back to the names. An upload with no file is given up, so
+                  its name is free for the right student; one with files keeps
+                  its secret and stays locked. */}
               <p className="hint">
                 Nu ești {phase.session.studentName}?{' '}
                 <button
                   type="button"
                   className="button-quiet button-small"
-                  onClick={() => setPhase({ kind: 'names', info: phase.info, message: null })}
+                  onClick={() => void leaveName(token, phase.info, phase.session)}
                 >
                   Alege alt nume
                 </button>

@@ -90,8 +90,32 @@ describe('UploadApp', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Alege alt nume' }));
     expect(screen.getByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
     expect(api.startSession).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem(`qe.session.${LINK_TOKEN}.11`)).toBe('secret-11');
+    expect(api.releaseSession).toHaveBeenCalledWith(LINK_TOKEN, 'secret-11');
+    expect(localStorage.getItem(`qe.session.${LINK_TOKEN}.11`)).toBeNull();
     expectNoGradingWords();
+  });
+
+  it('frees the name of an empty upload, so the right student can take it', async () => {
+    const api = createFakeUploadApi();
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pop Ion' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Da, încep' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Alege alt nume' }));
+    expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    // The name is free again: another phone can start it.
+    await expect(api.startSession(LINK_TOKEN, 11, null)).resolves.toMatchObject({ secret: expect.any(String) });
+  });
+
+  it('keeps the name locked when the upload has files', async () => {
+    const api = createFakeUploadApi();
+    api.seedSession(11, [{ id: 1, name: 'p.jpg', contentType: 'image/jpeg', size: 1, position: 1 }]);
+    saveSecret(LINK_TOKEN, 11, 'secret-11');
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Alege alt nume' }));
+    expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    expect(api.releaseSession).toHaveBeenCalled();
+    expect(localStorage.getItem(`qe.session.${LINK_TOKEN}.11`)).toBe('secret-11');
+    await expect(api.startSession(LINK_TOKEN, 11, null)).rejects.toMatchObject({ code: 'other_device' });
   });
 
   it('forgets a secret of an upload that moved to another phone, without an alert', async () => {
