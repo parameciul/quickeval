@@ -161,22 +161,18 @@ interface ResultRow {
 // caller refuses the page while neither the test nor this upload is published.
 // While closed the answer carries no files and no grading, so polling an
 // unpublished link costs one query.
+const RESULT_SELECT = `SELECT t.code, t.title, c.name AS class_name, t.results_open AS test_open, s.results_open AS submission_open,
+    s.id AS submission_id, s.status, st.full_name AS student_name
+  FROM submissions s
+  JOIN tests t ON t.id = s.test_id
+  JOIN classes c ON c.id = t.class_id
+  JOIN students st ON st.id = s.student_id`;
+
 export async function findResultByToken(
   db: D1Database,
   resultToken: string,
 ): Promise<{ result: StudentResultView; resultsOpen: boolean } | null> {
-  const row = await db
-    .prepare(
-      `SELECT t.code, t.title, c.name AS class_name, t.results_open AS test_open, s.results_open AS submission_open,
-          s.id AS submission_id, s.status, st.full_name AS student_name
-        FROM submissions s
-        JOIN tests t ON t.id = s.test_id
-        JOIN classes c ON c.id = t.class_id
-        JOIN students st ON st.id = s.student_id
-        WHERE s.result_token = ?`,
-    )
-    .bind(resultToken)
-    .first<ResultRow>();
+  const row = await db.prepare(`${RESULT_SELECT} WHERE s.result_token = ?`).bind(resultToken).first<ResultRow>();
   if (!row) return null;
   const open = row.test_open === 1 || row.submission_open === 1;
   if (!open) {
@@ -191,9 +187,20 @@ export async function findResultByToken(
     };
     return { result, resultsOpen: false };
   }
+  return { result: await openResult(db, row), resultsOpen: open };
+}
+
+// A Quick Try's student result, by its one paper: the same page as above,
+// always open (the try's link is its key).
+export async function findResultBySubmission(db: D1Database, submissionId: number): Promise<StudentResultView | null> {
+  const row = await db.prepare(`${RESULT_SELECT} WHERE s.id = ?`).bind(submissionId).first<ResultRow>();
+  return row ? openResult(db, row) : null;
+}
+
+async function openResult(db: D1Database, row: ResultRow): Promise<StudentResultView> {
   const files = (await listSubmissionFiles(db, row.submission_id)).map(publicFile);
   const evaluation = await getEvaluation(db, row.submission_id);
-  const result: StudentResultView = {
+  return {
     testCode: row.code,
     testTitle: row.title,
     className: row.class_name,
@@ -202,7 +209,6 @@ export async function findResultByToken(
     files: files satisfies SubmissionFile[],
     evaluation: evaluation ? toStudentEvaluation(evaluation) : null,
   };
-  return { result, resultsOpen: open };
 }
 
 function toStudentEvaluation(evaluation: {

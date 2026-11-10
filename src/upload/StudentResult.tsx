@@ -3,12 +3,12 @@ import type { StudentResultView } from '../../shared/api.ts';
 import { formatPoints } from '../../shared/scoring.ts';
 import { formatFileSize, pointsLevel } from '../ui/format.ts';
 import { MathText } from '../ui/MathText.tsx';
-import { resultFileUrl } from './api.ts';
 
 // One student's result page: the grade, the points and comments per exercise,
 // and the final words. Read-only: the only button shows or hides the files.
-// Nothing here tells how the work was graded.
-export function StudentResult({ result, resultToken }: { result: StudentResultView; resultToken: string }) {
+// Nothing here tells how the work was graded. `fileUrl` gives the address of a
+// page: the student app's result link, or a Quick Try's link.
+export function StudentResult({ result, fileUrl }: { result: StudentResultView; fileUrl: (fileId: number) => string }) {
   const [filesOpen, setFilesOpen] = useState(false);
   const evaluation = result.evaluation;
   return (
@@ -23,7 +23,7 @@ export function StudentResult({ result, resultToken }: { result: StudentResultVi
           {filesOpen ? 'Ascunde fișierele' : 'Arată fișierele'}
         </button>
       </div>
-      {filesOpen && <ResultFiles result={result} resultToken={resultToken} />}
+      {filesOpen && <ResultFiles result={result} fileUrl={fileUrl} />}
       {evaluation ? (
         <>
           <h2>Rezultatul tău</h2>
@@ -106,12 +106,12 @@ export function StudentResult({ result, resultToken }: { result: StudentResultVi
   );
 }
 
-function ResultFiles({ result, resultToken }: { result: StudentResultView; resultToken: string }) {
+function ResultFiles({ result, fileUrl }: { result: StudentResultView; fileUrl: (fileId: number) => string }) {
   if (result.files.length === 0) return <p className="hint">Nu ai încă niciun fișier aici.</p>;
   return (
     <ol className="page-files">
       {result.files.map((file, index) => {
-        const url = resultFileUrl(resultToken, file.id);
+        const url = fileUrl(file.id);
         const caption = `Pagina ${index + 1}: ${file.name} · ${formatFileSize(file.size)}`;
         if (file.contentType.startsWith('image/')) {
           return (
