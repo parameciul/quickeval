@@ -5,6 +5,7 @@ import ghidRaw from '../../ghid/index.html?raw';
 import landingRaw from '../../index.html?raw';
 import preturiRaw from '../../preturi/index.html?raw';
 import llms from '../../public/llms.txt?raw';
+import headers from '../../public/_headers?raw';
 import { expandPartials } from './partials.ts';
 
 // The pages that answer a search, beside the landing page. They are plain
@@ -22,13 +23,13 @@ const [ghid, barem, despre, preturi, landing] = [...RAW, landingRaw].map(expandP
   string,
 ];
 
-type Page = { path: string; url: string; html: string; name: string };
+type Page = { path: string; url: string; image: string; html: string; name: string };
 
 const PAGES: Page[] = [
-  { path: '/ghid/', url: 'https://mqgrader.ro/ghid/', html: ghid, name: 'Ghidul corectării' },
-  { path: '/barem/', url: 'https://mqgrader.ro/barem/', html: barem, name: 'Baremul' },
-  { path: '/despre/', url: 'https://mqgrader.ro/despre/', html: despre, name: 'Despre' },
-  { path: '/preturi/', url: 'https://mqgrader.ro/preturi/', html: preturi, name: 'Cât costă' },
+  { path: '/ghid/', url: 'https://mqgrader.ro/ghid/', image: 'https://mqgrader.ro/og-ghid.png', html: ghid, name: 'Ghidul corectării' },
+  { path: '/barem/', url: 'https://mqgrader.ro/barem/', image: 'https://mqgrader.ro/og-barem.png', html: barem, name: 'Baremul' },
+  { path: '/despre/', url: 'https://mqgrader.ro/despre/', image: 'https://mqgrader.ro/og-despre.png', html: despre, name: 'Despre' },
+  { path: '/preturi/', url: 'https://mqgrader.ro/preturi/', image: 'https://mqgrader.ro/og-preturi.png', html: preturi, name: 'Cât costă' },
 ];
 
 const LINKS = ['/ghid/', '/barem/', '/despre/', '/preturi/'];
@@ -39,7 +40,7 @@ const all = (doc: Document, selector: string) => Array.from(doc.querySelectorAll
 const landingDoc = parse(landing);
 
 describe('the pages that answer a search', () => {
-  it.each(PAGES)('$path has one heading, its own address and its own title', ({ url, html }) => {
+  it.each(PAGES)('$path has one heading, its own address and its own title', ({ url, image, html }) => {
     const doc = parse(html);
     expect(doc.documentElement.getAttribute('lang')).toBe('ro');
     expect(all(doc, 'h1').map(text)).toHaveLength(1);
@@ -53,7 +54,11 @@ describe('the pages that answer a search', () => {
     expect(description.length).toBeLessThanOrEqual(165);
     // The share card points at the page itself, not at the landing page.
     expect(doc.querySelector('meta[property="og:url"]')?.getAttribute('content')).toBe(url);
-    expect(doc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe('https://mqgrader.ro/og-image.png');
+    expect(doc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(image);
+    expect(doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')).toBe(image);
+    expect(doc.querySelector('meta[property="og:image:width"]')?.getAttribute('content')).toBe('1200');
+    expect(doc.querySelector('meta[property="og:image:height"]')?.getAttribute('content')).toBe('630');
+    expect((doc.querySelector('meta[property="og:image:alt"]')?.getAttribute('content') ?? '').length).toBeGreaterThan(30);
     expect(doc.querySelector('meta[name="twitter:card"]')?.getAttribute('content')).toBe('summary_large_image');
     // No page is a copy of another: the address is in the file it belongs to.
     expect(html).not.toContain('quickeval.pages.dev');
@@ -90,6 +95,65 @@ describe('the pages that answer a search', () => {
       .map((href) => href.split('#')[0] ?? '');
     const known = new Set(['/', ...LINKS, '/teacher/']);
     for (const href of internal) expect(known.has(href) || href.startsWith('/teacher/')).toBe(true);
+    // A link that stays on the page goes to a heading that is there.
+    const anchors = all(doc, 'a[href^="#"]').map((a) => (a.getAttribute('href') ?? '').slice(1));
+    for (const id of anchors) expect(doc.getElementById(id), id).not.toBeNull();
+  });
+
+  it.each(PAGES)('$path shows the trail its structured data claims', ({ html, name }) => {
+    const doc = parse(html);
+    const crumbs = all(doc, '.crumbs a, .crumbs span:not([aria-hidden])').map(text);
+    expect(crumbs).toEqual(['MQGrader', name]);
+    const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
+    const nodes: { '@type': string; itemListElement?: { position: number; name: string; item: string }[] }[] = ld['@graph'];
+    const trail = nodes.find((n) => n['@type'] === 'BreadcrumbList')!.itemListElement!;
+    expect(trail.map((e) => e.name)).toEqual(crumbs);
+  });
+
+  it.each(PAGES)('$path says who wrote it and when, and the date is the one in the data', ({ html, url }) => {
+    const doc = parse(html);
+    const byline = text(doc.querySelector('.byline'));
+    expect(byline).toContain('Laura Miron');
+    expect(byline).toContain('10 noiembrie 2026');
+    const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
+    const nodes: {
+      '@type': string;
+      url?: string;
+      datePublished?: string;
+      dateModified?: string;
+      publisher?: { '@id': string };
+      author?: { '@id': string };
+    }[] = ld['@graph'];
+    const page = nodes.find((n) => n['@type'] === 'WebPage')!;
+    expect(page.url).toBe(url);
+    expect(page.datePublished).toBe('2026-11-10');
+    expect(page.dateModified).toBe('2026-11-10');
+    expect(page.publisher?.['@id']).toBe('https://mqgrader.ro/#organization');
+    expect(page.author?.['@id']).toBe('https://mqgrader.ro/#laura-miron');
+  });
+
+  it.each(PAGES)('$path offers a table of contents that reaches its own sections', ({ html }) => {
+    const doc = parse(html);
+    const nav = doc.querySelector('nav.toc');
+    // Only the two long pages carry one; both must resolve.
+    if (!nav) return;
+    const hrefs = Array.from(nav.querySelectorAll('a[href^="#"]'), (a) => (a.getAttribute('href') ?? '').slice(1));
+    expect(hrefs.length).toBeGreaterThanOrEqual(4);
+    for (const id of hrefs) {
+      const heading = doc.getElementById(id);
+      expect(heading, id).not.toBeNull();
+      expect(heading?.tagName).toMatch(/^H[23]$/);
+    }
+    expect(text(nav.querySelector('h2'))).toBe('Cuprins');
+  });
+
+  it.each(PAGES)('$path ends by sending the reader to the other three pages', ({ path, html }) => {
+    const doc = parse(html);
+    const end = doc.querySelector('#citeste-si');
+    expect(text(end)).toBe('Citește și');
+    const list = doc.querySelector('.read-on');
+    const targets = Array.from(list!.querySelectorAll('a'), (a) => a.getAttribute('href'));
+    expect(new Set(targets)).toEqual(new Set(LINKS.filter((href) => href !== path)));
   });
 
   it('has no inline script or style, which the security policy blocks', () => {
@@ -123,6 +187,14 @@ describe('the pages that answer a search', () => {
       expect(llms).toContain(page.url);
       expect(llms).toContain(page.name);
     }
+  });
+
+  it('lets a returning reader keep the pictures instead of fetching them again', () => {
+    // A picture keeps its name, so it gets a day, not the year a hashed file gets.
+    expect(headers).toMatch(/^\/\*\.png\n {2}Cache-Control: public, max-age=86400$/m);
+    expect(headers).toMatch(/^\/favicon\.svg\n {2}Cache-Control: public, max-age=86400$/m);
+    // The build's own files carry a content hash and are kept for a year.
+    expect(headers).toMatch(/^\/assets\/\*\n {2}Cache-Control: public, max-age=31536000, immutable$/m);
   });
 
   it('writes the barem page questions twice, in the same words', () => {
@@ -165,5 +237,28 @@ describe('the pages that answer a search', () => {
     // The width and height are the picture's own, so the page does not jump.
     expect(img?.getAttribute('width')).toBe('1600');
     expect(img?.getAttribute('height')).toBe('1000');
+  });
+
+  it('shows the review screen in the guide, with the same picture in the data', () => {
+    const doc = parse(ghid);
+    const figure = doc.querySelector('.prose .shot');
+    const img = figure?.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('/app-verificare.png');
+    expect(img?.getAttribute('width')).toBe('1600');
+    expect(img?.getAttribute('height')).toBe('1000');
+    expect((img?.getAttribute('alt') ?? '').length).toBeGreaterThan(60);
+    expect(img?.getAttribute('alt')).toContain('Verificarea într-un test de matematică');
+    expect(text(figure?.querySelector('figcaption') ?? null)).toContain('decizia profesorului');
+    // The page's main image is the one the reader sees, at its real size.
+    const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
+    const nodes: { '@type': string; primaryImageOfPage?: { url: string; width: number; height: number; caption?: string } }[] =
+      ld['@graph'];
+    const page = nodes.find((n) => n['@type'] === 'WebPage')!;
+    expect(page.primaryImageOfPage).toMatchObject({
+      url: 'https://mqgrader.ro/app-verificare.png',
+      width: 1600,
+      height: 1000,
+    });
+    expect(page.primaryImageOfPage?.caption?.length).toBeGreaterThan(40);
   });
 });

@@ -15,14 +15,14 @@
     <meta property="og:url" content="https://mqgrader.ro/despre/" />
     <meta property="og:title" content="Despre MQGrader și Laura Miron" />
     <meta property="og:description" content="Cine construiește MQGrader, de ce a apărut și ce face aplicația, fără să ia decizia din mâna profesorului." />
-    <meta property="og:image" content="https://mqgrader.ro/og-image.png" />
+    <meta property="og:image" content="https://mqgrader.ro/og-despre.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="MQGrader by Laura Miron: corectarea testelor de matematică" />
+    <meta property="og:image:alt" content="MQGrader: despre MQGrader și Laura Miron" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Despre MQGrader și Laura Miron" />
     <meta name="twitter:description" content="Cine construiește MQGrader, de ce a apărut și ce face aplicația." />
-    <meta name="twitter:image" content="https://mqgrader.ro/og-image.png" />
+    <meta name="twitter:image" content="https://mqgrader.ro/og-despre.png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script type="application/ld+json">
       {
@@ -38,7 +38,10 @@
             "isPartOf": { "@id": "https://mqgrader.ro/#website" },
             "about": { "@id": "https://mqgrader.ro/#app" },
             "breadcrumb": { "@id": "https://mqgrader.ro/despre/#breadcrumb" },
-            "author": { "@id": "https://mqgrader.ro/#laura-miron" }
+            "author": { "@id": "https://mqgrader.ro/#laura-miron" },
+            "publisher": { "@id": "https://mqgrader.ro/#organization" },
+            "datePublished": "2026-11-10",
+            "dateModified": "2026-11-10"
           },
           {
             "@type": "BreadcrumbList",
@@ -80,13 +83,18 @@
       <main>
         <article class="page wrap">
           <div class="page-head">
-            <p class="eyebrow">Despre</p>
+            <nav class="crumbs" aria-label="Traseul paginii">
+              <a href="/">MQGrader</a>
+              <span aria-hidden="true">›</span>
+              <span>Despre</span>
+            </nav>
             <h1 class="page-h1">Despre MQGrader</h1>
             <p class="page-lede">MQGrader e construit de o profesoară de matematică, pentru orele pe care le are de corectat. Nu e un produs gândit de o firmă de software care a întrebat profesori ce ar vrea.</p>
+            <p class="byline">Scris de Laura Miron, profesoară de matematică · actualizat 10 noiembrie 2026</p>
           </div>
 
           <div class="prose">
-            <h2>Cine îl construiește</h2>
+            <h2 id="cine">Cine îl construiește</h2>
             <p><b>Laura Miron</b> predă matematică la Liceul William Shakespeare din Timișoara. Ține și site-ul <a href="https://lauramiron.pages.dev/" rel="me">Matematică cu Laura Miron</a>, unde publică materiale pentru elevi. MQGrader a plecat din orele ei: din teancurile de teste și din serile în care corectura nu se termina.</p>
 
             <div class="facts">
@@ -98,11 +106,11 @@
               </dl>
             </div>
 
-            <h2>De ce a apărut</h2>
+            <h2 id="de-ce">De ce a apărut</h2>
             <p>Corectura unui test nu e grea. E lungă. Un test cu șase exerciții la trei clase înseamnă peste o sută de lucrări, fiecare cu punctaj pe fiecare pas, iar punctajul trebuie să fie același pentru toți — altfel primele lucrări corectate au altă soartă decât ultimele.</p>
             <p>Aplicația a apărut ca să ia partea care se poate repeta: cititul pozelor, găsirea pasului din barem, adunatul punctelor. Partea care cere judecată a rămas acolo unde îi e locul, la profesor.</p>
 
-            <h2>Ce face</h2>
+            <h2 id="ce-face">Ce face</h2>
             <ul>
               <li>Citește pozele lucrărilor trimise de elevi de pe telefon, fără ca ei să aibă cont.</li>
               <li>Dă punctaj pas cu pas, conform baremului, cu puncte parțiale pentru pașii făcuți.</li>
@@ -111,7 +119,7 @@
               <li>Face rezultatul fiecărui elev, raportul clasei, un PDF pentru fiecare elev și un CSV pentru catalog.</li>
             </ul>
 
-            <h2>Ce nu face</h2>
+            <h2 id="ce-nu-face">Ce nu face</h2>
             <ul>
               <li>Nu dă nota finală în locul profesorului. Punctajul propus nu ajunge la elev până nu l-a văzut profesorul.</li>
               <li>Nu corectează după un barem neconfirmat. Un barem propus de platformă stă pe loc până îl verifică profesorul.</li>
@@ -119,9 +127,16 @@
               <li>Nu publică nimic singur: rezultatele se publică atunci când profesorul apasă butonul.</li>
             </ul>
 
-            <h2>Unde e produsul acum</h2>
+            <h2 id="acum">Unde e produsul acum</h2>
             <p>MQGrader e în lucru și se schimbă des. Conturile se fac pe bază de cerere: ceri unul, îți confirmi adresa de email, iar un administrator îl aprobă. Un cont demo poate corecta un test, cu 35 de lucrări.</p>
             <p>Ce include fiecare fel de cont, fără cifre rotunjite: <a href="/preturi/">Cât costă MQGrader</a>.</p>
+
+            <h2 id="citeste-si">Citește și</h2>
+            <ul class="read-on">
+              <li><a href="/ghid/">Cum corectezi testele de matematică după barem</a> — cele șase etape, unde se duce timpul și ce rămâne de hotărât profesorului.</li>
+              <li><a href="/barem/">Baremul de corectare la matematică: ce este și cum îl folosești</a> — de unde vine baremul unui test și ce conține unul bun.</li>
+              <li><a href="/preturi/">Cât costă MQGrader</a> — ce include un cont demo și ce se întâmplă până apare un abonament.</li>
+            </ul>
           </div>
         </article>
 

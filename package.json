@@ -20,6 +20,7 @@
     "test:related": "vitest related --run",
     "build": "tsc -p tsconfig.json && vite build",
     "smoke": "node scripts/smoke.mjs",
+    "indexnow": "node scripts/indexnow.mjs",
     "try:skill": "node runner/trySkill.ts",
     "set-password": "node scripts/setPassword.ts"
   },

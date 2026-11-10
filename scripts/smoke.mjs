@@ -47,19 +47,46 @@ const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x4
 const landing = await page('/');
 check('landing page', landing.res.status === 200 && landing.text.includes('Weekendul tău, fără teancul de lucrări.'), String(landing.res.status));
 check('landing page may be indexed', !(landing.res.headers.get('x-robots-tag') ?? '').includes('noindex') && !landing.text.includes('noindex'));
-for (const path of ['/robots.txt', '/sitemap.xml', '/llms.txt', '/og-image.png', '/app-teste.png', '/logo.png']) {
+for (const path of [
+  '/robots.txt',
+  '/sitemap.xml',
+  '/llms.txt',
+  '/og-image.png',
+  '/app-teste.png',
+  '/app-verificare.png',
+  '/og-ghid.png',
+  '/og-barem.png',
+  '/og-despre.png',
+  '/og-preturi.png',
+  '/logo.png',
+  '/favicon.svg',
+  '/4c7f1a9db35e6280f4b7a1c9d2e6085f.txt',
+]) {
   const file = await fetch(base + path);
   check(`public file ${path}`, file.status === 200, String(file.status));
 }
+// A picture keeps its name: a day of caching, not the year a hashed file gets.
+const picture = await fetch(`${base}/app-verificare.png`);
+check('pictures are cached for a day', (picture.headers.get('cache-control') ?? '') === 'public, max-age=86400', picture.headers.get('cache-control') ?? '');
 // The pages that answer a search: built by Vite from their own folders, open
 // to search engines, each with the address the sitemap lists.
-for (const path of ['/ghid/', '/barem/', '/despre/', '/preturi/']) {
+const SHARE = {
+  '/ghid/': 'og-ghid.png',
+  '/barem/': 'og-barem.png',
+  '/despre/': 'og-despre.png',
+  '/preturi/': 'og-preturi.png',
+};
+for (const [path, card] of Object.entries(SHARE)) {
   const content = await page(path);
   check(`content page ${path}`, content.res.status === 200, String(content.res.status));
   check(`content page ${path} may be indexed`, !(content.res.headers.get('x-robots-tag') ?? '').includes('noindex'));
   check(`content page ${path} points at itself`, content.text.includes(`<link rel="canonical" href="https://mqgrader.ro${path}"`));
   check(`content page ${path} links the others`, ['/ghid/', '/barem/', '/despre/', '/preturi/'].every((link) => content.text.includes(`href="${link}"`)));
+  check(`content page ${path} has its own share card`, content.text.includes(`property="og:image" content="https://mqgrader.ro/${card}"`));
+  check(`content page ${path} says who wrote it and when`, content.text.includes('class="byline"') && content.text.includes('actualizat 10 noiembrie 2026'));
 }
+const guide = await page('/ghid/');
+check('the guide shows the review screen', guide.text.includes('src="/app-verificare.png"') && guide.text.includes('width="1600"'));
 // public/404.html is what keeps Pages from answering like a single-page app.
 const missingPage = await page('/pagina-care-nu-exista');
 check('a missing page answers 404', missingPage.res.status === 404, String(missingPage.res.status));

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import baremRaw from '../../barem/index.html?raw';
+import despreRaw from '../../despre/index.html?raw';
+import ghidRaw from '../../ghid/index.html?raw';
+import preturiRaw from '../../preturi/index.html?raw';
 import llms from '../../public/llms.txt?raw';
 import robots from '../../public/robots.txt?raw';
 import sitemap from '../../public/sitemap.xml?raw';
+import { expandPartials } from './partials.ts';
 
 const lines = robots
   .split('\n')
@@ -70,6 +75,27 @@ describe('sitemap.xml and llms.txt', () => {
     ]);
     // The private apps and a Quick Try's page are never in it.
     for (const url of urls) expect(url).not.toMatch(/\/(teacher|u|try)\//);
+  });
+
+  it('dates each page in the sitemap as the page dates itself', () => {
+    const pages = [ghidRaw, baremRaw, despreRaw, preturiRaw].map(expandPartials);
+    const modDates = new Map<string, string>();
+    for (const html of pages) {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const ld = JSON.parse((doc.querySelector('script[type="application/ld+json"]')?.textContent ?? '{}').replace(/\s+/g, ' '));
+      const page = ld['@graph'].find((n: { '@type': string }) => n['@type'] === 'WebPage');
+      modDates.set(page.url, page.dateModified);
+    }
+    const entries = Array.from(
+      sitemap.matchAll(/<loc>(.*?)<\/loc>\s*<lastmod>(.*?)<\/lastmod>/g),
+      (m): [string, string] => [m[1]!, m[2]!],
+    );
+    // The landing page has no date of its own; every other page does.
+    for (const [url, lastmod] of entries) {
+      if (url === 'https://mqgrader.ro/') continue;
+      expect(modDates.get(url), url).toBe(lastmod);
+    }
+    expect(modDates.size).toBe(4);
   });
 
   it('describe the product and link to mqgrader.ro only', () => {
