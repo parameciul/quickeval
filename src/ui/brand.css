@@ -217,7 +217,8 @@ h2 {
   border: 0;
 }
 
-/* The student pages' header: the mark and the name, nothing else. */
+/* The student pages' header (src/upload/StudentHeader.tsx): the site's
+   lockup, which opens the site, then "Despre" and the theme button. */
 
 .site-header {
   position: sticky;
@@ -291,6 +292,36 @@ h2 {
 .theme-icon {
   width: 1rem;
   height: 1rem;
+}
+
+.student-bar {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.student-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.9375rem;
+}
+
+.student-nav a {
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.student-nav a:hover {
+  color: var(--text);
+}
+
+/* Like the site, a phone drops the "by" line; "Despre" stays, as the page's
+   one way to read about MQGrader. */
+@media (max-width: 56.25rem) {
+  .student-bar .brand-by {
+    display: none;
+  }
 }
 
 /* The teacher app's shell (redesign spec §4): the top bar over everything,

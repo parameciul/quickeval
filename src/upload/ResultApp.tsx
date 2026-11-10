@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { displayClassName } from '../../shared/classes.ts';
 import { ApiError, messageOf } from '../ui/ApiError.ts';
-import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { resultFileUrl, type UploadApi } from './api.ts';
 import { forgetResultLinkByToken } from './resultLinks.ts';
 import { StudentResult } from './StudentResult.tsx';
 import type { StudentResultView } from '../../shared/api.ts';
+import { StudentHeader } from './StudentHeader.tsx';
 
 export const UNKNOWN_RESULT_LINK = 'Link greșit. Cere profesorului linkul nou.';
 
@@ -39,16 +39,7 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
 
   return (
     <>
-      <header className="site-header">
-        <div className="wrap header-bar">
-          <span className="brand">
-            <BrandMark />
-            <span className="brand-text">
-              <span className="brand-name">MQGrader</span>
-            </span>
-          </span>
-        </div>
-      </header>
+      <StudentHeader />
       <main className="wrap upload-page result-page">
         <ErrorBoundary>
           {phase.kind === 'loading' && <p>Se încarcă…</p>}

@@ -38,17 +38,20 @@ const graded: StudentResultView = {
 };
 
 describe('ResultApp', () => {
-  it('shows only the MQGrader brand, with no other brand text', async () => {
+  it('shows the site header, with only the site links', async () => {
     const api = createFakeUploadApi();
     api.getResult.mockResolvedValue(structuredClone(graded));
     render(<ResultApp api={api} resultToken="result-token-11" />);
     expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
-    expect(screen.getByRole('banner')).toHaveTextContent('MQGrader');
-    expect(screen.queryByText(/Laura Miron/)).not.toBeInTheDocument();
-    expect(screen.getByRole('banner')).toHaveTextContent(/^MQGrader$/);
-    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+    const banner = screen.getByRole('banner');
+    expect(banner).toHaveTextContent('MQGrader');
+    expect(banner).toHaveTextContent('by Laura Miron');
+    expect(within(banner).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      'https://mqgrader.ro/',
+      'https://mqgrader.ro/despre/',
+    ]);
+    expect(within(banner).getByRole('button', { name: 'Temă întunecată' })).toBeInTheDocument();
     expect(screen.queryByText(/Profesorul tău folosește|Încearcă gratuit|Ești profesor/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expectNoGradingWords();
   });
 
@@ -82,7 +85,7 @@ describe('ResultApp', () => {
     api.getResult.mockResolvedValue(structuredClone(graded));
     render(<ResultApp api={api} resultToken="result-token-11" />);
     await screen.findByRole('heading', { name: 'Pop Ion' });
-    const buttons = screen.getAllByRole('button');
+    const buttons = within(screen.getByRole('main')).getAllByRole('button');
     expect(buttons.map((button) => button.textContent)).toEqual(['Arată fișierele']);
     await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
     expect(await screen.findByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', '/api/u/rezultat/result-token-11/files/21');

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../ui/ApiError.ts';
@@ -23,16 +23,20 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
-  it('shows only the MQGrader brand, with no other brand text', async () => {
+  it('shows the site header, with only the site links, and no footer', async () => {
     const api = createFakeUploadApi();
     render(<UploadApp api={api} token={LINK_TOKEN} />);
     expect(await screen.findByRole('heading', { name: 'Fracții' })).toBeInTheDocument();
-    expect(screen.getByRole('banner')).toHaveTextContent('MQGrader');
-    expect(screen.queryByText(/Laura Miron/)).not.toBeInTheDocument();
-    expect(screen.getByRole('banner')).toHaveTextContent(/^MQGrader$/);
+    const banner = screen.getByRole('banner');
+    expect(banner).toHaveTextContent('MQGrader');
+    expect(banner).toHaveTextContent('by Laura Miron');
+    expect(within(banner).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      'https://mqgrader.ro/',
+      'https://mqgrader.ro/despre/',
+    ]);
+    expect(within(banner).getByRole('button', { name: 'Temă întunecată' })).toBeInTheDocument();
     expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
     expect(screen.queryByText(/Profesorul tău folosește|Încearcă gratuit|Ești profesor/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expectNoGradingWords();
   });
 
