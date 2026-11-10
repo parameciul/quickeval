@@ -2434,12 +2434,13 @@ table.tests .row-actions {
 }
 
 /* A page of the paper zooms inside the pane: the pane has the photo's shape
-   (--page-ratio, width / height) and fits the screen's height, so the whole
-   page shows at once; the layer moves and grows inside it. */
+   (--page-ratio, width / height) and the whole width of the middle card, so
+   the handwriting is as big as the card allows (a tall page scrolls); the
+   layer moves and grows inside it. */
 .zoom-pane {
   position: relative;
   overflow: hidden;
-  width: min(100%, calc((100vh - 12rem) * var(--page-ratio)));
+  width: 100%;
   aspect-ratio: var(--page-ratio);
   margin-inline: auto;
   border-radius: var(--radius);
