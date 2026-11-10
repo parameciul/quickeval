@@ -155,16 +155,30 @@
               <p class="l-lede">MQGrader este o platformă web pentru profesorii de matematică din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.</p>
             </div>
             <div class="cta">
-              <a class="btn btn-primary btn-large" href="/teacher/">Intră în cont</a>
-              <a class="link" href="/teacher/#cont-nou">Cere un cont de profesor</a>
+              <div class="cta-row">
+                <a class="btn btn-primary btn-large" href="/teacher/">Intră în cont</a>
+                <a class="link" href="/teacher/#cont-nou">Cere un cont de profesor</a>
+              </div>
               <button class="btn btn-large btn-try" type="button" data-try-open hidden>Încearcă acum, fără cont</button>
+              <p class="cta-hint" data-try-hint hidden>Gratuit: trimiți lucrarea unui elev și o primești corectată în câteva minute.</p>
             </div>
             <div class="try-line" data-try hidden>
               <p class="try-note" data-try-note hidden></p>
-              <p class="try-status" data-try-status role="status" hidden>
-                <span data-try-status-text></span>
-                <a class="link" data-try-link href="/">Deschide încercarea</a>
-              </p>
+              <div class="try-card" data-try-status role="status" hidden>
+                <div class="try-card-top">
+                  <div class="try-card-head">
+                    <p class="try-card-kicker">Încercarea ta</p>
+                    <p class="try-card-title" data-try-title></p>
+                  </div>
+                  <span class="try-chip" data-try-chip></span>
+                </div>
+                <p class="try-card-meta" data-try-meta></p>
+                <p class="try-card-text" data-try-status-text></p>
+                <div class="try-card-bottom">
+                  <p class="try-score" data-try-score hidden><span class="try-grade" data-try-grade></span> <span class="try-points" data-try-points></span></p>
+                  <a class="btn btn-small" data-try-link href="/">Deschide încercarea</a>
+                </div>
+              </div>
             </div>
           </div>
           <div class="side-flow" id="cum">

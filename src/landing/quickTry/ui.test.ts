@@ -67,10 +67,38 @@ const send = () => within(dialog()).getByRole('button', { name: 'Trimite' }).cli
 const store = (madeAt = NOW.toISOString()) => localStorage.setItem(STORED_TRY_KEY, JSON.stringify({ token: TOKEN, code: CODE, madeAt }));
 
 describe("the landing page's Quick Try", () => {
-  it('shows the button beside the account links when a try can be made', async () => {
+  it('shows the button under the login, with a line on what she gets, when a try can be made', async () => {
     await mount();
     expect(button()).toBeVisible();
     expect(button()!.closest('.cta')).not.toBeNull();
+    expect(screen.getByText('Gratuit: trimiți lucrarea unui elev și o primești corectată în câteva minute.')).toBeVisible();
+  });
+
+  it('hides the line with the button', async () => {
+    await mount(fakeLandingApi({ dailyLimitReached: true }));
+    expect(screen.getByText(/^Gratuit: trimiți lucrarea/)).not.toBeVisible();
+  });
+
+  it('shows her try as a card: its name, when she sent it, its state and its grade', async () => {
+    store('2026-11-10T07:30:00.000Z');
+    const api = fakeLandingApi();
+    api.getTest.mockResolvedValue(
+      tryTest({ status: 'done', files, title: 'Test funcții 9B' }, { status: 'graded', grade: 6.7, total: 67, maxTotal: 100, flagCount: 2 }),
+    );
+    await mount(api);
+    const card = screen.getByRole('status');
+    expect(within(card).getByText('Test funcții 9B')).toBeVisible();
+    expect(card).toHaveTextContent('Trimisă 10 nov. 2026, 09:30 · Linkul merge până pe 17 noiembrie 2026');
+    expect(within(card).getByText('2 puncte de verificat')).toHaveClass('try-chip', 'is-you');
+    expect(within(card).getByText('6,7')).toBeVisible();
+    expect(card).toHaveTextContent('67 din 100 de puncte');
+  });
+
+  it('shows no grade on the card while the paper is not graded', async () => {
+    store();
+    await mount();
+    expect(within(screen.getByRole('status')).getByText('Se corectează')).toHaveClass('try-chip', 'is-work');
+    expect(document.querySelector('[data-try-score]')).not.toBeVisible();
   });
 
   it('shows no button while the Turnstile key is not set', async () => {
