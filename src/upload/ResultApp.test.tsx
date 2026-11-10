@@ -77,6 +77,9 @@ describe('ResultApp', () => {
     expect(within(foot).getAllByRole('link')).toHaveLength(1);
     expect(within(foot).getByRole('link', { name: 'mqgrader.ro' })).toHaveAttribute('href', 'https://mqgrader.ro/');
     expect(foot).toHaveTextContent(/^mqgrader\.ro$/);
+    const shell = foot.closest('.result-shell');
+    expect(shell).not.toBeNull();
+    expect(shell).toContainElement(screen.getByRole('banner'));
   });
 
   it('shows the grade, the mistakes, and the final words, without any teacher controls', async () => {

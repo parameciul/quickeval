@@ -39,7 +39,7 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
   }, [api, resultToken]);
 
   return (
-    <>
+    <div className="result-shell">
       <StudentHeader />
       <main className="wrap upload-page result-page">
         <ErrorBoundary>
@@ -68,6 +68,6 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
           <a href={SITE_URL}>mqgrader.ro</a>
         </div>
       </footer>
-    </>
+    </div>
   );
 }

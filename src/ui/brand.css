@@ -4281,6 +4281,11 @@ table.items tr.edit-row > td {
   max-width: 64rem;
 }
 
+/* The header and the footer of the result page keep the content's edges. */
+.result-shell .wrap {
+  max-width: 64rem;
+}
+
 .result-grade {
   margin-block: 1rem;
   padding: 0.75rem 1rem;
@@ -4374,7 +4379,9 @@ table.items tr.edit-row > td {
   color: var(--text);
 }
 
-@media (max-width: 48rem) {
+/* Two columns only from a wide tablet up: below, the exercises table would
+   be too narrow beside the final words. */
+@media (max-width: 56.25rem) {
   .result-columns {
     grid-template-columns: minmax(0, 1fr);
   }
