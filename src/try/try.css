@@ -1,0 +1,16 @@
+/* A Quick Try's page: the teacher app's top bar and look, in one column. */
+.try-topbar {
+  position: static;
+}
+
+.try-page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.try-notice {
+  max-width: 36rem;
+  margin: 3rem auto;
+  text-align: center;
+}

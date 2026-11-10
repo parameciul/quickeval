@@ -1,54 +1,64 @@
 # Only the landing page is public. The teacher app (/teacher/) answers with noindex,
-# so it must stay crawlable for that to be seen. Student links and the API are closed.
+# so it must stay crawlable for that to be seen. Student links, Quick Try links and the API are closed.
 User-agent: *
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 # AI search and answer engines may read and cite the landing page.
 User-agent: OAI-SearchBot
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 User-agent: ChatGPT-User
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 User-agent: GPTBot
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 User-agent: PerplexityBot
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 User-agent: ClaudeBot
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 User-agent: Claude-SearchBot
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 User-agent: Claude-User
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 User-agent: Google-Extended
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 User-agent: Applebot-Extended
 Allow: /
 Disallow: /u/
+Disallow: /try/
 Disallow: /api/
 
 Sitemap: https://mqgrader.ro/sitemap.xml
