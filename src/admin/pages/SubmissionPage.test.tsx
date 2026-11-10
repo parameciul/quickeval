@@ -76,6 +76,12 @@ const apiWith = (detail: SubmissionDetail = submission) =>
 const page = '/teste/6E2-26T1/elevi/5';
 const row = (label: string) => screen.getByRole('row', { name: new RegExp(label) });
 
+// Opens "Alte acțiuni" at the top of the page and chooses an item.
+async function chooseAction(name: string) {
+  await userEvent.click(await screen.findByRole('button', { name: 'Alte acțiuni' }));
+  await userEvent.click(screen.getByRole('menuitem', { name }));
+}
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -121,7 +127,9 @@ describe('SubmissionPage', () => {
     unmount();
     renderAdmin(page, apiWith());
     expect(await screen.findByText('Lucrarea se corectează după ce pornești evaluarea.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Recorectează' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Alte acțiuni' }));
+    expect(screen.queryByRole('menuitem', { name: 'Recorectează' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Resetează' })).toBeInTheDocument();
   });
 
   it('asks for news every 10 seconds only while the robot grades the upload', () => {
@@ -184,14 +192,79 @@ describe('SubmissionPage', () => {
     expect(api.listTests).toHaveBeenCalledTimes(before + 1);
   });
 
-  it('scopes the bottom-aligned check layout to the check cell', async () => {
+  it('puts Verificat in the note with its reason, and only the pencil in the actions cell', async () => {
     renderAdmin(page, apiWith(graded));
-    const check = await screen.findByRole('button', { name: 'Modifică Subiectul II, ex. 1' });
-    expect(check.closest('td')).toHaveClass('item-check');
-    // While editing, the same cell holds Salvează and Renunță side by side.
-    await userEvent.click(check);
+    const check = await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' });
+    const note = check.closest('.review-note') as HTMLElement;
+    expect(note).not.toBeNull();
+    expect(within(note).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
+    expect(check.closest('td')).toHaveAttribute('data-label', 'Comentariu');
+    const edit = screen.getByRole('button', { name: 'Modifică Subiectul II, ex. 1' });
+    expect(edit.closest('td')).toHaveClass('item-check');
+    expect(within(edit.closest('td')!).queryByRole('button', { name: /^Verificat/ })).not.toBeInTheDocument();
+    // While editing, the reason stays, without the button: saving checks it.
+    await userEvent.click(edit);
     expect(await screen.findByRole('button', { name: 'Salvează' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Salvează' }).closest('td')).not.toHaveClass('item-check');
+    expect(within(row('Subiectul II, ex. 1')).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).not.toBeInTheDocument();
+  });
+
+  it('says in the grade strip how many points wait, or that none does', async () => {
+    const { unmount } = renderAdmin(page, apiWith(graded));
+    expect(await screen.findByText('De verificat: 2')).toHaveClass('tag-wait');
+    expect(screen.queryByText('Nimic de verificat')).not.toBeInTheDocument();
+    unmount();
+    const evaluation = graded.evaluation!;
+    const done = {
+      ...graded,
+      evaluation: {
+        ...evaluation,
+        flagCount: 0,
+        pagesReviewed: true,
+        items: evaluation.items.map((item) => ({ ...item, reviewed: true })),
+      },
+    };
+    renderAdmin(page, apiWith(done));
+    expect(await screen.findByText('Nimic de verificat')).toHaveClass('tag-ok');
+    expect(screen.queryByText(/^De verificat: \d/)).not.toBeInTheDocument();
+  });
+
+  it('shows the head with the student, the test, and the take-away actions together', async () => {
+    renderAdmin(page, apiWith(graded));
+    const name = await screen.findByRole('heading', { level: 1, name: 'Pop Ion' });
+    const head = name.closest('.submission-head') as HTMLElement;
+    expect(head).not.toBeNull();
+    expect(within(head).getByRole('link', { name: 'Toate notele elevului' })).toBeInTheDocument();
+    expect(within(head).getByRole('button', { name: 'Descarcă PDF' })).toBeInTheDocument();
+    expect(within(head).getByRole('button', { name: 'Alte acțiuni' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('keeps the rare actions in a menu at the top, each saying what it deletes', async () => {
+    renderAdmin(page, apiWith(graded));
+    const more = await screen.findByRole('button', { name: 'Alte acțiuni' });
+    expect(screen.queryByRole('menuitem', { name: 'Recorectează' })).not.toBeInTheDocument();
+    await userEvent.click(more);
+    expect(more).toHaveAttribute('aria-expanded', 'true');
+    const regrade = screen.getByRole('menuitem', { name: 'Recorectează' });
+    expect(regrade).toHaveAccessibleDescription('Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.');
+    const reset = screen.getByRole('menuitem', { name: 'Resetează' });
+    expect(reset).toHaveAccessibleDescription('Se șterg fișierele, iar elevul poate lua încărcarea de la capăt, și de pe alt telefon.');
+    expect(reset).toHaveClass('is-danger');
+    // Esc closes it and gives the focus back to its button.
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(more).toHaveFocus();
+  });
+
+  it('closes the menu and asks first when an action is chosen', async () => {
+    const api = apiWith(graded);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderAdmin(page, api);
+    await chooseAction('Resetează');
+    expect(confirm).toHaveBeenCalledWith('Ștergi încărcarea elevului Pop Ion? Elevul o poate lua de la capăt.');
+    expect(api.resetSubmission).not.toHaveBeenCalled();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('changes the points and the comment of an item, and checks it', async () => {
@@ -299,7 +372,7 @@ describe('SubmissionPage', () => {
     const api = apiWith(graded);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(page, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează' }));
+    await chooseAction('Recorectează');
     expect(confirm).toHaveBeenCalledWith('Recorectezi lucrarea elevului Pop Ion? Corecturile tale se pierd.');
     expect(api.regradeSubmission).toHaveBeenCalledWith(5, GRADED_AT);
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul.');
@@ -312,7 +385,7 @@ describe('SubmissionPage', () => {
     const api = apiWith(graded);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(page, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează' }));
+    await chooseAction('Recorectează');
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul.');
     // The robot graded the upload again; the page asks for news every 10 seconds.
     api.getSubmission.mockResolvedValueOnce(structuredClone(graded));
@@ -327,7 +400,7 @@ describe('SubmissionPage', () => {
     const api = apiWith(graded);
     vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderAdmin(page, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează' }));
+    await chooseAction('Recorectează');
     expect(api.regradeSubmission).not.toHaveBeenCalled();
   });
 
@@ -335,7 +408,7 @@ describe('SubmissionPage', () => {
     const api = apiWith({ ...graded, testStatus: 'open' });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(page, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează' }));
+    await chooseAction('Recorectează');
     expect(await screen.findByRole('status')).toHaveTextContent('Lucrarea se corectează din nou după ce pornești evaluarea.');
   });
 
@@ -352,7 +425,7 @@ describe('SubmissionPage', () => {
     const api = apiWith();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(page, api, <LocationProbe />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Resetează' }));
+    await chooseAction('Resetează');
     expect(api.resetSubmission).toHaveBeenCalledWith(5, '2026-10-06T07:20:00.000Z');
     await expectLocation('/teste/6E2-26T1');
   });

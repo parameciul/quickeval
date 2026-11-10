@@ -12,6 +12,7 @@ import { PageFiles } from '../submissionPage/PageFiles.tsx';
 import { waitingText } from '../submissionPage/waitingText.ts';
 import { PdfActions } from '../pdf/PdfActions.tsx';
 import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentPdf.ts';
+import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { ResultLink } from '../testPage/ResultLink.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
@@ -98,29 +99,75 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   // Recorectează names the grading the page shows.
   const gradedAt = submission.status === 'graded' ? (submission.evaluation?.gradedAt ?? null) : null;
 
+  const paperActions: PaperAction[] = [];
+  if (gradedAt !== null) {
+    paperActions.push({
+      label: 'Recorectează',
+      hint: 'Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.',
+      busy: regrade.isPending,
+      onChoose: () => {
+        if (window.confirm(`Recorectezi lucrarea elevului ${submission.studentName}? Corecturile tale se pierd.`)) regrade.mutate(gradedAt);
+      },
+    });
+  }
+  paperActions.push({
+    label: 'Resetează',
+    hint: 'Se șterg fișierele, iar elevul poate lua încărcarea de la capăt, și de pe alt telefon.',
+    danger: true,
+    busy: reset.isPending,
+    onChoose: () => {
+      if (window.confirm(`Ștergi încărcarea elevului ${submission.studentName}? Elevul o poate lua de la capăt.`)) reset.mutate(submission.startedAt);
+    },
+  });
+
   return (
-    <section>
+    <section className="submission-page">
       <p className="back-link">
         <Link to={`/teste/${code}`}>← {code}</Link>
       </p>
       {detail.isRefetchError && <ErrorMessage error={detail.error} />}
-      <h1>{submission.studentName}</h1>
-      <p>
-        <Link to={`/elevi/${submission.studentId}`}>Toate notele elevului</Link>
-      </p>
-      <p className="lead-line">
-        {submission.testCode} · {submission.testTitle} · {uploadStatusLabel(submission.status)}
-        {submission.autoSubmitted && submission.status !== 'graded' && <span className="tag">Fără confirmare</span>}
-      </p>
-      <p className="hint">
-        Început {formatDateTime(submission.startedAt)}
-        {submission.submittedAt && ` · trimis ${formatDateTime(submission.submittedAt)}`}
-      </p>
+      {/* The head: who and which test on the left, what the teacher can take
+          away (all the student's grades, the PDF) on the right. */}
+      <header className="submission-head">
+        <div className="submission-title">
+          <h1>{submission.studentName}</h1>
+          <p className="submission-sub">
+            <span>
+              {submission.testCode} · {submission.testTitle} · {uploadStatusLabel(submission.status)}
+            </span>
+            {submission.autoSubmitted && submission.status !== 'graded' && <span className="tag">Fără confirmare</span>}
+          </p>
+          <p className="hint">
+            Început {formatDateTime(submission.startedAt)}
+            {submission.submittedAt && ` · trimis ${formatDateTime(submission.submittedAt)}`}
+          </p>
+        </div>
+        <div className="submission-tools">
+          <Link className="button-quiet button-small" to={`/elevi/${submission.studentId}`}>
+            Toate notele elevului
+          </Link>
+          {pdfInput && (
+            <PdfActions
+              pdf={{
+                build: () => studentPdf(pdfInput),
+                fileName: studentPdfFileName(pdfInput),
+                title: `${pdfInput.testCode} · ${pdfInput.studentName}`,
+              }}
+            />
+          )}
+          <PaperActions actions={paperActions} />
+        </div>
+      </header>
+      {regrade.error && <ErrorMessage error={regrade.error} />}
+      {reset.error && <ErrorMessage error={reset.error} />}
       {/* The result link only once the student sent the upload, like the
           uploads table: while uploading there is nothing to share yet. */}
       {submission.status !== 'uploading' && (
-        <div className="result-link-row hint">
-          <span>Linkul cu rezultatul elevului:</span>
+        <div className="result-link-row">
+          <span className="result-link-label">Linkul cu rezultatul elevului</span>
+          <span className={submission.resultsOpen ? 'tag tag-ok' : 'tag'}>
+            {submission.resultsOpen ? 'Rezultatele sunt publicate.' : 'Rezultatele nu sunt publicate încă.'}
+          </span>
           <ResultLink
             submissionId={submission.id}
             startedAt={submission.startedAt}
@@ -128,17 +175,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
             testCode={submission.testCode}
             studentName={submission.studentName}
           />
-          <span>{submission.resultsOpen ? 'Rezultatele sunt publicate.' : 'Rezultatele nu sunt publicate încă.'}</span>
         </div>
-      )}
-      {pdfInput && (
-        <PdfActions
-          pdf={{
-            build: () => studentPdf(pdfInput),
-            fileName: studentPdfFileName(pdfInput),
-            title: `${pdfInput.testCode} · ${pdfInput.studentName}`,
-          }}
-        />
       )}
       {showNotice && <p role="status">{notice}</p>}
 
@@ -162,7 +199,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
           )}
         </div>
         <div className="result-main">
-          <h2>Rezultatul</h2>
+          <h2 className="sr-only">Rezultatul</h2>
           {submission.status === 'graded' && submission.evaluation ? (
             <GradedResult submissionId={submissionId} evaluation={submission.evaluation} onSaved={saved} />
           ) : submission.status === 'failed' ? (
@@ -178,40 +215,59 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
           )}
         </div>
       </div>
-
-      <div className="final-actions">
-        {gradedAt !== null && (
-          <div className="final-row">
-            <button
-              type="button"
-              className="button-quiet button-small"
-              disabled={regrade.isPending}
-              onClick={() => {
-                if (window.confirm(`Recorectezi lucrarea elevului ${submission.studentName}? Corecturile tale se pierd.`)) regrade.mutate(gradedAt);
-              }}
-            >
-              Recorectează
-            </button>
-            <p className="hint">Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.</p>
-            {regrade.error && <ErrorMessage error={regrade.error} />}
-          </div>
-        )}
-
-        <div className="final-row">
-          <button
-            type="button"
-            className="button-quiet button-small button-danger"
-            disabled={reset.isPending}
-            onClick={() => {
-              if (window.confirm(`Ștergi încărcarea elevului ${submission.studentName}? Elevul o poate lua de la capăt.`)) reset.mutate(submission.startedAt);
-            }}
-          >
-            Resetează
-          </button>
-          <p className="hint">Se șterg fișierele, iar elevul poate lua încărcarea de la capăt, și de pe alt telefon.</p>
-          {reset.error && <ErrorMessage error={reset.error} />}
-        </div>
-      </div>
     </section>
+  );
+}
+
+type PaperAction = { label: string; hint: string; danger?: boolean; busy: boolean; onChoose: () => void };
+
+// "Alte acțiuni": the rare actions that undo the teacher's work (Recorectează,
+// Resetează), in a menu at the top of the page. Each item says what it
+// deletes before it is chosen; choosing it still asks for a confirmation.
+function PaperActions({ actions }: { actions: PaperAction[] }) {
+  const { open, toggle, box, button } = useSmallMenu<HTMLDivElement>();
+  const run = (action: PaperAction) => () => {
+    toggle();
+    button.current?.focus();
+    action.onChoose();
+  };
+  return (
+    <div className="paper-actions" ref={box}>
+      <button
+        ref={button}
+        type="button"
+        className="button-quiet button-small"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? 'paper-actions-menu' : undefined}
+        onClick={toggle}
+      >
+        Alte acțiuni
+        <svg className="paper-actions-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className="class-menu paper-actions-menu" id="paper-actions-menu" role="menu" aria-label="Alte acțiuni">
+          {actions.map((action, index) => (
+            <button
+              key={action.label}
+              type="button"
+              role="menuitem"
+              className={action.danger ? 'paper-action is-danger' : 'paper-action'}
+              aria-label={action.label}
+              aria-describedby={`paper-action-hint-${index}`}
+              disabled={action.busy}
+              onClick={run(action)}
+            >
+              <span className="paper-action-label">{action.label}</span>
+              <span className="paper-action-hint" id={`paper-action-hint-${index}`}>
+                {action.hint}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

@@ -30,14 +30,20 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
   const api = useApi();
   const correct: Correct = (itemId, change) => api.correctItem(submissionId, itemId, { ...change, gradedAt: evaluation.gradedAt });
   return (
-    <>
-      <p className="grade-line">
-        Nota{' '}
-        <strong className={`points points-${pointsLevel(evaluation.grade, 10)}`}>{formatPoints(evaluation.grade)}</strong> ·{' '}
-        {formatPoints(evaluation.total)} puncte din {formatPoints(evaluation.maxTotal)}
-        {evaluation.officePoints > 0 && `, cu ${formatPoints(evaluation.officePoints)} din oficiu`}
-      </p>
-      {evaluation.flagCount > 0 && <p className="hint">De verificat: {evaluation.flagCount}</p>}
+    <div className="graded-result">
+      <div className="grade-strip">
+        <p className="grade-line">
+          Nota{' '}
+          <strong className={`points points-${pointsLevel(evaluation.grade, 10)}`}>{formatPoints(evaluation.grade)}</strong> ·{' '}
+          {formatPoints(evaluation.total)} puncte din {formatPoints(evaluation.maxTotal)}
+          {evaluation.officePoints > 0 && `, cu ${formatPoints(evaluation.officePoints)} din oficiu`}
+        </p>
+        {evaluation.flagCount > 0 ? (
+          <span className="tag tag-wait">De verificat: {evaluation.flagCount}</span>
+        ) : (
+          <span className="tag tag-ok">Nimic de verificat</span>
+        )}
+      </div>
       <UnreadablePages submissionId={submissionId} evaluation={evaluation} onSaved={onSaved} />
 
       <div className="table-wrap">
@@ -70,7 +76,7 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
       </div>
 
       <FeedbackSections submissionId={submissionId} evaluation={evaluation} onSaved={onSaved} />
-    </>
+    </div>
   );
 }
 
@@ -221,19 +227,38 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
               onChange={(event) => setComment(event.target.value)}
               maxLength={TEXT_LIMITS.comment}
             />
-            {item.needsReview && !item.reviewed && (
-              <span className="item-note review-reason">
-                De verificat: <MathText text={item.reviewReason} />
-              </span>
+            {toCheck && (
+              <div className="review-note">
+                <p className="review-reason">
+                  De verificat: <MathText text={item.reviewReason} />
+                </p>
+              </div>
             )}
           </>
         ) : (
           <>
             <MathText text={item.comment} />
-            {item.needsReview && !item.reviewed && (
-              <span className="item-note review-reason">
-                De verificat: <MathText text={item.reviewReason} />
-              </span>
+            {/* What to check, with the button that says it was checked: the
+                reason and its answer sit together. */}
+            {toCheck && (
+              <div className="review-note">
+                <p className="review-reason">
+                  De verificat: <MathText text={item.reviewReason} />
+                </p>
+                <button
+                  type="button"
+                  className="button-quiet button-small verificat-btn"
+                  aria-label={`Verificat ${item.label}`}
+                  disabled={check.isPending}
+                  onClick={() => check.mutate()}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Verificat
+                </button>
+                {check.error && <ErrorMessage error={check.error} />}
+              </div>
             )}
           </>
         )}
@@ -291,20 +316,8 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
                 <path d="M14.5 6.5l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </button>
-            {toCheck && (
-              <button
-                type="button"
-                className="button-quiet button-small verificat-btn"
-                aria-label={`Verificat ${item.label}`}
-                disabled={check.isPending}
-                onClick={() => check.mutate()}
-              >
-                Verificat
-              </button>
-            )}
           </span>
         )}
-        {check.error && <ErrorMessage error={check.error} />}
         {save.error && <ErrorMessage error={save.error} />}
       </td>
     </tr>
@@ -360,7 +373,7 @@ function ReviewCheck() {
 // bine, Recomandări.
 function FeedbackSections({ submissionId, evaluation, onSaved }: { submissionId: number; evaluation: EvaluationInfo; onSaved: Saved }) {
   return (
-    <>
+    <div className="feedback-grid">
       <SummarySection submissionId={submissionId} evaluation={evaluation} onSaved={onSaved} />
       <ListSection
         submissionId={submissionId}
@@ -378,7 +391,7 @@ function FeedbackSections({ submissionId, evaluation, onSaved }: { submissionId:
         title="Recomandări"
         emptyHint="Nicio recomandare încă."
       />
-    </>
+    </div>
   );
 }
 
@@ -417,7 +430,7 @@ function SummarySection({ submissionId, evaluation, onSaved }: { submissionId: n
   };
 
   return (
-    <section aria-label="Rezumat">
+    <section className="feedback-card" aria-label="Rezumat">
       <div className="feedback-head">
         <h3>Rezumat</h3>
         {!editing && (
@@ -519,7 +532,7 @@ function ListSection({
   };
 
   return (
-    <section aria-label={title}>
+    <section className="feedback-card" aria-label={title}>
       <div className="feedback-head">
         <h3>{title}</h3>
         {!editing && (
