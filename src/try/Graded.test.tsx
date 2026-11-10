@@ -1,0 +1,143 @@
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { StudentResultView } from '../../shared/api.ts';
+import { PDF_TYPE } from '../../shared/files.ts';
+import { QUICK_TRY_STUDENT, QUICK_TRY_TITLE } from '../../shared/quickTry.ts';
+import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission, reviewPointsOf } from '../test/fakeApi.ts';
+import { createFakeTryApi, renderTry, TRY_CODE, TRY_SUBMISSION, TRY_TOKEN, tryTest } from '../test/fakeTryApi.tsx';
+import { expectNoGradingWords } from '../test/gradingWords.ts';
+import { LocationProbe } from '../test/renderAdmin.tsx';
+
+const files = { test: { name: 'test.pdf', type: PDF_TYPE }, barem: { name: 'barem.pdf', type: PDF_TYPE } };
+const photo = { id: 61, name: 'p1.jpg', contentType: 'image/jpeg', size: 1000, position: 1 };
+
+const studentResult: StudentResultView = {
+  testCode: TRY_CODE,
+  testTitle: QUICK_TRY_TITLE,
+  className: 'PROBA',
+  studentName: QUICK_TRY_STUDENT,
+  status: 'graded',
+  files: [photo],
+  evaluation: {
+    maxTotal: 10,
+    officePoints: 1,
+    total: 7,
+    grade: 7,
+    summary: 'Ai lucrat bine.',
+    strengths: [],
+    recommendations: [],
+    items: [{ exerciseId: 'I.1', label: 'Subiectul I, ex. 1', maxPoints: 4.5, points: 3, studentAnswer: '3/4', comment: 'Aproape.' }],
+  },
+};
+
+// A graded try: I.1 waits for a check unless `checked`.
+function setup(path = '/', checked = false) {
+  const evaluation = fakeEvaluation([
+    fakeItem({ id: 71, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 3, needsReview: !checked, reviewReason: 'Scrisul se citește greu.', page: 1 }),
+  ]);
+  const paper = fakeSubmission({ id: TRY_SUBMISSION, testCode: TRY_CODE, testTitle: QUICK_TRY_TITLE, studentName: QUICK_TRY_STUDENT, files: [photo], evaluation });
+  const test = tryTest(
+    { status: 'done', files },
+    {
+      status: 'graded',
+      fileCount: 1,
+      grade: evaluation.grade,
+      total: evaluation.total,
+      maxTotal: 10,
+      flagCount: evaluation.flagCount,
+      reviewPoints: reviewPointsOf(evaluation),
+    },
+  );
+  const api = createFakeApi({ classes: [], students: {}, tests: [test], submissions: [paper] });
+  const tryApi = createFakeTryApi({ result: structuredClone(studentResult) });
+  renderTry(path, api, tryApi, <LocationProbe />);
+  return { api, tryApi };
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('a graded try', () => {
+  it('opens on the points to check, and the review of the app checks them', async () => {
+    const { api } = setup();
+    expect(await screen.findByRole('tab', { name: 'Verificare' })).toHaveAttribute('aria-selected', 'true');
+    await userEvent.click(screen.getByRole('link', { name: 'Verifică 1 punct' }));
+    expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: /Pagina 1/ })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/submissions/${TRY_SUBMISSION}/files/61`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Accept 3p' }));
+    await waitFor(() => expect(api.correctItem).toHaveBeenCalledWith(TRY_SUBMISSION, 71, expect.objectContaining({ reviewed: true })));
+    await userEvent.click(screen.getByRole('link', { name: 'Înapoi la test' }));
+    expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
+  });
+
+  it("says when nothing is left to check", async () => {
+    setup('/', true);
+    expect(await screen.findByText(/Toate punctele sunt verificate/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Verifică/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the teacher's result with its pages", async () => {
+    const { api } = setup();
+    await userEvent.click(await screen.findByRole('tab', { name: 'Rezultatul profesorului' }));
+    expect(await screen.findByText('Subiectul I, ex. 1')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/submissions/${TRY_SUBMISSION}/files/61`);
+    expect(api.getSubmission).toHaveBeenCalledWith(TRY_SUBMISSION);
+  });
+
+  it("opens the teacher's result from the review's link to the results", async () => {
+    setup('/teste/PROBA-26T1#rezultate');
+    expect(await screen.findByRole('tab', { name: 'Rezultatul profesorului' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it("opens the teacher's result from the review's link to the paper", async () => {
+    setup(`/teste/PROBA-26T1/elevi/${TRY_SUBMISSION}`);
+    expect(await screen.findByRole('tab', { name: 'Rezultatul profesorului' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('shows the page the student would see, with no word on how it was graded', async () => {
+    const { tryApi } = setup();
+    await userEvent.click(await screen.findByRole('tab', { name: 'Rezultatul elevului' }));
+    const view = await screen.findByTestId('student-view');
+    expect(within(view).getByRole('heading', { name: QUICK_TRY_STUDENT })).toBeInTheDocument();
+    expect(tryApi.result).toHaveBeenCalled();
+    expectNoGradingWords(view.textContent ?? '');
+    await userEvent.click(within(view).getByRole('button', { name: 'Arată fișierele' }));
+    expect(within(view).getByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/paper/61`);
+  });
+
+  it('moves between the views with the arrow keys', async () => {
+    setup();
+    const first = await screen.findByRole('tab', { name: 'Verificare' });
+    first.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: 'Rezultatul profesorului' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('invites her to a free class test with an account', async () => {
+    setup();
+    const invite = await screen.findByRole('link', { name: 'Creează un cont: corectezi gratuit un test pentru toată clasa.' });
+    expect(invite).toHaveAttribute('href', '/teacher/#cont-nou');
+    expect(screen.getByText(/Îți place\?/)).toBeInTheDocument();
+  });
+});
+
+describe('Distribuie', () => {
+  it("copies the try's link when the browser has no share sheet", async () => {
+    setup();
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { ...navigator, share: undefined, clipboard: { writeText } });
+    await userEvent.click(await screen.findByRole('button', { name: 'Distribuie' }));
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/try/${TRY_TOKEN}`);
+    expect(await screen.findByText('Linkul a fost copiat.')).toBeInTheDocument();
+  });
+
+  it("uses the browser's share sheet where there is one", async () => {
+    setup();
+    const share = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { ...navigator, share });
+    await userEvent.click(await screen.findByRole('button', { name: 'Distribuie' }));
+    expect(share).toHaveBeenCalledWith({ title: 'MQGrader · Încercare rapidă', url: `${window.location.origin}/try/${TRY_TOKEN}` });
+  });
+});

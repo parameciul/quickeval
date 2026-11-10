@@ -14,7 +14,8 @@ import { BadLink, Expired, isExpired } from './TryNotice.tsx';
 
 // A Quick Try's page at /try/<token>: the try's states, and the teacher app's
 // own review at /teste/<code>/verificare (its links to /teste/<code> come back
-// here). `token` is null for an address that is not a try's link.
+// here, and its link to the paper opens the teacher's result). `token` is null
+// for an address that is not a try's link.
 export function TryRoutes({ token, api, tryApi }: { token: string | null; api: AdminApi; tryApi: TryApi }) {
   return (
     <ApiProvider api={api}>
@@ -31,13 +32,13 @@ export function TryRoutes({ token, api, tryApi }: { token: string | null; api: A
         </div>
       </header>
       <main className="try-page">
-        <ErrorBoundary>{token === null ? <BadLink /> : <TryLoader tryApi={tryApi} />}</ErrorBoundary>
+        <ErrorBoundary>{token === null ? <BadLink /> : <TryLoader token={token} tryApi={tryApi} />}</ErrorBoundary>
       </main>
     </ApiProvider>
   );
 }
 
-function TryLoader({ tryApi }: { tryApi: TryApi }) {
+function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
   const info = useQuery({ queryKey: ['try'], queryFn: () => tryApi.info() });
   if (info.isPending) return <p>Se încarcă…</p>;
   if (info.data === undefined) {
@@ -46,12 +47,13 @@ function TryLoader({ tryApi }: { tryApi: TryApi }) {
     return <ErrorMessage error={info.error} />;
   }
   if (info.data.expired) return <Expired />;
-  const home = <TryHome info={info.data} tryApi={tryApi} />;
+  const home = <TryHome info={info.data} token={token} tryApi={tryApi} />;
   return (
     <Routes>
       <Route path="/" element={home} />
       <Route path="/teste/:code" element={home} />
       <Route path="/teste/:code/verificare" element={<ReviewPage />} />
+      <Route path="/teste/:code/elevi/:id" element={<Navigate replace to={{ pathname: '/', hash: '#rezultate' }} />} />
       <Route path="*" element={<Navigate replace to="/" />} />
     </Routes>
   );
