@@ -578,9 +578,12 @@ export async function reopenTest(db: D1Database, teacherId: number, testId: numb
 }
 
 // Archives a finished test, or takes any test out of the archive. The archive
-// accepts only a done test, checked in the statement itself. Returns the new
-// mark, or null when nothing changed: the test is gone, is not the teacher's,
-// or (to archive) is not done.
+// accepts only a done test, checked in the statement itself, and closes every
+// result page of the test (for all, and for single students): an archived
+// test's results are closed unless the teacher publishes them again. Taking a
+// test out of the archive opens nothing. Returns the new mark, or null when
+// nothing changed: the test is gone, is not the teacher's, or (to archive) is
+// not done.
 export async function setTestArchived(
   db: D1Database,
   teacherId: number,
@@ -588,10 +591,29 @@ export async function setTestArchived(
   archived: boolean,
   now: string,
 ): Promise<boolean | null> {
-  const sql = archived
-    ? "UPDATE tests SET archived = 1, updated_at = ? WHERE id = ? AND teacher_id = ? AND status = 'done' RETURNING archived"
-    : 'UPDATE tests SET archived = 0, updated_at = ? WHERE id = ? AND teacher_id = ? RETURNING archived';
-  const row = await db.prepare(sql).bind(now, testId, teacherId).first<{ archived: number }>();
+  if (!archived) {
+    const row = await db
+      .prepare('UPDATE tests SET archived = 0, updated_at = ? WHERE id = ? AND teacher_id = ? RETURNING archived')
+      .bind(now, testId, teacherId)
+      .first<{ archived: number }>();
+    return row ? row.archived === 1 : null;
+  }
+  // The pages close only once the test is archived, so a refused archive
+  // closes nothing.
+  const [test] = await db.batch<{ archived: number }>([
+    db
+      .prepare(
+        "UPDATE tests SET archived = 1, results_open = 0, updated_at = ? WHERE id = ? AND teacher_id = ? AND status = 'done' RETURNING archived",
+      )
+      .bind(now, testId, teacherId),
+    db
+      .prepare(
+        `UPDATE submissions SET results_open = 0 WHERE test_id = ? AND results_open = 1
+          AND EXISTS (SELECT 1 FROM tests t WHERE t.id = ? AND t.teacher_id = ? AND t.archived = 1)`,
+      )
+      .bind(testId, testId, teacherId),
+  ]);
+  const row = test?.results[0];
   return row ? row.archived === 1 : null;
 }
 
