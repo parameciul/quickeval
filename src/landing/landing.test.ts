@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import page from '../../index.html?raw';
+import raw from '../../index.html?raw';
 import { SIGNUP_HASH } from '../admin/pages/LoginPage.tsx';
 import { THEME_KEY } from '../ui/theme.ts';
-import { initThemeButton, themeLabel } from './landing.ts';
+import { expandPartials } from './partials.ts';
+import { initThemeButton, themeLabel } from './themeButton.ts';
 
+// The page as it is served, with its shared footer in place.
+const page = expandPartials(raw);
 const doc = new DOMParser().parseFromString(page, 'text/html');
 const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const all = (selector: string) => Array.from(doc.querySelectorAll(selector));

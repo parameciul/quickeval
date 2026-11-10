@@ -58,8 +58,18 @@ describe('robots.txt', () => {
 });
 
 describe('sitemap.xml and llms.txt', () => {
-  it('list only the landing page of mqgrader.ro', () => {
-    expect(Array.from(sitemap.matchAll(/<loc>(.*?)<\/loc>/g), (m) => m[1])).toEqual(['https://mqgrader.ro/']);
+  it('lists the public pages of mqgrader.ro and no other host', () => {
+    const urls = Array.from(sitemap.matchAll(/<loc>(.*?)<\/loc>/g), (m) => m[1]);
+    // The landing page first, then the four pages that answer a search.
+    expect(urls).toEqual([
+      'https://mqgrader.ro/',
+      'https://mqgrader.ro/ghid/',
+      'https://mqgrader.ro/barem/',
+      'https://mqgrader.ro/despre/',
+      'https://mqgrader.ro/preturi/',
+    ]);
+    // The private apps and a Quick Try's page are never in it.
+    for (const url of urls) expect(url).not.toMatch(/\/(teacher|u|try)\//);
   });
 
   it('describe the product and link to mqgrader.ro only', () => {

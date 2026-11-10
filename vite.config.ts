@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
+import { expandPartials } from './src/landing/partials.ts';
 
 const page = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
@@ -26,8 +27,17 @@ function appFallback(): Plugin {
   };
 }
 
+// The public pages share their footer (src/landing/partials.ts): each names it
+// with an include comment, put in place before Vite reads the page.
+function publicPagePartials(): Plugin {
+  return {
+    name: 'quickeval-public-page-partials',
+    transformIndexHtml: { order: 'pre', handler: (html) => expandPartials(html) },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), appFallback()],
+  plugins: [react(), appFallback(), publicPagePartials()],
   appType: 'mpa',
   build: {
     outDir: 'dist',
@@ -39,6 +49,12 @@ export default defineConfig({
         teacher: page('./teacher/index.html'),
         upload: page('./u/index.html'),
         try: page('./try/index.html'),
+        // The pages that answer a search: the guide, the barem, the author
+        // and the prices. Static HTML, like the landing page.
+        ghid: page('./ghid/index.html'),
+        barem: page('./barem/index.html'),
+        despre: page('./despre/index.html'),
+        preturi: page('./preturi/index.html'),
       },
     },
   },

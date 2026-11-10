@@ -1,12 +1,13 @@
-# Only the landing page is public. The teacher app (/teacher/) answers with noindex,
-# so it must stay crawlable for that to be seen. Student links, Quick Try links and the API are closed.
+# The landing page and the four pages that answer a search are public. The
+# teacher app (/teacher/) answers with noindex, so it must stay crawlable for
+# that to be seen. Student links, Quick Try links and the API are closed.
 User-agent: *
 Allow: /
 Disallow: /u/
 Disallow: /try/
 Disallow: /api/
 
-# AI search and answer engines may read and cite the landing page.
+# AI search and answer engines may read and cite the public pages.
 User-agent: OAI-SearchBot
 Allow: /
 Disallow: /u/
