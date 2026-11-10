@@ -4,9 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ClassReport, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { classCsv } from '../../../shared/csv.ts';
 import { uploadStatusLabel } from '../../ui/format.ts';
-import { createFakeApi, FAKE_STARTED_AT, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import * as share from '../pdf/share.ts';
+import { STUDENT_ACCESS_HELP } from './StudentAccessCard.tsx';
+import { MULTI_LABEL } from './UploadLink.tsx';
 
 vi.mock('../pdf/share.ts', () => ({ saveFile: vi.fn(), shareFile: vi.fn() }));
 
@@ -282,5 +284,72 @@ describe('the panel Rezultate, small details', () => {
     expect(screen.getByText('Nu am putut copia linkul. Copiază-l de aici.')).toBeInTheDocument();
     expect(field).toHaveFocus();
     expect((field as HTMLInputElement).selectionEnd).toBe((field as HTMLInputElement).value.length);
+  });
+});
+
+describe('the panel Rezultate, where students find their results', () => {
+  const card = () => screen.getByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
+
+  it('shows no card before the results are published', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
+    expect(await screen.findByRole('button', { name: 'Publică toate rezultatele' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).not.toBeInTheDocument();
+  });
+
+  it("shows the students' link and the help once published, and no teacher link when there is none", async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
+    await userEvent.click(await screen.findByRole('button', { name: 'Publică toate rezultatele' }));
+    expect(await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).toBeInTheDocument();
+    expect(within(card()).getByLabelText('Linkul pentru elevi: trimite-l clasei')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(within(card()).getByTitle('Codul QR al linkului')).toBeInTheDocument();
+    expect(within(card()).getByText(STUDENT_ACCESS_HELP)).toBeInTheDocument();
+    expect(within(card()).queryByLabelText(MULTI_LABEL)).not.toBeInTheDocument();
+
+    // Stopping the access takes the card away again.
+    await userEvent.click(screen.getByRole('button', { name: 'Oprește accesul la rezultate' }));
+    expect(await screen.findByRole('button', { name: 'Publică toate rezultatele' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).not.toBeInTheDocument();
+  });
+
+  it('names the multi-upload link as the teacher’s, with no QR code', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true, multiUploadToken: FAKE_MULTI_TOKEN }, graded()));
+    await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
+    expect(within(card()).getByLabelText(MULTI_LABEL)).toHaveValue(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
+    expect(within(card()).getByText('Nu-l da elevilor: pe acest link ei nu își găsesc rezultatele.')).toBeInTheDocument();
+    // One QR code only: the students'.
+    expect(within(card()).getAllByTitle('Codul QR al linkului')).toHaveLength(1);
+  });
+
+  it('shows the card when one result is published alone', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', publishedCount: 1 }, graded()));
+    expect(await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).toBeInTheDocument();
+  });
+
+  it("downloads the students' QR code as a PNG file", async () => {
+    const png = new Blob(['png'], { type: 'image/png' });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    const toBlob = vi
+      .spyOn(HTMLCanvasElement.prototype, 'toBlob')
+      .mockImplementation(function (callback: BlobCallback) {
+        callback(png);
+      });
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
+    await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
+    await userEvent.click(within(card()).getByRole('button', { name: 'Descarcă codul QR' }));
+    await vi.waitFor(() => expect(saveFile).toHaveBeenCalledWith(png, 'cod-qr-elevi-6E2-26T1.png'));
+    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
+    expect(within(card()).getByRole('button', { name: 'Descarcă codul QR' })).toBeEnabled();
+  });
+
+  it('says so when the QR code cannot be made', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (callback: BlobCallback) {
+      callback(null);
+    });
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
+    await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
+    await userEvent.click(within(card()).getByRole('button', { name: 'Descarcă codul QR' }));
+    expect(await within(card()).findByText('Nu am putut descărca codul QR.')).toBeInTheDocument();
+    expect(saveFile).not.toHaveBeenCalled();
   });
 });

@@ -22,6 +22,7 @@ import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
 import { ResultFiles } from './ResultFiles.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
 import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
+import { StudentAccessCard } from './StudentAccessCard.tsx';
 import { ReviewList } from './ReviewList.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
@@ -245,6 +246,7 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
     <>
       <p>Linkul arată nota, punctajul pe fiecare exercițiu, explicațiile detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Elevul îl vede după ce îl publici.</p>
       <ResultsAccess test={test} onChanged={onChanged} />
+      <StudentAccessCard test={test} />
       <h3>Linkurile elevilor</h3>
       {count && <p className="hint">{count}</p>}
       <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} onChanged={onChanged} />

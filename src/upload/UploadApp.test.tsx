@@ -224,6 +224,9 @@ describe('UploadApp', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Am trimis tot' }));
     expect(await screen.findByRole('heading', { name: 'Gata! Lucrarea ta a fost trimisă.' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
+    // The whole address is text on the page (not cut off in a field), so a screenshot keeps all of it.
+    expect(screen.getByText(`${window.location.origin}/u/rezultat/result-token-11`)).toHaveClass('result-link-url');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.getByText('Rezultatul apare aici după ce profesorul publică rezultatele: nota, punctajul pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.')).toBeInTheDocument();
     expect(localStorage.getItem(`qe.result.${LINK_TOKEN}.11`)).toContain('result-token-11');
     expectNoGradingWords();
@@ -237,6 +240,7 @@ describe('UploadApp', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
     expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
     expect(screen.getByText(/Linkul cu rezultatul pentru Pop Ion/)).toBeInTheDocument();
+    expect(screen.getByText(`${window.location.origin}/u/rezultat/result-token-11`)).toHaveClass('result-link-url');
     expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
     expectNoGradingWords();
   });
