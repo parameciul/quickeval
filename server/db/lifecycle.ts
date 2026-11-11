@@ -56,6 +56,11 @@ export async function askAnalysisAfterCheck(db: D1Database, teacherId: number, s
 // when the robot generated it, and no generation is running.
 export const BAREM_ACTIVE = baremActiveSql('class');
 
+// Test t is not of a subject the robot does not grade: every path that moves an
+// open test into evaluation checks it, like BAREM_ACTIVE. Null (not found yet)
+// may start: the exercise list finds it.
+export const SUBJECT_GRADED = "COALESCE(t.subject, '') <> 'alta'";
+
 const HAS_FILES = 'EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)';
 
 // evaluating → done: no upload waits for grading or is being graded, and no
@@ -119,10 +124,11 @@ export async function finishBlocker(db: D1Database, testId: number): Promise<'pa
 
 // How many papers of a teacher are on their way to the robot, in the tests x
 // of `waiting`. The trigger submissions_count_paper (migration 0019) counts a
-// paper when its result arrives, so these use the demo limit too.
+// paper when its result arrives, so these use the demo limit too. The papers
+// of a test whose subject is not graded wait for nothing and count for nothing.
 export const papersWaitingSql = (teacherId: string, waiting = "x.status = 'evaluating'") =>
   `(SELECT COUNT(*) FROM submissions w JOIN tests x ON x.id = w.test_id
-    WHERE x.teacher_id = ${teacherId} AND w.status IN ('submitted', 'grading') AND ${waiting})`;
+    WHERE x.teacher_id = ${teacherId} AND w.status IN ('submitted', 'grading') AND COALESCE(x.subject, '') <> 'alta' AND ${waiting})`;
 
 // How many papers the teacher of test t may still send to the robot: no limit
 // for a complete account.
@@ -143,13 +149,14 @@ const PAPERS_LEFT_TO_REGRADE = papersLeft("(x.status = 'evaluating' OR x.id = t.
 // A demo account grades one test only: no other test of the teacher has been
 // sent to the robot (a paper that is sent, being graded, graded or failed, in
 // a test whose evaluation started). A test that ended at once with nothing to
-// grade does not use the place. The place stays used when the papers are reset
+// grade does not use the place, nor does a test whose subject the robot does
+// not grade (its papers were never graded). The place stays used when the papers are reset
 // (teachers.graded_test_id, set when a paper is first graded). A regrade or
 // retry is not checked here: its test is the one that was graded.
 const ONLY_TEST = `(SELECT CASE WHEN q.demo = 0 THEN 1
     WHEN q.graded_test_id IS NOT NULL AND q.graded_test_id <> t.id THEN 0
     WHEN EXISTS (SELECT 1 FROM tests o JOIN submissions os ON os.test_id = o.id
-      WHERE o.teacher_id = q.id AND o.id <> t.id AND o.evaluation_started_at IS NOT NULL
+      WHERE o.teacher_id = q.id AND o.id <> t.id AND o.evaluation_started_at IS NOT NULL AND COALESCE(o.subject, '') <> 'alta'
         AND os.status IN ('submitted', 'grading', 'graded', 'failed')) THEN 0
     ELSE 1 END
   FROM teachers q WHERE q.id = t.teacher_id) = 1`;
@@ -245,7 +252,7 @@ const SCHEDULED_ELSEWHERE = `EXISTS (SELECT 1 FROM tests o JOIN teachers q ON q.
 
 // An open test whose scheduled evaluation time has come. A demo account at its
 // limit, or a barem that is not active, keeps the test open.
-const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}`;
+const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED} AND ${WITHIN_PAPER_LIMIT}`;
 
 const DUE_PAPERS = papersToSend(DUE);
 
@@ -297,12 +304,13 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
       .bind(now),
     askForAnalysis(db),
     finishTests(db, now),
-    // A due test that the demo account's one test keeps out has no schedule
-    // left, so its students can upload again.
+    // A due test that the demo account's one test keeps out, or whose subject
+    // the robot does not grade, has no schedule left, so its students can
+    // upload again.
     db
       .prepare(
         `UPDATE tests AS t SET evaluation_at = NULL, updated_at = ?1
-         WHERE t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND NOT ${ONLY_TEST}`,
+         WHERE t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND (NOT ${ONLY_TEST} OR NOT ${SUBJECT_GRADED})`,
       )
       .bind(now),
   ];
@@ -311,7 +319,7 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
 // An open test of this teacher with the test file, the barem, and at least one
 // uploaded file (spec §8.4).
 const READY = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
-  AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}
+  AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED} AND ${WITHIN_PAPER_LIMIT}
   AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id WHERE s.test_id = t.id)`;
 
 // open → evaluating now. Null when the test is not ready; "done" when it has
@@ -387,11 +395,11 @@ async function startSelectiveEvaluation(
   const placeholders = submissionIds.map((_, index) => `?${index + 4}`).join(',');
   const params = [testId, teacherId, now, ...submissionIds];
   const READY_SELECTED = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}
+    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED} AND ${WITHIN_PAPER_LIMIT}
     AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id
       WHERE s.test_id = t.id AND s.id IN (${placeholders}))`;
   const OPEN_WITH_FILES = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}`;
+    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED} AND ${WITHIN_PAPER_LIMIT}`;
   const TO_SEND = papersToSend(OPEN_WITH_FILES, `s.id IN (${placeholders})`);
   const [, , started, , finished] = await db.batch<{ id: number }>([
     // Unselected confirmed uploads wait for a later evaluation.
@@ -429,7 +437,7 @@ export async function scheduleEvaluation(db: D1Database, teacherId: number, test
   const row = await db
     .prepare(
       `UPDATE tests AS t SET evaluation_at = ?, updated_at = ?
-       WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE}
+       WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED}
          AND ${WITHIN_PAPER_LIMIT} AND NOT ${SCHEDULED_ELSEWHERE}
        RETURNING id`,
     )

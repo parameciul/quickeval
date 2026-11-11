@@ -640,10 +640,17 @@ export async function setTestArchived(
 const QUICK_TRY_FILES_LEFT = `(quick_try = 0 OR files_version < ${QUICK_TRY_FILE_CHANGES})`;
 
 // The SET part that forgets a subject the robot found; the teacher's stays.
-// SQLite reads every right side before it writes, so the three see the old row.
+// A list that failed because the subject is not graded (`alta`) waits again,
+// so the robot reads the new file. SQLite reads every right side before it
+// writes, so all of them see the old row.
+const ENDED_UNSUPPORTED = "exercise_list_status = 'failed' AND subject = 'alta'";
 const SUBJECT_FROM_ROBOT_CLEARED = `subject = CASE WHEN subject_by = 'robot' THEN NULL ELSE subject END,
            subject_name = CASE WHEN subject_by = 'robot' THEN '' ELSE subject_name END,
-           subject_by = CASE WHEN subject_by = 'robot' THEN NULL ELSE subject_by END, `;
+           subject_by = CASE WHEN subject_by = 'robot' THEN NULL ELSE subject_by END,
+           exercise_list_json = CASE WHEN ${ENDED_UNSUPPORTED} THEN NULL ELSE exercise_list_json END,
+           exercise_list_message = CASE WHEN ${ENDED_UNSUPPORTED} THEN NULL ELSE exercise_list_message END,
+           exercise_list_attempts = CASE WHEN ${ENDED_UNSUPPORTED} THEN 0 ELSE exercise_list_attempts END,
+           exercise_list_status = CASE WHEN ${ENDED_UNSUPPORTED} THEN 'none' ELSE exercise_list_status END, `;
 
 export async function saveTestFile(
   db: D1Database,

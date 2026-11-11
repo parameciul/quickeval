@@ -5,7 +5,7 @@ import path from 'node:path';
 import { STUDENT_FILE_TYPES, TEACHER_FILE_TYPES, typeFromFileName } from '../shared/files.ts';
 import { formatPoints } from '../shared/scoring.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
-import { checkExerciseList, checkGeneratedBarem, checkGrading, claudeJsonSchema, exerciseListSchema, generatedBaremSchema, gradingResultSchema } from '../shared/schemas.ts';
+import { checkExerciseList, checkGeneratedBarem, checkGrading, claudeJsonSchema, exerciseListAnswerSchema, generatedBaremAnswerSchema, gradingResultSchema } from '../shared/schemas.ts';
 import type { ClaudeOutcome, ClaudeRunner } from './claude.ts';
 import { makeBaremDocx } from './baremDocx.ts';
 import { claudeRunner, claudeSettings } from './claude.ts';
@@ -147,7 +147,7 @@ export async function trySkill(args: string[], env: Record<string, string | unde
       print(workFolderProblem(err));
       return 1;
     }
-    const jsonSchema = claudeJsonSchema(mode === 'grade' ? gradingResultSchema : mode === 'barem' ? generatedBaremSchema : exerciseListSchema);
+    const jsonSchema = claudeJsonSchema(mode === 'grade' ? gradingResultSchema : mode === 'barem' ? generatedBaremAnswerSchema : exerciseListAnswerSchema);
     print(`Claude lucrează (${mode})…`);
     let outcome: ClaudeOutcome;
     try {

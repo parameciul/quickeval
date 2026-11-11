@@ -9,12 +9,15 @@ import {
   claudeJsonSchema,
   cutText,
   type ExerciseList,
+  exerciseListAnswerSchema,
   exerciseListSchema,
+  generatedBaremAnswerSchema,
   generatedBaremSchema,
   gradingResultSchema,
   LOW_CONFIDENCE,
   MAX_AREAS,
   OUT_OF_RANGE,
+  subjectOf,
 } from './schemas.ts';
 
 function exercise(id: string, maxPoints: number) {
@@ -63,7 +66,7 @@ describe('cutText', () => {
 describe('checkExerciseList', () => {
   it('accepts a list whose points add up', () => {
     const checked = checkExerciseList(LIST);
-    expect(checked).toEqual({ ok: true, value: { list: LIST, status: 'ready', message: null } });
+    expect(checked).toEqual({ ok: true, value: { list: LIST, status: 'ready', message: null, subject: null } });
   });
 
   it('marks a list whose points do not add up as a problem, with the sums', () => {
@@ -441,5 +444,35 @@ describe('checkGeneratedBarem', () => {
     expect(json.$schema).toBe('http://json-schema.org/draft-07/schema#');
     expect(json.required).toEqual(['title', 'subtitle', 'notes', 'total', 'officePoints', 'parts']);
     expect(Object.keys(json.properties)).toEqual(['title', 'subtitle', 'notes', 'total', 'officePoints', 'parts']);
+  });
+});
+
+describe('the subject in the answers of the modes exercise-list and barem', () => {
+  it('reads the subject, and the name only of a subject that is not graded, cut to 60 characters', () => {
+    expect(subjectOf({ subject: 'fizica', subjectName: 'fizică' })).toEqual({ value: 'fizica', name: '' });
+    expect(subjectOf({ subject: 'alta', subjectName: ' istorie ' })).toEqual({ value: 'alta', name: 'istorie' });
+    expect(Array.from(subjectOf({ subject: 'alta', subjectName: 'x'.repeat(100) })!.name)).toHaveLength(60);
+  });
+
+  it('reads no subject from an older answer or a value outside the list', () => {
+    expect(subjectOf(LIST)).toBeNull();
+    expect(subjectOf({ subject: 'istorie', subjectName: '' })).toBeNull();
+    expect(subjectOf(null)).toBeNull();
+  });
+
+  it('keeps the subject beside the checked list, and stores the list without it', () => {
+    const checked = checkExerciseList({ ...LIST, subject: 'chimie', subjectName: '' });
+    expect(checked.ok && checked.value.subject).toEqual({ value: 'chimie', name: '' });
+    expect(checked.ok && checked.value.list).toEqual(LIST);
+    const older = checkExerciseList(LIST);
+    expect(older.ok && older.value.subject).toBeNull();
+  });
+
+  it('asks Claude for the subject and its name in both modes', () => {
+    for (const schema of [exerciseListAnswerSchema, generatedBaremAnswerSchema]) {
+      const json = claudeJsonSchema(schema) as { required: string[]; properties: Record<string, { enum?: string[] }> };
+      expect(json.required).toEqual(expect.arrayContaining(['subject', 'subjectName']));
+      expect(json.properties.subject!.enum).toEqual(['matematica', 'fizica', 'chimie', 'biologie', 'stiinte', 'romana', 'engleza', 'alta']);
+    }
   });
 });

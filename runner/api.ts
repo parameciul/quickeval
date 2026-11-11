@@ -18,6 +18,7 @@ import type {
   RunSummary,
   TasksResult,
 } from '../shared/runner.ts';
+import type { FoundSubject } from '../shared/schemas.ts';
 
 // The robot's client of the robot API (/api/runner, spec §11.3). It loads no
 // package, only types: check.ts uses it before `npm ci`.
@@ -78,7 +79,16 @@ export interface RobotApi {
   // The class barem of a CES barem job (BaremJob.classBarem).
   baremClassBarem(testId: number): Promise<Uint8Array>;
   // The barem as a Word file, written from the test file of `filesVersion`.
-  sendBarem(testId: number, runId: string, filesVersion: number, docx: Uint8Array, createdAt?: string, variant?: TestVariant): Promise<void>;
+  // `subject`: what Claude found, sent as X-Subject and X-Subject-Name (URI-encoded: a header holds no ș).
+  sendBarem(
+    testId: number,
+    runId: string,
+    filesVersion: number,
+    docx: Uint8Array,
+    createdAt?: string,
+    variant?: TestVariant,
+    subject?: FoundSubject | null,
+  ): Promise<void>;
   // "failed": the last attempt failed. "none": the barem waits for another try.
   sendBaremFailed(testId: number, body: BaremFailedPost, variant?: TestVariant): Promise<'none' | 'failed'>;
 }
@@ -172,7 +182,7 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
     baremJob: async (testId, variant) => (await json<{ job: BaremJob }>('GET', `/tests/${testId}/barem-job${ofVariant(variant)}`)).job,
     baremSource: (testId, variant) => bytes(`/tests/${testId}/barem-job/file${ofVariant(variant)}`),
     baremClassBarem: (testId) => bytes(`/tests/${testId}/barem-job/class-barem`),
-    sendBarem: (testId, runId, filesVersion, docx, createdAt, variant) =>
+    sendBarem: (testId, runId, filesVersion, docx, createdAt, variant, subject) =>
       send(
         'PUT',
         `/tests/${testId}/barem${ofVariant(variant)}`,
@@ -181,6 +191,7 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
           'X-Run-Id': runId,
           'X-Files-Version': String(filesVersion),
           ...(createdAt ? { 'X-Created-At': createdAt } : {}),
+          ...(subject ? { 'X-Subject': subject.value, 'X-Subject-Name': encodeURIComponent(subject.name) } : {}),
         }),
         nothing,
       ),

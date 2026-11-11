@@ -130,6 +130,15 @@ describe('makeBarem', () => {
     expect(subject).toBe('chimie\n');
   });
 
+  it('sends the subject that Claude found with the barem, also one that is not graded', async () => {
+    await setUp('pdf');
+    const claude = scriptedClaude(answer({ ...BAREM, subject: 'alta', subjectName: 'geografie' }));
+    expect(await makeBarem(context(claude), open.testId)).toBe('saved');
+    expect(claude.calls[0]!.task.jsonSchema).toMatchObject({ required: expect.arrayContaining(['subject', 'subjectName']) });
+    const saved = await api!.db.prepare('SELECT subject, subject_name, subject_by FROM tests WHERE id = ?').bind(open.testId).first();
+    expect(saved).toEqual({ subject: 'alta', subject_name: 'geografie', subject_by: 'robot' });
+  });
+
   it('turns a Word test into Markdown for Claude, and writes no notes without comments', async () => {
     await setUp('docx');
     const claude = scriptedClaude(answer(BAREM));

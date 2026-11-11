@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import type { UploadRow } from '../../../shared/api.ts';
+import { unsupportedMessage } from '../../../shared/subjects.ts';
 import { robotStartMessage } from '../../ui/format.ts';
 import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakePoint, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
@@ -1233,6 +1234,23 @@ describe('TestPage evaluation', () => {
     await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
     await openStage('Pregătire');
     expect(screen.getByLabelText('Înlocuiește baremul')).toBeDisabled();
+  });
+
+  it('says in Corectare that the subject is not graded, with no retry, and opens the test file in Pregătire', async () => {
+    const message = unsupportedMessage('istorie');
+    const api = evaluationApi({
+      status: 'evaluating',
+      exerciseList: { status: 'failed', message },
+      subject: { value: 'alta', name: 'istorie', by: 'robot' },
+    });
+    renderAdmin(`${PAGE}#corectare`, api);
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.getByText('Nu corectăm încă această materie.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Încearcă din nou' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Robotul nu a putut citi testul și baremul.')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('link', { name: 'Înlocuiește testul' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Pregătire' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Înlocuiește testul')).toBeEnabled();
   });
 
   it('gives the focus to the panel Pregătire when the barem warning opens it', async () => {

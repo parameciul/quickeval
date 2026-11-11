@@ -47,12 +47,15 @@ export function BaremProblem({ detail }: { detail: TestDetail }) {
 // try gives its place of the day back; there is no retry.
 export function Failed({ detail }: { detail: TestDetail }) {
   const { test } = detail;
+  // A subject the robot does not grade ends the try with the list's message.
   const what =
-    test.barem.request === 'failed'
-      ? 'Robotul nu a putut face baremul din test.'
-      : test.exerciseList.status === 'failed'
-        ? 'Robotul nu a putut citi testul și baremul.'
-        : 'Robotul nu a putut corecta lucrarea.';
+    test.subject?.value === 'alta'
+      ? 'Nu corectăm încă materia acestui test.'
+      : test.barem.request === 'failed'
+        ? 'Robotul nu a putut face baremul din test.'
+        : test.exerciseList.status === 'failed'
+          ? 'Robotul nu a putut citi testul și baremul.'
+          : 'Robotul nu a putut corecta lucrarea.';
   const detailText = test.exerciseList.status === 'failed' ? test.exerciseList.message : null;
   return (
     <div className="try-state">

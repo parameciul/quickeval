@@ -9,8 +9,8 @@ import {
   checkGrading,
   claudeJsonSchema,
   classAnalysisSchema,
-  exerciseListSchema,
-  generatedBaremSchema,
+  exerciseListAnswerSchema,
+  generatedBaremAnswerSchema,
   gradingResultSchema,
 } from '../shared/schemas.ts';
 import type { RobotApi } from './api.ts';
@@ -50,11 +50,12 @@ export interface TaskContext {
   print?: { tools: PrintTools; siteUrl: string };
 }
 
+// The modes "exercise-list" and "barem" also name the subject they found.
 const JSON_SCHEMAS: Record<ClaudeMode, object> = {
-  'exercise-list': claudeJsonSchema(exerciseListSchema),
+  'exercise-list': claudeJsonSchema(exerciseListAnswerSchema),
   grade: claudeJsonSchema(gradingResultSchema),
   'class-report': claudeJsonSchema(classAnalysisSchema),
-  barem: claudeJsonSchema(generatedBaremSchema),
+  barem: claudeJsonSchema(generatedBaremAnswerSchema),
 };
 
 // Room for the rest of the body around Claude's answer.

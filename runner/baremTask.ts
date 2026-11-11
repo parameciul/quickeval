@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { DOCX_TYPE, PDF_TYPE, type TestVariant } from '../shared/files.ts';
 import type { RobotError } from '../shared/runner.ts';
-import { checkGeneratedBarem } from '../shared/schemas.ts';
+import { checkGeneratedBarem, subjectOf } from '../shared/schemas.ts';
 import { RobotApiError } from './api.ts';
 import { makeBaremDocx } from './baremDocx.ts';
 import { log } from './log.ts';
@@ -62,7 +62,7 @@ export async function makeBarem(ctx: TaskContext, testId: number, variant: TestV
         return crash('pandoc');
       }
       try {
-        await ctx.api.sendBarem(testId, ctx.runId, job.filesVersion, docx, job.createdAt, variant);
+        await ctx.api.sendBarem(testId, ctx.runId, job.filesVersion, docx, job.createdAt, variant, subjectOf(outcome.output));
         return 'saved';
       } catch (err) {
         // A file that the API refuses counts an attempt, so it fails in the

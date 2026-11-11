@@ -103,6 +103,15 @@ describe('makeExerciseList', () => {
     expect(subject).toBe('fizica\n');
   });
 
+  it('asks Claude for the subject, and the API keeps the one it found', async () => {
+    const claude = scriptedClaude(answer({ ...LIST, subject: 'biologie', subjectName: '' }));
+    expect(await makeExerciseList(await context(claude), world.testId)).toBe('saved');
+    expect(claude.calls[0]!.files).not.toContain('subject.md');
+    expect(claude.calls[0]!.task.jsonSchema).toMatchObject({ required: expect.arrayContaining(['subject', 'subjectName']) });
+    const row = await world.api.db.prepare('SELECT subject, subject_by FROM tests WHERE id = ?').bind(world.testId).first();
+    expect(row).toEqual({ subject: 'biologie', subject_by: 'robot' });
+  });
+
   it('saves the list that Claude made from the test and the barem, and removes the work folder', async () => {
     const claude = scriptedClaude(answer(LIST));
     expect(await makeExerciseList(await context(claude), world.testId)).toBe('saved');
