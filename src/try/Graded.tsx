@@ -9,6 +9,7 @@ import { pointKey, reviewPath } from '../admin/reviewPage/points.ts';
 import { GradedResult } from '../admin/submissionPage/GradedResult.tsx';
 import { PageFiles } from '../admin/submissionPage/PageFiles.tsx';
 import { StudentResult } from '../upload/StudentResult.tsx';
+import { FilesBeside } from '../ui/FilesBeside.tsx';
 import { countLabel, pageLabel } from '../ui/format.ts';
 import { MathText } from '../ui/MathText.tsx';
 import { onTabKeyDown } from '../ui/tabKeys.ts';
@@ -32,7 +33,7 @@ function viewOfHash(hash: string): View {
 // The graded paper (spec §3.3, state 4): its grade and the points to check,
 // then the app's three views: the points to check (each opens the app's own
 // review), the teacher's result with its corrections, and the page the
-// student would see. The tabs stay at the top while she scrolls.
+// student would see. Both results start with the paper's files. The tabs stay at the top while she scrolls.
 export function Graded({ detail, token, tryApi }: { detail: TestDetail; token: string; tryApi: TryApi }) {
   const [view, setView] = useState<View>(viewOfHash(useLocation().hash));
   const paper = paperOf(detail)!;
@@ -167,9 +168,9 @@ function TeacherResult({ code, submissionId }: { code: string; submissionId: num
   if (!submission.evaluation) return null;
   return (
     <div className="try-result">
-      <GradedResult submissionId={submissionId} evaluation={submission.evaluation} onSaved={saved} />
-      <h2>Paginile lucrării</h2>
-      <PageFiles submissionId={submissionId} files={submission.files} />
+      <FilesBeside count={submission.files.length} files={<PageFiles submissionId={submissionId} files={submission.files} />}>
+        <GradedResult submissionId={submissionId} evaluation={submission.evaluation} onSaved={saved} />
+      </FilesBeside>
     </div>
   );
 }

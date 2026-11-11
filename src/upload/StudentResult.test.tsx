@@ -36,12 +36,12 @@ describe('StudentResult', () => {
     expect(screen.getByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', '/api/try/abc/paper/21');
   });
 
-  it('puts the grade first, then the exercises, the final words, and the files last', () => {
+  it('puts the files first, then the grade, the exercises and the final words', () => {
     const { container } = render(<StudentResult result={graded} fileUrl={() => '#'} />);
     const order = [...container.querySelectorAll('.result-grade, table.items, section[aria-label="Rezumat"], .files-head')].map(
       (element) => element.getAttribute('aria-label') ?? element.className,
     );
-    expect(order).toEqual(['result-grade', 'items', 'Rezumat', 'files-head']);
+    expect(order).toEqual(['files-head', 'result-grade', 'items', 'Rezumat']);
     const side = container.querySelector('.result-side');
     expect(side).not.toBeNull();
     expect(within(side as HTMLElement).getByRole('heading', { name: 'Rezumat' })).toBeInTheDocument();
@@ -54,5 +54,11 @@ describe('StudentResult', () => {
     expect(container.querySelector('.result-grade')).toBeNull();
     expect(container.querySelector('.result-side')).toBeNull();
     expect(screen.getByRole('status')).toHaveTextContent('Rezultatul tău nu este gata încă');
+  });
+
+  it('shows the files strip before the notice when the result is not graded', () => {
+    render(<StudentResult result={result} fileUrl={() => '#'} />);
+    const strip = screen.getByRole('heading', { name: 'Fișiere (1)' });
+    expect(strip.compareDocumentPosition(screen.getByRole('status')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
