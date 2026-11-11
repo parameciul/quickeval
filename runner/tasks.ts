@@ -255,7 +255,7 @@ export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Pro
     const subject = test.subject ?? 'matematica';
     const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes, exerciseList: list, pages, subject, ...(variant === 'ces' ? { variant } : {}) });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
-    const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list).ok);
+    const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list, subject).ok);
     return sendOutcome(outcome, (result, model, effort) => ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: true, result, model, effort }),
       sendError,
     );

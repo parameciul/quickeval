@@ -5,6 +5,7 @@ describe('expectNoGradingWords', () => {
   it('lets ordinary Romanian text pass, "ai" and "ia" included', () => {
     expect(() => expectNoGradingWords('Ai trimis un fișier. Ia o poză clară a paginii.')).not.toThrow();
     expect(() => expectNoGradingWords('Succes! PROCESUL de lucru.')).not.toThrow();
+    expect(() => expectNoGradingWords('You used the past simple well. Check the spelling of "necessary".')).not.toThrow();
   });
 
   it.each([
@@ -17,6 +18,8 @@ describe('expectNoGradingWords', () => {
     'robotul',
     'Varianta CES',
     'Testul adaptat',
+    'Graded by artificial intelligence.',
+    'Your answers were checked automatically.',
   ])('catches "%s"', (text) => {
     expect(() => expectNoGradingWords(text)).toThrow();
   });

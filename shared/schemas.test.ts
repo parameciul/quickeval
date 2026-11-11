@@ -411,8 +411,8 @@ describe('checkGeneratedBarem', () => {
     expect(checkGeneratedBarem({ ...sample, parts: Array.from({ length: 5 }, () => part) }).ok).toBe(false);
     const manySections = Array.from({ length: 7 }, () => section('I', 10));
     expect(checkGeneratedBarem({ ...sample, total: 70, officePoints: 0, parts: [{ title: '', sections: manySections }] }).ok).toBe(false);
-    const manyItems = { title: 'I', points: 31, items: Array.from({ length: 31 }, () => ({ label: '1.', steps: [{ text: 'x', points: 1 }] })) };
-    expect(checkGeneratedBarem({ ...sample, total: 31, officePoints: 0, parts: [{ title: '', sections: [manyItems] }] }).ok).toBe(false);
+    const manyItems = { title: 'I', points: 61, items: Array.from({ length: 61 }, () => ({ label: '1.', steps: [{ text: 'x', points: 1 }] })) };
+    expect(checkGeneratedBarem({ ...sample, total: 61, officePoints: 0, parts: [{ title: '', sections: [manyItems] }] }).ok).toBe(false);
     const manySteps = section('I', 13, Array.from({ length: 13 }, () => 1));
     expect(checkGeneratedBarem({ ...sample, total: 13, officePoints: 0, parts: [{ title: '', sections: [manySteps] }] }).ok).toBe(false);
   });
@@ -474,5 +474,42 @@ describe('the subject in the answers of the modes exercise-list and barem', () =
       expect(json.required).toEqual(expect.arrayContaining(['subject', 'subjectName']));
       expect(json.properties.subject!.enum).toEqual(['matematica', 'fizica', 'chimie', 'biologie', 'stiinte', 'romana', 'engleza', 'alta']);
     }
+  });
+});
+
+describe('the confidence flag by subject', () => {
+  const medium = () => grading([item('I.1', 4, { confidence: 'medium' }), item('I.2', 2), item('II.1', 2)]);
+
+  it('flags medium confidence in a subject other than math, with the reason', () => {
+    for (const subject of ['fizica', 'romana', 'engleza'] as const) {
+      const checked = checkGrading(medium(), LIST, subject);
+      if (!checked.ok) throw new Error(checked.reason);
+      expect(checked.value.items[0]).toMatchObject({ needsReview: true, reviewReason: LOW_CONFIDENCE });
+      expect(checked.value.items[1]!.needsReview).toBe(false);
+    }
+  });
+
+  it('keeps math as it was: medium confidence is not flagged, with or without a subject', () => {
+    for (const subject of ['matematica', null] as const) {
+      const checked = checkGrading(medium(), LIST, subject);
+      if (!checked.ok) throw new Error(checked.reason);
+      expect(checked.value.items[0]!.needsReview).toBe(false);
+    }
+  });
+});
+
+describe('the generated barem of a language test', () => {
+  it('takes up to 60 items in one subject', () => {
+    const items = (count: number) => Array.from({ length: count }, (_, index) => ({ label: `${index + 1}.`, steps: [{ text: 'Răspuns', points: 1 }] }));
+    const barem = (count: number) => ({
+      title: 'Test de evaluare – Limba engleză',
+      subtitle: 'Limba engleză – clasa a VIII-a',
+      notes: [],
+      total: count + 10,
+      officePoints: 10,
+      parts: [{ title: '', sections: [{ title: 'SUBIECTUL I', points: count, items: items(count) }] }],
+    });
+    expect(checkGeneratedBarem(barem(60)).ok).toBe(true);
+    expect(checkGeneratedBarem(barem(61))).toEqual({ ok: false, reason: 'needs 1 to 60 items in a section' });
   });
 });

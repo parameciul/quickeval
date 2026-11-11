@@ -346,7 +346,7 @@ export function runnerRoutes(): Hono<AppEnv> {
     const now = nowIso();
     if (body.ok) {
       if (!current.exerciseList) throw takenOver();
-      const checked = checkGrading(body.result, current.exerciseList);
+      const checked = checkGrading(body.result, current.exerciseList, current.subject);
       if (!checked.ok) throw invalidResult();
       if (!(await saveGrading(c.env.DB, submissionId, body.runId, startedAt, checked.value, body.result, body.model, now, body.effort ?? null))) {
         throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();

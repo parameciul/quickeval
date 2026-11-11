@@ -28,6 +28,10 @@ export const PDF_PLAIN_SYMBOLS: Record<string, string> = {
   '⇒': '=>',
   '⇔': '<=>',
   '→': '->',
+  '⇌': '<=>',
+  // Chemistry: a gas that leaves, a precipitate. They follow a formula (CO₂↑).
+  '↑': ' (gaz)',
+  '↓': ' (precipitat)',
 };
 
 export const PDF_SYMBOLS: Record<string, string> = { ...PDF_WORD_SYMBOLS, ...PDF_PLAIN_SYMBOLS };

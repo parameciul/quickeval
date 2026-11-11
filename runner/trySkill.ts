@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { STUDENT_FILE_TYPES, TEACHER_FILE_TYPES, typeFromFileName } from '../shared/files.ts';
 import { formatPoints } from '../shared/scoring.ts';
+import { type DetectedSubject, isDetectedSubject } from '../shared/subjects.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
 import { checkExerciseList, checkGeneratedBarem, checkGrading, claudeJsonSchema, exerciseListAnswerSchema, generatedBaremAnswerSchema, gradingResultSchema } from '../shared/schemas.ts';
 import type { ClaudeOutcome, ClaudeRunner } from './claude.ts';
@@ -20,6 +21,8 @@ import { makeWorkFolder, removeFolder, runFolder } from './workdir.ts';
 //   test.pdf or test.docx, barem.pdf or barem.docx
 //   student/            (grade) the pages, in name order: 1.jpg, 2.jpg, …, 10.jpg
 //   exercises.json      (grade) written by the exercise-list mode
+//   subject.md          the subject (matematica, fizica, …): written by the exercise-list mode, read by
+//                       the grade mode (none: math); put it there by hand to skip the detection
 //   notes.md            (barem) the teacher's comments for the barem; the barem mode needs no barem file
 //
 // The exercise-list mode writes exercises.json; the grade mode writes
@@ -60,6 +63,14 @@ function readExerciseList(text: string): ExerciseList | null {
   } catch {
     return null;
   }
+}
+
+// The subject in the folder's subject.md, or null without one.
+async function readSubject(folder: string): Promise<DetectedSubject | null> {
+  const file = path.join(folder, 'subject.md');
+  if (!existsSync(file)) return null;
+  const value = (await readFile(file, 'utf8')).trim();
+  return isDetectedSubject(value) ? value : null;
 }
 
 async function readNotes(folder: string): Promise<string | undefined> {
@@ -141,7 +152,11 @@ export async function trySkill(args: string[], env: Record<string, string | unde
     const claude = options.claude ?? claudeRunner(claudeSettings(env, configDir));
     let cwd: string;
     try {
-      const input: WorkFolderInput = mode === 'barem' ? { test: test!, requestNotes: await readNotes(folder) } : { test: test!, barem: barem!, exerciseList: list, pages };
+      const known = await readSubject(folder);
+      const input: WorkFolderInput =
+        mode === 'barem'
+          ? { test: test!, requestNotes: await readNotes(folder), subject: known }
+          : { test: test!, barem: barem!, exerciseList: list, pages, subject: mode === 'grade' ? (known ?? 'matematica') : known };
       cwd = await makeWorkFolder(root, mode, input, options.workdir);
     } catch (err) {
       print(workFolderProblem(err));
@@ -188,13 +203,17 @@ export async function trySkill(args: string[], env: Record<string, string | unde
         return 1;
       }
       await writeFile(path.join(folder, 'exercises.json'), `${JSON.stringify(checked.value.list, null, 2)}\n`);
-      const { list: saved, message } = checked.value;
+      const { list: saved, message, subject } = checked.value;
+      if (subject && !(await readSubject(folder))) {
+        await writeFile(path.join(folder, 'subject.md'), `${subject.value}\n`);
+        print(subject.value === 'alta' ? `Materia: alta (${subject.name}). Robotul nu o corectează.` : `Materia: ${subject.value}.`);
+      }
       print(`${saved.exercises.length} exerciții, ${formatPoints(saved.totalPoints)} puncte, din oficiu ${formatPoints(saved.officePoints)}.`);
       print(message ?? 'Lista de exerciții este bună.');
       print(`Am scris ${path.join(folder, 'exercises.json')}.`);
       return 0;
     }
-    const checked = checkGrading(outcome.output, list!);
+    const checked = checkGrading(outcome.output, list!, (await readSubject(folder)) ?? 'matematica');
     if (!checked.ok) {
       print(`Corectarea nu poate fi folosită (${checked.reason}).`);
       return 1;

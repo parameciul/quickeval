@@ -936,18 +936,18 @@ export async function findRobotFile(db: D1Database, submissionId: number, fileId
 export async function findGrading(
   db: D1Database,
   submissionId: number,
-): Promise<{ status: string; runId: string | null; startedAt: string; exerciseList: ExerciseList | null } | null> {
+): Promise<{ status: string; runId: string | null; startedAt: string; exerciseList: ExerciseList | null; subject: DetectedSubject | null } | null> {
   const row = await db
     .prepare(
-      `SELECT s.status, s.run_id, s.started_at,
+      `SELECT s.status, s.run_id, s.started_at, t.subject,
          CASE WHEN s.variant = 'ces' THEN t.ces_exercise_list_json ELSE t.exercise_list_json END AS exercise_list_json
        FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?`,
     )
     .bind(submissionId)
-    .first<{ status: string; run_id: string | null; started_at: string; exercise_list_json: string | null }>();
+    .first<{ status: string; run_id: string | null; started_at: string; exercise_list_json: string | null; subject: DetectedSubject | null }>();
   if (!row) return null;
   const exerciseList = row.exercise_list_json ? (JSON.parse(row.exercise_list_json) as ExerciseList) : null;
-  return { status: row.status, runId: row.run_id, startedAt: row.started_at, exerciseList };
+  return { status: row.status, runId: row.run_id, startedAt: row.started_at, exerciseList, subject: row.subject };
 }
 
 // This run is grading this upload: its id, its run, and the time it started.
