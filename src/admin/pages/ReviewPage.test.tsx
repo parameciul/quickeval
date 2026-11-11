@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SubmissionDetail, UploadRow } from '../../../shared/api.ts';
 import type { AnswerArea } from '../../../shared/schemas.ts';
 import { ApiError, submissionFileUrl } from '../api.ts';
@@ -655,6 +655,17 @@ function framed(areas: AnswerArea[] = [LOW, TOP]): SubmissionDetail[] {
 const frame = () => screen.getByTestId('answer-frame');
 const ION_I3 = `${PAGE}?lucrare=14&punct=41`;
 
+// A phone: a finger, not a mouse, presses the controls.
+const onPhone = () =>
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(pointer: coarse)',
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+
+afterEach(() => vi.unstubAllGlobals());
+
 describe('the border of the answer to check', () => {
   it('opens the answer on its first part, zoomed, with an orange border and its label outside it', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
@@ -662,9 +673,13 @@ describe('the border of the answer to check', () => {
     expect(layer().style.transform).toBe('translate(-25%, -15.625%) scale(1.875)');
     expect(frame().style).toMatchObject({ left: '12.5%', top: '40.625%', width: '75%', height: '18.75%' });
     expect(within(frame()).getByText('I.3 · partea 1 din 2')).not.toHaveClass('is-below');
-    expect(screen.getByText('Partea 1 din 2')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Partea anterioară' })).toBeDisabled();
+    expect(within(frame()).getByRole('button', { name: 'Partea anterioară' })).toBeDisabled();
+    expect(within(frame()).getByRole('button', { name: 'Partea următoare' })).toBeEnabled();
     expect(screen.getByRole('checkbox', { name: 'Arată chenarul' })).toBeChecked();
+    // The switch sits in the line above the page, beside the page switch.
+    expect(screen.getByRole('checkbox', { name: 'Arată chenarul' }).closest('.review-photo-top')).toContainElement(
+      screen.getByRole('group', { name: 'Paginile lucrării' }),
+    );
   });
 
   it('steps to the next part on its page and back, zoomed on each', async () => {
@@ -680,6 +695,21 @@ describe('the border of the answer to check', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Partea anterioară' }));
     expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
     expect(layer().style.transform).toBe('translate(-25%, -15.625%) scale(1.875)');
+  });
+
+  it('floats the part controls inside the pane on a phone, where a finger reaches them', async () => {
+    onPhone();
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · pagina 1 din 2');
+    const pane = screen.getByTestId('zoom-pane');
+    expect(within(pane).getByRole('button', { name: 'Partea următoare' })).toBeInTheDocument();
+    expect(screen.getByText('1 din 2')).toBeInTheDocument();
+    // Not beside the label, where the pane's edge would cut them off.
+    expect(within(frame()).queryByRole('button', { name: 'Partea următoare' })).not.toBeInTheDocument();
+    await userEvent.click(within(pane).getByRole('button', { name: 'Partea următoare' }));
+    expect(screen.getByText('Ion Popa · pagina 2 din 2')).toBeInTheDocument();
+    expect(screen.getByText('2 din 2')).toBeInTheDocument();
+    expect(within(pane).getByRole('button', { name: 'Partea următoare' })).toBeDisabled();
   });
 
   it('draws the border on a page picked by hand, on the whole page', async () => {
