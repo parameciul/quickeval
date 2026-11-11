@@ -217,7 +217,8 @@ h2 {
   border: 0;
 }
 
-/* The student pages' header: the mark and the name, nothing else. */
+/* The student pages' header (src/upload/StudentHeader.tsx): the site's
+   lockup, which opens the site, then "Despre" and the theme button. */
 
 .site-header {
   position: sticky;
@@ -291,6 +292,39 @@ h2 {
 .theme-icon {
   width: 1rem;
   height: 1rem;
+}
+
+.student-bar {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.student-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.9375rem;
+}
+
+.student-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.student-nav a:hover {
+  color: var(--text);
+}
+
+/* Like the site, a phone drops the "by" line; "Despre" stays, as the page's
+   one way to read about MQGrader. */
+@media (max-width: 56.25rem) {
+  .student-bar .brand-by {
+    display: none;
+  }
 }
 
 /* The teacher app's shell (redesign spec §4): the top bar over everything,
@@ -4243,11 +4277,177 @@ table.items tr.edit-row > td {
   padding-block: 1.25rem 2.5rem;
 }
 
-/* The student's result page holds the same wide exercises table as the
-   teacher's result page, so it uses the teacher's width instead of the
-   narrow phone-first upload width. */
+/* The student's result page: wider than the upload page, for the exercises
+   table beside the final words, but not the teacher's full width, so a line
+   stays easy to read on a desktop. */
 .upload-page.result-page {
-  max-width: 70rem;
+  max-width: 64rem;
+}
+
+/* The header and the footer of the result page keep the content's edges. */
+.result-shell .wrap {
+  max-width: 64rem;
+}
+
+.result-grade {
+  margin-block: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+}
+
+.result-grade h2 {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.result-grade .grade-line {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 1.05rem;
+}
+
+.result-grade .grade-line strong {
+  margin-inline: 0.15rem;
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.result-actions {
+  margin-block: 0.75rem;
+}
+
+.result-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.result-actions p {
+  margin: 0.5rem 0 0;
+}
+
+.result-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.result-side {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.result-side > section {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+}
+
+.result-side h3 {
+  margin-top: 0;
+}
+
+.result-side > section > :last-child {
+  margin-bottom: 0;
+}
+
+.result-page .files-head {
+  margin-top: 1.5rem;
+}
+
+.result-foot {
+  border-top: 1px solid var(--rule);
+  background: var(--sheet);
+}
+
+.result-foot-bar {
+  padding-block: 0.25rem;
+  font-size: 0.9375rem;
+}
+
+.result-foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.result-foot a:hover {
+  color: var(--text);
+}
+
+/* Two columns only from a wide tablet up: below, the exercises table would
+   be too narrow beside the final words. */
+@media (max-width: 56.25rem) {
+  .result-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A printed result (a parent may keep it on paper): the content alone, in one
+   column and in the light colours, whatever theme is on. */
+@media print {
+  .student-nav,
+  .result-actions,
+  .result-page .files-head,
+  .result-page .page-files,
+  .result-foot {
+    display: none;
+  }
+
+  .site-header {
+    position: static;
+  }
+
+  .result-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root,
+  :root[data-theme="dark"],
+  :root:not([data-theme="light"]) {
+    --paper: #f3f5f8;
+    --sheet: #ffffff;
+    --raised: #f7f9fb;
+    --active: #e7ecf3;
+    --rule: #e0e5ec;
+    --line: #edf0f4;
+    --control: #c5cedb;
+    --text: #0c1524;
+    --muted: #4a566a;
+    --ink: #1b5cc8;
+    --ink-hover: #154ba6;
+    --on-ink: #ffffff;
+    --ink-tint: #e6eefb;
+    --orange: #b9480a;
+    --orange-mark: #e2590b;
+    --marker: #fdeee3;
+    --red: #b42318;
+    --ok-bg: #e1f3e9;
+    --ok-fg: #1d7a4c;
+    --error-bg: #fbe9e7;
+    --error-fg: #b42318;
+    --mk-a: #1b5cc8;
+    --mk-b: #e2590b;
+    --conf-5: #1b6b43;
+    --conf-4: #2f9e44;
+    --conf-3: #8a6d00;
+    --conf-2: #b85c00;
+    --conf-1: #cf3a2f;
+    --tone-sat: 65%;
+    --tone-fill: 1;
+    --float: 0 18px 48px rgb(10 20 40 / 0.16);
+    color-scheme: light;
+  }
 }
 
 /* A small button of the teacher app is still a finger's size here. */

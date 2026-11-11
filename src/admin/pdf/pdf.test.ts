@@ -1,13 +1,13 @@
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
-import type { ClassReport, SubmissionDetail } from '../../../shared/api.ts';
+import type { ClassReport, StudentResultView, SubmissionDetail } from '../../../shared/api.ts';
 import { expectNoGradingWords } from '../../test/gradingWords.ts';
 import { fakeItem } from '../../test/fakeApi.ts';
 import { BLOCK, classPdf, classPdfFileName } from './classPdf.ts';
 import { pdfFileName } from './fileName.ts';
 import { PDF_SYMBOLS, pdfText } from './pdfSymbols.ts';
 import { renderPdf } from './renderPdf.ts';
-import { studentPdf, studentPdfFileName, studentPdfInput } from './studentPdf.ts';
+import { studentPdf, studentPdfFileName, studentPdfInput, studentPdfInputFromResult } from './studentPdf.ts';
 
 // The texts of a document definition, in order: the keys that hold text, not
 // the names of fonts or layouts.
@@ -187,6 +187,52 @@ function report(exerciseCount: number): ClassReport {
     },
   };
 }
+
+const gradedView: StudentResultView = {
+  testCode: '6E2-26T1',
+  testTitle: 'Fracții',
+  className: '6E2',
+  studentName: 'Pop Ion',
+  submittedAt: '2026-11-03T08:15:00.000Z',
+  status: 'graded',
+  files: [],
+  evaluation: {
+    maxTotal: 10,
+    officePoints: 1,
+    total: 6.5,
+    grade: 6.5,
+    summary: 'Ai lucrat bine la fracții.',
+    strengths: ['Fracții echivalente'],
+    recommendations: ['Exersează ecuațiile.'],
+    items: [{ exerciseId: 'I.1', label: 'Subiectul I, ex. 1', maxPoints: 4.5, points: 4.5, studentAnswer: '3/4', comment: 'Corect.' }],
+  },
+};
+
+describe('studentPdfInputFromResult', () => {
+  it('maps a student result view to the PDF input, every item settled', () => {
+    const input = studentPdfInputFromResult(gradedView);
+    expect(input).toMatchObject({
+      testCode: '6E2-26T1',
+      testTitle: 'Fracții',
+      studentName: 'Pop Ion',
+      date: '2026-11-03T08:15:00.000Z',
+      grade: 6.5,
+      total: 6.5,
+      maxTotal: 10,
+      officePoints: 1,
+      summary: 'Ai lucrat bine la fracții.',
+      strengths: ['Fracții echivalente'],
+      recommendations: ['Exersează ecuațiile.'],
+    });
+    expect(input!.items.every((item) => item.pending === false)).toBe(true);
+    expect(Object.keys(input!.items[0]!).sort()).toEqual(['comment', 'exerciseId', 'label', 'maxPoints', 'pending', 'points', 'studentAnswer']);
+    expect(Object.keys(input!).sort()).toEqual(Object.keys(studentPdfInput(submission())!).sort());
+  });
+
+  it('gives no PDF input for a result that is not graded', () => {
+    expect(studentPdfInputFromResult({ ...gradedView, evaluation: null })).toBeNull();
+  });
+});
 
 describe('classPdf with CES papers', () => {
   it('adds the CES table and its exercises under "Varianta CES"', () => {

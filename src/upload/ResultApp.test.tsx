@@ -17,6 +17,7 @@ const graded: StudentResultView = {
   testTitle: 'Fracții',
   className: '6E2',
   studentName: 'Pop Ion',
+  submittedAt: '2026-11-03T08:15:00.000Z',
   status: 'graded',
   files: [
     { id: 21, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 1 },
@@ -38,18 +39,47 @@ const graded: StudentResultView = {
 };
 
 describe('ResultApp', () => {
-  it('shows only the MQGrader brand, with no other brand text', async () => {
+  it('shows the site header, with only the site links', async () => {
     const api = createFakeUploadApi();
     api.getResult.mockResolvedValue(structuredClone(graded));
     render(<ResultApp api={api} resultToken="result-token-11" />);
     expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
-    expect(screen.getByRole('banner')).toHaveTextContent('MQGrader');
-    expect(screen.queryByText(/Laura Miron/)).not.toBeInTheDocument();
-    expect(screen.getByRole('banner')).toHaveTextContent(/^MQGrader$/);
-    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+    const banner = screen.getByRole('banner');
+    expect(banner).toHaveTextContent('MQGrader');
+    expect(banner).toHaveTextContent('by Laura Miron');
+    expect(within(banner).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      'https://mqgrader.ro/',
+      'https://mqgrader.ro/despre/',
+    ]);
+    expect(within(banner).getByRole('button', { name: 'Temă întunecată' })).toBeInTheDocument();
     expect(screen.queryByText(/Profesorul tău folosește|Încearcă gratuit|Ești profesor/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expectNoGradingWords();
+  });
+
+  it('puts the send and PDF buttons under the name and the test title', async () => {
+    const api = createFakeUploadApi();
+    api.getResult.mockResolvedValue(structuredClone(graded));
+    render(<ResultApp api={api} resultToken="result-token-11" />);
+    const name = await screen.findByRole('heading', { name: 'Pop Ion' });
+    const title = screen.getByText('Fracții · 6E2-26T1');
+    const send = screen.getByRole('button', { name: 'Trimite linkul' });
+    expect(name.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(title.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(send.compareDocumentPosition(screen.getByRole('heading', { name: 'Rezultatul tău' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('has a footer with only the mqgrader.ro link', async () => {
+    const api = createFakeUploadApi();
+    api.getResult.mockResolvedValue(structuredClone(graded));
+    render(<ResultApp api={api} resultToken="result-token-11" />);
+    await screen.findByRole('heading', { name: 'Pop Ion' });
+    const foot = screen.getByRole('contentinfo');
+    expect(within(foot).getAllByRole('link')).toHaveLength(1);
+    expect(within(foot).getByRole('link', { name: 'mqgrader.ro' })).toHaveAttribute('href', 'https://mqgrader.ro/');
+    expect(foot).toHaveTextContent(/^mqgrader\.ro$/);
+    const shell = foot.closest('.result-shell');
+    expect(shell).not.toBeNull();
+    expect(shell).toContainElement(screen.getByRole('banner'));
   });
 
   it('shows the grade, the mistakes, and the final words, without any teacher controls', async () => {
@@ -77,13 +107,13 @@ describe('ResultApp', () => {
     expectNoGradingWords();
   });
 
-  it('shows only the files button, and the files after it', async () => {
+  it('shows only the send, PDF and files buttons, and the files after it', async () => {
     const api = createFakeUploadApi();
     api.getResult.mockResolvedValue(structuredClone(graded));
     render(<ResultApp api={api} resultToken="result-token-11" />);
     await screen.findByRole('heading', { name: 'Pop Ion' });
-    const buttons = screen.getAllByRole('button');
-    expect(buttons.map((button) => button.textContent)).toEqual(['Arată fișierele']);
+    const buttons = within(screen.getByRole('main')).getAllByRole('button');
+    expect(buttons.map((button) => button.textContent)).toEqual(['Trimite linkul', 'Descarcă PDF', 'Arată fișierele']);
     await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
     expect(await screen.findByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', '/api/u/rezultat/result-token-11/files/21');
     expect(screen.getByTitle('Pagina 2')).toHaveAttribute('src', '/api/u/rezultat/result-token-11/files/22');

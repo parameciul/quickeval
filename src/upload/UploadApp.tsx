@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import type { LinkInfo, LinkStudent } from '../../shared/api.ts';
 import { displayClassName } from '../../shared/classes.ts';
 import { ApiError, GENERIC_MESSAGE, messageOf } from '../ui/ApiError.ts';
-import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import type { ActiveSession, UploadApi } from './api.ts';
 import { NamePicker } from './NamePicker.tsx';
@@ -16,6 +15,7 @@ import {
 } from './resultLinks.ts';
 import { forgetSecret, loadSecret, saveSecret, savedStudent } from './session.ts';
 import { UploadScreen } from './UploadScreen.tsx';
+import { StudentHeader } from './StudentHeader.tsx';
 
 export const UNKNOWN_LINK = 'Link greșit. Cere profesorului linkul nou.';
 
@@ -150,16 +150,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
 
   return (
     <>
-      <header className="site-header">
-        <div className="wrap header-bar">
-          <span className="brand">
-            <BrandMark />
-            <span className="brand-text">
-              <span className="brand-name">MQGrader</span>
-            </span>
-          </span>
-        </div>
-      </header>
+      <StudentHeader />
       <main className="wrap upload-page">
         <ErrorBoundary>
           {phase.kind === 'loading' && <p>Se încarcă…</p>}

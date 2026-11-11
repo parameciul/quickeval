@@ -1,5 +1,5 @@
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces';
-import type { SubmissionDetail } from '../../../shared/api.ts';
+import type { StudentResultView, SubmissionDetail } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDate } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
@@ -62,6 +62,35 @@ export function studentPdfInput(submission: SubmissionDetail): StudentPdfInput |
       studentAnswer: item.studentAnswer,
       comment: item.comment,
       pending: item.needsReview && !item.reviewed,
+    })),
+  };
+}
+
+// The same input from the student's own result page. A student sees only a
+// published result, so no item waits for a check there. Null until graded.
+export function studentPdfInputFromResult(view: StudentResultView): StudentPdfInput | null {
+  const evaluation = view.evaluation;
+  if (!evaluation) return null;
+  return {
+    testCode: view.testCode,
+    testTitle: view.testTitle,
+    studentName: view.studentName,
+    date: view.submittedAt,
+    grade: evaluation.grade,
+    total: evaluation.total,
+    maxTotal: evaluation.maxTotal,
+    officePoints: evaluation.officePoints,
+    summary: evaluation.summary,
+    strengths: evaluation.strengths,
+    recommendations: evaluation.recommendations,
+    items: evaluation.items.map((item) => ({
+      exerciseId: item.exerciseId,
+      label: item.label,
+      maxPoints: item.maxPoints,
+      points: item.points,
+      studentAnswer: item.studentAnswer,
+      comment: item.comment,
+      pending: false,
     })),
   };
 }
