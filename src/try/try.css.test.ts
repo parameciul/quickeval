@@ -25,6 +25,21 @@ describe('try.css', () => {
     expect(block('.try-page')).toContain('padding: 1.5rem 1rem 3rem');
   });
 
+  it("gives the top bar the teacher app's sizes, on the bar alone", () => {
+    const bar = block('.try-topbar');
+    expect(bar).toContain('--bar: 80px');
+    expect(bar).toContain('--top: 60px');
+    const phone = css.indexOf('@media (max-width: 56.25rem) {\n  .try-topbar {');
+    expect(phone).toBeGreaterThanOrEqual(0);
+    expect(css.slice(phone, css.indexOf('}', phone))).toContain('--top: 56px');
+    expect(block('.try-page')).not.toContain('--top');
+  });
+
+  it('sticks the shown files under the tabs', () => {
+    expect(block('.try-panel')).toContain('--top: 2.75rem');
+    expect(block('.try-tab')).toContain('height: 2.75rem');
+  });
+
   it('keeps a notice narrow and in the middle', () => {
     expect(block('.try-notice')).toContain('max-width: 36rem');
   });

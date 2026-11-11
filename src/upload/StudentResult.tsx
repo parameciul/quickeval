@@ -1,119 +1,114 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { StudentResultView } from '../../shared/api.ts';
 import { formatPoints } from '../../shared/scoring.ts';
+import { FilesBeside } from '../ui/FilesBeside.tsx';
 import { formatFileSize, pointsLevel } from '../ui/format.ts';
 import { MathText } from '../ui/MathText.tsx';
 
-// One student's result page: the grade, the points and comments per exercise,
-// and the final words, then the files. Read-only: the only button shows or
-// hides the files. On a wide screen the exercises and the final words sit side
-// by side.
+// One student's result page: the files first (hidden until asked for), then
+// the grade, the points and comments per exercise, and the final words.
+// Read-only: the only button shows or hides the files. On a wide screen the
+// exercises and the final words sit side by side.
 // Nothing here tells how the work was graded. `fileUrl` gives the address of a
 // page: the student app's result link, or a Quick Try's link. `actions`, the
 // result page's own buttons, sit under the name and the test title.
 export function StudentResult({ result, fileUrl, actions }: { result: StudentResultView; fileUrl: (fileId: number) => string; actions?: ReactNode }) {
-  const [filesOpen, setFilesOpen] = useState(false);
   const evaluation = result.evaluation;
   return (
-    <section>
+    <section className="result-view">
       <h1>{result.studentName}</h1>
       <p className="hint">
         {result.testTitle} · {result.testCode}
       </p>
       {actions}
-      {evaluation ? (
-        <>
-          <div className="result-grade">
-            <h2>Rezultatul tău</h2>
-            <p className="grade-line">
-              Nota <strong className={`points points-${pointsLevel(evaluation.grade, 10)}`}>{formatPoints(evaluation.grade)}</strong> ·{' '}
-              {formatPoints(evaluation.total)} puncte din {formatPoints(evaluation.maxTotal)}
-              {evaluation.officePoints > 0 && `, cu ${formatPoints(evaluation.officePoints)} din oficiu`}
-            </p>
-          </div>
-          <div className="result-columns">
-            <div className="result-main">
-              <div className="table-wrap">
-                <table className="items">
-                  <caption className="sr-only">Punctajele pe exerciții</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col" title="Exercițiul">
-                        <span className="sr-only">Exercițiul</span>
-                        <span aria-hidden="true">#</span>
-                      </th>
-                      <th scope="col">Puncte</th>
-                      <th scope="col">Răspunsul tău</th>
-                      <th scope="col">Comentariu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {evaluation.items.map((item) => (
-                      <tr key={item.exerciseId}>
-                        <th scope="row" title={item.label}>
-                          {item.exerciseId} <span className="sr-only">{item.label}</span>
+      <FilesBeside count={result.files.length} files={<ResultFiles result={result} fileUrl={fileUrl} />}>
+        {evaluation ? (
+          <>
+            <div className="result-grade">
+              <h2>Rezultatul tău</h2>
+              <p className="grade-line">
+                Nota <strong className={`points points-${pointsLevel(evaluation.grade, 10)}`}>{formatPoints(evaluation.grade)}</strong> ·{' '}
+                {formatPoints(evaluation.total)} puncte din {formatPoints(evaluation.maxTotal)}
+                {evaluation.officePoints > 0 && `, cu ${formatPoints(evaluation.officePoints)} din oficiu`}
+              </p>
+            </div>
+            <div className="result-columns">
+              <div className="result-main">
+                <div className="table-wrap">
+                  <table className="items">
+                    <caption className="sr-only">Punctajele pe exerciții</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col" title="Exercițiul">
+                          <span className="sr-only">Exercițiul</span>
+                          <span aria-hidden="true">#</span>
                         </th>
-                        <td data-label="Puncte">
-                          <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
-                            {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
-                          </span>
-                        </td>
-                        <td data-label="Răspunsul tău">
-                          <MathText text={item.studentAnswer} />
-                        </td>
-                        <td data-label="Comentariu">
-                          <MathText text={item.comment} />
-                        </td>
+                        <th scope="col">Puncte</th>
+                        <th scope="col">Răspunsul tău</th>
+                        <th scope="col">Comentariu</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {evaluation.items.map((item) => (
+                        <tr key={item.exerciseId}>
+                          <th scope="row" title={item.label}>
+                            {item.exerciseId} <span className="sr-only">{item.label}</span>
+                          </th>
+                          <td data-label="Puncte">
+                            <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
+                              {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
+                            </span>
+                          </td>
+                          <td data-label="Răspunsul tău">
+                            <MathText text={item.studentAnswer} />
+                          </td>
+                          <td data-label="Comentariu">
+                            <MathText text={item.comment} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="result-side">
+                <section aria-label="Rezumat">
+                  <h3>Rezumat</h3>
+                  <p>
+                    <MathText text={evaluation.summary} />
+                  </p>
+                </section>
+                {evaluation.strengths.length > 0 && (
+                  <section aria-label="Ce ai lucrat bine">
+                    <h3>Ce ai lucrat bine</h3>
+                    <ul>
+                      {evaluation.strengths.map((text, index) => (
+                        <li key={index}>
+                          <MathText text={text} />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                {evaluation.recommendations.length > 0 && (
+                  <section aria-label="Recomandări">
+                    <h3>Recomandări</h3>
+                    <ul>
+                      {evaluation.recommendations.map((text, index) => (
+                        <li key={index}>
+                          <MathText text={text} />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
               </div>
             </div>
-            <div className="result-side">
-              <section aria-label="Rezumat">
-                <h3>Rezumat</h3>
-                <p>
-                  <MathText text={evaluation.summary} />
-                </p>
-              </section>
-              {evaluation.strengths.length > 0 && (
-                <section aria-label="Ce ai lucrat bine">
-                  <h3>Ce ai lucrat bine</h3>
-                  <ul>
-                    {evaluation.strengths.map((text, index) => (
-                      <li key={index}>
-                        <MathText text={text} />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-              {evaluation.recommendations.length > 0 && (
-                <section aria-label="Recomandări">
-                  <h3>Recomandări</h3>
-                  <ul>
-                    {evaluation.recommendations.map((text, index) => (
-                      <li key={index}>
-                        <MathText text={text} />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </div>
-          </div>
-        </>
-      ) : (
-        <p role="status">Rezultatul tău nu este gata încă. Revino mai târziu pe acest link.</p>
-      )}
-      <div className="files-head">
-        <h2>Fișiere ({result.files.length})</h2>
-        <button type="button" className="button-quiet button-small" aria-expanded={filesOpen} onClick={() => setFilesOpen(!filesOpen)}>
-          {filesOpen ? 'Ascunde fișierele' : 'Arată fișierele'}
-        </button>
-      </div>
-      {filesOpen && <ResultFiles result={result} fileUrl={fileUrl} />}
+          </>
+        ) : (
+          <p role="status">Rezultatul tău nu este gata încă. Revino mai târziu pe acest link.</p>
+        )}
+      </FilesBeside>
     </section>
   );
 }

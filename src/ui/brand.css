@@ -3601,15 +3601,17 @@ table.uploads .row-actions {
   margin-left: auto;
 }
 
-/* The files strip while the files are hidden: same look as the link strip. */
-.submission-page .result-files.is-collapsed .files-head {
+/* The files strip while the files are hidden: same look as the link strip.
+   The selector outweighs the collapsed layout's "padding-bottom: 0" below,
+   so the title and the button stay in the middle of the strip. */
+.result-layout .result-files.is-collapsed .files-head {
   padding: 0.6rem 1rem;
   border: 1px solid var(--rule);
   border-radius: var(--radius-panel);
   background: var(--sheet);
 }
 
-.submission-page .files-head h2 {
+.result-files .files-head h2 {
   font-size: 1rem;
 }
 
@@ -4387,9 +4389,11 @@ table.items tr.edit-row > td {
   margin: 0.5rem 0 0;
 }
 
+/* The final words take about a third of a laptop's width: the summary and
+   the recommendations are long paragraphs. */
 .result-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  grid-template-columns: minmax(0, 1fr) minmax(23.4rem, 31.2rem);
   gap: 1rem;
   align-items: start;
 }
@@ -4414,8 +4418,20 @@ table.items tr.edit-row > td {
   margin-bottom: 0;
 }
 
-.result-page .files-head {
-  margin-top: 1.5rem;
+/* The student page's header (its links and theme button, with their padding
+   and border) stays on screen: the shown files stick under it. */
+.result-page {
+  --top: calc(3.75rem + 1px);
+}
+
+.result-view > .result-layout {
+  margin-top: 1rem;
+}
+
+/* With the files shown, the result has two thirds of the width: the final
+   words go under the exercises. */
+.result-layout:not(.is-collapsed) .result-columns {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .result-foot {
@@ -4454,10 +4470,13 @@ table.items tr.edit-row > td {
 @media print {
   .student-nav,
   .result-actions,
-  .result-page .files-head,
-  .result-page .page-files,
+  .result-page .result-files,
   .result-foot {
     display: none;
+  }
+
+  .result-page .result-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .site-header {

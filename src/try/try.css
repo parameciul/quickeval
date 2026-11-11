@@ -6,8 +6,19 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* The teacher app's top bar sizes, set here because the page has no shell.
+   Only on the bar: --top also places what sticks under it, and this bar
+   scrolls away with the page. */
 .try-topbar {
+  --bar: 80px;
+  --top: 60px;
   position: static;
+}
+
+@media (max-width: 56.25rem) {
+  .try-topbar {
+    --top: 56px;
+  }
 }
 
 .try-page {
@@ -290,7 +301,10 @@ label.button-quiet.is-disabled {
   font-weight: 700;
 }
 
+/* The tabs stay on screen (the page's top bar scrolls away): the shown files
+   stick under them. */
 .try-panel {
+  --top: 2.75rem;
   min-height: 24rem;
 }
 
