@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import type { AnswerArea } from '../../../shared/schemas.ts';
+import { useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { submissionFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { AnswerFrame } from './AnswerFrame.tsx';
@@ -19,7 +20,8 @@ export interface ReviewFocus {
 // page switch. A photo zooms inside the pane (ZoomPhoto); "Toată pagina", a
 // right click or Esc shows the whole page again. A PDF shows in a frame.
 // While "Arată chenarul" is on, the answer to check opens zoomed on its first
-// area with an orange border; an answer in more parts steps through them.
+// area with an orange border; an answer in more parts steps through them with
+// the arrows beside the border's label.
 export function ReviewPhoto({
   submission,
   page,
@@ -36,6 +38,10 @@ export function ReviewPhoto({
   onFrames: (on: boolean) => void;
 }) {
   const { base } = useApi();
+  // A finger cannot hit the label's small controls, and the label may end near
+  // the pane's edge on a narrow screen: on a phone the controls float inside
+  // the pane instead (below).
+  const touch = useMediaQuery('(pointer: coarse)');
   const files = submission.files;
   const index = Math.min(Math.max(page, 0), Math.max(files.length - 1, 0));
   const file = files[index];
@@ -91,58 +97,84 @@ export function ReviewPhoto({
   const photo = file.contentType.startsWith('image/');
   const parts = framed?.areas.length ?? 0;
   const partLabel = (number: number) => (parts > 1 ? `${framed!.label} · partea ${number + 1} din ${parts}` : framed!.label);
+  // The controls of an answer in more parts: beside its label on a computer,
+  // floating in the pane's corner on a phone. A press on one never reaches the
+  // page under it, which would zoom there.
+  const stop = (event: { stopPropagation: () => void }) => event.stopPropagation();
+  const partButtons =
+    parts > 1 ? (
+      <>
+        <button type="button" className="button-quiet button-small" aria-label="Partea anterioară" disabled={partIndex === 0} onClick={() => goPart(partIndex - 1)}>
+          ‹
+        </button>
+        <button
+          type="button"
+          className="button-quiet button-small"
+          aria-label="Partea următoare"
+          disabled={partIndex === parts - 1}
+          onClick={() => goPart(partIndex + 1)}
+        >
+          ›
+        </button>
+      </>
+    ) : undefined;
+  const floatingParts =
+    touch && partButtons !== undefined ? (
+      <span className="answer-parts is-floating" role="group" aria-label="Părțile răspunsului" onPointerDown={stop} onPointerUp={stop} onClick={stop}>
+        <span className="answer-parts-count">
+          {partIndex + 1} din {parts}
+        </span>
+        {partButtons}
+      </span>
+    ) : undefined;
   return (
     <figure className="review-photo">
       <div className="review-photo-top">
         <figcaption>{caption}</figcaption>
-        {photo && isZoomed(view) && (
-          <button type="button" className="button-quiet button-small" onClick={() => setView(WHOLE_PAGE)}>
-            Toată pagina
-          </button>
-        )}
-        {files.length > 1 && (
-          <span className="page-switch" role="group" aria-label="Paginile lucrării">
-            {files.map((other, number) => (
-              <button
-                key={other.id}
-                type="button"
-                className="page-switch-button"
-                aria-label={`Pagina ${number + 1}`}
-                aria-current={number === index ? 'true' : undefined}
-                onClick={() => onPage(number)}
-              >
-                {number + 1}
-              </button>
-            ))}
-          </span>
-        )}
-      </div>
-      {focus !== null && focus.areas.length > 0 && (
-        <div className="review-photo-tools">
-          {parts > 1 && (
-            <span className="answer-parts" role="group" aria-label="Părțile răspunsului">
-              <button type="button" className="button-quiet button-small" aria-label="Partea anterioară" disabled={partIndex === 0} onClick={() => goPart(partIndex - 1)}>
-                ‹
-              </button>
-              <span>
-                Partea {partIndex + 1} din {parts}
-              </span>
-              <button type="button" className="button-quiet button-small" aria-label="Partea următoare" disabled={partIndex === parts - 1} onClick={() => goPart(partIndex + 1)}>
-                ›
-              </button>
+        <div className="review-photo-actions">
+          {files.length > 1 && (
+            <span className="page-switch" role="group" aria-label="Paginile lucrării">
+              {files.map((other, number) => (
+                <button
+                  key={other.id}
+                  type="button"
+                  className="page-switch-button"
+                  aria-label={`Pagina ${number + 1}`}
+                  aria-current={number === index ? 'true' : undefined}
+                  onClick={() => onPage(number)}
+                >
+                  {number + 1}
+                </button>
+              ))}
             </span>
           )}
-          <label className="check-label">
-            <input type="checkbox" checked={frames} onChange={(event) => onFrames(event.target.checked)} />
-            Arată chenarul
-          </label>
+          {photo && isZoomed(view) && (
+            <button type="button" className="button-quiet button-small" onClick={() => setView(WHOLE_PAGE)}>
+              Toată pagina
+            </button>
+          )}
+          {focus !== null && focus.areas.length > 0 && (
+            <label className="check-label">
+              <input type="checkbox" checked={frames} onChange={(event) => onFrames(event.target.checked)} />
+              Arată chenarul
+            </label>
+          )}
         </div>
-      )}
+      </div>
       {photo ? (
         <ZoomPhoto src={url} alt={`Pagina ${index + 1} a lucrării`} view={view} onView={setView}>
           {framed?.areas.map((area, number) =>
-            area.page === index + 1 ? <AnswerFrame key={number} view={view} box={area} label={partLabel(number)} /> : null,
+            area.page === index + 1 ? (
+              <AnswerFrame
+                key={number}
+                view={view}
+                box={area}
+                label={partLabel(number)}
+                parts={!touch && number === partIndex ? partButtons : undefined}
+              />
+            ) : null,
           )}
+          {floatingParts}
         </ZoomPhoto>
       ) : (
         <>
