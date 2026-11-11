@@ -27,7 +27,7 @@ MQGrader (formerly QuickEval): a web app that helps Laura Miron (math teacher, L
 - `npm run db:local`: apply the migrations to the local D1 and add the local teacher.
 - `npm run dev:api` and `npm run dev:web` (two terminals): hot reload at http://localhost:5173/teacher/. A started test's student page is at `http://localhost:5173/u/<token>`.
 - `npm run db:local`, then `npm run preview`, then `npm run smoke` in a second terminal: the production build on http://127.0.0.1:8788 and its smoke test. Each smoke run leaves one class with one student in the local database, and makes a new local robot key.
-- `npm run try:skill`: try the grading skill on this PC (see `runner/AGENTS.md`).
+- `npm run try:skill`: try the grading skill on this PC (see `runner/AGENTS.md`). `npm run compare:skills`: the old grading skill against the new one on real math tests of the live site (see `runner/AGENTS.md`).
 - Claude Code preview servers (`.claude/launch.json`): `api` (8788) and `web` (5173) for development, `preview` (8788) for the production build.
 
 ## Rules

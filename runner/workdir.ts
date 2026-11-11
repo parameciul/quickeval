@@ -102,6 +102,8 @@ export const DEFAULT_BAREM_NOTES = [
 export interface WorkFolderOptions {
   skillDir?: string;
   pandoc?: Pandoc;
+  // The rules every barem carries; DEFAULT_BAREM_NOTES unless the skills comparison asks for the old ones.
+  defaultNotes?: string;
 }
 
 export async function makeWorkFolder(root: string, taskId: string, input: WorkFolderInput, options: WorkFolderOptions = {}): Promise<string> {
@@ -114,7 +116,8 @@ export async function makeWorkFolder(root: string, taskId: string, input: WorkFo
   if (input.barem) await writeTeacherFile(folder, 'barem', input.barem, pandoc);
   if (input.barem) {
     const teacherNotes = input.baremNotes?.trim();
-    const notes = teacherNotes ? `${DEFAULT_BAREM_NOTES}\n${teacherNotes}` : DEFAULT_BAREM_NOTES;
+    const base = options.defaultNotes ?? DEFAULT_BAREM_NOTES;
+    const notes = teacherNotes ? `${base}\n${teacherNotes}` : base;
     await writeFile(path.join(folder, 'barem', 'notes.md'), `${notes}\n`);
   }
   const requestNotes = input.requestNotes?.trim();

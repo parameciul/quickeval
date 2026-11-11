@@ -20,6 +20,10 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 
 `npm run try:skill -- exercise-list <folder>`, then `npm run try:skill -- grade <folder>`: try the grading skill on this PC exactly as the robot runs it (spec §13). It needs `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in the environment and never uses this PC's Claude login. The folder holds `test.pdf` or `test.docx`, `barem.pdf` or `barem.docx`, and the pages in `student/` (`1.jpg`, `2.jpg`, …); it gets `exercises.json` and `grading.json`. `npm run try:skill -- barem <folder>` needs only `test.pdf` or `test.docx` (and `notes.md` for the teacher's comments) and writes `barem.json` and `barem.docx`. Keep the folder outside the repo: it holds a student's pages.
 
+## Compare the skills
+
+`npm run compare:skills -- list`, then `npm run compare:skills -- run <folder> <code> <code> [--papers 10] [--parallel 2] [--ref origin/main]`: grades real math tests of the live site with the grading skill of `--ref` (default `origin/main`, what the live site runs; run `git fetch` first) (the old side, with the barem note it had, `OLD_BAREM_NOTES`, and no `subject.md`) and with this checkout's skill (the new side), exactly as the robot runs Claude, and writes `report.md` and `results.json` in the folder (spec: any subject, "The math comparison"; `compareReport.ts` holds the rules of the verdict). It reads the live D1 and R2 through Wrangler with the user's own login, with SELECTs only, and needs `CLAUDE_CODE_OAUTH_TOKEN` like `try:skill`. The folder must be outside the repo: it gets the test, the barem and the students' pages (numbered, never named). Delete it after reading the report. Exit code 0: it passes; 2: it does not.
+
 ## Rules
 
 - The robot's Claude reads only its work folder (`--tools "Read,Glob" --restricted`) and gets only the variables it needs to start (`claudeEnv` in `claude.ts`): never the robot key, never an API key. Student pages are untrusted input.

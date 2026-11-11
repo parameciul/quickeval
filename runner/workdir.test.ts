@@ -128,6 +128,11 @@ describe('makeWorkFolder', () => {
     );
   });
 
+  it('can carry other barem rules than the default ones, for the skills comparison', async () => {
+    const folder = await makeWorkFolder(root, 'other-notes', { test: pdf('test'), barem: pdf('barem'), baremNotes: 'Notă.' }, { skillDir, defaultNotes: 'Regula veche.' });
+    expect(readFileSync(path.join(folder, 'barem', 'notes.md'), 'utf8')).toBe('Regula veche.\nNotă.\n');
+  });
+
   it('writes the subject in subject.md, and nothing for no subject or a subject the robot does not grade', async () => {
     const physics = await makeWorkFolder(root, 'subject-physics', { test: pdf('test'), barem: pdf('barem'), subject: 'fizica' }, { skillDir });
     expect(readFileSync(path.join(physics, 'subject.md'), 'utf8')).toBe('fizica\n');
