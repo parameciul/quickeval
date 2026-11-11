@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ExerciseList, GeneratedBarem, GradingResult } from '../shared/schemas.ts';
 import type { ClaudeOutcome, ClaudeTask } from './claude.ts';
-import { compareSkills, insideRepo, type Live, OLD_BAREM_NOTES, oldSkill as skillOfRef, REPO_DIR } from './compareSkills.ts';
+import { compareSkills, insideRepo, type Live, OLD_BAREM_NOTES, oldSkill as skillOfRef, REPO_DIR, WRANGLER } from './compareSkills.ts';
 import { answer } from './test/scriptedClaude.ts';
 import { DEFAULT_BAREM_NOTES } from './workdir.ts';
 
@@ -206,5 +206,12 @@ describe('the old side', () => {
     const dir = await skillOfRef('HEAD', path.join(temp, 'old-skill'));
     expect(readFileSync(path.join(dir, 'SKILL.md'), 'utf8')).toMatch(/^---\nname: evaluate-test\n/);
     expect(existsSync(path.join(dir, 'references', 'grading-rules.md'))).toBe(true);
+  });
+});
+
+describe('the live site reader', () => {
+  it('finds Wrangler where Node finds the packages, also from a worktree with no node_modules of its own', () => {
+    expect(existsSync(WRANGLER)).toBe(true);
+    expect(path.basename(WRANGLER)).toBe('wrangler.js');
   });
 });

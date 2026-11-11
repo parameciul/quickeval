@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,7 +39,9 @@ const USAGE =
   'Folosire: npm run compare:skills -- list   sau   npm run compare:skills -- run <dosar> <cod test> <cod test> [--papers 10] [--parallel 2] [--ref origin/main]';
 
 export const REPO_DIR = fileURLToPath(new URL('..', import.meta.url));
-const WRANGLER = fileURLToPath(new URL('../node_modules/wrangler/bin/wrangler.js', import.meta.url));
+// Found as Node finds a package: a worktree has no node_modules of its own and
+// uses the main checkout's.
+export const WRANGLER = path.join(path.dirname(createRequire(import.meta.url).resolve('wrangler/package.json')), 'bin', 'wrangler.js');
 
 // The first barem note before the change (spec: "ipoteza problemei"): the old
 // side grades with the old note, the new side with DEFAULT_BAREM_NOTES.
