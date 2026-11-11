@@ -7,7 +7,7 @@ export function hasPublishedResults(test: Pick<TestInfo, 'resultsOpen' | 'publis
 }
 
 export const STUDENT_ACCESS_HELP =
-  'Elevii care au trimis pozele de pe telefon își văd nota și explicațiile dacă scanează codul QR al elevilor de pe test sau deschid linkul pentru elevi, de pe același telefon (nu codul QR sau linkul pentru mai multe încărcări, care sunt pentru profesor), ori dacă deschid linkul lor cu rezultatul, păstrat când au trimis pozele.';
+  'Elevii care au trimis pozele de pe telefon își văd nota și explicațiile dacă deschid linkul lor cu rezultatul, păstrat pe același telefon. Rezultatul apare și când scanează din nou codul QR de pe test ori deschid linkul pentru elevi, de pe telefonul cu care au trimis pozele.';
 
 // Shown once results are published: where students find their results. The
 // students' link (with its QR code to download) is the one they scanned to

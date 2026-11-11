@@ -2289,8 +2289,8 @@ table.tests .row-actions {
 
 /* The review of the points to check (redesign spec §7): the papers, the page
    of the paper and the decision side by side; below 1280px the papers go under
-   the page, which keeps its width; on a phone one column, the page first and
-   the papers last. */
+   the page, which keeps its width; on a phone one column, the decision first,
+   then the page, and the papers last. */
 .review-head {
   display: flex;
   flex-wrap: wrap;
@@ -2717,8 +2717,8 @@ table.tests .row-actions {
   .review-panes {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "photo"
       "decision"
+      "photo"
       "queue";
   }
 

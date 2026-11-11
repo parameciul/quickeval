@@ -76,12 +76,13 @@ describe('a graded try', () => {
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
   });
 
-  it("opens the review zoomed on the answer, with the border the teacher's review draws", async () => {
+  it("opens the review on the whole page, with the border the teacher's review draws", async () => {
     setup('/', false, [], [{ page: 1, x0: 0.1, y0: 0.3, x1: 0.7, y1: 0.5 }]);
     await userEvent.click(await screen.findByRole('link', { name: 'Verifică 1 punct' }));
     const frame = await screen.findByTestId('answer-frame');
     expect(within(frame).getByText('I.1')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Toată pagina' })).toBeInTheDocument();
+    // No automatic zoom: the page stays whole until the teacher zooms it herself.
+    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Arată chenarul' })).toBeChecked();
   });
 
