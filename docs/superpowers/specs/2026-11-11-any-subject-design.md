@@ -1,6 +1,6 @@
 # Any subject: grading tests beyond math
 
-Date: 2026-11-11. Status: decisions taken; for the user's final reading.
+Date: 2026-11-11. Status: approved by the user on 2026-11-11. Built in three plans: A (the subject, the robot, the skill, the math comparison: `docs/superpowers/plans/2026-11-11-any-subject-a.md`), B (the teacher's "Schimbă" and the subject on the test page), C (the public site's text). Plan A's rulings refine this spec where they say so below.
 
 ## Intent
 
@@ -95,7 +95,7 @@ The details below are the designer's calls, made after the builder check; the us
 - **How it is stored.** An unsupported subject is stored as the value `alta` with its name (for example "istorie"), never as null. Null means only "not found yet", so a test known as unsupported is never sent to detection again.
 - **Found by the barem step (before the test is given).** The generated barem is still saved and shown: it is harmless, and the teacher may want it. The message shows on the test page at once (Pregătire), with "Schimbă". "Începe testul" is not blocked: the students may still upload their pages.
 - **Starting the grading of an unsupported test.** The start (now, scheduled or due) is refused in its SQL while the subject is `alta`, with the same message. No paper goes to the robot and no demo place is used.
-- **Found by the exercise list step (the grading had started).** The list is saved with the new status (for example `unsupported`). The papers stay where they are (`submitted`), and no grading takes them, because a grading needs the list `ready` or `accepted`. The test does not go back to `open`, and the papers keep the teacher's selection.
+- **Found by the exercise list step (the grading had started).** The list is saved as `failed`, with the message (Plan A's ruling: the column's CHECK allows no new state without rebuilding the `tests` table on the live database; the test's subject `alta` tells it from another failure, and the page offers no retry for it). The papers stay where they are (`submitted`), and no grading takes them, because a grading needs the list `ready` or `accepted`. The test does not go back to `open`, and the papers keep the teacher's selection.
 - **"Schimbă" on an unsupported test** (every account): with the test in evaluation, the list is reset to `none` and the robot started. The list is made again with the new subject, and the waiting papers are graded with no new start by the teacher. On a draft or open test it only saves the subject.
 - **The demo account.** A test whose subject is `alta` does not hold the demo account's one test (`ONLY_TEST`), and its waiting papers do not count among the papers on their way to the robot (`papersWaitingSql`, `PAPERS_LEFT`). The papers count only when they are graded, as today.
 - **Quick Try.** A try learns the subject in its barem step (when the visitor gave no barem) or in its list step. Either way, an unsupported subject ends the try in the failed state that `GAVE_BACK` already knows, with the message, so the IP place goes back. A try has no "Schimbă" (see below).
@@ -130,14 +130,14 @@ No public page and no teacher page says that the grading is only for math. The p
 ### The robot's answers
 
 - The exercise list (`exerciseListSchema`) and the generated barem (`generatedBaremSchema`) get two fields: `subject` (one of the values, or `alta`) and `subjectName` (the subject in Romanian words, for `alta`; "" otherwise). They are an enum and a short string in the JSON Schema, so Claude cannot answer with a free value.
-- The API saves the subject only while the test has none (in the SQL of the save, as `waitsForList` does for the list). A list for an unsupported subject is saved with a new list status (for example `unsupported`) that keeps every grading out, as `problem` does before the teacher accepts it, but with no accept.
+- The API saves the subject only while the test has none, or only the robot's own `alta` (in the SQL of the save, as `waitsForList` does for the list). A list for an unsupported subject is saved as `failed` with the message (see "A subject that is not supported"), which keeps every grading out.
 - An answer with no `subject` (an older robot) saves nothing about the subject, and the test stays as it was.
 - A grading with a null subject uses the math rules: that is today's behaviour.
 
 ### The skill
 
 - `SKILL.md`: a teacher in Romania, any of the supported subjects. The exercise-list and barem modes say how to find the subject (from the test's heading first, then from its content; a mixed physics/chemistry/biology test is `stiinte`) and to read `references/subjects/<subject>.md` before the rest. The grade and class-report modes read the subject from a file the robot writes in the work folder (builder's call: `subject.md`), never guess it.
-- `references/grading-rules.md` keeps the rules that hold for every subject. The math-specific rules move, word for word, into `references/subjects/matematica.md`. Together they say to a math test what the two files say today.
+- `references/grading-rules.md`, `barem-writing.md` and `barem-example.md` stay word for word (Plan A's ruling, in place of moving the math rules): they are the math rules, and `references/subjects/matematica.md` says to follow them as they are. A math test gets the same rule files as today.
 - One file per new subject in `references/subjects/`, with: how its tests and barems are built (exam formats), how partial points go, what to write in the comments (formulas, units, chemical equations in Unicode: H₂O, →, ⇌, ↑, ↓), and, for the language subjects, the rubric of an essay (content and writing) and the place of spelling and grammar.
 - `barem-writing.md` and `barem-example.md` stay for math. For another subject, the barem mode follows that subject's file; there is no example barem yet.
 - The robot copies the whole skill folder into every work folder, as today.
