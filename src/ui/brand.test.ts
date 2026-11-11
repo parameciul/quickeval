@@ -55,13 +55,17 @@ describe('brand.css', () => {
     ]);
   });
 
-  it('lines the result page header and footer up with its 64rem content', () => {
-    expect(value(declarations('.upload-page.result-page'), 'max-width')).toBe('64rem');
-    expect(value(declarations('.result-shell .wrap'), 'max-width')).toBe('64rem');
+  it('lines the result page header and footer up with its wide content', () => {
+    expect(value(declarations('.upload-page.result-page'), 'max-width')).toBe('96rem');
+    expect(value(declarations('.result-shell .wrap'), 'max-width')).toBe('96rem');
   });
 
-  it('keeps the exercises and the final words in one column up to a small tablet', () => {
-    const start = css.indexOf('@media (max-width: 56.25rem) {\n  .result-columns {');
+  it('gives the exercises table all the room the final words leave', () => {
+    expect(value(declarations('.result-columns'), 'grid-template-columns')).toBe('minmax(0, 1fr) minmax(18rem, 24rem)');
+  });
+
+  it('keeps the exercises and the final words in one column up to a small laptop', () => {
+    const start = css.indexOf('@media (max-width: 70rem) {\n  .result-columns {');
     expect(start).toBeGreaterThanOrEqual(0);
     expect(css.slice(start, css.indexOf('}', start))).toContain('grid-template-columns: minmax(0, 1fr)');
   });
