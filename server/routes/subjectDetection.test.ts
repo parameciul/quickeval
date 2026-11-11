@@ -216,4 +216,29 @@ describe('a list that ended at a subject not graded', () => {
     expect(res.status).toBe(409);
     expect(await row()).toMatchObject({ subject: 'alta', exercise_list_status: 'failed', exercise_list_message: HISTORY });
   });
+
+  it('is not read again for a new test file when the teacher set the subject', async () => {
+    await setTest("subject = 'alta', subject_name = 'istorie', subject_by = 'teacher', exercise_list_status = 'failed', exercise_list_message = ?", HISTORY);
+    expect((await putTestFile()).status).toBe(200);
+    expect(await row()).toMatchObject({ subject: 'alta', subject_by: 'teacher', exercise_list_status: 'failed', exercise_list_message: HISTORY });
+  });
+
+  it('does not start the robot for a new test file when the list stays as it was', async () => {
+    await addSubmission(api, code, studentIds[1]!, { status: 'submitted', files: 1 });
+    await setTest(
+      "status = 'evaluating', subject = 'alta', subject_name = 'istorie', subject_by = 'teacher', exercise_list_status = 'failed', exercise_list_message = ?",
+      HISTORY,
+    );
+    const res = await putTestFile();
+    expect(res.status).toBe(200);
+    expect((await res.json()).robot).toBeNull();
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  it('keeps a Quick Try ended, whatever file comes after', async () => {
+    await setTest("quick_try = 1, subject = 'alta', subject_name = 'istorie', subject_by = 'robot', exercise_list_status = 'failed', exercise_list_message = ?", HISTORY);
+    await putTestFile();
+    await putFile('barem');
+    expect(await row()).toMatchObject({ subject: 'alta', subject_by: 'robot', exercise_list_status: 'failed', exercise_list_message: HISTORY });
+  });
 });

@@ -333,6 +333,13 @@ describe('pdfText', () => {
     expect(pdfText('N₂ + 3H₂ ⇌ 2NH₃, CO₂↑, AgCl↓')).toBe('N₂ + 3H₂ <=> 2NH₃, CO₂ (gaz), AgCl (precipitat)');
   });
 
+  it('writes an arrow after a chemical formula as a gas or a precipitate, and any other as a rise or a fall', () => {
+    expect(pdfText('CaCO₃↓, H₂S↑, Cu(OH)₂↓, O₂ ↑')).toBe('CaCO₃ (precipitat), H₂S (gaz), Cu(OH)₂ (precipitat), O₂ (gaz)');
+    expect(pdfText('glicemia ↑, tensiunea↓')).toBe('glicemia crește, tensiunea scade');
+    expect(pdfText('f↑ pe (0, 1)')).toBe('f crește pe (0, 1)');
+    expect(pdfText('↓ temperatura')).toBe('scade temperatura');
+  });
+
   it('keeps the signs of physics and chemistry that the font draws', () => {
     const has = glyphChecker();
     for (const char of '₀₁₂₃₄₅₆₇₈₉⁺⁻°ΩμΔλρπ·×≈') expect(has(char.codePointAt(0)!), char).toBe(true);

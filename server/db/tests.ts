@@ -642,14 +642,17 @@ const QUICK_TRY_FILES_LEFT = `(quick_try = 0 OR files_version < ${QUICK_TRY_FILE
 
 // The SET part that forgets a subject the robot found; the teacher's stays.
 // A subject found with an exercise list stays with that list, which a new test
-// file does not reset. A list that failed because the subject is not graded
-// (`alta`) waits again, so the robot reads the new file, unless the test is of
-// a demo account whose one test is now another (ONLY_TEST): that would grade
-// its papers with no start. SQLite reads every right side before it writes, so
-// all of them see the old row.
+// file does not reset. A list that failed because the robot found a subject
+// not graded (`alta`) waits again, so the robot reads the new file, except:
+// the teacher set `alta` (reading again changes nothing), the test is a Quick
+// Try (it ended, and gave its place back), or the test is of a demo account
+// whose one test is now another (ONLY_TEST: its papers would be graded with no
+// start). SQLite reads every right side before it writes, so all of them see
+// the old row.
 const ENDED_UNSUPPORTED = "exercise_list_status = 'failed' AND subject = 'alta'";
-const READ_AGAIN = `(${ENDED_UNSUPPORTED} AND ${onlyTestSql('tests')})`;
-const STAYS_UNSUPPORTED = `(${ENDED_UNSUPPORTED} AND NOT ${onlyTestSql('tests')})`;
+const MAY_READ_AGAIN = `(subject_by = 'robot' AND quick_try = 0 AND ${onlyTestSql('tests')})`;
+const READ_AGAIN = `(${ENDED_UNSUPPORTED} AND ${MAY_READ_AGAIN})`;
+const STAYS_UNSUPPORTED = `(${ENDED_UNSUPPORTED} AND NOT ${MAY_READ_AGAIN})`;
 const ROBOT_SUBJECT_GOES = `(subject_by = 'robot' AND exercise_list_status NOT IN ('ready', 'accepted', 'problem') AND NOT ${STAYS_UNSUPPORTED})`;
 const SUBJECT_FROM_ROBOT_CLEARED = `subject = CASE WHEN ${ROBOT_SUBJECT_GOES} THEN NULL ELSE subject END,
            subject_name = CASE WHEN ${ROBOT_SUBJECT_GOES} THEN '' ELSE subject_name END,
@@ -660,7 +663,7 @@ const SUBJECT_FROM_ROBOT_CLEARED = `subject = CASE WHEN ${ROBOT_SUBJECT_GOES} TH
            exercise_list_status = CASE WHEN ${READ_AGAIN} THEN 'none' ELSE exercise_list_status END, `;
 
 // A new class barem resets the list, except one that ended at a subject not
-// graded in a demo account whose one test is now another (see above).
+// graded and may not be read again (see above).
 function listResetSql(variant: TestVariant): string {
   const c = columns(variant);
   const keep = (col: string, reset: string) =>
@@ -682,7 +685,7 @@ export async function saveTestFile(
   now: string,
   uploadToken: string,
   variant: TestVariant = 'class',
-): Promise<{ status: TestStatus; clearedPrintKey: string | null; replacedKey: string | null } | null> {
+): Promise<{ status: TestStatus; clearedPrintKey: string | null; replacedKey: string | null; readAgain: boolean } | null> {
   const c = columns(variant);
   const statuses = baremStatuses(variant);
   // A CES file turns the CES switch on.
@@ -697,17 +700,24 @@ export async function saveTestFile(
            ${c('barem_request')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 'requested' ELSE ${c('barem_request')} END,
            ${c('barem_request_attempts')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 0 ELSE ${c('barem_request_attempts')} END
          WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)} AND ${QUICK_TRY_FILES_LEFT}
-         RETURNING status`
+         RETURNING status, exercise_list_status AS list_status`
       : `UPDATE tests SET ${on}${c('barem_file_key')} = ?, ${c('barem_file_name')} = ?, ${c('barem_file_type')} = ?, updated_at = ?,
            ${c('files_version')} = ${c('files_version')} + 1,
            ${listResetSql(variant)},
            ${c('barem_unchecked')} = 0, ${c('barem_request')} = 'none', ${c('barem_request_attempts')} = 0
          WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)} AND ${QUICK_TRY_FILES_LEFT}
          RETURNING status`;
-  const [before, written] = await db.batch<{ print_file_key?: string | null; replaced_key?: string | null; status?: TestStatus }>([
+  const [before, written] = await db.batch<{
+    print_file_key?: string | null;
+    replaced_key?: string | null;
+    ended_unsupported?: number;
+    status?: TestStatus;
+    list_status?: ExerciseListStatus;
+  }>([
     db
       .prepare(
-        `SELECT ${c('print_file_key')} AS print_file_key, ${kind === 'test' ? c('test_file_key') : c('barem_file_key')} AS replaced_key
+        `SELECT ${c('print_file_key')} AS print_file_key, ${kind === 'test' ? c('test_file_key') : c('barem_file_key')} AS replaced_key,
+           ${ENDED_UNSUPPORTED} AS ended_unsupported
          FROM tests WHERE id = ? AND teacher_id = ?`,
       )
       .bind(testId, teacherId),
@@ -718,7 +728,9 @@ export async function saveTestFile(
   const status = written?.results[0]?.status;
   if (!status) return null;
   const row = before?.results[0];
-  return { status, clearedPrintKey: kind === 'test' ? (row?.print_file_key ?? null) : null, replacedKey: row?.replaced_key ?? null };
+  // The batch runs as one transaction: `before` is the row this write changed.
+  const readAgain = kind === 'test' && variant === 'class' && row?.ended_unsupported === 1 && written?.results[0]?.list_status === 'none';
+  return { status, clearedPrintKey: kind === 'test' ? (row?.print_file_key ?? null) : null, replacedKey: row?.replaced_key ?? null, readAgain };
 }
 
 // Points the variant at new barem comments, as if its barem file changed (spec

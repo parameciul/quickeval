@@ -153,10 +153,10 @@ describe('a new test or barem file and the print PDF', () => {
     await setTest("print_status = 'ready', print_file_key = 'late-key'");
     const file = { key: 'new-key', name: 'test.pdf', type: PDF_TYPE };
     const saved = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'test', file, '2026-10-25T08:00:00.000Z', 'kkkkkkkkkkkkkkkk');
-    expect(saved).toEqual({ status: 'open', clearedPrintKey: 'late-key', replacedKey: null });
+    expect(saved).toEqual({ status: 'open', clearedPrintKey: 'late-key', replacedKey: null, readAgain: false });
     expect(await printRow()).toMatchObject({ print_status: 'none', print_file_key: null });
     const barem = await saveTestFile(api.db, api.teacherId, (await testIdOf(api, code))!, 'barem', file, '2026-10-25T08:00:00.000Z', 'kkkkkkkkkkkkkkkk');
-    expect(barem).toEqual({ status: 'open', clearedPrintKey: null, replacedKey: null });
+    expect(barem).toEqual({ status: 'open', clearedPrintKey: null, replacedKey: null, readAgain: false });
   });
 
   it('names the file that the write itself replaced, whatever the route read before', async () => {

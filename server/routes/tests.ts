@@ -467,8 +467,9 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (stale.length > 0) await deleteFilesQuietly(c.env.FILES, stale);
     let robotWork = false;
     if (kind === 'barem') robotWork = saved?.status === 'evaluating';
-    // A new test file of a test whose subject was not graded is read again (saveTestFile resets its list).
-    else if (saved?.status === 'evaluating' && test.subject?.value === 'alta' && test.exerciseList.status === 'failed') robotWork = true;
+    // A new test file of a test whose subject was not graded is read again,
+    // when saveTestFile reset its list in this write.
+    else if (saved?.status === 'evaluating' && saved.readAgain) robotWork = true;
     else robotWork = (await needsPrint(c.env.DB, test.id)) || (await needsBarem(c.env.DB, test.id));
     const robot = robotWork ? await startRobot(c.env) : null;
     return c.json({ file: { name: file.name, type: file.contentType }, robot } satisfies TestFileAnswer);
