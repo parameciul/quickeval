@@ -1,5 +1,6 @@
-/* A Quick Try's page: the teacher app's top bar and look, in one column of
-   one width, whatever the view shows. The scrollbar's room is always kept,
+/* A Quick Try's page: the teacher app's top bar and look, in one column the
+   full width of the screen, with the teacher pages' side margins on a
+   desktop, whatever the view shows. The scrollbar's room is always kept,
    so a short view and a long one start at the same place. */
 html {
   scrollbar-gutter: stable;
@@ -11,9 +12,14 @@ html {
 
 .try-page {
   width: 100%;
-  max-width: 72rem;
   margin: 0 auto;
   padding: 1.5rem 1rem 3rem;
+}
+
+@media not (max-width: 56.25rem) {
+  .try-page {
+    padding-inline: 2rem;
+  }
 }
 
 .try-notice {

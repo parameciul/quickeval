@@ -55,9 +55,11 @@ describe('brand.css', () => {
     ]);
   });
 
-  it('lines the result page header and footer up with its wide content', () => {
-    expect(value(declarations('.upload-page.result-page'), 'max-width')).toBe('96rem');
-    expect(value(declarations('.result-shell .wrap'), 'max-width')).toBe('96rem');
+  it('gives the result page, its header and its footer the full width of a desktop', () => {
+    expect(value(declarations('.upload-page.result-page,\n.result-shell .wrap'), 'max-width')).toBe('none');
+    const start = css.indexOf('@media not (max-width: 56.25rem) {\n  .result-shell .wrap {');
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(css.slice(start, css.indexOf('}', start))).toContain('padding-inline: 2rem');
   });
 
   it('gives the exercises table all the room the final words leave', () => {
