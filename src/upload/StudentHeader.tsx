@@ -19,7 +19,7 @@ export function StudentHeader() {
             <span className="brand-by">by Laura Miron</span>
           </span>
         </a>
-        <nav aria-label="Site" className="student-nav">
+        <nav aria-label="Pagina" className="student-nav">
           <a href={ABOUT_URL}>Despre</a>
           <ThemeButton />
         </nav>

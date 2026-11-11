@@ -83,6 +83,24 @@ describe('ResultActions', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Linkul a fost copiat.');
   });
 
+  it('takes the copy message away after a few seconds', async () => {
+    vi.useFakeTimers();
+    try {
+      browserOffers({ writeText: vi.fn().mockResolvedValue(undefined) });
+      render(<ResultActions result={graded} url={URL_TEXT} />);
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Trimite linkul' }));
+      });
+      expect(screen.getByText('Linkul a fost copiat.')).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(4000);
+      });
+      expect(screen.queryByText('Linkul a fost copiat.')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('copies the link when the share sheet fails for another reason', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     browserOffers({ share: vi.fn().mockRejectedValue(new DOMException('no', 'NotAllowedError')), writeText });
@@ -100,7 +118,9 @@ describe('ResultActions', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Trimite linkul' }));
     });
-    expect(screen.getByText('Copiază linkul de aici:')).toBeInTheDocument();
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('Copiază linkul de aici:');
+    expect(status).toHaveTextContent(URL_TEXT);
     expect(screen.getByText(URL_TEXT)).toHaveClass('result-link-url');
   });
 
@@ -120,6 +140,7 @@ describe('ResultActions', () => {
     const button = screen.getByRole('button', { name: 'Descarcă PDF' });
     fireEvent.click(button);
     expect(button).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Se face PDF-ul…');
     fireEvent.click(button);
     await act(async () => {
       finish(blob);
@@ -127,6 +148,7 @@ describe('ResultActions', () => {
     expect(renderPdf).toHaveBeenCalledTimes(1);
     expect(saveFile).toHaveBeenCalledWith(blob, '6E2-26T1-Pop-Ion.pdf');
     expect(button).toBeEnabled();
+    expect(screen.queryByText('Se face PDF-ul…')).toBeNull();
   });
 
   it('says so when the PDF cannot be made', async () => {

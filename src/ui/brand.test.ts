@@ -77,9 +77,15 @@ describe('brand.css', () => {
     expect(print).toMatch(/\.result-columns \{\s*grid-template-columns: minmax\(0, 1fr\);/);
     const light = declarations(':root');
     const printed = print.slice(print.indexOf(':root[data-theme="dark"]'));
-    for (const name of ['--paper', '--sheet', '--text', '--muted', '--rule', '--ink']) {
+    for (const decl of declarations(':root[data-theme="dark"]')) {
+      const name = decl.slice(0, decl.indexOf(':'));
       expect(printed).toContain(`${name}: ${value(light, name)};`);
     }
+  });
+
+  it('gives the student header and footer links a finger-sized target', () => {
+    expect(value(declarations('.student-nav a'), 'min-height')).toBe('2.75rem');
+    expect(value(declarations('.result-foot a'), 'min-height')).toBe('2.75rem');
   });
 
   it('wraps a long word inside the cards of the panels', () => {

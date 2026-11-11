@@ -1,10 +1,13 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { StudentResultView } from '../../shared/api.ts';
 import { renderPdf } from '../admin/pdf/renderPdf.ts';
 import { saveFile } from '../admin/pdf/share.ts';
 import { studentPdf, studentPdfFileName, studentPdfInputFromResult } from '../admin/pdf/studentPdf.ts';
 
 type ShareState = 'idle' | 'copied' | 'manual';
+
+// How long "Linkul a fost copiat." stays on screen.
+const COPIED_MS = 4000;
 
 // The result page's two actions, so a student can pass the result on to a
 // parent: "Trimite linkul" opens the phone's share sheet, else copies the
@@ -17,6 +20,12 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
   // A second tap can come before the disabled button is drawn.
   const working = useRef(false);
   const pdfInput = studentPdfInputFromResult(result);
+
+  useEffect(() => {
+    if (share !== 'copied') return;
+    const timer = setTimeout(() => setShare('idle'), COPIED_MS);
+    return () => clearTimeout(timer);
+  }, [share]);
 
   async function sendLink() {
     setShare('idle');
@@ -71,10 +80,15 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
         </p>
       )}
       {share === 'manual' && (
-        <>
+        <div role="status">
           <p className="hint">Copiază linkul de aici:</p>
           <p className="result-link-url">{url}</p>
-        </>
+        </div>
+      )}
+      {busy && (
+        <p role="status" className="hint">
+          Se face PDF-ul…
+        </p>
       )}
       {pdfFailed && (
         <p role="alert" className="alert">

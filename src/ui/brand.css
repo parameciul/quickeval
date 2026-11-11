@@ -307,6 +307,9 @@ h2 {
 }
 
 .student-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
   color: var(--muted);
   font-weight: 500;
   text-decoration: none;
@@ -4365,11 +4368,14 @@ table.items tr.edit-row > td {
 }
 
 .result-foot-bar {
-  padding-block: 1rem;
+  padding-block: 0.25rem;
   font-size: 0.9375rem;
 }
 
 .result-foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
   color: var(--muted);
   font-weight: 500;
   text-decoration: none;
@@ -4411,11 +4417,21 @@ table.items tr.edit-row > td {
   :root:not([data-theme="light"]) {
     --paper: #f3f5f8;
     --sheet: #ffffff;
+    --raised: #f7f9fb;
+    --active: #e7ecf3;
     --rule: #e0e5ec;
     --line: #edf0f4;
+    --control: #c5cedb;
     --text: #0c1524;
     --muted: #4a566a;
     --ink: #1b5cc8;
+    --ink-hover: #154ba6;
+    --on-ink: #ffffff;
+    --ink-tint: #e6eefb;
+    --orange: #b9480a;
+    --orange-mark: #e2590b;
+    --marker: #fdeee3;
+    --red: #b42318;
     --ok-bg: #e1f3e9;
     --ok-fg: #1d7a4c;
     --error-bg: #fbe9e7;
@@ -4427,6 +4443,10 @@ table.items tr.edit-row > td {
     --conf-3: #8a6d00;
     --conf-2: #b85c00;
     --conf-1: #cf3a2f;
+    --tone-sat: 65%;
+    --tone-fill: 1;
+    --float: 0 18px 48px rgb(10 20 40 / 0.16);
+    color-scheme: light;
   }
 }
 

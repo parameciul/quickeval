@@ -22,6 +22,7 @@ describe('StudentHeader', () => {
     render(<StudentHeader />);
     expect(screen.getByRole('link', { name: 'Despre' })).toHaveAttribute('href', 'https://mqgrader.ro/despre/');
     expect(screen.getAllByRole('link')).toHaveLength(2);
+    expect(screen.getByRole('navigation', { name: 'Pagina' })).toContainElement(screen.getByRole('link', { name: 'Despre' }));
     expect(screen.getByRole('button', { name: 'Temă întunecată' })).toBeInTheDocument();
     expectNoGradingWords();
   });
