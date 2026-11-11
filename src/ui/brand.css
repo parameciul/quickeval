@@ -4331,16 +4331,18 @@ table.items tr.edit-row > td {
   padding-block: 1.25rem 2.5rem;
 }
 
-/* The student's result page: wide on a desktop, so the exercises table has
-   room beside the final words, with a cap so lines do not run on forever on
-   a very wide screen. */
-.upload-page.result-page {
-  max-width: 96rem;
+/* The student's result page: the full width of a desktop, with the teacher
+   pages' side margins, so the exercises table has room beside the final
+   words. The header and the footer keep the content's edges. */
+.upload-page.result-page,
+.result-shell .wrap {
+  max-width: none;
 }
 
-/* The header and the footer of the result page keep the content's edges. */
-.result-shell .wrap {
-  max-width: 96rem;
+@media not (max-width: 56.25rem) {
+  .result-shell .wrap {
+    padding-inline: 2rem;
+  }
 }
 
 .result-grade {
