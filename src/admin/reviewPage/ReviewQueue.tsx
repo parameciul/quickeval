@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { countLabel } from '../../ui/format.ts';
 import { CesTag } from '../CesTag.tsx';
-import { pointKey, pointName, reviewPath, type GradedRow, type ReviewSpot } from './points.ts';
+import { pointKey, pointName, pointsText, reviewPath, type GradedRow, type ReviewSpot } from './points.ts';
 
 // The left pane of the review (redesign spec §7): the papers with points to
 // check, each with its points, then the other graded papers. The links
@@ -37,7 +37,16 @@ export function ReviewQueue({ code, papers, others, spot }: { code: string; pape
                   return (
                     <li key={key}>
                       <Link replace to={reviewPath(code, { submissionId: row.submissionId, key })} aria-current={current ? 'true' : undefined}>
-                        {pointName(point)}
+                        {point.kind === 'pages' ? (
+                          pointName(point)
+                        ) : (
+                          <>
+                            {point.label} ·{' '}
+                            <span className="review-point-score">
+                              {pointsText(point.points)} din {pointsText(point.maxPoints)}
+                            </span>
+                          </>
+                        )}
                       </Link>
                     </li>
                   );

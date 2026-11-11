@@ -2319,7 +2319,7 @@ table.tests .row-actions {
 
 .review-panes {
   display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(360px, 432px);
   grid-template-areas: "queue photo decision";
   gap: 1rem;
   align-items: start;
@@ -2419,6 +2419,20 @@ table.tests .row-actions {
   padding: 0.25rem 0.5rem 0.25rem 1rem;
   color: var(--orange);
   font-size: 0.875rem;
+}
+
+/* The points of a point to check, apart from its exercise: a grey label. */
+.review-point-score {
+  display: inline-block;
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  background: var(--active);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: nowrap;
 }
 
 .review-queue a[aria-current="true"] {
@@ -2619,6 +2633,20 @@ table.tests .row-actions {
   font-size: 0.9375rem;
 }
 
+/* The exercises' heading and "Deschide lucrarea" on one row. */
+.review-exercises-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.review-exercises-head h3 {
+  margin: 0;
+}
+
 .review-item-head {
   display: flex;
   flex-wrap: wrap;
@@ -2706,7 +2734,7 @@ table.tests .row-actions {
 
 @media (max-width: 80rem) {
   .review-panes {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    grid-template-columns: minmax(0, 1fr) minmax(336px, 408px);
     grid-template-areas:
       "photo decision"
       "queue decision";
