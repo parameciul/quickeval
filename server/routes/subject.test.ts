@@ -78,6 +78,12 @@ describe('the subject of a test', () => {
     expect(await subjectRow()).toEqual({ subject: null, subject_name: '', subject_by: null });
   });
 
+  it('stays with the exercise list the robot found it with, when the teacher replaces the test file', async () => {
+    await setTest("subject = 'fizica', subject_by = 'robot', exercise_list_status = 'ready', exercise_list_json = '{}'");
+    expect((await putFile('test', 'alt test')).status).toBe(200);
+    expect(await subjectRow()).toEqual({ subject: 'fizica', subject_name: '', subject_by: 'robot' });
+  });
+
   it('stays when the teacher set it, and when only the barem changes', async () => {
     await setTest("subject = 'romana', subject_by = 'teacher'");
     expect((await putFile('test', 'alt test')).status).toBe(200);

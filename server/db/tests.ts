@@ -20,6 +20,7 @@ import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestS
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { newUploadToken } from '../secrets.ts';
 import { flagCountSql } from './evaluations.ts';
+import { onlyTestSql } from './lifecycle.ts';
 import { baremStatuses, columns, needsBaremSql, needsPrintSql, noCesGradingSql, paperVariantSql } from './variant.ts';
 
 export interface StoredFile {
@@ -640,17 +641,37 @@ export async function setTestArchived(
 const QUICK_TRY_FILES_LEFT = `(quick_try = 0 OR files_version < ${QUICK_TRY_FILE_CHANGES})`;
 
 // The SET part that forgets a subject the robot found; the teacher's stays.
-// A list that failed because the subject is not graded (`alta`) waits again,
-// so the robot reads the new file. SQLite reads every right side before it
-// writes, so all of them see the old row.
+// A subject found with an exercise list stays with that list, which a new test
+// file does not reset. A list that failed because the subject is not graded
+// (`alta`) waits again, so the robot reads the new file, unless the test is of
+// a demo account whose one test is now another (ONLY_TEST): that would grade
+// its papers with no start. SQLite reads every right side before it writes, so
+// all of them see the old row.
 const ENDED_UNSUPPORTED = "exercise_list_status = 'failed' AND subject = 'alta'";
-const SUBJECT_FROM_ROBOT_CLEARED = `subject = CASE WHEN subject_by = 'robot' THEN NULL ELSE subject END,
-           subject_name = CASE WHEN subject_by = 'robot' THEN '' ELSE subject_name END,
-           subject_by = CASE WHEN subject_by = 'robot' THEN NULL ELSE subject_by END,
-           exercise_list_json = CASE WHEN ${ENDED_UNSUPPORTED} THEN NULL ELSE exercise_list_json END,
-           exercise_list_message = CASE WHEN ${ENDED_UNSUPPORTED} THEN NULL ELSE exercise_list_message END,
-           exercise_list_attempts = CASE WHEN ${ENDED_UNSUPPORTED} THEN 0 ELSE exercise_list_attempts END,
-           exercise_list_status = CASE WHEN ${ENDED_UNSUPPORTED} THEN 'none' ELSE exercise_list_status END, `;
+const READ_AGAIN = `(${ENDED_UNSUPPORTED} AND ${onlyTestSql('tests')})`;
+const STAYS_UNSUPPORTED = `(${ENDED_UNSUPPORTED} AND NOT ${onlyTestSql('tests')})`;
+const ROBOT_SUBJECT_GOES = `(subject_by = 'robot' AND exercise_list_status NOT IN ('ready', 'accepted', 'problem') AND NOT ${STAYS_UNSUPPORTED})`;
+const SUBJECT_FROM_ROBOT_CLEARED = `subject = CASE WHEN ${ROBOT_SUBJECT_GOES} THEN NULL ELSE subject END,
+           subject_name = CASE WHEN ${ROBOT_SUBJECT_GOES} THEN '' ELSE subject_name END,
+           subject_by = CASE WHEN ${ROBOT_SUBJECT_GOES} THEN NULL ELSE subject_by END,
+           exercise_list_json = CASE WHEN ${READ_AGAIN} THEN NULL ELSE exercise_list_json END,
+           exercise_list_message = CASE WHEN ${READ_AGAIN} THEN NULL ELSE exercise_list_message END,
+           exercise_list_attempts = CASE WHEN ${READ_AGAIN} THEN 0 ELSE exercise_list_attempts END,
+           exercise_list_status = CASE WHEN ${READ_AGAIN} THEN 'none' ELSE exercise_list_status END, `;
+
+// A new class barem resets the list, except one that ended at a subject not
+// graded in a demo account whose one test is now another (see above).
+function listResetSql(variant: TestVariant): string {
+  const c = columns(variant);
+  const keep = (col: string, reset: string) =>
+    variant === 'class' ? `${col} = CASE WHEN ${STAYS_UNSUPPORTED} THEN ${col} ELSE ${reset} END` : `${col} = ${reset}`;
+  return [
+    keep(c('exercise_list_status'), "'none'"),
+    keep(c('exercise_list_json'), 'NULL'),
+    keep(c('exercise_list_message'), 'NULL'),
+    keep(c('exercise_list_attempts'), '0'),
+  ].join(', ');
+}
 
 export async function saveTestFile(
   db: D1Database,
@@ -679,7 +700,7 @@ export async function saveTestFile(
          RETURNING status`
       : `UPDATE tests SET ${on}${c('barem_file_key')} = ?, ${c('barem_file_name')} = ?, ${c('barem_file_type')} = ?, updated_at = ?,
            ${c('files_version')} = ${c('files_version')} + 1,
-           ${c('exercise_list_status')} = 'none', ${c('exercise_list_json')} = NULL, ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0,
+           ${listResetSql(variant)},
            ${c('barem_unchecked')} = 0, ${c('barem_request')} = 'none', ${c('barem_request_attempts')} = 0
          WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)} AND ${QUICK_TRY_FILES_LEFT}
          RETURNING status`;

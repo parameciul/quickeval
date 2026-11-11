@@ -152,14 +152,18 @@ const PAPERS_LEFT_TO_REGRADE = papersLeft("(x.status = 'evaluating' OR x.id = t.
 // grade does not use the place, nor does a test whose subject the robot does
 // not grade (its papers were never graded). The place stays used when the papers are reset
 // (teachers.graded_test_id, set when a paper is first graded). A regrade or
-// retry is not checked here: its test is the one that was graded.
-const ONLY_TEST = `(SELECT CASE WHEN q.demo = 0 THEN 1
-    WHEN q.graded_test_id IS NOT NULL AND q.graded_test_id <> t.id THEN 0
+// retry is not checked here: its test is the one that was graded. `t` names
+// the test's table or alias (a write on `tests` passes 'tests').
+export function onlyTestSql(t: string): string {
+  return `(SELECT CASE WHEN q.demo = 0 THEN 1
+    WHEN q.graded_test_id IS NOT NULL AND q.graded_test_id <> ${t}.id THEN 0
     WHEN EXISTS (SELECT 1 FROM tests o JOIN submissions os ON os.test_id = o.id
-      WHERE o.teacher_id = q.id AND o.id <> t.id AND o.evaluation_started_at IS NOT NULL AND COALESCE(o.subject, '') <> 'alta'
+      WHERE o.teacher_id = q.id AND o.id <> ${t}.id AND o.evaluation_started_at IS NOT NULL AND COALESCE(o.subject, '') <> 'alta'
         AND os.status IN ('submitted', 'grading', 'graded', 'failed')) THEN 0
     ELSE 1 END
-  FROM teachers q WHERE q.id = t.teacher_id) = 1`;
+  FROM teachers q WHERE q.id = ${t}.teacher_id) = 1`;
+}
+const ONLY_TEST = onlyTestSql('t');
 
 export const WITHIN_PAPER_LIMIT = `(${PAPERS_LEFT} > 0 AND ${ONLY_TEST})`;
 
@@ -490,7 +494,9 @@ export async function acceptExerciseList(
 }
 
 // Lets the robot try again to make an exercise list it failed to make.
-// Returns the test's status, or null when the list had not failed.
+// Returns the test's status, or null when the list had not failed. A class
+// list that ended at a subject not graded is not tried again: only a new test
+// file has the test read again (saveTestFile), under the demo account's rules.
 export async function retryExerciseList(
   db: D1Database,
   teacherId: number,
@@ -502,7 +508,7 @@ export async function retryExerciseList(
   const row = await db
     .prepare(
       `UPDATE tests SET ${c('exercise_list_status')} = 'none', ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0, updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND ${c('exercise_list_status')} = 'failed'
+       WHERE id = ? AND teacher_id = ? AND ${c('exercise_list_status')} = 'failed' ${variant === 'class' ? "AND COALESCE(subject, '') <> 'alta'" : ''}
        RETURNING status`,
     )
     .bind(now, testId, teacherId)

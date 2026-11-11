@@ -41,12 +41,13 @@ const putBarem = (headers: Record<string, string> = {}) =>
     headers: { Authorization: `Bearer ${ROBOT_KEY}`, 'Content-Type': DOCX_TYPE, 'X-Run-Id': RUN, 'X-Files-Version': '0', ...headers },
   });
 const evaluate = (testCode: string, body: object = {}) => api.request('POST', `/api/admin/tests/${testCode}/evaluate`, body);
-const putTestFile = () =>
-  api.fetch(`/api/admin/tests/${code}/files/test`, {
+const putFile = (kind: 'test' | 'barem') =>
+  api.fetch(`/api/admin/tests/${code}/files/${kind}`, {
     method: 'PUT',
-    body: new TextEncoder().encode('%PDF-1.7 testul bun'),
-    headers: { 'Content-Type': 'application/pdf', 'X-File-Name': 'test.pdf' },
+    body: new TextEncoder().encode(`%PDF-1.7 ${kind} bun`),
+    headers: { 'Content-Type': 'application/pdf', 'X-File-Name': `${kind}.pdf` },
   });
+const putTestFile = () => putFile('test');
 
 beforeEach(async () => {
   dispatchRobot.mockClear();
@@ -186,5 +187,33 @@ describe('a demo account', () => {
     await addTestFiles(api, other);
     await addSubmission(api, other, studentIds[1]!, { files: 1 });
     expect((await evaluate(other)).status).toBe(200);
+  });
+
+  it('cannot bring back the papers of that test once another test holds its one place', async () => {
+    await api.db.prepare("UPDATE teachers SET role = 'teacher', demo = 1 WHERE id = ?").bind(api.teacherId).run();
+    await addSubmission(api, code, studentIds[0]!, { status: 'submitted', files: 1 });
+    await setTest(
+      "status = 'evaluating', evaluation_started_at = ?, subject = 'alta', subject_name = 'istorie', subject_by = 'robot', exercise_list_status = 'failed', exercise_list_message = ?",
+      PAST,
+      HISTORY,
+    );
+    const other = await makeTest(api, classId, 'Alt test');
+    await startTest(api, other);
+    await addTestFiles(api, other);
+    await addSubmission(api, other, studentIds[1]!, { files: 1 });
+    expect((await evaluate(other)).status).toBe(200);
+    expect((await putTestFile()).status).toBe(200);
+    await putFile('barem');
+    expect((await api.request('POST', `/api/admin/tests/${code}/exercise-list/retry`)).status).toBe(409);
+    expect(await row()).toMatchObject({ subject: 'alta', subject_by: 'robot', exercise_list_status: 'failed', exercise_list_message: HISTORY });
+  });
+});
+
+describe('a list that ended at a subject not graded', () => {
+  it('is not tried again: only a new test file reads the test again', async () => {
+    await setTest("subject = 'alta', subject_name = 'istorie', subject_by = 'robot', exercise_list_status = 'failed', exercise_list_message = ?", HISTORY);
+    const res = await api.request('POST', `/api/admin/tests/${code}/exercise-list/retry`);
+    expect(res.status).toBe(409);
+    expect(await row()).toMatchObject({ subject: 'alta', exercise_list_status: 'failed', exercise_list_message: HISTORY });
   });
 });
