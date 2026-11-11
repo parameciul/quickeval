@@ -198,9 +198,11 @@ export async function makeExerciseList(ctx: TaskContext, testId: number, variant
       (await ctx.api.sendExerciseList(testId, { ...post, ok: false, error }, variant)).status === 'failed';
     const files = await teacherFiles(ctx, testId, test.files, variant);
     if (!files) return sendOutcome({ ok: false, problem: 'crash', detail: 'missing file' }, async () => undefined, sendError);
+    // A test with no subject yet: Claude finds it with the list.
     const cwd = await makeFolder({
       ...files,
       baremNotes: test.baremNotes,
+      subject: test.subject ?? null,
       ...(ces ? { variant, classExerciseList: test.classExerciseList ?? null } : {}),
     });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
@@ -219,7 +221,7 @@ export async function analyzeClass(ctx: TaskContext, testId: number): Promise<Ta
     const sendError = async (error: RobotError) =>
       (await ctx.api.sendAnalysis(testId, { runId: ctx.runId, ok: false, error })) === 'failed';
     const classResults = await ctx.api.classResults(testId);
-    const cwd = await makeFolder({ classResults });
+    const cwd = await makeFolder({ classResults, subject: classResults.subject ?? 'matematica' });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'class-report', cwd, (output) => checkClassAnalysis(output).ok);
     return sendOutcome(
@@ -248,7 +250,9 @@ export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Pro
     for (const file of [...claim.files].sort((a, b) => a.position - b.position)) {
       pages.push({ bytes: await ctx.api.page(submissionId, file.id), contentType: file.contentType });
     }
-    const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes, exerciseList: list, pages, ...(variant === 'ces' ? { variant } : {}) });
+    // A test with no subject (an older API, or a list made before subjects) is a math test.
+    const subject = test.subject ?? 'matematica';
+    const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes, exerciseList: list, pages, subject, ...(variant === 'ces' ? { variant } : {}) });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list).ok);
     return sendOutcome(outcome, (result, model, effort) => ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: true, result, model, effort }),

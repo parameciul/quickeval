@@ -92,6 +92,17 @@ describe('leaksSecret', () => {
 });
 
 describe('makeExerciseList', () => {
+  it('gives Claude the subject of a test that has one, so that it looks for none', async () => {
+    await world.api.db.prepare("UPDATE tests SET subject = 'fizica', subject_by = 'teacher' WHERE id = ?").bind(world.testId).run();
+    let subject = '';
+    const claude = scriptedClaude((task) => {
+      subject = readFileSync(path.join(task.cwd, 'subject.md'), 'utf8');
+      return answer(LIST);
+    });
+    expect(await makeExerciseList(await context(claude), world.testId)).toBe('saved');
+    expect(subject).toBe('fizica\n');
+  });
+
   it('saves the list that Claude made from the test and the barem, and removes the work folder', async () => {
     const claude = scriptedClaude(answer(LIST));
     expect(await makeExerciseList(await context(claude), world.testId)).toBe('saved');
@@ -234,6 +245,8 @@ describe('gradeSubmission', () => {
     const claude = scriptedClaude((task) => {
       secondPage = readFileSync(path.join(task.cwd, 'student', 'page-02.jpg'), 'utf8');
       expect(JSON.parse(readFileSync(path.join(task.cwd, 'exercises.json'), 'utf8'))).toEqual(LIST);
+      // A test with no subject is a math test.
+      expect(readFileSync(path.join(task.cwd, 'subject.md'), 'utf8')).toBe('matematica\n');
       return answer(GRADING);
     });
     const ctx = await claimed(claude);
@@ -246,6 +259,7 @@ describe('gradeSubmission', () => {
       'exercises.json',
       'student/page-01.jpg',
       'student/page-02.jpg',
+      'subject.md',
       'test/test.pdf',
     ]);
     expect(secondPage).toBe(`jpeg ${id}-2`);
@@ -346,7 +360,7 @@ describe('analyzeClass', () => {
     expect(await analyzeClass(ctx, world.testId)).toBe('saved');
     expect(claude.calls[0]!.task.mode).toBe('class-report');
     expect(claude.calls[0]!.task.jsonSchema).toMatchObject({ $schema: 'http://json-schema.org/draft-07/schema#' });
-    expect(claude.calls[0]!.files).toEqual([...SKILL_FILES, 'class-results.json']);
+    expect(claude.calls[0]!.files).toEqual([...SKILL_FILES, 'class-results.json', 'subject.md']);
     const row = await testRow();
     expect(row).toMatchObject({ status: 'done', analysis_status: 'ready', analysis_stale: 0 });
     expect(JSON.parse(row!.analysis_json!)).toEqual(ANALYSIS);

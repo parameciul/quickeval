@@ -190,6 +190,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       filesVersion: 0,
       analysis: { status: 'none', stale: false, attempts: 0 },
       print: { status: 'none', fromWord: false },
+      subject: null,
       ces: noCesVariant(),
       // Made again from the files and the uploads (withDerived).
       prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false, ces: NO_CES_PREPARED },

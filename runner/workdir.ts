@@ -7,6 +7,7 @@ import { DOCX_TYPE, extensionFor, PDF_TYPE } from '../shared/files.ts';
 import type { TestFileKind, TestVariant } from '../shared/files.ts';
 import type { ClassResults } from '../shared/runner.ts';
 import type { ExerciseList } from '../shared/schemas.ts';
+import type { DetectedSubject } from '../shared/subjects.ts';
 
 // The work folder of one robot task (spec §12.3). It is the working directory
 // of Claude, outside the repo: Claude finds the skill and no CLAUDE.md or
@@ -21,6 +22,8 @@ import type { ExerciseList } from '../shared/schemas.ts';
 //   student/page-01.jpg, …          (grade) the pages, in upload order
 //   notes.md                        (barem) the teacher's comments for the barem to write; no barem/ folder
 //   class-results.json              (class-report) the graded class, anonymized; no test, no barem
+//   subject.md                      the test's subject (matematica, fizica, …), when it is known;
+//                                   without it, the exercise-list and barem modes find it
 //   ces.md                          (CES variant) says that test/ and barem/ are the CES variant's
 //   class/exercises.json            (CES exercise list, CES barem) the class list, whose ids the CES list reuses
 //   class/barem.pdf                 or class/barem.md and class/media/… (CES barem) the class barem
@@ -51,6 +54,9 @@ export interface WorkFolderInput {
   // The CES variant's tasks: the class exercise list and the class barem.
   classExerciseList?: ExerciseList | null;
   classBarem?: TaskFile | null;
+  // The test's subject, written to subject.md. None, or `alta` (a subject the
+  // robot does not grade): no file, and Claude finds the subject.
+  subject?: DetectedSubject | null;
 }
 
 // What ces.md says, for the skill: the files are the CES variant's.
@@ -89,7 +95,7 @@ export function runFolder(env: Record<string, string | undefined>, runId: string
 // The rules every barem carries, on top of the teacher's own comments for one
 // test. They are the first lines of barem/notes.md.
 export const DEFAULT_BAREM_NOTES = [
-  'Nu puncta rezolvările care nu se bazează pe ipoteza problemei sau care nu au legătură cu cerințele problemei.',
+  'Nu puncta rezolvările care nu se bazează pe enunțul problemei sau care nu au legătură cu cerințele problemei.',
   'Punctează și rezolvările corecte, parțiale sau totale, care nu se potrivesc cu rezultatele parțiale din barem.',
 ].join('\n');
 
@@ -119,6 +125,7 @@ export async function makeWorkFolder(root: string, taskId: string, input: WorkFo
   if (input.classResults) {
     await writeFile(path.join(folder, 'class-results.json'), `${JSON.stringify(input.classResults, null, 2)}\n`);
   }
+  if (input.subject && input.subject !== 'alta') await writeFile(path.join(folder, 'subject.md'), `${input.subject}\n`);
   if (input.variant === 'ces') await writeFile(path.join(folder, 'ces.md'), `${CES_NOTE}\n`);
   if (input.classBarem) await writeTeacherFile(folder, 'barem', input.classBarem, pandoc, 'class');
   if (input.classExerciseList) {

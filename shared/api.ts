@@ -15,6 +15,7 @@ import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
 import { type AnswerArea, type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST, studentNameKey } from './students.ts';
+import type { SubjectInfo } from './subjects.ts';
 import { type AnalysisStatus, cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
 
 // Request bodies of the teacher API. The server parses every body with these
@@ -694,6 +695,9 @@ export interface TestInfo extends TestSummary {
   analysis: AnalysisInfo;
   // fromWord: the test file is a Word file, so the PDF is made from it.
   print: { status: PrintStatus; fromWord: boolean };
+  // The test's subject: found by the robot with the exercise list or a
+  // generated barem, or set by the teacher. Null until then.
+  subject: SubjectInfo | null;
   ces: CesVariantInfo;
 }
 

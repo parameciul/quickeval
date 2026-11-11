@@ -367,6 +367,7 @@ describe('GET /api/runner/tests/:id', () => {
         files: { test: { contentType: 'application/pdf' }, barem: { contentType: 'application/pdf' } },
         exerciseList: LIST,
         baremNotes: '',
+        subject: null,
       },
     });
     expect(JSON.stringify(res.body)).not.toMatch(/Pop Ion|fixture|\.pdf"/);

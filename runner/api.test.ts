@@ -47,6 +47,7 @@ describe('robotApi with the real API', () => {
       files: { test: { contentType: 'application/pdf' }, barem: { contentType: 'application/pdf' } },
       exerciseList: null,
       baremNotes: '',
+      subject: null,
     });
     expect(text(await robot.testFile(testId, 'barem'))).toBe('%PDF-1.7 barem');
     expect(await robot.sendExerciseList(testId, { runId: RUN, filesVersion: 0, ok: true, exerciseList: LIST })).toEqual({ status: 'ready', message: null });
@@ -87,6 +88,7 @@ describe('robotApi with the real API', () => {
       filesVersion: 0,
       contentType: 'application/pdf',
       baremNotes: 'Acordă punct parțial.',
+      subject: null,
     });
     expect(text(await robot.baremSource(open.testId))).toBe(SOURCE_BYTES.pdf);
     expect(await robot.sendBaremFailed(open.testId, { runId: RUN, filesVersion: 0, error: 'crash' })).toBe('none');

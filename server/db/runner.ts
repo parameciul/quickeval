@@ -16,6 +16,7 @@ import {
 import type { CheckedExerciseList, ClassAnalysis, ExerciseList, Grading } from '../../shared/schemas.ts';
 import type { ExerciseListStatus } from '../../shared/tests.ts';
 import { compareStudentNames } from '../../shared/students.ts';
+import type { DetectedSubject } from '../../shared/subjects.ts';
 import type { TestVariant } from '../../shared/files.ts';
 import { askForAnalysis, finishTests, promoteStatements } from './lifecycle.ts';
 import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
@@ -263,7 +264,7 @@ export async function findRobotTest(db: D1Database, testId: number, variant: Tes
     .prepare(
       `SELECT id, created_at, ${c('files_version')} AS files_version, ${c('test_file_key')} AS test_file_key, ${c('test_file_type')} AS test_file_type,
          ${c('barem_file_key')} AS barem_file_key, ${c('barem_file_type')} AS barem_file_type, ${c('barem_notes')} AS barem_notes,
-         ${c('exercise_list_json')} AS exercise_list_json, exercise_list_json AS class_list_json
+         ${c('exercise_list_json')} AS exercise_list_json, exercise_list_json AS class_list_json, subject
        FROM tests WHERE id = ? AND status = 'evaluating'`,
     )
     .bind(testId)
@@ -278,6 +279,7 @@ export async function findRobotTest(db: D1Database, testId: number, variant: Tes
       barem_notes: string | null;
       exercise_list_json: string | null;
       class_list_json: string | null;
+      subject: DetectedSubject | null;
     }>();
   if (!row) return null;
   const file = (key: string | null, type: string | null) => (key && type ? { contentType: type } : null);
@@ -290,6 +292,7 @@ export async function findRobotTest(db: D1Database, testId: number, variant: Tes
       files: { test: file(row.test_file_key, row.test_file_type), barem: file(row.barem_file_key, row.barem_file_type) },
       exerciseList: list(row.exercise_list_json),
       baremNotes: row.barem_notes ?? '',
+      subject: row.subject,
       ...(variant === 'ces' ? { variant, classExerciseList: list(row.class_list_json) } : {}),
     },
     keys: { test: row.test_file_key, barem: row.barem_file_key },
@@ -493,7 +496,7 @@ export async function findBaremJob(
     .prepare(
       `SELECT t.id, t.created_at, t.${v('files_version')} AS files_version, t.${v('test_file_key')} AS test_file_key,
          t.${v('test_file_type')} AS test_file_type, t.${v('barem_notes')} AS barem_notes, t.teacher_id, t.code, c.school_year,
-         t.barem_file_key AS class_barem_key, t.barem_file_type AS class_barem_type, t.exercise_list_json AS class_list_json
+         t.barem_file_key AS class_barem_key, t.barem_file_type AS class_barem_type, t.exercise_list_json AS class_list_json, t.subject
        FROM tests t JOIN classes c ON c.id = t.class_id
        WHERE t.id = ? AND ${needsBaremSql(variant)}`,
     )
@@ -511,6 +514,7 @@ export async function findBaremJob(
       class_barem_key: string | null;
       class_barem_type: string | null;
       class_list_json: string | null;
+      subject: DetectedSubject | null;
     }>();
   if (!row || !row.test_file_type) return null;
   const job: BaremJob = {
@@ -519,6 +523,7 @@ export async function findBaremJob(
     filesVersion: row.files_version,
     contentType: row.test_file_type,
     baremNotes: row.barem_notes ?? '',
+    subject: row.subject,
   };
   const ces = variant === 'ces';
   if (ces) {
@@ -680,6 +685,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   const [test, rows] = await db.batch<{
     exercise_list_json?: string | null;
     ces_exercise_list_json?: string | null;
+    subject?: DetectedSubject | null;
     variant?: string | null;
     version?: string;
     exercise_id?: string;
@@ -699,7 +705,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   }>([
     db
       .prepare(
-        `SELECT t.exercise_list_json, t.ces_exercise_list_json, ${gradesVersionSql('t')} AS version FROM tests t WHERE t.id = ? AND t.status = 'evaluating'`,
+        `SELECT t.exercise_list_json, t.ces_exercise_list_json, t.subject, ${gradesVersionSql('t')} AS version FROM tests t WHERE t.id = ? AND t.status = 'evaluating'`,
       )
       .bind(testId),
     db
@@ -751,6 +757,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   return {
     testId,
     version: head.version!,
+    subject: head.subject ?? null,
     maxTotal: list?.totalPoints ?? latest?.maxTotal ?? 0,
     officePoints: list?.officePoints ?? latest?.officePoints ?? 0,
     exercises: exerciseColumns(list, stored),

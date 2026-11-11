@@ -37,7 +37,7 @@ export async function makeBarem(ctx: TaskContext, testId: number, variant: TestV
       const classBarem = ces && job.classBarem ? { bytes: await ctx.api.baremClassBarem(testId), contentType: job.classBarem.contentType } : null;
       let cwd: string;
       try {
-        const input = { test: { bytes: source, contentType: job.contentType }, requestNotes: job.baremNotes };
+        const input = { test: { bytes: source, contentType: job.contentType }, requestNotes: job.baremNotes, subject: job.subject ?? null };
         cwd = await makeWorkFolder(
           ctx.root,
           taskId,

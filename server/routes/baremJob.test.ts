@@ -89,7 +89,7 @@ describe('GET /tests/:id/barem-job', () => {
     const job = await robot('GET', jobPath());
     expect(job.status).toBe(200);
     expect(job.body).toEqual({
-      job: { testId, createdAt: await createdAt(), filesVersion: await version(), contentType: 'application/pdf', baremNotes: 'Acordă punct parțial.' },
+      job: { testId, createdAt: await createdAt(), filesVersion: await version(), contentType: 'application/pdf', baremNotes: 'Acordă punct parțial.', subject: null },
     });
     expect(JSON.stringify(job.body)).not.toContain('fixture/');
     const file = await api.fetch(`/api/runner/tests/${testId}/barem-job/file`, { headers: auth });

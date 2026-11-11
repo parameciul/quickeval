@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -116,6 +116,18 @@ describe('makeBarem', () => {
     expect(await storedStart()).toBe('PK');
     expect(claude.calls[0]!.task.mode).toBe('barem');
     expect(claude.calls[0]!.files).toEqual(['.claude/skills/evaluate-test/SKILL.md', 'notes.md', 'test/test.pdf']);
+  });
+
+  it("gives Claude the test's subject when it is known", async () => {
+    await setUp('pdf');
+    await api!.db.prepare("UPDATE tests SET subject = 'chimie', subject_by = 'teacher' WHERE id = ?").bind(open.testId).run();
+    let subject = '';
+    const claude = scriptedClaude((task) => {
+      subject = readFileSync(path.join(task.cwd, 'subject.md'), 'utf8');
+      return answer(BAREM);
+    });
+    expect(await makeBarem(context(claude), open.testId)).toBe('saved');
+    expect(subject).toBe('chimie\n');
   });
 
   it('turns a Word test into Markdown for Claude, and writes no notes without comments', async () => {
