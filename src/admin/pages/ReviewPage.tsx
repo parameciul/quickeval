@@ -215,6 +215,7 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
     );
   };
   const nextPoint = stepPoint(queue, spot, 1);
+  const previousPoint = stepPoint(queue, spot, -1);
 
   // A, J, K and 1–9, while the cursor is not in a field or in what opened from
   // the bars, and no decision is on its way. A key held down acts once: its
@@ -250,6 +251,11 @@ function Review({ code, detail, refreshError }: { code: string; detail: TestDeta
           <Link className="button-quiet" to={`/teste/${code}${stageHash('Verificare')}`}>
             Înapoi la test
           </Link>
+          {previousPoint && (
+            <button type="button" className="button-quiet" disabled={decide.isPending} onClick={() => goPoint(previousPoint)}>
+              Punctul anterior
+            </button>
+          )}
           {nextPoint && (
             <button type="button" className="button" disabled={decide.isPending} onClick={() => goPoint(nextPoint)}>
               Următorul punct

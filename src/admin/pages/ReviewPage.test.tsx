@@ -226,6 +226,23 @@ describe('the review of the points to check', () => {
     expect(await within(decision()).findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
   });
 
+  it('goes to the next point and back with the buttons of the title row', async () => {
+    const api = apiWith();
+    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    await screen.findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' });
+    await userEvent.click(screen.getByRole('button', { name: 'Următorul punct' }));
+    await expectLocation(at('?lucrare=14&punct=41'));
+    expect(await within(decision()).findByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Punctul anterior' }));
+    await expectLocation(at('?lucrare=11&punct=32'));
+    expect(await within(decision()).findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Punctul anterior' }));
+    await expectLocation(at('?lucrare=11&punct=pagini'));
+    // The buttons go round the queue: before the first point comes the last one.
+    await userEvent.click(screen.getByRole('button', { name: 'Punctul anterior' }));
+    await expectLocation(at('?lucrare=14&punct=41'));
+  });
+
   it('ignores the keys in the stepper field and with Ctrl, Alt or Meta', async () => {
     const api = apiWith();
     renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
@@ -259,6 +276,7 @@ describe('the review of the points to check', () => {
     expect(api.correctItem).toHaveBeenCalledTimes(1);
     expect(within(panel).getByRole('button', { name: 'Accept 1p' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Punctul anterior' })).toBeDisabled();
     await userEvent.keyboard('jk2');
     await expectLocation(at(`?lucrare=11&punct=32`));
     expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
@@ -272,6 +290,7 @@ describe('the review of the points to check', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     expect(within(panel).getByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Următorul punct' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Punctul anterior' })).not.toBeInTheDocument();
 
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
@@ -667,11 +686,12 @@ const onPhone = () =>
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the border of the answer to check', () => {
-  it('opens the answer on its first part, zoomed, with an orange border and its label outside it', async () => {
+  it('opens the answer on its first part, on the whole page, with an orange border and its label outside it', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
     expect(await screen.findByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
-    expect(layer().style.transform).toBe('translate(-25%, -15.625%) scale(1.875)');
-    expect(frame().style).toMatchObject({ left: '12.5%', top: '40.625%', width: '75%', height: '18.75%' });
+    // The page never zooms by itself: the border alone shows where the answer is.
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(frame().style).toMatchObject({ left: '20%', top: '30%', width: '40%', height: '10%' });
     expect(within(frame()).getByText('I.3 · partea 1 din 2')).not.toHaveClass('is-below');
     expect(within(frame()).getByRole('button', { name: 'Partea anterioară' })).toBeDisabled();
     expect(within(frame()).getByRole('button', { name: 'Partea următoare' })).toBeEnabled();
@@ -682,7 +702,7 @@ describe('the border of the answer to check', () => {
     );
   });
 
-  it('steps to the next part on its page and back, zoomed on each', async () => {
+  it('steps to the next part on its page and back', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
     await screen.findByText('Ion Popa · pagina 1 din 2');
     await userEvent.click(screen.getByRole('button', { name: 'Partea următoare' }));
@@ -692,6 +712,7 @@ describe('the border of the answer to check', () => {
     expect(frame().style).toMatchObject({ left: '10%', top: '50%', width: '80%', height: '30%' });
     expect(within(frame()).getByText('I.3 · partea 2 din 2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Partea următoare' })).toBeDisabled();
+    // The arrows are the teacher's own move: each part opens zoomed on it.
     await userEvent.click(screen.getByRole('button', { name: 'Partea anterioară' }));
     expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
     expect(layer().style.transform).toBe('translate(-25%, -15.625%) scale(1.875)');
@@ -734,7 +755,8 @@ describe('the border of the answer to check', () => {
     await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
     expect(await within(decision()).findByRole('heading', { name: 'Ion Popa · Subiectul II, ex. 4' })).toBeInTheDocument();
     expect(within(frame()).getByText('II.4')).toBeInTheDocument();
-    expect(layer().style.transform).toBe('translate(-6.25%, 0%) scale(1.875)');
+    // The next answer opens whole: its border shows where it is.
+    expect(layer().style.transform).toBe(WHOLE);
   });
 
   it('opens the next point whole after a decision while the border is off', async () => {
@@ -765,7 +787,7 @@ describe('the border of the answer to check', () => {
     expect(screen.queryByTestId('answer-frame')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('checkbox', { name: 'Arată chenarul' }));
     expect(within(frame()).getByText('I.3 · partea 1 din 2')).toBeInTheDocument();
-    expect(layer().style.transform).toBe('translate(-25%, -15.625%) scale(1.875)');
+    expect(layer().style.transform).toBe(WHOLE);
   });
 
   it('opens as before an answer with no area it can draw: on a PDF page, or on a page the paper does not have', async () => {

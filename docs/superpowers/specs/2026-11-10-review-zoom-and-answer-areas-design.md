@@ -25,7 +25,7 @@ The grading skill was run with `npm run try:skill` on two real papers (one stude
 ## Goals
 
 - Zoom and pan inside the middle pane, for photo pages.
-- Picking an exercise opens the page of its first area, zoomed on that area, with a border around it.
+- Picking an exercise opens the page of its first area, whole, with a border around that area. (The page never zooms by itself: the teacher's own click, wheel or part arrow zooms it.)
 - An exercise with more than one area lets the teacher step through its parts.
 - The robot saves the areas when it grades; the page draws them from the saved data.
 - One switch turns the borders off.
@@ -81,20 +81,20 @@ The teacher's choice: the Quick Try review behaves the same. It already is the s
 
 ### The picked exercise
 
-- Picking an exercise in the left list (or with "Următorul punct") opens the page of its first area, in page order, zoomed so that the area fills the pane with a margin, centred on it.
+- Picking an exercise in the left list (or with "Următorul punct" or "Punctul anterior") opens the page of its first area, in page order, at the whole page view, with a border around that area (the teacher asked for no automatic zoom: the page stays whole until she zooms it herself).
 - Only the picked exercise gets a border. Other exercises on the page get none.
 - Which exercises (the teacher's answer): only the points to check, the ones the left list and "Următorul punct" already open. The page's views stay as they are; an exercise the robot was sure of, or a point already decided, is not opened. Opening every exercise may come later as its own step; the robot saves areas for every exercise, so nothing is lost.
 - The border is drawn by the page over the photo: an orange dashed line (the teacher's choice: orange is the colour of what waits on her; the `orange-mark` token of the redesign spec, in both themes) that looks hand-drawn (slightly uneven). It is drawn in the photo's own coordinates, so it moves and grows with the zoom. The exact look is the builder's call, checked in light and dark themes.
 - The border's label (the exercise, for example "II.3", and "Partea 1 din 2" when there are parts) sits outside the area, never over the student's work: above the area's top left corner, or below the area when there is no room above. (The teacher's choice.)
 - The border stays when the teacher zooms out to the whole page or changes the zoom.
-- An exercise with more than one area shows, beside the border's label on the photo (the label says "partea 1 din 2"), the buttons to the next part and back; on a phone, where the label may end near the pane's edge, they float in the pane's bottom corner with "1 din 2". The next part opens its page, zoomed on it. The page switch (1 · 2 · 3) still works and shows the borders of the picked exercise on any page that has one.
+- An exercise with more than one area shows, beside the border's label on the photo (the label says "partea 1 din 2"), the buttons to the next part and back; on a phone, where the label may end near the pane's edge, they float in the pane's bottom corner with "1 din 2". The next part opens its page, zoomed on it (the teacher's own move). The page switch (1 · 2 · 3) still works and shows the borders of the picked exercise on any page that has one.
 - A turned photo needs nothing special. The upload page normally re-encodes a photo upright, but it sends the original file when re-encoding fails or comes out bigger, and such a file may carry an EXIF orientation tag, which the browser applies. A second spike (2026-11-10) graded the same 3 pages stored sideways with orientation tag 6: the robot's areas matched the upright run (mean overlap 0.93) and not the stored frame (0.08). So the robot sees the photo turned as the browser shows it, and the areas are in the frame the teacher sees. Only tag 6 was tried; the other tags are turned by the same reader.
 - An exercise with no areas (an old grading, no answer, or the robot not sure) opens as today: its `page`, whole page view, no border, no "Partea" label.
 - "Paginile necitite" (the unreadable pages point) and a paper picked from "Celelalte lucrări" open as today, with no border.
 
 ### The switch
 
-- A switch in the line above the photo, beside the page switch, "Arată chenarul" (builder may pick better Romanian words), turns the borders on and off. Off: no border, and picking an exercise opens its page at the whole page view, as today.
+- A switch in the line above the photo, beside the page switch, "Arată chenarul" (builder may pick better Romanian words), turns the borders on and off. Off: no border, and picking an exercise opens its page at the whole page view, as it does with the borders on.
 - The choice is remembered in this browser (`localStorage`, read and written in try/catch). On by default.
 
 ## Rules that stay

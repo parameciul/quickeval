@@ -19,9 +19,10 @@ export interface ReviewFocus {
 // The middle pane of the review: one page of the paper at a time, with the
 // page switch. A photo zooms inside the pane (ZoomPhoto); "Toată pagina", a
 // right click or Esc shows the whole page again. A PDF shows in a frame.
-// While "Arată chenarul" is on, the answer to check opens zoomed on its first
-// area with an orange border; an answer in more parts steps through them with
-// the arrows beside the border's label.
+// While "Arată chenarul" is on, the answer to check opens on its page with an
+// orange border around its first area, on the whole page: the page never zooms
+// by itself. An answer in more parts steps through them with the arrows beside
+// the border's label, each part zoomed on it.
 export function ReviewPhoto({
   submission,
   page,
@@ -53,10 +54,10 @@ export function ReviewPhoto({
   const focusKey = framed ? `framed:${framed.key}` : `plain:${focus?.key ?? ''}`;
   const [part, setPart] = useState<{ key: string; index: number } | null>(null);
   const partIndex = part !== null && part.key === focusKey ? Math.min(part.index, (framed?.areas.length ?? 1) - 1) : 0;
-  const partArea = framed?.areas[partIndex];
 
-  // The zoom of the page shown. An answer that opens shows its part zoomed;
-  // a page the teacher picks herself opens whole.
+  // The zoom of the page shown. A page opens whole, also when it holds the
+  // answer to check; only the teacher's own moves zoom it: a click, the wheel,
+  // or the arrows of an answer in more parts.
   const fileKey = `${submission.id}:${file?.id ?? ''}`;
   const [zoom, setZoom] = useState<{ focusKey: string; fileKey: string; view: ZoomView } | null>(null);
   // Another page forgets the zoom, so coming back to a page shows it as it opens.
@@ -65,14 +66,7 @@ export function ReviewPhoto({
     setShownFile(fileKey);
     if (zoom !== null && zoom.fileKey !== fileKey) setZoom(null);
   }
-  const view =
-    zoom !== null && zoom.focusKey === focusKey
-      ? zoom.fileKey === fileKey
-        ? zoom.view
-        : WHOLE_PAGE
-      : partArea && partArea.page === index + 1
-        ? viewOfBox(partArea)
-        : WHOLE_PAGE;
+  const view = zoom !== null && zoom.focusKey === focusKey && zoom.fileKey === fileKey ? zoom.view : WHOLE_PAGE;
   const setView = (next: ZoomView) => setZoom({ focusKey, fileKey, view: next });
 
   // The next or the previous part: its page, zoomed on it.
