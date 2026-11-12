@@ -70,7 +70,7 @@ describe('a graded try', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Verifică 1 punct' }));
     expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
     expect(await screen.findByRole('img', { name: /Pagina 1/ })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/submissions/${TRY_SUBMISSION}/files/61`);
-    await userEvent.click(await screen.findByRole('button', { name: 'Accept 3p' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmă 3p' }));
     await waitFor(() => expect(api.correctItem).toHaveBeenCalledWith(TRY_SUBMISSION, 71, expect.objectContaining({ reviewed: true })));
     await userEvent.click(screen.getByRole('link', { name: 'Înapoi la test' }));
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();

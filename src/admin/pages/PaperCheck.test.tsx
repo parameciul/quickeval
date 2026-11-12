@@ -170,43 +170,48 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     // The row above the decision has the answer, the comment and the reason.
     const flagged = row('Subiectul II, ex. 1');
-    expect(flagged).toHaveClass('is-open');
+    expect(flagged).toHaveClass('is-open', 'is-to-check');
+    expect(within(flagged).getByText('1 din 2')).toHaveClass('points-pill');
     expect(within(flagged).getByText('x = 3')).toBeInTheDocument();
     expect(within(flagged).getByText('Verifică semnul.')).toBeInTheDocument();
-    expect(within(flagged).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
     expect(within(flagged).queryByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).not.toBeInTheDocument();
-    expect(within(panel).getByText('2p în barem')).toBeInTheDocument();
+    // The reason and the points to choose are under the row, the robot's chosen.
+    expect(within(panel).getByText('Scrisul nu se citește.')).toBeInTheDocument();
+    expect(within(panel).getByText('(robotul a dat 1p din 2p)')).toBeInTheDocument();
+    expect(within(panel).getAllByRole('button', { pressed: true }).map((chip) => chip.textContent)).toEqual(['1']);
     expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
 
-    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
     expect(api.correctItem).toHaveBeenCalledWith(11, 32, { reviewed: true, gradedAt: GRADED_AT });
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
     await expectLocation(at(14, '41'));
     expect(screen.getByRole('button', { name: 'Doar de verificat (2)' })).toBeInTheDocument();
   });
 
-  it('says what the grade becomes with another value, and saves it', async () => {
+  it('chooses other points with a button or typed, says what the grade becomes, and saves it', async () => {
     const api = apiWith();
     renderAdmin(paperAt(11, '32'), api);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
-    expect(within(panel).getByText('Total: 6,5 din 10, cu 1 din oficiu')).toBeInTheDocument();
-    expect(within(panel).queryByText(/nota devine/)).not.toBeInTheDocument();
+    const chips = within(panel).getByRole('group', { name: /Punctajul/ });
+    expect(within(chips).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['0', '0,25', '0,5', '0,75', '1', '1,25', '1,5', '1,75', '2']);
+    expect(within(panel).getByText('Nota rămâne 6,5.')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Scade 0,5p' }));
-    expect(input).toHaveValue('0,5');
+    await userEvent.click(within(chips).getByRole('button', { name: '0,5' }));
+    expect(within(chips).getByRole('button', { name: '0,5' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(chips).getByRole('button', { name: '1' })).toHaveAttribute('aria-pressed', 'false');
     expect(within(panel).getByText('Cu 0,5p aici, nota devine 6.')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Scade 0,5p' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Scade 0,5p' }));
-    expect(input).toHaveValue('0');
+    expect(within(panel).getByRole('button', { name: 'Confirmă 0,5p' })).toBeInTheDocument();
+    await userEvent.click(within(chips).getByRole('button', { name: '0' }));
     expect(within(panel).getByText('Cu 0p aici, nota devine 5,5.')).toBeInTheDocument();
-    for (let press = 0; press < 5; press += 1) await userEvent.click(screen.getByRole('button', { name: 'Adaugă 0,5p' }));
-    expect(input).toHaveValue('2');
 
+    // A typed value wins over the buttons.
+    const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
+    await userEvent.type(input, '1,35');
+    expect(within(chips).queryByRole('button', { pressed: true })).not.toBeInTheDocument();
+    expect(within(panel).getByText('Cu 1,35p aici, nota devine 6,85.')).toBeInTheDocument();
     await userEvent.clear(input);
     await userEvent.type(input, '1,25');
-    expect(within(panel).getByText('Cu 1,25p aici, nota devine 6,75.')).toBeInTheDocument();
-    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1,25p' }));
     expect(api.correctItem).toHaveBeenCalledWith(11, 32, { points: 1.25, reviewed: true, gradedAt: GRADED_AT });
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
   });
@@ -270,7 +275,7 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
     await userEvent.type(input, 'ajk2');
-    expect(input).toHaveValue('1ajk2');
+    expect(input).toHaveValue('ajk2');
     input.blur();
     await userEvent.keyboard('{Control>}a{/Control}{Alt>}j{/Alt}{Meta>}k{/Meta}');
     expect(api.correctItem).not.toHaveBeenCalled();
@@ -295,7 +300,7 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.keyboard('aa');
     expect(api.correctItem).toHaveBeenCalledTimes(1);
-    expect(within(panel).getByRole('button', { name: 'Accept 1p' })).toBeDisabled();
+    expect(within(panel).getByRole('button', { name: 'Confirmă 1p' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Punctul anterior' })).toBeDisabled();
     await userEvent.keyboard('jk2');
@@ -313,7 +318,7 @@ describe('the points to check on the paper page', () => {
     expect(screen.queryByRole('button', { name: 'Următorul punct' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Punctul anterior' })).not.toBeInTheDocument();
 
-    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 3p' }));
     expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
     await expectLocation(at(14));
@@ -328,7 +333,7 @@ describe('the points to check on the paper page', () => {
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     expect(api.getSubmission).toHaveBeenCalledTimes(1);
-    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
     expect(await within(decision()).findByText('Lucrarea se corectează din nou. Reîncarcă pagina.')).toBeInTheDocument();
     expect(api.getSubmission).toHaveBeenCalledTimes(2);
     await expectLocation(at(11, '32'));
@@ -362,8 +367,9 @@ describe('the points to check on the paper page', () => {
     expect(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
-    // II.1 still waits: its own "Verificat" is back while it is not open.
-    expect(within(row('Subiectul II, ex. 1')).getByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).toBeInTheDocument();
+    // II.1 still waits: closed, it shows "Verifică", which opens it again.
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByRole('button', { name: 'Verifică Subiectul II, ex. 1' }));
+    await expectLocation(at(11, '32', 'toate'));
   });
 
   it('switches between all the exercises and only the points to check, in the address', async () => {
@@ -388,7 +394,7 @@ describe('the points to check on the paper page', () => {
     await userEvent.click(await within(await screen.findByRole('region', { name: 'Decizia' })).findByRole('button', { name: 'Am verificat paginile' }));
     await expectLocation(at(11, '32', 'toate'));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
-    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Confirmă 1p' }));
     // No point of Ana is left: the row stays open, and "Elevul următor" waits.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Elevul următor' })).toHaveFocus());
     await expectLocation(at(11, '32', 'toate'));
@@ -495,7 +501,7 @@ describe('the points to check on the paper page', () => {
     const held = heldSave(api);
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
     await userEvent.click(within(screen.getByRole('navigation', { name: 'Unde ești' })).getByRole('link', { name: 'Fracții' }));
     await screen.findByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' });
     await held.done();
@@ -508,7 +514,7 @@ describe('the points to check on the paper page', () => {
     const held = heldSave(api);
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
     await userEvent.click(within(students()).getByRole('link', { name: 'Eva Stan nota 5' }));
     await expectLocation(at(13));
     await held.done();
@@ -543,7 +549,7 @@ describe('the points to check on the paper page', () => {
     const api = apiWith();
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    await within(panel).findByRole('button', { name: 'Accept 1p' });
+    await within(panel).findByRole('button', { name: 'Confirmă 1p' });
     fireEvent.keyDown(document.body, { key: 'a' });
     fireEvent.keyDown(document.body, { key: 'a' });
     // Ion's paper loads in a new middle pane: found through the screen.
@@ -562,10 +568,10 @@ describe('the points to check on the paper page', () => {
     const regraded = papers()[0]!;
     regraded.evaluation = { ...regraded.evaluation!, gradedAt: '2026-10-08T09:00:00.000Z' };
     api.getSubmission.mockResolvedValueOnce(regraded);
-    await userEvent.clear(input);
     await userEvent.type(input, '1,5');
-    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
-    await waitFor(() => expect(within(decision()).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue('1'));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1,5p' }));
+    await waitFor(() => expect(within(decision()).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue(''));
+    expect(within(decision()).getByRole('button', { name: 'Confirmă 1p' })).toBeInTheDocument();
   });
 
   it('names the point it opens on in the address before it shows a paper', async () => {
@@ -613,7 +619,7 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Am verificat paginile' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
-    await userEvent.click(screen.getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmă 1p' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toHaveFocus());
     // The keys still act from there.
     await userEvent.keyboard('k');
@@ -910,7 +916,7 @@ describe('the border of the answer to check', () => {
     renderAdmin(ION_I3, apiWith(framed([TOP])));
     await screen.findByText('Ion Popa · pagina 1 din 2');
     clickAt(sizedPane(), 200, 200);
-    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Confirmă 3p' }));
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
     expect(within(frame()).getByText('II.4')).toBeInTheDocument();
     // The next answer opens whole: its border shows where it is.
@@ -923,7 +929,7 @@ describe('the border of the answer to check', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Arată chenarul' }));
     clickAt(sizedPane(), 200, 200);
     expect(layer().style.transform).not.toBe(WHOLE);
-    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Confirmă 3p' }));
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
     expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
     expect(layer().style.transform).toBe(WHOLE);

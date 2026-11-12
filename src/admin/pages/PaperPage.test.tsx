@@ -150,11 +150,10 @@ describe('the paper page', () => {
     expect(screen.getByText('De verificat: 2')).toBeInTheDocument();
     expect(within(row('Subiectul I, ex. 1')).getByText('4,5 din 4,5')).toBeInTheDocument();
     const flagged = row('Subiectul II, ex. 1');
-    expect(flagged).toHaveClass('is-flagged');
+    expect(flagged).toHaveClass('is-to-check');
     expect(within(flagged).getByText('x = 3')).toBeInTheDocument();
-    expect(within(flagged).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
     expect(within(flagged).getByText('Mică')).toBeInTheDocument();
-    expect(row('Subiectul I, ex. 1')).not.toHaveClass('is-flagged');
+    expect(row('Subiectul I, ex. 1')).not.toHaveClass('is-to-check');
     expect(screen.getByText('Ai lucrat bine la fracții.')).toBeInTheDocument();
     expect(screen.getByText('Fracții echivalente')).toBeInTheDocument();
     expect(screen.getByText('Exersează ecuațiile.')).toBeInTheDocument();
@@ -172,20 +171,23 @@ describe('the paper page', () => {
     expect(screen.queryByRole('button', { name: 'Trimite' })).not.toBeInTheDocument();
   });
 
-  it('marks an item as checked', async () => {
+  it('checks an item: "Verifică" opens it, "Confirmă" checks it', async () => {
     const api = apiWith(graded);
     renderAdmin(page, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Verifică Subiectul II, ex. 1' }));
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    expect(within(panel).getByText('Scrisul nu se citește.')).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
     expect(api.correctItem).toHaveBeenCalledWith(5, 32, { gradedAt: GRADED_AT, reviewed: true });
     expect(await within(row('Subiectul II, ex. 1')).findByText('Verificat')).toBeInTheDocument();
-    expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-flagged');
+    expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-to-check');
     expect(screen.getByText('De verificat: 1')).toBeInTheDocument();
   });
 
   it('reads the tests of the year once after a check, not twice', async () => {
     const api = apiWith(graded);
-    renderAdmin(page, api);
-    const check = await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' });
+    renderAdmin(`${page}?punct=32`, api);
+    const check = await screen.findByRole('button', { name: 'Confirmă 1p' });
     await vi.waitFor(() => expect(api.listTests).toHaveBeenCalled());
     const before = api.listTests.mock.calls.length;
     await userEvent.click(check);
@@ -195,22 +197,17 @@ describe('the paper page', () => {
     expect(api.listTests).toHaveBeenCalledTimes(before + 1);
   });
 
-  it('puts Verificat in the note with its reason, and only the pencil in the actions cell', async () => {
+  it('keeps a row to check calm: its points in a label, and only "Verifică" and the pencil', async () => {
     renderAdmin(page, apiWith(graded));
-    const check = await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' });
-    const note = check.closest('.review-note') as HTMLElement;
-    expect(note).not.toBeNull();
-    expect(within(note).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
-    expect(check.closest('td')).toHaveAttribute('data-label', 'Comentariu');
-    const edit = screen.getByRole('button', { name: 'Modifică Subiectul II, ex. 1' });
-    expect(edit.closest('td')).toHaveClass('item-check');
-    expect(within(edit.closest('td')!).queryByRole('button', { name: /^Verificat/ })).not.toBeInTheDocument();
-    // While editing, the reason stays, without the button: saving checks it.
-    await userEvent.click(edit);
-    expect(await screen.findByRole('button', { name: 'Salvează' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Salvează' }).closest('td')).not.toHaveClass('item-check');
-    expect(within(row('Subiectul II, ex. 1')).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).not.toBeInTheDocument();
+    const flagged = (await screen.findByRole('button', { name: 'Verifică Subiectul II, ex. 1' })).closest('tr')!;
+    expect(within(flagged).getByText('1 din 4,5')).toHaveClass('points-pill');
+    expect(flagged.querySelector('.review-note')).toBeNull();
+    expect(within(flagged).queryByText(/Scrisul nu se citește/)).not.toBeInTheDocument();
+    expect(within(flagged).queryByRole('button', { name: /^Verificat/ })).not.toBeInTheDocument();
+    expect(within(flagged).queryByRole('button', { name: 'Arată pe lucrare Subiectul II, ex. 1' })).not.toBeInTheDocument();
+    expect(within(flagged).getByRole('button', { name: 'Modifică Subiectul II, ex. 1' })).toBeInTheDocument();
+    // A row with nothing to check shows its answer on the paper with the eye.
+    expect(within(row('Subiectul I, ex. 1')).getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' })).toBeInTheDocument();
   });
 
   it('says in the grade strip how many points wait, or that none does', async () => {
@@ -356,18 +353,19 @@ describe('the paper page', () => {
   it('shows the server message when a correction fails', async () => {
     const api = apiWith(graded);
     api.correctItem.mockRejectedValueOnce(new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.'));
-    renderAdmin(page, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' }));
+    renderAdmin(`${page}?punct=32`, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmă 1p' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Lucrarea se corectează din nou. Reîncarcă pagina.');
   });
 
   it('names the pages that the robot could not read, until the teacher checks them', async () => {
     const api = apiWith(graded);
     renderAdmin(page, api);
-    expect(await screen.findByText(/Robotul nu a putut citi: Pagina 2\./)).toBeInTheDocument();
+    expect(await screen.findByText('Pagini necitite')).toHaveClass('points-pill');
     expect(screen.queryByRole('button', { name: 'Am verificat paginile' })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Arată paginile' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Verifică paginile necitite' }));
     expect(screen.getByRole('button', { name: 'Pagina 2' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByText(/^Robotul nu a putut citi: Pagina 2\./)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Am verificat paginile' }));
     expect(api.reviewPages).toHaveBeenCalledWith(5, { gradedAt: GRADED_AT, pagesReviewed: true });
     expect(await screen.findByText('Robotul nu a putut citi: Pagina 2. Ai verificat aceste pagini.')).toBeInTheDocument();
@@ -482,7 +480,8 @@ describe('the paper page', () => {
     expect(bars.querySelectorAll('.conf-bar.is-on')).toHaveLength(2);
     expect(bars.querySelectorAll('.conf-bar')).toHaveLength(5);
     expect(within(row('Subiectul I, ex. 1')).getByText('4,5 din 4,5')).toHaveClass('points-5');
-    expect(within(flagged).getByText('1 din 4,5')).toHaveClass('points-1');
+    // A row to check has its points in a label instead.
+    expect(within(flagged).getByText('1 din 4,5')).toHaveClass('points-pill');
   });
 
   it('edits points and comments in the same row, without a separate edit row', async () => {

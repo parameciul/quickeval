@@ -152,24 +152,34 @@ function UnreadablePages({
   if (evaluation.unreadable.length === 0) return null;
   const pages = evaluation.unreadable.map(pageLabel).join(', ');
   if (evaluation.pagesReviewed) return check?.onlyToCheck ? null : <p className="hint">Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.</p>;
-  const open = check?.openKey === 'pagini';
-  // The open pages' decision says the same words itself.
-  const deciding = open && Boolean(check?.decision);
+  if (check) {
+    // The open pages' decision says why itself.
+    const open = check.openKey === 'pagini';
+    return (
+      <div className={open ? 'pages-check is-open' : 'pages-check'}>
+        <p>
+          <span className="points-pill">Pagini necitite</span> {pages}
+          {!open && (
+            <button
+              type="button"
+              className="button-quiet button-small verifica-btn"
+              aria-label="Verifică paginile necitite"
+              onClick={() => check.onOpen('pagini')}
+            >
+              Verifică
+            </button>
+          )}
+        </p>
+        {open && check.decision}
+      </div>
+    );
+  }
   return (
-    <div className={open ? 'warning is-open' : 'warning'}>
-      {!deciding && <p>Robotul nu a putut citi: {pages}. Verifică pozele și punctajele exercițiilor de pe ele.</p>}
-      {check && !open && (
-        <button type="button" className="button-quiet button-small" onClick={() => check.onOpen('pagini')}>
-          Arată paginile
-        </button>
-      )}
-      {check ? (
-        open && check.decision
-      ) : (
-        <button type="button" className="button-quiet button-small" disabled={review.isPending} onClick={() => review.mutate()}>
-          Am verificat paginile
-        </button>
-      )}
+    <div className="warning">
+      <p>Robotul nu a putut citi: {pages}. Verifică pozele și punctajele exercițiilor de pe ele.</p>
+      <button type="button" className="button-quiet button-small" disabled={review.isPending} onClick={() => review.mutate()}>
+        Am verificat paginile
+      </button>
       {review.error && <ErrorMessage error={review.error} />}
     </div>
   );
@@ -214,7 +224,7 @@ function ItemRows({
 }) {
   return (
     <>
-      <ItemRow item={item} correct={correct} onSaved={onSaved} open={open} onOpen={onOpen} deciding={decision !== null} />
+      <ItemRow item={item} correct={correct} onSaved={onSaved} open={open} onOpen={onOpen} />
       {decision !== null && (
         <tr className="item-decision">
           <td colSpan={6}>{decision}</td>
@@ -229,22 +239,22 @@ function ItemRows({
 // student's answer, and the robot's confidence while typing. Saving an item
 // that waits for a check also checks it: the teacher has looked at it. On the
 // paper page a click on the row, or its "Arată pe lucrare", opens it: the
-// paper shows its answer. While the open row's decision shows under it, the
-// row has no "Verificat" of its own.
+// paper shows its answer. There a row to check is calm (design C of the spec):
+// its points in a soft orange label, no reason in the row and no "Verificat",
+// only "Verifică", which opens it; the reason and the decision show under the
+// open row.
 function ItemRow({
   item,
   correct,
   onSaved,
   open = false,
   onOpen,
-  deciding = false,
 }: {
   item: EvaluationItemInfo;
   correct: Correct;
   onSaved: Saved;
   open?: boolean;
   onOpen?: () => void;
-  deciding?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [points, setPoints] = useState(formatPoints(item.points));
@@ -261,6 +271,8 @@ function ItemRow({
   });
   const toCheck = item.needsReview && !item.reviewed;
   const checked = item.needsReview && item.reviewed;
+  // The paper page's rows: a row to check opens with "Verifică".
+  const calm = onOpen !== undefined;
   const id = `item-${item.id}`;
 
   const startEditing = () => {
@@ -294,7 +306,10 @@ function ItemRow({
   };
 
   return (
-    <tr className={[toCheck ? 'is-flagged' : '', open ? 'is-open' : '', onOpen ? 'is-openable' : ''].filter(Boolean).join(' ') || undefined} onClick={rowClick(onOpen)}>
+    <tr
+      className={[toCheck ? (calm ? 'is-to-check' : 'is-flagged') : '', open ? 'is-open' : '', onOpen ? 'is-openable' : ''].filter(Boolean).join(' ') || undefined}
+      onClick={rowClick(onOpen)}
+    >
       <th scope="row" title={item.label}>
         {item.exerciseId} <span className="sr-only">{item.label}</span>
         {checked && <ReviewCheck />}
@@ -322,9 +337,15 @@ function ItemRow({
           </>
         ) : (
           <>
-            <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
-              {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
-            </span>
+            {calm && toCheck ? (
+              <span className="points-pill">
+                {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
+              </span>
+            ) : (
+              <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
+                {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
+              </span>
+            )}
             {item.points !== item.aiPoints && <RobotPoints points={item.aiPoints} />}
           </>
         )}
@@ -346,7 +367,7 @@ function ItemRow({
               onChange={(event) => setComment(event.target.value)}
               maxLength={TEXT_LIMITS.comment}
             />
-            {toCheck && (
+            {toCheck && !calm && (
               <div className="review-note">
                 <p className="review-reason">
                   De verificat: <MathText text={item.reviewReason} />
@@ -359,12 +380,11 @@ function ItemRow({
             <MathText text={item.comment} />
             {/* What to check, with the button that says it was checked: the
                 reason and its answer sit together. */}
-            {toCheck && (
+            {toCheck && !calm && (
               <div className="review-note">
                 <p className="review-reason">
                   De verificat: <MathText text={item.reviewReason} />
                 </p>
-                {!deciding && (
                 <button
                   type="button"
                   className="button-quiet button-small verificat-btn"
@@ -377,7 +397,6 @@ function ItemRow({
                   </svg>
                   Verificat
                 </button>
-                )}
                 {check.error && <ErrorMessage error={check.error} />}
               </div>
             )}
@@ -418,7 +437,17 @@ function ItemRow({
           </span>
         ) : (
           <span className="row-actions">
-            {onOpen && (
+            {onOpen && toCheck && !open && (
+              <button
+                type="button"
+                className="button-quiet button-small verifica-btn"
+                aria-label={`Verifică ${item.label}`}
+                onClick={onOpen}
+              >
+                Verifică
+              </button>
+            )}
+            {onOpen && !(toCheck && !open) && (
               <button
                 type="button"
                 className="button-quiet button-small icon-button"

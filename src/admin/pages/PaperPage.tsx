@@ -356,7 +356,8 @@ function Paper({
       // While a decision is on its way, no key acts: the next point opens after it.
       if (decide.isPending) return;
       const pressed = event.key.toLowerCase();
-      if (pressed === 'a' && decisionView !== null) onDecide({});
+      // A presses "Confirmă": the points the teacher chose, at first the robot's.
+      if (pressed === 'a' && decisionView !== null) main.current?.querySelector<HTMLButtonElement>('.point-decision [data-confirm]')?.click();
       else if (pressed === 'j') goPoint(stepPoint(walked, spot, 1));
       else if (pressed === 'k') goPoint(stepPoint(walked, spot, -1));
       else if (/^[1-9]$/.test(pressed) && submission && Number(pressed) <= submission.files.length) setPageChoice({ view: viewKey, page: Number(pressed) - 1 });
@@ -372,7 +373,7 @@ function Paper({
 
   const decision =
     decisionView !== null && evaluation ? (
-      <PointDecision evaluation={evaluation} view={decisionView} pending={decide.isPending} error={decideError} pageCount={pageCount} onDecide={onDecide} />
+      <PointDecision evaluation={evaluation} view={decisionView} pending={decide.isPending} error={decideError} onDecide={onDecide} />
     ) : null;
 
   return (
@@ -435,6 +436,21 @@ function Paper({
           )}
         </div>
       </div>
+      {decision !== null && (
+        <p className="review-keys hint">
+          <span>
+            <kbd>A</kbd> confirmă
+          </span>
+          <span>
+            <kbd>J</kbd> <kbd>K</kbd> punctul următor sau anterior
+          </span>
+          {pageCount > 1 && (
+            <span>
+              <kbd>1</kbd>–<kbd>{Math.min(9, pageCount)}</kbd> pagina
+            </span>
+          )}
+        </p>
+      )}
       {mode === 'verificare' && queue.length === 0 && (
         <p className="review-done" role="status">
           Toate punctele sunt verificate. <Link to={`/teste/${code}${stageHash('Rezultate')}`}>Mergi la Rezultate</Link>

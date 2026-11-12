@@ -33,6 +33,7 @@ In the order they were made (2026-11-12, with mockups):
 4. Class link: a path at the top, "Teste › Clasa 7E2 › <test title>" (option 1A).
 5. Progress: one bar that counts only students, "nu au participat" striped grey, and the points to check on a line of their own with a "Verifică" button (option 2A).
 6. Empty space: the papers table takes the full width of its card; the model column moves into the row's "…" menu (option 3A).
+7. After a preview of the page: a row to check must look calm, not intimidating, and points are never bold. Of three designs she chose "C: points as buttons" (§4.4).
 
 ## 3. Goals, non-goals, anti-goals
 
@@ -94,20 +95,20 @@ The exercises get three fifths of the width the students leave, the paper two fi
 
 ### 4.4 The exercises (middle)
 
-For a graded paper, the rows of today's `GradedResult`: the exercise, the points, the student's answer, the robot's comment, the confidence bars, and the pencil to change the points and the comment. A row to check is orange with "De verificat:" and the reason, as today.
+For a graded paper, the rows of today's `GradedResult`: the exercise, the points, the student's answer, the robot's comment, the confidence bars, and the pencil to change the points and the comment. Points are never bold. A row to check is calm (decision 7): no orange row and no reason in it, only its points in a soft orange label ("0,75 din 1,5") and one orange-outlined "Verifică" button, which opens it.
 
 - A click on a row (outside its buttons and fields) opens it: it is marked, the address gets its `punct`, and the paper shows its answer (§4.5). Any row can be opened, not only the rows to check.
-- The open row, if it is to check, shows the review decision of today's right pane in place of the "Verificat" button: "Accept 1p" (the filled button), the stepper with "Salvează", and the grade it gives ("Cu 0p aici, nota devine 8,40"). *(Builder's call: one way to decide a point to check; the pencil stays on every row to change the points and the comment.)*
-- The pages the robot could not read are one row at the top, "Paginile necitite", with "Am verificat paginile", as today's pages point.
+- The open row, if it is to check, shows the decision in a light box under it (design C): the robot's reason as a quote; "Punctajul (robotul a dat 0,75p din 1,5p)" and a button for each value from 0 to the maximum (steps of 0,25 up to 2 points, 0,5 up to 5 points, 1 above; the robot's value always among them, dashed, and chosen at first); "Alt punctaj", a small field for an exact value, which wins over the buttons; then "Confirmă 0,75p" (the filled button) and what the grade becomes ("Nota rămâne 8,75." or "Cu 0,5p aici, nota devine 8,40."). Confirming the robot's value checks the point; another value corrects it. *(Builder's call: the pencil stays on every row to change the points and the comment.)*
+- The pages the robot could not read are one calm line at the top, "Pagini necitite" with the pages and "Verifică"; open, the reason and "Am verificat paginile" show under it.
 - Under the exercises, in "Toate exercițiile" only: the summary and the lists of the feedback (`FeedbackSections`), with their edit, as today.
 - "Doar de verificat" hides the rows that are not to check (the open row stays, even when it was decided a moment ago, until she moves on), and the feedback sections.
 
-After a decision ("Accept", "Salvează", "Am verificat paginile"):
+After a decision ("Confirmă", "Am verificat paginile"):
 
 - In "Doar de verificat": the next point opens, also on the next student, as the review does today (the same rules: only if she is still at the point she decided; its heading takes the focus without a scroll).
 - In "Toate exercițiile": the next row to check of the same student opens; when the student has none left, the row stays open and "Elevul următor" takes the focus. The page never moves to another student by itself. *(Builder's call, from what she said about staying with one student; the user did not confirm it.)*
 
-The keys, as today, while the cursor is not in a field: A accepts the open row when it is to check (nothing otherwise); J and K open the next or the previous point to check (in "Toate exercițiile", of this student only; in "Doar de verificat", across the students); 1–9 show that page of the paper. A line under the open row names them (not on a phone).
+The keys, as today, while the cursor is not in a field: A presses "Confirmă" of the open row when it is to check, with the value chosen (nothing otherwise); J and K open the next or the previous point to check (in "Toate exercițiile", of this student only; in "Doar de verificat", across the students); 1–9 show that page of the paper. While a decision shows, a line under the bar names them.
 
 For a paper with no result, the middle column shows what today's paper's page shows in its place: the waiting text (`waitingText`), or "Corectarea a eșuat." with the reason and "Reîncearcă". The paper column still shows the pages.
 
