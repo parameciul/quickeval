@@ -19,7 +19,7 @@ const SITE_FOOT = `<footer class="site-foot">
             <a href="/despre/">Despre</a>
             <a href="/preturi/">Cât costă</a>
           </nav>
-          <span class="note">Corectarea testelor de matematică · Timișoara · 2026</span>
+          <span class="note">Corectarea testelor după barem · Timișoara · 2026</span>
         </div>
       </footer>`;
 

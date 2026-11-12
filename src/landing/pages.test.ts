@@ -6,7 +6,8 @@ import landingRaw from '../../index.html?raw';
 import preturiRaw from '../../preturi/index.html?raw';
 import llms from '../../public/llms.txt?raw';
 import headers from '../../public/_headers?raw';
-import { expandPartials } from './partials.ts';
+import { expandPartials, PARTIALS } from './partials.ts';
+import { PITCH_LINE } from '../admin/wayIn/WayIn.tsx';
 
 // The pages that answer a search, beside the landing page. They are plain
 // HTML, built by Vite (vite.config.ts lists them), and they share the landing
@@ -132,7 +133,7 @@ describe('the pages that answer a search', () => {
     const doc = parse(html);
     const byline = text(doc.querySelector('.byline'));
     expect(byline).toContain('Laura Miron');
-    expect(byline).toContain('10 noiembrie 2026');
+    expect(byline).toContain('12 noiembrie 2026');
     const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
     const nodes: {
       '@type': string;
@@ -145,7 +146,7 @@ describe('the pages that answer a search', () => {
     const page = nodes.find((n) => n['@type'] === 'WebPage')!;
     expect(page.url).toBe(url);
     expect(page.datePublished).toBe('2026-11-10');
-    expect(page.dateModified).toBe('2026-11-10');
+    expect(page.dateModified).toBe('2026-11-12');
     expect(page.publisher?.['@id']).toBe('https://mqgrader.ro/#organization');
     expect(page.author?.['@id']).toBe('https://mqgrader.ro/#laura-miron');
   });
@@ -286,5 +287,31 @@ describe('the pages that answer a search', () => {
       height: 1000,
     });
     expect(page.primaryImageOfPage?.caption?.length).toBeGreaterThan(40);
+  });
+});
+
+// Spec "any subject": MQGrader grades seven subjects, so no product text says
+// it is for math teachers or math tests only. Facts about Laura Miron (a math
+// teacher) and the math examples stay.
+describe('the product text names no single subject', () => {
+  const ONLY_MATH = /profesori(i)? de matematic|testel(e|or) de matematic|test de matematic(ă|a) (cu|după)|la matematică: ce este/i;
+  it.each([
+    ['index.html', landing],
+    ['/ghid/', ghid],
+    ['/barem/', barem],
+    ['/despre/', despre],
+    ['/preturi/', preturi],
+    ['llms.txt', llms],
+    ['the footer', PARTIALS['site-foot']!],
+    ['PITCH_LINE', PITCH_LINE],
+  ])('%s', (_name, source) => {
+    expect(source).not.toMatch(ONLY_MATH);
+    expect(source).not.toMatch(/math teachers/i);
+  });
+
+  it('lists the seven subjects on the landing page and in llms.txt', () => {
+    const seven = 'matematică, fizică, chimie, biologie, științe, limba română și limba engleză';
+    expect(landing).toContain(seven);
+    expect(llms).toContain(seven);
   });
 });
