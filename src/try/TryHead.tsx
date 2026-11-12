@@ -6,6 +6,7 @@ import { QUICK_TRY_TITLE } from '../../shared/quickTry.ts';
 import { MAX_TITLE_LENGTH } from '../../shared/tests.ts';
 import { testFileUrl } from '../admin/api.ts';
 import { useApi } from '../admin/ApiContext.tsx';
+import { subjectLine } from '../admin/testPage/SubjectForm.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
 import { formatDate, formatDateTime } from '../ui/format.ts';
 import { paperOf, phaseOf } from './phase.ts';
@@ -13,8 +14,9 @@ import { ShareButton } from './Share.tsx';
 
 // The head of the try's page, the same in every state and view: the try's
 // name (which she may change), when it was sent, until when its link works,
-// the test and barem it uses (not while she prepares them: that part of the
-// page has them), and "Distribuie".
+// the subject of the test (spec: any subject; found by the robot, never changed
+// in a try), the test and barem it uses (not while she prepares them: that
+// part of the page has them), and "Distribuie".
 export function TryHead({ detail, info, token }: { detail: TestDetail; info: QuickTryInfo; token: string }) {
   const { test } = detail;
   const paper = paperOf(detail);
@@ -27,6 +29,7 @@ export function TryHead({ detail, info, token }: { detail: TestDetail; info: Qui
         <p className="try-meta">
           {sent}Linkul merge până pe {formatDate(info.expiresAt)}
         </p>
+        <p className="try-meta">Materia: {test.subject === null ? 'se stabilește la corectare' : subjectLine(test)}</p>
         {phaseOf(detail) !== 'prepare' && (
           <div className="try-files">
             {test.files.test && <FileLink code={test.code} kind="test" label="Testul" name="Descarcă testul" />}

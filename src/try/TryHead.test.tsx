@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import type { TestInfo } from '../../shared/api.ts';
 import { PDF_TYPE } from '../../shared/files.ts';
 import { QUICK_TRY_TITLE } from '../../shared/quickTry.ts';
 import { createFakeApi } from '../test/fakeApi.ts';
@@ -10,9 +11,9 @@ import { createFakeTryApi, renderTry, TRY_CODE, TRY_TOKEN, tryTest } from '../te
 const files = { test: { name: 'test.pdf', type: PDF_TYPE }, barem: { name: 'barem.pdf', type: PDF_TYPE } };
 
 // A try in grading, sent at 09:30 Bucharest time; its link works until 17 November.
-function setup(title = 'Test funcții 9B') {
+function setup(title = 'Test funcții 9B', subject: TestInfo['subject'] = null) {
   const test = tryTest(
-    { status: 'evaluating', files, title },
+    { status: 'evaluating', files, title, subject },
     { status: 'submitted', startedAt: '2026-11-10T07:20:00.000Z', submittedAt: '2026-11-10T07:30:00.000Z' },
   );
   const api = createFakeApi({ classes: [], students: {}, tests: [test] });
@@ -26,6 +27,21 @@ describe("the try's header", () => {
     expect(await screen.findByRole('heading', { name: 'Test funcții 9B', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Încercare rapidă')).toBeInTheDocument();
     expect(screen.getByText('Trimisă la corectare 10 nov. 2026, 09:30 · Linkul merge până pe 17 noiembrie 2026')).toBeInTheDocument();
+  });
+
+  it('says the subject of the test, once the robot found it (spec: any subject)', async () => {
+    setup('Test funcții 9B', { value: 'fizica', name: '', by: 'robot' });
+    expect(await screen.findByText('Materia: Fizică')).toBeInTheDocument();
+  });
+
+  it('says that the subject is found at grading', async () => {
+    setup();
+    expect(await screen.findByText('Materia: se stabilește la corectare')).toBeInTheDocument();
+  });
+
+  it('names a subject that is not graded', async () => {
+    setup('Test funcții 9B', { value: 'alta', name: 'istorie', by: 'robot' });
+    expect(await screen.findByText('Materia: istorie (nu o corectăm)')).toBeInTheDocument();
   });
 
   it('says only once that it is a quick try when the try has the default name', async () => {
