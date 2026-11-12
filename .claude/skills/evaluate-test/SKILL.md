@@ -134,14 +134,14 @@ Then read the test and `notes.md`. A Markdown file shows math as TeX between `$`
 - When the test shows no points, give 90 points to the exercises and 10 "din oficiu": a total of 100.
 - Split each exercise into the steps of its solution, and give points to each step. The steps of an exercise add up to its points. Never use a fraction of a point.
 - Write in Romanian. Write math as inline TeX between single `$`, never between `$$`.
-- Write the four "Precizări" of the example, unless `notes.md` asks for something else.
+- Write the four "Precizări" of the example, unless the subject's file or `notes.md` asks for something else.
 - The test may be wrong or unclear (for example an exercise with no solution). Do the best you can and keep the structure; do not add text that is not part of a barem.
 
 The answer fields:
 
 - `title`: the title of the barem, for example "Test de evaluare – Permutări". Take it from the test.
 - `subtitle`: the subject, the class, the programme and the working time, in one line, as in the test's heading.
-- `notes`: the "Precizări privind evaluarea", one short sentence in each entry. They are the four of the example, with the number of "din oficiu" points and the way the grade is found; or what `notes.md` asks for.
+- `notes`: the "Precizări privind evaluarea", one short sentence in each entry. They are the four of the example, with the number of "din oficiu" points and the way the grade is found; or what the subject's file or `notes.md` asks for.
 - `total`: a whole number: all the points of the test, "din oficiu" included, for example 100.
 - `officePoints`: a whole number: the "din oficiu" points, for example 10; 0 when the test gives none.
 - `parts`: one entry for each variant of the test. A test with one variant has one entry. Each part holds the subjects of its variant, and the subjects plus `officePoints` add up to `total` in every part.

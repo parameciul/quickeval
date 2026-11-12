@@ -139,7 +139,7 @@ No public page and no teacher page says that the grading is only for math. The p
 - `SKILL.md`: a teacher in Romania, any of the supported subjects. The exercise-list and barem modes say how to find the subject (from the test's heading first, then from its content; a mixed physics/chemistry/biology test is `stiinte`) and to read `references/subjects/<subject>.md` before the rest. The grade and class-report modes read the subject from a file the robot writes in the work folder (builder's call: `subject.md`), never guess it.
 - `references/grading-rules.md`, `barem-writing.md` and `barem-example.md` stay word for word (Plan A's ruling, in place of moving the math rules): they are the math rules, and `references/subjects/matematica.md` says to follow them as they are. A math test gets the same rule files as today.
 - One file per new subject in `references/subjects/`, with: how its tests and barems are built (exam formats), how partial points go, what to write in the comments (formulas, units, chemical equations in Unicode: H₂O, →, ⇌, ↑, ↓), and, for the language subjects, the rubric of an essay (content and writing) and the place of spelling and grammar.
-- `barem-writing.md` and `barem-example.md` stay for math. For another subject, the barem mode follows that subject's file; there is no example barem yet.
+- `barem-writing.md` and `barem-example.md` stay for math. For another subject, the barem mode follows that subject's file. Limba română has an example barem of its own, `references/barem-example-romana.md` (a real test of the Evaluare Națională and its official barem, added later); the other subjects have none yet.
 - The robot copies the whole skill folder into every work folder, as today.
 
 ### The PDFs
