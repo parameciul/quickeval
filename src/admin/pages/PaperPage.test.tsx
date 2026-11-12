@@ -5,7 +5,7 @@ import type { SubmissionDetail } from '../../../shared/api.ts';
 import { ApiError } from '../api.ts';
 import { createFakeApi, fakeEvaluation, fakeItem, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
-import { resultRefreshInterval } from './SubmissionPage.tsx';
+import { resultRefreshInterval } from './PaperPage.tsx';
 
 const submission: SubmissionDetail = {
   id: 5,
@@ -87,25 +87,30 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('SubmissionPage', () => {
-  it('shows the student, the upload state, and the times', async () => {
+describe('the paper page', () => {
+  it('shows the path, the student, the upload state, and the times', async () => {
     renderAdmin(page, apiWith());
-    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Pop Ion' })).toBeInTheDocument();
     expect(screen.getByText(/6E2-26T1 · Fracții · Trimis/)).toBeInTheDocument();
     expect(screen.getByText('Început 6 oct. 2026, 10:20 · trimis 6 oct. 2026, 10:40')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '← 6E2-26T1' })).toHaveAttribute('href', '/teste/6E2-26T1');
+    const path = screen.getByRole('navigation', { name: 'Unde ești' });
+    expect(within(path).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Teste', 'Clasa 6E2', 'Fracții', 'Pop Ion']);
+    expect(within(path).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
+    expect(within(path).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
     expect(screen.getByRole('link', { name: 'Toate notele elevului' })).toHaveAttribute('href', '/elevi/10');
   });
 
-  it('shows photos inline and PDFs in a frame with a link, in upload order', async () => {
+  it('shows the paper beside the exercises, one page at a time with its file, and a PDF in a frame with a link', async () => {
     renderAdmin(page, apiWith());
-    await userEvent.click(await screen.findByRole('button', { name: 'Arată fișierele' }));
-    const photo = await screen.findByRole('img', { name: 'Pagina 1' });
-    expect(photo).toHaveAttribute('src', '/api/admin/submissions/5/files/21');
-    expect(screen.getByText('Pagina 1: IMG_0001.jpg · 820 KB')).toBeInTheDocument();
-    expect(screen.getByTitle('Pagina 2')).toHaveAttribute('src', '/api/admin/submissions/5/files/22');
+    expect(await screen.findByText('Pop Ion · pagina 1 din 2')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' })).toHaveAttribute('src', '/api/admin/submissions/5/files/21');
+    // Each page names its file, as the student sent it.
+    expect(screen.getByText('IMG_0001.jpg · 820 KB')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina 2' }));
+    expect(screen.getByTitle('Pagina 2 a lucrării')).toHaveAttribute('src', '/api/admin/submissions/5/files/22');
+    expect(screen.getByText('scan.pdf · 1,5 MB')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Deschide PDF-ul' })).toHaveAttribute('href', '/api/admin/submissions/5/files/22');
-    expect(screen.getByText('Pagina 2: scan.pdf · 1,5 MB')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Arată fișierele' })).not.toBeInTheDocument();
   });
 
   it('numbers the pages in order, without a gap where a page was deleted', async () => {
@@ -114,15 +119,13 @@ describe('SubmissionPage', () => {
       { id: 23, name: 'IMG_0003.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 3 },
     ];
     renderAdmin(page, apiWith({ ...submission, files }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Arată fișierele' }));
-    expect(await screen.findByRole('img', { name: 'Pagina 2' })).toHaveAttribute('src', '/api/admin/submissions/5/files/23');
-    expect(screen.getByText('Pagina 2: IMG_0003.jpg · 820 KB')).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: 'Pagina 2' }));
+    expect(screen.getByRole('img', { name: 'Pagina 2 a lucrării' })).toHaveAttribute('src', '/api/admin/submissions/5/files/23');
   });
 
   it('says where an upload without a result is', async () => {
     const { unmount } = renderAdmin(page, apiWith({ ...submission, status: 'uploading', submittedAt: null, files: [] }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Arată fișierele' }));
-    expect(await screen.findByText('Elevul nu a încărcat încă niciun fișier.')).toBeInTheDocument();
+    expect(await screen.findByText('Elevul nu a încărcat niciun fișier.')).toBeInTheDocument();
     expect(screen.getByText('Elevul nu a trimis încă lucrarea.')).toBeInTheDocument();
     unmount();
     renderAdmin(page, apiWith());
@@ -362,6 +365,9 @@ describe('SubmissionPage', () => {
     const api = apiWith(graded);
     renderAdmin(page, api);
     expect(await screen.findByText(/Robotul nu a putut citi: Pagina 2\./)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Am verificat paginile' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată paginile' }));
+    expect(screen.getByRole('button', { name: 'Pagina 2' })).toHaveAttribute('aria-current', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Am verificat paginile' }));
     expect(api.reviewPages).toHaveBeenCalledWith(5, { gradedAt: GRADED_AT, pagesReviewed: true });
     expect(await screen.findByText('Robotul nu a putut citi: Pagina 2. Ai verificat aceste pagini.')).toBeInTheDocument();
@@ -465,19 +471,6 @@ describe('SubmissionPage', () => {
   it('shows the server message for an upload that does not exist', async () => {
     renderAdmin('/teste/6E2-26T1/elevi/99', apiWith());
     expect(await screen.findByRole('alert')).toHaveTextContent('Nu am găsit ce cauți.');
-  });
-
-  it('hides the files by default and starts their scroll at the top when opened', async () => {
-    renderAdmin(page, apiWith(graded));
-    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: 'Pagina 1' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Arată fișierele' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
-    expect(await screen.findByRole('img', { name: 'Pagina 1' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Ascunde fișierele' }));
-    expect(screen.queryByRole('img', { name: 'Pagina 1' })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
-    expect(await screen.findByRole('img', { name: 'Pagina 1' })).toBeInTheDocument();
   });
 
   it('shows the robot confidence as 5 bars with colours, and points coloured by ratio', async () => {

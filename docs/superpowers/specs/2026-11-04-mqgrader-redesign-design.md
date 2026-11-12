@@ -202,6 +202,8 @@ The path above the title, the progress of the papers and the papers table are re
 
 ## 7. Verificarea punctelor (Phase 6)
 
+Replaced by `2026-11-12-one-page-paper-check-design.md` §4: the points to check are a view of the paper page, and this address opens it.
+
 The page `/admin/teste/:code/verificare` (decision 28): three panes in one panel.
 
 - A point to check is an exercise the robot was not sure of, with its reason, or the pages the robot could not read: those pages are one point, as the papers' counts say. The points go in the order of the papers (by the student's name); in a paper, the pages first, then the exercises in the barem's order. The API lists them with each paper (`reviewPoints` in the uploads list), counted as `flagCount` counts.

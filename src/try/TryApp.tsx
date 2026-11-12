@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import type { AdminApi } from '../admin/api.ts';
 import { ApiProvider } from '../admin/ApiContext.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
-import { ReviewPage } from '../admin/pages/ReviewPage.tsx';
+import { TryPaperPage } from '../admin/pages/PaperPage.tsx';
 import { ApiError } from '../ui/ApiError.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
@@ -13,8 +13,8 @@ import { TryHome } from './TryHome.tsx';
 import { BadLink, Expired, isExpired } from './TryNotice.tsx';
 
 // A Quick Try's page at /try/<token>: the try's states, and the teacher app's
-// own review at /teste/<code>/verificare (its links to /teste/<code> come back
-// here, and its link to the paper opens the teacher's result). `token` is null
+// own paper page at /teste/<code>/verificare (its links to /teste/<code> come
+// back here; the try's own address for the page, which stays there). `token` is null
 // for an address that is not a try's link.
 export function TryRoutes({ token, api, tryApi }: { token: string | null; api: AdminApi; tryApi: TryApi }) {
   return (
@@ -52,7 +52,7 @@ function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
     <Routes>
       <Route path="/" element={home} />
       <Route path="/teste/:code" element={home} />
-      <Route path="/teste/:code/verificare" element={<ReviewPage />} />
+      <Route path="/teste/:code/verificare" element={<TryPaperPage />} />
       <Route path="/teste/:code/elevi/:id" element={<Navigate replace to={{ pathname: '/', hash: '#rezultate' }} />} />
       <Route path="*" element={<Navigate replace to="/" />} />
     </Routes>

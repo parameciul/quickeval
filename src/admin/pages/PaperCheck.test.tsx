@@ -7,7 +7,8 @@ import { ApiError, submissionFileUrl } from '../api.ts';
 import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission, fakeTest, fakeUpload, reviewPointsOf } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 
-// The review of the points to check (redesign spec §7).
+// The points to check on the paper page (spec 2026-11-12 §4): the old address
+// of the review opens the page with only the points to check.
 const PAGE = '/teste/6E2-26T1/verificare';
 const GRADED_AT = '2026-10-07T09:00:00.000Z';
 
@@ -91,44 +92,60 @@ function apiWith(submissions = papers()) {
   });
 }
 
+// The paper page of one paper, with an open point and a view.
+function paperAt(id: number, key: string | null = null, mode: 'toate' | 'verificare' = 'verificare'): string {
+  const params = new URLSearchParams();
+  if (key !== null) params.set('punct', key);
+  if (mode === 'verificare') params.set('vedere', 'verificare');
+  const search = params.toString();
+  return `/teste/6E2-26T1/elevi/${id}${search ? `?${search}` : ''}`;
+}
+
 // The whole address, so a shorter one does not match a longer one.
-const at = (search: string) => new RegExp(`^${(PAGE + search).replace(/[?.]/g, '\\$&')}$`);
+const at = (id: number, key: string | null = null, mode: 'toate' | 'verificare' = 'verificare') =>
+  new RegExp(`^${paperAt(id, key, mode).replace(/[?.]/g, '\\$&')}$`);
 
-const queue = () => screen.getByRole('navigation', { name: 'Lucrările' });
+const students = () => screen.getByRole('navigation', { name: 'Elevii' });
 const decision = () => screen.getByRole('region', { name: 'Decizia' });
+const row = (label: string) => screen.getByRole('row', { name: new RegExp(label) });
 
-describe('the review of the points to check', () => {
-  it('lists the papers with points to check, their points, and the other graded papers', async () => {
-    renderAdmin(PAGE, apiWith());
-    expect(await screen.findByRole('heading', { level: 1, name: 'Verificare' })).toBeInTheDocument();
-    expect(screen.getByText('Fracții · Clasa 6E2 · 3 puncte în 2 lucrări')).toBeInTheDocument();
-    const list = queue();
+describe('the points to check on the paper page', () => {
+  it('opens the address of the review on the first point, the students with points first', async () => {
+    renderAdmin(PAGE, apiWith(), <LocationProbe />);
+    await expectLocation(at(11, 'pagini'));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ana Pop' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Doar de verificat (3)' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Toate exercițiile' })).toHaveAttribute('aria-pressed', 'false');
+    const list = students();
     expect(within(list).getByRole('heading', { name: 'Cu puncte de verificat 2' })).toBeInTheDocument();
-    expect(within(list).getByRole('link', { name: 'Ana Pop nota 6,5 2 puncte de verificat' })).toBeInTheDocument();
-    expect(within(list).getByRole('link', { name: 'Paginile necitite' })).toHaveAttribute('aria-current', 'true');
-    expect(within(list).getByRole('link', { name: 'Subiectul II, ex. 1 · 1p din 2p' })).not.toHaveAttribute('aria-current');
-    expect(within(list).getByRole('link', { name: 'Subiectul I, ex. 3 · 3p din 5p' })).toHaveAttribute('href', `${PAGE}?lucrare=14&punct=41`);
-    expect(within(list).getByRole('heading', { name: 'Celelalte lucrări 1' })).toBeInTheDocument();
-    expect(within(list).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('href', `${PAGE}?lucrare=13`);
-    expect(within(list).queryByText(/Dan Marin/)).not.toBeInTheDocument();
+    expect(within(list).getByRole('link', { name: 'Ana Pop 2 puncte de verificat' })).toHaveAttribute('aria-current', 'true');
+    expect(within(list).getByRole('link', { name: 'Ion Popa 1 punct de verificat' })).toHaveAttribute('href', paperAt(14, '41'));
+    expect(within(list).getByRole('heading', { name: 'Celelalte lucrări 2' })).toBeInTheDocument();
+    expect(within(list).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('href', paperAt(13));
+    expect(within(list).getByRole('link', { name: 'Dan Marin trimis' })).toHaveAttribute('href', paperAt(12));
+    expect(within(list).queryByText(/Mara Ilie/)).not.toBeInTheDocument();
   });
 
-  it('opens on the first point: the pages Ana could not read, on the first of them', async () => {
+  it('opens on the pages Ana could not read, on the first of them, and the next point opens after them', async () => {
     const api = apiWith();
     renderAdmin(PAGE, api, <LocationProbe />);
     expect(await screen.findByText('Ana Pop · pagina 2 din 3')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pagina 2' })).toHaveAttribute('aria-current', 'true');
     expect(screen.getByRole('img', { name: 'Pagina 2 a lucrării' })).toHaveAttribute('src', submissionFileUrl(11, 102));
-    expect(within(decision()).getByRole('heading', { name: 'Ana Pop · Paginile necitite' })).toBeInTheDocument();
+    expect(within(decision()).getByRole('heading', { name: 'Decide: Paginile necitite' })).toBeInTheDocument();
     expect(
       within(decision()).getByText('Robotul nu a putut citi: Pagina 2. Verifică pozele și punctajele exercițiilor de pe ele.'),
     ).toBeInTheDocument();
+    // The note above the exercises does not say it a second time.
+    expect(screen.getAllByText(/^Robotul nu a putut citi/)).toHaveLength(1);
+    // Only the points to check show: I.1 waits for nothing.
+    expect(screen.queryByRole('row', { name: /Subiectul I, ex\. 1/ })).not.toBeInTheDocument();
 
     await userEvent.click(within(decision()).getByRole('button', { name: 'Am verificat paginile' }));
     expect(api.reviewPages).toHaveBeenCalledWith(11, { pagesReviewed: true, gradedAt: GRADED_AT });
-    expect(await within(decision()).findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
-    await expectLocation(at(`?lucrare=11&punct=32`));
-    expect(within(queue()).queryByRole('link', { name: 'Paginile necitite' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
+    await expectLocation(at(11, '32'));
+    expect(within(students()).getByRole('link', { name: 'Ana Pop 1 punct de verificat' })).toBeInTheDocument();
   });
 
   it('opens an item on the page where its answer is, and on page 1 when the page is unknown', async () => {
@@ -136,37 +153,41 @@ describe('the review of the points to check', () => {
     renderAdmin(PAGE, api, <LocationProbe />);
     await screen.findByText('Ana Pop · pagina 2 din 3');
     await userEvent.keyboard('j');
-    await expectLocation(at(`?lucrare=11&punct=32`));
+    await expectLocation(at(11, '32'));
     expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
     expect(screen.getByTitle('Pagina 3 a lucrării')).toHaveAttribute('src', submissionFileUrl(11, 103));
     await userEvent.keyboard('1');
     expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
     await userEvent.keyboard('k');
     await userEvent.keyboard('k');
-    await expectLocation(at(`?lucrare=14&punct=41`));
+    await expectLocation(at(14, '41'));
     expect(await screen.findByText('Ion Popa · pagina 1 din 1')).toBeInTheDocument();
   });
 
-  it("accepts the robot's points, and the next point opens", async () => {
+  it("accepts the robot's points under the row, and the next point opens", async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    expect(within(panel).getByText('x = 3')).toBeInTheDocument();
-    expect(within(panel).getByText('Verifică semnul.')).toBeInTheDocument();
-    expect(within(panel).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
+    // The row above the decision has the answer, the comment and the reason.
+    const flagged = row('Subiectul II, ex. 1');
+    expect(flagged).toHaveClass('is-open');
+    expect(within(flagged).getByText('x = 3')).toBeInTheDocument();
+    expect(within(flagged).getByText('Verifică semnul.')).toBeInTheDocument();
+    expect(within(flagged).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
+    expect(within(flagged).queryByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).not.toBeInTheDocument();
     expect(within(panel).getByText('2p în barem')).toBeInTheDocument();
     expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
 
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     expect(api.correctItem).toHaveBeenCalledWith(11, 32, { reviewed: true, gradedAt: GRADED_AT });
-    expect(await screen.findByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toBeInTheDocument();
-    await expectLocation(at(`?lucrare=14&punct=41`));
-    expect(screen.getByText('Fracții · Clasa 6E2 · 2 puncte în 2 lucrări')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
+    await expectLocation(at(14, '41'));
+    expect(screen.getByRole('button', { name: 'Doar de verificat (2)' })).toBeInTheDocument();
   });
 
   it('says what the grade becomes with another value, and saves it', async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api);
+    renderAdmin(paperAt(11, '32'), api);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
     expect(within(panel).getByText('Total: 6,5 din 10, cu 1 din oficiu')).toBeInTheDocument();
@@ -187,12 +208,12 @@ describe('the review of the points to check', () => {
     expect(within(panel).getByText('Cu 1,25p aici, nota devine 6,75.')).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
     expect(api.correctItem).toHaveBeenCalledWith(11, 32, { points: 1.25, reviewed: true, gradedAt: GRADED_AT });
-    expect(await screen.findByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
   });
 
   it('refuses a value off the steps of 0,05', async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api);
+    renderAdmin(paperAt(11, '32'), api);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
     await userEvent.clear(input);
@@ -207,13 +228,13 @@ describe('the review of the points to check', () => {
     renderAdmin(PAGE, api, <LocationProbe />);
     await screen.findByText('Ana Pop · pagina 2 din 3');
     await userEvent.keyboard('j');
-    await expectLocation(at(`?lucrare=11&punct=32`));
+    await expectLocation(at(11, '32'));
     await userEvent.keyboard('k');
-    await expectLocation(at(`?lucrare=11&punct=pagini`));
+    await expectLocation(at(11, 'pagini'));
     await userEvent.keyboard('k');
-    await expectLocation(at(`?lucrare=14&punct=41`));
+    await expectLocation(at(14, '41'));
     await userEvent.keyboard('j');
-    await expectLocation(at(`?lucrare=11&punct=pagini`));
+    await expectLocation(at(11, 'pagini'));
     await userEvent.keyboard('3');
     expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
     expect(screen.getByTitle('Pagina 3 a lucrării')).toHaveAttribute('src', submissionFileUrl(11, 103));
@@ -223,29 +244,29 @@ describe('the review of the points to check', () => {
     expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
     await userEvent.keyboard('a');
     expect(api.reviewPages).toHaveBeenCalledWith(11, { pagesReviewed: true, gradedAt: GRADED_AT });
-    expect(await within(decision()).findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
   });
 
-  it('goes to the next point and back with the buttons of the title row', async () => {
+  it('goes to the next point and back with the buttons above the panes', async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
-    await screen.findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' });
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
+    await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' });
     await userEvent.click(screen.getByRole('button', { name: 'Următorul punct' }));
-    await expectLocation(at('?lucrare=14&punct=41'));
-    expect(await within(decision()).findByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toBeInTheDocument();
+    await expectLocation(at(14, '41'));
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Punctul anterior' }));
-    await expectLocation(at('?lucrare=11&punct=32'));
-    expect(await within(decision()).findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
+    await expectLocation(at(11, '32'));
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Punctul anterior' }));
-    await expectLocation(at('?lucrare=11&punct=pagini'));
+    await expectLocation(at(11, 'pagini'));
     // The buttons go round the queue: before the first point comes the last one.
     await userEvent.click(screen.getByRole('button', { name: 'Punctul anterior' }));
-    await expectLocation(at('?lucrare=14&punct=41'));
+    await expectLocation(at(14, '41'));
   });
 
   it('ignores the keys in the stepper field and with Ctrl, Alt or Meta', async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
     await userEvent.type(input, 'ajk2');
@@ -253,24 +274,24 @@ describe('the review of the points to check', () => {
     input.blur();
     await userEvent.keyboard('{Control>}a{/Control}{Alt>}j{/Alt}{Meta>}k{/Meta}');
     expect(api.correctItem).not.toHaveBeenCalled();
-    await expectLocation(at(`?lucrare=11&punct=32`));
+    await expectLocation(at(11, '32'));
   });
 
   it('ignores the keys while a panel of the bar is open', async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
     expect(screen.getByRole('complementary', { name: 'Ce ai de făcut' })).toContainElement(document.activeElement as HTMLElement);
     await userEvent.keyboard('aj');
     expect(api.correctItem).not.toHaveBeenCalled();
-    await expectLocation(at(`?lucrare=11&punct=32`));
+    await expectLocation(at(11, '32'));
   });
 
   it('writes once when A is pressed twice, and no key acts while it saves', async () => {
     const api = apiWith();
     api.correctItem.mockReturnValueOnce(new Promise<never>(() => {}));
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.keyboard('aa');
     expect(api.correctItem).toHaveBeenCalledTimes(1);
@@ -278,7 +299,7 @@ describe('the review of the points to check', () => {
     expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Punctul anterior' })).toBeDisabled();
     await userEvent.keyboard('jk2');
-    await expectLocation(at(`?lucrare=11&punct=32`));
+    await expectLocation(at(11, '32'));
     expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
   });
 
@@ -288,81 +309,161 @@ describe('the review of the points to check', () => {
     const api = apiWith([ana!, ion!, eva!]);
     renderAdmin(PAGE, api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    expect(within(panel).getByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toBeInTheDocument();
+    expect(within(panel).getByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Următorul punct' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Punctul anterior' })).not.toBeInTheDocument();
 
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
-    await expectLocation(at(`?lucrare=14`));
-    expect(within(decision()).getByRole('heading', { name: 'Ion Popa' })).toBeInTheDocument();
-    expect(within(queue()).getByText('Niciuna.')).toBeInTheDocument();
+    await expectLocation(at(14));
+    expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Doar de verificat (0)' })).toBeInTheDocument();
+    expect(within(students()).queryByRole('heading', { name: /Cu puncte de verificat/ })).not.toBeInTheDocument();
   });
 
   it('reads the paper again when it was graded again in the meantime', async () => {
     const api = apiWith();
     api.correctItem.mockRejectedValueOnce(new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.'));
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     expect(api.getSubmission).toHaveBeenCalledTimes(1);
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     expect(await within(decision()).findByText('Lucrarea se corectează din nou. Reîncarcă pagina.')).toBeInTheDocument();
     expect(api.getSubmission).toHaveBeenCalledTimes(2);
-    await expectLocation(at(`?lucrare=11&punct=32`));
+    await expectLocation(at(11, '32'));
   });
 
-  it('shows a paper with no point to check: its total, its exercises and its page', async () => {
-    renderAdmin(`${PAGE}?lucrare=13`, apiWith());
-    const panel = await screen.findByRole('region', { name: 'Decizia' });
-    expect(within(panel).getByRole('heading', { name: 'Eva Stan' })).toBeInTheDocument();
-    expect(within(panel).getByText('Total: 5 din 10, cu 1 din oficiu')).toBeInTheDocument();
-    expect(within(panel).getByText('Subiectul I, ex. 1 · 4p din 4,5p')).toBeInTheDocument();
-    expect(within(panel).getByRole('link', { name: 'Deschide lucrarea' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/13');
-    expect(within(panel).queryByRole('button', { name: /^Accept/ })).not.toBeInTheDocument();
+  it('shows a paper with no point to check with all its exercises, its grade and its page', async () => {
+    renderAdmin(paperAt(13, null, 'toate'), apiWith());
+    expect(await screen.findByText(/^Nota/)).toHaveTextContent('Nota 5 · 5 puncte din 10, cu 1 din oficiu');
+    expect(within(row('Subiectul I, ex. 1')).getByText('4 din 4,5')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
     expect(screen.getByTitle('Pagina 1 a lucrării')).toHaveAttribute('src', submissionFileUrl(13, 131));
-    expect(within(queue()).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('aria-current', 'true');
+    expect(within(students()).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('aria-current', 'true');
   });
 
-  it('opens a point from the exercises of the paper', async () => {
-    renderAdmin(PAGE, apiWith(), <LocationProbe />);
-    const panel = await screen.findByRole('region', { name: 'Decizia' });
-    await userEvent.click(within(panel).getByRole('link', { name: 'Subiectul II, ex. 1 · 1p din 2p' }));
-    await expectLocation(at(`?lucrare=11&punct=32`));
-    expect(await within(decision()).findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
+  it('says so when only the points to check show and the paper has none', async () => {
+    renderAdmin(paperAt(13), apiWith());
+    expect(await screen.findByText('Niciun exercițiu de verificat în această lucrare.')).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /Subiectul I, ex\. 1/ })).not.toBeInTheDocument();
+  });
+
+  it('opens any exercise on the paper: its page, and a decision only for one to check', async () => {
+    renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
+    await screen.findByText('Ana Pop · pagina 1 din 3');
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await expectLocation(at(11, '32', 'toate'));
+    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
+    await expectLocation(at(11, '31', 'toate'));
+    expect(row('Subiectul I, ex. 1')).toHaveClass('is-open');
+    expect(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
+    // II.1 still waits: its own "Verificat" is back while it is not open.
+    expect(within(row('Subiectul II, ex. 1')).getByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).toBeInTheDocument();
+  });
+
+  it('switches between all the exercises and only the points to check, in the address', async () => {
+    renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
+    expect(await screen.findByRole('row', { name: /Subiectul I, ex\. 1/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ce a lucrat bine' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Doar de verificat (3)' }));
+    await expectLocation(at(11));
+    expect(screen.queryByRole('row', { name: /Subiectul I, ex\. 1/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /Subiectul II, ex\. 1/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Ce a lucrat bine' })).not.toBeInTheDocument();
+    // Another student keeps the view.
+    await userEvent.click(within(students()).getByRole('link', { name: 'Ion Popa 1 punct de verificat' }));
+    await expectLocation(at(14, '41'));
+    await userEvent.click(screen.getByRole('button', { name: 'Toate exercițiile' }));
+    await expectLocation(at(14, '41', 'toate'));
+  });
+
+  it('opens the next point of the same student after a decision in all the exercises, and never another student', async () => {
+    const api = apiWith();
+    renderAdmin(paperAt(11, 'pagini', 'toate'), api, <LocationProbe />);
+    await userEvent.click(await within(await screen.findByRole('region', { name: 'Decizia' })).findByRole('button', { name: 'Am verificat paginile' }));
+    await expectLocation(at(11, '32', 'toate'));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 1p' }));
+    // No point of Ana is left: the row stays open, and "Elevul următor" waits.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Elevul următor' })).toHaveFocus());
+    await expectLocation(at(11, '32', 'toate'));
+    expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
+    expect(within(row('Subiectul II, ex. 1')).getByText('Verificat')).toBeInTheDocument();
+  });
+
+  it('walks only the points of the open student with J and K in all the exercises', async () => {
+    renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
+    await screen.findByText('Ana Pop · pagina 1 din 3');
+    await userEvent.keyboard('j');
+    await expectLocation(at(11, 'pagini', 'toate'));
+    await userEvent.keyboard('j');
+    await expectLocation(at(11, '32', 'toate'));
+    await userEvent.keyboard('j');
+    await expectLocation(at(11, 'pagini', 'toate'));
+    expect(screen.queryByRole('button', { name: 'Următorul punct' })).not.toBeInTheDocument();
+  });
+
+  it('moves to the student before or after, in the order of the list', async () => {
+    renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
+    await screen.findByText('Ana Pop · pagina 1 din 3');
+    expect(screen.queryByRole('button', { name: 'Elevul anterior' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
+    await expectLocation(at(12, null, 'toate'));
+    await userEvent.click(screen.getByRole('button', { name: 'Elevul anterior' }));
+    await expectLocation(at(11, null, 'toate'));
+    // With only the points to check, the students with points come first and
+    // each opens on its first point.
+    await userEvent.click(screen.getByRole('button', { name: 'Doar de verificat (3)' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
+    await expectLocation(at(14, '41'));
+  });
+
+  it('folds the students and keeps the choice in this browser', async () => {
+    const first = renderAdmin(paperAt(11), apiWith());
+    await userEvent.click(await within(await screen.findByRole('navigation', { name: 'Elevii' })).findByRole('button', { name: 'Ascunde' }));
+    expect(within(students()).queryByRole('link')).not.toBeInTheDocument();
+    expect(localStorage.getItem('quickeval:paperStudentsFolded')).toBe('on');
+    first.unmount();
+    renderAdmin(paperAt(11), apiWith());
+    await userEvent.click(await within(await screen.findByRole('navigation', { name: 'Elevii' })).findByRole('button', { name: 'Arată elevii' }));
+    expect(within(students()).getByRole('link', { name: 'Ana Pop 2 puncte de verificat' })).toBeInTheDocument();
+    expect(localStorage.getItem('quickeval:paperStudentsFolded')).toBe('off');
   });
 
   it('says when a paper has no files', async () => {
     const [ana, ion, eva] = papers();
     ion!.files = [];
-    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith([ana!, ion!, eva!]));
+    renderAdmin(paperAt(14, '41'), apiWith([ana!, ion!, eva!]));
     expect(await screen.findByText('Elevul nu a încărcat niciun fișier.')).toBeInTheDocument();
   });
 
-  it('has one line before any paper is graded, and the way back to the test', async () => {
+  it("opens the test's Verificare before any paper is graded", async () => {
     const api = createFakeApi({
       classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 1 }],
       students: {},
       tests: [fakeTest({ status: 'evaluating' }, [fakeUpload({ studentId: 2, studentName: 'Dan Marin', submissionId: 12, status: 'submitted' })])],
     });
-    renderAdmin(PAGE, api);
-    expect(await screen.findByText('Nicio lucrare nu este corectată încă.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Înapoi la test' })).toHaveAttribute('href', '/teste/6E2-26T1#verificare');
-    expect(screen.queryByRole('navigation', { name: 'Lucrările' })).not.toBeInTheDocument();
+    renderAdmin(PAGE, api, <LocationProbe />);
+    await expectLocation(/^\/teste\/6E2-26T1#verificare$/);
   });
 
   it('acts once for a key held down', async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, 'pagini'), api, <LocationProbe />);
     await screen.findByText('Ana Pop · pagina 2 din 3');
     await userEvent.keyboard('a');
-    expect(await within(decision()).findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
     // The key is still down: the browser repeats it, and the repeats do nothing.
     fireEvent.keyDown(document.body, { key: 'a', repeat: true });
     fireEvent.keyDown(document.body, { key: 'j', repeat: true });
     await act(async () => {});
     expect(api.correctItem).not.toHaveBeenCalled();
-    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=11&punct=32'));
+    expect(screen.getByTestId('location')).toHaveTextContent(at(11, '32'));
     fireEvent.keyDown(document.body, { key: 'a' });
     await waitFor(() => expect(api.correctItem).toHaveBeenCalledTimes(1));
   });
@@ -392,27 +493,27 @@ describe('the review of the points to check', () => {
   it('stays on the test page when the teacher went back while a decision saved', async () => {
     const api = apiWith();
     const held = heldSave(api);
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
-    await userEvent.click(screen.getByRole('link', { name: 'Înapoi la test' }));
+    await userEvent.click(within(screen.getByRole('navigation', { name: 'Unde ești' })).getByRole('link', { name: 'Fracții' }));
     await screen.findByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' });
     await held.done();
     expect(screen.queryByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/teste\/6E2-26T1#verificare$/);
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/teste\/6E2-26T1$/);
   });
 
   it('stays on the paper the teacher opened while a decision saved', async () => {
     const api = apiWith();
     const held = heldSave(api);
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
-    await userEvent.click(within(queue()).getByRole('link', { name: 'Eva Stan nota 5' }));
-    await expectLocation(at('?lucrare=13'));
+    await userEvent.click(within(students()).getByRole('link', { name: 'Eva Stan nota 5' }));
+    await expectLocation(at(13));
     await held.done();
-    expect(within(queue()).queryByRole('link', { name: 'Subiectul II, ex. 1 · 1p din 2p' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=13'));
+    expect(within(students()).getByRole('link', { name: 'Ana Pop 1 punct de verificat' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(at(13));
   });
 
   it('acts on the keys after "Începe" in De făcut', async () => {
@@ -424,36 +525,36 @@ describe('the review of the points to check', () => {
     await userEvent.click(within(todo).getByRole('link', { name: 'Începe: Fracții, 6E2' }));
     await screen.findByText('Ana Pop · pagina 2 din 3');
     await userEvent.keyboard('j');
-    await expectLocation(at('?lucrare=11&punct=32'));
+    await expectLocation(at(11, '32'));
   });
 
   it('acts on the keys after a panel of the bar closes with Esc', async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('complementary', { name: 'Ce ai de făcut' })).not.toBeInTheDocument();
     await userEvent.keyboard('j');
-    await expectLocation(at('?lucrare=14&punct=41'));
+    await expectLocation(at(14, '41'));
   });
 
   it('writes once for two presses of A in the same moment', async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await within(panel).findByRole('button', { name: 'Accept 1p' });
     fireEvent.keyDown(document.body, { key: 'a' });
     fireEvent.keyDown(document.body, { key: 'a' });
-    // Ion's paper loads in a new right pane: found through the screen.
-    expect(await screen.findByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toBeInTheDocument();
+    // Ion's paper loads in a new middle pane: found through the screen.
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
     expect(api.correctItem).toHaveBeenCalledTimes(1);
   });
 
   it('drops a value typed on a grading that was replaced meanwhile', async () => {
     const api = apiWith();
     api.correctItem.mockRejectedValueOnce(new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.'));
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
     // The paper is read again after the refusal: it has a new grading, with
@@ -467,17 +568,12 @@ describe('the review of the points to check', () => {
     await waitFor(() => expect(within(decision()).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue('1'));
   });
 
-  it('names the point it opens on in the address', async () => {
+  it('names the point it opens on in the address before it shows a paper', async () => {
     renderAdmin(PAGE, apiWith(), <LocationProbe />);
-    await expectLocation(at('?lucrare=11&punct=pagini'));
-  });
-
-  it('writes the address before it shows a paper', async () => {
-    renderAdmin(PAGE, apiWith(), <LocationProbe />);
-    // The first moment the papers show, the address already names the point:
+    // The first moment the paper shows, the address already names the point:
     // a decision is never made on a point the address does not hold.
-    await screen.findByRole('navigation', { name: 'Lucrările' });
-    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=11&punct=pagini'));
+    await screen.findByRole('navigation', { name: 'Elevii' });
+    expect(screen.getByTestId('location')).toHaveTextContent(at(11, 'pagini'));
   });
 
   it('shows a paper that is graded again, says why, and keeps its address', async () => {
@@ -492,12 +588,11 @@ describe('the review of the points to check', () => {
       submissions: [ana!, ion!, eva!],
     });
     renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
-    const panel = await screen.findByRole('region', { name: 'Decizia' });
-    expect(await within(panel).findByRole('heading', { name: 'Ana Pop' })).toBeInTheDocument();
-    expect(within(panel).getByText('Robotul corectează acum lucrarea. Când are rezultatul, apare aici.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ana Pop' })).toBeInTheDocument();
+    expect(await screen.findByText('Robotul corectează acum lucrarea.')).toBeInTheDocument();
     expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
-    expect(within(queue()).getByRole('link', { name: 'Subiectul I, ex. 3 · 3p din 5p' })).not.toHaveAttribute('aria-current');
-    expect(screen.getByTestId('location')).toHaveTextContent(at('?lucrare=11&punct=32'));
+    expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(at(11, '32'));
   });
 
   it('reads the paper again when the list has its newer grading', async () => {
@@ -507,22 +602,22 @@ describe('the review of the points to check', () => {
     before.status = 'grading';
     before.evaluation = null;
     api.getSubmission.mockResolvedValueOnce(before);
-    renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
-    expect(await screen.findByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toBeInTheDocument();
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
     expect(api.getSubmission).toHaveBeenCalledTimes(2);
   });
 
   it('puts the focus on the point that opens after a decision', async () => {
     const api = apiWith();
-    renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, api, <LocationProbe />);
+    renderAdmin(paperAt(11, 'pagini'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Am verificat paginile' }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ana Pop · Subiectul II, ex. 1' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
     await userEvent.click(screen.getByRole('button', { name: 'Accept 1p' }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ion Popa · Subiectul I, ex. 3' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toHaveFocus());
     // The keys still act from there.
     await userEvent.keyboard('k');
-    await expectLocation(at('?lucrare=14&punct=41'));
+    await expectLocation(at(14, '41'));
   });
 });
 
@@ -787,12 +882,12 @@ describe('the border of the answer to check', () => {
     await screen.findByText('Ion Popa · pagina 1 din 2');
     const pane = screen.getByTestId('zoom-pane');
     expect(within(pane).getByRole('button', { name: 'Partea următoare' })).toBeInTheDocument();
-    expect(screen.getByText('1 din 2')).toBeInTheDocument();
+    expect(within(pane).getByText('1 din 2')).toBeInTheDocument();
     // Not beside the label, where the pane's edge would cut them off.
     expect(within(frame()).queryByRole('button', { name: 'Partea următoare' })).not.toBeInTheDocument();
     await userEvent.click(within(pane).getByRole('button', { name: 'Partea următoare' }));
     expect(screen.getByText('Ion Popa · pagina 2 din 2')).toBeInTheDocument();
-    expect(screen.getByText('2 din 2')).toBeInTheDocument();
+    expect(within(pane).getByText('2 din 2')).toBeInTheDocument();
     expect(within(pane).getByRole('button', { name: 'Partea următoare' })).toBeDisabled();
   });
 
@@ -816,7 +911,7 @@ describe('the border of the answer to check', () => {
     await screen.findByText('Ion Popa · pagina 1 din 2');
     clickAt(sizedPane(), 200, 200);
     await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
-    expect(await within(decision()).findByRole('heading', { name: 'Ion Popa · Subiectul II, ex. 4' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
     expect(within(frame()).getByText('II.4')).toBeInTheDocument();
     // The next answer opens whole: its border shows where it is.
     expect(layer().style.transform).toBe(WHOLE);
@@ -829,7 +924,7 @@ describe('the border of the answer to check', () => {
     clickAt(sizedPane(), 200, 200);
     expect(layer().style.transform).not.toBe(WHOLE);
     await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
-    expect(await within(decision()).findByRole('heading', { name: 'Ion Popa · Subiectul II, ex. 4' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
     expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
     expect(layer().style.transform).toBe(WHOLE);
   });

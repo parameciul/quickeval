@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import type { AnswerArea } from '../../../shared/schemas.ts';
+import { formatFileSize } from '../../ui/format.ts';
 import { useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { submissionFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
@@ -124,7 +125,15 @@ export function ReviewPhoto({
   return (
     <figure className="review-photo">
       <div className="review-photo-top">
-        <figcaption>{caption}</figcaption>
+        <div className="review-photo-name">
+          <figcaption>{caption}</figcaption>
+          {/* The page's own file, as the student sent it. */}
+          {file && (
+            <span className="hint">
+              {file.name} · {formatFileSize(file.size)}
+            </span>
+          )}
+        </div>
         <div className="review-photo-actions">
           {files.length > 1 && (
             <span className="page-switch" role="group" aria-label="Paginile lucrării">

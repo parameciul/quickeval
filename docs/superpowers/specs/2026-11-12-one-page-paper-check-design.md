@@ -83,7 +83,7 @@ Three columns under them:
 
 The middle and right columns share the rest of the width; the paper gets about as much as the exercises. *(Builder's call on the exact split; the 1366 px and 1920 px laptop widths must both work.)*
 
-Below 900 px: one column, as the review today: the open exercise (or the student's head) first, then the paper, then the exercises, then the students.
+The exercises get three fifths of the width the students leave, the paper two fifths (it zooms), so the comments read on a 1366 px laptop. Below 1200 px the students go under the exercises. Below 900 px: one column: the exercises (with the open one's decision under its row), then the paper, then the students.
 
 ### 4.3 The students (left)
 
@@ -113,7 +113,7 @@ For a paper with no result, the middle column shows what today's paper's page sh
 
 ### 4.5 The paper (right)
 
-Today's `ReviewPhoto`, unchanged in behaviour: one page at a time, the page switch, zoom and drag, "Arată chenarul", the border with its parts, a PDF in a frame.
+Today's `ReviewPhoto`, unchanged in behaviour: one page at a time, the page switch, zoom and drag, "Arată chenarul", the border with its parts, a PDF in a frame. Under the caption, the page's file name and size ("IMG_0001.jpg · 820 KB"), as the paper's page listed them.
 
 - An open exercise shows the page of its first drawn area, whole, with the border (as the zoom spec says); with no area, the page of the item (`page`), with no border; else page 1.
 - The pages row shows the first page the robot could not read.
@@ -122,7 +122,7 @@ Today's `ReviewPhoto`, unchanged in behaviour: one page at a time, the page swit
 
 ### 4.6 The switch
 
-- "Toate exercițiile" or "Doar de verificat (N)". The choice is kept in the browser and stays when she moves to another student or another test. *(Builder's call; the user did not confirm it.)*
+- "Toate exercițiile" or "Doar de verificat (N)". The choice is in the address (`vedere=verificare`; the place's own view is left out): it stays when she moves to another student and after a reload, and each link decides how the page opens ("Vezi lucrarea" with all the exercises, "Verifică" and the points' links with only the points to check). *(Builder's call, changed while building from "kept in the browser": a choice kept in the browser would make "Vezi lucrarea" open with only the points to check, against §5.3.)*
 - "Verifică" and "Începe verificarea" on the test page, the "Decide" links of the Verificare panel and the old `/verificare` address open the page in "Doar de verificat".
 - When no point is left in the test: "Toate punctele sunt verificate." and "Mergi la Rezultate", as the review today; the switch shows "Doar de verificat (0)".
 

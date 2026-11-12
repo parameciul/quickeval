@@ -11,13 +11,13 @@ import { renderAdmin } from '../test/renderAdmin.tsx';
 const student = (id: number, fullName: string, ces = false) => ({ id, fullName, active: true, canDelete: true, ces });
 
 describe('the CES mark', () => {
-  it('shows in the review queue', async () => {
+  it('shows in the students of the paper page', async () => {
     const uploads = [
       fakeUpload({ studentId: 1, studentName: 'Bursașiu Teodor', submissionId: 11, status: 'graded', grade: 8, flagCount: 1, ces: true, variant: 'ces' }),
       fakeUpload({ studentId: 2, studentName: 'Ene Ana', submissionId: 12, status: 'graded', grade: 7, flagCount: 1 }),
     ];
     renderAdmin('/teste/6E2-26T1/verificare', createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, uploads)] }));
-    const queue = within(await screen.findByRole('navigation', { name: 'Lucrările' }));
+    const queue = within(await screen.findByRole('navigation', { name: 'Elevii' }));
     expect(within(queue.getByRole('link', { name: /^Bursașiu Teodor/ })).getByText('CES')).toBeInTheDocument();
     expect(within(queue.getByRole('link', { name: /^Ene Ana/ })).queryByText('CES')).not.toBeInTheDocument();
   });

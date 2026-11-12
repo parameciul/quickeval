@@ -7,12 +7,11 @@ import { LastClassPage } from './pages/LastClassPage.tsx';
 import { NewPasswordPage } from './pages/NewPasswordPage.tsx';
 import { NewTestPage } from './pages/NewTestPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
+import { PaperPage, ReviewRedirect } from './pages/PaperPage.tsx';
 import { ReportPage } from './pages/ReportPage.tsx';
-import { ReviewPage } from './pages/ReviewPage.tsx';
 import { SearchPage } from './pages/SearchPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { StudentPage } from './pages/StudentPage.tsx';
-import { SubmissionPage } from './pages/SubmissionPage.tsx';
 import { TestPage } from './pages/TestPage.tsx';
 import { TestsPage } from './pages/TestsPage.tsx';
 
@@ -24,9 +23,9 @@ export function AppRoutes() {
         <Route index element={<TestsPage />} />
         <Route path="teste/nou" element={<NewTestPage />} />
         <Route path="teste/:code" element={<TestPage />} />
-        <Route path="teste/:code/elevi/:submissionId" element={<SubmissionPage />} />
+        <Route path="teste/:code/elevi/:submissionId" element={<PaperPage />} />
         <Route path="teste/:code/raport" element={<ReportPage />} />
-        <Route path="teste/:code/verificare" element={<ReviewPage />} />
+        <Route path="teste/:code/verificare" element={<ReviewRedirect />} />
         <Route path="clase" element={<LastClassPage />} />
         <Route path="clase/:id" element={<ClassPage />} />
         <Route path="elevi/:id" element={<StudentPage />} />

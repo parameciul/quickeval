@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import type { EvaluationInfo, EvaluationItemInfo, ItemChange, SubmissionDetail } from '../../../shared/api.ts';
 import { TEXT_LIMITS, confidenceLevel, type Confidence } from '../../../shared/schemas.ts';
 import { formatPoints, isValidCorrection } from '../../../shared/scoring.ts';
@@ -10,6 +10,27 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 
 type Saved = (submission: SubmissionDetail) => Promise<void>;
 type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>;
+
+// The paper page's hold on the rows (spec 2026-11-12 §4.4): the open row
+// (an item's id, or "pagini" for the pages the robot could not read), a click
+// that opens a row, only the rows to check, and the decision shown under the
+// open row while it waits for a check. Without it the result is a plain list
+// (the Quick Try's "Rezultatul profesorului").
+export interface ItemsCheck {
+  openKey: string | null;
+  onOpen: (key: string) => void;
+  onlyToCheck: boolean;
+  decision: ReactNode;
+}
+
+// A click on a row opens it, unless it was on something of its own.
+function rowClick(onOpen: (() => void) | undefined) {
+  if (!onOpen) return undefined;
+  return (event: MouseEvent<HTMLTableRowElement>) => {
+    if (event.target instanceof Element && event.target.closest('button, a, input, textarea, select, label')) return;
+    onOpen();
+  };
+}
 
 // Rows so the whole comment is visible without manual enlarging: one row
 // per ~45 characters of each line (the comment column is narrow), at least
@@ -26,9 +47,22 @@ function commentRows(text: string): number {
 // upload, so the total and the grade follow at once. Each change names the
 // grading it was made on, so a change from an old page cannot reach a newer
 // result.
-export function GradedResult({ submissionId, evaluation, onSaved }: { submissionId: number; evaluation: EvaluationInfo; onSaved: Saved }) {
+export function GradedResult({
+  submissionId,
+  evaluation,
+  onSaved,
+  check,
+}: {
+  submissionId: number;
+  evaluation: EvaluationInfo;
+  onSaved: Saved;
+  check?: ItemsCheck;
+}) {
   const api = useApi();
   const correct: Correct = (itemId, change) => api.correctItem(submissionId, itemId, { ...change, gradedAt: evaluation.gradedAt });
+  const shown = check?.onlyToCheck
+    ? evaluation.items.filter((item) => (item.needsReview && !item.reviewed) || String(item.id) === check.openKey)
+    : evaluation.items;
   return (
     <div className="graded-result">
       <div className="grade-strip">
@@ -44,8 +78,11 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
           <span className="tag tag-ok">Nimic de verificat</span>
         )}
       </div>
-      <UnreadablePages submissionId={submissionId} evaluation={evaluation} onSaved={onSaved} />
+      <UnreadablePages submissionId={submissionId} evaluation={evaluation} onSaved={onSaved} check={check} />
 
+      {shown.length === 0 ? (
+        <p className="hint">Niciun exercițiu de verificat în această lucrare.</p>
+      ) : (
       <div className="table-wrap">
         <table className="items">
           <caption className="sr-only">Punctajele pe exerciții</caption>
@@ -68,21 +105,45 @@ export function GradedResult({ submissionId, evaluation, onSaved }: { submission
             </tr>
           </thead>
           <tbody>
-            {evaluation.items.map((item) => (
-              <ItemRow key={item.id} item={item} correct={correct} onSaved={onSaved} />
-            ))}
+            {shown.map((item) => {
+              const open = check !== undefined && String(item.id) === check.openKey;
+              const deciding = open && item.needsReview && !item.reviewed && check.decision !== null;
+              return (
+                <ItemRows
+                  key={item.id}
+                  item={item}
+                  correct={correct}
+                  onSaved={onSaved}
+                  open={open}
+                  onOpen={check ? () => check.onOpen(String(item.id)) : undefined}
+                  decision={deciding ? check.decision : null}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>
+      )}
 
-      <FeedbackSections submissionId={submissionId} evaluation={evaluation} onSaved={onSaved} />
+      {!check?.onlyToCheck && <FeedbackSections submissionId={submissionId} evaluation={evaluation} onSaved={onSaved} />}
     </div>
   );
 }
 
 // Pages that the robot could not read count as one item to check, until the
-// teacher has looked at them.
-function UnreadablePages({ submissionId, evaluation, onSaved }: { submissionId: number; evaluation: EvaluationInfo; onSaved: Saved }) {
+// teacher has looked at them. On the paper page they open as a row does, and
+// the open pages show the page's decision.
+function UnreadablePages({
+  submissionId,
+  evaluation,
+  onSaved,
+  check,
+}: {
+  submissionId: number;
+  evaluation: EvaluationInfo;
+  onSaved: Saved;
+  check?: ItemsCheck;
+}) {
   const api = useApi();
   const review = useMutation({
     mutationFn: () => api.reviewPages(submissionId, { pagesReviewed: true, gradedAt: evaluation.gradedAt }),
@@ -90,13 +151,25 @@ function UnreadablePages({ submissionId, evaluation, onSaved }: { submissionId: 
   });
   if (evaluation.unreadable.length === 0) return null;
   const pages = evaluation.unreadable.map(pageLabel).join(', ');
-  if (evaluation.pagesReviewed) return <p className="hint">Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.</p>;
+  if (evaluation.pagesReviewed) return check?.onlyToCheck ? null : <p className="hint">Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.</p>;
+  const open = check?.openKey === 'pagini';
+  // The open pages' decision says the same words itself.
+  const deciding = open && Boolean(check?.decision);
   return (
-    <div className="warning">
-      <p>Robotul nu a putut citi: {pages}. Verifică pozele și punctajele exercițiilor de pe ele.</p>
-      <button type="button" className="button-quiet button-small" disabled={review.isPending} onClick={() => review.mutate()}>
-        Am verificat paginile
-      </button>
+    <div className={open ? 'warning is-open' : 'warning'}>
+      {!deciding && <p>Robotul nu a putut citi: {pages}. Verifică pozele și punctajele exercițiilor de pe ele.</p>}
+      {check && !open && (
+        <button type="button" className="button-quiet button-small" onClick={() => check.onOpen('pagini')}>
+          Arată paginile
+        </button>
+      )}
+      {check ? (
+        open && check.decision
+      ) : (
+        <button type="button" className="button-quiet button-small" disabled={review.isPending} onClick={() => review.mutate()}>
+          Am verificat paginile
+        </button>
+      )}
       {review.error && <ErrorMessage error={review.error} />}
     </div>
   );
@@ -122,11 +195,57 @@ export function ConfidenceBars({ confidence }: { confidence: Confidence }) {
   );
 }
 
+// An exercise's row and, while it is open and waits for a check, the
+// decision under it, across the whole table.
+function ItemRows({
+  item,
+  correct,
+  onSaved,
+  open,
+  onOpen,
+  decision,
+}: {
+  item: EvaluationItemInfo;
+  correct: Correct;
+  onSaved: Saved;
+  open: boolean;
+  onOpen?: () => void;
+  decision: ReactNode;
+}) {
+  return (
+    <>
+      <ItemRow item={item} correct={correct} onSaved={onSaved} open={open} onOpen={onOpen} deciding={decision !== null} />
+      {decision !== null && (
+        <tr className="item-decision">
+          <td colSpan={6}>{decision}</td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 // One row of the exercises table. Modifică turns the points and the comment
 // cells into inputs in the same row, so the teacher sees the exercise, the
 // student's answer, and the robot's confidence while typing. Saving an item
-// that waits for a check also checks it: the teacher has looked at it.
-function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct: Correct; onSaved: Saved }) {
+// that waits for a check also checks it: the teacher has looked at it. On the
+// paper page a click on the row, or its "Arată pe lucrare", opens it: the
+// paper shows its answer. While the open row's decision shows under it, the
+// row has no "Verificat" of its own.
+function ItemRow({
+  item,
+  correct,
+  onSaved,
+  open = false,
+  onOpen,
+  deciding = false,
+}: {
+  item: EvaluationItemInfo;
+  correct: Correct;
+  onSaved: Saved;
+  open?: boolean;
+  onOpen?: () => void;
+  deciding?: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [points, setPoints] = useState(formatPoints(item.points));
   const [comment, setComment] = useState(item.comment);
@@ -175,7 +294,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
   };
 
   return (
-    <tr className={toCheck ? 'is-flagged' : undefined}>
+    <tr className={[toCheck ? 'is-flagged' : '', open ? 'is-open' : '', onOpen ? 'is-openable' : ''].filter(Boolean).join(' ') || undefined} onClick={rowClick(onOpen)}>
       <th scope="row" title={item.label}>
         {item.exerciseId} <span className="sr-only">{item.label}</span>
         {checked && <ReviewCheck />}
@@ -245,6 +364,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
                 <p className="review-reason">
                   De verificat: <MathText text={item.reviewReason} />
                 </p>
+                {!deciding && (
                 <button
                   type="button"
                   className="button-quiet button-small verificat-btn"
@@ -257,6 +377,7 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
                   </svg>
                   Verificat
                 </button>
+                )}
                 {check.error && <ErrorMessage error={check.error} />}
               </div>
             )}
@@ -297,6 +418,21 @@ function ItemRow({ item, correct, onSaved }: { item: EvaluationItemInfo; correct
           </span>
         ) : (
           <span className="row-actions">
+            {onOpen && (
+              <button
+                type="button"
+                className="button-quiet button-small icon-button"
+                aria-label={`Arată pe lucrare ${item.label}`}
+                aria-pressed={open}
+                title="Arată pe lucrare"
+                onClick={onOpen}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              </button>
+            )}
             <button
               type="button"
               className="button-quiet button-small icon-button"

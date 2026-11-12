@@ -2405,10 +2405,13 @@ table.tests .row-actions {
   }
 }
 
-/* The review of the points to check (redesign spec §7): the papers, the page
-   of the paper and the decision side by side; below 1280px the papers go under
-   the page, which keeps its width; on a phone one column, the decision first,
-   then the page, and the papers last. */
+/* The paper page (spec 2026-11-12 §4): the students, the exercises of one
+   student and the paper side by side, the paper staying in view while the
+   exercises scroll. The exercises get three fifths of the room left by the
+   students, so the comments read on a laptop; the paper zooms. The students
+   fold to a thin strip; a Quick Try's page has no students. Below 1200px the
+   students go under the exercises; on a phone one column: the exercises, the
+   paper, the students. */
 .review-head {
   display: flex;
   flex-wrap: wrap;
@@ -2430,23 +2433,67 @@ table.tests .row-actions {
   gap: 0.5rem;
 }
 
-.review-page > .alert,
+.paper-page > .alert,
 .review-done {
   margin: 0 0 1rem;
 }
 
-.review-panes {
+/* The switch of the exercises shown, and the moves to another point or student. */
+.paper-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin: 1rem 0;
+}
+
+.paper-switch {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
+}
+
+.paper-switch button {
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.paper-switch button + button {
+  border-left: 1px solid var(--control);
+}
+
+.paper-switch button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 700;
+}
+
+.paper-panes {
   display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(360px, 432px);
-  grid-template-areas: "queue photo decision";
+  grid-template-columns: 13rem minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-areas: "students main photo";
   gap: 1rem;
   align-items: start;
 }
 
-.review-queue,
-.review-photo,
-.review-decision,
-.review-loading {
+.paper-panes.is-folded {
+  grid-template-columns: 2.75rem minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.paper-panes.is-single {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-areas: "main photo";
+}
+
+.paper-students,
+.review-photo {
   min-width: 0;
   margin: 0;
   padding: 1rem;
@@ -2455,111 +2502,126 @@ table.tests .row-actions {
   background: var(--sheet);
 }
 
-.review-queue {
-  grid-area: queue;
+.paper-students {
+  grid-area: students;
   padding: 0.75rem 0.5rem;
 }
 
+.paper-students.is-folded {
+  padding: 0.5rem 0.25rem;
+}
+
+.paper-students-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0.5rem 0.5rem;
+}
+
+.paper-students.is-folded .paper-students-head {
+  justify-content: center;
+  margin: 0;
+}
+
+.paper-students-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.paper-main {
+  grid-area: main;
+  min-width: 0;
+}
+
+.paper-main .graded-result .table-wrap {
+  overflow-x: auto;
+}
+
+/* The table fits its column: the comment takes the room left. */
+.paper-main table.items {
+  min-width: 0;
+}
+
+/* Under the teacher app's top bar (--top), which also stays on screen. */
 .review-photo {
   grid-area: photo;
-}
-
-.review-decision {
-  grid-area: decision;
-  overflow-wrap: anywhere;
-}
-
-.review-loading {
-  grid-area: photo;
+  position: sticky;
+  top: calc(var(--top, 0px) + 0.75rem);
 }
 
 .review-queue-head {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  margin: 0 0.5rem 0.25rem;
+  margin: 0.75rem 0.5rem 0.25rem;
   color: var(--muted);
   font-size: 0.8125rem;
   font-weight: 700;
 }
 
-.review-queue > p,
-.review-papers + .review-queue-head,
-.review-queue > .hint + .review-queue-head {
-  margin-top: 1rem;
-}
-
-.review-queue > p {
-  margin: 0 0.5rem;
-}
-
-.review-papers,
-.review-points,
-.review-others,
-.review-exercises {
+.paper-student-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.review-papers > li + li,
-.review-others > li + li {
-  border-top: 1px solid var(--line);
-}
-
-.review-queue a {
-  display: block;
-  border-radius: var(--radius);
-  color: var(--text);
-  text-decoration: none;
-}
-
-.review-queue a:hover {
-  background: var(--raised);
-}
-
-.review-paper {
-  padding: 0.375rem 0.5rem;
-}
-
-.review-paper-name {
+.paper-student-list a {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  font-weight: 600;
-}
-
-.review-grade {
-  font-variant-numeric: tabular-nums;
-}
-
-.review-points a {
-  padding: 0.25rem 0.5rem 0.25rem 1rem;
-  color: var(--orange);
-  font-size: 0.875rem;
-}
-
-/* The points of a point to check, apart from its exercise: a grey label. */
-.review-point-score {
-  display: inline-block;
-  padding: 0 0.3rem;
-  border-radius: 4px;
-  background: var(--active);
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--radius);
   color: var(--text);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  line-height: 1.6;
-  white-space: nowrap;
+  font-size: 0.875rem;
+  text-decoration: none;
 }
 
-.review-queue a[aria-current="true"] {
-  background: var(--marker);
-  font-weight: 700;
+.paper-student-list a:hover {
+  background: var(--raised);
 }
 
-.review-others a[aria-current="true"] {
+.paper-student-list a[aria-current="true"] {
   background: var(--active);
+  font-weight: 700;
+}
+
+.paper-student-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.paper-student-flags {
+  color: var(--orange);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-student-grade {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A row of the exercises opens with a click: the open row is marked blue, and
+   its decision, while it waits for a check, sits under it across the table. */
+table.items tr.is-openable {
+  cursor: pointer;
+}
+
+table.items tr.is-open > * {
+  box-shadow: inset 0 2px 0 var(--ink), inset 0 -2px 0 var(--ink);
+}
+
+table.items tr.is-open > th {
+  box-shadow: inset 3px 0 0 var(--ink), inset 0 2px 0 var(--ink), inset 0 -2px 0 var(--ink);
+}
+
+table.items tr.item-decision > td {
+  padding: 0.5rem 0.75rem 0.75rem;
+  background: var(--marker);
+}
+
+.warning.is-open {
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 
 .review-photo-top {
@@ -2573,6 +2635,17 @@ table.tests .row-actions {
 
 .review-photo figcaption {
   font-weight: 600;
+}
+
+.review-photo-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.review-photo-name .hint {
+  font-size: 0.8125rem;
 }
 
 .review-photo-actions {
@@ -2817,28 +2890,9 @@ table.tests .row-actions {
   height: 70vh;
 }
 
-.review-decision h2 {
+.point-decision h2 {
   margin: 0;
-  font-size: 1.125rem;
-}
-
-.review-decision h3 {
-  margin: 1.25rem 0 0.5rem;
-  font-size: 0.9375rem;
-}
-
-/* The exercises' heading and "Deschide lucrarea" on one row. */
-.review-exercises-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 1rem;
-  margin: 1.25rem 0 0.5rem;
-}
-
-.review-exercises-head h3 {
-  margin: 0;
+  font-size: 1rem;
 }
 
 .review-item-head {
@@ -2847,6 +2901,7 @@ table.tests .row-actions {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.25rem 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .review-doubt {
@@ -2859,11 +2914,6 @@ table.tests .row-actions {
 
 .review-doubt > p {
   margin: 0 0 0.5rem;
-}
-
-.review-why {
-  color: var(--orange);
-  font-weight: 700;
 }
 
 .stepper {
@@ -2911,37 +2961,29 @@ table.tests .row-actions {
   font: inherit;
 }
 
-.review-exercises li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 0.5rem;
-  padding: 0.25rem 0;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.875rem;
-}
-
-.review-exercises li.is-current {
-  color: var(--orange);
-  font-weight: 700;
-}
-
-@media (max-width: 80rem) {
-  .review-panes {
-    grid-template-columns: minmax(0, 1fr) minmax(336px, 408px);
+@media (max-width: 75rem) {
+  .paper-panes,
+  .paper-panes.is-folded {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     grid-template-areas:
-      "photo decision"
-      "queue decision";
+      "main photo"
+      "students photo";
   }
 }
 
 @media (max-width: 56.25rem) {
-  .review-panes {
+  .paper-panes,
+  .paper-panes.is-folded,
+  .paper-panes.is-single {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "decision"
+      "main"
       "photo"
-      "queue";
+      "students";
+  }
+
+  .review-photo {
+    position: static;
   }
 
   .review-keys {
