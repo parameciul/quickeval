@@ -94,6 +94,34 @@ describe('the grading skill', () => {
     expect(english).toContain('never a word about how the work was graded');
   });
 
+  it('gives Romanian barems a real example, with the three Precizări and the composition in two items', () => {
+    const romana = readFileSync(path.join(SKILL_DIR, 'references', 'subjects', 'romana.md'), 'utf8');
+    expect(romana).toContain('`references/barem-example-romana.md`');
+    expect(romana).toContain('Nu se acordă punctaje intermediare, altele decât cele precizate explicit în barem.');
+    expect(romana).toContain('"Conținutul compunerii:"');
+    expect(romana).toContain('"Redactarea compunerii:"');
+    const example = readFileSync(path.join(SKILL_DIR, 'references', 'barem-example-romana.md'), 'utf8');
+    expect(example).toContain('## Testul');
+    expect(example).toContain('## Baremul');
+    for (const left of ['Scoala in Papuci', 'Numele:', 'Centrul de examen', 'romaniasalbatica', 'pronumele nehotărât', 'Nu primește']) {
+      expect(example).not.toContain(left);
+    }
+  });
+
+  it('keeps every step of the Romanian example within the barem limits, adding up to 70 and 20', () => {
+    const example = readFileSync(path.join(SKILL_DIR, 'references', 'barem-example-romana.md'), 'utf8');
+    const barem = example.slice(example.indexOf('## Baremul'));
+    const secondSubject = barem.indexOf('**SUBIECTUL al II-lea**');
+    const points = (text: string) => [...text.matchAll(/\| \*\*(\d+)p\*\* \|$/gm)].map((match) => Number(match[1]));
+    const first = points(barem.slice(0, secondSubject));
+    const second = points(barem.slice(secondSubject));
+    expect(first.reduce((sum, value) => sum + value, 0)).toBe(70);
+    expect(second.reduce((sum, value) => sum + value, 0)).toBe(20);
+    // The composition is two items: 7 steps of content (12 points), 8 of writing (8 points).
+    expect(second.slice(0, 7).reduce((sum, value) => sum + value, 0)).toBe(12);
+    expect(second.slice(7)).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
+  });
+
   it('names the barem mode and its references', () => {
     expect(skill).toContain('## Mode `barem`');
     expect(skill).toContain('references/barem-writing.md');
