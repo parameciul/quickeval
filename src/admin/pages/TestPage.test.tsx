@@ -1248,6 +1248,7 @@ describe('TestPage evaluation', () => {
     expect(screen.getByText('Nu corectăm încă această materie.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Încearcă din nou' })).not.toBeInTheDocument();
     expect(screen.queryByText('Robotul nu a putut citi testul și baremul.')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Corectare' })).getByRole('button', { name: 'Schimbă materia' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('link', { name: 'Înlocuiește testul' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Pregătire' })).toBeInTheDocument();
     expect(screen.getByLabelText('Înlocuiește testul')).toBeEnabled();
@@ -1599,5 +1600,79 @@ describe('TestPage evaluation', () => {
     expect(await screen.findByText('Robotul nu a putut scrie analiza clasei.')).toBeInTheDocument();
     await openStage('Rezultate');
     expect(screen.getByRole('link', { name: 'Deschide raportul' })).toBeInTheDocument();
+  });
+});
+
+describe('TestPage subject', () => {
+  const subjects = () => within(sheet()).getByRole('group', { name: 'Materia testului' });
+
+  it('shows in Fișa testului that the robot finds the subject, and the teacher can choose it', async () => {
+    const api = apiWith();
+    renderAdmin(PAGE, api);
+    expect(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByText('Se stabilește la corectare')).toBeInTheDocument();
+    await userEvent.click(within(sheet()).getByRole('button', { name: 'Alege materia' }));
+    expect(within(subjects()).getAllByRole('radio').map((radio) => radio.closest('label')!.textContent)).toEqual([
+      'Matematică',
+      'Fizică',
+      'Chimie',
+      'Biologie',
+      'Științe',
+      'Limba română',
+      'Limba engleză',
+    ]);
+    expect(within(sheet()).getByRole('button', { name: 'Salvează' })).toBeDisabled();
+    // A draft has no exercise list: nothing is graded again.
+    await userEvent.click(within(subjects()).getByRole('radio', { name: 'Fizică' }));
+    expect(within(sheet()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
+    await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
+    expect(api.setSubject).toHaveBeenCalledWith('6E2-26T1', 'fizica');
+    expect(await within(sheet()).findByText('Fizică')).toBeInTheDocument();
+    expect(within(sheet()).getByRole('button', { name: 'Schimbă materia' })).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('says that a finished test is graded again with a new subject, and that the robot starts', async () => {
+    const api = apiWith({
+      status: 'done',
+      exerciseList: { status: 'ready', message: null },
+      subject: { value: 'matematica', name: '', by: 'robot' },
+    });
+    renderAdmin(PAGE, api);
+    await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
+    expect(within(subjects()).getByRole('radio', { name: 'Matematică' })).toBeChecked();
+    expect(within(sheet()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
+    await userEvent.click(within(subjects()).getByRole('radio', { name: 'Fizică' }));
+    expect(within(sheet()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
+    await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(robotStartMessage('next_check'));
+    expect(await within(sheet()).findByText('Fizică')).toBeInTheDocument();
+  });
+
+  it('keeps the form open with the reason when the subject cannot change now', async () => {
+    const api = apiWith({ status: 'evaluating', exerciseList: { status: 'ready', message: null }, subject: { value: 'matematica', name: '', by: 'robot' } });
+    api.setSubject.mockRejectedValueOnce(new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba materia după ce se termină corectarea.'));
+    renderAdmin(PAGE, api);
+    await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
+    await userEvent.click(within(subjects()).getByRole('radio', { name: 'Chimie' }));
+    await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
+    expect(await within(sheet()).findByText('Testul se corectează acum. Poți schimba materia după ce se termină corectarea.')).toBeInTheDocument();
+    await userEvent.click(within(sheet()).getByRole('button', { name: 'Renunță' }));
+    expect(within(sheet()).getByText('Matematică')).toBeInTheDocument();
+  });
+
+  it('says in Pregătire that a subject the generated barem found is not graded, and the teacher changes it there', async () => {
+    const api = apiWith({ subject: { value: 'alta', name: 'istorie', by: 'robot' } });
+    renderAdmin(`${PAGE}#pregatire`, api);
+    const panel = await screen.findByRole('region', { name: 'Pregătire' });
+    expect(within(panel).getByText(unsupportedMessage('istorie'))).toBeInTheDocument();
+    expect(within(sheet()).getByText('istorie (nu o corectăm)')).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Schimbă materia' }));
+    // No subject is chosen yet: the robot's guess is not one of the list.
+    expect(within(panel).getAllByRole('radio').filter((radio) => (radio as HTMLInputElement).checked)).toEqual([]);
+    await userEvent.click(within(panel).getByRole('radio', { name: 'Limba română' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
+    expect(api.setSubject).toHaveBeenCalledWith('6E2-26T1', 'romana');
+    await waitFor(() => expect(within(panel).queryByText(unsupportedMessage('istorie'))).not.toBeInTheDocument());
+    expect(within(sheet()).getByText('Limba română')).toBeInTheDocument();
   });
 });

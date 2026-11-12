@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useId, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
-import type { TestInfo } from '../../../shared/api.ts';
+import type { RobotStart, TestInfo } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { MAX_TITLE_LENGTH } from '../../../shared/tests.ts';
@@ -11,6 +11,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ArchiveDialog, hasOpenResults } from '../ArchiveDialog.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { StatusChip } from '../StatusChip.tsx';
+import { SubjectChange, subjectLine } from './SubjectForm.tsx';
 import { UploadLink } from './UploadLink.tsx';
 
 // The barem in a few words. Not its points: the API knows them only after the
@@ -25,10 +26,18 @@ export function baremState(test: Pick<TestInfo, 'files' | 'barem'>): string {
   return 'activ';
 }
 
-// "Fișa testului" (redesign spec §6): the facts and files of the test, the
-// students' link while they may still need it, and renaming, archiving and
-// deleting the test. It shows beside every stage.
-export function TestSheet({ test, onChanged }: { test: TestInfo; onChanged: () => Promise<void> }) {
+// "Fișa testului" (redesign spec §6): the facts and files of the test, its
+// subject (spec: any subject), the students' link while they may still need
+// it, and renaming, archiving and deleting the test. It shows beside every stage.
+export function TestSheet({
+  test,
+  onChanged,
+  onRobot,
+}: {
+  test: TestInfo;
+  onChanged: () => Promise<void>;
+  onRobot: (robot: RobotStart | null) => void;
+}) {
   const api = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -62,6 +71,11 @@ export function TestSheet({ test, onChanged }: { test: TestInfo; onChanged: () =
         </dd>
         <dt>Codul</dt>
         <dd>{test.code}</dd>
+        <dt>Materia</dt>
+        <dd className="sheet-subject">
+          {subjectLine(test)}
+          <SubjectChange test={test} onChanged={onChanged} onRobot={onRobot} />
+        </dd>
         <dt>Starea</dt>
         <dd>
           <StatusChip status={test.status} />
