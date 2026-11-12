@@ -90,10 +90,13 @@ export function ReviewDecision({
           )}
         </p>
       )}
-      {evaluation !== null && <Exercises code={code} submissionId={submission.id} items={evaluation.items} current={view.kind === 'item' ? view.item.id : null} />}
-      <p>
-        <Link to={`/teste/${code}/elevi/${submission.id}`}>Deschide lucrarea</Link>
-      </p>
+      {evaluation === null ? (
+        <p>
+          <Link to={`/teste/${code}/elevi/${submission.id}`}>Deschide lucrarea</Link>
+        </p>
+      ) : (
+        <Exercises code={code} submissionId={submission.id} items={evaluation.items} current={view.kind === 'item' ? view.item.id : null} />
+      )}
     </section>
   );
 }
@@ -220,11 +223,14 @@ function Total({ evaluation }: { evaluation: EvaluationInfo }) {
 }
 
 // The paper's exercises with their points: the open one marked, the others
-// to check open on a click.
+// to check open on a click. "Deschide lucrarea" shares their heading's row.
 function Exercises({ code, submissionId, items, current }: { code: string; submissionId: number; items: EvaluationItemInfo[]; current: number | null }) {
   return (
     <>
-      <h3>Exercițiile lucrării</h3>
+      <div className="review-exercises-head">
+        <h3>Exercițiile lucrării</h3>
+        <Link to={`/teste/${code}/elevi/${submissionId}`}>Deschide lucrarea</Link>
+      </div>
       <ul className="review-exercises">
         {items.map((item) => {
           const toCheck = item.needsReview && !item.reviewed;

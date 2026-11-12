@@ -55,13 +55,35 @@ describe('brand.css', () => {
     ]);
   });
 
-  it('lines the result page header and footer up with its wide content', () => {
-    expect(value(declarations('.upload-page.result-page'), 'max-width')).toBe('96rem');
-    expect(value(declarations('.result-shell .wrap'), 'max-width')).toBe('96rem');
+  it('gives the result page, its header and its footer the full width of a desktop', () => {
+    expect(value(declarations('.upload-page.result-page,\n.result-shell .wrap'), 'max-width')).toBe('none');
+    const start = css.indexOf('@media not (max-width: 56.25rem) {\n  .result-shell .wrap {');
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(css.slice(start, css.indexOf('}', start))).toContain('padding-inline: 2rem');
   });
 
   it('gives the exercises table all the room the final words leave', () => {
-    expect(value(declarations('.result-columns'), 'grid-template-columns')).toBe('minmax(0, 1fr) minmax(18rem, 24rem)');
+    expect(value(declarations('.result-columns'), 'grid-template-columns')).toBe('minmax(0, 1fr) minmax(23.4rem, 31.2rem)');
+  });
+
+  it('puts the final words under the exercises while the files are shown', () => {
+    expect(value(declarations('.result-layout:not(.is-collapsed) .result-columns'), 'grid-template-columns')).toBe('minmax(0, 1fr)');
+  });
+
+  it('draws the hidden files as a strip on every page that has them', () => {
+    expect(css).not.toContain('.submission-page .result-files');
+    expect(css).not.toContain('.submission-page .files-head');
+    const strip = declarations('.result-layout .result-files.is-collapsed .files-head');
+    expect(value(strip, 'border')).toBe('1px solid var(--rule)');
+    expect(value(strip, 'padding')).toBe('0.6rem 1rem');
+    // Four classes: more than ".result-layout.is-collapsed .files-head", which
+    // takes the bottom padding away.
+    expect(value(declarations('.result-layout.is-collapsed .files-head'), 'padding-bottom')).toBe('0');
+    expect(value(declarations('.result-files .files-head h2'), 'font-size')).toBe('1rem');
+  });
+
+  it("sticks the student's shown files under the student page's header", () => {
+    expect(value(declarations('.result-page'), '--top')).toBe('calc(3.75rem + 1px)');
   });
 
   it('keeps the exercises and the final words in one column up to a small laptop', () => {
@@ -75,10 +97,11 @@ describe('brand.css', () => {
     expect(start).toBeGreaterThanOrEqual(0);
     const print = css.slice(start);
     const hidden = print.slice(0, print.indexOf('display: none'));
-    for (const selector of ['.student-nav', '.result-actions', '.result-page .files-head', '.result-page .page-files', '.result-foot']) {
+    for (const selector of ['.student-nav', '.result-actions', '.result-page .result-files', '.result-foot']) {
       expect(hidden).toContain(selector);
     }
     expect(print).toMatch(/\.result-columns \{\s*grid-template-columns: minmax\(0, 1fr\);/);
+    expect(print).toMatch(/\.result-page \.result-layout \{\s*grid-template-columns: minmax\(0, 1fr\);/);
     const light = declarations(':root');
     const printed = print.slice(print.indexOf(':root[data-theme="dark"]'));
     for (const decl of declarations(':root[data-theme="dark"]')) {

@@ -19,11 +19,12 @@ export interface PageBox {
 }
 
 export const WHOLE_PAGE: ZoomView = { scale: 1, cx: 0.5, cy: 0.5 };
-// A click zooms this much: enough to read handwriting on a phone photo.
-export const CLICK_SCALE = 2.5;
+// One step of the zoom: a left click, a right click and the two buttons all
+// take this same step, so the page grows or shrinks a little at a time and
+// never jumps. A quarter more is enough to read a line of handwriting on a
+// phone photo after two clicks.
+export const ZOOM_STEP = 1.25;
 export const MAX_SCALE = 6;
-// An area fills this share of the pane, so its border and label fit around it.
-const AREA_FILL = 0.75;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -41,36 +42,34 @@ function pageAt(view: ZoomView, px: number, py: number): { x: number; y: number 
   return { x: view.cx + (px - 0.5) / view.scale, y: view.cy + (py - 0.5) / view.scale };
 }
 
-// A click on the whole page: zoom in, centred on the point clicked.
+// A click on the page: one step in, centred on the point clicked.
 export function zoomInAt(view: ZoomView, px: number, py: number): ZoomView {
-  const { x, y } = pageAt(view, px, py);
-  return clampView({ scale: CLICK_SCALE, cx: x, cy: y });
+  return zoomAround(view, view.scale * ZOOM_STEP, px, py);
 }
 
-// The wheel: a new scale, and the point under the pointer stays under it.
+// A right click or the button "−": one step out, centred on the same point.
+// At the whole page there is nothing to take away: the view stays whole.
+export function zoomOutAt(view: ZoomView, px: number, py: number): ZoomView {
+  return zoomAround(view, view.scale / ZOOM_STEP, px, py);
+}
+
+// The new scale, with the point under the pointer staying under it.
 export function zoomAround(view: ZoomView, scale: number, px: number, py: number): ZoomView {
   const { x, y } = pageAt(view, px, py);
   const next = clamp(scale, 1, MAX_SCALE);
   return clampView({ scale: next, cx: x - (px - 0.5) / next, cy: y - (py - 0.5) / next });
 }
 
-// The wheel's step: about 1.0015 per pixel scrolled (a mouse notch of 100 px
-// zooms by about 1.16), so a trackpad's many small steps zoom smoothly too. A
-// trackpad pinch (the browser marks it with ctrlKey) sends far smaller steps,
-// so it zooms about 1.01 per pixel.
-export function wheelScale(scale: number, deltaPixels: number, pinch = false): number {
-  return scale * Math.exp(-deltaPixels * (pinch ? 0.01 : 0.0015));
+// A trackpad pinch, which the browser sends as a wheel with ctrlKey: about
+// 1.01 per pixel, so the many small steps of a pinch zoom smoothly. A plain
+// wheel never zooms the page: it scrolls the page, as it should.
+export function pinchScale(scale: number, deltaPixels: number): number {
+  return scale * Math.exp(-deltaPixels * 0.01);
 }
 
 // A drag: the page follows the pointer. `dx`, `dy` are fractions of the pane.
 export function panBy(view: ZoomView, dx: number, dy: number): ZoomView {
   return clampView({ ...view, cx: view.cx - dx / view.scale, cy: view.cy - dy / view.scale });
-}
-
-// The view that shows a box in the middle of the pane, as big as fits.
-export function viewOfBox(box: PageBox): ZoomView {
-  const size = Math.max(box.x1 - box.x0, box.y1 - box.y0, 0.01);
-  return clampView({ scale: AREA_FILL / size, cx: (box.x0 + box.x1) / 2, cy: (box.y0 + box.y1) / 2 });
 }
 
 // Where a box of the page is in the pane, as fractions of the pane.

@@ -49,7 +49,7 @@ The root `AGENTS.md` says: "Student pages show only the MQGrader mark and name i
 
 ### 5.3 Desktop layout: layout B
 
-- The page is up to 96rem wide, centred, so on a full-width desktop window the exercises table has room (changed from 64rem after the first build: the table was too crowded). The right column is 18-24rem wide; the table takes the rest.
+- On a desktop the page takes the full width of the window, with 2rem side margins like the teacher pages, so the exercises table has room (first 64rem, then 96rem, then no cap: the table was still crowded). The right column is 18-24rem wide; the table takes the rest.
 - Top: the class and test code line, the student's name, the test title.
 - Then the grade first, in a big card: the grade large, with "N puncte din M" and the office points line as today.
 - Then two columns: the exercises table on the left (wider, about 1.6 : 1), and on the right "Rezumat", "Ce ai lucrat bine" and "Recomandări", each in its own card.

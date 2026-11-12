@@ -5,7 +5,7 @@ import { useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { submissionFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { AnswerFrame } from './AnswerFrame.tsx';
-import { isZoomed, viewOfBox, WHOLE_PAGE, type ZoomView } from './zoom.ts';
+import { isZoomed, WHOLE_PAGE, type ZoomView } from './zoom.ts';
 import { ZoomPhoto } from './ZoomPhoto.tsx';
 
 // The answer to check: `key` names it (the paper and the item), `label` is the
@@ -17,11 +17,12 @@ export interface ReviewFocus {
 }
 
 // The middle pane of the review: one page of the paper at a time, with the
-// page switch. A photo zooms inside the pane (ZoomPhoto); "Toată pagina", a
-// right click or Esc shows the whole page again. A PDF shows in a frame.
-// While "Arată chenarul" is on, the answer to check opens zoomed on its first
-// area with an orange border; an answer in more parts steps through them with
-// the arrows beside the border's label.
+// page switch. A photo zooms inside the pane (ZoomPhoto): "Toată pagina" and
+// Esc show the whole page again, and a right click takes one step out. A PDF
+// shows in a frame. While "Arată chenarul" is on, the answer to check opens on
+// its page with an orange border around its first area, on the whole page: the
+// page never zooms by itself. An answer in more parts steps through them with
+// the arrows beside the border's label, each part opening on its page, whole.
 export function ReviewPhoto({
   submission,
   page,
@@ -53,10 +54,10 @@ export function ReviewPhoto({
   const focusKey = framed ? `framed:${framed.key}` : `plain:${focus?.key ?? ''}`;
   const [part, setPart] = useState<{ key: string; index: number } | null>(null);
   const partIndex = part !== null && part.key === focusKey ? Math.min(part.index, (framed?.areas.length ?? 1) - 1) : 0;
-  const partArea = framed?.areas[partIndex];
 
-  // The zoom of the page shown. An answer that opens shows its part zoomed;
-  // a page the teacher picks herself opens whole.
+  // The zoom of the page shown. A page opens whole, also when it holds the
+  // answer to check; only the teacher's own moves zoom it: a click, the
+  // buttons over the page, or a pinch.
   const fileKey = `${submission.id}:${file?.id ?? ''}`;
   const [zoom, setZoom] = useState<{ focusKey: string; fileKey: string; view: ZoomView } | null>(null);
   // Another page forgets the zoom, so coming back to a page shows it as it opens.
@@ -65,23 +66,16 @@ export function ReviewPhoto({
     setShownFile(fileKey);
     if (zoom !== null && zoom.fileKey !== fileKey) setZoom(null);
   }
-  const view =
-    zoom !== null && zoom.focusKey === focusKey
-      ? zoom.fileKey === fileKey
-        ? zoom.view
-        : WHOLE_PAGE
-      : partArea && partArea.page === index + 1
-        ? viewOfBox(partArea)
-        : WHOLE_PAGE;
+  const view = zoom !== null && zoom.focusKey === focusKey && zoom.fileKey === fileKey ? zoom.view : WHOLE_PAGE;
   const setView = (next: ZoomView) => setZoom({ focusKey, fileKey, view: next });
 
-  // The next or the previous part: its page, zoomed on it.
+  // The next or the previous part: its page, shown whole. The teacher zooms
+  // it herself if she wants to.
   const goPart = (next: number) => {
     const area = framed?.areas[next];
     const target = area && files[area.page - 1];
     if (!area || !target) return;
     setPart({ key: focusKey, index: next });
-    setZoom({ focusKey, fileKey: `${submission.id}:${target.id}`, view: viewOfBox(area) });
     onPage(area.page - 1);
   };
 

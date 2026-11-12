@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { parsePositiveId } from '../../../shared/ids.ts';
 import { normalizeTestCode } from '../../../shared/tests.ts';
+import { FilesBeside } from '../../ui/FilesBeside.tsx';
 import { formatDateTime, robotStartMessage, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -39,13 +40,6 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   const queryClient = useQueryClient();
   // What happened after Recorectează or Reîncearcă.
   const [notice, setNotice] = useState<string | null>(null);
-  // The files start hidden, leaving the full width to the result. Opening
-  // them always starts the list at the top.
-  const [filesOpen, setFilesOpen] = useState(false);
-  const filesScroll = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (filesOpen && filesScroll.current) filesScroll.current.scrollTop = 0;
-  }, [filesOpen, submissionId]);
   const detail = useQuery({
     queryKey: ['submission', submissionId],
     queryFn: () => api.getSubmission(submissionId),
@@ -179,42 +173,22 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
       )}
       {showNotice && <p role="status">{notice}</p>}
 
-      <div className={filesOpen ? 'result-layout' : 'result-layout is-collapsed'}>
-        <div className={filesOpen ? 'result-files' : 'result-files is-collapsed'}>
-          <div className="files-head">
-            <h2>Fișiere ({submission.files.length})</h2>
-            <button
-              type="button"
-              className="button-quiet button-small"
-              aria-expanded={filesOpen}
-              onClick={() => setFilesOpen(!filesOpen)}
-            >
-              {filesOpen ? 'Ascunde fișierele' : 'Arată fișierele'}
+      <FilesBeside count={submission.files.length} files={<PageFiles submissionId={submissionId} files={submission.files} />}>
+        <h2 className="sr-only">Rezultatul</h2>
+        {submission.status === 'graded' && submission.evaluation ? (
+          <GradedResult submissionId={submissionId} evaluation={submission.evaluation} onSaved={saved} />
+        ) : submission.status === 'failed' ? (
+          <div className="warning">
+            <p>Corectarea a eșuat. {submission.lastError}</p>
+            <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate(submission.startedAt)}>
+              Reîncearcă
             </button>
+            {retry.error && <ErrorMessage error={retry.error} />}
           </div>
-          {filesOpen && (
-            <div className="result-files-scroll" ref={filesScroll}>
-              <PageFiles submissionId={submissionId} files={submission.files} />
-            </div>
-          )}
-        </div>
-        <div className="result-main">
-          <h2 className="sr-only">Rezultatul</h2>
-          {submission.status === 'graded' && submission.evaluation ? (
-            <GradedResult submissionId={submissionId} evaluation={submission.evaluation} onSaved={saved} />
-          ) : submission.status === 'failed' ? (
-            <div className="warning">
-              <p>Corectarea a eșuat. {submission.lastError}</p>
-              <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate(submission.startedAt)}>
-                Reîncearcă
-              </button>
-              {retry.error && <ErrorMessage error={retry.error} />}
-            </div>
-          ) : (
-            <p className="hint">{waitingText(submission)}</p>
-          )}
-        </div>
-      </div>
+        ) : (
+          <p className="hint">{waitingText(submission)}</p>
+        )}
+      </FilesBeside>
     </section>
   );
 }

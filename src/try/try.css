@@ -1,19 +1,36 @@
-/* A Quick Try's page: the teacher app's top bar and look, in one column of
-   one width, whatever the view shows. The scrollbar's room is always kept,
+/* A Quick Try's page: the teacher app's top bar and look, in one column the
+   full width of the screen, with the teacher pages' side margins on a
+   desktop, whatever the view shows. The scrollbar's room is always kept,
    so a short view and a long one start at the same place. */
 html {
   scrollbar-gutter: stable;
 }
 
+/* The teacher app's top bar sizes, set here because the page has no shell.
+   Only on the bar: --top also places what sticks under it, and this bar
+   scrolls away with the page. */
 .try-topbar {
+  --bar: 80px;
+  --top: 60px;
   position: static;
+}
+
+@media (max-width: 56.25rem) {
+  .try-topbar {
+    --top: 56px;
+  }
 }
 
 .try-page {
   width: 100%;
-  max-width: 72rem;
   margin: 0 auto;
   padding: 1.5rem 1rem 3rem;
+}
+
+@media not (max-width: 56.25rem) {
+  .try-page {
+    padding-inline: 2rem;
+  }
 }
 
 .try-notice {
@@ -284,7 +301,10 @@ label.button-quiet.is-disabled {
   font-weight: 700;
 }
 
+/* The tabs stay on screen (the page's top bar scrolls away): the shown files
+   stick under them. */
 .try-panel {
+  --top: 2.75rem;
   min-height: 24rem;
 }
 

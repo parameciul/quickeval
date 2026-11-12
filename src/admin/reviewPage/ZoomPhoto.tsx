@@ -1,10 +1,13 @@
 import { type CSSProperties, type PointerEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { isReviewKey } from './keys.ts';
-import { isZoomed, layerTransform, panBy, WHOLE_PAGE, wheelScale, zoomAround, zoomInAt, type ZoomView } from './zoom.ts';
+import { isZoomed, layerTransform, MAX_SCALE, panBy, pinchScale, WHOLE_PAGE, zoomAround, zoomInAt, zoomOutAt, type ZoomView } from './zoom.ts';
 
 // A page of the paper that zooms inside the middle pane: a left click zooms in
-// on the point clicked, the wheel zooms around the pointer, a drag moves the
-// zoomed page, and a right click or Esc shows the whole page again. The view
+// one step on the point clicked, a right click zooms out as much, a drag moves
+// the zoomed page, and the two buttons over the page take the same step. The
+// wheel is left to the page, which scrolls with it; only a trackpad pinch (a
+// wheel with ctrlKey) zooms, around the pointer, and two fingers pinch on a
+// touch screen. Esc and "Toată pagina" show the whole page again. The view
 // belongs to the caller, who also shows "Toată pagina". `children` are drawn
 // over the page (the border of an answer), in the pane's own coordinates.
 export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; alt: string; view: ZoomView; onView: (view: ZoomView) => void; children?: ReactNode }) {
@@ -14,8 +17,12 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
   const [loaded, setLoaded] = useState<{ src: string; ratio: number } | null>(null);
   const ratio = loaded !== null && loaded.src === src ? loaded.ratio : 3 / 4;
   const zoomed = isZoomed(view);
-  // The drag under way: where it started, and whether it moved yet.
-  const drag = useRef<{ id: number; x: number; y: number; view: ZoomView; moved: boolean } | null>(null);
+  // The fingers down on the page, where each of them is: two of them pinch.
+  const fingers = useRef(new Map<number, { x: number; y: number }>());
+  // The drag under way: where it started, with which button, and whether it moved.
+  const drag = useRef<{ id: number; button: number; x: number; y: number; view: ZoomView; moved: boolean } | null>(null);
+  // The pinch under way: the gap between the fingers and the view it started on.
+  const pinch = useRef<{ gap: number; view: ZoomView } | null>(null);
   // The handlers below are set once; they read the current view here.
   const current = useRef({ view, onView });
   current.current = { view, onView };
@@ -26,15 +33,17 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
     return { px: rect.width ? (clientX - rect.left) / rect.width : 0.5, py: rect.height ? (clientY - rect.top) / rect.height : 0.5, rect };
   };
 
-  // The wheel zooms; the page scrolls only at the whole page, wheeling out.
+  // A trackpad pinch zooms around the pointer. A plain wheel belongs to the
+  // page: it scrolls the page, and the photo may pass under it meanwhile.
   useEffect(() => {
     const element = pane.current;
     if (!element) return;
     const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
       const { view: now, onView: set } = current.current;
       const { px, py, rect } = at(event.clientX, event.clientY);
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height || 800 : 1;
-      const next = zoomAround(now, wheelScale(now.scale, event.deltaY * unit, event.ctrlKey), px, py);
+      const next = zoomAround(now, pinchScale(now.scale, event.deltaY * unit), px, py);
       if (!isZoomed(now) && !isZoomed(next)) return;
       event.preventDefault();
       set(next);
@@ -56,11 +65,31 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
   }, [zoomed]);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, view, moved: false };
+    if (event.button !== 0 && event.button !== 2) return;
+    fingers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    // Two fingers on the page: a pinch, and the press under way is no click.
+    if (fingers.current.size === 2) {
+      const [one, two] = [...fingers.current.values()];
+      drag.current = null;
+      pinch.current = { gap: Math.hypot(two!.x - one!.x, two!.y - one!.y), view };
+      return;
+    }
+    drag.current = { id: event.pointerId, button: event.button, x: event.clientX, y: event.clientY, view, moved: false };
   };
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!fingers.current.has(event.pointerId)) return;
+    fingers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // Two fingers: the gap between them sets the zoom, around their middle.
+    const two = pinch.current;
+    if (two !== null && fingers.current.size >= 2) {
+      const [one, other] = [...fingers.current.values()];
+      if (two.gap < 1) return;
+      const gap = Math.hypot(other!.x - one!.x, other!.y - one!.y);
+      const { px, py } = at((one!.x + other!.x) / 2, (one!.y + other!.y) / 2);
+      onView(zoomAround(two.view, two.view.scale * (gap / two.gap), px, py));
+      return;
+    }
     const start = drag.current;
     if (!start || start.id !== event.pointerId) return;
     const dx = event.clientX - start.x;
@@ -68,19 +97,29 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
     // A few pixels of a shaking hand are still a click.
     if (!start.moved && Math.hypot(dx, dy) < 4) return;
     start.moved = true;
-    if (!isZoomed(start.view)) return;
+    // Only the left button moves the page, and only a zoomed one.
+    if (start.button !== 0 || !isZoomed(start.view)) return;
     const { rect } = at(event.clientX, event.clientY);
     if (rect.width && rect.height) onView(panBy(start.view, dx / rect.width, dy / rect.height));
   };
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const pinching = pinch.current !== null;
+    fingers.current.delete(event.pointerId);
+    if (pinching) {
+      // A pinch never ends as a click; with one finger left, the next press
+      // starts the drag again.
+      if (fingers.current.size < 2) pinch.current = null;
+      drag.current = null;
+      return;
+    }
     const start = drag.current;
     if (!start || start.id !== event.pointerId) return;
     drag.current = null;
-    // A click zooms in on the whole page; on a zoomed page it does nothing.
-    if (!start.moved && !isZoomed(start.view)) {
-      const { px, py } = at(event.clientX, event.clientY);
-      onView(zoomInAt(start.view, px, py));
-    }
+    if (start.moved) return;
+    // A click with no drag zooms one step: in with the left button, out with
+    // the right one, as the two buttons over the page do.
+    const { px, py } = at(event.clientX, event.clientY);
+    onView(start.button === 2 ? zoomOutAt(start.view, px, py) : zoomInAt(start.view, px, py));
   };
 
   const style = { '--page-ratio': ratio } as CSSProperties;
@@ -89,18 +128,17 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
       ref={pane}
       className={zoomed ? 'zoom-pane is-zoomed' : 'zoom-pane'}
       style={style}
-      title={zoomed ? undefined : 'Clic pentru mărire'}
+      title={zoomed ? 'Trage pentru a muta; clic dreapta pentru micșorare' : 'Clic pentru mărire'}
       data-testid="zoom-pane"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={() => {
+      onPointerCancel={(event) => {
+        fingers.current.delete(event.pointerId);
         drag.current = null;
+        pinch.current = null;
       }}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        if (zoomed) onView(WHOLE_PAGE);
-      }}
+      onContextMenu={(event) => event.preventDefault()}
     >
       <div className="zoom-layer" style={{ transform: layerTransform(view) }}>
         <img
@@ -114,6 +152,38 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
         />
       </div>
       {children}
+      {/* The zoom's buttons float over the page, in reach of a thumb on a
+          phone: a press on one is never a press on the page under it. */}
+      <span
+        className="zoom-controls"
+        role="group"
+        aria-label="Mărirea paginii"
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerUp={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="button-quiet button-small"
+          aria-label="Micșorează"
+          disabled={!zoomed}
+          onClick={() => onView(zoomOutAt(view, 0.5, 0.5))}
+        >
+          −
+        </button>
+        <span className="zoom-level" aria-hidden="true">
+          {Math.round(view.scale * 100)}%
+        </span>
+        <button
+          type="button"
+          className="button-quiet button-small"
+          aria-label="Mărește"
+          disabled={view.scale >= MAX_SCALE}
+          onClick={() => onView(zoomInAt(view, 0.5, 0.5))}
+        >
+          +
+        </button>
+      </span>
     </div>
   );
 }

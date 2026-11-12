@@ -2330,8 +2330,8 @@ table.tests .row-actions {
 
 /* The review of the points to check (redesign spec §7): the papers, the page
    of the paper and the decision side by side; below 1280px the papers go under
-   the page, which keeps its width; on a phone one column, the page first and
-   the papers last. */
+   the page, which keeps its width; on a phone one column, the decision first,
+   then the page, and the papers last. */
 .review-head {
   display: flex;
   flex-wrap: wrap;
@@ -2360,7 +2360,7 @@ table.tests .row-actions {
 
 .review-panes {
   display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(360px, 432px);
   grid-template-areas: "queue photo decision";
   gap: 1rem;
   align-items: start;
@@ -2462,6 +2462,20 @@ table.tests .row-actions {
   font-size: 0.875rem;
 }
 
+/* The points of a point to check, apart from its exercise: a grey label. */
+.review-point-score {
+  display: inline-block;
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  background: var(--active);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
 .review-queue a[aria-current="true"] {
   background: var(--marker);
   font-weight: 700;
@@ -2518,7 +2532,9 @@ table.tests .row-actions {
 /* A page of the paper zooms inside the pane: the pane has the photo's shape
    (--page-ratio, width / height) and the whole width of the middle card, so
    the handwriting is as big as the card allows (a tall page scrolls); the
-   layer moves and grows inside it. */
+   layer moves and grows inside it. A finger scrolls the page over the whole
+   page, where a pinch is the page's own; zoomed, the page under the finger
+   moves. */
 .zoom-pane {
   position: relative;
   overflow: hidden;
@@ -2527,6 +2543,7 @@ table.tests .row-actions {
   margin-inline: auto;
   border-radius: var(--radius);
   cursor: zoom-in;
+  touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -2538,6 +2555,53 @@ table.tests .row-actions {
 
 .zoom-pane.is-zoomed:active {
   cursor: grabbing;
+}
+
+/* The zoom's own buttons, floating over the page's top right corner: a wheel
+   over the page scrolls it, so the zoom is taken by a button, a click or a
+   pinch, and these stay in reach of a thumb on a phone. */
+.zoom-controls {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  box-shadow: var(--float);
+}
+
+.zoom-controls .button-small {
+  width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.zoom-level {
+  min-width: 2.75rem;
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+@media (pointer: coarse) {
+  .zoom-controls {
+    gap: 0.375rem;
+    padding: 0.375rem 0.5rem;
+  }
+
+  .zoom-controls .button-small {
+    width: 2.75rem;
+    min-height: 2.75rem;
+    font-size: 1.25rem;
+  }
 }
 
 .zoom-layer {
@@ -2660,6 +2724,20 @@ table.tests .row-actions {
   font-size: 0.9375rem;
 }
 
+/* The exercises' heading and "Deschide lucrarea" on one row. */
+.review-exercises-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.review-exercises-head h3 {
+  margin: 0;
+}
+
 .review-item-head {
   display: flex;
   flex-wrap: wrap;
@@ -2747,7 +2825,7 @@ table.tests .row-actions {
 
 @media (max-width: 80rem) {
   .review-panes {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    grid-template-columns: minmax(0, 1fr) minmax(336px, 408px);
     grid-template-areas:
       "photo decision"
       "queue decision";
@@ -2758,8 +2836,8 @@ table.tests .row-actions {
   .review-panes {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "photo"
       "decision"
+      "photo"
       "queue";
   }
 
@@ -3642,15 +3720,17 @@ table.uploads .row-actions {
   margin-left: auto;
 }
 
-/* The files strip while the files are hidden: same look as the link strip. */
-.submission-page .result-files.is-collapsed .files-head {
+/* The files strip while the files are hidden: same look as the link strip.
+   The selector outweighs the collapsed layout's "padding-bottom: 0" below,
+   so the title and the button stay in the middle of the strip. */
+.result-layout .result-files.is-collapsed .files-head {
   padding: 0.6rem 1rem;
   border: 1px solid var(--rule);
   border-radius: var(--radius-panel);
   background: var(--sheet);
 }
 
-.submission-page .files-head h2 {
+.result-files .files-head h2 {
   font-size: 1rem;
 }
 
@@ -4372,16 +4452,18 @@ table.items tr.edit-row > td {
   padding-block: 1.25rem 2.5rem;
 }
 
-/* The student's result page: wide on a desktop, so the exercises table has
-   room beside the final words, with a cap so lines do not run on forever on
-   a very wide screen. */
-.upload-page.result-page {
-  max-width: 96rem;
+/* The student's result page: the full width of a desktop, with the teacher
+   pages' side margins, so the exercises table has room beside the final
+   words. The header and the footer keep the content's edges. */
+.upload-page.result-page,
+.result-shell .wrap {
+  max-width: none;
 }
 
-/* The header and the footer of the result page keep the content's edges. */
-.result-shell .wrap {
-  max-width: 96rem;
+@media not (max-width: 56.25rem) {
+  .result-shell .wrap {
+    padding-inline: 2rem;
+  }
 }
 
 .result-grade {
@@ -4426,9 +4508,11 @@ table.items tr.edit-row > td {
   margin: 0.5rem 0 0;
 }
 
+/* The final words take about a third of a laptop's width: the summary and
+   the recommendations are long paragraphs. */
 .result-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  grid-template-columns: minmax(0, 1fr) minmax(23.4rem, 31.2rem);
   gap: 1rem;
   align-items: start;
 }
@@ -4453,8 +4537,20 @@ table.items tr.edit-row > td {
   margin-bottom: 0;
 }
 
-.result-page .files-head {
-  margin-top: 1.5rem;
+/* The student page's header (its links and theme button, with their padding
+   and border) stays on screen: the shown files stick under it. */
+.result-page {
+  --top: calc(3.75rem + 1px);
+}
+
+.result-view > .result-layout {
+  margin-top: 1rem;
+}
+
+/* With the files shown, the result has two thirds of the width: the final
+   words go under the exercises. */
+.result-layout:not(.is-collapsed) .result-columns {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .result-foot {
@@ -4493,10 +4589,13 @@ table.items tr.edit-row > td {
 @media print {
   .student-nav,
   .result-actions,
-  .result-page .files-head,
-  .result-page .page-files,
+  .result-page .result-files,
   .result-foot {
     display: none;
+  }
+
+  .result-page .result-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .site-header {

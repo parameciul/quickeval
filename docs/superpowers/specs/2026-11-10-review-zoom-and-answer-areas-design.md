@@ -25,7 +25,7 @@ The grading skill was run with `npm run try:skill` on two real papers (one stude
 ## Goals
 
 - Zoom and pan inside the middle pane, for photo pages.
-- Picking an exercise opens the page of its first area, zoomed on that area, with a border around it.
+- Picking an exercise opens the page of its first area, whole, with a border around that area. (The page never zooms by itself: the teacher's own click, her buttons or a pinch zooms it.)
 - An exercise with more than one area lets the teacher step through its parts.
 - The robot saves the areas when it grades; the page draws them from the saved data.
 - One switch turns the borders off.
@@ -35,7 +35,6 @@ The grading skill was run with `npm run try:skill` on two real papers (one stude
 - PDF pages. A PDF page keeps its frame and its "Deschide PDF-ul" link, with no zoom and no border.
 - The photo files. Nothing is drawn into a file; the border is drawn by the page, over the photo.
 - Other pages: the paper's page (`src/admin/submissionPage/PageFiles.tsx`, also shown in the Quick Try tab "Rezultatul profesorului"), the student pages and the PDFs and CSV made in the browser stay as they are. (Builder's call to not include them: the teacher asked for the review.)
-- Touch gestures beyond what pointer events give for free. The teacher has not used the review on a tablet or phone.
 - Regrading old papers to get areas. Old gradings have none and behave as today.
 
 ## Anti-goals
@@ -69,32 +68,36 @@ The teacher's choice: the Quick Try review behaves the same. It already is the s
 
 ### Zoom (photo pages only)
 
+Changed on 2026-11-11 at the teacher's request: the wheel no longer zooms (it was in the way of scrolling), the step is small and shared by the click, the right click and two buttons over the photo, a right click takes one step out instead of showing the whole page, and the next part of an answer no longer opens zoomed on itself.
+
 - Whole page view: as today, the page fits the pane.
-- A left click on the photo zooms in, centred on the click. (Zoom level: builder's call, enough to read handwriting.)
-- The mouse wheel zooms in and out around the mouse pointer, between the whole page and a maximum the builder picks.
-- While zoomed: hold the left button and drag to move the photo. A short click with no drag does nothing, so moving never zooms by mistake.
-- Back to the whole page: a right click on the photo (the browser menu does not open there), the Esc key, or a button above the photo, "Toată pagina" (shown only while zoomed).
+- A left click on the photo zooms in one step (a quarter more), centred on the click. A right click zooms out the same step, centred on the click; at the whole page it does nothing, and the browser's menu never opens over the photo. (The step is the builder's: small enough that the page never jumps, big enough to read handwriting after a few clicks.)
+- Two buttons float over the photo's top right corner, "Micșorează" and "Mărește", with the zoom in percent between them; they take the same step, around the middle of the pane, and stop at the whole page and at the biggest zoom. They stay in reach of a thumb on a phone.
+- The mouse wheel belongs to the page: it scrolls it, and the photo neither zooms nor takes the wheel. A trackpad pinch (a wheel with ctrlKey) still zooms around the pointer.
+- Two fingers pinch the photo on a touch screen, the gap between them setting the zoom; a pinch never ends as a click.
+- While zoomed: hold the left button and drag to move the photo. A short click with no drag zooms one step, so a click never moves the page.
+- Back to the whole page: the Esc key, or a button above the photo, "Toată pagina" (shown only while zoomed).
 - The zoom stays inside the middle pane; the left list and the right panel stay where they are.
 - The new tab link on the photo goes away ("Deschide poza mare" opened it).
-- Changing the page goes back to the whole page view, unless the change comes from an area (below).
+- Changing the page goes back to the whole page view.
 - The keyboard: Esc is enough for the teacher. Other keys (arrows to pan, +/- to zoom) are the builder's call; the zoom must not take keys that the page already uses.
 
 ### The picked exercise
 
-- Picking an exercise in the left list (or with "Următorul punct") opens the page of its first area, in page order, zoomed so that the area fills the pane with a margin, centred on it.
+- Picking an exercise in the left list (or with "Următorul punct" or "Punctul anterior") opens the page of its first area, in page order, at the whole page view, with a border around that area (the teacher asked for no automatic zoom: the page stays whole until she zooms it herself).
 - Only the picked exercise gets a border. Other exercises on the page get none.
 - Which exercises (the teacher's answer): only the points to check, the ones the left list and "Următorul punct" already open. The page's views stay as they are; an exercise the robot was sure of, or a point already decided, is not opened. Opening every exercise may come later as its own step; the robot saves areas for every exercise, so nothing is lost.
 - The border is drawn by the page over the photo: an orange dashed line (the teacher's choice: orange is the colour of what waits on her; the `orange-mark` token of the redesign spec, in both themes) that looks hand-drawn (slightly uneven). It is drawn in the photo's own coordinates, so it moves and grows with the zoom. The exact look is the builder's call, checked in light and dark themes.
 - The border's label (the exercise, for example "II.3", and "Partea 1 din 2" when there are parts) sits outside the area, never over the student's work: above the area's top left corner, or below the area when there is no room above. (The teacher's choice.)
 - The border stays when the teacher zooms out to the whole page or changes the zoom.
-- An exercise with more than one area shows, beside the border's label on the photo (the label says "partea 1 din 2"), the buttons to the next part and back; on a phone, where the label may end near the pane's edge, they float in the pane's bottom corner with "1 din 2". The next part opens its page, zoomed on it. The page switch (1 · 2 · 3) still works and shows the borders of the picked exercise on any page that has one.
+- An exercise with more than one area shows, beside the border's label on the photo (the label says "partea 1 din 2"), the buttons to the next part and back; on a phone, where the label may end near the pane's edge, they float in the pane's bottom corner with "1 din 2". The next part opens its page, whole (changed on 2026-11-11: it no longer opens zoomed on the part; the teacher zooms it herself). The page switch (1 · 2 · 3) still works and shows the borders of the picked exercise on any page that has one.
 - A turned photo needs nothing special. The upload page normally re-encodes a photo upright, but it sends the original file when re-encoding fails or comes out bigger, and such a file may carry an EXIF orientation tag, which the browser applies. A second spike (2026-11-10) graded the same 3 pages stored sideways with orientation tag 6: the robot's areas matched the upright run (mean overlap 0.93) and not the stored frame (0.08). So the robot sees the photo turned as the browser shows it, and the areas are in the frame the teacher sees. Only tag 6 was tried; the other tags are turned by the same reader.
 - An exercise with no areas (an old grading, no answer, or the robot not sure) opens as today: its `page`, whole page view, no border, no "Partea" label.
 - "Paginile necitite" (the unreadable pages point) and a paper picked from "Celelalte lucrări" open as today, with no border.
 
 ### The switch
 
-- A switch in the line above the photo, beside the page switch, "Arată chenarul" (builder may pick better Romanian words), turns the borders on and off. Off: no border, and picking an exercise opens its page at the whole page view, as today.
+- A switch in the line above the photo, beside the page switch, "Arată chenarul" (builder may pick better Romanian words), turns the borders on and off. Off: no border, and picking an exercise opens its page at the whole page view, as it does with the borders on.
 - The choice is remembered in this browser (`localStorage`, read and written in try/catch). On by default.
 
 ## Rules that stay
@@ -105,11 +108,11 @@ The teacher's choice: the Quick Try review behaves the same. It already is the s
 
 ## Left to the builder
 
-- Zoom levels, the wheel step, the maximum zoom, and the margin around an area.
+- Zoom levels, the step of a click and of the buttons, the maximum zoom, and the margin around an area.
 - How the photo is drawn and moved (CSS transform on the image and an SVG layer for the border, or another way), and the hand-drawn look.
 - The cap on areas per item.
 - The exact Romanian labels, within the meanings above.
-- Tests: the schema and `checkGrading` (areas kept, bad areas dropped), the migration and the grading write, the API answer, and the review page (zoom in, pan, right click, Esc, the button, the picked exercise's border and parts, the switch, PDF and no-area cases). Then the whole suite and a check in the browser.
+- Tests: the schema and `checkGrading` (areas kept, bad areas dropped), the migration and the grading write, the API answer, and the review page (the step of a click, the buttons, the pinch, pan, a right click, Esc, the wheel left to the page, the picked exercise's border and parts, the switch, PDF and no-area cases). Then the whole suite and a check in the browser.
 
 ## The change to the redesign spec
 

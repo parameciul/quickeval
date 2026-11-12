@@ -76,12 +76,13 @@ describe('a graded try', () => {
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
   });
 
-  it("opens the review zoomed on the answer, with the border the teacher's review draws", async () => {
+  it("opens the review on the whole page, with the border the teacher's review draws", async () => {
     setup('/', false, [], [{ page: 1, x0: 0.1, y0: 0.3, x1: 0.7, y1: 0.5 }]);
     await userEvent.click(await screen.findByRole('link', { name: 'Verifică 1 punct' }));
     const frame = await screen.findByTestId('answer-frame');
     expect(within(frame).getByText('I.1')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Toată pagina' })).toBeInTheDocument();
+    // No automatic zoom: the page stays whole until the teacher zooms it herself.
+    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Arată chenarul' })).toBeChecked();
   });
 
@@ -140,10 +141,14 @@ describe('a graded try', () => {
     expect(screen.getByRole('tab', { name: 'Verificare' })).toHaveTextContent(/^Verificare$/);
   });
 
-  it("shows the teacher's result with its pages", async () => {
+  it("shows the teacher's result with its pages first, hidden until asked for", async () => {
     const { api } = setup();
     await userEvent.click(await screen.findByRole('tab', { name: 'Rezultatul profesorului' }));
-    expect(await screen.findByText('Subiectul I, ex. 1')).toBeInTheDocument();
+    const exercise = await screen.findByText('Subiectul I, ex. 1');
+    const strip = screen.getByRole('heading', { name: /^Fișiere \(\d+\)$/ });
+    expect(strip.compareDocumentPosition(exercise) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('img', { name: 'Pagina 1' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
     expect(screen.getByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/submissions/${TRY_SUBMISSION}/files/61`);
     expect(api.getSubmission).toHaveBeenCalledWith(TRY_SUBMISSION);
   });
@@ -165,6 +170,9 @@ describe('a graded try', () => {
     expect(within(view).getByRole('heading', { name: QUICK_TRY_STUDENT })).toBeInTheDocument();
     expect(tryApi.result).toHaveBeenCalled();
     expectNoGradingWords(view.textContent ?? '');
+    const strip = within(view).getByRole('heading', { name: /^Fișiere \(\d+\)$/ });
+    const grade = within(view).getByRole('heading', { name: 'Rezultatul tău' });
+    expect(strip.compareDocumentPosition(grade) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await userEvent.click(within(view).getByRole('button', { name: 'Arată fișierele' }));
     expect(within(view).getByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/paper/61`);
   });
