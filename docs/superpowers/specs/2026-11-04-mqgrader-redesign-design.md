@@ -178,6 +178,8 @@ The landing page is indexed (SEO, GEO and AEO work: canonical, Open Graph, JSON-
 
 ## 6. Test page (`/admin/teste/:code`, Phase 4)
 
+The path above the title, the progress of the papers and the papers table are replaced by `2026-11-12-one-page-paper-check-design.md` §5.
+
 - Above the title, the link "← Toate testele". Title: the test's name. Under it: the class (a link to its page), its students ("3 elevi") and the start ("început 6 oct. 2026, 10:15"), or "ciornă" for a draft. Under that, for every stage: the notice of the page before (a new test whose file did not upload), a failed refresh, and what the robot answered to the last button.
 - Left column, 300 px: the six stages of `stagesOf()` (§5) as a vertical list and, under it, "Fișa testului". Each stage is a link: a dot (blue with a tick when done, orange when it waits on the teacher, pale blue when in progress, empty when later), the stage name and its note ("lipsește baremul"; "gata" or "urmează" when the stage has none). The words also say the state to a screen reader ("în lucru", "te așteaptă").
 - Right: only the panel of the chosen stage: its name, the landing page's sentence for that stage (§3), and its controls.

@@ -284,6 +284,7 @@ function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRob
         code={test.code}
         uploads={uploads}
         showModel={showModel}
+        uploadsClosed={test.status === 'evaluating' || test.status === 'done'}
         selectable={selectable}
         selected={selected}
         onSelect={onSelect}

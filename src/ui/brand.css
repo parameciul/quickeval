@@ -2872,6 +2872,40 @@ table.tests .row-actions {
   }
 }
 
+/* The path at the top of a page ("Teste › Clasa 7E2 › <test>"): small and
+   muted, the steps links, the page itself plain. */
+.crumbs {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crumbs li {
+  min-width: 0;
+  color: var(--muted);
+}
+
+.crumbs li + li::before {
+  content: '›';
+  margin: 0 0.45rem;
+  color: var(--muted);
+}
+
+.crumbs a {
+  color: var(--ink);
+}
+
+.crumbs [aria-current='page'] {
+  overflow-wrap: anywhere;
+}
+
 /* The back link at the top of a page: tight, so the page starts higher. */
 .back-link {
   margin: 0 0 0.5rem;
@@ -3446,6 +3480,7 @@ input[type="file"] {
 }
 
 table.uploads {
+  width: 100%;
   min-width: 36rem;
   border-collapse: collapse;
   background: var(--sheet);
@@ -3506,6 +3541,15 @@ table.uploads .row-actions {
   left: auto;
   width: max-content;
   min-width: 10rem;
+}
+
+/* The model of the grading, above the row's actions: a quiet line. */
+.row-menu-note {
+  margin: 0;
+  padding: 0.375rem 0.625rem 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.8125rem;
 }
 
 /* The select-all checkbox in the uploads header: only the box shows, the

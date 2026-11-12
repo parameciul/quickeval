@@ -10,7 +10,8 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
 
 // Who uploaded what: one row per student of the class, with the grade once
-// the robot graded it. While the uploads are open, the teacher selects the
+// the robot graded it. The table takes the full width of its card; the model
+// of a grading, when the setting shows it, is one line of the row's ⋯ menu. While the uploads are open, the teacher selects the
 // uploads to grade now: one checkbox per row with files, and one in the header
 // for all of them. The result links and their publishing are in the panel
 // Rezultate (ResultLinksTable), not here.
@@ -18,6 +19,7 @@ export function UploadsTable({
   code,
   uploads,
   showModel,
+  uploadsClosed,
   selectable,
   selected,
   onSelect,
@@ -28,6 +30,9 @@ export function UploadsTable({
   uploads: UploadRow[];
   // The Setări checkbox: show the model and effort of each grading.
   showModel: boolean;
+  // The uploads are closed (the test is in evaluation or done): a student who
+  // sent nothing did not take part.
+  uploadsClosed: boolean;
   // True while the test is open: the checkboxes choose the next evaluation.
   selectable: boolean;
   // The selected uploads (submission ids).
@@ -68,7 +73,6 @@ export function UploadsTable({
             <th scope="col">Fișiere</th>
             <th scope="col">Ora</th>
             <th scope="col">Nota</th>
-            {showModel && <th scope="col">Model</th>}
             <th scope="col">De verificat</th>
             <th scope="col">
               <span className="sr-only">Acțiuni</span>
@@ -82,6 +86,7 @@ export function UploadsTable({
               code={code}
               row={row}
               showModel={showModel}
+              uploadsClosed={uploadsClosed}
               selectable={selectable}
               checked={row.submissionId !== null && selected.includes(row.submissionId)}
               onToggle={(id, checked) => onSelect(checked ? [...selected, id] : selected.filter((kept) => kept !== id))}
@@ -111,10 +116,32 @@ function rowClassName(row: UploadRow, selectable: boolean): string | undefined {
   return classes.length > 0 ? classes.join(' ') : undefined;
 }
 
+// The State cell, once the uploads are closed: a paper held back from
+// grading (`uploading`, with its files) waits for the teacher, and a
+// student with no file did not take part.
+function stateOf(row: UploadRow, uploadsClosed: boolean): { label: string; hint: string | null } {
+  if (row.status === 'uploading') {
+    if (uploadsClosed) {
+      return row.fileCount > 0
+        ? { label: 'Așteaptă corectarea', hint: 'Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.' }
+        : { label: 'Nu a participat', hint: null };
+    }
+    return row.fileCount > 0
+      ? {
+          label: 'Deschis, cu fișiere',
+          hint: 'Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”. Numele rămâne blocat până termină sau până îl deblochezi.',
+        }
+      : { label: 'Deschis, fără fișiere', hint: 'Elevul a ales numele, dar nu a adăugat nimic. Dacă a ales numele greșit, deblochează-l.' };
+  }
+  if (row.status === 'none' && uploadsClosed) return { label: 'Nu a participat', hint: null };
+  return { label: uploadStatusLabel(row.status), hint: null };
+}
+
 function UploadTableRow({
   code,
   row,
   showModel,
+  uploadsClosed,
   selectable,
   checked,
   onToggle,
@@ -124,6 +151,7 @@ function UploadTableRow({
   code: string;
   row: UploadRow;
   showModel: boolean;
+  uploadsClosed: boolean;
   selectable: boolean;
   checked: boolean;
   onToggle: (submissionId: number, checked: boolean) => void;
@@ -151,6 +179,7 @@ function UploadTableRow({
     },
   });
   const time = row.submittedAt ?? row.startedAt;
+  const state = stateOf(row, uploadsClosed);
   const submissionId = row.submissionId;
   const startedAt = row.startedAt;
   const gradedAt = row.status === 'graded' ? row.gradedAt : null;
@@ -175,14 +204,8 @@ function UploadTableRow({
         {!row.active && <span className="tag">a plecat</span>}
       </th>
       <td data-label="Stare">
-        {row.status === 'uploading' ? (row.fileCount > 0 ? 'Deschis, cu fișiere' : 'Deschis, fără fișiere') : uploadStatusLabel(row.status)}
-        {row.status === 'uploading' && (
-          <p className="hint">
-            {row.fileCount > 0
-              ? 'Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”. Numele rămâne blocat până termină sau până îl deblochezi.'
-              : 'Elevul a ales numele, dar nu a adăugat nimic. Dacă a ales numele greșit, deblochează-l.'}
-          </p>
-        )}
+        {state.label}
+        {state.hint !== null && <p className="hint">{state.hint}</p>}
         {row.autoSubmitted && row.status !== 'graded' && <span className="tag">Fără confirmare</span>}
         {row.resultsOpen && <span className="tag">Publicat</span>}
         {row.status === 'failed' && row.lastError && <p className="hint">{row.lastError}</p>}
@@ -190,7 +213,6 @@ function UploadTableRow({
       <td data-label="Fișiere">{row.fileCount}</td>
       <td data-label="Ora">{time ? formatDateTime(time) : '—'}</td>
       <td data-label="Nota">{row.grade === null ? '—' : formatPoints(row.grade)}</td>
-      {showModel && <td data-label="Model">{modelCell(row.model, row.effort)}</td>}
       <td data-label="De verificat">{row.flagCount > 0 ? row.flagCount : '—'}</td>
       <td className="actions-cell">
         {submissionId !== null && startedAt !== null && (
@@ -226,6 +248,7 @@ function UploadTableRow({
               <RowMenu
                 studentName={row.studentName}
                 menuId={`upload-menu-${submissionId}`}
+                note={showModel && row.model ? `Model: ${modelCell(row.model, row.effort)}` : undefined}
                 items={[
                   ...(gradedAt !== null
                     ? [
@@ -266,12 +289,12 @@ function UploadTableRow({
 type RowMenuItem = { label: string; danger?: boolean; busy: boolean; onChoose(): void };
 
 // A row's rarer actions under ⋯ (the link to the paper and "Reîncearcă" stay
-// on the row, so a row fits on one line). The table scrolls sideways in its
+// on the row, so a row fits on one line), with `note` (the model) above them. The table scrolls sideways in its
 // box, which would cut off a menu inside it: the menu is fixed to the screen,
 // under ⋯ (or over it when the screen ends below), and closes when anything
 // scrolls or the screen changes size. An item closes the menu and gives the
 // focus back to ⋯ before it asks or acts.
-function RowMenu({ studentName, menuId, items }: { studentName: string; menuId: string; items: RowMenuItem[] }) {
+function RowMenu({ studentName, menuId, note, items }: { studentName: string; menuId: string; note?: string; items: RowMenuItem[] }) {
   const { open, toggle, box, button } = useSmallMenu<HTMLSpanElement>();
   const menu = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<CSSProperties>({});
@@ -327,6 +350,11 @@ function RowMenu({ studentName, menuId, items }: { studentName: string; menuId: 
       </button>
       {open && (
         <div ref={menu} className="class-menu row-menu" id={menuId} role="menu" style={place}>
+          {note !== undefined && (
+            <p className="row-menu-note" role="none">
+              {note}
+            </p>
+          )}
           {items.map((item) => (
             <button
               key={item.label}
