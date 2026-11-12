@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { formatPoints, gradeOf, round2 } from './scoring.ts';
+import { DETECTED_SUBJECTS, type DetectedSubject, MAX_SUBJECT_NAME } from './subjects.ts';
 
 // What the robot's Claude runs return (spec §12.5), and the checks that code
 // makes on it. The schemas check only the shape, so the robot can give Claude
@@ -25,6 +26,30 @@ export const exerciseListSchema = z.object({
 });
 
 export type ExerciseList = z.infer<typeof exerciseListSchema>;
+
+// The subject that the robot found, in the answer of the modes "exercise-list"
+// and "barem" (spec: any subject). It is not part of the stored list or barem.
+export const subjectAnswerSchema = z.object({
+  subject: z.enum(DETECTED_SUBJECTS).describe('The value of the subject, or "alta" for a subject that is not in the list.'),
+  subjectName: z.string().describe('For "alta", the Romanian name of the subject in lower case, for example "istorie". An empty string otherwise.'),
+});
+
+// What Claude answers in the mode "exercise-list".
+export const exerciseListAnswerSchema = exerciseListSchema.extend(subjectAnswerSchema.shape);
+
+export interface FoundSubject {
+  value: DetectedSubject;
+  // The name of an `alta` subject, cut to MAX_SUBJECT_NAME; "" otherwise.
+  name: string;
+}
+
+// The subject in an answer, or null for an answer without one (an older robot).
+export function subjectOf(raw: unknown): FoundSubject | null {
+  const parsed = subjectAnswerSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const { subject, subjectName } = parsed.data;
+  return { value: subject, name: subject === 'alta' ? cutText(subjectName, MAX_SUBJECT_NAME) : '' };
+}
 
 // Mode "grade": one student's work, graded against the exercise list.
 export const CONFIDENCE_LEVELS = ['very_low', 'low', 'medium', 'high', 'very_high'] as const;
@@ -175,6 +200,8 @@ export interface CheckedExerciseList {
   // "problem": the points of the exercises and "din oficiu" do not add up to the total.
   status: 'ready' | 'problem';
   message: string | null;
+  // The subject the robot found; null in an older robot's answer.
+  subject: FoundSubject | null;
 }
 
 export function checkExerciseList(raw: unknown): Checked<CheckedExerciseList> {
@@ -218,12 +245,13 @@ export function checkExerciseList(raw: unknown): Checked<CheckedExerciseList> {
     })),
     notes: cutText(input.notes, TEXT_LIMITS.notes),
   };
+  const subject = subjectOf(raw);
   const sum = round2(list.exercises.reduce((total, exercise) => total + exercise.maxPoints, list.officePoints));
   if (sum !== list.totalPoints) {
     const message = `Punctajele din barem dau ${formatPoints(sum)}, dar totalul este ${formatPoints(list.totalPoints)}.`;
-    return { ok: true, value: { list, status: 'problem', message } };
+    return { ok: true, value: { list, status: 'problem', message, subject } };
   }
-  return { ok: true, value: { list, status: 'ready', message: null } };
+  return { ok: true, value: { list, status: 'ready', message: null, subject } };
 }
 
 // Checks the class analysis: it needs an overview, and the lists are cut to
@@ -286,10 +314,14 @@ export const generatedBaremSchema = z.object({
 
 export type GeneratedBarem = z.infer<typeof generatedBaremSchema>;
 
+// What Claude answers in the mode "barem".
+export const generatedBaremAnswerSchema = generatedBaremSchema.extend(subjectAnswerSchema.shape);
+
 const isCount = (n: number) => Number.isInteger(n) && n >= 0;
 const MAX_BAREM_PARTS = 4;
 const MAX_BAREM_SECTIONS = 6;
-const MAX_BAREM_ITEMS = 30;
+// A language test can have many small items in one subject.
+const MAX_BAREM_ITEMS = 60;
 const MAX_BAREM_STEPS = 12;
 const MAX_BAREM_NOTES = 10;
 const BAREM_TITLE = 200;
@@ -389,8 +421,11 @@ export interface Grading {
 
 // Checks one student's grading against the exercise list: every exercise
 // exactly once, points inside [0, max] (outside: clamped and flagged), very
-// low and low confidence always flagged. Code computes the total and the grade.
-export function checkGrading(raw: unknown, list: ExerciseList): Checked<Grading> {
+// low and low confidence always flagged, and medium confidence too in every
+// subject but math, while the robot has no real barem of those subjects (a
+// null subject is math). Code computes the total and the grade.
+export function checkGrading(raw: unknown, list: ExerciseList, subject: DetectedSubject | null = null): Checked<Grading> {
+  const newSubject = subject !== null && subject !== 'matematica';
   const parsed = gradingResultSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, reason: 'not a grading result' };
   const byId = new Map<string, GradingResult['items'][number]>();
@@ -411,7 +446,7 @@ export function checkGrading(raw: unknown, list: ExerciseList): Checked<Grading>
     // the end and can never hide it.
     const reasons: string[] = [];
     if (points !== given) reasons.push(OUT_OF_RANGE);
-    const unsure = item.confidence === 'low' || item.confidence === 'very_low';
+    const unsure = item.confidence === 'low' || item.confidence === 'very_low' || (newSubject && item.confidence === 'medium');
     if (item.needsReview || unsure) {
       reasons.push(item.reviewReason.trim() || (unsure ? LOW_CONFIDENCE : CHECK_THIS));
     }

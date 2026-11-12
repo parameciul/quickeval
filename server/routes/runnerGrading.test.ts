@@ -500,3 +500,37 @@ describe('the student app after grading', () => {
     }
   });
 });
+
+describe('the confidence flag of a subject other than math', () => {
+  const medium = () => {
+    const graded = result([4.5, 4.5]);
+    graded.items[0]!.confidence = 'medium';
+    graded.items[1]!.confidence = 'high';
+    return graded;
+  };
+  const flags = async (id: number) =>
+    (
+      await api.db
+        .prepare('SELECT i.exercise_id, i.needs_review FROM evaluation_items i JOIN evaluations ev ON ev.id = i.evaluation_id WHERE ev.submission_id = ? ORDER BY i.position')
+        .bind(id)
+        .all<{ exercise_id: string; needs_review: number }>()
+    ).results;
+
+  it('flags an item of medium confidence in a physics test', async () => {
+    await api.db.prepare("UPDATE tests SET subject = 'fizica', subject_by = 'robot' WHERE id = ?").bind(testId).run();
+    const id = await upload(0, '2026-10-06T08:30:00.000Z');
+    await claim();
+    expect((await sendResult(id, { ok: true, result: medium(), model: 'm' })).status).toBe(200);
+    expect(await flags(id)).toEqual([
+      { exercise_id: 'I.1', needs_review: 1 },
+      { exercise_id: 'II.1', needs_review: 0 },
+    ]);
+  });
+
+  it('leaves it to the robot in a math test, and in a test with no subject', async () => {
+    const id = await upload(0, '2026-10-06T08:30:00.000Z');
+    await claim();
+    expect((await sendResult(id, { ok: true, result: medium(), model: 'm' })).status).toBe(200);
+    expect((await flags(id)).map((row) => row.needs_review)).toEqual([0, 0]);
+  });
+});

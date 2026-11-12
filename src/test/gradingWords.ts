@@ -7,7 +7,7 @@ import { expect } from 'vitest';
 // a student page never says "CES" or that the student's test was adapted.
 export function expectNoGradingWords(text: string = pageText()): void {
   expect(text).not.toMatch(/\b(AI|IA|CES)\b|\bA\.I\.|\bI\.A\./);
-  expect(text.toLowerCase()).not.toMatch(/inteligen|claude|robot|automat|adaptat/);
+  expect(text.toLowerCase()).not.toMatch(/inteligen|intellig|artificial|claude|robot|automat|adaptat/);
 }
 
 function pageText(): string {

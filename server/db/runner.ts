@@ -13,9 +13,10 @@ import {
   type RunSummary,
   type TasksResult,
 } from '../../shared/runner.ts';
-import type { CheckedExerciseList, ClassAnalysis, ExerciseList, Grading } from '../../shared/schemas.ts';
+import type { CheckedExerciseList, ClassAnalysis, ExerciseList, FoundSubject, Grading } from '../../shared/schemas.ts';
 import type { ExerciseListStatus } from '../../shared/tests.ts';
 import { compareStudentNames } from '../../shared/students.ts';
+import { type DetectedSubject, unsupportedMessage } from '../../shared/subjects.ts';
 import type { TestVariant } from '../../shared/files.ts';
 import { askForAnalysis, finishTests, promoteStatements } from './lifecycle.ts';
 import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
@@ -263,7 +264,7 @@ export async function findRobotTest(db: D1Database, testId: number, variant: Tes
     .prepare(
       `SELECT id, created_at, ${c('files_version')} AS files_version, ${c('test_file_key')} AS test_file_key, ${c('test_file_type')} AS test_file_type,
          ${c('barem_file_key')} AS barem_file_key, ${c('barem_file_type')} AS barem_file_type, ${c('barem_notes')} AS barem_notes,
-         ${c('exercise_list_json')} AS exercise_list_json, exercise_list_json AS class_list_json
+         ${c('exercise_list_json')} AS exercise_list_json, exercise_list_json AS class_list_json, subject
        FROM tests WHERE id = ? AND status = 'evaluating'`,
     )
     .bind(testId)
@@ -278,6 +279,7 @@ export async function findRobotTest(db: D1Database, testId: number, variant: Tes
       barem_notes: string | null;
       exercise_list_json: string | null;
       class_list_json: string | null;
+      subject: DetectedSubject | null;
     }>();
   if (!row) return null;
   const file = (key: string | null, type: string | null) => (key && type ? { contentType: type } : null);
@@ -290,6 +292,7 @@ export async function findRobotTest(db: D1Database, testId: number, variant: Tes
       files: { test: file(row.test_file_key, row.test_file_type), barem: file(row.barem_file_key, row.barem_file_type) },
       exerciseList: list(row.exercise_list_json),
       baremNotes: row.barem_notes ?? '',
+      subject: row.subject,
       ...(variant === 'ces' ? { variant, classExerciseList: list(row.class_list_json) } : {}),
     },
     keys: { test: row.test_file_key, barem: row.barem_file_key },
@@ -309,8 +312,15 @@ export async function testExists(db: D1Database, testId: number): Promise<boolea
 // an answer made for a deleted test must not land in the next one with its id.
 // `(? IS NULL OR created_at = ?)` takes the time twice; an older robot sends none.
 // The list of the CES variant names its own files version.
-const waitsForList = (variant: TestVariant) => {
+// With `first`, the parameters are numbered from it (id, files version,
+// creation time once, run id), for a statement that numbers its own.
+const waitsForList = (variant: TestVariant, first?: number) => {
   const c = columns(variant);
+  if (first !== undefined) {
+    const [id, version, made, run] = [first, first + 1, first + 2, first + 3].map((n) => `?${n}`);
+    return `id = ${id} AND ${c('files_version')} = ${version} AND (${made} IS NULL OR created_at = ${made}) AND status = 'evaluating'
+      AND ${c('exercise_list_status')} = 'none' AND EXISTS (SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = ${run})`;
+  }
   return `id = ? AND ${c('files_version')} = ? AND (? IS NULL OR created_at = ?) AND status = 'evaluating' AND ${c('exercise_list_status')} = 'none' AND ${HOLDS_LEASE}`;
 };
 
@@ -318,7 +328,26 @@ function listInfo(row: { exercise_list_status: ExerciseListStatus; exercise_list
   return row ? { status: row.exercise_list_status, message: row.exercise_list_message } : null;
 }
 
-// Null when the list was not saved.
+// The robot may write the subject it found while the test has none, or has
+// only the `alta` of an earlier look (the teacher then changed a file). A
+// subject the teacher set is never overwritten.
+export const SUBJECT_OPEN = "(subject IS NULL OR (subject = 'alta' AND subject_by = 'robot'))";
+
+// The SET part that saves the subject `?1` (a value, or NULL for an older
+// robot's answer) and its name `?2`, under SUBJECT_OPEN. SQLite reads every
+// right side before it writes, so all of them see the old row.
+const SAVE_SUBJECT = `subject = CASE WHEN ${SUBJECT_OPEN} AND ?1 IS NOT NULL THEN ?1 ELSE subject END,
+  subject_name = CASE WHEN ${SUBJECT_OPEN} AND ?1 IS NOT NULL THEN ?2 ELSE subject_name END,
+  subject_by = CASE WHEN ${SUBJECT_OPEN} AND ?1 IS NOT NULL THEN 'robot' ELSE subject_by END`;
+
+// The test's subject after SAVE_SUBJECT is `alta`: nothing is graded.
+const ENDS_UNSUPPORTED = `(CASE WHEN ${SUBJECT_OPEN} AND ?1 IS NOT NULL THEN ?1 ELSE subject END) = 'alta'`;
+
+// Null when the list was not saved. The class list also saves the subject
+// that the robot found: one that is not graded (`alta`) ends the list as
+// failed, with the message that names it, so nothing is graded and a Quick
+// Try gives its place back (the column's CHECK has no other state for it).
+// The CES list leaves the subject alone.
 export async function saveExerciseList(
   db: D1Database,
   testId: number,
@@ -330,13 +359,32 @@ export async function saveExerciseList(
   variant: TestVariant = 'class',
 ): Promise<ExerciseListInfo | null> {
   const c = columns(variant);
+  const found = variant === 'class' ? checked.subject : null;
+  const ending =
+    variant === 'class'
+      ? `${c('exercise_list_status')} = CASE WHEN ${ENDS_UNSUPPORTED} THEN 'failed' ELSE ?3 END,
+         ${c('exercise_list_message')} = CASE WHEN ${ENDS_UNSUPPORTED} THEN ?4 ELSE ?5 END,
+         ${SAVE_SUBJECT},`
+      : `${c('exercise_list_status')} = ?3, ${c('exercise_list_message')} = ?5,`;
   const row = await db
     .prepare(
-      `UPDATE tests SET ${c('exercise_list_json')} = ?, ${c('exercise_list_status')} = ?, ${c('exercise_list_message')} = ?, updated_at = ?
-       WHERE ${waitsForList(variant)}
+      `UPDATE tests SET ${c('exercise_list_json')} = ?6, ${ending} updated_at = ?7
+       WHERE ${waitsForList(variant, 8)}
        RETURNING ${c('exercise_list_status')} AS exercise_list_status, ${c('exercise_list_message')} AS exercise_list_message`,
     )
-    .bind(JSON.stringify(checked.list), checked.status, checked.message, now, testId, filesVersion, createdAt, createdAt, runId)
+    .bind(
+      found?.value ?? null,
+      found?.name ?? '',
+      checked.status,
+      unsupportedMessage(found?.name ?? ''),
+      checked.message,
+      JSON.stringify(checked.list),
+      now,
+      testId,
+      filesVersion,
+      createdAt,
+      runId,
+    )
     .first<{ exercise_list_status: ExerciseListStatus; exercise_list_message: string | null }>();
   return listInfo(row);
 }
@@ -493,7 +541,7 @@ export async function findBaremJob(
     .prepare(
       `SELECT t.id, t.created_at, t.${v('files_version')} AS files_version, t.${v('test_file_key')} AS test_file_key,
          t.${v('test_file_type')} AS test_file_type, t.${v('barem_notes')} AS barem_notes, t.teacher_id, t.code, c.school_year,
-         t.barem_file_key AS class_barem_key, t.barem_file_type AS class_barem_type, t.exercise_list_json AS class_list_json
+         t.barem_file_key AS class_barem_key, t.barem_file_type AS class_barem_type, t.exercise_list_json AS class_list_json, t.subject
        FROM tests t JOIN classes c ON c.id = t.class_id
        WHERE t.id = ? AND ${needsBaremSql(variant)}`,
     )
@@ -511,6 +559,7 @@ export async function findBaremJob(
       class_barem_key: string | null;
       class_barem_type: string | null;
       class_list_json: string | null;
+      subject: DetectedSubject | null;
     }>();
   if (!row || !row.test_file_type) return null;
   const job: BaremJob = {
@@ -519,6 +568,7 @@ export async function findBaremJob(
     filesVersion: row.files_version,
     contentType: row.test_file_type,
     baremNotes: row.barem_notes ?? '',
+    subject: row.subject,
   };
   const ces = variant === 'ces';
   if (ces) {
@@ -540,12 +590,22 @@ export async function findBaremJob(
 // only from the run that holds the lease, and only when no file changed after
 // the robot read the test (a barem the teacher uploads meanwhile also moves
 // files_version and clears the request).
-const waitsForBarem = (variant: TestVariant) =>
-  `tests.id = ? AND tests.${columns(variant)('files_version')} = ? AND (? IS NULL OR tests.created_at = ?) AND ${needsBaremSql(variant, 'tests')} AND ${HOLDS_LEASE}`;
+// With `first`, the parameters are numbered from it, as in waitsForList.
+const waitsForBarem = (variant: TestVariant, first?: number) => {
+  if (first !== undefined) {
+    const [id, version, made, run] = [first, first + 1, first + 2, first + 3].map((n) => `?${n}`);
+    return `tests.id = ${id} AND tests.${columns(variant)('files_version')} = ${version} AND (${made} IS NULL OR tests.created_at = ${made})
+      AND ${needsBaremSql(variant, 'tests')} AND EXISTS (SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = ${run})`;
+  }
+  return `tests.id = ? AND tests.${columns(variant)('files_version')} = ? AND (? IS NULL OR tests.created_at = ?) AND ${needsBaremSql(variant, 'tests')} AND ${HOLDS_LEASE}`;
+};
 
 // The new barem waits for the teacher's check (barem_unchecked), and the
-// exercise list made from the old barem is cleared. Returns the key of the
-// barem it replaced, or null when nothing was saved.
+// exercise list made from the old barem is cleared. The class barem also
+// saves the subject that the robot found (`found`; null from an older robot),
+// as the exercise list does; a Quick Try whose subject is not graded ends
+// there, its list failed with the message, so the try gives its place back.
+// Returns the key of the barem it replaced, or null when nothing was saved.
 export async function saveGeneratedBarem(
   db: D1Database,
   testId: number,
@@ -556,20 +616,28 @@ export async function saveGeneratedBarem(
   name: string,
   now: string,
   variant: TestVariant = 'class',
+  found: FoundSubject | null = null,
 ): Promise<{ oldKey: string | null } | null> {
   const c = columns(variant);
+  const tryEnds = `quick_try = 1 AND ${ENDS_UNSUPPORTED}`;
+  const list =
+    variant === 'class'
+      ? `exercise_list_status = CASE WHEN ${tryEnds} THEN 'failed' ELSE 'none' END, exercise_list_json = NULL,
+           exercise_list_message = CASE WHEN ${tryEnds} THEN ?6 ELSE NULL END, exercise_list_attempts = 0, ${SAVE_SUBJECT},`
+      : `${c('exercise_list_status')} = 'none', ${c('exercise_list_json')} = NULL, ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0,`;
+  const subject = variant === 'class' ? found : null;
   const [before, written] = await db.batch<{ barem_file_key?: string | null; id?: number }>([
     db.prepare(`SELECT ${c('barem_file_key')} AS barem_file_key FROM tests WHERE id = ?`).bind(testId),
     db
       .prepare(
-        `UPDATE tests SET ${c('barem_file_key')} = ?, ${c('barem_file_name')} = ?, ${c('barem_file_type')} = ?, ${c('barem_unchecked')} = 1,
+        `UPDATE tests SET ${c('barem_file_key')} = ?3, ${c('barem_file_name')} = ?4, ${c('barem_file_type')} = ?5, ${c('barem_unchecked')} = 1,
            ${c('barem_request')} = 'none', ${c('barem_request_attempts')} = 0, ${c('files_version')} = ${c('files_version')} + 1,
-           ${c('exercise_list_status')} = 'none', ${c('exercise_list_json')} = NULL, ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0,
-           updated_at = ?
-         WHERE ${waitsForBarem(variant)}
+           ${list}
+           updated_at = ?7
+         WHERE ${waitsForBarem(variant, 8)}
          RETURNING id`,
       )
-      .bind(key, name, DOCX_TYPE, now, testId, filesVersion, createdAt, createdAt, runId),
+      .bind(subject?.value ?? null, subject?.name ?? '', key, name, DOCX_TYPE, unsupportedMessage(subject?.name ?? ''), now, testId, filesVersion, createdAt, runId),
   ]);
   if (!written?.results[0]) return null;
   return { oldKey: before?.results[0]?.barem_file_key ?? null };
@@ -680,6 +748,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   const [test, rows] = await db.batch<{
     exercise_list_json?: string | null;
     ces_exercise_list_json?: string | null;
+    subject?: DetectedSubject | null;
     variant?: string | null;
     version?: string;
     exercise_id?: string;
@@ -699,7 +768,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   }>([
     db
       .prepare(
-        `SELECT t.exercise_list_json, t.ces_exercise_list_json, ${gradesVersionSql('t')} AS version FROM tests t WHERE t.id = ? AND t.status = 'evaluating'`,
+        `SELECT t.exercise_list_json, t.ces_exercise_list_json, t.subject, ${gradesVersionSql('t')} AS version FROM tests t WHERE t.id = ? AND t.status = 'evaluating'`,
       )
       .bind(testId),
     db
@@ -751,6 +820,7 @@ export async function findClassResults(db: D1Database, testId: number): Promise<
   return {
     testId,
     version: head.version!,
+    subject: head.subject ?? null,
     maxTotal: list?.totalPoints ?? latest?.maxTotal ?? 0,
     officePoints: list?.officePoints ?? latest?.officePoints ?? 0,
     exercises: exerciseColumns(list, stored),
@@ -866,18 +936,18 @@ export async function findRobotFile(db: D1Database, submissionId: number, fileId
 export async function findGrading(
   db: D1Database,
   submissionId: number,
-): Promise<{ status: string; runId: string | null; startedAt: string; exerciseList: ExerciseList | null } | null> {
+): Promise<{ status: string; runId: string | null; startedAt: string; exerciseList: ExerciseList | null; subject: DetectedSubject | null } | null> {
   const row = await db
     .prepare(
-      `SELECT s.status, s.run_id, s.started_at,
+      `SELECT s.status, s.run_id, s.started_at, t.subject,
          CASE WHEN s.variant = 'ces' THEN t.ces_exercise_list_json ELSE t.exercise_list_json END AS exercise_list_json
        FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?`,
     )
     .bind(submissionId)
-    .first<{ status: string; run_id: string | null; started_at: string; exercise_list_json: string | null }>();
+    .first<{ status: string; run_id: string | null; started_at: string; exercise_list_json: string | null; subject: DetectedSubject | null }>();
   if (!row) return null;
   const exerciseList = row.exercise_list_json ? (JSON.parse(row.exercise_list_json) as ExerciseList) : null;
-  return { status: row.status, runId: row.run_id, startedAt: row.started_at, exerciseList };
+  return { status: row.status, runId: row.run_id, startedAt: row.started_at, exerciseList, subject: row.subject };
 }
 
 // This run is grading this upload: its id, its run, and the time it started.

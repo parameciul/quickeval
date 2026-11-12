@@ -9,12 +9,15 @@ import {
   claudeJsonSchema,
   cutText,
   type ExerciseList,
+  exerciseListAnswerSchema,
   exerciseListSchema,
+  generatedBaremAnswerSchema,
   generatedBaremSchema,
   gradingResultSchema,
   LOW_CONFIDENCE,
   MAX_AREAS,
   OUT_OF_RANGE,
+  subjectOf,
 } from './schemas.ts';
 
 function exercise(id: string, maxPoints: number) {
@@ -63,7 +66,7 @@ describe('cutText', () => {
 describe('checkExerciseList', () => {
   it('accepts a list whose points add up', () => {
     const checked = checkExerciseList(LIST);
-    expect(checked).toEqual({ ok: true, value: { list: LIST, status: 'ready', message: null } });
+    expect(checked).toEqual({ ok: true, value: { list: LIST, status: 'ready', message: null, subject: null } });
   });
 
   it('marks a list whose points do not add up as a problem, with the sums', () => {
@@ -408,8 +411,8 @@ describe('checkGeneratedBarem', () => {
     expect(checkGeneratedBarem({ ...sample, parts: Array.from({ length: 5 }, () => part) }).ok).toBe(false);
     const manySections = Array.from({ length: 7 }, () => section('I', 10));
     expect(checkGeneratedBarem({ ...sample, total: 70, officePoints: 0, parts: [{ title: '', sections: manySections }] }).ok).toBe(false);
-    const manyItems = { title: 'I', points: 31, items: Array.from({ length: 31 }, () => ({ label: '1.', steps: [{ text: 'x', points: 1 }] })) };
-    expect(checkGeneratedBarem({ ...sample, total: 31, officePoints: 0, parts: [{ title: '', sections: [manyItems] }] }).ok).toBe(false);
+    const manyItems = { title: 'I', points: 61, items: Array.from({ length: 61 }, () => ({ label: '1.', steps: [{ text: 'x', points: 1 }] })) };
+    expect(checkGeneratedBarem({ ...sample, total: 61, officePoints: 0, parts: [{ title: '', sections: [manyItems] }] }).ok).toBe(false);
     const manySteps = section('I', 13, Array.from({ length: 13 }, () => 1));
     expect(checkGeneratedBarem({ ...sample, total: 13, officePoints: 0, parts: [{ title: '', sections: [manySteps] }] }).ok).toBe(false);
   });
@@ -441,5 +444,72 @@ describe('checkGeneratedBarem', () => {
     expect(json.$schema).toBe('http://json-schema.org/draft-07/schema#');
     expect(json.required).toEqual(['title', 'subtitle', 'notes', 'total', 'officePoints', 'parts']);
     expect(Object.keys(json.properties)).toEqual(['title', 'subtitle', 'notes', 'total', 'officePoints', 'parts']);
+  });
+});
+
+describe('the subject in the answers of the modes exercise-list and barem', () => {
+  it('reads the subject, and the name only of a subject that is not graded, cut to 60 characters', () => {
+    expect(subjectOf({ subject: 'fizica', subjectName: 'fizică' })).toEqual({ value: 'fizica', name: '' });
+    expect(subjectOf({ subject: 'alta', subjectName: ' istorie ' })).toEqual({ value: 'alta', name: 'istorie' });
+    expect(Array.from(subjectOf({ subject: 'alta', subjectName: 'x'.repeat(100) })!.name)).toHaveLength(60);
+  });
+
+  it('reads no subject from an older answer or a value outside the list', () => {
+    expect(subjectOf(LIST)).toBeNull();
+    expect(subjectOf({ subject: 'istorie', subjectName: '' })).toBeNull();
+    expect(subjectOf(null)).toBeNull();
+  });
+
+  it('keeps the subject beside the checked list, and stores the list without it', () => {
+    const checked = checkExerciseList({ ...LIST, subject: 'chimie', subjectName: '' });
+    expect(checked.ok && checked.value.subject).toEqual({ value: 'chimie', name: '' });
+    expect(checked.ok && checked.value.list).toEqual(LIST);
+    const older = checkExerciseList(LIST);
+    expect(older.ok && older.value.subject).toBeNull();
+  });
+
+  it('asks Claude for the subject and its name in both modes', () => {
+    for (const schema of [exerciseListAnswerSchema, generatedBaremAnswerSchema]) {
+      const json = claudeJsonSchema(schema) as { required: string[]; properties: Record<string, { enum?: string[] }> };
+      expect(json.required).toEqual(expect.arrayContaining(['subject', 'subjectName']));
+      expect(json.properties.subject!.enum).toEqual(['matematica', 'fizica', 'chimie', 'biologie', 'stiinte', 'romana', 'engleza', 'alta']);
+    }
+  });
+});
+
+describe('the confidence flag by subject', () => {
+  const medium = () => grading([item('I.1', 4, { confidence: 'medium' }), item('I.2', 2), item('II.1', 2)]);
+
+  it('flags medium confidence in a subject other than math, with the reason', () => {
+    for (const subject of ['fizica', 'romana', 'engleza'] as const) {
+      const checked = checkGrading(medium(), LIST, subject);
+      if (!checked.ok) throw new Error(checked.reason);
+      expect(checked.value.items[0]).toMatchObject({ needsReview: true, reviewReason: LOW_CONFIDENCE });
+      expect(checked.value.items[1]!.needsReview).toBe(false);
+    }
+  });
+
+  it('keeps math as it was: medium confidence is not flagged, with or without a subject', () => {
+    for (const subject of ['matematica', null] as const) {
+      const checked = checkGrading(medium(), LIST, subject);
+      if (!checked.ok) throw new Error(checked.reason);
+      expect(checked.value.items[0]!.needsReview).toBe(false);
+    }
+  });
+});
+
+describe('the generated barem of a language test', () => {
+  it('takes up to 60 items in one subject', () => {
+    const items = (count: number) => Array.from({ length: count }, (_, index) => ({ label: `${index + 1}.`, steps: [{ text: 'Răspuns', points: 1 }] }));
+    const barem = (count: number) => ({
+      title: 'Test de evaluare – Limba engleză',
+      subtitle: 'Limba engleză – clasa a VIII-a',
+      notes: [],
+      total: count + 10,
+      officePoints: 10,
+      parts: [{ title: '', sections: [{ title: 'SUBIECTUL I', points: count, items: items(count) }] }],
+    });
+    expect(checkGeneratedBarem(barem(60)).ok).toBe(true);
+    expect(checkGeneratedBarem(barem(61))).toEqual({ ok: false, reason: 'needs 1 to 60 items in a section' });
   });
 });

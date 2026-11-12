@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import type { RobotStart, TestDetail, TestInfo, UploadRow } from '../../../shared/api.ts';
+import { unsupportedMessage } from '../../../shared/subjects.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
 import { formatDateTime } from '../../ui/format.ts';
 import { GradingProgress } from '../../ui/GradingProgress.tsx';
@@ -16,6 +17,7 @@ import { missingOf } from '../missing.ts';
 import { MissingList } from '../MissingList.tsx';
 import { CesVariant, CesWaiting } from './CesVariant.tsx';
 import { ExerciseListBanner } from './ExerciseListBanner.tsx';
+import { SubjectChange } from './SubjectForm.tsx';
 import { PrintTest } from './PrintTest.tsx';
 import { RegradeAllButton } from './RegradeAllButton.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
@@ -110,6 +112,17 @@ export function StagePanel({ stage, ...props }: PanelProps & { stage: StageName 
 function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) {
   return (
     <>
+      {test.subject?.value === 'alta' && (
+        // Found with a generated barem, before the test is given (spec: any
+        // subject). The students may still upload; the grading does not start.
+        <div className="warning">
+          <p>
+            <strong>Nu corectăm încă această materie.</strong> {unsupportedMessage(test.subject.name)}
+          </p>
+          <p>Dacă materia e alta, schimb-o. Dacă ai ales alt test din greșeală, înlocuiește-l mai jos.</p>
+          <SubjectChange test={test} onChanged={onChanged} onRobot={onRobot} />
+        </div>
+      )}
       <TestFiles test={test} onChanged={onChanged} onRobot={onRobot} />
       <CesVariant test={test} uploads={uploads} onChanged={onChanged} onRobot={onRobot} />
       {waitsForBarem(test) && (

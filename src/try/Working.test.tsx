@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { PDF_TYPE } from '../../shared/files.ts';
+import { unsupportedMessage } from '../../shared/subjects.ts';
 import { createFakeApi } from '../test/fakeApi.ts';
 import { createFakeTryApi, renderTry, TRY_CODE, tryTest } from '../test/fakeTryApi.tsx';
 
@@ -53,6 +54,17 @@ describe('a try that failed', () => {
     setup({ status: 'evaluating', files, exerciseList: { status: 'failed', message: 'Fișierul nu se deschide.' } }, { status: 'submitted' });
     expect(await screen.findByText('Robotul nu a putut citi testul și baremul.')).toBeInTheDocument();
     expect(screen.getByText('Fișierul nu se deschide.')).toBeInTheDocument();
+  });
+
+  it('says that the subject of the test is not graded, and names the subjects that are', async () => {
+    const message = unsupportedMessage('istorie');
+    setup(
+      { status: 'evaluating', files, exerciseList: { status: 'failed', message }, subject: { value: 'alta', name: 'istorie', by: 'robot' } },
+      { status: 'submitted' },
+    );
+    expect(await screen.findByText('Nu corectăm încă materia acestui test.')).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByText('Robotul nu a putut citi testul și baremul.')).not.toBeInTheDocument();
   });
 
   it('says the robot could not grade the paper', async () => {

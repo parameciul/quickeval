@@ -22,6 +22,7 @@
     "smoke": "node scripts/smoke.mjs",
     "indexnow": "node scripts/indexnow.mjs",
     "try:skill": "node runner/trySkill.ts",
+    "compare:skills": "node runner/compareSkills.ts",
     "set-password": "node scripts/setPassword.ts"
   },
   "dependencies": {

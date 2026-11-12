@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { TestVariant } from './files.ts';
 import type { ExerciseList } from './schemas.ts';
+import type { DetectedSubject } from './subjects.ts';
 
 // The robot API (/api/runner, spec §11.3): request bodies and answers, shared
 // by the API and the robot.
@@ -102,6 +103,8 @@ export const analysisBody = z.discriminatedUnion('ok', [
 export interface ClassResults {
   testId: number;
   version: string;
+  // The test's subject; null or missing (an older API): a math test.
+  subject?: DetectedSubject | null;
   maxTotal: number;
   officePoints: number;
   exercises: ClassResultsExercise[];
@@ -168,6 +171,9 @@ export interface BaremJob {
   variant?: TestVariant;
   classBarem?: { contentType: string } | null;
   classExerciseList?: ExerciseList | null;
+  // The test's subject, when known: the robot then looks for none. An older
+  // API sends none.
+  subject?: DetectedSubject | null;
 }
 
 export const baremFailedBody = z.object({ runId: runIdSchema, filesVersion: z.number().int().min(0), createdAt: createdAtSchema, error: robotErrorSchema });
@@ -190,6 +196,10 @@ export interface RobotTest {
   // and the class exercise list, whose exercise ids the CES list reuses.
   variant?: TestVariant;
   classExerciseList?: ExerciseList | null;
+  // The test's subject (one for both variants). Null: not found yet; the
+  // exercise list finds it, and a grading then counts it as math. An older
+  // API sends none.
+  subject?: DetectedSubject | null;
 }
 
 // The time the upload started, from the claim. Ids of deleted uploads come back,

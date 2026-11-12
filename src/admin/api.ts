@@ -16,6 +16,7 @@ import type {
   PagesReview,
   PrintRetryAnswer,
   RegradeAnswer,
+  SubjectAnswer,
   FinishedTest,
   ReopenAnswer,
   ResultsOpenAnswer,
@@ -38,6 +39,7 @@ import type {
 } from '../../shared/api.ts';
 import { uploadTypeOf, type TestFileKind, type TestVariant } from '../../shared/files.ts';
 import type { CheckoutAnswer, CheckoutInput, PaymentRow } from '../../shared/payments.ts';
+import type { Subject } from '../../shared/subjects.ts';
 import { studentResultPath } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
 
@@ -90,6 +92,8 @@ export interface AdminApi {
   createTest(input: CreateTestInput): Promise<string>;
   getTest(code: string): Promise<TestDetail>;
   renameTest(code: string, title: string): Promise<{ code: string; title: string }>;
+  // "Schimbă": the test's subject, set by the teacher.
+  setSubject(code: string, subject: Subject): Promise<SubjectAnswer>;
   deleteTest(code: string): Promise<void>;
   // `variant` "ces": the CES variant's file, comments, barem, print PDF or exercise list.
   uploadTestFile(code: string, kind: TestFileKind, file: File, variant?: TestVariant): Promise<TestFileAnswer>;
@@ -317,6 +321,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     createTest: async (input) => (await request<{ code: string }>('POST', '/tests', input)).code,
     getTest: (code) => request<TestDetail>('GET', test(code)),
     renameTest: (code, title) => request<{ code: string; title: string }>('PATCH', test(code), { title }),
+    setSubject: (code, subject) => request<SubjectAnswer>('PUT', `${test(code)}/subject`, { subject }),
     deleteTest: async (code) => {
       await request('DELETE', test(code));
     },

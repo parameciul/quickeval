@@ -15,6 +15,7 @@ import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
 import { type AnswerArea, type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST, studentNameKey } from './students.ts';
+import { SUBJECTS, type SubjectInfo } from './subjects.ts';
 import { type AnalysisStatus, cleanTitle, MAX_TITLE_LENGTH, type ExerciseListStatus, type TestStatus } from './tests.ts';
 
 // Request bodies of the teacher API. The server parses every body with these
@@ -104,6 +105,9 @@ export const createTestBody = z.object({
 export const cesOffBody = z.object({ off: z.boolean() });
 
 export const renameTestBody = z.object({ title: testTitleSchema });
+
+// "Schimbă": the teacher sets the test's subject, one the robot grades.
+export const testSubjectBody = z.object({ subject: z.enum(SUBJECTS, { message: 'Alege o materie din listă.' }) });
 
 // Extra teacher comments for the barem: the robot reads them as part of the
 // barem, so the teacher need not replace the barem file.
@@ -694,6 +698,9 @@ export interface TestInfo extends TestSummary {
   analysis: AnalysisInfo;
   // fromWord: the test file is a Word file, so the PDF is made from it.
   print: { status: PrintStatus; fromWord: boolean };
+  // The test's subject: found by the robot with the exercise list or a
+  // generated barem, or set by the teacher. Null until then.
+  subject: SubjectInfo | null;
   ces: CesVariantInfo;
 }
 
@@ -882,6 +889,16 @@ export interface ExerciseListAnswer {
 // "Recorectează": how many uploads wait for the robot again. `robot` is null
 // while the test is open: they are graded after Start evaluation.
 export interface RegradeAnswer {
+  count: number;
+  testStatus: TestStatus;
+  robot: RobotStart | null;
+}
+
+// "Schimbă": the subject as saved; `count`: the papers that wait for the
+// robot again (the list is made again after a change of subject). `robot` is
+// set when the robot has work in the test.
+export interface SubjectAnswer {
+  subject: SubjectInfo;
   count: number;
   testStatus: TestStatus;
   robot: RobotStart | null;

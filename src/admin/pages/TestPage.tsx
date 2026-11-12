@@ -125,7 +125,7 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
           onChanged={refresh}
           onRobot={onRobot}
         />
-        <TestSheet test={test} onChanged={refresh} />
+        <TestSheet test={test} onChanged={refresh} onRobot={onRobot} />
       </div>
     </section>
   );

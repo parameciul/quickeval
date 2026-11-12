@@ -16,6 +16,7 @@ import type {
   PagesReview,
   PrintRetryAnswer,
   RegradeAnswer,
+  SubjectAnswer,
   ReviewPoint,
   FinishedTest,
   ReopenAnswer,
@@ -37,6 +38,7 @@ import type {
 import { normalizeClassName } from '../../shared/classes.ts';
 import { DOCX_TYPE, uploadTypeOf, type TestFileKind, type TestVariant } from '../../shared/files.ts';
 import type { CheckoutInput, PaymentRow } from '../../shared/payments.ts';
+import type { Subject } from '../../shared/subjects.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
 import { searchMatcher } from '../../shared/search.ts';
 import { averageGrade } from '../../shared/stats.ts';
@@ -190,6 +192,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       filesVersion: 0,
       analysis: { status: 'none', stale: false, attempts: 0 },
       print: { status: 'none', fromWord: false },
+      subject: null,
       ces: noCesVariant(),
       // Made again from the files and the uploads (withDerived).
       prepared: { testFile: false, baremFile: false, print: 'none', uploadLink: false, ces: NO_CES_PREPARED },
@@ -632,6 +635,27 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     renameTest: vi.fn(async (code: string, title: string) => {
       findTest(code).test.title = title;
       return { code, title };
+    }),
+    // Like the server: a new subject after the exercise list exists makes the
+    // lists again and sends the graded and failed uploads to the robot again.
+    setSubject: vi.fn(async (code: string, subject: Subject): Promise<SubjectAnswer> => {
+      const found = findTest(code);
+      const test = found.test;
+      const listMade = test.exerciseList.status !== 'none' || test.ces.exerciseList.status !== 'none';
+      const remade = (test.status === 'open' || test.status === 'evaluating' || test.status === 'done') && listMade && (test.subject?.value ?? 'matematica') !== subject;
+      test.subject = { value: subject, name: '', by: 'teacher' };
+      let count = 0;
+      if (remade) {
+        test.exerciseList = { status: 'none', message: null };
+        test.ces.exerciseList = { status: 'none', message: null };
+        for (const row of found.uploads) {
+          if (row.status !== 'graded' && row.status !== 'failed') continue;
+          Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0, lastError: null });
+          count += 1;
+        }
+        if (test.status === 'done' && found.uploads.some((row) => row.status === 'submitted')) test.status = 'evaluating';
+      }
+      return { subject: test.subject, count, testStatus: test.status, robot: remade && test.status === 'evaluating' ? 'next_check' : null };
     }),
     deleteTest: vi.fn(async (code: string) => {
       tests.splice(tests.indexOf(findTest(code)), 1);

@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { answerAreaSchema, classAnalysisSchema, exerciseListSchema, generatedBaremSchema, gradingResultSchema } from '../shared/schemas.ts';
+import { answerAreaSchema, classAnalysisSchema, exerciseListSchema, generatedBaremSchema, gradingResultSchema, subjectAnswerSchema } from '../shared/schemas.ts';
+import { SUBJECTS } from '../shared/subjects.ts';
 import { SKILL_DIR } from './workdir.ts';
 
 // The grading skill (spec §13) must match what the robot gives Claude: the
@@ -73,6 +74,24 @@ describe('the grading skill', () => {
     for (const left of ['Ce s-a adaptat', 'Cum se administrează', 'Competențe evaluate', 'confidențial', 'Bursașiu', 'R2', 'octombrie', 'clarifică oral']) {
       expect(example).not.toContain(left);
     }
+  });
+
+  it('names every subject, its rules file, and the subject fields of both answers', () => {
+    for (const subject of [...SUBJECTS, 'alta']) expect(skill).toContain(`\`${subject}\``);
+    for (const subject of SUBJECTS) {
+      expect(existsSync(path.join(SKILL_DIR, 'references', 'subjects', `${subject}.md`)), subject).toBe(true);
+    }
+    expect(skill).toContain('`subject.md`');
+    expect(skill).toContain('`references/subjects/<value>.md`');
+    for (const field of Object.keys(subjectAnswerSchema.shape)) expect(skill).toContain(`\`${field}\``);
+  });
+
+  it('keeps the math rules as they were, and the English texts for the student in English', () => {
+    const math = readFileSync(path.join(SKILL_DIR, 'references', 'subjects', 'matematica.md'), 'utf8');
+    expect(math).toContain('Follow them exactly as they are');
+    const english = readFileSync(path.join(SKILL_DIR, 'references', 'subjects', 'engleza.md'), 'utf8');
+    expect(english).toContain('The texts that the student reads are in English');
+    expect(english).toContain('never a word about how the work was graded');
   });
 
   it('names the barem mode and its references', () => {

@@ -2265,6 +2265,47 @@ table.tests .row-actions {
   width: 100%;
 }
 
+.sheet-subject {
+  display: grid;
+  gap: 0.375rem;
+  justify-items: end;
+}
+
+/* In Fișa testului the facts are right-aligned and break anywhere: the open
+   form takes the whole column instead, so no subject name breaks inside a word. */
+.sheet-subject .subject-form {
+  justify-self: stretch;
+  text-align: left;
+  overflow-wrap: normal;
+}
+
+.subject-choices {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.subject-choices legend {
+  margin-bottom: 0.25rem;
+  padding: 0;
+  font-weight: 600;
+}
+
+.subject-choices label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Not the full width of the rename form's text input. */
+.subject-choices input {
+  flex: none;
+  width: auto;
+  margin: 0;
+}
+
 @media (max-width: 56.25rem) {
   .test-grid {
     grid-template-columns: minmax(0, 1fr);

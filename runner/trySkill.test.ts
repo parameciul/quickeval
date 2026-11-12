@@ -64,6 +64,25 @@ describe('try:skill exercise-list', () => {
     expect(readdirSync(path.join(temp, 'qe'))).toEqual([]);
   });
 
+  it('keeps the subject that Claude found in subject.md, and gives a known one to Claude', async () => {
+    expect(await run('exercise-list', scriptedClaude(answer({ ...LIST, subject: 'fizica', subjectName: '' })))).toBe(0);
+    expect(readFileSync(path.join(folder, 'subject.md'), 'utf8')).toBe('fizica\n');
+    expect(lines).toContain('Materia: fizica.');
+    let given = '';
+    const again = scriptedClaude((task) => {
+      given = readFileSync(path.join(task.cwd, 'subject.md'), 'utf8');
+      return answer({ ...LIST, subject: 'chimie', subjectName: '' });
+    });
+    expect(await run('exercise-list', again)).toBe(0);
+    expect(given).toBe('fizica\n');
+    expect(readFileSync(path.join(folder, 'subject.md'), 'utf8')).toBe('fizica\n');
+  });
+
+  it('says when Claude found a subject that the robot does not grade', async () => {
+    expect(await run('exercise-list', scriptedClaude(answer({ ...LIST, subject: 'alta', subjectName: 'istorie' })))).toBe(0);
+    expect(lines).toContain('Materia: alta (istorie). Robotul nu o corectează.');
+  });
+
   it('says when the points do not add up', async () => {
     const claude = scriptedClaude(answer({ ...LIST, totalPoints: 12 }));
     expect(await run('exercise-list', claude)).toBe(0);
@@ -101,6 +120,21 @@ describe('try:skill grade', () => {
     expect(JSON.parse(readFileSync(path.join(folder, 'grading.json'), 'utf8'))).toMatchObject({ total: 7.5, grade: 7.5 });
     expect(lines).toContain('Punctaj: 7,5 din 10. Nota: 7,5.');
     expect(lines).toContain('II.1: 2 din 4,5 (de verificat: Scris neclar.)');
+  });
+
+  it('grades with the subject of subject.md, or as math without one', async () => {
+    const medium = { ...GRADING, items: [{ ...GRADING.items[0]!, confidence: 'medium' as const }, GRADING.items[1]!] };
+    let subject = '';
+    const claude = scriptedClaude((task) => {
+      subject = readFileSync(path.join(task.cwd, 'subject.md'), 'utf8');
+      return answer(medium);
+    });
+    expect(await run('grade', claude)).toBe(0);
+    expect(subject).toBe('matematica\n');
+    expect(lines).toContain('I.1: 4,5 din 4,5');
+    writeFileSync(path.join(folder, 'subject.md'), 'fizica\n');
+    expect(await run('grade', scriptedClaude(answer(medium)))).toBe(0);
+    expect(lines).toContain('I.1: 4,5 din 4,5 (de verificat: Robotul nu este sigur de acest punctaj.)');
   });
 
   it('needs the exercise list first', async () => {

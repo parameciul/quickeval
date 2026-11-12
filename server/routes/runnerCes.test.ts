@@ -74,6 +74,7 @@ describe('CES print and barem jobs', () => {
       filesVersion: 0,
       contentType: PDF_TYPE,
       baremNotes: 'N',
+      subject: null,
       variant: 'ces',
       classBarem: { contentType: PDF_TYPE },
       classExerciseList: CLASS_LIST,

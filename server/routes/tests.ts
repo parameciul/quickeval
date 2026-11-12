@@ -6,6 +6,7 @@ import {
   createTestBody,
   evaluateTestBody,
   renameTestBody,
+  testSubjectBody,
   type AnalysisAnswer,
   type BaremCheckedAnswer,
   type BaremGenerateAnswer,
@@ -18,10 +19,12 @@ import {
   type ReopenAnswer,
   type RobotStartAnswer,
   type StoppedTest,
+  type SubjectAnswer,
   type TestFileAnswer,
 } from '../../shared/api.ts';
 import { isTestFileKind, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
 import { QUICK_TRY_FILE_CHANGES } from '../../shared/quickTry.ts';
+import { unsupportedMessage } from '../../shared/subjects.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
 import { acceptExerciseList,
   blockedByDemoLimit,
@@ -31,6 +34,7 @@ import { acceptExerciseList,
   finishOpenTest,
   hasUploadedFiles,
   regradeTest,
+  setSubject,
   requestAnalysis,
   retryExerciseList,
   scheduleEvaluation,
@@ -90,6 +94,7 @@ export async function evaluationBlocker(db: D1Database, teacherId: number, code:
   if (test.barem.request === 'requested') return new ApiError(409, 'barem_generating', 'Baremul se generează încă.');
   if (!test.files.barem) return new ApiError(409, 'missing_barem', 'Încarcă baremul înainte de evaluare.');
   if (test.barem.unchecked) return new ApiError(409, 'barem_unchecked', 'Verifică baremul generat înainte de evaluare.');
+  if (test.subject?.value === 'alta') return new ApiError(409, 'subject_unsupported', unsupportedMessage(test.subject.name));
   if (await blockedByDemoLimit(db, test.id, scheduling)) return demoLimit();
   if (needsUploads && !(await hasUploadedFiles(db, test.id))) {
     return new ApiError(409, 'no_uploads', 'Niciun elev nu a încărcat încă fișiere.');
@@ -129,6 +134,31 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const body = await readJson(c, renameTestBody);
     if (!(await renameTest(c.env.DB, c.var.teacher.id, code, body.title, nowIso()))) throw notFound();
     return c.json({ code, title: body.title });
+  });
+
+  // "Schimbă" (spec: any subject): the teacher sets the test's subject. After
+  // the exercise list exists, both lists are made again and the papers are
+  // graded again; the robot starts.
+  routes.put('/:code/subject', async (c) => {
+    const teacherId = c.var.teacher.id;
+    const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
+    const body = await readJson(c, testSubjectBody);
+    const changed = await setSubject(c.env.DB, teacherId, test.id, body.subject, nowIso());
+    if (changed === null) throw notFound();
+    if (changed.outcome === 'demo_limit') throw demoLimit();
+    if (changed.outcome === 'busy') {
+      throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba materia după ce se termină corectarea.');
+    }
+    if (changed.outcome === 'barem_busy') {
+      throw new ApiError(409, 'barem_generating', 'Baremul se generează acum. Poți schimba materia după ce este gata.');
+    }
+    const robot = changed.status === 'evaluating' && changed.remade ? await startRobot(c.env) : null;
+    return c.json({
+      subject: { value: body.subject, name: '', by: 'teacher' },
+      count: changed.count,
+      testStatus: changed.status,
+      robot,
+    } satisfies SubjectAnswer);
   });
 
   // Extra teacher comments for the barem: saved as part of the test, read by
@@ -436,7 +466,8 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
     // While the robot grades, it reads both files. It reads neither while the
-    // exercise list has a problem or failed: the teacher may then fix the barem.
+    // exercise list has a problem or failed (also for a subject that is not
+    // graded): the teacher may then fix the barem or the test.
     const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
     if (test.summary.status === 'evaluating' && !listBlocked) {
       throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba fișierul după ce se termină corectarea.');
@@ -464,6 +495,9 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (stale.length > 0) await deleteFilesQuietly(c.env.FILES, stale);
     let robotWork = false;
     if (kind === 'barem') robotWork = saved?.status === 'evaluating';
+    // A new test file of a test whose subject was not graded is read again,
+    // when saveTestFile reset its list in this write.
+    else if (saved?.status === 'evaluating' && saved.readAgain) robotWork = true;
     else robotWork = (await needsPrint(c.env.DB, test.id)) || (await needsBarem(c.env.DB, test.id));
     const robot = robotWork ? await startRobot(c.env) : null;
     return c.json({ file: { name: file.name, type: file.contentType }, robot } satisfies TestFileAnswer);

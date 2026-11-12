@@ -122,6 +122,26 @@ describe('makeWorkFolder', () => {
     expect(filesIn(noBarem)).not.toContain('barem/notes.md');
   });
 
+  it('starts every barem with the rule about the statement of the problem', () => {
+    expect(DEFAULT_BAREM_NOTES.split('\n')[0]).toBe(
+      'Nu puncta rezolvările care nu se bazează pe enunțul problemei sau care nu au legătură cu cerințele problemei.',
+    );
+  });
+
+  it('can carry other barem rules than the default ones, for the skills comparison', async () => {
+    const folder = await makeWorkFolder(root, 'other-notes', { test: pdf('test'), barem: pdf('barem'), baremNotes: 'Notă.' }, { skillDir, defaultNotes: 'Regula veche.' });
+    expect(readFileSync(path.join(folder, 'barem', 'notes.md'), 'utf8')).toBe('Regula veche.\nNotă.\n');
+  });
+
+  it('writes the subject in subject.md, and nothing for no subject or a subject the robot does not grade', async () => {
+    const physics = await makeWorkFolder(root, 'subject-physics', { test: pdf('test'), barem: pdf('barem'), subject: 'fizica' }, { skillDir });
+    expect(readFileSync(path.join(physics, 'subject.md'), 'utf8')).toBe('fizica\n');
+    const none = await makeWorkFolder(root, 'subject-none', { test: pdf('test'), barem: pdf('barem'), subject: null }, { skillDir });
+    expect(filesIn(none)).not.toContain('subject.md');
+    const other = await makeWorkFolder(root, 'subject-other', { test: pdf('test'), subject: 'alta' }, { skillDir });
+    expect(filesIn(other)).not.toContain('subject.md');
+  });
+
   it('writes the teacher notes for a barem task and no barem folder', async () => {
     const folder = await makeWorkFolder(root, 'barem-1', { test: pdf('test'), requestNotes: '  Fără subiectul III.  ' }, { skillDir });
     expect(filesIn(folder)).toEqual(['.claude/skills/evaluate-test/SKILL.md', '.claude/skills/evaluate-test/references/grading-rules.md', 'notes.md', 'test/test.pdf']);

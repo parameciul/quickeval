@@ -15,7 +15,7 @@ import {
   runBody,
   runIdSchema,
 } from '../../shared/runner.ts';
-import { checkClassAnalysis, checkExerciseList, checkGrading } from '../../shared/schemas.ts';
+import { checkClassAnalysis, checkExerciseList, checkGrading, type FoundSubject, subjectOf } from '../../shared/schemas.ts';
 import { robotAuth } from '../auth/robotAuth.ts';
 import {
   baremKeyIs,
@@ -63,6 +63,19 @@ function parseVariant(raw: string | undefined): TestVariant {
   if (raw === undefined) return 'class';
   if (raw === 'ces') return 'ces';
   throw notFound();
+}
+
+// The subject that the robot sends with a generated barem: X-Subject (a value)
+// and X-Subject-Name (URI-encoded). Null when there is none (an older robot) or
+// it cannot be read: the barem is still saved.
+function subjectHeaders(c: Context<AppEnv>): FoundSubject | null {
+  let name = '';
+  try {
+    name = decodeURIComponent(c.req.header('X-Subject-Name') ?? '');
+  } catch {
+    return null;
+  }
+  return subjectOf({ subject: c.req.header('X-Subject'), subjectName: name });
 }
 
 // Why a robot write changed nothing: the test is gone (404, the robot drops
@@ -231,7 +244,7 @@ export function runnerRoutes(): Hono<AppEnv> {
     const key = generatedBaremKey(found.teacherId, found.schoolYear, found.code, version, variant);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: DOCX_TYPE } });
     const name = variant === 'ces' ? `${found.code} - barem CES generat.docx` : `${found.code} - barem generat.docx`;
-    const saved = await saveGeneratedBarem(c.env.DB, testId, runId.data, version, createdAt, key, name, nowIso(), variant);
+    const saved = await saveGeneratedBarem(c.env.DB, testId, runId.data, version, createdAt, key, name, nowIso(), variant, subjectHeaders(c));
     if (!saved) {
       if (!(await baremKeyIs(c.env.DB, testId, key, variant))) await deleteFilesQuietly(c.env.FILES, [key]);
       throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), baremNotNeeded);
@@ -333,7 +346,7 @@ export function runnerRoutes(): Hono<AppEnv> {
     const now = nowIso();
     if (body.ok) {
       if (!current.exerciseList) throw takenOver();
-      const checked = checkGrading(body.result, current.exerciseList);
+      const checked = checkGrading(body.result, current.exerciseList, current.subject);
       if (!checked.ok) throw invalidResult();
       if (!(await saveGrading(c.env.DB, submissionId, body.runId, startedAt, checked.value, body.result, body.model, now, body.effort ?? null))) {
         throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();

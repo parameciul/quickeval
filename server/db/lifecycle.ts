@@ -56,6 +56,11 @@ export async function askAnalysisAfterCheck(db: D1Database, teacherId: number, s
 // when the robot generated it, and no generation is running.
 export const BAREM_ACTIVE = baremActiveSql('class');
 
+// Test t is not of a subject the robot does not grade: every path that moves an
+// open test into evaluation checks it, like BAREM_ACTIVE. Null (not found yet)
+// may start: the exercise list finds it.
+export const SUBJECT_GRADED = "COALESCE(t.subject, '') <> 'alta'";
+
 const HAS_FILES = 'EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)';
 
 // evaluating → done: no upload waits for grading or is being graded, and no
@@ -119,10 +124,13 @@ export async function finishBlocker(db: D1Database, testId: number): Promise<'pa
 
 // How many papers of a teacher are on their way to the robot, in the tests x
 // of `waiting`. The trigger submissions_count_paper (migration 0019) counts a
-// paper when its result arrives, so these use the demo limit too.
+// paper when its result arrives, so these use the demo limit too. The papers
+// of a test whose subject is not graded wait for nothing and count for nothing,
+// and so do the papers of a free regrade after a change of subject (the
+// trigger does not count them).
 export const papersWaitingSql = (teacherId: string, waiting = "x.status = 'evaluating'") =>
   `(SELECT COUNT(*) FROM submissions w JOIN tests x ON x.id = w.test_id
-    WHERE x.teacher_id = ${teacherId} AND w.status IN ('submitted', 'grading') AND ${waiting})`;
+    WHERE x.teacher_id = ${teacherId} AND w.status IN ('submitted', 'grading') AND w.free_regrade = 0 AND COALESCE(x.subject, '') <> 'alta' AND ${waiting})`;
 
 // How many papers the teacher of test t may still send to the robot: no limit
 // for a complete account.
@@ -143,18 +151,27 @@ const PAPERS_LEFT_TO_REGRADE = papersLeft("(x.status = 'evaluating' OR x.id = t.
 // A demo account grades one test only: no other test of the teacher has been
 // sent to the robot (a paper that is sent, being graded, graded or failed, in
 // a test whose evaluation started). A test that ended at once with nothing to
-// grade does not use the place. The place stays used when the papers are reset
+// grade does not use the place, nor does a test whose subject the robot does
+// not grade (its papers were never graded). The place stays used when the papers are reset
 // (teachers.graded_test_id, set when a paper is first graded). A regrade or
-// retry is not checked here: its test is the one that was graded.
-const ONLY_TEST = `(SELECT CASE WHEN q.demo = 0 THEN 1
-    WHEN q.graded_test_id IS NOT NULL AND q.graded_test_id <> t.id THEN 0
+// retry is not checked here: its test is the one that was graded. `t` names
+// the test's table or alias (a write on `tests` passes 'tests').
+export function onlyTestSql(t: string): string {
+  return `(SELECT CASE WHEN q.demo = 0 THEN 1
+    WHEN q.graded_test_id IS NOT NULL AND q.graded_test_id <> ${t}.id THEN 0
     WHEN EXISTS (SELECT 1 FROM tests o JOIN submissions os ON os.test_id = o.id
-      WHERE o.teacher_id = q.id AND o.id <> t.id AND o.evaluation_started_at IS NOT NULL
+      WHERE o.teacher_id = q.id AND o.id <> ${t}.id AND o.evaluation_started_at IS NOT NULL AND COALESCE(o.subject, '') <> 'alta'
         AND os.status IN ('submitted', 'grading', 'graded', 'failed')) THEN 0
     ELSE 1 END
-  FROM teachers q WHERE q.id = t.teacher_id) = 1`;
+  FROM teachers q WHERE q.id = ${t}.teacher_id) = 1`;
+}
+const ONLY_TEST = onlyTestSql('t');
 
-export const WITHIN_PAPER_LIMIT = `(${PAPERS_LEFT} > 0 AND ${ONLY_TEST})`;
+// The papers of a free regrade after a change of subject (submissions.free_regrade)
+// are sent past the limit: their results were deleted by the change.
+const FREE_REGRADE_WAITS = `EXISTS (SELECT 1 FROM submissions fr WHERE fr.test_id = t.id AND fr.free_regrade = 1 AND fr.status IN ('submitted', 'uploading'))`;
+
+export const WITHIN_PAPER_LIMIT = `((${PAPERS_LEFT} > 0 OR ${FREE_REGRADE_WAITS}) AND ${ONLY_TEST})`;
 
 // A regrade or retry of test t sends a paper to the robot: a finished test goes
 // back to evaluation (the trigger counts it), and a test in evaluation takes it
@@ -168,15 +185,17 @@ const SENDABLE = `(s.status = 'submitted' OR (s.status = 'uploading' AND EXISTS 
 // The papers the limit lets start, for the tests t of `scope`: by scheduled
 // time and test, then the papers the students confirmed, oldest first. A demo
 // account sends the papers of its first test only. The rest wait for a later evaluation, as unselected uploads do.
+// The papers of a free regrade are always sent, selected or not, and take no
+// place: no start holds them back.
 function papersToSend(scope: string, only = 'TRUE'): string {
   return `SELECT p.id FROM (
-    SELECT s.id, ${PAPERS_LEFT} AS allowed,
+    SELECT s.id, s.free_regrade AS free, ${PAPERS_LEFT} AS allowed,
       (SELECT q.demo FROM teachers q WHERE q.id = t.teacher_id) AS demo,
       DENSE_RANK() OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id) AS test_place,
-      ROW_NUMBER() OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id, s.status <> 'submitted', s.submitted_at, s.id) AS place
+      SUM(1 - s.free_regrade) OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id, s.status <> 'submitted', s.submitted_at, s.id) AS place
     FROM submissions s JOIN tests t ON t.id = s.test_id
-    WHERE (${scope}) AND ${only} AND ${SENDABLE}) p
-  WHERE p.place <= p.allowed AND (p.demo = 0 OR p.test_place = 1)`;
+    WHERE (${scope}) AND (${only} OR s.free_regrade = 1) AND ${SENDABLE}) p
+  WHERE (p.free = 1 OR p.place <= p.allowed) AND (p.free = 1 OR p.demo = 0 OR p.test_place = 1)`;
 }
 
 // A paper past the limit goes back to uploading (its files stay).
@@ -245,7 +264,7 @@ const SCHEDULED_ELSEWHERE = `EXISTS (SELECT 1 FROM tests o JOIN teachers q ON q.
 
 // An open test whose scheduled evaluation time has come. A demo account at its
 // limit, or a barem that is not active, keeps the test open.
-const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}`;
+const DUE = `t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED} AND ${WITHIN_PAPER_LIMIT}`;
 
 const DUE_PAPERS = papersToSend(DUE);
 
@@ -297,12 +316,13 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
       .bind(now),
     askForAnalysis(db),
     finishTests(db, now),
-    // A due test that the demo account's one test keeps out has no schedule
-    // left, so its students can upload again.
+    // A due test that the demo account's one test keeps out, or whose subject
+    // the robot does not grade, has no schedule left, so its students can
+    // upload again.
     db
       .prepare(
         `UPDATE tests AS t SET evaluation_at = NULL, updated_at = ?1
-         WHERE t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND NOT ${ONLY_TEST}`,
+         WHERE t.status = 'open' AND t.evaluation_at IS NOT NULL AND t.evaluation_at <= ?1 AND (NOT ${ONLY_TEST} OR NOT ${SUBJECT_GRADED})`,
       )
       .bind(now),
   ];
@@ -311,7 +331,7 @@ export function promoteStatements(db: D1Database, now: string): D1PreparedStatem
 // An open test of this teacher with the test file, the barem, and at least one
 // uploaded file (spec §8.4).
 const READY = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
-  AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}
+  AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED} AND ${WITHIN_PAPER_LIMIT}
   AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id WHERE s.test_id = t.id)`;
 
 // open → evaluating now. Null when the test is not ready; "done" when it has
@@ -387,11 +407,11 @@ async function startSelectiveEvaluation(
   const placeholders = submissionIds.map((_, index) => `?${index + 4}`).join(',');
   const params = [testId, teacherId, now, ...submissionIds];
   const READY_SELECTED = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}
+    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED} AND ${WITHIN_PAPER_LIMIT}
     AND EXISTS (SELECT 1 FROM submissions s JOIN submission_files f ON f.submission_id = s.id
       WHERE s.test_id = t.id AND s.id IN (${placeholders}))`;
   const OPEN_WITH_FILES = `t.id = ?1 AND t.teacher_id = ?2 AND t.status = 'open'
-    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${WITHIN_PAPER_LIMIT}`;
+    AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED} AND ${WITHIN_PAPER_LIMIT}`;
   const TO_SEND = papersToSend(OPEN_WITH_FILES, `s.id IN (${placeholders})`);
   const [, , started, , finished] = await db.batch<{ id: number }>([
     // Unselected confirmed uploads wait for a later evaluation.
@@ -429,7 +449,7 @@ export async function scheduleEvaluation(db: D1Database, teacherId: number, test
   const row = await db
     .prepare(
       `UPDATE tests AS t SET evaluation_at = ?, updated_at = ?
-       WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE}
+       WHERE t.id = ? AND t.teacher_id = ? AND t.status = 'open' AND t.test_file_key IS NOT NULL AND ${BAREM_ACTIVE} AND ${SUBJECT_GRADED}
          AND ${WITHIN_PAPER_LIMIT} AND NOT ${SCHEDULED_ELSEWHERE}
        RETURNING id`,
     )
@@ -482,7 +502,9 @@ export async function acceptExerciseList(
 }
 
 // Lets the robot try again to make an exercise list it failed to make.
-// Returns the test's status, or null when the list had not failed.
+// Returns the test's status, or null when the list had not failed. A class
+// list that ended at a subject not graded is not tried again: only a new test
+// file has the test read again (saveTestFile), under the demo account's rules.
 export async function retryExerciseList(
   db: D1Database,
   teacherId: number,
@@ -494,7 +516,7 @@ export async function retryExerciseList(
   const row = await db
     .prepare(
       `UPDATE tests SET ${c('exercise_list_status')} = 'none', ${c('exercise_list_message')} = NULL, ${c('exercise_list_attempts')} = 0, updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND ${c('exercise_list_status')} = 'failed'
+       WHERE id = ? AND teacher_id = ? AND ${c('exercise_list_status')} = 'failed' ${variant === 'class' ? "AND COALESCE(subject, '') <> 'alta'" : ''}
        RETURNING status`,
     )
     .bind(now, testId, teacherId)
@@ -593,6 +615,132 @@ export async function regradeTest(
   return status ? { count: regraded?.results.length ?? 0, status } : null;
 }
 
+// "Schimbă" (spec: any subject). The conditions on the test row `t`, read
+// before the batch writes: ?1 is the new subject.
+// The teacher changes the subject while the robot reads neither file: a draft,
+// open or finished test, or one in evaluation whose list waits for the teacher
+// (a problem, or failed), and never while a paper is being graded. Not in a
+// Quick Try: its robot work stays bounded.
+const subjectEditable = (t: string) => `(${t}.quick_try = 0
+  AND (${t}.status IN ('draft', 'open', 'done') OR (${t}.status = 'evaluating' AND ${t}.exercise_list_status IN ('problem', 'failed')))
+  AND NOT EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = ${t}.id AND g.status = 'grading'))`;
+// A new subject after an exercise list exists makes both lists again and
+// grades the test's papers again (a reopened test, at its next start). No subject is math.
+const remakeSql = (t: string) => `(${t}.status IN ('open', 'evaluating', 'done') AND COALESCE(${t}.subject, 'matematica') <> ?1
+  AND (${t}.exercise_list_status <> 'none' OR ${t}.ces_exercise_list_status <> 'none'))`;
+// The list that ended at a subject not graded is read again only when the demo
+// account's one test is this one: its waiting papers then go to the robot.
+const reviveAllowed = (t: string) => `(NOT (${t}.subject = 'alta' AND ${t}.exercise_list_status = 'failed') OR ${onlyTestSql(t)})`;
+// The first change of subject grades the graded papers again for free in a
+// demo account (a complete account counts every paper the robot grades); a
+// failed paper, and every paper of a later change, is a regrade within the
+// demo limit. A change that would send none of the test's graded or failed
+// papers is refused. (Its writes name the test `t`, as PAPERS_LEFT_TO_REGRADE does.)
+const REGRADE_ALLOWED = `NOT (${remakeSql('t')}
+  AND EXISTS (SELECT 1 FROM submissions r WHERE r.test_id = t.id AND r.status IN ('graded', 'failed'))
+  AND NOT (t.subject_regraded = 0 AND EXISTS (SELECT 1 FROM submissions r WHERE r.test_id = t.id AND r.status = 'graded'))
+  AND ${PAPERS_LEFT_TO_REGRADE} <= 0)`;
+// A barem generated now is made with the subject it read: the change waits.
+const baremIdle = (t: string) => `(${t}.barem_request <> 'requested' AND ${t}.ces_barem_request <> 'requested')`;
+const SUBJECT_CHANGE_ALLOWED = `(${subjectEditable('t')} AND ${baremIdle('t')} AND ${reviveAllowed('t')} AND ${REGRADE_ALLOWED})`;
+
+export type SubjectChange =
+  | { outcome: 'saved'; status: TestStatus; count: number; remade: boolean }
+  | { outcome: 'busy' }
+  | { outcome: 'barem_busy' }
+  | { outcome: 'demo_limit' };
+
+// The teacher sets the subject, in one batch. Its first write saves the test
+// and checks every rule on the row as it was; it marks a test whose lists it
+// remade with subject_regraded + 2 (2: the free regrade is used now, 3: it was
+// used before), which the later writes read and the last one sets back to 0
+// or 1. A demo account's waiting papers past its limit go back to uploading,
+// as unselected uploads do (a test of a subject not graded had them wait for
+// nothing). Null: no such test.
+export async function setSubject(db: D1Database, teacherId: number, testId: number, subject: string, now: string): Promise<SubjectChange | null> {
+  const remade = remakeSql('t');
+  const lists = ['exercise_list', 'ces_exercise_list']
+    .map(
+      (list) => `${list}_status = CASE WHEN ${remade} THEN 'none' ELSE ${list}_status END,
+         ${list}_json = CASE WHEN ${remade} THEN NULL ELSE ${list}_json END,
+         ${list}_message = CASE WHEN ${remade} THEN NULL ELSE ${list}_message END,
+         ${list}_attempts = CASE WHEN ${remade} THEN 0 ELSE ${list}_attempts END`,
+    )
+    .join(', ');
+  const thisTest = 't.id = ?1 AND t.teacher_id = ?2 AND t.subject_regraded >= 2';
+  // The papers already waiting in the test count against the limit of the others.
+  const heldBack = `SELECT p.id FROM (
+    SELECT s.id, ${papersLeft("x.status = 'evaluating' AND x.id <> t.id")} AS allowed, ROW_NUMBER() OVER (ORDER BY s.submitted_at, s.id) AS place
+    FROM submissions s JOIN tests t ON t.id = s.test_id
+    WHERE ${thisTest} AND s.status = 'submitted' AND s.free_regrade = 0) p
+  WHERE p.place > p.allowed`;
+  const again = `SELECT p.id FROM (
+    SELECT s.id, s.status, t.subject_regraded AS mark, ${PAPERS_LEFT_TO_REGRADE} AS allowed, ROW_NUMBER() OVER (ORDER BY s.status <> 'failed', s.id) AS place
+    FROM submissions s JOIN tests t ON t.id = s.test_id
+    WHERE ${thisTest} AND s.status IN ('graded', 'failed')) p
+  WHERE (p.mark = 2 AND p.status = 'graded') OR p.place <= p.allowed`;
+  const marked = 'id = ?1 AND teacher_id = ?2 AND subject_regraded >= 2';
+  const [before, saved, , regraded, , after] = await db.batch<{
+    editable?: number;
+    barem_idle?: number;
+    remade?: number;
+    id?: number;
+    test_status?: TestStatus;
+    status?: TestStatus;
+  }>([
+    db
+      .prepare(`SELECT ${subjectEditable('t')} AS editable, ${baremIdle('t')} AS barem_idle, ${remakeSql('t')} AS remade FROM tests t WHERE t.id = ?2 AND t.teacher_id = ?3 AND t.quick_try = 0`)
+      .bind(subject, testId, teacherId),
+    db
+      .prepare(
+        `UPDATE tests AS t SET subject = ?1, subject_name = '', subject_by = 'teacher', updated_at = ?4,
+         ${lists},
+         analysis_status = CASE WHEN ${remade} AND analysis_status IN ('ready', 'failed') THEN 'none' ELSE analysis_status END,
+         analysis_attempts = CASE WHEN ${remade} THEN 0 ELSE analysis_attempts END,
+         ces_files_version = CASE WHEN ${remade} THEN ces_files_version + 1 ELSE ces_files_version END,
+         subject_regraded = CASE WHEN ${remade} THEN subject_regraded + 2 ELSE subject_regraded END
+         WHERE t.id = ?2 AND t.teacher_id = ?3 AND ${SUBJECT_CHANGE_ALLOWED}
+         RETURNING status`,
+      )
+      .bind(subject, testId, teacherId, now),
+    db.prepare(`UPDATE submissions SET ${HOLD_BACK} WHERE id IN (${heldBack})`).bind(testId, teacherId),
+    db
+      .prepare(
+        `UPDATE submissions SET ${GRADE_AGAIN},
+           free_regrade = CASE WHEN status = 'graded' AND (SELECT t.subject_regraded FROM tests t WHERE t.id = submissions.test_id) = 2
+             AND (SELECT q.demo FROM teachers q WHERE q.id = ?2) = 1 THEN 1 ELSE 0 END
+         WHERE id IN (${again}) RETURNING id, ${STATUS_BEFORE}`,
+      )
+      .bind(testId, teacherId),
+    db
+      .prepare(
+        `DELETE FROM evaluations WHERE submission_id IN (SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${thisTest} AND s.status = 'submitted')`,
+      )
+      .bind(testId, teacherId),
+    // A finished test goes back to evaluation when it has papers to grade. The
+    // free regrade counts as used only when it sent a graded paper again.
+    db
+      .prepare(
+        `UPDATE tests SET
+           archived = CASE WHEN status = 'done' AND EXISTS (SELECT 1 FROM submissions w WHERE w.test_id = tests.id AND w.status = 'submitted') THEN 0 ELSE archived END,
+           status = CASE WHEN status = 'done' AND EXISTS (SELECT 1 FROM submissions w WHERE w.test_id = tests.id AND w.status = 'submitted') THEN 'evaluating' ELSE status END,
+           subject_regraded = CASE WHEN subject_regraded = 3 OR EXISTS (SELECT 1 FROM submissions f WHERE f.test_id = tests.id AND f.free_regrade = 1) THEN 1 ELSE 0 END
+         WHERE ${marked}
+         RETURNING status`,
+      )
+      .bind(testId, teacherId),
+  ]);
+  const row = before?.results[0];
+  if (!row) return null;
+  const status = after?.results[0]?.status ?? saved?.results[0]?.status;
+  if (!status) {
+    if (row.editable !== 1) return { outcome: 'busy' };
+    return row.barem_idle === 1 ? { outcome: 'demo_limit' } : { outcome: 'barem_busy' };
+  }
+  await countGradingAgain(db, teacherId, regraded?.results);
+  return { outcome: 'saved', status, count: regraded?.results.length ?? 0, remade: row.remade === 1 };
+}
+
 // "Regenerează": the class analysis is asked for again, from any analysis
 // state (also the first one of a test that was graded before analyses
 // existed). A finished test goes back to evaluation, where the robot writes it.
@@ -624,7 +772,9 @@ export async function retrySubmission(db: D1Database, shown: ShownUpload, now: s
       .prepare(
         `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, ${KEEP_VARIANT}
          WHERE id = ? AND started_at = ? AND status = 'failed'
-           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ? AND ${MAY_GRADE_AGAIN})
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?
+             -- A paper of a free regrade lost its result to the change of subject: it is tried again past the limit, still free.
+             AND (submissions.free_regrade = 1 OR ${MAY_GRADE_AGAIN}))
          RETURNING test_id, ${STATUS_BEFORE}`,
       )
       .bind(submissionId, startedAt, teacherId),

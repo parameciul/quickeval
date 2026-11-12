@@ -4,11 +4,16 @@ import type { TestVariant } from '../../../shared/files.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { MoveOnLink } from './MoveOnLink.tsx';
+import { SubjectChange } from './SubjectForm.tsx';
 import { partsOf } from './variant.ts';
 
 // The robot reads the test and the barem first and makes a list of the
 // exercises (spec §9). Shown only when that list needs the teacher: its
-// points do not add up, or the robot could not make it. It shows in the panel
+// points do not add up, or the robot could not make it. A list that failed
+// because the test's subject is one the robot does not grade (`alta`) says so
+// and offers no retry, only "Schimbă materia" for a wrong guess and a new test
+// file (only the class list: a CES test has its class test's subject). It
+// shows in the panel
 // Corectare; the barem is replaced in the panel Pregătire. With `variant`
 // "ces": the CES variant's list.
 export function ExerciseListBanner({
@@ -48,6 +53,22 @@ export function ExerciseListBanner({
           </MoveOnLink>
         </span>
         {accept.error && <ErrorMessage error={accept.error} />}
+      </div>
+    );
+  }
+  if (status === 'failed' && !ces && test.subject?.value === 'alta') {
+    return (
+      <div className="warning">
+        <p>
+          <strong>Nu corectăm încă această materie.</strong> {message}
+        </p>
+        <p>Dacă materia e alta, schimb-o. Dacă ai încărcat alt test din greșeală, înlocuiește testul la Pregătire: lucrările se corectează apoi cu testul nou.</p>
+        <span className="row-actions">
+          <SubjectChange test={test} onChanged={onChanged} onRobot={onRobot} />
+          <MoveOnLink className="button-quiet button-small" stage="Pregătire">
+            Înlocuiește testul
+          </MoveOnLink>
+        </span>
       </div>
     );
   }
