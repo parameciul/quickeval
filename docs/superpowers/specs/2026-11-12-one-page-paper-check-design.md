@@ -156,7 +156,7 @@ The segments:
 - eșuate (red): `failed`. In every state: a reopened test can have failed papers.
 - încarcă acum (pale): `uploading` while uploads are open (a reopened test included: a held-back paper is again one the student can change).
 - încă nu au trimis (grey, plain): `none` while uploads are open.
-- nu au participat (grey, striped): `none`, and `uploading` with no files, after uploads closed.
+- nu au participat (hollow, a grey outline: the brand has no gradient): `none`, and `uploading` with no files, after uploads closed.
 
 Uploads are open when `test.status === 'open'` (a reopened test included). The title says "Lucrări: 18 din 23 de elevi au trimis" while they are open, and "Lucrări: 18 din 23 de elevi au participat" after. While open, the 18 counts the papers sent (every segment but "încarcă acum" and grey); after, every paper with files (every segment but the grey ones).
 

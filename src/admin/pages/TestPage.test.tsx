@@ -334,7 +334,7 @@ describe('TestPage', () => {
 
   it('lists the uploads of the students', async () => {
     renderAdmin(`${PAGE}#in-clasa`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN, submittedCount: 1, studentCount: 3 }));
-    expect(await screen.findByRole('heading', { name: 'Încărcări · trimise 1 din 3' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Lucrări: 1 din 3 elevi au trimis' })).toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('Trimis')).toBeInTheDocument();
     expect(within(pop).getByText('Fără confirmare')).toBeInTheDocument();
@@ -359,6 +359,21 @@ describe('TestPage', () => {
     const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
     expect(within(marin).getByText('Nu a participat')).toBeInTheDocument();
     expect(within(marin).queryByText(/Elevul a ales numele/)).not.toBeInTheDocument();
+  });
+
+  it('shows the papers bar with each part named, and no points line when none waits', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 2 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done', studentCount: 3 }, rows)] }));
+    expect(await screen.findByRole('heading', { name: 'Lucrări: 2 din 3 elevi au participat' })).toBeInTheDocument();
+    const box = document.querySelector<HTMLElement>('.papers-progress')!;
+    expect(within(box).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Corectate 1', 'Așteaptă corectarea 1', 'Nu au participat 1']);
+    expect(box.querySelector('.papers-bar')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(box).queryByText('✓ Corectat complet')).not.toBeInTheDocument();
+    expect(within(box).queryByRole('link', { name: 'Verifică' })).not.toBeInTheDocument();
   });
 
   it('says that a student who sent nothing did not take part once the uploads are closed', async () => {
@@ -1388,7 +1403,11 @@ describe('TestPage evaluation', () => {
     ];
     const api = evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
     renderAdmin(`${PAGE}#corectare`, api);
-    expect(await screen.findByRole('heading', { name: 'Încărcări · trimise 2 din 2 · corectate 1 · de verificat 2' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Lucrări: 2 din 2 elevi au participat' })).toBeInTheDocument();
+    const legend = document.querySelector<HTMLElement>('.papers-progress')!;
+    expect(within(legend).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Corectate 1', 'Eșuate 1']);
+    expect(within(legend).getByText('2 puncte de verificat')).toBeInTheDocument();
+    expect(within(legend).getByRole('link', { name: 'Verifică' })).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
     expect(screen.getByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('8,75')).toBeInTheDocument();
