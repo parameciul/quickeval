@@ -4,7 +4,7 @@
 
 **Goal:** The teacher checks a paper on one page: the students, all the exercises of one student (or only the points to check) and the paper side by side, any exercise opening its answer on the paper; and the test page says plainly who took part, what is graded and what waits.
 
-**Architecture:** Front end only: no API, database or robot change, no migration. Task 1 puts a path ("Teste › Clasa 7E2 › <test>", `Crumbs.tsx`) above the test page's title and stretches the papers table, whose model goes into the row's ⋯ menu and whose states after the uploads close say "Nu a participat" and "Așteaptă corectarea". Task 2 replaces the grading bar with `PapersProgress.tsx`, one bar of the students in parts counted by `paperCounts.ts` from the uploads list, and the points to check on a line of their own. Task 3 replaces the paper's page (`SubmissionPage.tsx`) and the review (`ReviewPage.tsx`) with one page, `PaperPage.tsx`, at the paper's old address: `GradedResult` gets an optional hold on its rows (`check`) so a row opens, shows its answer on the paper (`ReviewPhoto`, unchanged) and, when it waits for a check, the decision (`PointDecision.tsx`) under it; the old review address redirects to the page with only the points to check; a Quick Try's review shows the same page without the parts its allow-list does not have.
+**Architecture:** Front end only: no API, database or robot change, no migration. Task 1 puts a path ("Teste › Clasa 7E2 › <test>", `Crumbs.tsx`) above the test page's title and stretches the papers table, whose model goes into the row's ⋯ menu and whose states after the uploads close say "Nu a participat" and "Așteaptă corectarea". Task 2 replaces the grading bar with `PapersProgress.tsx`, one bar of the students in parts counted by `paperCounts.ts` from the uploads list, and the points to check on a line of their own. Task 3 replaces the paper's page (`SubmissionPage.tsx`) and the review (`ReviewPage.tsx`) with one page, `PaperPage.tsx`, at the paper's old address: `GradedResult` gets an optional hold on its rows (`check`) so a row opens, shows its answer on the paper (`ReviewPhoto`, unchanged) and, when it waits for a check, the decision (`PointDecision.tsx`) under it; the old review address redirects to the page with only the points to check; a Quick Try's review shows the same page without the parts its allow-list does not have. Task 4 makes a row to check calm (its points in a soft orange label and one "Verifică" button) and turns the decision into the points as buttons (`choices.ts`), "Alt punctaj" and one "Confirmă" (design C, chosen by the user after a preview); points are never bold.
 
 **Tech Stack:** Node 24, TypeScript, React 19, React Router, TanStack Query, Vitest, Testing Library. No new npm dependencies.
 
@@ -25,11 +25,12 @@
 ## How to read the steps
 
 - **Create** `path`: the file is new; write exactly the content given.
+- **Replace** `path`: the file exists; write exactly the content given in place of all of it.
 - **Edit** `path`: find the first block in the file (it occurs once) and put the second block in its place; change nothing else. A task's Edit steps for one file run in the order given.
 - **Delete** `path`: run `git rm <path>`.
 - **Move** `a` **to** `b`: run `git mv <a> <b>`; the Edit steps after it change the moved file.
 - The expected test totals are exact for the branch alone. If a run shows other numbers or other errors, stop and report.
-- The tested prototype of this plan is in the repo as `refs/protopc/p1` to `refs/protopc/p3`, one per task, on `refs/protopc/pcbase` (the same files as the commit that adds the spec, `13552a6`). After Task N, `git diff --stat refs/protopc/pN HEAD -- . ':!docs/superpowers/plans'` prints nothing.
+- The tested prototype of this plan is in the repo as `refs/protopc/p1` to `refs/protopc/p4`, one per task, on `refs/protopc/pcbase` (the same files as the commit that adds the spec, `13552a6`). After Task N, `git diff --stat refs/protopc/pN HEAD -- . ':!docs/superpowers/plans'` prints nothing.
 - The totals below are for a PC with pandoc. The steady `1 skipped` file and `3 skipped` tests are the print container (`runner/print/container.test.ts`, run only with `QE_PRINT_IMAGE_TESTS=1`).
 
 ## Rulings made while planning
@@ -46,6 +47,7 @@ Settled while building and looking at the prototype on 2026-11-12. The tasks wri
 8. **The head keeps the paper's page's line** "<code> · <test> · <state>": the grade and the total are in the grade strip right under it.
 9. **The page is drawn anew for another student.** The shell keys its error boundary by the path (`ErrorBoundary key={location.pathname}`), so a move to another student mounts the page again and reads the test again. Where the focus goes after a decision rides in the navigation state (`paperFocus`: `point` or `student`), given once per address. Leave the shell's key as it is.
 10. **"Elevul anterior" and "Elevul următor"** follow the list as it shows: all the students by name, or, with only the points to check, the students with points first. With only the points to check a student opens on its first point.
+11. **The decision is design C, "points as buttons"** (the user's pick of three, after a preview of Task 3's page, where the orange row, its reason, "Verificat", "Accept" and the stepper looked complicated): on the paper page a row to check shows only its points in a soft orange label and "Verifică"; under the open row, the reason, a button for each value (steps of 0,25 up to 2 points, 0,5 up to 5, 1 above, and the robot's value always, chosen at first), "Alt punctaj" and "Confirmă <points>". A presses "Confirmă". Points are never bold. A Quick Try's "Rezultatul profesorului", which has no paper beside it, keeps the reason and "Verificat" in the row.
 
 ## Review Focus
 
@@ -5334,7 +5336,1533 @@ git commit -m "Check a paper on one page: the students, all the exercises and th
 Run: `git diff --stat refs/protopc/p3 HEAD -- . ':!docs/superpowers/plans'`
 Expected: no output.
 
-### After Task 3: Look at it
+### Task 4: A calm row to check, and its points as buttons
+
+On the paper page a row to check is calm: its points in a soft orange label ("0,75 din 1,5") and one "Verifică" button, with no reason and no "Verificat" in the row. Its decision under the open row is a light box: the robot's reason, a button for each value, "Alt punctaj" for an exact value, "Confirmă <points>" and what the grade becomes. The pages the robot could not read are a calm line, "Pagini necitite", with "Verifică". Points are never bold. The keys are named in one line under the bar while a decision shows.
+
+**Files:**
+- Create: `src/admin/paperPage/choices.ts`, `src/admin/paperPage/choices.test.ts`, `src/admin/submissionPage/GradedResult.test.tsx`
+- Replace: `src/admin/paperPage/PointDecision.tsx`
+- Modify: `src/admin/submissionPage/GradedResult.tsx`, `src/admin/pages/PaperPage.tsx`, `src/ui/brand.css`, `src/AGENTS.md`, `docs/superpowers/specs/2026-11-12-one-page-paper-check-design.md`
+- Test: `src/admin/paperPage/choices.test.ts`, `src/admin/submissionPage/GradedResult.test.tsx`, `src/admin/pages/PaperPage.test.tsx`, `src/admin/pages/PaperCheck.test.tsx`, `src/try/Graded.test.tsx`
+
+**Interfaces:**
+- Consumes: `PointDecision`, `DecisionView`, `ItemsCheck`, `PaperPage` (Task 3); `formatPoints`, `gradeOf`, `isValidCorrection`, `round2` (`shared/scoring.ts`); `parsePoints`, `pageLabel` (`src/ui/format.ts`); `pointsText` (`reviewPage/points.ts`).
+- Produces:
+  - `src/admin/paperPage/choices.ts`: `pointChoices(maxPoints: number, robotPoints: number): number[]`, ascending, from 0 to `maxPoints`.
+  - `PointDecision({ evaluation, view, pending, error, onDecide })`: the `pageCount` prop is gone. Its confirming button carries `data-confirm`; the page's A key clicks `.point-decision [data-confirm]`.
+  - `GradedResult` with `check`: a row to check has the class `is-to-check` (not `is-flagged`) and its points in `.points-pill`; its "Verifică" button is named `Verifică <label>`. Without `check` the rows are as in Task 3.
+
+- [ ] **Step 1: Create `src/admin/paperPage/choices.test.ts`**
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { pointChoices } from './choices.ts';
+
+describe('pointChoices', () => {
+  it('offers steps of 0,25 up to 2 points', () => {
+    expect(pointChoices(1.5, 0.75)).toEqual([0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]);
+    expect(pointChoices(2, 1)).toEqual([0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]);
+  });
+
+  it('offers steps of 0,5 up to 5 points, and of 1 above', () => {
+    expect(pointChoices(5, 3)).toEqual([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]);
+    expect(pointChoices(10, 7)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  });
+
+  it("always offers the robot's points, also off the steps", () => {
+    expect(pointChoices(1.5, 0.3)).toEqual([0, 0.25, 0.3, 0.5, 0.75, 1, 1.25, 1.5]);
+    expect(pointChoices(4.5, 4.5)).toEqual([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5]);
+  });
+
+  it('ends on a maximum off the steps', () => {
+    expect(pointChoices(2.2, 0)).toEqual([0, 0.5, 1, 1.5, 2, 2.2]);
+  });
+});
+```
+
+- [ ] **Step 2: Create `src/admin/submissionPage/GradedResult.test.tsx`**
+
+```tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import { describe, expect, it } from 'vitest';
+import type { EvaluationInfo, SubmissionDetail } from '../../../shared/api.ts';
+import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission } from '../../test/fakeApi.ts';
+import { ApiProvider } from '../ApiContext.tsx';
+import { GradedResult } from './GradedResult.tsx';
+
+// The plain result, without the paper page's hold on its rows: the Quick Try's
+// "Rezultatul profesorului". A row to check keeps its reason and "Verificat".
+const GRADED_AT = '2026-10-07T09:00:00.000Z';
+
+function paper(): SubmissionDetail {
+  return fakeSubmission({
+    id: 5,
+    evaluation: fakeEvaluation(
+      [
+        fakeItem({ id: 31, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 4.5 }),
+        fakeItem({ id: 32, exerciseId: 'II.1', label: 'Subiectul II, ex. 1', points: 1, needsReview: true, reviewReason: 'Scrisul nu se citește.' }),
+      ],
+      { unreadable: ['student/page-02.jpg'] },
+    ),
+  });
+}
+
+function Holder({ initial }: { initial: EvaluationInfo }) {
+  const [evaluation, setEvaluation] = useState(initial);
+  return <GradedResult submissionId={5} evaluation={evaluation} onSaved={async (saved) => setEvaluation(saved.evaluation!)} />;
+}
+
+function renderPlain() {
+  const submission = paper();
+  const api = createFakeApi({ classes: [], students: {}, tests: [], submissions: [structuredClone(submission)] });
+  render(
+    <ApiProvider api={api}>
+      <QueryClientProvider client={new QueryClient()}>
+        <Holder initial={submission.evaluation!} />
+      </QueryClientProvider>
+    </ApiProvider>,
+  );
+  return api;
+}
+
+const row = (label: string) => screen.getByRole('row', { name: new RegExp(label) });
+
+describe('GradedResult without the paper page', () => {
+  it('puts Verificat in the note with its reason, and checks the item', async () => {
+    const api = renderPlain();
+    const flagged = row('Subiectul II, ex. 1');
+    expect(flagged).toHaveClass('is-flagged');
+    const check = within(flagged).getByRole('button', { name: 'Verificat Subiectul II, ex. 1' });
+    expect(within(check.closest('.review-note') as HTMLElement).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
+    expect(within(flagged).queryByRole('button', { name: /^Verifică/ })).not.toBeInTheDocument();
+    expect(within(flagged).queryByRole('button', { name: /^Arată pe lucrare/ })).not.toBeInTheDocument();
+    await userEvent.click(check);
+    expect(api.correctItem).toHaveBeenCalledWith(5, 32, { gradedAt: GRADED_AT, reviewed: true });
+    expect(await within(row('Subiectul II, ex. 1')).findByText('Verificat')).toBeInTheDocument();
+    expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-flagged');
+  });
+
+  it('names the pages the robot could not read, with "Am verificat paginile"', async () => {
+    const api = renderPlain();
+    expect(screen.getByText('Robotul nu a putut citi: Pagina 2. Verifică pozele și punctajele exercițiilor de pe ele.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Am verificat paginile' }));
+    expect(api.reviewPages).toHaveBeenCalledWith(5, { gradedAt: GRADED_AT, pagesReviewed: true });
+    expect(await screen.findByText('Robotul nu a putut citi: Pagina 2. Ai verificat aceste pagini.')).toBeInTheDocument();
+  });
+
+  it('never makes the points bold', async () => {
+    renderPlain();
+    expect(within(row('Subiectul I, ex. 1')).getByText('4,5 din 4,5')).toHaveClass('points', 'points-5');
+  });
+});
+```
+
+- [ ] **Step 3: Edit `src/admin/pages/PaperPage.test.tsx`**
+
+Find this block:
+
+```tsx
+    const flagged = row('Subiectul II, ex. 1');
+    expect(flagged).toHaveClass('is-flagged');
+    expect(within(flagged).getByText('x = 3')).toBeInTheDocument();
+    expect(within(flagged).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
+    expect(within(flagged).getByText('Mică')).toBeInTheDocument();
+    expect(row('Subiectul I, ex. 1')).not.toHaveClass('is-flagged');
+    expect(screen.getByText('Ai lucrat bine la fracții.')).toBeInTheDocument();
+```
+
+Replace it with:
+
+```tsx
+    const flagged = row('Subiectul II, ex. 1');
+    expect(flagged).toHaveClass('is-to-check');
+    expect(within(flagged).getByText('x = 3')).toBeInTheDocument();
+    expect(within(flagged).getByText('Mică')).toBeInTheDocument();
+    expect(row('Subiectul I, ex. 1')).not.toHaveClass('is-to-check');
+    expect(screen.getByText('Ai lucrat bine la fracții.')).toBeInTheDocument();
+```
+
+- [ ] **Step 4: Edit `src/admin/pages/PaperPage.test.tsx`**
+
+Find this block:
+
+```tsx
+
+  it('marks an item as checked', async () => {
+    const api = apiWith(graded);
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' }));
+    expect(api.correctItem).toHaveBeenCalledWith(5, 32, { gradedAt: GRADED_AT, reviewed: true });
+    expect(await within(row('Subiectul II, ex. 1')).findByText('Verificat')).toBeInTheDocument();
+    expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-flagged');
+    expect(screen.getByText('De verificat: 1')).toBeInTheDocument();
+```
+
+Replace it with:
+
+```tsx
+
+  it('checks an item: "Verifică" opens it, "Confirmă" checks it', async () => {
+    const api = apiWith(graded);
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Verifică Subiectul II, ex. 1' }));
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    expect(within(panel).getByText('Scrisul nu se citește.')).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    expect(api.correctItem).toHaveBeenCalledWith(5, 32, { gradedAt: GRADED_AT, reviewed: true });
+    expect(await within(row('Subiectul II, ex. 1')).findByText('Verificat')).toBeInTheDocument();
+    expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-to-check');
+    expect(screen.getByText('De verificat: 1')).toBeInTheDocument();
+```
+
+- [ ] **Step 5: Edit `src/admin/pages/PaperPage.test.tsx`**
+
+Find this block:
+
+```tsx
+    const api = apiWith(graded);
+    renderAdmin(page, api);
+    const check = await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' });
+    await vi.waitFor(() => expect(api.listTests).toHaveBeenCalled());
+```
+
+Replace it with:
+
+```tsx
+    const api = apiWith(graded);
+    renderAdmin(`${page}?punct=32`, api);
+    const check = await screen.findByRole('button', { name: 'Confirmă 1p' });
+    await vi.waitFor(() => expect(api.listTests).toHaveBeenCalled());
+```
+
+- [ ] **Step 6: Edit `src/admin/pages/PaperPage.test.tsx`**
+
+Find this block:
+
+```tsx
+
+  it('puts Verificat in the note with its reason, and only the pencil in the actions cell', async () => {
+    renderAdmin(page, apiWith(graded));
+    const check = await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' });
+    const note = check.closest('.review-note') as HTMLElement;
+    expect(note).not.toBeNull();
+    expect(within(note).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
+    expect(check.closest('td')).toHaveAttribute('data-label', 'Comentariu');
+    const edit = screen.getByRole('button', { name: 'Modifică Subiectul II, ex. 1' });
+    expect(edit.closest('td')).toHaveClass('item-check');
+    expect(within(edit.closest('td')!).queryByRole('button', { name: /^Verificat/ })).not.toBeInTheDocument();
+    // While editing, the reason stays, without the button: saving checks it.
+    await userEvent.click(edit);
+    expect(await screen.findByRole('button', { name: 'Salvează' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Salvează' }).closest('td')).not.toHaveClass('item-check');
+    expect(within(row('Subiectul II, ex. 1')).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).not.toBeInTheDocument();
+  });
+```
+
+Replace it with:
+
+```tsx
+
+  it('keeps a row to check calm: its points in a label, and only "Verifică" and the pencil', async () => {
+    renderAdmin(page, apiWith(graded));
+    const flagged = (await screen.findByRole('button', { name: 'Verifică Subiectul II, ex. 1' })).closest('tr')!;
+    expect(within(flagged).getByText('1 din 4,5')).toHaveClass('points-pill');
+    expect(flagged.querySelector('.review-note')).toBeNull();
+    expect(within(flagged).queryByText(/Scrisul nu se citește/)).not.toBeInTheDocument();
+    expect(within(flagged).queryByRole('button', { name: /^Verificat/ })).not.toBeInTheDocument();
+    expect(within(flagged).queryByRole('button', { name: 'Arată pe lucrare Subiectul II, ex. 1' })).not.toBeInTheDocument();
+    expect(within(flagged).getByRole('button', { name: 'Modifică Subiectul II, ex. 1' })).toBeInTheDocument();
+    // A row with nothing to check shows its answer on the paper with the eye.
+    expect(within(row('Subiectul I, ex. 1')).getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' })).toBeInTheDocument();
+  });
+```
+
+- [ ] **Step 7: Edit `src/admin/pages/PaperPage.test.tsx`**
+
+Find this block:
+
+```tsx
+    api.correctItem.mockRejectedValueOnce(new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.'));
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Verificat Subiectul II, ex. 1' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Lucrarea se corectează din nou. Reîncarcă pagina.');
+```
+
+Replace it with:
+
+```tsx
+    api.correctItem.mockRejectedValueOnce(new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.'));
+    renderAdmin(`${page}?punct=32`, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmă 1p' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Lucrarea se corectează din nou. Reîncarcă pagina.');
+```
+
+- [ ] **Step 8: Edit `src/admin/pages/PaperPage.test.tsx`**
+
+Find this block:
+
+```tsx
+    renderAdmin(page, api);
+    expect(await screen.findByText(/Robotul nu a putut citi: Pagina 2\./)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Am verificat paginile' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată paginile' }));
+    expect(screen.getByRole('button', { name: 'Pagina 2' })).toHaveAttribute('aria-current', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Am verificat paginile' }));
+```
+
+Replace it with:
+
+```tsx
+    renderAdmin(page, api);
+    expect(await screen.findByText('Pagini necitite')).toHaveClass('points-pill');
+    expect(screen.queryByRole('button', { name: 'Am verificat paginile' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Verifică paginile necitite' }));
+    expect(screen.getByRole('button', { name: 'Pagina 2' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByText(/^Robotul nu a putut citi: Pagina 2\./)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Am verificat paginile' }));
+```
+
+- [ ] **Step 9: Edit `src/admin/pages/PaperPage.test.tsx`**
+
+Find this block:
+
+```tsx
+    expect(within(row('Subiectul I, ex. 1')).getByText('4,5 din 4,5')).toHaveClass('points-5');
+    expect(within(flagged).getByText('1 din 4,5')).toHaveClass('points-1');
+  });
+```
+
+Replace it with:
+
+```tsx
+    expect(within(row('Subiectul I, ex. 1')).getByText('4,5 din 4,5')).toHaveClass('points-5');
+    // A row to check has its points in a label instead.
+    expect(within(flagged).getByText('1 din 4,5')).toHaveClass('points-pill');
+  });
+```
+
+- [ ] **Step 10: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    const flagged = row('Subiectul II, ex. 1');
+    expect(flagged).toHaveClass('is-open');
+    expect(within(flagged).getByText('x = 3')).toBeInTheDocument();
+    expect(within(flagged).getByText('Verifică semnul.')).toBeInTheDocument();
+    expect(within(flagged).getByText('De verificat: Scrisul nu se citește.')).toBeInTheDocument();
+    expect(within(flagged).queryByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).not.toBeInTheDocument();
+    expect(within(panel).getByText('2p în barem')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    expect(api.correctItem).toHaveBeenCalledWith(11, 32, { reviewed: true, gradedAt: GRADED_AT });
+```
+
+Replace it with:
+
+```tsx
+    const flagged = row('Subiectul II, ex. 1');
+    expect(flagged).toHaveClass('is-open', 'is-to-check');
+    expect(within(flagged).getByText('1 din 2')).toHaveClass('points-pill');
+    expect(within(flagged).getByText('x = 3')).toBeInTheDocument();
+    expect(within(flagged).getByText('Verifică semnul.')).toBeInTheDocument();
+    expect(within(flagged).queryByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).not.toBeInTheDocument();
+    // The reason and the points to choose are under the row, the robot's chosen.
+    expect(within(panel).getByText('Scrisul nu se citește.')).toBeInTheDocument();
+    expect(within(panel).getByText('(robotul a dat 1p din 2p)')).toBeInTheDocument();
+    expect(within(panel).getAllByRole('button', { pressed: true }).map((chip) => chip.textContent)).toEqual(['1']);
+    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    expect(api.correctItem).toHaveBeenCalledWith(11, 32, { reviewed: true, gradedAt: GRADED_AT });
+```
+
+- [ ] **Step 11: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+
+  it('says what the grade becomes with another value, and saves it', async () => {
+    const api = apiWith();
+```
+
+Replace it with:
+
+```tsx
+
+  it('chooses other points with a button or typed, says what the grade becomes, and saves it', async () => {
+    const api = apiWith();
+```
+
+- [ ] **Step 12: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
+    expect(within(panel).getByText('Total: 6,5 din 10, cu 1 din oficiu')).toBeInTheDocument();
+    expect(within(panel).queryByText(/nota devine/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scade 0,5p' }));
+    expect(input).toHaveValue('0,5');
+    expect(within(panel).getByText('Cu 0,5p aici, nota devine 6.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Scade 0,5p' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Scade 0,5p' }));
+    expect(input).toHaveValue('0');
+    expect(within(panel).getByText('Cu 0p aici, nota devine 5,5.')).toBeInTheDocument();
+    for (let press = 0; press < 5; press += 1) await userEvent.click(screen.getByRole('button', { name: 'Adaugă 0,5p' }));
+    expect(input).toHaveValue('2');
+
+    await userEvent.clear(input);
+    await userEvent.type(input, '1,25');
+    expect(within(panel).getByText('Cu 1,25p aici, nota devine 6,75.')).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
+    expect(api.correctItem).toHaveBeenCalledWith(11, 32, { points: 1.25, reviewed: true, gradedAt: GRADED_AT });
+```
+
+Replace it with:
+
+```tsx
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    const chips = within(panel).getByRole('group', { name: /Punctajul/ });
+    expect(within(chips).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['0', '0,25', '0,5', '0,75', '1', '1,25', '1,5', '1,75', '2']);
+    expect(within(panel).getByText('Nota rămâne 6,5.')).toBeInTheDocument();
+
+    await userEvent.click(within(chips).getByRole('button', { name: '0,5' }));
+    expect(within(chips).getByRole('button', { name: '0,5' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(chips).getByRole('button', { name: '1' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(panel).getByText('Cu 0,5p aici, nota devine 6.')).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Confirmă 0,5p' })).toBeInTheDocument();
+    await userEvent.click(within(chips).getByRole('button', { name: '0' }));
+    expect(within(panel).getByText('Cu 0p aici, nota devine 5,5.')).toBeInTheDocument();
+
+    // A typed value wins over the buttons.
+    const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
+    await userEvent.type(input, '1,35');
+    expect(within(chips).queryByRole('button', { pressed: true })).not.toBeInTheDocument();
+    expect(within(panel).getByText('Cu 1,35p aici, nota devine 6,85.')).toBeInTheDocument();
+    await userEvent.clear(input);
+    await userEvent.type(input, '1,25');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1,25p' }));
+    expect(api.correctItem).toHaveBeenCalledWith(11, 32, { points: 1.25, reviewed: true, gradedAt: GRADED_AT });
+```
+
+- [ ] **Step 13: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    await userEvent.type(input, 'ajk2');
+    expect(input).toHaveValue('1ajk2');
+    input.blur();
+```
+
+Replace it with:
+
+```tsx
+    await userEvent.type(input, 'ajk2');
+    expect(input).toHaveValue('ajk2');
+    input.blur();
+```
+
+- [ ] **Step 14: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    expect(api.correctItem).toHaveBeenCalledTimes(1);
+    expect(within(panel).getByRole('button', { name: 'Accept 1p' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
+```
+
+Replace it with:
+
+```tsx
+    expect(api.correctItem).toHaveBeenCalledTimes(1);
+    expect(within(panel).getByRole('button', { name: 'Confirmă 1p' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
+```
+
+- [ ] **Step 15: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
+    expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
+```
+
+Replace it with:
+
+```tsx
+
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 3p' }));
+    expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
+```
+
+- [ ] **Step 16: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    expect(api.getSubmission).toHaveBeenCalledTimes(1);
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    expect(await within(decision()).findByText('Lucrarea se corectează din nou. Reîncarcă pagina.')).toBeInTheDocument();
+```
+
+Replace it with:
+
+```tsx
+    expect(api.getSubmission).toHaveBeenCalledTimes(1);
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    expect(await within(decision()).findByText('Lucrarea se corectează din nou. Reîncarcă pagina.')).toBeInTheDocument();
+```
+
+- [ ] **Step 17: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
+    // II.1 still waits: its own "Verificat" is back while it is not open.
+    expect(within(row('Subiectul II, ex. 1')).getByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).toBeInTheDocument();
+  });
+```
+
+Replace it with:
+
+```tsx
+    expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
+    // II.1 still waits: closed, it shows "Verifică", which opens it again.
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByRole('button', { name: 'Verifică Subiectul II, ex. 1' }));
+    await expectLocation(at(11, '32', 'toate'));
+  });
+```
+
+- [ ] **Step 18: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 1p' }));
+    // No point of Ana is left: the row stays open, and "Elevul următor" waits.
+```
+
+Replace it with:
+
+```tsx
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Confirmă 1p' }));
+    // No point of Ana is left: the row stays open, and "Elevul următor" waits.
+```
+
+- [ ] **Step 19: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(within(screen.getByRole('navigation', { name: 'Unde ești' })).getByRole('link', { name: 'Fracții' }));
+```
+
+Replace it with:
+
+```tsx
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(within(screen.getByRole('navigation', { name: 'Unde ești' })).getByRole('link', { name: 'Fracții' }));
+```
+
+- [ ] **Step 20: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
+    await userEvent.click(within(students()).getByRole('link', { name: 'Eva Stan nota 5' }));
+```
+
+Replace it with:
+
+```tsx
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(within(students()).getByRole('link', { name: 'Eva Stan nota 5' }));
+```
+
+- [ ] **Step 21: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await within(panel).findByRole('button', { name: 'Accept 1p' });
+    fireEvent.keyDown(document.body, { key: 'a' });
+```
+
+Replace it with:
+
+```tsx
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await within(panel).findByRole('button', { name: 'Confirmă 1p' });
+    fireEvent.keyDown(document.body, { key: 'a' });
+```
+
+- [ ] **Step 22: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    api.getSubmission.mockResolvedValueOnce(regraded);
+    await userEvent.clear(input);
+    await userEvent.type(input, '1,5');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
+    await waitFor(() => expect(within(decision()).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue('1'));
+  });
+```
+
+Replace it with:
+
+```tsx
+    api.getSubmission.mockResolvedValueOnce(regraded);
+    await userEvent.type(input, '1,5');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1,5p' }));
+    await waitFor(() => expect(within(decision()).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue(''));
+    expect(within(decision()).getByRole('button', { name: 'Confirmă 1p' })).toBeInTheDocument();
+  });
+```
+
+- [ ] **Step 23: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
+    await userEvent.click(screen.getByRole('button', { name: 'Accept 1p' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toHaveFocus());
+```
+
+Replace it with:
+
+```tsx
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmă 1p' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toHaveFocus());
+```
+
+- [ ] **Step 24: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    clickAt(sizedPane(), 200, 200);
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
+```
+
+Replace it with:
+
+```tsx
+    clickAt(sizedPane(), 200, 200);
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Confirmă 3p' }));
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
+```
+
+- [ ] **Step 25: Edit `src/admin/pages/PaperCheck.test.tsx`**
+
+Find this block:
+
+```tsx
+    expect(layer().style.transform).not.toBe(WHOLE);
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
+```
+
+Replace it with:
+
+```tsx
+    expect(layer().style.transform).not.toBe(WHOLE);
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Confirmă 3p' }));
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
+```
+
+- [ ] **Step 26: Edit `src/try/Graded.test.tsx`**
+
+Find this block:
+
+```tsx
+    expect(await screen.findByRole('img', { name: /Pagina 1/ })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/submissions/${TRY_SUBMISSION}/files/61`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Accept 3p' }));
+    await waitFor(() => expect(api.correctItem).toHaveBeenCalledWith(TRY_SUBMISSION, 71, expect.objectContaining({ reviewed: true })));
+```
+
+Replace it with:
+
+```tsx
+    expect(await screen.findByRole('img', { name: /Pagina 1/ })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/submissions/${TRY_SUBMISSION}/files/61`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmă 3p' }));
+    await waitFor(() => expect(api.correctItem).toHaveBeenCalledWith(TRY_SUBMISSION, 71, expect.objectContaining({ reviewed: true })));
+```
+
+- [ ] **Step 27: Run the tests to see them fail**
+
+Run: `npx vitest run src/admin/paperPage/choices.test.ts src/admin/submissionPage/GradedResult.test.tsx src/admin/pages/PaperPage.test.tsx src/admin/pages/PaperCheck.test.tsx src/try/Graded.test.tsx`
+Expected: FAIL. `Test Files  4 failed | 1 passed (5)`, `Tests  23 failed | 88 passed (111)`: `choices.test.ts` does not load (`Failed to resolve import "./choices.ts"`); the paper page still has Task 3's decision, so there is no "Confirmă 1p", no group "Punctajul …", no "Verifică Subiectul II, ex. 1" and no "Pagini necitite" (`Unable to find … role "button" and name "Confirmă 1p"`, `expect(element).toHaveClass("is-to-check")`, `toHaveClass("points-pill")`); the try's test finds no "Confirmă 3p". `GradedResult.test.tsx` passes already: it pins the Quick Try's plain result, which this task keeps.
+
+- [ ] **Step 28: Create `src/admin/paperPage/choices.ts`**
+
+```ts
+import { round2 } from '../../../shared/scoring.ts';
+
+// The points the decision offers as buttons, from 0 to the exercise's
+// maximum: in steps of 0,25 up to 2 points, of 0,5 up to 5, else of 1, so a
+// row of buttons stays short. The robot's points are always one of them,
+// also off those steps; any other value is typed in "Alt punctaj".
+export function pointChoices(maxPoints: number, robotPoints: number): number[] {
+  const step = maxPoints <= 2 ? 0.25 : maxPoints <= 5 ? 0.5 : 1;
+  const choices: number[] = [];
+  for (let value = 0; value < maxPoints - 1e-9; value = round2(value + step)) choices.push(value);
+  choices.push(maxPoints);
+  if (!choices.includes(robotPoints) && robotPoints >= 0 && robotPoints <= maxPoints) choices.push(robotPoints);
+  return choices.sort((a, b) => a - b);
+}
+```
+
+- [ ] **Step 29: Replace `src/admin/paperPage/PointDecision.tsx`**
+
+```tsx
+import { useId, useState } from 'react';
+import type { EvaluationInfo, EvaluationItemInfo, ItemChange } from '../../../shared/api.ts';
+import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../../shared/scoring.ts';
+import { pageLabel, parsePoints } from '../../ui/format.ts';
+import { MathText } from '../../ui/MathText.tsx';
+import { ErrorMessage } from '../ErrorMessage.tsx';
+import { pointsText } from '../reviewPage/points.ts';
+import { pointChoices } from './choices.ts';
+
+// What waits for the teacher's decision on the open row: an exercise to check,
+// or the pages the robot could not read.
+export type DecisionView = { kind: 'item'; item: EvaluationItemInfo } | { kind: 'pages'; pages: string[] };
+
+// The decision on the open point to check, under its row (spec 2026-11-12
+// §4.4, design C): why the robot was not sure, the points as buttons (the
+// robot's chosen at first) or another value typed, and one button,
+// "Confirmă", with what the grade becomes. Its heading, for screen readers,
+// takes the focus after the decision before it. The A key presses
+// "Confirmă" (`data-confirm`). `onDecide` takes the change of points, or none.
+export function PointDecision({
+  evaluation,
+  view,
+  pending,
+  error,
+  onDecide,
+}: {
+  evaluation: EvaluationInfo;
+  view: DecisionView;
+  pending: boolean;
+  error: Error | null;
+  onDecide: (change: ItemChange) => void;
+}) {
+  return (
+    <section className="point-decision" aria-label="Decizia">
+      {view.kind === 'item' ? (
+        // A new grading of the paper starts the choice again: a value chosen
+        // on the old one is not for it.
+        <ItemDecision key={`${evaluation.gradedAt}:${view.item.id}`} evaluation={evaluation} item={view.item} pending={pending} onDecide={onDecide} />
+      ) : (
+        <>
+          <h2 className="sr-only" tabIndex={-1}>
+            Decide: Paginile necitite
+          </h2>
+          <p className="point-why">
+            Robotul nu a putut citi: {view.pages.map(pageLabel).join(', ')}. Verifică pozele și punctajele exercițiilor de pe ele.
+          </p>
+          <div className="point-foot">
+            <button type="button" className="button" data-confirm disabled={pending} onClick={() => onDecide({})}>
+              Am verificat paginile
+            </button>
+          </div>
+        </>
+      )}
+      {error && <ErrorMessage error={error} />}
+    </section>
+  );
+}
+
+function ItemDecision({
+  evaluation,
+  item,
+  pending,
+  onDecide,
+}: {
+  evaluation: EvaluationInfo;
+  item: EvaluationItemInfo;
+  pending: boolean;
+  onDecide: (change: ItemChange) => void;
+}) {
+  const id = useId();
+  const [chosen, setChosen] = useState(item.points);
+  const [typed, setTyped] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
+  // A typed value wins over the buttons. The robot's own points are valid
+  // also off the 0,05 steps.
+  const value = typed.trim() === '' ? chosen : parsePoints(typed);
+  const valid = value !== null && (value === item.points || isValidCorrection(value, item.maxPoints));
+  const other = valid && value !== item.points ? value : null;
+
+  const confirm = () => {
+    if (!valid) {
+      setProblem(`Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
+      return;
+    }
+    setProblem(null);
+    onDecide(value === item.points ? {} : { points: value });
+  };
+
+  return (
+    <>
+      <h2 className="sr-only" tabIndex={-1}>
+        Decide: {item.label}
+      </h2>
+      <p className="point-why">
+        <MathText text={item.reviewReason} />
+      </p>
+      <p className="point-label" id={`${id}-label`}>
+        Punctajul <span className="hint">(robotul a dat {pointsText(item.points)} din {pointsText(item.maxPoints)})</span>
+      </p>
+      <div className="point-chips" role="group" aria-labelledby={`${id}-label`}>
+        {pointChoices(item.maxPoints, item.points).map((choice) => (
+          <button
+            key={choice}
+            type="button"
+            className={choice === item.points ? 'point-chip is-robot' : 'point-chip'}
+            aria-pressed={typed.trim() === '' && choice === chosen}
+            disabled={pending}
+            onClick={() => {
+              setChosen(choice);
+              setTyped('');
+              setProblem(null);
+            }}
+          >
+            {formatPoints(choice)}
+          </button>
+        ))}
+      </div>
+      <label className="point-other" htmlFor={id}>
+        Alt punctaj<span className="sr-only">, din {formatPoints(item.maxPoints)}</span>
+        <input
+          id={id}
+          type="text"
+          inputMode="decimal"
+          value={typed}
+          onChange={(event) => {
+            setTyped(event.target.value);
+            setProblem(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !pending) confirm();
+          }}
+        />
+      </label>
+      <div className="point-foot">
+        <button type="button" className="button" data-confirm disabled={pending} onClick={confirm}>
+          Confirmă {pointsText(valid ? value : item.points)}
+        </button>
+        <span className="hint" role="status">
+          {other !== null
+            ? `Cu ${pointsText(other)} aici, nota devine ${formatPoints(gradeOf(round2(evaluation.total - item.points + other), evaluation.maxTotal))}.`
+            : `Nota rămâne ${formatPoints(evaluation.grade)}.`}
+        </span>
+      </div>
+      {problem && (
+        <p className="cell-error" role="alert">
+          {problem}
+        </p>
+      )}
+    </>
+  );
+}
+```
+
+- [ ] **Step 30: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+  if (evaluation.pagesReviewed) return check?.onlyToCheck ? null : <p className="hint">Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.</p>;
+  const open = check?.openKey === 'pagini';
+  // The open pages' decision says the same words itself.
+  const deciding = open && Boolean(check?.decision);
+  return (
+    <div className={open ? 'warning is-open' : 'warning'}>
+      {!deciding && <p>Robotul nu a putut citi: {pages}. Verifică pozele și punctajele exercițiilor de pe ele.</p>}
+      {check && !open && (
+        <button type="button" className="button-quiet button-small" onClick={() => check.onOpen('pagini')}>
+          Arată paginile
+        </button>
+      )}
+      {check ? (
+        open && check.decision
+      ) : (
+        <button type="button" className="button-quiet button-small" disabled={review.isPending} onClick={() => review.mutate()}>
+          Am verificat paginile
+        </button>
+      )}
+      {review.error && <ErrorMessage error={review.error} />}
+```
+
+Replace it with:
+
+```tsx
+  if (evaluation.pagesReviewed) return check?.onlyToCheck ? null : <p className="hint">Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.</p>;
+  if (check) {
+    // The open pages' decision says why itself.
+    const open = check.openKey === 'pagini';
+    return (
+      <div className={open ? 'pages-check is-open' : 'pages-check'}>
+        <p>
+          <span className="points-pill">Pagini necitite</span> {pages}
+          {!open && (
+            <button
+              type="button"
+              className="button-quiet button-small verifica-btn"
+              aria-label="Verifică paginile necitite"
+              onClick={() => check.onOpen('pagini')}
+            >
+              Verifică
+            </button>
+          )}
+        </p>
+        {open && check.decision}
+      </div>
+    );
+  }
+  return (
+    <div className="warning">
+      <p>Robotul nu a putut citi: {pages}. Verifică pozele și punctajele exercițiilor de pe ele.</p>
+      <button type="button" className="button-quiet button-small" disabled={review.isPending} onClick={() => review.mutate()}>
+        Am verificat paginile
+      </button>
+      {review.error && <ErrorMessage error={review.error} />}
+```
+
+- [ ] **Step 31: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+    <>
+      <ItemRow item={item} correct={correct} onSaved={onSaved} open={open} onOpen={onOpen} deciding={decision !== null} />
+      {decision !== null && (
+```
+
+Replace it with:
+
+```tsx
+    <>
+      <ItemRow item={item} correct={correct} onSaved={onSaved} open={open} onOpen={onOpen} />
+      {decision !== null && (
+```
+
+- [ ] **Step 32: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+// paper page a click on the row, or its "Arată pe lucrare", opens it: the
+// paper shows its answer. While the open row's decision shows under it, the
+// row has no "Verificat" of its own.
+function ItemRow({
+```
+
+Replace it with:
+
+```tsx
+// paper page a click on the row, or its "Arată pe lucrare", opens it: the
+// paper shows its answer. There a row to check is calm (design C of the spec):
+// its points in a soft orange label, no reason in the row and no "Verificat",
+// only "Verifică", which opens it; the reason and the decision show under the
+// open row.
+function ItemRow({
+```
+
+- [ ] **Step 33: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+  onOpen,
+  deciding = false,
+}: {
+```
+
+Replace it with:
+
+```tsx
+  onOpen,
+}: {
+```
+
+- [ ] **Step 34: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+  onOpen?: () => void;
+  deciding?: boolean;
+}) {
+```
+
+Replace it with:
+
+```tsx
+  onOpen?: () => void;
+}) {
+```
+
+- [ ] **Step 35: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+  const checked = item.needsReview && item.reviewed;
+  const id = `item-${item.id}`;
+```
+
+Replace it with:
+
+```tsx
+  const checked = item.needsReview && item.reviewed;
+  // The paper page's rows: a row to check opens with "Verifică".
+  const calm = onOpen !== undefined;
+  const id = `item-${item.id}`;
+```
+
+- [ ] **Step 36: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+  return (
+    <tr className={[toCheck ? 'is-flagged' : '', open ? 'is-open' : '', onOpen ? 'is-openable' : ''].filter(Boolean).join(' ') || undefined} onClick={rowClick(onOpen)}>
+      <th scope="row" title={item.label}>
+```
+
+Replace it with:
+
+```tsx
+  return (
+    <tr
+      className={[toCheck ? (calm ? 'is-to-check' : 'is-flagged') : '', open ? 'is-open' : '', onOpen ? 'is-openable' : ''].filter(Boolean).join(' ') || undefined}
+      onClick={rowClick(onOpen)}
+    >
+      <th scope="row" title={item.label}>
+```
+
+- [ ] **Step 37: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+          <>
+            <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
+              {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
+            </span>
+            {item.points !== item.aiPoints && <RobotPoints points={item.aiPoints} />}
+```
+
+Replace it with:
+
+```tsx
+          <>
+            {calm && toCheck ? (
+              <span className="points-pill">
+                {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
+              </span>
+            ) : (
+              <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
+                {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
+              </span>
+            )}
+            {item.points !== item.aiPoints && <RobotPoints points={item.aiPoints} />}
+```
+
+- [ ] **Step 38: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+            />
+            {toCheck && (
+              <div className="review-note">
+```
+
+Replace it with:
+
+```tsx
+            />
+            {toCheck && !calm && (
+              <div className="review-note">
+```
+
+- [ ] **Step 39: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+                reason and its answer sit together. */}
+            {toCheck && (
+              <div className="review-note">
+```
+
+Replace it with:
+
+```tsx
+                reason and its answer sit together. */}
+            {toCheck && !calm && (
+              <div className="review-note">
+```
+
+- [ ] **Step 40: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+                </p>
+                {!deciding && (
+                <button
+```
+
+Replace it with:
+
+```tsx
+                </p>
+                <button
+```
+
+- [ ] **Step 41: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+                </button>
+                )}
+                {check.error && <ErrorMessage error={check.error} />}
+```
+
+Replace it with:
+
+```tsx
+                </button>
+                {check.error && <ErrorMessage error={check.error} />}
+```
+
+- [ ] **Step 42: Edit `src/admin/submissionPage/GradedResult.tsx`**
+
+Find this block:
+
+```tsx
+          <span className="row-actions">
+            {onOpen && (
+              <button
+```
+
+Replace it with:
+
+```tsx
+          <span className="row-actions">
+            {onOpen && toCheck && !open && (
+              <button
+                type="button"
+                className="button-quiet button-small verifica-btn"
+                aria-label={`Verifică ${item.label}`}
+                onClick={onOpen}
+              >
+                Verifică
+              </button>
+            )}
+            {onOpen && !(toCheck && !open) && (
+              <button
+```
+
+- [ ] **Step 43: Edit `src/admin/pages/PaperPage.tsx`**
+
+Find this block:
+
+```tsx
+      const pressed = event.key.toLowerCase();
+      if (pressed === 'a' && decisionView !== null) onDecide({});
+      else if (pressed === 'j') goPoint(stepPoint(walked, spot, 1));
+```
+
+Replace it with:
+
+```tsx
+      const pressed = event.key.toLowerCase();
+      // A presses "Confirmă": the points the teacher chose, at first the robot's.
+      if (pressed === 'a' && decisionView !== null) main.current?.querySelector<HTMLButtonElement>('.point-decision [data-confirm]')?.click();
+      else if (pressed === 'j') goPoint(stepPoint(walked, spot, 1));
+```
+
+- [ ] **Step 44: Edit `src/admin/pages/PaperPage.tsx`**
+
+Find this block:
+
+```tsx
+    decisionView !== null && evaluation ? (
+      <PointDecision evaluation={evaluation} view={decisionView} pending={decide.isPending} error={decideError} pageCount={pageCount} onDecide={onDecide} />
+    ) : null;
+```
+
+Replace it with:
+
+```tsx
+    decisionView !== null && evaluation ? (
+      <PointDecision evaluation={evaluation} view={decisionView} pending={decide.isPending} error={decideError} onDecide={onDecide} />
+    ) : null;
+```
+
+- [ ] **Step 45: Edit `src/admin/pages/PaperPage.tsx`**
+
+Find this block:
+
+```tsx
+      </div>
+      {mode === 'verificare' && queue.length === 0 && (
+```
+
+Replace it with:
+
+```tsx
+      </div>
+      {decision !== null && (
+        <p className="review-keys hint">
+          <span>
+            <kbd>A</kbd> confirmă
+          </span>
+          <span>
+            <kbd>J</kbd> <kbd>K</kbd> punctul următor sau anterior
+          </span>
+          {pageCount > 1 && (
+            <span>
+              <kbd>1</kbd>–<kbd>{Math.min(9, pageCount)}</kbd> pagina
+            </span>
+          )}
+        </p>
+      )}
+      {mode === 'verificare' && queue.length === 0 && (
+```
+
+- [ ] **Step 46: Edit `src/ui/brand.css`**
+
+Find this block:
+
+```css
+table.items tr.is-open > * {
+  box-shadow: inset 0 2px 0 var(--ink), inset 0 -2px 0 var(--ink);
+}
+
+table.items tr.is-open > th {
+  box-shadow: inset 3px 0 0 var(--ink), inset 0 2px 0 var(--ink), inset 0 -2px 0 var(--ink);
+}
+
+table.items tr.item-decision > td {
+  padding: 0.5rem 0.75rem 0.75rem;
+  background: var(--marker);
+}
+
+.warning.is-open {
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+```
+
+Replace it with:
+
+```css
+table.items tr.is-open > * {
+  background: var(--ink-tint);
+}
+
+table.items tr.is-open:has(+ tr.item-decision) > * {
+  border-bottom: 0;
+}
+
+/* "Verifică": the one action of a row to check, an orange outline. */
+.verifica-btn {
+  border-color: color-mix(in srgb, var(--orange-mark) 40%, var(--sheet));
+  color: var(--orange);
+  white-space: nowrap;
+}
+
+/* The decision under the open row (design C): a light box, no borders of
+   colour; the reason, the points as buttons, "Alt punctaj", "Confirmă". */
+table.items tr.item-decision > td {
+  padding: 0 0.625rem 0.875rem;
+  background: var(--ink-tint);
+}
+
+.point-decision {
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--sheet);
+}
+
+.point-why {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+.point-why::before {
+  content: '“';
+  margin-right: 0.125rem;
+  color: var(--orange-mark);
+  font-weight: 800;
+}
+
+.point-label {
+  margin: 0 0 0.375rem;
+  font-size: 0.875rem;
+}
+
+.point-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.625rem;
+}
+
+.point-chip {
+  min-width: 2.75rem;
+  height: 2.125rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--control);
+  border-radius: 999px;
+  background: var(--sheet);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.point-chip.is-robot {
+  border-style: dashed;
+}
+
+.point-chip[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.point-other {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.point-other input {
+  width: 5rem;
+  text-align: center;
+}
+
+.point-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* The pages the robot could not read, on the paper page: a calm line. */
+.pages-check {
+  margin: 0 0 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+}
+
+.pages-check > p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.pages-check.is-open {
+  background: var(--ink-tint);
+}
+
+.pages-check.is-open > p {
+  margin-bottom: 0.625rem;
+}
+```
+
+- [ ] **Step 47: Edit `src/ui/brand.css`**
+
+Find this block:
+
+```css
+/* Points coloured by how much of the maximum they are (5 green, 1 red). */
+.points {
+  font-weight: 700;
+  white-space: nowrap;
+```
+
+Replace it with:
+
+```css
+/* Points coloured by how much of the maximum they are (5 green, 1 red). */
+/* Points are coloured by the share of the maximum, never bold. */
+.points {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* The points of a row to check on the paper page, and the pages the robot
+   could not read: a soft orange label, the only orange in the row. */
+.points-pill {
+  display: inline-block;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--marker);
+  color: var(--orange);
+  font-weight: 500;
+  white-space: nowrap;
+```
+
+- [ ] **Step 48: Edit `src/AGENTS.md`**
+
+Find this block:
+
+```markdown
+- `ui/`: brand CSS (the look of the redesign spec §2; the names are older than it: `--paper` is the ground, `--sheet` a surface, `--rule` a border, `--ink` the blue, `--marker` the tint of what waits on the teacher), the MQGrader mark (`BrandMark.tsx`: "Trei subiecte", three arcs coloured by `--mk-a` and `--mk-b`; `public/favicon.svg` draws the same arcs), the theme button and the phone menu's switch (`ThemeButton.tsx`; `useTheme.ts` keeps them in step), Romanian count labels and dates, the error boundary, `ApiError.ts` (the error type and JSON answer reader of both apps), `bucharestTime.ts` (the schedule input in Romania's time), `classTone.ts` (a class's colour: a hue stepped by the golden angle from the class id, so every class differs; the page sets `--tone-hue` and `--tone-light` with `classToneStyle()` and the class `class-tone`; used by the Clase cards), `tabKeys.ts` (the arrows, Home and End of a tab list; the chosen tab alone has `tabIndex` 0; the class page and Setări use it). `MathText.tsx` draws the grading's Unicode math like on paper (`mathText.ts` finds √15, √(x + 1) and (x + 1)/3, and leaves intervals and words such as și/sau as text); every grading text a page shows (answers, comments, review reasons, summary, lists, the class analysis) goes through it, and the page text stays the same for copying and screen readers. A label (`.tag`, `.status`, `.class-badge`) is a flat tinted block, grey by default and orange (`.tag-wait`) only for what waits on the teacher; a button or link that acts is an 8px rounded outline (`.button-quiet`), filled blue (`.button`) for the one main action of a screen, and a card keeps its actions together in `.card-actions`.
+- `admin/`: the teacher app. `api.ts` is the only code that calls the API; pages get it from `useApi()`, so tests pass a fake. `Crumbs.tsx` is the path at the top of the test page and of the paper page ("Teste › Clasa 7E2 › <test>", a `nav` "Unde ești"; the last step is the page itself, not a link). `testPage/` holds the parts of the test page (redesign spec §6): the list of the six stages (`StageList.tsx`), the panel of the chosen stage (`StagePanel.tsx`: the controls of each stage, `TestActions`, and the papers table of În clasă, Corectare and Verificare, with its checkboxes only in Corectare), the panel Rezultate (redesign spec §8: "Publică toate rezultatele" and "Oprește accesul la rezultate" in `ResultsAccess.tsx`; once results are published (for all, or one alone), `StudentAccessCard.tsx`: where students find their results (the students' link with its QR code and "Descarcă codul QR", a PNG; the multi-upload link named "Doar pentru profesor", with no QR code; and the help text); the students' result links in `ResultLinksTable.tsx`, with the points, the grade, "Copiază linkul" ("Fă linkul" first for an older paper with no link) and the publishing of one result; "Pentru tine" in `ResultFiles.tsx`: the class report and its CSV; the result link and the publishing are only there, not in the papers table), Fișa testului (`TestSheet.tsx`: the facts, the subject (`SubjectForm.tsx`: "Se stabilește la corectare" until the robot finds it, "Alege materia" or "Schimbă materia" opening the seven subjects in place (while the robot reads the test, only a line that says when the subject can change), with a line when the list is made again and the papers graded again), the files, the students' link while the test is a draft or open, rename, archive (it asks first in `ArchiveDialog.tsx` when results are open: `hasOpenResults`), delete), the points to check in Verificare (`ReviewList.tsx`: a row per point with its reason, each opening the review), the files of Pregătire (`TestFiles.tsx`), the evaluation controls, the barem warning in Corectare (`ExerciseListBanner.tsx`, with a link to Pregătire; for a subject not graded, "Schimbă materia" too, and the same notice in Pregătire while the test's subject is `alta`), a link in a panel to another stage (`MoveOnLink.tsx`: "Următoarea etapă", "Înlocuiește baremul"; the new panel's heading takes the focus), the robot line and its "Pornește robotul" button (`StartRobotButton.tsx`, in the panel of the robot's work: Pregătire for a barem, Tipărire for the print PDF, Corectare for the grading), the generated barem's button, waiting line and "Am verificat baremul" (`GeneratedBarem.tsx`, on the barem row; the page also refreshes every 10 s while a request waits), the uploads table (`UploadsTable.tsx`, the full width of its card: "Vezi lucrarea" and "Reîncearcă" on the row, "Recorectează" and "Resetează" under the row's ⋯, a menu fixed to the screen so the table's sideways scroll does not cut it off; a student who sent nothing is "Nu a trimis" while the uploads are open and "Nu a participat" after; after, an upload left open with files is "Așteaptă corectarea" and one with no file "Nu a participat"), "Recorectează tot"). `pages/PaperPage.tsx` and `paperPage/` are the paper page (spec `docs/superpowers/specs/2026-11-12-one-page-paper-check-design.md` §4, `/teste/:code/elevi/:submissionId`): the path (`Crumbs`), the head (`PaperHead.tsx`: `.submission-head`, the name, the test, the state and the times on the left; "Toate notele elevului", the PDF buttons and "Alte acțiuni" on the right; then the result link row; `usePaperActions` holds Recorectează, Resetează and Reîncearcă and the news after them), the switch "Toate exercițiile" / "Doar de verificat (N)" (N the points of the whole test; the view is in the address, `vedere=verificare`, and stays when she moves), "Punctul anterior" and "Următorul punct" (only the points to check), "Elevul anterior" and "Elevul următor", then three columns: "Elevii" (`StudentList.tsx`: every upload with a paper, the grade, the points to check in orange or the state; only the points to check: the papers with points first; it folds to a strip, kept in this browser as `quickeval:paperStudentsFolded`), the exercises (`GradedResult` with `check`: a click on a row or its "Arată pe lucrare" opens it, `?punct=<item id>` or `pagini`; "Doar de verificat" keeps only the rows to check and the open one, without the texts for the student; the open row to check shows `PointDecision.tsx` under it, region "Decizia": "Accept", the stepper and "Salvează", "Am verificat paginile", the total and what the grade becomes), and the paper (`reviewPage/ReviewPhoto.tsx`, staying in view: each page with its file's name and size, as the student sent it; a photo zooms inside the pane (a left click, a right click and the two buttons over the photo take one small step, out and in; two fingers pinch on a touch screen, and the wheel scrolls the page), a line over the page says what a click does until she zooms, in the words of the pointer at hand (a phone has no right button), and the open exercise draws an orange border around the robot's area of its answer, on the whole page, because the page never zooms by itself; the border's arrows step through the parts of an answer, each part opening on its page, whole). The exercises get three fifths of the room the students leave, the paper two; below 1200px the students go under the exercises, and below 900px one column: the exercises, the paper, the students. `paperPage/paths.ts` writes the addresses (replaced, never a new step in the history) and picks the students' order and the points J and K walk: every point of the test while only the points to check show, else the open student's. `reviewPage/points.ts` orders the points (`reviewPoints` of the uploads list, as many as `flagCount`; the pages first) and steps between them. The old address of the review, `/teste/:code/verificare?lucrare=&punct=`, opens the page with only the points to check (`ReviewRedirect`: the named paper and point, else `firstSpot()`, else the test's Verificare); every link to the points to check uses it (`reviewPath`). A decision names the grading it was made on, takes the point out of the cached test at once, and opens the next point: with only the points to check, also on the next student; with all the exercises, the next point of the same student, and when none is left the row stays open and "Elevul următor" takes the focus. It moves only if the teacher is still at the decided point (a call-level `onSuccess` of `mutate`, which does not run once the page is gone). The shell draws the page anew for another address path (`ErrorBoundary key={location.pathname}`), so where the focus goes after a decision rides in the navigation state (`paperFocus`), given once per address. A refused decision reads the paper and the test again. A paper with no result now (uploading, sent, graded again) shows its pages and why (`submissionPage/waitingText.ts`), a failed one "Reîncearcă"; when the uploads list has another `gradedAt` than the paper read, the page reads the paper again. The keys A (only on an open row to check), J, K and 1–9 act unless the focus is in a field or in what opened from the bars (`.panel`, `.phone-menu`, `.user-menu`, or a button with `aria-expanded="true"`), never with Ctrl, Alt or Meta, and once for a key held down (`event.repeat`). "Alte acțiuni" (`useSmallMenu`) is a menu of the rare actions that undo work, Recorectează (only for a graded result) and Resetează (red): each item shows what it deletes under its name (its accessible description), and choosing it still asks with `window.confirm`. On a phone the menu is as wide as the row of buttons. `GradedResult` draws everything inside `.graded-result`, so its look and its phone cards are the same on a Quick Try's page: the grade strip ("De verificat: N" orange, or "Nimic de verificat"), the exercises table in a card (below 48rem one card per exercise: the label, the points, the confidence and the pencil on the first line), and the three texts for the student as cards. An exercise to check shows its reason and the "Verificat" button together in a note (`.review-note`) in the comment cell (not while its decision shows under it); the actions cell holds "Arată pe lucrare" (paper page only) and the pencil, or Salvează and Renunță while editing. `pages/StudentPage.tsx` is a student's history (redesign spec §11.2, `/elevi/:id`): "←" to the class the teacher came from (`StudentLinkState`, `{ fromClass }`, passed by the grades table's names and "Toate notele elevului, din toate clasele"; else the active class, else the newest), the name with "Redenumește" (the class page's `RenameDialog`), the line of the classes ("Clasa 10B în 2026-2027 · înainte în …"), and one card per school year and class with a row per started test: the points, the grade drawn by the grades table's `GradeCell`, the result drawn by the "Elevi" tab's `ResultCell`, "Lucrarea", and the grades table's legend. On a phone its tables scroll inside their cards. `pages/SettingsPage.tsx` is Setări (administrators only; `settingsPage/AccountsSection.tsx` approves and changes accounts). `wayIn/WayIn.tsx` is the way in (redesign spec §11.4): two halves under the top bar, the form on the left, and on the right the landing page's heading, line and six stages, word for word (`WayIn.test.tsx` reads `index.html` to check them); `State` draws a state's icon (mail, done, waiting), its heading (which takes the focus when the state changes) and its line. `pages/LoginPage.tsx` is the login and sign-up: `Layout.tsx` shows it in place of every page when `/me` answers 401 `login_required`, and the pages wait for `/me` before they ask the API. Its states: "Intră în cont", "Cont nou de profesor", "Am uitat parola", "Verifică-ți emailul" (after the sign-up or the link asked for), and "Contul tău așteaptă aprobarea" when the login answers 403 `account_pending` (no session: its "Ieși" only goes back to the login); every other refusal shows under the form. `pages/NewPasswordPage.tsx` (`/parola-noua#<token>`) sets the new password, with no login. `pages/ConfirmEmailPage.tsx` (`/confirma-email#<token>`) confirms a new account's email, without a login, and only on its button (mail programs open links to check them). Both use `WayIn`. `pages/AccountPage.tsx` is Contul meu (redesign spec §11.5): "Contul tău" (the tag, the counts, or a demo account's meters), "Parola" and "Ieși din cont"; no pay button while nothing is on sale. `account/DemoMeters.tsx` holds what a demo account has used (`demoUsage`: the one test is used once `testsEvaluated` is 1 or more, whatever the regrades; the papers on their way to the robot count, never over `DEMO_PAPER_LIMIT`), its line and its two meters, for Contul meu and the demo button. `pages/NewTestPage.tsx` is "Test nou" (redesign spec §11.7, `/teste/nou`; `?clasa=<id>` chooses the class): three numbered steps (the class and the title, the test, the barem) and beside them the card "După ce creezi testul". "Nu e în listă? Clasă nouă" (only without `?clasa`) opens `NewClassDialog` on the page; its `onCreated` chooses the new class instead of opening the class page. The files come through `newTest/FileDrop.tsx` (a click, or a file dragged onto it; checked as `TestFileInput` does). The barem is "Încarc baremul acum" (its file is sent only with this choice, and kept while another is chosen), "Generează baremul din test" (off until a test file is chosen; a refused test file moves the choice to "Mai târziu") or "Mai târziu". "Creează testul" makes the test, sends the test file, then the barem file, or asks for the generated barem only once the test file was sent; what fails after the test exists reaches the test page as a notice. A class with an active CES student shows them and the CES switch (on) after the first step; on, "Testul CES" and "Baremul CES" sit beside the class ones (`.step-pair`, stacked below 768px), sent after the class files, and the CES barem asked for after the class one; `createTest` gets `cesOff` only for such a class. Under the button, `MissingList` says what the test would still miss. `pages/ReportPage.tsx` and `reportPage/` are the class report (redesign spec §11.3; `shared/stats.ts` makes its numbers): one page, with the list of its parts (marked as the teacher scrolls: `currentPart` measures the parts on every scroll and resize; "Pe scurt" stays marked while nothing is laid out) and "Notele pe grupe" on the left, sticky under the top bar; on the right "Pe scurt" (the tiles), "Rezultatele elevilor" (the points of each exercise, then "Total" and "Nota"; an active student with no graded paper is a row that says why), "Pe exerciții" (with a bar for "% din maxim") and "Analiza clasei" (`AnalysisSection.tsx`). Below 56.25rem: one column, without the list of parts. `pdf/` makes the PDFs and shares them: the definitions are pure functions (`studentPdf.ts`, `classPdf.ts`; a student's PDF is made only on the paper's page, one student at a time), `renderPdf.ts` loads pdfmake only when a PDF is asked for, `share.ts` shares or saves, and `PdfActions.tsx` holds the buttons.
+- `admin/shell/`: the teacher app's shell (redesign spec §4), drawn by `Layout.tsx`. The 80px bar (`Rail.tsx`, the menu "Meniu": Test nou, Teste, Clase, De făcut with its number, and Setări only for an administrator); the top bar (the lockup "MQGrader by Laura Miron", a demo account's button (`DemoButton.tsx`, redesign spec §11.6: a ring of the papers used and "Demo · 15 lucrări rămase", orange when none are left; it opens "Cont demo" with the meters of Contul meu), the school year (`YearSelect.tsx`), the theme, and the initials (`UserMenu.tsx`: "Contul meu", "Ieși din cont" through `useLogout.ts`); logged out, only the lockup and the theme); the small menus of the top bar share `useSmallMenu.ts` (closed by Esc with the focus back on their button, a click outside, a new page); one panel open at a time (`Panel.tsx`: "Clasele tale" in `ClassesPanel.tsx`, "Ce ai de făcut" in `TodoPanel.tsx`, and on a phone the menu under ☰ in `PhoneMenu.tsx`), closed by Esc, ×, or a new page, and still closed after Back to the page it was opened on; `useFocusBack.ts` gives the focus back to the button that opened it. A panel comes right after the bar in the page; on a phone the page under it is `inert` (`ui/useMediaQuery.ts`). A layer above a panel (a small menu of the top bar, the QR code on the whole screen) takes Esc first, in the capture phase, and marks it with `preventDefault()`, so the panel stays open. The shell reads the tests of the year after every change: a page that reads them again itself does not wait for that read (`void`, not `await`), so a save is not slowed down; only a row of the Teste page waits, because its buttons come from the list. For an administrator, "De făcut" also holds an urgent first card (red, "Urgent") when accounts that confirmed their email wait for approval (`Layout.tsx` reads `['accounts']`, the list Setări uses); it counts as one thing in the bar, whose number turns red, and its button opens Setări. `todo.ts` decides "De făcut" from the tests list: the four cases of spec §5 (the fourth: what a draft or open test misses, `missingOf` in `admin/missing.ts`), and before them the one case of an archived test: its results open for all or for some students (`archivedPublished`), "Rezultate publicate pe un test arhivat" at Rezultate, whose next step is the link "Oprește accesul" (the archive closes the results, so publishing there is an exception; nothing else of an archived test waits); `todoPath()` sends the points to check to the review, the rest to the test page. Below 900px the bar moves to the bottom of the screen and Setări, the school year, the theme, a demo account's papers and the account move under ☰ (CSS and `PhoneMenu.tsx`).
+```
+
+Replace it with:
+
+```markdown
+- `ui/`: brand CSS (the look of the redesign spec §2; the names are older than it: `--paper` is the ground, `--sheet` a surface, `--rule` a border, `--ink` the blue, `--marker` the tint of what waits on the teacher), the MQGrader mark (`BrandMark.tsx`: "Trei subiecte", three arcs coloured by `--mk-a` and `--mk-b`; `public/favicon.svg` draws the same arcs), the theme button and the phone menu's switch (`ThemeButton.tsx`; `useTheme.ts` keeps them in step), Romanian count labels and dates, the error boundary, `ApiError.ts` (the error type and JSON answer reader of both apps), `bucharestTime.ts` (the schedule input in Romania's time), `classTone.ts` (a class's colour: a hue stepped by the golden angle from the class id, so every class differs; the page sets `--tone-hue` and `--tone-light` with `classToneStyle()` and the class `class-tone`; used by the Clase cards), `tabKeys.ts` (the arrows, Home and End of a tab list; the chosen tab alone has `tabIndex` 0; the class page and Setări use it). `MathText.tsx` draws the grading's Unicode math like on paper (`mathText.ts` finds √15, √(x + 1) and (x + 1)/3, and leaves intervals and words such as și/sau as text); every grading text a page shows (answers, comments, review reasons, summary, lists, the class analysis) goes through it, and the page text stays the same for copying and screen readers. A label (`.tag`, `.status`, `.class-badge`) is a flat tinted block, grey by default and orange (`.tag-wait`) only for what waits on the teacher; a button or link that acts is an 8px rounded outline (`.button-quiet`), filled blue (`.button`) for the one main action of a screen, and a card keeps its actions together in `.card-actions`.
+- `admin/`: the teacher app. `api.ts` is the only code that calls the API; pages get it from `useApi()`, so tests pass a fake. `Crumbs.tsx` is the path at the top of the test page and of the paper page ("Teste › Clasa 7E2 › <test>", a `nav` "Unde ești"; the last step is the page itself, not a link). `testPage/` holds the parts of the test page (redesign spec §6): the list of the six stages (`StageList.tsx`), the panel of the chosen stage (`StagePanel.tsx`: the controls of each stage, `TestActions`, and the papers table of În clasă, Corectare and Verificare, with its checkboxes only in Corectare), the panel Rezultate (redesign spec §8: "Publică toate rezultatele" and "Oprește accesul la rezultate" in `ResultsAccess.tsx`; once results are published (for all, or one alone), `StudentAccessCard.tsx`: where students find their results (the students' link with its QR code and "Descarcă codul QR", a PNG; the multi-upload link named "Doar pentru profesor", with no QR code; and the help text); the students' result links in `ResultLinksTable.tsx`, with the points, the grade, "Copiază linkul" ("Fă linkul" first for an older paper with no link) and the publishing of one result; "Pentru tine" in `ResultFiles.tsx`: the class report and its CSV; the result link and the publishing are only there, not in the papers table), Fișa testului (`TestSheet.tsx`: the facts, the subject (`SubjectForm.tsx`: "Se stabilește la corectare" until the robot finds it, "Alege materia" or "Schimbă materia" opening the seven subjects in place (while the robot reads the test, only a line that says when the subject can change), with a line when the list is made again and the papers graded again), the files, the students' link while the test is a draft or open, rename, archive (it asks first in `ArchiveDialog.tsx` when results are open: `hasOpenResults`), delete), the points to check in Verificare (`ReviewList.tsx`: a row per point with its reason, each opening the review), the files of Pregătire (`TestFiles.tsx`), the evaluation controls, the barem warning in Corectare (`ExerciseListBanner.tsx`, with a link to Pregătire; for a subject not graded, "Schimbă materia" too, and the same notice in Pregătire while the test's subject is `alta`), a link in a panel to another stage (`MoveOnLink.tsx`: "Următoarea etapă", "Înlocuiește baremul"; the new panel's heading takes the focus), the robot line and its "Pornește robotul" button (`StartRobotButton.tsx`, in the panel of the robot's work: Pregătire for a barem, Tipărire for the print PDF, Corectare for the grading), the generated barem's button, waiting line and "Am verificat baremul" (`GeneratedBarem.tsx`, on the barem row; the page also refreshes every 10 s while a request waits), the uploads table (`UploadsTable.tsx`, the full width of its card: "Vezi lucrarea" and "Reîncearcă" on the row, "Recorectează" and "Resetează" under the row's ⋯, a menu fixed to the screen so the table's sideways scroll does not cut it off; a student who sent nothing is "Nu a trimis" while the uploads are open and "Nu a participat" after; after, an upload left open with files is "Așteaptă corectarea" and one with no file "Nu a participat"), "Recorectează tot"). `pages/PaperPage.tsx` and `paperPage/` are the paper page (spec `docs/superpowers/specs/2026-11-12-one-page-paper-check-design.md` §4, `/teste/:code/elevi/:submissionId`): the path (`Crumbs`), the head (`PaperHead.tsx`: `.submission-head`, the name, the test, the state and the times on the left; "Toate notele elevului", the PDF buttons and "Alte acțiuni" on the right; then the result link row; `usePaperActions` holds Recorectează, Resetează and Reîncearcă and the news after them), the switch "Toate exercițiile" / "Doar de verificat (N)" (N the points of the whole test; the view is in the address, `vedere=verificare`, and stays when she moves), "Punctul anterior" and "Următorul punct" (only the points to check), "Elevul anterior" and "Elevul următor", then three columns: "Elevii" (`StudentList.tsx`: every upload with a paper, the grade, the points to check in orange or the state; only the points to check: the papers with points first; it folds to a strip, kept in this browser as `quickeval:paperStudentsFolded`), the exercises (`GradedResult` with `check`: a click on a row or its "Arată pe lucrare" opens it, `?punct=<item id>` or `pagini`; "Doar de verificat" keeps only the rows to check and the open one, without the texts for the student; a row to check is calm: its points in a soft orange label (`.points-pill`) and one "Verifică" button that opens it, with no reason in the row; the open row to check shows `PointDecision.tsx` under it, region "Decizia": the robot's reason, the points as buttons (`paperPage/choices.ts`: steps of 0,25 up to 2 points, 0,5 up to 5, 1 above, and always the robot's points, chosen at first), "Alt punctaj" for a typed value (it wins over the buttons), "Confirmă <points>" and what the grade becomes; for the pages, the reason and "Am verificat paginile"; while a decision shows, a line under the bar names the keys), and the paper (`reviewPage/ReviewPhoto.tsx`, staying in view: each page with its file's name and size, as the student sent it; a photo zooms inside the pane (a left click, a right click and the two buttons over the photo take one small step, out and in; two fingers pinch on a touch screen, and the wheel scrolls the page), a line over the page says what a click does until she zooms, in the words of the pointer at hand (a phone has no right button), and the open exercise draws an orange border around the robot's area of its answer, on the whole page, because the page never zooms by itself; the border's arrows step through the parts of an answer, each part opening on its page, whole). The exercises get three fifths of the room the students leave, the paper two; below 1200px the students go under the exercises, and below 900px one column: the exercises, the paper, the students. `paperPage/paths.ts` writes the addresses (replaced, never a new step in the history) and picks the students' order and the points J and K walk: every point of the test while only the points to check show, else the open student's. `reviewPage/points.ts` orders the points (`reviewPoints` of the uploads list, as many as `flagCount`; the pages first) and steps between them. The old address of the review, `/teste/:code/verificare?lucrare=&punct=`, opens the page with only the points to check (`ReviewRedirect`: the named paper and point, else `firstSpot()`, else the test's Verificare); every link to the points to check uses it (`reviewPath`). A decision names the grading it was made on, takes the point out of the cached test at once, and opens the next point: with only the points to check, also on the next student; with all the exercises, the next point of the same student, and when none is left the row stays open and "Elevul următor" takes the focus. It moves only if the teacher is still at the decided point (a call-level `onSuccess` of `mutate`, which does not run once the page is gone). The shell draws the page anew for another address path (`ErrorBoundary key={location.pathname}`), so where the focus goes after a decision rides in the navigation state (`paperFocus`), given once per address. A refused decision reads the paper and the test again. A paper with no result now (uploading, sent, graded again) shows its pages and why (`submissionPage/waitingText.ts`), a failed one "Reîncearcă"; when the uploads list has another `gradedAt` than the paper read, the page reads the paper again. The keys A (presses "Confirmă" of an open row to check), J, K and 1–9 act unless the focus is in a field or in what opened from the bars (`.panel`, `.phone-menu`, `.user-menu`, or a button with `aria-expanded="true"`), never with Ctrl, Alt or Meta, and once for a key held down (`event.repeat`). "Alte acțiuni" (`useSmallMenu`) is a menu of the rare actions that undo work, Recorectează (only for a graded result) and Resetează (red): each item shows what it deletes under its name (its accessible description), and choosing it still asks with `window.confirm`. On a phone the menu is as wide as the row of buttons. `GradedResult` draws everything inside `.graded-result`, so its look and its phone cards are the same on a Quick Try's page: the grade strip ("De verificat: N" orange, or "Nimic de verificat"), the exercises table in a card (below 48rem one card per exercise: the label, the points, the confidence and the pencil on the first line), and the three texts for the student as cards. Points are never bold. Without the paper page (a Quick Try's "Rezultatul profesorului"), an exercise to check shows its reason and the "Verificat" button together in a note (`.review-note`) in the comment cell; the actions cell holds "Verifică" or "Arată pe lucrare" (paper page only) and the pencil, or Salvează and Renunță while editing. `pages/StudentPage.tsx` is a student's history (redesign spec §11.2, `/elevi/:id`): "←" to the class the teacher came from (`StudentLinkState`, `{ fromClass }`, passed by the grades table's names and "Toate notele elevului, din toate clasele"; else the active class, else the newest), the name with "Redenumește" (the class page's `RenameDialog`), the line of the classes ("Clasa 10B în 2026-2027 · înainte în …"), and one card per school year and class with a row per started test: the points, the grade drawn by the grades table's `GradeCell`, the result drawn by the "Elevi" tab's `ResultCell`, "Lucrarea", and the grades table's legend. On a phone its tables scroll inside their cards. `pages/SettingsPage.tsx` is Setări (administrators only; `settingsPage/AccountsSection.tsx` approves and changes accounts). `wayIn/WayIn.tsx` is the way in (redesign spec §11.4): two halves under the top bar, the form on the left, and on the right the landing page's heading, line and six stages, word for word (`WayIn.test.tsx` reads `index.html` to check them); `State` draws a state's icon (mail, done, waiting), its heading (which takes the focus when the state changes) and its line. `pages/LoginPage.tsx` is the login and sign-up: `Layout.tsx` shows it in place of every page when `/me` answers 401 `login_required`, and the pages wait for `/me` before they ask the API. Its states: "Intră în cont", "Cont nou de profesor", "Am uitat parola", "Verifică-ți emailul" (after the sign-up or the link asked for), and "Contul tău așteaptă aprobarea" when the login answers 403 `account_pending` (no session: its "Ieși" only goes back to the login); every other refusal shows under the form. `pages/NewPasswordPage.tsx` (`/parola-noua#<token>`) sets the new password, with no login. `pages/ConfirmEmailPage.tsx` (`/confirma-email#<token>`) confirms a new account's email, without a login, and only on its button (mail programs open links to check them). Both use `WayIn`. `pages/AccountPage.tsx` is Contul meu (redesign spec §11.5): "Contul tău" (the tag, the counts, or a demo account's meters), "Parola" and "Ieși din cont"; no pay button while nothing is on sale. `account/DemoMeters.tsx` holds what a demo account has used (`demoUsage`: the one test is used once `testsEvaluated` is 1 or more, whatever the regrades; the papers on their way to the robot count, never over `DEMO_PAPER_LIMIT`), its line and its two meters, for Contul meu and the demo button. `pages/NewTestPage.tsx` is "Test nou" (redesign spec §11.7, `/teste/nou`; `?clasa=<id>` chooses the class): three numbered steps (the class and the title, the test, the barem) and beside them the card "După ce creezi testul". "Nu e în listă? Clasă nouă" (only without `?clasa`) opens `NewClassDialog` on the page; its `onCreated` chooses the new class instead of opening the class page. The files come through `newTest/FileDrop.tsx` (a click, or a file dragged onto it; checked as `TestFileInput` does). The barem is "Încarc baremul acum" (its file is sent only with this choice, and kept while another is chosen), "Generează baremul din test" (off until a test file is chosen; a refused test file moves the choice to "Mai târziu") or "Mai târziu". "Creează testul" makes the test, sends the test file, then the barem file, or asks for the generated barem only once the test file was sent; what fails after the test exists reaches the test page as a notice. A class with an active CES student shows them and the CES switch (on) after the first step; on, "Testul CES" and "Baremul CES" sit beside the class ones (`.step-pair`, stacked below 768px), sent after the class files, and the CES barem asked for after the class one; `createTest` gets `cesOff` only for such a class. Under the button, `MissingList` says what the test would still miss. `pages/ReportPage.tsx` and `reportPage/` are the class report (redesign spec §11.3; `shared/stats.ts` makes its numbers): one page, with the list of its parts (marked as the teacher scrolls: `currentPart` measures the parts on every scroll and resize; "Pe scurt" stays marked while nothing is laid out) and "Notele pe grupe" on the left, sticky under the top bar; on the right "Pe scurt" (the tiles), "Rezultatele elevilor" (the points of each exercise, then "Total" and "Nota"; an active student with no graded paper is a row that says why), "Pe exerciții" (with a bar for "% din maxim") and "Analiza clasei" (`AnalysisSection.tsx`). Below 56.25rem: one column, without the list of parts. `pdf/` makes the PDFs and shares them: the definitions are pure functions (`studentPdf.ts`, `classPdf.ts`; a student's PDF is made only on the paper's page, one student at a time), `renderPdf.ts` loads pdfmake only when a PDF is asked for, `share.ts` shares or saves, and `PdfActions.tsx` holds the buttons.
+- `admin/shell/`: the teacher app's shell (redesign spec §4), drawn by `Layout.tsx`. The 80px bar (`Rail.tsx`, the menu "Meniu": Test nou, Teste, Clase, De făcut with its number, and Setări only for an administrator); the top bar (the lockup "MQGrader by Laura Miron", a demo account's button (`DemoButton.tsx`, redesign spec §11.6: a ring of the papers used and "Demo · 15 lucrări rămase", orange when none are left; it opens "Cont demo" with the meters of Contul meu), the school year (`YearSelect.tsx`), the theme, and the initials (`UserMenu.tsx`: "Contul meu", "Ieși din cont" through `useLogout.ts`); logged out, only the lockup and the theme); the small menus of the top bar share `useSmallMenu.ts` (closed by Esc with the focus back on their button, a click outside, a new page); one panel open at a time (`Panel.tsx`: "Clasele tale" in `ClassesPanel.tsx`, "Ce ai de făcut" in `TodoPanel.tsx`, and on a phone the menu under ☰ in `PhoneMenu.tsx`), closed by Esc, ×, or a new page, and still closed after Back to the page it was opened on; `useFocusBack.ts` gives the focus back to the button that opened it. A panel comes right after the bar in the page; on a phone the page under it is `inert` (`ui/useMediaQuery.ts`). A layer above a panel (a small menu of the top bar, the QR code on the whole screen) takes Esc first, in the capture phase, and marks it with `preventDefault()`, so the panel stays open. The shell reads the tests of the year after every change: a page that reads them again itself does not wait for that read (`void`, not `await`), so a save is not slowed down; only a row of the Teste page waits, because its buttons come from the list. For an administrator, "De făcut" also holds an urgent first card (red, "Urgent") when accounts that confirmed their email wait for approval (`Layout.tsx` reads `['accounts']`, the list Setări uses); it counts as one thing in the bar, whose number turns red, and its button opens Setări. `todo.ts` decides "De făcut" from the tests list: the four cases of spec §5 (the fourth: what a draft or open test misses, `missingOf` in `admin/missing.ts`), and before them the one case of an archived test: its results open for all or for some students (`archivedPublished`), "Rezultate publicate pe un test arhivat" at Rezultate, whose next step is the link "Oprește accesul" (the archive closes the results, so publishing there is an exception; nothing else of an archived test waits); `todoPath()` sends the points to check to the review, the rest to the test page. Below 900px the bar moves to the bottom of the screen and Setări, the school year, the theme, a demo account's papers and the account move under ☰ (CSS and `PhoneMenu.tsx`).
+```
+
+- [ ] **Step 49: Edit `docs/superpowers/specs/2026-11-12-one-page-paper-check-design.md`**
+
+Find this block:
+
+```markdown
+6. Empty space: the papers table takes the full width of its card; the model column moves into the row's "…" menu (option 3A).
+
+```
+
+Replace it with:
+
+```markdown
+6. Empty space: the papers table takes the full width of its card; the model column moves into the row's "…" menu (option 3A).
+7. After a preview of the page: a row to check must look calm, not intimidating, and points are never bold. Of three designs she chose "C: points as buttons" (§4.4).
+
+```
+
+- [ ] **Step 50: Edit `docs/superpowers/specs/2026-11-12-one-page-paper-check-design.md`**
+
+Find this block:
+
+```markdown
+
+For a graded paper, the rows of today's `GradedResult`: the exercise, the points, the student's answer, the robot's comment, the confidence bars, and the pencil to change the points and the comment. A row to check is orange with "De verificat:" and the reason, as today.
+
+- A click on a row (outside its buttons and fields) opens it: it is marked, the address gets its `punct`, and the paper shows its answer (§4.5). Any row can be opened, not only the rows to check.
+- The open row, if it is to check, shows the review decision of today's right pane in place of the "Verificat" button: "Accept 1p" (the filled button), the stepper with "Salvează", and the grade it gives ("Cu 0p aici, nota devine 8,40"). *(Builder's call: one way to decide a point to check; the pencil stays on every row to change the points and the comment.)*
+- The pages the robot could not read are one row at the top, "Paginile necitite", with "Am verificat paginile", as today's pages point.
+- Under the exercises, in "Toate exercițiile" only: the summary and the lists of the feedback (`FeedbackSections`), with their edit, as today.
+```
+
+Replace it with:
+
+```markdown
+
+For a graded paper, the rows of today's `GradedResult`: the exercise, the points, the student's answer, the robot's comment, the confidence bars, and the pencil to change the points and the comment. Points are never bold. A row to check is calm (decision 7): no orange row and no reason in it, only its points in a soft orange label ("0,75 din 1,5") and one orange-outlined "Verifică" button, which opens it.
+
+- A click on a row (outside its buttons and fields) opens it: it is marked, the address gets its `punct`, and the paper shows its answer (§4.5). Any row can be opened, not only the rows to check.
+- The open row, if it is to check, shows the decision in a light box under it (design C): the robot's reason as a quote; "Punctajul (robotul a dat 0,75p din 1,5p)" and a button for each value from 0 to the maximum (steps of 0,25 up to 2 points, 0,5 up to 5 points, 1 above; the robot's value always among them, dashed, and chosen at first); "Alt punctaj", a small field for an exact value, which wins over the buttons; then "Confirmă 0,75p" (the filled button) and what the grade becomes ("Nota rămâne 8,75." or "Cu 0,5p aici, nota devine 8,40."). Confirming the robot's value checks the point; another value corrects it. *(Builder's call: the pencil stays on every row to change the points and the comment.)*
+- The pages the robot could not read are one calm line at the top, "Pagini necitite" with the pages and "Verifică"; open, the reason and "Am verificat paginile" show under it.
+- Under the exercises, in "Toate exercițiile" only: the summary and the lists of the feedback (`FeedbackSections`), with their edit, as today.
+```
+
+- [ ] **Step 51: Edit `docs/superpowers/specs/2026-11-12-one-page-paper-check-design.md`**
+
+Find this block:
+
+```markdown
+
+After a decision ("Accept", "Salvează", "Am verificat paginile"):
+
+```
+
+Replace it with:
+
+```markdown
+
+After a decision ("Confirmă", "Am verificat paginile"):
+
+```
+
+- [ ] **Step 52: Edit `docs/superpowers/specs/2026-11-12-one-page-paper-check-design.md`**
+
+Find this block:
+
+```markdown
+
+The keys, as today, while the cursor is not in a field: A accepts the open row when it is to check (nothing otherwise); J and K open the next or the previous point to check (in "Toate exercițiile", of this student only; in "Doar de verificat", across the students); 1–9 show that page of the paper. A line under the open row names them (not on a phone).
+
+```
+
+Replace it with:
+
+```markdown
+
+The keys, as today, while the cursor is not in a field: A presses "Confirmă" of the open row when it is to check, with the value chosen (nothing otherwise); J and K open the next or the previous point to check (in "Toate exercițiile", of this student only; in "Doar de verificat", across the students); 1–9 show that page of the paper. While a decision shows, a line under the bar names them.
+
+```
+
+- [ ] **Step 53: Run the typecheck and the whole suite**
+
+Run: `npm run typecheck`
+Expected: no output after the command line (exit code 0).
+
+Run: `npm test`
+Expected: `Test Files  180 passed | 1 skipped (181)`, `Tests  2689 passed | 3 skipped (2692)`.
+
+- [ ] **Step 54: Commit**
+
+```bash
+git add src/admin/paperPage/choices.ts src/admin/paperPage/choices.test.ts src/admin/submissionPage/GradedResult.test.tsx src/admin/paperPage/PointDecision.tsx src/admin/submissionPage/GradedResult.tsx src/admin/pages/PaperPage.tsx src/admin/pages/PaperPage.test.tsx src/admin/pages/PaperCheck.test.tsx src/try/Graded.test.tsx src/ui/brand.css src/AGENTS.md docs/superpowers/specs/2026-11-12-one-page-paper-check-design.md
+git commit -m "Check a point with its points as buttons, in a calm row"
+```
+
+Run: `git diff --stat refs/protopc/p4 HEAD -- . ':!docs/superpowers/plans'`
+Expected: no output.
+
+### After Task 4: Look at it
 
 - [ ] **Step 1: The production build and the smoke test**
 
@@ -5343,4 +6871,4 @@ Expected: every check PASS except the four "content page /ghid/ … says who wro
 
 - [ ] **Step 2: The page in a browser, on a laptop width**
 
-Open a graded test's papers at http://127.0.0.1:8788/teacher/ on a 1366 × 768 window: the test page's path and bar; "Verifică" opens the first point with only the points to check; "Toate exercițiile" shows every row; a click on a row moves the paper to its page with the border; "Accept" opens the next point. Stop the preview after (`AGENTS.md`, Gotchas: a `workerd.exe` left on port 8788).
+Open a graded test's papers at http://127.0.0.1:8788/teacher/ on a 1366 × 768 window: the test page's path and bar; "Verifică" opens the first point with only the points to check; "Toate exercițiile" shows every row; a click on a row moves the paper to its page with the border; a row to check shows only its orange points and "Verifică"; "Confirmă" (or A) opens the next point. Stop the preview after (`AGENTS.md`, Gotchas: a `workerd.exe` left on port 8788).
