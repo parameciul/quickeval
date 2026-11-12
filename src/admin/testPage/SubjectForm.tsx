@@ -14,10 +14,11 @@ export function subjectLine(test: Pick<TestInfo, 'subject'>): string {
 }
 
 // A new subject after the exercise list exists makes the list again and
-// grades the graded papers again (the API does it; spec: any subject).
+// grades the graded papers again (the API does it; spec: any subject). A
+// reopened test grades them at its next start.
 function remakes(test: TestInfo): boolean {
   const listMade = test.exerciseList.status !== 'none' || test.ces.exerciseList.status !== 'none';
-  return (test.status === 'evaluating' || test.status === 'done') && listMade;
+  return (test.status === 'open' || test.status === 'evaluating' || test.status === 'done') && listMade;
 }
 
 // "Schimbă" (spec: any subject, "The teacher can fix it"): the teacher picks

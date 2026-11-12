@@ -1648,6 +1648,14 @@ describe('TestPage subject', () => {
     expect(await within(sheet()).findByText('Fizică')).toBeInTheDocument();
   });
 
+  it('says that a reopened test is graded again with a new subject at its next start', async () => {
+    const api = apiWith({ status: 'open', exerciseList: { status: 'ready', message: null }, subject: { value: 'matematica', name: '', by: 'robot' } });
+    renderAdmin(PAGE, api);
+    await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
+    await userEvent.click(within(subjects()).getByRole('radio', { name: 'Fizică' }));
+    expect(within(sheet()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
+  });
+
   it('keeps the form open with the reason when the subject cannot change now', async () => {
     const api = apiWith({ status: 'evaluating', exerciseList: { status: 'ready', message: null }, subject: { value: 'matematica', name: '', by: 'robot' } });
     api.setSubject.mockRejectedValueOnce(new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba materia după ce se termină corectarea.'));

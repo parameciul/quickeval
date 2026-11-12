@@ -139,6 +139,27 @@ describe('the teacher sets the subject', () => {
     expect(left!.n).toBe(0);
   });
 
+  it('makes the lists again on a reopened test, and its papers are graded at the next start', async () => {
+    await finished();
+    expect((await api.request('POST', `/api/admin/tests/${code}/reopen`, {})).status).toBe(200);
+    dispatchRobot.mockClear();
+    const res = await change('fizica');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ count: 2, testStatus: 'open', robot: null });
+    expect(dispatchRobot).not.toHaveBeenCalled();
+    expect(await row()).toMatchObject({ subject: 'fizica', status: 'open', exercise_list_status: 'none' });
+    expect((await papers()).map((paper) => paper.status)).toEqual(['submitted', 'submitted']);
+    expect((await api.request('POST', `/api/admin/tests/${code}/evaluate`, {})).body).toMatchObject({ status: 'evaluating' });
+  });
+
+  it('makes the list again on a reopened test that ended at a subject not graded', async () => {
+    await startTest(api, code);
+    await endedAtHistory();
+    expect((await api.request('POST', `/api/admin/tests/${code}/reopen`, {})).status).toBe(200);
+    expect((await change('fizica')).status).toBe(200);
+    expect(await row()).toMatchObject({ subject: 'fizica', status: 'open', exercise_list_status: 'none', exercise_list_message: null });
+  });
+
   it('changes nothing for the subject the test already has, only who set it', async () => {
     await finished();
     const res = await change('matematica');
@@ -245,5 +266,37 @@ describe('a demo account', () => {
     await endedAtHistory(2);
     expect((await change('fizica')).status).toBe(200);
     expect((await papers()).map((paper) => paper.status)).toEqual(['submitted', 'uploading']);
+  });
+
+  it('sends the papers of the free regrade at the next start of a reopened test, even at its limit', async () => {
+    const added = await api.request('POST', `/api/admin/classes/${classId}/students`, { names: ['Marin Dan'] });
+    const late = added.body.students[0].id as number;
+    await finished();
+    await demo(DEMO_PAPER_LIMIT);
+    expect((await change('fizica')).status).toBe(200);
+    expect((await api.request('POST', `/api/admin/tests/${code}/reopen`, {})).status).toBe(200);
+    // A new paper keeps to the limit.
+    await addSubmission(api, code, late, { status: 'submitted', files: 1 });
+    const res = await api.request('POST', `/api/admin/tests/${code}/evaluate`, {});
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ status: 'evaluating' });
+    expect(await papers()).toEqual([
+      { status: 'submitted', free_regrade: 1 },
+      { status: 'submitted', free_regrade: 1 },
+      { status: 'uploading', free_regrade: 0 },
+    ]);
+  });
+
+  it('sends the papers of the free regrade when the teacher starts only some papers', async () => {
+    const added = await api.request('POST', `/api/admin/classes/${classId}/students`, { names: ['Marin Dan'] });
+    const late = added.body.students[0].id as number;
+    await finished();
+    await demo(DEMO_PAPER_LIMIT - 1);
+    await change('fizica');
+    await api.request('POST', `/api/admin/tests/${code}/reopen`, {});
+    const lateId = await addSubmission(api, code, late, { files: 1 });
+    const res = await api.request('POST', `/api/admin/tests/${code}/evaluate`, { submissionIds: [lateId] });
+    expect(res.status).toBe(200);
+    expect((await papers()).map((paper) => paper.status)).toEqual(['submitted', 'submitted', 'submitted']);
   });
 });

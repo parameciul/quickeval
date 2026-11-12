@@ -642,7 +642,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = findTest(code);
       const test = found.test;
       const listMade = test.exerciseList.status !== 'none' || test.ces.exerciseList.status !== 'none';
-      const remade = (test.status === 'evaluating' || test.status === 'done') && listMade && (test.subject?.value ?? 'matematica') !== subject;
+      const remade = (test.status === 'open' || test.status === 'evaluating' || test.status === 'done') && listMade && (test.subject?.value ?? 'matematica') !== subject;
       test.subject = { value: subject, name: '', by: 'teacher' };
       let count = 0;
       if (remade) {

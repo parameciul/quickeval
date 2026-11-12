@@ -167,7 +167,11 @@ export function onlyTestSql(t: string): string {
 }
 const ONLY_TEST = onlyTestSql('t');
 
-export const WITHIN_PAPER_LIMIT = `(${PAPERS_LEFT} > 0 AND ${ONLY_TEST})`;
+// The papers of a free regrade after a change of subject (submissions.free_regrade)
+// are sent past the limit: their results were deleted by the change.
+const FREE_REGRADE_WAITS = `EXISTS (SELECT 1 FROM submissions fr WHERE fr.test_id = t.id AND fr.free_regrade = 1 AND fr.status IN ('submitted', 'uploading'))`;
+
+export const WITHIN_PAPER_LIMIT = `((${PAPERS_LEFT} > 0 OR ${FREE_REGRADE_WAITS}) AND ${ONLY_TEST})`;
 
 // A regrade or retry of test t sends a paper to the robot: a finished test goes
 // back to evaluation (the trigger counts it), and a test in evaluation takes it
@@ -181,15 +185,16 @@ const SENDABLE = `(s.status = 'submitted' OR (s.status = 'uploading' AND EXISTS 
 // The papers the limit lets start, for the tests t of `scope`: by scheduled
 // time and test, then the papers the students confirmed, oldest first. A demo
 // account sends the papers of its first test only. The rest wait for a later evaluation, as unselected uploads do.
+// The papers of a free regrade are always sent, selected or not, and take no place.
 function papersToSend(scope: string, only = 'TRUE'): string {
   return `SELECT p.id FROM (
-    SELECT s.id, ${PAPERS_LEFT} AS allowed,
+    SELECT s.id, s.free_regrade AS free, ${PAPERS_LEFT} AS allowed,
       (SELECT q.demo FROM teachers q WHERE q.id = t.teacher_id) AS demo,
       DENSE_RANK() OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id) AS test_place,
-      ROW_NUMBER() OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id, s.status <> 'submitted', s.submitted_at, s.id) AS place
+      SUM(1 - s.free_regrade) OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id, s.status <> 'submitted', s.submitted_at, s.id) AS place
     FROM submissions s JOIN tests t ON t.id = s.test_id
-    WHERE (${scope}) AND ${only} AND ${SENDABLE}) p
-  WHERE p.place <= p.allowed AND (p.demo = 0 OR p.test_place = 1)`;
+    WHERE (${scope}) AND (${only} OR s.free_regrade = 1) AND ${SENDABLE}) p
+  WHERE (p.free = 1 OR p.place <= p.allowed) AND (p.demo = 0 OR p.test_place = 1)`;
 }
 
 // A paper past the limit goes back to uploading (its files stay).
@@ -619,8 +624,8 @@ const subjectEditable = (t: string) => `(${t}.quick_try = 0
   AND (${t}.status IN ('draft', 'open', 'done') OR (${t}.status = 'evaluating' AND ${t}.exercise_list_status IN ('problem', 'failed')))
   AND NOT EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = ${t}.id AND g.status = 'grading'))`;
 // A new subject after an exercise list exists makes both lists again and
-// grades the test's papers again. No subject is math.
-const remakeSql = (t: string) => `(${t}.status IN ('evaluating', 'done') AND COALESCE(${t}.subject, 'matematica') <> ?1
+// grades the test's papers again (a reopened test, at its next start). No subject is math.
+const remakeSql = (t: string) => `(${t}.status IN ('open', 'evaluating', 'done') AND COALESCE(${t}.subject, 'matematica') <> ?1
   AND (${t}.exercise_list_status <> 'none' OR ${t}.ces_exercise_list_status <> 'none'))`;
 // The list that ended at a subject not graded is read again only when the demo
 // account's one test is this one: its waiting papers then go to the robot.
