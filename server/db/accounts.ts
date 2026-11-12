@@ -1,6 +1,15 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { AccountStatus, Role } from '../../shared/accounts.ts';
-import type { Account, Teacher } from '../../shared/api.ts';
+import type { AccountEventKind, AccountStatus, Role, RobotWorkKind } from '../../shared/accounts.ts';
+import type {
+  Account,
+  AccountActivity,
+  AccountCounts,
+  AccountEvent,
+  AccountTestWork,
+  RefusedAccount,
+  RobotWorkTotals,
+  Teacher,
+} from '../../shared/api.ts';
 import { isUniqueViolation } from '../errors.ts';
 import { papersWaitingSql } from './lifecycle.ts';
 
@@ -61,9 +70,19 @@ interface AccountRow extends TeacherRow {
   status: AccountStatus;
   created_at: string;
   approved_at: string | null;
+  last_login_at: string | null;
+  barems_generated: number;
+  exercise_lists_made: number;
+  analyses_made: number;
+  prints_made: number;
 }
 
 const TEACHER_COLUMNS = `t.id, t.email, t.name, t.role, t.demo, t.tests_evaluated, t.papers_graded, ${papersWaitingSql('t.id')} AS papers_waiting`;
+
+// The columns of an account, beside the teacher's: the history of its state
+// and the robot work it made outside grading.
+const ACCOUNT_COLUMNS = `${TEACHER_COLUMNS}, t.status, t.created_at, t.approved_at, t.last_login_at,
+  t.barems_generated, t.exercise_lists_made, t.analyses_made, t.prints_made`;
 
 function toTeacher(row: TeacherRow): Teacher {
   return {
@@ -75,6 +94,20 @@ function toTeacher(row: TeacherRow): Teacher {
     testsEvaluated: row.tests_evaluated,
     papersGraded: row.papers_graded,
     papersWaiting: row.papers_waiting,
+  };
+}
+
+function toAccount(row: AccountRow): Account {
+  return {
+    ...toTeacher(row),
+    status: row.status,
+    createdAt: row.created_at,
+    approvedAt: row.approved_at,
+    lastLoginAt: row.last_login_at,
+    baremsGenerated: row.barems_generated,
+    exerciseListsMade: row.exercise_lists_made,
+    analysesMade: row.analyses_made,
+    printsMade: row.prints_made,
   };
 }
 
@@ -233,12 +266,14 @@ export interface NewSession {
 // starts that browser's count again and leaves the account's lock as it is,
 // so the teacher's logins never lift a lock that someone else's guesses set.
 // A browser that was not known becomes known. The IP gets its attempt back,
-// and the windows of IPs that ended are deleted.
+// and the windows of IPs that ended are deleted. The account keeps the time of
+// this login (Setări shows it), which outlives its sessions.
 export async function createSession(db: D1Database, session: NewSession, now: string): Promise<void> {
   const { teacherId, tokenHash, expiresAt, device, ipHash } = session;
   await db.batch([
     ...(ipHash ? [db.prepare('UPDATE login_ips SET attempts = MAX(attempts - 1, 0) WHERE ip_hash = ?').bind(ipHash)] : []),
     db.prepare('DELETE FROM login_ips WHERE window_start <= ?').bind(msBefore(now, IP_WINDOW_MS)),
+    db.prepare('UPDATE teachers SET last_login_at = ? WHERE id = ?').bind(now, teacherId),
     device.known
       ? db.prepare('UPDATE trusted_devices SET failed_logins = 0, last_used_at = ? WHERE token_hash = ?').bind(now, device.hash)
       : db.prepare('UPDATE teachers SET failed_logins = 0, locked_until = NULL WHERE id = ?').bind(teacherId),
@@ -369,12 +404,200 @@ export async function adminEmails(db: D1Database): Promise<string[]> {
 export async function listAccounts(db: D1Database): Promise<Account[]> {
   const rows = await db
     .prepare(
-      `SELECT ${TEACHER_COLUMNS}, t.status, t.created_at, t.approved_at FROM teachers t
+      `SELECT ${ACCOUNT_COLUMNS} FROM teachers t
        WHERE t.quick_try = 0 AND (t.status <> 'pending' OR t.email_confirmed_at IS NOT NULL)
        ORDER BY CASE t.status WHEN 'pending' THEN 0 ELSE 1 END, t.name COLLATE NOCASE, t.id`,
     )
     .all<AccountRow>();
-  return rows.results.map((row) => ({ ...toTeacher(row), status: row.status, createdAt: row.created_at, approvedAt: row.approved_at }));
+  return rows.results.map(toAccount);
+}
+
+// One account with its history and what it made, for "Detalii" on Setări.
+// Null for a Quick Try's guest teacher, which is no account.
+export async function findAccount(db: D1Database, teacherId: number): Promise<Account | null> {
+  const row = await db
+    .prepare(`SELECT ${ACCOUNT_COLUMNS} FROM teachers t WHERE t.id = ? AND t.quick_try = 0`)
+    .bind(teacherId)
+    .first<AccountRow>();
+  return row ? toAccount(row) : null;
+}
+
+// The account's changes, oldest first; one that happened in the same instant
+// follows the order in which it was written. An administrator who was deleted
+// meanwhile leaves no name: the change stays, the actor goes.
+export async function listAccountEvents(db: D1Database, teacherId: number): Promise<AccountEvent[]> {
+  const rows = await db
+    .prepare(
+      `SELECT e.kind, e.at, e.by_teacher_id, a.name AS by_name
+       FROM account_events e LEFT JOIN teachers a ON a.id = e.by_teacher_id
+       WHERE e.teacher_id = ? ORDER BY e.at, e.id`,
+    )
+    .bind(teacherId)
+    .all<{ kind: AccountEventKind; at: string; by_teacher_id: number | null; by_name: string | null }>();
+  return rows.results.map((row) => ({
+    kind: row.kind,
+    at: row.at,
+    by: row.by_teacher_id === null ? null : { id: row.by_teacher_id, name: row.by_name ?? '' },
+  }));
+}
+
+// How many classes, students and tests the account made.
+export async function countAccountWork(db: D1Database, teacherId: number): Promise<AccountCounts> {
+  const row = await db
+    .prepare(
+      `SELECT (SELECT COUNT(*) FROM classes WHERE teacher_id = ?1) AS classes,
+         (SELECT COUNT(*) FROM students WHERE teacher_id = ?1) AS students,
+         (SELECT COUNT(*) FROM tests WHERE teacher_id = ?1) AS tests`,
+    )
+    .bind(teacherId)
+    .first<AccountCounts>();
+  return row ?? { classes: 0, students: 0, tests: 0 };
+}
+
+// The last 30 days of grading, and the room the students' pages take. A test
+// counts once, however many of its papers were graded in that time. Only the
+// pages have their size kept: the test, the barem and the print PDF do not.
+export async function accountActivity(db: D1Database, teacherId: number, now: string): Promise<AccountActivity> {
+  const row = await db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(DISTINCT s.test_id) FROM submissions s JOIN tests t ON t.id = s.test_id
+           WHERE t.teacher_id = ?1 AND s.graded_at >= ?2) AS tests_30d,
+         (SELECT COUNT(*) FROM submissions s JOIN tests t ON t.id = s.test_id
+           WHERE t.teacher_id = ?1 AND s.graded_at >= ?2) AS papers_30d,
+         (SELECT COALESCE(SUM(f.size), 0) FROM submission_files f
+           JOIN submissions s ON s.id = f.submission_id JOIN tests t ON t.id = s.test_id
+           WHERE t.teacher_id = ?1) AS r2_bytes`,
+    )
+    .bind(teacherId, daysBefore(now, 30))
+    .first<{ tests_30d: number; papers_30d: number; r2_bytes: number }>();
+  return {
+    testsLast30Days: row?.tests_30d ?? 0,
+    papersLast30Days: row?.papers_30d ?? 0,
+    r2Bytes: row?.r2_bytes ?? 0,
+  };
+}
+
+const NO_ROBOT_WORK = (): RobotWorkTotals => ({
+  grading: { done: 0, failed: 0, tokens: 0 },
+  exercise_list: { done: 0, failed: 0, tokens: 0 },
+  analysis: { done: 0, failed: 0, tokens: 0 },
+  barem: { done: 0, failed: 0, tokens: 0 },
+  print: { done: 0, failed: 0, tokens: 0 },
+});
+
+// The robot's work for the account, by kind: what it finished, what it gave up
+// on, and the tokens Claude reported for the finished work. A print PDF is made
+// without Claude, so it has no tokens; a failed attempt reports none.
+export async function countRobotWork(db: D1Database, teacherId: number): Promise<RobotWorkTotals> {
+  const rows = await db
+    .prepare(
+      `SELECT kind, ok, COUNT(*) AS count, COALESCE(SUM(tokens), 0) AS tokens
+       FROM robot_work WHERE teacher_id = ? GROUP BY kind, ok`,
+    )
+    .bind(teacherId)
+    .all<{ kind: RobotWorkKind; ok: number; count: number; tokens: number }>();
+  const totals = NO_ROBOT_WORK();
+  for (const row of rows.results) {
+    const count = totals[row.kind];
+    if (row.ok === 1) {
+      count.done += row.count;
+      count.tokens += row.tokens;
+    } else {
+      count.failed += row.count;
+    }
+  }
+  return totals;
+}
+
+interface AccountTestRow {
+  id: number;
+  code: string;
+  title: string;
+  class_name: string;
+  created_at: string;
+  papers: number;
+  points_changed: number;
+}
+
+// The robot work of one test as `listAccountTests` adds it up.
+const TEST_WORK_FIELD = {
+  barem: 'barems',
+  exercise_list: 'exerciseLists',
+  analysis: 'analyses',
+  print: 'prints',
+  grading: 'gradings',
+} as const;
+
+// Each test of the account with what the robot did for it, how many of its
+// papers were graded, and how many of its points the teacher corrected. One
+// batch of two statements, whatever the number of tests. A deleted test keeps
+// its robot rows with no test, so they count only in the totals.
+export async function listAccountTests(db: D1Database, teacherId: number): Promise<AccountTestWork[]> {
+  const [tests, robot] = await db.batch<Record<string, number | string>>([
+    db
+      .prepare(
+        `SELECT t.id, t.code, t.title, c.name AS class_name, t.created_at,
+           (SELECT COUNT(*) FROM submissions s
+             WHERE s.test_id = t.id AND s.status = 'graded') AS papers,
+           (SELECT COUNT(*) FROM evaluation_items i
+             JOIN evaluations e ON e.id = i.evaluation_id
+             JOIN submissions s ON s.id = e.submission_id
+             WHERE s.test_id = t.id AND i.changed_by_teacher = 1) AS points_changed
+         FROM tests t JOIN classes c ON c.id = t.class_id
+         WHERE t.teacher_id = ? ORDER BY t.created_at DESC, t.id DESC`,
+      )
+      .bind(teacherId),
+    db
+      .prepare(
+        `SELECT test_id, kind, ok, COUNT(*) AS count, COALESCE(SUM(tokens), 0) AS tokens
+         FROM robot_work WHERE teacher_id = ?1 AND test_id IS NOT NULL
+         GROUP BY test_id, kind, ok`,
+      )
+      .bind(teacherId),
+  ]);
+  const work = new Map<number, AccountTestWork>();
+  for (const row of (tests?.results ?? []) as unknown as AccountTestRow[]) {
+    work.set(row.id, {
+      code: row.code,
+      title: row.title,
+      className: row.class_name,
+      createdAt: row.created_at,
+      papers: Number(row.papers),
+      pointsChanged: Number(row.points_changed),
+      robot: { barems: 0, exerciseLists: 0, analyses: 0, prints: 0, gradings: 0, failures: 0, tokens: 0 },
+    });
+  }
+  for (const row of robot?.results ?? []) {
+    const test = work.get(Number(row.test_id));
+    if (!test) continue;
+    if (Number(row.ok) !== 1) {
+      test.robot.failures += Number(row.count);
+      continue;
+    }
+    test.robot[TEST_WORK_FIELD[row.kind as RobotWorkKind]] += Number(row.count);
+    test.robot.tokens += Number(row.tokens);
+  }
+  return [...work.values()];
+}
+
+// The newest requests that an administrator refused. The account is gone, so
+// this is what is left of it; a deleted administrator leaves no name.
+export async function listRefusedAccounts(db: D1Database): Promise<RefusedAccount[]> {
+  const rows = await db
+    .prepare(
+      `SELECT r.email, r.name, r.asked_at, r.refused_at, a.name AS by_name
+       FROM refused_accounts r LEFT JOIN teachers a ON a.id = r.by_teacher_id
+       ORDER BY r.refused_at DESC, r.id DESC LIMIT 50`,
+    )
+    .all<{ email: string; name: string; asked_at: string; refused_at: string; by_name: string | null }>();
+  return rows.results.map((row) => ({
+    email: row.email,
+    name: row.name,
+    askedAt: row.asked_at,
+    refusedAt: row.refused_at,
+    by: row.by_name,
+  }));
 }
 
 // The account an administrator's page shows: ids of refused (deleted)
@@ -385,52 +608,72 @@ export interface ShownAccount {
   createdAt: string;
 }
 
-// pending → active, once its email is confirmed. Null when the account is not
-// pending (approved meanwhile, or gone), or is another account now.
-export async function approveAccount(db: D1Database, shown: ShownAccount, now: string): Promise<{ email: string; name: string } | null> {
+// pending → active, once its email is confirmed. `byTeacherId` is the
+// administrator who approved it: the trigger that logs the approval names them.
+// Null when the account is not pending (approved meanwhile, or gone), or is
+// another account now.
+export async function approveAccount(
+  db: D1Database,
+  shown: ShownAccount,
+  now: string,
+  byTeacherId: number,
+): Promise<{ email: string; name: string } | null> {
   return db
     .prepare(
-      `UPDATE teachers SET status = 'active', approved_at = ?
+      `UPDATE teachers SET status = 'active', approved_at = ?, changed_by = ?
        WHERE id = ? AND created_at = ? AND status = 'pending' AND email_confirmed_at IS NOT NULL RETURNING email, name`,
     )
-    .bind(now, shown.teacherId, shown.createdAt)
+    .bind(now, byTeacherId, shown.teacherId, shown.createdAt)
     .first<{ email: string; name: string }>();
 }
 
 // Deletes accounts that still wait: they cannot have logged in, so they have
 // no data. Returns how many went; the others were approved or gone meanwhile.
-export async function rejectAccounts(db: D1Database, shown: ShownAccount[]): Promise<number> {
-  const rows = await db
-    .prepare(
-      `DELETE FROM teachers WHERE status = 'pending'
-         AND EXISTS (SELECT 1 FROM json_each(?) j
-                     WHERE json_extract(j.value, '$.teacherId') = teachers.id
-                       AND json_extract(j.value, '$.createdAt') = teachers.created_at)
-       RETURNING id`,
-    )
-    .bind(JSON.stringify(shown))
-    .all();
-  return rows.results.length;
+// Each one leaves a row in `refused_accounts` (who asked, and who said no), in
+// the same batch and under the same guard as its delete, so a refusal that
+// matched nothing writes nothing.
+export async function rejectAccounts(
+  db: D1Database,
+  shown: ShownAccount[],
+  now: string,
+  byTeacherId: number,
+): Promise<number> {
+  const WAITING = `teachers.status = 'pending'
+    AND EXISTS (SELECT 1 FROM json_each(?1) j
+                WHERE json_extract(j.value, '$.teacherId') = teachers.id
+                  AND json_extract(j.value, '$.createdAt') = teachers.created_at)`;
+  const [, deleted] = await db.batch([
+    db
+      .prepare(
+        `INSERT INTO refused_accounts (email, name, asked_at, refused_at, by_teacher_id)
+         SELECT email, name, created_at, ?2, ?3 FROM teachers WHERE ${WAITING}`,
+      )
+      .bind(JSON.stringify(shown), now, byTeacherId),
+    db.prepare(`DELETE FROM teachers WHERE ${WAITING} RETURNING id`).bind(JSON.stringify(shown)),
+  ]);
+  return deleted?.results.length ?? 0;
 }
 
 // An administrator changes a teacher's account (never an administrator's, nor
-// one that waits). Closing it also ends its logins. False when no such account.
+// one that waits). Closing it also ends its logins. The triggers that log the
+// change name `byTeacherId`. False when no such account.
 export async function updateAccount(
   db: D1Database,
   teacherId: number,
   change: { demo?: boolean; status?: 'active' | 'disabled' },
+  byTeacherId: number,
 ): Promise<boolean> {
   const demo = change.demo === undefined ? null : change.demo ? 1 : 0;
   const status = change.status ?? null;
   const [updated] = await db.batch([
     db
       .prepare(
-        `UPDATE teachers SET demo = COALESCE(?, demo), status = COALESCE(?, status),
+        `UPDATE teachers SET demo = COALESCE(?, demo), status = COALESCE(?, status), changed_by = ?,
            reset_token_hash = CASE WHEN ? = 'disabled' THEN NULL ELSE reset_token_hash END
          WHERE id = ? AND role = 'teacher' AND status IN ('active', 'disabled')
          RETURNING id`,
       )
-      .bind(demo, status, status, teacherId),
+      .bind(demo, status, byTeacherId, status, teacherId),
     db.prepare("DELETE FROM sessions WHERE teacher_id = ? AND EXISTS (SELECT 1 FROM teachers WHERE id = ? AND status = 'disabled')").bind(teacherId, teacherId),
   ]);
   return (updated?.results.length ?? 0) > 0;
@@ -445,24 +688,25 @@ export async function getPasswordHash(db: D1Database, teacherId: number): Promis
 // teacher who changed their own password stays logged in). Never a pending
 // account's (that would approve it). With `teachersOnly` (an administrator
 // sets it for someone else), never an administrator's: an administrator could
-// otherwise log in as another. Returns the account's email and name; null when
-// there is no such account.
+// otherwise log in as another. `byTeacherId` is who set it: the teacher on
+// "Contul meu", or the administrator; the trigger that logs it names them.
+// Returns the account's email and name; null when there is no such account.
 export async function setPassword(
   db: D1Database,
   teacherId: number,
   passwordHash: string,
-  options: { keepTokenHash: string | null; teachersOnly: boolean },
+  options: { keepTokenHash: string | null; teachersOnly: boolean; byTeacherId: number | null },
 ): Promise<{ email: string; name: string } | null> {
-  const { keepTokenHash, teachersOnly } = options;
+  const { keepTokenHash, teachersOnly, byTeacherId } = options;
   const [updated] = await db.batch<{ email: string; name: string }>([
     db
       .prepare(
-        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL,
+        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL, changed_by = ?,
            reset_token_hash = NULL, reset_expires_at = NULL
          WHERE id = ? AND status IN ('active', 'disabled') ${teachersOnly ? "AND role = 'teacher'" : ''}
          RETURNING email, name`,
       )
-      .bind(passwordHash, teacherId),
+      .bind(passwordHash, byTeacherId, teacherId),
     db
       .prepare(
         `DELETE FROM sessions WHERE teacher_id = ? AND token_hash IS NOT ?
@@ -533,9 +777,10 @@ export async function resetLinkWorks(db: D1Database, tokenHash: string, now: str
 // unexpired, checked in the statement that sets it. The account's other logins
 // end, its lock is lifted, its known browsers are forgotten (a browser that was
 // trusted before the reset must log in through the account again), and the
-// link is used up. The cleanup after the UPDATE finds the account by the new
-// hash: it is salted, so it names only the account just changed, and if the
-// UPDATE matched nothing no row has it. Null when the link no longer works.
+// link is used up. Nobody is logged in here, so no actor is named. The cleanup
+// after the UPDATE finds the account by the new hash: it is salted, so it names
+// only the account just changed, and if the UPDATE matched nothing no row has
+// it. Null when the link no longer works.
 export async function resetPassword(
   db: D1Database,
   tokenHash: string,
@@ -545,7 +790,7 @@ export async function resetPassword(
   const [updated] = await db.batch<{ id: number; email: string; name: string }>([
     db
       .prepare(
-        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL,
+        `UPDATE teachers SET password_hash = ?, failed_logins = 0, locked_until = NULL, changed_by = NULL,
            reset_token_hash = NULL, reset_expires_at = NULL
          WHERE reset_token_hash = ? AND reset_expires_at > ? AND status = 'active'
          RETURNING id, email, name`,

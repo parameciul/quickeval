@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
+import { MAX_ROBOT_TOKENS } from '../../shared/accounts.ts';
 import type { ExerciseListInfo } from '../../shared/api.ts';
 import { DOCX_TYPE, generatedBaremKey, isTestFileKind, PDF_TYPE, printFileKey, type TestVariant } from '../../shared/files.ts';
 import {
@@ -34,6 +35,7 @@ import {
   heartbeat,
   holdsLease,
   listTasks,
+  logRobotWork,
   printKeyIs,
   releaseLease,
   runCheck,
@@ -63,6 +65,16 @@ function parseVariant(raw: string | undefined): TestVariant {
   if (raw === undefined) return 'class';
   if (raw === 'ces') return 'ces';
   throw notFound();
+}
+
+// The tokens Claude reported, for a write whose body is a file: the barem goes
+// in a header. A missing or silly value counts as none, as an older robot's
+// answer does.
+function tokensHeader(c: Context<AppEnv>): number | null {
+  const text = c.req.header('X-Tokens');
+  if (text === undefined || !/^\d+$/.test(text)) return null;
+  const tokens = Number(text);
+  return Number.isSafeInteger(tokens) && tokens <= MAX_ROBOT_TOKENS ? tokens : null;
 }
 
 // Why a robot write changed nothing: the test is gone (404, the robot drops
@@ -166,10 +178,12 @@ export function runnerRoutes(): Hono<AppEnv> {
     const file = await readUpload(c, [PDF_TYPE], 'Fișierul trebuie să fie un PDF.');
     const key = printFileKey(found.teacherId, found.schoolYear, found.code, found.testFileName, version, variant);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: PDF_TYPE } });
-    if (!(await savePrint(c.env.DB, testId, runId.data, version, createdAt, key, nowIso(), variant))) {
+    const now = nowIso();
+    if (!(await savePrint(c.env.DB, testId, runId.data, version, createdAt, key, now, variant))) {
       if (!(await printKeyIs(c.env.DB, testId, key, variant))) await deleteFilesQuietly(c.env.FILES, [key]);
       throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), printNotNeeded);
     }
+    await logRobotWork(c.env.DB, { testId, kind: 'print', variant, ok: true, at: now });
     return c.json({ status: 'ready' });
   });
 
@@ -178,8 +192,11 @@ export function runnerRoutes(): Hono<AppEnv> {
     const testId = parseId(c.req.param('id'));
     const body = await readJson(c, printFailedBody);
     const variant = parseVariant(c.req.query('variant'));
-    const status = await failPrint(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, nowIso(), variant);
+    const now = nowIso();
+    const status = await failPrint(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, now, variant);
     if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), printNotNeeded);
+    // The plan's limit is not an attempt: it changes nothing, so it counts nowhere.
+    if (body.error !== 'usage_limit') await logRobotWork(c.env.DB, { testId, kind: 'print', variant, ok: false, at: now });
     return c.json({ status });
   });
 
@@ -231,11 +248,13 @@ export function runnerRoutes(): Hono<AppEnv> {
     const key = generatedBaremKey(found.teacherId, found.schoolYear, found.code, version, variant);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: DOCX_TYPE } });
     const name = variant === 'ces' ? `${found.code} - barem CES generat.docx` : `${found.code} - barem generat.docx`;
-    const saved = await saveGeneratedBarem(c.env.DB, testId, runId.data, version, createdAt, key, name, nowIso(), variant);
+    const now = nowIso();
+    const saved = await saveGeneratedBarem(c.env.DB, testId, runId.data, version, createdAt, key, name, now, variant);
     if (!saved) {
       if (!(await baremKeyIs(c.env.DB, testId, key, variant))) await deleteFilesQuietly(c.env.FILES, [key]);
       throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), baremNotNeeded);
     }
+    await logRobotWork(c.env.DB, { testId, kind: 'barem', variant, ok: true, tokens: tokensHeader(c), at: now });
     if (saved.oldKey && saved.oldKey !== key) await deleteFilesQuietly(c.env.FILES, [saved.oldKey]);
     return c.json({ status: 'ready' });
   });
@@ -245,8 +264,10 @@ export function runnerRoutes(): Hono<AppEnv> {
     const testId = parseId(c.req.param('id'));
     const body = await readJson(c, baremFailedBody);
     const variant = parseVariant(c.req.query('variant'));
-    const status = await failBaremJob(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, nowIso(), variant);
+    const now = nowIso();
+    const status = await failBaremJob(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, now, variant);
     if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), baremNotNeeded);
+    if (body.error !== 'usage_limit') await logRobotWork(c.env.DB, { testId, kind: 'barem', variant, ok: false, at: now });
     return c.json({ status });
   });
 
@@ -267,6 +288,11 @@ export function runnerRoutes(): Hono<AppEnv> {
     }
     if (!saved) {
       throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
+    }
+    if (body.ok) {
+      await logRobotWork(c.env.DB, { testId, kind: 'exercise_list', variant, ok: true, tokens: body.tokens, at: now });
+    } else if (body.error !== 'usage_limit') {
+      await logRobotWork(c.env.DB, { testId, kind: 'exercise_list', variant, ok: false, at: now });
     }
     return c.json({ exerciseList: saved });
   });
@@ -296,6 +322,11 @@ export function runnerRoutes(): Hono<AppEnv> {
     }
     if (!status) {
       throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Analiza clasei nu mai este cerută.'));
+    }
+    if (body.ok) {
+      await logRobotWork(c.env.DB, { testId, kind: 'analysis', variant: 'class', ok: true, tokens: body.tokens, at: now });
+    } else if (body.error !== 'usage_limit') {
+      await logRobotWork(c.env.DB, { testId, kind: 'analysis', variant: 'class', ok: false, at: now });
     }
     return c.json({ status });
   });
@@ -338,10 +369,14 @@ export function runnerRoutes(): Hono<AppEnv> {
       if (!(await saveGrading(c.env.DB, submissionId, body.runId, startedAt, checked.value, body.result, body.model, now, body.effort ?? null))) {
         throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();
       }
+      await logRobotWork(c.env.DB, { testId: current.testId, kind: 'grading', variant: current.variant, ok: true, tokens: body.tokens, at: now });
       return c.json({ status: 'graded' });
     }
     const status = await failGrading(c.env.DB, submissionId, body.runId, startedAt, body.error, now);
     if (!status) throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();
+    if (body.error !== 'usage_limit') {
+      await logRobotWork(c.env.DB, { testId: current.testId, kind: 'grading', variant: current.variant, ok: false, at: now });
+    }
     return c.json({ status });
   });
 

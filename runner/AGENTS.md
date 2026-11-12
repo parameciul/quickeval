@@ -12,6 +12,7 @@ The grading robot (spec §12), run by `.github/workflows/evaluate.yml`. The root
 - `.claude/skills/evaluate-test/` (repo root): the grading skill (spec §13). The teacher may change its words; the robot copies it into every work folder. `skill.test.ts` checks the file and field names that the code needs.
 
 - Each check (`check.ts`) sends `model` and `effort` from `claudeSettings()` with `POST /check`; the API keeps them for Setări (`robot_model`, `robot_effort`, `robot_settings_at`).
+- Every answer that Claude wrote goes back with the tokens it took (`tokensOf` in `claude.ts`: the output tokens of every model that took part, capped at `MAX_ROBOT_TOKENS` of `shared/accounts.ts`), so Setări shows what a teacher's work used: `tokens` in the answer's body, or the `X-Tokens` header for the barem, whose body is the file. A print PDF is made without Claude and has none, and a failed attempt reports none.
 - The "Check for work" step of `evaluate.yml` carries `QE_MODEL` and `QE_EFFORT` like the Grade step, so Setări shows the real values; an empty variable falls back to the defaults.
 - Every grading and the class analysis go back with the model and the effort used (`modelOf()`, `QE_EFFORT`); the test page shows them to the teacher.
 

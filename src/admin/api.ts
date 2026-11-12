@@ -1,5 +1,6 @@
 import type {
   Account,
+  AccountDetail,
   AnalysisAnswer,
   BaremCheckedAnswer,
   BaremGenerateAnswer,
@@ -15,6 +16,7 @@ import type {
   ItemCorrection,
   PagesReview,
   PrintRetryAnswer,
+  RefusedAccount,
   RegradeAnswer,
   FinishedTest,
   ReopenAnswer,
@@ -63,6 +65,10 @@ export interface AdminApi {
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
   // Setări, administrators only.
   listAccounts(): Promise<Account[]>;
+  // "Detalii": one account with its history, what it made and what it used.
+  getAccount(teacherId: number): Promise<AccountDetail>;
+  // The newest requests an administrator refused; the accounts are gone.
+  listRefusedAccounts(): Promise<RefusedAccount[]>;
   // Name the account the page shows by the time it was asked for: ids come back.
   approveAccount(teacherId: number, createdAt: string): Promise<void>;
   rejectAccount(teacherId: number, createdAt: string): Promise<void>;
@@ -284,6 +290,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       await request('POST', '/account/password', { currentPassword, newPassword });
     },
     listAccounts: async () => (await request<{ accounts: Account[] }>('GET', '/accounts')).accounts,
+    getAccount: (teacherId) => request<AccountDetail>('GET', `/accounts/${teacherId}`),
+    listRefusedAccounts: async () => (await request<{ refused: RefusedAccount[] }>('GET', '/accounts/refused')).refused,
     approveAccount: async (teacherId, createdAt) => {
       await request('POST', `/accounts/${teacherId}/approve`, { createdAt });
     },

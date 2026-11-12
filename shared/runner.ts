@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_ROBOT_TOKENS } from './accounts.ts';
 import type { TestVariant } from './files.ts';
 import type { ExerciseList } from './schemas.ts';
 
@@ -75,9 +76,22 @@ const filesVersionSchema = z.number().int().min(0);
 // the test it was made for. An older robot sends none.
 const createdAtSchema = z.string().max(40).optional();
 
+// The tokens Claude reported for the work, as the output tokens of every model
+// that took part. The plan is a subscription, so this is what a teacher's work
+// costs; a print PDF is made without Claude and has none. An older robot sends
+// none.
+const tokensSchema = z.number().int().min(0).max(MAX_ROBOT_TOKENS).optional();
+
 // The exercise list is checked by checkExerciseList (shared/schemas.ts).
 export const exerciseListBody = z.discriminatedUnion('ok', [
-  z.object({ runId: runIdSchema, filesVersion: filesVersionSchema, createdAt: createdAtSchema, ok: z.literal(true), exerciseList: z.unknown() }),
+  z.object({
+    runId: runIdSchema,
+    filesVersion: filesVersionSchema,
+    createdAt: createdAtSchema,
+    ok: z.literal(true),
+    exerciseList: z.unknown(),
+    tokens: tokensSchema,
+  }),
   z.object({ runId: runIdSchema, filesVersion: filesVersionSchema, createdAt: createdAtSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
 
@@ -90,6 +104,7 @@ export const analysisBody = z.discriminatedUnion('ok', [
     // The model and effort that wrote it; an older robot sends neither.
     model: z.string().max(100).optional(),
     effort: z.string().max(100).optional(),
+    tokens: tokensSchema,
   }),
   z.object({ runId: runIdSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
@@ -199,7 +214,15 @@ const startedAtSchema = z.string().max(40).optional();
 // A grading, checked by checkGrading (shared/schemas.ts), or why the robot
 // could not grade. Only a usage limit is tried again without an attempt.
 export const resultBody = z.discriminatedUnion('ok', [
-  z.object({ runId: runIdSchema, startedAt: startedAtSchema, ok: z.literal(true), result: z.unknown(), model: z.string().max(100), effort: z.string().max(100).optional() }),
+  z.object({
+    runId: runIdSchema,
+    startedAt: startedAtSchema,
+    ok: z.literal(true),
+    result: z.unknown(),
+    model: z.string().max(100),
+    effort: z.string().max(100).optional(),
+    tokens: tokensSchema,
+  }),
   z.object({ runId: runIdSchema, startedAt: startedAtSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
 

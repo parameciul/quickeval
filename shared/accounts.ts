@@ -6,6 +6,27 @@ export type Role = 'admin' | 'teacher';
 // "pending": waits for an administrator. "disabled": an administrator closed it.
 export type AccountStatus = 'pending' | 'active' | 'disabled';
 
+// The changes an account goes through, as its history on Setări shows them.
+export type AccountEventKind =
+  | 'created'
+  | 'email_confirmed'
+  | 'approved'
+  | 'demo'
+  | 'complete'
+  | 'password'
+  | 'closed'
+  | 'reopened';
+
+// What the robot does for a teacher: grade one paper, make an exercise list,
+// write the class analysis, generate a barem, or make a print PDF (the last
+// one without Claude, so without tokens).
+export type RobotWorkKind = 'grading' | 'exercise_list' | 'analysis' | 'barem' | 'print';
+
+// The most tokens one robot operation may report: a task reads a few pages and
+// writes a few thousand, so a larger number is wrong and would only spoil a
+// sum. The robot caps what it sends, and the API caps what it takes.
+export const MAX_ROBOT_TOKENS = 10_000_000;
+
 // A demo account may have this many papers graded, in one test only. A paper
 // is one student's whole test, however many pages it has. A regrade counts as
 // one more.

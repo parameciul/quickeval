@@ -186,8 +186,227 @@ describe('the accounts on Setări', () => {
     renderAdmin('/setari', withAccounts());
     const all = await card('Toate conturile');
     expect(row(all, 'Mihai')).toHaveTextContent('mihai@example.com');
-    expect(within(all).queryByRole('button', { name: /Laura Miron/ })).not.toBeInTheDocument();
-    expect(within(all).queryByRole('button', { name: /Mihai/ })).not.toBeInTheDocument();
+    expect(within(all).queryByRole('button', { name: 'Mai multe pentru Laura Miron' })).not.toBeInTheDocument();
+    expect(within(all).queryByRole('button', { name: 'Mai multe pentru Mihai' })).not.toBeInTheDocument();
+  });
+
+  it('opens the details of an account: the robot work, what it made, and its history', async () => {
+    const bogdan = fakeAccount({
+      id: 3,
+      name: 'Bogdan',
+      email: 'bogdan@example.com',
+      role: 'teacher',
+      demo: true,
+      testsEvaluated: 1,
+      papersGraded: 20,
+      papersWaiting: 2,
+      lastLoginAt: '2026-10-27T10:00:00.000Z',
+      baremsGenerated: 4,
+      exerciseListsMade: 2,
+      analysesMade: 1,
+      printsMade: 3,
+    });
+    const api = createFakeApi({
+      classes: [],
+      students: {},
+      accounts: [structuredClone(laura), structuredClone(bogdan)],
+      accountDetails: {
+        3: {
+          account: structuredClone(bogdan),
+          events: [
+            { kind: 'created', at: '2026-10-06T08:00:00.000Z', by: null },
+            { kind: 'approved', at: '2026-10-07T09:00:00.000Z', by: { id: 1, name: 'Laura Miron' } },
+            { kind: 'password', at: '2026-10-27T09:55:00.000Z', by: { id: 3, name: 'Bogdan' } },
+          ],
+          counts: { classes: 2, students: 30, tests: 3 },
+          activity: { testsLast30Days: 1, papersLast30Days: 20, r2Bytes: 2 * 1024 * 1024 },
+          robot: {
+            grading: { done: 20, failed: 2, tokens: 41_500 },
+            exercise_list: { done: 2, failed: 0, tokens: 3_200 },
+            analysis: { done: 1, failed: 1, tokens: 5_000 },
+            barem: { done: 4, failed: 0, tokens: 9_000 },
+            print: { done: 3, failed: 0, tokens: 0 },
+          },
+          tests: [
+            {
+              code: '6E2-26T1',
+              title: 'Testul 1',
+              className: '10B',
+              createdAt: '2026-10-06T08:00:00.000Z',
+              papers: 20,
+              pointsChanged: 3,
+              robot: { barems: 1, exerciseLists: 1, analyses: 1, prints: 1, gradings: 20, failures: 2, tokens: 40_000 },
+            },
+          ],
+        },
+      },
+    });
+    renderAdmin('/setari', api);
+    const all = await card('Toate conturile');
+    const details = within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' });
+    expect(details).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(details);
+    expect(api.getAccount).toHaveBeenCalledWith(3);
+    expect(details).toHaveAttribute('aria-expanded', 'true');
+    const heading = await screen.findByRole('heading', { name: 'Activitatea contului' });
+    const panel = heading.closest('td')!;
+    const stat = (label: string) => [...panel.querySelectorAll('dt')].find((dt) => dt.textContent === label)!.nextElementSibling;
+    expect(stat('Teste trimise la corectare')).toHaveTextContent('1 test');
+    expect(stat('Lucrări corectate')).toHaveTextContent('20 de lucrări');
+    expect(stat('Lucrări în lucru acum')).toHaveTextContent('2 lucrări');
+    expect(stat('Bareme generate de robot')).toHaveTextContent('4 bareme');
+    expect(stat('Liste de exerciții generate')).toHaveTextContent('2 liste');
+    expect(stat('Analize ale clasei generate')).toHaveTextContent('1 analiză');
+    expect(stat('Teste pregătite pentru tipărire')).toHaveTextContent('3 teste');
+    expect(stat('Clase')).toHaveTextContent('2 clase');
+    expect(stat('Elevi')).toHaveTextContent('30 de elevi');
+    expect(stat('Teste create')).toHaveTextContent('3 teste');
+    expect(stat('Teste corectate în ultimele 30 de zile')).toHaveTextContent('1 test');
+    expect(stat('Lucrări corectate în ultimele 30 de zile')).toHaveTextContent('20 de lucrări');
+    expect(stat('Spațiul lucrărilor')).toHaveTextContent('2 MB');
+    expect(stat('Ultima intrare')).toHaveTextContent('27 oct. 2026, 12:00');
+
+    const history = panel.querySelector('.account-history')!;
+    expect(within(history as HTMLElement).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Cont creat6 oct. 2026, 11:00',
+      'Cont aprobat de Laura Miron7 oct. 2026, 12:00',
+      'Parolă schimbată27 oct. 2026, 11:55',
+    ]);
+  });
+
+  it('shows the robot work by kind, its failure rate, and each test', async () => {
+    const bogdan = fakeAccount({ id: 3, name: 'Bogdan', email: 'bogdan@example.com', role: 'teacher' });
+    const api = createFakeApi({
+      classes: [],
+      students: {},
+      accounts: [structuredClone(laura), structuredClone(bogdan)],
+      accountDetails: {
+        3: {
+          account: structuredClone(bogdan),
+          events: [],
+          counts: { classes: 0, students: 0, tests: 1 },
+          activity: { testsLast30Days: 0, papersLast30Days: 0, r2Bytes: 0 },
+          robot: {
+            grading: { done: 20, failed: 2, tokens: 41_500 },
+            exercise_list: { done: 2, failed: 1, tokens: 3_200 },
+            analysis: { done: 1, failed: 0, tokens: 5_000 },
+            barem: { done: 4, failed: 0, tokens: 9_000 },
+            print: { done: 3, failed: 0, tokens: 0 },
+          },
+          tests: [
+            {
+              code: '6E2-26T1',
+              title: 'Testul 1',
+              className: '10B',
+              createdAt: '2026-10-06T08:00:00.000Z',
+              papers: 20,
+              pointsChanged: 3,
+              robot: { barems: 1, exerciseLists: 1, analyses: 1, prints: 1, gradings: 20, failures: 2, tokens: 40_000 },
+            },
+            {
+              code: '6E2-26T2',
+              title: 'Testul 2',
+              className: '10B',
+              createdAt: '2026-10-20T08:00:00.000Z',
+              papers: 0,
+              pointsChanged: 0,
+              robot: { barems: 0, exerciseLists: 0, analyses: 0, prints: 0, gradings: 0, failures: 0, tokens: 0 },
+            },
+          ],
+        },
+      },
+    });
+    renderAdmin('/setari', api);
+    const all = await card('Toate conturile');
+    await userEvent.click(within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' }));
+    const robot = await screen.findByRole('heading', { name: 'Consumul robotului' });
+    const robotPanel = robot.parentElement!;
+    const line = (label: string) => within(within(robotPanel).getByRole('table')).getByRole('rowheader', { name: label }).closest('tr')!;
+    expect(line('Corectări')).toHaveTextContent('20');
+    expect(line('Corectări')).toHaveTextContent('2');
+    expect(line('Corectări')).toHaveTextContent('41.500');
+    expect(line('Teste pentru tipărire').textContent).toContain('—');
+    expect(within(robotPanel).getByText(/Rata eșecurilor: 9% \(3 încercări ratate din 33\)/)).toBeInTheDocument();
+
+    const tests = await screen.findByRole('heading', { name: 'Fiecare test' });
+    const table = within(tests.parentElement!).getByRole('table');
+    expect(within(table).getAllByRole('row')).toHaveLength(3);
+    const first = within(table).getByRole('rowheader', { name: /^Testul 1/ }).closest('tr')!;
+    expect(first).toHaveTextContent('10B');
+    expect(first).toHaveTextContent('20');
+    expect(first).toHaveTextContent('26');
+    expect(first).toHaveTextContent('3');
+    expect(first).toHaveTextContent('40.000');
+    const second = within(table).getByRole('rowheader', { name: /^Testul 2/ }).closest('tr')!;
+    expect(second).toHaveTextContent('0');
+  });
+
+  it('says when the robot has not worked for an account yet', async () => {
+    renderAdmin('/setari', withAccounts());
+    const all = await card('Toate conturile');
+    await userEvent.click(within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' }));
+    const robot = await screen.findByRole('heading', { name: 'Consumul robotului' });
+    expect(within(robot.parentElement!).getByText('Robotul nu a lucrat încă pentru acest cont.')).toBeInTheDocument();
+    const tests = await screen.findByRole('heading', { name: 'Fiecare test' });
+    expect(within(tests.parentElement!).getByText('Niciun test încă.')).toBeInTheDocument();
+  });
+
+  it('lists the requests that were refused, with who asked and who said no', async () => {
+    const api = createFakeApi({
+      classes: [],
+      students: {},
+      accounts: [structuredClone(laura)],
+      refusedAccounts: [
+        { name: 'Cineva', email: 'cineva@example.com', askedAt: '2026-10-20T08:00:00.000Z', refusedAt: '2026-10-21T09:00:00.000Z', by: 'Laura Miron' },
+        { name: 'Altcineva', email: 'alt@example.com', askedAt: '2026-10-19T08:00:00.000Z', refusedAt: '2026-10-21T09:10:00.000Z', by: null },
+      ],
+    });
+    renderAdmin('/setari', api);
+    const refused = await card('Conturi refuzate');
+    expect(refused).toHaveTextContent('2 cereri');
+    const line = row(refused, 'Cineva');
+    expect(line).toHaveTextContent('cineva@example.com');
+    expect(line).toHaveTextContent('20 oct. 2026, 11:00');
+    expect(line).toHaveTextContent('21 oct. 2026, 12:00');
+    expect(line).toHaveTextContent('Laura Miron');
+    expect(row(refused, 'Altcineva')).toHaveTextContent('—');
+  });
+
+  it('shows no card of refused accounts when none was refused', async () => {
+    renderAdmin('/setari', withAccounts());
+    await card('Toate conturile');
+    expect(screen.queryByRole('region', { name: /Conturi refuzate/ })).not.toBeInTheDocument();
+  });
+
+  it('closes the details of an account again', async () => {
+    renderAdmin('/setari', withAccounts());
+    const all = await card('Toate conturile');
+    const details = within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' });
+    await userEvent.click(details);
+    expect(await screen.findByRole('heading', { name: 'Activitatea contului' })).toBeInTheDocument();
+    await userEvent.click(details);
+    expect(details).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('heading', { name: 'Activitatea contului' })).not.toBeInTheDocument();
+  });
+
+  it('makes up the history of an account from the times it keeps', async () => {
+    const approved = fakeAccount({ id: 3, name: 'Bogdan', email: 'bogdan@example.com', role: 'teacher', approvedAt: '2026-10-28T10:00:00.000Z' });
+    renderAdmin('/setari', createFakeApi({ classes: [], students: {}, accounts: [structuredClone(laura), structuredClone(approved)] }));
+    const all = await card('Toate conturile');
+    await userEvent.click(within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' }));
+    const heading = await screen.findByRole('heading', { name: 'Istoricul contului' });
+    const history = heading.closest('div')!.querySelector('.account-history')!;
+    expect(within(history as HTMLElement).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Cont creat6 oct. 2026, 11:00',
+      'Cont aprobat de Laura Miron28 oct. 2026, 12:00',
+    ]);
+  });
+
+  it('offers the details of an administrator too', async () => {
+    renderAdmin('/setari', withAccounts());
+    const all = await card('Toate conturile');
+    expect(within(row(all, 'Mihai')).getByRole('button', { name: 'Detalii pentru Mihai' })).toBeInTheDocument();
   });
 });
 

@@ -111,12 +111,12 @@ export function refusal(err: unknown): 'dropped' | 'lease_lost' | 'invalid' | nu
 // `sendError` tells whether the work failed for good.
 export async function sendOutcome(
   outcome: ClaudeOutcome,
-  sendAnswer: (output: unknown, model: string, effort: string) => Promise<unknown>,
+  sendAnswer: (output: unknown, model: string, effort: string, tokens: number) => Promise<unknown>,
   sendError: (error: RobotError) => Promise<boolean>,
 ): Promise<TaskEnd> {
   try {
     if (outcome.ok) {
-      await sendAnswer(outcome.output, outcome.model, outcome.effort ?? '');
+      await sendAnswer(outcome.output, outcome.model, outcome.effort ?? '', outcome.tokens);
       return 'saved';
     }
     const { problem } = outcome;
@@ -205,7 +205,11 @@ export async function makeExerciseList(ctx: TaskContext, testId: number, variant
     });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'exercise-list', cwd, (output) => checkExerciseList(output).ok);
-    return sendOutcome(outcome, (exerciseList) => ctx.api.sendExerciseList(testId, { ...post, ok: true, exerciseList }, variant), sendError);
+    return sendOutcome(
+      outcome,
+      (exerciseList, _model, _effort, tokens) => ctx.api.sendExerciseList(testId, { ...post, ok: true, exerciseList, tokens }, variant),
+      sendError,
+    );
   });
   log('exercise list', ces ? { test: testId, variant, end } : { test: testId, end });
   return end;
@@ -224,8 +228,8 @@ export async function analyzeClass(ctx: TaskContext, testId: number): Promise<Ta
     const outcome = await askClaude(ctx, 'class-report', cwd, (output) => checkClassAnalysis(output).ok);
     return sendOutcome(
       outcome,
-      (analysis, model, effort) =>
-        ctx.api.sendAnalysis(testId, { runId: ctx.runId, ok: true, version: classResults.version, analysis, model, effort }),
+      (analysis, model, effort, tokens) =>
+        ctx.api.sendAnalysis(testId, { runId: ctx.runId, ok: true, version: classResults.version, analysis, model, effort, tokens }),
       sendError,
     );
   });
@@ -251,7 +255,9 @@ export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Pro
     const cwd = await makeFolder({ ...files, baremNotes: test.baremNotes, exerciseList: list, pages, ...(variant === 'ces' ? { variant } : {}) });
     if (!cwd) return sendOutcome({ ok: false, problem: 'crash', detail: 'work folder' }, async () => undefined, sendError);
     const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list).ok);
-    return sendOutcome(outcome, (result, model, effort) => ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: true, result, model, effort }),
+    return sendOutcome(
+      outcome,
+      (result, model, effort, tokens) => ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: true, result, model, effort, tokens }),
       sendError,
     );
   });

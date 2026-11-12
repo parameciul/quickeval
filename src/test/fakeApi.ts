@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import type {
   Account,
+  AccountDetail,
   AnalysisAnswer,
   BaremCheckedAnswer,
   BaremGenerateAnswer,
@@ -18,6 +19,7 @@ import type {
   RegradeAnswer,
   ReviewPoint,
   FinishedTest,
+  RefusedAccount,
   ReopenAnswer,
   RobotStart,
   SearchResults,
@@ -59,6 +61,10 @@ export interface FakeData {
   me?: Teacher;
   // The accounts on Setări; the logged-in teacher alone when missing.
   accounts?: Account[];
+  // "Detalii" of the accounts, by id; a made-up history when missing.
+  accountDetails?: Record<number, AccountDetail>;
+  // The requests an administrator refused, newest first.
+  refusedAccounts?: RefusedAccount[];
 }
 
 // The logged-in teacher of the page tests: Laura, an administrator.
@@ -67,7 +73,18 @@ export function fakeTeacher(overrides: Partial<Teacher> = {}): Teacher {
 }
 
 export function fakeAccount(overrides: Partial<Account> = {}): Account {
-  return { ...fakeTeacher(), status: 'active', createdAt: '2026-10-06T08:00:00.000Z', approvedAt: null, ...overrides };
+  return {
+    ...fakeTeacher(),
+    status: 'active',
+    createdAt: '2026-10-06T08:00:00.000Z',
+    approvedAt: null,
+    lastLoginAt: null,
+    baremsGenerated: 0,
+    exerciseListsMade: 0,
+    analysesMade: 0,
+    printsMade: 0,
+    ...overrides,
+  };
 }
 
 export const FAKE_TEMPORARY_PASSWORD = 'abcdefghjkmn';
@@ -433,6 +450,36 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     logout: vi.fn(async () => {}),
     changePassword: vi.fn(async (_current: string, _next: string) => {}),
     listAccounts: vi.fn(async () => structuredClone(accounts)),
+    // Like the server: one account with its history, what it made and what it
+    // used. Made-up history: the account was created, then approved when it
+    // was, by the logged-in administrator.
+    getAccount: vi.fn(async (teacherId: number): Promise<AccountDetail> => {
+      const account = accounts.find((a) => a.id === teacherId);
+      if (!account) throw notFound();
+      const shown = data.accountDetails?.[teacherId];
+      if (shown) return structuredClone(shown);
+      const events: AccountDetail['events'] = [{ kind: 'created', at: account.createdAt, by: null }];
+      if (account.approvedAt) events.push({ kind: 'approved', at: account.approvedAt, by: { id: me.id, name: me.name } });
+      return {
+        account: structuredClone(account),
+        events,
+        counts: {
+          classes: data.classes.length,
+          students: Object.values(data.students).reduce((sum, list) => sum + list.filter((s) => s.active).length, 0),
+          tests: tests.length,
+        },
+        activity: { testsLast30Days: 0, papersLast30Days: 0, r2Bytes: 0 },
+        robot: {
+          grading: { done: 0, failed: 0, tokens: 0 },
+          exercise_list: { done: 0, failed: 0, tokens: 0 },
+          analysis: { done: 0, failed: 0, tokens: 0 },
+          barem: { done: 0, failed: 0, tokens: 0 },
+          print: { done: 0, failed: 0, tokens: 0 },
+        },
+        tests: [],
+      };
+    }),
+    listRefusedAccounts: vi.fn(async () => structuredClone(data.refusedAccounts ?? [])),
     approveAccount: vi.fn(async (teacherId: number, createdAt: string) => {
       const account = accounts.find((a) => a.id === teacherId && a.createdAt === createdAt && a.status === 'pending');
       if (!account) throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');

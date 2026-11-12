@@ -3,9 +3,16 @@ import { changePasswordBody, rejectAccountsBody, shownAccountBody, updateAccount
 import { adminOnly } from '../auth/teacherAuth.ts';
 import { sessionToken } from '../auth/session.ts';
 import {
+  accountActivity,
   approveAccount,
+  countAccountWork,
+  countRobotWork,
+  findAccount,
   getPasswordHash,
+  listAccountEvents,
   listAccounts,
+  listAccountTests,
+  listRefusedAccounts,
   rejectAccounts,
   setPassword,
   takePasswordCheck,
@@ -39,6 +46,7 @@ export function ownAccountRoutes(): Hono<AppEnv> {
     await setPassword(c.env.DB, teacherId, await hashPassword(body.newPassword), {
       keepTokenHash: token ? await sha256Hex(token) : null,
       teachersOnly: false,
+      byTeacherId: teacherId,
     });
     return c.json({ changed: true });
   });
@@ -55,11 +63,30 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
 
   routes.get('/', async (c) => c.json({ accounts: await listAccounts(c.env.DB) }));
 
+  // The newest requests an administrator refused. The accounts are gone, so
+  // this journal is all that is left of them.
+  routes.get('/refused', async (c) => c.json({ refused: await listRefusedAccounts(c.env.DB) }));
+
+  // "Detalii" on Setări: one account, its history with who made each change,
+  // what it made, how it used the robot, and what each of its tests used.
+  routes.get('/:id', async (c) => {
+    const account = await findAccount(c.env.DB, parseId(c.req.param('id')));
+    if (!account) throw notFound();
+    const [events, counts, activity, robot, tests] = await Promise.all([
+      listAccountEvents(c.env.DB, account.id),
+      countAccountWork(c.env.DB, account.id),
+      accountActivity(c.env.DB, account.id, nowIso()),
+      countRobotWork(c.env.DB, account.id),
+      listAccountTests(c.env.DB, account.id),
+    ]);
+    return c.json({ account, events, counts, activity, robot, tests });
+  });
+
   // The teacher hears about it by email when emails are set up.
   routes.post('/:id/approve', async (c) => {
     const teacherId = parseId(c.req.param('id'));
     const { createdAt } = await readJson(c, shownAccountBody, BODY_LIMIT);
-    const approved = await approveAccount(c.env.DB, { teacherId, createdAt }, nowIso());
+    const approved = await approveAccount(c.env.DB, { teacherId, createdAt }, nowIso(), c.var.teacher.id);
     if (!approved) throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
     inBackground(
       c,
@@ -81,7 +108,7 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.post('/:id/reject', async (c) => {
     const teacherId = parseId(c.req.param('id'));
     const { createdAt } = await readJson(c, shownAccountBody, BODY_LIMIT);
-    if ((await rejectAccounts(c.env.DB, [{ teacherId, createdAt }])) === 0) {
+    if ((await rejectAccounts(c.env.DB, [{ teacherId, createdAt }], nowIso(), c.var.teacher.id)) === 0) {
       throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
     }
     return c.json({ deleted: true });
@@ -97,6 +124,8 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
         teacherId: account.id,
         createdAt: account.createdAt,
       })),
+      nowIso(),
+      c.var.teacher.id,
     );
     return c.json({ deleted });
   });
@@ -105,7 +134,7 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.patch('/:id', async (c) => {
     const id = parseId(c.req.param('id'));
     const body = await readJson(c, updateAccountBody, BODY_LIMIT);
-    if (!(await updateAccount(c.env.DB, id, body))) throw notFound();
+    if (!(await updateAccount(c.env.DB, id, body, c.var.teacher.id))) throw notFound();
     return c.json({ accounts: await listAccounts(c.env.DB) });
   });
 
@@ -118,7 +147,11 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const id = parseId(c.req.param('id'));
     if (id === c.var.teacher.id) throw new ApiError(409, 'own_account', 'Schimbă-ți parola din pagina Contul meu.');
     const password = newTemporaryPassword();
-    const changed = await setPassword(c.env.DB, id, await hashPassword(password), { keepTokenHash: null, teachersOnly: true });
+    const changed = await setPassword(c.env.DB, id, await hashPassword(password), {
+      keepTokenHash: null,
+      teachersOnly: true,
+      byTeacherId: c.var.teacher.id,
+    });
     if (!changed) throw notFound();
     inBackground(
       c,
