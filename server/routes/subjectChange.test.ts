@@ -259,6 +259,19 @@ describe('a demo account', () => {
     expect(res.status).toBe(200);
   });
 
+  it('tries again a paper of the free regrade whose grading failed, even at its limit', async () => {
+    await finished();
+    await demo(DEMO_PAPER_LIMIT);
+    await change('fizica');
+    const [failed] = (await api.db.prepare('SELECT id, started_at FROM submissions WHERE test_id = ? ORDER BY id').bind(testId).all<{ id: number; started_at: string }>()).results;
+    await api.db.prepare("UPDATE submissions SET status = 'failed' WHERE id = ?").bind(failed!.id).run();
+    const res = await api.request('POST', `/api/admin/submissions/${failed!.id}/retry`, { startedAt: failed!.started_at });
+    expect(res.status).toBe(200);
+    expect((await papers())[0]).toEqual({ status: 'submitted', free_regrade: 1 });
+    await graded();
+    expect(await papersGraded()).toBe(DEMO_PAPER_LIMIT);
+  });
+
   it('cannot read again a test of a subject not graded once another test holds its one place', async () => {
     await demo(0);
     await startTest(api, code);

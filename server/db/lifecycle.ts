@@ -772,7 +772,9 @@ export async function retrySubmission(db: D1Database, shown: ShownUpload, now: s
       .prepare(
         `UPDATE submissions SET status = 'submitted', attempts = 0, last_error = NULL, run_id = NULL, ${KEEP_VARIANT}
          WHERE id = ? AND started_at = ? AND status = 'failed'
-           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ? AND ${MAY_GRADE_AGAIN})
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.teacher_id = ?
+             -- A paper of a free regrade lost its result to the change of subject: it is tried again past the limit, still free.
+             AND (submissions.free_regrade = 1 OR ${MAY_GRADE_AGAIN}))
          RETURNING test_id, ${STATUS_BEFORE}`,
       )
       .bind(submissionId, startedAt, teacherId),
