@@ -1,13 +1,13 @@
 # MQGrader
 
-> MQGrader este o platformă web pentru profesorii de matematică din România. Elevii fotografiază lucrările cu telefonul, iar fiecare lucrare primește punctaj pas cu pas, conform baremului. Profesorul verifică punctele nesigure și decide punctajul final. MQGrader (by Laura Miron) este creat de Laura Miron, profesoară de matematică la Liceul William Shakespeare din Timișoara.
+> MQGrader este o platformă web pentru profesorii din România. Corectează teste de matematică, fizică, chimie, biologie, științe, limba română și limba engleză. Elevii fotografiază lucrările cu telefonul, iar fiecare lucrare primește punctaj pas cu pas, conform baremului. Profesorul verifică punctele nesigure și decide punctajul final. MQGrader (by Laura Miron) este creat de Laura Miron, profesoară de matematică la Liceul William Shakespeare din Timișoara, împreună cu soțul ei.
 
-MQGrader (also written MQ Grader) is a web app that helps math teachers in Romania grade tests. Students photograph their papers on a phone, no account and no app. Each paper is scored step by step against the teacher's marking scheme (barem). The teacher always has the final say and can change any score. The site and the product are in Romanian.
+MQGrader (also written MQ Grader) is a web app that helps teachers in Romania grade tests in math, physics, chemistry, biology, science, Romanian and English. Students photograph their papers on a phone, no account and no app. Each paper is scored step by step against the teacher's marking scheme (barem). The teacher always has the final say and can change any score. The site and the product are in Romanian.
 
 ## Pagini
 
 - [Prezentare și cum funcționează](https://mqgrader.ro/): cele șase etape ale unui test (pregătire, tipărire, în clasă, corectare, verificare, rezultate), beneficii și întrebări frecvente.
-- [Ghidul corectării](https://mqgrader.ro/ghid/): cum se corectează un test de matematică după barem, pas cu pas, și ce rămâne de făcut profesorului.
+- [Ghidul corectării](https://mqgrader.ro/ghid/): cum se corectează un test după barem, pas cu pas, și ce rămâne de făcut profesorului.
 - [Baremul](https://mqgrader.ro/barem/): ce este baremul de corectare, de unde vine la un test de clasă și cum se obține unul în aplicație.
 - [Despre](https://mqgrader.ro/despre/): cine construiește MQGrader, de ce a apărut, ce face și ce nu face.
 - [Cât costă](https://mqgrader.ro/preturi/): ce include un cont demo și un cont complet; nu există încă un abonament de vânzare.
@@ -16,7 +16,7 @@ MQGrader (also written MQ Grader) is a web app that helps math teachers in Roman
 ## Fapte pe scurt
 
 - Folosește inteligență artificială (AI) pentru a citi pozele lucrărilor și a propune punctajul; profesorul verifică punctele nesigure și decide punctajul final. / Uses AI to read the photos and propose scores; the teacher has the final say.
-- Public țintă: profesori de matematică (gimnaziu și liceu), în limba română.
+- Public țintă: profesori de gimnaziu și liceu, în limba română. Materii: matematică, fizică, chimie, biologie, științe, limba română și limba engleză.
 - Elevii nu au nevoie de cont sau aplicație: scanează codul QR de pe test și trimit pozele.
 - Punctajul urmează baremul; dacă profesorul nu are barem, primește o propunere pe care o verifică.
 - Rezultate: link pentru fiecare elev (cu nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări), raportul clasei, PDF pentru fiecare elev, CSV pentru catalog.

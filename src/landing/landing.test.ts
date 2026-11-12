@@ -23,7 +23,7 @@ describe('the landing page', () => {
     // Laura's statement is the heading, the one h1 of the page.
     expect(all('h1').map(text)).toEqual(['Weekendul tău, fără teancul de lucrări.']);
     expect(text(doc.querySelector('.l-lede'))).toBe(
-      'MQGrader este o platformă web pentru profesorii de matematică din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.',
+      'MQGrader este o platformă web pentru profesorii din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.',
     );
   });
 
@@ -78,7 +78,7 @@ describe('the landing page', () => {
   it('sends readers from its own text to the pages that answer a search', () => {
     const more = all('#mai-multe .more-list a').map((a) => [text(a.querySelector('b')), a.getAttribute('href')]);
     expect(more).toEqual([
-      ['Cum corectezi testele de matematică după barem', '/ghid/'],
+      ['Cum corectezi testele după barem', '/ghid/'],
       ['Baremul de corectare', '/barem/'],
       ['Despre MQGrader', '/despre/'],
       ['Cât costă', '/preturi/'],
