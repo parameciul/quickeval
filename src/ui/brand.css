@@ -2534,6 +2534,12 @@ table.tests .row-actions {
   min-width: 0;
 }
 
+/* While another student's paper loads, its place keeps a screen's height, so
+   what is under it (the students, on a narrow screen) does not jump up. */
+.paper-loading {
+  min-height: 100vh;
+}
+
 .paper-main .graded-result .table-wrap {
   overflow-x: auto;
 }
@@ -2621,15 +2627,27 @@ table.items tr.is-open:has(+ tr.item-decision) > * {
   border-bottom: 0;
 }
 
-/* "Verifică": the one action of a row to check, an orange outline. */
+/* "Verifică": the one action of a row to check, an icon button like the
+   pencil, in orange: the icon and the outline. */
 .verifica-btn {
-  border-color: color-mix(in srgb, var(--orange-mark) 40%, var(--sheet));
+  border-color: color-mix(in srgb, var(--orange-mark) 55%, var(--sheet));
   color: var(--orange);
   white-space: nowrap;
 }
 
-/* The decision under the open row (design C): a light box, no borders of
-   colour; the reason, the points as buttons, "Alt punctaj", "Confirmă". */
+.verifica-btn:hover {
+  border-color: var(--orange-mark);
+  background: var(--marker);
+}
+
+/* The exercises start level with the students and the paper beside them. */
+.paper-main .grade-strip {
+  margin-top: 0;
+}
+
+/* The decision under the open row: a light box with a light orange border,
+   the colour of a check, not of a plain choice; the reason, then "Accept",
+   the stepper and "Salvează". */
 table.items tr.item-decision > td {
   padding: 0 0.625rem 0.875rem;
   background: var(--ink-tint);
@@ -2637,7 +2655,7 @@ table.items tr.item-decision > td {
 
 .point-decision {
   padding: 0.875rem 1rem;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--orange-mark) 45%, var(--sheet));
   border-radius: 10px;
   background: var(--sheet);
 }
@@ -2654,53 +2672,8 @@ table.items tr.item-decision > td {
   font-weight: 800;
 }
 
-.point-label {
-  margin: 0 0 0.375rem;
-  font-size: 0.875rem;
-}
-
-.point-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-bottom: 0.625rem;
-}
-
-.point-chip {
-  min-width: 2.75rem;
-  height: 2.125rem;
-  padding: 0 0.625rem;
-  border: 1px solid var(--control);
-  border-radius: 999px;
-  background: var(--sheet);
-  color: var(--text);
-  font: inherit;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.point-chip.is-robot {
-  border-style: dashed;
-}
-
-.point-chip[aria-pressed="true"] {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--on-ink);
-}
-
-.point-other {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.point-other input {
-  width: 5rem;
-  text-align: center;
+.point-decision .review-preview {
+  margin-top: 0.5rem;
 }
 
 .point-foot {
@@ -2841,6 +2814,31 @@ table.items tr.item-decision > td {
   padding: 0;
   font-size: 1rem;
   line-height: 1;
+}
+
+.zoom-controls .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The view of the page ("Arată chenarul", "Toată pagina") floats on the top
+   left; the zoom stays alone on the top right. */
+.zoom-controls.is-left {
+  right: auto;
+  left: 0.5rem;
+}
+
+/* "Arată chenarul" over the photo: a dashed frame, orange while the border
+   of the answer shows. */
+.zoom-controls .frame-toggle {
+  color: var(--muted);
+}
+
+.zoom-controls .frame-toggle[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--orange-mark) 55%, var(--sheet));
+  background: var(--marker);
+  color: var(--orange-mark);
 }
 
 .zoom-level {
@@ -3056,12 +3054,34 @@ table.items tr.item-decision > td {
   color: var(--muted);
 }
 
+/* The keys sit in the bar, in the room between the switch and the moves, and
+   show only when their whole line fits there. The line is the second item of
+   a wrapping box one line tall: an empty first item (::before) keeps the
+   first line, so a line that does not fit wraps to the second line, which is
+   hidden. */
 .review-keys {
   display: flex;
+  flex: 1 1 0;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-  margin: 0.75rem 0 0;
+  justify-content: center;
+  min-width: 0;
+  height: 1.75rem;
+  margin: 0;
+  overflow: hidden;
   font-size: 0.8125rem;
+}
+
+.review-keys::before {
+  content: '';
+  height: 1.75rem;
+}
+
+.review-keys-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  height: 1.75rem;
+  white-space: nowrap;
 }
 
 .review-keys kbd {
@@ -4089,17 +4109,24 @@ table.uploads .row-actions {
 }
 
 /* The points, the confidence and the actions take only their own width; the
-   answer gets a fair share, the comment the rest. */
+   answer gets a fair share, the comment the rest. The decision under an open
+   row is its row's only cell, so its last too: it wraps, and the table keeps
+   its width. */
 @media (min-width: 48.01rem) {
   .graded-result table.items td[data-label="Puncte"],
   .graded-result table.items td[data-label="Siguranța robotului"],
-  .graded-result table.items td:last-child {
+  .graded-result table.items tr:not(.item-decision) > td:last-child {
     width: 1%;
     white-space: nowrap;
   }
 
   .graded-result table.items td[data-label="Răspunsul elevului"] {
     width: 22%;
+  }
+
+  /* The robot over its confidence: both on the right edge of the column. */
+  .graded-result table.items .conf-col {
+    text-align: right;
   }
 }
 
@@ -4537,10 +4564,12 @@ table.items tr.edit-row > td {
   vertical-align: middle;
 }
 
+/* An empty bar is a neutral grey, darker than the light blue of an open row
+   and of the page's borders, in both themes. */
 .conf-bar {
   width: 6px;
   border-radius: 2px;
-  background: var(--rule);
+  background: color-mix(in srgb, var(--muted) 40%, var(--sheet));
 }
 
 .conf-bar:nth-child(1) {
@@ -5102,6 +5131,41 @@ table.items tr.edit-row > td {
   .graded-result table.items td[data-label="Puncte"]::before,
   .graded-result table.items td[data-label="Siguranța robotului"]::before {
     display: none;
+  }
+
+  /* The open card is light blue as a whole, not cell by cell. */
+  .graded-result table.items tr.is-open {
+    background: var(--ink-tint);
+  }
+
+  .graded-result table.items tr.is-open > * {
+    background: none;
+  }
+
+  /* The decision is the open card's lower part: one card, not two. */
+  .graded-result table.items tr.is-open:has(+ tr.item-decision) {
+    margin-bottom: 0;
+    border-bottom: 0;
+    border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+  }
+
+  .graded-result table.items tr.item-decision {
+    display: block;
+    margin-bottom: 0.75rem;
+    padding: 0 0.75rem 0.75rem;
+    border-top: 0;
+    border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+    background: var(--ink-tint);
+  }
+
+  .graded-result table.items tr.item-decision > td {
+    grid-area: auto;
+    padding: 0.5rem 0 0;
+    background: none;
+  }
+
+  .point-decision {
+    padding: 0.75rem;
   }
 
   .graded-result table.items tr.is-flagged {

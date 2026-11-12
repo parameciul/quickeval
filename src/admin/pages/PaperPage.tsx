@@ -365,6 +365,20 @@ function Paper({
   const previousStudent = at > 0 ? students[at - 1] : undefined;
   const nextStudent = at >= 0 ? students[at + 1] : undefined;
 
+  // The papers the teacher can move to next are read ahead: the next or the
+  // previous student, and the paper of the next point. Then the page of
+  // another student shows at once, without a moment with no paper.
+  const ahead = [nextStudent?.submissionId, previousStudent?.submissionId, nextPoint?.submissionId]
+    .filter((id): id is number => id != null && id !== submissionId)
+    .filter((id, index, ids) => ids.indexOf(id) === index)
+    .join(',');
+  useEffect(() => {
+    if (ahead === '') return;
+    for (const id of ahead.split(',').map(Number)) {
+      void queryClient.prefetchQuery({ queryKey: ['submission', id], queryFn: () => api.getSubmission(id), staleTime: 30_000 });
+    }
+  }, [ahead, api, queryClient]);
+
   // A, J, K and 1–9, while the cursor is not in a field or in what opened from
   // the bars, and no decision is on its way. A key held down acts once: its
   // repeats would accept points the teacher never saw.
@@ -374,7 +388,7 @@ function Paper({
       // While a decision is on its way, no key acts: the next point opens after it.
       if (decide.isPending) return;
       const pressed = event.key.toLowerCase();
-      // A presses "Confirmă": the points the teacher chose, at first the robot's.
+      // A presses "Accept": the robot's points.
       if (pressed === 'a' && decisionView !== null) main.current?.querySelector<HTMLButtonElement>('.point-decision [data-confirm]')?.click();
       else if (pressed === 'j') goPoint(stepPoint(walked, spot, 1));
       else if (pressed === 'k') goPoint(stepPoint(walked, spot, -1));
@@ -431,6 +445,26 @@ function Paper({
             Doar de verificat ({queue.length})
           </button>
         </div>
+        {/* The keys, between the switch and the moves, only while a decision
+            shows and only when the whole line fits there: it never takes a
+            line of its own. */}
+        {decision !== null && (
+          <p className="review-keys hint">
+            <span className="review-keys-line">
+              <span>
+                <kbd>A</kbd> accept
+              </span>
+              <span>
+                <kbd>J</kbd> <kbd>K</kbd> punctul următor sau anterior
+              </span>
+              {pageCount > 1 && (
+                <span>
+                  <kbd>1</kbd>–<kbd>{Math.min(9, pageCount)}</kbd> pagina
+                </span>
+              )}
+            </span>
+          </p>
+        )}
         <div className="review-actions">
           {mode === 'verificare' && previousPoint && (
             <button type="button" className="button-quiet" disabled={decide.isPending} onClick={() => goPoint(previousPoint)}>
@@ -454,21 +488,6 @@ function Paper({
           )}
         </div>
       </div>
-      {decision !== null && (
-        <p className="review-keys hint">
-          <span>
-            <kbd>A</kbd> confirmă
-          </span>
-          <span>
-            <kbd>J</kbd> <kbd>K</kbd> punctul următor sau anterior
-          </span>
-          {pageCount > 1 && (
-            <span>
-              <kbd>1</kbd>–<kbd>{Math.min(9, pageCount)}</kbd> pagina
-            </span>
-          )}
-        </p>
-      )}
       {mode === 'verificare' && queue.length === 0 && (
         <p className="review-done" role="status">
           Toate punctele sunt verificate. <Link to={`/teste/${code}${stageHash('Rezultate')}`}>Mergi la Rezultate</Link>
@@ -486,7 +505,7 @@ function Paper({
             paper.isError ? (
               <ErrorMessage error={paper.error} />
             ) : (
-              <p className="hint">Se încarcă lucrarea…</p>
+              <p className="hint paper-loading">Se încarcă lucrarea…</p>
             )
           ) : evaluation ? (
             <GradedResult

@@ -5,18 +5,17 @@ import { pageLabel, parsePoints } from '../../ui/format.ts';
 import { MathText } from '../../ui/MathText.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { pointsText } from '../reviewPage/points.ts';
-import { pointChoices } from './choices.ts';
 
 // What waits for the teacher's decision on the open row: an exercise to check,
 // or the pages the robot could not read.
 export type DecisionView = { kind: 'item'; item: EvaluationItemInfo } | { kind: 'pages'; pages: string[] };
 
 // The decision on the open point to check, under its row (spec 2026-11-12
-// §4.4, design C): why the robot was not sure, the points as buttons (the
-// robot's chosen at first) or another value typed, and one button,
-// "Confirmă", with what the grade becomes. Its heading, for screen readers,
-// takes the focus after the decision before it. The A key presses
-// "Confirmă" (`data-confirm`). `onDecide` takes the change of points, or none.
+// §4.4): why the robot was not sure, then "Accept" with the robot's points,
+// or another value with the stepper and "Salvează", and what the grade
+// becomes with it. Its heading, for screen readers, takes the focus after the
+// decision before it. The A key presses "Accept" (`data-confirm`). `onDecide`
+// takes the change of points, or none.
 export function PointDecision({
   evaluation,
   view,
@@ -56,6 +55,16 @@ export function PointDecision({
   );
 }
 
+// − and + move the points by half a point, on the 0,05 steps and between 0
+// and the maximum; any value in steps of 0,05 can be typed. Their names say
+// the step.
+const STEP = 0.5;
+
+export function steppedPoints(from: number, delta: number, maxPoints: number): number {
+  const moved = Math.round(round2(from + delta) * 20) / 20;
+  return round2(Math.min(maxPoints, Math.max(0, moved)));
+}
+
 function ItemDecision({
   evaluation,
   item,
@@ -68,22 +77,24 @@ function ItemDecision({
   onDecide: (change: ItemChange) => void;
 }) {
   const id = useId();
-  const [chosen, setChosen] = useState(item.points);
-  const [typed, setTyped] = useState('');
+  const [value, setValue] = useState(formatPoints(item.points));
   const [problem, setProblem] = useState<string | null>(null);
-  // A typed value wins over the buttons. The robot's own points are valid
-  // also off the 0,05 steps.
-  const value = typed.trim() === '' ? chosen : parsePoints(typed);
-  const valid = value !== null && (value === item.points || isValidCorrection(value, item.maxPoints));
-  const other = valid && value !== item.points ? value : null;
+  const typed = parsePoints(value);
+  // The robot's own points are valid also off the 0,05 steps.
+  const valid = typed !== null && (typed === item.points || isValidCorrection(typed, item.maxPoints));
+  const other = valid && typed !== item.points ? typed : null;
 
-  const confirm = () => {
+  const move = (delta: number) => {
+    setValue(formatPoints(steppedPoints(typed ?? item.points, delta, item.maxPoints)));
+    setProblem(null);
+  };
+  const save = () => {
     if (!valid) {
       setProblem(`Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
       return;
     }
     setProblem(null);
-    onDecide(value === item.points ? {} : { points: value });
+    onDecide(typed === item.points ? {} : { points: typed });
   };
 
   return (
@@ -94,59 +105,47 @@ function ItemDecision({
       <p className="point-why">
         <MathText text={item.reviewReason} />
       </p>
-      <p className="point-label" id={`${id}-label`}>
-        Punctajul <span className="hint">(robotul a dat {pointsText(item.points)} din {pointsText(item.maxPoints)})</span>
-      </p>
-      <div className="point-chips" role="group" aria-labelledby={`${id}-label`}>
-        {pointChoices(item.maxPoints, item.points).map((choice) => (
-          <button
-            key={choice}
-            type="button"
-            className={choice === item.points ? 'point-chip is-robot' : 'point-chip'}
-            aria-pressed={typed.trim() === '' && choice === chosen}
-            disabled={pending}
-            onClick={() => {
-              setChosen(choice);
-              setTyped('');
+      <div className="review-decide">
+        <button type="button" className="button" data-confirm disabled={pending} onClick={() => onDecide({})}>
+          Accept {pointsText(item.points)}
+        </button>
+        <span className="stepper" role="group" aria-label="Alt punctaj">
+          <button type="button" className="button-quiet" aria-label={`Scade ${pointsText(STEP)}`} disabled={pending} onClick={() => move(-STEP)}>
+            −
+          </button>
+          <label className="sr-only" htmlFor={id}>
+            Alt punctaj, din {formatPoints(item.maxPoints)}
+          </label>
+          <input
+            id={id}
+            type="text"
+            inputMode="decimal"
+            aria-invalid={!valid}
+            value={value}
+            onChange={(event) => {
+              setValue(event.target.value);
               setProblem(null);
             }}
-          >
-            {formatPoints(choice)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !pending) save();
+            }}
+          />
+          <button type="button" className="button-quiet" aria-label={`Adaugă ${pointsText(STEP)}`} disabled={pending} onClick={() => move(STEP)}>
+            +
           </button>
-        ))}
-      </div>
-      <label className="point-other" htmlFor={id}>
-        Alt punctaj<span className="sr-only">, din {formatPoints(item.maxPoints)}</span>
-        <input
-          id={id}
-          type="text"
-          inputMode="decimal"
-          aria-invalid={!valid}
-          value={typed}
-          onChange={(event) => {
-            setTyped(event.target.value);
-            setProblem(null);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !pending) confirm();
-          }}
-        />
-      </label>
-      <div className="point-foot">
-        <button type="button" className="button" data-confirm disabled={pending} onClick={confirm}>
-          {valid ? `Confirmă ${pointsText(value)}` : 'Confirmă'}
-        </button>
-        <span className="hint" role="status">
-          {!valid
-            ? ''
-            : other !== null
-              ? `Cu ${pointsText(other)} aici, nota devine ${formatPoints(gradeOf(round2(evaluation.total - item.points + other), evaluation.maxTotal))}.`
-              : `Nota rămâne ${formatPoints(evaluation.grade)}.`}
         </span>
+        <button type="button" className="button-quiet" disabled={pending} onClick={save}>
+          Salvează
+        </button>
       </div>
       {problem && (
         <p className="cell-error" role="alert">
           {problem}
+        </p>
+      )}
+      {other !== null && (
+        <p className="review-preview" role="status">
+          Cu {pointsText(other)} aici, nota devine {formatPoints(gradeOf(round2(evaluation.total - item.points + other), evaluation.maxTotal))}.
         </p>
       )}
     </>

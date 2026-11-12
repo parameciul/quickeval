@@ -95,7 +95,7 @@ export function GradedResult({
               <th scope="col">Puncte</th>
               <th scope="col">Răspunsul elevului</th>
               <th scope="col">Comentariu</th>
-                  <th scope="col" title="Siguranța robotului">
+                  <th scope="col" className="conf-col" title="Siguranța robotului">
                     <span className="sr-only">Siguranța robotului</span>
                     <RobotMark />
                   </th>
@@ -162,11 +162,12 @@ function UnreadablePages({
           {!open && (
             <button
               type="button"
-              className="button-quiet button-small verifica-btn"
+              className="button-quiet button-small icon-button verifica-btn"
               aria-label="Verifică paginile necitite"
+              title="Verifică"
               onClick={() => check.onOpen('pagini')}
             >
-              Verifică
+              <CheckMark />
             </button>
           )}
         </p>
@@ -403,7 +404,7 @@ function ItemRow({
           </>
         )}
       </td>
-      <td data-label="Siguranța robotului">
+      <td className="conf-col" data-label="Siguranța robotului">
         <ConfidenceBars confidence={item.confidence} />
       </td>
       <td className={editing ? undefined : 'item-check'}>
@@ -440,11 +441,12 @@ function ItemRow({
             {onOpen && toCheck && !open && (
               <button
                 type="button"
-                className="button-quiet button-small verifica-btn"
+                className="button-quiet button-small icon-button verifica-btn"
                 aria-label={`Verifică ${item.label}`}
+                title="Verifică"
                 onClick={onOpen}
               >
-                Verifică
+                <CheckMark />
               </button>
             )}
             {onOpen && !(toCheck && !open) && (
@@ -489,6 +491,19 @@ function ItemRow({
   );
 }
 
+// "Verifică" on the paper page: a magnifier with a check in it, drawn like the
+// row's other icon buttons, in orange (the colour of what waits on the
+// teacher). Its name and its tooltip keep the word.
+function CheckMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M15.3 15.3L20 20" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M7.6 10.7l2 2 3.6-3.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // The robot's points before the teacher corrected them: the old value in
 // gray next to a robot mark, so the history needs no words. The hidden words
 // say what the picture means for screen readers, and the title says it for
@@ -505,16 +520,24 @@ function RobotPoints({ points }: { points: number }) {
 }
 
 // The robot mark used wherever the robot is the subject: the old-points note
-// and the confidence column header. One picture, one meaning.
+// and the confidence column header. One picture, one meaning: a friendly
+// robot's head in its own colours (lilac head, dark visor with blue eyes,
+// yellow cap, pink antennas), the same on a light and a dark page.
 function RobotMark() {
   return (
     <svg className="robot-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <rect x="5" y="9" width="14" height="11" rx="3.5" fill="none" stroke="currentColor" strokeWidth="2" />
-      <path d="M12 9V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="12" cy="4.5" r="1.3" fill="currentColor" />
-      <circle cx="10" cy="14" r="1.3" fill="currentColor" />
-      <circle cx="14" cy="14" r="1.3" fill="currentColor" />
-      <path d="M10 17.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M2 3.2V10M22 3.2V10" stroke="#e8558f" strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="2" cy="2.2" r="1.6" fill="#ff4f73" />
+      <circle cx="22" cy="2.2" r="1.6" fill="#ff4f73" />
+      <rect x="0.6" y="9" width="2.8" height="8" rx="1.4" fill="#e9568a" />
+      <rect x="20.6" y="9" width="2.8" height="8" rx="1.4" fill="#ff3f97" />
+      <path d="M7.5 5.2C7.8 2.6 9.6 1.6 12 1.6s4.2 1 4.5 3.6z" fill="#f2b62c" />
+      <rect x="2.8" y="4.4" width="18.4" height="18" rx="5" fill="#d8c8e8" />
+      <path d="M2.8 17.2h18.4v0.2a5 5 0 0 1-5 5H7.8a5 5 0 0 1-5-5z" fill="#c4a6dc" />
+      <rect x="4.4" y="7.4" width="15.2" height="6.6" rx="2.2" fill="#342a52" />
+      <rect x="6.6" y="8.9" width="1.9" height="3.6" rx="0.95" fill="#3fa9ea" />
+      <rect x="15.5" y="8.9" width="1.9" height="3.6" rx="0.95" fill="#3fa9ea" />
+      <rect x="9.5" y="16.6" width="5" height="2" rx="1" fill="#34284f" />
     </svg>
   );
 }

@@ -106,6 +106,10 @@ const at = (id: number, key: string | null = null, mode: 'toate' | 'verificare' 
   new RegExp(`^${paperAt(id, key, mode).replace(/[?.]/g, '\\$&')}$`);
 
 const students = () => screen.getByRole('navigation', { name: 'Elevii' });
+
+// How many times one paper was read: the page also reads ahead the papers
+// the teacher can move to next.
+const readsOf = (api: ReturnType<typeof apiWith>, id: number) => api.getSubmission.mock.calls.filter(([read]) => read === id).length;
 const decision = () => screen.getByRole('region', { name: 'Decizia' });
 const row = (label: string) => screen.getByRole('row', { name: new RegExp(label) });
 
@@ -129,7 +133,7 @@ describe('the points to check on the paper page', () => {
   it('opens on the pages Ana could not read, on the first of them, and the next point opens after them', async () => {
     const api = apiWith();
     renderAdmin(PAGE, api, <LocationProbe />);
-    expect(await screen.findByText('Ana Pop · pagina 2 din 3')).toBeInTheDocument();
+    expect(await screen.findByText('Ana Pop · 2/3')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pagina 2' })).toHaveAttribute('aria-current', 'true');
     expect(screen.getByRole('img', { name: 'Pagina 2 a lucrării' })).toHaveAttribute('src', submissionFileUrl(11, 102));
     expect(within(decision()).getByRole('heading', { name: 'Decide: Paginile necitite' })).toBeInTheDocument();
@@ -151,17 +155,17 @@ describe('the points to check on the paper page', () => {
   it('opens an item on the page where its answer is, and on page 1 when the page is unknown', async () => {
     const api = apiWith();
     renderAdmin(PAGE, api, <LocationProbe />);
-    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await screen.findByText('Ana Pop · 2/3');
     await userEvent.keyboard('j');
     await expectLocation(at(11, '32'));
-    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
     expect(screen.getByTitle('Pagina 3 a lucrării')).toHaveAttribute('src', submissionFileUrl(11, 103));
     await userEvent.keyboard('1');
-    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 1/3')).toBeInTheDocument();
     await userEvent.keyboard('k');
     await userEvent.keyboard('k');
     await expectLocation(at(14, '41'));
-    expect(await screen.findByText('Ion Popa · pagina 1 din 1')).toBeInTheDocument();
+    expect(await screen.findByText('Ion Popa · 1/1')).toBeInTheDocument();
   });
 
   it("accepts the robot's points under the row, and the next point opens", async () => {
@@ -175,58 +179,68 @@ describe('the points to check on the paper page', () => {
     expect(within(flagged).getByText('x = 3')).toBeInTheDocument();
     expect(within(flagged).getByText('Verifică semnul.')).toBeInTheDocument();
     expect(within(flagged).queryByRole('button', { name: 'Verificat Subiectul II, ex. 1' })).not.toBeInTheDocument();
-    // The reason and the points to choose are under the row, the robot's chosen.
+    // The reason is under the row, with "Accept" of the robot's points.
     expect(within(panel).getByText('Scrisul nu se citește.')).toBeInTheDocument();
-    expect(within(panel).getByText('(robotul a dat 1p din 2p)')).toBeInTheDocument();
-    expect(within(panel).getAllByRole('button', { pressed: true }).map((chip) => chip.textContent)).toEqual(['1']);
-    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+    expect(within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue('1');
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
 
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     expect(api.correctItem).toHaveBeenCalledWith(11, 32, { reviewed: true, gradedAt: GRADED_AT });
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
     await expectLocation(at(14, '41'));
     expect(screen.getByRole('button', { name: 'Doar de verificat (2)' })).toBeInTheDocument();
   });
 
-  it('chooses other points with a button or typed, says what the grade becomes, and saves it', async () => {
+  it('says what the grade becomes with another value, and saves it', async () => {
     const api = apiWith();
     renderAdmin(paperAt(11, '32'), api);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    const chips = within(panel).getByRole('group', { name: /Punctajul/ });
-    expect(within(chips).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['0', '0,25', '0,5', '0,75', '1', '1,25', '1,5', '1,75', '2']);
-    expect(within(panel).getByText('Nota rămâne 6,5.')).toBeInTheDocument();
-
-    await userEvent.click(within(chips).getByRole('button', { name: '0,5' }));
-    expect(within(chips).getByRole('button', { name: '0,5' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(chips).getByRole('button', { name: '1' })).toHaveAttribute('aria-pressed', 'false');
-    expect(within(panel).getByText('Cu 0,5p aici, nota devine 6.')).toBeInTheDocument();
-    expect(within(panel).getByRole('button', { name: 'Confirmă 0,5p' })).toBeInTheDocument();
-    await userEvent.click(within(chips).getByRole('button', { name: '0' }));
-    expect(within(panel).getByText('Cu 0p aici, nota devine 5,5.')).toBeInTheDocument();
-
-    // A typed value wins over the buttons.
     const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
-    await userEvent.type(input, '1,35');
-    expect(within(chips).queryByRole('button', { pressed: true })).not.toBeInTheDocument();
-    expect(within(panel).getByText('Cu 1,35p aici, nota devine 6,85.')).toBeInTheDocument();
+    expect(within(panel).queryByText(/nota devine/)).not.toBeInTheDocument();
+
+    await userEvent.click(within(panel).getByRole('button', { name: 'Scade 0,5p' }));
+    expect(input).toHaveValue('0,5');
+    expect(within(panel).getByText('Cu 0,5p aici, nota devine 6.')).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Scade 0,5p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Scade 0,5p' }));
+    expect(input).toHaveValue('0');
+    expect(within(panel).getByText('Cu 0p aici, nota devine 5,5.')).toBeInTheDocument();
+    for (let press = 0; press < 5; press += 1) await userEvent.click(within(panel).getByRole('button', { name: 'Adaugă 0,5p' }));
+    expect(input).toHaveValue('2');
+
     await userEvent.clear(input);
     await userEvent.type(input, '1,25');
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1,25p' }));
+    expect(within(panel).getByText('Cu 1,25p aici, nota devine 6,75.')).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
     expect(api.correctItem).toHaveBeenCalledWith(11, 32, { points: 1.25, reviewed: true, gradedAt: GRADED_AT });
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
   });
 
-  it('names no points on "Confirmă" while the typed value is not valid', async () => {
-    renderAdmin(paperAt(11, '32'), apiWith());
+  it("saves the robot's points as a check, with no change of points", async () => {
+    const api = apiWith();
+    renderAdmin(paperAt(11, '32'), api);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
+    expect(api.correctItem).toHaveBeenCalledWith(11, 32, { reviewed: true, gradedAt: GRADED_AT });
+  });
+
+  it('steps from robot points off the 0,05 steps onto them, between 0 and the maximum', async () => {
+    const [ana, ion, eva] = papers();
+    ana!.evaluation = fakeEvaluation([
+      fakeItem({ id: 32, exerciseId: 'II.1', label: 'Subiectul II, ex. 1', points: 0.33, maxPoints: 2, needsReview: true, reviewReason: 'Neclar.' }),
+    ]);
+    const api = apiWith([ana!, ion!, eva!]);
+    renderAdmin(paperAt(11, '32'), api);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
-    await userEvent.type(input, '3');
-    expect(input).toHaveAttribute('aria-invalid', 'true');
-    expect(within(panel).getByRole('button', { name: 'Confirmă' })).toBeInTheDocument();
-    expect(within(panel).queryByText(/Nota rămâne|nota devine/)).not.toBeInTheDocument();
-    await userEvent.clear(input);
-    expect(input).toHaveAttribute('aria-invalid', 'false');
-    expect(within(panel).getByRole('button', { name: 'Confirmă 1p' })).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Accept 0,33p' })).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Adaugă 0,5p' }));
+    expect(input).toHaveValue('0,85');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Scade 0,5p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Scade 0,5p' }));
+    expect(input).toHaveValue('0');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
+    expect(api.correctItem).toHaveBeenCalledWith(11, 32, { points: 0, reviewed: true, gradedAt: GRADED_AT });
   });
 
   it('refuses a value off the steps of 0,05', async () => {
@@ -244,7 +258,7 @@ describe('the points to check on the paper page', () => {
   it('moves with J and K, changes the page with the numbers, and accepts with A', async () => {
     const api = apiWith();
     renderAdmin(PAGE, api, <LocationProbe />);
-    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await screen.findByText('Ana Pop · 2/3');
     await userEvent.keyboard('j');
     await expectLocation(at(11, '32'));
     await userEvent.keyboard('k');
@@ -254,15 +268,28 @@ describe('the points to check on the paper page', () => {
     await userEvent.keyboard('j');
     await expectLocation(at(11, 'pagini'));
     await userEvent.keyboard('3');
-    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
     expect(screen.getByTitle('Pagina 3 a lucrării')).toHaveAttribute('src', submissionFileUrl(11, 103));
     await userEvent.keyboard('9');
-    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
     await userEvent.keyboard('1');
-    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 1/3')).toBeInTheDocument();
     await userEvent.keyboard('a');
     expect(api.reviewPages).toHaveBeenCalledWith(11, { pagesReviewed: true, gradedAt: GRADED_AT });
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
+  });
+
+  it('names the keys in the bar, between the switch and the moves, only while a decision shows', async () => {
+    renderAdmin(paperAt(11, '32', 'toate'), apiWith(), <LocationProbe />);
+    await screen.findByRole('region', { name: 'Decizia' });
+    const keys = screen.getByText(/punctul următor sau anterior/).closest('p')!;
+    const bar = screen.getByRole('group', { name: 'Exercițiile arătate' }).parentElement!;
+    expect(bar).toContainElement(keys);
+    expect(keys).toHaveTextContent('A accept');
+    expect(keys).toHaveTextContent('1–3 pagina');
+    await userEvent.click(row('Subiectul I, ex. 1'));
+    await expectLocation(at(11, '31', 'toate'));
+    expect(screen.queryByText(/punctul următor sau anterior/)).not.toBeInTheDocument();
   });
 
   it('goes to the next point and back with the buttons above the panes', async () => {
@@ -288,7 +315,7 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
     await userEvent.type(input, 'ajk2');
-    expect(input).toHaveValue('ajk2');
+    expect(input).toHaveValue('1ajk2');
     input.blur();
     await userEvent.keyboard('{Control>}a{/Control}{Alt>}j{/Alt}{Meta>}k{/Meta}');
     expect(api.correctItem).not.toHaveBeenCalled();
@@ -313,12 +340,12 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.keyboard('aa');
     expect(api.correctItem).toHaveBeenCalledTimes(1);
-    expect(within(panel).getByRole('button', { name: 'Confirmă 1p' })).toBeDisabled();
+    expect(within(panel).getByRole('button', { name: 'Accept 1p' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Punctul anterior' })).toBeDisabled();
     await userEvent.keyboard('jk2');
     await expectLocation(at(11, '32'));
-    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
   });
 
   it('says when every point is checked, with the way to Rezultate', async () => {
@@ -331,7 +358,7 @@ describe('the points to check on the paper page', () => {
     expect(screen.queryByRole('button', { name: 'Următorul punct' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Punctul anterior' })).not.toBeInTheDocument();
 
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 3p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
     await expectLocation(at(14));
@@ -345,11 +372,26 @@ describe('the points to check on the paper page', () => {
     api.correctItem.mockRejectedValueOnce(new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.'));
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    expect(api.getSubmission).toHaveBeenCalledTimes(1);
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    expect(readsOf(api, 11)).toBe(1);
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     expect(await within(decision()).findByText('Lucrarea se corectează din nou. Reîncarcă pagina.')).toBeInTheDocument();
-    expect(api.getSubmission).toHaveBeenCalledTimes(2);
+    expect(readsOf(api, 11)).toBe(2);
     await expectLocation(at(11, '32'));
+  });
+
+  it('reads ahead the papers of the next and the previous student, so the next one shows at once', async () => {
+    const api = apiWith();
+    renderAdmin(paperAt(13, null, 'toate'), api, <LocationProbe />);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Eva Stan' })).toBeInTheDocument();
+    // Ion is after Eva, Dan before her.
+    await waitFor(() => expect(readsOf(api, 14)).toBe(1));
+    expect(readsOf(api, 12)).toBe(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
+    await expectLocation(at(14, null, 'toate'));
+    // The paper is there at once: no moment with no paper.
+    expect(screen.queryByText('Se încarcă lucrarea…')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Ion Popa' })).toBeInTheDocument();
+    expect(within(row('Subiectul I, ex. 3')).getByText('3 din 5')).toBeInTheDocument();
   });
 
   it('shows a paper with no point to check with all its exercises, its grade and its page', async () => {
@@ -369,16 +411,16 @@ describe('the points to check on the paper page', () => {
 
   it('opens any exercise on the paper: its page, and a decision only for one to check', async () => {
     renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
-    await screen.findByText('Ana Pop · pagina 1 din 3');
+    await screen.findByText('Ana Pop · 1/3');
     await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
     await expectLocation(at(11, '32', 'toate'));
-    expect(screen.getByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
     await expectLocation(at(11, '31', 'toate'));
     expect(row('Subiectul I, ex. 1')).toHaveClass('is-open');
     expect(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 1/3')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
     // II.1 still waits: closed, it shows "Verifică", which opens it again.
     await userEvent.click(within(row('Subiectul II, ex. 1')).getByRole('button', { name: 'Verifică Subiectul II, ex. 1' }));
@@ -407,7 +449,7 @@ describe('the points to check on the paper page', () => {
     await userEvent.click(await within(await screen.findByRole('region', { name: 'Decizia' })).findByRole('button', { name: 'Am verificat paginile' }));
     await expectLocation(at(11, '32', 'toate'));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
-    await userEvent.click(within(decision()).getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 1p' }));
     // No point of Ana is left: the row stays open, and "Elevul următor" waits.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Elevul următor' })).toHaveFocus());
     await expectLocation(at(11, '32', 'toate'));
@@ -418,7 +460,7 @@ describe('the points to check on the paper page', () => {
   it('puts the focus on the exercises after the last point of the last student, in all the exercises', async () => {
     renderAdmin(paperAt(14, '41', 'toate'), apiWith(), <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 3p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Exercițiile' })).toHaveFocus());
     expect(screen.queryByRole('button', { name: 'Elevul următor' })).not.toBeInTheDocument();
     await expectLocation(at(14, '41', 'toate'));
@@ -426,7 +468,7 @@ describe('the points to check on the paper page', () => {
 
   it('walks only the points of the open student with J and K in all the exercises', async () => {
     renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
-    await screen.findByText('Ana Pop · pagina 1 din 3');
+    await screen.findByText('Ana Pop · 1/3');
     await userEvent.keyboard('j');
     await expectLocation(at(11, 'pagini', 'toate'));
     await userEvent.keyboard('j');
@@ -438,7 +480,7 @@ describe('the points to check on the paper page', () => {
 
   it('moves to the student before or after, in the order of the list', async () => {
     renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
-    await screen.findByText('Ana Pop · pagina 1 din 3');
+    await screen.findByText('Ana Pop · 1/3');
     expect(screen.queryByRole('button', { name: 'Elevul anterior' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
     await expectLocation(at(12, null, 'toate'));
@@ -483,7 +525,7 @@ describe('the points to check on the paper page', () => {
   it('acts once for a key held down', async () => {
     const api = apiWith();
     renderAdmin(paperAt(11, 'pagini'), api, <LocationProbe />);
-    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await screen.findByText('Ana Pop · 2/3');
     await userEvent.keyboard('a');
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
     // The key is still down: the browser repeats it, and the repeats do nothing.
@@ -523,7 +565,7 @@ describe('the points to check on the paper page', () => {
     const held = heldSave(api);
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     await userEvent.click(within(screen.getByRole('navigation', { name: 'Unde ești' })).getByRole('link', { name: 'Fracții' }));
     await screen.findByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' });
     await held.done();
@@ -536,7 +578,7 @@ describe('the points to check on the paper page', () => {
     const held = heldSave(api);
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     await userEvent.click(within(students()).getByRole('link', { name: 'Eva Stan nota 5' }));
     await expectLocation(at(13));
     await held.done();
@@ -549,7 +591,7 @@ describe('the points to check on the paper page', () => {
     const held = heldSave(api);
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     await userEvent.click(screen.getByRole('button', { name: 'Toate exercițiile' }));
     await expectLocation(at(11, '32', 'toate'));
     await held.done();
@@ -563,7 +605,7 @@ describe('the points to check on the paper page', () => {
     await userEvent.click(screen.getByRole('button', { name: /^De făcut/ }));
     const todo = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
     await userEvent.click(within(todo).getByRole('link', { name: 'Începe: Fracții, 6E2' }));
-    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await screen.findByText('Ana Pop · 2/3');
     await userEvent.keyboard('j');
     await expectLocation(at(11, '32'));
   });
@@ -583,7 +625,7 @@ describe('the points to check on the paper page', () => {
     const api = apiWith();
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
-    await within(panel).findByRole('button', { name: 'Confirmă 1p' });
+    await within(panel).findByRole('button', { name: 'Accept 1p' });
     fireEvent.keyDown(document.body, { key: 'a' });
     fireEvent.keyDown(document.body, { key: 'a' });
     // Ion's paper loads in a new middle pane: found through the screen.
@@ -602,10 +644,10 @@ describe('the points to check on the paper page', () => {
     const regraded = papers()[0]!;
     regraded.evaluation = { ...regraded.evaluation!, gradedAt: '2026-10-08T09:00:00.000Z' };
     api.getSubmission.mockResolvedValueOnce(regraded);
+    await userEvent.clear(input);
     await userEvent.type(input, '1,5');
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1,5p' }));
-    await waitFor(() => expect(within(decision()).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue(''));
-    expect(within(decision()).getByRole('button', { name: 'Confirmă 1p' })).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Salvează' }));
+    await waitFor(() => expect(within(decision()).getByRole('textbox', { name: 'Alt punctaj, din 2' })).toHaveValue('1'));
   });
 
   it('names the point it opens on in the address before it shows a paper', async () => {
@@ -630,7 +672,7 @@ describe('the points to check on the paper page', () => {
     renderAdmin(`${PAGE}?lucrare=11&punct=32`, api, <LocationProbe />);
     expect(await screen.findByRole('heading', { level: 1, name: 'Ana Pop' })).toBeInTheDocument();
     expect(await screen.findByText('Robotul corectează acum lucrarea.')).toBeInTheDocument();
-    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 1/3')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(at(11, '32'));
   });
@@ -644,7 +686,7 @@ describe('the points to check on the paper page', () => {
     api.getSubmission.mockResolvedValueOnce(before);
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
-    expect(api.getSubmission).toHaveBeenCalledTimes(2);
+    expect(readsOf(api, 11)).toBe(2);
   });
 
   it('puts the focus on the point that opens after a decision', async () => {
@@ -653,7 +695,7 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Am verificat paginile' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Accept 1p' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toHaveFocus());
     // The keys still act from there.
     await userEvent.keyboard('k');
@@ -679,10 +721,11 @@ const WHOLE = 'translate(0%, 0%) scale(1)';
 describe('the zoom of a page', () => {
   it('zooms in one small step where the photo is clicked, and out as much with a right click', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     const photo = sizedPane();
     expect(layer().style.transform).toBe(WHOLE);
-    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+    // "Toată pagina" waits over the page, off while the page is whole.
+    expect(screen.getByRole('button', { name: 'Toată pagina' })).toBeDisabled();
     expect(screen.queryByRole('link', { name: /Pagina 1 a lucrării/ })).not.toBeInTheDocument();
 
     clickAt(photo, 200, 200);
@@ -700,7 +743,7 @@ describe('the zoom of a page', () => {
 
   it('zooms in on the point clicked, so the handwriting under the pointer stays there', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     // A click on the page's top left corner: the page's edge stays at the pane's.
     clickAt(sizedPane(), 0, 0);
     expect(layer().style.transform).toBe('translate(0%, 0%) scale(1.25)');
@@ -708,7 +751,7 @@ describe('the zoom of a page', () => {
 
   it('says over the whole page what a click does, and leaves the page alone once it is zoomed', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     const photo = sizedPane();
     expect(screen.getByText('Clic stânga: mărește · clic dreapta: micșorează')).toBeInTheDocument();
     clickAt(photo, 200, 200);
@@ -721,7 +764,7 @@ describe('the zoom of a page', () => {
 
   it('moves the zoomed page with a drag, and shows the whole page with "Toată pagina"', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     const photo = sizedPane();
     clickAt(photo, 200, 200);
     fireEvent.pointerDown(photo, { pointerId: 1, button: 0, clientX: 200, clientY: 200 });
@@ -731,12 +774,12 @@ describe('the zoom of a page', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Toată pagina' }));
     expect(layer().style.transform).toBe(WHOLE);
-    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Toată pagina' })).toBeDisabled();
   });
 
   it('takes the same step with the buttons over the page, which stop at the ends', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     const bigger = screen.getByRole('button', { name: 'Mărește' });
     const smaller = screen.getByRole('button', { name: 'Micșorează' });
     expect(smaller).toBeDisabled();
@@ -756,7 +799,7 @@ describe('the zoom of a page', () => {
 
   it('shows the whole page again with Esc, and a right button never opens the browser menu', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     const photo = sizedPane();
     clickAt(photo, 200, 200);
     expect(fireEvent.contextMenu(photo)).toBe(false);
@@ -767,7 +810,7 @@ describe('the zoom of a page', () => {
 
   it('closes only the panel of the bar with Esc while the page is zoomed', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     clickAt(sizedPane(), 200, 200);
     await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
     await userEvent.keyboard('{Escape}');
@@ -777,7 +820,7 @@ describe('the zoom of a page', () => {
 
   it('closes only the panel with Esc when the focus left the bar, and keeps the zoom', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     clickAt(sizedPane(), 200, 200);
     await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
     (document.activeElement as HTMLElement).blur();
@@ -788,7 +831,7 @@ describe('the zoom of a page', () => {
 
   it('leaves the wheel to the page, which scrolls with it, and zooms a trackpad pinch', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     const photo = sizedPane();
     // The page scrolls under a plain wheel: the photo neither zooms nor takes the wheel.
     expect(fireEvent.wheel(photo, { deltaY: -100, clientX: 200, clientY: 200 })).toBe(true);
@@ -801,7 +844,7 @@ describe('the zoom of a page', () => {
 
   it('pinches with two fingers on a touch screen, and a pinch is never a click', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
+    await screen.findByText('Ion Popa · 1/1');
     const photo = sizedPane();
     // Two fingers 200 px apart, their middle a little right of the pane's middle.
     fireEvent.pointerDown(photo, { pointerId: 1, button: 0, clientX: 100, clientY: 200 });
@@ -817,18 +860,18 @@ describe('the zoom of a page', () => {
 
   it('shows a page whole again when the teacher comes back to it', async () => {
     renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
-    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await screen.findByText('Ana Pop · 2/3');
     clickAt(sizedPane(), 200, 200);
     expect(layer().style.transform).not.toBe(WHOLE);
     await userEvent.keyboard('1');
     await userEvent.keyboard('2');
-    expect(screen.getByText('Ana Pop · pagina 2 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 2/3')).toBeInTheDocument();
     expect(layer().style.transform).toBe(WHOLE);
   });
 
   it('gives a new page the usual shape until its photo loads', async () => {
     renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
-    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await screen.findByText('Ana Pop · 2/3');
     const image = layer().querySelector('img')!;
     Object.defineProperty(image, 'naturalWidth', { value: 2000 });
     Object.defineProperty(image, 'naturalHeight', { value: 1000 });
@@ -840,11 +883,11 @@ describe('the zoom of a page', () => {
 
   it('opens another page whole, and a PDF page has no zoom', async () => {
     renderAdmin(`${PAGE}?lucrare=11&punct=pagini`, apiWith());
-    await screen.findByText('Ana Pop · pagina 2 din 3');
+    await screen.findByText('Ana Pop · 2/3');
     clickAt(sizedPane(), 200, 200);
     expect(layer().style.transform).not.toBe(WHOLE);
     await userEvent.keyboard('1');
-    expect(screen.getByText('Ana Pop · pagina 1 din 3')).toBeInTheDocument();
+    expect(screen.getByText('Ana Pop · 1/3')).toBeInTheDocument();
     expect(layer().style.transform).toBe(WHOLE);
     await userEvent.keyboard('3');
     expect(screen.queryByTestId('zoom-pane')).not.toBeInTheDocument();
@@ -885,25 +928,30 @@ afterEach(() => vi.unstubAllGlobals());
 describe('the border of the answer to check', () => {
   it('opens the answer on its first part, on the whole page, with an orange border and its label outside it', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
-    expect(await screen.findByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
+    expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
     // The page never zooms by itself: the border alone shows where the answer is.
     expect(layer().style.transform).toBe(WHOLE);
     expect(frame().style).toMatchObject({ left: '20%', top: '30%', width: '40%', height: '10%' });
     expect(within(frame()).getByText('I.3 · partea 1 din 2')).not.toHaveClass('is-below');
     expect(within(frame()).getByRole('button', { name: 'Partea anterioară' })).toBeDisabled();
     expect(within(frame()).getByRole('button', { name: 'Partea următoare' })).toBeEnabled();
-    expect(screen.getByRole('checkbox', { name: 'Arată chenarul' })).toBeChecked();
-    // The switch sits in the line above the page, beside the page switch.
-    expect(screen.getByRole('checkbox', { name: 'Arată chenarul' }).closest('.review-photo-top')).toContainElement(
-      screen.getByRole('group', { name: 'Paginile lucrării' }),
-    );
+    expect(screen.getByRole('button', { name: 'Arată chenarul' })).toHaveAttribute('aria-pressed', 'true');
+    // The switch floats over the photo's top left with "Toată pagina"; the
+    // zoom stays alone on the top right.
+    const view = screen.getByRole('group', { name: 'Vederea paginii' });
+    expect(view).toContainElement(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(view).toContainElement(screen.getByRole('button', { name: 'Toată pagina' }));
+    expect(within(screen.getByRole('group', { name: 'Mărirea paginii' })).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Micșorează',
+      'Mărește',
+    ]);
   });
 
   it('steps to the next part on its page and back', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
-    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await screen.findByText('Ion Popa · 1/2');
     await userEvent.click(screen.getByRole('button', { name: 'Partea următoare' }));
-    expect(screen.getByText('Ion Popa · pagina 2 din 2')).toBeInTheDocument();
+    expect(screen.getByText('Ion Popa · 2/2')).toBeInTheDocument();
     // A part this big shows on the whole page.
     expect(layer().style.transform).toBe(WHOLE);
     expect(frame().style).toMatchObject({ left: '10%', top: '50%', width: '80%', height: '30%' });
@@ -912,28 +960,28 @@ describe('the border of the answer to check', () => {
     // The arrows are the teacher's own move, and they never zoom on their own:
     // the part opens on its page, whole.
     await userEvent.click(screen.getByRole('button', { name: 'Partea anterioară' }));
-    expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
+    expect(screen.getByText('Ion Popa · 1/2')).toBeInTheDocument();
     expect(layer().style.transform).toBe(WHOLE);
   });
 
   it('floats the part controls inside the pane on a phone, where a finger reaches them', async () => {
     onPhone();
     renderAdmin(ION_I3, apiWith(framed()));
-    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await screen.findByText('Ion Popa · 1/2');
     const pane = screen.getByTestId('zoom-pane');
     expect(within(pane).getByRole('button', { name: 'Partea următoare' })).toBeInTheDocument();
     expect(within(pane).getByText('1 din 2')).toBeInTheDocument();
     // Not beside the label, where the pane's edge would cut them off.
     expect(within(frame()).queryByRole('button', { name: 'Partea următoare' })).not.toBeInTheDocument();
     await userEvent.click(within(pane).getByRole('button', { name: 'Partea următoare' }));
-    expect(screen.getByText('Ion Popa · pagina 2 din 2')).toBeInTheDocument();
+    expect(screen.getByText('Ion Popa · 2/2')).toBeInTheDocument();
     expect(within(pane).getByText('2 din 2')).toBeInTheDocument();
     expect(within(pane).getByRole('button', { name: 'Partea următoare' })).toBeDisabled();
   });
 
   it('draws the border on a page picked by hand, on the whole page', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
-    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await screen.findByText('Ion Popa · 1/2');
     await userEvent.click(screen.getByRole('button', { name: 'Pagina 2' }));
     expect(layer().style.transform).toBe(WHOLE);
     expect(within(frame()).getByText('I.3 · partea 2 din 2')).toBeInTheDocument();
@@ -941,16 +989,16 @@ describe('the border of the answer to check', () => {
 
   it('puts the label below the border when there is no room above it', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=42`, apiWith(framed()));
-    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await screen.findByText('Ion Popa · 1/2');
     expect(within(frame()).getByText('II.4')).toHaveClass('is-below');
     expect(screen.queryByText(/Partea 1/)).not.toBeInTheDocument();
   });
 
   it("moves to the next point's area after a decision, on the same page", async () => {
     renderAdmin(ION_I3, apiWith(framed([TOP])));
-    await screen.findByText('Ion Popa · pagina 1 din 2');
+    await screen.findByText('Ion Popa · 1/2');
     clickAt(sizedPane(), 200, 200);
-    await userEvent.click(within(decision()).getByRole('button', { name: 'Confirmă 3p' }));
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
     expect(within(frame()).getByText('II.4')).toBeInTheDocument();
     // The next answer opens whole: its border shows where it is.
@@ -959,20 +1007,20 @@ describe('the border of the answer to check', () => {
 
   it('opens the next point whole after a decision while the border is off', async () => {
     renderAdmin(ION_I3, apiWith(framed([TOP])));
-    await screen.findByText('Ion Popa · pagina 1 din 2');
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Arată chenarul' }));
+    await screen.findByText('Ion Popa · 1/2');
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
     clickAt(sizedPane(), 200, 200);
     expect(layer().style.transform).not.toBe(WHOLE);
-    await userEvent.click(within(decision()).getByRole('button', { name: 'Confirmă 3p' }));
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Accept 3p' }));
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 4' })).toBeInTheDocument();
-    expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
+    expect(screen.getByText('Ion Popa · 1/2')).toBeInTheDocument();
     expect(layer().style.transform).toBe(WHOLE);
   });
 
   it('turns the border off and on, and remembers the choice in this browser', async () => {
     const first = renderAdmin(ION_I3, apiWith(framed()));
-    await screen.findByText('Ion Popa · pagina 1 din 2');
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Arată chenarul' }));
+    await screen.findByText('Ion Popa · 1/2');
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
     expect(screen.queryByTestId('answer-frame')).not.toBeInTheDocument();
     expect(screen.queryByText('Partea 1 din 2')).not.toBeInTheDocument();
     expect(layer().style.transform).toBe(WHOLE);
@@ -980,10 +1028,10 @@ describe('the border of the answer to check', () => {
 
     // Off: the answer opens on its page, whole, as before.
     renderAdmin(ION_I3, apiWith(framed()));
-    await screen.findByText('Ion Popa · pagina 1 din 2');
-    expect(screen.getByRole('checkbox', { name: 'Arată chenarul' })).not.toBeChecked();
+    await screen.findByText('Ion Popa · 1/2');
+    expect(screen.getByRole('button', { name: 'Arată chenarul' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByTestId('answer-frame')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Arată chenarul' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
     expect(within(frame()).getByText('I.3 · partea 1 din 2')).toBeInTheDocument();
     expect(layer().style.transform).toBe(WHOLE);
   });
@@ -992,8 +1040,8 @@ describe('the border of the answer to check', () => {
     const list = papers();
     list[0]!.evaluation!.items[1]!.areas = [{ ...TOP, page: 3 }, { ...TOP, page: 9 }];
     renderAdmin(`${PAGE}?lucrare=11&punct=32`, apiWith(list));
-    expect(await screen.findByText('Ana Pop · pagina 3 din 3')).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: 'Arată chenarul' })).not.toBeInTheDocument();
+    expect(await screen.findByText('Ana Pop · 3/3')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Arată chenarul' })).not.toBeInTheDocument();
     await userEvent.keyboard('1');
     expect(layer().style.transform).toBe(WHOLE);
     expect(screen.queryByTestId('answer-frame')).not.toBeInTheDocument();
