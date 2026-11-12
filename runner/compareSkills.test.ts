@@ -169,6 +169,16 @@ describe('compare:skills', () => {
     expect(readFileSync(path.join(folder, 'report.md'), 'utf8')).toContain('Materia găsită cu lista de exerciții nu este matematica (fizica).');
   });
 
+  it('grades two papers of each test unless asked for more, to keep the Claude usage small', async () => {
+    const papersQuery = (live: ReturnType<typeof fakeLive>) => live.queries.find((sql) => sql.includes('FROM submissions WHERE test_id = 7'));
+    const byDefault = fakeLive();
+    await compare(['run', folder, '6E2-26T1'], fakeClaude(), byDefault);
+    expect(papersQuery(byDefault)).toMatch(/LIMIT 2$/);
+    const more = fakeLive();
+    await compare(['run', folder, '6E2-26T1', '--papers', '5'], fakeClaude(), more);
+    expect(papersQuery(more)).toMatch(/LIMIT 5$/);
+  });
+
   it('reads only: every query is a SELECT', async () => {
     const live = fakeLive();
     await compare(['run', folder, '6E2-26T1'], fakeClaude(), live);

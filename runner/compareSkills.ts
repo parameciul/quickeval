@@ -33,10 +33,10 @@ import { DEFAULT_BAREM_NOTES, makeWorkFolder, removeFolder, runFolder, SKILL_DIR
 // a folder outside the repo, and the papers are numbered, never named.
 //
 //   npm run compare:skills -- list
-//   npm run compare:skills -- run <folder> <code> <code> [--papers 10] [--parallel 2] [--ref origin/main]
+//   npm run compare:skills -- run <folder> <code> <code> [--papers 2] [--parallel 2] [--ref origin/main]
 
 const USAGE =
-  'Folosire: npm run compare:skills -- list   sau   npm run compare:skills -- run <dosar> <cod test> <cod test> [--papers 10] [--parallel 2] [--ref origin/main]';
+  'Folosire: npm run compare:skills -- list   sau   npm run compare:skills -- run <dosar> <cod test> <cod test> [--papers 2] [--parallel 2] [--ref origin/main]';
 
 export const REPO_DIR = fileURLToPath(new URL('..', import.meta.url));
 // Found as Node finds a package: a worktree has no node_modules of its own and
@@ -211,7 +211,7 @@ export async function compareSkills(args: string[], env: Record<string, string |
   }
   const [mode, folderArg, ...rest] = args;
   const codes = rest.filter((arg, index) => !arg.startsWith('--') && !rest[index - 1]?.startsWith('--')).map(normalizeTestCode);
-  const papers = Number(option(rest, '--papers', '10'));
+  const papers = Number(option(rest, '--papers', '2'));
   const parallel = Number(option(rest, '--parallel', '2'));
   if (mode !== 'run' || !folderArg || codes.length === 0 || codes.some((code) => code === null) || !(papers >= 1) || !(parallel >= 1)) {
     print(USAGE);

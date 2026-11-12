@@ -173,7 +173,7 @@ For each of the two tests:
 ### The tests and the papers
 
 - Two math tests of Laura Miron's account, with their test file and barem, graded, and with teacher corrections if possible. The tool lists the candidates (code, number of graded papers, number of corrected items) and the user picks two (builder's call: the tool may suggest the two with the most corrected items).
-- All the graded papers of each test, up to a cap the user sets when running the tool (builder's call: 10 per test by default, to keep the Claude usage within a day's limit).
+- All the graded papers of each test, up to a cap the user sets when running the tool (the user's call on 2026-11-12: 2 per test by default, to keep the Claude usage small; `--papers` asks for more).
 
 ### How the data is read
 
