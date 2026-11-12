@@ -542,7 +542,7 @@ function clickAt(element: HTMLElement, clientX: number, clientY: number, button 
 const WHOLE = 'translate(0%, 0%) scale(1)';
 
 describe('the zoom of a page', () => {
-  it('zooms in where the photo is clicked, moves with a drag, and shows the whole page with "Toată pagina"', async () => {
+  it('zooms in one small step where the photo is clicked, and out as much with a right click', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
     await screen.findByText('Ion Popa · pagina 1 din 1');
     const photo = sizedPane();
@@ -550,32 +550,69 @@ describe('the zoom of a page', () => {
     expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Pagina 1 a lucrării/ })).not.toBeInTheDocument();
 
-    clickAt(photo, 100, 150);
-    expect(layer().style.transform).toBe('translate(-12.5%, -43.75%) scale(2.5)');
-    // A click on the zoomed page does nothing.
-    clickAt(photo, 300, 300);
-    expect(layer().style.transform).toBe('translate(-12.5%, -43.75%) scale(2.5)');
+    clickAt(photo, 200, 200);
+    expect(layer().style.transform).toBe('translate(-12.5%, -12.5%) scale(1.25)');
+    expect(screen.getByText('125%')).toBeInTheDocument();
+    // The next click takes another step of the same size, never a jump.
+    clickAt(photo, 200, 200);
+    expect(layer().style.transform).toBe('translate(-28.125%, -28.125%) scale(1.563)');
+    // A right click takes the same step out, and stops at the whole page.
+    clickAt(photo, 200, 200, 2);
+    expect(layer().style.transform).toBe('translate(-12.5%, -12.5%) scale(1.25)');
+    clickAt(photo, 200, 200, 2);
+    expect(layer().style.transform).toBe(WHOLE);
+  });
+
+  it('zooms in on the point clicked, so the handwriting under the pointer stays there', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    // A click on the page's top left corner: the page's edge stays at the pane's.
+    clickAt(sizedPane(), 0, 0);
+    expect(layer().style.transform).toBe('translate(0%, 0%) scale(1.25)');
+  });
+
+  it('moves the zoomed page with a drag, and shows the whole page with "Toată pagina"', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const photo = sizedPane();
+    clickAt(photo, 200, 200);
     fireEvent.pointerDown(photo, { pointerId: 1, button: 0, clientX: 200, clientY: 200 });
     fireEvent.pointerMove(photo, { pointerId: 1, button: 0, clientX: 240, clientY: 200 });
     fireEvent.pointerUp(photo, { pointerId: 1, button: 0, clientX: 240, clientY: 200 });
-    expect(layer().style.transform).toBe('translate(-2.5%, -43.75%) scale(2.5)');
+    expect(layer().style.transform).toBe('translate(-2.5%, -12.5%) scale(1.25)');
 
     await userEvent.click(screen.getByRole('button', { name: 'Toată pagina' }));
     expect(layer().style.transform).toBe(WHOLE);
     expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
   });
 
-  it('shows the whole page again with a right click or Esc, and a right button never zooms', async () => {
+  it('takes the same step with the buttons over the page, which stop at the ends', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const bigger = screen.getByRole('button', { name: 'Mărește' });
+    const smaller = screen.getByRole('button', { name: 'Micșorează' });
+    expect(smaller).toBeDisabled();
+    expect(screen.getByText('100%')).toBeInTheDocument();
+    await userEvent.click(bigger);
+    expect(layer().style.transform).toBe('translate(-12.5%, -12.5%) scale(1.25)');
+    expect(smaller).toBeEnabled();
+    await userEvent.click(smaller);
+    expect(layer().style.transform).toBe(WHOLE);
+
+    // Nine steps reach the biggest zoom, where "Mărește" stops.
+    for (let step = 0; step < 9; step += 1) fireEvent.click(bigger);
+    expect(layer().style.transform).toBe('translate(-250%, -250%) scale(6)');
+    expect(bigger).toBeDisabled();
+    expect(screen.getByText('600%')).toBeInTheDocument();
+  });
+
+  it('shows the whole page again with Esc, and a right button never opens the browser menu', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
     await screen.findByText('Ion Popa · pagina 1 din 1');
     const photo = sizedPane();
-    clickAt(photo, 200, 200, 2);
-    expect(layer().style.transform).toBe(WHOLE);
     clickAt(photo, 200, 200);
-    // The browser's menu does not open over the photo.
     expect(fireEvent.contextMenu(photo)).toBe(false);
-    expect(layer().style.transform).toBe(WHOLE);
-    clickAt(photo, 200, 200);
+    expect(layer().style.transform).toBe('translate(-12.5%, -12.5%) scale(1.25)');
     await userEvent.keyboard('{Escape}');
     expect(layer().style.transform).toBe(WHOLE);
   });
@@ -587,7 +624,7 @@ describe('the zoom of a page', () => {
     await userEvent.click(await screen.findByRole('button', { name: /^De făcut/ }));
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('complementary', { name: 'Ce ai de făcut' })).not.toBeInTheDocument();
-    expect(layer().style.transform).toBe('translate(-75%, -75%) scale(2.5)');
+    expect(layer().style.transform).toBe('translate(-12.5%, -12.5%) scale(1.25)');
   });
 
   it('closes only the panel with Esc when the focus left the bar, and keeps the zoom', async () => {
@@ -598,17 +635,36 @@ describe('the zoom of a page', () => {
     (document.activeElement as HTMLElement).blur();
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('complementary', { name: 'Ce ai de făcut' })).not.toBeInTheDocument();
-    expect(layer().style.transform).toBe('translate(-75%, -75%) scale(2.5)');
+    expect(layer().style.transform).toBe('translate(-12.5%, -12.5%) scale(1.25)');
   });
 
-  it('zooms with the wheel around the pointer, and lets the page scroll at the whole page', async () => {
+  it('leaves the wheel to the page, which scrolls with it, and zooms a trackpad pinch', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
     await screen.findByText('Ion Popa · pagina 1 din 1');
     const photo = sizedPane();
+    // The page scrolls under a plain wheel: the photo neither zooms nor takes the wheel.
+    expect(fireEvent.wheel(photo, { deltaY: -100, clientX: 200, clientY: 200 })).toBe(true);
     expect(fireEvent.wheel(photo, { deltaY: 100, clientX: 200, clientY: 200 })).toBe(true);
     expect(layer().style.transform).toBe(WHOLE);
-    expect(fireEvent.wheel(photo, { deltaY: -200, clientX: 200, clientY: 200 })).toBe(false);
-    expect(layer().style.transform).toBe('translate(-17.493%, -17.493%) scale(1.35)');
+    // A trackpad pinch comes as a wheel with Ctrl, and the photo takes it.
+    expect(fireEvent.wheel(photo, { deltaY: -20, ctrlKey: true, clientX: 200, clientY: 200 })).toBe(false);
+    expect(layer().style.transform).toMatch(/^translate\(-11\.\d+%, -11\.\d+%\) scale\(1\.22\d*\)$/);
+  });
+
+  it('pinches with two fingers on a touch screen, and a pinch is never a click', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const photo = sizedPane();
+    // Two fingers 200 px apart, their middle a little right of the pane's middle.
+    fireEvent.pointerDown(photo, { pointerId: 1, button: 0, clientX: 100, clientY: 200 });
+    fireEvent.pointerDown(photo, { pointerId: 2, button: 0, clientX: 300, clientY: 200 });
+    // Farther apart by a fifth: a fifth more of the page.
+    fireEvent.pointerMove(photo, { pointerId: 2, clientX: 340, clientY: 200 });
+    expect(layer().style.transform).toBe('translate(-11%, -10%) scale(1.2)');
+    fireEvent.pointerUp(photo, { pointerId: 2, button: 0, clientX: 340, clientY: 200 });
+    fireEvent.pointerUp(photo, { pointerId: 1, button: 0, clientX: 100, clientY: 200 });
+    // Lifting the fingers never takes another step.
+    expect(layer().style.transform).toBe('translate(-11%, -10%) scale(1.2)');
   });
 
   it('shows a page whole again when the teacher comes back to it', async () => {
@@ -632,13 +688,6 @@ describe('the zoom of a page', () => {
     expect(pane().style.getPropertyValue('--page-ratio')).toBe('2');
     await userEvent.keyboard('1');
     expect(pane().style.getPropertyValue('--page-ratio')).toBe('0.75');
-  });
-
-  it('zooms faster with a trackpad pinch than with a wheel', async () => {
-    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
-    await screen.findByText('Ion Popa · pagina 1 din 1');
-    fireEvent.wheel(sizedPane(), { deltaY: -20, ctrlKey: true, clientX: 200, clientY: 200 });
-    expect(layer().style.transform).toMatch(/scale\(1\.22\d*\)$/);
   });
 
   it('opens another page whole, and a PDF page has no zoom', async () => {
@@ -712,10 +761,11 @@ describe('the border of the answer to check', () => {
     expect(frame().style).toMatchObject({ left: '10%', top: '50%', width: '80%', height: '30%' });
     expect(within(frame()).getByText('I.3 · partea 2 din 2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Partea următoare' })).toBeDisabled();
-    // The arrows are the teacher's own move: each part opens zoomed on it.
+    // The arrows are the teacher's own move, and they never zoom on their own:
+    // the part opens on its page, whole.
     await userEvent.click(screen.getByRole('button', { name: 'Partea anterioară' }));
     expect(screen.getByText('Ion Popa · pagina 1 din 2')).toBeInTheDocument();
-    expect(layer().style.transform).toBe('translate(-25%, -15.625%) scale(1.875)');
+    expect(layer().style.transform).toBe(WHOLE);
   });
 
   it('floats the part controls inside the pane on a phone, where a finger reaches them', async () => {

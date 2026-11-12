@@ -1,34 +1,41 @@
 import { describe, expect, it } from 'vitest';
-import { boxInPane, CLICK_SCALE, clampView, layerTransform, MAX_SCALE, panBy, viewOfBox, WHOLE_PAGE, wheelScale, zoomAround, zoomInAt } from './zoom.ts';
+import { boxInPane, clampView, layerTransform, MAX_SCALE, panBy, pinchScale, WHOLE_PAGE, zoomAround, zoomInAt, zoomOutAt, ZOOM_STEP } from './zoom.ts';
 
 describe('the zoom of a page', () => {
-  it('zooms in on the point clicked', () => {
-    expect(zoomInAt(WHOLE_PAGE, 0.25, 0.375)).toEqual({ scale: CLICK_SCALE, cx: 0.25, cy: 0.375 });
+  it('takes one small step in on the point clicked', () => {
+    expect(zoomInAt(WHOLE_PAGE, 0.5, 0.5)).toEqual({ scale: ZOOM_STEP, cx: 0.5, cy: 0.5 });
+    // A step of its own, from any zoom: a quarter more each time.
+    expect(zoomInAt({ scale: 2, cx: 0.5, cy: 0.5 }, 0.3, 0.6).scale).toBeCloseTo(2.5);
+    expect(ZOOM_STEP).toBeCloseTo(1.25);
+  });
+
+  it('takes the same step out on a right click, and stops at the whole page', () => {
+    expect(zoomOutAt({ scale: ZOOM_STEP * ZOOM_STEP, cx: 0.5, cy: 0.5 }, 0.5, 0.5).scale).toBeCloseTo(ZOOM_STEP);
+    expect(zoomOutAt({ scale: MAX_SCALE, cx: 0.5, cy: 0.5 }, 0.5, 0.5).scale).toBeCloseTo(MAX_SCALE / ZOOM_STEP);
+    // Nothing to take away from the whole page.
+    expect(zoomOutAt(WHOLE_PAGE, 0.2, 0.8)).toEqual(WHOLE_PAGE);
   });
 
   it('keeps the page over the whole pane near its edges', () => {
-    expect(zoomInAt(WHOLE_PAGE, 0, 1)).toEqual({ scale: CLICK_SCALE, cx: 0.2, cy: 0.8 });
+    expect(clampView({ scale: 2, cx: 0.1, cy: 0.9 })).toEqual({ scale: 2, cx: 0.25, cy: 0.75 });
     expect(clampView({ scale: 0.5, cx: 0.1, cy: 0.9 })).toEqual(WHOLE_PAGE);
+    // A click on the page's corner stops at the edge instead of showing the
+    // pane's background beside it.
+    expect(zoomInAt(WHOLE_PAGE, 0, 1)).toEqual({ scale: ZOOM_STEP, cx: 0.4, cy: 0.6 });
     expect(clampView({ scale: 20, cx: 0.5, cy: 0.5 }).scale).toBe(MAX_SCALE);
   });
 
-  it('keeps the point under the pointer where it is when the wheel zooms', () => {
+  it('keeps the point under the pointer where it is', () => {
     const view = zoomAround(WHOLE_PAGE, 2, 0.3, 0.6);
     expect(view.scale).toBe(2);
     expect(view.cx + (0.3 - 0.5) / view.scale).toBeCloseTo(0.3);
     expect(view.cy + (0.6 - 0.5) / view.scale).toBeCloseTo(0.6);
   });
 
-  it('zooms in when the wheel turns up and out when it turns down, a little per pixel', () => {
-    expect(wheelScale(2, -100)).toBeGreaterThan(2);
-    expect(wheelScale(2, 100)).toBeLessThan(2);
-    expect(wheelScale(2, -4)).toBeLessThan(2.02);
-    expect(zoomAround(WHOLE_PAGE, wheelScale(1, 100), 0.5, 0.5)).toEqual(WHOLE_PAGE);
-  });
-
-  it('zooms a trackpad pinch faster than a wheel, since a pinch sends small steps', () => {
-    expect(wheelScale(1, -50, true)).toBeCloseTo(Math.exp(0.5));
-    expect(wheelScale(1, -50)).toBeCloseTo(Math.exp(0.075));
+  it('zooms a trackpad pinch a little per pixel', () => {
+    expect(pinchScale(1, -50)).toBeCloseTo(Math.exp(0.5));
+    expect(pinchScale(2, 100)).toBeLessThan(2);
+    expect(zoomAround(WHOLE_PAGE, pinchScale(1, 100), 0.5, 0.5)).toEqual(WHOLE_PAGE);
   });
 
   it('moves the zoomed page with the pointer', () => {
@@ -42,17 +49,7 @@ describe('the zoom of a page', () => {
   });
 });
 
-describe('the view of an answer', () => {
-  it('shows a box in the middle of the pane, as big as fits', () => {
-    const view = viewOfBox({ x0: 0.2, y0: 0.3, x1: 0.6, y1: 0.4 });
-    expect(view.scale).toBeCloseTo(1.875);
-    expect(view.cx).toBeCloseTo(0.4);
-    expect(view.cy).toBeCloseTo(0.35);
-    // A big box shows the whole page; a tiny one stops at the biggest zoom.
-    expect(viewOfBox({ x0: 0.1, y0: 0.5, x1: 0.9, y1: 0.8 })).toEqual(WHOLE_PAGE);
-    expect(viewOfBox({ x0: 0.5, y0: 0.5, x1: 0.51, y1: 0.505 }).scale).toBe(MAX_SCALE);
-  });
-
+describe('the border of an answer', () => {
   it('puts a box of the page where it is in the pane', () => {
     const whole = boxInPane(WHOLE_PAGE, { x0: 0.1, y0: 0.5, x1: 0.9, y1: 0.8 });
     expect([whole.x0, whole.y0, whole.x1, whole.y1].map((value) => Math.round(value * 1000) / 1000)).toEqual([0.1, 0.5, 0.9, 0.8]);
