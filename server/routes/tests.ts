@@ -149,6 +149,9 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (changed.outcome === 'busy') {
       throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba materia după ce se termină corectarea.');
     }
+    if (changed.outcome === 'barem_busy') {
+      throw new ApiError(409, 'barem_generating', 'Baremul se generează acum. Poți schimba materia după ce este gata.');
+    }
     const robot = changed.status === 'evaluating' && changed.remade ? await startRobot(c.env) : null;
     return c.json({
       subject: { value: body.subject, name: '', by: 'teacher' },

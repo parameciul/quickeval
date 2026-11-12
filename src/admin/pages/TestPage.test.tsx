@@ -1656,14 +1656,22 @@ describe('TestPage subject', () => {
     expect(within(sheet()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
   });
 
-  it('keeps the form open with the reason when the subject cannot change now', async () => {
+  it('offers no change of subject while the robot grades the test', async () => {
     const api = apiWith({ status: 'evaluating', exerciseList: { status: 'ready', message: null }, subject: { value: 'matematica', name: '', by: 'robot' } });
-    api.setSubject.mockRejectedValueOnce(new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba materia după ce se termină corectarea.'));
+    renderAdmin(PAGE, api);
+    expect(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByText('Matematică')).toBeInTheDocument();
+    expect(within(sheet()).queryByRole('button', { name: 'Schimbă materia' })).not.toBeInTheDocument();
+    expect(within(sheet()).getByText('Poți schimba materia după ce se termină corectarea.')).toBeInTheDocument();
+  });
+
+  it('keeps the form open with the reason when the subject cannot change now', async () => {
+    const api = apiWith({ subject: { value: 'matematica', name: '', by: 'teacher' } });
+    api.setSubject.mockRejectedValueOnce(new ApiError(409, 'barem_generating', 'Baremul se generează acum. Poți schimba materia după ce este gata.'));
     renderAdmin(PAGE, api);
     await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
     await userEvent.click(within(subjects()).getByRole('radio', { name: 'Chimie' }));
     await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
-    expect(await within(sheet()).findByText('Testul se corectează acum. Poți schimba materia după ce se termină corectarea.')).toBeInTheDocument();
+    expect(await within(sheet()).findByText('Baremul se generează acum. Poți schimba materia după ce este gata.')).toBeInTheDocument();
     await userEvent.click(within(sheet()).getByRole('button', { name: 'Renunță' }));
     expect(within(sheet()).getByText('Matematică')).toBeInTheDocument();
   });

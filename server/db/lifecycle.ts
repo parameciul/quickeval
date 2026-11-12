@@ -185,7 +185,8 @@ const SENDABLE = `(s.status = 'submitted' OR (s.status = 'uploading' AND EXISTS 
 // The papers the limit lets start, for the tests t of `scope`: by scheduled
 // time and test, then the papers the students confirmed, oldest first. A demo
 // account sends the papers of its first test only. The rest wait for a later evaluation, as unselected uploads do.
-// The papers of a free regrade are always sent, selected or not, and take no place.
+// The papers of a free regrade are always sent, selected or not, and take no
+// place: no start holds them back.
 function papersToSend(scope: string, only = 'TRUE'): string {
   return `SELECT p.id FROM (
     SELECT s.id, s.free_regrade AS free, ${PAPERS_LEFT} AS allowed,
@@ -194,7 +195,7 @@ function papersToSend(scope: string, only = 'TRUE'): string {
       SUM(1 - s.free_regrade) OVER (PARTITION BY t.teacher_id ORDER BY t.evaluation_at, t.id, s.status <> 'submitted', s.submitted_at, s.id) AS place
     FROM submissions s JOIN tests t ON t.id = s.test_id
     WHERE (${scope}) AND (${only} OR s.free_regrade = 1) AND ${SENDABLE}) p
-  WHERE (p.free = 1 OR p.place <= p.allowed) AND (p.demo = 0 OR p.test_place = 1)`;
+  WHERE (p.free = 1 OR p.place <= p.allowed) AND (p.free = 1 OR p.demo = 0 OR p.test_place = 1)`;
 }
 
 // A paper past the limit goes back to uploading (its files stay).
@@ -630,7 +631,8 @@ const remakeSql = (t: string) => `(${t}.status IN ('open', 'evaluating', 'done')
 // The list that ended at a subject not graded is read again only when the demo
 // account's one test is this one: its waiting papers then go to the robot.
 const reviveAllowed = (t: string) => `(NOT (${t}.subject = 'alta' AND ${t}.exercise_list_status = 'failed') OR ${onlyTestSql(t)})`;
-// The first change of subject grades the graded papers again for free; a
+// The first change of subject grades the graded papers again for free in a
+// demo account (a complete account counts every paper the robot grades); a
 // failed paper, and every paper of a later change, is a regrade within the
 // demo limit. A change that would send none of the test's graded or failed
 // papers is refused. (Its writes name the test `t`, as PAPERS_LEFT_TO_REGRADE does.)
@@ -638,11 +640,14 @@ const REGRADE_ALLOWED = `NOT (${remakeSql('t')}
   AND EXISTS (SELECT 1 FROM submissions r WHERE r.test_id = t.id AND r.status IN ('graded', 'failed'))
   AND NOT (t.subject_regraded = 0 AND EXISTS (SELECT 1 FROM submissions r WHERE r.test_id = t.id AND r.status = 'graded'))
   AND ${PAPERS_LEFT_TO_REGRADE} <= 0)`;
-const SUBJECT_CHANGE_ALLOWED = `(${subjectEditable('t')} AND ${reviveAllowed('t')} AND ${REGRADE_ALLOWED})`;
+// A barem generated now is made with the subject it read: the change waits.
+const baremIdle = (t: string) => `(${t}.barem_request <> 'requested' AND ${t}.ces_barem_request <> 'requested')`;
+const SUBJECT_CHANGE_ALLOWED = `(${subjectEditable('t')} AND ${baremIdle('t')} AND ${reviveAllowed('t')} AND ${REGRADE_ALLOWED})`;
 
 export type SubjectChange =
   | { outcome: 'saved'; status: TestStatus; count: number; remade: boolean }
   | { outcome: 'busy' }
+  | { outcome: 'barem_busy' }
   | { outcome: 'demo_limit' };
 
 // The teacher sets the subject, in one batch. Its first write saves the test
@@ -677,13 +682,14 @@ export async function setSubject(db: D1Database, teacherId: number, testId: numb
   const marked = 'id = ?1 AND teacher_id = ?2 AND subject_regraded >= 2';
   const [before, saved, , regraded, , after] = await db.batch<{
     editable?: number;
+    barem_idle?: number;
     remade?: number;
     id?: number;
     test_status?: TestStatus;
     status?: TestStatus;
   }>([
     db
-      .prepare(`SELECT ${subjectEditable('t')} AS editable, ${remakeSql('t')} AS remade FROM tests t WHERE t.id = ?2 AND t.teacher_id = ?3 AND t.quick_try = 0`)
+      .prepare(`SELECT ${subjectEditable('t')} AS editable, ${baremIdle('t')} AS barem_idle, ${remakeSql('t')} AS remade FROM tests t WHERE t.id = ?2 AND t.teacher_id = ?3 AND t.quick_try = 0`)
       .bind(subject, testId, teacherId),
     db
       .prepare(
@@ -701,7 +707,8 @@ export async function setSubject(db: D1Database, teacherId: number, testId: numb
     db
       .prepare(
         `UPDATE submissions SET ${GRADE_AGAIN},
-           free_regrade = CASE WHEN status = 'graded' AND (SELECT t.subject_regraded FROM tests t WHERE t.id = submissions.test_id) = 2 THEN 1 ELSE 0 END
+           free_regrade = CASE WHEN status = 'graded' AND (SELECT t.subject_regraded FROM tests t WHERE t.id = submissions.test_id) = 2
+             AND (SELECT q.demo FROM teachers q WHERE q.id = ?2) = 1 THEN 1 ELSE 0 END
          WHERE id IN (${again}) RETURNING id, ${STATUS_BEFORE}`,
       )
       .bind(testId, teacherId),
@@ -726,7 +733,10 @@ export async function setSubject(db: D1Database, teacherId: number, testId: numb
   const row = before?.results[0];
   if (!row) return null;
   const status = after?.results[0]?.status ?? saved?.results[0]?.status;
-  if (!status) return row.editable === 1 ? { outcome: 'demo_limit' } : { outcome: 'busy' };
+  if (!status) {
+    if (row.editable !== 1) return { outcome: 'busy' };
+    return row.barem_idle === 1 ? { outcome: 'demo_limit' } : { outcome: 'barem_busy' };
+  }
   await countGradingAgain(db, teacherId, regraded?.results);
   return { outcome: 'saved', status, count: regraded?.results.length ?? 0, remade: row.remade === 1 };
 }

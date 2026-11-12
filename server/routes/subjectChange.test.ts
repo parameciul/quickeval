@@ -112,6 +112,18 @@ describe('the teacher sets the subject', () => {
     expect(await row()).toMatchObject({ subject: 'matematica', subject_by: 'robot' });
   });
 
+  it('waits while the robot generates a barem', async () => {
+    for (const column of ['barem_request', 'ces_barem_request']) {
+      await setTest(`${column} = 'requested'`);
+      const res = await change('fizica');
+      expect(res.status).toBe(409);
+      expect(res.body).toMatchObject({ error: 'barem_generating', message: 'Baremul se generează acum. Poți schimba materia după ce este gata.' });
+      expect(await row()).toMatchObject({ subject: null });
+      await setTest(`${column} = 'none'`);
+    }
+    expect((await change('fizica')).status).toBe(200);
+  });
+
   it('makes the list again for a test that ended at a subject not graded, and its papers are graded', async () => {
     await startTest(api, code);
     await endedAtHistory();
@@ -171,11 +183,13 @@ describe('the teacher sets the subject', () => {
   it('grades again on every change in a complete account', async () => {
     await finished();
     expect((await change('fizica')).body.count).toBe(2);
-    await graded();
-    expect(await papersGraded()).toBe(0);
-    expect((await change('chimie')).body.count).toBe(2);
+    // Every paper the robot grades counts: the free regrade is a demo account's only.
+    expect((await papers()).map((paper) => paper.free_regrade)).toEqual([0, 0]);
     await graded();
     expect(await papersGraded()).toBe(2);
+    expect((await change('chimie')).body.count).toBe(2);
+    await graded();
+    expect(await papersGraded()).toBe(4);
   });
 
   it('is not for a Quick Try', async () => {

@@ -86,8 +86,15 @@ export function SubjectForm({
   );
 }
 
+// The robot reads the test now (in evaluation, its list not waiting for the
+// teacher): the API refuses a change of subject (spec: any subject).
+function robotReads(test: TestInfo): boolean {
+  return test.status === 'evaluating' && test.exerciseList.status !== 'problem' && test.exerciseList.status !== 'failed';
+}
+
 // The subject with its button: "Alege materia" before the robot found it,
-// "Schimbă materia" after. The form opens in place of the button.
+// "Schimbă materia" after. The form opens in place of the button. While the
+// robot reads the test, a line says when the subject can change.
 export function SubjectChange({
   test,
   onChanged,
@@ -98,6 +105,7 @@ export function SubjectChange({
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  if (robotReads(test)) return <p className="hint">Poți schimba materia după ce se termină corectarea.</p>;
   if (open) return <SubjectForm test={test} onDone={onChanged} onRobot={onRobot} onClose={() => setOpen(false)} />;
   return (
     <button type="button" className="button-quiet button-small" onClick={() => setOpen(true)}>
