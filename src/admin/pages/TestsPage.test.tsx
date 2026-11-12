@@ -71,7 +71,7 @@ describe('TestsPage', () => {
     const bars = row.querySelector('.stage-bars')!;
     expect(bars).toHaveAttribute('aria-hidden', 'true');
     expect([...bars.children].map((bar) => bar.className)).toEqual(['is-done', 'is-done', 'is-now', 'is-later', 'is-wait', 'is-later']);
-    expect(row.querySelector('.grading-progress')).toBeNull();
+    expect(row.querySelector('.papers-progress')).toBeNull();
   });
 
   it('links each test to its page and offers a new test', async () => {

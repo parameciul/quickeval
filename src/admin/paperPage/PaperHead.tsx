@@ -1,60 +1,28 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import type { SubmissionDetail } from '../../../shared/api.ts';
-import { parsePositiveId } from '../../../shared/ids.ts';
-import { normalizeTestCode } from '../../../shared/tests.ts';
-import { FilesBeside } from '../../ui/FilesBeside.tsx';
 import { formatDateTime, robotStartMessage, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { GradedResult } from '../submissionPage/GradedResult.tsx';
-import { PageFiles } from '../submissionPage/PageFiles.tsx';
-import { waitingText } from '../submissionPage/waitingText.ts';
 import { PdfActions } from '../pdf/PdfActions.tsx';
 import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentPdf.ts';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
+import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
 import { ResultLink } from '../testPage/ResultLink.tsx';
-import { NotFoundPage } from './NotFoundPage.tsx';
 
-// While the robot grades the upload, the page asks for news every 10 seconds.
-export function resultRefreshInterval(submission: SubmissionDetail | undefined): number | false {
-  if (!submission) return false;
-  const waits = submission.status === 'grading' || (submission.status === 'submitted' && submission.testStatus === 'evaluating');
-  return waits ? 10_000 : false;
-}
-
-// /teste/:code/elevi/:submissionId: one student's pages and the graded result
-// (spec §14.1). On a wide screen the pages stand left of the result.
-export function SubmissionPage() {
-  const params = useParams();
-  const code = normalizeTestCode(params.code ?? '');
-  const submissionId = parsePositiveId(params.submissionId);
-  if (code === null || submissionId === null) return <NotFoundPage />;
-  return <SubmissionDetails key={submissionId} code={code} submissionId={submissionId} />;
-}
-
-function SubmissionDetails({ code, submissionId }: { code: string; submissionId: number }) {
+// Recorectează, Resetează and Reîncearcă of the paper page, and the news after
+// the first and the last. The test page and the test list count grades and
+// items to check: they are read again after each. The list of the year is
+// read on every page (the shell): read it again, but do not wait for it.
+export function usePaperActions(code: string, submissionId: number) {
   const api = useApi();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // What happened after Recorectează or Reîncearcă.
   const [notice, setNotice] = useState<string | null>(null);
-  const detail = useQuery({
-    queryKey: ['submission', submissionId],
-    queryFn: () => api.getSubmission(submissionId),
-    refetchInterval: (query) => resultRefreshInterval(query.state.data),
-  });
-  // The test page and the test list count grades and items to check. The list
-  // of the year is read on every page (the shell): read it again, but do not
-  // wait for it.
   const refreshLists = async () => {
     void queryClient.invalidateQueries({ queryKey: ['tests'] });
     await queryClient.invalidateQueries({ queryKey: ['test', code] });
-  };
-  const saved = async (submission: SubmissionDetail) => {
-    queryClient.setQueryData(['submission', submissionId], submission);
-    await refreshLists();
   };
   const gradeAgain = async (message: string | null) => {
     setNotice(message);
@@ -79,15 +47,17 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
     mutationFn: (startedAt: string) => api.retrySubmission(submissionId, startedAt),
     onSuccess: (robot) => gradeAgain(robot ? robotStartMessage(robot) : null),
   });
+  return { reset, regrade, retry, notice };
+}
 
-  if (detail.isPending) return <p>Se încarcă…</p>;
-  // A failed refresh keeps the page and says why above it.
-  if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
-  const submission = detail.data;
-  // The address names another test than the upload belongs to.
-  if (submission.testCode !== code) return <NotFoundPage />;
-  // The news after Recorectează or Reîncearcă holds only until the result is back.
-  const showNotice = notice !== null && (submission.status === 'submitted' || submission.status === 'grading');
+type PaperActions = ReturnType<typeof usePaperActions>;
+
+// The head of the paper page (from the paper's page before it): the student,
+// the test and the state, and the times; on the right what the
+// teacher takes away (all the student's grades, the PDF) and "Alte acțiuni";
+// under it the student's result link, once the upload is sent.
+export function PaperHead({ submission, actions }: { submission: SubmissionDetail; actions: PaperActions }) {
+  const { regrade, reset } = actions;
   // The student's PDF, only for a graded result.
   const pdfInput = studentPdfInput(submission);
   // Recorectează names the grading the page shows.
@@ -115,19 +85,14 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
   });
 
   return (
-    <section className="submission-page">
-      <p className="back-link">
-        <Link to={`/teste/${code}`}>← {code}</Link>
-      </p>
-      {detail.isRefetchError && <ErrorMessage error={detail.error} />}
-      {/* The head: who and which test on the left, what the teacher can take
-          away (all the student's grades, the PDF) on the right. */}
+    <>
       <header className="submission-head">
         <div className="submission-title">
           <h1>{submission.studentName}</h1>
           <p className="submission-sub">
             <span>
-              {submission.testCode} · {submission.testTitle} · {uploadStatusLabel(submission.status)}
+              {submission.testCode} · {submission.testTitle} ·{' '}
+              {heldBack(submission.status, submission.files.length, submission.testStatus) ? PAPER_PART_LABEL.waiting : uploadStatusLabel(submission.status)}
             </span>
             {submission.autoSubmitted && submission.status !== 'graded' && <span className="tag">Fără confirmare</span>}
           </p>
@@ -149,7 +114,7 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
               }}
             />
           )}
-          <PaperActions actions={paperActions} />
+          <PaperActionsMenu actions={paperActions} />
         </div>
       </header>
       {regrade.error && <ErrorMessage error={regrade.error} />}
@@ -171,25 +136,9 @@ function SubmissionDetails({ code, submissionId }: { code: string; submissionId:
           />
         </div>
       )}
-      {showNotice && <p role="status">{notice}</p>}
-
-      <FilesBeside count={submission.files.length} files={<PageFiles submissionId={submissionId} files={submission.files} />}>
-        <h2 className="sr-only">Rezultatul</h2>
-        {submission.status === 'graded' && submission.evaluation ? (
-          <GradedResult submissionId={submissionId} evaluation={submission.evaluation} onSaved={saved} />
-        ) : submission.status === 'failed' ? (
-          <div className="warning">
-            <p>Corectarea a eșuat. {submission.lastError}</p>
-            <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate(submission.startedAt)}>
-              Reîncearcă
-            </button>
-            {retry.error && <ErrorMessage error={retry.error} />}
-          </div>
-        ) : (
-          <p className="hint">{waitingText(submission)}</p>
-        )}
-      </FilesBeside>
-    </section>
+      {/* The news after Recorectează or Reîncearcă holds only until the result is back. */}
+      {actions.notice !== null && (submission.status === 'submitted' || submission.status === 'grading') && <p role="status">{actions.notice}</p>}
+    </>
   );
 }
 
@@ -198,7 +147,7 @@ type PaperAction = { label: string; hint: string; danger?: boolean; busy: boolea
 // "Alte acțiuni": the rare actions that undo the teacher's work (Recorectează,
 // Resetează), in a menu at the top of the page. Each item says what it
 // deletes before it is chosen; choosing it still asks for a confirmation.
-function PaperActions({ actions }: { actions: PaperAction[] }) {
+function PaperActionsMenu({ actions }: { actions: PaperAction[] }) {
   const { open, toggle, box, button } = useSmallMenu<HTMLDivElement>();
   const run = (action: PaperAction) => () => {
     toggle();

@@ -70,7 +70,7 @@ describe('a graded try', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Verifică 1 punct' }));
     expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
     expect(await screen.findByRole('img', { name: /Pagina 1/ })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/submissions/${TRY_SUBMISSION}/files/61`);
-    await userEvent.click(await screen.findByRole('button', { name: 'Accept 3p' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmă 3p' }));
     await waitFor(() => expect(api.correctItem).toHaveBeenCalledWith(TRY_SUBMISSION, 71, expect.objectContaining({ reviewed: true })));
     await userEvent.click(screen.getByRole('link', { name: 'Înapoi la test' }));
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
@@ -84,6 +84,23 @@ describe('a graded try', () => {
     // No automatic zoom: the page stays whole until the teacher zooms it herself.
     expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Arată chenarul' })).toBeChecked();
+  });
+
+  it('shows the paper page in the review, without the students, the path or the actions of a class paper', async () => {
+    setup();
+    await userEvent.click(await screen.findByRole('link', { name: 'Verifică 1 punct' }));
+    expect(await screen.findByRole('region', { name: 'Decizia' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Doar de verificat (1)' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('navigation', { name: 'Elevii' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Unde ești' })).not.toBeInTheDocument();
+    for (const name of ['Alte acțiuni', 'Elevul anterior', 'Elevul următor']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole('link', { name: 'Toate notele elevului' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Linkul cu rezultatul elevului')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Toate exercițiile' }));
+    expect(screen.getByTestId('location')).toHaveTextContent(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&punct=71&vedere=toate`);
+    expect(await screen.findByRole('heading', { name: 'Ce a lucrat bine' })).toBeInTheDocument();
   });
 
   it('shows the grade and the points to check above the views', async () => {

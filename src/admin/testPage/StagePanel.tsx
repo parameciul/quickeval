@@ -5,7 +5,6 @@ import type { RobotStart, TestDetail, TestInfo, UploadRow } from '../../../share
 import { unsupportedMessage } from '../../../shared/subjects.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
 import { formatDateTime } from '../../ui/format.ts';
-import { GradingProgress } from '../../ui/GradingProgress.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { EmptyState } from '../EmptyState.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -29,6 +28,7 @@ import { ReviewList } from './ReviewList.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
+import { PapersProgress } from './PapersProgress.tsx';
 import { MultiUploadLink, QrOverlay, uploadLink } from './UploadLink.tsx';
 import { UploadsTable } from './UploadsTable.tsx';
 
@@ -269,21 +269,17 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
   );
 }
 
-// The papers of the class: who sent, the grades, and what waits. Only the
-// table of Corectare has checkboxes, while the test is open.
+// The papers of the class: who sent or took part, the grades, and what waits.
+// Only the table of Corectare has checkboxes, while the test is open.
 function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRobot, selectable }: PanelProps & { selectable: boolean }) {
   return (
     <>
-      <h3>
-        Încărcări · trimise {test.submittedCount} din {test.studentCount}
-        {test.gradedCount > 0 && ` · corectate ${test.gradedCount}`}
-        {test.flagCount > 0 && ` · de verificat ${test.flagCount}`}
-      </h3>
-      <GradingProgress studentCount={test.studentCount} submittedCount={test.submittedCount} gradedCount={test.gradedCount} />
+      <PapersProgress test={test} uploads={uploads} />
       <UploadsTable
         code={test.code}
         uploads={uploads}
         showModel={showModel}
+        uploadsClosed={test.status === 'evaluating' || test.status === 'done'}
         selectable={selectable}
         selected={selected}
         onSelect={onSelect}

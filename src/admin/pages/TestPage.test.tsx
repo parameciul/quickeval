@@ -7,7 +7,7 @@ import { PDF_TYPE } from '../../../shared/files.ts';
 import type { UploadRow } from '../../../shared/api.ts';
 import { unsupportedMessage } from '../../../shared/subjects.ts';
 import { robotStartMessage } from '../../ui/format.ts';
-import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakePoint, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakePoint, fakeTeacher, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { refreshInterval } from './TestPage.tsx';
 
@@ -76,12 +76,16 @@ afterEach(() => {
 });
 
 describe('TestPage', () => {
-  it('shows the title, its class, its students and its start, and the code and state in Fișa testului', async () => {
+  it('shows the path, the title, its students and its start, and the code and state in Fișa testului', async () => {
     renderAdmin(PAGE, apiWith({ status: 'open', uploadToken: FAKE_TOKEN, startedAt: '2026-10-06T07:15:00.000Z' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Fracții' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
-    expect(screen.getByRole('link', { name: 'Clasa 6E2' })).toHaveClass('class-badge', 'class-tone');
-    expect(screen.getByText(/3 elevi · început 6 oct\. 2026, 10:15/)).toBeInTheDocument();
+    const path = screen.getByRole('navigation', { name: 'Unde ești' });
+    expect(within(path).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Teste', 'Clasa 6E2', 'Fracții']);
+    expect(within(path).getByRole('link', { name: 'Teste' })).toHaveAttribute('href', '/');
+    expect(within(path).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
+    expect(within(path).getByText('Fracții')).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', { name: '← Toate testele' })).not.toBeInTheDocument();
+    expect(screen.getByText('3 elevi · început 6 oct. 2026, 10:15')).toBeInTheDocument();
     expect(within(sheet()).getByText('6E2-26T1')).toBeInTheDocument();
     expect(within(sheet()).getByText('Deschis')).toBeInTheDocument();
   });
@@ -330,7 +334,7 @@ describe('TestPage', () => {
 
   it('lists the uploads of the students', async () => {
     renderAdmin(`${PAGE}#in-clasa`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN, submittedCount: 1, studentCount: 3 }));
-    expect(await screen.findByRole('heading', { name: 'Încărcări · trimise 1 din 3' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Lucrări: 1 din 3 elevi au trimis' })).toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('Trimis')).toBeInTheDocument();
     expect(within(pop).getByText('Fără confirmare')).toBeInTheDocument();
@@ -339,6 +343,56 @@ describe('TestPage', () => {
     const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
     expect(within(marin).getByText('Nu a trimis')).toBeInTheDocument();
     expect(within(marin).queryByRole('button', { name: 'Mai multe pentru Marin Dan' })).not.toBeInTheDocument();
+  });
+
+  it('names a held-back paper and an upload with no file as the papers bar does, once the uploads are closed', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 2, startedAt: '2026-10-06T07:25:00.000Z' }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan', submissionId: 7, status: 'uploading', fileCount: 0, startedAt: '2026-10-06T07:26:00.000Z' }),
+    ];
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
+    expect(within(stan).getByText('Așteaptă corectarea')).toBeInTheDocument();
+    expect(within(stan).getByText('Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.')).toBeInTheDocument();
+    expect(within(stan).queryByText('Deschis, cu fișiere')).not.toBeInTheDocument();
+    const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
+    expect(within(marin).getByText('Nu a participat')).toBeInTheDocument();
+    expect(within(marin).queryByText(/Elevul a ales numele/)).not.toBeInTheDocument();
+  });
+
+  it('tells a demo account with no paper left why a held-back paper waits', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 2, startedAt: '2026-10-06T07:25:00.000Z' }),
+    ];
+    const me = fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 35 });
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, me, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
+    expect(await within(stan).findByText('Lucrarea nu a fost trimisă la corectare: contul demo nu mai are lucrări de corectat. Cere unui administrator un cont complet.')).toBeInTheDocument();
+    expect(within(stan).queryByText(/Redeschide încărcarea/)).not.toBeInTheDocument();
+  });
+
+  it('shows the papers bar with each part named, and no points line when none waits', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 2 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done', studentCount: 3 }, rows)] }));
+    expect(await screen.findByRole('heading', { name: 'Lucrări: 2 din 3 elevi au participat' })).toBeInTheDocument();
+    const box = document.querySelector<HTMLElement>('.papers-progress')!;
+    expect(within(box).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Corectate 1', 'Așteaptă corectarea 1', 'Nu au participat 1']);
+    expect(box.querySelector('.papers-bar')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(box).queryByText('✓ Corectat complet')).not.toBeInTheDocument();
+    expect(within(box).queryByRole('link', { name: 'Verifică' })).not.toBeInTheDocument();
+  });
+
+  it('says that a student who sent nothing did not take part once the uploads are closed', async () => {
+    renderAdmin(`${PAGE}#corectare`, apiWith({ status: 'evaluating', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }));
+    const marin = (await screen.findByRole('rowheader', { name: 'Marin Dan' })).closest('tr')!;
+    expect(within(marin).getByText('Nu a participat')).toBeInTheDocument();
+    expect(within(marin).queryByText('Nu a trimis')).not.toBeInTheDocument();
   });
 
   it('puts checkboxes in the table of Corectare only, while the test is open', async () => {
@@ -370,7 +424,7 @@ describe('TestPage', () => {
     expect(screen.queryByRole('columnheader', { name: 'Model' })).not.toBeInTheDocument();
   });
 
-  it('shows the model and effort of each grading after Nota when the setting is on', async () => {
+  it('shows the model and effort of each grading in the row menu when the setting is on', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, model: 'claude-opus-5-5', effort: 'medium' }),
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 2, grade: 7, model: 'sonnet', effort: null }),
@@ -380,15 +434,23 @@ describe('TestPage', () => {
     // A done test opens on Rezultate, which has no papers table.
     renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, tests: [{ ...detail, showModel: true }] }));
     const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
-    const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
-    expect(headers.indexOf('Model')).toBe(headers.indexOf('Nota') + 1);
-    expect(headers.indexOf('De verificat')).toBe(headers.indexOf('Model') + 1);
-    const cell = within(pop).getByText('claude-opus-5-5 · medium');
-    expect(cell).toHaveAttribute('data-label', 'Model');
+    expect(screen.queryByRole('columnheader', { name: 'Model' })).not.toBeInTheDocument();
+    expect(within(pop).queryByText('claude-opus-5-5 · medium')).not.toBeInTheDocument();
+    await userEvent.click(within(pop).getByRole('button', { name: 'Mai multe pentru Pop Ion' }));
+    expect(within(screen.getByRole('menu')).getByText('Model: claude-opus-5-5 · medium')).toBeInTheDocument();
+    expect(screen.getByRole('menu')).toHaveAccessibleDescription('Model: claude-opus-5-5 · medium');
+    await userEvent.keyboard('{Escape}');
     const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
-    expect(within(stan).getByText('sonnet')).toHaveAttribute('data-label', 'Model');
-    const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
-    expect(marin.querySelector('[data-label="Model"]')).toHaveTextContent('—');
+    await userEvent.click(within(stan).getByRole('button', { name: 'Mai multe pentru Stan Eva' }));
+    expect(within(screen.getByRole('menu')).getByText('Model: sonnet')).toBeInTheDocument();
+  });
+
+  it('leaves the model out of the row menu when the setting is off', async () => {
+    const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, model: 'claude-opus-5-5', effort: 'medium' })];
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
+    await userEvent.click(within(pop).getByRole('button', { name: 'Mai multe pentru Pop Ion' }));
+    expect(within(screen.getByRole('menu')).queryByText(/Model:/)).not.toBeInTheDocument();
   });
 
   it('keeps the result links and the publish buttons out of the papers table', async () => {
@@ -804,7 +866,7 @@ describe('TestPage stages', () => {
     });
     renderAdmin(PAGE, api, <GoToTest />);
     expect(await screen.findByRole('heading', { level: 2, name: 'Corectare' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('link', { name: '← Toate testele' }));
+    await userEvent.click(within(screen.getByRole('navigation', { name: 'Unde ești' })).getByRole('link', { name: 'Teste' }));
     await waitFor(() => expect(screen.queryByRole('navigation', { name: 'Etapele testului' })).not.toBeInTheDocument());
     // Meanwhile the grading ended, and points wait to be checked.
     api.getTest = doneApi().getTest;
@@ -913,13 +975,13 @@ describe('TestPage Verificare', () => {
     expect(within(panel).getByRole('rowheader', { name: 'Stan Eva' })).toBeInTheDocument();
   });
 
-  it('says when every point is checked, and still opens the papers in the review', async () => {
+  it('says when every point is checked, and opens the first paper with all its exercises', async () => {
     renderAdmin(
       `${PAGE}#verificare`,
       reviewApi([fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 })]),
     );
     expect(await screen.findByText(/^Toate punctele sunt verificate\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Vezi lucrările' })).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
+    expect(screen.getByRole('link', { name: 'Vezi lucrările' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
     expect(screen.queryByRole('link', { name: 'Începe verificarea' })).not.toBeInTheDocument();
   });
 
@@ -1354,7 +1416,11 @@ describe('TestPage evaluation', () => {
     ];
     const api = evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
     renderAdmin(`${PAGE}#corectare`, api);
-    expect(await screen.findByRole('heading', { name: 'Încărcări · trimise 2 din 2 · corectate 1 · de verificat 2' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Lucrări: 2 din 2 elevi au participat' })).toBeInTheDocument();
+    const legend = document.querySelector<HTMLElement>('.papers-progress')!;
+    expect(within(legend).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Corectate 1', 'Eșuate 1']);
+    expect(within(legend).getByText('2 puncte de verificat')).toBeInTheDocument();
+    expect(within(legend).getByRole('link', { name: 'Verifică' })).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
     expect(screen.getByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('8,75')).toBeInTheDocument();

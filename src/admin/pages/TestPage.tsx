@@ -1,12 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import type { BaremRequest, RobotStart, TestDetail } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
-import { classToneClass, classToneStyle } from '../../ui/classTone.ts';
 import { formatDateTime, robotStartMessage, studentCountLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
+import { Crumbs } from '../Crumbs.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { stageFromHash, stagesOf, type StageName } from '../stages.ts';
 import { StageList } from '../testPage/StageList.tsx';
@@ -93,16 +93,11 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
 
   return (
     <section className="test-page">
-      <p className="back-link">
-        <Link to="/">← Toate testele</Link>
-      </p>
+      <Crumbs items={[{ label: 'Teste', to: '/' }, { label: displayClassName(test.className), to: `/clase/${test.classId}` }, { label: test.title }]} />
       <div className="test-head">
         <h1>{test.title}</h1>
         <p className="test-sub">
-          <Link className={`class-badge ${classToneClass()}`} style={classToneStyle(test.classId)} to={`/clase/${test.classId}`}>
-            {displayClassName(test.className)}
-          </Link>{' '}
-          · {studentCountLabel(test.studentCount)} · {test.startedAt ? `început ${formatDateTime(test.startedAt)}` : 'ciornă'}
+          {studentCountLabel(test.studentCount)} · {test.startedAt ? `început ${formatDateTime(test.startedAt)}` : 'ciornă'}
         </p>
       </div>
       {refreshError && <ErrorMessage error={refreshError} />}
