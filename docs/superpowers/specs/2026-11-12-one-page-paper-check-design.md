@@ -128,7 +128,7 @@ Today's `ReviewPhoto`, unchanged in behaviour: one page at a time, the page swit
 
 ### 4.7 Quick Try
 
-The try's "Verificare" tab (`/try/<token>/teste/<code>/verificare`, `src/try/TryApp.tsx`) shows the new page instead of today's review. The try has one paper, so:
+Today the try's "Verificare" tab (`Checking`, `src/try/Graded.tsx`) is a list of the points, and each point and "Verifică N puncte" link to the try's own route `/try/<token>/teste/<code>/verificare`, which shows `ReviewPage` without the tabs (`src/try/TryApp.tsx`). The try keeps that shape *(builder's call: the smallest change)*: the tab and its list stay, and that route shows the new paper page in "Doar de verificat" instead of today's review, at that address, with no redirect (in the try, `/teste/:code/elevi/:id` goes to "Rezultatul profesorului" and stays so). The links of the new page that leave it (back to the test, "Mergi la Rezultate") go where today's review's links go in the try. The try has one paper, so:
 
 - No students column, no "Elevul anterior/următor", no path, no "Toate notele elevului", no result link row, no PDF, no "Alte acțiuni", no "Reîncearcă": the try's allow-list (`ALLOWED`, `server/routes/quickTry.ts`) has none of their routes, and none is added.
 - The rest works with the routes it already allows: `GET /tests/:code`, `GET /submissions/:id` and its files, `PATCH /submissions/:id/items/:id`, `PATCH /submissions/:id/evaluation`.
@@ -144,17 +144,22 @@ The try's "Verificare" tab (`/try/<token>/teste/<code>/verificare`, `src/try/Try
 
 ### 5.2 The progress (În clasă, Corectare, Verificare)
 
-One bar, of the students of the class (`studentCount`, at least the uploads). The counts come from `uploads` (`UploadRow.status`) and `test.status`; no API change.
+One bar, of the students of the class (`studentCount`, at least the uploads). The counts come from `uploads` (`UploadRow.status`, `fileCount`) and `test.status`; no API change.
 
-While uploads are open (`test.status === 'open'`):
+How the server keeps a paper that is not graded matters here. A paper held back from grading (not chosen in a start for some papers, or past the demo limit) goes back to `uploading`, keeps its files and loses `submitted_at` (`HOLD_BACK`, `server/db/lifecycle.ts`). When uploads close, every other `uploading` row with files is sent. So, after uploads closed, an `uploading` row with files is a held-back paper, and one with no files is a student who sent nothing (`PartialEvaluationNotice` in `StagePanel.tsx` reads it the same way). A CES paper waiting for its barem stays `submitted`.
 
-- Title: "Lucrări: 18 din 23 de elevi au trimis".
-- Segments: corectate (green), se corectează (blue: `grading`), trimise, așteaptă corectarea (light blue: `submitted`), încarcă acum (pale, `uploading`), încă nu au trimis (grey, plain).
+The segments:
 
-After uploads closed (`evaluating` or `done`):
+- corectate (green): `graded`.
+- se corectează (blue): `grading`, and `submitted` while the test is in evaluation.
+- așteaptă (light blue): a paper with files not sent to the robot: `uploading` with `fileCount > 0` after uploads closed (held back), `submitted` while uploads are open or after the test is done (sent, not graded yet, or a CES paper waiting for its barem). Its words say it waits for the teacher, not for the robot.
+- eșuate (red): `failed`. In every state: a reopened test can have failed papers.
+- încarcă acum (pale): `uploading` while uploads are open (a reopened test included: a held-back paper is again one the student can change).
+- încă nu au trimis (grey, plain): `none` while uploads are open.
+- nu au participat (grey, striped): `none`, and `uploading` with no files, after uploads closed.
 
-- Title: "Lucrări: 18 din 23 de elevi au participat".
-- Segments: corectate (green), se corectează (blue: `grading`), așteaptă (light blue: `submitted`, a paper not sent to the robot yet: not chosen, past the demo limit, a CES paper waiting for its barem), eșuate (red: `failed`), nu au participat (grey, striped: `none`, and an `uploading` that was never sent).
+Uploads are open when `test.status === 'open'` (a reopened test included). The title says "Lucrări: 18 din 23 de elevi au trimis" while they are open, and "Lucrări: 18 din 23 de elevi au participat" after. While open, the 18 counts the papers sent (every segment but "încarcă acum" and grey); after, every paper with files (every segment but the grey ones).
+
 - "✓ Corectat complet" when every paper that took part is graded, as today.
 
 Under the bar, a legend with each segment that has at least one student, its colour and its count; empty segments are left out. A screen reader gets the same sentence.
