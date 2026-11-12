@@ -6,6 +6,7 @@ import {
   createTestBody,
   evaluateTestBody,
   renameTestBody,
+  testSubjectBody,
   type AnalysisAnswer,
   type BaremCheckedAnswer,
   type BaremGenerateAnswer,
@@ -18,6 +19,7 @@ import {
   type ReopenAnswer,
   type RobotStartAnswer,
   type StoppedTest,
+  type SubjectAnswer,
   type TestFileAnswer,
 } from '../../shared/api.ts';
 import { isTestFileKind, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
@@ -32,6 +34,7 @@ import { acceptExerciseList,
   finishOpenTest,
   hasUploadedFiles,
   regradeTest,
+  setSubject,
   requestAnalysis,
   retryExerciseList,
   scheduleEvaluation,
@@ -131,6 +134,28 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const body = await readJson(c, renameTestBody);
     if (!(await renameTest(c.env.DB, c.var.teacher.id, code, body.title, nowIso()))) throw notFound();
     return c.json({ code, title: body.title });
+  });
+
+  // "Schimbă" (spec: any subject): the teacher sets the test's subject. After
+  // the exercise list exists, both lists are made again and the papers are
+  // graded again; the robot starts.
+  routes.put('/:code/subject', async (c) => {
+    const teacherId = c.var.teacher.id;
+    const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
+    const body = await readJson(c, testSubjectBody);
+    const changed = await setSubject(c.env.DB, teacherId, test.id, body.subject, nowIso());
+    if (changed === null) throw notFound();
+    if (changed.outcome === 'demo_limit') throw demoLimit();
+    if (changed.outcome === 'busy') {
+      throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba materia după ce se termină corectarea.');
+    }
+    const robot = changed.status === 'evaluating' && changed.remade ? await startRobot(c.env) : null;
+    return c.json({
+      subject: { value: body.subject, name: '', by: 'teacher' },
+      count: changed.count,
+      testStatus: changed.status,
+      robot,
+    } satisfies SubjectAnswer);
   });
 
   // Extra teacher comments for the barem: saved as part of the test, read by

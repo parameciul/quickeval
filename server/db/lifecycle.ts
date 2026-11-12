@@ -125,10 +125,12 @@ export async function finishBlocker(db: D1Database, testId: number): Promise<'pa
 // How many papers of a teacher are on their way to the robot, in the tests x
 // of `waiting`. The trigger submissions_count_paper (migration 0019) counts a
 // paper when its result arrives, so these use the demo limit too. The papers
-// of a test whose subject is not graded wait for nothing and count for nothing.
+// of a test whose subject is not graded wait for nothing and count for nothing,
+// and so do the papers of a free regrade after a change of subject (the
+// trigger does not count them).
 export const papersWaitingSql = (teacherId: string, waiting = "x.status = 'evaluating'") =>
   `(SELECT COUNT(*) FROM submissions w JOIN tests x ON x.id = w.test_id
-    WHERE x.teacher_id = ${teacherId} AND w.status IN ('submitted', 'grading') AND COALESCE(x.subject, '') <> 'alta' AND ${waiting})`;
+    WHERE x.teacher_id = ${teacherId} AND w.status IN ('submitted', 'grading') AND w.free_regrade = 0 AND COALESCE(x.subject, '') <> 'alta' AND ${waiting})`;
 
 // How many papers the teacher of test t may still send to the robot: no limit
 // for a complete account.
@@ -605,6 +607,123 @@ export async function regradeTest(
   const status = test?.results[0]?.status;
   await countGradingAgain(db, teacherId, regraded?.results);
   return status ? { count: regraded?.results.length ?? 0, status } : null;
+}
+
+// "Schimbă" (spec: any subject). The conditions on the test row `t`, read
+// before the batch writes: ?1 is the new subject.
+// The teacher changes the subject while the robot reads neither file: a draft,
+// open or finished test, or one in evaluation whose list waits for the teacher
+// (a problem, or failed), and never while a paper is being graded. Not in a
+// Quick Try: its robot work stays bounded.
+const subjectEditable = (t: string) => `(${t}.quick_try = 0
+  AND (${t}.status IN ('draft', 'open', 'done') OR (${t}.status = 'evaluating' AND ${t}.exercise_list_status IN ('problem', 'failed')))
+  AND NOT EXISTS (SELECT 1 FROM submissions g WHERE g.test_id = ${t}.id AND g.status = 'grading'))`;
+// A new subject after an exercise list exists makes both lists again and
+// grades the test's papers again. No subject is math.
+const remakeSql = (t: string) => `(${t}.status IN ('evaluating', 'done') AND COALESCE(${t}.subject, 'matematica') <> ?1
+  AND (${t}.exercise_list_status <> 'none' OR ${t}.ces_exercise_list_status <> 'none'))`;
+// The list that ended at a subject not graded is read again only when the demo
+// account's one test is this one: its waiting papers then go to the robot.
+const reviveAllowed = (t: string) => `(NOT (${t}.subject = 'alta' AND ${t}.exercise_list_status = 'failed') OR ${onlyTestSql(t)})`;
+// The first change of subject grades the graded papers again for free; a
+// failed paper, and every paper of a later change, is a regrade within the
+// demo limit. A change that would send none of the test's graded or failed
+// papers is refused. (Its writes name the test `t`, as PAPERS_LEFT_TO_REGRADE does.)
+const REGRADE_ALLOWED = `NOT (${remakeSql('t')}
+  AND EXISTS (SELECT 1 FROM submissions r WHERE r.test_id = t.id AND r.status IN ('graded', 'failed'))
+  AND NOT (t.subject_regraded = 0 AND EXISTS (SELECT 1 FROM submissions r WHERE r.test_id = t.id AND r.status = 'graded'))
+  AND ${PAPERS_LEFT_TO_REGRADE} <= 0)`;
+const SUBJECT_CHANGE_ALLOWED = `(${subjectEditable('t')} AND ${reviveAllowed('t')} AND ${REGRADE_ALLOWED})`;
+
+export type SubjectChange =
+  | { outcome: 'saved'; status: TestStatus; count: number; remade: boolean }
+  | { outcome: 'busy' }
+  | { outcome: 'demo_limit' };
+
+// The teacher sets the subject, in one batch. Its first write saves the test
+// and checks every rule on the row as it was; it marks a test whose lists it
+// remade with subject_regraded + 2 (2: the free regrade is used now, 3: it was
+// used before), which the later writes read and the last one sets back to 0
+// or 1. A demo account's waiting papers past its limit go back to uploading,
+// as unselected uploads do (a test of a subject not graded had them wait for
+// nothing). Null: no such test.
+export async function setSubject(db: D1Database, teacherId: number, testId: number, subject: string, now: string): Promise<SubjectChange | null> {
+  const remade = remakeSql('t');
+  const lists = ['exercise_list', 'ces_exercise_list']
+    .map(
+      (list) => `${list}_status = CASE WHEN ${remade} THEN 'none' ELSE ${list}_status END,
+         ${list}_json = CASE WHEN ${remade} THEN NULL ELSE ${list}_json END,
+         ${list}_message = CASE WHEN ${remade} THEN NULL ELSE ${list}_message END,
+         ${list}_attempts = CASE WHEN ${remade} THEN 0 ELSE ${list}_attempts END`,
+    )
+    .join(', ');
+  const thisTest = 't.id = ?1 AND t.teacher_id = ?2 AND t.subject_regraded >= 2';
+  // The papers already waiting in the test count against the limit of the others.
+  const heldBack = `SELECT p.id FROM (
+    SELECT s.id, ${papersLeft("x.status = 'evaluating' AND x.id <> t.id")} AS allowed, ROW_NUMBER() OVER (ORDER BY s.submitted_at, s.id) AS place
+    FROM submissions s JOIN tests t ON t.id = s.test_id
+    WHERE ${thisTest} AND s.status = 'submitted' AND s.free_regrade = 0) p
+  WHERE p.place > p.allowed`;
+  const again = `SELECT p.id FROM (
+    SELECT s.id, s.status, t.subject_regraded AS mark, ${PAPERS_LEFT_TO_REGRADE} AS allowed, ROW_NUMBER() OVER (ORDER BY s.status <> 'failed', s.id) AS place
+    FROM submissions s JOIN tests t ON t.id = s.test_id
+    WHERE ${thisTest} AND s.status IN ('graded', 'failed')) p
+  WHERE (p.mark = 2 AND p.status = 'graded') OR p.place <= p.allowed`;
+  const marked = 'id = ?1 AND teacher_id = ?2 AND subject_regraded >= 2';
+  const [before, saved, , regraded, , after] = await db.batch<{
+    editable?: number;
+    remade?: number;
+    id?: number;
+    test_status?: TestStatus;
+    status?: TestStatus;
+  }>([
+    db
+      .prepare(`SELECT ${subjectEditable('t')} AS editable, ${remakeSql('t')} AS remade FROM tests t WHERE t.id = ?2 AND t.teacher_id = ?3 AND t.quick_try = 0`)
+      .bind(subject, testId, teacherId),
+    db
+      .prepare(
+        `UPDATE tests AS t SET subject = ?1, subject_name = '', subject_by = 'teacher', updated_at = ?4,
+         ${lists},
+         analysis_status = CASE WHEN ${remade} AND analysis_status IN ('ready', 'failed') THEN 'none' ELSE analysis_status END,
+         analysis_attempts = CASE WHEN ${remade} THEN 0 ELSE analysis_attempts END,
+         ces_files_version = CASE WHEN ${remade} THEN ces_files_version + 1 ELSE ces_files_version END,
+         subject_regraded = CASE WHEN ${remade} THEN subject_regraded + 2 ELSE subject_regraded END
+         WHERE t.id = ?2 AND t.teacher_id = ?3 AND ${SUBJECT_CHANGE_ALLOWED}
+         RETURNING status`,
+      )
+      .bind(subject, testId, teacherId, now),
+    db.prepare(`UPDATE submissions SET ${HOLD_BACK} WHERE id IN (${heldBack})`).bind(testId, teacherId),
+    db
+      .prepare(
+        `UPDATE submissions SET ${GRADE_AGAIN},
+           free_regrade = CASE WHEN status = 'graded' AND (SELECT t.subject_regraded FROM tests t WHERE t.id = submissions.test_id) = 2 THEN 1 ELSE 0 END
+         WHERE id IN (${again}) RETURNING id, ${STATUS_BEFORE}`,
+      )
+      .bind(testId, teacherId),
+    db
+      .prepare(
+        `DELETE FROM evaluations WHERE submission_id IN (SELECT s.id FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${thisTest} AND s.status = 'submitted')`,
+      )
+      .bind(testId, teacherId),
+    // A finished test goes back to evaluation when it has papers to grade. The
+    // free regrade counts as used only when it sent a graded paper again.
+    db
+      .prepare(
+        `UPDATE tests SET
+           archived = CASE WHEN status = 'done' AND EXISTS (SELECT 1 FROM submissions w WHERE w.test_id = tests.id AND w.status = 'submitted') THEN 0 ELSE archived END,
+           status = CASE WHEN status = 'done' AND EXISTS (SELECT 1 FROM submissions w WHERE w.test_id = tests.id AND w.status = 'submitted') THEN 'evaluating' ELSE status END,
+           subject_regraded = CASE WHEN subject_regraded = 3 OR EXISTS (SELECT 1 FROM submissions f WHERE f.test_id = tests.id AND f.free_regrade = 1) THEN 1 ELSE 0 END
+         WHERE ${marked}
+         RETURNING status`,
+      )
+      .bind(testId, teacherId),
+  ]);
+  const row = before?.results[0];
+  if (!row) return null;
+  const status = after?.results[0]?.status ?? saved?.results[0]?.status;
+  if (!status) return row.editable === 1 ? { outcome: 'demo_limit' } : { outcome: 'busy' };
+  await countGradingAgain(db, teacherId, regraded?.results);
+  return { outcome: 'saved', status, count: regraded?.results.length ?? 0, remade: row.remade === 1 };
 }
 
 // "Regenerează": the class analysis is asked for again, from any analysis
