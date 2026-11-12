@@ -26,6 +26,7 @@
   --on-band: #f3f5f8;
   --mk-a: var(--blue);
   --mk-b: var(--orange-mark);
+  --float: 0 12px 32px rgb(12 21 36 / 0.16);
   --font: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
   --r: 10px;
   --r-sm: 8px;
@@ -38,7 +39,7 @@
     --ground: #0e1116; --surface: #161a21; --border: #272d38; --rule: #1f242d; --control: #3b4351;
     --text: #eef1f5; --muted: #a9b2c0; --blue: #80b1ff; --blue-hover: #a3c6ff; --on-blue: #0c1524;
     --blue-tint: #1a2740; --orange: #ff9a57; --orange-mark: #ff8a3d; --orange-tint: #33200f; --ok-bg: #13291e; --ok-fg: #5fd39a;
-    --active: #252b36; --band: #05070a; --on-band: #eef1f5;
+    --active: #252b36; --band: #05070a; --on-band: #eef1f5; --float: 0 12px 32px rgb(0 0 0 / 0.55);
     color-scheme: dark;
   }
 }
@@ -46,7 +47,7 @@
   --ground: #0e1116; --surface: #161a21; --border: #272d38; --rule: #1f242d; --control: #3b4351;
   --text: #eef1f5; --muted: #a9b2c0; --blue: #80b1ff; --blue-hover: #a3c6ff; --on-blue: #0c1524;
   --blue-tint: #1a2740; --orange: #ff9a57; --orange-mark: #ff8a3d; --orange-tint: #33200f; --ok-bg: #13291e; --ok-fg: #5fd39a;
-  --active: #252b36; --band: #05070a; --on-band: #eef1f5;
+  --active: #252b36; --band: #05070a; --on-band: #eef1f5; --float: 0 12px 32px rgb(0 0 0 / 0.55);
   color-scheme: dark;
 }
 
@@ -87,11 +88,16 @@ a { color: inherit; }
 :root[data-theme="dark"] .theme-moon { display: none; }
 :root[data-theme="dark"] .theme-sun { display: block; }
 
-/* Header */
+/* Header: the lockup, the links, the ☰ button of a phone, the theme and the
+   account. */
 .site-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 20px; }
 .site-top nav { display: flex; align-items: center; gap: 20px; font-size: 15px; }
+.nav-links { display: flex; align-items: center; gap: 20px; }
 .site-top nav a:not(.btn) { color: var(--muted); text-decoration: none; font-weight: 500; }
 .site-top nav a:not(.btn):hover { color: var(--text); }
+/* The page the reader is on, in the header of the four content pages. */
+.site-top nav a[aria-current="page"] { color: var(--text); }
+.nav-btn { display: none; }
 
 /* Type */
 /* The hero: Laura's statement as the heading, then the line that says how it
@@ -230,9 +236,11 @@ a { color: inherit; }
 /* What only a signed-out visitor sees (data-guest) and what only a signed-in
    teacher sees (data-member): landing.ts swaps them once the API answers. */
 [data-guest][hidden], [data-member][hidden] { display: none; }
-/* Turnstile's check is 300 px wide: on a phone the form keeps room for it. */
+/* Turnstile's check is 300 px wide: on a phone the form keeps room for it, and
+   the two buttons of the hero take the whole width, the one in the row too. */
 @media (max-width: 420px) {
-  .cta, .cta .btn-large { width: 100%; }
+  .cta, .cta .cta-row, .cta .btn-large { width: 100%; }
+  .cta .cta-row { justify-content: center; }
   .try-dialog { width: calc(100vw - 16px); max-width: calc(100vw - 16px); }
   .try-form { padding: 20px 16px; }
 }
@@ -263,12 +271,45 @@ a { color: inherit; }
 }
 @media (max-width: 900px) {
   .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  .site-top nav a:not(.btn), .site-top .brand .words span { display: none; }
+  .site-top { position: relative; flex-wrap: wrap; padding-block: 16px; }
+  .site-top .brand .words span { display: none; }
   .site-top nav { gap: 10px; }
+  /* The links give way to the ☰ button, which opens them under the header:
+     one row as wide as the page, with room for a thumb. */
+  .nav-btn { display: grid; }
+  .site-top nav .nav-links { display: none; }
+  .site-top nav .nav-links.is-open {
+    position: absolute;
+    z-index: 30;
+    top: 100%;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    left: max(16px, env(safe-area-inset-left, 0px));
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--surface);
+    box-shadow: var(--float);
+    font-size: 16px;
+  }
+  .site-top nav .nav-links a:not(.btn) { display: block; padding: 11px 12px; border-radius: var(--r-sm); }
+  .site-top nav .nav-links .nav-jump { display: block; }
+  .site-top nav .nav-links a[aria-current="page"] { background: var(--active); }
+  .site-top nav .nav-links a:not(.btn):hover { background: var(--ground); }
   .hero { padding-block: 24px 72px; }
   .side-flow { padding: 20px; }
   .sec { padding-block: 72px; }
   .l-lede { font-size: 18px; }
   .site-foot .note { font-size: 13px; }
+}
+
+/* The narrowest phones: the brand and the three controls still share a row. */
+@media (max-width: 380px) {
+  .site-top { gap: 10px; }
+  .site-top nav { gap: 8px; }
+  .site-top nav .btn { padding: 0 12px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

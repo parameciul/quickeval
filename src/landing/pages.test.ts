@@ -85,6 +85,24 @@ describe('the pages that answer a search', () => {
     }
   });
 
+  it('keeps the header menu one tap away on a phone, the page marked', () => {
+    for (const page of PAGES) {
+      const doc = parse(page.html);
+      const links = all(doc, '.site-top .nav-links a');
+      expect(links.map((a) => a.getAttribute('href'))).toEqual(LINKS);
+      expect(links.filter((a) => a.getAttribute('aria-current') === 'page').map((a) => a.getAttribute('href'))).toEqual([
+        page.path,
+      ]);
+      // The ☰ button opens that very list, which waits out of sight.
+      const button = doc.querySelector('.site-top [data-nav-toggle]');
+      expect(button?.getAttribute('aria-controls')).toBe(doc.querySelector('.site-top .nav-links')?.id);
+      expect(button?.getAttribute('aria-expanded')).toBe('false');
+      expect(button?.getAttribute('aria-label')).toBe('Mai multe pagini');
+    }
+    // The landing page adds its two jumps down the page in front of them.
+    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(['#cum', '#ajutor', ...LINKS]);
+  });
+
   it.each(PAGES)('$path leads only to pages and files that exist', ({ html }) => {
     const doc = parse(html);
     // Every internal address is one of the pages, the login, or a public file

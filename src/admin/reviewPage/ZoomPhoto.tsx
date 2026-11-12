@@ -1,4 +1,5 @@
 import { type CSSProperties, type PointerEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { isReviewKey } from './keys.ts';
 import { isZoomed, layerTransform, MAX_SCALE, panBy, pinchScale, WHOLE_PAGE, zoomAround, zoomInAt, zoomOutAt, type ZoomView } from './zoom.ts';
 
@@ -10,8 +11,15 @@ import { isZoomed, layerTransform, MAX_SCALE, panBy, pinchScale, WHOLE_PAGE, zoo
 // touch screen. Esc and "Toată pagina" show the whole page again. The view
 // belongs to the caller, who also shows "Toată pagina". `children` are drawn
 // over the page (the border of an answer), in the pane's own coordinates.
+//
+// While the page is whole, a line over its bottom says what a click does,
+// worded for the pointer at hand: a phone has no right button, so there a tap
+// and two fingers do the work. Once the page is zoomed the line goes, so the
+// handwriting is left alone; the title says what a drag and a right click do.
 export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; alt: string; view: ZoomView; onView: (view: ZoomView) => void; children?: ReactNode }) {
   const pane = useRef<HTMLDivElement>(null);
+  // A finger cannot right-click, and cannot read a tooltip.
+  const touch = useMediaQuery('(pointer: coarse)');
   // Width / height of the photo: the pane takes its shape. A phone page until it
   // loads, also when another page comes in its place.
   const [loaded, setLoaded] = useState<{ src: string; ratio: number } | null>(null);
@@ -128,7 +136,7 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
       ref={pane}
       className={zoomed ? 'zoom-pane is-zoomed' : 'zoom-pane'}
       style={style}
-      title={zoomed ? 'Trage pentru a muta; clic dreapta pentru micșorare' : 'Clic pentru mărire'}
+      title={zoomed ? 'Trage pentru a muta; clic dreapta pentru micșorare' : undefined}
       data-testid="zoom-pane"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -151,6 +159,11 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
           }}
         />
       </div>
+      {/* What a click does, before the page is zoomed: at the bottom on the
+          left, away from the zoom's own buttons. It takes no press. */}
+      {!zoomed && (
+        <p className="zoom-hint">{touch ? 'Atinge: mărește · ciupește: micșorează' : 'Clic stânga: mărește · clic dreapta: micșorează'}</p>
+      )}
       {children}
       {/* The zoom's buttons float over the page, in reach of a thumb on a
           phone: a press on one is never a press on the page under it. */}

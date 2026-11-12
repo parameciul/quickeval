@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { userEvent } from '@testing-library/user-event';
 import raw from '../../index.html?raw';
 import { SIGNUP_HASH } from '../admin/pages/LoginPage.tsx';
 import { THEME_KEY } from '../ui/theme.ts';
 import { expandPartials } from './partials.ts';
+import { initSiteMenu } from './siteMenu.ts';
 import { initThemeButton, themeLabel } from './themeButton.ts';
 
 // The page as it is served, with its shared footer in place.
@@ -171,5 +173,45 @@ describe('the theme button of the landing page', () => {
   it('starts from the saved choice', () => {
     localStorage.setItem(THEME_KEY, 'dark');
     expect(mount().getAttribute('aria-label')).toBe('Temă luminoasă');
+  });
+});
+
+describe('the menu of the public pages', () => {
+  // The page as it is served: the links wait behind the ☰ button on a phone.
+  function mount() {
+    document.body.innerHTML = doc.body.innerHTML;
+    initSiteMenu(document);
+    return {
+      button: document.querySelector<HTMLButtonElement>('[data-nav-toggle]')!,
+      links: document.querySelector<HTMLElement>('[data-nav-links]')!,
+    };
+  }
+
+  it('opens the header links from the ☰ button, and closes them with Esc', async () => {
+    const { button, links } = mount();
+    expect(button.getAttribute('aria-controls')).toBe(links.id);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(links.classList.contains('is-open')).toBe(false);
+
+    await userEvent.click(button);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(links.classList.contains('is-open')).toBe(true);
+
+    await userEvent.keyboard('{Escape}');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(links.classList.contains('is-open')).toBe(false);
+    expect(button).toHaveFocus();
+  });
+
+  it('closes on a click elsewhere and on a link of the menu', async () => {
+    const { button, links } = mount();
+    await userEvent.click(button);
+    await userEvent.click(document.body);
+    expect(links.classList.contains('is-open')).toBe(false);
+
+    await userEvent.click(button);
+    await userEvent.click(links.querySelector('a')!);
+    expect(links.classList.contains('is-open')).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
   });
 });
