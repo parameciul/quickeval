@@ -571,6 +571,19 @@ describe('the zoom of a page', () => {
     expect(layer().style.transform).toBe('translate(0%, 0%) scale(1.25)');
   });
 
+  it('says over the whole page what a click does, and leaves the page alone once it is zoomed', async () => {
+    renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
+    await screen.findByText('Ion Popa · pagina 1 din 1');
+    const photo = sizedPane();
+    expect(screen.getByText('Clic stânga: mărește · clic dreapta: micșorează')).toBeInTheDocument();
+    clickAt(photo, 200, 200);
+    // The line would sit over the handwriting the teacher zoomed in on.
+    expect(screen.queryByText(/^Clic stânga/)).not.toBeInTheDocument();
+    clickAt(photo, 200, 200, 2);
+    clickAt(photo, 200, 200, 2);
+    expect(screen.getByText('Clic stânga: mărește · clic dreapta: micșorează')).toBeInTheDocument();
+  });
+
   it('moves the zoomed page with a drag, and shows the whole page with "Toată pagina"', async () => {
     renderAdmin(`${PAGE}?lucrare=14&punct=41`, apiWith());
     await screen.findByText('Ion Popa · pagina 1 din 1');
