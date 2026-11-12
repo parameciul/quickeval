@@ -1,6 +1,6 @@
 # Any subject: grading tests beyond math
 
-Date: 2026-11-11. Status: approved by the user on 2026-11-11. Built in three plans: A (the subject, the robot, the skill, the math comparison: `docs/superpowers/plans/2026-11-11-any-subject-a.md`), B (the teacher's "Schimbă" and the subject on the test page), C (the public site's text). Plan A's rulings refine this spec where they say so below.
+Date: 2026-11-11. Status: approved by the user on 2026-11-11. Built in three plans: A (the subject, the robot, the skill, the math comparison: `docs/superpowers/plans/2026-11-11-any-subject-a.md`), B (the teacher's "Schimbă" and the subject on the test page: `docs/superpowers/plans/2026-11-12-any-subject-b.md`), C (the public site's text). Plan A's rulings refine this spec where they say so below.
 
 ## Intent
 
