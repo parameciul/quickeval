@@ -147,13 +147,13 @@ Today the try's "Verificare" tab (`Checking`, `src/try/Graded.tsx`) is a list of
 
 One bar, of the students of the class (`studentCount`, at least the uploads). The counts come from `uploads` (`UploadRow.status`, `fileCount`) and `test.status`; no API change.
 
-How the server keeps a paper that is not graded matters here. A paper held back from grading (not chosen in a start for some papers, or past the demo limit) goes back to `uploading`, keeps its files and loses `submitted_at` (`HOLD_BACK`, `server/db/lifecycle.ts`). When uploads close, every other `uploading` row with files is sent. So, after uploads closed, an `uploading` row with files is a held-back paper, and one with no files is a student who sent nothing (`PartialEvaluationNotice` in `StagePanel.tsx` reads it the same way). A CES paper waiting for its barem stays `submitted`.
+How the server keeps a paper that is not graded matters here. A paper held back from grading (not chosen in a start for some papers, or past the demo limit) goes back to `uploading`, keeps its files and loses `submitted_at` (`HOLD_BACK`, `server/db/lifecycle.ts`). When uploads close, every other `uploading` row with files is sent. So, after uploads closed, an `uploading` row with files is a held-back paper, and one with no files is a student who sent nothing (`PartialEvaluationNotice` in `StagePanel.tsx` reads it the same way). A CES paper waiting for its barem stays `submitted`, and its test stays in evaluation: the server ends a test only when no paper is `submitted` or `grading`. A sent paper is a CES paper when its variant is `ces`, or, before it first went to grading, when its student is marked CES and the test has a CES test file (`paperVariantSql`).
 
 The segments:
 
 - corectate (green): `graded`.
-- se corectează (blue): `grading`, and `submitted` while the test is in evaluation.
-- așteaptă (light blue): a paper with files not sent to the robot: `uploading` with `fileCount > 0` after uploads closed (held back), `submitted` while uploads are open or after the test is done (sent, not graded yet, or a CES paper waiting for its barem). Its words say it waits for the teacher, not for the robot.
+- se corectează (blue): `grading`, and `submitted` while the test is in evaluation, except a CES paper while the CES barem is not active.
+- așteaptă (light blue): a paper with files not sent to the robot: `uploading` with `fileCount > 0` after uploads closed (held back), `submitted` while uploads are open, and a sent CES paper while the CES barem is not active (missing, generating or not checked). Its words say it waits for the teacher, not for the robot. The paper page says the same of a held-back paper: "Așteaptă corectarea" in its head and in "Elevii", and why in place of the result.
 - eșuate (red): `failed`. In every state: a reopened test can have failed papers.
 - încarcă acum (pale): `uploading` while uploads are open (a reopened test included: a held-back paper is again one the student can change).
 - încă nu au trimis (grey, plain): `none` while uploads are open.

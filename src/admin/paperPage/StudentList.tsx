@@ -1,8 +1,10 @@
 import { Link } from 'react-router';
 import type { UploadRow } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
+import type { TestStatus } from '../../../shared/tests.ts';
 import { countLabel, uploadStatusLabel } from '../../ui/format.ts';
 import { CesTag } from '../CesTag.tsx';
+import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
 import { listedPapers, type PaperMode } from './paths.ts';
 
 // "Elevii" (spec 2026-11-12 §4.3): every student with a paper, the open one
@@ -12,6 +14,7 @@ import { listedPapers, type PaperMode } from './paths.ts';
 // address, so Back leaves the page.
 export function StudentList({
   uploads,
+  testStatus,
   mode,
   current,
   folded,
@@ -19,6 +22,7 @@ export function StudentList({
   pathOf,
 }: {
   uploads: UploadRow[];
+  testStatus: TestStatus;
   mode: PaperMode;
   current: number;
   folded: boolean;
@@ -61,7 +65,7 @@ export function StudentList({
                           {row.studentName}
                           {(row.ces || row.variant === 'ces') && <CesTag />}
                         </span>{' '}
-                        <StudentState row={row} />
+                        <StudentState row={row} testStatus={testStatus} />
                       </Link>
                     </li>
                   ))}
@@ -73,7 +77,7 @@ export function StudentList({
   );
 }
 
-function StudentState({ row }: { row: UploadRow }) {
+function StudentState({ row, testStatus }: { row: UploadRow; testStatus: TestStatus }) {
   if (row.status === 'graded' && row.flagCount > 0) {
     return (
       <span className="paper-student-flags">
@@ -89,5 +93,6 @@ function StudentState({ row }: { row: UploadRow }) {
       </span>
     );
   }
-  return <span className="hint">{uploadStatusLabel(row.status).toLowerCase()}</span>;
+  const state = heldBack(row.status, row.fileCount, testStatus) ? PAPER_PART_LABEL.waiting : uploadStatusLabel(row.status);
+  return <span className="hint">{state.toLowerCase()}</span>;
 }

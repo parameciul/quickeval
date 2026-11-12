@@ -8,6 +8,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { PdfActions } from '../pdf/PdfActions.tsx';
 import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentPdf.ts';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
+import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
 import { ResultLink } from '../testPage/ResultLink.tsx';
 
 // Recorectează, Resetează and Reîncearcă of the paper page, and the news after
@@ -90,7 +91,8 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
           <h1>{submission.studentName}</h1>
           <p className="submission-sub">
             <span>
-              {submission.testCode} · {submission.testTitle} · {uploadStatusLabel(submission.status)}
+              {submission.testCode} · {submission.testTitle} ·{' '}
+              {heldBack(submission.status, submission.files.length, submission.testStatus) ? PAPER_PART_LABEL.waiting : uploadStatusLabel(submission.status)}
             </span>
             {submission.autoSubmitted && submission.status !== 'graded' && <span className="tag">Fără confirmare</span>}
           </p>

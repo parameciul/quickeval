@@ -178,10 +178,11 @@ function Paper({
   const row = uploads.find((other) => other.submissionId === submissionId);
   const queue = pointQueue(uploads);
   const walked = walkedPoints(uploads, mode, submissionId);
-  // The spot on the screen now, for a decision that comes back later.
-  const shown = useRef(spot);
+  // The spot and the view on the screen now, for a decision that comes back
+  // later.
+  const shown = useRef({ spot, mode });
   useEffect(() => {
-    shown.current = spot;
+    shown.current = { spot, mode };
   });
 
   const paper = useQuery({
@@ -327,11 +328,13 @@ function Paper({
     decide.mutate(
       { submission, view: decisionView, point, change },
       {
-        // The next point opens only if the teacher is still at this one: not
-        // after she opened another paper, and not after she left the page
-        // (this call's own callbacks do not run once the page is gone).
+        // The next point opens only if the teacher is still at this one, in
+        // the same view: not after she opened another paper or switched the
+        // view, and not after she left the page (this call's own callbacks do
+        // not run once the page is gone).
         onSuccess: (changed) => {
-          if (shown.current.submissionId !== from.submissionId || shown.current.key !== from.key) return;
+          const now = shown.current;
+          if (now.spot.submissionId !== from.submissionId || now.spot.key !== from.key || now.mode !== fromMode) return;
           if (next) go({ submissionId: next.submissionId, key: pointKey(next.point) }, fromMode, 'point');
           else if (fromMode === 'verificare') go({ submissionId: changed.id, key: null });
           else go(from, fromMode, 'student');
@@ -458,7 +461,7 @@ function Paper({
       )}
       <div className={place === 'try' ? 'paper-panes is-single' : folded ? 'paper-panes is-folded' : 'paper-panes'}>
         {place === 'app' && (
-          <StudentList uploads={uploads} mode={mode} current={submissionId} folded={folded} onFold={onFold} pathOf={(other) => pathOf(studentSpot(other, mode))} />
+          <StudentList uploads={uploads} testStatus={test.status} mode={mode} current={submissionId} folded={folded} onFold={onFold} pathOf={(other) => pathOf(studentSpot(other, mode))} />
         )}
         <div className="paper-main" ref={main}>
           <h2 className="sr-only">Exercițiile</h2>

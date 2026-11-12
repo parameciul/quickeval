@@ -3,13 +3,14 @@ import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
 import { reviewPath } from '../reviewPage/points.ts';
 import { PAPER_PART_LABEL, paperCounts } from './paperCounts.ts';
+import { cesBaremActive } from './variant.ts';
 
 // The progress of the papers above the papers table (spec 2026-11-12 §5.2):
 // one bar of the students, each part named in the legend under it, and apart
 // the points that wait to be checked. The bar is hidden from screen readers:
 // the legend says the same in words.
 export function PapersProgress({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
-  const counts = paperCounts(test.status, test.studentCount, uploads);
+  const counts = paperCounts(test.status, test.studentCount, uploads, { hasTest: test.ces.files.test !== null, baremActive: cesBaremActive(test) });
   const papers = uploads.filter((row) => row.flagCount > 0).length;
   const points = uploads.reduce((sum, row) => sum + row.flagCount, 0);
   return (

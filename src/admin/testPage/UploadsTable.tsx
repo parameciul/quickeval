@@ -8,6 +8,7 @@ import { useApi } from '../ApiContext.tsx';
 import { CesTag } from '../CesTag.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
+import { HELD_BACK_HINT, PAPER_PART_LABEL } from './paperCounts.ts';
 
 // Who uploaded what: one row per student of the class, with the grade once
 // the robot graded it. The table takes the full width of its card; the model
@@ -123,7 +124,7 @@ function stateOf(row: UploadRow, uploadsClosed: boolean): { label: string; hint:
   if (row.status === 'uploading') {
     if (uploadsClosed) {
       return row.fileCount > 0
-        ? { label: 'Așteaptă corectarea', hint: 'Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.' }
+        ? { label: PAPER_PART_LABEL.waiting, hint: HELD_BACK_HINT }
         : { label: 'Nu a participat', hint: null };
     }
     return row.fileCount > 0

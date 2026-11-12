@@ -135,6 +135,14 @@ describe('the paper page', () => {
     expect(screen.getByRole('menuitem', { name: 'Resetează' })).toBeInTheDocument();
   });
 
+  it('says that a paper held back from grading waits for the teacher, once the uploads are closed', async () => {
+    renderAdmin(page, apiWith({ ...submission, testStatus: 'evaluating', status: 'uploading', submittedAt: null }));
+    expect(await screen.findByText('Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.')).toBeInTheDocument();
+    expect(screen.getByText(/6E2-26T1 · Fracții · Așteaptă corectarea/)).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Elevii' })).getByText('așteaptă corectarea')).toBeInTheDocument();
+    expect(screen.queryByText('Elevul nu a trimis încă lucrarea.')).not.toBeInTheDocument();
+  });
+
   it('asks for news every 10 seconds only while the robot grades the upload', () => {
     expect(resultRefreshInterval({ ...submission, testStatus: 'evaluating' })).toBe(10_000);
     expect(resultRefreshInterval({ ...submission, status: 'grading', testStatus: 'evaluating' })).toBe(10_000);

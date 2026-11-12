@@ -522,6 +522,18 @@ describe('the points to check on the paper page', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(at(13));
   });
 
+  it('stays in the view the teacher switched to while a decision saved', async () => {
+    const api = apiWith();
+    const held = heldSave(api);
+    renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Toate exercițiile' }));
+    await expectLocation(at(11, '32', 'toate'));
+    await held.done();
+    expect(screen.getByTestId('location')).toHaveTextContent(at(11, '32', 'toate'));
+  });
+
   it('acts on the keys after "Începe" in De făcut', async () => {
     const api = apiWith();
     renderAdmin('/teste/6E2-26T1', api, <LocationProbe />);
