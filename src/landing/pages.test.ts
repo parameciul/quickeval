@@ -315,3 +315,17 @@ describe('the product text names no single subject', () => {
     expect(llms).toContain(seven);
   });
 });
+
+// Laura Miron builds MQGrader with her husband: every line that says who
+// builds it names both.
+describe('who builds MQGrader', () => {
+  it.each([
+    ['index.html', landing],
+    ['/despre/', despre],
+    ['llms.txt', llms],
+  ])('%s names Laura Miron and her husband', (_name, source) => {
+    expect(source).toContain('împreună cu soțul ei');
+    expect(source).not.toMatch(/(creat[ăa]?|construit) de (<b>)?Laura Miron(<\/b>)?, profesoară de matematică la Liceul William Shakespeare din Timișoara\./);
+  });
+});
+
