@@ -216,6 +216,19 @@ describe('the points to check on the paper page', () => {
     expect(await screen.findByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
   });
 
+  it('names no points on "Confirmă" while the typed value is not valid', async () => {
+    renderAdmin(paperAt(11, '32'), apiWith());
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    const input = within(panel).getByRole('textbox', { name: 'Alt punctaj, din 2' });
+    await userEvent.type(input, '3');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(within(panel).getByRole('button', { name: 'Confirmă' })).toBeInTheDocument();
+    expect(within(panel).queryByText(/Nota rămâne|nota devine/)).not.toBeInTheDocument();
+    await userEvent.clear(input);
+    expect(input).toHaveAttribute('aria-invalid', 'false');
+    expect(within(panel).getByRole('button', { name: 'Confirmă 1p' })).toBeInTheDocument();
+  });
+
   it('refuses a value off the steps of 0,05', async () => {
     const api = apiWith();
     renderAdmin(paperAt(11, '32'), api);
@@ -400,6 +413,15 @@ describe('the points to check on the paper page', () => {
     await expectLocation(at(11, '32', 'toate'));
     expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
     expect(within(row('Subiectul II, ex. 1')).getByText('Verificat')).toBeInTheDocument();
+  });
+
+  it('puts the focus on the exercises after the last point of the last student, in all the exercises', async () => {
+    renderAdmin(paperAt(14, '41', 'toate'), apiWith(), <LocationProbe />);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 3p' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Exercițiile' })).toHaveFocus());
+    expect(screen.queryByRole('button', { name: 'Elevul următor' })).not.toBeInTheDocument();
+    await expectLocation(at(14, '41', 'toate'));
   });
 
   it('walks only the points of the open student with J and K in all the exercises', async () => {

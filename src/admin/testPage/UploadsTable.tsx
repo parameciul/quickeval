@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import type { RobotStart, UploadRow } from '../../../shared/api.ts';
@@ -8,7 +8,7 @@ import { useApi } from '../ApiContext.tsx';
 import { CesTag } from '../CesTag.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
-import { HELD_BACK_HINT, PAPER_PART_LABEL } from './paperCounts.ts';
+import { heldBackHint, PAPER_PART_LABEL } from './paperCounts.ts';
 
 // Who uploaded what: one row per student of the class, with the grade once
 // the robot graded it. The table takes the full width of its card; the model
@@ -120,11 +120,11 @@ function rowClassName(row: UploadRow, selectable: boolean): string | undefined {
 // The State cell, once the uploads are closed: a paper held back from
 // grading (`uploading`, with its files) waits for the teacher, and a
 // student with no file did not take part.
-function stateOf(row: UploadRow, uploadsClosed: boolean): { label: string; hint: string | null } {
+function stateOf(row: UploadRow, uploadsClosed: boolean, heldBackText: string): { label: string; hint: string | null } {
   if (row.status === 'uploading') {
     if (uploadsClosed) {
       return row.fileCount > 0
-        ? { label: PAPER_PART_LABEL.waiting, hint: HELD_BACK_HINT }
+        ? { label: PAPER_PART_LABEL.waiting, hint: heldBackText }
         : { label: 'Nu a participat', hint: null };
     }
     return row.fileCount > 0
@@ -160,6 +160,7 @@ function UploadTableRow({
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const api = useApi();
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   // Each action on the upload names the upload the row shows (`startedAt`).
   const reset = useMutation({
     mutationFn: ({ submissionId, startedAt }: { submissionId: number; startedAt: string }) => api.resetSubmission(submissionId, startedAt),
@@ -180,7 +181,7 @@ function UploadTableRow({
     },
   });
   const time = row.submittedAt ?? row.startedAt;
-  const state = stateOf(row, uploadsClosed);
+  const state = stateOf(row, uploadsClosed, heldBackHint(me.data));
   const submissionId = row.submissionId;
   const startedAt = row.startedAt;
   const gradedAt = row.status === 'graded' ? row.gradedAt : null;
@@ -350,9 +351,16 @@ function RowMenu({ studentName, menuId, note, items }: { studentName: string; me
         </svg>
       </button>
       {open && (
-        <div ref={menu} className="class-menu row-menu" id={menuId} role="menu" style={place}>
+        <div
+          ref={menu}
+          className="class-menu row-menu"
+          id={menuId}
+          role="menu"
+          aria-describedby={note !== undefined ? `${menuId}-note` : undefined}
+          style={place}
+        >
           {note !== undefined && (
-            <p className="row-menu-note" role="none">
+            <p className="row-menu-note" id={`${menuId}-note`} role="none">
               {note}
             </p>
           )}

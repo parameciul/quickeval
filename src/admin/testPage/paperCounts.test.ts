@@ -91,6 +91,11 @@ describe('paperCounts', () => {
     expect(counts.parts.at(-1)).toEqual({ part: 'absent', count: 21 });
   });
 
+  it('is not complete while students of a reopened test upload again', () => {
+    const counts = paperCounts('open', 3, [row({ status: 'graded', fileCount: 1 }), row({ status: 'uploading', fileCount: 1 })], NO_CES);
+    expect(counts.complete).toBe(false);
+  });
+
   it('is not complete when nothing took part', () => {
     expect(paperCounts('done', 2, [row({ status: 'none' }), row({ status: 'none' })], NO_CES).complete).toBe(false);
   });

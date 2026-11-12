@@ -121,6 +121,7 @@ function ItemDecision({
           id={id}
           type="text"
           inputMode="decimal"
+          aria-invalid={!valid}
           value={typed}
           onChange={(event) => {
             setTyped(event.target.value);
@@ -133,12 +134,14 @@ function ItemDecision({
       </label>
       <div className="point-foot">
         <button type="button" className="button" data-confirm disabled={pending} onClick={confirm}>
-          Confirmă {pointsText(valid ? value : item.points)}
+          {valid ? `Confirmă ${pointsText(value)}` : 'Confirmă'}
         </button>
         <span className="hint" role="status">
-          {other !== null
-            ? `Cu ${pointsText(other)} aici, nota devine ${formatPoints(gradeOf(round2(evaluation.total - item.points + other), evaluation.maxTotal))}.`
-            : `Nota rămâne ${formatPoints(evaluation.grade)}.`}
+          {!valid
+            ? ''
+            : other !== null
+              ? `Cu ${pointsText(other)} aici, nota devine ${formatPoints(gradeOf(round2(evaluation.total - item.points + other), evaluation.maxTotal))}.`
+              : `Nota rămâne ${formatPoints(evaluation.grade)}.`}
         </span>
       </div>
       {problem && (

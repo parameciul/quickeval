@@ -20,6 +20,7 @@ import { type ReviewFocus, ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
 import { stageHash } from '../stages.ts';
 import { GradedResult } from '../submissionPage/GradedResult.tsx';
 import { waitingText } from '../submissionPage/waitingText.ts';
+import { heldBackHint } from '../testPage/paperCounts.ts';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import { refreshInterval } from './TestPage.tsx';
 
@@ -114,7 +115,17 @@ function PaperLoader({ code, place, submissionId }: { code: string; place: Paper
   if (detail.error instanceof ApiError && detail.error.status === 404) return <NotFoundPage />;
   // A failed first load has nothing to show; a failed refresh keeps the page.
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
-  return <Paper code={code} place={place} submissionId={submissionId} detail={detail.data} refreshError={detail.isRefetchError ? detail.error : null} />;
+  // Each paper is a page of its own: nothing chosen on one stays for another.
+  return (
+    <Paper
+      key={submissionId}
+      code={code}
+      place={place}
+      submissionId={submissionId}
+      detail={detail.data}
+      refreshError={detail.isRefetchError ? detail.error : null}
+    />
+  );
 }
 
 interface Decision {
@@ -167,6 +178,8 @@ function Paper({
   refreshError: Error | null;
 }) {
   const api = useApi();
+  // The account, for why a held-back paper waits; a Quick Try has no account.
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.me(), enabled: place === 'app' });
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -252,6 +265,7 @@ function Paper({
   // new address, without it. Each address gives the focus once.
   const main = useRef<HTMLDivElement>(null);
   const nextStudentButton = useRef<HTMLButtonElement>(null);
+  const exercisesHeading = useRef<HTMLHeadingElement>(null);
   const focused = useRef<string | null>(null);
   const focusTarget = focusTargetOf(location.state);
   useEffect(() => {
@@ -261,7 +275,8 @@ function Paper({
         ? submission?.id === submissionId
           ? main.current?.querySelector<HTMLElement>('.point-decision h2')
           : null
-        : nextStudentButton.current;
+        : // With no student after this one, the exercises take it.
+          (nextStudentButton.current ?? exercisesHeading.current);
     if (!target) return;
     focused.current = location.key;
     target.focus({ preventScroll: true });
@@ -464,7 +479,9 @@ function Paper({
           <StudentList uploads={uploads} testStatus={test.status} mode={mode} current={submissionId} folded={folded} onFold={onFold} pathOf={(other) => pathOf(studentSpot(other, mode))} />
         )}
         <div className="paper-main" ref={main}>
-          <h2 className="sr-only">Exercițiile</h2>
+          <h2 className="sr-only" ref={exercisesHeading} tabIndex={-1}>
+            Exercițiile
+          </h2>
           {submission === undefined ? (
             paper.isError ? (
               <ErrorMessage error={paper.error} />
@@ -494,7 +511,7 @@ function Paper({
               {actions.retry.error && <ErrorMessage error={actions.retry.error} />}
             </div>
           ) : (
-            <p className="hint">{waitingText(submission)}</p>
+            <p className="hint">{waitingText(submission, heldBackHint(me.data))}</p>
           )}
         </div>
         {submission !== undefined && (

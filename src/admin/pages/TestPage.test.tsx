@@ -7,7 +7,7 @@ import { PDF_TYPE } from '../../../shared/files.ts';
 import type { UploadRow } from '../../../shared/api.ts';
 import { unsupportedMessage } from '../../../shared/subjects.ts';
 import { robotStartMessage } from '../../ui/format.ts';
-import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakePoint, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakePoint, fakeTeacher, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { refreshInterval } from './TestPage.tsx';
 
@@ -361,6 +361,18 @@ describe('TestPage', () => {
     expect(within(marin).queryByText(/Elevul a ales numele/)).not.toBeInTheDocument();
   });
 
+  it('tells a demo account with no paper left why a held-back paper waits', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 2, startedAt: '2026-10-06T07:25:00.000Z' }),
+    ];
+    const me = fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 35 });
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, me, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
+    expect(await within(stan).findByText('Lucrarea nu a fost trimisă la corectare: contul demo nu mai are lucrări de corectat. Cere unui administrator un cont complet.')).toBeInTheDocument();
+    expect(within(stan).queryByText(/Redeschide încărcarea/)).not.toBeInTheDocument();
+  });
+
   it('shows the papers bar with each part named, and no points line when none waits', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
@@ -426,6 +438,7 @@ describe('TestPage', () => {
     expect(within(pop).queryByText('claude-opus-5-5 · medium')).not.toBeInTheDocument();
     await userEvent.click(within(pop).getByRole('button', { name: 'Mai multe pentru Pop Ion' }));
     expect(within(screen.getByRole('menu')).getByText('Model: claude-opus-5-5 · medium')).toBeInTheDocument();
+    expect(screen.getByRole('menu')).toHaveAccessibleDescription('Model: claude-opus-5-5 · medium');
     await userEvent.keyboard('{Escape}');
     const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
     await userEvent.click(within(stan).getByRole('button', { name: 'Mai multe pentru Stan Eva' }));
@@ -962,13 +975,13 @@ describe('TestPage Verificare', () => {
     expect(within(panel).getByRole('rowheader', { name: 'Stan Eva' })).toBeInTheDocument();
   });
 
-  it('says when every point is checked, and still opens the papers in the review', async () => {
+  it('says when every point is checked, and opens the first paper with all its exercises', async () => {
     renderAdmin(
       `${PAGE}#verificare`,
       reviewApi([fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 })]),
     );
     expect(await screen.findByText(/^Toate punctele sunt verificate\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Vezi lucrările' })).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
+    expect(screen.getByRole('link', { name: 'Vezi lucrările' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
     expect(screen.queryByRole('link', { name: 'Începe verificarea' })).not.toBeInTheDocument();
   });
 

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { ApiError } from '../api.ts';
-import { createFakeApi, fakeEvaluation, fakeItem, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, fakeEvaluation, fakeItem, fakeTeacher, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { resultRefreshInterval } from './PaperPage.tsx';
 
@@ -141,6 +141,19 @@ describe('the paper page', () => {
     expect(screen.getByText(/6E2-26T1 · Fracții · Așteaptă corectarea/)).toBeInTheDocument();
     expect(within(screen.getByRole('navigation', { name: 'Elevii' })).getByText('așteaptă corectarea')).toBeInTheDocument();
     expect(screen.queryByText('Elevul nu a trimis încă lucrarea.')).not.toBeInTheDocument();
+  });
+
+  it('tells a demo account with no paper left why a held-back paper waits, on the paper page', async () => {
+    const api = apiWith({ ...submission, testStatus: 'evaluating', status: 'uploading', submittedAt: null });
+    api.me.mockResolvedValue(fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 35 }));
+    renderAdmin(page, api);
+    expect(await screen.findByText('Lucrarea nu a fost trimisă la corectare: contul demo nu mai are lucrări de corectat. Cere unui administrator un cont complet.')).toBeInTheDocument();
+  });
+
+  it('names a failed paper "eșuat" in the students', async () => {
+    renderAdmin(page, apiWith({ ...submission, testStatus: 'evaluating', status: 'failed', lastError: 'Robotul nu a putut citi lucrarea.' }));
+    const students = await screen.findByRole('navigation', { name: 'Elevii' });
+    expect(within(students).getByText('eșuat')).toBeInTheDocument();
   });
 
   it('asks for news every 10 seconds only while the robot grades the upload', () => {

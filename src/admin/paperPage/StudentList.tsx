@@ -93,6 +93,6 @@ function StudentState({ row, testStatus }: { row: UploadRow; testStatus: TestSta
       </span>
     );
   }
-  const state = heldBack(row.status, row.fileCount, testStatus) ? PAPER_PART_LABEL.waiting : uploadStatusLabel(row.status);
+  const state = heldBack(row.status, row.fileCount, testStatus) ? PAPER_PART_LABEL.waiting : row.status === 'failed' ? 'Eșuat' : uploadStatusLabel(row.status);
   return <span className="hint">{state.toLowerCase()}</span>;
 }

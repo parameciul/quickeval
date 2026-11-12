@@ -1,4 +1,5 @@
-import type { UploadRow, UploadStatus } from '../../../shared/api.ts';
+import { demoPapersLeft } from '../../../shared/accounts.ts';
+import type { Teacher, UploadRow, UploadStatus } from '../../../shared/api.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
 
 // The parts of the papers bar, in the order they are drawn.
@@ -26,7 +27,7 @@ export interface PaperCounts {
   took: number;
   // The students of the bar: the class, or the uploads when more.
   total: number;
-  // Every paper that took part is graded.
+  // Every paper that took part is graded, and no student is sending one now.
   complete: boolean;
 }
 
@@ -49,6 +50,15 @@ export function heldBack(status: UploadStatus, fileCount: number, testStatus: Te
 }
 
 export const HELD_BACK_HINT = 'Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.';
+
+const HELD_BACK_DEMO_HINT =
+  'Lucrarea nu a fost trimisă la corectare: contul demo nu mai are lucrări de corectat. Cere unui administrator un cont complet.';
+
+// Why a held-back paper waits, for the account at hand: a demo account with no
+// paper left cannot send it, so reopening the uploads would not help.
+export function heldBackHint(teacher: Teacher | undefined): string {
+  return teacher?.demo === true && demoPapersLeft(teacher.papersGraded + teacher.papersWaiting) === 0 ? HELD_BACK_DEMO_HINT : HELD_BACK_HINT;
+}
 
 // One student's part. Once closed, an `uploading` row with files is held back
 // (it waits) and one without files is a student who sent nothing. A sent CES
@@ -87,5 +97,5 @@ export function paperCounts(status: TestStatus, studentCount: number, uploads: U
   const parts = PAPER_PARTS.filter((part) => (counts.get(part) ?? 0) > 0).map((part) => ({ part, count: counts.get(part)! }));
   const count = (part: PaperPart) => counts.get(part) ?? 0;
   const took = count('graded') + count('grading') + count('waiting') + count('failed');
-  return { open, parts, took, total, complete: took > 0 && count('graded') === took };
+  return { open, parts, took, total, complete: took > 0 && count('graded') === took && count('uploading') === 0 };
 }

@@ -3,7 +3,8 @@ import { Link } from 'react-router';
 import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { pageLabel } from '../../ui/format.ts';
 import { MathText } from '../../ui/MathText.tsx';
-import { pointKey, pointQueue, pointsText, reviewPath } from '../reviewPage/points.ts';
+import { paperPath } from '../paperPage/paths.ts';
+import { firstSpot, pointKey, pointQueue, pointsText, reviewPath } from '../reviewPage/points.ts';
 
 // The points to check, in the panel Verificare (redesign spec §6): a row per
 // point with its reason, each opening the review (§7) at that point.
@@ -11,9 +12,11 @@ export function ReviewList({ test, uploads }: { test: TestInfo; uploads: UploadR
   const id = useId();
   const queue = pointQueue(uploads);
   if (queue.length === 0) {
+    // Nothing is left to check: the first paper, with all its exercises.
+    const first = firstSpot(uploads);
     return (
       <p>
-        Toate punctele sunt verificate. <Link to={reviewPath(test.code)}>Vezi lucrările</Link>
+        Toate punctele sunt verificate. <Link to={first ? paperPath(test.code, 'app', first, 'toate') : reviewPath(test.code)}>Vezi lucrările</Link>
       </p>
     );
   }

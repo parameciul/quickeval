@@ -2550,6 +2550,12 @@ table.tests .row-actions {
   top: calc(var(--top, 0px) + 0.75rem);
 }
 
+/* The page fits the screen's height too, so its bottom never hides below the
+   screen: 9rem is the room of the box's caption, page buttons and padding. */
+.review-photo .zoom-pane {
+  width: min(100%, calc((100vh - var(--top, 0px) - 1.5rem - 9rem) * var(--page-ratio)));
+}
+
 .review-queue-head {
   display: flex;
   justify-content: space-between;
