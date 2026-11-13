@@ -1,39 +1,36 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
-import type { ReviewPoint, SubmissionDetail, TestDetail } from '../../shared/api.ts';
+import type { ReviewPoint, TestDetail } from '../../shared/api.ts';
 import { formatPoints } from '../../shared/scoring.ts';
-import { useApi } from '../admin/ApiContext.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
+import { paperPath } from '../admin/paperPage/paths.ts';
 import { pointKey, reviewPath } from '../admin/reviewPage/points.ts';
-import { GradedResult } from '../admin/submissionPage/GradedResult.tsx';
-import { PageFiles } from '../admin/submissionPage/PageFiles.tsx';
 import { StudentResult } from '../upload/StudentResult.tsx';
-import { FilesBeside } from '../ui/FilesBeside.tsx';
 import { countLabel, pageLabel } from '../ui/format.ts';
 import { MathText } from '../ui/MathText.tsx';
 import { onTabKeyDown } from '../ui/tabKeys.ts';
 import { pageFileUrl, type TryApi } from './api.ts';
 import { paperOf, scoreOf } from './phase.ts';
 
-type View = 'verificare' | 'profesor' | 'elev';
+type View = 'verificare' | 'elev';
 // Each view's name, and the short one a phone shows.
 const VIEWS: { id: View; label: string; short: string | null }[] = [
   { id: 'verificare', label: 'Verificare', short: null },
-  { id: 'profesor', label: 'Rezultatul profesorului', short: 'Profesor' },
   { id: 'elev', label: 'Rezultatul elevului', short: 'Elev' },
 ];
 const VIEW_IDS = VIEWS.map((view) => view.id);
 
-// The review's own links back (#verificare, #rezultate) open the view they name.
+// The review's own links back (#verificare, #rezultate) open the view they
+// name: the results are the student's.
 function viewOfHash(hash: string): View {
-  return hash === '#rezultate' ? 'profesor' : 'verificare';
+  return hash === '#rezultate' ? 'elev' : 'verificare';
 }
 
 // The graded paper (spec §3.3, state 4): its grade and the points to check,
-// then the app's three views: the points to check (each opens the app's own
-// review), the teacher's result with its corrections, and the page the
-// student would see. Both results start with the paper's files. The tabs stay at the top while she scrolls.
+// then two views: the points to check (each opens the app's own paper page,
+// which also shows all the exercises with their corrections), and the page
+// the student would see. The tabs stay at the top while she scrolls.
 export function Graded({ detail, token, tryApi }: { detail: TestDetail; token: string; tryApi: TryApi }) {
   const [view, setView] = useState<View>(viewOfHash(useLocation().hash));
   const paper = paperOf(detail)!;
@@ -79,7 +76,6 @@ export function Graded({ detail, token, tryApi }: { detail: TestDetail; token: s
       </div>
       <div className="try-panel" role="tabpanel" id={`try-panel-${view}`} aria-labelledby={`try-tab-${view}`}>
         {view === 'verificare' && <Checking code={detail.test.code} submissionId={paper.submissionId!} points={paper.reviewPoints} />}
-        {view === 'profesor' && <TeacherResult code={detail.test.code} submissionId={paper.submissionId!} />}
         {view === 'elev' && <StudentView token={token} tryApi={tryApi} />}
       </div>
     </>
@@ -114,7 +110,7 @@ function Summary({ detail }: { detail: TestDetail }) {
         <div className="try-todo is-done">
           <div>
             <p className="try-todo-title">Toate punctele sunt verificate.</p>
-            <p>Rezultatul profesorului și cel al elevului sunt gata.</p>
+            <p>Rezultatul elevului este gata.</p>
           </div>
         </div>
       )}
@@ -122,56 +118,52 @@ function Summary({ detail }: { detail: TestDetail }) {
   );
 }
 
-// The points to check, each with its reason; each opens the app's review at it.
+// The points to check, each with its reason; each opens the app's paper page
+// at it. "Toate exercițiile" opens the page with every exercise, where she
+// changes any of them and the texts for the student.
 function Checking({ code, submissionId, points }: { code: string; submissionId: number; points: ReviewPoint[] }) {
+  const all = (
+    <p className="try-all">
+      <Link className="button-quiet" to={paperPath(code, 'try', { submissionId, key: null }, 'toate')}>
+        Toate exercițiile
+      </Link>
+    </p>
+  );
   if (points.length === 0) {
-    return <p className="try-empty">Nu mai ai puncte de verificat. Rezultatul profesorului și cel al elevului sunt gata.</p>;
+    return (
+      <>
+        <p className="try-empty">Nu mai ai puncte de verificat. Rezultatul elevului este gata.</p>
+        {all}
+      </>
+    );
   }
   return (
-    <ul className="try-points">
-      {points.map((point) => {
-        const name = point.kind === 'item' ? point.label : 'Pagini greu de citit';
-        return (
-          <li key={pointKey(point)} className="try-point">
-            <span className="try-point-name">{name}</span>
-            {point.kind === 'item' ? (
-              <span className="try-point-score">
-                {formatPoints(point.points)} din {formatPoints(point.maxPoints)}
+    <>
+      <ul className="try-points">
+        {points.map((point) => {
+          const name = point.kind === 'item' ? point.label : 'Pagini greu de citit';
+          return (
+            <li key={pointKey(point)} className="try-point">
+              <span className="try-point-name">{name}</span>
+              {point.kind === 'item' ? (
+                <span className="try-point-score">
+                  {formatPoints(point.points)} din {formatPoints(point.maxPoints)}
+                </span>
+              ) : (
+                <span className="try-point-score">{countLabel(point.pages.length, 'pagină', 'pagini')}</span>
+              )}
+              <span className="try-point-why">
+                {point.kind === 'item' ? <MathText text={point.reason} /> : `Robotul nu a putut citi: ${point.pages.map(pageLabel).join(', ')}.`}
               </span>
-            ) : (
-              <span className="try-point-score">{countLabel(point.pages.length, 'pagină', 'pagini')}</span>
-            )}
-            <span className="try-point-why">
-              {point.kind === 'item' ? <MathText text={point.reason} /> : `Robotul nu a putut citi: ${point.pages.map(pageLabel).join(', ')}.`}
-            </span>
-            <Link className="button-quiet" to={reviewPath(code, { submissionId, key: pointKey(point) })} aria-label={`Verifică ${name}`}>
-              Verifică
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function TeacherResult({ code, submissionId }: { code: string; submissionId: number }) {
-  const api = useApi();
-  const queryClient = useQueryClient();
-  const paper = useQuery({ queryKey: ['submission', submissionId], queryFn: () => api.getSubmission(submissionId) });
-  const saved = async (submission: SubmissionDetail) => {
-    queryClient.setQueryData(['submission', submissionId], submission);
-    await queryClient.invalidateQueries({ queryKey: ['test', code] });
-  };
-  if (paper.isPending) return <p>Se încarcă…</p>;
-  if (paper.data === undefined) return <ErrorMessage error={paper.error} />;
-  const submission = paper.data;
-  if (!submission.evaluation) return null;
-  return (
-    <div className="try-result">
-      <FilesBeside count={submission.files.length} files={<PageFiles submissionId={submissionId} files={submission.files} />}>
-        <GradedResult submissionId={submissionId} evaluation={submission.evaluation} onSaved={saved} />
-      </FilesBeside>
-    </div>
+              <Link className="button-quiet" to={reviewPath(code, { submissionId, key: pointKey(point) })} aria-label={`Verifică ${name}`}>
+                Verifică
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      {all}
+    </>
   );
 }
 

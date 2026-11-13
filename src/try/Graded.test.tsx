@@ -124,11 +124,27 @@ describe('a graded try', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&punct=71`);
   });
 
-  it('gives the result tabs a short name for a phone, and keeps their full name', async () => {
+  it("has two views, with no teacher's result of its own: the paper page shows all the exercises", async () => {
     setup();
-    const tab = await screen.findByRole('tab', { name: 'Rezultatul profesorului' });
-    expect(within(tab).getByText('Profesor')).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getByRole('tab', { name: 'Rezultatul elevului' })).toHaveTextContent('Elev');
+    await screen.findByRole('tab', { name: 'Verificare' });
+    expect(screen.getAllByRole('tab').map((tab) => tab.id)).toEqual(['try-tab-verificare', 'try-tab-elev']);
+    expect(screen.queryByRole('tab', { name: 'Rezultatul profesorului' })).not.toBeInTheDocument();
+  });
+
+  it('gives the student result tab a short name for a phone, and keeps its full name', async () => {
+    setup();
+    const tab = await screen.findByRole('tab', { name: 'Rezultatul elevului' });
+    expect(within(tab).getByText('Elev')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('opens the paper page with all the exercises from the Verificare tab', async () => {
+    setup();
+    const panel = await screen.findByRole('tabpanel');
+    await userEvent.click(within(panel).getByRole('link', { name: 'Toate exercițiile' }));
+    expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&vedere=toate`);
+    expect(screen.getByRole('button', { name: 'Toate exercițiile' })).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByRole('heading', { name: 'Ce a lucrat bine' })).toBeInTheDocument();
   });
 
   it('names the pages the robot could not read as the review does', async () => {
@@ -153,31 +169,23 @@ describe('a graded try', () => {
   it("says when nothing is left to check", async () => {
     setup('/', true);
     expect(await screen.findByText('Toate punctele sunt verificate.')).toBeInTheDocument();
-    expect(screen.getByText('Nu mai ai puncte de verificat. Rezultatul profesorului și cel al elevului sunt gata.')).toBeInTheDocument();
+    expect(screen.getByText('Nu mai ai puncte de verificat. Rezultatul elevului este gata.')).toBeInTheDocument();
+    expect(screen.getByText('Rezultatul elevului este gata.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Verifică/ })).not.toBeInTheDocument();
+    // All the exercises stay one click away.
+    expect(screen.getByRole('link', { name: 'Toate exercițiile' })).toHaveAttribute('href', `/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&vedere=toate`);
     expect(screen.getByRole('tab', { name: 'Verificare' })).toHaveTextContent(/^Verificare$/);
   });
 
-  it("shows the teacher's result with its pages first, hidden until asked for", async () => {
-    const { api } = setup();
-    await userEvent.click(await screen.findByRole('tab', { name: 'Rezultatul profesorului' }));
-    const exercise = await screen.findByText('Subiectul I, ex. 1');
-    const strip = screen.getByRole('heading', { name: /^Fișiere \(\d+\)$/ });
-    expect(strip.compareDocumentPosition(exercise) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.queryByRole('img', { name: 'Pagina 1' })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
-    expect(screen.getByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/submissions/${TRY_SUBMISSION}/files/61`);
-    expect(api.getSubmission).toHaveBeenCalledWith(TRY_SUBMISSION);
-  });
-
-  it("opens the teacher's result from the review's link to the results", async () => {
+  it("opens the student's result from the review's link to the results", async () => {
     setup('/teste/PROBA-26T1#rezultate');
-    expect(await screen.findByRole('tab', { name: 'Rezultatul profesorului' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('tab', { name: 'Rezultatul elevului' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it("opens the teacher's result from the review's link to the paper", async () => {
+  it("opens the paper page with all the exercises from the app's address of the paper", async () => {
     setup(`/teste/PROBA-26T1/elevi/${TRY_SUBMISSION}`);
-    expect(await screen.findByRole('tab', { name: 'Rezultatul profesorului' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&vedere=toate`);
   });
 
   it('shows the page the student would see, with no word on how it was graded', async () => {
@@ -199,7 +207,7 @@ describe('a graded try', () => {
     const first = await screen.findByRole('tab', { name: 'Verificare' });
     first.focus();
     await userEvent.keyboard('{ArrowRight}');
-    expect(screen.getByRole('tab', { name: 'Rezultatul profesorului' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Rezultatul elevului' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('invites her to a free class test with an account', async () => {

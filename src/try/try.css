@@ -347,6 +347,10 @@ label.button-quiet.is-disabled {
   color: var(--muted);
 }
 
+.try-all {
+  margin: 1rem 0 0;
+}
+
 /* Narrow: "Distribuie" goes under the name, on the left. */
 @media (max-width: 48rem) {
   .try-head .try-share {

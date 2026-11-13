@@ -2492,6 +2492,39 @@ table.tests .row-actions {
   grid-template-areas: "main photo";
 }
 
+/* The paper folded to a strip: the exercises take its room. */
+.paper-panes.is-photo-folded {
+  grid-template-columns: 13rem minmax(0, 1fr) 2.75rem;
+}
+
+.paper-panes.is-folded.is-photo-folded {
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+}
+
+.paper-panes.is-single.is-photo-folded {
+  grid-template-columns: minmax(0, 1fr) 2.75rem;
+}
+
+.paper-photo-strip {
+  grid-area: photo;
+  position: sticky;
+  top: calc(var(--top, 0px) + 0.75rem);
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0.25rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+}
+
+.paper-photo-strip-word {
+  display: none;
+}
+
+.review-photo-top.is-end {
+  justify-content: flex-end;
+}
+
 .paper-students,
 .review-photo {
   min-width: 0;
@@ -2623,8 +2656,21 @@ table.items tr.is-open > * {
   background: var(--ink-tint);
 }
 
-table.items tr.is-open:has(+ tr.item-decision) > * {
+table.items tr.is-open:has(+ tr.item-decision) > *,
+table.items tr.is-kept:has(+ tr.item-decision) > * {
   border-bottom: 0;
+}
+
+/* A row to check opened before the open one stays open, so the rows under it
+   do not move: its decision is dimmed and out of reach until its row is
+   opened again. */
+table.items tr.item-decision.is-kept > td {
+  background: none;
+}
+
+.decision-slot.is-kept,
+.pages-check.is-kept > .decision-slot {
+  opacity: 0.5;
 }
 
 /* "Verifică": the one action of a row to check, an icon button like the
@@ -3100,12 +3146,20 @@ table.items tr.item-decision > td {
       "main photo"
       "students photo";
   }
+
+  .paper-panes.is-photo-folded,
+  .paper-panes.is-folded.is-photo-folded {
+    grid-template-columns: minmax(0, 1fr) 2.75rem;
+  }
 }
 
 @media (max-width: 56.25rem) {
   .paper-panes,
   .paper-panes.is-folded,
-  .paper-panes.is-single {
+  .paper-panes.is-single,
+  .paper-panes.is-photo-folded,
+  .paper-panes.is-folded.is-photo-folded,
+  .paper-panes.is-single.is-photo-folded {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "main"
@@ -3113,8 +3167,23 @@ table.items tr.item-decision > td {
       "students";
   }
 
-  .review-photo {
+  .review-photo,
+  .paper-photo-strip {
     position: static;
+  }
+
+  /* One column: the strip is a bar with its words. */
+  .paper-photo-strip {
+    justify-content: flex-start;
+    padding: 0.5rem;
+  }
+
+  .paper-photo-strip-word {
+    display: inline;
+  }
+
+  .paper-photo-strip-icon {
+    display: none;
   }
 
   .review-keys {
@@ -5143,7 +5212,8 @@ table.items tr.edit-row > td {
   }
 
   /* The decision is the open card's lower part: one card, not two. */
-  .graded-result table.items tr.is-open:has(+ tr.item-decision) {
+  .graded-result table.items tr.is-open:has(+ tr.item-decision),
+  .graded-result table.items tr.is-kept:has(+ tr.item-decision) {
     margin-bottom: 0;
     border-bottom: 0;
     border-radius: var(--radius-panel) var(--radius-panel) 0 0;
@@ -5161,6 +5231,10 @@ table.items tr.edit-row > td {
   .graded-result table.items tr.item-decision > td {
     grid-area: auto;
     padding: 0.5rem 0 0;
+    background: none;
+  }
+
+  .graded-result table.items tr.item-decision.is-kept {
     background: none;
   }
 

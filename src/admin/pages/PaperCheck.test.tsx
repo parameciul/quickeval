@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SubmissionDetail, UploadRow } from '../../../shared/api.ts';
 import type { AnswerArea } from '../../../shared/schemas.ts';
 import { ApiError, submissionFileUrl } from '../api.ts';
+import { CLOSE_DELAY } from '../submissionPage/GradedResult.tsx';
 import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission, fakeTest, fakeUpload, reviewPointsOf } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 
@@ -111,6 +112,7 @@ const students = () => screen.getByRole('navigation', { name: 'Elevii' });
 // the teacher can move to next.
 const readsOf = (api: ReturnType<typeof apiWith>, id: number) => api.getSubmission.mock.calls.filter(([read]) => read === id).length;
 const decision = () => screen.getByRole('region', { name: 'Decizia' });
+const pause = (ms: number) => act(() => new Promise((resolve) => setTimeout(resolve, ms)));
 const row = (label: string) => screen.getByRole('row', { name: new RegExp(label) });
 
 describe('the points to check on the paper page', () => {
@@ -503,6 +505,199 @@ describe('the points to check on the paper page', () => {
     await userEvent.click(await within(await screen.findByRole('navigation', { name: 'Elevii' })).findByRole('button', { name: 'Arată elevii' }));
     expect(within(students()).getByRole('link', { name: 'Ana Pop 2 puncte de verificat' })).toBeInTheDocument();
     expect(localStorage.getItem('quickeval:paperStudentsFolded')).toBe('off');
+  });
+
+  it('closes the open row on a second click, on the row or on its "Arată pe lucrare"', async () => {
+    renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
+    await screen.findByText('Ana Pop · 1/3');
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await expectLocation(at(11, '32', 'toate'));
+    expect(await screen.findByRole('region', { name: 'Decizia' })).toBeInTheDocument();
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await expectLocation(at(11, null, 'toate'));
+    expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
+    expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-open');
+    await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
+    await expectLocation(at(11, '31', 'toate'));
+    await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
+    await expectLocation(at(11, null, 'toate'));
+    expect(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('leaves the row as it is when a click ends a selection of its text', async () => {
+    renderAdmin(paperAt(11, '32', 'toate'), apiWith(), <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
+    const selection = vi.spyOn(window, 'getSelection').mockReturnValue({ toString: () => 'x = 3' } as Selection);
+    try {
+      // Open, it stays open; closed, it stays closed.
+      await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+      await pause(CLOSE_DELAY + 100);
+      await expectLocation(at(11, '32', 'toate'));
+      await userEvent.click(within(row('Subiectul I, ex. 1')).getByRole('rowheader'));
+      await expectLocation(at(11, '32', 'toate'));
+    } finally {
+      selection.mockRestore();
+    }
+  });
+
+  it('keeps the open row open on a double or a triple click, which selects a word to copy', async () => {
+    renderAdmin(paperAt(11, '32', 'toate'), apiWith(), <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
+    await userEvent.dblClick(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await pause(CLOSE_DELAY + 100);
+    await expectLocation(at(11, '32', 'toate'));
+    await userEvent.tripleClick(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await pause(CLOSE_DELAY + 100);
+    await expectLocation(at(11, '32', 'toate'));
+    expect(screen.getByRole('region', { name: 'Decizia' })).toBeInTheDocument();
+  });
+
+  it('keeps a row to check open, dimmed, when another row opens, so the rows under it do not move', async () => {
+    const api = apiWith();
+    renderAdmin(paperAt(11, 'pagini', 'toate'), api, <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Decide: Paginile necitite' })).toBeInTheDocument();
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await expectLocation(at(11, '32', 'toate'));
+    // The pages' decision stays in place, out of reach; only II.1's acts.
+    const kept = document.querySelector('.pages-check .decision-slot');
+    expect(kept).toHaveClass('is-kept');
+    expect(kept).toHaveAttribute('aria-hidden', 'true');
+    expect(kept).toHaveAttribute('inert');
+    expect(screen.getAllByRole('region', { name: 'Decizia' })).toHaveLength(1);
+    expect(within(decision()).getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
+    // A accepts the open row only.
+    await userEvent.keyboard('a');
+    await waitFor(() => expect(api.correctItem).toHaveBeenCalledWith(11, 32, expect.objectContaining({ reviewed: true })));
+    expect(api.reviewPages).not.toHaveBeenCalled();
+  });
+
+  it('opens a kept row on a click, and keeps the row that was open', async () => {
+    renderAdmin(paperAt(11, 'pagini', 'toate'), apiWith(), <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Decide: Paginile necitite' })).toBeInTheDocument();
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await expectLocation(at(11, '32', 'toate'));
+    await userEvent.click(screen.getByRole('button', { name: 'Verifică paginile necitite' }));
+    await expectLocation(at(11, 'pagini', 'toate'));
+    expect(within(decision()).getByRole('heading', { name: 'Decide: Paginile necitite' })).toBeInTheDocument();
+    expect(row('Subiectul II, ex. 1')).toHaveClass('is-kept');
+    expect(document.querySelector('.item-decision .decision-slot')).toHaveClass('is-kept');
+  });
+
+  it('closes the open row and leaves the kept one as it is', async () => {
+    renderAdmin(paperAt(11, 'pagini', 'toate'), apiWith(), <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Decide: Paginile necitite' })).toBeInTheDocument();
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await expectLocation(at(11, '32', 'toate'));
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await expectLocation(at(11, null, 'toate'));
+    expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
+    expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-open');
+    expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-kept');
+    expect(document.querySelector('.pages-check .decision-slot')).toHaveClass('is-kept');
+    // The row closed by its own click is not kept when another opens.
+    await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
+    await expectLocation(at(11, '31', 'toate'));
+    expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-kept');
+  });
+
+  it('keeps no row open when the teacher moves with J, K or the buttons', async () => {
+    renderAdmin(paperAt(11, 'pagini', 'toate'), apiWith(), <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Decide: Paginile necitite' })).toBeInTheDocument();
+    await userEvent.keyboard('j');
+    await expectLocation(at(11, '32', 'toate'));
+    await userEvent.keyboard('k');
+    await expectLocation(at(11, 'pagini', 'toate'));
+    expect(document.querySelectorAll('.decision-slot.is-kept')).toHaveLength(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Doar de verificat (3)' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Următorul punct' }));
+    await expectLocation(at(11, '32'));
+    expect(document.querySelectorAll('.decision-slot.is-kept')).toHaveLength(0);
+  });
+
+  it('keeps what was typed in a kept decision, for when its row opens again', async () => {
+    renderAdmin(paperAt(11, '32', 'toate'), apiWith(), <LocationProbe />);
+    const field = await within(await screen.findByRole('region', { name: 'Decizia' })).findByRole('textbox', { name: /Alt punctaj/ });
+    await userEvent.clear(field);
+    await userEvent.type(field, '1,5');
+    await userEvent.click(screen.getByRole('button', { name: 'Verifică paginile necitite' }));
+    await expectLocation(at(11, 'pagini', 'toate'));
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByRole('button', { name: 'Verifică Subiectul II, ex. 1' }));
+    await expectLocation(at(11, '32', 'toate'));
+    expect(within(decision()).getByRole('textbox', { name: /Alt punctaj/ })).toHaveValue('1,5');
+  });
+
+  it('puts the focus on the next decision after a decision, though it was kept', async () => {
+    renderAdmin(paperAt(11, '32', 'toate'), apiWith(), <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Verifică paginile necitite' }));
+    await expectLocation(at(11, 'pagini', 'toate'));
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Am verificat paginile' }));
+    await expectLocation(at(11, '32', 'toate'));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Decide: Subiectul II, ex. 1' })).toHaveFocus());
+  });
+
+  it('drops a kept row once it is checked', async () => {
+    renderAdmin(paperAt(11, 'pagini', 'toate'), apiWith(), <LocationProbe />);
+    expect(await screen.findByRole('heading', { name: 'Decide: Paginile necitite' })).toBeInTheDocument();
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await expectLocation(at(11, '32', 'toate'));
+    await userEvent.click(screen.getByRole('button', { name: 'Verifică paginile necitite' }));
+    await userEvent.click(await within(decision()).findByRole('button', { name: 'Am verificat paginile' }));
+    // The next point opens: II.1, kept until now, is the open row.
+    await expectLocation(at(11, '32', 'toate'));
+    await waitFor(() => expect(document.querySelector('.pages-check')).toBeNull());
+    expect(document.querySelectorAll('.decision-slot.is-kept')).toHaveLength(0);
+  });
+
+  it('hides the paper for more room, keeps the choice in this browser, and shows it again', async () => {
+    const first = renderAdmin(paperAt(11, '32', 'toate'), apiWith(), <LocationProbe />);
+    expect(await screen.findByText('Ana Pop · 3/3')).toBeInTheDocument();
+    expect(screen.getByText(/pagina$/, { selector: '.review-keys-line > span' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ascunde lucrarea' }));
+    expect(screen.queryByText('Ana Pop · 3/3')).not.toBeInTheDocument();
+    expect(screen.queryByText(/pagina$/, { selector: '.review-keys-line > span' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arată lucrarea' })).toHaveFocus();
+    expect(localStorage.getItem('quickeval:paperPhotoFolded')).toBe('on');
+    // The keys still walk the points; the numbers have no page to show.
+    await userEvent.keyboard('k');
+    await expectLocation(at(11, 'pagini', 'toate'));
+    first.unmount();
+    renderAdmin(paperAt(11, '32', 'toate'), apiWith());
+    await userEvent.click(await screen.findByRole('button', { name: 'Arată lucrarea' }));
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ascunde lucrarea' })).toHaveFocus();
+    expect(localStorage.getItem('quickeval:paperPhotoFolded')).toBe('off');
+  });
+
+  it('changes no page with the numbers while the paper is folded', async () => {
+    renderAdmin(paperAt(11, '32', 'toate'), apiWith());
+    expect(await screen.findByText('Ana Pop · 3/3')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ascunde lucrarea' }));
+    await userEvent.keyboard('1');
+    await userEvent.click(screen.getByRole('button', { name: 'Arată lucrarea' }));
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
+  });
+
+  it('shows the folded paper again on "Arată pe lucrare", and leaves it folded for a click on a row', async () => {
+    renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Ascunde lucrarea' }));
+    await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
+    await expectLocation(at(11, '32', 'toate'));
+    expect(screen.getByRole('button', { name: 'Arată lucrarea' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
+    await expectLocation(at(11, '31', 'toate'));
+    expect(screen.getByText('Ana Pop · 1/3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ascunde lucrarea' })).not.toHaveFocus();
+    expect(localStorage.getItem('quickeval:paperPhotoFolded')).toBe('off');
+  });
+
+  it('hides the paper with no files too', async () => {
+    const [ana, ion, eva] = papers();
+    ion!.files = [];
+    renderAdmin(paperAt(14, '41'), apiWith([ana!, ion!, eva!]));
+    await userEvent.click(await screen.findByRole('button', { name: 'Ascunde lucrarea' }));
+    expect(screen.queryByText('Elevul nu a încărcat niciun fișier.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arată lucrarea' })).toBeInTheDocument();
   });
 
   it('says when a paper has no files', async () => {

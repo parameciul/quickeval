@@ -34,6 +34,7 @@ export function ReviewPhoto({
   focus,
   frames,
   onFrames,
+  onHide,
 }: {
   submission: SubmissionDetail;
   page: number;
@@ -41,6 +42,8 @@ export function ReviewPhoto({
   focus: ReviewFocus | null;
   frames: boolean;
   onFrames: (on: boolean) => void;
+  // Folds the pane to a strip, for more room for the exercises.
+  onHide?: () => void;
 }) {
   const { base } = useApi();
   // A finger cannot hit the label's small controls, and the label may end near
@@ -83,9 +86,16 @@ export function ReviewPhoto({
     onPage(area.page - 1);
   };
 
+  const hide = onHide ? (
+    <button type="button" className="button-quiet button-small" aria-label="Ascunde lucrarea" title="Ascunde lucrarea" onClick={onHide}>
+      Ascunde
+    </button>
+  ) : null;
+
   if (!file) {
     return (
       <div className="review-photo">
+        {hide && <div className="review-photo-top is-end">{hide}</div>}
         <p className="hint">Elevul nu a încărcat niciun fișier.</p>
       </div>
     );
@@ -154,6 +164,7 @@ export function ReviewPhoto({
               ))}
             </span>
           )}
+          {hide}
         </div>
       </div>
       {photo ? (
