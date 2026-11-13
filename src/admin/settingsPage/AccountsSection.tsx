@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import type { Account } from '../../../shared/api.ts';
+import type { AccountEventKind } from '../../../shared/accounts.ts';
+import type { Account, AccountDetail, RefusedAccount } from '../../../shared/api.ts';
 import { DEMO_PAPER_LIMIT } from '../../../shared/accounts.ts';
-import { countLabel, formatDateTime } from '../../ui/format.ts';
+import { countLabel, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
@@ -14,6 +15,7 @@ import { useSmallMenu } from '../shell/useSmallMenu.ts';
 export function AccountsSection() {
   const api = useApi();
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api.listAccounts() });
+  const refused = useQuery({ queryKey: ['refused-accounts'], queryFn: () => api.listRefusedAccounts() });
   const pending = accounts.data?.filter((account) => account.status === 'pending') ?? [];
   const others = accounts.data?.filter((account) => account.status !== 'pending') ?? [];
   const waitingHeading = useRef<HTMLHeadingElement>(null);
@@ -62,15 +64,59 @@ export function AccountsSection() {
               </tbody>
             </table>
           </section>
+          {refused.data && refused.data.length > 0 && <RefusedCard refused={refused.data} />}
         </>
       )}
     </>
   );
 }
 
+// The requests an administrator refused, newest first: the account is gone, so
+// this is what is left of it.
+function RefusedCard({ refused }: { refused: RefusedAccount[] }) {
+  return (
+    <section className="class-card" aria-labelledby="accounts-refused">
+      <div className="class-card-head">
+        <h2 id="accounts-refused">Conturi refuzate</h2>
+        <span>{countLabel(refused.length, 'cerere', 'cereri')}</span>
+      </div>
+      <table className="accounts-table" aria-labelledby="accounts-refused">
+        <thead>
+          <tr>
+            <th scope="col">Cont</th>
+            <th scope="col">Cerut</th>
+            <th scope="col">Refuzat</th>
+            <th scope="col">De</th>
+          </tr>
+        </thead>
+        <tbody>
+          {refused.map((request) => (
+            <tr key={`${request.email}-${request.refusedAt}`}>
+              <th scope="row">
+                <span className="account-person">
+                  {request.name}
+                  <span>{request.email}</span>
+                </span>
+              </th>
+              <td>{formatDateTime(request.askedAt)}</td>
+              <td>{formatDateTime(request.refusedAt)}</td>
+              <td>{request.by ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="class-card-foot">Cererile refuzate se șterg: aici rămâne doar cine le-a cerut și cine le-a refuzat.</p>
+    </section>
+  );
+}
+
 function useReload() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: ['accounts'] });
+  // A refusal wrote a row in the refused accounts' journal.
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    void queryClient.invalidateQueries({ queryKey: ['refused-accounts'] });
+  };
 }
 
 function Person({ account }: { account: Account }) {
@@ -222,12 +268,24 @@ function AccountRow({ account }: { account: Account }) {
   const queryClient = useQueryClient();
   const reload = useReload();
   const [password, setPassword] = useState<string | null>(null);
+  const [details, setDetails] = useState(false);
+  const detailsId = `account-details-${account.id}`;
   const update = useMutation({
     mutationFn: (change: { demo?: boolean; status?: 'active' | 'disabled' }) => api.updateAccount(account.id, change),
-    onSuccess: (accounts) => queryClient.setQueryData(['accounts'], accounts),
+    onSuccess: (accounts) => {
+      queryClient.setQueryData(['accounts'], accounts);
+      // An open "Detalii" reads the history again: a change just wrote one.
+      void queryClient.invalidateQueries({ queryKey: ['account', account.id] });
+    },
     onError: reload,
   });
-  const reset = useMutation({ mutationFn: () => api.resetPassword(account.id), onSuccess: setPassword });
+  const reset = useMutation({
+    mutationFn: () => api.resetPassword(account.id),
+    onSuccess: (made) => {
+      setPassword(made);
+      void queryClient.invalidateQueries({ queryKey: ['account', account.id] });
+    },
+  });
   const kind = accountKind(account);
   const error = update.error ?? reset.error;
 
@@ -240,14 +298,26 @@ function AccountRow({ account }: { account: Account }) {
         </td>
         <td>{accountUse(account)}</td>
         <td>
-          {account.role === 'teacher' && (
-            <AccountMenu
-              account={account}
-              busy={update.isPending || reset.isPending}
-              onChange={(change) => update.mutate(change)}
-              onNewPassword={() => reset.mutate()}
-            />
-          )}
+          <div className="account-actions">
+            <button
+              type="button"
+              className="button-quiet button-small"
+              aria-label={`Detalii pentru ${account.name}`}
+              aria-expanded={details}
+              aria-controls={details ? detailsId : undefined}
+              onClick={() => setDetails((open) => !open)}
+            >
+              Detalii
+            </button>
+            {account.role === 'teacher' && (
+              <AccountMenu
+                account={account}
+                busy={update.isPending || reset.isPending}
+                onChange={(change) => update.mutate(change)}
+                onNewPassword={() => reset.mutate()}
+              />
+            )}
+          </div>
         </td>
       </tr>
       {(password || error) && (
@@ -265,7 +335,204 @@ function AccountRow({ account }: { account: Account }) {
           </td>
         </tr>
       )}
+      {details && (
+        <tr className="accounts-follow">
+          <td colSpan={4} id={detailsId}>
+            <AccountDetails account={account} />
+          </td>
+        </tr>
+      )}
     </>
+  );
+}
+
+const EVENT_LABEL: Record<AccountEventKind, string> = {
+  created: 'Cont creat',
+  email_confirmed: 'Email confirmat',
+  approved: 'Cont aprobat',
+  demo: 'Făcut cont demo',
+  complete: 'Făcut cont complet',
+  password: 'Parolă schimbată',
+  closed: 'Cont închis',
+  reopened: 'Cont redeschis',
+};
+
+// "Detalii": what the account used, the robot's work by kind and by test, and
+// its whole history, read only when opened.
+function AccountDetails({ account }: { account: Account }) {
+  const api = useApi();
+  const detail = useQuery({ queryKey: ['account', account.id], queryFn: () => api.getAccount(account.id) });
+  return (
+    <>
+      {detail.isPending && <p>Se încarcă…</p>}
+      {detail.error && <ErrorMessage error={detail.error} />}
+      {detail.data && <AccountDetailView detail={detail.data} />}
+    </>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </>
+  );
+}
+
+const THOUSANDS = new Intl.NumberFormat('ro-RO');
+const tokenLabel = (tokens: number) => (tokens > 0 ? THOUSANDS.format(tokens) : '—');
+
+// The rows of the robot's work, in the order of the work a test goes through.
+const ROBOT_KINDS = [
+  { kind: 'grading', label: 'Corectări' },
+  { kind: 'exercise_list', label: 'Liste de exerciții' },
+  { kind: 'analysis', label: 'Analize ale clasei' },
+  { kind: 'barem', label: 'Bareme' },
+  { kind: 'print', label: 'Teste pentru tipărire' },
+] as const;
+
+// What the robot did for the account: the work of each kind that worked, the
+// attempts it gave up on, and the tokens Claude reported. The print PDFs are
+// made without Claude, so they have no tokens.
+function RobotWorkTable({ robot }: { robot: AccountDetail['robot'] }) {
+  const done = ROBOT_KINDS.reduce((sum, row) => sum + robot[row.kind].done, 0);
+  const failed = ROBOT_KINDS.reduce((sum, row) => sum + robot[row.kind].failed, 0);
+  if (done + failed === 0) return <p>Robotul nu a lucrat încă pentru acest cont.</p>;
+  return (
+    <>
+      <div className="table-wrap">
+        <table className="account-work">
+          <thead>
+            <tr>
+              <th scope="col">Operația</th>
+              <th scope="col">Reușite</th>
+              <th scope="col">Eșuate</th>
+              <th scope="col">Tokeni</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ROBOT_KINDS.map(({ kind, label }) => (
+              <tr key={kind}>
+                <th scope="row">{label}</th>
+                <td>{THOUSANDS.format(robot[kind].done)}</td>
+                <td>{robot[kind].failed > 0 ? THOUSANDS.format(robot[kind].failed) : '—'}</td>
+                <td>{tokenLabel(robot[kind].tokens)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="account-failure">
+        {failed === 0
+          ? 'Nicio încercare ratată.'
+          : `Rata eșecurilor: ${Math.round((100 * failed) / (done + failed))}% (${countLabel(failed, 'încercare ratată', 'încercări ratate')} din ${done + failed}).`}
+      </p>
+    </>
+  );
+}
+
+// One row per test of the account: what the robot did for it, what it graded,
+// and how many of its points the teacher corrected.
+function TestWorkTable({ tests }: { tests: AccountDetail['tests'] }) {
+  if (tests.length === 0) return <p>Niciun test încă.</p>;
+  return (
+    <div className="table-wrap">
+      <table className="account-work">
+        <thead>
+          <tr>
+            <th scope="col">Testul</th>
+            <th scope="col">Clasa</th>
+            <th scope="col">Lucrări corectate</th>
+            <th scope="col">Operații ale robotului</th>
+            <th scope="col">Puncte corectate</th>
+            <th scope="col">Tokeni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tests.map((test) => {
+            const operations =
+              test.robot.barems +
+              test.robot.exerciseLists +
+              test.robot.analyses +
+              test.robot.prints +
+              test.robot.gradings +
+              test.robot.failures;
+            return (
+              <tr key={test.code}>
+                <th scope="row">
+                  <span className="account-person">
+                    {test.title}
+                    <span>{test.code}</span>
+                  </span>
+                </th>
+                <td>{test.className}</td>
+                <td>{THOUSANDS.format(test.papers)}</td>
+                <td>{operations > 0 ? THOUSANDS.format(operations) : '—'}</td>
+                <td>{test.pointsChanged > 0 ? THOUSANDS.format(test.pointsChanged) : '—'}</td>
+                <td>{tokenLabel(test.robot.tokens)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AccountDetailView({ detail }: { detail: AccountDetail }) {
+  const { account, events, counts, activity, robot, tests } = detail;
+  return (
+    <div className="account-detail">
+      <div>
+        <h3>Activitatea contului</h3>
+        <dl className="account-stats">
+          <Stat label="Teste trimise la corectare" value={countLabel(account.testsEvaluated, 'test', 'teste')} />
+          <Stat label="Lucrări corectate" value={countLabel(account.papersGraded, 'lucrare', 'lucrări')} />
+          <Stat label="Lucrări în lucru acum" value={countLabel(account.papersWaiting, 'lucrare', 'lucrări')} />
+          <Stat label="Bareme generate de robot" value={countLabel(account.baremsGenerated, 'barem', 'bareme')} />
+          <Stat label="Liste de exerciții generate" value={countLabel(account.exerciseListsMade, 'listă', 'liste')} />
+          <Stat label="Analize ale clasei generate" value={countLabel(account.analysesMade, 'analiză', 'analize')} />
+          <Stat label="Teste pregătite pentru tipărire" value={countLabel(account.printsMade, 'test', 'teste')} />
+          <Stat label="Clase" value={countLabel(counts.classes, 'clasă', 'clase')} />
+          <Stat label="Elevi" value={countLabel(counts.students, 'elev', 'elevi')} />
+          <Stat label="Teste create" value={countLabel(counts.tests, 'test', 'teste')} />
+          <Stat label="Teste corectate în ultimele 30 de zile" value={countLabel(activity.testsLast30Days, 'test', 'teste')} />
+          <Stat label="Lucrări corectate în ultimele 30 de zile" value={countLabel(activity.papersLast30Days, 'lucrare', 'lucrări')} />
+          <Stat label="Spațiul lucrărilor" value={activity.r2Bytes > 0 ? formatFileSize(activity.r2Bytes) : 'nimic'} />
+          <Stat label="Ultima intrare" value={account.lastLoginAt ? formatDateTime(account.lastLoginAt) : 'niciodată'} />
+        </dl>
+        <p className="hint">
+          Baremele, listele de exerciții, analizele și testele pentru tipărire sunt operațiile robotului din afara corectării lucrărilor.
+        </p>
+      </div>
+      <div>
+        <h3>Consumul robotului</h3>
+        <RobotWorkTable robot={robot} />
+      </div>
+      <div className="account-detail-wide">
+        <h3>Fiecare test</h3>
+        <TestWorkTable tests={tests} />
+      </div>
+      <div className="account-detail-wide">
+        <h3>Istoricul contului</h3>
+        {events.length > 0 ? (
+          <ol className="account-history">
+            {events.map((event, index) => (
+              <li key={`${event.kind}-${event.at}-${index}`}>
+                <span>
+                  {EVENT_LABEL[event.kind]}
+                  {event.by && event.by.id !== account.id && <span className="by"> de {event.by.name}</span>}
+                </span>
+                <time dateTime={event.at}>{formatDateTime(event.at)}</time>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p>Nicio schimbare înregistrată.</p>
+        )}
+      </div>
+    </div>
   );
 }
 

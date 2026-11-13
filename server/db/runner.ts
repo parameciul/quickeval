@@ -1,4 +1,5 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
+import type { RobotWorkKind } from '../../shared/accounts.ts';
 import type { ExerciseListInfo } from '../../shared/api.ts';
 import { DOCX_TYPE } from '../../shared/files.ts';
 import {
@@ -687,6 +688,24 @@ export async function holdsLease(db: D1Database, runId: string): Promise<boolean
   return row !== null;
 }
 
+// One robot operation, for the account's statistics on Setări: what it made,
+// for which test and variant, whether it worked, and the tokens Claude
+// reported. The teacher comes from the test, so a test deleted in the same
+// moment logs nothing: there is no account to put it on. A failed attempt has
+// no tokens, and a print PDF is made without Claude.
+export async function logRobotWork(
+  db: D1Database,
+  work: { testId: number; kind: RobotWorkKind; variant: TestVariant; ok: boolean; tokens?: number | null; at: string },
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO robot_work (teacher_id, test_id, kind, variant, ok, tokens, at)
+       SELECT teacher_id, id, ?, ?, ?, ?, ? FROM tests WHERE id = ?`,
+    )
+    .bind(work.kind, work.variant, work.ok ? 1 : 0, work.ok ? (work.tokens ?? null) : null, work.at, work.testId)
+    .run();
+}
+
 // Takes the next upload in line and marks it as this run's: the uploads with
 // the fewest attempts first (an upload whose grading just failed waits for the
 // others), and among them the students in alphabetical order. Null when there
@@ -932,22 +951,39 @@ export async function findRobotFile(db: D1Database, submissionId: number, fileId
 }
 
 // An upload as the result route sees it, with the exercise list of its test,
-// the CES variant's for a CES paper.
+// the CES variant's for a CES paper, and the test and variant the robot's work
+// is logged under.
 export async function findGrading(
   db: D1Database,
   submissionId: number,
-): Promise<{ status: string; runId: string | null; startedAt: string; exerciseList: ExerciseList | null; subject: DetectedSubject | null } | null> {
+): Promise<{
+  status: string;
+  runId: string | null;
+  startedAt: string;
+  testId: number;
+  variant: TestVariant;
+  exerciseList: ExerciseList | null;
+  subject: DetectedSubject | null;
+} | null> {
   const row = await db
     .prepare(
-      `SELECT s.status, s.run_id, s.started_at, t.subject,
+      `SELECT s.status, s.run_id, s.started_at, s.test_id, s.variant, t.subject,
          CASE WHEN s.variant = 'ces' THEN t.ces_exercise_list_json ELSE t.exercise_list_json END AS exercise_list_json
        FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.id = ?`,
     )
     .bind(submissionId)
-    .first<{ status: string; run_id: string | null; started_at: string; exercise_list_json: string | null; subject: DetectedSubject | null }>();
+    .first<{ status: string; run_id: string | null; started_at: string; test_id: number; variant: string | null; exercise_list_json: string | null; subject: DetectedSubject | null }>();
   if (!row) return null;
   const exerciseList = row.exercise_list_json ? (JSON.parse(row.exercise_list_json) as ExerciseList) : null;
-  return { status: row.status, runId: row.run_id, startedAt: row.started_at, exerciseList, subject: row.subject };
+  return {
+    status: row.status,
+    runId: row.run_id,
+    startedAt: row.started_at,
+    testId: row.test_id,
+    variant: row.variant === 'ces' ? 'ces' : 'class',
+    exerciseList,
+    subject: row.subject,
+  };
 }
 
 // This run is grading this upload: its id, its run, and the time it started.

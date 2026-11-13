@@ -1,5 +1,6 @@
 import type { ChildProcess, SpawnOptions } from 'node:child_process';
 import { spawn } from 'node:child_process';
+import { MAX_ROBOT_TOKENS } from '../shared/accounts.ts';
 
 // Runs Claude Code for one robot task (spec §12.4), the same way on GitHub and
 // in `npm run try:skill`.
@@ -110,7 +111,11 @@ export function claudeEnv(settings: ClaudeSettings, base: Record<string, string 
 export type ClaudeProblem = 'timeout' | 'usage_limit' | 'not_logged_in' | 'invalid_output' | 'crash';
 
 // `detail` is for the public log: categories and codes, never Claude's text.
-export type ClaudeOutcome = { ok: true; output: unknown; model: string; effort?: string } | { ok: false; problem: ClaudeProblem; detail: string };
+// `tokens` is what Claude reported for the answer (see MAX_TOKENS in
+// shared/runner.ts), for the account's statistics.
+export type ClaudeOutcome =
+  | { ok: true; output: unknown; model: string; effort?: string; tokens: number }
+  | { ok: false; problem: ClaudeProblem; detail: string };
 
 // The fields of Claude Code's JSON result that the robot reads.
 interface ResultMessage {
@@ -150,6 +155,18 @@ function modelOf(message: ResultMessage): string {
   return (used[0]?.[0] ?? 'unknown').slice(0, 100);
 }
 
+// What the answer cost in tokens: the output tokens of every model that took
+// part (a task may hand over to a smaller one). The plan is a subscription, so
+// this is the only measure; a missing or nonsensical number counts as 0.
+function tokensOf(message: ResultMessage): number {
+  let total = 0;
+  for (const usage of Object.values(message.modelUsage ?? {})) {
+    const tokens = usage?.outputTokens;
+    if (typeof tokens === 'number' && Number.isFinite(tokens) && tokens > 0) total += tokens;
+  }
+  return Math.min(Math.round(total), MAX_ROBOT_TOKENS);
+}
+
 // Reads what `claude -p --output-format json` printed. The order matters: an
 // error exits with code 1 and still prints JSON, and a refused login comes
 // with subtype "success" and is_error true.
@@ -179,7 +196,7 @@ export function readOutcome(stdout: string, exitCode: number | null, timedOut: b
   if (message.subtype !== 'success' || message.structured_output === undefined || message.structured_output === null) {
     return { ok: false, problem: 'invalid_output', detail };
   }
-  return { ok: true, output: message.structured_output, model: modelOf(message) };
+  return { ok: true, output: message.structured_output, model: modelOf(message), tokens: tokensOf(message) };
 }
 
 export interface ClaudeTask {

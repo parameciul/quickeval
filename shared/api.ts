@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  type AccountEventKind,
   type AccountStatus,
   isCommonPassword,
   MAX_EMAIL_LENGTH,
@@ -7,6 +8,7 @@ import {
   MAX_TEACHER_NAME_LENGTH,
   MIN_PASSWORD_LENGTH,
   normalizeEmail,
+  type RobotWorkKind,
   type Role,
 } from './accounts.ts';
 import { normalizeClassName } from './classes.ts';
@@ -407,6 +409,85 @@ export interface Account extends Teacher {
   status: AccountStatus;
   createdAt: string;
   approvedAt: string | null;
+  // The last good login; null while the account never logged in.
+  lastLoginAt: string | null;
+  // Robot work outside the grading of papers (the class and CES variants
+  // together): barems generated from the test file, exercise lists, class
+  // analyses, and print PDFs with the QR code.
+  baremsGenerated: number;
+  exerciseListsMade: number;
+  analysesMade: number;
+  printsMade: number;
+}
+
+// A change of the account: when it was created, confirmed its email, was
+// approved, made demo or complete, closed or reopened, or got a new password.
+// `by` is who made it: the administrator, or the teacher on "Contul meu".
+// Created and confirmed by the teacher's own link have none.
+export interface AccountEvent {
+  kind: AccountEventKind;
+  at: string;
+  by: { id: number; name: string } | null;
+}
+
+// What the account made: its classes, the students in them, and its tests.
+export interface AccountCounts {
+  classes: number;
+  students: number;
+  tests: number;
+}
+
+// How the account used the site lately, and how much room its papers take.
+export interface AccountActivity {
+  // Tests whose grading ended in the last 30 days, and their graded papers.
+  testsLast30Days: number;
+  papersLast30Days: number;
+  // The bytes of the students' pages, the only files whose size is kept.
+  r2Bytes: number;
+}
+
+// One kind of robot work: how many worked, how many failed, and the tokens
+// Claude reported for the ones that worked (0 for the print PDF, which Claude
+// does not make).
+export interface RobotWorkCount {
+  done: number;
+  failed: number;
+  tokens: number;
+}
+
+export type RobotWorkTotals = Record<RobotWorkKind, RobotWorkCount>;
+
+// What one test used of the robot, since this count began, and how many of its
+// points the teacher corrected.
+export interface AccountTestWork {
+  code: string;
+  title: string;
+  className: string;
+  createdAt: string;
+  papers: number;
+  pointsChanged: number;
+  robot: { barems: number; exerciseLists: number; analyses: number; prints: number; gradings: number; failures: number; tokens: number };
+}
+
+// A request that an administrator refused: the account is gone, so this is
+// what is left of it. `by` is the administrator who refused it.
+export interface RefusedAccount {
+  email: string;
+  name: string;
+  askedAt: string;
+  refusedAt: string;
+  by: string | null;
+}
+
+// "Detalii" on Setări: the history of the account, what it made, how it used
+// the robot, and what each of its tests used.
+export interface AccountDetail {
+  account: Account;
+  events: AccountEvent[];
+  counts: AccountCounts;
+  activity: AccountActivity;
+  robot: RobotWorkTotals;
+  tests: AccountTestWork[];
 }
 
 // A password made by an administrator, shown this once.

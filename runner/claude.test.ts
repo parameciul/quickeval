@@ -85,7 +85,15 @@ describe('readOutcome', () => {
       structured_output: { ok: 1 },
       modelUsage: { 'claude-haiku-5-5': null, 'claude-opus-5-5': { outputTokens: 900 } },
     });
-    expect(readOutcome(run, 0, false)).toEqual({ ok: true, output: { ok: 1 }, model: 'claude-opus-5-5' });
+    expect(readOutcome(run, 0, false)).toEqual({ ok: true, output: { ok: 1 }, model: 'claude-opus-5-5', tokens: 900 });
+  });
+
+  it('adds up the tokens of every model that took part, with a cap', () => {
+    const run = (usage: unknown) => JSON.stringify({ type: 'result', subtype: 'success', is_error: false, structured_output: { ok: 1 }, modelUsage: usage });
+    expect(readOutcome(run({ 'claude-opus-5-5': { outputTokens: 1200 }, 'claude-haiku-5-5': { outputTokens: 300 } }), 0, false)).toMatchObject({ tokens: 1500 });
+    expect(readOutcome(run({ 'claude-opus-5-5': { outputTokens: 99_000_000 } }), 0, false)).toMatchObject({ tokens: 10_000_000 });
+    expect(readOutcome(run(undefined), 0, false)).toMatchObject({ tokens: 0 });
+    expect(readOutcome(run({ 'claude-opus-5-5': { outputTokens: -5 } }), 0, false)).toMatchObject({ tokens: 0 });
   });
 
   it('keeps the detail free of Claude text', () => {

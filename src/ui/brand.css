@@ -5996,6 +5996,128 @@ table.items tr.edit-row > td {
   margin-top: 0.5rem;
 }
 
+/* "Detalii" under an account: what the account used and made on the left, its
+   whole history on the right; one column below 56.25rem. */
+.account-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem 2rem;
+  padding: 0.25rem 0 1rem;
+}
+
+.account-detail h3 {
+  margin: 0 0 0.5rem;
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.account-stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.account-stats dt {
+  color: var(--muted);
+}
+
+.account-stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-detail .hint {
+  margin: 0.75rem 0 0;
+}
+
+.account-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.account-history li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.375rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.account-history li:first-child {
+  border-top: 0;
+}
+
+.account-history time {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.account-history .by {
+  color: var(--muted);
+}
+
+.account-detail-wide {
+  grid-column: 1 / -1;
+}
+
+/* The robot's work and each test of an account: a compact table inside
+   "Detalii", with the numbers on the right. */
+.account-work {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.account-work th,
+.account-work td {
+  padding: 0.375rem 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.account-work thead th {
+  padding-bottom: 0.25rem;
+  border-top: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.account-work tbody th {
+  font-weight: 400;
+}
+
+.account-work td,
+.account-work thead th:not(:first-child) {
+  padding-left: 0.75rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.account-work .account-person {
+  font-size: 0.875rem;
+}
+
+.account-failure {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 56.25rem) {
+  .account-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 40rem) {
   .accounts-table thead {
     position: absolute;
