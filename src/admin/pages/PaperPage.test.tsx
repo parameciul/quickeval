@@ -102,7 +102,7 @@ describe('the paper page', () => {
 
   it('shows the paper beside the exercises, one page at a time with its file, and a PDF in a frame with a link', async () => {
     renderAdmin(page, apiWith());
-    expect(await screen.findByText('Pop Ion · pagina 1 din 2')).toBeInTheDocument();
+    expect(await screen.findByText('Pop Ion · 1/2')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' })).toHaveAttribute('src', '/api/admin/submissions/5/files/21');
     // Each page names its file, as the student sent it.
     expect(screen.getByText('IMG_0001.jpg · 820 KB')).toBeInTheDocument();
@@ -192,13 +192,13 @@ describe('the paper page', () => {
     expect(screen.queryByRole('button', { name: 'Trimite' })).not.toBeInTheDocument();
   });
 
-  it('checks an item: "Verifică" opens it, "Confirmă" checks it', async () => {
+  it('checks an item: "Verifică" opens it, "Accept" checks it', async () => {
     const api = apiWith(graded);
     renderAdmin(page, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Verifică Subiectul II, ex. 1' }));
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     expect(within(panel).getByText('Scrisul nu se citește.')).toBeInTheDocument();
-    await userEvent.click(within(panel).getByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     expect(api.correctItem).toHaveBeenCalledWith(5, 32, { gradedAt: GRADED_AT, reviewed: true });
     expect(await within(row('Subiectul II, ex. 1')).findByText('Verificat')).toBeInTheDocument();
     expect(row('Subiectul II, ex. 1')).not.toHaveClass('is-to-check');
@@ -208,7 +208,7 @@ describe('the paper page', () => {
   it('reads the tests of the year once after a check, not twice', async () => {
     const api = apiWith(graded);
     renderAdmin(`${page}?punct=32`, api);
-    const check = await screen.findByRole('button', { name: 'Confirmă 1p' });
+    const check = await screen.findByRole('button', { name: 'Accept 1p' });
     await vi.waitFor(() => expect(api.listTests).toHaveBeenCalled());
     const before = api.listTests.mock.calls.length;
     await userEvent.click(check);
@@ -375,7 +375,7 @@ describe('the paper page', () => {
     const api = apiWith(graded);
     api.correctItem.mockRejectedValueOnce(new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.'));
     renderAdmin(`${page}?punct=32`, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Confirmă 1p' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Accept 1p' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Lucrarea se corectează din nou. Reîncarcă pagina.');
   });
 

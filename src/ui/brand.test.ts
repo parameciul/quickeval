@@ -140,6 +140,23 @@ describe('brand.css', () => {
     expect(value(declarations('.upload-page .button-small'), 'min-height')).toBe('2.75rem');
   });
 
+  it('lets the decision under an open row wrap, so the exercises table never scrolls sideways', () => {
+    const start = css.indexOf('@media (min-width: 48.01rem) {\n  .graded-result table.items td[data-label="Puncte"]');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const rule = css.slice(start, css.indexOf('}', start));
+    expect(rule).toContain('white-space: nowrap');
+    expect(rule).toContain('tr:not(.item-decision) > td:last-child');
+    expect(rule).not.toMatch(/table\.items td:last-child/);
+  });
+
+  it('shows the keys of the paper page only when their whole line fits in the bar', () => {
+    const keys = declarations('.review-keys');
+    expect(value(keys, 'flex-wrap')).toBe('wrap');
+    expect(value(keys, 'overflow')).toBe('hidden');
+    expect(value(keys, 'height')).toBe(value(declarations('.review-keys::before'), 'height'));
+    expect(value(declarations('.review-keys-line'), 'white-space')).toBe('nowrap');
+  });
+
   it('is flat: no gradient, no notebook grid', () => {
     expect(css).not.toMatch(/gradient\(/);
     expect(css).not.toContain('--grid');

@@ -8,15 +8,31 @@ import { isZoomed, layerTransform, MAX_SCALE, panBy, pinchScale, WHOLE_PAGE, zoo
 // the zoomed page, and the two buttons over the page take the same step. The
 // wheel is left to the page, which scrolls with it; only a trackpad pinch (a
 // wheel with ctrlKey) zooms, around the pointer, and two fingers pinch on a
-// touch screen. Esc and "Toată pagina" show the whole page again. The view
-// belongs to the caller, who also shows "Toată pagina". `children` are drawn
-// over the page (the border of an answer), in the pane's own coordinates.
+// touch screen. Esc and "Toată pagina" (off while the page is whole) show the
+// whole page again. The view belongs to the caller. `children` are drawn over
+// the page (the border of an answer), in the pane's own coordinates. Two
+// floating bars sit over the page: the view of the page on the top left (the
+// caller's `tools`, then "Toată pagina"), the zoom alone on the top right.
 //
 // While the page is whole, a line over its bottom says what a click does,
 // worded for the pointer at hand: a phone has no right button, so there a tap
 // and two fingers do the work. Once the page is zoomed the line goes, so the
 // handwriting is left alone; the title says what a drag and a right click do.
-export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; alt: string; view: ZoomView; onView: (view: ZoomView) => void; children?: ReactNode }) {
+export function ZoomPhoto({
+  src,
+  alt,
+  view,
+  onView,
+  tools,
+  children,
+}: {
+  src: string;
+  alt: string;
+  view: ZoomView;
+  onView: (view: ZoomView) => void;
+  tools?: ReactNode;
+  children?: ReactNode;
+}) {
   const pane = useRef<HTMLDivElement>(null);
   // A finger cannot right-click, and cannot read a tooltip.
   const touch = useMediaQuery('(pointer: coarse)');
@@ -165,8 +181,37 @@ export function ZoomPhoto({ src, alt, view, onView, children }: { src: string; a
         <p className="zoom-hint">{touch ? 'Atinge: mărește · ciupește: micșorează' : 'Clic stânga: mărește · clic dreapta: micșorează'}</p>
       )}
       {children}
-      {/* The zoom's buttons float over the page, in reach of a thumb on a
-          phone: a press on one is never a press on the page under it. */}
+      {/* The buttons float over the page, in reach of a thumb on a phone: a
+          press on one is never a press on the page under it. */}
+      <span
+        className="zoom-controls is-left"
+        role="group"
+        aria-label="Vederea paginii"
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerUp={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {tools}
+        <button
+          type="button"
+          className="button-quiet button-small icon-button"
+          aria-label="Toată pagina"
+          title="Toată pagina"
+          disabled={!zoomed}
+          onClick={() => onView(WHOLE_PAGE)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </span>
       <span
         className="zoom-controls"
         role="group"

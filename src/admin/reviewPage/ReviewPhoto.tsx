@@ -6,7 +6,7 @@ import { useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { submissionFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { AnswerFrame } from './AnswerFrame.tsx';
-import { isZoomed, WHOLE_PAGE, type ZoomView } from './zoom.ts';
+import { WHOLE_PAGE, type ZoomView } from './zoom.ts';
 import { ZoomPhoto } from './ZoomPhoto.tsx';
 
 // The answer to check: `key` names it (the paper and the item), `label` is the
@@ -18,9 +18,12 @@ export interface ReviewFocus {
 }
 
 // The middle pane of the review: one page of the paper at a time, with the
-// page switch. A photo zooms inside the pane (ZoomPhoto): "Toată pagina" and
-// Esc show the whole page again, and a right click takes one step out. A PDF
-// shows in a frame. While "Arată chenarul" is on, the answer to check opens on
+// page switch ("2/3" beside the student's name, then a button per page). A
+// photo zooms inside the pane (ZoomPhoto): "Toată pagina" and Esc show the
+// whole page again, and a right click takes one step out. "Arată chenarul" is
+// a toggle in the same floating bar over the photo, an orange dashed frame,
+// shown while the open answer has an area. A PDF shows in a frame. While
+// "Arată chenarul" is on, the answer to check opens on
 // its page with an orange border around its first area, on the whole page: the
 // page never zooms by itself. An answer in more parts steps through them with
 // the arrows beside the border's label, each part opening on its page, whole.
@@ -88,7 +91,7 @@ export function ReviewPhoto({
     );
   }
   const url = submissionFileUrl(submission.id, file.id, base);
-  const caption = `${submission.studentName} · pagina ${index + 1} din ${files.length}`;
+  const caption = `${submission.studentName} · ${index + 1}/${files.length}`;
   const photo = file.contentType.startsWith('image/');
   const parts = framed?.areas.length ?? 0;
   const partLabel = (number: number) => (parts > 1 ? `${framed!.label} · partea ${number + 1} din ${parts}` : framed!.label);
@@ -151,21 +154,31 @@ export function ReviewPhoto({
               ))}
             </span>
           )}
-          {photo && isZoomed(view) && (
-            <button type="button" className="button-quiet button-small" onClick={() => setView(WHOLE_PAGE)}>
-              Toată pagina
-            </button>
-          )}
-          {focus !== null && focus.areas.length > 0 && (
-            <label className="check-label">
-              <input type="checkbox" checked={frames} onChange={(event) => onFrames(event.target.checked)} />
-              Arată chenarul
-            </label>
-          )}
         </div>
       </div>
       {photo ? (
-        <ZoomPhoto src={url} alt={`Pagina ${index + 1} a lucrării`} view={view} onView={setView}>
+        <ZoomPhoto
+          src={url}
+          alt={`Pagina ${index + 1} a lucrării`}
+          view={view}
+          onView={setView}
+          tools={
+            focus !== null && focus.areas.length > 0 ? (
+              <button
+                type="button"
+                className="button-quiet button-small icon-button frame-toggle"
+                aria-label="Arată chenarul"
+                aria-pressed={frames}
+                title={frames ? 'Ascunde chenarul răspunsului' : 'Arată chenarul răspunsului'}
+                onClick={() => onFrames(!frames)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 2.4" />
+                </svg>
+              </button>
+            ) : undefined
+          }
+        >
           {framed?.areas.map((area, number) =>
             area.page === index + 1 ? (
               <AnswerFrame
