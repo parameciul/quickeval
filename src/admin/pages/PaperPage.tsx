@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { ItemChange, ReviewPoint, SubmissionDetail, TestDetail } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
@@ -140,25 +140,33 @@ interface Decision {
 // it: the page is drawn anew for another student.
 type FocusTarget = 'point' | 'student';
 
+// A click that opened another row says so to the address it leads to: the
+// row open before stays open (kept). A key or a button that moves does not.
+function keepsRowOf(state: unknown): boolean {
+  return (state as { paperKeep?: unknown } | null)?.paperKeep === true;
+}
+
 function focusTargetOf(state: unknown): FocusTarget | null {
   const target = (state as { paperFocus?: unknown } | null)?.paperFocus;
   return target === 'point' || target === 'student' ? target : null;
 }
 
-// "Elevii" folded or not: the teacher's choice, kept in this browser.
+// "Elevii" and the paper, folded or not: the teacher's choice, kept in this
+// browser.
 const FOLD_KEY = 'quickeval:paperStudentsFolded';
+const PHOTO_FOLD_KEY = 'quickeval:paperPhotoFolded';
 
-function savedFold(): boolean {
+function savedFold(key: string): boolean {
   try {
-    return localStorage.getItem(FOLD_KEY) === 'on';
+    return localStorage.getItem(key) === 'on';
   } catch {
     return false;
   }
 }
 
-function saveFold(folded: boolean): void {
+function saveFold(key: string, folded: boolean): void {
   try {
-    localStorage.setItem(FOLD_KEY, folded ? 'on' : 'off');
+    localStorage.setItem(key, folded ? 'on' : 'off');
   } catch {
     // Storage can be blocked; the choice then lasts until the page reloads.
   }
@@ -217,15 +225,30 @@ function Paper({
 
   const actions = usePaperActions(code, submissionId);
 
-  // The open row and what waits on it: an exercise to check, or the pages the
-  // robot could not read.
+  // What waits on a row: an exercise to check, or the pages the robot could
+  // not read; null once it is checked.
+  const viewOf = (at: string | null): DecisionView | null => {
+    if (!evaluation || at === null) return null;
+    if (at === 'pagini') return evaluation.unreadable.length > 0 && !evaluation.pagesReviewed ? { kind: 'pages', pages: evaluation.unreadable } : null;
+    const found = evaluation.items.find((other) => String(other.id) === at);
+    return found && found.needsReview && !found.reviewed ? { kind: 'item', item: found } : null;
+  };
+  // The open row and what waits on it.
   const item = key !== null && key !== 'pagini' ? evaluation?.items.find((other) => String(other.id) === key) : undefined;
-  const decisionView: DecisionView | null =
-    item && item.needsReview && !item.reviewed
-      ? { kind: 'item', item }
-      : key === 'pagini' && evaluation && evaluation.unreadable.length > 0 && !evaluation.pagesReviewed
-        ? { kind: 'pages', pages: evaluation.unreadable }
-        : null;
+  const decisionView = viewOf(key);
+
+  // A row to check stays open, its decision dimmed, when the teacher clicks
+  // another row, until she closes it or checks it: a decision that closed
+  // above the row she clicks would move that row up under her pointer. A move
+  // with J, K or the buttons, and a row she closed herself, keep nothing. Each
+  // paper starts with none.
+  const keepsRow = keepsRowOf(location.state);
+  const [kept, setKept] = useState<{ at: string | null; keys: string[] }>({ at: key, keys: [] });
+  if (kept.at !== key) {
+    const left = kept.at !== null && keepsRow ? [kept.at] : [];
+    setKept({ at: key, keys: [...kept.keys, ...left].filter((other, index, all) => other !== key && all.indexOf(other) === index) });
+  }
+  const keptKeys = kept.keys.filter((other) => other !== key && viewOf(other) !== null);
 
   // The answer of the open row, with the areas the page can draw.
   const [frames, setFrames] = useState(savedFrames);
@@ -254,11 +277,29 @@ function Paper({
           : 0;
   const shownPage = pageChoice?.view === viewKey ? pageChoice.page : firstPage;
 
-  const [folded, setFolded] = useState(savedFold);
+  const [folded, setFolded] = useState(() => savedFold(FOLD_KEY));
   const onFold = (on: boolean) => {
     setFolded(on);
-    saveFold(on);
+    saveFold(FOLD_KEY, on);
   };
+
+  // The paper folds to a strip on the right, for more room for the exercises
+  // (after the checks the teacher may not need it). Its other button takes
+  // the focus, as the one pressed goes; "Arată pe lucrare" shows it again and
+  // keeps the focus.
+  const [photoFolded, setPhotoFolded] = useState(() => savedFold(PHOTO_FOLD_KEY));
+  const panes = useRef<HTMLDivElement>(null);
+  const photoMoved = useRef(false);
+  const onPhotoFold = (on: boolean, moveFocus = true) => {
+    photoMoved.current = moveFocus;
+    setPhotoFolded(on);
+    saveFold(PHOTO_FOLD_KEY, on);
+  };
+  useEffect(() => {
+    if (!photoMoved.current) return;
+    photoMoved.current = false;
+    panes.current?.querySelector<HTMLButtonElement>(photoFolded ? '.paper-photo-strip button' : '.review-photo-top button[aria-label="Ascunde lucrarea"]')?.focus({ preventScroll: true });
+  }, [photoFolded]);
 
   // After a decision, the point that opens takes the focus on its heading,
   // without a scroll, once its paper shows; a move of the teacher's own is a
@@ -273,7 +314,7 @@ function Paper({
     const target =
       focusTarget === 'point'
         ? submission?.id === submissionId
-          ? main.current?.querySelector<HTMLElement>('.point-decision h2')
+          ? main.current?.querySelector<HTMLElement>('.decision-slot.is-current .point-decision h2')
           : null
         : // With no student after this one, the exercises take it.
           (nextStudentButton.current ?? exercisesHeading.current);
@@ -389,10 +430,10 @@ function Paper({
       if (decide.isPending) return;
       const pressed = event.key.toLowerCase();
       // A presses "Accept": the robot's points.
-      if (pressed === 'a' && decisionView !== null) main.current?.querySelector<HTMLButtonElement>('.point-decision [data-confirm]')?.click();
+      if (pressed === 'a' && decisionView !== null) main.current?.querySelector<HTMLButtonElement>('.decision-slot.is-current [data-confirm]')?.click();
       else if (pressed === 'j') goPoint(stepPoint(walked, spot, 1));
       else if (pressed === 'k') goPoint(stepPoint(walked, spot, -1));
-      else if (/^[1-9]$/.test(pressed) && submission && Number(pressed) <= submission.files.length) setPageChoice({ view: viewKey, page: Number(pressed) - 1 });
+      else if (/^[1-9]$/.test(pressed) && !photoFolded && submission && Number(pressed) <= submission.files.length) setPageChoice({ view: viewKey, page: Number(pressed) - 1 });
       else return;
       event.preventDefault();
     };
@@ -403,10 +444,22 @@ function Paper({
   // The address names a paper of another test.
   if (submission !== undefined && submission.testCode !== code) return <NotFoundPage />;
 
-  const decision =
-    decisionView !== null && evaluation ? (
-      <PointDecision evaluation={evaluation} view={decisionView} pending={decide.isPending} error={decideError} onDecide={onDecide} />
-    ) : null;
+  // The decision of the open row acts; a kept row's waits, out of reach.
+  const decisionFor = (at: string): ReactNode => {
+    const view = viewOf(at);
+    if (view === null || !evaluation) return null;
+    const current = at === key;
+    return (
+      <PointDecision
+        evaluation={evaluation}
+        view={view}
+        pending={current && decide.isPending}
+        error={current ? decideError : null}
+        onDecide={current ? onDecide : () => undefined}
+      />
+    );
+  };
+  const showsDecision = decisionView !== null && evaluation !== null;
 
   return (
     <section className={place === 'try' ? 'paper-page is-try' : 'paper-page'}>
@@ -448,7 +501,7 @@ function Paper({
         {/* The keys, between the switch and the moves, only while a decision
             shows and only when the whole line fits there: it never takes a
             line of its own. */}
-        {decision !== null && (
+        {showsDecision && (
           <p className="review-keys hint">
             <span className="review-keys-line">
               <span>
@@ -457,7 +510,7 @@ function Paper({
               <span>
                 <kbd>J</kbd> <kbd>K</kbd> punctul următor sau anterior
               </span>
-              {pageCount > 1 && (
+              {pageCount > 1 && !photoFolded && (
                 <span>
                   <kbd>1</kbd>–<kbd>{Math.min(9, pageCount)}</kbd> pagina
                 </span>
@@ -493,7 +546,10 @@ function Paper({
           Toate punctele sunt verificate. <Link to={`/teste/${code}${stageHash('Rezultate')}`}>Mergi la Rezultate</Link>
         </p>
       )}
-      <div className={place === 'try' ? 'paper-panes is-single' : folded ? 'paper-panes is-folded' : 'paper-panes'}>
+      <div
+        ref={panes}
+        className={['paper-panes', place === 'try' ? 'is-single' : folded ? 'is-folded' : '', photoFolded ? 'is-photo-folded' : ''].filter(Boolean).join(' ')}
+      >
         {place === 'app' && (
           <StudentList uploads={uploads} testStatus={test.status} mode={mode} current={submissionId} folded={folded} onFold={onFold} pathOf={(other) => pathOf(studentSpot(other, mode))} />
         )}
@@ -512,7 +568,22 @@ function Paper({
               submissionId={submission.id}
               evaluation={evaluation}
               onSaved={saved}
-              check={{ openKey: key, onOpen: (open) => go({ submissionId, key: open }), onlyToCheck: mode === 'verificare', decision }}
+              check={{
+                openKey: key,
+                keptKeys,
+                // A click on the open row closes it; on another, opens it and
+                // keeps this one open. "Arată pe lucrare" shows a folded paper.
+                onOpen: (open, how) => {
+                  if (open === key) {
+                    go({ submissionId, key: null });
+                    return;
+                  }
+                  if (how === 'toPaper' && photoFolded) onPhotoFold(false, false);
+                  navigate(pathOf({ submissionId, key: open }), { replace: true, state: { paperKeep: true } });
+                },
+                onlyToCheck: mode === 'verificare',
+                decisionFor,
+              }}
             />
           ) : submission.status === 'failed' ? (
             <div className="warning">
@@ -533,16 +604,29 @@ function Paper({
             <p className="hint">{waitingText(submission, heldBackHint(me.data))}</p>
           )}
         </div>
-        {submission !== undefined && (
-          <ReviewPhoto
-            submission={submission}
-            page={shownPage}
-            onPage={(index) => setPageChoice({ view: viewKey, page: index })}
-            focus={focus}
-            frames={frames}
-            onFrames={onFrames}
-          />
-        )}
+        {submission !== undefined &&
+          (photoFolded ? (
+            <aside className="paper-photo-strip" aria-label="Lucrarea">
+              <button type="button" className="button-quiet button-small" aria-label="Arată lucrarea" title="Arată lucrarea" onClick={() => onPhotoFold(false)}>
+                <span className="paper-photo-strip-icon" aria-hidden="true">
+                  «
+                </span>
+                <span className="paper-photo-strip-word" aria-hidden="true">
+                  Arată lucrarea
+                </span>
+              </button>
+            </aside>
+          ) : (
+            <ReviewPhoto
+              submission={submission}
+              page={shownPage}
+              onPage={(index) => setPageChoice({ view: viewKey, page: index })}
+              focus={focus}
+              frames={frames}
+              onFrames={onFrames}
+              onHide={() => onPhotoFold(true)}
+            />
+          ))}
       </div>
     </section>
   );

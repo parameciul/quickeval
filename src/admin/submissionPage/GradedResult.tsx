@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import type { EvaluationInfo, EvaluationItemInfo, ItemChange, SubmissionDetail } from '../../../shared/api.ts';
 import { TEXT_LIMITS, confidenceLevel, type Confidence } from '../../../shared/schemas.ts';
 import { formatPoints, isValidCorrection } from '../../../shared/scoring.ts';
@@ -12,23 +12,76 @@ type Saved = (submission: SubmissionDetail) => Promise<void>;
 type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>;
 
 // The paper page's hold on the rows (spec 2026-11-12 §4.4): the open row
-// (an item's id, or "pagini" for the pages the robot could not read), a click
-// that opens a row, only the rows to check, and the decision shown under the
-// open row while it waits for a check. Without it the result is a plain list
-// (the Quick Try's "Rezultatul profesorului").
+// (an item's id, or "pagini" for the pages the robot could not read), the
+// rows to check opened before it that stay open (`keptKeys`: a row that
+// closed would move the rows under it), a click on a row (the page opens it,
+// or closes it when it is the open one; `byRow` for a click on the row or its
+// "Verifică", `toPaper` for "Arată pe lucrare"), only the rows to check, and
+// the decision of an open or kept row while it waits for a check (null when
+// none waits). Without it the result is a plain list.
+export type OpenHow = 'byRow' | 'toPaper';
+
 export interface ItemsCheck {
   openKey: string | null;
-  onOpen: (key: string) => void;
+  keptKeys: string[];
+  onOpen: (key: string, how: OpenHow) => void;
   onlyToCheck: boolean;
-  decision: ReactNode;
+  decisionFor: (key: string) => ReactNode;
 }
 
-// A click on a row opens it, unless it was on something of its own.
-function rowClick(onOpen: (() => void) | undefined) {
+// The decision of a row: the open row's acts; a kept row's stays in place,
+// dimmed and out of reach, until the teacher opens its row again. The same
+// box for both, so a kept decision keeps what was typed in it.
+function DecisionSlot({ current, children }: { current: boolean; children: ReactNode }) {
+  return (
+    <div className={current ? 'decision-slot is-current' : 'decision-slot is-kept'} inert={!current} aria-hidden={current ? undefined : true}>
+      {children}
+    </div>
+  );
+}
+
+// The decision a row shows, in its slot, or null.
+function rowDecision(check: ItemsCheck | undefined, key: string): ReactNode {
+  if (!check) return null;
+  const current = key === check.openKey;
+  if (!current && !check.keptKeys.includes(key)) return null;
+  const decision = check.decisionFor(key);
+  return decision === null ? null : <DecisionSlot current={current}>{decision}</DecisionSlot>;
+}
+
+// How long a click that would close the open row waits for a second click.
+export const CLOSE_DELAY = 300;
+
+const noSelection = () => (window.getSelection()?.toString() ?? '') === '';
+
+// A click on a row opens it, or closes it when it is open, unless it was on
+// something of its own or ended a selection of the row's text. A click that
+// closes waits a moment: the first click of a double or triple click (which
+// selects a word or a line to copy) must not close the row and its decision.
+function useRowClick(onOpen: (() => void) | undefined, open: boolean) {
+  const closing = useRef<number | null>(null);
+  const cancel = () => {
+    if (closing.current !== null) window.clearTimeout(closing.current);
+    closing.current = null;
+  };
+  useEffect(() => cancel, []);
   if (!onOpen) return undefined;
   return (event: MouseEvent<HTMLTableRowElement>) => {
     if (event.target instanceof Element && event.target.closest('button, a, input, textarea, select, label')) return;
-    onOpen();
+    if (event.detail > 1) {
+      cancel();
+      return;
+    }
+    if (!noSelection()) return;
+    if (!open) {
+      onOpen();
+      return;
+    }
+    cancel();
+    closing.current = window.setTimeout(() => {
+      closing.current = null;
+      if (noSelection()) onOpen();
+    }, CLOSE_DELAY);
   };
 }
 
@@ -61,7 +114,7 @@ export function GradedResult({
   const api = useApi();
   const correct: Correct = (itemId, change) => api.correctItem(submissionId, itemId, { ...change, gradedAt: evaluation.gradedAt });
   const shown = check?.onlyToCheck
-    ? evaluation.items.filter((item) => (item.needsReview && !item.reviewed) || String(item.id) === check.openKey)
+    ? evaluation.items.filter((item) => (item.needsReview && !item.reviewed) || String(item.id) === check.openKey || check.keptKeys.includes(String(item.id)))
     : evaluation.items;
   return (
     <div className="graded-result">
@@ -106,8 +159,9 @@ export function GradedResult({
           </thead>
           <tbody>
             {shown.map((item) => {
-              const open = check !== undefined && String(item.id) === check.openKey;
-              const deciding = open && item.needsReview && !item.reviewed && check.decision !== null;
+              const key = String(item.id);
+              const open = check !== undefined && key === check.openKey;
+              const kept = check !== undefined && !open && check.keptKeys.includes(key);
               return (
                 <ItemRows
                   key={item.id}
@@ -115,8 +169,9 @@ export function GradedResult({
                   correct={correct}
                   onSaved={onSaved}
                   open={open}
-                  onOpen={check ? () => check.onOpen(String(item.id)) : undefined}
-                  decision={deciding ? check.decision : null}
+                  kept={kept}
+                  onOpen={check ? (how) => check.onOpen(key, how) : undefined}
+                  decision={item.needsReview && !item.reviewed ? rowDecision(check, key) : null}
                 />
               );
             })}
@@ -155,8 +210,9 @@ function UnreadablePages({
   if (check) {
     // The open pages' decision says why itself.
     const open = check.openKey === 'pagini';
+    const decision = rowDecision(check, 'pagini');
     return (
-      <div className={open ? 'pages-check is-open' : 'pages-check'}>
+      <div className={open ? 'pages-check is-open' : decision !== null ? 'pages-check is-kept' : 'pages-check'}>
         <p>
           <span className="points-pill">Pagini necitite</span> {pages}
           {!open && (
@@ -165,13 +221,13 @@ function UnreadablePages({
               className="button-quiet button-small icon-button verifica-btn"
               aria-label="Verifică paginile necitite"
               title="Verifică"
-              onClick={() => check.onOpen('pagini')}
+              onClick={() => check.onOpen('pagini', 'byRow')}
             >
               <CheckMark />
             </button>
           )}
         </p>
-        {open && check.decision}
+        {decision}
       </div>
     );
   }
@@ -206,13 +262,14 @@ export function ConfidenceBars({ confidence }: { confidence: Confidence }) {
   );
 }
 
-// An exercise's row and, while it is open and waits for a check, the
+// An exercise's row and, while it is open or kept and waits for a check, the
 // decision under it, across the whole table.
 function ItemRows({
   item,
   correct,
   onSaved,
   open,
+  kept,
   onOpen,
   decision,
 }: {
@@ -220,14 +277,15 @@ function ItemRows({
   correct: Correct;
   onSaved: Saved;
   open: boolean;
-  onOpen?: () => void;
+  kept: boolean;
+  onOpen?: (how: OpenHow) => void;
   decision: ReactNode;
 }) {
   return (
     <>
-      <ItemRow item={item} correct={correct} onSaved={onSaved} open={open} onOpen={onOpen} />
+      <ItemRow item={item} correct={correct} onSaved={onSaved} open={open} kept={kept} onOpen={onOpen} />
       {decision !== null && (
-        <tr className="item-decision">
+        <tr className={open ? 'item-decision' : 'item-decision is-kept'}>
           <td colSpan={6}>{decision}</td>
         </tr>
       )}
@@ -249,15 +307,18 @@ function ItemRow({
   correct,
   onSaved,
   open = false,
+  kept = false,
   onOpen,
 }: {
   item: EvaluationItemInfo;
   correct: Correct;
   onSaved: Saved;
   open?: boolean;
-  onOpen?: () => void;
+  kept?: boolean;
+  onOpen?: (how: OpenHow) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const rowClick = useRowClick(onOpen && (() => onOpen('byRow')), open);
   const [points, setPoints] = useState(formatPoints(item.points));
   const [comment, setComment] = useState(item.comment);
   const [problem, setProblem] = useState<string | null>(null);
@@ -308,8 +369,8 @@ function ItemRow({
 
   return (
     <tr
-      className={[toCheck ? (calm ? 'is-to-check' : 'is-flagged') : '', open ? 'is-open' : '', onOpen ? 'is-openable' : ''].filter(Boolean).join(' ') || undefined}
-      onClick={rowClick(onOpen)}
+      className={[toCheck ? (calm ? 'is-to-check' : 'is-flagged') : '', open ? 'is-open' : kept ? 'is-kept' : '', onOpen ? 'is-openable' : ''].filter(Boolean).join(' ') || undefined}
+      onClick={rowClick}
     >
       <th scope="row" title={item.label}>
         {item.exerciseId} <span className="sr-only">{item.label}</span>
@@ -444,7 +505,7 @@ function ItemRow({
                 className="button-quiet button-small icon-button verifica-btn"
                 aria-label={`Verifică ${item.label}`}
                 title="Verifică"
-                onClick={onOpen}
+                onClick={() => onOpen('byRow')}
               >
                 <CheckMark />
               </button>
@@ -456,7 +517,7 @@ function ItemRow({
                 aria-label={`Arată pe lucrare ${item.label}`}
                 aria-pressed={open}
                 title="Arată pe lucrare"
-                onClick={onOpen}
+                onClick={() => onOpen('toPaper')}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />

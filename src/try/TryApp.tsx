@@ -1,9 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { Navigate, Route, Routes } from 'react-router';
+import { Navigate, Route, Routes, useParams } from 'react-router';
+import { parsePositiveId } from '../../shared/ids.ts';
+import { normalizeTestCode } from '../../shared/tests.ts';
 import type { AdminApi } from '../admin/api.ts';
 import { ApiProvider } from '../admin/ApiContext.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
 import { TryPaperPage } from '../admin/pages/PaperPage.tsx';
+import { paperPath } from '../admin/paperPage/paths.ts';
 import { ApiError } from '../ui/ApiError.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
@@ -53,8 +56,18 @@ function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
       <Route path="/" element={home} />
       <Route path="/teste/:code" element={home} />
       <Route path="/teste/:code/verificare" element={<TryPaperPage />} />
-      <Route path="/teste/:code/elevi/:id" element={<Navigate replace to={{ pathname: '/', hash: '#rezultate' }} />} />
+      <Route path="/teste/:code/elevi/:id" element={<AllExercises />} />
       <Route path="*" element={<Navigate replace to="/" />} />
     </Routes>
   );
+}
+
+// The teacher app's address of a paper: inside a try, the paper page with
+// every exercise.
+function AllExercises() {
+  const params = useParams();
+  const code = normalizeTestCode(params.code ?? '');
+  const submissionId = parsePositiveId(params.id);
+  if (code === null || submissionId === null) return <Navigate replace to="/" />;
+  return <Navigate replace to={paperPath(code, 'try', { submissionId, key: null }, 'toate')} />;
 }

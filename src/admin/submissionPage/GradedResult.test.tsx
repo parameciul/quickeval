@@ -8,8 +8,8 @@ import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission } from '../../t
 import { ApiProvider } from '../ApiContext.tsx';
 import { GradedResult } from './GradedResult.tsx';
 
-// The plain result, without the paper page's hold on its rows: the Quick Try's
-// "Rezultatul profesorului". A row to check keeps its reason and "Verificat".
+// The plain result, without the paper page's hold on its rows. A row to check
+// keeps its reason and "Verificat".
 const GRADED_AT = '2026-10-07T09:00:00.000Z';
 
 function paper(): SubmissionDetail {
