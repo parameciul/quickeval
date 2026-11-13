@@ -10,6 +10,8 @@ import { settingsRoutes } from './settings.ts';
 import { studentRoutes } from './students.ts';
 import { submissionRoutes } from './submissions.ts';
 import { testRoutes } from './tests.ts';
+import { dataVersion } from '../db/version.ts';
+import type { DataVersion } from '../../shared/api.ts';
 
 // /api/admin: everything the teacher app calls. Every route needs a teacher login; Setări
 // and the accounts need an administrator.
@@ -17,6 +19,9 @@ export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
   routes.use('*', sameOriginWrites, teacherAuth(), promoteDue(options));
   routes.get('/me', (c) => c.json({ teacher: c.var.teacher }));
+  // The teacher app asks this every minute and reads its pages again only when
+  // it changed. It also runs promoteDue, which starts the scheduled tests.
+  routes.get('/version', async (c) => c.json({ version: await dataVersion(c.env.DB, c.var.teacher.id) } satisfies DataVersion));
   routes.route('/classes', classRoutes());
   routes.route('/students', studentRoutes(options));
   routes.route('/tests', testRoutes(options));

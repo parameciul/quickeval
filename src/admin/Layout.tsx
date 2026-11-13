@@ -18,8 +18,13 @@ import { PhoneMenu } from './shell/PhoneMenu.tsx';
 import { Rail, type PanelName } from './shell/Rail.tsx';
 import { TodoPanel } from './shell/TodoPanel.tsx';
 import { todoList } from './shell/todo.ts';
+import { useDataVersion } from './shell/refresh.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
 import { YearSelect } from './shell/YearSelect.tsx';
+
+// The accounts that wait for approval change with no teacher's version: an
+// administrator's bar reads them every five minutes.
+const ACCOUNTS_REFRESH_MS = 5 * 60_000;
 
 // The phone layout of brand.css: the bar at the bottom, a panel over the page.
 const PHONE = '(max-width: 56.25rem)';
@@ -42,14 +47,14 @@ export function Layout() {
   const { year } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   // The tests of the year: "De făcut" and the panel of the classes read them.
-  // They are read again every minute while the page is open (the robot ends a
-  // grading on its own) and after every change (below).
+  // They are read again after every change (below), and when the version
+  // the shell asks every minute changed (`useDataVersion`).
   const tests = useQuery({
     queryKey: ['tests', year],
     queryFn: () => api.listTests(year),
     enabled: Boolean(me.data),
-    refetchInterval: 60_000,
   });
+  useDataVersion(Boolean(me.data));
   const todo = todoList(tests.data ?? []);
   // For an administrator: the accounts that confirmed their email and wait to
   // be approved. Setări reads the same list, so an approval there updates it.
@@ -58,7 +63,7 @@ export function Layout() {
     queryKey: ['accounts'],
     queryFn: () => api.listAccounts(),
     enabled: admin,
-    refetchInterval: 60_000,
+    refetchInterval: ACCOUNTS_REFRESH_MS,
   });
   const approvals = admin ? (accounts.data ?? []).filter((account) => account.status === 'pending').length : 0;
   const others = (tests.data ?? []).filter((test) => !test.archived && test.status !== 'done' && !todo.some((item) => item.code === test.code)).length;

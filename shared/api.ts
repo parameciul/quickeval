@@ -845,6 +845,12 @@ export interface UploadRow {
   variant: TestVariant | null;
 }
 
+// GET /api/admin/version: a text that changes with everything the teacher
+// pages show. The app reads its pages again only when it changed.
+export interface DataVersion {
+  version: string;
+}
+
 export interface TestDetail {
   test: TestInfo;
   uploads: UploadRow[];
