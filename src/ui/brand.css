@@ -2492,33 +2492,92 @@ table.tests .row-actions {
   grid-template-areas: "main photo";
 }
 
-/* The paper folded to a strip: the exercises take its room. */
+/* The paper hidden: the exercises take its room. */
 .paper-panes.is-photo-folded {
-  grid-template-columns: 13rem minmax(0, 1fr) 2.75rem;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  grid-template-areas: "students main";
 }
 
 .paper-panes.is-folded.is-photo-folded {
-  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
 }
 
 .paper-panes.is-single.is-photo-folded {
-  grid-template-columns: minmax(0, 1fr) 2.75rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "main";
 }
 
-.paper-photo-strip {
-  grid-area: photo;
-  position: sticky;
-  top: calc(var(--top, 0px) + 0.75rem);
-  display: flex;
-  justify-content: center;
-  padding: 0.5rem 0.25rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-panel);
+/* The moves of the bar, small: "‹ Punct 3/47 ›" and "‹ Elev ›", each one
+   outlined group with its word between its two arrows; the next point's
+   arrow is the blue one. */
+.move-group {
+  display: inline-flex;
+  align-items: stretch;
+  height: 2.5rem;
+  border: 1px solid var(--control);
+  border-radius: 8px;
   background: var(--sheet);
+  overflow: hidden;
 }
 
-.paper-photo-strip-word {
-  display: none;
+.move-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.move-arrow:hover:not(:disabled) {
+  background: var(--ink-tint);
+}
+
+.move-arrow.is-main {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.move-arrow.is-main:hover:not(:disabled) {
+  background: var(--ink);
+  filter: brightness(1.1);
+}
+
+.move-arrow:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.move-arrow svg,
+.photo-toggle svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.move-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0 0.625rem;
+  border-inline: 1px solid var(--rule);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.photo-toggle {
+  width: 2.5rem;
+  padding: 0;
+}
+
+.photo-toggle[aria-pressed="true"] {
+  background: var(--ink-tint);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .review-photo-top.is-end {
@@ -3149,7 +3208,10 @@ table.items tr.item-decision > td {
 
   .paper-panes.is-photo-folded,
   .paper-panes.is-folded.is-photo-folded {
-    grid-template-columns: minmax(0, 1fr) 2.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "main"
+      "students";
   }
 }
 
@@ -3167,26 +3229,31 @@ table.items tr.item-decision > td {
       "students";
   }
 
-  .review-photo,
-  .paper-photo-strip {
+  .review-photo {
     position: static;
   }
 
-  /* One column: the strip is a bar with its words. */
-  .paper-photo-strip {
-    justify-content: flex-start;
-    padding: 0.5rem;
+  /* The moves fit one row under the switch, also on a 320px phone: the
+     arrows narrower, and below 360px only the numbers of the points. */
+  .paper-bar .review-actions {
+    gap: 0.375rem;
   }
 
-  .paper-photo-strip-word {
-    display: inline;
+  .move-arrow {
+    width: 2rem;
   }
 
-  .paper-photo-strip-icon {
-    display: none;
+  .move-label {
+    padding: 0 0.5rem;
   }
 
   .review-keys {
+    display: none;
+  }
+}
+
+@media (max-width: 22.5rem) {
+  .move-word {
     display: none;
   }
 }
