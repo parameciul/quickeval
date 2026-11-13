@@ -514,6 +514,21 @@ describe('POST /api/runner/tests/:id/exercise-list', () => {
     expect(await listRow()).toMatchObject({ exercise_list_status: 'none', exercise_list_attempts: 0 });
   });
 
+  it('logs for Setări what it made, with its tokens, and what it gave up on, without any', async () => {
+    await saveList({ ok: true, exerciseList: LIST, tokens: 1200 });
+    // The teacher asks again: the list waits once more.
+    await setTest("exercise_list_status = 'none'");
+    await saveList({ ok: false, error: 'timeout' });
+    await saveList({ ok: false, error: 'usage_limit' });
+    const rows = await api.db
+      .prepare('SELECT teacher_id, test_id, kind, variant, ok, tokens FROM robot_work ORDER BY id')
+      .all<{ teacher_id: number; test_id: number; kind: string; variant: string; ok: number; tokens: number | null }>();
+    expect(rows.results).toEqual([
+      { teacher_id: api.teacherId, test_id: testId, kind: 'exercise_list', variant: 'class', ok: 1, tokens: 1200 },
+      { teacher_id: api.teacherId, test_id: testId, kind: 'exercise_list', variant: 'class', ok: 0, tokens: null },
+    ]);
+  });
+
   it('refuses a run without the lease, a list no longer needed, and a deleted test', async () => {
     const other = await robot('POST', `/tests/${testId}/exercise-list`, { runId: OTHER_RUN, filesVersion: 0, ok: true, exerciseList: LIST });
     expect(other.status).toBe(409);

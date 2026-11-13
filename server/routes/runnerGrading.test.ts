@@ -272,6 +272,24 @@ describe('POST /api/runner/submissions/:id/result', () => {
     expect(settings.body.settings.lastModels).toMatchObject({ gradingModel: 'new-model', gradingEffort: null });
   });
 
+  it('logs the graded papers for Setări with their tokens, and a failed attempt without any', async () => {
+    const first = await upload(0, '2026-10-07T08:10:00.000Z');
+    const second = await upload(1, '2026-10-07T08:11:00.000Z');
+    await claim();
+    await sendResult(first, { ok: true, result: result([4, 2.5]), model: 'm', tokens: 2875 });
+    await claim();
+    await sendResult(second, { ok: false, error: 'timeout' });
+    await claim();
+    await sendResult(second, { ok: false, error: 'usage_limit' });
+    const rows = await api.db
+      .prepare('SELECT teacher_id, test_id, kind, variant, ok, tokens FROM robot_work ORDER BY id')
+      .all<{ teacher_id: number; test_id: number; kind: string; variant: string; ok: number; tokens: number | null }>();
+    expect(rows.results).toEqual([
+      { teacher_id: api.teacherId, test_id: testId, kind: 'grading', variant: 'class', ok: 1, tokens: 2875 },
+      { teacher_id: api.teacherId, test_id: testId, kind: 'grading', variant: 'class', ok: 0, tokens: null },
+    ]);
+  });
+
   describe('the model of the last grading kept for Setări', () => {
     const kept = async () => {
       const rows = await api.db.prepare("SELECT key, value FROM settings WHERE key LIKE 'last_grading_%' ORDER BY key").all<{ key: string; value: string }>();

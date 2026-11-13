@@ -24,7 +24,7 @@ const EMAIL = /^[a-z0-9._+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
 export function passwordSql(email: string, passwordHash: string): string {
   if (!EMAIL.test(email) || !/^[A-Za-z0-9+/=$-]+$/.test(passwordHash)) throw new Error('bad input');
   return [
-    `UPDATE teachers SET password_hash = '${passwordHash}', failed_logins = 0, locked_until = NULL WHERE email = '${email}'`,
+    `UPDATE teachers SET password_hash = '${passwordHash}', failed_logins = 0, locked_until = NULL, changed_by = NULL WHERE email = '${email}'`,
     `DELETE FROM sessions WHERE teacher_id IN (SELECT id FROM teachers WHERE email = '${email}')`,
   ].join(';\n') + ';\n';
 }

@@ -78,13 +78,16 @@ export interface RobotApi {
   baremSource(testId: number, variant?: TestVariant): Promise<Uint8Array>;
   // The class barem of a CES barem job (BaremJob.classBarem).
   baremClassBarem(testId: number): Promise<Uint8Array>;
-  // The barem as a Word file, written from the test file of `filesVersion`.
-  // `subject`: what Claude found, sent as X-Subject and X-Subject-Name (URI-encoded: a header holds no ș).
+  // The barem as a Word file, written from the test file of `filesVersion`,
+  // with the tokens it took (a header: the body is the file). `subject`: what
+  // Claude found, sent as X-Subject and X-Subject-Name (URI-encoded: a header
+  // holds no ș).
   sendBarem(
     testId: number,
     runId: string,
     filesVersion: number,
     docx: Uint8Array,
+    tokens: number,
     createdAt?: string,
     variant?: TestVariant,
     subject?: FoundSubject | null,
@@ -182,7 +185,7 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
     baremJob: async (testId, variant) => (await json<{ job: BaremJob }>('GET', `/tests/${testId}/barem-job${ofVariant(variant)}`)).job,
     baremSource: (testId, variant) => bytes(`/tests/${testId}/barem-job/file${ofVariant(variant)}`),
     baremClassBarem: (testId) => bytes(`/tests/${testId}/barem-job/class-barem`),
-    sendBarem: (testId, runId, filesVersion, docx, createdAt, variant, subject) =>
+    sendBarem: (testId, runId, filesVersion, docx, tokens, createdAt, variant, subject) =>
       send(
         'PUT',
         `/tests/${testId}/barem${ofVariant(variant)}`,
@@ -190,6 +193,7 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
           'Content-Type': DOCX_TYPE,
           'X-Run-Id': runId,
           'X-Files-Version': String(filesVersion),
+          'X-Tokens': String(tokens),
           ...(createdAt ? { 'X-Created-At': createdAt } : {}),
           ...(subject ? { 'X-Subject': subject.value, 'X-Subject-Name': encodeURIComponent(subject.name) } : {}),
         }),

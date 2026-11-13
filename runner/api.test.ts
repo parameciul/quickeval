@@ -93,8 +93,8 @@ describe('robotApi with the real API', () => {
     expect(text(await robot.baremSource(open.testId))).toBe(SOURCE_BYTES.pdf);
     expect(await robot.sendBaremFailed(open.testId, { runId: RUN, filesVersion: 0, error: 'crash' })).toBe('none');
     const docx = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
-    await expect(robot.sendBarem(open.testId, RUN, 1, docx)).rejects.toMatchObject({ status: 409, code: 'not_needed' });
-    await robot.sendBarem(open.testId, RUN, 0, docx);
+    await expect(robot.sendBarem(open.testId, RUN, 1, docx, 900)).rejects.toMatchObject({ status: 409, code: 'not_needed' });
+    await robot.sendBarem(open.testId, RUN, 0, docx, 900);
     await expect(robot.baremJob(open.testId)).rejects.toMatchObject({ status: 404 });
   });
 
@@ -143,10 +143,10 @@ describe('robotApi requests', () => {
     expect(calls[0]!.init.headers).toEqual({ Authorization: 'Bearer k3y', 'Content-Type': 'application/pdf', 'X-Run-Id': RUN, 'X-Files-Version': '3' });
   });
 
-  it('sends the barem as a Word file, with the run, the files version and the creation time in headers', async () => {
+  it('sends the barem as a Word file, with the run, the files version, the tokens and the creation time in headers', async () => {
     const { calls, fetch } = fakeFetch(json(200, { status: 'ready' }));
     const docx = new Uint8Array([0x50, 0x4b]);
-    await robotApi('https://site.test', 'k3y', { fetch }).sendBarem(12, RUN, 3, docx, '2026-11-03T08:00:00.000Z');
+    await robotApi('https://site.test', 'k3y', { fetch }).sendBarem(12, RUN, 3, docx, 1500, '2026-11-03T08:00:00.000Z');
     expect(calls[0]!.url).toBe('https://site.test/api/runner/tests/12/barem');
     expect(calls[0]!.init.method).toBe('PUT');
     expect(calls[0]!.init.body).toBe(docx);
@@ -155,6 +155,7 @@ describe('robotApi requests', () => {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'X-Run-Id': RUN,
       'X-Files-Version': '3',
+      'X-Tokens': '1500',
       'X-Created-At': '2026-11-03T08:00:00.000Z',
     });
   });
