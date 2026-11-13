@@ -87,8 +87,10 @@ export function ReviewPhoto({
   };
 
   const hide = onHide ? (
-    <button type="button" className="button-quiet button-small" aria-label="Ascunde lucrarea" title="Ascunde lucrarea" onClick={onHide}>
-      Ascunde
+    <button type="button" className="button-quiet button-small icon-button photo-hide" aria-label="Ascunde lucrarea" title="Ascunde lucrarea" onClick={onHide}>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
     </button>
   ) : null;
 

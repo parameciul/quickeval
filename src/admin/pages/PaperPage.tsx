@@ -15,7 +15,7 @@ import { PointDecision, type DecisionView } from '../paperPage/PointDecision.tsx
 import { StudentList } from '../paperPage/StudentList.tsx';
 import { drawnAreas, saveFrames, savedFrames } from '../reviewPage/areas.ts';
 import { isReviewKey } from '../reviewPage/keys.ts';
-import { firstSpot, pageIndex, pointKey, pointQueue, stepPoint, withoutPoint, type QueuedPoint } from '../reviewPage/points.ts';
+import { firstSpot, isSpotOf, pageIndex, pointKey, pointQueue, stepPoint, withoutPoint, type QueuedPoint } from '../reviewPage/points.ts';
 import { type ReviewFocus, ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
 import { stageHash } from '../stages.ts';
 import { GradedResult } from '../submissionPage/GradedResult.tsx';
@@ -283,14 +283,14 @@ function Paper({
     saveFold(FOLD_KEY, on);
   };
 
-  // The paper folds to a strip on the right, for more room for the exercises
-  // (after the checks the teacher may not need it). Its other button takes
-  // the focus, as the one pressed goes; "Arată pe lucrare" shows it again and
-  // keeps the focus.
+  // The paper hides, for more room for the exercises (after the checks the
+  // teacher may not need it): its × hides it, and "Lucrarea" in the bar
+  // hides it or shows it again, as does "Arată pe lucrare". After the ×, the
+  // focus goes to "Lucrarea", as the × goes.
   const [photoFolded, setPhotoFolded] = useState(() => savedFold(PHOTO_FOLD_KEY));
-  const panes = useRef<HTMLDivElement>(null);
+  const photoToggle = useRef<HTMLButtonElement>(null);
   const photoMoved = useRef(false);
-  const onPhotoFold = (on: boolean, moveFocus = true) => {
+  const onPhotoFold = (on: boolean, moveFocus = false) => {
     photoMoved.current = moveFocus;
     setPhotoFolded(on);
     saveFold(PHOTO_FOLD_KEY, on);
@@ -298,7 +298,7 @@ function Paper({
   useEffect(() => {
     if (!photoMoved.current) return;
     photoMoved.current = false;
-    panes.current?.querySelector<HTMLButtonElement>(photoFolded ? '.paper-photo-strip button' : '.review-photo-top button[aria-label="Ascunde lucrarea"]')?.focus({ preventScroll: true });
+    photoToggle.current?.focus({ preventScroll: true });
   }, [photoFolded]);
 
   // After a decision, the point that opens takes the focus on its heading,
@@ -400,6 +400,7 @@ function Paper({
   };
   const nextPoint = stepPoint(walked, spot, 1);
   const previousPoint = stepPoint(walked, spot, -1);
+  const pointAt = walked.findIndex((entry) => isSpotOf(entry, spot));
 
   const students = listedPapers(uploads, mode);
   const at = students.findIndex((other) => other.submissionId === submissionId);
@@ -518,25 +519,79 @@ function Paper({
             </span>
           </p>
         )}
+        {/* The moves, small: "‹ Punct 3/47 ›" (only the points to check),
+            "‹ Elev ›" and "Lucrarea", on one row also on a phone. */}
         <div className="review-actions">
-          {mode === 'verificare' && previousPoint && (
-            <button type="button" className="button-quiet" disabled={decide.isPending} onClick={() => goPoint(previousPoint)}>
-              Punctul anterior
-            </button>
+          {mode === 'verificare' && walked.length > 0 && (
+            <span className="move-group" role="group" aria-label="Punctele de verificat">
+              <button
+                type="button"
+                className="move-arrow"
+                aria-label="Punctul anterior"
+                title="Punctul anterior (K)"
+                disabled={decide.isPending || previousPoint === null}
+                onClick={() => goPoint(previousPoint)}
+              >
+                <Chevron back />
+              </button>
+              {/* On a very small phone only the numbers stay. */}
+              <span className="move-label">
+                <span className="move-word">{pointAt >= 0 ? 'Punct ' : 'Puncte: '}</span>
+                {pointAt >= 0 ? `${pointAt + 1}/${walked.length}` : walked.length}
+              </span>
+              <button
+                type="button"
+                className="move-arrow is-main"
+                aria-label="Următorul punct"
+                title="Următorul punct (J)"
+                disabled={decide.isPending || nextPoint === null}
+                onClick={() => goPoint(nextPoint)}
+              >
+                <Chevron />
+              </button>
+            </span>
           )}
-          {mode === 'verificare' && nextPoint && (
-            <button type="button" className="button" disabled={decide.isPending} onClick={() => goPoint(nextPoint)}>
-              Următorul punct
-            </button>
+          {place === 'app' && students.length > 1 && (
+            <span className="move-group" role="group" aria-label="Elevii">
+              <button
+                type="button"
+                className="move-arrow"
+                aria-label="Elevul anterior"
+                title="Elevul anterior"
+                disabled={!previousStudent}
+                onClick={() => previousStudent && go(studentSpot(previousStudent, mode))}
+              >
+                <Chevron back />
+              </button>
+              <span className="move-label">Elev</span>
+              <button
+                ref={nextStudent ? nextStudentButton : undefined}
+                type="button"
+                className="move-arrow"
+                aria-label="Elevul următor"
+                title="Elevul următor"
+                disabled={!nextStudent}
+                onClick={() => nextStudent && go(studentSpot(nextStudent, mode))}
+              >
+                <Chevron />
+              </button>
+            </span>
           )}
-          {place === 'app' && previousStudent && (
-            <button type="button" className="button-quiet" onClick={() => go(studentSpot(previousStudent, mode))}>
-              Elevul anterior
-            </button>
-          )}
-          {place === 'app' && nextStudent && (
-            <button ref={nextStudentButton} type="button" className="button-quiet" onClick={() => go(studentSpot(nextStudent, mode))}>
-              Elevul următor
+          {submission !== undefined && (
+            <button
+              ref={photoToggle}
+              type="button"
+              className="button-quiet icon-button photo-toggle"
+              aria-label="Lucrarea"
+              aria-pressed={!photoFolded}
+              title={photoFolded ? 'Arată lucrarea' : 'Ascunde lucrarea'}
+              onClick={() => onPhotoFold(!photoFolded)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+                <circle cx="9" cy="10" r="1.75" fill="currentColor" />
+                <path d="M4.5 17.5l5-5 3.5 3.5 2.5-2.5 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+              </svg>
             </button>
           )}
         </div>
@@ -547,7 +602,6 @@ function Paper({
         </p>
       )}
       <div
-        ref={panes}
         className={['paper-panes', place === 'try' ? 'is-single' : folded ? 'is-folded' : '', photoFolded ? 'is-photo-folded' : ''].filter(Boolean).join(' ')}
       >
         {place === 'app' && (
@@ -574,11 +628,16 @@ function Paper({
                 // A click on the open row closes it; on another, opens it and
                 // keeps this one open. "Arată pe lucrare" shows a folded paper.
                 onOpen: (open, how) => {
+                  // "Arată pe lucrare" shows a folded paper; the row stays
+                  // open when it already was.
+                  if (how === 'toPaper' && photoFolded) {
+                    onPhotoFold(false);
+                    if (open === key) return;
+                  }
                   if (open === key) {
                     go({ submissionId, key: null });
                     return;
                   }
-                  if (how === 'toPaper' && photoFolded) onPhotoFold(false, false);
                   navigate(pathOf({ submissionId, key: open }), { replace: true, state: { paperKeep: true } });
                 },
                 onlyToCheck: mode === 'verificare',
@@ -604,30 +663,27 @@ function Paper({
             <p className="hint">{waitingText(submission, heldBackHint(me.data))}</p>
           )}
         </div>
-        {submission !== undefined &&
-          (photoFolded ? (
-            <aside className="paper-photo-strip" aria-label="Lucrarea">
-              <button type="button" className="button-quiet button-small" aria-label="Arată lucrarea" title="Arată lucrarea" onClick={() => onPhotoFold(false)}>
-                <span className="paper-photo-strip-icon" aria-hidden="true">
-                  «
-                </span>
-                <span className="paper-photo-strip-word" aria-hidden="true">
-                  Arată lucrarea
-                </span>
-              </button>
-            </aside>
-          ) : (
-            <ReviewPhoto
-              submission={submission}
-              page={shownPage}
-              onPage={(index) => setPageChoice({ view: viewKey, page: index })}
-              focus={focus}
-              frames={frames}
-              onFrames={onFrames}
-              onHide={() => onPhotoFold(true)}
-            />
-          ))}
+        {submission !== undefined && !photoFolded && (
+          <ReviewPhoto
+            submission={submission}
+            page={shownPage}
+            onPage={(index) => setPageChoice({ view: viewKey, page: index })}
+            focus={focus}
+            frames={frames}
+            onFrames={onFrames}
+            onHide={() => onPhotoFold(true, true)}
+          />
+        )}
       </div>
     </section>
+  );
+}
+
+// The arrow of a move: back (‹) or on (›).
+function Chevron({ back = false }: { back?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d={back ? 'M14.5 6l-6 6 6 6' : 'M9.5 6l6 6-6 6'} fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

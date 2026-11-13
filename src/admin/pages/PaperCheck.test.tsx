@@ -357,8 +357,10 @@ describe('the points to check on the paper page', () => {
     renderAdmin(PAGE, api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     expect(within(panel).getByRole('heading', { name: 'Decide: Subiectul I, ex. 3' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Următorul punct' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Punctul anterior' })).not.toBeInTheDocument();
+    // One point: nowhere to move.
+    expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Punctul anterior' })).toBeDisabled();
+    expect(screen.getByRole('group', { name: 'Punctele de verificat' })).toHaveTextContent('Punct 1/1');
 
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
@@ -464,7 +466,7 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Exercițiile' })).toHaveFocus());
-    expect(screen.queryByRole('button', { name: 'Elevul următor' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Elevul următor' })).toBeDisabled();
     await expectLocation(at(14, '41', 'toate'));
   });
 
@@ -483,7 +485,7 @@ describe('the points to check on the paper page', () => {
   it('moves to the student before or after, in the order of the list', async () => {
     renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
     await screen.findByText('Ana Pop · 1/3');
-    expect(screen.queryByRole('button', { name: 'Elevul anterior' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Elevul anterior' })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
     await expectLocation(at(12, null, 'toate'));
     await userEvent.click(screen.getByRole('button', { name: 'Elevul anterior' }));
@@ -656,17 +658,34 @@ describe('the points to check on the paper page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ascunde lucrarea' }));
     expect(screen.queryByText('Ana Pop · 3/3')).not.toBeInTheDocument();
     expect(screen.queryByText(/pagina$/, { selector: '.review-keys-line > span' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Arată lucrarea' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'false');
     expect(localStorage.getItem('quickeval:paperPhotoFolded')).toBe('on');
     // The keys still walk the points; the numbers have no page to show.
     await userEvent.keyboard('k');
     await expectLocation(at(11, 'pagini', 'toate'));
     first.unmount();
     renderAdmin(paperAt(11, '32', 'toate'), apiWith());
-    await userEvent.click(await screen.findByRole('button', { name: 'Arată lucrarea' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Lucrarea' }));
     expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ascunde lucrarea' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveFocus();
     expect(localStorage.getItem('quickeval:paperPhotoFolded')).toBe('off');
+    // "Lucrarea" hides it too.
+    await userEvent.click(screen.getByRole('button', { name: 'Lucrarea' }));
+    expect(screen.queryByText('Ana Pop · 3/3')).not.toBeInTheDocument();
+  });
+
+  it('says which point of how many is open, between the arrows of the points', async () => {
+    renderAdmin(PAGE, apiWith(), <LocationProbe />);
+    await expectLocation(at(11, 'pagini'));
+    const points = await screen.findByRole('group', { name: 'Punctele de verificat' });
+    expect(points).toHaveTextContent('Punct 1/3');
+    await userEvent.click(within(points).getByRole('button', { name: 'Următorul punct' }));
+    await expectLocation(at(11, '32'));
+    expect(screen.getByRole('group', { name: 'Punctele de verificat' })).toHaveTextContent('Punct 2/3');
+    expect(screen.getByRole('button', { name: 'Următorul punct' })).toHaveAttribute('title', 'Următorul punct (J)');
+    expect(within(screen.getByRole('group', { name: 'Elevii' })).getByRole('button', { name: 'Elevul următor' })).toBeEnabled();
   });
 
   it('changes no page with the numbers while the paper is folded', async () => {
@@ -674,7 +693,7 @@ describe('the points to check on the paper page', () => {
     expect(await screen.findByText('Ana Pop · 3/3')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Ascunde lucrarea' }));
     await userEvent.keyboard('1');
-    await userEvent.click(screen.getByRole('button', { name: 'Arată lucrarea' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Lucrarea' }));
     expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
   });
 
@@ -683,12 +702,19 @@ describe('the points to check on the paper page', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Ascunde lucrarea' }));
     await userEvent.click(within(row('Subiectul II, ex. 1')).getByText('x = 3'));
     await expectLocation(at(11, '32', 'toate'));
-    expect(screen.getByRole('button', { name: 'Arată lucrarea' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'false');
     await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
     await expectLocation(at(11, '31', 'toate'));
     expect(screen.getByText('Ana Pop · 1/3')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ascunde lucrarea' })).not.toHaveFocus();
     expect(localStorage.getItem('quickeval:paperPhotoFolded')).toBe('off');
+    // On the open row, it shows the paper and leaves the row open.
+    await userEvent.click(screen.getByRole('button', { name: 'Ascunde lucrarea' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
+    expect(screen.getByText('Ana Pop · 1/3')).toBeInTheDocument();
+    await pause(CLOSE_DELAY + 100);
+    await expectLocation(at(11, '31', 'toate'));
+    expect(row('Subiectul I, ex. 1')).toHaveClass('is-open');
   });
 
   it('hides the paper with no files too', async () => {
@@ -697,7 +723,7 @@ describe('the points to check on the paper page', () => {
     renderAdmin(paperAt(14, '41'), apiWith([ana!, ion!, eva!]));
     await userEvent.click(await screen.findByRole('button', { name: 'Ascunde lucrarea' }));
     expect(screen.queryByText('Elevul nu a încărcat niciun fișier.')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Arată lucrarea' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('says when a paper has no files', async () => {
