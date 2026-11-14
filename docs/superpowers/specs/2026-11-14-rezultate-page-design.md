@@ -96,6 +96,7 @@ The teacher also asked for:
   - The headers are 13 px, muted, on a `--raised` band, with a `--rule` line under them.
   - The rows have `--line` lines between them, a `--raised` background on hover, and padding of about 10 px × 12 px.
   - The table sits in a box with a border and `--radius-panel`.
+- In both tables the grade comes right after the name, so its colour is read first. Rezultate: Elev, Nota, Punctaj, Linkul cu rezultatul, Stare. Corectare: Elev, Nota, Stare, Fișiere, Ora, De verificat, then the row's actions.
 - **No bold** in either table. The student name has weight 500, in the text colour, and is underlined on hover. The headers have weight 500. The `<strong>` on the grade goes.
 - **The grade** is a soft chip: the number in `--conf-N`, on the same colour at about 14 %.
   - The level is `pointsLevel(grade, 10)`: 9–10 is level 5, 7–8.99 is 4, 5–6.99 is 3, 2.5–4.99 is 2, and under 2.5 is 1.
@@ -104,7 +105,7 @@ The teacher also asked for:
 - **Points to check** stay a separate orange pill next to the grade, in Rezultate ("2 de verificat"). In Corectare the column "De verificat" keeps its own orange count.
 - No colour legend.
 - The rest of each row stays as today: "Nu a trimis lucrarea.", "Nu a participat", "Eșuat" with "Reîncearcă", the CES tag, "a plecat", "Publicat", "Publică" or "Oprește publicarea", "Vezi lucrarea" and ⋯, and the checkboxes of an open test.
-- On a phone, each row becomes a card. The name and the grade chip are on the first line, and the rest is under them.
+- On a phone each row stays a card, as today: the name, then each cell under its caption, the grade ("Nota") first.
 
 ## What goes away
 

@@ -2,16 +2,17 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import type { RobotStart, UploadRow } from '../../../shared/api.ts';
-import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDateTime, modelCell, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { CesTag } from '../CesTag.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
+import { GradeChip } from './GradeChip.tsx';
 import { heldBackHint, PAPER_PART_LABEL } from './paperCounts.ts';
 
 // Who uploaded what: one row per student of the class, with the grade once
-// the robot graded it. The table takes the full width of its card; the model
+// the robot graded it, next to the name, in its colour, as in the table of
+// Rezultate. The table takes the full width of its card; the model
 // of a grading, when the setting shows it, is one line of the row's ⋯ menu. While the uploads are open, the teacher selects the
 // uploads to grade now: one checkbox per row with files, and one in the header
 // for all of them. The result links and their publishing are in the panel
@@ -70,10 +71,10 @@ export function UploadsTable({
               </th>
             )}
             <th scope="col">Elev</th>
+            <th scope="col">Nota</th>
             <th scope="col">Stare</th>
             <th scope="col">Fișiere</th>
             <th scope="col">Ora</th>
-            <th scope="col">Nota</th>
             <th scope="col">De verificat</th>
             <th scope="col">
               <span className="sr-only">Acțiuni</span>
@@ -205,6 +206,7 @@ function UploadTableRow({
         {(row.ces || row.variant === 'ces') && <CesTag />}
         {!row.active && <span className="tag">a plecat</span>}
       </th>
+      <td data-label="Nota">{row.grade === null ? '—' : <GradeChip grade={row.grade} />}</td>
       <td data-label="Stare">
         {state.label}
         {state.hint !== null && <p className="hint">{state.hint}</p>}
@@ -214,8 +216,7 @@ function UploadTableRow({
       </td>
       <td data-label="Fișiere">{row.fileCount}</td>
       <td data-label="Ora">{time ? formatDateTime(time) : '—'}</td>
-      <td data-label="Nota">{row.grade === null ? '—' : formatPoints(row.grade)}</td>
-      <td data-label="De verificat">{row.flagCount > 0 ? row.flagCount : '—'}</td>
+      <td data-label="De verificat">{row.flagCount > 0 ? <span className="points-pill">{row.flagCount}</span> : '—'}</td>
       <td className="actions-cell">
         {submissionId !== null && startedAt !== null && (
           <span className="row-actions">

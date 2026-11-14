@@ -414,7 +414,26 @@ describe('TestPage', () => {
     const labels = within(pop)
       .getAllByRole('cell')
       .map((cell) => cell.getAttribute('data-label'));
-    expect(labels).toEqual([null, 'Stare', 'Fișiere', 'Ora', 'Nota', 'De verificat', null]);
+    expect(labels).toEqual([null, 'Nota', 'Stare', 'Fișiere', 'Ora', 'De verificat', null]);
+  });
+
+  it('shows the grades of Corectare in chips of their colour, the points to check in an orange label, and nothing in bold', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, flagCount: 2 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 6.5 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    renderAdmin(`${PAGE}#corectare`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const table = await screen.findByRole('table', { name: 'Încărcările elevilor' });
+    const pop = within(table).getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
+    expect(within(pop).getByText('9')).toHaveClass('grade-chip', 'points-5');
+    expect(pop.querySelector('[data-label="De verificat"] .points-pill')).toHaveTextContent('2');
+    const stan = within(table).getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
+    expect(within(stan).getByText('6,5')).toHaveClass('grade-chip', 'points-3');
+    expect(stan.querySelector('[data-label="De verificat"]')).toHaveTextContent('—');
+    const marin = within(table).getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
+    expect(marin.querySelector('[data-label="Nota"]')).toHaveTextContent('—');
+    expect(table.querySelector('strong, b')).toBeNull();
   });
 
   it('has no Model column unless the setting is on', async () => {

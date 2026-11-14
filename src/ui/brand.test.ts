@@ -157,6 +157,14 @@ describe('brand.css', () => {
     expect(value(declarations('.review-keys-line'), 'white-space')).toBe('nowrap');
   });
 
+  it('draws the papers tables as the points table of Verificare, with no bold', () => {
+    expect(value(declarations('table.uploads thead th'), 'font-weight')).toBe('500');
+    expect(value(declarations('table.uploads thead th'), 'background')).toBe('var(--raised)');
+    expect(value(declarations('table.uploads tbody th'), 'font-weight')).toBe('500');
+    expect(value(declarations('.grade-chip'), 'font-weight')).toBe('500');
+    expect(value(declarations('  table.uploads tbody td[data-label]::before'), 'font-weight')).toBe('500');
+  });
+
   it('is flat: no gradient, no notebook grid', () => {
     expect(css).not.toMatch(/gradient\(/);
     expect(css).not.toContain('--grid');

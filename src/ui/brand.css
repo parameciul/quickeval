@@ -3986,6 +3986,14 @@ input[type="file"] {
   overflow-x: auto;
 }
 
+/* The papers tables of Corectare and Rezultate look like the points table
+   of Verificare: small grey column names on a light band, thin lines, a
+   light row under the pointer, and no bold. */
+.table-wrap.uploads-wrap {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+}
+
 table.uploads {
   width: 100%;
   min-width: 36rem;
@@ -3995,19 +4003,62 @@ table.uploads {
 
 table.uploads th,
 table.uploads td {
-  padding: 0.45rem 0.75rem;
-  border-bottom: 1px solid var(--rule);
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
 }
 
 table.uploads thead th {
+  border-bottom: 1px solid var(--rule);
+  background: var(--raised);
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 table.uploads tbody th {
-  font-weight: 700;
+  font-weight: 500;
+}
+
+table.uploads tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+table.uploads tbody tr:hover > * {
+  background: var(--raised);
+}
+
+/* A student's name that opens the paper reads as a name: the link shows
+   under the pointer. */
+table.uploads tbody th a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+table.uploads tbody th a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+/* A grade, coloured by the class report's scale (.points-N gives the
+   colour): the number on a soft tint of the same colour. */
+.grade-chip {
+  display: inline-block;
+  min-width: 2.75rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* The points to check next to a grade in Rezultate. */
+table.uploads .grade-chip + .points-pill {
+  margin-left: 0.4rem;
+  font-size: 0.8125rem;
 }
 
 table.uploads tr.is-muted td {
@@ -4076,6 +4127,8 @@ table.uploads .row-actions {
 @media (max-width: 48rem) {
   .table-wrap.uploads-wrap {
     overflow-x: visible;
+    border: 0;
+    border-radius: 0;
   }
 
   table.uploads,
@@ -4125,7 +4178,11 @@ table.uploads .row-actions {
     display: block;
     color: var(--muted);
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 500;
+  }
+
+  table.uploads tbody tr:hover > * {
+    background: none;
   }
 
   /* "Linkurile elevilor" in short cards: the points and the grade side by
@@ -4174,7 +4231,7 @@ table.uploads .row-actions {
     gap: 0.5rem;
     color: var(--text);
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: 500;
   }
 
   table.uploads .select-all-text {

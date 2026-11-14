@@ -8,6 +8,7 @@ import { studentResultUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { CesTag } from '../CesTag.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { GradeChip } from './GradeChip.tsx';
 
 // A paper the student sent has a result link; a student who did not send one
 // (no upload, or one still on the phone) has none.
@@ -27,7 +28,8 @@ export function linksCount(uploads: UploadRow[], testResultsOpen: boolean): stri
 }
 
 // The students' result links in the panel Rezultate (redesign spec §8): a row
-// for each student, with the points, the grade, the link to copy, and whether
+// for each student, with the grade (in its colour, read first, with the points
+// still to check apart), the points, the link to copy, and whether
 // the result is published. Only a graded paper can be published alone; one
 // already published can be stopped, also while it is graded again. While the
 // test publishes every result, a row cannot be stopped alone: "Oprește
@@ -52,8 +54,8 @@ export function ResultLinksTable({
         <thead>
           <tr>
             <th scope="col">Elev</th>
-            <th scope="col">Punctaj</th>
             <th scope="col">Nota</th>
+            <th scope="col">Punctaj</th>
             <th scope="col">Linkul cu rezultatul</th>
             <th scope="col">Stare</th>
           </tr>
@@ -96,8 +98,17 @@ function ResultLinkRow({
         {(row.ces || row.variant === 'ces') && <CesTag />}
         {!row.active && <span className="tag">a plecat</span>}
       </th>
+      <td data-label="Nota">
+        {graded && row.grade !== null ? (
+          <>
+            <GradeChip grade={row.grade} />
+            {row.flagCount > 0 && <span className="points-pill">{row.flagCount} de verificat</span>}
+          </>
+        ) : (
+          '—'
+        )}
+      </td>
       <td data-label="Punctaj">{points}</td>
-      <td data-label="Nota">{graded && row.grade !== null ? <strong>{formatPoints(row.grade)}</strong> : '—'}</td>
       <td className="result-link-cell">
         {hasLink(row) ? (
           <CopyResultLink

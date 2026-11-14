@@ -87,6 +87,23 @@ describe('the panel Rezultate', () => {
     expect(within(row('Stan Eva')).getAllByText('—')).toHaveLength(2);
   });
 
+  it('shows each grade in a chip of its grade colour, with the points to check apart, and nothing in bold', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9.5, total: 95, maxTotal: 100, flagCount: 2 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 4, total: 40, maxTotal: 100 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan', submissionId: 7, status: 'graded', fileCount: 1, grade: 2, total: 20, maxTotal: 100 }),
+    ];
+    renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
+    const table = await screen.findByRole('table', { name: 'Linkurile cu rezultatele elevilor' });
+    expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Elev', 'Nota', 'Punctaj', 'Linkul cu rezultatul', 'Stare']);
+    expect(within(row('Pop Ion')).getByText('9,5')).toHaveClass('grade-chip', 'points-5');
+    expect(within(row('Pop Ion')).getByText('2 de verificat')).toHaveClass('points-pill');
+    expect(within(row('Stan Eva')).getByText('4')).toHaveClass('grade-chip', 'points-2');
+    expect(within(row('Stan Eva')).queryByText(/de verificat/)).not.toBeInTheDocument();
+    expect(within(row('Marin Dan')).getByText('2')).toHaveClass('grade-chip', 'points-1');
+    expect(table.querySelector('strong, b')).toBeNull();
+  });
+
   it("links each name to the paper's page, and marks a student who left", async () => {
     const rows = [...graded(), fakeUpload({ studentId: 13, studentName: 'Vlad Ana', active: false, submissionId: 7, status: 'graded', grade: 6 })];
     renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
