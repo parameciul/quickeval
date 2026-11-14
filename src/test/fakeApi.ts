@@ -274,6 +274,7 @@ export function fakeUpload(overrides: Partial<UploadRow> & Pick<UploadRow, 'stud
     resultToken: null,
     resultsOpen: false,
     flagCount: 0,
+    checkedCount: 0,
     // One made-up item for every point counted, unless the test names them.
     reviewPoints: Array.from({ length: overrides.flagCount ?? 0 }, (_, index) => fakePoint(1000 + index)),
     model: null,
@@ -345,6 +346,13 @@ export function reviewPointsOf(evaluation: EvaluationInfo | null): ReviewPoint[]
       reason: item.reviewReason,
     }));
   return evaluation.unreadable.length > 0 && !evaluation.pagesReviewed ? [{ kind: 'pages', pages: [...evaluation.unreadable] }, ...items] : items;
+}
+
+// The points of a graded result the teacher already checked, as the uploads
+// list counts them: the items, plus one for the checked pages.
+export function checkedCountOf(evaluation: EvaluationInfo | null): number {
+  if (!evaluation) return 0;
+  return evaluation.items.filter((item) => item.needsReview && item.reviewed).length + (evaluation.unreadable.length > 0 && evaluation.pagesReviewed ? 1 : 0);
 }
 
 // One student's upload of the test 6E2-26T1, graded unless told, for building fake data in tests.
@@ -419,6 +427,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
           grade: submission.evaluation?.grade ?? null,
           total: submission.evaluation?.total ?? null,
           flagCount: submission.evaluation?.flagCount ?? 0,
+          checkedCount: checkedCountOf(submission.evaluation),
           reviewPoints: reviewPointsOf(submission.evaluation),
         });
       }
@@ -699,7 +708,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         test.ces.exerciseList = { status: 'none', message: null };
         for (const row of found.uploads) {
           if (row.status !== 'graded' && row.status !== 'failed') continue;
-          Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0, lastError: null });
+          Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0, checkedCount: 0, lastError: null });
           count += 1;
         }
         if (test.status === 'done' && found.uploads.some((row) => row.status === 'submitted')) test.status = 'evaluating';
@@ -932,7 +941,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const again = (status: string) => status === 'graded' || status === 'failed';
       const rows = found.uploads.filter((row) => again(row.status));
       if (rows.length === 0) throw new ApiError(409, 'nothing_to_regrade', 'Testul nu are lucrări corectate.');
-      for (const row of rows) Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0, lastError: null });
+      for (const row of rows) Object.assign(row, { status: 'submitted', grade: null, gradedAt: null, flagCount: 0, checkedCount: 0, lastError: null });
       if (found.test.status === 'done') found.test.status = 'evaluating';
       for (const detail of submissions) {
         if (detail.testCode === code && again(detail.status)) {
@@ -990,7 +999,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
         const row = detail.uploads.find((u) => u.submissionId === submissionId);
         if (row) {
           const cleared = { submissionId: null, status: 'none', fileCount: 0, startedAt: null, submittedAt: null, autoSubmitted: false };
-          Object.assign(row, { ...cleared, grade: null, total: null, maxTotal: null, gradedAt: null, resultsOpen: false, flagCount: 0, reviewPoints: [], lastError: null });
+          Object.assign(row, { ...cleared, grade: null, total: null, maxTotal: null, gradedAt: null, resultsOpen: false, flagCount: 0, checkedCount: 0, reviewPoints: [], lastError: null });
         }
       }
       const index = submissions.findIndex((s) => s.id === submissionId);
@@ -1022,7 +1031,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const before = test?.test.status ?? found!.testStatus;
       const testStatus = before === 'done' ? 'evaluating' : before;
       if (found) Object.assign(found, { status: 'submitted', testStatus, evaluation: null });
-      if (row) Object.assign(row, { status: 'submitted', grade: null, total: null, maxTotal: null, gradedAt: null, flagCount: 0, reviewPoints: [] });
+      if (row) Object.assign(row, { status: 'submitted', grade: null, total: null, maxTotal: null, gradedAt: null, flagCount: 0, checkedCount: 0, reviewPoints: [] });
       if (test) test.test.status = testStatus;
       return { count: 1, testStatus, robot: testStatus === 'evaluating' ? 'next_check' : null };
     }),

@@ -832,6 +832,9 @@ export interface UploadRow {
   // Items to check that the teacher has not checked yet, plus one for pages
   // that could not be read.
   flagCount: number;
+  // Points of this paper the teacher already checked (items, plus one for the
+  // pages); with flagCount, all its points to check.
+  checkedCount: number;
   // Those points: the pages first, then the items in the barem's order.
   reviewPoints: ReviewPoint[];
   // The model and effort of this upload's grading; null while it has none.
