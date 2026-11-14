@@ -3413,11 +3413,6 @@ table.items tr.item-decision > td {
   overflow-wrap: anywhere;
 }
 
-/* The back link at the top of a page: tight, so the page starts higher. */
-.back-link {
-  margin: 0 0 0.5rem;
-}
-
 /* Right-aligned actions on the same row as a heading (test name, QR code). */
 .head-actions {
   display: inline-flex;
@@ -3645,8 +3640,38 @@ input[type="file"] {
   color: var(--text);
 }
 
-.choice-drop {
-  margin: -0.25rem 0 0.25rem 2rem;
+/* "Încarc baremul acum" with its drop area: one card, blue while chosen. The
+   test's drop area sits in a frame of the same size (.file-frame), so the
+   two drop areas are equally wide. */
+.choice-card,
+.file-frame {
+  display: grid;
+  gap: 0.625rem;
+  max-width: 34rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+}
+
+.choice-card:has(input:checked) {
+  border-color: var(--ink);
+  background: var(--ink-tint);
+}
+
+.choice-card > .choice {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.choice-card .file-drop,
+.file-frame .file-drop {
+  max-width: none;
+}
+
+.choice-card .file-drop {
+  background: var(--sheet);
 }
 
 /* A class with a CES student (spec: CES switch): the switch between the first
@@ -3784,6 +3809,51 @@ input[type="file"] {
   background: var(--sheet);
 }
 
+/* "Indicații pentru corectare" in the barem's card: a grey box, always open. */
+.barem-notes {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--raised);
+}
+
+.barem-notes .hint {
+  font-size: 0.8125rem;
+}
+
+.barem-notes textarea {
+  max-width: none;
+  min-height: 5.5rem;
+  font-size: 0.875rem;
+}
+
+.barem-notes-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  min-height: 2rem;
+}
+
+.barem-notes-saved {
+  color: var(--ok-fg);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.barem-notes-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.barem-notes .alert {
+  margin: 0;
+}
+
 /* "Varianta CES" in Pregătire: the adapted test's own files, under the class files. */
 .ces-variant {
   max-width: 44rem;
@@ -3798,8 +3868,14 @@ input[type="file"] {
 }
 
 /* "Test separat pentru elevii cu CES" (spec: CES switch): who the CES students
-   are, and the switch, framed in the blue so the teacher cannot miss it. */
+   are, and the switch on their right, framed in the blue so the teacher cannot
+   miss it. The switch is smaller than the theme switch, and goes under the
+   names on a narrow screen. */
 .ces-switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.35rem 1.25rem;
   max-width: 44rem;
   margin: 0.5rem 0 0.75rem;
   padding: 0.75rem 1rem;
@@ -3811,6 +3887,11 @@ input[type="file"] {
   margin: 0;
 }
 
+.ces-switch > .hint {
+  grid-column: 1 / -1;
+  font-size: 0.8125rem;
+}
+
 .ces-switch-who {
   display: flex;
   flex-direction: column;
@@ -3820,15 +3901,39 @@ input[type="file"] {
 .ces-switch-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  margin: 0.6rem 0 0.35rem;
+  gap: 0.5rem;
+  margin: 0;
   padding: 0;
   border: 0;
   background: none;
   color: var(--text);
   font: inherit;
+  font-size: 0.9375rem;
   font-weight: 600;
+  text-align: left;
   cursor: pointer;
+}
+
+.ces-switch-button .switch {
+  width: 2.125rem;
+  height: 1.25rem;
+}
+
+.ces-switch-button .switch::after {
+  top: 2px;
+  left: 2px;
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.ces-switch-button[aria-checked="true"] > .switch::after {
+  transform: translateX(0.875rem);
+}
+
+@media (max-width: 599px) {
+  .ces-switch {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .ces-switch-button:disabled {

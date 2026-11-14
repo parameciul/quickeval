@@ -6,6 +6,7 @@ import { testFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { missingOf, type MissingPart } from '../missing.ts';
+import { FileDrop } from '../newTest/FileDrop.tsx';
 import { TestFileInput } from '../TestFileInput.tsx';
 import { useGeneratedBarem } from './GeneratedBarem.tsx';
 import { partsOf } from './variant.ts';
@@ -16,19 +17,21 @@ const PART: Record<TestVariant, Record<TestFileKind, MissingPart>> = {
   ces: { test: 'cesTest', barem: 'cesBarem' },
 };
 
-const NAMES: Record<TestVariant, Record<TestFileKind, { title: string; upload: string; replace: string }>> = {
+// `drop` names the drop area of a missing file to a screen reader, as on Test nou.
+const NAMES: Record<TestVariant, Record<TestFileKind, { title: string; drop: string; replace: string }>> = {
   class: {
-    test: { title: 'Testul', upload: 'Încarcă testul', replace: 'Înlocuiește testul' },
-    barem: { title: 'Baremul', upload: 'Încarcă baremul', replace: 'Înlocuiește baremul' },
+    test: { title: 'Testul', drop: 'Fișierul testului', replace: 'Înlocuiește testul' },
+    barem: { title: 'Baremul', drop: 'Fișierul baremului', replace: 'Înlocuiește baremul' },
   },
   ces: {
-    test: { title: 'Testul CES', upload: 'Încarcă testul CES', replace: 'Înlocuiește testul CES' },
-    barem: { title: 'Baremul CES', upload: 'Încarcă baremul CES', replace: 'Înlocuiește baremul CES' },
+    test: { title: 'Testul CES', drop: 'Fișierul testului CES', replace: 'Înlocuiește testul CES' },
+    barem: { title: 'Baremul CES', drop: 'Fișierul baremului CES', replace: 'Înlocuiește baremul CES' },
   },
 };
 
 // The test and the barem (the panel Pregătire of the test page): open them,
-// upload them, or replace them. Not while the robot grades with them; while
+// upload them, or replace them. A missing file has the drop area of Test nou;
+// a file that is there has the button that replaces it. Not while the robot grades with them; while
 // their exercise list has a problem or failed, the robot uses neither, and the
 // teacher may fix them. A new barem during evaluation starts the robot, which
 // makes the exercise list again. With `variant` "ces": the CES variant's own
@@ -127,6 +130,7 @@ function TestFileRow({
     },
   });
   const names = NAMES[variant][kind];
+  const inputId = variant === 'ces' ? `file-ces-${kind}` : `file-${kind}`;
 
   return (
     <li>
@@ -145,21 +149,34 @@ function TestFileRow({
           <span className="hint">lipsește</span>
         )}
       </p>
-      <TestFileInput
-        key={round}
-        id={variant === 'ces' ? `file-ces-${kind}` : `file-${kind}`}
-        label={file ? names.replace : names.upload}
-        disabled={locked || upload.isPending}
-        actions={actions}
-        confirm={
-          kind === 'barem' && file
-            ? (picked) => window.confirm(`Înlocuiești ${variant === 'ces' ? 'baremul CES' : 'baremul'} existent cu ${picked.name}?`)
-            : undefined
-        }
-        onPick={(picked) => {
-          if (picked) upload.mutate(picked);
-        }}
-      />
+      {file ? (
+        <TestFileInput
+          key={round}
+          id={inputId}
+          label={names.replace}
+          disabled={locked || upload.isPending}
+          actions={actions}
+          confirm={
+            kind === 'barem' ? (picked) => window.confirm(`Înlocuiești ${variant === 'ces' ? 'baremul CES' : 'baremul'} existent cu ${picked.name}?`) : undefined
+          }
+          onPick={(picked) => {
+            if (picked) upload.mutate(picked);
+          }}
+        />
+      ) : (
+        <>
+          <FileDrop
+            key={round}
+            id={inputId}
+            name={names.drop}
+            disabled={locked || upload.isPending}
+            onPick={(picked) => {
+              if (picked) upload.mutate(picked);
+            }}
+          />
+          {actions && <div className="file-field">{actions}</div>}
+        </>
+      )}
       {upload.isPending && <p role="status">Se încarcă…</p>}
       {upload.error && <ErrorMessage error={upload.error} />}
       {status}
@@ -170,9 +187,12 @@ function TestFileRow({
   );
 }
 
-// Extra teacher comments for the barem: the robot reads them as part of the
-// barem, so the teacher need not replace the barem file. Like a new barem,
-// saving them clears the exercise list and starts the robot during evaluation.
+// The teacher's notes for the barem ("Indicații pentru corectare"), always
+// open: the robot reads them as part of the barem, when it grades and when it
+// generates the barem, so the teacher need not replace the barem file. Like a
+// new barem, saving them clears the exercise list and starts the robot during
+// evaluation, so they are saved only with "Salvează", shown once the text
+// differs from what is saved, never while typing.
 function BaremNotesEditor({
   code,
   variant,
@@ -189,65 +209,80 @@ function BaremNotesEditor({
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const api = useApi();
-  const [open, setOpen] = useState(false);
   const [text, setText] = useState(notes);
+  const [seen, setSeen] = useState(notes);
+  const [saved, setSaved] = useState(false);
+  // New notes from the server replace the text, unless the teacher changed it.
+  if (notes !== seen) {
+    setSeen(notes);
+    if (text === seen) setText(notes);
+  }
   const ces = variant === 'ces';
+  const id = ces ? 'ces-barem-notes' : 'barem-notes';
+  // The server keeps the notes trimmed, so spaces at the ends are no change.
+  const changed = text.trim() !== notes;
   const save = useMutation({
-    mutationFn: () => api.saveBaremNotes(code, text, variant),
+    mutationFn: (value: string) => api.saveBaremNotes(code, value, variant),
     onSuccess: async (answer) => {
-      setOpen(false);
+      setText(answer.baremNotes);
+      setSaved(true);
       onRobot(answer.robot);
       await onChanged();
     },
   });
 
-  if (!open) {
-    return (
-      <>
-        {notes && (
-          <p className="hint">
-            {ces ? 'Comentarii la baremul CES' : 'Comentarii la barem'}: {notes}
-          </p>
-        )}
-        <button
-          type="button"
-          className="button-quiet button-small"
-          disabled={locked}
-          onClick={() => {
-            setText(notes);
-            setOpen(true);
-          }}
-        >
-          {notes ? 'Editează comentariile' : 'Adaugă comentarii'}
-        </button>
-      </>
-    );
-  }
   return (
     <form
+      className="barem-notes"
       onSubmit={(event: FormEvent) => {
         event.preventDefault();
-        save.mutate();
+        save.mutate(text);
       }}
     >
-      <label htmlFor={ces ? 'ces-barem-notes' : 'barem-notes'}>{ces ? 'Comentarii la baremul CES' : 'Comentarii la barem'}</label>
+      <label htmlFor={id}>{ces ? 'Indicații pentru corectarea CES' : 'Indicații pentru corectare'}</label>
+      <p className="hint" id={`${id}-help`}>
+        {ces
+          ? 'Se adaugă la baremul CES. Robotul le folosește când dă punctele și când generează baremul.'
+          : 'Se adaugă la barem. Robotul le folosește când dă punctele, ca să corecteze cum vrei tu.'}
+      </p>
       <textarea
-        id={ces ? 'ces-barem-notes' : 'barem-notes'}
+        id={id}
         value={text}
-        onChange={(event) => setText(event.target.value)}
+        onChange={(event) => {
+          setText(event.target.value);
+          setSaved(false);
+        }}
         maxLength={MAX_BAREM_NOTES_LENGTH}
-        rows={4}
-        placeholder="De exemplu: la exercițiul 2 acceptă și metoda cu proporții."
+        rows={3}
+        disabled={locked}
+        aria-describedby={`${id}-help`}
+        placeholder={
+          ces
+            ? 'De exemplu: acceptă rezultatul fără justificare la exercițiul 1.'
+            : 'De exemplu: la exercițiul 2 acceptă și metoda cu proporții. La 3b, fără unitatea de măsură scade 1 punct.'
+        }
       />
-      <p className="hint">Robotul le citește ca parte din barem.</p>
-      <span className="row-actions">
-        <button className="button button-small" type="submit" disabled={save.isPending}>
-          Salvează comentariile
-        </button>
-        <button type="button" className="button-quiet button-small" onClick={() => setOpen(false)}>
-          Renunță
-        </button>
-      </span>
+      <div className="barem-notes-foot">
+        {changed ? (
+          <span className="row-actions">
+            <button className="button button-small" type="submit" disabled={save.isPending || locked}>
+              Salvează indicațiile
+            </button>
+            <button type="button" className="button-quiet button-small" disabled={save.isPending} onClick={() => setText(notes)}>
+              Renunță
+            </button>
+          </span>
+        ) : (
+          saved && (
+            <span className="barem-notes-saved" role="status">
+              Salvate
+            </span>
+          )
+        )}
+        <span className="barem-notes-count">
+          {text.length} / {MAX_BAREM_NOTES_LENGTH}
+        </span>
+      </div>
       {save.error && <ErrorMessage error={save.error} />}
     </form>
   );

@@ -5,6 +5,7 @@ import { displayClassName } from '../../../shared/classes.ts';
 import { classStats, reportTables } from '../../../shared/stats.ts';
 import { normalizeTestCode } from '../../../shared/tests.ts';
 import { useApi } from '../ApiContext.tsx';
+import { Crumbs } from '../Crumbs.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { classCsv } from '../../../shared/csv.ts';
 import { countLabel, formatDate, uploadStatusLabel } from '../../ui/format.ts';
@@ -87,9 +88,14 @@ function ReportView({ code }: { code: string }) {
 
   return (
     <section className="report-page">
-      <p className="back-link">
-        <Link to={`/teste/${code}`}>← {report.test.title}</Link>
-      </p>
+      <Crumbs
+        items={[
+          { label: 'Teste', to: '/' },
+          { label: displayClassName(report.test.className), to: `/clase/${report.test.classId}` },
+          { label: report.test.title, to: `/teste/${code}` },
+          { label: 'Raportul clasei' },
+        ]}
+      />
       {query.isRefetchError && <ErrorMessage error={query.error} />}
       <div className="report-head">
         <div>

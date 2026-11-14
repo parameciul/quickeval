@@ -42,6 +42,23 @@ describe('NewTestPage', () => {
     expect(screen.getByText('Testul rămâne ciornă până apeși „Începe testul”.')).toBeInTheDocument();
   });
 
+  it('shows the path Teste › Test nou, not a back link', async () => {
+    renderAdmin('/teste/nou', classes());
+    const path = within(await screen.findByRole('navigation', { name: 'Unde ești' }));
+    expect(path.getByRole('link', { name: 'Teste' })).toHaveAttribute('href', '/');
+    expect(path.getByText('Test nou')).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', { name: /^←/ })).not.toBeInTheDocument();
+  });
+
+  it('puts the barem drop area in the card of its choice, and the test drop area in a frame of the same size', async () => {
+    renderAdmin('/teste/nou', classes());
+    await fillClassAndTitle();
+    const card = choice(/^Încarc baremul acum/).closest('.choice-card')!;
+    expect(card).not.toBeNull();
+    expect(card).toContainElement(baremField());
+    expect(testField().closest('.file-frame')).not.toBeNull();
+  });
+
   it('offers the classes that are not archived', async () => {
     renderAdmin('/teste/nou', classes());
     const select = await screen.findByLabelText('Clasa');
@@ -258,6 +275,16 @@ describe('NewTestPage, a class with a CES student', () => {
     expect(screen.getByRole('heading', { level: 2, name: /^Testul CES/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: /^Baremul CES/ })).toBeInTheDocument();
     expect(screen.getByLabelText(/^Fișierul testului CES/)).toBeInTheDocument();
+  });
+
+  it('says that a generated CES barem comes as a proposal to check, like the class barem', async () => {
+    renderAdmin('/teste/nou', withCes());
+    await fillClassAndTitle('2');
+    await screen.findByRole('switch');
+    expect(cesBaremChoices().getByRole('radio', { name: /^Generează baremul CES din testul CES/ }).closest('label')).toHaveTextContent(
+      'Pornește de la baremul clasei. Primești o propunere în câteva minute. O verifici și o confirmi înainte de corectare.',
+    );
+    expect(cesBaremChoices().getByLabelText(/^Fișierul baremului CES/).closest('.choice-card')).not.toBeNull();
   });
 
   it('shows no switch for a class without a CES student', async () => {

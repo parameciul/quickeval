@@ -9,6 +9,7 @@ import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDate } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { CesTag } from '../CesTag.tsx';
+import { Crumbs } from '../Crumbs.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { RenameDialog } from '../classPage/ClassDialogs.tsx';
 import { ResultCell } from '../classPage/ClassStudents.tsx';
@@ -54,11 +55,13 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
 
   return (
     <section className="history-page">
-      {back && (
-        <p className="back-link">
-          <Link to={`/clase/${back.id}`}>← {displayClassName(back.name)}</Link>
-        </p>
-      )}
+      <Crumbs
+        items={[
+          { label: 'Clase', to: '/clase' },
+          ...(back ? [{ label: displayClassName(back.name), to: `/clase/${back.id}` }] : []),
+          { label: student.fullName },
+        ]}
+      />
       <div className="history-head">
         <div>
           <h1>

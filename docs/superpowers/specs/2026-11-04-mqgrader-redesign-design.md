@@ -307,7 +307,7 @@ The user picked one option per page on 2026-11-08 (decisions 29 to 39). The prot
 
 ### 11.7 "Test nou" (8c, `/admin/teste/nou`)
 
-- Its own page, as today. "Test nou" in the bar and on the Teste page lead to it; "Test nou pentru această clasă" leads to it with that class chosen. "← Toate testele" and the title "Test nou".
+- Its own page, as today. "Test nou" in the bar and on the Teste page lead to it; "Test nou pentru această clasă" leads to it with that class chosen. Above the title, the path "Teste › Test nou" (the old "← Toate testele" link is gone, as on the test page, the report and the student page), and the title "Test nou".
 - Left, a form of three numbered steps:
   1. "Clasa și titlul", "Titlul îl văd și elevii, pe pagina lor.": "Clasa" (a select; "Nu e în listă? Clasă nouă" under it when no class was chosen) and "Titlul testului".
   2. "Testul", "Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.": a drop area, "Alege fișierul sau trage-l aici".

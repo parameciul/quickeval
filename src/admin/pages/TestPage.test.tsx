@@ -83,7 +83,7 @@ describe('TestPage', () => {
     expect(within(path).getByRole('link', { name: 'Teste' })).toHaveAttribute('href', '/');
     expect(within(path).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
     expect(within(path).getByText('Fracții')).toHaveAttribute('aria-current', 'page');
-    expect(screen.queryByRole('link', { name: '← Toate testele' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^←/ })).not.toBeInTheDocument();
     expect(screen.getByText('3 elevi · început 6 oct. 2026, 10:15')).toBeInTheDocument();
     expect(within(sheet()).getByText('6E2-26T1')).toBeInTheDocument();
     expect(within(sheet()).getByText('Deschis')).toBeInTheDocument();
@@ -175,7 +175,7 @@ describe('TestPage', () => {
     expect(await screen.findByText('Încarcă testul ca să primești varianta cu cod QR.')).toBeInTheDocument();
     await openStage('Pregătire');
     const file = new File(['%PDF-1.7'], 'Test.pdf', { type: PDF_TYPE });
-    await userEvent.upload(screen.getByLabelText('Încarcă testul'), file);
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului/), file);
     expect(await screen.findByRole('link', { name: 'Test.pdf' })).toBeInTheDocument();
     await openStage('Tipărire');
     expect(await screen.findByText('Se pregătește testul cu cod QR…')).toBeInTheDocument();
@@ -219,7 +219,7 @@ describe('TestPage', () => {
     const api = apiWith();
     renderAdmin(PAGE, api);
     const file = new File(['%PDF-1.7'], 'Test.pdf', { type: PDF_TYPE });
-    await userEvent.upload(await screen.findByLabelText('Încarcă testul'), file);
+    await userEvent.upload(await screen.findByLabelText(/^Fișierul testului/), file);
     expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'test', file, 'class');
     expect(await screen.findByRole('link', { name: 'Test.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/test');
     expect(screen.getByLabelText('Înlocuiește testul')).toBeInTheDocument();
@@ -240,7 +240,8 @@ describe('TestPage', () => {
 
   it('locks the files while the test is being graded', async () => {
     renderAdmin(`${PAGE}#pregatire`, apiWith({ status: 'evaluating' }));
-    expect(await screen.findByLabelText('Încarcă baremul')).toBeDisabled();
+    expect(await screen.findByLabelText(/^Fișierul baremului/)).toBeDisabled();
+    expect(screen.getByLabelText('Indicații pentru corectare')).toBeDisabled();
   });
 
   it('says no paper came yet while the test is open and nothing was uploaded, with the QR code on the whole screen', async () => {
@@ -1276,15 +1277,48 @@ describe('TestPage evaluation', () => {
     expect(screen.queryByText('✓ Corectat complet')).not.toBeInTheDocument();
   });
 
-  it('saves extra comments for the barem', async () => {
+  it('saves the indications for the barem from a text box that is always open', async () => {
     const api = evaluationApi({});
     renderAdmin(`${PAGE}#pregatire`, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Adaugă comentarii' }));
-    expect(screen.getByText('Robotul le citește ca parte din barem.')).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText('Comentarii la barem'), 'Acceptă și metoda cu proporții.');
-    await userEvent.click(screen.getByRole('button', { name: 'Salvează comentariile' }));
+    const box = await screen.findByLabelText('Indicații pentru corectare');
+    expect(box).toHaveAccessibleDescription('Se adaugă la barem. Robotul le folosește când dă punctele, ca să corecteze cum vrei tu.');
+    expect(screen.queryByRole('button', { name: 'Salvează indicațiile' })).not.toBeInTheDocument();
+    await userEvent.type(box, 'Acceptă și metoda cu proporții.');
+    expect(screen.getByText('31 / 2000')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează indicațiile' }));
     expect(api.saveBaremNotes).toHaveBeenCalledWith('6E2-26T1', 'Acceptă și metoda cu proporții.', 'class');
-    expect(await screen.findByText(/Acceptă și metoda cu proporții/)).toBeInTheDocument();
+    expect(await screen.findByText('Salvate')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Salvează indicațiile' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Indicații pentru corectare')).toHaveValue('Acceptă și metoda cu proporții.');
+  });
+
+  it('takes the saved indications as they are kept, without the empty lines at the end', async () => {
+    const api = evaluationApi({});
+    renderAdmin(`${PAGE}#pregatire`, api);
+    await userEvent.type(await screen.findByLabelText('Indicații pentru corectare'), 'Acceptă și proporții.{enter}');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează indicațiile' }));
+    expect(await screen.findByText('Salvate')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Salvează indicațiile' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Indicații pentru corectare')).toHaveValue('Acceptă și proporții.');
+  });
+
+  it('puts back the saved indications with Renunță, without saving', async () => {
+    const api = evaluationApi({ baremNotes: 'La 2, și proporții.' });
+    renderAdmin(`${PAGE}#pregatire`, api);
+    const box = await screen.findByLabelText('Indicații pentru corectare');
+    expect(box).toHaveValue('La 2, și proporții.');
+    await userEvent.type(box, ' Altceva.');
+    await userEvent.click(screen.getByRole('button', { name: 'Renunță' }));
+    expect(box).toHaveValue('La 2, și proporții.');
+    expect(screen.queryByRole('button', { name: 'Salvează indicațiile' })).not.toBeInTheDocument();
+    expect(api.saveBaremNotes).not.toHaveBeenCalled();
+  });
+
+  it('shows the indications before the barem is there, since a generated barem uses them too', async () => {
+    renderAdmin(`${PAGE}#pregatire`, evaluationApi({ files: { test: FILES.test, barem: null } }));
+    expect(await screen.findByLabelText('Indicații pentru corectare')).toBeEnabled();
+    expect(screen.getByLabelText(/^Fișierul baremului/)).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Generează baremul' })).toBeEnabled();
   });
 
   it('says when the finished evaluation was partial', async () => {
@@ -1399,7 +1433,7 @@ describe('TestPage evaluation', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const api = evaluationApi({ files: { test: FILES.test, barem: null } });
     renderAdmin(`${PAGE}#pregatire`, api);
-    await userEvent.upload(await screen.findByLabelText('Încarcă baremul'), new File(['%PDF-1.7'], 'nou.pdf', { type: PDF_TYPE }));
+    await userEvent.upload(await screen.findByLabelText(/^Fișierul baremului/), new File(['%PDF-1.7'], 'nou.pdf', { type: PDF_TYPE }));
     expect(confirm).not.toHaveBeenCalled();
     expect(api.uploadTestFile).toHaveBeenCalledTimes(1);
   });

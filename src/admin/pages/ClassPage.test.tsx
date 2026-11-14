@@ -517,7 +517,8 @@ describe('ClassPage grade table', () => {
     renderAdmin('/clase/1', createFakeApi({ ...classData(), histories }));
     const table = within(await screen.findByRole('table', { name: 'Notele elevilor la teste' }));
     await userEvent.click(table.getByRole('link', { name: 'Pop Ion' }));
-    expect(await screen.findByRole('link', { name: '← Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
+    const path = within(await screen.findByRole('navigation', { name: 'Unde ești' }));
+    expect(path.getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
   });
 
   it('links a grade to the result of the student', async () => {

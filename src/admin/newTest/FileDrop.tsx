@@ -3,7 +3,8 @@ import { DOCX_TYPE, fileProblem, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYP
 
 const ACCEPT = ['.pdf', '.docx', PDF_TYPE, DOCX_TYPE].join(',');
 
-// A drop area for the test or the barem of "Test nou" (redesign spec §11.7):
+// A drop area for the test or the barem of "Test nou" (redesign spec §11.7),
+// and for a missing file in Pregătire:
 // a click opens the file picker, and a file dragged onto it is taken too. A
 // file goes through the check of `TestFileInput` (PDF or Word, at most
 // 25 MB): one that cannot be sent shows its problem and is not passed on, and
