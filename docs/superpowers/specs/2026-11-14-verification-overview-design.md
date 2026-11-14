@@ -70,6 +70,6 @@ The fake API (`src/test/fakeApi.ts`, `reviewPointsOf()`) keeps `checkedCount` in
 - The labels are in the class order (by name), not by progress: the teacher finds a name faster.
 - Students whose paper never had a point to check are not listed; only the papers with points count.
 - Papers still being graded are not counted; the counts grow as they are graded.
-- The checked count is written to cost as few D1 rows as possible (one subquery per evaluation, or both counts in one, like `flagCountSql`); `server/db/testsCost.test.ts` keeps its ceiling.
+- The checked count reads only the checked items: a new partial index (migration 0033, `evaluation_items (evaluation_id) WHERE needs_review = 1 AND reviewed_at IS NOT NULL`, like 0031 for the items left), counted by a `checkedCountSql` shaped like `flagCountSql`. The migration runs on the live D1 before the branch reaches `main`.
 - `src/AGENTS.md`: the papers table is in În clasă and Corectare only; the Verificare panel is the overview; the scroll rule; the photo rule.
 - Tests: the scroll on PUSH and not on REPLACE; the photo folded on a checked paper and shown on one with points, and the saved choice untouched; the panel in its four states (nothing graded, nothing checked, part checked, all checked) and with no point at all; `checkedCount` in `listUploads` (items and pages, regrade resets it).
