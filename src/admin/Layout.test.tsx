@@ -37,6 +37,22 @@ const withBack = (
     <BackButton />
   </>
 );
+// The paper page's moves replace the address; a stage of the test page changes
+// only the hash.
+function MoveButtons() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button type="button" onClick={() => void navigate('/cont', { replace: true })}>
+        Înlocuiește adresa
+      </button>
+      <button type="button" onClick={() => void navigate('/cont#x')}>
+        Alt hash
+      </button>
+    </>
+  );
+}
+
 const back = () => userEvent.click(screen.getByRole('button', { name: 'Înapoi în istoric' }));
 
 // The open test misses its files unless given them.
@@ -95,6 +111,35 @@ describe('the shell', () => {
     expect(within(bar).getByRole('link', { name: 'Teste' })).toHaveAttribute('aria-current', 'page');
     expect(within(bar).getByRole('button', { name: 'Clase' })).toHaveAttribute('aria-expanded', 'false');
     expect(within(bar).getByRole('button', { name: 'De făcut' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('opens a new page at the top', async () => {
+    const scroll = vi.spyOn(window, 'scrollTo');
+    renderAdmin('/', withClasses(), <LocationProbe />);
+    await userEvent.click(await screen.findByRole('button', { name: /contul tău/ }));
+    scroll.mockClear();
+    await userEvent.click(screen.getByRole('link', { name: 'Contul meu' }));
+    await expectLocation('/cont');
+    expect(scroll).toHaveBeenCalledWith(0, 0);
+  });
+
+  it('keeps the scroll for a replaced address and for a new hash', async () => {
+    const scroll = vi.spyOn(window, 'scrollTo');
+    renderAdmin(
+      '/',
+      withClasses(),
+      <>
+        <LocationProbe />
+        <MoveButtons />
+      </>,
+    );
+    await screen.findByRole('button', { name: /contul tău/ });
+    scroll.mockClear();
+    await userEvent.click(screen.getByRole('button', { name: 'Înlocuiește adresa' }));
+    await expectLocation('/cont');
+    await userEvent.click(screen.getByRole('button', { name: 'Alt hash' }));
+    await expectLocation('/cont');
+    expect(scroll).not.toHaveBeenCalled();
   });
 
   it('opens the account menu from the initials, with Contul meu', async () => {
