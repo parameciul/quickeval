@@ -191,7 +191,7 @@ The path above the title, the progress of the papers and the papers table are re
   - În clasă: "Începe testul" and "Oprește testul" (`TestActions`), "Redeschide încărcarea", the link for many uploads (while open), and the papers table: who sent and who did not.
   - Corectare: before the start, one line. While open: start now for the chosen papers or at a time, or "Marchează ca terminat", and the papers table with its checkboxes (only in this panel). After: the state of the grading, a partial grading, a problem of the barem (with a link to Pregătire, where the barem is replaced), the robot line, "Recorectează tot", the line of the class analysis, and the papers table.
   - Verificare: "Începe verificarea", which opens the review (§7) at the first point, and "Puncte de verificat", a row per point: the student and the exercise ("Ioana Marin · Subiectul al II-lea, 3)"), the reason, "propus 1p din 1p", and "Decide", which opens the review at that point. The pages the robot could not read are one point: "Paginile necitite" and the pages. "Toate punctele sunt verificate." and "Vezi lucrările" (the review) when graded papers have none; one line before any paper is graded. Then the papers table.
-  - Rezultate: the students' result links and "Pentru tine" (§8, Phase 5). The papers table of the other panels has no result link and no publish button: they are in Rezultate.
+  - Rezultate: the students' result links and "Pentru tine" (§8, Phase 5); since `docs/superpowers/specs/2026-11-14-rezultate-page-design.md`, the box of the two ways, the students' table and "Raportul clasei" in place of "Pentru tine". The papers table of the other panels has no result link and no publish button: they are in Rezultate.
   - Every stage can be opened at any time. A panel whose stage has not come yet says so in one line, and still shows what can be read or changed.
 - Fișa testului:
   - The facts: the class and its students, the code, the state, the start, the papers sent, the barem's state ("activ", "de verificat", "se generează", "lipsește"; not its points, which the API knows only after the grading starts), and "Media testului" once a paper is graded.
@@ -220,6 +220,8 @@ The page `/admin/teste/:code/verificare` (decision 28): three panes in one panel
 - On a phone (below 900 px): one column: the decision first, then the page, then the papers.
 
 ## 8. Rezultate (Phase 5)
+
+The panel's look changed later, in `docs/superpowers/specs/2026-11-14-rezultate-page-design.md`: the stage's sentence, the box at the top with the two ways students find their results, the table with the grade first, and "Raportul clasei" beside the table in place of "Pentru tine". Where the two disagree, the newer spec holds.
 
 The panel of the stage Rezultate (§6). A draft has one line: "Rezultatele se publică după corectare." Every other test:
 

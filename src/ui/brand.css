@@ -2201,8 +2201,8 @@ table.tests .row-actions {
   outline: none;
 }
 
+/* The stage's sentence takes the panel's whole width. */
 .stage-head p {
-  max-width: 62ch;
   margin: 0.25rem 0 0;
   color: var(--muted);
 }
@@ -2227,6 +2227,284 @@ table.tests .row-actions {
   padding-top: 0.75rem;
   border-top: 1px solid var(--line);
   text-align: right;
+}
+
+/* The box at the top of Rezultate (spec 2026-11-14): grey while the results
+   wait to be published, green once students can read them, with the two ways
+   they find them, numbered. */
+.publish-box {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+}
+
+.publish-box.is-published {
+  border-color: color-mix(in srgb, var(--ok-fg) 35%, transparent);
+  background: var(--ok-bg);
+}
+
+.publish-box p {
+  margin: 0;
+}
+
+.publish-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.publish-head h3 {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.publish-box.is-published .publish-head h3 {
+  color: var(--ok-fg);
+}
+
+.publish-check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--ok-fg);
+  color: var(--sheet);
+}
+
+.publish-check svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.publish-wait {
+  color: var(--orange);
+}
+
+.publish-ways {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: way;
+}
+
+.publish-ways > li {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.25rem;
+  padding-left: 2rem;
+  counter-increment: way;
+}
+
+.publish-ways > li::before {
+  content: counter(way);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--ok-fg) 40%, transparent);
+  border-radius: 50%;
+  background: var(--sheet);
+  color: var(--ok-fg);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.publish-way-title {
+  font-weight: 500;
+}
+
+.publish-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.publish-qr {
+  flex: none;
+  width: 88px;
+  height: 88px;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.publish-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.publish-link .result-share-box {
+  flex-basis: 100%;
+}
+
+/* The panel Rezultate (spec 2026-11-14): "Raportul clasei" first in the
+   page, so the keyboard reaches it before the table's rows; beside the
+   students' table on the right while the panel is wide, above it while the
+   panel is narrow. The panel's own width decides, not the screen's. */
+.results-layout {
+  container-type: inline-size;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@container (min-width: 56rem) {
+  .results-grid {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+
+  .results-grid > .report-card {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .results-grid > .results-students {
+    grid-row: 1;
+    grid-column: 1;
+  }
+}
+
+.results-students {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.results-students-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}
+
+.results-students-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.results-students-head p {
+  margin: 0;
+}
+
+/* "Raportul clasei": the average in its grade colour, the grades by group in
+   the same colours, the one button to the report, and the CSV as a quiet
+   text button. */
+.report-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 45%, var(--rule));
+  border-radius: var(--radius-panel);
+  background: var(--raised);
+}
+
+.report-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.report-card p {
+  margin: 0;
+}
+
+.report-card-average {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}
+
+.report-card-grade {
+  font-size: 2.25rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.report-card-groups {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.report-card-groups li {
+  display: grid;
+  grid-template-columns: 3.75rem minmax(0, 1fr) 1.5rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-card-bar {
+  display: block;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--active);
+}
+
+.report-card-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.report-card-bar > .bar-1 {
+  background: var(--conf-1);
+}
+
+.report-card-bar > .bar-3 {
+  background: var(--conf-3);
+}
+
+.report-card-bar > .bar-4 {
+  background: var(--conf-4);
+}
+
+.report-card-bar > .bar-5 {
+  background: var(--conf-5);
+}
+
+.report-card-count {
+  text-align: right;
+}
+
+.report-card .button {
+  width: 100%;
+}
+
+.text-button.csv-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: start;
+  font-weight: 500;
+}
+
+.csv-button svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* The overview of the check, in the panel Verificare: the progress (or the
@@ -4032,29 +4310,6 @@ input[type="file"] {
   margin-left: 0;
 }
 
-/* Rezultate, once published: where students find their results. Green edge:
-   a done step, not something that waits. */
-.student-access {
-  gap: 0.75rem;
-  margin-block: 1rem;
-  border-color: var(--ok-fg);
-  border-left-width: 4px;
-}
-
-.student-access h3 {
-  margin: 0;
-  color: var(--ok-fg);
-}
-
-.student-access p {
-  margin: 0;
-}
-
-.student-access-teacher {
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--rule);
-}
-
 .qr-overlay {
   position: fixed;
   inset: 0;
@@ -4091,6 +4346,14 @@ input[type="file"] {
   overflow-x: auto;
 }
 
+/* The papers tables of Corectare and Rezultate look like the points table
+   of Verificare: small grey column names on a light band, thin lines, a
+   light row under the pointer, and no bold. */
+.table-wrap.uploads-wrap {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+}
+
 table.uploads {
   width: 100%;
   min-width: 36rem;
@@ -4100,19 +4363,62 @@ table.uploads {
 
 table.uploads th,
 table.uploads td {
-  padding: 0.45rem 0.75rem;
-  border-bottom: 1px solid var(--rule);
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
 }
 
 table.uploads thead th {
+  border-bottom: 1px solid var(--rule);
+  background: var(--raised);
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 table.uploads tbody th {
-  font-weight: 700;
+  font-weight: 500;
+}
+
+table.uploads tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+table.uploads tbody tr:hover > * {
+  background: var(--raised);
+}
+
+/* A student's name that opens the paper reads as a name: the link shows
+   under the pointer. */
+table.uploads tbody th a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+table.uploads tbody th a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+/* A grade, coloured by the class report's scale (.points-N gives the
+   colour): the number on a soft tint of the same colour. */
+.grade-chip {
+  display: inline-block;
+  min-width: 2.75rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* The points to check next to a grade in Rezultate. */
+table.uploads .grade-chip + .points-pill {
+  margin-left: 0.4rem;
+  font-size: 0.8125rem;
 }
 
 table.uploads tr.is-muted td {
@@ -4123,7 +4429,7 @@ table.uploads .tag {
   margin-left: 0.4rem;
 }
 
-/* "Publicat" starts the state cell of "Linkurile elevilor": no gap before it. */
+/* "Publicat" starts the state cell of the students' table of Rezultate: no gap before it. */
 table.uploads .result-state-cell .tag {
   margin-left: 0;
 }
@@ -4181,6 +4487,8 @@ table.uploads .row-actions {
 @media (max-width: 48rem) {
   .table-wrap.uploads-wrap {
     overflow-x: visible;
+    border: 0;
+    border-radius: 0;
   }
 
   table.uploads,
@@ -4230,11 +4538,16 @@ table.uploads .row-actions {
     display: block;
     color: var(--muted);
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 500;
   }
 
-  /* "Linkurile elevilor" in short cards: the points and the grade side by
-     side, then the link and the state, whose buttons need no caption. */
+  table.uploads tbody tr:hover > * {
+    background: none;
+  }
+
+  /* The students' table of Rezultate in short cards: the grade and the
+     points side by side, then the link and the state, whose buttons need no
+     caption. */
   table.uploads.result-links tbody tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -4273,13 +4586,14 @@ table.uploads .row-actions {
   table.uploads.is-selectable thead th.select-col {
     padding: 0 0 0.5rem;
     border-bottom: 0;
+    background: none;
   }
 
   table.uploads .select-all {
     gap: 0.5rem;
     color: var(--text);
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: 500;
   }
 
   table.uploads .select-all-text {

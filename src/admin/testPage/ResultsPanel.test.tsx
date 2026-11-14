@@ -7,15 +7,18 @@ import { uploadStatusLabel } from '../../ui/format.ts';
 import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import * as share from '../pdf/share.ts';
-import { STUDENT_ACCESS_HELP } from './StudentAccessCard.tsx';
 import { MULTI_LABEL } from './UploadLink.tsx';
 
 vi.mock('../pdf/share.ts', () => ({ saveFile: vi.fn(), shareFile: vi.fn() }));
 
 const saveFile = vi.mocked(share.saveFile);
 
-// The panel Rezultate of the test page (redesign spec §8).
+// The panel Rezultate of the test page (redesign spec §8, spec 2026-11-14).
 const PAGE = '/teste/6E2-26T1#rezultate';
+
+// What the panel says under its heading: what each student gets.
+const SENTENCE =
+  'După ce rezultatele sunt publicate, fiecare elev are acces la rezultatul lui: nota finală, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.';
 
 // Pop Ion and Stan Eva sent graded papers; Marin Dan sent none.
 const graded = () => [
@@ -52,16 +55,15 @@ describe('the panel Rezultate', () => {
     expect(screen.queryByRole('heading', { name: 'Pentru tine' })).not.toBeInTheDocument();
   });
 
-  it('says what the link shows, and offers no publish button before anything is graded', async () => {
+  it('says what each student gets, once, and offers no publish button before anything is graded', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 }),
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 }),
       fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
     ];
     renderAdmin(PAGE, apiWith({ status: 'evaluating' }, rows));
-    expect(
-      await screen.findByText('Linkul arată nota, punctajul pe fiecare exercițiu, explicațiile detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Elevul îl vede după ce îl publici.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(SENTENCE)).toBeInTheDocument();
+    expect(screen.queryByText(/^Linkul arată nota/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Rezultatele se publică după corectare' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Corectare' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Publică toate rezultatele' })).not.toBeInTheDocument();
@@ -72,7 +74,7 @@ describe('the panel Rezultate', () => {
     expect(within(row('Stan Eva')).getByText('Nu a trimis lucrarea.')).toBeInTheDocument();
     expect(within(row('Marin Dan')).getByText('Nu a trimis lucrarea.')).toBeInTheDocument();
     expect(screen.getByText('0 publicate · 1 nepublicat')).toBeInTheDocument();
-    expect(screen.getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Raportul clasei' })).getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
   });
 
   it('shows the points and the grade of a graded paper, and dashes for a paper not graded yet', async () => {
@@ -85,6 +87,23 @@ describe('the panel Rezultate', () => {
     expect(within(row('Pop Ion')).getByText('72,5 / 100')).toBeInTheDocument();
     expect(within(row('Pop Ion')).getByText('7,25')).toBeInTheDocument();
     expect(within(row('Stan Eva')).getAllByText('—')).toHaveLength(2);
+  });
+
+  it('shows each grade in a chip of its grade colour, with the points to check apart, and nothing in bold', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9.5, total: 95, maxTotal: 100, flagCount: 2 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 4, total: 40, maxTotal: 100 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan', submissionId: 7, status: 'graded', fileCount: 1, grade: 2, total: 20, maxTotal: 100 }),
+    ];
+    renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
+    const table = await screen.findByRole('table', { name: 'Linkurile cu rezultatele elevilor' });
+    expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Elev', 'Nota', 'Punctaj', 'Linkul cu rezultatul', 'Stare']);
+    expect(within(row('Pop Ion')).getByText('9,5')).toHaveClass('grade-chip', 'points-5');
+    expect(within(row('Pop Ion')).getByText('2 de verificat')).toHaveClass('points-pill');
+    expect(within(row('Stan Eva')).getByText('4')).toHaveClass('grade-chip', 'points-2');
+    expect(within(row('Stan Eva')).queryByText(/de verificat/)).not.toBeInTheDocument();
+    expect(within(row('Marin Dan')).getByText('2')).toHaveClass('grade-chip', 'points-1');
+    expect(table.querySelector('strong, b')).toBeNull();
   });
 
   it("links each name to the paper's page, and marks a student who left", async () => {
@@ -102,7 +121,7 @@ describe('the panel Rezultate', () => {
     expect(await screen.findByText('0 publicate · 2 nepublicate')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Publică toate rezultatele' }));
     expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);
-    expect(await screen.findByText('Rezultatele sunt publicate. Elevii le văd pe linkurile lor.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 3, name: 'Rezultatele sunt publicate. Elevii le văd în două feluri:' })).toBeInTheDocument();
     expect(screen.getByText('toate publicate')).toBeInTheDocument();
     // While all are published, a row cannot be stopped alone.
     expect(within(row('Pop Ion')).getByText('Publicat')).toHaveClass('tag', 'tag-ok');
@@ -149,7 +168,9 @@ describe('the panel Rezultate', () => {
   it('keeps the stop button while the results are open and nothing is graded, as after grading all again', async () => {
     const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
     renderAdmin(PAGE, apiWith({ status: 'evaluating', resultsOpen: true }, rows));
-    expect(await screen.findByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
+    const box = await screen.findByRole('region', { name: 'Rezultatele sunt publicate. Elevii le văd în două feluri:' });
+    expect(box).toHaveClass('is-published');
+    expect(within(box).getByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Rezultatele se publică după corectare' })).not.toBeInTheDocument();
   });
 
@@ -190,13 +211,36 @@ describe('the panel Rezultate', () => {
     );
   });
 
-  it('offers the class report and the CSV once a paper is graded', async () => {
-    renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
-    expect(await screen.findByRole('heading', { level: 3, name: 'Pentru tine' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Deschide raportul' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
-    expect(screen.getByText('Media testului 8,5 · rezultatele pe exerciții · analiza clasei')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Descarcă CSV' })).toBeInTheDocument();
-    expect(screen.getByText('PDF-ul cu rezultatul unui elev este pe pagina lucrării lui: apasă pe numele lui în tabel.')).toBeInTheDocument();
+  it('shows "Raportul clasei" once a paper is graded: the average in its colour, the grades by group, the report, and the CSV', async () => {
+    const rows = [...graded(), fakeUpload({ studentId: 13, studentName: 'Vlad Ana', active: false, submissionId: 7, status: 'graded', fileCount: 1, grade: 4 })];
+    renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
+    const card = await screen.findByRole('region', { name: 'Raportul clasei' });
+    expect(within(card).getByText('7')).toHaveClass('report-card-grade', 'points-4');
+    expect(within(card).getByText('media testului · 2 din 3 elevi corectați')).toBeInTheDocument();
+    // Every graded paper counts in its group, the one of a student who left too.
+    const groups = within(card).getByRole('list', { name: 'Notele pe grupe' });
+    expect(within(groups).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['1-4,991', '5-6,990', '7-8,991', '9-101']);
+    expect(groups.querySelector('.bar-1')).toHaveStyle({ width: '100%' });
+    expect(groups.querySelector('.bar-3')).toHaveStyle({ width: '0%' });
+    const open = within(card).getByRole('link', { name: 'Deschide raportul' });
+    expect(open).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+    expect(open).toHaveClass('button');
+    expect(open).toHaveTextContent(/^Deschide raportul$/);
+    expect(within(card).getByRole('button', { name: 'CSV pentru catalog' })).toHaveClass('text-button', 'is-quiet');
+    expect(screen.queryByRole('heading', { name: 'Pentru tine' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^PDF-ul cu rezultatul unui elev/)).not.toBeInTheDocument();
+  });
+
+  it('puts "Raportul clasei" before the students in the page, and says when it comes before any grading', async () => {
+    const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
+    renderAdmin(PAGE, apiWith({ status: 'evaluating', resultsOpen: true }, rows));
+    const card = await screen.findByRole('region', { name: 'Raportul clasei' });
+    expect(within(card).getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
+    expect(within(card).queryByRole('link')).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument();
+    const table = screen.getByRole('table', { name: 'Linkurile cu rezultatele elevilor' });
+    expect(table.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Elevii' })).toBeInTheDocument();
   });
 
   it('downloads the CSV of the class report', async () => {
@@ -222,7 +266,7 @@ describe('the panel Rezultate', () => {
     };
     const api = apiWith({ status: 'done' }, graded(), { '6E2-26T1': report });
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Descarcă CSV' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'CSV pentru catalog' }));
     await vi.waitFor(() => expect(saveFile).toHaveBeenCalledTimes(1));
     expect(api.getReport).toHaveBeenCalledWith('6E2-26T1');
     const [blob, fileName] = saveFile.mock.calls[0]!;
@@ -233,7 +277,7 @@ describe('the panel Rezultate', () => {
 
   it('says why the CSV could not be made', async () => {
     renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
-    await userEvent.click(await screen.findByRole('button', { name: 'Descarcă CSV' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'CSV pentru catalog' }));
     expect(await screen.findByText('Nu am găsit ce cauți.')).toBeInTheDocument();
     expect(saveFile).not.toHaveBeenCalled();
   });
@@ -281,48 +325,115 @@ describe('the panel Rezultate, small details', () => {
     renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
     await user.click(await screen.findByRole('button', { name: 'Copiază linkul: Pop Ion' }));
     const field = await screen.findByLabelText('Linkul cu rezultatul elevului Pop Ion');
-    expect(screen.getByText('Nu am putut copia linkul. Copiază-l de aici.')).toBeInTheDocument();
+    expect(field).toHaveAccessibleDescription('Nu am putut copia linkul. Copiază-l de aici.');
     expect(field).toHaveFocus();
     expect((field as HTMLInputElement).selectionEnd).toBe((field as HTMLInputElement).value.length);
   });
 });
 
 describe('the panel Rezultate, where students find their results', () => {
-  const card = () => screen.getByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
+  const PUBLISHED = 'Rezultatele sunt publicate. Elevii le văd în două feluri:';
+  const box = () => screen.getByRole('region', { name: PUBLISHED });
 
-  it('shows no card before the results are published', async () => {
+  it('says in a grey box that the results wait, with the points still to check, and no way to see them yet', async () => {
+    const rows = graded().map((upload) => (upload.studentId === 10 ? { ...upload, flagCount: 2 } : upload));
+    renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
+    const waiting = await screen.findByRole('region', { name: 'Rezultatele nu sunt publicate' });
+    expect(waiting).toHaveClass('publish-box');
+    expect(waiting).not.toHaveClass('is-published');
+    expect(within(waiting).getByText('Mai ai 2 puncte de verificat. Dacă publici acum, elevii văd punctajul de acum.')).toBeInTheDocument();
+    expect(within(waiting).getByRole('button', { name: 'Publică toate rezultatele' })).toHaveClass('button');
+    expect(screen.queryByText('Pe linkul lor')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Codul QR al linkului')).not.toBeInTheDocument();
+  });
+
+  it('says the students see nothing yet when no point waits', async () => {
     renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
-    expect(await screen.findByRole('button', { name: 'Publică toate rezultatele' })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).not.toBeInTheDocument();
+    const waiting = await screen.findByRole('region', { name: 'Rezultatele nu sunt publicate' });
+    expect(within(waiting).getByText('Elevii nu văd încă rezultatele.')).toBeInTheDocument();
   });
 
-  it("shows the students' link and the help once published, and no teacher link when there is none", async () => {
+  it("names the two ways once published, copies the test's link for the students, and goes back to grey when stopped", async () => {
+    const user = userEvent.setup();
     renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
-    await userEvent.click(await screen.findByRole('button', { name: 'Publică toate rezultatele' }));
-    expect(await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).toBeInTheDocument();
-    expect(within(card()).getByLabelText('Linkul pentru elevi: trimite-l clasei')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(within(card()).getByTitle('Codul QR al linkului')).toBeInTheDocument();
-    expect(within(card()).getByText(STUDENT_ACCESS_HELP)).toBeInTheDocument();
-    expect(within(card()).queryByLabelText(MULTI_LABEL)).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Publică toate rezultatele' }));
+    const published = await screen.findByRole('region', { name: PUBLISHED });
+    expect(published).toHaveClass('publish-box', 'is-published');
+    // Safari drops the list role of a list with no bullets unless it is said.
+    expect(within(published).getByRole('list')).toHaveAttribute('role', 'list');
+    const ways = within(published).getAllByRole('listitem');
+    expect(ways.map((way) => way.querySelector('.publish-way-title')?.textContent)).toEqual([
+      'Pe linkul lor',
+      'Scanează din nou linkul testului pentru elevi',
+    ]);
+    expect(within(ways[0]!).getByText('Salvat pe telefon la încărcarea rezolvărilor. Nu trebuie să facă nimic.')).toBeInTheDocument();
+    expect(within(ways[1]!).getByText('Codul QR de pe test, de pe telefonul cu care au trimis.')).toBeInTheDocument();
+    expect(within(ways[1]!).getByTitle('Codul QR al linkului')).toBeInTheDocument();
+    expect(within(published).getByText('Dacă oprești accesul, linkurile cu rezultate și pozele lor nu se mai deschid până publici din nou rezultatele.')).toBeInTheDocument();
+    await user.click(within(ways[1]!).getByRole('button', { name: 'Copiază linkul' }));
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(within(ways[1]!).getByRole('button', { name: 'Copiat!' })).toBeInTheDocument();
 
-    // Stopping the access takes the card away again.
-    await userEvent.click(screen.getByRole('button', { name: 'Oprește accesul la rezultate' }));
-    expect(await screen.findByRole('button', { name: 'Publică toate rezultatele' })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).not.toBeInTheDocument();
+    await user.click(within(published).getByRole('button', { name: 'Oprește accesul la rezultate' }));
+    expect(await screen.findByRole('region', { name: 'Rezultatele nu sunt publicate' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: PUBLISHED })).not.toBeInTheDocument();
   });
 
-  it('names the multi-upload link as the teacher’s, with no QR code', async () => {
-    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true, multiUploadToken: FAKE_MULTI_TOKEN }, graded()));
-    await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
-    expect(within(card()).getByLabelText(MULTI_LABEL)).toHaveValue(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
-    expect(within(card()).getByText('Nu-l da elevilor: pe acest link ei nu își găsesc rezultatele.')).toBeInTheDocument();
-    // One QR code only: the students'.
-    expect(within(card()).getAllByTitle('Codul QR al linkului')).toHaveLength(1);
-  });
-
-  it('shows the card when one result is published alone', async () => {
+  it('says when only some results are published, and offers to publish them all', async () => {
     renderAdmin(PAGE, apiWith({ status: 'done', publishedCount: 1 }, graded()));
-    expect(await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).toBeInTheDocument();
+    const some = await screen.findByRole('region', { name: 'Unele rezultate sunt publicate. Elevii le văd în două feluri:' });
+    expect(some).toHaveClass('is-published');
+    expect(within(some).getByRole('button', { name: 'Publică toate rezultatele' })).toBeInTheDocument();
+    expect(within(some).queryByRole('button', { name: 'Oprește accesul la rezultate' })).not.toBeInTheDocument();
+    expect(within(some).getByText('Pe linkul lor')).toBeInTheDocument();
+  });
+
+  it('says how many points still wait in the green box while only some results are published', async () => {
+    const rows = graded().map((upload) => (upload.studentId === 10 ? { ...upload, flagCount: 2 } : upload));
+    renderAdmin(PAGE, apiWith({ status: 'done', publishedCount: 1 }, rows));
+    const some = await screen.findByRole('region', { name: 'Unele rezultate sunt publicate. Elevii le văd în două feluri:' });
+    expect(within(some).getByText('Mai ai 2 puncte de verificat. Dacă publici acum, elevii văd punctajul de acum.')).toBeInTheDocument();
+  });
+
+  it("gives no teacher's multi-upload link in Rezultate", async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true, multiUploadToken: FAKE_MULTI_TOKEN }, graded()));
+    await screen.findByRole('region', { name: PUBLISHED });
+    expect(screen.queryByLabelText(MULTI_LABEL)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nu-l da elevilor/)).not.toBeInTheDocument();
+    expect(screen.getAllByTitle('Codul QR al linkului')).toHaveLength(1);
+  });
+
+  it('names the second way without a link when the test has none', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true, uploadToken: null }, graded()));
+    await screen.findByRole('region', { name: PUBLISHED });
+    expect(within(box()).getByText('Scanează din nou linkul testului pentru elevi')).toBeInTheDocument();
+    expect(within(box()).queryByTitle('Codul QR al linkului')).not.toBeInTheDocument();
+    expect(within(box()).queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
+    expect(within(box()).getByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
+  });
+
+  it('shows the QR code on the whole screen, and gives the focus back to its button when it closes', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
+    await screen.findByRole('region', { name: PUBLISHED });
+    const show = within(box()).getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
+    await userEvent.click(show);
+    const dialog = screen.getByRole('dialog', { name: 'Codul QR pentru elevi' });
+    expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Închide' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(show).toHaveFocus();
+  });
+
+  it("shows the test's link in a field, selected, when the browser refuses to copy it", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new DOMException('Refuzat', 'NotAllowedError'));
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
+    await screen.findByRole('region', { name: PUBLISHED });
+    await user.click(within(box()).getByRole('button', { name: 'Copiază linkul' }));
+    const field = await within(box()).findByLabelText('Linkul testului pentru elevi');
+    expect(field).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(field).toHaveFocus();
+    expect(field).toHaveAccessibleDescription('Nu am putut copia linkul. Copiază-l de aici.');
   });
 
   it("downloads the students' QR code as a PNG file", async () => {
@@ -334,11 +445,11 @@ describe('the panel Rezultate, where students find their results', () => {
         callback(png);
       });
     renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
-    await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
-    await userEvent.click(within(card()).getByRole('button', { name: 'Descarcă codul QR' }));
+    await screen.findByRole('region', { name: PUBLISHED });
+    await userEvent.click(within(box()).getByRole('button', { name: 'Descarcă codul QR' }));
     await vi.waitFor(() => expect(saveFile).toHaveBeenCalledWith(png, 'cod-qr-elevi-6E2-26T1.png'));
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
-    expect(within(card()).getByRole('button', { name: 'Descarcă codul QR' })).toBeEnabled();
+    expect(within(box()).getByRole('button', { name: 'Descarcă codul QR' })).toBeEnabled();
   });
 
   it('says so when the QR code cannot be made', async () => {
@@ -347,9 +458,9 @@ describe('the panel Rezultate, where students find their results', () => {
       callback(null);
     });
     renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
-    await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
-    await userEvent.click(within(card()).getByRole('button', { name: 'Descarcă codul QR' }));
-    expect(await within(card()).findByText('Nu am putut descărca codul QR.')).toBeInTheDocument();
+    await screen.findByRole('region', { name: PUBLISHED });
+    await userEvent.click(within(box()).getByRole('button', { name: 'Descarcă codul QR' }));
+    expect(await within(box()).findByText('Nu am putut descărca codul QR.')).toBeInTheDocument();
     expect(saveFile).not.toHaveBeenCalled();
   });
 });

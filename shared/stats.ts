@@ -111,14 +111,20 @@ function exerciseStats(table: Pick<ReportTable, 'exercises' | 'rows'>): Exercise
   });
 }
 
+// How many grades fall in each group of GRADE_GROUPS, in its order: the class
+// report's "Notele pe grupe", and the bars of "Raportul clasei" in Rezultate.
+export function gradeGroups(grades: readonly number[]): { label: string; count: number }[] {
+  return GRADE_GROUPS.map((group, index) => {
+    const until = GRADE_GROUPS[index + 1]?.from ?? Infinity;
+    return { label: group.label, count: grades.filter((grade) => grade >= group.from && grade < until).length };
+  });
+}
+
 // The grades are the whole class's, CES papers included; the exercises are
 // each table's own.
 export function classStats(report: Pick<ClassReport, 'exercises' | 'cesExercises' | 'rows' | 'missing'>): ClassStats {
   const grades = report.rows.map((row) => row.grade).sort((a, b) => a - b);
-  const groups = GRADE_GROUPS.map((group, index) => {
-    const until = GRADE_GROUPS[index + 1]?.from ?? Infinity;
-    return { label: group.label, count: grades.filter((grade) => grade >= group.from && grade < until).length };
-  });
+  const groups = gradeGroups(grades);
   const [classTable, cesTable] = reportTables(report);
   const perExercise = exerciseStats(classTable!);
   const activeGraded = report.rows.filter((row) => row.active).length;

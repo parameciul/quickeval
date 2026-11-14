@@ -157,6 +157,24 @@ describe('brand.css', () => {
     expect(value(declarations('.review-keys-line'), 'white-space')).toBe('nowrap');
   });
 
+  it('draws the papers tables as the points table of Verificare, with no bold', () => {
+    expect(value(declarations('table.uploads thead th'), 'font-weight')).toBe('500');
+    expect(value(declarations('table.uploads thead th'), 'background')).toBe('var(--raised)');
+    expect(value(declarations('table.uploads tbody th'), 'font-weight')).toBe('500');
+    expect(value(declarations('.grade-chip'), 'font-weight')).toBe('500');
+    expect(value(declarations('  table.uploads tbody td[data-label]::before'), 'font-weight')).toBe('500');
+    // On a phone the select-all toolbar of Corectare stands alone, not on the header band.
+    expect(value(declarations('  table.uploads.is-selectable thead th.select-col'), 'background')).toBe('none');
+  });
+
+  it('gives the stage sentence the whole width of the panel, and puts "Raportul clasei" beside the students only in a wide panel', () => {
+    expect(value(declarations('.stage-head p'), 'max-width')).toBeUndefined();
+    expect(value(declarations('.results-layout'), 'container-type')).toBe('inline-size');
+    expect(value(declarations('.results-grid'), 'grid-template-columns')).toBe('minmax(0, 1fr)');
+    expect(css).toContain('@container (min-width: 56rem) {\n  .results-grid {\n    grid-template-columns: minmax(0, 1fr) 18rem;');
+    expect(css).toContain('  .results-grid > .report-card {\n    grid-row: 1;\n    grid-column: 2;\n  }');
+  });
+
   it('is flat: no gradient, no notebook grid', () => {
     expect(css).not.toMatch(/gradient\(/);
     expect(css).not.toContain('--grid');

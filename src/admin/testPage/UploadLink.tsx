@@ -68,7 +68,7 @@ export function UploadLink({
 // Saves the QR code as a PNG file, big enough to print or to send to the
 // class in a chat. The canvas is drawn hidden, only on a click: the QR
 // library draws it in its own effect, which runs before this one.
-function QrDownload({ url, fileName }: { url: string; fileName: string }) {
+export function QrDownload({ url, fileName }: { url: string; fileName: string }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [drawing, setDrawing] = useState(false);
   const [failed, setFailed] = useState(false);
