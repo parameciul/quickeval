@@ -172,7 +172,9 @@ describe('brand.css', () => {
     expect(value(declarations('.results-layout'), 'container-type')).toBe('inline-size');
     expect(value(declarations('.results-grid'), 'grid-template-columns')).toBe('minmax(0, 1fr)');
     expect(css).toContain('@container (min-width: 56rem) {\n  .results-grid {\n    grid-template-columns: minmax(0, 1fr) 18rem;');
-    expect(css).toContain('  .results-grid > .report-card {\n    grid-row: 1;\n    grid-column: 2;\n  }');
+    // Beside the table, level with the table's top, not with "Elevii" above it.
+    expect(css).toContain('  .results-grid > .report-card {\n    grid-row: 2;\n    grid-column: 2;\n  }');
+    expect(css).toContain('  .results-grid > .results-students {\n    grid-row: 1 / span 2;\n    grid-column: 1;\n    grid-template-rows: subgrid;\n  }');
   });
 
   it('is flat: no gradient, no notebook grid', () => {

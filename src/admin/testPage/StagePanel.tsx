@@ -258,7 +258,7 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
           <div className="results-students">
             <div className="results-students-head">
               <h3>Elevii</h3>
-              {count && <p className="hint">{count}</p>}
+              {count && <span className={count.all ? 'tag tag-ok' : 'tag'}>{count.text}</span>}
             </div>
             <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} onChanged={onChanged} />
           </div>

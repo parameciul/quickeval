@@ -413,10 +413,16 @@ function Paper({
   const previousPoint = stepPoint(walked, spot, -1);
   const pointAt = walked.findIndex((entry) => isSpotOf(entry, spot));
 
+  // The students go round: after the last comes the first, before the first
+  // the last.
   const students = listedPapers(uploads, mode);
   const at = students.findIndex((other) => other.submissionId === submissionId);
-  const previousStudent = at > 0 ? students[at - 1] : undefined;
-  const nextStudent = at >= 0 ? students[at + 1] : undefined;
+  const round = students.length > 1;
+  const previousStudent = round ? students[at > 0 ? at - 1 : students.length - 1] : undefined;
+  const nextStudent = round ? students[(at + 1) % students.length] : undefined;
+  // After a decision on the last student, the focus goes to the exercises,
+  // not to an arrow that leads back to the first.
+  const isLastStudent = at === students.length - 1;
 
   // The papers the teacher can move to next are read ahead: the next or the
   // previous student, and the paper of the next point. Then the page of
@@ -530,10 +536,11 @@ function Paper({
             </span>
           </p>
         )}
-        {/* The moves, small: "‹ Punct 3/47 ›" (only the points to check),
-            "‹ Elev ›" and "Lucrarea", on one row also on a phone. */}
+        {/* The moves, small: "‹ Punct 3/47 ›" (the points J and K walk: of
+            the test, or of this student with all the exercises), "‹ Elev 2/7 ›"
+            and "Lucrarea", on one row also on a phone. */}
         <div className="review-actions">
-          {mode === 'verificare' && walked.length > 0 && (
+          {walked.length > 0 && (
             <span className="move-group" role="group" aria-label="Punctele de verificat">
               <button
                 type="button"
@@ -552,7 +559,7 @@ function Paper({
               </span>
               <button
                 type="button"
-                className="move-arrow is-main"
+                className="move-arrow"
                 aria-label="Următorul punct"
                 title="Următorul punct (J)"
                 disabled={decide.isPending || nextPoint === null}
@@ -574,9 +581,12 @@ function Paper({
               >
                 <Chevron back />
               </button>
-              <span className="move-label">Elev</span>
+              <span className="move-label">
+                <span className="move-word">{at >= 0 ? 'Elev ' : 'Elevi: '}</span>
+                {at >= 0 ? `${at + 1}/${students.length}` : students.length}
+              </span>
               <button
-                ref={nextStudent ? nextStudentButton : undefined}
+                ref={nextStudent && !isLastStudent ? nextStudentButton : undefined}
                 type="button"
                 className="move-arrow"
                 aria-label="Elevul următor"

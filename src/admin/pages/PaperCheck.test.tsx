@@ -468,7 +468,8 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Exercițiile' })).toHaveFocus());
-    expect(screen.getByRole('button', { name: 'Elevul următor' })).toBeDisabled();
+    // The arrow still goes round to the first student, but does not take the focus.
+    expect(screen.getByRole('button', { name: 'Elevul următor' })).toBeEnabled();
     await expectLocation(at(14, '41', 'toate'));
   });
 
@@ -481,15 +482,43 @@ describe('the points to check on the paper page', () => {
     await expectLocation(at(11, '32', 'toate'));
     await userEvent.keyboard('j');
     await expectLocation(at(11, 'pagini', 'toate'));
-    expect(screen.queryByRole('button', { name: 'Următorul punct' })).not.toBeInTheDocument();
   });
 
-  it('moves to the student before or after, in the order of the list', async () => {
+  it('shows the moves through the open student\'s points in all the exercises, with both arrows alike', async () => {
+    renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
+    const points = await screen.findByRole('group', { name: 'Punctele de verificat' });
+    // Ana has two points (her pages and II.1); none is open yet.
+    expect(points).toHaveTextContent('Puncte: 2');
+    await userEvent.click(within(points).getByRole('button', { name: 'Următorul punct' }));
+    await expectLocation(at(11, 'pagini', 'toate'));
+    expect(screen.getByRole('group', { name: 'Punctele de verificat' })).toHaveTextContent('Punct 1/2');
+    await userEvent.click(screen.getByRole('button', { name: 'Punctul anterior' }));
+    await expectLocation(at(11, '32', 'toate'));
+    expect(screen.getByRole('group', { name: 'Punctele de verificat' })).toHaveTextContent('Punct 2/2');
+    for (const name of ['Punctul anterior', 'Următorul punct']) expect(screen.getByRole('button', { name })).toHaveAttribute('class', 'move-arrow');
+  });
+
+  it('hides the moves through the points for a student with none, in all the exercises', async () => {
+    renderAdmin(paperAt(13, null, 'toate'), apiWith());
+    expect(await screen.findByRole('heading', { level: 1, name: 'Eva Stan' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Punctele de verificat' })).not.toBeInTheDocument();
+  });
+
+  it('moves to the student before or after, in the order of the list, and goes round', async () => {
     renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
     await screen.findByText('Ana Pop · 1/3');
-    expect(screen.getByRole('button', { name: 'Elevul anterior' })).toBeDisabled();
+    const students = screen.getByRole('group', { name: 'Elevii' });
+    expect(students).toHaveTextContent('Elev 1/4');
+    // Before the first student comes the last.
+    await userEvent.click(screen.getByRole('button', { name: 'Elevul anterior' }));
+    await expectLocation(at(14, null, 'toate'));
+    expect(screen.getByRole('group', { name: 'Elevii' })).toHaveTextContent('Elev 4/4');
+    // After the last comes the first.
+    await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
+    await expectLocation(at(11, null, 'toate'));
     await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
     await expectLocation(at(12, null, 'toate'));
+    expect(screen.getByRole('group', { name: 'Elevii' })).toHaveTextContent('Elev 2/4');
     await userEvent.click(screen.getByRole('button', { name: 'Elevul anterior' }));
     await expectLocation(at(11, null, 'toate'));
     // With only the points to check, the students with points come first and
