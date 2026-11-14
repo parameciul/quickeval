@@ -1,14 +1,16 @@
-// The grading writes math as plain Unicode text (√15, (x + 1)/3, 2x/5),
-// because the PDFs and the CSV need text. The pages draw it like on paper: a
-// root gets its bar over the whole radicand, and a fraction stands with its
-// numerator over its denominator. `parseMath` finds those two shapes and
-// leaves everything else as text.
+// The grading writes math as plain Unicode text (√15, (x + 1)/3, 2x/5, p̄,
+// A_p), because the PDFs and the CSV need text. The pages draw it like on
+// paper: a root gets its bar over the whole radicand, a fraction stands with
+// its numerator over its denominator, a negated letter gets its bar, and what
+// follows "_" sits low and small. `parseMath` finds those shapes and leaves
+// everything else as text.
 //
 // The drawing drops nothing from the text: the brackets that the bar or the
-// fraction line makes needless, and the "/" itself, stay in the nodes, so the
-// page keeps the same text for copying and for screen readers.
+// fraction line makes needless, the "/", the "_" and the combining bar stay
+// in the nodes, so the page keeps the same text for copying and for screen
+// readers.
 
-export type MathNode = string | MathRoot | MathFraction;
+export type MathNode = string | MathRoot | MathFraction | MathBar | MathSub;
 
 // A radicand, a numerator or a denominator. `open` and `close` are the
 // brackets of the text that the drawing replaces: "(" and ")" of √(x + 1) or
@@ -33,7 +35,24 @@ export interface MathFraction {
   denominator: MathPart;
 }
 
+// A letter with a combining bar over it (p̄, U+0304 or U+0305), as a negation
+// is written. Most fonts draw the combining bar beside the letter, not over
+// it, so the page draws the bar itself.
+export interface MathBar {
+  kind: 'bar';
+  letter: string;
+  mark: string;
+}
+
+// A subscript that Unicode has no character for (A_p, A_(p∧q)): `part` is
+// what follows the "_".
+export interface MathSub {
+  kind: 'sub';
+  part: MathPart;
+}
+
 const ROOT_INDEX: Record<string, string> = { '√': '', '∛': '3', '∜': '4' };
+const BAR = /\p{L}[̄̅]/uy;
 // Sticky patterns, read at a position. None of them takes a ")", so none
 // runs past the end of a bracket group.
 const SCRIPTS = /[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿ₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]*/uy;
@@ -45,14 +64,14 @@ const GROUP_LIMIT = 40;
 
 type Token =
   | { kind: 'text'; text: string; start: number; end: number }
-  | { kind: 'slash' | 'sign'; text: string; start: number; end: number }
-  | { kind: 'number' | 'letter'; text: string; start: number; end: number }
+  | { kind: 'slash' | 'sign' | 'under'; text: string; start: number; end: number }
+  | { kind: 'number' | 'letter' | 'bar'; text: string; start: number; end: number }
   | { kind: 'group'; inner: Token[]; scripts: string; fits: boolean; start: number; end: number };
 
 // One piece of the shaped text: `nodes` is how it reads inline, and `part`
 // is set when it can be a radicand or a fraction part.
 interface Item {
-  kind: Token['kind'] | 'root' | 'fraction';
+  kind: Token['kind'] | 'root' | 'fraction' | 'sub';
   nodes: MathNode[];
   part: MathPart | null;
   start: number;
@@ -60,7 +79,7 @@ interface Item {
 }
 
 export function parseMath(text: string): MathNode[] {
-  if (!/[√∛∜/]/u.test(text)) return [text];
+  if (!/[√∛∜/_̄̅]/u.test(text)) return [text];
   return join(shape(tokenize(text, 0, text.length, matchBrackets(text)), text).flatMap((item) => item.nodes));
 }
 
@@ -87,7 +106,7 @@ function readAt(pattern: RegExp, text: string, at: number): string {
 
 function tokenize(text: string, from: number, to: number, pairs: Map<number, number>): Token[] {
   const tokens: Token[] = [];
-  const add = (kind: 'text' | 'number' | 'letter' | 'slash' | 'sign', piece: string, start: number) => {
+  const add = (kind: 'text' | 'number' | 'letter' | 'bar' | 'slash' | 'sign' | 'under', piece: string, start: number) => {
     const last = tokens.at(-1);
     if (kind === 'text' && last?.kind === 'text') {
       last.text += piece;
@@ -112,13 +131,18 @@ function tokenize(text: string, from: number, to: number, pairs: Map<number, num
       i = add('sign', char, i);
       continue;
     }
-    if (char === '/') {
-      i = add('slash', char, i);
+    if (char === '/' || char === '_') {
+      i = add(char === '/' ? 'slash' : 'under', char, i);
       continue;
     }
     const number = readAt(NUMBER, text, i);
     if (number !== '') {
       i = add('number', number + readAt(SCRIPTS, text, i + number.length), i);
+      continue;
+    }
+    const barred = readAt(BAR, text, i);
+    if (barred !== '') {
+      i = add('bar', barred, i);
       continue;
     }
     // One letter is a variable (x, a, π); a longer run is a word.
@@ -129,12 +153,23 @@ function tokenize(text: string, from: number, to: number, pairs: Map<number, num
   return tokens;
 }
 
-// Roots first (√ binds to what touches it on the right), then fractions.
+const SUB_BASES = new Set<Item['kind']>(['letter', 'number', 'bar', 'group']);
+
+// Roots and subscripts first (√ and "_" bind to what touches them on the
+// right), then fractions.
 function shape(tokens: Token[], text: string): Item[] {
   const items: Item[] = [];
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
     const following = tokens[i + 1];
+    if (token.kind === 'under') {
+      const sub = subscript(tokens, i, items.at(-1), text);
+      if (sub) {
+        items.push(sub);
+        i += 1;
+      } else items.push(item(token, text));
+      continue;
+    }
     if (token.kind === 'sign' && following && following.start === token.end) {
       const radicand = item(following, text);
       if (radicand.part) {
@@ -156,8 +191,26 @@ function item(token: Token, text: string): Item {
     const part = !token.fits ? null : token.scripts === '' ? { open: '(', body, close: ')' } : { open: '', body: nodes, close: '' };
     return { kind: 'group', nodes, part, start, end };
   }
+  if (token.kind === 'bar') {
+    const bar: MathBar = { kind: 'bar', letter: token.text.slice(0, -1), mark: token.text.slice(-1) };
+    return { kind: 'bar', nodes: [bar], part: { open: '', body: [bar], close: '' }, start, end };
+  }
   const part = token.kind === 'number' || token.kind === 'letter' ? { open: '', body: [token.text], close: '' } : null;
   return { kind: token.kind, nodes: [token.text], part, start, end };
+}
+
+// A_p, x_12, A_(p∧q): one letter, number or bracket group touches the "_" on
+// each side. Anything else stays text: names (x_max, snake_case), a "_" with
+// a space beside it, and chains (x_1_2). A subscript is never part of a
+// fraction.
+function subscript(tokens: Token[], at: number, base: Item | undefined, text: string): Item | null {
+  const under = tokens[at]!;
+  const below = tokens[at + 1];
+  if (!base || !SUB_BASES.has(base.kind) || base.end !== under.start || tokens[at - 2]?.kind === 'under') return null;
+  if (!below || below.start !== under.end || tokens[at + 2]?.kind === 'under') return null;
+  const part = item(below, text).part;
+  if (!part) return null;
+  return { kind: 'sub', nodes: [{ kind: 'sub', part }], part: null, start: under.start, end: below.end };
 }
 
 // a/b where both sides are a number, a letter, a root or a bracket group. The

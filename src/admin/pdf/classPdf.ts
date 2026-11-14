@@ -5,6 +5,7 @@ import { formatPoints } from '../../../shared/scoring.ts';
 import { classStats, type ExerciseStats, reportTables, type ReportTable } from '../../../shared/stats.ts';
 import { formatDate, uploadStatusLabel } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
+import { pdfRuns } from './pdfMath.ts';
 import { pdfText } from './pdfSymbols.ts';
 
 // The class PDF (spec §14.2): landscape, with the table of results, the
@@ -95,11 +96,12 @@ function exerciseTable(perExercise: ExerciseStats[]): Content {
 }
 
 const list = (title: string, entries: string[]): Content[] =>
-  entries.length === 0 ? [] : [{ text: title, style: 'h3' }, { ul: entries, margin: [0, 0, 0, 4] }];
+  entries.length === 0 ? [] : [{ text: title, style: 'h3' }, { ul: entries.map((entry) => ({ text: pdfRuns(entry) })), margin: [0, 0, 0, 4] }];
 
 // The one place where the free texts of the report become PDF text: the
 // symbols that the font lacks are written as words here (pdfSymbols.ts).
-// Student names stay as they are.
+// Student names stay as they are. The analysis texts then become runs where
+// they hold a negation bar, a subscript or a raised letter (`pdfRuns`).
 function drawable(source: ClassReport): ClassReport {
   const { content } = source.analysis;
   return {
@@ -169,7 +171,7 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
     content.push({ text: 'Analiza clasei', style: 'h2' });
     if (stale) content.push({ text: 'Analiza poate fi depășită: notele s-au schimbat după ce a fost scrisă.', italics: true, color: MUTED });
     content.push(
-      { text: analysis.overview },
+      { text: pdfRuns(analysis.overview) },
       ...list('Ce a mers bine', analysis.strengths),
       ...list('Ce a mers mai greu', analysis.weaknesses),
       ...list('Greșeli frecvente', analysis.commonMistakes),

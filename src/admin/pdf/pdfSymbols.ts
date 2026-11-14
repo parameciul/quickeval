@@ -11,12 +11,22 @@ export const PDF_WORD_SYMBOLS: Record<string, string> = {
   '∉': 'nu aparține',
   '∠': 'unghiul',
   '∡': 'unghiul',
+  '∢': 'unghiul',
+  '≡': 'congruent cu',
   '⊥': 'perpendicular pe',
   '∥': 'paralel cu',
+  '∦': 'neparalel cu',
   '∪': 'reunit cu',
   '∩': 'intersectat cu',
   '⊂': 'inclus în',
+  '⊆': 'inclus în',
+  '⊄': 'nu este inclus în',
   '∅': 'mulțimea vidă',
+  '∧': 'și',
+  '∨': 'sau',
+  '∀': 'oricare ar fi',
+  '∃': 'există',
+  '⋮': 'divizibil cu',
   // A rise or a fall (f↑, glicemia ↑). After a chemical formula they are a
   // gas and a precipitate instead (CHEMISTRY_ARROWS).
   '↑': 'crește',
@@ -37,12 +47,19 @@ export const PDF_PLAIN_SYMBOLS: Record<string, string> = {
   '⇒': '=>',
   '⇔': '<=>',
   '→': '->',
+  '↔': '<->',
   '⇌': '<=>',
+  '∖': '\\',
+  '≱': 'nu ≥',
 };
 
 export const PDF_SYMBOLS: Record<string, string> = { ...PDF_WORD_SYMBOLS, ...PDF_PLAIN_SYMBOLS };
 
 const PATTERN = new RegExp(`[${Object.keys(PDF_SYMBOLS).join('')}]`, 'gu');
+// A word sign needs no space after an opening bracket or quote, as in (∀) x
+// or „și” (∧), and none before a closing one or a punctuation mark.
+const OPENS_WORD = /[\s([{„]/u;
+const ENDS_WORD = /[\s,.;:!?)\]}”]/u;
 
 export function pdfText(text: string): string {
   return text.replace(PATTERN, (symbol, offset: number, whole: string) => {
@@ -54,6 +71,6 @@ export function pdfText(text: string): string {
       return `${/\s/u.test(before) ? '' : ' '}${chemistry}`;
     }
     const after = whole[offset + symbol.length] ?? ' ';
-    return `${/\s/u.test(before) ? '' : ' '}${PDF_WORD_SYMBOLS[symbol]}${/[\s,.;:!?)]/u.test(after) ? '' : ' '}`;
+    return `${OPENS_WORD.test(before) ? '' : ' '}${PDF_WORD_SYMBOLS[symbol]}${ENDS_WORD.test(after) ? '' : ' '}`;
   });
 }
