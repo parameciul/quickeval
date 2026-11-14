@@ -24,7 +24,7 @@ import { ResultFiles } from './ResultFiles.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
 import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
 import { StudentAccessCard } from './StudentAccessCard.tsx';
-import { ReviewList } from './ReviewList.tsx';
+import { ReviewOverview } from './ReviewOverview.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
@@ -235,19 +235,9 @@ function GradingPanel(props: PanelProps) {
   );
 }
 
-function ReviewPanel(props: PanelProps) {
-  const { test, uploads } = props;
-  if (test.status === 'draft') return <p className="hint">Punctele nesigure apar după ce se corectează lucrările.</p>;
-  return (
-    <>
-      {test.gradedCount === 0 ? (
-        <p className="hint">Punctele nesigure apar după ce se corectează lucrările.</p>
-      ) : (
-        <ReviewList test={test} uploads={uploads} />
-      )}
-      <Papers {...props} selectable={false} />
-    </>
-  );
+function ReviewPanel({ test, uploads }: PanelProps) {
+  if (test.status === 'draft' || test.gradedCount === 0) return <p className="hint">Punctele nesigure apar după ce se corectează lucrările.</p>;
+  return <ReviewOverview test={test} uploads={uploads} />;
 }
 
 // The results (redesign spec §8): publishing, the students' links, and
