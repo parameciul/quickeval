@@ -536,11 +536,10 @@ function Paper({
             </span>
           </p>
         )}
-        {/* The moves, small: "‹ Punct 3/47 ›" (the points J and K walk: of
-            the test, or of this student with all the exercises), "‹ Elev 2/7 ›"
-            and "Lucrarea", on one row also on a phone. */}
+        {/* The moves, small: "‹ Punct 3/47 ›" (only the points to check),
+            "‹ Elev 2/7 ›" and "Lucrarea", on one row also on a phone. */}
         <div className="review-actions">
-          {walked.length > 0 && (
+          {mode === 'verificare' && walked.length > 0 && (
             <span className="move-group" role="group" aria-label="Punctele de verificat">
               <button
                 type="button"

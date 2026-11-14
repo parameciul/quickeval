@@ -187,7 +187,7 @@ function TestFileRow({
   );
 }
 
-// The teacher's notes for the barem ("Indicații pentru corectare"), always
+// The teacher's notes for the barem ("Indicații suplimentare pentru corectare"), always
 // open: the robot reads them as part of the barem, when it grades and when it
 // generates the barem, so the teacher need not replace the barem file. Like a
 // new barem, saving them clears the exercise list and starts the robot during
@@ -239,7 +239,7 @@ function BaremNotesEditor({
         save.mutate(text);
       }}
     >
-      <label htmlFor={id}>{ces ? 'Indicații pentru corectarea CES' : 'Indicații pentru corectare'}</label>
+      <label htmlFor={id}>{ces ? 'Indicații suplimentare pentru corectarea CES' : 'Indicații suplimentare pentru corectare'}</label>
       <p className="hint" id={`${id}-help`}>
         {ces
           ? 'Se adaugă la baremul CES. Robotul le folosește când dă punctele și când generează baremul.'

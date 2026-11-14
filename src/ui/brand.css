@@ -4088,7 +4088,7 @@ input[type="file"] {
   background: var(--sheet);
 }
 
-/* "Indicații pentru corectare" in the barem's card: a grey box, always open. */
+/* "Indicații suplimentare pentru corectare" in the barem's card: a grey box, always open. */
 .barem-notes {
   display: grid;
   gap: 0.35rem;
