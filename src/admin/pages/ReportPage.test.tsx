@@ -106,7 +106,13 @@ describe('ReportPage', () => {
   it('names the test, its class and its date, and leads back to the test', async () => {
     renderAdmin('/teste/6E2-26T1/raport', apiWith());
     expect(await screen.findByRole('heading', { level: 1, name: 'Raportul clasei' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '← Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
+    const path = within(screen.getByRole('navigation', { name: 'Unde ești' }));
+    expect(path.getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Teste', '/'],
+      ['Clasa 6E2', '/clase/1'],
+      ['Fracții', '/teste/6E2-26T1'],
+    ]);
+    expect(path.getByText('Raportul clasei')).toHaveAttribute('aria-current', 'page');
     const line = screen.getByText(/^Fracții ·/);
     expect(line).toHaveTextContent('Fracții · Clasa 6E2 · 6 octombrie 2026');
     expect(within(line).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');

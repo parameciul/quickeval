@@ -115,12 +115,16 @@ describe('StudentPage', () => {
 
   it('leads back to the class the teacher came from, else to the class the student is in now', async () => {
     renderAdmin({ pathname: '/elevi/10', state: { fromClass: 1 } }, apiWith());
-    expect(await screen.findByRole('link', { name: '← Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
+    const path = within(await screen.findByRole('navigation', { name: 'Unde ești' }));
+    expect(path.getByRole('link', { name: 'Clase' })).toHaveAttribute('href', '/clase');
+    expect(path.getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
+    expect(path.getByText('Pop Ion')).toHaveAttribute('aria-current', 'page');
   });
 
   it('leads back to the class the student is in now when no class is named', async () => {
     renderAdmin('/elevi/10', apiWith());
-    expect(await screen.findByRole('link', { name: '← Clasa 7E2' })).toHaveAttribute('href', '/clase/2');
+    const path = within(await screen.findByRole('navigation', { name: 'Unde ești' }));
+    expect(path.getByRole('link', { name: 'Clasa 7E2' })).toHaveAttribute('href', '/clase/2');
   });
 
   it('says so in a class with no started test', async () => {

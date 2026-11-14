@@ -43,13 +43,13 @@ describe('Varianta CES in Pregătire', () => {
     const ces = await block();
     expect(ces.getByText('Clasa are 1 elev cu CES')).toBeInTheDocument();
     const file = new File(['%PDF-1.7'], 'Test adaptat.pdf', { type: PDF_TYPE });
-    await userEvent.upload(ces.getByLabelText('Încarcă testul CES'), file);
+    await userEvent.upload(ces.getByLabelText(/^Fișierul testului CES/), file);
     expect(api.uploadTestFile).toHaveBeenCalledWith('9R2-26T1', 'test', file, 'ces');
     expect(await ces.findByRole('link', { name: 'Test adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/ces/files/test');
     // The class test is still the class test.
     expect(screen.getByRole('link', { name: 'test.pdf' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/files/test');
     const barem = new File(['%PDF-1.7'], 'Barem adaptat.pdf', { type: PDF_TYPE });
-    await userEvent.upload(ces.getByLabelText('Încarcă baremul CES'), barem);
+    await userEvent.upload(ces.getByLabelText(/^Fișierul baremului CES/), barem);
     expect(api.uploadTestFile).toHaveBeenLastCalledWith('9R2-26T1', 'barem', barem, 'ces');
   });
 
@@ -79,9 +79,8 @@ describe('Varianta CES in Pregătire', () => {
     const api = apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES }) });
     renderAdmin(`${PAGE}#pregatire`, api);
     const ces = await block();
-    await userEvent.click(ces.getByRole('button', { name: 'Adaugă comentarii' }));
-    await userEvent.type(ces.getByLabelText('Comentarii la baremul CES'), 'Fără depunctări pentru scris.');
-    await userEvent.click(ces.getByRole('button', { name: 'Salvează comentariile' }));
+    await userEvent.type(ces.getByLabelText('Indicații pentru corectarea CES'), 'Fără depunctări pentru scris.');
+    await userEvent.click(ces.getByRole('button', { name: 'Salvează indicațiile' }));
     expect(api.saveBaremNotes).toHaveBeenCalledWith('9R2-26T1', 'Fără depunctări pentru scris.', 'ces');
   });
 
@@ -112,7 +111,7 @@ describe('Varianta CES in Pregătire', () => {
     await userEvent.click((await block()).getByRole('switch', { name: 'Test separat pentru elevii cu CES' }));
     expect(window.confirm).not.toHaveBeenCalled();
     expect(api.setCesOff).toHaveBeenCalledWith('9R2-26T1', false);
-    expect(await screen.findByLabelText('Încarcă testul CES')).toBeInTheDocument();
+    expect(await screen.findByLabelText(/^Fișierul testului CES/)).toBeInTheDocument();
   });
 
   it('says why a variant with graded CES papers cannot be turned off', async () => {

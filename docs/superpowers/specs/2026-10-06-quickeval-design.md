@@ -440,7 +440,7 @@ A school-year switch in the header (default: the current school year) filters Te
 **Test page** (`/admin/teste/:code`):
 
 - Header: code, class, title, status chip, date and hour (`started_at`).
-- Files: test and barem. For each: upload/replace (PDF or `.docx`, ≤ 25 MB) and view. Under them, **Comentarii la barem**: the teacher's extra comments (max 2000 chars). The robot reads them as part of the barem. New comments act like a new barem file: the exercise list is made again.
+- Files: test and barem. For each: upload/replace (PDF or `.docx`, ≤ 25 MB) and view. In the barem's card, **Indicații pentru corectare**: the teacher's extra comments (max 2000 chars), in a text box that is always open, saved with "Salvează indicațiile" once changed. The robot reads them as part of the barem, also when it generates one. New comments act like a new barem file: the exercise list is made again.
 - Under the test file, while the test is a draft or open: "Testul pentru tipărit" (the test with the QR code; see `docs/superpowers/specs/2026-10-25-qr-print-test-design.md` §4.7). A draft made before tests got their link at once shows **Pregătește testul cu cod QR** instead.
 - Actions, shown by status:
   - draft: **Începe testul** (Start test), with a hint to start it on the day of the test, since that day becomes the test's date.
