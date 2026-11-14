@@ -1715,12 +1715,13 @@ describe('TestPage evaluation', () => {
     expect(screen.queryByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).not.toBeInTheDocument();
   });
 
-  it('puts the class report in Rezultate once a result is graded', async () => {
+  it('puts the class report in Rezultate once a result is graded, as its main button', async () => {
     renderAdmin(PAGE, evaluationApi({ status: 'done' }, graded));
     const panel = await screen.findByRole('region', { name: 'Rezultate' });
     const link = within(panel).getByRole('link', { name: 'Deschide raportul' });
     expect(link).toHaveAttribute('href', '/teste/6E2-26T1/raport');
-    expect(link).toHaveClass('button-quiet', 'button-small');
+    expect(link).toHaveClass('button');
+    expect(link).not.toHaveClass('button-quiet');
     expect(screen.getAllByRole('link', { name: 'Deschide raportul' })).toHaveLength(1);
   });
 

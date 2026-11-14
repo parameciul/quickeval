@@ -165,6 +165,14 @@ describe('brand.css', () => {
     expect(value(declarations('  table.uploads tbody td[data-label]::before'), 'font-weight')).toBe('500');
   });
 
+  it('gives the stage sentence the whole width of the panel, and puts "Raportul clasei" beside the students only in a wide panel', () => {
+    expect(value(declarations('.stage-head p'), 'max-width')).toBeUndefined();
+    expect(value(declarations('.results-layout'), 'container-type')).toBe('inline-size');
+    expect(value(declarations('.results-grid'), 'grid-template-columns')).toBe('minmax(0, 1fr)');
+    expect(css).toContain('@container (min-width: 56rem) {\n  .results-grid {\n    grid-template-columns: minmax(0, 1fr) 18rem;');
+    expect(css).toContain('  .results-grid > .report-card {\n    grid-row: 1;\n    grid-column: 2;\n  }');
+  });
+
   it('is flat: no gradient, no notebook grid', () => {
     expect(css).not.toMatch(/gradient\(/);
     expect(css).not.toContain('--grid');

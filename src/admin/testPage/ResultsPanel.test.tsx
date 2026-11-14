@@ -14,8 +14,12 @@ vi.mock('../pdf/share.ts', () => ({ saveFile: vi.fn(), shareFile: vi.fn() }));
 
 const saveFile = vi.mocked(share.saveFile);
 
-// The panel Rezultate of the test page (redesign spec §8).
+// The panel Rezultate of the test page (redesign spec §8, spec 2026-11-14).
 const PAGE = '/teste/6E2-26T1#rezultate';
+
+// What the panel says under its heading: what each student gets.
+const SENTENCE =
+  'După ce rezultatele sunt publicate, fiecare elev are acces la rezultatul lui: nota finală, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.';
 
 // Pop Ion and Stan Eva sent graded papers; Marin Dan sent none.
 const graded = () => [
@@ -52,16 +56,15 @@ describe('the panel Rezultate', () => {
     expect(screen.queryByRole('heading', { name: 'Pentru tine' })).not.toBeInTheDocument();
   });
 
-  it('says what the link shows, and offers no publish button before anything is graded', async () => {
+  it('says what each student gets, once, and offers no publish button before anything is graded', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 }),
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 }),
       fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
     ];
     renderAdmin(PAGE, apiWith({ status: 'evaluating' }, rows));
-    expect(
-      await screen.findByText('Linkul arată nota, punctajul pe fiecare exercițiu, explicațiile detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Elevul îl vede după ce îl publici.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(SENTENCE)).toBeInTheDocument();
+    expect(screen.queryByText(/^Linkul arată nota/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Rezultatele se publică după corectare' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Corectare' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Publică toate rezultatele' })).not.toBeInTheDocument();
@@ -72,7 +75,7 @@ describe('the panel Rezultate', () => {
     expect(within(row('Stan Eva')).getByText('Nu a trimis lucrarea.')).toBeInTheDocument();
     expect(within(row('Marin Dan')).getByText('Nu a trimis lucrarea.')).toBeInTheDocument();
     expect(screen.getByText('0 publicate · 1 nepublicat')).toBeInTheDocument();
-    expect(screen.getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Raportul clasei' })).getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
   });
 
   it('shows the points and the grade of a graded paper, and dashes for a paper not graded yet', async () => {
@@ -207,13 +210,36 @@ describe('the panel Rezultate', () => {
     );
   });
 
-  it('offers the class report and the CSV once a paper is graded', async () => {
-    renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
-    expect(await screen.findByRole('heading', { level: 3, name: 'Pentru tine' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Deschide raportul' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
-    expect(screen.getByText('Media testului 8,5 · rezultatele pe exerciții · analiza clasei')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Descarcă CSV' })).toBeInTheDocument();
-    expect(screen.getByText('PDF-ul cu rezultatul unui elev este pe pagina lucrării lui: apasă pe numele lui în tabel.')).toBeInTheDocument();
+  it('shows "Raportul clasei" once a paper is graded: the average in its colour, the grades by group, the report, and the CSV', async () => {
+    const rows = [...graded(), fakeUpload({ studentId: 13, studentName: 'Vlad Ana', active: false, submissionId: 7, status: 'graded', fileCount: 1, grade: 4 })];
+    renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
+    const card = await screen.findByRole('region', { name: 'Raportul clasei' });
+    expect(within(card).getByText('7')).toHaveClass('report-card-grade', 'points-4');
+    expect(within(card).getByText('media testului · 2 din 3 elevi corectați')).toBeInTheDocument();
+    // Every graded paper counts in its group, the one of a student who left too.
+    const groups = within(card).getByRole('list', { name: 'Notele pe grupe' });
+    expect(within(groups).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['1-4,991', '5-6,990', '7-8,991', '9-101']);
+    expect(groups.querySelector('.bar-1')).toHaveStyle({ width: '100%' });
+    expect(groups.querySelector('.bar-3')).toHaveStyle({ width: '0%' });
+    const open = within(card).getByRole('link', { name: 'Deschide raportul' });
+    expect(open).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+    expect(open).toHaveClass('button');
+    expect(open).toHaveTextContent(/^Deschide raportul$/);
+    expect(within(card).getByRole('button', { name: 'CSV pentru catalog' })).toHaveClass('text-button', 'is-quiet');
+    expect(screen.queryByRole('heading', { name: 'Pentru tine' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^PDF-ul cu rezultatul unui elev/)).not.toBeInTheDocument();
+  });
+
+  it('puts "Raportul clasei" before the students in the page, and says when it comes before any grading', async () => {
+    const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
+    renderAdmin(PAGE, apiWith({ status: 'evaluating', resultsOpen: true }, rows));
+    const card = await screen.findByRole('region', { name: 'Raportul clasei' });
+    expect(within(card).getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
+    expect(within(card).queryByRole('link')).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument();
+    const table = screen.getByRole('table', { name: 'Linkurile cu rezultatele elevilor' });
+    expect(table.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Elevii' })).toBeInTheDocument();
   });
 
   it('downloads the CSV of the class report', async () => {
@@ -239,7 +265,7 @@ describe('the panel Rezultate', () => {
     };
     const api = apiWith({ status: 'done' }, graded(), { '6E2-26T1': report });
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Descarcă CSV' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'CSV pentru catalog' }));
     await vi.waitFor(() => expect(saveFile).toHaveBeenCalledTimes(1));
     expect(api.getReport).toHaveBeenCalledWith('6E2-26T1');
     const [blob, fileName] = saveFile.mock.calls[0]!;
@@ -250,7 +276,7 @@ describe('the panel Rezultate', () => {
 
   it('says why the CSV could not be made', async () => {
     renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
-    await userEvent.click(await screen.findByRole('button', { name: 'Descarcă CSV' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'CSV pentru catalog' }));
     expect(await screen.findByText('Nu am găsit ce cauți.')).toBeInTheDocument();
     expect(saveFile).not.toHaveBeenCalled();
   });

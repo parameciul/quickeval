@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReportRow } from './api.ts';
-import { averageGrade, classStats, GRADE_GROUPS, reportTables, sameExercises } from './stats.ts';
+import { averageGrade, classStats, GRADE_GROUPS, gradeGroups, reportTables, sameExercises } from './stats.ts';
 
 const exercises = [
   { id: 'E1', label: 'Exercițiul 1', maxPoints: 4 },
@@ -37,6 +37,21 @@ describe('averageGrade', () => {
 
   it('has none without grades', () => {
     expect(averageGrade([])).toBeNull();
+  });
+});
+
+describe('gradeGroups', () => {
+  it('counts each grade in its group, in any order, a grade at a limit in the higher group', () => {
+    expect(gradeGroups([10, 4.99, 5, 9, 6.99, 0, 7, 8.99, 2.5])).toEqual([
+      { label: '1-4,99', count: 3 },
+      { label: '5-6,99', count: 2 },
+      { label: '7-8,99', count: 2 },
+      { label: '9-10', count: 2 },
+    ]);
+  });
+
+  it('has every group, empty, without grades', () => {
+    expect(gradeGroups([]).map((group) => group.count)).toEqual([0, 0, 0, 0]);
   });
 });
 

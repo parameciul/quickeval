@@ -20,7 +20,7 @@ import { SubjectChange } from './SubjectForm.tsx';
 import { PrintTest } from './PrintTest.tsx';
 import { RegradeAllButton } from './RegradeAllButton.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
-import { ResultFiles } from './ResultFiles.tsx';
+import { ReportCard } from './ReportCard.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
 import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
 import { StudentAccessCard } from './StudentAccessCard.tsx';
@@ -45,14 +45,17 @@ export interface PanelProps {
   onRobot: (robot: RobotStart | null) => void;
 }
 
-// The landing page's sentence for each stage (redesign spec §3).
+// The landing page's sentence for each stage (redesign spec §3), but for
+// Rezultate: there the teacher reads what each student gets once the results
+// are published (spec 2026-11-14), not what the landing page promises.
 const SENTENCES: Record<StageName, string> = {
   Pregătire: 'Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.',
   Tipărire: 'Tipărești testul. Fiecare pagină are un cod QR.',
   'În clasă': 'Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.',
   Corectare: 'Fiecare lucrare primește punctaj conform baremului, pas cu pas, cu 10 puncte din oficiu.',
   Verificare: 'Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.',
-  Rezultate: 'Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.',
+  Rezultate:
+    'După ce rezultatele sunt publicate, fiecare elev are acces la rezultatul lui: nota finală, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.',
 };
 
 const NEXT: Partial<Record<StageName, StageName>> = {
@@ -241,21 +244,28 @@ function ReviewPanel({ test, uploads }: PanelProps) {
   return <ReviewOverview test={test} uploads={uploads} />;
 }
 
-// The results (redesign spec §8): publishing, the students' links, and
-// "Pentru tine". The links table takes the place of the papers table here.
+// The results (redesign spec §8, spec 2026-11-14): publishing at the top,
+// then the students' links beside "Raportul clasei". The links table takes
+// the place of the papers table here.
 function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
   if (test.status === 'draft') return <NoResultsYet />;
   const count = linksCount(uploads, test.resultsOpen);
   return (
     <>
-      <p>Linkul arată nota, punctajul pe fiecare exercițiu, explicațiile detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Elevul îl vede după ce îl publici.</p>
       <ResultsAccess test={test} onChanged={onChanged} />
       <StudentAccessCard test={test} />
-      <h3>Linkurile elevilor</h3>
-      {count && <p className="hint">{count}</p>}
-      <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} onChanged={onChanged} />
-      <h3>Pentru tine</h3>
-      <ResultFiles test={test} />
+      <div className="results-layout">
+        <div className="results-grid">
+          <ReportCard test={test} uploads={uploads} />
+          <div className="results-students">
+            <div className="results-students-head">
+              <h3>Elevii</h3>
+              {count && <p className="hint">{count}</p>}
+            </div>
+            <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} onChanged={onChanged} />
+          </div>
+        </div>
+      </div>
     </>
   );
 }

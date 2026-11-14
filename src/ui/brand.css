@@ -2201,8 +2201,8 @@ table.tests .row-actions {
   outline: none;
 }
 
+/* The stage's sentence takes the panel's whole width. */
 .stage-head p {
-  max-width: 62ch;
   margin: 0.25rem 0 0;
   color: var(--muted);
 }
@@ -2227,6 +2227,160 @@ table.tests .row-actions {
   padding-top: 0.75rem;
   border-top: 1px solid var(--line);
   text-align: right;
+}
+
+/* The panel Rezultate (spec 2026-11-14): "Raportul clasei" first in the
+   page, so the keyboard reaches it before the table's rows; beside the
+   students' table on the right while the panel is wide, above it while the
+   panel is narrow. The panel's own width decides, not the screen's. */
+.results-layout {
+  container-type: inline-size;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@container (min-width: 56rem) {
+  .results-grid {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+
+  .results-grid > .report-card {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .results-grid > .results-students {
+    grid-row: 1;
+    grid-column: 1;
+  }
+}
+
+.results-students {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.results-students-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}
+
+.results-students-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.results-students-head p {
+  margin: 0;
+}
+
+/* "Raportul clasei": the average in its grade colour, the grades by group in
+   the same colours, the one button to the report, and the CSV as a quiet
+   text button. */
+.report-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 45%, var(--rule));
+  border-radius: var(--radius-panel);
+  background: var(--raised);
+}
+
+.report-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.report-card p {
+  margin: 0;
+}
+
+.report-card-average {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}
+
+.report-card-grade {
+  font-size: 2.25rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.report-card-groups {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.report-card-groups li {
+  display: grid;
+  grid-template-columns: 3.75rem minmax(0, 1fr) 1.5rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-card-bar {
+  display: block;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--active);
+}
+
+.report-card-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.report-card-bar > .bar-1 {
+  background: var(--conf-1);
+}
+
+.report-card-bar > .bar-3 {
+  background: var(--conf-3);
+}
+
+.report-card-bar > .bar-4 {
+  background: var(--conf-4);
+}
+
+.report-card-bar > .bar-5 {
+  background: var(--conf-5);
+}
+
+.report-card-count {
+  text-align: right;
+}
+
+.report-card .button {
+  width: 100%;
+}
+
+.text-button.csv-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: start;
+  font-weight: 500;
+}
+
+.csv-button svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* The overview of the check, in the panel Verificare: the progress (or the

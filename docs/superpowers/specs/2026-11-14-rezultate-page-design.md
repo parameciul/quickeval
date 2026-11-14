@@ -80,9 +80,9 @@ The teacher also asked for:
 
    **Nothing graded yet** (today's `NoResultsYet`): a grey box, "Rezultatele se publică după corectare", with "Mergi la Corectare".
 
-2. **A grid**: the students table on the left, the widest part; the column "Raportul clasei" on the right, 290 px wide. On a phone, the column goes above the table.
+2. **A grid**: the students table on the left, the widest part; the column "Raportul clasei" on the right, 18 rem wide. The panel's own width decides (a container query on the panel, 56 rem): in a narrower panel (a phone, a small laptop) the card goes above the table, full width. In the page's order the card comes first, so a keyboard and a screen reader reach it before the rows of the table.
 3. **The card "Raportul clasei"** (the right column; replaces "Pentru tine" / `ResultFiles`):
-   - the average (`test.averageGrade`), large, in its grade colour, with "media testului · N din M corectate";
+   - the average (`test.averageGrade`), large, in its grade colour, with "media testului · N din M elevi corectați" (the active students, as the report's "Corectate" tile);
    - the grade groups (`GRADE_GROUPS`), one bar each, coloured red, yellow, green and dark green as the grade colours;
    - "Deschide raportul": a primary button, the full width of the card, with no arrow;
    - "CSV pentru catalog": a small text button with a download icon. It works as today's `CsvRow`.
