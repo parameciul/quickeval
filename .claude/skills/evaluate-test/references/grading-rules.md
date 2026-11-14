@@ -36,6 +36,7 @@ A page that cannot be read at all goes in `unreadable`. Then flag every exercise
 - Say what is right first, then what to fix.
 - Write math in plain Unicode: x², √, ≤, ½, ·, 3/4. Never use LaTeX ($, \frac, ^{}): the reports cannot show it.
 - Put a root or a fraction part of more than one number or letter in round brackets: √(x + 1), (x + 1)/3, (2x − 1)/(x + 3). The pages draw the root's bar over what follows √, and a/b as a fraction on two levels, from these brackets.
+- Write a negation as the letter with a combining bar (U+0304): p̄, q̄(x). Write a subscript that Unicode has no character for with "_" and one letter, number or bracket group: A_p, A_(p ∧ q). The pages draw both like on paper.
 - Never write the student's name, and never write about the student's handwriting as a fault.
 - Never write that a program, a robot, AI, or Claude graded the work: the student reads these texts.
 - Every text you write is plain text with Unicode math, not only the comments: `answer`, `notes`, `studentAnswer`, `summary`, `strengths`, and `recommendations` too.

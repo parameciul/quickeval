@@ -3,6 +3,7 @@ import type { StudentResultView, SubmissionDetail } from '../../../shared/api.ts
 import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDate } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
+import { pdfRuns } from './pdfMath.ts';
 import { pdfText } from './pdfSymbols.ts';
 
 // The student's PDF (spec §14.1): test code and title, the student's name,
@@ -100,10 +101,12 @@ export function studentPdfFileName(input: StudentPdfInput): string {
 }
 
 const list = (title: string, entries: string[]): Content[] =>
-  entries.length === 0 ? [] : [{ text: title, style: 'h2' }, { ul: entries, margin: [0, 0, 0, 4] }];
+  entries.length === 0 ? [] : [{ text: title, style: 'h2' }, { ul: entries.map((entry) => ({ text: pdfRuns(entry) })), margin: [0, 0, 0, 4] }];
 
 // The one place where the free texts of the input become PDF text: the symbols
 // that the font lacks are written as words here (pdfSymbols.ts). Names stay.
+// The texts of the grading then become runs where they hold a negation bar,
+// a subscript or a raised letter (`pdfRuns`).
 function drawable(input: StudentPdfInput): StudentPdfInput {
   return {
     ...input,
@@ -130,8 +133,8 @@ export function studentPdf(source: StudentPdfInput): TDocumentDefinitions {
     item.pending
       ? { text: 'în verificare', italics: true, noWrap: true }
       : { text: `${formatPoints(item.points)} din ${formatPoints(item.maxPoints)}`, noWrap: true },
-    { text: item.studentAnswer, fontSize: 9 },
-    { text: item.comment, fontSize: 9 },
+    { text: pdfRuns(item.studentAnswer), fontSize: 9 },
+    { text: pdfRuns(item.comment), fontSize: 9 },
   ]);
   const officeText = input.officePoints > 0 ? `, cu ${formatPoints(input.officePoints)} din oficiu` : '';
   return {
@@ -162,7 +165,7 @@ export function studentPdf(source: StudentPdfInput): TDocumentDefinitions {
         table: { headerRows: 1, dontBreakRows: true, widths: ['auto', 'auto', '*', '*'], body: [header, ...rows] },
         layout: 'lightHorizontalLines',
       },
-      ...(input.summary ? [{ text: 'Rezumat', style: 'h2' } as Content, { text: input.summary } as Content] : []),
+      ...(input.summary ? [{ text: 'Rezumat', style: 'h2' } as Content, { text: pdfRuns(input.summary) } as Content] : []),
       ...list('Ce ai lucrat bine', input.strengths),
       ...list('Recomandări', input.recommendations),
     ],

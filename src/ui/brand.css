@@ -4724,6 +4724,22 @@ table.items tr.edit-row > td {
   border-bottom: var(--math-rule) solid currentColor;
 }
 
+/* p̄: the bar of a negation, drawn like the bar of a root, close over the
+   letter (the font draws the combining bar beside it). */
+.math-bar {
+  display: inline-block;
+  padding: 0.04em 0.04em 0;
+  border-top: max(1px, 0.07em) solid currentColor;
+  line-height: 1;
+}
+
+/* A_p: low and small, without making the line taller. */
+.math-sub {
+  font-size: 0.75em;
+  line-height: 0;
+  vertical-align: -0.25em;
+}
+
 /* The robot's points before a teacher correction: the old value in gray
    with a robot mark instead of words. */
 .ai-points {
