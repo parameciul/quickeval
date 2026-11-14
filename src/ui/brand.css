@@ -4324,7 +4324,7 @@ table.uploads .tag {
   margin-left: 0.4rem;
 }
 
-/* "Publicat" starts the state cell of "Linkurile elevilor": no gap before it. */
+/* "Publicat" starts the state cell of the students' table of Rezultate: no gap before it. */
 table.uploads .result-state-cell .tag {
   margin-left: 0;
 }
@@ -4440,8 +4440,9 @@ table.uploads .row-actions {
     background: none;
   }
 
-  /* "Linkurile elevilor" in short cards: the points and the grade side by
-     side, then the link and the state, whose buttons need no caption. */
+  /* The students' table of Rezultate in short cards: the grade and the
+     points side by side, then the link and the state, whose buttons need no
+     caption. */
   table.uploads.result-links tbody tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -4480,6 +4481,7 @@ table.uploads .row-actions {
   table.uploads.is-selectable thead th.select-col {
     padding: 0 0 0.5rem;
     border-bottom: 0;
+    background: none;
   }
 
   table.uploads .select-all {

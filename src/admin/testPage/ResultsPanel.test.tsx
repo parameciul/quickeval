@@ -168,7 +168,9 @@ describe('the panel Rezultate', () => {
   it('keeps the stop button while the results are open and nothing is graded, as after grading all again', async () => {
     const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
     renderAdmin(PAGE, apiWith({ status: 'evaluating', resultsOpen: true }, rows));
-    expect(await screen.findByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
+    const box = await screen.findByRole('region', { name: 'Rezultatele sunt publicate. Elevii le văd în două feluri:' });
+    expect(box).toHaveClass('is-published');
+    expect(within(box).getByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Rezultatele se publică după corectare' })).not.toBeInTheDocument();
   });
 
@@ -323,7 +325,7 @@ describe('the panel Rezultate, small details', () => {
     renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
     await user.click(await screen.findByRole('button', { name: 'Copiază linkul: Pop Ion' }));
     const field = await screen.findByLabelText('Linkul cu rezultatul elevului Pop Ion');
-    expect(screen.getByText('Nu am putut copia linkul. Copiază-l de aici.')).toBeInTheDocument();
+    expect(field).toHaveAccessibleDescription('Nu am putut copia linkul. Copiază-l de aici.');
     expect(field).toHaveFocus();
     expect((field as HTMLInputElement).selectionEnd).toBe((field as HTMLInputElement).value.length);
   });
@@ -357,6 +359,8 @@ describe('the panel Rezultate, where students find their results', () => {
     await user.click(await screen.findByRole('button', { name: 'Publică toate rezultatele' }));
     const published = await screen.findByRole('region', { name: PUBLISHED });
     expect(published).toHaveClass('publish-box', 'is-published');
+    // Safari drops the list role of a list with no bullets unless it is said.
+    expect(within(published).getByRole('list')).toHaveAttribute('role', 'list');
     const ways = within(published).getAllByRole('listitem');
     expect(ways.map((way) => way.querySelector('.publish-way-title')?.textContent)).toEqual([
       'Pe linkul lor',
@@ -382,6 +386,13 @@ describe('the panel Rezultate, where students find their results', () => {
     expect(within(some).getByRole('button', { name: 'Publică toate rezultatele' })).toBeInTheDocument();
     expect(within(some).queryByRole('button', { name: 'Oprește accesul la rezultate' })).not.toBeInTheDocument();
     expect(within(some).getByText('Pe linkul lor')).toBeInTheDocument();
+  });
+
+  it('says how many points still wait in the green box while only some results are published', async () => {
+    const rows = graded().map((upload) => (upload.studentId === 10 ? { ...upload, flagCount: 2 } : upload));
+    renderAdmin(PAGE, apiWith({ status: 'done', publishedCount: 1 }, rows));
+    const some = await screen.findByRole('region', { name: 'Unele rezultate sunt publicate. Elevii le văd în două feluri:' });
+    expect(within(some).getByText('Mai ai 2 puncte de verificat. Dacă publici acum, elevii văd punctajul de acum.')).toBeInTheDocument();
   });
 
   it("gives no teacher's multi-upload link in Rezultate", async () => {
@@ -422,7 +433,7 @@ describe('the panel Rezultate, where students find their results', () => {
     const field = await within(box()).findByLabelText('Linkul testului pentru elevi');
     expect(field).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
     expect(field).toHaveFocus();
-    expect(within(box()).getByText('Nu am putut copia linkul. Copiază-l de aici.')).toBeInTheDocument();
+    expect(field).toHaveAccessibleDescription('Nu am putut copia linkul. Copiază-l de aici.');
   });
 
   it("downloads the students' QR code as a PNG file", async () => {

@@ -163,6 +163,8 @@ describe('brand.css', () => {
     expect(value(declarations('table.uploads tbody th'), 'font-weight')).toBe('500');
     expect(value(declarations('.grade-chip'), 'font-weight')).toBe('500');
     expect(value(declarations('  table.uploads tbody td[data-label]::before'), 'font-weight')).toBe('500');
+    // On a phone the select-all toolbar of Corectare stands alone, not on the header band.
+    expect(value(declarations('  table.uploads.is-selectable thead th.select-col'), 'background')).toBe('none');
   });
 
   it('gives the stage sentence the whole width of the panel, and puts "Raportul clasei" beside the students only in a wide panel', () => {

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useId } from 'react';
 import { Link } from 'react-router';
 import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { classCsv } from '../../../shared/csv.ts';
@@ -20,10 +21,11 @@ const GROUP_LEVELS = [1, 3, 4, 5];
 // as a small text button. The CSV is the class report's, read only when the
 // button is pressed. Each student's PDF stays on the paper's page.
 export function ReportCard({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
+  const titleId = useId();
   if (test.gradedCount === 0) {
     return (
-      <section className="report-card" aria-labelledby="report-card-title">
-        <h3 id="report-card-title">Raportul clasei</h3>
+      <section className="report-card" aria-labelledby={titleId}>
+        <h3 id={titleId}>Raportul clasei</h3>
         <p className="hint">Raportul clasei și CSV-ul apar după prima corectare.</p>
       </section>
     );
@@ -35,8 +37,8 @@ export function ReportCard({ test, uploads }: { test: TestInfo; uploads: UploadR
   const active = uploads.filter((row) => row.active);
   const gradedActive = active.filter((row) => row.status === 'graded').length;
   return (
-    <section className="report-card" aria-labelledby="report-card-title">
-      <h3 id="report-card-title">Raportul clasei</h3>
+    <section className="report-card" aria-labelledby={titleId}>
+      <h3 id={titleId}>Raportul clasei</h3>
       <p className="report-card-average">
         {test.averageGrade !== null && (
           <span className={`report-card-grade points-${pointsLevel(test.averageGrade, 10)}`}>{formatPoints(test.averageGrade)}</span>

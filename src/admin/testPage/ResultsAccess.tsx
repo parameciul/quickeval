@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { TestInfo } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
+import { CopyRefused, useCopyLink } from '../CopyLink.tsx';
 import { EmptyState } from '../EmptyState.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { IconClock, IconDone } from '../shell/icons.tsx';
@@ -97,7 +98,7 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
       {test.resultsOpen && (
         <p className="hint publish-stop-hint">Dacă oprești accesul, linkurile cu rezultate și pozele lor nu se mai deschid până publici din nou rezultatele.</p>
       )}
-      <ol className="publish-ways">
+      <ol className="publish-ways" role="list">
         <li>
           <p className="publish-way-title">Pe linkul lor</p>
           <p className="hint">Salvat pe telefon la încărcarea rezolvărilor. Nu trebuie să facă nimic.</p>
@@ -118,29 +119,14 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
 // copy, the link shows in a field, selected, to copy by hand.
 function StudentLink({ code, token }: { code: string; token: string }) {
   const url = uploadLink(token);
-  const [copied, setCopied] = useState(false);
-  const [refused, setRefused] = useState(false);
+  const { copied, refused, copy, field } = useCopyLink();
   const [fullScreen, setFullScreen] = useState(false);
-  const field = useRef<HTMLInputElement>(null);
   const showButton = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!refused) return;
-    field.current?.focus();
-    field.current?.select();
-  }, [refused]);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-    } catch {
-      setRefused(true);
-    }
-  };
   return (
     <div className="publish-link">
       <QRCodeSVG value={url} size={88} marginSize={2} title="Codul QR al linkului" className="publish-qr" />
       <div className="publish-link-actions">
-        <button type="button" className="button-quiet button-small" onClick={copy}>
+        <button type="button" className="button-quiet button-small" onClick={() => copy(url)}>
           {copied ? 'Copiat!' : 'Copiază linkul'}
         </button>
         <QrDownload url={url} fileName={`cod-qr-elevi-${code}.png`} />
@@ -148,12 +134,7 @@ function StudentLink({ code, token }: { code: string; token: string }) {
           Arată codul QR pe tot ecranul
         </button>
       </div>
-      {refused && (
-        <span className="result-share-box">
-          <span className="hint">Nu am putut copia linkul. Copiază-l de aici.</span>
-          <input ref={field} type="text" readOnly value={url} aria-label="Linkul testului pentru elevi" onFocus={(event) => event.target.select()} />
-        </span>
-      )}
+      {refused && <CopyRefused field={field} url={url} label="Linkul testului pentru elevi" />}
       {fullScreen && (
         <QrOverlay
           url={url}
