@@ -7,6 +7,36 @@ import { paperPath } from '../paperPage/paths.ts';
 import { pointKey, reviewPath } from '../reviewPage/points.ts';
 import { MoveOnLink } from './MoveOnLink.tsx';
 
+// The graded papers that had points to check, in the class order (by name):
+// all their points, those checked, those left, and the papers with points
+// left and those done.
+function reviewCounts(uploads: UploadRow[]) {
+  const counted = uploads.filter(
+    (row): row is UploadRow & { submissionId: number } =>
+      row.status === 'graded' && row.submissionId !== null && row.flagCount + row.checkedCount > 0,
+  );
+  const total = counted.reduce((sum, row) => sum + row.flagCount + row.checkedCount, 0);
+  const checked = counted.reduce((sum, row) => sum + row.checkedCount, 0);
+  return {
+    total,
+    checked,
+    left: total - checked,
+    waiting: counted.filter((row) => row.flagCount > 0),
+    done: counted.filter((row) => row.flagCount === 0),
+  };
+}
+
+// The panel shows the overview once a paper is graded.
+export function showsOverview(test: TestInfo): boolean {
+  return test.status !== 'draft' && test.gradedCount > 0;
+}
+
+// The overview has its own "Mergi la Rezultate" when nothing is left to check:
+// the stage panel then leaves out its link to the next stage.
+export function overviewLeadsOn(test: TestInfo, uploads: UploadRow[]): boolean {
+  return showsOverview(test) && reviewCounts(uploads).left === 0;
+}
+
 // The panel Verificare as an overview of the check: how far it is, one orange
 // button into the paper page at the first point left, and a label per student
 // with points (those left first, then those done). The points themselves are
@@ -14,16 +44,7 @@ import { MoveOnLink } from './MoveOnLink.tsx';
 export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
   const waitId = useId();
   const doneId = useId();
-  // The graded papers that had points to check, in the class order (by name).
-  const counted = uploads.filter(
-    (row): row is UploadRow & { submissionId: number } =>
-      row.status === 'graded' && row.submissionId !== null && row.flagCount + row.checkedCount > 0,
-  );
-  const total = counted.reduce((sum, row) => sum + row.flagCount + row.checkedCount, 0);
-  const checked = counted.reduce((sum, row) => sum + row.checkedCount, 0);
-  const left = total - checked;
-  const waiting = counted.filter((row) => row.flagCount > 0 && row.reviewPoints.length > 0);
-  const done = counted.filter((row) => row.flagCount === 0);
+  const { total, checked, left, waiting, done } = reviewCounts(uploads);
   const toResults = (
     <MoveOnLink stage="Rezultate" className="button">
       Mergi la Rezultate
@@ -66,7 +87,7 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
         </div>
       ) : (
         <div className="review-done-box">
-          <p>{total === 1 ? 'Punctul de verificat este verificat.' : `Toate cele ${countLabel(total, 'punct', 'puncte')} sunt verificate.`}</p>
+          <p>{total === 1 ? 'Singurul punct de verificat a fost verificat.' : `Toate cele ${countLabel(total, 'punct', 'puncte')} sunt verificate.`}</p>
           {toResults}
         </div>
       )}
@@ -78,15 +99,19 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
           <ul className="review-chips" aria-labelledby={waitId}>
             {waiting.map((row) => {
               const all = row.flagCount + row.checkedCount;
+              const ces = isCes(row);
+              // The first point left; a row read before its points (a cache a
+              // moment old) opens the paper at its first point all the same.
+              const first = row.reviewPoints[0];
               return (
                 <li key={row.submissionId}>
                   <Link
                     className="review-chip is-wait"
-                    to={reviewPath(test.code, { submissionId: row.submissionId, key: pointKey(row.reviewPoints[0]!) })}
-                    aria-label={`${row.studentName}: ${row.checkedCount} din ${all} verificate`}
+                    to={reviewPath(test.code, { submissionId: row.submissionId, key: first ? pointKey(first) : null })}
+                    aria-label={`${row.studentName}${ces ? ', CES' : ''}: ${row.checkedCount} din ${all} verificate`}
                   >
                     {row.studentName}
-                    {row.ces && <CesTag />}{' '}
+                    {ces && <CesTag />}{' '}
                     <span className="tag tag-wait">
                       {row.checkedCount}/{all}
                     </span>
@@ -107,7 +132,7 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
               <li key={row.submissionId}>
                 <Link className="review-chip is-done" to={paperPath(test.code, 'app', { submissionId: row.submissionId, key: null }, 'toate')}>
                   <span aria-hidden="true">✓</span> {row.studentName}
-                  {row.ces && <CesTag />}
+                  {isCes(row) && <CesTag />}
                 </Link>
               </li>
             ))}
@@ -116,4 +141,10 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
       )}
     </>
   );
+}
+
+// CES as the other tables of the test show it: the student marked CES, or the
+// paper graded on the CES variant.
+function isCes(row: UploadRow): boolean {
+  return row.ces || row.variant === 'ces';
 }

@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SubmissionDetail } from '../../../shared/api.ts';
@@ -428,6 +428,18 @@ describe('the paper page', () => {
     });
     expect(await screen.findByText(/Nota/)).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows the photo again when a checked paper is graded again', async () => {
+    // Graded, with no point to check: the paper opens with its photo hidden.
+    const checked: SubmissionDetail = { ...graded, evaluation: fakeEvaluation([fakeItem({ id: 31, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 4.5 })]) };
+    const api = apiWith(checked);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin(page, api);
+    expect(await screen.findByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'false');
+    await chooseAction('Recorectează');
+    expect(await screen.findByText('Lucrarea așteaptă robotul.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'true'));
   });
 
   it('keeps the result when the teacher does not confirm the regrade', async () => {

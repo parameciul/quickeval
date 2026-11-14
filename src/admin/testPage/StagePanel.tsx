@@ -24,7 +24,7 @@ import { ResultFiles } from './ResultFiles.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
 import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
 import { StudentAccessCard } from './StudentAccessCard.tsx';
-import { ReviewOverview } from './ReviewOverview.tsx';
+import { overviewLeadsOn, ReviewOverview, showsOverview } from './ReviewOverview.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
@@ -67,7 +67,8 @@ const NEXT: Partial<Record<StageName, StageName>> = {
 // sentence, and the controls of that stage.
 export function StagePanel({ stage, ...props }: PanelProps & { stage: StageName }) {
   const id = useId();
-  const next = NEXT[stage];
+  // Verificare leads to Rezultate from its own box once all is checked.
+  const next = stage === 'Verificare' && overviewLeadsOn(props.test, props.uploads) ? undefined : NEXT[stage];
   // A link inside a panel to another stage (MoveOnLink) can sit at the end of
   // a long panel: after it, the page shows the top of the new panel, and its
   // heading takes the focus, so a screen reader names it. Chrome does not
@@ -236,7 +237,7 @@ function GradingPanel(props: PanelProps) {
 }
 
 function ReviewPanel({ test, uploads }: PanelProps) {
-  if (test.status === 'draft' || test.gradedCount === 0) return <p className="hint">Punctele nesigure apar după ce se corectează lucrările.</p>;
+  if (!showsOverview(test)) return <p className="hint">Punctele nesigure apar după ce se corectează lucrările.</p>;
   return <ReviewOverview test={test} uploads={uploads} />;
 }
 

@@ -303,6 +303,14 @@ function Paper({
     photoMoved.current = false;
     photoToggle.current?.focus({ preventScroll: true });
   }, [photoFolded]);
+  // Graded again ("Recorectează"), the paper is no longer checked: it shows
+  // as the saved choice says, and its toggles are saved again.
+  const graded = row?.status === 'graded';
+  useEffect(() => {
+    if (graded || !checkedPaper.current) return;
+    checkedPaper.current = false;
+    setPhotoFolded(savedFold(PHOTO_FOLD_KEY));
+  }, [graded]);
 
   // After a decision, the point that opens takes the focus on its heading,
   // without a scroll, once its paper shows; a move of the teacher's own is a

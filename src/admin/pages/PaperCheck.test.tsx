@@ -751,6 +751,18 @@ describe('the points to check on the paper page', () => {
     expect(screen.getByRole('button', { name: 'Ascunde lucrarea' })).toBeInTheDocument();
   });
 
+  it('opens a student of the list at the top of the page, and keeps the place for J and K', async () => {
+    const scroll = vi.spyOn(window, 'scrollTo');
+    renderAdmin(PAGE, apiWith(), <LocationProbe />);
+    await screen.findByText('Ana Pop · 2/3');
+    await userEvent.keyboard('j');
+    await expectLocation(at(11, '32'));
+    expect(scroll).not.toHaveBeenCalled();
+    await userEvent.click(within(students()).getByRole('link', { name: 'Eva Stan nota 5' }));
+    expect(scroll).toHaveBeenCalledWith(0, 0);
+    scroll.mockRestore();
+  });
+
   it('says when a paper has no files', async () => {
     const [ana, ion, eva] = papers();
     ion!.files = [];

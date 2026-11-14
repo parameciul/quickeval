@@ -975,6 +975,7 @@ describe('TestPage Verificare', () => {
     expect(within(panel).queryByText('Stan Eva')).not.toBeInTheDocument();
     expect(within(panel).queryByRole('table')).not.toBeInTheDocument();
     expect(within(panel).queryByRole('heading', { name: 'Gata' })).not.toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'Următoarea etapă: Rezultate →' })).toBeInTheDocument();
   });
 
   it('continues the check, with the students done under Gata', async () => {
@@ -996,6 +997,8 @@ describe('TestPage Verificare', () => {
     const panel = await screen.findByRole('region', { name: 'Verificare' });
     expect(within(panel).getByText('Toate cele 3 puncte sunt verificate.')).toBeInTheDocument();
     expect(within(panel).getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
+    // The box leads to Rezultate: no second link under it.
+    expect(within(panel).queryByRole('link', { name: 'Următoarea etapă: Rezultate →' })).not.toBeInTheDocument();
     expect(within(panel).queryByRole('link', { name: /verificarea$/ })).not.toBeInTheDocument();
     expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument();
     expect(within(panel).queryByRole('list', { name: 'De verificat' })).not.toBeInTheDocument();
@@ -1009,7 +1012,7 @@ describe('TestPage Verificare', () => {
   it('names the one point when a test had only one to check', async () => {
     renderAdmin(`${PAGE}#verificare`, reviewApi(rows({ pop: 1 }).slice(1)));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
-    expect(within(panel).getByText('Punctul de verificat este verificat.')).toBeInTheDocument();
+    expect(within(panel).getByText('Singurul punct de verificat a fost verificat.')).toBeInTheDocument();
   });
 
   it('says there is nothing to check when no paper had a point', async () => {
@@ -1017,8 +1020,33 @@ describe('TestPage Verificare', () => {
     const panel = await screen.findByRole('region', { name: 'Verificare' });
     expect(within(panel).getByText('Nimic de verificat.')).toBeInTheDocument();
     expect(within(panel).getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
+    expect(within(panel).queryByRole('link', { name: 'Următoarea etapă: Rezultate →' })).not.toBeInTheDocument();
     expect(within(panel).queryByRole('list')).not.toBeInTheDocument();
     expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
+  it('marks a paper graded with the CES variant, also for a screen reader', async () => {
+    const [marin, pop] = rows({ pop: 1 });
+    // The student is no longer marked CES; the paper was graded on the CES variant.
+    marin!.variant = 'ces';
+    pop!.ces = true;
+    renderAdmin(`${PAGE}#verificare`, reviewApi([marin!, pop!]));
+    const panel = await screen.findByRole('region', { name: 'Verificare' });
+    const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getByRole('link');
+    expect(left).toHaveTextContent('Marin DanCES 0/2');
+    expect(left).toHaveAccessibleName('Marin Dan, CES: 0 din 2 verificate');
+    const done = within(within(panel).getByRole('list', { name: 'Gata' })).getByRole('link');
+    expect(done).toHaveTextContent('✓ Pop IonCES');
+  });
+
+  it('lists a paper whose points are not in the cached row yet, opening its first point', async () => {
+    const [marin] = rows();
+    marin!.reviewPoints = [];
+    renderAdmin(`${PAGE}#verificare`, reviewApi([marin!]));
+    const panel = await screen.findByRole('region', { name: 'Verificare' });
+    const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getByRole('link');
+    expect(left).toHaveAttribute('href', '/teste/6E2-26T1/verificare?lucrare=7');
+    expect(within(panel).getByText('Mai sunt 2 puncte, la 1 elev')).toBeInTheDocument();
   });
 
   it('waits for the grading before it lists anything', async () => {

@@ -2322,6 +2322,8 @@ table.tests .row-actions {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 4px 6px 4px 12px;
   border: 1px solid var(--rule);
   border-radius: 999px;
