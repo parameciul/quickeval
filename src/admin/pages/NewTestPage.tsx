@@ -7,6 +7,7 @@ import { MAX_TITLE_LENGTH } from '../../../shared/tests.ts';
 import { useApi } from '../ApiContext.tsx';
 import { CesSwitch } from '../CesSwitch.tsx';
 import { CesTag } from '../CesTag.tsx';
+import { Crumbs } from '../Crumbs.tsx';
 import { NewClassDialog } from '../classPage/ClassDialogs.tsx';
 import { ErrorMessage, errorText } from '../ErrorMessage.tsx';
 import { missingParts } from '../missing.ts';
@@ -18,7 +19,9 @@ import { useSchoolYear } from '../SchoolYearContext.tsx';
 type BaremChoice = 'upload' | 'generate' | 'later';
 
 // /teste/nou (redesign spec §11.7): three numbered steps, the class and the
-// title, the test, and the barem, with what happens next on the side.
+// title, the test, and the barem, with what happens next on the side. The
+// barem's drop area sits in the card of its choice, and the test's in a frame
+// of the same size, so the two areas are equally wide.
 // ?clasa=<id> picks the class (the class page links here). The test and the
 // barem can come now or later; the test page holds them too. A class with a CES
 // student shows them and the CES switch, on by default (spec: CES switch); on,
@@ -143,9 +146,7 @@ export function NewTestPage() {
 
   return (
     <section>
-      <p className="back-link">
-        <Link to="/">← Toate testele</Link>
-      </p>
+      <Crumbs items={[{ label: 'Teste', to: '/' }, { label: 'Test nou' }]} />
       <h1>Test nou</h1>
 
       {classes.isPending && <p>Se încarcă…</p>}
@@ -206,7 +207,9 @@ export function NewTestPage() {
                   <div>
                     <h2>Testul</h2>
                     <p>Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.</p>
-                    <FileDrop id="new-test-file" name="Fișierul testului" onPick={pickTest} />
+                    <div className="file-frame">
+                      <FileDrop id="new-test-file" name="Fișierul testului" onPick={pickTest} />
+                    </div>
                   </div>
                   {withCes && (
                     <div>
@@ -215,7 +218,9 @@ export function NewTestPage() {
                         <CesTag />
                       </h2>
                       <p>Testul elevilor cu CES, tipărit cu același cod QR. Poți să-l adaugi și mai târziu.</p>
-                      <FileDrop id="new-ces-test-file" name="Fișierul testului CES" onPick={pickCesTest} />
+                      <div className="file-frame">
+                        <FileDrop id="new-ces-test-file" name="Fișierul testului CES" onPick={pickCesTest} />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -227,10 +232,12 @@ export function NewTestPage() {
                     <p>După el se dă punctajul.</p>
                     <fieldset className="choices">
                       <legend className="sr-only">Baremul</legend>
-                      {choice('upload', 'Încarc baremul acum', 'PDF sau Word.')}
-                      {/* Kept while another choice is made, so the file comes back with it. */}
-                      <div className="choice-drop" hidden={barem !== 'upload'}>
-                        <FileDrop id="new-barem-file" name="Fișierul baremului" onPick={setBaremFile} />
+                      <div className="choice-card">
+                        {choice('upload', 'Încarc baremul acum', 'PDF sau Word.')}
+                        {/* Kept while another choice is made, so the file comes back with it. */}
+                        <div className="choice-drop" hidden={barem !== 'upload'}>
+                          <FileDrop id="new-barem-file" name="Fișierul baremului" onPick={setBaremFile} />
+                        </div>
                       </div>
                       {choice(
                         'generate',
@@ -250,14 +257,16 @@ export function NewTestPage() {
                       <p>Doar pentru corectare: 90 de puncte și 10 din oficiu.</p>
                       <fieldset className="choices">
                         <legend className="sr-only">Baremul CES</legend>
-                        {cesChoice('upload', 'Încarc baremul CES acum', 'PDF sau Word.')}
-                        <div className="choice-drop" hidden={cesBarem !== 'upload'}>
-                          <FileDrop id="new-ces-barem-file" name="Fișierul baremului CES" onPick={setCesBaremFile} />
+                        <div className="choice-card">
+                          {cesChoice('upload', 'Încarc baremul CES acum', 'PDF sau Word.')}
+                          <div className="choice-drop" hidden={cesBarem !== 'upload'}>
+                            <FileDrop id="new-ces-barem-file" name="Fișierul baremului CES" onPick={setCesBaremFile} />
+                          </div>
                         </div>
                         {cesChoice(
                           'generate',
                           'Generează baremul CES din testul CES',
-                          'Pornește de la baremul clasei. Îl verifici și îl confirmi înainte de corectare.',
+                          'Pornește de la baremul clasei. Primești o propunere în câteva minute. O verifici și o confirmi înainte de corectare.',
                           cesTestFile === null ? 'Alege întâi testul CES, la pasul 2.' : undefined,
                         )}
                         {cesChoice('later', 'Mai târziu', 'Îl adaugi din pagina testului, la Pregătire. Lucrările CES nu se corectează fără el.')}

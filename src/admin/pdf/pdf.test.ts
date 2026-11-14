@@ -5,6 +5,7 @@ import { expectNoGradingWords } from '../../test/gradingWords.ts';
 import { fakeItem } from '../../test/fakeApi.ts';
 import { BLOCK, classPdf, classPdfFileName } from './classPdf.ts';
 import { pdfFileName } from './fileName.ts';
+import { pdfRuns } from './pdfMath.ts';
 import { PDF_SYMBOLS, pdfText } from './pdfSymbols.ts';
 import { renderPdf } from './renderPdf.ts';
 import { studentPdf, studentPdfFileName, studentPdfInput, studentPdfInputFromResult } from './studentPdf.ts';
@@ -311,7 +312,7 @@ describe('classPdf', () => {
 });
 
 describe('pdfText', () => {
-  const LACKING = '∈∉ℝℕℤℚ⇒⇔→∠⊥∪∩∥⊂∅∡⇌↑↓';
+  const LACKING = '∈∉ℝℕℤℚ⇒⇔→∠⊥∪∩∥⊂∅∡⇌↑↓∢≡∦⊆⊄∧∨∀∃⋮↔∖≱';
 
   it('maps every symbol that the font lacks to text that the font draws', () => {
     const has = glyphChecker();
@@ -331,6 +332,13 @@ describe('pdfText', () => {
     expect(pdfText('∠ABC')).toBe('unghiul ABC');
     expect(pdfText('A⇒B, B⇔C, f: ℝ→ℝ')).toBe('A=>B, B<=>C, f: R->R');
     expect(pdfText('N₂ + 3H₂ ⇌ 2NH₃, CO₂↑, AgCl↓')).toBe('N₂ + 3H₂ <=> 2NH₃, CO₂ (gaz), AgCl (precipitat)');
+  });
+
+  it('writes the signs of logic and sets as words, with no space inside brackets and quotes', () => {
+    expect(pdfText('„(∃) x ∈ ℝ, x² < x”')).toBe('„(există) x aparține R, x² < x”');
+    expect(pdfText('operatorul „și” (∧); p∧q, p ∨ q, p ↔ q')).toBe('operatorul „și” (și); p și q, p sau q, p <-> q');
+    expect(pdfText('m(∠A) și [∀]')).toBe('m(unghiul A) și [oricare ar fi]');
+    expect(pdfText('n ⋮ 4, ∢DAE ≡ ∢EAB, A ∖ B, {2, 4} ⊄ B')).toBe('n divizibil cu 4, unghiul DAE congruent cu unghiul EAB, A \\ B, {2, 4} nu este inclus în B');
   });
 
   it('writes an arrow after a chemical formula as a gas or a precipitate, and any other as a rise or a fall', () => {
@@ -367,5 +375,69 @@ describe('pdfText', () => {
     const classText = textsOf(classPdf(withSymbols).content).join('');
     expect(classText).toContain('x aparține R, A intersectat cu B = mulțimea vidă');
     expect([...classText].filter((char) => !has(char.codePointAt(0)!) && !/\s/.test(char))).toEqual([]);
+  });
+});
+
+describe('pdfRuns', () => {
+  const NEGATION = 'Negația nu este p̄ → q̄ ∨ r̄, ci p ∧ q̄.';
+  const SETS = 'A_p = [−1; 3], A_(p∧q) = A_p ∩ A_q';
+
+  it('keeps a text without bars, subscripts and raised letters as one string', () => {
+    expect(pdfRuns('x² ≤ 4, √9 = 3, (x + 1)/3, x_max')).toBe('x² ≤ 4, √9 = 3, (x + 1)/3, x_max');
+  });
+
+  it('draws a negated letter with a line over it', () => {
+    expect(pdfRuns(pdfText(NEGATION))).toEqual([
+      'Negația nu este ',
+      { text: 'p', decoration: 'overline' },
+      ' -> ',
+      { text: 'q', decoration: 'overline' },
+      ' sau ',
+      { text: 'r', decoration: 'overline' },
+      ', ci p și ',
+      { text: 'q', decoration: 'overline' },
+      '.',
+    ]);
+    expect(pdfRuns('p̄q̅')).toEqual([{ text: 'p', decoration: 'overline' }, { text: 'q', decoration: 'overline' }]);
+  });
+
+  it('draws what follows "_" as a subscript, without the "_" and the brackets', () => {
+    expect(pdfRuns(pdfText(SETS))).toEqual([
+      'A',
+      { text: 'p', sub: true },
+      ' = [−1; 3], A',
+      { text: 'p și q', sub: true },
+      ' = A',
+      { text: 'p', sub: true },
+      ' intersectat cu A',
+      { text: 'q', sub: true },
+    ]);
+  });
+
+  it('raises a small letter that the font lacks, and drops a bar with no letter', () => {
+    expect(pdfRuns('σᵏ ≠ e, xⁿ')).toEqual(['σ', { text: 'k', sup: true }, ' ≠ e, xⁿ']);
+    expect(pdfRuns('a ̄b')).toBe('a b');
+  });
+
+  it('puts the runs in the student PDF and the class PDF, with every letter in the font', async () => {
+    const has = glyphChecker();
+    const texts = [NEGATION, SETS, 'Negația este „(∀) x ∈ ℝ, x² ≤ x”; n ⋮ 4; ∢DAE ≡ ∢EAB; σᵏ ≠ e; (ℝ ∖ A_q)'];
+    const detail = submission();
+    detail.evaluation!.items[0] = { ...detail.evaluation!.items[0]!, studentAnswer: texts[1]!, comment: texts[0]! };
+    detail.evaluation!.summary = texts[2]!;
+    detail.evaluation!.recommendations = [texts[0]!];
+    const student = studentPdf(studentPdfInput(detail)!);
+    const base = report(2);
+    const classDefinition = classPdf({ ...base, analysis: { ...base.analysis, content: { ...base.analysis.content!, overview: texts[0]!, strengths: [texts[1]!] } } });
+    for (const definition of [student, classDefinition]) {
+      const json = JSON.stringify(definition.content);
+      expect(json).toContain('{"text":"p","decoration":"overline"}');
+      expect(json).toContain('{"text":"p și q","sub":true}');
+      const text = textsOf(definition.content).join('');
+      expect([...new Set(text)].filter((char) => !has(char.codePointAt(0)!) && !/\s/.test(char))).toEqual([]);
+      const blob = await renderPdf(definition);
+      expect(new TextDecoder().decode(new Uint8Array(await blob.arrayBuffer()).slice(0, 5))).toBe('%PDF-');
+    }
+    expect(JSON.stringify(student.content)).toContain('{"text":"k","sup":true}');
   });
 });

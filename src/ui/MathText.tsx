@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { hasMath, parseMath, type MathNode, type MathPart } from './mathText.ts';
 
-// A text of the grading (a comment, an answer, a summary) with its roots and
-// fractions drawn like on paper (`mathText.ts`). The page text stays the
-// same: the "/", the "√" and the brackets that the drawing replaces are kept
-// in `sr-only` spans, for copying and for screen readers.
+// A text of the grading (a comment, an answer, a summary) with its roots,
+// fractions, negation bars and subscripts drawn like on paper
+// (`mathText.ts`). The page text stays the same: the "/", the "√", the "_",
+// the combining bar and the brackets that the drawing replaces are kept in
+// `sr-only` spans, for copying and for screen readers.
 export function MathText({ text }: { text: string }): ReactNode {
   const nodes = parseMath(text);
   if (!hasMath(nodes)) return text;
@@ -43,6 +44,23 @@ function glue(nodes: MathNode[]): ReactNode[] {
 
 function draw(node: MathNode, key: number): ReactNode {
   if (typeof node === 'string') return node;
+  if (node.kind === 'bar') {
+    return (
+      <span key={key} className="math-bar">
+        {node.letter}
+        <span className="sr-only">{node.mark}</span>
+      </span>
+    );
+  }
+  if (node.kind === 'sub') {
+    return (
+      <sub key={key} className="math-sub">
+        <span className="sr-only">{'_' + node.part.open}</span>
+        {drawAll(node.part.body)}
+        {node.part.close !== '' && <span className="sr-only">{node.part.close}</span>}
+      </sub>
+    );
+  }
   if (node.kind === 'root') {
     return (
       <span key={key} className="math-root" data-index={node.index || undefined}>

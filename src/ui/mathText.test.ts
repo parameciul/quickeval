@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { hasMath, parseMath, type MathFraction, type MathNode, type MathRoot } from './mathText.ts';
+import { hasMath, parseMath, type MathBar, type MathFraction, type MathNode, type MathRoot, type MathSub } from './mathText.ts';
 
 // The text the page keeps for copying and for screen readers.
 function plain(nodes: MathNode[]): string {
   return nodes
     .map((node) => {
       if (typeof node === 'string') return node;
+      if (node.kind === 'bar') return node.letter + node.mark;
+      if (node.kind === 'sub') return `_${node.part.open}${plain(node.part.body)}${node.part.close}`;
       if (node.kind === 'root') return `${node.sign}${node.radicand.open}${plain(node.radicand.body)}${node.radicand.close}`;
       const { numerator: top, denominator: bottom } = node;
       return `${top.open}${plain(top.body)}${top.close}/${bottom.open}${plain(bottom.body)}${bottom.close}`;
@@ -18,6 +20,11 @@ const fraction = (top: MathNode[], bottom: MathNode[], topBrackets = false, bott
   kind: 'fraction',
   numerator: { open: topBrackets ? '(' : '', body: top, close: topBrackets ? ')' : '' },
   denominator: { open: bottomBrackets ? '(' : '', body: bottom, close: bottomBrackets ? ')' : '' },
+});
+const bar = (letter: string, mark = '̄'): MathBar => ({ kind: 'bar', letter, mark });
+const sub = (body: MathNode[], brackets = false): MathSub => ({
+  kind: 'sub',
+  part: { open: brackets ? '(' : '', body, close: brackets ? ')' : '' },
 });
 
 describe('parseMath', () => {
@@ -83,8 +90,37 @@ describe('parseMath', () => {
     expect(parseMath('(5; 9] este (1; 9] \\ [−4; 5)')).toEqual(['(5; 9] este (1; 9] \\ [−4; 5)']);
   });
 
+  it('puts the bar of a negation over its letter', () => {
+    expect(parseMath('Negația nu este p̄ → q̄ ∨ r̄, ci p ∧ q̄.')).toEqual([
+      'Negația nu este ',
+      bar('p'),
+      ' → ',
+      bar('q'),
+      ' ∨ ',
+      bar('r'),
+      ', ci p ∧ ',
+      bar('q'),
+      '.',
+    ]);
+    expect(parseMath('q̄(x) și p̅q̅')).toEqual([bar('q'), '(x) și ', bar('p', '̅'), bar('q', '̅')]);
+  });
+
+  it('writes a letter, a number or a bracket group after "_" as a subscript', () => {
+    expect(parseMath('A_p = [−1; 3], A_q = [2; +∞)')).toEqual(['A', sub(['p']), ' = [−1; 3], A', sub(['q']), ' = [2; +∞)']);
+    expect(parseMath('A_(p∧q) = A_p ∩ A_q')).toEqual(['A', sub(['p∧q'], true), ' = A', sub(['p']), ' ∩ A', sub(['q'])]);
+    expect(parseMath('x_12 și a_n²')).toEqual(['x', sub(['12']), ' și a', sub(['n²'])]);
+  });
+
+  it('leaves "_" as text unless one piece touches it on each side', () => {
+    for (const text of ['snake_case', 'x_max', '_a', 'a_ b', 'a _b', 'A_[1; 2]', 'x_1_2', 'A_(1; 2)', '__', 'nota_']) {
+      expect(parseMath(text)).toEqual([text]);
+    }
+  });
+
   it('keeps every character of the text', () => {
     const texts = [
+      'Ai scris corect forma enunțului. Negația nu este p̄ → q̄ ∨ r̄, ci p ∧ q̄ ∧ r̄.',
+      'Nu ai rezolvat acest exercițiu. A_p = [−1; 3], A_q = [2; +∞), A_(p∧q) = [2; 3]; [−1; 2) = A_p ∩ (ℝ ∖ A_q).',
       'Răspunsul nu este corect: 4 > √15 ≈ 3,87, deci 4 nu aparține intervalului (3; √15). Numărul corect este 10/3 ≈ 3,33, adică varianta d).',
       'Corect! Din −2 ≤ (x + 1)/3 < 1 rezultă −7 ≤ x < 2.',
       'Ai scris √(x + 1) = 3, deci (2x − 1)/(x + 3), ∛8, (x + 1)²/4, 2√3/3, √(3/4), f(x)/2, și/sau.',

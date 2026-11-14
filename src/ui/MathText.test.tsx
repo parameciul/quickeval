@@ -41,6 +41,25 @@ describe('MathText', () => {
     expect(paragraph.textContent).toBe('Din −2 ≤ (x + 1)/3 < 1 rezultă −7 ≤ x < 2.');
   });
 
+  it('draws the bar of a negation over its letter and keeps the combining bar for screen readers', () => {
+    const text = 'Negația nu este p̄ → q̄ ∨ r̄.';
+    const paragraph = draw(text);
+    const bars = [...paragraph.querySelectorAll('.math-bar')];
+    expect(bars.map((bar) => bar.textContent)).toEqual(['p̄', 'q̄', 'r̄']);
+    expect(bars[0]!.querySelector('.sr-only')!.textContent).toBe('̄');
+    expect(paragraph.textContent).toBe(text);
+  });
+
+  it('writes what follows "_" as a subscript and keeps "_" and the brackets for screen readers', () => {
+    const text = 'Nu ai rezolvat acest exercițiu. A_p = [−1; 3], A_(p∧q) = [2; 3].';
+    const paragraph = draw(text);
+    const subs = [...paragraph.querySelectorAll('sub.math-sub')];
+    expect(subs.map((sub) => sub.textContent)).toEqual(['_p', '_(p∧q)']);
+    expect([...subs[1]!.querySelectorAll('.sr-only')].map((span) => span.textContent)).toEqual(['_(', ')']);
+    expect(paragraph.querySelector('.math-word')!.textContent).toBe('A_p');
+    expect(paragraph.textContent).toBe(text);
+  });
+
   it('keeps a drawn root on one line with the characters that touch it', () => {
     const word = draw('intervalului (3; √15). Apoi').querySelector('.math-word')!;
     expect(word.textContent).toBe('√15).');
