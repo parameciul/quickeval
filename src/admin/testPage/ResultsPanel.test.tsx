@@ -118,11 +118,14 @@ describe('the panel Rezultate', () => {
   it('publishes every result, and stops every link again', async () => {
     const api = apiWith({ status: 'done' }, graded());
     renderAdmin(PAGE, api);
-    expect(await screen.findByText('0 publicate · 2 nepublicate')).toBeInTheDocument();
+    // The count is a label: grey while some wait, green once all are published.
+    const count = await screen.findByText('0 publicate · 2 nepublicate');
+    expect(count).toHaveClass('tag');
+    expect(count).not.toHaveClass('tag-ok');
     await userEvent.click(screen.getByRole('button', { name: 'Publică toate rezultatele' }));
     expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);
     expect(await screen.findByRole('heading', { level: 3, name: 'Rezultatele sunt publicate. Elevii le văd în două feluri:' })).toBeInTheDocument();
-    expect(screen.getByText('toate publicate')).toBeInTheDocument();
+    expect(screen.getByText('toate publicate')).toHaveClass('tag', 'tag-ok');
     // While all are published, a row cannot be stopped alone.
     expect(within(row('Pop Ion')).getByText('Publicat')).toHaveClass('tag', 'tag-ok');
     expect(screen.queryByRole('button', { name: /^Publică:/ })).not.toBeInTheDocument();

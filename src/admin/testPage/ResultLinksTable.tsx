@@ -19,13 +19,14 @@ function hasLink(row: UploadRow): row is UploadRow & { submissionId: number; sta
 
 // "1 publicat · 26 nepublicate", or "toate publicate"; nothing while no
 // student has a link. When the test does not keep every result open, but each
-// paper was published alone, it says "toate publicate pe rând".
-export function linksCount(uploads: UploadRow[], testResultsOpen: boolean): string | null {
+// paper was published alone, it says "toate publicate pe rând". `all` says
+// whether every result is published (the label is green then).
+export function linksCount(uploads: UploadRow[], testResultsOpen: boolean): { text: string; all: boolean } | null {
   const links = uploads.filter(hasLink);
   if (links.length === 0) return null;
   const published = links.filter((row) => row.resultsOpen).length;
-  if (published === links.length) return testResultsOpen ? 'toate publicate' : 'toate publicate pe rând';
-  return `${countLabel(published, 'publicat', 'publicate')} · ${countLabel(links.length - published, 'nepublicat', 'nepublicate')}`;
+  if (published === links.length) return { text: testResultsOpen ? 'toate publicate' : 'toate publicate pe rând', all: true };
+  return { text: `${countLabel(published, 'publicat', 'publicate')} · ${countLabel(links.length - published, 'nepublicat', 'nepublicate')}`, all: false };
 }
 
 // The students' result links in the panel Rezultate (redesign spec §8): a row
