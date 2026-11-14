@@ -403,6 +403,8 @@ describe('the points to check on the paper page', () => {
     expect(await screen.findByText(/^Nota/)).toHaveTextContent('Nota 5 · 5 puncte din 10, cu 1 din oficiu');
     expect(within(row('Subiectul I, ex. 1')).getByText('4 din 4,5')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
+    // A checked paper opens with its photo hidden.
+    await userEvent.click(screen.getByRole('button', { name: 'Lucrarea' }));
     expect(screen.getByTitle('Pagina 1 a lucrării')).toHaveAttribute('src', submissionFileUrl(13, 131));
     expect(within(students()).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('aria-current', 'true');
   });
@@ -724,6 +726,29 @@ describe('the points to check on the paper page', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Ascunde lucrarea' }));
     expect(screen.queryByText('Elevul nu a încărcat niciun fișier.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('opens a paper with nothing left to check with its photo hidden, and keeps the saved choice', async () => {
+    renderAdmin(paperAt(13, null, 'toate'), apiWith());
+    const toggle = await screen.findByRole('button', { name: 'Lucrarea' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('button', { name: 'Ascunde lucrarea' })).not.toBeInTheDocument();
+    await userEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Ascunde lucrarea' })).toBeInTheDocument();
+    expect(localStorage.getItem('quickeval:paperPhotoFolded')).toBeNull();
+  });
+
+  it('opens a paper with points to check with its photo, as the saved choice says', async () => {
+    renderAdmin(paperAt(11, null, 'toate'), apiWith());
+    expect(await screen.findByRole('button', { name: 'Ascunde lucrarea' })).toBeInTheDocument();
+  });
+
+  it('keeps the photo when the last point of the paper is decided', async () => {
+    renderAdmin(paperAt(14, '41', 'toate'), apiWith(), <LocationProbe />);
+    const open = await screen.findByRole('region', { name: 'Decizia' });
+    await userEvent.click(within(open).getByRole('button', { name: /^Accept/ }));
+    await waitFor(() => expect(document.querySelector('.decision-slot.is-current')).toBeNull());
+    expect(screen.getByRole('button', { name: 'Ascunde lucrarea' })).toBeInTheDocument();
   });
 
   it('says when a paper has no files', async () => {
