@@ -103,7 +103,7 @@ The teacher also asked for:
   - The level is `pointsLevel(grade, 10)`: 9–10 is level 5, 7–8.99 is 4, 5–6.99 is 3, 2.5–4.99 is 2, and under 2.5 is 1.
   - This is the scale of the class report's points.
   - The chip shows only for a paper graded now. Otherwise the cell shows "—".
-- **Points to check** stay a separate orange pill next to the grade, in Rezultate ("2 de verificat"). In Corectare the column "De verificat" keeps its own orange count.
+- **Points to check** stay a separate orange pill next to the grade, in Rezultate ("2 de verificat"). In Corectare the column "De verificat" keeps its own orange pill, with the same words ("2 de verificat"): a low grade's chip is a pill of a close colour, so the words keep the two apart.
 - No colour legend.
 - The rest of each row stays as today: "Nu a trimis lucrarea.", "Nu a participat", "Eșuat" with "Reîncearcă", the CES tag, "a plecat", "Publicat", "Publică" or "Oprește publicarea", "Vezi lucrarea" and ⋯, and the checkboxes of an open test.
 - On a phone each row stays a card, as today: the name, then each cell under its caption, the grade ("Nota") first.

@@ -216,7 +216,7 @@ function UploadTableRow({
       </td>
       <td data-label="Fișiere">{row.fileCount}</td>
       <td data-label="Ora">{time ? formatDateTime(time) : '—'}</td>
-      <td data-label="De verificat">{row.flagCount > 0 ? <span className="points-pill">{row.flagCount}</span> : '—'}</td>
+      <td data-label="De verificat">{row.flagCount > 0 ? <span className="points-pill">{row.flagCount} de verificat</span> : '—'}</td>
       <td className="actions-cell">
         {submissionId !== null && startedAt !== null && (
           <span className="row-actions">

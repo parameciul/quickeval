@@ -417,7 +417,7 @@ describe('TestPage', () => {
     expect(labels).toEqual([null, 'Nota', 'Stare', 'Fișiere', 'Ora', 'De verificat', null]);
   });
 
-  it('shows the grades of Corectare in chips of their colour, the points to check in an orange label, and nothing in bold', async () => {
+  it('shows the grades of Corectare in chips of their colour, the points to check in an orange label in words, and nothing in bold', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, flagCount: 2 }),
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 6.5 }),
@@ -427,7 +427,8 @@ describe('TestPage', () => {
     const table = await screen.findByRole('table', { name: 'Încărcările elevilor' });
     const pop = within(table).getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('9')).toHaveClass('grade-chip', 'points-5');
-    expect(pop.querySelector('[data-label="De verificat"] .points-pill')).toHaveTextContent('2');
+    // In words, as in Rezultate: a low grade's orange-brown chip and this orange label are both pills.
+    expect(pop.querySelector('[data-label="De verificat"] .points-pill')).toHaveTextContent(/^2 de verificat$/);
     const stan = within(table).getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
     expect(within(stan).getByText('6,5')).toHaveClass('grade-chip', 'points-3');
     expect(stan.querySelector('[data-label="De verificat"]')).toHaveTextContent('—');
@@ -1493,7 +1494,7 @@ describe('TestPage evaluation', () => {
     expect(screen.getByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('8,75')).toBeInTheDocument();
-    expect(within(pop).getByText('2')).toBeInTheDocument();
+    expect(within(pop).getByText('2 de verificat')).toBeInTheDocument();
     expect(within(pop).queryByRole('button', { name: 'Reîncearcă' })).not.toBeInTheDocument();
     const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
     expect(within(stan).getByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
