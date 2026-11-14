@@ -2229,6 +2229,130 @@ table.tests .row-actions {
   text-align: right;
 }
 
+/* The box at the top of Rezultate (spec 2026-11-14): grey while the results
+   wait to be published, green once students can read them, with the two ways
+   they find them, numbered. */
+.publish-box {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+}
+
+.publish-box.is-published {
+  border-color: color-mix(in srgb, var(--ok-fg) 35%, transparent);
+  background: var(--ok-bg);
+}
+
+.publish-box p {
+  margin: 0;
+}
+
+.publish-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.publish-head h3 {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.publish-box.is-published .publish-head h3 {
+  color: var(--ok-fg);
+}
+
+.publish-check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--ok-fg);
+  color: var(--sheet);
+}
+
+.publish-check svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.publish-wait {
+  color: var(--orange);
+}
+
+.publish-ways {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: way;
+}
+
+.publish-ways > li {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.25rem;
+  padding-left: 2rem;
+  counter-increment: way;
+}
+
+.publish-ways > li::before {
+  content: counter(way);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--ok-fg) 40%, transparent);
+  border-radius: 50%;
+  background: var(--sheet);
+  color: var(--ok-fg);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.publish-way-title {
+  font-weight: 500;
+}
+
+.publish-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.publish-qr {
+  flex: none;
+  width: 88px;
+  height: 88px;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.publish-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.publish-link .result-share-box {
+  flex-basis: 100%;
+}
+
 /* The panel Rezultate (spec 2026-11-14): "Raportul clasei" first in the
    page, so the keyboard reaches it before the table's rows; beside the
    students' table on the right while the panel is wide, above it while the
@@ -4079,29 +4203,6 @@ input[type="file"] {
 
 .qr-actions .qr-full {
   margin-left: 0;
-}
-
-/* Rezultate, once published: where students find their results. Green edge:
-   a done step, not something that waits. */
-.student-access {
-  gap: 0.75rem;
-  margin-block: 1rem;
-  border-color: var(--ok-fg);
-  border-left-width: 4px;
-}
-
-.student-access h3 {
-  margin: 0;
-  color: var(--ok-fg);
-}
-
-.student-access p {
-  margin: 0;
-}
-
-.student-access-teacher {
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--rule);
 }
 
 .qr-overlay {

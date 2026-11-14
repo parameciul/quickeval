@@ -23,7 +23,6 @@ import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
 import { ReportCard } from './ReportCard.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
 import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
-import { StudentAccessCard } from './StudentAccessCard.tsx';
 import { overviewLeadsOn, ReviewOverview, showsOverview } from './ReviewOverview.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
@@ -253,7 +252,6 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
   return (
     <>
       <ResultsAccess test={test} onChanged={onChanged} />
-      <StudentAccessCard test={test} />
       <div className="results-layout">
         <div className="results-grid">
           <ReportCard test={test} uploads={uploads} />

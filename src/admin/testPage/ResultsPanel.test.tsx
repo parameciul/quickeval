@@ -7,7 +7,6 @@ import { uploadStatusLabel } from '../../ui/format.ts';
 import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import * as share from '../pdf/share.ts';
-import { STUDENT_ACCESS_HELP } from './StudentAccessCard.tsx';
 import { MULTI_LABEL } from './UploadLink.tsx';
 
 vi.mock('../pdf/share.ts', () => ({ saveFile: vi.fn(), shareFile: vi.fn() }));
@@ -122,7 +121,7 @@ describe('the panel Rezultate', () => {
     expect(await screen.findByText('0 publicate · 2 nepublicate')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Publică toate rezultatele' }));
     expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);
-    expect(await screen.findByText('Rezultatele sunt publicate. Elevii le văd pe linkurile lor.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 3, name: 'Rezultatele sunt publicate. Elevii le văd în două feluri:' })).toBeInTheDocument();
     expect(screen.getByText('toate publicate')).toBeInTheDocument();
     // While all are published, a row cannot be stopped alone.
     expect(within(row('Pop Ion')).getByText('Publicat')).toHaveClass('tag', 'tag-ok');
@@ -331,41 +330,99 @@ describe('the panel Rezultate, small details', () => {
 });
 
 describe('the panel Rezultate, where students find their results', () => {
-  const card = () => screen.getByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
+  const PUBLISHED = 'Rezultatele sunt publicate. Elevii le văd în două feluri:';
+  const box = () => screen.getByRole('region', { name: PUBLISHED });
 
-  it('shows no card before the results are published', async () => {
+  it('says in a grey box that the results wait, with the points still to check, and no way to see them yet', async () => {
+    const rows = graded().map((upload) => (upload.studentId === 10 ? { ...upload, flagCount: 2 } : upload));
+    renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
+    const waiting = await screen.findByRole('region', { name: 'Rezultatele nu sunt publicate' });
+    expect(waiting).toHaveClass('publish-box');
+    expect(waiting).not.toHaveClass('is-published');
+    expect(within(waiting).getByText('Mai ai 2 puncte de verificat. Dacă publici acum, elevii văd punctajul de acum.')).toBeInTheDocument();
+    expect(within(waiting).getByRole('button', { name: 'Publică toate rezultatele' })).toHaveClass('button');
+    expect(screen.queryByText('Pe linkul lor')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Codul QR al linkului')).not.toBeInTheDocument();
+  });
+
+  it('says the students see nothing yet when no point waits', async () => {
     renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
-    expect(await screen.findByRole('button', { name: 'Publică toate rezultatele' })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).not.toBeInTheDocument();
+    const waiting = await screen.findByRole('region', { name: 'Rezultatele nu sunt publicate' });
+    expect(within(waiting).getByText('Elevii nu văd încă rezultatele.')).toBeInTheDocument();
   });
 
-  it("shows the students' link and the help once published, and no teacher link when there is none", async () => {
+  it("names the two ways once published, copies the test's link for the students, and goes back to grey when stopped", async () => {
+    const user = userEvent.setup();
     renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
-    await userEvent.click(await screen.findByRole('button', { name: 'Publică toate rezultatele' }));
-    expect(await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).toBeInTheDocument();
-    expect(within(card()).getByLabelText('Linkul pentru elevi: trimite-l clasei')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(within(card()).getByTitle('Codul QR al linkului')).toBeInTheDocument();
-    expect(within(card()).getByText(STUDENT_ACCESS_HELP)).toBeInTheDocument();
-    expect(within(card()).queryByLabelText(MULTI_LABEL)).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Publică toate rezultatele' }));
+    const published = await screen.findByRole('region', { name: PUBLISHED });
+    expect(published).toHaveClass('publish-box', 'is-published');
+    const ways = within(published).getAllByRole('listitem');
+    expect(ways.map((way) => way.querySelector('.publish-way-title')?.textContent)).toEqual([
+      'Pe linkul lor',
+      'Scanează din nou linkul testului pentru elevi',
+    ]);
+    expect(within(ways[0]!).getByText('Salvat pe telefon la încărcarea rezolvărilor. Nu trebuie să facă nimic.')).toBeInTheDocument();
+    expect(within(ways[1]!).getByText('Codul QR de pe test, de pe telefonul cu care au trimis.')).toBeInTheDocument();
+    expect(within(ways[1]!).getByTitle('Codul QR al linkului')).toBeInTheDocument();
+    expect(within(published).getByText('Dacă oprești accesul, linkurile cu rezultate și pozele lor nu se mai deschid până publici din nou rezultatele.')).toBeInTheDocument();
+    await user.click(within(ways[1]!).getByRole('button', { name: 'Copiază linkul' }));
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(within(ways[1]!).getByRole('button', { name: 'Copiat!' })).toBeInTheDocument();
 
-    // Stopping the access takes the card away again.
-    await userEvent.click(screen.getByRole('button', { name: 'Oprește accesul la rezultate' }));
-    expect(await screen.findByRole('button', { name: 'Publică toate rezultatele' })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).not.toBeInTheDocument();
+    await user.click(within(published).getByRole('button', { name: 'Oprește accesul la rezultate' }));
+    expect(await screen.findByRole('region', { name: 'Rezultatele nu sunt publicate' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: PUBLISHED })).not.toBeInTheDocument();
   });
 
-  it('names the multi-upload link as the teacher’s, with no QR code', async () => {
-    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true, multiUploadToken: FAKE_MULTI_TOKEN }, graded()));
-    await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
-    expect(within(card()).getByLabelText(MULTI_LABEL)).toHaveValue(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
-    expect(within(card()).getByText('Nu-l da elevilor: pe acest link ei nu își găsesc rezultatele.')).toBeInTheDocument();
-    // One QR code only: the students'.
-    expect(within(card()).getAllByTitle('Codul QR al linkului')).toHaveLength(1);
-  });
-
-  it('shows the card when one result is published alone', async () => {
+  it('says when only some results are published, and offers to publish them all', async () => {
     renderAdmin(PAGE, apiWith({ status: 'done', publishedCount: 1 }, graded()));
-    expect(await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' })).toBeInTheDocument();
+    const some = await screen.findByRole('region', { name: 'Unele rezultate sunt publicate. Elevii le văd în două feluri:' });
+    expect(some).toHaveClass('is-published');
+    expect(within(some).getByRole('button', { name: 'Publică toate rezultatele' })).toBeInTheDocument();
+    expect(within(some).queryByRole('button', { name: 'Oprește accesul la rezultate' })).not.toBeInTheDocument();
+    expect(within(some).getByText('Pe linkul lor')).toBeInTheDocument();
+  });
+
+  it("gives no teacher's multi-upload link in Rezultate", async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true, multiUploadToken: FAKE_MULTI_TOKEN }, graded()));
+    await screen.findByRole('region', { name: PUBLISHED });
+    expect(screen.queryByLabelText(MULTI_LABEL)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nu-l da elevilor/)).not.toBeInTheDocument();
+    expect(screen.getAllByTitle('Codul QR al linkului')).toHaveLength(1);
+  });
+
+  it('names the second way without a link when the test has none', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true, uploadToken: null }, graded()));
+    await screen.findByRole('region', { name: PUBLISHED });
+    expect(within(box()).getByText('Scanează din nou linkul testului pentru elevi')).toBeInTheDocument();
+    expect(within(box()).queryByTitle('Codul QR al linkului')).not.toBeInTheDocument();
+    expect(within(box()).queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
+    expect(within(box()).getByRole('button', { name: 'Oprește accesul la rezultate' })).toBeInTheDocument();
+  });
+
+  it('shows the QR code on the whole screen, and gives the focus back to its button when it closes', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
+    await screen.findByRole('region', { name: PUBLISHED });
+    const show = within(box()).getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
+    await userEvent.click(show);
+    const dialog = screen.getByRole('dialog', { name: 'Codul QR pentru elevi' });
+    expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Închide' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(show).toHaveFocus();
+  });
+
+  it("shows the test's link in a field, selected, when the browser refuses to copy it", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new DOMException('Refuzat', 'NotAllowedError'));
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
+    await screen.findByRole('region', { name: PUBLISHED });
+    await user.click(within(box()).getByRole('button', { name: 'Copiază linkul' }));
+    const field = await within(box()).findByLabelText('Linkul testului pentru elevi');
+    expect(field).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(field).toHaveFocus();
+    expect(within(box()).getByText('Nu am putut copia linkul. Copiază-l de aici.')).toBeInTheDocument();
   });
 
   it("downloads the students' QR code as a PNG file", async () => {
@@ -377,11 +434,11 @@ describe('the panel Rezultate, where students find their results', () => {
         callback(png);
       });
     renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
-    await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
-    await userEvent.click(within(card()).getByRole('button', { name: 'Descarcă codul QR' }));
+    await screen.findByRole('region', { name: PUBLISHED });
+    await userEvent.click(within(box()).getByRole('button', { name: 'Descarcă codul QR' }));
     await vi.waitFor(() => expect(saveFile).toHaveBeenCalledWith(png, 'cod-qr-elevi-6E2-26T1.png'));
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
-    expect(within(card()).getByRole('button', { name: 'Descarcă codul QR' })).toBeEnabled();
+    expect(within(box()).getByRole('button', { name: 'Descarcă codul QR' })).toBeEnabled();
   });
 
   it('says so when the QR code cannot be made', async () => {
@@ -390,9 +447,9 @@ describe('the panel Rezultate, where students find their results', () => {
       callback(null);
     });
     renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, graded()));
-    await screen.findByRole('region', { name: 'Rezultatele sunt gata pentru elevi' });
-    await userEvent.click(within(card()).getByRole('button', { name: 'Descarcă codul QR' }));
-    expect(await within(card()).findByText('Nu am putut descărca codul QR.')).toBeInTheDocument();
+    await screen.findByRole('region', { name: PUBLISHED });
+    await userEvent.click(within(box()).getByRole('button', { name: 'Descarcă codul QR' }));
+    expect(await within(box()).findByText('Nu am putut descărca codul QR.')).toBeInTheDocument();
     expect(saveFile).not.toHaveBeenCalled();
   });
 });

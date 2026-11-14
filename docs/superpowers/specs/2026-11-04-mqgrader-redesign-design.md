@@ -221,6 +221,8 @@ The page `/admin/teste/:code/verificare` (decision 28): three panes in one panel
 
 ## 8. Rezultate (Phase 5)
 
+The panel's look changed later, in `docs/superpowers/specs/2026-11-14-rezultate-page-design.md`: the stage's sentence, the box at the top with the two ways students find their results, the table with the grade first, and "Raportul clasei" beside the table in place of "Pentru tine". Where the two disagree, the newer spec holds.
+
 The panel of the stage Rezultate (§6). A draft has one line: "Rezultatele se publică după corectare." Every other test:
 
 - Under the stage's sentence, one line: "Linkul arată nota, punctajul pe fiecare exercițiu și comentariile. Elevul îl vede după ce îl publici."

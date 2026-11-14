@@ -66,16 +66,17 @@ The teacher also asked for:
 
 1. **The publish box**, the full width of the panel. It has three states.
 
-   **Published** (`test.resultsOpen`, or every graded paper published one by one): a green box (`--ok-bg`, a green check).
-   - Its heading: "Rezultatele sunt publicate. Elevii le văd în două feluri:"
-   - On the right of the heading: "Oprește accesul la rezultate" (quiet button).
+   **Published** (students can read results: `test.resultsOpen`, or some results published one by one, `publishedCount > 0`, as the old card): a green box (`--ok-bg`, a green check).
+   - Its heading: "Rezultatele sunt publicate. Elevii le văd în două feluri:" When only some results are published one by one: "Unele rezultate sunt publicate. Elevii le văd în două feluri:"
+   - On the right of the heading: "Oprește accesul la rezultate" (quiet button) while all are published; "Publică toate rezultatele" (primary) while only some are, with the warning about the points still to check.
+   - Under the heading, while all are published, today's hint about stopping: "Dacă oprești accesul, linkurile cu rezultate și pozele lor nu se mai deschid până publici din nou rezultatele."
    - Way 1, "Pe linkul lor": "Salvat pe telefon la încărcarea rezolvărilor. Nu trebuie să facă nimic."
-   - Way 2, "Scanează din nou linkul testului pentru elevi": "Codul QR de pe test, de pe telefonul cu care au trimis." Then the actions for the students' link (`uploadToken`): "Copiază linkul", and the small QR code. A click on the QR code opens it on the whole screen (`QrOverlay`). A small "Descarcă codul QR" stays.
-   - The message as one sentence, for a screen reader and as the box's summary: "Elevii văd rezultatele pe linkurile lor, salvate la încărcarea rezolvărilor, sau scanează din nou linkul testului pentru elevi."
+   - Way 2, "Scanează din nou linkul testului pentru elevi": "Codul QR de pe test, de pe telefonul cu care au trimis." Then, when the test has its students' link (`uploadToken`): the small QR code, "Copiază linkul" (a refused copy shows the link in a field, selected), "Descarcă codul QR" and "Arată codul QR pe tot ecranul" (`QrOverlay`; closing it gives the focus back to the button).
+   - The two ways are the message itself, numbered: no extra sentence repeats them.
 
    **Not published, something graded:** a grey box.
    - Its heading: "Rezultatele nu sunt publicate".
-   - It keeps today's warning: "Mai ai N puncte de verificat. Dacă publici acum, elevii văd punctajul de acum."
+   - It keeps today's warning: "Mai ai N puncte de verificat. Dacă publici acum, elevii văd punctajul de acum." With no point to check: "Elevii nu văd încă rezultatele."
    - The button: "Publică toate rezultatele" (primary).
 
    **Nothing graded yet** (today's `NoResultsYet`): a grey box, "Rezultatele se publică după corectare", with "Mergi la Corectare".
