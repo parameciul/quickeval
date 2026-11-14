@@ -5,6 +5,9 @@ import ghidRaw from '../../ghid/index.html?raw';
 import landingRaw from '../../index.html?raw';
 import preturiRaw from '../../preturi/index.html?raw';
 import llms from '../../public/llms.txt?raw';
+import teacherRaw from '../../teacher/index.html?raw';
+import tryRaw from '../../try/index.html?raw';
+import studentRaw from '../../u/index.html?raw';
 import headers from '../../public/_headers?raw';
 import { expandPartials, PARTIALS } from './partials.ts';
 import { PITCH_LINE } from '../admin/wayIn/WayIn.tsx';
@@ -34,6 +37,8 @@ const PAGES: Page[] = [
 ];
 
 const LINKS = ['/ghid/', '/barem/', '/despre/', '/preturi/'];
+
+const STATS_SCRIPT = 'https://stats.mqgrader.ro/api/script.js?siteId=b5be2803e8ab';
 
 const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html');
 const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -190,6 +195,21 @@ describe('the pages that answer a search', () => {
     for (const html of PAGES.map((p) => p.html)) {
       const scripts = all(parse(html), 'script[type="module"]').map((s) => s.getAttribute('src'));
       expect(scripts).toEqual(['/src/landing/pages.ts']);
+    }
+  });
+
+  it('counts visits on the five public pages only, never on the private ones', () => {
+    // The private pages' addresses hold tokens and ids, and students use them.
+    const counter = (html: string) =>
+      all(parse(html), 'script[src]').filter((s) => s.getAttribute('src')!.includes('stats.mqgrader.ro'));
+    for (const html of [...PAGES.map((p) => p.html), landing]) {
+      const found = counter(html);
+      expect(found).toHaveLength(1);
+      expect(found[0]!.getAttribute('src')).toBe(STATS_SCRIPT);
+      expect(found[0]!.hasAttribute('defer')).toBe(true);
+    }
+    for (const html of [teacherRaw, studentRaw, tryRaw]) {
+      expect(html).not.toContain('stats.mqgrader.ro');
     }
   });
 
