@@ -482,25 +482,7 @@ describe('the points to check on the paper page', () => {
     await expectLocation(at(11, '32', 'toate'));
     await userEvent.keyboard('j');
     await expectLocation(at(11, 'pagini', 'toate'));
-  });
-
-  it('shows the moves through the open student\'s points in all the exercises, with both arrows alike', async () => {
-    renderAdmin(paperAt(11, null, 'toate'), apiWith(), <LocationProbe />);
-    const points = await screen.findByRole('group', { name: 'Punctele de verificat' });
-    // Ana has two points (her pages and II.1); none is open yet.
-    expect(points).toHaveTextContent('Puncte: 2');
-    await userEvent.click(within(points).getByRole('button', { name: 'Următorul punct' }));
-    await expectLocation(at(11, 'pagini', 'toate'));
-    expect(screen.getByRole('group', { name: 'Punctele de verificat' })).toHaveTextContent('Punct 1/2');
-    await userEvent.click(screen.getByRole('button', { name: 'Punctul anterior' }));
-    await expectLocation(at(11, '32', 'toate'));
-    expect(screen.getByRole('group', { name: 'Punctele de verificat' })).toHaveTextContent('Punct 2/2');
-    for (const name of ['Punctul anterior', 'Următorul punct']) expect(screen.getByRole('button', { name })).toHaveAttribute('class', 'move-arrow');
-  });
-
-  it('hides the moves through the points for a student with none, in all the exercises', async () => {
-    renderAdmin(paperAt(13, null, 'toate'), apiWith());
-    expect(await screen.findByRole('heading', { level: 1, name: 'Eva Stan' })).toBeInTheDocument();
+    // The moves through the points show only with the points to check.
     expect(screen.queryByRole('group', { name: 'Punctele de verificat' })).not.toBeInTheDocument();
   });
 
@@ -716,6 +698,8 @@ describe('the points to check on the paper page', () => {
     await expectLocation(at(11, '32'));
     expect(screen.getByRole('group', { name: 'Punctele de verificat' })).toHaveTextContent('Punct 2/3');
     expect(screen.getByRole('button', { name: 'Următorul punct' })).toHaveAttribute('title', 'Următorul punct (J)');
+    // Both arrows look alike: no blue arrow.
+    for (const name of ['Punctul anterior', 'Următorul punct']) expect(screen.getByRole('button', { name })).toHaveAttribute('class', 'move-arrow');
     expect(within(screen.getByRole('group', { name: 'Elevii' })).getByRole('button', { name: 'Elevul următor' })).toBeEnabled();
   });
 

@@ -241,7 +241,7 @@ describe('TestPage', () => {
   it('locks the files while the test is being graded', async () => {
     renderAdmin(`${PAGE}#pregatire`, apiWith({ status: 'evaluating' }));
     expect(await screen.findByLabelText(/^Fișierul baremului/)).toBeDisabled();
-    expect(screen.getByLabelText('Indicații pentru corectare')).toBeDisabled();
+    expect(screen.getByLabelText('Indicații suplimentare pentru corectare')).toBeDisabled();
   });
 
   it('says no paper came yet while the test is open and nothing was uploaded, with the QR code on the whole screen', async () => {
@@ -1300,7 +1300,7 @@ describe('TestPage evaluation', () => {
   it('saves the indications for the barem from a text box that is always open', async () => {
     const api = evaluationApi({});
     renderAdmin(`${PAGE}#pregatire`, api);
-    const box = await screen.findByLabelText('Indicații pentru corectare');
+    const box = await screen.findByLabelText('Indicații suplimentare pentru corectare');
     expect(box).toHaveAccessibleDescription('Se adaugă la barem. Robotul le folosește când dă punctele, ca să corecteze cum vrei tu.');
     expect(screen.queryByRole('button', { name: 'Salvează indicațiile' })).not.toBeInTheDocument();
     await userEvent.type(box, 'Acceptă și metoda cu proporții.');
@@ -1309,23 +1309,23 @@ describe('TestPage evaluation', () => {
     expect(api.saveBaremNotes).toHaveBeenCalledWith('6E2-26T1', 'Acceptă și metoda cu proporții.', 'class');
     expect(await screen.findByText('Salvate')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Salvează indicațiile' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Indicații pentru corectare')).toHaveValue('Acceptă și metoda cu proporții.');
+    expect(screen.getByLabelText('Indicații suplimentare pentru corectare')).toHaveValue('Acceptă și metoda cu proporții.');
   });
 
   it('takes the saved indications as they are kept, without the empty lines at the end', async () => {
     const api = evaluationApi({});
     renderAdmin(`${PAGE}#pregatire`, api);
-    await userEvent.type(await screen.findByLabelText('Indicații pentru corectare'), 'Acceptă și proporții.{enter}');
+    await userEvent.type(await screen.findByLabelText('Indicații suplimentare pentru corectare'), 'Acceptă și proporții.{enter}');
     await userEvent.click(screen.getByRole('button', { name: 'Salvează indicațiile' }));
     expect(await screen.findByText('Salvate')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Salvează indicațiile' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Indicații pentru corectare')).toHaveValue('Acceptă și proporții.');
+    expect(screen.getByLabelText('Indicații suplimentare pentru corectare')).toHaveValue('Acceptă și proporții.');
   });
 
   it('puts back the saved indications with Renunță, without saving', async () => {
     const api = evaluationApi({ baremNotes: 'La 2, și proporții.' });
     renderAdmin(`${PAGE}#pregatire`, api);
-    const box = await screen.findByLabelText('Indicații pentru corectare');
+    const box = await screen.findByLabelText('Indicații suplimentare pentru corectare');
     expect(box).toHaveValue('La 2, și proporții.');
     await userEvent.type(box, ' Altceva.');
     await userEvent.click(screen.getByRole('button', { name: 'Renunță' }));
@@ -1336,7 +1336,7 @@ describe('TestPage evaluation', () => {
 
   it('shows the indications before the barem is there, since a generated barem uses them too', async () => {
     renderAdmin(`${PAGE}#pregatire`, evaluationApi({ files: { test: FILES.test, barem: null } }));
-    expect(await screen.findByLabelText('Indicații pentru corectare')).toBeEnabled();
+    expect(await screen.findByLabelText('Indicații suplimentare pentru corectare')).toBeEnabled();
     expect(screen.getByLabelText(/^Fișierul baremului/)).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Generează baremul' })).toBeEnabled();
   });

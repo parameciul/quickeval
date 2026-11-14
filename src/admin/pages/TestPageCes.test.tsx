@@ -79,7 +79,7 @@ describe('Varianta CES in Pregătire', () => {
     const api = apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES }) });
     renderAdmin(`${PAGE}#pregatire`, api);
     const ces = await block();
-    await userEvent.type(ces.getByLabelText('Indicații pentru corectarea CES'), 'Fără depunctări pentru scris.');
+    await userEvent.type(ces.getByLabelText('Indicații suplimentare pentru corectarea CES'), 'Fără depunctări pentru scris.');
     await userEvent.click(ces.getByRole('button', { name: 'Salvează indicațiile' }));
     expect(api.saveBaremNotes).toHaveBeenCalledWith('9R2-26T1', 'Fără depunctări pentru scris.', 'ces');
   });
