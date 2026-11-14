@@ -11,7 +11,9 @@ import { listedPapers, type PaperMode } from './paths.ts';
 // marked, each with the grade, or the points to check in orange, or the state.
 // While only the points to check show: the papers with points first, then the
 // others. It folds to a thin strip with one button. The links replace the
-// address, so Back leaves the page.
+// address, so Back leaves the page. A name opens another student's paper at
+// the top of the page: on a phone the list is under the paper, and a replace
+// keeps the place (the shell scrolls only for a new page).
 export function StudentList({
   uploads,
   testStatus,
@@ -60,7 +62,12 @@ export function StudentList({
                 <ul className="paper-student-list">
                   {group.rows.map((row) => (
                     <li key={row.submissionId}>
-                      <Link replace to={pathOf(row)} aria-current={row.submissionId === current ? 'true' : undefined}>
+                      <Link
+                        replace
+                        to={pathOf(row)}
+                        aria-current={row.submissionId === current ? 'true' : undefined}
+                        onClick={() => window.scrollTo(0, 0)}
+                      >
                         <span className="paper-student-name">
                           {row.studentName}
                           {(row.ces || row.variant === 'ces') && <CesTag />}

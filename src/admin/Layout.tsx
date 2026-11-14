@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, type Query } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
-import { matchPath, Outlet, useLocation } from 'react-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { matchPath, Outlet, useLocation, useNavigationType } from 'react-router';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
@@ -116,6 +116,18 @@ export function Layout() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
+  // A new page opens at the top (the window scrolls, not the page). Not on the
+  // first render: a reload keeps the browser's own place. Not on a replaced
+  // address: the paper page's moves (J, K, the next paper) are replaces, and
+  // the page must not jump under the teacher. Not on Back or Forward: the
+  // browser puts the page back where it was. A new hash keeps the path.
+  const navigationType = useNavigationType();
+  const shownPath = useRef(location.pathname);
+  useEffect(() => {
+    if (shownPath.current === location.pathname) return;
+    shownPath.current = location.pathname;
+    if (navigationType === 'PUSH') window.scrollTo(0, 0);
+  }, [location.pathname, navigationType]);
   // Nobody logged in: the login form takes the place of every page. The pages
   // wait for the login, so they never ask the API without it. The pages that
   // confirm a new account's email and set a new password need no login.

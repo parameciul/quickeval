@@ -40,6 +40,15 @@ export function flagCountSql(ev: string): string {
     + CASE WHEN json_array_length(${ev}.unreadable_json) > 0 AND ${ev}.pages_reviewed_at IS NULL THEN 1 ELSE 0 END)`;
 }
 
+// The points of the evaluation `ev` that the teacher already checked: the
+// items, plus one once the unreadable pages are checked. With flagCountSql,
+// all the points of the paper. The WHERE is the condition of the index
+// evaluation_items_checked, word for word, so only the checked items are read.
+export function checkedCountSql(ev: string): string {
+  return `((SELECT COUNT(*) FROM evaluation_items i WHERE i.evaluation_id = ${ev}.id AND i.needs_review = 1 AND i.reviewed_at IS NOT NULL)
+    + CASE WHEN json_array_length(${ev}.unreadable_json) > 0 AND ${ev}.pages_reviewed_at IS NOT NULL THEN 1 ELSE 0 END)`;
+}
+
 interface EvaluationRow {
   id: number;
   created_at: string;

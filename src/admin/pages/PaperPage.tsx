@@ -284,20 +284,33 @@ function Paper({
   // The paper hides, for more room for the exercises (after the checks the
   // teacher may not need it): its × hides it, and "Lucrarea" in the bar
   // hides it or shows it again, as does "Arată pe lucrare". After the ×, the
-  // focus goes to "Lucrarea", as the × goes.
-  const [photoFolded, setPhotoFolded] = useState(() => savedFold(PHOTO_FOLD_KEY));
+  // focus goes to "Lucrarea", as the × goes. A graded paper with nothing left
+  // to check opens with it hidden (the teacher rarely needs it then), and its
+  // toggles are not saved: the saved choice is for the papers with points to
+  // check. Chosen when the paper opens (`Paper` is keyed by it), so deciding
+  // the last point does not hide it under the teacher.
+  const checkedPaper = useRef(place === 'app' && row?.status === 'graded' && row.flagCount === 0);
+  const [photoFolded, setPhotoFolded] = useState(() => checkedPaper.current || savedFold(PHOTO_FOLD_KEY));
   const photoToggle = useRef<HTMLButtonElement>(null);
   const photoMoved = useRef(false);
   const onPhotoFold = (on: boolean, moveFocus = false) => {
     photoMoved.current = moveFocus;
     setPhotoFolded(on);
-    saveFold(PHOTO_FOLD_KEY, on);
+    if (!checkedPaper.current) saveFold(PHOTO_FOLD_KEY, on);
   };
   useEffect(() => {
     if (!photoMoved.current) return;
     photoMoved.current = false;
     photoToggle.current?.focus({ preventScroll: true });
   }, [photoFolded]);
+  // Graded again ("Recorectează"), the paper is no longer checked: it shows
+  // as the saved choice says, and its toggles are saved again.
+  const graded = row?.status === 'graded';
+  useEffect(() => {
+    if (graded || !checkedPaper.current) return;
+    checkedPaper.current = false;
+    setPhotoFolded(savedFold(PHOTO_FOLD_KEY));
+  }, [graded]);
 
   // After a decision, the point that opens takes the focus on its heading,
   // without a scroll, once its paper shows; a move of the teacher's own is a
