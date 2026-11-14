@@ -813,9 +813,10 @@ describe('the points to check on the paper page', () => {
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
     await userEvent.click(within(screen.getByRole('navigation', { name: 'Unde ești' })).getByRole('link', { name: 'Fracții' }));
-    await screen.findByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' });
+    await screen.findByRole('link', { name: 'Ana Pop: 0 din 2 verificate' });
     await held.done();
-    expect(screen.queryByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' })).not.toBeInTheDocument();
+    // The decided point counts on the test page, which stays.
+    expect(await screen.findByRole('link', { name: 'Ana Pop: 1 din 2 verificate' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/teste\/6E2-26T1$/);
   });
 
@@ -847,7 +848,7 @@ describe('the points to check on the paper page', () => {
   it('acts on the keys after "Începe" in De făcut', async () => {
     const api = apiWith();
     renderAdmin('/teste/6E2-26T1', api, <LocationProbe />);
-    await screen.findByRole('link', { name: 'Decide: Ana Pop, Subiectul II, ex. 1' });
+    await screen.findByRole('link', { name: 'Ana Pop: 0 din 2 verificate' });
     await userEvent.click(screen.getByRole('button', { name: /^De făcut/ }));
     const todo = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
     await userEvent.click(within(todo).getByRole('link', { name: 'Începe: Fracții, 6E2' }));
