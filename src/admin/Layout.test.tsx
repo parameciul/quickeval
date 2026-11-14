@@ -361,7 +361,7 @@ describe('De făcut', () => {
     expect(api.listAccounts).not.toHaveBeenCalled();
   });
 
-  it('reads the tests of the year again after a change and every minute', async () => {
+  it('reads the tests of the year again after a change, and when the version changed', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     const api = withTodo();
     renderAdmin('/cont', api);
@@ -370,10 +370,11 @@ describe('De făcut', () => {
     expect(api.listTests).toHaveBeenCalledTimes(1);
     await userEvent.click(screen.getByRole('button', { name: 'Schimbă parola' }));
     await vi.waitFor(() => expect(api.listTests).toHaveBeenCalledTimes(2));
+    api.dataVersion.mockResolvedValue('changed');
     await act(async () => {
       vi.advanceTimersByTime(60_000);
     });
-    expect(api.listTests).toHaveBeenCalledTimes(3);
+    await vi.waitFor(() => expect(api.listTests).toHaveBeenCalledTimes(3));
   });
 
   it('says so when nothing waits, and names the tests in work without "other"', async () => {

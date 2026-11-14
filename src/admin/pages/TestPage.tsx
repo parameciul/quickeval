@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useLocation, useParams } from 'react-router';
-import type { BaremRequest, RobotStart, TestDetail } from '../../../shared/api.ts';
+import type { RobotStart, TestDetail } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
-import { normalizeTestCode, type TestStatus } from '../../../shared/tests.ts';
+import { normalizeTestCode } from '../../../shared/tests.ts';
 import { formatDateTime, robotStartMessage, studentCountLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { Crumbs } from '../Crumbs.tsx';
@@ -14,13 +14,6 @@ import { StagePanel } from '../testPage/StagePanel.tsx';
 import { waitsForBarem, waitsForPrint } from '../testPage/StartRobotButton.tsx';
 import { TestSheet } from '../testPage/TestSheet.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
-
-// While students upload (and later while the robot grades), the page asks for
-// news every 10 seconds, and also while a generated barem or the print PDF of
-// a draft is awaited.
-export function refreshInterval(status: TestStatus | undefined, baremRequest?: BaremRequest, printWaits = false): number | false {
-  return status === 'open' || status === 'evaluating' || baremRequest === 'requested' || printWaits ? 10_000 : false;
-}
 
 export function TestPage() {
   const code = normalizeTestCode(useParams().code ?? '');
@@ -33,10 +26,6 @@ function TestDetails({ code }: { code: string }) {
   const detail = useQuery({
     queryKey: ['test', code],
     queryFn: () => api.getTest(code),
-    refetchInterval: (query) => {
-      const shown = query.state.data?.test;
-      return refreshInterval(shown?.status, shown?.barem.request, shown ? waitsForPrint(shown) : false);
-    },
   });
 
   if (detail.isPending) return <p>Se încarcă…</p>;

@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import type { ClassReport } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { classStats, reportTables } from '../../../shared/stats.ts';
 import { normalizeTestCode } from '../../../shared/tests.ts';
@@ -14,13 +13,6 @@ import { PdfActions } from '../pdf/PdfActions.tsx';
 import { AnalysisSection } from '../reportPage/AnalysisSection.tsx';
 import { ExerciseStatsTable, GradeGroups, ReportTiles, ResultsTable } from '../reportPage/ReportTables.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
-
-// While the robot writes the analysis, the page asks for news every 10 seconds.
-export function reportRefreshInterval(report: ClassReport | undefined): number | false {
-  if (report === undefined) return false;
-  const robotCanWrite = report.test.status === 'evaluating' || report.test.status === 'done';
-  return report.analysis.status === 'requested' && robotCanWrite ? 10_000 : false;
-}
 
 // /teste/:code/raport: the class report (spec §11.3): one page, with the list
 // of its parts on the left.
@@ -79,7 +71,6 @@ function ReportView({ code }: { code: string }) {
   const query = useQuery({
     queryKey: ['report', code],
     queryFn: () => api.getReport(code),
-    refetchInterval: (state) => reportRefreshInterval(state.state.data),
   });
   const graded = (query.data?.rows.length ?? 0) > 0;
   const current = useCurrentPart(graded);

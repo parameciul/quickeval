@@ -9,7 +9,6 @@ import { unsupportedMessage } from '../../../shared/subjects.ts';
 import { robotStartMessage } from '../../ui/format.ts';
 import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakePoint, fakeTeacher, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
-import { refreshInterval } from './TestPage.tsx';
 
 const uploads = [
   fakeUpload({
@@ -286,7 +285,7 @@ describe('TestPage', () => {
     expect(await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
     detail.uploads[1] = fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 });
     await act(async () => {
-      vi.advanceTimersByTime(10_000);
+      vi.advanceTimersByTime(60_000);
     });
     expect(await screen.findByRole('table', { name: 'Încărcările elevilor' })).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
@@ -1068,20 +1067,6 @@ describe('TestPage and a test started by mistake', () => {
     renderAdmin(`${PAGE}#in-clasa`, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Oprește testul' }));
     expect(await screen.findByText('Un elev a încărcat deja lucrarea, așa că testul nu mai poate fi oprit.')).toBeInTheDocument();
-  });
-});
-
-describe('refreshInterval', () => {
-  it('asks for news every 10 seconds only while uploads or grading go on', () => {
-    expect(refreshInterval('open')).toBe(10_000);
-    expect(refreshInterval('evaluating')).toBe(10_000);
-    expect(refreshInterval('draft')).toBe(false);
-    expect(refreshInterval('done')).toBe(false);
-    expect(refreshInterval(undefined)).toBe(false);
-    expect(refreshInterval('draft', 'requested')).toBe(10_000);
-    expect(refreshInterval('draft', 'failed')).toBe(false);
-    // A draft whose print PDF the robot is making.
-    expect(refreshInterval('draft', 'none', true)).toBe(10_000);
   });
 });
 

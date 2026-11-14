@@ -1,4 +1,5 @@
 import type {
+  DataVersion,
   Account,
   AccountDetail,
   AnalysisAnswer,
@@ -54,6 +55,8 @@ export interface AdminApi {
   // /api/try/<token> for a Quick Try's link.
   base: string;
   me(): Promise<Teacher>;
+  // A text that changes with every change the pages show (DataVersion).
+  dataVersion(): Promise<string>;
   login(email: string, password: string): Promise<Teacher>;
   // A new account first confirms its email, then waits for an administrator's approval.
   signup(input: SignupInput): Promise<void>;
@@ -273,6 +276,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   return {
     base: apiBase,
     me: async () => (await request<{ teacher: Teacher }>('GET', '/me')).teacher,
+    dataVersion: async () => (await request<DataVersion>('GET', '/version')).version,
     login: async (email, password) =>
       (await request<{ teacher: Teacher }>('POST', '/login', { email, password }, undefined, '/api/auth')).teacher,
     signup: async (input) => {

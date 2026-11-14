@@ -145,20 +145,62 @@ const SELECT_TEST = `
     t.ces_files_version, t.ces_exercise_list_status, t.ces_exercise_list_message, t.ces_print_status, t.ces_print_file_key, t.ces_off,
     json_extract(t.ces_exercise_list_json, '$.totalPoints') AS ces_total_points,
     json_extract(t.exercise_list_json, '$.totalPoints') AS class_total_points,
-    (SELECT COUNT(*) FROM enrollments e JOIN students st ON st.id = e.student_id
-       WHERE e.class_id = t.class_id AND e.active = 1 AND st.ces = 1) AS ces_student_count,
-    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.variant = 'ces') AS ces_papers,
-    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status IN ('submitted', 'grading') AND ${paperVariantSql('s', 't')} = 'ces') AS ces_waiting,
-    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'grading' AND s.variant = 'ces') AS ces_grading,
-    (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = t.class_id AND e.active = 1) AS student_count,
-    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status <> 'uploading') AS submitted_count,
-    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.status = 'graded') AS graded_count,
-    (SELECT COUNT(*) FROM submissions s WHERE s.test_id = t.id AND s.results_open = 1) AS published_count,
-    (SELECT COALESCE(SUM(${flagCountSql('ev')}), 0)
-       FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = t.id) AS flag_count,
-    (SELECT json_group_array(ev.grade)
-       FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = t.id AND s.status = 'graded') AS grades_json
+    (SELECT json_object('all', COUNT(*), 'ces', COALESCE(SUM(st.ces = 1), 0))
+       FROM enrollments e JOIN students st ON st.id = e.student_id
+       WHERE e.class_id = t.class_id AND e.active = 1) AS students_json,
+    (SELECT json_object(
+         'cesPapers', COALESCE(SUM(s.variant = 'ces'), 0),
+         'cesWaiting', COALESCE(SUM(CASE WHEN s.status IN ('submitted', 'grading') THEN ${paperVariantSql('s', 't')} = 'ces' ELSE 0 END), 0),
+         'cesGrading', COALESCE(SUM(s.status = 'grading' AND s.variant = 'ces'), 0),
+         'submitted', COALESCE(SUM(s.status <> 'uploading'), 0),
+         'graded', COALESCE(SUM(s.status = 'graded'), 0),
+         'published', COALESCE(SUM(s.results_open = 1), 0))
+       FROM submissions s WHERE s.test_id = t.id) AS papers_json,
+    (SELECT json_object(
+         'flags', COALESCE(SUM(${flagCountSql('ev')}), 0),
+         'grades', json(json_group_array(ev.grade) FILTER (WHERE s.status = 'graded')))
+       FROM evaluations ev JOIN submissions s ON s.id = ev.submission_id WHERE s.test_id = t.id) AS gradings_json
   FROM tests t JOIN classes c ON c.id = t.class_id`;
+
+// Each count of a test comes from one pass over its table: D1 bills every row
+// read, and the tests list is read again every minute while a page is open.
+interface SelectedTestRow extends Omit<TestRow, CountColumn> {
+  students_json: string;
+  papers_json: string;
+  gradings_json: string;
+}
+
+type CountColumn =
+  | 'ces_student_count'
+  | 'ces_papers'
+  | 'ces_waiting'
+  | 'ces_grading'
+  | 'student_count'
+  | 'submitted_count'
+  | 'graded_count'
+  | 'published_count'
+  | 'flag_count'
+  | 'grades_json';
+
+function withCounts(row: SelectedTestRow): TestRow {
+  const { students_json, papers_json, gradings_json, ...rest } = row;
+  const students = JSON.parse(students_json) as { all: number; ces: number };
+  const papers = JSON.parse(papers_json) as Record<'cesPapers' | 'cesWaiting' | 'cesGrading' | 'submitted' | 'graded' | 'published', number>;
+  const gradings = JSON.parse(gradings_json) as { flags: number; grades: number[] | null };
+  return {
+    ...rest,
+    ces_student_count: students.ces,
+    ces_papers: papers.cesPapers,
+    ces_waiting: papers.cesWaiting,
+    ces_grading: papers.cesGrading,
+    student_count: students.all,
+    submitted_count: papers.submitted,
+    graded_count: papers.graded,
+    published_count: papers.published,
+    flag_count: gradings.flags,
+    grades_json: JSON.stringify(gradings.grades ?? []),
+  };
+}
 
 function storedFile(key: string | null, name: string | null, type: string | null): StoredFile | null {
   return key && name && type ? { key, name, type } : null;
@@ -287,8 +329,8 @@ export async function listTests(db: D1Database, teacherId: number, schoolYear: n
   const { results } = await db
     .prepare(`${SELECT_TEST} WHERE t.teacher_id = ? AND c.school_year = ? ORDER BY t.created_at DESC, t.id DESC`)
     .bind(teacherId, schoolYear)
-    .all<TestRow>();
-  return results.map((row) => toRecord(row).summary);
+    .all<SelectedTestRow>();
+  return results.map((row) => toRecord(withCounts(row)).summary);
 }
 
 // Tests of one class, newest first.
@@ -296,13 +338,13 @@ export async function listClassTests(db: D1Database, teacherId: number, classId:
   const { results } = await db
     .prepare(`${SELECT_TEST} WHERE t.teacher_id = ? AND t.class_id = ? ORDER BY t.number DESC`)
     .bind(teacherId, classId)
-    .all<TestRow>();
-  return results.map((row) => toRecord(row).summary);
+    .all<SelectedTestRow>();
+  return results.map((row) => toRecord(withCounts(row)).summary);
 }
 
 export async function findTest(db: D1Database, teacherId: number, code: string): Promise<TestRecord | null> {
-  const row = await db.prepare(`${SELECT_TEST} WHERE t.teacher_id = ? AND t.code = ?`).bind(teacherId, code).first<TestRow>();
-  return row ? toRecord(row) : null;
+  const row = await db.prepare(`${SELECT_TEST} WHERE t.teacher_id = ? AND t.code = ?`).bind(teacherId, code).first<SelectedTestRow>();
+  return row ? toRecord(withCounts(row)) : null;
 }
 
 export async function requireTest(db: D1Database, teacherId: number, code: string): Promise<TestRecord> {

@@ -445,6 +445,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
   const api = {
     base: '/api/admin',
     me: vi.fn(async () => structuredClone(me)),
+    // Like the server's number: it changes with the tests and their uploads.
+    dataVersion: vi.fn(async () => JSON.stringify({ tests, submissions })),
     login: vi.fn(async (_email: string, _password: string) => structuredClone(me)),
     signup: vi.fn(async (_input: { name: string; email: string; password: string }) => {}),
     confirmEmail: vi.fn(async (_token: string, _password: string) => {}),

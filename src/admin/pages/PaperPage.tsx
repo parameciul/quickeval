@@ -22,7 +22,6 @@ import { GradedResult } from '../submissionPage/GradedResult.tsx';
 import { waitingText } from '../submissionPage/waitingText.ts';
 import { heldBackHint } from '../testPage/paperCounts.ts';
 import { NotFoundPage } from './NotFoundPage.tsx';
-import { refreshInterval } from './TestPage.tsx';
 
 // While the robot grades the upload, the page asks for news every 10 seconds.
 export function resultRefreshInterval(submission: SubmissionDetail | undefined): number | false {
@@ -56,7 +55,6 @@ function useTestDetail(code: string) {
   return useQuery({
     queryKey: ['test', code],
     queryFn: () => api.getTest(code),
-    refetchInterval: (query) => refreshInterval(query.state.data?.test.status),
   });
 }
 
