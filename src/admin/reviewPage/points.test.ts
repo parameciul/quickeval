@@ -104,4 +104,24 @@ describe('the points of the review', () => {
     // The test kept in the cache is not changed in place.
     expect(detail.uploads[0]!.reviewPoints).toHaveLength(2);
   });
+
+  it('counts a decided point as checked once, even when it is decided again', () => {
+    const rows = uploads();
+    rows[0]!.checkedCount = 1;
+    const detail = fakeTest({ status: 'done' }, rows);
+    const saved = fakeSubmission({
+      id: 11,
+      status: 'graded',
+      evaluation: fakeEvaluation([fakeItem({ id: 5, exerciseId: 'E5', points: 2, needsReview: true })], {
+        unreadable: ['student/page-02.jpg'],
+        pagesReviewed: true,
+      }),
+    });
+    const once = withoutPoint(detail, saved, pages);
+    const ana = once.uploads.find((row) => row.submissionId === 11)!;
+    expect(ana).toMatchObject({ flagCount: 1, checkedCount: 2 });
+    expect(ana.reviewPoints).toHaveLength(1);
+    const twice = withoutPoint(once, saved, pages);
+    expect(twice.uploads.find((row) => row.submissionId === 11)!.checkedCount).toBe(2);
+  });
 });

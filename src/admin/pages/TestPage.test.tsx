@@ -922,73 +922,110 @@ describe('TestPage Verificare', () => {
     });
   }
 
-  it('lists each point with its reason, each opening the review at it, and starts with the first', async () => {
-    renderAdmin(
-      PAGE,
-      reviewApi([
-        fakeUpload({
-          studentId: 10,
-          studentName: 'Pop Ion',
-          submissionId: 5,
-          status: 'graded',
-          fileCount: 2,
-          grade: 8.75,
-          flagCount: 1,
-          reviewPoints: [fakePoint(31, { label: 'Subiectul I, 3)', points: 0.5, maxPoints: 2, reason: 'Cifra se citește greu.' })],
-        }),
-        fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
-        fakeUpload({
-          studentId: 12,
-          studentName: 'Marin Dan',
-          submissionId: 7,
-          status: 'graded',
-          fileCount: 1,
-          grade: 6.5,
-          flagCount: 2,
-          reviewPoints: [
-            { kind: 'pages', pages: ['student/page-02.jpg'] },
-            fakePoint(41, { label: 'Subiectul II, 1)', points: 3, maxPoints: 5, reason: 'Răspunsul e tăiat.' }),
-          ],
-        }),
-      ]),
-    );
+  // Marin Dan has the pages and one item to check, Pop Ion one item; Stan Eva
+  // was graded with no point. The rows come in name order, as from the API.
+  const rows = ({ marin = 0, pop = 0 } = {}) => [
+    fakeUpload({
+      studentId: 12,
+      studentName: 'Marin Dan',
+      submissionId: 7,
+      status: 'graded',
+      fileCount: 1,
+      grade: 6.5,
+      flagCount: 2 - marin,
+      checkedCount: marin,
+      reviewPoints: [
+        { kind: 'pages' as const, pages: ['student/page-02.jpg'] },
+        fakePoint(41, { label: 'Subiectul II, 1)', points: 3, maxPoints: 5, reason: 'Răspunsul e tăiat.' }),
+      ].slice(marin),
+    }),
+    fakeUpload({
+      studentId: 10,
+      studentName: 'Pop Ion',
+      submissionId: 5,
+      status: 'graded',
+      fileCount: 2,
+      grade: 8.75,
+      flagCount: 1 - pop,
+      checkedCount: pop,
+      reviewPoints: [fakePoint(31, { label: 'Subiectul I, 3)', points: 0.5, maxPoints: 2, reason: 'Cifra se citește greu.' })].slice(pop),
+    }),
+    fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+  ];
+
+  it('starts the check: the progress, the orange button, and a label per student left', async () => {
+    renderAdmin(`${PAGE}#verificare`, reviewApi(rows()));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
-    expect(within(panel).getByRole('link', { name: 'Începe verificarea' })).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
-    expect(within(panel).getByRole('link', { name: 'Începe verificarea' })).toHaveClass('button');
-    const points = within(within(panel).getByRole('list', { name: 'Puncte de verificat' })).getAllByRole('listitem');
-    expect(points.map((point) => point.textContent)).toEqual([
-      'Pop Ion · Subiectul I, 3)Cifra se citește greu.propus 0,5p din 2pDecide',
-      'Marin Dan · Paginile necititeRobotul nu a putut citi: Pagina 2.Decide',
-      'Marin Dan · Subiectul II, 1)Răspunsul e tăiat.propus 3p din 5pDecide',
-    ]);
-    expect(within(points[2]!).getByText('propus 3p din 5p')).toHaveClass('tag', 'tag-wait');
-    expect(within(panel).getByRole('link', { name: 'Decide: Pop Ion, Subiectul I, 3)' })).toHaveAttribute(
-      'href',
-      '/teste/6E2-26T1/verificare?lucrare=5&punct=31',
-    );
-    expect(within(panel).getByRole('link', { name: 'Decide: Marin Dan, Paginile necitite' })).toHaveAttribute(
-      'href',
+    expect(within(panel).getByText('din 3 verificate', { exact: false })).toBeInTheDocument();
+    expect(within(panel).getByRole('progressbar', { name: 'Puncte verificate' })).toHaveAttribute('aria-valuenow', '0');
+    expect(within(panel).getByRole('progressbar', { name: 'Puncte verificate' })).toHaveAttribute('aria-valuemax', '3');
+    expect(within(panel).getByText('Mai sunt 3 puncte, la 2 elevi')).toBeInTheDocument();
+    const start = within(panel).getByRole('link', { name: 'Începe verificarea' });
+    expect(start).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
+    expect(start).toHaveClass('button-wait');
+    expect(within(panel).getByText('2 elevi · clic pe un nume')).toBeInTheDocument();
+    const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getAllByRole('link');
+    expect(left.map((link) => link.getAttribute('href'))).toEqual([
       '/teste/6E2-26T1/verificare?lucrare=7&punct=pagini',
-    );
-    // The table of every paper follows.
-    expect(within(panel).getByRole('rowheader', { name: 'Stan Eva' })).toBeInTheDocument();
+      '/teste/6E2-26T1/verificare?lucrare=5&punct=31',
+    ]);
+    expect(left.map((link) => link.textContent)).toEqual(['Marin Dan 0/2', 'Pop Ion 0/1']);
+    expect(left[0]).toHaveAccessibleName('Marin Dan: 0 din 2 verificate');
+    // No papers table here, and no student without a point.
+    expect(within(panel).queryByText('Stan Eva')).not.toBeInTheDocument();
+    expect(within(panel).queryByRole('table')).not.toBeInTheDocument();
+    expect(within(panel).queryByRole('heading', { name: 'Gata' })).not.toBeInTheDocument();
   });
 
-  it('says when every point is checked, and opens the first paper with all its exercises', async () => {
-    renderAdmin(
-      `${PAGE}#verificare`,
-      reviewApi([fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 })]),
-    );
-    expect(await screen.findByText(/^Toate punctele sunt verificate\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Vezi lucrările' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
-    expect(screen.queryByRole('link', { name: 'Începe verificarea' })).not.toBeInTheDocument();
+  it('continues the check, with the students done under Gata', async () => {
+    renderAdmin(`${PAGE}#verificare`, reviewApi(rows({ marin: 1, pop: 1 })));
+    const panel = await screen.findByRole('region', { name: 'Verificare' });
+    expect(within(panel).getByRole('link', { name: 'Continuă verificarea' })).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
+    expect(within(panel).queryByRole('link', { name: 'Începe verificarea' })).not.toBeInTheDocument();
+    expect(within(panel).getByRole('progressbar', { name: 'Puncte verificate' })).toHaveAttribute('aria-valuenow', '2');
+    expect(within(panel).getByText('Mai este 1 punct, la 1 elev')).toBeInTheDocument();
+    const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getAllByRole('link');
+    expect(left.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([['Marin Dan 1/2', '/teste/6E2-26T1/verificare?lucrare=7&punct=41']]);
+    expect(within(panel).getByText('1 elev · clic pe un nume')).toBeInTheDocument();
+    const done = within(within(panel).getByRole('list', { name: 'Gata' })).getAllByRole('link');
+    expect(done.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([['✓ Pop Ion', '/teste/6E2-26T1/elevi/5']]);
+  });
+
+  it('says when every point is checked and leads to Rezultate', async () => {
+    renderAdmin(`${PAGE}#verificare`, reviewApi(rows({ marin: 2, pop: 1 })));
+    const panel = await screen.findByRole('region', { name: 'Verificare' });
+    expect(within(panel).getByText('Toate cele 3 puncte sunt verificate.')).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
+    expect(within(panel).queryByRole('link', { name: /verificarea$/ })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(within(panel).queryByRole('list', { name: 'De verificat' })).not.toBeInTheDocument();
+    const done = within(within(panel).getByRole('list', { name: 'Gata' })).getAllByRole('link');
+    expect(done.map((link) => link.textContent)).toEqual(['✓ Marin Dan', '✓ Pop Ion']);
+    // It opens Rezultate as the stage links do: its heading takes the focus.
+    await userEvent.click(within(panel).getByRole('link', { name: 'Mergi la Rezultate' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toHaveFocus();
+  });
+
+  it('names the one point when a test had only one to check', async () => {
+    renderAdmin(`${PAGE}#verificare`, reviewApi(rows({ pop: 1 }).slice(1)));
+    const panel = await screen.findByRole('region', { name: 'Verificare' });
+    expect(within(panel).getByText('Punctul de verificat este verificat.')).toBeInTheDocument();
+  });
+
+  it('says there is nothing to check when no paper had a point', async () => {
+    renderAdmin(`${PAGE}#verificare`, reviewApi(rows().slice(2)));
+    const panel = await screen.findByRole('region', { name: 'Verificare' });
+    expect(within(panel).getByText('Nimic de verificat.')).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
+    expect(within(panel).queryByRole('list')).not.toBeInTheDocument();
+    expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
   it('waits for the grading before it lists anything', async () => {
     renderAdmin(`${PAGE}#verificare`, apiWith({ status: 'evaluating' }));
     expect(await screen.findByText('Punctele nesigure apar după ce se corectează lucrările.')).toBeInTheDocument();
-    expect(screen.queryByRole('list', { name: 'Puncte de verificat' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Toate punctele sunt verificate.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'De verificat' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Nimic de verificat.')).not.toBeInTheDocument();
   });
 });
 

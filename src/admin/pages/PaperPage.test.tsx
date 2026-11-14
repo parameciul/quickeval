@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { ApiError } from '../api.ts';
-import { createFakeApi, fakeEvaluation, fakeItem, fakeTeacher, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, fakeEvaluation, fakeItem, fakeTeacher, fakeTest, fakeUpload, reviewPointsOf } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { resultRefreshInterval } from './PaperPage.tsx';
 
@@ -67,7 +67,16 @@ const apiWith = (detail: SubmissionDetail = submission) =>
     students: {},
     tests: [
       fakeTest({ status: detail.testStatus }, [
-        fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: detail.status, fileCount: 2 }),
+        // The row counts the points the paper has to check, as the API does.
+        fakeUpload({
+          studentId: 10,
+          studentName: 'Pop Ion',
+          submissionId: 5,
+          status: detail.status,
+          fileCount: 2,
+          flagCount: reviewPointsOf(detail.evaluation).length,
+          reviewPoints: reviewPointsOf(detail.evaluation),
+        }),
       ]),
     ],
     submissions: [structuredClone(detail)],

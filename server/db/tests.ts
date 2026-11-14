@@ -19,7 +19,7 @@ import type { DetectedSubject, SubjectInfo } from '../../shared/subjects.ts';
 import { type AnalysisStatus, buildTestCode, type ExerciseListStatus, type TestStatus } from '../../shared/tests.ts';
 import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { newUploadToken } from '../secrets.ts';
-import { flagCountSql } from './evaluations.ts';
+import { checkedCountSql, flagCountSql } from './evaluations.ts';
 import { onlyTestSql } from './lifecycle.ts';
 import { baremStatuses, columns, needsBaremSql, needsPrintSql, noCesGradingSql, paperVariantSql } from './variant.ts';
 
@@ -378,6 +378,7 @@ interface UploadSqlRow {
   unreadable_json: string | null;
   pages_reviewed_at: string | null;
   flag_count: number;
+  checked_count: number;
 }
 
 interface PointSqlRow {
@@ -392,7 +393,8 @@ interface PointSqlRow {
 
 // The uploads table in one round trip: every active student of the class, and
 // any student who left the class after starting an upload, sorted by name;
-// and the points to check of each paper, counted as flagCountSql counts them.
+// and the points to check of each paper, counted as flagCountSql counts them,
+// with the points already checked (checkedCountSql).
 export async function listUploads(db: D1Database, testId: number, classId: number): Promise<UploadRow[]> {
   const [uploads, points] = await db.batch<UploadSqlRow | PointSqlRow>([
     db
@@ -402,7 +404,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
            s.result_token, s.results_open AS submission_open, (SELECT t.results_open FROM tests t WHERE t.id = ?) AS test_open,
            (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
            ev.unreadable_json, ev.pages_reviewed_at,
-           ${flagCountSql('ev')} AS flag_count
+           ${flagCountSql('ev')} AS flag_count, ${checkedCountSql('ev')} AS checked_count
          FROM enrollments e
          JOIN students st ON st.id = e.student_id
          LEFT JOIN submissions s ON s.test_id = ? AND s.student_id = e.student_id
@@ -461,6 +463,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       resultToken: row.result_token,
       resultsOpen: row.submission_id !== null && (row.test_open === 1 || row.submission_open === 1),
       flagCount: row.flag_count,
+      checkedCount: row.checked_count,
       reviewPoints: pointsOf(row),
       lastError: row.last_error,
       ces: row.ces === 1,

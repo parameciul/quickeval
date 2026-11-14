@@ -219,6 +219,7 @@ describe('GET /api/admin/tests/:code', () => {
         resultToken: null,
         resultsOpen: false,
         flagCount: 0,
+        checkedCount: 0,
         reviewPoints: [],
         model: null,
         effort: null,
@@ -243,6 +244,7 @@ describe('GET /api/admin/tests/:code', () => {
         resultToken: null,
         resultsOpen: false,
         flagCount: 0,
+        checkedCount: 0,
         reviewPoints: [],
         model: null,
         effort: null,
@@ -381,6 +383,29 @@ describe('GET /api/admin/tests/:code', () => {
     const pop2 = after.body.uploads.find((row: { studentName: string }) => row.studentName === 'Pop Ion');
     expect(pop2.reviewPoints.map((point: { exerciseId?: string }) => point.exerciseId)).toEqual(['E4']);
     expect(pop2.flagCount).toBe(1);
+  });
+
+  it('counts the points already checked of each paper, and starts again after a new grading', async () => {
+    const cls = await makeClass(api, '6E2', ['Pop Ion', 'Stan Eva']);
+    const [pop, stan] = cls.studentIds as [number, number];
+    const code = await makeTest(api, cls.id);
+    const paper = await addSubmission(api, code, pop, { status: 'graded', files: 2 });
+    const evaluation = await addEvaluation(api, paper, {
+      items: [{ needsReview: true, reviewed: true }, { needsReview: true }, {}, { needsReview: true, reviewed: true }],
+      unreadable: ['student/page-02.jpg'],
+    });
+    await addSubmission(api, code, stan, { status: 'submitted', files: 1 });
+    const rowOf = async (name: string) =>
+      (await api.request('GET', `/api/admin/tests/${code}`)).body.uploads.find((row: { studentName: string }) => row.studentName === name);
+    expect(await rowOf('Pop Ion')).toMatchObject({ flagCount: 2, checkedCount: 2 });
+    expect(await rowOf('Stan Eva')).toMatchObject({ flagCount: 0, checkedCount: 0 });
+    await api.db.prepare("UPDATE evaluations SET pages_reviewed_at = '2026-10-08T10:00:00.000Z' WHERE id = ?").bind(evaluation).run();
+    expect(await rowOf('Pop Ion')).toMatchObject({ flagCount: 1, checkedCount: 3 });
+    // A new grading is a new evaluation: nothing of it is checked yet.
+    await api.db.prepare('DELETE FROM evaluation_items WHERE evaluation_id = ?').bind(evaluation).run();
+    await api.db.prepare('DELETE FROM evaluations WHERE id = ?').bind(evaluation).run();
+    await addEvaluation(api, paper, { items: [{ needsReview: true }] });
+    expect(await rowOf('Pop Ion')).toMatchObject({ flagCount: 1, checkedCount: 0 });
   });
 
   it('keeps the points of another test out of the list', async () => {

@@ -102,16 +102,18 @@ export function withoutPoint(detail: TestDetail, saved: SubmissionDetail, point:
   const key = pointKey(point);
   return {
     ...detail,
-    uploads: detail.uploads.map((row) =>
-      row.submissionId === saved.id
-        ? {
-            ...row,
-            grade: saved.evaluation?.grade ?? row.grade,
-            total: saved.evaluation?.total ?? row.total,
-            flagCount: saved.evaluation?.flagCount ?? row.flagCount,
-            reviewPoints: row.reviewPoints.filter((other) => pointKey(other) !== key),
-          }
-        : row,
-    ),
+    uploads: detail.uploads.map((row) => {
+      if (row.submissionId !== saved.id) return row;
+      // A point decided again (a change of mind) was counted the first time.
+      const left = row.reviewPoints.filter((other) => pointKey(other) !== key);
+      return {
+        ...row,
+        grade: saved.evaluation?.grade ?? row.grade,
+        total: saved.evaluation?.total ?? row.total,
+        flagCount: saved.evaluation?.flagCount ?? row.flagCount,
+        checkedCount: row.checkedCount + (left.length < row.reviewPoints.length ? 1 : 0),
+        reviewPoints: left,
+      };
+    }),
   };
 }

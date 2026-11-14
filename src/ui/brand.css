@@ -22,6 +22,7 @@
   --on-ink: #ffffff;
   --ink-tint: #e6eefb;
   --orange: #b9480a;
+  --orange-hover: #9c3c08;
   --orange-mark: #e2590b;
   --marker: #fdeee3;
   --red: #b42318;
@@ -60,6 +61,7 @@
   --on-ink: #0c1524;
   --ink-tint: #1a2740;
   --orange: #ff9a57;
+  --orange-hover: #ffb37f;
   --orange-mark: #ff8a3d;
   --marker: #33200f;
   --red: #ff8b80;
@@ -96,6 +98,7 @@
     --on-ink: #0c1524;
     --ink-tint: #1a2740;
     --orange: #ff9a57;
+    --orange-hover: #ffb37f;
     --orange-mark: #ff8a3d;
     --marker: #33200f;
     --red: #ff8b80;
@@ -1242,7 +1245,8 @@ table.search-table {
 /* Buttons and forms */
 
 /* Buttons are 8px rounded: an outline by default, filled blue for the one
-   main action of a screen. */
+   main action of a screen, orange (.button-wait) for the one main action of
+   a screen whose work waits on the teacher. */
 .button,
 .button-quiet {
   display: inline-flex;
@@ -1271,6 +1275,16 @@ table.search-table {
   border-color: var(--ink-hover);
   background: var(--ink-hover);
   color: var(--on-ink);
+}
+
+.button-wait {
+  border-color: var(--orange);
+  background: var(--orange);
+}
+
+.button-wait:hover {
+  border-color: var(--orange-hover);
+  background: var(--orange-hover);
 }
 
 .button-quiet {
@@ -2215,35 +2229,140 @@ table.tests .row-actions {
   text-align: right;
 }
 
-/* The papers with points to check, in the panel Verificare. */
-.review-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--line);
-}
-
-.review-list li {
+/* The overview of the check, in the panel Verificare: the progress (or the
+   green box once all is checked), then a label per student. */
+.review-progress {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 1rem;
-  padding: 0.625rem 0;
-  border-bottom: 1px solid var(--line);
+  gap: 0.75rem 1.125rem;
 }
 
-.review-name {
-  flex: 1 1 12rem;
-  min-width: 0;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.review-list-reason {
-  display: block;
+.review-figure {
+  margin: 0;
   color: var(--muted);
   font-size: 0.875rem;
+}
+
+.review-figure strong {
+  color: var(--text);
+  font-size: 1.625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.review-bar-column {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.review-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--marker);
+}
+
+.review-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+}
+
+.review-left {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.review-done-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+  font-weight: 600;
+}
+
+.review-done-box p {
+  flex: 1 1 14rem;
+  margin: 0;
+}
+
+.review-group h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.review-hint {
+  color: var(--muted);
+  font-size: 0.8125rem;
   font-weight: 400;
+}
+
+.review-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--sheet);
+  color: var(--text);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.review-chip:hover {
+  border-color: var(--muted);
+}
+
+.review-chip.is-wait {
+  border-color: color-mix(in srgb, var(--orange-mark) 40%, var(--sheet));
+  background: color-mix(in srgb, var(--marker) 40%, var(--sheet));
+}
+
+.review-chip.is-wait:hover {
+  border-color: var(--orange-mark);
+}
+
+.review-chip.is-done {
+  padding: 4px 12px;
+  background: var(--raised);
+  color: var(--muted);
+}
+
+.review-chip .tag {
+  border-radius: 999px;
+}
+
+@media (max-width: 40rem) {
+  .review-progress {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .review-bar-column {
+    flex-basis: auto;
+  }
 }
 
 .test-sheet {
@@ -5101,6 +5220,7 @@ table.items tr.edit-row > td {
     --on-ink: #ffffff;
     --ink-tint: #e6eefb;
     --orange: #b9480a;
+    --orange-hover: #9c3c08;
     --orange-mark: #e2590b;
     --marker: #fdeee3;
     --red: #b42318;
