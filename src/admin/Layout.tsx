@@ -119,13 +119,14 @@ export function Layout() {
   // A new page opens at the top (the window scrolls, not the page). Not on the
   // first render: a reload keeps the browser's own place. Not on a replaced
   // address: the paper page's moves (J, K, the next paper) are replaces, and
-  // the page must not jump under the teacher. A new hash keeps the path.
+  // the page must not jump under the teacher. Not on Back or Forward: the
+  // browser puts the page back where it was. A new hash keeps the path.
   const navigationType = useNavigationType();
   const shownPath = useRef(location.pathname);
   useEffect(() => {
     if (shownPath.current === location.pathname) return;
     shownPath.current = location.pathname;
-    if (navigationType !== 'REPLACE') window.scrollTo(0, 0);
+    if (navigationType === 'PUSH') window.scrollTo(0, 0);
   }, [location.pathname, navigationType]);
   // Nobody logged in: the login form takes the place of every page. The pages
   // wait for the login, so they never ask the API without it. The pages that

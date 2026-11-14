@@ -5,7 +5,7 @@ import { countLabel } from '../../ui/format.ts';
 import { CesTag } from '../CesTag.tsx';
 import { paperPath } from '../paperPage/paths.ts';
 import { pointKey, reviewPath } from '../reviewPage/points.ts';
-import { stageHash } from '../stages.ts';
+import { MoveOnLink } from './MoveOnLink.tsx';
 
 // The panel Verificare as an overview of the check: how far it is, one orange
 // button into the paper page at the first point left, and a label per student
@@ -25,9 +25,9 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
   const waiting = counted.filter((row) => row.flagCount > 0 && row.reviewPoints.length > 0);
   const done = counted.filter((row) => row.flagCount === 0);
   const toResults = (
-    <Link className="button" to={`/teste/${test.code}${stageHash('Rezultate')}`}>
+    <MoveOnLink stage="Rezultate" className="button">
       Mergi la Rezultate
-    </Link>
+    </MoveOnLink>
   );
 
   if (total === 0) {
@@ -57,7 +57,7 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
               <span style={{ width: `${Math.round((checked / total) * 100)}%` }} />
             </div>
             <p className="review-left">
-              Mai sunt {countLabel(left, 'punct', 'puncte')}, la {countLabel(waiting.length, 'elev', 'elevi')}
+              {left === 1 ? 'Mai este' : 'Mai sunt'} {countLabel(left, 'punct', 'puncte')}, la {countLabel(waiting.length, 'elev', 'elevi')}
             </p>
           </div>
           <Link className="button button-wait" to={reviewPath(test.code)}>

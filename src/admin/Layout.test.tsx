@@ -123,6 +123,18 @@ describe('the shell', () => {
     expect(scroll).toHaveBeenCalledWith(0, 0);
   });
 
+  it('leaves the place on Back to the browser', async () => {
+    const scroll = vi.spyOn(window, 'scrollTo');
+    renderAdmin('/', withClasses(), withBack);
+    await userEvent.click(await screen.findByRole('button', { name: /contul tău/ }));
+    await userEvent.click(screen.getByRole('link', { name: 'Contul meu' }));
+    await expectLocation('/cont');
+    scroll.mockClear();
+    await back();
+    await expectLocation(/^\/$/);
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
   it('keeps the scroll for a replaced address and for a new hash', async () => {
     const scroll = vi.spyOn(window, 'scrollTo');
     renderAdmin(

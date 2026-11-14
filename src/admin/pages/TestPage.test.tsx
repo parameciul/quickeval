@@ -983,7 +983,7 @@ describe('TestPage Verificare', () => {
     expect(within(panel).getByRole('link', { name: 'Continuă verificarea' })).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
     expect(within(panel).queryByRole('link', { name: 'Începe verificarea' })).not.toBeInTheDocument();
     expect(within(panel).getByRole('progressbar', { name: 'Puncte verificate' })).toHaveAttribute('aria-valuenow', '2');
-    expect(within(panel).getByText('Mai sunt 1 punct, la 1 elev')).toBeInTheDocument();
+    expect(within(panel).getByText('Mai este 1 punct, la 1 elev')).toBeInTheDocument();
     const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getAllByRole('link');
     expect(left.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([['Marin Dan 1/2', '/teste/6E2-26T1/verificare?lucrare=7&punct=41']]);
     expect(within(panel).getByText('1 elev · clic pe un nume')).toBeInTheDocument();
@@ -1001,6 +1001,9 @@ describe('TestPage Verificare', () => {
     expect(within(panel).queryByRole('list', { name: 'De verificat' })).not.toBeInTheDocument();
     const done = within(within(panel).getByRole('list', { name: 'Gata' })).getAllByRole('link');
     expect(done.map((link) => link.textContent)).toEqual(['✓ Marin Dan', '✓ Pop Ion']);
+    // It opens Rezultate as the stage links do: its heading takes the focus.
+    await userEvent.click(within(panel).getByRole('link', { name: 'Mergi la Rezultate' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toHaveFocus();
   });
 
   it('names the one point when a test had only one to check', async () => {
