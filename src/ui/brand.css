@@ -8553,17 +8553,113 @@ td.student-paper a:hover {
 }
 
 /* The test with the QR code, in the panel Tipărire of the test page. */
-.print-test {
+/* Tipărire (spec 2026-11-15 §3): a card per variant, a drawing of a page with
+   its QR code on the left once the PDF is ready, then the words and the two
+   buttons, "Tipărește" and "Descarcă PDF". */
+.print-card {
   display: grid;
-  gap: 0.4rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
 }
 
-.print-test > * {
+.print-card.is-ready {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.print-body {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.print-body > * {
   margin: 0;
 }
 
+.print-body h3 {
+  font-size: 1rem;
+}
+
+.print-body .card-actions {
+  margin: 0.5rem 0 0.25rem;
+}
+
+.button-icon {
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 0.4rem;
+  vertical-align: -0.15em;
+}
+
+/* The page drawing: white like paper in both themes. */
+.print-page {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  width: 6.75rem;
+  aspect-ratio: 210 / 297;
+  box-sizing: border-box;
+  padding: 0.75rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: #fff;
+}
+
+.print-page-title,
+.print-page-line {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: #d5dbe4;
+}
+
+.print-page-title {
+  width: 60%;
+  height: 5px;
+  margin-bottom: 4px;
+  background: #9aa6b8;
+}
+
+.print-page-line.is-short {
+  width: 45%;
+}
+
+.print-page-qr {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  fill: #222;
+}
+
+/* The hidden frame that prints the PDF (`printPdf.ts`). */
+.print-frame {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border: 0;
+}
+
+@media (max-width: 30rem) {
+  .print-card.is-ready {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .print-page {
+    display: none;
+  }
+}
+
 /* A button alone on its line keeps its own width. */
-.print-test > button,
 .file-list > li > button,
 .file-list > li > a.button-quiet {
   justify-self: start;

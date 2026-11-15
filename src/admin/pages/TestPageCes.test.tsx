@@ -188,8 +188,10 @@ describe('what a draft misses, under "Începe testul"', () => {
 describe('the CES print PDF in Tipărire', () => {
   it('downloads the CES test with the same QR code', async () => {
     renderAdmin(`${PAGE}#tiparire`, apiWith({ print: { status: 'ready', fromWord: false }, ces: noCesVariant({ studentCount: 1, files: FILES, print: { status: 'ready', fromWord: false } }) }));
-    expect(await screen.findByRole('link', { name: 'Descarcă testul CES cu cod QR' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/ces/print');
-    expect(screen.getByRole('link', { name: 'Descarcă testul cu cod QR' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/print');
+    const ces = await screen.findByRole('region', { name: 'Testul CES cu cod QR' });
+    expect(within(ces).getByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/ces/print');
+    const test = screen.getByRole('region', { name: 'Testul cu cod QR' });
+    expect(within(test).getByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/print');
     expect(screen.getByText('Același cod QR ca pe testul clasei: elevii cu CES încarcă pe același link.')).toBeInTheDocument();
   });
 

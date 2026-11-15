@@ -138,9 +138,17 @@ function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) 
 }
 
 function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
+  // After the test was given, the PDFs made before stay here to print again.
   if (test.status !== 'draft' && test.status !== 'open') {
-    const kept = test.print.status === 'ready' ? ' Testul cu cod QR rămâne în Fișa testului.' : '';
-    return <p className="hint">Testul s-a dat în clasă.{kept}</p>;
+    return (
+      <>
+        <p className="hint">Testul s-a dat în clasă.</p>
+        {test.print.status === 'ready' && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
+        {test.ces.files.test !== null && test.ces.print.status === 'ready' && (
+          <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
+        )}
+      </>
+    );
   }
   return (
     <>

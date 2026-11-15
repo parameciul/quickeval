@@ -88,14 +88,20 @@ Print variants: **P1 a page picture with "Tipărește" and "Descarcă PDF" (pick
 
 - The panel shows a card per variant: a small drawn picture of a page with a QR corner (not a render of
   the PDF), "Testul cu cod QR", "Codul QR apare în colțul fiecărei pagini.", and how many copies:
-  "Ai N elevi: tipărește N copii." (with a CES variant: the class without its CES students).
+  "Tipărește 23 de copii, câte una pentru fiecare elev." (with a CES variant: "…, pentru elevii fără CES."
+  on the class card and "…, pentru elevii cu CES." on the CES card; no line for a class with no student).
 - Buttons: "Tipărește" (filled blue, the panel's main action) and "Descarcă PDF" (quiet).
   The CES card has the same two buttons, both quiet.
 - "Tipărește" loads the print PDF (`printFileUrl`, served `inline`) in a hidden same-origin frame and
   calls its `print()`: the computer's print window opens on the page. Where that cannot work
   (iPhone, iPad, Safari, or the frame fails to load or to print), it opens the PDF in a new tab instead,
   where the browser's own viewer prints it. While the PDF loads, the button says it is getting ready.
-- The hints of today stay as hints: "Poți tipări testul de acum…" for a draft, and the Word warning.
+- The pages' security policy (`public/_headers`) must allow frames of the site's own files:
+  `frame-src 'self' https://challenges.cloudflare.com` (it allowed only Turnstile). The API's files
+  already allow only our own pages (`X-Frame-Options: SAMEORIGIN`). This also lets the review show
+  a paper's PDF pages, which are in frames too.
+- The hints of today stay as hints: "Poți tipări testul de acum…" for a draft (on the class card only),
+  and the Word warning. An answer that is not a PDF prints nothing and says so under the button.
 - The other states of `PrintTest` stay (no file, no link, being made, failed and retry).
 - After the test was given (not draft, not open), Tipărire keeps the card with its two buttons under
   "Testul s-a dat în clasă." (today it sends the teacher to Fișa testului).

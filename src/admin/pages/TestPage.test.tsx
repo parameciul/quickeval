@@ -158,18 +158,18 @@ describe('TestPage', () => {
     expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
   });
 
-  it('shows the print block on a draft and an open test, and not once the uploads closed', async () => {
+  it('shows the print block on a draft and an open test, and once the uploads closed only a PDF made before', async () => {
     const { unmount } = renderAdmin(`${PAGE}#tiparire`, apiWith());
     await screen.findByRole('heading', { level: 2, name: 'Tipărire' });
-    expect(screen.getByText('Testul pentru tipărit:')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Testul cu cod QR' })).toBeInTheDocument();
     unmount();
     const open = renderAdmin(`${PAGE}#tiparire`, apiWith({ status: 'open' }));
     await screen.findByRole('heading', { level: 2, name: 'Tipărire' });
-    expect(screen.getByText('Testul pentru tipărit:')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Testul cu cod QR' })).toBeInTheDocument();
     open.unmount();
     renderAdmin(`${PAGE}#tiparire`, apiWith({ status: 'evaluating' }));
     expect(await screen.findByText('Testul s-a dat în clasă.')).toBeInTheDocument();
-    expect(screen.queryByText('Testul pentru tipărit:')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Testul cu cod QR' })).not.toBeInTheDocument();
   });
 
   it('lets the teacher download the test with the QR code before she starts it', async () => {
@@ -177,7 +177,8 @@ describe('TestPage', () => {
       `${PAGE}#tiparire`,
       apiWith({ files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null }, print: { status: 'ready', fromWord: false } }),
     );
-    expect(await screen.findByRole('link', { name: 'Descarcă testul cu cod QR' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/print');
+    expect(screen.getByRole('button', { name: 'Tipărește' })).toBeInTheDocument();
     expect(screen.getByText('Poți tipări testul de acum. Elevii încarcă lucrările după ce începi testul.')).toBeInTheDocument();
     expect(within(sheet()).queryByRole('link')).not.toBeInTheDocument();
     await openStage('În clasă');
