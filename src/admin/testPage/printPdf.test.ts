@@ -11,11 +11,14 @@ const MAC_CHROME = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/
 const URL = '/api/admin/tests/6E2-26T1/print';
 
 describe('printsInFrame', () => {
-  it('prints in a frame in Chrome, Edge and Firefox, also on a Mac', () => {
+  it('prints in a frame in Chrome and Edge, also on a Mac', () => {
     expect(printsInFrame(CHROME, 0)).toBe(true);
     expect(printsInFrame(EDGE, 10)).toBe(true);
-    expect(printsInFrame(FIREFOX, 0)).toBe(true);
     expect(printsInFrame(MAC_CHROME, 0)).toBe(true);
+  });
+
+  it('opens a tab in Firefox: its PDF viewer hides the frame from the page', () => {
+    expect(printsInFrame(FIREFOX, 0)).toBe(false);
   });
 
   it('opens a tab on an iPhone, an iPad and in Safari', () => {
@@ -29,6 +32,7 @@ describe('printsInFrame', () => {
 
 describe('printPdf', () => {
   let open: ReturnType<typeof vi.fn>;
+  let tab: { opener: unknown };
 
   it("is allowed by the site's security policy: a page may frame the site's own files", () => {
     const policy = headers.split('\n').find((line) => line.trim().startsWith('Content-Security-Policy:'))!;
@@ -36,7 +40,8 @@ describe('printPdf', () => {
   });
 
   beforeEach(() => {
-    open = vi.fn();
+    tab = { opener: window };
+    open = vi.fn(() => tab);
     vi.stubGlobal('open', open);
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(CHROME);
   });
@@ -92,7 +97,9 @@ describe('printPdf', () => {
     const done = printPdf(URL);
     const { frame } = loadFrame({ throws: true });
     await expect(done).resolves.toBe('tab');
-    expect(open).toHaveBeenCalledWith(URL, '_blank', 'noopener');
+    expect(open).toHaveBeenCalledWith(URL, '_blank');
+    // The tab cannot reach back to the teacher's page.
+    expect(tab.opener).toBeNull();
     expect(frame.isConnected).toBe(false);
   });
 
@@ -100,14 +107,14 @@ describe('printPdf', () => {
     const done = printPdf(URL);
     loadFrame({});
     await expect(done).resolves.toBe('tab');
-    expect(open).toHaveBeenCalledWith(URL, '_blank', 'noopener');
+    expect(open).toHaveBeenCalledWith(URL, '_blank');
   });
 
   it('opens the PDF in a tab when the browser refuses to print the frame', async () => {
     const done = printPdf(URL);
     loadFrame({ contentType: 'application/pdf', printThrows: true });
     await expect(done).resolves.toBe('tab');
-    expect(open).toHaveBeenCalledWith(URL, '_blank', 'noopener');
+    expect(open).toHaveBeenCalledWith(URL, '_blank');
   });
 
   it('opens the PDF in a tab when the frame does not load in time', async () => {
@@ -115,15 +122,44 @@ describe('printPdf', () => {
     const done = printPdf(URL);
     vi.advanceTimersByTime(PRINT_LOAD_TIMEOUT);
     await expect(done).resolves.toBe('tab');
-    expect(open).toHaveBeenCalledWith(URL, '_blank', 'noopener');
+    expect(open).toHaveBeenCalledWith(URL, '_blank');
     expect(document.querySelector('iframe')).toBeNull();
   });
 
   it('opens the PDF in a tab at once in Safari, with no frame', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(SAFARI);
     await expect(printPdf(URL)).resolves.toBe('tab');
-    expect(open).toHaveBeenCalledWith(URL, '_blank', 'noopener');
+    expect(open).toHaveBeenCalledWith(URL, '_blank');
     expect(document.querySelector('iframe')).toBeNull();
+  });
+
+  it('opens the PDF in a tab at once in Firefox, with no frame', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(FIREFOX);
+    await expect(printPdf(URL)).resolves.toBe('tab');
+    expect(open).toHaveBeenCalledWith(URL, '_blank');
+    expect(tab.opener).toBeNull();
+    expect(document.querySelector('iframe')).toBeNull();
+  });
+
+  it('says it failed when the browser blocks the tab of a frame that did not load in time', async () => {
+    open.mockReturnValue(null);
+    vi.useFakeTimers();
+    const done = printPdf(URL);
+    vi.advanceTimersByTime(PRINT_LOAD_TIMEOUT);
+    await expect(done).resolves.toBe('failed');
+  });
+
+  it('says it failed when the browser blocks the tab of a frame it cannot reach', async () => {
+    open.mockReturnValue(null);
+    const done = printPdf(URL);
+    loadFrame({ throws: true });
+    await expect(done).resolves.toBe('failed');
+  });
+
+  it('says it failed when the browser blocks the tab in Safari', async () => {
+    open.mockReturnValue(null);
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(SAFARI);
+    await expect(printPdf(URL)).resolves.toBe('failed');
   });
 
   it('keeps one frame: a new print takes the place of the last one', async () => {

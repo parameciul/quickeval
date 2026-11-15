@@ -94,7 +94,7 @@ Print variants: **P1 a page picture with "Tipărește" and "Descarcă PDF" (pick
   The CES card has the same two buttons, both quiet.
 - "Tipărește" loads the print PDF (`printFileUrl`, served `inline`) in a hidden same-origin frame and
   calls its `print()`: the computer's print window opens on the page. Where that cannot work
-  (iPhone, iPad, Safari, or the frame fails to load or to print), it opens the PDF in a new tab instead,
+  (iPhone, iPad, Safari, Firefox, or the frame fails to load or to print), it opens the PDF in a new tab instead,
   where the browser's own viewer prints it. While the PDF loads, the button says it is getting ready.
 - The pages' security policy (`public/_headers`) must allow frames of the site's own files:
   `frame-src 'self' https://challenges.cloudflare.com` (it allowed only Turnstile). The API's files
