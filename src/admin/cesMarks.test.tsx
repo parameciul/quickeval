@@ -6,7 +6,7 @@ import { createFakeApi, fakeTest, fakeUpload, noCesVariant } from '../test/fakeA
 import { renderAdmin } from '../test/renderAdmin.tsx';
 
 // The CES mark in the teacher's other lists of students (spec: CES variant),
-// and the CES files in Fișa testului.
+// and the CES files in Pregătire, not in Fișa testului.
 
 const student = (id: number, fullName: string, ces = false) => ({ id, fullName, active: true, canDelete: true, ces });
 
@@ -47,23 +47,17 @@ describe('the CES mark', () => {
   });
 });
 
-describe('Fișa testului', () => {
-  it('lists the CES files and the CES print PDF', async () => {
+describe('the CES files', () => {
+  it('are in Pregătire, not in Fișa testului', async () => {
     const file = { name: 'Test adaptat.pdf', type: PDF_TYPE };
     const test = fakeTest({
       files: { test: { name: 'test.pdf', type: PDF_TYPE }, barem: null },
       ces: noCesVariant({ studentCount: 1, files: { test: file, barem: { name: 'Barem adaptat.pdf', type: PDF_TYPE } }, print: { status: 'ready', fromWord: false } }),
     });
-    renderAdmin('/teste/6E2-26T1', createFakeApi({ classes: [], students: {}, tests: [test] }));
-    const sheet = within(await screen.findByRole('region', { name: 'Fișa testului' }));
-    expect(sheet.getByRole('link', { name: 'Testul CES' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/test');
-    expect(sheet.getByRole('link', { name: 'Baremul CES' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/barem');
-    expect(sheet.getByRole('link', { name: 'Testul CES cu cod QR' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/print');
-  });
-
-  it('lists no CES file without a CES variant', async () => {
-    renderAdmin('/teste/6E2-26T1', createFakeApi({ classes: [], students: {}, tests: [fakeTest()] }));
-    const sheet = within(await screen.findByRole('region', { name: 'Fișa testului' }));
-    expect(sheet.queryByRole('link', { name: /CES/ })).not.toBeInTheDocument();
+    renderAdmin('/teste/6E2-26T1#pregatire', createFakeApi({ classes: [], students: {}, tests: [test] }));
+    const panel = within(await screen.findByRole('region', { name: 'Pregătire' }));
+    expect(panel.getByRole('link', { name: 'Test adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/test');
+    expect(panel.getByRole('link', { name: 'Barem adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/barem');
+    expect(within(screen.getByRole('region', { name: 'Fișa testului' })).queryByRole('link')).not.toBeInTheDocument();
   });
 });

@@ -48,6 +48,9 @@ async function openStage(name: string) {
 
 const sheet = () => screen.getByRole('region', { name: 'Fișa testului' });
 
+// A fact of Fișa testului, a number of its boxes included: the text after its name.
+const fact = (name: string) => within(sheet()).getByText(name, { selector: 'dt' }).nextElementSibling;
+
 // Opens "Acțiuni" at the top of the page.
 async function openActions() {
   await userEvent.click(await screen.findByRole('button', { name: 'Acțiuni' }));
@@ -119,33 +122,40 @@ describe('TestPage', () => {
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
   });
 
-  it('starts a draft test, and its link and QR code stay in Fișa testului', async () => {
+  it('starts a draft test, and its link stays in În clasă', async () => {
     const api = apiWith();
     renderAdmin(`${PAGE}#in-clasa`, api);
-    expect(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByLabelText('Linkul pentru elevi')).toHaveValue(
-      `${window.location.origin}/u/${FAKE_TOKEN}`,
-    );
-    expect(screen.getByText('Codul e pe testul tipărit. Elevii trimit lucrările după ce începi testul.')).toBeInTheDocument();
+    const panel = await screen.findByRole('region', { name: 'În clasă' });
+    expect(within(panel).getByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(within(panel).getByText('Codul e pe testul tipărit. Elevii trimit lucrările după ce începi testul.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Începe testul' }));
     expect(api.startTest).toHaveBeenCalledWith('6E2-26T1');
-    expect(await screen.findByText('Pentru un elev fără testul tipărit.')).toBeInTheDocument();
-    expect(within(sheet()).getByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(within(sheet()).getByTitle('Codul QR al linkului')).toBeInTheDocument();
+    expect(await within(panel).findByText('Pentru un elev fără testul tipărit.')).toBeInTheDocument();
+    expect(within(panel).getByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(within(panel).getByRole('button', { name: 'Arată codul QR pe tot ecranul' })).toBeInTheDocument();
+    expect(within(sheet()).queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
   });
 
   it('shows the students link only while the test is a draft or open', async () => {
     for (const status of ['draft', 'open'] as const) {
-      const view = renderAdmin(PAGE, apiWith({ status }));
+      const view = renderAdmin(`${PAGE}#in-clasa`, apiWith({ status }));
       expect(await screen.findByLabelText('Linkul pentru elevi')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Arată linkurile' })).not.toBeInTheDocument();
       view.unmount();
     }
     for (const status of ['evaluating', 'done'] as const) {
-      const view = renderAdmin(PAGE, apiWith({ status }));
-      await screen.findByRole('region', { name: 'Fișa testului' });
+      const view = renderAdmin(`${PAGE}#in-clasa`, apiWith({ status }));
+      await screen.findByRole('region', { name: 'În clasă' });
       expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Arată codul QR pe tot ecranul' })).not.toBeInTheDocument();
       view.unmount();
     }
+  });
+
+  it('shows no students link in a draft made before tests got their link', async () => {
+    renderAdmin(`${PAGE}#in-clasa`, apiWith({ uploadToken: null }));
+    await screen.findByRole('region', { name: 'În clasă' });
+    expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
   });
 
   it('shows the print block on a draft and an open test, and not once the uploads closed', async () => {
@@ -169,7 +179,7 @@ describe('TestPage', () => {
     );
     expect(await screen.findByRole('link', { name: 'Descarcă testul cu cod QR' })).toBeInTheDocument();
     expect(screen.getByText('Poți tipări testul de acum. Elevii încarcă lucrările după ce începi testul.')).toBeInTheDocument();
-    expect(within(sheet()).getByRole('link', { name: 'Testul cu cod QR' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/print');
+    expect(within(sheet()).queryByRole('link')).not.toBeInTheDocument();
     await openStage('În clasă');
     expect(screen.getByText(/Începe-l în ziua testului/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Începe testul' })).toBeInTheDocument();
@@ -219,14 +229,14 @@ describe('TestPage', () => {
 
   it('copies the link', async () => {
     const user = userEvent.setup();
-    renderAdmin(PAGE, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    renderAdmin(`${PAGE}#in-clasa`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
     await user.click(await screen.findByRole('button', { name: 'Copiază linkul' }));
     expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/${FAKE_TOKEN}`);
     expect(screen.getByRole('status')).toHaveTextContent('Copiat!');
   });
 
   it('shows the QR code on the whole screen and closes it with Escape', async () => {
-    renderAdmin(PAGE, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    renderAdmin(`${PAGE}#in-clasa`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
     await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
     const dialog = screen.getByRole('dialog', { name: 'Codul QR pentru elevi' });
     expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
@@ -243,7 +253,7 @@ describe('TestPage', () => {
     expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'test', file, 'class');
     expect(await screen.findByRole('link', { name: 'Test.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/test');
     expect(screen.getByLabelText('Înlocuiește testul')).toBeInTheDocument();
-    expect(within(sheet()).getByRole('link', { name: 'Testul' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/test');
+    expect(within(sheet()).queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('drops "Fără confirmare" once the upload is graded', async () => {
@@ -277,8 +287,7 @@ describe('TestPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Încărcările elevilor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Oprește testul' })).toBeInTheDocument();
-    const empty = screen.getByRole('heading', { name: 'Nicio lucrare trimisă încă' }).parentElement!;
-    const show = within(empty).getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
+    const show = within(screen.getByRole('region', { name: 'În clasă' })).getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
     await userEvent.click(show);
     const dialog = await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
     expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
@@ -301,8 +310,9 @@ describe('TestPage', () => {
       tests: [detail],
     });
     renderAdmin(`${PAGE}#in-clasa`, api);
-    const empty = (await screen.findByRole('heading', { name: 'Nicio lucrare trimisă încă' })).parentElement!;
-    await userEvent.click(within(empty).getByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
+    await screen.findByRole('heading', { name: 'Nicio lucrare trimisă încă' });
+    const show = screen.getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
+    await userEvent.click(show);
     expect(await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
     detail.uploads[1] = fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 });
     await act(async () => {
@@ -311,7 +321,7 @@ describe('TestPage', () => {
     expect(await screen.findByRole('table', { name: 'Încărcările elevilor' })).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Închide' }));
-    expect(screen.getByRole('heading', { level: 2, name: 'În clasă' })).toHaveFocus();
+    expect(show).toHaveFocus();
     vi.useRealTimers();
   });
 
@@ -667,7 +677,7 @@ describe('TestPage', () => {
     // Nothing published: no question.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.setTestArchived).toHaveBeenCalledWith('6E2-26T1', true);
-    expect(await within(sheet()).findByText('Arhivat')).toBeInTheDocument();
+    expect(await within(sheet()).findByText('Arhivat')).toHaveClass('tag');
     expect(await actionNames()).toEqual(['Redenumește testul', 'Alege materia', 'Scoate din arhivă', 'Șterge testul']);
 
     await chooseAction('Scoate din arhivă');
@@ -805,10 +815,12 @@ describe('TestPage', () => {
     expect(screen.queryByRole('button', { name: 'Creează linkul pentru mai multe încărcări' })).not.toBeInTheDocument();
   });
 
-  it('shows the facts and files of the test in Fișa testului', async () => {
+  it('shows in Fișa testului the state, who sent a paper, the average in its grade colour, and the facts', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+      fakeUpload({ studentId: 13, studentName: 'Ene Ana' }),
     ];
     const test = fakeTest(
       {
@@ -816,35 +828,81 @@ describe('TestPage', () => {
         startedAt: '2026-10-06T07:15:00.000Z',
         files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: { name: 'Barem.pdf', type: PDF_TYPE } },
         print: { status: 'ready', fromWord: false },
+        subject: { value: 'fizica', name: '', by: 'robot' },
       },
       rows,
     );
     renderAdmin(PAGE, createFakeApi({ classes: [], students: {}, tests: [test] }));
     const card = await screen.findByRole('region', { name: 'Fișa testului' });
-    const fact = (name: string) => within(card).getByText(name, { selector: 'dt' }).nextElementSibling;
-    expect(fact('Clasa')).toHaveTextContent('Clasa 6E2 · 2 elevi');
-    expect(fact('Codul')).toHaveTextContent('6E2-26T1');
-    expect(fact('Starea')).toHaveTextContent('Corectat');
-    expect(fact('Început')).toHaveTextContent('6 oct. 2026, 10:15');
-    expect(fact('Au trimis')).toHaveTextContent('2 din 2');
-    expect(fact('Baremul')).toHaveTextContent('activ');
+    expect(within(card).getByText('Corectat')).toHaveClass('status', 'status-done');
+    expect(fact('Au trimis')).toHaveTextContent('2 din 4');
+    expect(fact('Au trimis')!.querySelector('.sheet-bar > span')).toHaveStyle({ width: '50%' });
     expect(fact('Media testului')).toHaveTextContent('8,5');
-    expect(within(card).getByRole('link', { name: 'Testul' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/test');
-    expect(within(card).getByRole('link', { name: 'Baremul' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/barem');
-    expect(within(card).getByRole('link', { name: 'Testul cu cod QR' })).toHaveAttribute('download');
+    expect(fact('Media testului')).toHaveClass('points-4');
+    expect(fact('Clasa')).toHaveTextContent('Clasa 6E2 · 4 elevi');
+    expect(fact('Codul')).toHaveTextContent('6E2-26T1');
+    expect(fact('Materia')).toHaveTextContent('Fizică');
+    expect(fact('Început')).toHaveTextContent('6 oct. 2026, 10:15');
+    expect(within(card).getAllByText(/./, { selector: 'dt' }).map((term) => term.textContent)).toEqual([
+      'Au trimis',
+      'Media testului',
+      'Clasa',
+      'Codul',
+      'Materia',
+      'Început',
+    ]);
+    expect(within(card).queryByRole('link')).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(card).queryByText('Arhivat')).not.toBeInTheDocument();
   });
 
-  it('says in Fișa testului what a draft does not have yet', async () => {
+  it('shows in Fișa testului the students and the barem of a draft, and no start yet', async () => {
     renderAdmin(PAGE, apiWith());
     const card = await screen.findByRole('region', { name: 'Fișa testului' });
-    const fact = (name: string) => within(card).getByText(name, { selector: 'dt' }).nextElementSibling;
-    expect(fact('Început')).toHaveTextContent('neînceput');
+    expect(within(card).getByText('Ciornă')).toBeInTheDocument();
+    expect(fact('Elevi')).toHaveTextContent('3');
     expect(fact('Baremul')).toHaveTextContent('lipsește');
     expect(within(card).queryByText('Au trimis')).not.toBeInTheDocument();
-    expect(within(card).queryByText('Media testului')).not.toBeInTheDocument();
-    expect(within(card).getAllByText('lipsește')).toHaveLength(3);
-    expect(within(card).queryByRole('link', { name: 'Testul cu cod QR' })).not.toBeInTheDocument();
+    expect(within(card).queryByText('Început')).not.toBeInTheDocument();
+    expect(fact('Materia')).toHaveTextContent('Se stabilește la corectare');
     expect(screen.getByText(/3 elevi · ciornă/)).toBeInTheDocument();
+  });
+
+  it('shows in Fișa testului who sent a paper and who is sending one now, while the test is open', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 3 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan', submissionId: 7, status: 'uploading', fileCount: 0 }),
+      fakeUpload({ studentId: 13, studentName: 'Ene Ana' }),
+    ];
+    const test = fakeTest({ status: 'open', startedAt: '2026-10-06T07:15:00.000Z' }, rows);
+    renderAdmin(PAGE, createFakeApi({ classes: [], students: {}, tests: [test] }));
+    await screen.findByRole('region', { name: 'Fișa testului' });
+    // Pop Ion sent, Stan Eva sends a file now; Marin Dan started with no file yet.
+    expect(fact('Au trimis')).toHaveTextContent('1 din 4');
+    expect(fact('Încarcă acum')).toHaveTextContent('1');
+    expect(within(sheet()).queryByText('Media testului')).not.toBeInTheDocument();
+  });
+
+  it('counts the graded papers in Fișa testului until the test has an average', async () => {
+    // The fake API makes the average from the graded papers: none is graded yet.
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'grading', fileCount: 2 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1 }),
+    ];
+    const test = fakeTest({ status: 'evaluating', startedAt: '2026-10-06T07:15:00.000Z' }, rows);
+    renderAdmin(PAGE, createFakeApi({ classes: [], students: {}, tests: [test] }));
+    await screen.findByRole('region', { name: 'Fișa testului' });
+    expect(fact('Corectate')).toHaveTextContent('0 din 2');
+    expect(within(sheet()).queryByText('Media testului')).not.toBeInTheDocument();
+  });
+
+  it('shows no part of a bar when no student is in the class', async () => {
+    const test = fakeTest({ status: 'open', startedAt: '2026-10-06T07:15:00.000Z' }, []);
+    renderAdmin(PAGE, createFakeApi({ classes: [], students: {}, tests: [test] }));
+    await screen.findByRole('region', { name: 'Fișa testului' });
+    expect(fact('Au trimis')).toHaveTextContent('0 din 0');
+    expect(fact('Au trimis')!.querySelector('.sheet-bar > span')).toHaveStyle({ width: '0%' });
   });
 });
 

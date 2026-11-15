@@ -1,12 +1,10 @@
-import { useId } from 'react';
-import type { TestInfo } from '../../../shared/api.ts';
+import { useId, type ReactNode } from 'react';
+import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
-import { formatDateTime, studentCountLabel } from '../../ui/format.ts';
-import { printFileUrl, testFileUrl } from '../api.ts';
+import { formatDateTime, pointsLevel, studentCountLabel } from '../../ui/format.ts';
 import { StatusChip } from '../StatusChip.tsx';
 import { subjectLine } from './SubjectForm.tsx';
-import { UploadLink } from './UploadLink.tsx';
 
 // The barem in a few words. Not its points: the API knows them only after the
 // grading starts.
@@ -20,19 +18,64 @@ export function baremState(test: Pick<TestInfo, 'files' | 'barem'>): string {
   return 'activ';
 }
 
-// "Fișa testului" (redesign spec §6): the facts and files of the test, its
-// subject (spec: any subject) and the students' link while they may still need
-// it. It shows beside every stage; the test's actions are in "Acțiuni"
-// (`TestMenu.tsx`).
-export function TestSheet({ test }: { test: TestInfo }) {
+// The students sending their papers now: an upload with files, not sent yet.
+export function uploadingNow(uploads: UploadRow[]): number {
+  return uploads.filter((row) => row.status === 'uploading' && row.fileCount > 0).length;
+}
+
+// "Fișa testului" (spec 2026-11-15 §2): the state, two numbers that change with
+// the state of the test, and the plain facts. It shows beside every stage; the
+// files are in Pregătire and Tipărire, the students' link in În clasă, the
+// test's actions in "Acțiuni" (`TestMenu.tsx`).
+export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
   const id = useId();
-  // The printed QR code is the usual way in; the link here is for a student
-  // without the printed test. It goes once the uploads have closed.
-  const link = (test.status === 'draft' || test.status === 'open') && test.uploadToken !== null ? test.uploadToken : null;
+  const sent = (
+    <Tile label="Au trimis" of={test.studentCount} bar>
+      {test.submittedCount}
+    </Tile>
+  );
+  let tiles: ReactNode;
+  if (test.status === 'draft') {
+    tiles = (
+      <>
+        <Tile label="Elevi">{test.studentCount}</Tile>
+        <Tile label="Baremul">{baremState(test)}</Tile>
+      </>
+    );
+  } else if (test.status === 'open') {
+    tiles = (
+      <>
+        {sent}
+        <Tile label="Încarcă acum">{uploadingNow(uploads)}</Tile>
+      </>
+    );
+  } else {
+    tiles = (
+      <>
+        {sent}
+        {test.averageGrade !== null ? (
+          <Tile label="Media testului" level={pointsLevel(test.averageGrade, 10)}>
+            {formatPoints(test.averageGrade)}
+          </Tile>
+        ) : (
+          <Tile label="Corectate" of={test.submittedCount}>
+            {test.gradedCount}
+          </Tile>
+        )}
+      </>
+    );
+  }
 
   return (
     <section className="test-sheet" aria-labelledby={id}>
-      <h2 id={id}>Fișa testului</h2>
+      <div className="sheet-head">
+        <h2 id={id}>Fișa testului</h2>
+        <span className="sheet-tags">
+          <StatusChip status={test.status} />
+          {test.archived && <span className="tag">Arhivat</span>}
+        </span>
+      </div>
+      <dl className="sheet-tiles">{tiles}</dl>
       <dl className="sheet-facts">
         <dt>Clasa</dt>
         <dd>
@@ -42,91 +85,35 @@ export function TestSheet({ test }: { test: TestInfo }) {
         <dd>{test.code}</dd>
         <dt>Materia</dt>
         <dd>{subjectLine(test)}</dd>
-        <dt>Starea</dt>
-        <dd>
-          <StatusChip status={test.status} />
-          {test.archived && <span className="tag">Arhivat</span>}
-        </dd>
-        <dt>Început</dt>
-        <dd>{test.startedAt ? formatDateTime(test.startedAt) : 'neînceput'}</dd>
-        {test.status !== 'draft' && (
+        {test.startedAt && (
           <>
-            <dt>Au trimis</dt>
-            <dd>
-              {test.submittedCount} din {test.studentCount}
-            </dd>
-          </>
-        )}
-        <dt>Baremul</dt>
-        <dd>{baremState(test)}</dd>
-        {test.averageGrade !== null && (
-          <>
-            <dt>Media testului</dt>
-            <dd>{formatPoints(test.averageGrade)}</dd>
+            <dt>Început</dt>
+            <dd>{formatDateTime(test.startedAt)}</dd>
           </>
         )}
       </dl>
-
-      <div className="sheet-part">
-        <h3>Fișiere</h3>
-        <ul className="sheet-files">
-          <SheetFile title="Testul" name={test.files.test?.name ?? null} href={testFileUrl(test.code, 'test')} />
-          <SheetFile title="Baremul" name={test.files.barem?.name ?? null} href={testFileUrl(test.code, 'barem')} />
-          {test.print.status === 'ready' && (
-            <li>
-              <a href={printFileUrl(test.code)} download>
-                Testul cu cod QR
-              </a>
-              <span className="hint">PDF de tipărit</span>
-            </li>
-          )}
-          {test.ces.files.test !== null && (
-            <SheetFile title="Testul CES" name={test.ces.files.test.name} href={testFileUrl(test.code, 'test', 'ces')} />
-          )}
-          {test.ces.files.barem !== null && (
-            <SheetFile title="Baremul CES" name={test.ces.files.barem.name} href={testFileUrl(test.code, 'barem', 'ces')} />
-          )}
-          {test.ces.print.status === 'ready' && (
-            <li>
-              <a href={printFileUrl(test.code, 'ces')} download>
-                Testul CES cu cod QR
-              </a>
-              <span className="hint">PDF de tipărit</span>
-            </li>
-          )}
-        </ul>
-      </div>
-
-      {link !== null && (
-        <div className="sheet-part">
-          <UploadLink token={link} />
-          <p className="hint">
-            {test.status === 'draft'
-              ? 'Codul e pe testul tipărit. Elevii trimit lucrările după ce începi testul.'
-              : 'Pentru un elev fără testul tipărit.'}
-          </p>
-        </div>
-      )}
     </section>
   );
 }
 
-function SheetFile({ title, name, href }: { title: string; name: string | null; href: string }) {
+// One number of the card in its grey box: the label, the value, and with `of`
+// the whole it is part of ("18 din 23"), with `bar` a bar of that part. With
+// `level`, the value takes the colour of a grade (`.points-N`).
+function Tile({ label, of, bar, level, children }: { label: string; of?: number; bar?: boolean; level?: number; children: ReactNode }) {
+  const part = typeof children === 'number' ? children : 0;
+  const share = of !== undefined && of > 0 ? Math.min(100, Math.round((part / of) * 100)) : 0;
   return (
-    <li>
-      {name === null ? (
-        <>
-          <span>{title}</span>
-          <span className="hint">lipsește</span>
-        </>
-      ) : (
-        <>
-          <a href={href} target="_blank" rel="noopener">
-            {title}
-          </a>
-          <span className="hint">{name}</span>
-        </>
-      )}
-    </li>
+    <div className="sheet-tile">
+      <dt>{label}</dt>
+      <dd className={level === undefined ? undefined : `points-${level}`}>
+        {children}
+        {of !== undefined && <span className="sheet-of"> din {of}</span>}
+        {bar && (
+          <span className="sheet-bar" aria-hidden="true">
+            <span style={{ width: `${share}%` }} />
+          </span>
+        )}
+      </dd>
+    </div>
   );
 }

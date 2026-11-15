@@ -102,8 +102,11 @@ Print variants: **P1 a page picture with "Tipărește" and "Descarcă PDF" (pick
 
 ### 4. The students' link moves to În clasă
 
-- The upload link with its QR code (`UploadLink`, today in the card for a draft or open test) moves to
-  the În clasă panel, for a draft and an open test, with today's hint under it.
+- The upload link (`UploadLink`, today in the card for a draft or open test) moves to the top of the
+  În clasă panel, for a draft and an open test: the address with "Copiază linkul", one
+  "Arată codul QR pe tot ecranul" button (no small QR picture), and today's hint under it.
+- The empty state of an open test with no paper ("Nicio lucrare trimisă încă") loses its own
+  full-screen button: the link's button does it, and it stays when the first paper arrives.
 
 ## Constraints
 
