@@ -110,8 +110,14 @@ describe('ReportPage on a phone', () => {
       addEventListener: () => {},
       removeEventListener: () => {},
     }));
+    // The table is wider than its box, as a test with many exercises is.
+    vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockReturnValue(600);
+    vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(300);
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it('puts the grade right after the name and the total last, and says the table scrolls', async () => {
     renderAdmin('/teste/6E2-26T1/raport', apiWith());
@@ -127,7 +133,19 @@ describe('ReportPage on a phone', () => {
     // The pill shows only the count; its words stay for screen readers.
     expect(within(cells[0]!).getByText('2')).toHaveAttribute('aria-hidden', 'true');
     expect(within(cells[0]!).getByText('2 de verificat')).toHaveClass('sr-only');
+    // The "to check" icon of the paper page, so the count never reads as a grade.
+    expect(cells[0]!.querySelector('.points-pill svg')).toHaveAttribute('aria-hidden', 'true');
     expect(within(missing!).getByRole('cell')).toHaveAttribute('colspan', '4');
+    // Its words stay beside the name while the points scroll.
+    expect(within(missing!).getByRole('cell').firstElementChild).toHaveClass('missing-note');
+  });
+
+  it('says nothing about swiping when the whole table fits', async () => {
+    vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockReturnValue(300);
+    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
+    expect(table).toHaveClass('is-phone');
+    expect(screen.queryByText('Glisează tabelul spre stânga pentru punctaje.')).not.toBeInTheDocument();
   });
 
   it('draws the CES table for the phone too', async () => {
@@ -235,6 +253,7 @@ describe('ReportPage', () => {
     expect(within(second!).getByText('5,5', { selector: '.grade-chip' })).toHaveClass('points-3');
     expect(within(second!).getByText('2 de verificat')).toHaveClass('points-pill');
     expect(within(first!).queryByText(/de verificat/)).not.toBeInTheDocument();
+    expect(table.querySelector('.points-pill svg')).toBeNull();
     expect(within(table).getByRole('columnheader', { name: 'Nota' })).toHaveClass('grade-col');
   });
 

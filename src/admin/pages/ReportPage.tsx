@@ -146,8 +146,7 @@ function ReportView({ code }: { code: string }) {
                   {stats.gradedCount} din {stats.activeCount} elevi
                 </span>
               </div>
-              {phone && <p className="hint report-scroll-hint">Glisează tabelul spre stânga pentru punctaje.</p>}
-              <ResultsTable code={code} table={classTable!} missing={report.missing} phone={phone} />
+              <ResultsTable code={code} table={classTable!} missing={report.missing} phone={phone} scrollHint />
               {cesTable && (
                 <>
                   <h3 className="report-subhead">Varianta CES</h3>

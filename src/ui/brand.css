@@ -7381,8 +7381,14 @@ table.results-table th:first-child {
   text-align: left;
 }
 
-table.results-table td:nth-last-child(-n + 2),
-table.results-table th.grade-col {
+table.results-table td:nth-last-child(-n + 2) {
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
+}
+
+/* The grade keeps the room of the last columns wherever it sits, so on a
+   phone "Nota" lines up with its chips. */
+table.results-table .grade-col {
   padding-left: 0.6rem;
   padding-right: 0.6rem;
 }
@@ -7409,6 +7415,23 @@ table.results-table.is-phone .grade-col {
 
 table.results-table.is-phone td.grade-col .points-pill {
   margin-left: 0.25rem;
+}
+
+/* The "to check" icon of the paper page before the count, so the pill never
+   reads as a second grade. */
+table.results-table.is-phone .points-pill svg {
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 0.15rem;
+  vertical-align: -0.1em;
+}
+
+/* A row with no paper: its words stay right of the name while the points
+   scroll (the cell spans the row, so only its words can stick). */
+table.results-table.is-phone tr.is-muted .missing-note {
+  position: sticky;
+  left: calc(8.25rem + 0.4rem);
+  display: inline-block;
 }
 
 /* The class page (redesign spec §9) */

@@ -187,6 +187,13 @@ describe('brand.css', () => {
     expect(value(grade, 'left')).toBe(value(name, 'width'));
     expect(value(name, 'max-width')).toBe(value(name, 'width'));
     expect(value(name, 'white-space')).toBe('normal');
+    // The grade keeps the room of the last columns wherever it sits.
+    expect(value(declarations('table.results-table .grade-col'), 'padding-left')).toBe('0.6rem');
+    // A row with no paper keeps its words beside the name.
+    const note = declarations('table.results-table.is-phone tr.is-muted .missing-note');
+    expect(value(note, 'position')).toBe('sticky');
+    expect(value(note, 'left')).toBe(`calc(${value(name, 'width')} + 0.4rem)`);
+    expect(value(declarations('table.results-table.is-phone .points-pill svg'), 'width')).toBe('0.9em');
     expect(value(declarations('  .report-main'), 'display')).toBe('contents');
     expect(value(declarations('  .report-main > .report-part:first-child'), 'order')).toBe('1');
     expect(value(declarations('  .report-side'), 'order')).toBe('2');
