@@ -2,27 +2,29 @@ import { Link } from 'react-router';
 import type { ClassReport } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import type { ExerciseStats, ClassStats, ReportTable } from '../../../shared/stats.ts';
-import { pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
+import { GRADE_GROUP_LEVELS, pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
 import { CesTag } from '../CesTag.tsx';
+import { GradeChip } from '../testPage/GradeChip.tsx';
 
 const dash = '—';
 const grade = (value: number | null) => (value === null ? dash : formatPoints(value));
 
 // "Pe scurt" (spec §11.3): the average, the median, the lowest and the highest
-// grade, and how many active students were graded.
+// grade, and how many active students were graded. The average is in its
+// grade colour, as on the test page's "Raportul clasei" card.
 export function ReportTiles({ stats }: { stats: ClassStats }) {
-  const tiles: [string, string][] = [
-    ['Media testului', grade(stats.average)],
-    ['Mediana', grade(stats.median)],
-    ['Cea mai mică notă', grade(stats.min)],
-    ['Cea mai mare notă', grade(stats.max)],
+  const tiles: [string, string, string | undefined][] = [
+    ['Media testului', grade(stats.average), stats.average === null ? undefined : `points-${pointsLevel(stats.average, 10)}`],
+    ['Mediana', grade(stats.median), undefined],
+    ['Cea mai mică notă', grade(stats.min), undefined],
+    ['Cea mai mare notă', grade(stats.max), undefined],
   ];
   return (
     <dl className="report-tiles">
-      {tiles.map(([label, value]) => (
+      {tiles.map(([label, value, colour]) => (
         <div key={label}>
           <dt>{label}</dt>
-          <dd>{value}</dd>
+          <dd className={colour}>{value}</dd>
         </div>
       ))}
       <div>
@@ -36,7 +38,8 @@ export function ReportTiles({ stats }: { stats: ClassStats }) {
   );
 }
 
-// "Notele pe grupe": a bar per group of grades, with its count.
+// "Notele pe grupe": a bar per group of grades, in the colour of its grades
+// (as on the test page), with its count.
 export function GradeGroups({ stats }: { stats: ClassStats }) {
   const most = Math.max(1, ...stats.groups.map((group) => group.count));
   return (
@@ -45,13 +48,13 @@ export function GradeGroups({ stats }: { stats: ClassStats }) {
         <h2 id="report-groups-title">Notele pe grupe</h2>
       </div>
       <ul className="report-bars" aria-labelledby="report-groups-title">
-        {stats.groups.map((group) => (
+        {stats.groups.map((group, index) => (
           <li key={group.label}>
             <span>{group.label}</span>
             <span className="report-bar" aria-hidden="true">
-              <span style={{ width: `${(group.count / most) * 100}%` }}></span>
+              <span className={`bar-${GRADE_GROUP_LEVELS[index]}`} style={{ width: `${(group.count / most) * 100}%` }}></span>
             </span>
-            <b>{group.count}</b>
+            <span className="report-bars-count">{group.count}</span>
           </li>
         ))}
       </ul>
@@ -61,8 +64,10 @@ export function GradeGroups({ stats }: { stats: ClassStats }) {
 
 // One row for each graded student of one table: the points of each exercise
 // (an item that waits for the teacher's check is marked), the total and the
-// grade. An active student with no graded paper has a row that says why (in the
-// class table: `missing` is empty for the CES table).
+// grade, drawn as on the test page: no bold, the grade a `GradeChip` and the
+// points to check an orange pill beside it. An active student with no graded
+// paper has a row that says why (in the class table: `missing` is empty for
+// the CES table).
 export function ResultsTable({
   code,
   table,
@@ -91,7 +96,7 @@ export function ResultsTable({
             <th scope="col" className="num">
               Total
             </th>
-            <th scope="col" className="num">
+            <th scope="col" className="grade-col">
               Nota
             </th>
           </tr>
@@ -122,9 +127,9 @@ export function ResultsTable({
               <td className="num">
                 {formatPoints(row.total)} / {formatPoints(row.maxTotal)}
               </td>
-              <td className="num report-grade">
-                <strong className={row.flagCount > 0 ? 'is-waiting' : undefined}>{formatPoints(row.grade)}</strong>
-                {row.flagCount > 0 && <span className="tag tag-wait">de verificat {row.flagCount}</span>}
+              <td className="grade-col">
+                <GradeChip grade={row.grade} />
+                {row.flagCount > 0 && <span className="points-pill">{row.flagCount} de verificat</span>}
               </td>
             </tr>
           ))}
@@ -187,7 +192,7 @@ export function ExerciseStatsTable({ perExercise, caption = 'Statistici pe exerc
                     <span className="report-bar" aria-hidden="true">
                       <span style={{ width: `${exercise.averagePercent}%` }}></span>
                     </span>
-                    <b>{exercise.averagePercent}%</b>
+                    <span className="report-share-value">{exercise.averagePercent}%</span>
                   </span>
                 )}
               </td>

@@ -2471,19 +2471,23 @@ table.tests .row-actions {
   border-radius: 4px;
 }
 
-.report-card-bar > .bar-1 {
+.report-card-bar > .bar-1,
+.report-bar > .bar-1 {
   background: var(--conf-1);
 }
 
-.report-card-bar > .bar-3 {
+.report-card-bar > .bar-3,
+.report-bar > .bar-3 {
   background: var(--conf-3);
 }
 
-.report-card-bar > .bar-4 {
+.report-card-bar > .bar-4,
+.report-bar > .bar-4 {
   background: var(--conf-4);
 }
 
-.report-card-bar > .bar-5 {
+.report-card-bar > .bar-5,
+.report-bar > .bar-5 {
   background: var(--conf-5);
 }
 
@@ -7067,6 +7071,8 @@ table.items tr.edit-row > td {
   font-weight: 500;
 }
 
+/* "Notele pe grupe": the bars of the test page's "Raportul clasei" card, each
+   group in the colour of its grades, the counts not bold. */
 .report-bars {
   display: grid;
   gap: 0.5rem;
@@ -7077,13 +7083,17 @@ table.items tr.edit-row > td {
 
 .report-bars li {
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr) 2rem;
+  grid-template-columns: 4rem minmax(0, 1fr) 1.5rem;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 0.875rem;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
 }
 
-.report-bars b {
+.report-bars .report-bar {
+  height: 0.5rem;
+}
+
+.report-bars-count {
   text-align: right;
 }
 
@@ -7127,13 +7137,13 @@ table.items tr.edit-row > td {
 .report-tiles dt {
   color: var(--muted);
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .report-tiles dd {
   margin: 0.125rem 0 0;
   font-size: 1.625rem;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -7169,15 +7179,18 @@ table.results-table tr.is-muted td {
 .report-max {
   display: block;
   color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 400;
 }
 
-td.report-grade .is-waiting {
-  color: var(--orange);
+/* The grade: a chip, its points to check in an orange pill beside it, both
+   from the left so every chip lines up. */
+table.report-table .grade-col {
+  text-align: left;
+  white-space: nowrap;
 }
 
-td.report-grade .tag {
+table.report-table .grade-col .points-pill {
   margin-left: 0.4rem;
   font-size: 0.75rem;
 }
@@ -7203,7 +7216,7 @@ table.report-table tr.is-muted td {
   height: 0.5rem;
 }
 
-.report-share-line b {
+.report-share-value {
   font-size: 0.8125rem;
   text-align: right;
 }
@@ -7268,15 +7281,26 @@ table.report-table td {
   vertical-align: middle;
 }
 
+/* No bold, as in the test page's tables: the heads in 500, the names regular
+   and in the text colour, a link only under the pointer. */
 table.report-table thead th {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
-table.report-table tbody th,
-table.report-table tfoot th,
-table.report-table tfoot td {
-  font-weight: 700;
+table.report-table tbody th {
+  font-weight: 400;
+}
+
+table.report-table tbody th a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+table.report-table tbody th a:hover {
+  color: var(--ink);
+  text-decoration: underline;
 }
 
 table.report-table th:first-child {
@@ -7330,7 +7354,8 @@ table.results-table th:first-child {
   text-align: left;
 }
 
-table.results-table td:nth-last-child(-n + 2) {
+table.results-table td:nth-last-child(-n + 2),
+table.results-table th.grade-col {
   padding-left: 0.6rem;
   padding-right: 0.6rem;
 }

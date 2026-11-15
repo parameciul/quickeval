@@ -167,6 +167,19 @@ describe('brand.css', () => {
     expect(value(declarations('  table.uploads.is-selectable thead th.select-col'), 'background')).toBe('none');
   });
 
+  it('draws the class report as the test page: no bold, the grade groups in the grade colours', () => {
+    expect(value(declarations('table.report-table thead th'), 'font-weight')).toBe('500');
+    expect(value(declarations('table.report-table tbody th'), 'font-weight')).toBe('400');
+    expect(value(declarations('table.report-table tbody th a'), 'text-decoration')).toBe('none');
+    expect(value(declarations('.report-tiles dt'), 'font-weight')).toBe('500');
+    expect(value(declarations('.report-tiles dd'), 'font-weight')).toBe('500');
+    expect(value(declarations('.report-bars-count'), 'font-weight')).toBeUndefined();
+    expect(value(declarations('table.report-table .grade-col'), 'text-align')).toBe('left');
+    for (const level of [1, 3, 4, 5]) {
+      expect(value(declarations(`.report-card-bar > .bar-${level},\n.report-bar > .bar-${level}`), 'background')).toBe(`var(--conf-${level})`);
+    }
+  });
+
   it('gives the stage sentence the whole width of the panel, and puts "Raportul clasei" beside the students only in a wide panel', () => {
     expect(value(declarations('.stage-head p'), 'max-width')).toBeUndefined();
     expect(value(declarations('.results-layout'), 'container-type')).toBe('inline-size');

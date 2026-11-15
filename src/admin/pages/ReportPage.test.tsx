@@ -136,6 +136,9 @@ describe('ReportPage', () => {
     renderAdmin('/teste/6E2-26T1/raport', apiWith());
     const tiles = within(await screen.findByRole('region', { name: 'Pe scurt' }));
     expect(tiles.getByText('Media testului').nextSibling).toHaveTextContent('7,75');
+    // The average in its grade colour, as on the test page; the other numbers plain.
+    expect(tiles.getByText('Media testului').nextSibling).toHaveClass('points-4');
+    expect(tiles.getByText('Mediana').nextSibling).not.toHaveAttribute('class');
     expect(tiles.getByText('Mediana').nextSibling).toHaveTextContent('7,75');
     expect(tiles.getByText('Cea mai mică notă').nextSibling).toHaveTextContent('5,5');
     expect(tiles.getByText('Cea mai mare notă').nextSibling).toHaveTextContent('10');
@@ -179,8 +182,21 @@ describe('ReportPage', () => {
     const cells = within(row).getAllByRole('cell');
     expect(cells).toHaveLength(4);
     expect(cells[2]).toHaveTextContent('5,5 / 10');
-    expect(cells[3]).toHaveTextContent('5,5');
-    expect(cells[3]).toHaveTextContent('de verificat 2');
+    expect(within(cells[3]!).getByText('5,5')).toHaveClass('grade-chip');
+    expect(within(cells[3]!).getByText('2 de verificat')).toHaveClass('points-pill');
+  });
+
+  it('draws the names, the points and the grades as the test page does: no bold, the grade in a chip', async () => {
+    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
+    expect(table.querySelector('b, strong')).toBeNull();
+    expect(screen.getByRole('table', { name: 'Statistici pe exerciții' }).querySelector('b, strong')).toBeNull();
+    const [first, second] = within(table).getAllByRole('row').slice(1);
+    expect(within(first!).getByText('10')).toHaveClass('grade-chip points-5');
+    expect(within(second!).getByText('5,5', { selector: '.grade-chip' })).toHaveClass('points-3');
+    expect(within(second!).getByText('2 de verificat')).toHaveClass('points-pill');
+    expect(within(first!).queryByText(/de verificat/)).not.toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: 'Nota' })).toHaveClass('grade-col');
   });
 
   it('has no Model column, even when the Model setting is on', async () => {
@@ -223,6 +239,9 @@ describe('ReportPage', () => {
       ['7-8,99', '0'],
       ['9-10', '1'],
     ]);
+    // Each bar in the colour of its grades, as on the test page.
+    expect([...groups.querySelectorAll('.report-bar > span')].map((bar) => bar.className)).toEqual(['bar-1', 'bar-3', 'bar-4', 'bar-5']);
+    expect(groups.querySelector('b')).toBeNull();
     const exercises = within(screen.getByRole('region', { name: 'Pe exerciții' }));
     expect(exercises.getByText('2 exerciții')).toBeInTheDocument();
     const second = exercises.getAllByRole('row')[2]!;
