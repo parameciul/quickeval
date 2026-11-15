@@ -5,15 +5,11 @@ import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { classCsv } from '../../../shared/csv.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { gradeGroups } from '../../../shared/stats.ts';
-import { countLabel, pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
+import { countLabel, GRADE_GROUP_LEVELS, pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { saveFile } from '../pdf/share.ts';
 import { IconDownload } from '../shell/icons.tsx';
-
-// The colour of each grade group's bar: the grade colour of its grades
-// (`.points-N`), red under 5 up to dark green from 9.
-const GROUP_LEVELS = [1, 3, 4, 5];
 
 // "Raportul clasei" in the panel Rezultate (spec 2026-11-14): the class's
 // average and its grades by group, from the rows the page already has (no
@@ -53,7 +49,7 @@ export function ReportCard({ test, uploads }: { test: TestInfo; uploads: UploadR
           <li key={group.label}>
             <span>{group.label}</span>
             <span className="report-card-bar" aria-hidden="true">
-              <span className={`bar-${GROUP_LEVELS[index]}`} style={{ width: `${(group.count / most) * 100}%` }}></span>
+              <span className={`bar-${GRADE_GROUP_LEVELS[index]}`} style={{ width: `${(group.count / most) * 100}%` }}></span>
             </span>
             <span className="report-card-count">{group.count}</span>
           </li>

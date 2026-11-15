@@ -9,6 +9,7 @@ import { Crumbs } from '../Crumbs.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { classCsv } from '../../../shared/csv.ts';
 import { countLabel, formatDate, uploadStatusLabel } from '../../ui/format.ts';
+import { PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { classPdf, classPdfFileName } from '../pdf/classPdf.ts';
 import { PdfActions } from '../pdf/PdfActions.tsx';
 import { AnalysisSection } from '../reportPage/AnalysisSection.tsx';
@@ -75,6 +76,8 @@ function ReportView({ code }: { code: string }) {
   });
   const graded = (query.data?.rows.length ?? 0) > 0;
   const current = useCurrentPart(graded);
+  // On a phone the results tables put the grade right after the name.
+  const phone = useMediaQuery(PHONE);
 
   if (query.isPending) return <p>Se încarcă…</p>;
   if (query.data === undefined) return <ErrorMessage error={query.error} />;
@@ -143,12 +146,12 @@ function ReportView({ code }: { code: string }) {
                   {stats.gradedCount} din {stats.activeCount} elevi
                 </span>
               </div>
-              <ResultsTable code={code} table={classTable!} missing={report.missing} />
+              <ResultsTable code={code} table={classTable!} missing={report.missing} phone={phone} scrollHint />
               {cesTable && (
                 <>
                   <h3 className="report-subhead">Varianta CES</h3>
                   <p className="hint report-subhead-line">Lucrările variantei CES, cu exercițiile ei. Notele lor intră în media clasei.</p>
-                  <ResultsTable code={code} table={cesTable} missing={[]} caption="Punctajele elevilor pe exerciții, varianta CES" />
+                  <ResultsTable code={code} table={cesTable} missing={[]} caption="Punctajele elevilor pe exerciții, varianta CES" phone={phone} />
                 </>
               )}
             </section>

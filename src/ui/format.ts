@@ -116,6 +116,11 @@ export function pointsLevel(points: number, maxPoints: number): number {
   return 1;
 }
 
+// The colour of each group of grades (1-4,99, 5-6,99, 7-8,99, 9-10), as a
+// `pointsLevel` of its grades: red under 5 up to dark green from 9. The test
+// page's "Raportul clasei" card and the class report draw the same bars.
+export const GRADE_GROUP_LEVELS = [1, 3, 4, 5] as const;
+
 // The robot names the pages of an upload "student/page-02.jpg", in upload
 // order, as the result page numbers them: "Pagina 2".
 export function pageLabel(name: string): string {
