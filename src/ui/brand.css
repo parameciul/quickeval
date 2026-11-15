@@ -7250,18 +7250,45 @@ table.report-table tr.is-muted td {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* The tiles first, then "Notele pe grupe", then the other parts. */
+  .report-main {
+    display: contents;
+  }
+
   .report-side {
     position: static;
+    order: 2;
+  }
+
+  .report-main > .report-part {
+    order: 3;
+  }
+
+  .report-main > .report-part:first-child {
+    order: 1;
+  }
+
+  .report-part + .report-part {
+    margin-top: 0;
   }
 
   .report-toc {
     display: none;
+  }
+
+  .report-scroll-hint {
+    margin: -0.5rem 1.25rem 0.5rem;
+    font-size: 0.8125rem;
   }
 }
 
 @media (max-width: 30rem) {
   .report-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-tiles > div:last-child {
+    grid-column: 1 / -1;
   }
 }
 
@@ -7358,6 +7385,30 @@ table.results-table td:nth-last-child(-n + 2),
 table.results-table th.grade-col {
   padding-left: 0.6rem;
   padding-right: 0.6rem;
+}
+
+/* On a phone (`is-phone`, set by the page): the grade right after the name,
+   and both stay while the points scroll under them. The name's column has a
+   fixed width, which is where the grade's column sticks. */
+table.results-table.is-phone th:first-child {
+  width: 8.25rem;
+  min-width: 8.25rem;
+  max-width: 8.25rem;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+table.results-table.is-phone .grade-col {
+  position: sticky;
+  left: 8.25rem;
+  z-index: 1;
+  background: var(--sheet);
+  box-shadow: 6px 0 6px -6px color-mix(in srgb, var(--text) 30%, transparent);
+}
+
+table.results-table.is-phone td.grade-col .points-pill {
+  margin-left: 0.25rem;
 }
 
 /* The class page (redesign spec §9) */

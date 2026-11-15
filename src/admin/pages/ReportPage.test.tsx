@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClassReport } from '../../../shared/api.ts';
 import { createFakeApi, fakeSettings, fakeTest } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
@@ -102,6 +102,43 @@ describe('ReportPage with CES papers', () => {
   });
 });
 
+describe('ReportPage on a phone', () => {
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 56.25rem)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('puts the grade right after the name and the total last, and says the table scrolls', async () => {
+    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    const results = within(await screen.findByRole('region', { name: 'Rezultatele elevilor' }));
+    expect(results.getByText('Glisează tabelul spre stânga pentru punctaje.')).toBeInTheDocument();
+    const table = results.getByRole('table', { name: 'Punctajele elevilor pe exerciții' });
+    expect(table).toHaveClass('is-phone');
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Elev', 'Nota', 'I.14,5p', 'II.14,5p', 'Total']);
+    const [, second, missing] = within(table).getAllByRole('row').slice(1);
+    const cells = within(second!).getAllByRole('cell');
+    expect(within(cells[0]!).getByText('5,5')).toHaveClass('grade-chip points-3');
+    expect(cells[3]).toHaveTextContent('5,5 / 10');
+    // The pill shows only the count; its words stay for screen readers.
+    expect(within(cells[0]!).getByText('2')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(cells[0]!).getByText('2 de verificat')).toHaveClass('sr-only');
+    expect(within(missing!).getByRole('cell')).toHaveAttribute('colspan', '4');
+  });
+
+  it('draws the CES table for the phone too', async () => {
+    const cesRow = { ...report().rows[0]!, submissionId: 7, studentId: 13, studentName: 'Bursașiu Teodor', ces: true, variant: 'ces' as const, items: [{ exerciseId: 'C1', points: 8, maxPoints: 9, flagged: false }] };
+    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ cesExercises: [{ id: 'C1', label: 'Exercițiul CES 1', maxPoints: 9 }], rows: [...report().rows, cesRow] })));
+    const ces = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții, varianta CES' });
+    expect(ces).toHaveClass('is-phone');
+    expect(within(ces).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Elev', 'Nota', 'C19p', 'Total']);
+  });
+});
+
 describe('ReportPage', () => {
   it('names the test, its class and its date, and leads back to the test', async () => {
     renderAdmin('/teste/6E2-26T1/raport', apiWith());
@@ -178,6 +215,8 @@ describe('ReportPage', () => {
       'Total',
       'Nota',
     ]);
+    expect(table).not.toHaveClass('is-phone');
+    expect(screen.queryByText('Glisează tabelul spre stânga pentru punctaje.')).not.toBeInTheDocument();
     const row = within(table).getAllByRole('row')[2]!;
     const cells = within(row).getAllByRole('cell');
     expect(cells).toHaveLength(4);

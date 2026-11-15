@@ -180,6 +180,18 @@ describe('brand.css', () => {
     }
   });
 
+  it('keeps the name and the grade of the class report in view on a phone, the tiles first', () => {
+    const name = declarations('table.results-table.is-phone th:first-child');
+    const grade = declarations('table.results-table.is-phone .grade-col');
+    expect(value(grade, 'position')).toBe('sticky');
+    expect(value(grade, 'left')).toBe(value(name, 'width'));
+    expect(value(name, 'max-width')).toBe(value(name, 'width'));
+    expect(value(name, 'white-space')).toBe('normal');
+    expect(value(declarations('  .report-main'), 'display')).toBe('contents');
+    expect(value(declarations('  .report-main > .report-part:first-child'), 'order')).toBe('1');
+    expect(value(declarations('  .report-side'), 'order')).toBe('2');
+  });
+
   it('gives the stage sentence the whole width of the panel, and puts "Raportul clasei" beside the students only in a wide panel', () => {
     expect(value(declarations('.stage-head p'), 'max-width')).toBeUndefined();
     expect(value(declarations('.results-layout'), 'container-type')).toBe('inline-size');

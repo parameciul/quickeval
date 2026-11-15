@@ -67,72 +67,96 @@ export function GradeGroups({ stats }: { stats: ClassStats }) {
 // grade, drawn as on the test page: no bold, the grade a `GradeChip` and the
 // points to check an orange pill beside it. An active student with no graded
 // paper has a row that says why (in the class table: `missing` is empty for
-// the CES table).
+// the CES table). On a phone the grade comes right after the name and the
+// total last; the name and the grade stay while the points scroll (`is-phone`
+// in brand.css), and the pill shows only the count.
 export function ResultsTable({
   code,
   table,
   missing,
   caption = 'Punctajele elevilor pe exerciții',
+  phone = false,
 }: {
   code: string;
   table: ReportTable;
   missing: ClassReport['missing'];
   caption?: string;
+  phone?: boolean;
 }) {
   const { exercises, rows } = table;
+  const exerciseHeads = exercises.map((exercise) => (
+    <th key={exercise.id} scope="col" className="num" title={exercise.label}>
+      {exercise.id}
+      <span className="report-max">{formatPoints(exercise.maxPoints)}p</span>
+    </th>
+  ));
+  const totalHead = (
+    <th key="total" scope="col" className="num">
+      Total
+    </th>
+  );
+  const gradeHead = (
+    <th key="grade" scope="col" className="grade-col">
+      Nota
+    </th>
+  );
   return (
     <div className="table-wrap">
-      <table className="report-table results-table">
+      <table className={phone ? 'report-table results-table is-phone' : 'report-table results-table'}>
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
             <th scope="col">Elev</th>
-            {exercises.map((exercise) => (
-              <th key={exercise.id} scope="col" className="num" title={exercise.label}>
-                {exercise.id}
-                <span className="report-max">{formatPoints(exercise.maxPoints)}p</span>
-              </th>
-            ))}
-            <th scope="col" className="num">
-              Total
-            </th>
-            <th scope="col" className="grade-col">
-              Nota
-            </th>
+            {phone ? [gradeHead, ...exerciseHeads, totalHead] : [...exerciseHeads, totalHead, gradeHead]}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.submissionId}>
-              <th scope="row">
-                <Link to={`/teste/${code}/elevi/${row.submissionId}`}>{row.studentName}</Link>
-                {(row.ces || row.variant === 'ces') && <CesTag />}
-              </th>
-              {exercises.map((exercise) => {
-                const item = row.items.find((candidate) => candidate.exerciseId === exercise.id);
-                if (!item) {
-                  return (
-                    <td key={exercise.id} className="num">
-                      {dash}
-                    </td>
-                  );
-                }
+          {rows.map((row) => {
+            const points = exercises.map((exercise) => {
+              const item = row.items.find((candidate) => candidate.exerciseId === exercise.id);
+              if (!item) {
                 return (
-                  <td key={exercise.id} className={item.flagged ? 'num flagged-cell' : 'num'}>
-                    <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>{formatPoints(item.points)}</span>
-                    {item.flagged && <span className="sr-only"> (de verificat)</span>}
+                  <td key={exercise.id} className="num">
+                    {dash}
                   </td>
                 );
-              })}
-              <td className="num">
+              }
+              return (
+                <td key={exercise.id} className={item.flagged ? 'num flagged-cell' : 'num'}>
+                  <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>{formatPoints(item.points)}</span>
+                  {item.flagged && <span className="sr-only"> (de verificat)</span>}
+                </td>
+              );
+            });
+            const total = (
+              <td key="total" className="num">
                 {formatPoints(row.total)} / {formatPoints(row.maxTotal)}
               </td>
-              <td className="grade-col">
+            );
+            const grade = (
+              <td key="grade" className="grade-col">
                 <GradeChip grade={row.grade} />
-                {row.flagCount > 0 && <span className="points-pill">{row.flagCount} de verificat</span>}
+                {row.flagCount > 0 &&
+                  (phone ? (
+                    <span className="points-pill">
+                      <span aria-hidden="true">{row.flagCount}</span>
+                      <span className="sr-only">{row.flagCount} de verificat</span>
+                    </span>
+                  ) : (
+                    <span className="points-pill">{row.flagCount} de verificat</span>
+                  ))}
               </td>
-            </tr>
-          ))}
+            );
+            return (
+              <tr key={row.submissionId}>
+                <th scope="row">
+                  <Link to={`/teste/${code}/elevi/${row.submissionId}`}>{row.studentName}</Link>
+                  {(row.ces || row.variant === 'ces') && <CesTag />}
+                </th>
+                {phone ? [grade, ...points, total] : [...points, total, grade]}
+              </tr>
+            );
+          })}
           {missing.map((student) => (
             <tr key={`missing-${student.studentId}`} className="is-muted">
               <th scope="row">

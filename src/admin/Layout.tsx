@@ -4,7 +4,7 @@ import { matchPath, Outlet, useLocation, useNavigationType } from 'react-router'
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
-import { useMediaQuery } from '../ui/useMediaQuery.ts';
+import { PHONE, useMediaQuery } from '../ui/useMediaQuery.ts';
 import { useApi } from './ApiContext.tsx';
 import { ErrorMessage, isLoginRequired } from './ErrorMessage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
@@ -25,9 +25,6 @@ import { YearSelect } from './shell/YearSelect.tsx';
 // The accounts that wait for approval change with no teacher's version: an
 // administrator's bar reads them every five minutes.
 const ACCOUNTS_REFRESH_MS = 5 * 60_000;
-
-// The phone layout of brand.css: the bar at the bottom, a panel over the page.
-const PHONE = '(max-width: 56.25rem)';
 
 // The class of a /clase/:id page, for the panel to mark it.
 function classOfPath(pathname: string): number | null {
