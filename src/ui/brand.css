@@ -7426,11 +7426,12 @@ table.results-table.is-phone .points-pill svg {
   vertical-align: -0.1em;
 }
 
-/* A row with no paper: its words stay right of the name while the points
+/* A row with no paper: its words stay right of the name, where the chips
+   start (the cell's padding is that of the last columns), while the points
    scroll (the cell spans the row, so only its words can stick). */
 table.results-table.is-phone tr.is-muted .missing-note {
   position: sticky;
-  left: calc(8.25rem + 0.4rem);
+  left: calc(8.25rem + 0.6rem);
   display: inline-block;
 }
 

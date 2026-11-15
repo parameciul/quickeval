@@ -192,7 +192,7 @@ describe('brand.css', () => {
     // A row with no paper keeps its words beside the name.
     const note = declarations('table.results-table.is-phone tr.is-muted .missing-note');
     expect(value(note, 'position')).toBe('sticky');
-    expect(value(note, 'left')).toBe(`calc(${value(name, 'width')} + 0.4rem)`);
+    expect(value(note, 'left')).toBe(`calc(${value(name, 'width')} + ${value(declarations('table.results-table .grade-col'), 'padding-left')})`);
     expect(value(declarations('table.results-table.is-phone .points-pill svg'), 'width')).toBe('0.9em');
     expect(value(declarations('  .report-main'), 'display')).toBe('contents');
     expect(value(declarations('  .report-main > .report-part:first-child'), 'order')).toBe('1');
