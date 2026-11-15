@@ -554,8 +554,9 @@ function ItemRow({
 
 // "Verifică" on the paper page: a magnifier with a check in it, drawn like the
 // row's other icon buttons, in orange (the colour of what waits on the
-// teacher). Its name and its tooltip keep the word.
-function CheckMark() {
+// teacher). Its name and its tooltip keep the word. The class report's phone
+// pill shows it beside the count of the points to check.
+export function CheckMark() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" />

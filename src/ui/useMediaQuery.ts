@@ -1,5 +1,9 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
+// The phone layout of brand.css: the bar at the bottom, a panel over the page,
+// one column.
+export const PHONE = '(max-width: 56.25rem)';
+
 // Whether the screen matches a media query, kept up to date when it changes.
 // Where the browser has no matchMedia (the tests' jsdom), nothing matches.
 export function useMediaQuery(query: string): boolean {

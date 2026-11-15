@@ -167,6 +167,38 @@ describe('brand.css', () => {
     expect(value(declarations('  table.uploads.is-selectable thead th.select-col'), 'background')).toBe('none');
   });
 
+  it('draws the class report as the test page: no bold, the grade groups in the grade colours', () => {
+    expect(value(declarations('table.report-table thead th'), 'font-weight')).toBe('500');
+    expect(value(declarations('table.report-table tbody th'), 'font-weight')).toBe('400');
+    expect(value(declarations('table.report-table tbody th a'), 'text-decoration')).toBe('none');
+    expect(value(declarations('.report-tiles dt'), 'font-weight')).toBe('500');
+    expect(value(declarations('.report-tiles dd'), 'font-weight')).toBe('500');
+    expect(value(declarations('.report-bars-count'), 'font-weight')).toBeUndefined();
+    expect(value(declarations('table.report-table .grade-col'), 'text-align')).toBe('left');
+    for (const level of [1, 3, 4, 5]) {
+      expect(value(declarations(`.report-card-bar > .bar-${level},\n.report-bar > .bar-${level}`), 'background')).toBe(`var(--conf-${level})`);
+    }
+  });
+
+  it('keeps the name and the grade of the class report in view on a phone, the tiles first', () => {
+    const name = declarations('table.results-table.is-phone th:first-child');
+    const grade = declarations('table.results-table.is-phone .grade-col');
+    expect(value(grade, 'position')).toBe('sticky');
+    expect(value(grade, 'left')).toBe(value(name, 'width'));
+    expect(value(name, 'max-width')).toBe(value(name, 'width'));
+    expect(value(name, 'white-space')).toBe('normal');
+    // The grade keeps the room of the last columns wherever it sits.
+    expect(value(declarations('table.results-table .grade-col'), 'padding-left')).toBe('0.6rem');
+    // A row with no paper keeps its words beside the name.
+    const note = declarations('table.results-table.is-phone tr.is-muted .missing-note');
+    expect(value(note, 'position')).toBe('sticky');
+    expect(value(note, 'left')).toBe(`calc(${value(name, 'width')} + ${value(declarations('table.results-table .grade-col'), 'padding-left')})`);
+    expect(value(declarations('table.results-table.is-phone .points-pill svg'), 'width')).toBe('0.9em');
+    expect(value(declarations('  .report-main'), 'display')).toBe('contents');
+    expect(value(declarations('  .report-main > .report-part:first-child'), 'order')).toBe('1');
+    expect(value(declarations('  .report-side'), 'order')).toBe('2');
+  });
+
   it('gives the stage sentence the whole width of the panel, and puts "Raportul clasei" beside the students only in a wide panel', () => {
     expect(value(declarations('.stage-head p'), 'max-width')).toBeUndefined();
     expect(value(declarations('.results-layout'), 'container-type')).toBe('inline-size');
