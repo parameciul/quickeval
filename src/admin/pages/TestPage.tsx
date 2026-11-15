@@ -12,6 +12,7 @@ import { stageFromHash, stagesOf, type StageName } from '../stages.ts';
 import { StageList } from '../testPage/StageList.tsx';
 import { StagePanel } from '../testPage/StagePanel.tsx';
 import { waitsForBarem, waitsForPrint } from '../testPage/StartRobotButton.tsx';
+import { TestMenu } from '../testPage/TestMenu.tsx';
 import { TestSheet } from '../testPage/TestSheet.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
@@ -42,8 +43,8 @@ function TestDetails({ code }: { code: string }) {
   );
 }
 
-// The test page of the redesign (spec §6): the six stages and Fișa testului,
-// and the panel of the chosen stage. `fresh`: the data was read for this
+// The test page of the redesign (spec §6): the head with "Acțiuni", the six
+// stages and Fișa testului, and the panel of the chosen stage. `fresh`: the data was read for this
 // visit, not kept from an earlier one.
 function TestView({ code, detail, fresh, refreshError }: { code: string; detail: TestDetail; fresh: boolean; refreshError: Error | null }) {
   const queryClient = useQueryClient();
@@ -84,10 +85,13 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
     <section className="test-page">
       <Crumbs items={[{ label: 'Teste', to: '/' }, { label: displayClassName(test.className), to: `/clase/${test.classId}` }, { label: test.title }]} />
       <div className="test-head">
-        <h1>{test.title}</h1>
-        <p className="test-sub">
-          {studentCountLabel(test.studentCount)} · {test.startedAt ? `început ${formatDateTime(test.startedAt)}` : 'ciornă'}
-        </p>
+        <div className="test-title">
+          <h1>{test.title}</h1>
+          <p className="test-sub">
+            {studentCountLabel(test.studentCount)} · {test.startedAt ? `început ${formatDateTime(test.startedAt)}` : 'ciornă'}
+          </p>
+        </div>
+        <TestMenu test={test} onChanged={refresh} onRobot={onRobot} />
       </div>
       {refreshError && <ErrorMessage error={refreshError} />}
       {notice && (
@@ -109,7 +113,7 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
           onChanged={refresh}
           onRobot={onRobot}
         />
-        <TestSheet test={test} onChanged={refresh} onRobot={onRobot} />
+        <TestSheet test={test} uploads={uploads} />
       </div>
     </section>
   );

@@ -231,7 +231,7 @@ describe('the shell', () => {
   });
 
   it('closes only the QR view on Esc when a panel is open too', async () => {
-    renderAdmin('/teste/6E2-26T2', withClasses());
+    renderAdmin('/teste/6E2-26T2#in-clasa', withClasses());
     const bar = await menu();
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));

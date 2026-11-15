@@ -17,6 +17,7 @@ import { MissingList } from '../MissingList.tsx';
 import { CesVariant, CesWaiting } from './CesVariant.tsx';
 import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
+import { clearPrint } from './printPdf.ts';
 import { PrintTest } from './PrintTest.tsx';
 import { RegradeAllButton } from './RegradeAllButton.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
@@ -28,7 +29,7 @@ import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
 import { PapersProgress } from './PapersProgress.tsx';
-import { MultiUploadLink, QrOverlay, uploadLink } from './UploadLink.tsx';
+import { MultiUploadLink, QrOverlay, UploadLink, uploadLink } from './UploadLink.tsx';
 import { UploadsTable } from './UploadsTable.tsx';
 
 export interface PanelProps {
@@ -138,9 +139,19 @@ function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) 
 }
 
 function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
+  // Leaving Tipărire removes the hidden frame of the last "Tipărește".
+  useEffect(() => clearPrint, []);
+  // After the test was given, the PDFs made before stay here to print again.
   if (test.status !== 'draft' && test.status !== 'open') {
-    const kept = test.print.status === 'ready' ? ' Testul cu cod QR rămâne în Fișa testului.' : '';
-    return <p className="hint">Testul s-a dat în clasă.{kept}</p>;
+    return (
+      <>
+        <p className="hint">Testul s-a dat în clasă.</p>
+        {test.print.status === 'ready' && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
+        {test.ces.files.test !== null && test.ces.print.status === 'ready' && (
+          <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
+        )}
+      </>
+    );
   }
   return (
     <>
@@ -161,39 +172,54 @@ function ClassPanel(props: PanelProps) {
   // table would only say "Nu a trimis". A started upload with no file yet is a
   // row ("Încarcă…", with "Resetează").
   const nothingYet = test.status === 'open' && uploads.every((row) => row.submissionId === null);
-  // The QR code on the whole screen belongs to the panel: it stays open when
-  // the first paper turns the empty state into the table. Closing it gives the
-  // focus back to its button, or to the panel's heading once the button is gone.
+  // The students' link, while they may still need it (spec 2026-11-15 §4):
+  // the printed QR code is the usual way in, the link is for a student without
+  // the printed test. Its QR code on the whole screen belongs to the panel: it
+  // stays open when the first paper turns the empty state into the table, and
+  // closing it gives the focus back to its button.
   const [fullScreen, setFullScreen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
-  const token = test.uploadToken;
+  const token = (test.status === 'draft' || test.status === 'open') && test.uploadToken !== null ? test.uploadToken : null;
+  // The uploads closed while the QR code was on the whole screen (the teacher
+  // stopped them elsewhere, or a scheduled grading started): the code and its
+  // button go away, so the focus goes to the panel's heading.
+  useEffect(() => {
+    if (token !== null || !fullScreen) return;
+    setFullScreen(false);
+    document.querySelector<HTMLElement>('.stage-head h2')?.focus();
+  }, [token, fullScreen]);
   return (
     <>
       <TestActions {...props} />
+      {token !== null && (
+        <div className="class-link">
+          <UploadLink token={token} qr={false} />
+          <p>
+            <button ref={button} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
+              Arată codul QR pe tot ecranul
+            </button>
+          </p>
+          <p className="hint">
+            {test.status === 'draft'
+              ? 'Codul e pe testul tipărit. Elevii trimit lucrările după ce începi testul.'
+              : 'Pentru un elev fără testul tipărit.'}
+          </p>
+        </div>
+      )}
       {test.status === 'open' && <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />}
       {nothingYet ? (
-        <EmptyState
-          icon={<IconQr />}
-          title="Nicio lucrare trimisă încă"
-          action={
-            token ? (
-              <button ref={button} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
-                Arată codul QR pe tot ecranul
-              </button>
-            ) : undefined
-          }
-        >
+        <EmptyState icon={<IconQr />} title="Nicio lucrare trimisă încă">
           Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.
         </EmptyState>
       ) : (
         test.status !== 'draft' && <Papers {...props} selectable={false} />
       )}
-      {fullScreen && token && (
+      {fullScreen && token !== null && (
         <QrOverlay
           url={uploadLink(token)}
           onClose={() => {
             setFullScreen(false);
-            (button.current ?? document.querySelector<HTMLElement>('.stage-head h2'))?.focus();
+            button.current?.focus();
           }}
         />
       )}

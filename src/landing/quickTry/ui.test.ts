@@ -368,7 +368,7 @@ describe("the landing page's Quick Try", () => {
   it("lets the page's security policy load Turnstile and the visit counter, and nothing else new", () => {
     const policy = headers.split('\n').find((line) => line.trim().startsWith('Content-Security-Policy:'))!;
     expect(policy).toContain("script-src 'self' https://challenges.cloudflare.com https://stats.mqgrader.ro;");
-    expect(policy).toContain('frame-src https://challenges.cloudflare.com;');
+    expect(policy).toContain("frame-src 'self' https://challenges.cloudflare.com;");
     expect(policy).toContain("connect-src 'self' https://stats.mqgrader.ro;");
   });
 });

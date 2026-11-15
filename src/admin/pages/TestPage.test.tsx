@@ -48,6 +48,29 @@ async function openStage(name: string) {
 
 const sheet = () => screen.getByRole('region', { name: 'Fișa testului' });
 
+// A fact of Fișa testului, a number of its boxes included: the text after its name.
+const fact = (name: string) => within(sheet()).getByText(name, { selector: 'dt' }).nextElementSibling;
+
+// Opens "Acțiuni" at the top of the page.
+async function openActions() {
+  await userEvent.click(await screen.findByRole('button', { name: 'Acțiuni' }));
+  return screen.getByRole('menu', { name: 'Acțiuni' });
+}
+
+// Opens "Acțiuni" and picks one of its items.
+async function chooseAction(item: string) {
+  await userEvent.click(within(await openActions()).getByRole('menuitem', { name: item }));
+}
+
+// The names of the items of "Acțiuni", in order, then closes it.
+async function actionNames() {
+  const names = within(await openActions())
+    .getAllByRole('menuitem')
+    .map((item) => item.getAttribute('aria-label'));
+  await userEvent.keyboard('{Escape}');
+  return names;
+}
+
 // Opens a papers-table row's ⋯ and picks one of its items.
 async function chooseInRow(row: HTMLElement, student: string, item: string) {
   await userEvent.click(within(row).getByRole('button', { name: `Mai multe pentru ${student}` }));
@@ -99,47 +122,54 @@ describe('TestPage', () => {
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
   });
 
-  it('starts a draft test, and its link and QR code stay in Fișa testului', async () => {
+  it('starts a draft test, and its link stays in În clasă', async () => {
     const api = apiWith();
     renderAdmin(`${PAGE}#in-clasa`, api);
-    expect(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByLabelText('Linkul pentru elevi')).toHaveValue(
-      `${window.location.origin}/u/${FAKE_TOKEN}`,
-    );
-    expect(screen.getByText('Codul e pe testul tipărit. Elevii trimit lucrările după ce începi testul.')).toBeInTheDocument();
+    const panel = await screen.findByRole('region', { name: 'În clasă' });
+    expect(within(panel).getByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(within(panel).getByText('Codul e pe testul tipărit. Elevii trimit lucrările după ce începi testul.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Începe testul' }));
     expect(api.startTest).toHaveBeenCalledWith('6E2-26T1');
-    expect(await screen.findByText('Pentru un elev fără testul tipărit.')).toBeInTheDocument();
-    expect(within(sheet()).getByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(within(sheet()).getByTitle('Codul QR al linkului')).toBeInTheDocument();
+    expect(await within(panel).findByText('Pentru un elev fără testul tipărit.')).toBeInTheDocument();
+    expect(within(panel).getByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
+    expect(within(panel).getByRole('button', { name: 'Arată codul QR pe tot ecranul' })).toBeInTheDocument();
+    expect(within(sheet()).queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
   });
 
   it('shows the students link only while the test is a draft or open', async () => {
     for (const status of ['draft', 'open'] as const) {
-      const view = renderAdmin(PAGE, apiWith({ status }));
+      const view = renderAdmin(`${PAGE}#in-clasa`, apiWith({ status }));
       expect(await screen.findByLabelText('Linkul pentru elevi')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Arată linkurile' })).not.toBeInTheDocument();
       view.unmount();
     }
     for (const status of ['evaluating', 'done'] as const) {
-      const view = renderAdmin(PAGE, apiWith({ status }));
-      await screen.findByRole('region', { name: 'Fișa testului' });
+      const view = renderAdmin(`${PAGE}#in-clasa`, apiWith({ status }));
+      await screen.findByRole('region', { name: 'În clasă' });
       expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Arată codul QR pe tot ecranul' })).not.toBeInTheDocument();
       view.unmount();
     }
   });
 
-  it('shows the print block on a draft and an open test, and not once the uploads closed', async () => {
+  it('shows no students link in a draft made before tests got their link', async () => {
+    renderAdmin(`${PAGE}#in-clasa`, apiWith({ uploadToken: null }));
+    await screen.findByRole('region', { name: 'În clasă' });
+    expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+  });
+
+  it('shows the print block on a draft and an open test, and once the uploads closed only a PDF made before', async () => {
     const { unmount } = renderAdmin(`${PAGE}#tiparire`, apiWith());
     await screen.findByRole('heading', { level: 2, name: 'Tipărire' });
-    expect(screen.getByText('Testul pentru tipărit:')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Testul cu cod QR' })).toBeInTheDocument();
     unmount();
     const open = renderAdmin(`${PAGE}#tiparire`, apiWith({ status: 'open' }));
     await screen.findByRole('heading', { level: 2, name: 'Tipărire' });
-    expect(screen.getByText('Testul pentru tipărit:')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Testul cu cod QR' })).toBeInTheDocument();
     open.unmount();
     renderAdmin(`${PAGE}#tiparire`, apiWith({ status: 'evaluating' }));
     expect(await screen.findByText('Testul s-a dat în clasă.')).toBeInTheDocument();
-    expect(screen.queryByText('Testul pentru tipărit:')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Testul cu cod QR' })).not.toBeInTheDocument();
   });
 
   it('lets the teacher download the test with the QR code before she starts it', async () => {
@@ -147,9 +177,10 @@ describe('TestPage', () => {
       `${PAGE}#tiparire`,
       apiWith({ files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null }, print: { status: 'ready', fromWord: false } }),
     );
-    expect(await screen.findByRole('link', { name: 'Descarcă testul cu cod QR' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/print');
+    expect(screen.getByRole('button', { name: 'Tipărește' })).toBeInTheDocument();
     expect(screen.getByText('Poți tipări testul de acum. Elevii încarcă lucrările după ce începi testul.')).toBeInTheDocument();
-    expect(within(sheet()).getByRole('link', { name: 'Testul cu cod QR' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/print');
+    expect(within(sheet()).queryByRole('link')).not.toBeInTheDocument();
     await openStage('În clasă');
     expect(screen.getByText(/Începe-l în ziua testului/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Începe testul' })).toBeInTheDocument();
@@ -199,14 +230,14 @@ describe('TestPage', () => {
 
   it('copies the link', async () => {
     const user = userEvent.setup();
-    renderAdmin(PAGE, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    renderAdmin(`${PAGE}#in-clasa`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
     await user.click(await screen.findByRole('button', { name: 'Copiază linkul' }));
     expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/${FAKE_TOKEN}`);
     expect(screen.getByRole('status')).toHaveTextContent('Copiat!');
   });
 
   it('shows the QR code on the whole screen and closes it with Escape', async () => {
-    renderAdmin(PAGE, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
+    renderAdmin(`${PAGE}#in-clasa`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
     await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
     const dialog = screen.getByRole('dialog', { name: 'Codul QR pentru elevi' });
     expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
@@ -223,7 +254,7 @@ describe('TestPage', () => {
     expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'test', file, 'class');
     expect(await screen.findByRole('link', { name: 'Test.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/test');
     expect(screen.getByLabelText('Înlocuiește testul')).toBeInTheDocument();
-    expect(within(sheet()).getByRole('link', { name: 'Testul' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/test');
+    expect(within(sheet()).queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('drops "Fără confirmare" once the upload is graded', async () => {
@@ -257,8 +288,7 @@ describe('TestPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Încărcările elevilor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Oprește testul' })).toBeInTheDocument();
-    const empty = screen.getByRole('heading', { name: 'Nicio lucrare trimisă încă' }).parentElement!;
-    const show = within(empty).getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
+    const show = within(screen.getByRole('region', { name: 'În clasă' })).getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
     await userEvent.click(show);
     const dialog = await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
     expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
@@ -281,8 +311,9 @@ describe('TestPage', () => {
       tests: [detail],
     });
     renderAdmin(`${PAGE}#in-clasa`, api);
-    const empty = (await screen.findByRole('heading', { name: 'Nicio lucrare trimisă încă' })).parentElement!;
-    await userEvent.click(within(empty).getByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
+    await screen.findByRole('heading', { name: 'Nicio lucrare trimisă încă' });
+    const show = screen.getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
+    await userEvent.click(show);
     expect(await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
     detail.uploads[1] = fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 });
     await act(async () => {
@@ -291,6 +322,26 @@ describe('TestPage', () => {
     expect(await screen.findByRole('table', { name: 'Încărcările elevilor' })).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Închide' }));
+    expect(show).toHaveFocus();
+    vi.useRealTimers();
+  });
+
+  it('closes the QR code on the whole screen and gives the focus to the panel when the uploads close meanwhile', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, studentCount: 3 }, notSent());
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [detail],
+    });
+    renderAdmin(`${PAGE}#in-clasa`, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
+    await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
+    detail.test.status = 'evaluating';
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Codul QR pentru elevi' })).not.toBeInTheDocument());
     expect(screen.getByRole('heading', { level: 2, name: 'În clasă' })).toHaveFocus();
     vi.useRealTimers();
   });
@@ -617,36 +668,57 @@ describe('TestPage', () => {
     expect(api.reopenTest).toHaveBeenCalledWith('6E2-26T1');
   });
 
+  it('holds the actions of the test in "Acțiuni" at the top of the page, each with what it does', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null }, print: { status: 'ready', fromWord: false } }));
+    const menu = await openActions();
+    const items = within(menu).getAllByRole('menuitem');
+    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual(['Redenumește testul', 'Alege materia', 'Arhivează testul', 'Șterge testul']);
+    expect(within(menu).getByRole('menuitem', { name: 'Redenumește testul' })).toHaveAccessibleDescription('Schimbi titlul testului.');
+    expect(within(menu).getByRole('menuitem', { name: 'Alege materia' })).toHaveAccessibleDescription(
+      'Altfel, materia se stabilește la corectare, din test.',
+    );
+    expect(within(menu).getByRole('menuitem', { name: 'Arhivează testul' })).toHaveAccessibleDescription(
+      'Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.',
+    );
+    expect(within(menu).getByRole('menuitem', { name: 'Șterge testul' })).toHaveAccessibleDescription(
+      'Se șterg și toate lucrările încărcate de elevi. Codurile QR de pe testele tipărite nu mai funcționează.',
+    );
+    expect(within(sheet()).queryByRole('button')).not.toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Acțiuni' })).toHaveFocus();
+  });
+
   it('archives a finished test and offers to take it out of the archive', async () => {
     const api = apiWith({ status: 'done' });
     renderAdmin(PAGE, api);
-    expect(await screen.findByText('Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.')).toBeInTheDocument();
+    await screen.findByRole('region', { name: 'Fișa testului' });
     expect(screen.queryByText('Arhivat')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     // Nothing published: no question.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.setTestArchived).toHaveBeenCalledWith('6E2-26T1', true);
-    expect(await within(sheet()).findByText('Arhivat')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Arhivează testul' })).not.toBeInTheDocument();
+    expect(await within(sheet()).findByText('Arhivat')).toHaveClass('tag');
+    expect(await actionNames()).toEqual(['Redenumește testul', 'Alege materia', 'Scoate din arhivă', 'Șterge testul']);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Scoate din arhivă' }));
+    await chooseAction('Scoate din arhivă');
     expect(api.setTestArchived).toHaveBeenLastCalledWith('6E2-26T1', false);
-    expect(await screen.findByRole('button', { name: 'Arhivează testul' })).toBeInTheDocument();
-    expect(screen.queryByText('Arhivat')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Arhivat')).not.toBeInTheDocument());
+    expect(await actionNames()).toContain('Arhivează testul');
   });
 
   it('asks before an archive that closes open results, and changes nothing on "Renunță"', async () => {
     const api = apiWith({ status: 'done', resultsOpen: true });
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     const dialog = screen.getByRole('dialog', { name: 'Arhivezi testul?' });
     expect(within(dialog).getByText('Elevii nu își vor mai putea vedea rezultatele. Le poți publica din nou oricând.')).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Renunță' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.setTestArchived).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Arhivează testul' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Acțiuni' })).toHaveFocus();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Arhivezi testul?' })).getByRole('button', { name: 'Arhivează' }));
     expect(api.setTestArchived).toHaveBeenCalledWith('6E2-26T1', true);
     expect(await within(sheet()).findByText('Arhivat')).toBeInTheDocument();
@@ -655,16 +727,14 @@ describe('TestPage', () => {
 
   it('asks also when the results are published for some students only', async () => {
     renderAdmin(PAGE, apiWith({ status: 'done', publishedCount: 1 }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     expect(screen.getByRole('dialog', { name: 'Arhivezi testul?' })).toBeInTheDocument();
   });
 
   it('offers no archive while the test is not finished', async () => {
     for (const status of ['draft', 'open', 'evaluating'] as const) {
       const view = renderAdmin(PAGE, apiWith({ status }));
-      expect(await screen.findByRole('button', { name: 'Șterge testul' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Arhivează testul' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Scoate din arhivă' })).not.toBeInTheDocument();
+      expect(await actionNames()).toEqual(['Redenumește testul', 'Alege materia', 'Șterge testul']);
       view.unmount();
     }
   });
@@ -673,37 +743,62 @@ describe('TestPage', () => {
     const api = apiWith({ status: 'done' });
     vi.mocked(api.setTestArchived).mockRejectedValueOnce(new ApiError(409, 'not_done', 'Poți arhiva un test după ce s-a terminat corectarea.'));
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     expect(await screen.findByText('Poți arhiva un test după ce s-a terminat corectarea.')).toBeInTheDocument();
   });
 
-  it('renames the test', async () => {
+  it('renames the test in a dialog', async () => {
     const api = apiWith();
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Redenumește testul' }));
-    const input = within(sheet()).getByLabelText('Titlu nou');
+    await chooseAction('Redenumește testul');
+    const dialog = screen.getByRole('dialog', { name: 'Redenumește testul' });
+    const input = within(dialog).getByLabelText('Titlu nou');
+    expect(input).toHaveValue('Fracții');
+    expect(input).toHaveFocus();
     await userEvent.clear(input);
     await userEvent.type(input, 'Teză');
-    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvează' }));
     expect(api.renameTest).toHaveBeenCalledWith('6E2-26T1', 'Teză');
     expect(await screen.findByRole('heading', { level: 1, name: 'Teză' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Redenumește testul' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Acțiuni' })).toHaveFocus();
+  });
+
+  it('keeps the title when the rename dialog is closed', async () => {
+    const api = apiWith();
+    renderAdmin(PAGE, api);
+    await chooseAction('Redenumește testul');
+    await userEvent.type(screen.getByLabelText('Titlu nou'), ' nou');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.renameTest).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { level: 1, name: 'Fracții' })).toBeInTheDocument();
   });
 
   it('deletes the test after the teacher confirms and goes to the test list', async () => {
     const api = apiWith();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(PAGE, api, <LocationProbe />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Șterge testul' }));
+    await chooseAction('Șterge testul');
     expect(api.deleteTest).toHaveBeenCalledWith('6E2-26T1');
     await expectLocation(/^\/$/);
+  });
+
+  it('says why the delete was refused', async () => {
+    const api = apiWith();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(api.deleteTest).mockRejectedValueOnce(new ApiError(503, 'unavailable', 'Serverul nu răspunde. Încearcă din nou.'));
+    renderAdmin(PAGE, api);
+    await chooseAction('Șterge testul');
+    expect(await screen.findByText('Serverul nu răspunde. Încearcă din nou.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Fracții' })).toBeInTheDocument();
   });
 
   it('warns before deleting a test whose QR code may be printed already', async () => {
     const api = apiWith({ files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null }, print: { status: 'ready', fromWord: false } });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Șterge testul' }));
+    await chooseAction('Șterge testul');
     expect(confirm).toHaveBeenCalledWith(
       'Ștergi testul 6E2-26T1? Se șterg și toate lucrările încărcate. Codurile QR de pe testele tipărite nu vor mai funcționa.',
     );
@@ -741,10 +836,12 @@ describe('TestPage', () => {
     expect(screen.queryByRole('button', { name: 'Creează linkul pentru mai multe încărcări' })).not.toBeInTheDocument();
   });
 
-  it('shows the facts and files of the test in Fișa testului', async () => {
+  it('shows in Fișa testului the state, who sent a paper, the average in its grade colour, and the facts', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+      fakeUpload({ studentId: 13, studentName: 'Ene Ana' }),
     ];
     const test = fakeTest(
       {
@@ -752,35 +849,81 @@ describe('TestPage', () => {
         startedAt: '2026-10-06T07:15:00.000Z',
         files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: { name: 'Barem.pdf', type: PDF_TYPE } },
         print: { status: 'ready', fromWord: false },
+        subject: { value: 'fizica', name: '', by: 'robot' },
       },
       rows,
     );
     renderAdmin(PAGE, createFakeApi({ classes: [], students: {}, tests: [test] }));
     const card = await screen.findByRole('region', { name: 'Fișa testului' });
-    const fact = (name: string) => within(card).getByText(name, { selector: 'dt' }).nextElementSibling;
-    expect(fact('Clasa')).toHaveTextContent('Clasa 6E2 · 2 elevi');
-    expect(fact('Codul')).toHaveTextContent('6E2-26T1');
-    expect(fact('Starea')).toHaveTextContent('Corectat');
-    expect(fact('Început')).toHaveTextContent('6 oct. 2026, 10:15');
-    expect(fact('Au trimis')).toHaveTextContent('2 din 2');
-    expect(fact('Baremul')).toHaveTextContent('activ');
+    expect(within(card).getByText('Corectat')).toHaveClass('status', 'status-done');
+    expect(fact('Au trimis')).toHaveTextContent('2 din 4');
+    expect(fact('Au trimis')!.querySelector('.sheet-bar > span')).toHaveStyle({ width: '50%' });
     expect(fact('Media testului')).toHaveTextContent('8,5');
-    expect(within(card).getByRole('link', { name: 'Testul' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/test');
-    expect(within(card).getByRole('link', { name: 'Baremul' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/files/barem');
-    expect(within(card).getByRole('link', { name: 'Testul cu cod QR' })).toHaveAttribute('download');
+    expect(fact('Media testului')).toHaveClass('points-4');
+    expect(fact('Clasa')).toHaveTextContent('Clasa 6E2 · 4 elevi');
+    expect(fact('Codul')).toHaveTextContent('6E2-26T1');
+    expect(fact('Materia')).toHaveTextContent('Fizică');
+    expect(fact('Început')).toHaveTextContent('6 oct. 2026, 10:15');
+    expect(within(card).getAllByText(/./, { selector: 'dt' }).map((term) => term.textContent)).toEqual([
+      'Au trimis',
+      'Media testului',
+      'Clasa',
+      'Codul',
+      'Materia',
+      'Început',
+    ]);
+    expect(within(card).queryByRole('link')).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(card).queryByText('Arhivat')).not.toBeInTheDocument();
   });
 
-  it('says in Fișa testului what a draft does not have yet', async () => {
+  it('shows in Fișa testului the students and the barem of a draft, and no start yet', async () => {
     renderAdmin(PAGE, apiWith());
     const card = await screen.findByRole('region', { name: 'Fișa testului' });
-    const fact = (name: string) => within(card).getByText(name, { selector: 'dt' }).nextElementSibling;
-    expect(fact('Început')).toHaveTextContent('neînceput');
+    expect(within(card).getByText('Ciornă')).toBeInTheDocument();
+    expect(fact('Elevi')).toHaveTextContent('3');
     expect(fact('Baremul')).toHaveTextContent('lipsește');
     expect(within(card).queryByText('Au trimis')).not.toBeInTheDocument();
-    expect(within(card).queryByText('Media testului')).not.toBeInTheDocument();
-    expect(within(card).getAllByText('lipsește')).toHaveLength(3);
-    expect(within(card).queryByRole('link', { name: 'Testul cu cod QR' })).not.toBeInTheDocument();
+    expect(within(card).queryByText('Început')).not.toBeInTheDocument();
+    expect(fact('Materia')).toHaveTextContent('Se stabilește la corectare');
     expect(screen.getByText(/3 elevi · ciornă/)).toBeInTheDocument();
+  });
+
+  it('shows in Fișa testului who sent a paper and who is sending one now, while the test is open', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 3 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan', submissionId: 7, status: 'uploading', fileCount: 0 }),
+      fakeUpload({ studentId: 13, studentName: 'Ene Ana' }),
+    ];
+    const test = fakeTest({ status: 'open', startedAt: '2026-10-06T07:15:00.000Z' }, rows);
+    renderAdmin(PAGE, createFakeApi({ classes: [], students: {}, tests: [test] }));
+    await screen.findByRole('region', { name: 'Fișa testului' });
+    // Pop Ion sent, Stan Eva sends a file now; Marin Dan started with no file yet.
+    expect(fact('Au trimis')).toHaveTextContent('1 din 4');
+    expect(fact('Încarcă acum')).toHaveTextContent('1');
+    expect(within(sheet()).queryByText('Media testului')).not.toBeInTheDocument();
+  });
+
+  it('counts the graded papers in Fișa testului until the test has an average', async () => {
+    // The fake API makes the average from the graded papers: none is graded yet.
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'grading', fileCount: 2 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1 }),
+    ];
+    const test = fakeTest({ status: 'evaluating', startedAt: '2026-10-06T07:15:00.000Z' }, rows);
+    renderAdmin(PAGE, createFakeApi({ classes: [], students: {}, tests: [test] }));
+    await screen.findByRole('region', { name: 'Fișa testului' });
+    expect(fact('Corectate')).toHaveTextContent('0 din 2');
+    expect(within(sheet()).queryByText('Media testului')).not.toBeInTheDocument();
+  });
+
+  it('shows no part of a bar when no student is in the class', async () => {
+    const test = fakeTest({ status: 'open', startedAt: '2026-10-06T07:15:00.000Z' }, []);
+    renderAdmin(PAGE, createFakeApi({ classes: [], students: {}, tests: [test] }));
+    await screen.findByRole('region', { name: 'Fișa testului' });
+    expect(fact('Au trimis')).toHaveTextContent('0 din 0');
+    expect(fact('Au trimis')!.querySelector('.sheet-bar > span')).toHaveStyle({ width: '0%' });
   });
 });
 
@@ -1775,13 +1918,15 @@ describe('TestPage evaluation', () => {
 });
 
 describe('TestPage subject', () => {
-  const subjects = () => within(sheet()).getByRole('group', { name: 'Materia testului' });
+  const dialog = () => screen.getByRole('dialog');
+  const subjects = () => within(dialog()).getByRole('group', { name: 'Materia testului' });
 
-  it('shows in Fișa testului that the robot finds the subject, and the teacher can choose it', async () => {
+  it('shows in Fișa testului that the robot finds the subject, and the teacher can choose it in "Acțiuni"', async () => {
     const api = apiWith();
     renderAdmin(PAGE, api);
     expect(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByText('Se stabilește la corectare')).toBeInTheDocument();
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Alege materia' }));
+    await chooseAction('Alege materia');
+    expect(dialog()).toHaveAccessibleName('Alege materia');
     expect(within(subjects()).getAllByRole('radio').map((radio) => radio.closest('label')!.textContent)).toEqual([
       'Matematică',
       'Fizică',
@@ -1791,14 +1936,15 @@ describe('TestPage subject', () => {
       'Limba română',
       'Limba engleză',
     ]);
-    expect(within(sheet()).getByRole('button', { name: 'Salvează' })).toBeDisabled();
+    expect(within(dialog()).getByRole('button', { name: 'Salvează' })).toBeDisabled();
     // A draft has no exercise list: nothing is graded again.
     await userEvent.click(within(subjects()).getByRole('radio', { name: 'Fizică' }));
-    expect(within(sheet()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
+    expect(within(dialog()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Salvează' }));
     expect(api.setSubject).toHaveBeenCalledWith('6E2-26T1', 'fizica');
     expect(await within(sheet()).findByText('Fizică')).toBeInTheDocument();
-    expect(within(sheet()).getByRole('button', { name: 'Schimbă materia' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(await actionNames()).toContain('Schimbă materia');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
@@ -1809,12 +1955,16 @@ describe('TestPage subject', () => {
       subject: { value: 'matematica', name: '', by: 'robot' },
     });
     renderAdmin(PAGE, api);
-    await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
+    const menu = await openActions();
+    expect(within(menu).getByRole('menuitem', { name: 'Schimbă materia' })).toHaveAccessibleDescription(
+      'Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.',
+    );
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Schimbă materia' }));
     expect(within(subjects()).getByRole('radio', { name: 'Matematică' })).toBeChecked();
-    expect(within(sheet()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
+    expect(within(dialog()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
     await userEvent.click(within(subjects()).getByRole('radio', { name: 'Fizică' }));
-    expect(within(sheet()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
+    expect(within(dialog()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Salvează' }));
     expect(await screen.findByRole('status')).toHaveTextContent(robotStartMessage('next_check'));
     expect(await within(sheet()).findByText('Fizică')).toBeInTheDocument();
   });
@@ -1822,28 +1972,37 @@ describe('TestPage subject', () => {
   it('says that a reopened test is graded again with a new subject at its next start', async () => {
     const api = apiWith({ status: 'open', exerciseList: { status: 'ready', message: null }, subject: { value: 'matematica', name: '', by: 'robot' } });
     renderAdmin(PAGE, api);
-    await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
+    await chooseAction('Schimbă materia');
     await userEvent.click(within(subjects()).getByRole('radio', { name: 'Fizică' }));
-    expect(within(sheet()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
+    expect(within(dialog()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
   });
 
-  it('offers no change of subject while the robot grades the test', async () => {
+  it('offers no change of subject while the robot grades the test, and says when it can change', async () => {
     const api = apiWith({ status: 'evaluating', exerciseList: { status: 'ready', message: null }, subject: { value: 'matematica', name: '', by: 'robot' } });
     renderAdmin(PAGE, api);
     expect(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByText('Matematică')).toBeInTheDocument();
-    expect(within(sheet()).queryByRole('button', { name: 'Schimbă materia' })).not.toBeInTheDocument();
-    expect(within(sheet()).getByText('Poți schimba materia după ce se termină corectarea.')).toBeInTheDocument();
+    const item = within(await openActions()).getByRole('menuitem', { name: 'Schimbă materia' });
+    expect(item).toBeDisabled();
+    expect(item).toHaveAccessibleDescription('Poți schimba materia după ce se termină corectarea.');
+  });
+
+  it('says what a new subject does before the exercise list exists', async () => {
+    renderAdmin(PAGE, apiWith({ subject: { value: 'matematica', name: '', by: 'teacher' } }));
+    expect(within(await openActions()).getByRole('menuitem', { name: 'Schimbă materia' })).toHaveAccessibleDescription(
+      'Robotul corectează testul după materia aleasă.',
+    );
   });
 
   it('keeps the form open with the reason when the subject cannot change now', async () => {
     const api = apiWith({ subject: { value: 'matematica', name: '', by: 'teacher' } });
     api.setSubject.mockRejectedValueOnce(new ApiError(409, 'barem_generating', 'Baremul se generează acum. Poți schimba materia după ce este gata.'));
     renderAdmin(PAGE, api);
-    await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
+    await chooseAction('Schimbă materia');
     await userEvent.click(within(subjects()).getByRole('radio', { name: 'Chimie' }));
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
-    expect(await within(sheet()).findByText('Baremul se generează acum. Poți schimba materia după ce este gata.')).toBeInTheDocument();
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Renunță' }));
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Salvează' }));
+    expect(await within(dialog()).findByText('Baremul se generează acum. Poți schimba materia după ce este gata.')).toBeInTheDocument();
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Renunță' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(within(sheet()).getByText('Matematică')).toBeInTheDocument();
   });
 

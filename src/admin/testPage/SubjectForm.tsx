@@ -16,13 +16,14 @@ export function subjectLine(test: Pick<TestInfo, 'subject'>): string {
 // A new subject after the exercise list exists makes the list again and
 // grades the graded papers again (the API does it; spec: any subject). A
 // reopened test grades them at its next start.
-function remakes(test: TestInfo): boolean {
+export function remakes(test: TestInfo): boolean {
   const listMade = test.exerciseList.status !== 'none' || test.ces.exerciseList.status !== 'none';
   return (test.status === 'open' || test.status === 'evaluating' || test.status === 'done') && listMade;
 }
 
 // "Schimbă" (spec: any subject, "The teacher can fix it"): the teacher picks
-// one of the subjects the robot grades. It opens in place of its button.
+// one of the subjects the robot grades. It opens in place of its button, or in
+// a dialog from the test's "Acțiuni".
 export function SubjectForm({
   test,
   onDone,
@@ -88,7 +89,7 @@ export function SubjectForm({
 
 // The robot reads the test now (in evaluation, its list not waiting for the
 // teacher): the API refuses a change of subject (spec: any subject).
-function robotReads(test: TestInfo): boolean {
+export function robotReads(test: TestInfo): boolean {
   return test.status === 'evaluating' && test.exerciseList.status !== 'problem' && test.exerciseList.status !== 'failed';
 }
 

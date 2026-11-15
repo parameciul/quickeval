@@ -2034,13 +2034,55 @@ table.tests .row-actions {
 /* The test page (redesign spec §6): the six stages and Fișa testului on the
    left, the panel of the chosen stage on the right. On a phone: the stages,
    the panel, then Fișa testului. */
+/* The head: the title and its line on the left, "Acțiuni" on the right
+   (spec 2026-11-15 §1). On a phone the menu hangs from the whole head. */
 .test-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
   margin-bottom: 1rem;
+}
+
+.test-title {
+  min-width: 0;
 }
 
 .test-head h1 {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.test-menu {
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+}
+
+.test-menu .paper-actions-menu {
+  width: 21rem;
+}
+
+@media (max-width: 40rem) {
+  .test-head {
+    position: relative;
+  }
+
+  .test-menu {
+    justify-items: start;
+  }
+
+  .test-menu .paper-actions {
+    position: static;
+  }
+
+  .test-menu .class-menu.paper-actions-menu {
+    right: 0;
+    left: 0;
+    width: auto;
+    max-width: none;
+  }
 }
 
 .test-sub {
@@ -2657,16 +2699,86 @@ table.tests .row-actions {
 
 .test-sheet h2 {
   margin: 0;
-  padding: 1rem 1.25rem 0.25rem;
   font-size: 1rem;
 }
 
+/* The head: the name, then the state chip (and "Arhivat") on the right. */
+.sheet-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem 0.5rem;
+}
+
+.sheet-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* Two numbers in grey boxes (spec 2026-11-15 §2): the label, the value in
+   500 weight, its whole muted ("din 23"), and a bar under "Au trimis". */
+.sheet-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.25rem 1.25rem 0.75rem;
+}
+
+.sheet-tile {
+  display: grid;
+  align-content: start;
+  gap: 0.15rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.sheet-tile dt {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.sheet-tile dd {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.sheet-of {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.sheet-bar {
+  display: block;
+  height: 4px;
+  margin-top: 0.35rem;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.sheet-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+}
+
+/* The plain facts, with no bold, under a line. */
 .sheet-facts {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.5rem 1rem;
   margin: 0;
-  padding: 0.5rem 1.25rem 1rem;
+  padding: 0.75rem 1.25rem 1rem;
+  border-top: 1px solid var(--line);
 }
 
 .sheet-facts dt {
@@ -2675,65 +2787,22 @@ table.tests .row-actions {
 
 .sheet-facts dd {
   margin: 0;
-  font-weight: 600;
   text-align: right;
   overflow-wrap: anywhere;
 }
 
-.sheet-facts dd .tag {
-  margin-left: 0.4rem;
-}
-
-.sheet-part {
+/* The students' link in În clasă (spec 2026-11-15 §4). */
+.class-link {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid var(--line);
 }
 
-.sheet-part > * {
+.class-link > p {
   margin: 0;
 }
 
-.sheet-part h3 {
-  font-size: 0.875rem;
-}
-
-.sheet-files {
-  display: grid;
-  gap: 0.5rem;
-  padding: 0;
-  list-style: none;
-}
-
-.sheet-files li {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0 0.75rem;
-}
-
-.sheet-files .hint {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.test-sheet .upload-link label {
-  font-weight: 700;
-}
-
-.test-sheet .qr-row .qr {
-  width: 120px;
-  height: 120px;
-}
-
-.test-sheet .qr-row .qr-full {
-  margin-left: 0;
-}
-
-.sheet-actions {
-  justify-items: start;
+.class-link .upload-link label {
+  font-weight: 600;
 }
 
 .rename-form {
@@ -2744,20 +2813,6 @@ table.tests .row-actions {
 
 .rename-form input {
   width: 100%;
-}
-
-.sheet-subject {
-  display: grid;
-  gap: 0.375rem;
-  justify-items: end;
-}
-
-/* In Fișa testului the facts are right-aligned and break anywhere: the open
-   form takes the whole column instead, so no subject name breaks inside a word. */
-.sheet-subject .subject-form {
-  justify-self: stretch;
-  text-align: left;
-  overflow-wrap: normal;
 }
 
 .subject-choices {
@@ -8598,17 +8653,116 @@ td.student-paper a:hover {
 }
 
 /* The test with the QR code, in the panel Tipărire of the test page. */
-.print-test {
+/* Tipărire (spec 2026-11-15 §3): a card per variant, a drawing of a page with
+   its QR code on the left once the PDF is ready, then the words and the two
+   buttons, "Tipărește" and "Descarcă PDF". */
+.print-card {
   display: grid;
-  gap: 0.4rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
 }
 
-.print-test > * {
+.print-card.is-ready {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.print-body {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.print-body > * {
   margin: 0;
 }
 
+.print-body h3 {
+  font-size: 1rem;
+}
+
+.print-body .card-actions {
+  margin: 0.5rem 0 0.25rem;
+}
+
+.button-icon {
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 0.4rem;
+  vertical-align: -0.15em;
+}
+
+/* The page drawing: white like paper in both themes. Its colours (#fff, the
+   greys of the lines and #222 of the QR code) are fixed on purpose, not
+   tokens: a dark theme must not darken the paper. Keep them out of any change
+   that turns colours into tokens. */
+.print-page {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  width: 6.75rem;
+  aspect-ratio: 210 / 297;
+  box-sizing: border-box;
+  padding: 0.75rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: #fff;
+}
+
+.print-page-title,
+.print-page-line {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: #d5dbe4;
+}
+
+.print-page-title {
+  width: 60%;
+  height: 5px;
+  margin-bottom: 4px;
+  background: #9aa6b8;
+}
+
+.print-page-line.is-short {
+  width: 45%;
+}
+
+.print-page-qr {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  fill: #222;
+}
+
+/* The hidden frame that prints the PDF (`printPdf.ts`). */
+.print-frame {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border: 0;
+}
+
+@media (max-width: 30rem) {
+  .print-card.is-ready {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .print-page {
+    display: none;
+  }
+}
+
 /* A button alone on its line keeps its own width. */
-.print-test > button,
 .file-list > li > button,
 .file-list > li > a.button-quiet {
   justify-self: start;

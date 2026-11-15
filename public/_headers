@@ -2,11 +2,14 @@
 # /barem/, /despre/, /preturi/) are public and may be indexed.
 # The teacher app and the student app are private: they carry noindex. The API
 # sets its own X-Robots-Tag (server/app.ts), because _headers does not reach Functions.
+# The pages may show the site's own files in a frame (frame-src 'self'): the PDF
+# pages of a paper, and the hidden frame that prints the test with the QR code.
+# The API's files allow only that (X-Frame-Options: SAMEORIGIN, server/uploads.ts).
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://stats.mqgrader.ro; frame-src https://challenges.cloudflare.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://stats.mqgrader.ro; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://stats.mqgrader.ro; frame-src 'self' https://challenges.cloudflare.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://stats.mqgrader.ro; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
 /teacher
   X-Robots-Tag: noindex, nofollow
