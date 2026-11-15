@@ -8596,7 +8596,10 @@ td.student-paper a:hover {
   vertical-align: -0.15em;
 }
 
-/* The page drawing: white like paper in both themes. */
+/* The page drawing: white like paper in both themes. Its colours (#fff, the
+   greys of the lines and #222 of the QR code) are fixed on purpose, not
+   tokens: a dark theme must not darken the paper. Keep them out of any change
+   that turns colours into tokens. */
 .print-page {
   position: relative;
   display: grid;

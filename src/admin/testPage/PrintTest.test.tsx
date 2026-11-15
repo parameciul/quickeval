@@ -5,9 +5,9 @@ import type { TestInfo } from '../../../shared/api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import { createFakeApi, FAKE_TOKEN, fakeTest, fakeUpload, noCesVariant } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
-import { printPdf, type PrintOutcome } from './printPdf.ts';
+import { clearPrint, printPdf, type PrintOutcome } from './printPdf.ts';
 
-vi.mock('./printPdf.ts', () => ({ printPdf: vi.fn() }));
+vi.mock('./printPdf.ts', () => ({ printPdf: vi.fn(), clearPrint: vi.fn() }));
 
 const TEST_FILE = { name: 'Test.pdf', type: PDF_TYPE };
 const students = (count: number) => Array.from({ length: count }, (_, index) => fakeUpload({ studentId: index + 1, studentName: `Elev ${index + 1}` }));
@@ -24,6 +24,7 @@ const card = (name = 'Testul cu cod QR') => screen.findByRole('region', { name }
 
 afterEach(() => {
   vi.mocked(printPdf).mockReset();
+  vi.mocked(clearPrint).mockReset();
 });
 
 describe('PrintTest', () => {
@@ -76,6 +77,24 @@ describe('PrintTest', () => {
     vi.mocked(printPdf).mockResolvedValue('tab');
     await userEvent.click(screen.getByRole('button', { name: 'Tipărește' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('goes back to Tipărește, with nothing to say, when a newer print takes the place of this one', async () => {
+    vi.mocked(printPdf).mockResolvedValue('cancelled');
+    renderAdmin('/teste/6E2-26T1#tiparire', openApi({ print: { status: 'ready', fromWord: false } }));
+    await userEvent.click(within(await card()).getByRole('button', { name: 'Tipărește' }));
+    expect(await screen.findByRole('button', { name: 'Tipărește' })).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('clears the print frame when the teacher leaves Tipărire', async () => {
+    renderAdmin('/teste/6E2-26T1#tiparire', openApi({ print: { status: 'ready', fromWord: false } }));
+    await card();
+    expect(clearPrint).not.toHaveBeenCalled();
+    const stages = screen.getByRole('navigation', { name: 'Etapele testului' });
+    await userEvent.click(within(stages).getByRole('link', { name: /^În clasă / }));
+    await screen.findByRole('region', { name: 'În clasă' });
+    expect(clearPrint).toHaveBeenCalledOnce();
   });
 
   it('warns about a PDF made from Word', async () => {

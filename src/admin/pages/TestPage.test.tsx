@@ -326,6 +326,26 @@ describe('TestPage', () => {
     vi.useRealTimers();
   });
 
+  it('closes the QR code on the whole screen and gives the focus to the panel when the uploads close meanwhile', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, studentCount: 3 }, notSent());
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [detail],
+    });
+    renderAdmin(`${PAGE}#in-clasa`, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
+    await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
+    detail.test.status = 'evaluating';
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Codul QR pentru elevi' })).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { level: 2, name: 'În clasă' })).toHaveFocus();
+    vi.useRealTimers();
+  });
+
   it('lists a student who started an upload with no file yet, so the teacher can reset it', async () => {
     const rows = [notSent()[0]!, fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 0 }), notSent()[2]!];
     renderAdmin(

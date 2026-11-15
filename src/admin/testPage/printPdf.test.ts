@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import headers from '../../../public/_headers?raw';
-import { PRINT_LOAD_TIMEOUT, printPdf, printsInFrame } from './printPdf.ts';
+import { clearPrint, PRINT_LOAD_TIMEOUT, printPdf, printsInFrame } from './printPdf.ts';
 
 const CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const EDGE = `${CHROME} Edg/131.0.0.0`;
@@ -160,6 +160,37 @@ describe('printPdf', () => {
     open.mockReturnValue(null);
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(SAFARI);
     await expect(printPdf(URL)).resolves.toBe('failed');
+  });
+
+  it('gives up a print still loading when a new print takes its place', async () => {
+    vi.useFakeTimers();
+    const first = printPdf(URL);
+    const second = printPdf('/api/admin/tests/6E2-26T1/ces/print');
+    await expect(first).resolves.toBe('cancelled');
+    expect(document.querySelectorAll('iframe')).toHaveLength(1);
+    // The first print's timer is gone: no tab opens for it later.
+    vi.advanceTimersByTime(PRINT_LOAD_TIMEOUT - 1);
+    expect(open).not.toHaveBeenCalled();
+    loadFrame({ contentType: 'application/pdf' });
+    await expect(second).resolves.toBe('printed');
+  });
+
+  it('removes the frame and gives up a print still loading when the page clears it', async () => {
+    vi.useFakeTimers();
+    const loading = printPdf(URL);
+    clearPrint();
+    await expect(loading).resolves.toBe('cancelled');
+    expect(document.querySelector('iframe')).toBeNull();
+    vi.advanceTimersByTime(PRINT_LOAD_TIMEOUT);
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('removes the frame of a finished print when the page clears it', async () => {
+    const done = printPdf(URL);
+    loadFrame({ contentType: 'application/pdf' });
+    await done;
+    clearPrint();
+    expect(document.querySelector('iframe')).toBeNull();
   });
 
   it('keeps one frame: a new print takes the place of the last one', async () => {

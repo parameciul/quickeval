@@ -17,6 +17,7 @@ import { MissingList } from '../MissingList.tsx';
 import { CesVariant, CesWaiting } from './CesVariant.tsx';
 import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
+import { clearPrint } from './printPdf.ts';
 import { PrintTest } from './PrintTest.tsx';
 import { RegradeAllButton } from './RegradeAllButton.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
@@ -138,6 +139,8 @@ function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) 
 }
 
 function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
+  // Leaving Tipărire removes the hidden frame of the last "Tipărește".
+  useEffect(() => clearPrint, []);
   // After the test was given, the PDFs made before stay here to print again.
   if (test.status !== 'draft' && test.status !== 'open') {
     return (
@@ -177,6 +180,14 @@ function ClassPanel(props: PanelProps) {
   const [fullScreen, setFullScreen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const token = (test.status === 'draft' || test.status === 'open') && test.uploadToken !== null ? test.uploadToken : null;
+  // The uploads closed while the QR code was on the whole screen (the teacher
+  // stopped them elsewhere, or a scheduled grading started): the code and its
+  // button go away, so the focus goes to the panel's heading.
+  useEffect(() => {
+    if (token !== null || !fullScreen) return;
+    setFullScreen(false);
+    document.querySelector<HTMLElement>('.stage-head h2')?.focus();
+  }, [token, fullScreen]);
   return (
     <>
       <TestActions {...props} />

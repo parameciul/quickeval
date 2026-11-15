@@ -2,7 +2,8 @@
 // print window, with no download. The API serves it `inline` and from the same
 // origin, so a hidden frame can load it and print it.
 
-export type PrintOutcome = 'printed' | 'tab' | 'failed';
+// 'cancelled': a newer print, or the page, gave this one up while it loaded.
+export type PrintOutcome = 'printed' | 'tab' | 'failed' | 'cancelled';
 
 // How long the frame may take to load the PDF before the PDF opens in a tab.
 export const PRINT_LOAD_TIMEOUT = 20_000;
@@ -22,6 +23,21 @@ export function printsInFrame(userAgent: string, maxTouchPoints: number): boolea
 // The frame of the last print. A new print takes its place: removing it right
 // after `print()` would close the print window in some browsers.
 let lastFrame: HTMLIFrameElement | null = null;
+// The print whose frame still loads: its timer, and how to end its promise.
+let loading: { timer: number; resolve: (outcome: PrintOutcome) => void } | null = null;
+
+// Gives up the print still loading and removes the last frame. A new print
+// does it first; the page does it when the teacher leaves Tipărire, so no
+// frame keeps a PDF open for the rest of the visit.
+export function clearPrint(): void {
+  if (loading) {
+    window.clearTimeout(loading.timer);
+    loading.resolve('cancelled');
+    loading = null;
+  }
+  lastFrame?.remove();
+  lastFrame = null;
+}
 
 // Prints the PDF at `url`: in a hidden frame where the browser can, else in a
 // new tab. A frame whose page is not a PDF (an error answer) prints nothing:
@@ -40,7 +56,7 @@ export function printPdf(url: string): Promise<PrintOutcome> {
   };
   if (!printsInFrame(navigator.userAgent, navigator.maxTouchPoints ?? 0)) return Promise.resolve(openTab());
 
-  lastFrame?.remove();
+  clearPrint();
   const frame = document.createElement('iframe');
   frame.className = 'print-frame';
   frame.setAttribute('aria-hidden', 'true');
@@ -49,13 +65,16 @@ export function printPdf(url: string): Promise<PrintOutcome> {
 
   return new Promise((resolve) => {
     const timer = window.setTimeout(() => {
+      loading = null;
       frame.remove();
       resolve(openTab());
     }, PRINT_LOAD_TIMEOUT);
+    loading = { timer, resolve };
     frame.addEventListener(
       'load',
       () => {
         window.clearTimeout(timer);
+        loading = null;
         let type: string | undefined;
         try {
           type = frame.contentDocument?.contentType;
