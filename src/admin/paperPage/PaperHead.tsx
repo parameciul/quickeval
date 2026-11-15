@@ -4,10 +4,10 @@ import { Link, useNavigate } from 'react-router';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { formatDateTime, robotStartMessage, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
+import { ActionsMenu, type MenuAction } from '../ActionsMenu.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { PdfActions } from '../pdf/PdfActions.tsx';
 import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentPdf.ts';
-import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
 import { ResultLink } from '../testPage/ResultLink.tsx';
 
@@ -63,7 +63,7 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
   // Recorectează names the grading the page shows.
   const gradedAt = submission.status === 'graded' ? (submission.evaluation?.gradedAt ?? null) : null;
 
-  const paperActions: PaperAction[] = [];
+  const paperActions: MenuAction[] = [];
   if (gradedAt !== null) {
     paperActions.push({
       label: 'Recorectează',
@@ -114,7 +114,7 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
               }}
             />
           )}
-          <PaperActionsMenu actions={paperActions} />
+          <ActionsMenu label="Alte acțiuni" menuId="paper-actions-menu" actions={paperActions} />
         </div>
       </header>
       {regrade.error && <ErrorMessage error={regrade.error} />}
@@ -139,58 +139,5 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
       {/* The news after Recorectează or Reîncearcă holds only until the result is back. */}
       {actions.notice !== null && (submission.status === 'submitted' || submission.status === 'grading') && <p role="status">{actions.notice}</p>}
     </>
-  );
-}
-
-type PaperAction = { label: string; hint: string; danger?: boolean; busy: boolean; onChoose: () => void };
-
-// "Alte acțiuni": the rare actions that undo the teacher's work (Recorectează,
-// Resetează), in a menu at the top of the page. Each item says what it
-// deletes before it is chosen; choosing it still asks for a confirmation.
-function PaperActionsMenu({ actions }: { actions: PaperAction[] }) {
-  const { open, toggle, box, button } = useSmallMenu<HTMLDivElement>();
-  const run = (action: PaperAction) => () => {
-    toggle();
-    button.current?.focus();
-    action.onChoose();
-  };
-  return (
-    <div className="paper-actions" ref={box}>
-      <button
-        ref={button}
-        type="button"
-        className="button-quiet button-small"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? 'paper-actions-menu' : undefined}
-        onClick={toggle}
-      >
-        Alte acțiuni
-        <svg className="paper-actions-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      {open && (
-        <div className="class-menu paper-actions-menu" id="paper-actions-menu" role="menu" aria-label="Alte acțiuni">
-          {actions.map((action, index) => (
-            <button
-              key={action.label}
-              type="button"
-              role="menuitem"
-              className={action.danger ? 'paper-action is-danger' : 'paper-action'}
-              aria-label={action.label}
-              aria-describedby={`paper-action-hint-${index}`}
-              disabled={action.busy}
-              onClick={run(action)}
-            >
-              <span className="paper-action-label">{action.label}</span>
-              <span className="paper-action-hint" id={`paper-action-hint-${index}`}>
-                {action.hint}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }

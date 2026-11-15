@@ -48,6 +48,26 @@ async function openStage(name: string) {
 
 const sheet = () => screen.getByRole('region', { name: 'Fișa testului' });
 
+// Opens "Acțiuni" at the top of the page.
+async function openActions() {
+  await userEvent.click(await screen.findByRole('button', { name: 'Acțiuni' }));
+  return screen.getByRole('menu', { name: 'Acțiuni' });
+}
+
+// Opens "Acțiuni" and picks one of its items.
+async function chooseAction(item: string) {
+  await userEvent.click(within(await openActions()).getByRole('menuitem', { name: item }));
+}
+
+// The names of the items of "Acțiuni", in order, then closes it.
+async function actionNames() {
+  const names = within(await openActions())
+    .getAllByRole('menuitem')
+    .map((item) => item.getAttribute('aria-label'));
+  await userEvent.keyboard('{Escape}');
+  return names;
+}
+
 // Opens a papers-table row's ⋯ and picks one of its items.
 async function chooseInRow(row: HTMLElement, student: string, item: string) {
   await userEvent.click(within(row).getByRole('button', { name: `Mai multe pentru ${student}` }));
@@ -617,36 +637,57 @@ describe('TestPage', () => {
     expect(api.reopenTest).toHaveBeenCalledWith('6E2-26T1');
   });
 
+  it('holds the actions of the test in "Acțiuni" at the top of the page, each with what it does', async () => {
+    renderAdmin(PAGE, apiWith({ status: 'done', files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null }, print: { status: 'ready', fromWord: false } }));
+    const menu = await openActions();
+    const items = within(menu).getAllByRole('menuitem');
+    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual(['Redenumește testul', 'Alege materia', 'Arhivează testul', 'Șterge testul']);
+    expect(within(menu).getByRole('menuitem', { name: 'Redenumește testul' })).toHaveAccessibleDescription('Schimbi titlul testului.');
+    expect(within(menu).getByRole('menuitem', { name: 'Alege materia' })).toHaveAccessibleDescription(
+      'Altfel, materia se stabilește la corectare, din test.',
+    );
+    expect(within(menu).getByRole('menuitem', { name: 'Arhivează testul' })).toHaveAccessibleDescription(
+      'Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.',
+    );
+    expect(within(menu).getByRole('menuitem', { name: 'Șterge testul' })).toHaveAccessibleDescription(
+      'Se șterg și toate lucrările încărcate de elevi. Codurile QR de pe testele tipărite nu mai funcționează.',
+    );
+    expect(within(sheet()).queryByRole('button')).not.toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Acțiuni' })).toHaveFocus();
+  });
+
   it('archives a finished test and offers to take it out of the archive', async () => {
     const api = apiWith({ status: 'done' });
     renderAdmin(PAGE, api);
-    expect(await screen.findByText('Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.')).toBeInTheDocument();
+    await screen.findByRole('region', { name: 'Fișa testului' });
     expect(screen.queryByText('Arhivat')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     // Nothing published: no question.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.setTestArchived).toHaveBeenCalledWith('6E2-26T1', true);
     expect(await within(sheet()).findByText('Arhivat')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Arhivează testul' })).not.toBeInTheDocument();
+    expect(await actionNames()).toEqual(['Redenumește testul', 'Alege materia', 'Scoate din arhivă', 'Șterge testul']);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Scoate din arhivă' }));
+    await chooseAction('Scoate din arhivă');
     expect(api.setTestArchived).toHaveBeenLastCalledWith('6E2-26T1', false);
-    expect(await screen.findByRole('button', { name: 'Arhivează testul' })).toBeInTheDocument();
-    expect(screen.queryByText('Arhivat')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Arhivat')).not.toBeInTheDocument());
+    expect(await actionNames()).toContain('Arhivează testul');
   });
 
   it('asks before an archive that closes open results, and changes nothing on "Renunță"', async () => {
     const api = apiWith({ status: 'done', resultsOpen: true });
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     const dialog = screen.getByRole('dialog', { name: 'Arhivezi testul?' });
     expect(within(dialog).getByText('Elevii nu își vor mai putea vedea rezultatele. Le poți publica din nou oricând.')).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Renunță' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.setTestArchived).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Arhivează testul' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Acțiuni' })).toHaveFocus();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Arhivezi testul?' })).getByRole('button', { name: 'Arhivează' }));
     expect(api.setTestArchived).toHaveBeenCalledWith('6E2-26T1', true);
     expect(await within(sheet()).findByText('Arhivat')).toBeInTheDocument();
@@ -655,16 +696,14 @@ describe('TestPage', () => {
 
   it('asks also when the results are published for some students only', async () => {
     renderAdmin(PAGE, apiWith({ status: 'done', publishedCount: 1 }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     expect(screen.getByRole('dialog', { name: 'Arhivezi testul?' })).toBeInTheDocument();
   });
 
   it('offers no archive while the test is not finished', async () => {
     for (const status of ['draft', 'open', 'evaluating'] as const) {
       const view = renderAdmin(PAGE, apiWith({ status }));
-      expect(await screen.findByRole('button', { name: 'Șterge testul' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Arhivează testul' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Scoate din arhivă' })).not.toBeInTheDocument();
+      expect(await actionNames()).toEqual(['Redenumește testul', 'Alege materia', 'Șterge testul']);
       view.unmount();
     }
   });
@@ -673,37 +712,62 @@ describe('TestPage', () => {
     const api = apiWith({ status: 'done' });
     vi.mocked(api.setTestArchived).mockRejectedValueOnce(new ApiError(409, 'not_done', 'Poți arhiva un test după ce s-a terminat corectarea.'));
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Arhivează testul' }));
+    await chooseAction('Arhivează testul');
     expect(await screen.findByText('Poți arhiva un test după ce s-a terminat corectarea.')).toBeInTheDocument();
   });
 
-  it('renames the test', async () => {
+  it('renames the test in a dialog', async () => {
     const api = apiWith();
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Redenumește testul' }));
-    const input = within(sheet()).getByLabelText('Titlu nou');
+    await chooseAction('Redenumește testul');
+    const dialog = screen.getByRole('dialog', { name: 'Redenumește testul' });
+    const input = within(dialog).getByLabelText('Titlu nou');
+    expect(input).toHaveValue('Fracții');
+    expect(input).toHaveFocus();
     await userEvent.clear(input);
     await userEvent.type(input, 'Teză');
-    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvează' }));
     expect(api.renameTest).toHaveBeenCalledWith('6E2-26T1', 'Teză');
     expect(await screen.findByRole('heading', { level: 1, name: 'Teză' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Redenumește testul' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Acțiuni' })).toHaveFocus();
+  });
+
+  it('keeps the title when the rename dialog is closed', async () => {
+    const api = apiWith();
+    renderAdmin(PAGE, api);
+    await chooseAction('Redenumește testul');
+    await userEvent.type(screen.getByLabelText('Titlu nou'), ' nou');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.renameTest).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { level: 1, name: 'Fracții' })).toBeInTheDocument();
   });
 
   it('deletes the test after the teacher confirms and goes to the test list', async () => {
     const api = apiWith();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(PAGE, api, <LocationProbe />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Șterge testul' }));
+    await chooseAction('Șterge testul');
     expect(api.deleteTest).toHaveBeenCalledWith('6E2-26T1');
     await expectLocation(/^\/$/);
+  });
+
+  it('says why the delete was refused', async () => {
+    const api = apiWith();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(api.deleteTest).mockRejectedValueOnce(new ApiError(503, 'unavailable', 'Serverul nu răspunde. Încearcă din nou.'));
+    renderAdmin(PAGE, api);
+    await chooseAction('Șterge testul');
+    expect(await screen.findByText('Serverul nu răspunde. Încearcă din nou.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Fracții' })).toBeInTheDocument();
   });
 
   it('warns before deleting a test whose QR code may be printed already', async () => {
     const api = apiWith({ files: { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: null }, print: { status: 'ready', fromWord: false } });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Șterge testul' }));
+    await chooseAction('Șterge testul');
     expect(confirm).toHaveBeenCalledWith(
       'Ștergi testul 6E2-26T1? Se șterg și toate lucrările încărcate. Codurile QR de pe testele tipărite nu vor mai funcționa.',
     );
@@ -1775,13 +1839,15 @@ describe('TestPage evaluation', () => {
 });
 
 describe('TestPage subject', () => {
-  const subjects = () => within(sheet()).getByRole('group', { name: 'Materia testului' });
+  const dialog = () => screen.getByRole('dialog');
+  const subjects = () => within(dialog()).getByRole('group', { name: 'Materia testului' });
 
-  it('shows in Fișa testului that the robot finds the subject, and the teacher can choose it', async () => {
+  it('shows in Fișa testului that the robot finds the subject, and the teacher can choose it in "Acțiuni"', async () => {
     const api = apiWith();
     renderAdmin(PAGE, api);
     expect(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByText('Se stabilește la corectare')).toBeInTheDocument();
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Alege materia' }));
+    await chooseAction('Alege materia');
+    expect(dialog()).toHaveAccessibleName('Alege materia');
     expect(within(subjects()).getAllByRole('radio').map((radio) => radio.closest('label')!.textContent)).toEqual([
       'Matematică',
       'Fizică',
@@ -1791,14 +1857,15 @@ describe('TestPage subject', () => {
       'Limba română',
       'Limba engleză',
     ]);
-    expect(within(sheet()).getByRole('button', { name: 'Salvează' })).toBeDisabled();
+    expect(within(dialog()).getByRole('button', { name: 'Salvează' })).toBeDisabled();
     // A draft has no exercise list: nothing is graded again.
     await userEvent.click(within(subjects()).getByRole('radio', { name: 'Fizică' }));
-    expect(within(sheet()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
+    expect(within(dialog()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Salvează' }));
     expect(api.setSubject).toHaveBeenCalledWith('6E2-26T1', 'fizica');
     expect(await within(sheet()).findByText('Fizică')).toBeInTheDocument();
-    expect(within(sheet()).getByRole('button', { name: 'Schimbă materia' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(await actionNames()).toContain('Schimbă materia');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
@@ -1809,12 +1876,16 @@ describe('TestPage subject', () => {
       subject: { value: 'matematica', name: '', by: 'robot' },
     });
     renderAdmin(PAGE, api);
-    await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
+    const menu = await openActions();
+    expect(within(menu).getByRole('menuitem', { name: 'Schimbă materia' })).toHaveAccessibleDescription(
+      'Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.',
+    );
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Schimbă materia' }));
     expect(within(subjects()).getByRole('radio', { name: 'Matematică' })).toBeChecked();
-    expect(within(sheet()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
+    expect(within(dialog()).queryByText(/se corectează din nou/)).not.toBeInTheDocument();
     await userEvent.click(within(subjects()).getByRole('radio', { name: 'Fizică' }));
-    expect(within(sheet()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
+    expect(within(dialog()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Salvează' }));
     expect(await screen.findByRole('status')).toHaveTextContent(robotStartMessage('next_check'));
     expect(await within(sheet()).findByText('Fizică')).toBeInTheDocument();
   });
@@ -1822,28 +1893,37 @@ describe('TestPage subject', () => {
   it('says that a reopened test is graded again with a new subject at its next start', async () => {
     const api = apiWith({ status: 'open', exerciseList: { status: 'ready', message: null }, subject: { value: 'matematica', name: '', by: 'robot' } });
     renderAdmin(PAGE, api);
-    await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
+    await chooseAction('Schimbă materia');
     await userEvent.click(within(subjects()).getByRole('radio', { name: 'Fizică' }));
-    expect(within(sheet()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
+    expect(within(dialog()).getByText('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')).toBeInTheDocument();
   });
 
-  it('offers no change of subject while the robot grades the test', async () => {
+  it('offers no change of subject while the robot grades the test, and says when it can change', async () => {
     const api = apiWith({ status: 'evaluating', exerciseList: { status: 'ready', message: null }, subject: { value: 'matematica', name: '', by: 'robot' } });
     renderAdmin(PAGE, api);
     expect(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByText('Matematică')).toBeInTheDocument();
-    expect(within(sheet()).queryByRole('button', { name: 'Schimbă materia' })).not.toBeInTheDocument();
-    expect(within(sheet()).getByText('Poți schimba materia după ce se termină corectarea.')).toBeInTheDocument();
+    const item = within(await openActions()).getByRole('menuitem', { name: 'Schimbă materia' });
+    expect(item).toBeDisabled();
+    expect(item).toHaveAccessibleDescription('Poți schimba materia după ce se termină corectarea.');
+  });
+
+  it('says what a new subject does before the exercise list exists', async () => {
+    renderAdmin(PAGE, apiWith({ subject: { value: 'matematica', name: '', by: 'teacher' } }));
+    expect(within(await openActions()).getByRole('menuitem', { name: 'Schimbă materia' })).toHaveAccessibleDescription(
+      'Robotul corectează testul după materia aleasă.',
+    );
   });
 
   it('keeps the form open with the reason when the subject cannot change now', async () => {
     const api = apiWith({ subject: { value: 'matematica', name: '', by: 'teacher' } });
     api.setSubject.mockRejectedValueOnce(new ApiError(409, 'barem_generating', 'Baremul se generează acum. Poți schimba materia după ce este gata.'));
     renderAdmin(PAGE, api);
-    await userEvent.click(await within(await screen.findByRole('region', { name: 'Fișa testului' })).findByRole('button', { name: 'Schimbă materia' }));
+    await chooseAction('Schimbă materia');
     await userEvent.click(within(subjects()).getByRole('radio', { name: 'Chimie' }));
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Salvează' }));
-    expect(await within(sheet()).findByText('Baremul se generează acum. Poți schimba materia după ce este gata.')).toBeInTheDocument();
-    await userEvent.click(within(sheet()).getByRole('button', { name: 'Renunță' }));
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Salvează' }));
+    expect(await within(dialog()).findByText('Baremul se generează acum. Poți schimba materia după ce este gata.')).toBeInTheDocument();
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Renunță' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(within(sheet()).getByText('Matematică')).toBeInTheDocument();
   });
 
