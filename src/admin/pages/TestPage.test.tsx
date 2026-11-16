@@ -1947,6 +1947,13 @@ describe('TestPage evaluation', () => {
     expect(screen.getAllByRole('link', { name: 'Deschide raportul' })).toHaveLength(1);
   });
 
+  it('has no bar to a next stage in Rezultate, the last stage', async () => {
+    renderAdmin(`${PAGE}#rezultate`, evaluationApi({ status: 'done' }, graded));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Etapa următoare' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Mergi la / })).not.toBeInTheDocument();
+  });
+
   it('has no report button before any grading', async () => {
     renderAdmin(`${PAGE}#rezultate`, evaluationApi({ status: 'evaluating' }, leftInGrading));
     expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toBeInTheDocument();

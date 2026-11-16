@@ -47,6 +47,18 @@ describe('StageBar', () => {
     expect(screen.getByRole('link', { name: 'Mergi la În clasă' })).toBeInTheDocument();
   });
 
+  it('says the stage on show waits on the teacher, with no tick, and stays quiet when the next stage does not wait', () => {
+    bar('Verificare', stages({ Verificare: { state: 'wait', note: '3 puncte nesigure' }, Rezultate: { state: 'later', note: '' } }));
+    const nav = screen.getByRole('navigation', { name: 'Etapa următoare' });
+    expect(nav).toHaveTextContent('Verificare · te așteaptă');
+    expect(nav.querySelector('.stage-bar-state')).not.toHaveClass('is-done');
+    expect(nav.querySelector('.stage-bar-mark svg')).toBeNull();
+    expect(nav.querySelector('.stage-bar-wait')).toBeNull();
+    const link = screen.getByRole('link', { name: 'Mergi la Rezultate' });
+    expect(link).toHaveClass('button-quiet', 'button-small');
+    expect(link).not.toHaveClass('button-wait');
+  });
+
   it('is not drawn after the last stage', () => {
     const { container } = bar('Rezultate', stages());
     expect(container).toBeEmptyDOMElement();

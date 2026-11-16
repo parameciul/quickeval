@@ -130,16 +130,20 @@ html {
   -webkit-text-size-adjust: 100%;
   scrollbar-gutter: stable;
   scroll-padding-top: 6rem;
-  scroll-padding-bottom: 3.5rem;
   overscroll-behavior-y: none;
 }
 
 /* The bottom room is for the sticky bar at the foot of the test page, so a
-   control that takes the focus at the window's bottom is not under it. On the
-   phone the bottom menu sits under that bar: the same room, plus the menu's
-   height (the shell's --bottom, which html does not see). */
+   control that takes the focus at the window's bottom is not under it; only a
+   page with that bar keeps it (the student pages and a Quick Try's page have
+   none). On the phone the bottom menu sits under that bar: the same room, plus
+   the menu's height (the shell's --bottom, which html does not see). */
+html:has(.stage-bar) {
+  scroll-padding-bottom: 3.5rem;
+}
+
 @media (max-width: 56.25rem) {
-  html {
+  html:has(.stage-bar) {
     scroll-padding-bottom: calc(3.5rem + 4rem + env(safe-area-inset-bottom, 0px));
   }
 }
@@ -2199,7 +2203,7 @@ table.tests .row-actions {
   position: absolute;
   top: 46px;
   bottom: -4px;
-  left: 27px;
+  left: 25px;
   width: 2px;
   background: var(--active);
 }
@@ -2303,7 +2307,8 @@ table.tests .row-actions {
   font-weight: 600;
 }
 
-/* Scrolled to after "Următoarea etapă": it stays clear of the sticky top bar. */
+/* Scrolled to after the bar at the foot of the page (StageBar) opens it: it
+   stays clear of the sticky top bar. */
 .stage-panel {
   grid-area: panel;
   scroll-margin-top: 6rem;
@@ -2319,7 +2324,8 @@ table.tests .row-actions {
   font-size: 1.25rem;
 }
 
-/* The heading takes the focus after "Următoarea etapă"; it is not a control. */
+/* The heading takes the focus after the bar at the foot (StageBar) opens the
+   panel; it is not a control. */
 .stage-head h2:focus {
   outline: none;
 }
@@ -2375,6 +2381,7 @@ table.tests .row-actions {
 }
 
 .stage-bar-mark {
+  flex: none;
   display: grid;
   place-items: center;
   width: 1.25rem;
@@ -2732,10 +2739,6 @@ table.tests .row-actions {
 }
 
 .review-done-box {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-radius: 10px;
   background: var(--ok-bg);
@@ -2744,7 +2747,6 @@ table.tests .row-actions {
 }
 
 .review-done-box p {
-  flex: 1 1 14rem;
   margin: 0;
 }
 
@@ -3000,6 +3002,34 @@ table.tests .row-actions {
     bottom: var(--bottom);
     margin: 1.5rem calc(-1 * max(1rem, env(safe-area-inset-right, 0px))) -1.5rem calc(-1 * max(1rem, env(safe-area-inset-left, 0px)));
     padding-inline: max(1rem, env(safe-area-inset-left, 0px)) max(1rem, env(safe-area-inset-right, 0px));
+    flex-wrap: nowrap;
+  }
+
+  /* One line, never taller than the room the page keeps under a focused
+     control: the words give way with an ellipsis, the button never. */
+  .stage-bar-state,
+  .stage-bar-wait {
+    min-width: 0;
+  }
+
+  .stage-bar-state > span:last-child,
+  .stage-bar-wait {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .stage-bar > a {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+/* A narrow phone keeps the state and the button, which still turns orange
+   when the next stage waits on the teacher. */
+@media (max-width: 30rem) {
+  .stage-bar-wait {
+    display: none;
   }
 }
 

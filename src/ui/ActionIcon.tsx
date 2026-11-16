@@ -110,6 +110,8 @@ const PATHS = {
     </>
   ),
   stop: <rect x="5" y="5" width="10" height="10" rx="1.5" />,
+  // An open book: the subject of a test.
+  subject: <path d="M10 5.5C8.5 4.25 6.25 3.75 3.5 4v11.5c2.75-.25 5 .25 6.5 1.5 1.5-1.25 3.75-1.75 6.5-1.5V4c-2.75-.25-5 .25-6.5 1.5zM10 5.5V17" />,
   trash: <path d="M3.5 5.5h13M8 5.5v-2h4v2M5 5.5l.75 11h8.5l.75-11M8.5 8.5v5M11.5 8.5v5" />,
   unlock: (
     <>

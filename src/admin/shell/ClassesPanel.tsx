@@ -15,9 +15,10 @@ import { ActionIcon } from '../../ui/ActionIcon.tsx';
 // waits on the teacher is orange and says what waits ("Logaritmi · Rezultate ·
 // nepublicate"). The class of the page is marked. Until the tests of the year
 // arrive a class shows no line about them (or the panel says why they could
-// not be read), never "Nimic în lucru". "Clasă nouă" stays at the top while
-// the classes load or when they cannot be read; with no class, its empty state
-// holds the one "Clasă nouă". "Arhivate (n)" is at the foot, when there are any.
+// not be read), never "Nimic în lucru". "Clasă nouă" is first, above the
+// loading line, an error and the list, so it never moves when the classes
+// arrive; with no class, its empty state holds the one "Clasă nouă".
+// "Arhivate (n)" is at the foot, when there are any.
 export function ClassesPanel({
   year,
   todo,
@@ -45,21 +46,18 @@ export function ClassesPanel({
     </div>
   );
 
+  const empty = !classes.error && classes.data !== undefined && active.length === 0;
+
   return (
     <Panel id="panel-clase" title="Clasele tale" onClose={onClose}>
+      {!empty && newClass}
       {classes.error ? (
-        <>
-          <div className="panel-body">
-            <ErrorMessage error={classes.error} />
-          </div>
-          {newClass}
-        </>
+        <div className="panel-body">
+          <ErrorMessage error={classes.error} />
+        </div>
       ) : !classes.data ? (
-        <>
-          <p className="panel-body hint">Se încarcă…</p>
-          {newClass}
-        </>
-      ) : active.length === 0 ? (
+        <p className="panel-body hint">Se încarcă…</p>
+      ) : empty ? (
         <EmptyState
           icon={<IconClasses />}
           title={archived > 0 ? 'Nu ai nicio clasă activă' : 'Încă nu ai nicio clasă'}
@@ -79,7 +77,6 @@ export function ClassesPanel({
               <ErrorMessage error={tests.error} />
             </div>
           ) : null}
-          {newClass}
           <nav className="class-list">
             {active.map((item) => {
               const work = (tests.data ?? []).filter((test) => test.classId === item.id && inWork(test));

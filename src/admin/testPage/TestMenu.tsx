@@ -53,7 +53,7 @@ export function TestMenu({
 
   const actions: MenuAction[] = [
     { label: 'Redenumește testul', hint: 'Schimbi titlul testului.', icon: 'edit', busy: false, onChoose: () => setDialog('rename') },
-    { label: subjectLabel, hint: subjectHint(test), icon: 'retry', busy: robotReads(test), onChoose: () => setDialog('subject') },
+    { label: subjectLabel, hint: subjectHint(test), icon: 'subject', busy: robotReads(test), onChoose: () => setDialog('subject') },
   ];
   if (test.archived) {
     actions.push({

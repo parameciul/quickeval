@@ -113,7 +113,7 @@ export function SubjectChange({
   if (open) return <SubjectForm test={test} onDone={onChanged} onRobot={onRobot} onClose={() => setOpen(false)} />;
   return (
     <button type="button" className="button-quiet button-small" onClick={() => setOpen(true)}>
-      <ActionIcon name="edit" />
+      <ActionIcon name="subject" />
       {test.subject === null ? 'Alege materia' : 'Schimbă materia'}
     </button>
   );

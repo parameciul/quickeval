@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { ActionsMenu } from './ActionsMenu.tsx';
 
 describe('ActionsMenu', () => {
-  it('draws an icon on its button and on each item that has one', async () => {
+  it('draws an icon on its button and on each item', async () => {
     render(
       <MemoryRouter>
         <ActionsMenu
