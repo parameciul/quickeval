@@ -44,7 +44,7 @@ describe('StageBar', () => {
   it('says a stage in progress is in progress, with no tick', () => {
     bar('Tipărire', stages({ Tipărire: { state: 'now', note: 'se pregătește' } }));
     expect(screen.getByRole('navigation', { name: 'Etapa următoare' })).toHaveTextContent('Tipărire · în lucru');
-    expect(screen.getByRole('link', { name: 'Mergi la În clasă' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la etapa În clasă' })).toBeInTheDocument();
   });
 
   it('says the stage on show waits on the teacher, with no tick, and stays quiet when the next stage does not wait', () => {

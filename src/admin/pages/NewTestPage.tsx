@@ -10,7 +10,7 @@ import { CesTag } from '../CesTag.tsx';
 import { Crumbs } from '../Crumbs.tsx';
 import { NewClassDialog } from '../classPage/ClassDialogs.tsx';
 import { ErrorMessage, errorText } from '../ErrorMessage.tsx';
-import { missingParts } from '../missing.ts';
+import { missingParts, type MissingPart } from '../missing.ts';
 import { MissingList } from '../MissingList.tsx';
 import { FileDrop } from '../newTest/FileDrop.tsx';
 import { NewTestState } from '../newTest/NewTestState.tsx';
@@ -121,6 +121,12 @@ export function NewTestPage() {
     },
   });
 
+  // The barem parts the robot will write once the test is made: not here yet, not missing.
+  const generating: MissingPart[] = [
+    ...(barem === 'generate' && testFile !== null ? (['barem'] as const) : []),
+    ...(withCes && cesBarem === 'generate' && cesTestFile !== null ? (['cesBarem'] as const) : []),
+  ];
+
   // Where each step stands, for the mark on it: the class and the title come
   // first; the files can wait, so an empty step says so instead of blocking.
   const stepDone = [
@@ -180,7 +186,6 @@ export function NewTestPage() {
           <form onSubmit={onSubmit}>
             <ol className="steps">
               <li className={stepClass(0)}>
-                {stepMark(0)}
                 <div>
                   <h2>Clasa și titlul</h2>
                   <p>Titlul îl văd și elevii, pe pagina lor.</p>
@@ -216,6 +221,7 @@ export function NewTestPage() {
                     />
                   </div>
                 </div>
+                {stepMark(0)}
               </li>
               {cesNames.length > 0 && (
                 <li className="new-test-ces">
@@ -223,7 +229,6 @@ export function NewTestPage() {
                 </li>
               )}
               <li className={stepClass(1)}>
-                {stepMark(1)}
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
                     <h2>Testul</h2>
@@ -245,9 +250,9 @@ export function NewTestPage() {
                     </div>
                   )}
                 </div>
+                {stepMark(1)}
               </li>
               <li className={stepClass(2)}>
-                {stepMark(2)}
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
                     <h2>Baremul</h2>
@@ -296,6 +301,7 @@ export function NewTestPage() {
                     </div>
                   )}
                 </div>
+                {stepMark(2)}
               </li>
             </ol>
             <div className="new-test-foot">
@@ -310,7 +316,7 @@ export function NewTestPage() {
           </form>
 
           <aside className="new-test-side">
-            <NewTestState hasClass={selected !== ''} hasTitle={title.trim() !== ''} missing={missing} wantsCes={withCes} />
+            <NewTestState hasClass={selected !== ''} hasTitle={title.trim() !== ''} missing={missing} generating={generating} wantsCes={withCes} />
             <section className="class-card new-test-next" aria-labelledby="new-test-next">
               <div className="class-card-head">
                 <h2 id="new-test-next">După ce creezi testul</h2>

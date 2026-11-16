@@ -7,22 +7,26 @@ export function NewTestState({
   hasClass,
   hasTitle,
   missing,
+  generating,
   wantsCes,
 }: {
   hasClass: boolean;
   hasTitle: boolean;
   missing: MissingPart[];
+  // Parts that are not missing because the robot will write them.
+  generating: MissingPart[];
   wantsCes: boolean;
 }) {
   const parts: MissingPart[] = wantsCes ? ['test', 'barem', 'cesTest', 'cesBarem'] : ['test', 'barem'];
   const items = [
-    { key: 'class', label: 'Clasa', done: hasClass, todo: 'de ales' },
-    { key: 'title', label: 'Titlul', done: hasTitle, todo: 'de scris' },
+    { key: 'class', label: 'Clasa', done: hasClass, todo: 'de ales', doneWord: 'gata' },
+    { key: 'title', label: 'Titlul', done: hasTitle, todo: 'de scris', doneWord: 'gata' },
     ...parts.map((part) => ({
       key: part,
       label: `${missingName(part)[0]?.toUpperCase()}${missingName(part).slice(1)}`,
       done: !missing.includes(part),
       todo: 'lipsește',
+      doneWord: generating.includes(part) ? 'se generează' : 'gata',
     })),
   ];
   const done = items.filter((item) => item.done).length;
@@ -53,7 +57,7 @@ export function NewTestState({
               )}
             </span>
             <span>{item.label}</span>
-            <span className="state-word">{item.done ? 'gata' : item.todo}</span>
+            <span className="state-word">{item.done ? item.doneWord : item.todo}</span>
           </li>
         ))}
       </ul>

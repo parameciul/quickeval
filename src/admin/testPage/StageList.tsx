@@ -8,7 +8,7 @@ export const STAGE_ICONS: Record<StageName, ActionIconName> = {
   Pregătire: 'doc',
   Tipărire: 'print',
   'În clasă': 'phone',
-  Corectare: 'check',
+  Corectare: 'edit',
   Verificare: 'eye',
   Rezultate: 'link',
 };

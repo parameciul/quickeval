@@ -2271,6 +2271,12 @@ table.tests .row-actions {
   border-color: var(--ink-tint);
 }
 
+/* The chosen row has the dot's own tint: a done stage's dot goes white there,
+   so it still shows. */
+.stage-list li.is-done a[aria-current="step"] .stage-dot {
+  background: var(--sheet);
+}
+
 .stage-list .is-done .stage-dot {
   background: var(--ink-tint);
   color: var(--ink);
@@ -5977,6 +5983,7 @@ table.items tr.edit-row > td {
 /* A printed result (a parent may keep it on paper): the content alone, in one
    column and in the light colours, whatever theme is on. */
 @media print {
+  .stage-bar,
   .student-nav,
   .result-actions,
   .result-page .result-files,
