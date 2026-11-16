@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
-import { startSessionBody, type ConfirmAnswer, type UploadSession } from '../../shared/api.ts';
+import { startSessionBody, type ConfirmAnswer, type LinkInfo, type UploadSession } from '../../shared/api.ts';
 import { checkoutBody } from '../../shared/payments.ts';
 import { MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, studentFileKey } from '../../shared/files.ts';
 import { isResultToken, isUploadToken } from '../../shared/tests.ts';
@@ -20,7 +20,7 @@ import {
   type LinkTest,
   type SessionRecord,
 } from '../db/links.ts';
-import { confirmResultToken, findResultByToken, findResultFile, resultsOpenByToken } from '../db/results.ts';
+import { confirmResultToken, findResultByToken, findResultFile, resultsOpenByToken, resultsPublished } from '../db/results.ts';
 import { listPayments, type PaidTest, type PaymentPayer } from '../db/payments.ts';
 import { listSubmissionFiles, publicFile } from '../db/submissions.ts';
 import type { AppEnv, AppOptions, Env } from '../env.ts';
@@ -97,11 +97,16 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
 
   routes.get('/:token', async (c) => {
     const test = await linkTest(c);
+    // The same for both links of the test, and new for a test that reuses a
+    // deleted test's id.
+    const key = await sha256Hex(`test.${test.id}.${test.createdAt}`);
+    // Asked only once the uploads closed: an open test's page reads nothing more.
+    const resultsOpen = test.status !== 'draft' && test.status !== 'open' && (await resultsPublished(c.env.DB, test.id));
     return c.json({
-      test: { code: test.code, title: test.title, className: test.className, status: test.status },
+      test: { code: test.code, title: test.title, className: test.className, status: test.status, key, resultsOpen },
       students: test.status === 'open' ? await listLinkStudents(c.env.DB, test) : [],
       multi: test.multi,
-    });
+    } satisfies LinkInfo);
   });
 
   // Start an upload for a student, or go on with it on the same phone.

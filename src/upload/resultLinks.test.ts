@@ -3,9 +3,13 @@ import {
   forgetResultLinkByToken,
   loadResultLink,
   loadResultLinks,
+  loadTestResultLinks,
   pruneStaleResultLinks,
+  rememberTestKey,
   saveResultLink,
   singleUploadLocked,
+  tokensToAsk,
+  UNKNOWN_TEST_KEY,
 } from './resultLinks.ts';
 
 const TOKEN = 'abcdefghijkmnop2';
@@ -70,6 +74,59 @@ describe('result links kept on the phone', () => {
     expect(singleUploadLocked(TOKEN)).toBe(false);
     saveResultLink(TOKEN, 10, 'rt-10', 'Pop Ion');
     expect(singleUploadLocked(TOKEN)).toBe(true);
+  });
+
+  it('lists the links kept through any link of the same test, once each', () => {
+    const multi = 'multilinktoken22';
+    saveResultLink(TOKEN, 11, 'rt-11', 'Pop Ion');
+    saveResultLink(multi, 10, 'rt-10', 'Ionescu Ana');
+    // The same paper kept through both links shows once.
+    saveResultLink(multi, 11, 'rt-11', 'Pop Ion');
+    saveResultLink('otherlinktoken22', 12, 'rt-12', 'Stan Eva');
+    saveResultLink('deadlinktoken222', 13, 'rt-13', 'Dan Ilie');
+    rememberTestKey(TOKEN, 'key-a');
+    // Not remembered yet: the other link's papers are not this test's.
+    expect(loadTestResultLinks(TOKEN, 'key-a')).toEqual([{ studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11' }]);
+    rememberTestKey(multi, 'key-a');
+    rememberTestKey('otherlinktoken22', 'key-b');
+    rememberTestKey('deadlinktoken222', UNKNOWN_TEST_KEY);
+    expect(loadTestResultLinks(TOKEN, 'key-a')).toEqual([
+      { studentId: 10, studentName: 'Ionescu Ana', resultToken: 'rt-10' },
+      { studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11' },
+    ]);
+    // A link the server does not know never matches, whatever key is asked.
+    expect(loadTestResultLinks(TOKEN, UNKNOWN_TEST_KEY)).toEqual([{ studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11' }]);
+  });
+
+  it('names the other links with a kept result and no remembered test, at most 5', () => {
+    expect(tokensToAsk(TOKEN)).toEqual([]);
+    saveResultLink(TOKEN, 11, 'rt-11', 'Pop Ion');
+    saveResultLink('multilinktoken22', 10, 'rt-10', 'Ionescu Ana');
+    saveResultLink('multilinktoken22', 12, 'rt-12', 'Stan Eva');
+    saveResultLink('otherlinktoken22', 12, 'rt-12b', 'Stan Eva');
+    saveResultLink('deadlinktoken222', 13, 'rt-13', 'Dan Ilie');
+    expect(tokensToAsk(TOKEN)).toEqual(['deadlinktoken222', 'multilinktoken22', 'otherlinktoken22']);
+    rememberTestKey('multilinktoken22', 'key-a');
+    rememberTestKey('deadlinktoken222', UNKNOWN_TEST_KEY);
+    expect(tokensToAsk(TOKEN)).toEqual(['otherlinktoken22']);
+    for (const letter of 'abcdefgh') saveResultLink(`manylinktoken2${letter}`, 20, `rt-${letter}`, 'Pop Ion');
+    expect(tokensToAsk(TOKEN)).toHaveLength(5);
+  });
+
+  it('finds no other link when the storage is blocked', () => {
+    saveResultLink('multilinktoken22', 10, 'rt-10', 'Ionescu Ana');
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(() => rememberTestKey(TOKEN, 'key-a')).not.toThrow();
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'key').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(tokensToAsk(TOKEN)).toEqual([]);
+    expect(loadTestResultLinks(TOKEN, 'key-a')).toEqual([]);
   });
 
   it('drops the kept links of uploads the teacher reset', () => {

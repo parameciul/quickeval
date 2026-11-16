@@ -334,6 +334,22 @@ describe('the paper page', () => {
     expect(api.correctItem).toHaveBeenCalledWith(5, 31, { gradedAt: GRADED_AT, points: 4 });
   });
 
+  it("lets the teacher correct the student's answer the robot read wrong", async () => {
+    const api = apiWith(graded);
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Modifică Subiectul I, ex. 1' }));
+    const answer = screen.getByLabelText('Răspunsul elevului');
+    expect(answer).toHaveValue('3/4');
+    expect(answer).toHaveAttribute('maxlength', '500');
+    await userEvent.clear(answer);
+    await userEvent.type(answer, ' x = 121 ');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează' }));
+    // Only the answer changed: the points and the comment are not sent.
+    expect(api.correctItem).toHaveBeenCalledWith(5, 31, { gradedAt: GRADED_AT, studentAnswer: 'x = 121' });
+    await waitFor(() => expect(screen.queryByLabelText('Răspunsul elevului')).not.toBeInTheDocument());
+    expect(within(row('Subiectul I, ex. 1')).getByText('x = 121')).toBeInTheDocument();
+  });
+
   it('refuses points off the 0.05 steps or above the maximum without asking the server', async () => {
     const api = apiWith(graded);
     renderAdmin(page, api);

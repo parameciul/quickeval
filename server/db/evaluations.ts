@@ -153,19 +153,21 @@ export async function findTeacherItem(db: D1Database, shown: ShownResult, itemId
   return row ? { maxPoints: row.max_points } : null;
 }
 
-// The teacher's correction: new points or a new comment, and the check mark.
-// New points or a new comment mark the item as changed by the teacher, and
+// The teacher's correction: new points, a new comment or a new text of the
+// student's answer, and the check mark. Any of the three marks the item as
+// changed by the teacher, and
 // the total, the grade, and the freshness of the class analysis follow. The
 // total is summed again from the items, so two corrections at once still
 // leave the right total. The points must be checked first with
 // isValidCorrection(). False when the item is not in the result the page
 // shows, or that result is gone or no longer graded.
 export async function correctItem(db: D1Database, shown: ShownResult, itemId: number, change: ItemChange, now: string): Promise<boolean> {
-  const changed = change.points !== undefined || change.comment !== undefined;
+  const changed = change.points !== undefined || change.comment !== undefined || change.studentAnswer !== undefined;
   const reviewed = change.reviewed === undefined ? null : change.reviewed ? 1 : 0;
   const item = await db
     .prepare(
       `UPDATE evaluation_items SET points = COALESCE(?, points), comment = COALESCE(?, comment),
+         student_answer = COALESCE(?, student_answer),
          changed_by_teacher = CASE WHEN ? = 1 THEN 1 ELSE changed_by_teacher END,
          reviewed_at = CASE WHEN ? IS NULL THEN reviewed_at WHEN ? = 1 THEN COALESCE(reviewed_at, ?) ELSE NULL END
        WHERE id = ? AND evaluation_id IN (${SHOWN})
@@ -174,6 +176,7 @@ export async function correctItem(db: D1Database, shown: ShownResult, itemId: nu
     .bind(
       change.points === undefined ? null : round2(change.points),
       change.comment ?? null,
+      change.studentAnswer ?? null,
       changed ? 1 : 0,
       reviewed,
       reviewed,

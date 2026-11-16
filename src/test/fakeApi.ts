@@ -1046,7 +1046,8 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       }
       if (change.points !== undefined) item.points = change.points;
       if (change.comment !== undefined) item.comment = change.comment;
-      if (change.points !== undefined || change.comment !== undefined) item.changedByTeacher = true;
+      if (change.studentAnswer !== undefined) item.studentAnswer = change.studentAnswer;
+      if (change.points !== undefined || change.comment !== undefined || change.studentAnswer !== undefined) item.changedByTeacher = true;
       if (change.reviewed !== undefined) item.reviewed = change.reviewed;
       recount(found.evaluation);
       syncRow(found);

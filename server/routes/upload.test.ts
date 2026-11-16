@@ -54,7 +54,7 @@ describe('GET /api/u/:token', () => {
     const res = await api.request('GET', `/api/u/${token}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      test: { code, title: 'Fracții', className: '6E2', status: 'open' },
+      test: { code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false },
       students: [
         { id: ionescu, name: 'Ionescu Ana', state: 'none' },
         { id: pop, name: 'Pop Ion', state: 'in_progress' },
@@ -78,7 +78,11 @@ describe('GET /api/u/:token', () => {
   it('shows no names once the uploads are closed', async () => {
     await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(code).run();
     const res = await api.request('GET', `/api/u/${token}`);
-    expect(res.body).toEqual({ test: { code, title: 'Fracții', className: '6E2', status: 'done' }, students: [], multi: false });
+    expect(res.body).toEqual({
+      test: { code, title: 'Fracții', className: '6E2', status: 'done', key: expect.any(String), resultsOpen: false },
+      students: [],
+      multi: false,
+    });
   });
 
   it('shows the test with no names before it starts: the printed QR code holds the link already', async () => {
@@ -87,7 +91,11 @@ describe('GET /api/u/:token', () => {
     const draftToken = (await api.request('GET', `/api/admin/tests/${draft}`)).body.test.uploadToken as string;
     const res = await api.request('GET', `/api/u/${draftToken}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ test: { code: draft, title: 'Ecuații', className: '6E2', status: 'draft' }, students: [], multi: false });
+    expect(res.body).toEqual({
+      test: { code: draft, title: 'Ecuații', className: '6E2', status: 'draft', key: expect.any(String), resultsOpen: false },
+      students: [],
+      multi: false,
+    });
   });
 
   it('marks every answer as not cacheable', async () => {
@@ -496,12 +504,50 @@ describe('the multi-upload link', () => {
     expect(multi).not.toBe(token);
     const res = await api.request('GET', `/api/u/${multi}`);
     expect(res.status).toBe(200);
-    expect(res.body.test).toEqual({ code, title: 'Fracții', className: '6E2', status: 'open' });
+    expect(res.body.test).toEqual({ code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false });
     expect(res.body.students).toEqual([
       { id: ionescu, name: 'Ionescu Ana', state: 'none' },
       { id: pop, name: 'Pop Ion', state: 'none' },
     ]);
     expect(res.body.multi).toBe(true);
+  });
+
+  it('names the test the same on both links, and another test otherwise', async () => {
+    const multi = await multiToken();
+    const key = (await api.request('GET', `/api/u/${token}`)).body.test.key as string;
+    expect(key).toMatch(/^[0-9a-f]{64}$/);
+    expect((await api.request('GET', `/api/u/${multi}`)).body.test.key).toBe(key);
+    const cls = (await api.db.prepare('SELECT class_id FROM tests WHERE code = ?').bind(code).first<{ class_id: number }>())!.class_id;
+    const other = await makeTest(api, cls, 'Ecuații');
+    const otherToken = (await api.request('GET', `/api/admin/tests/${other}`)).body.test.uploadToken as string;
+    expect((await api.request('GET', `/api/u/${otherToken}`)).body.test.key).not.toBe(key);
+  });
+
+  it('says on both links when students can read results: open for all, or one published alone', async () => {
+    const multi = await multiToken();
+    const secret = await newSession(pop);
+    await putFile(secret, jpeg(), 'image/jpeg');
+    await api.request('POST', `/api/u/${token}/confirm`, undefined, session(secret));
+    const upload = (await api.db.prepare('SELECT id, started_at FROM submissions WHERE student_id = ?').bind(pop).first<{ id: number; started_at: string }>())!;
+    const resultsOpen = async (link: string) => (await api.request('GET', `/api/u/${link}`)).body.test.resultsOpen as boolean;
+
+    // An open test says nothing of results, whatever the teacher published.
+    await api.request('POST', `/api/admin/tests/${code}/results/open`);
+    expect(await resultsOpen(token)).toBe(false);
+    await api.request('POST', `/api/admin/tests/${code}/results/close`);
+
+    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(code).run();
+    expect(await resultsOpen(token)).toBe(false);
+    await api.request('POST', `/api/admin/tests/${code}/results/open`);
+    expect(await resultsOpen(token)).toBe(true);
+    expect(await resultsOpen(multi)).toBe(true);
+    await api.request('POST', `/api/admin/tests/${code}/results/close`);
+    expect(await resultsOpen(token)).toBe(false);
+
+    const alone = await api.request('POST', `/api/admin/submissions/${upload.id}/results/open`, { startedAt: upload.started_at });
+    expect(alone.status).toBe(200);
+    expect(await resultsOpen(token)).toBe(true);
+    expect(await resultsOpen(multi)).toBe(true);
   });
 
   it('sends uploads for two students in turn with the same link', async () => {
