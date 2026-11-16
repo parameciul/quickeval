@@ -141,7 +141,7 @@ export function NewTestPage() {
     ) : index === 0 ? (
       <span className="step-state tag tag-wait">De completat</span>
     ) : index === 2 && baremThere ? (
-      <span className="step-state tag">Se generează</span>
+      <span className="step-state tag">Se va genera</span>
     ) : (
       <span className="step-state tag">Poți și mai târziu</span>
     );
