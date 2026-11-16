@@ -3,7 +3,7 @@
 MQGrader (formerly QuickEval): a web app that helps Laura Miron (math teacher, Liceul William Shakespeare, Timișoara) collect and grade her students' math tests. The product name is MQGrader; the code, the URLs, the secrets, the database and the repository keep the old name quickeval. The teacher pages and the student pages are in Romanian. Code, comments, and docs are in English.
 
 - Design: `docs/superpowers/specs/2026-10-06-quickeval-design.md`. Plans: `docs/superpowers/plans/`. The redesign of the look and layout (light by default, the 80 px bar, the six stages, the new landing page) is in `docs/superpowers/specs/2026-11-04-mqgrader-redesign-design.md`; it is built in phases.
-- Live: https://quickeval.pages.dev/. Brand source: the "Matematică cu Laura Miron" site (`D:\Projects\Website`, https://lauramiron.pages.dev/).
+- Live: https://quickeval.pages.dev/. Brand source: the "Matematică cu Laura Miron" site (`D:\Projects\Website`, https://lauramiron.mqgrader.ro/; the old https://lauramiron.pages.dev/ redirects there).
 - More instructions: `src/AGENTS.md`, `server/AGENTS.md`, `runner/AGENTS.md` (read the one for the area you change), and `docs/deploy.md` (deploy, secrets, the robot's GitHub settings).
 
 ## Structure
