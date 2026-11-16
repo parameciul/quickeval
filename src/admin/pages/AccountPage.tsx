@@ -8,6 +8,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { initials } from '../shell/initials.ts';
 import { useLogout } from '../shell/useLogout.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The tag of the account: its kind, or the administrator.
 export function accountTag(teacher: Teacher): string {
@@ -31,6 +32,7 @@ export function AccountPage() {
       <section className="class-card account-out" aria-label="Ieșire">
         <span>Ieși din cont pe acest dispozitiv.</span>
         <button type="button" className="button-quiet" disabled={logout.isPending} onClick={() => logout.mutate()}>
+          <ActionIcon name="logout" />
           Ieși din cont
         </button>
         {logout.error && <ErrorMessage error={logout.error} />}
@@ -136,6 +138,7 @@ function PasswordCard() {
         </div>
         <span>
           <button className="button-quiet" type="submit" disabled={change.isPending}>
+            <ActionIcon name="key" />
             Schimbă parola
           </button>
         </span>

@@ -12,6 +12,7 @@ import { FirstSteps } from '../testsPage/FirstSteps.tsx';
 import { greeting, todayLine, welcome } from '../testsPage/greeting.ts';
 import { TestGroup } from '../testsPage/TestGroup.tsx';
 import { TodoRows } from '../testsPage/TodoRows.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The start page (redesign spec §5): a greeting with what waits on the
 // teacher, the class chips, and the tests of the selected school year in two
@@ -106,6 +107,7 @@ export function TestsPage() {
           </p>
         </div>
         <Link className="button" to="/teste/nou">
+          <ActionIcon name="add" />
           Test nou
         </Link>
       </div>

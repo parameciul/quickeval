@@ -6,6 +6,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { MoveOnLink } from './MoveOnLink.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
 import { partsOf } from './variant.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The robot reads the test and the barem first and makes a list of the
 // exercises (spec §9). Shown only when that list needs the teacher: its
@@ -46,9 +47,11 @@ export function ExerciseListBanner({
         <p>{ces ? 'Înlocuiește baremul CES la Pregătire, sau corectează cu el așa cum este.' : 'Înlocuiește baremul la Pregătire, sau corectează cu baremul așa cum este.'}</p>
         <span className="row-actions">
           <button type="button" className="button-quiet button-small" disabled={accept.isPending} onClick={() => accept.mutate()}>
+            <ActionIcon name="check" />
             Folosește oricum
           </button>
           <MoveOnLink className="button-quiet button-small" stage="Pregătire">
+            <ActionIcon name="upload" />
             {ces ? 'Înlocuiește baremul CES' : 'Înlocuiește baremul'}
           </MoveOnLink>
         </span>
@@ -66,6 +69,7 @@ export function ExerciseListBanner({
         <span className="row-actions">
           <SubjectChange test={test} onChanged={onChanged} onRobot={onRobot} />
           <MoveOnLink className="button-quiet button-small" stage="Pregătire">
+            <ActionIcon name="upload" />
             Înlocuiește testul
           </MoveOnLink>
         </span>
@@ -79,6 +83,7 @@ export function ExerciseListBanner({
           <strong>{ces ? 'Robotul nu a putut citi testul CES și baremul CES.' : 'Robotul nu a putut citi testul și baremul.'}</strong> {message}
         </p>
         <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
+          <ActionIcon name="retry" />
           Încearcă din nou
         </button>
         {retry.error && <ErrorMessage error={retry.error} />}

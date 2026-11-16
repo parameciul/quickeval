@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { TDocumentDefinitions } from 'pdfmake/interfaces';
 import { renderPdf } from './renderPdf.ts';
 import { saveFile, shareFile } from './share.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 export interface PdfFile {
   // Made when a button is pressed, not with every render of the page.
@@ -43,6 +44,7 @@ export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
   return (
     <div className="pdf-actions">
       <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => run('download')}>
+        <ActionIcon name="file" />
         Descarcă PDF
       </button>
       {csv && (
@@ -51,10 +53,12 @@ export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
           className="button-quiet button-small"
           onClick={() => saveFile(new Blob([csv.build()], { type: 'text/csv;charset=utf-8' }), csv.fileName)}
         >
+          <ActionIcon name="file" />
           Descarcă CSV
         </button>
       )}
       <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => run('share')}>
+        <ActionIcon name="share" />
         Trimite
       </button>
       {busy && <span role="status">Se face PDF-ul…</span>}

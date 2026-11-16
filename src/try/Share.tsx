@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 // "Distribuie" (spec §3.4): the try's own link, the only key, through the
 // browser's share sheet where there is one, else copied.
@@ -25,6 +26,7 @@ export function ShareButton({ token }: { token: string }) {
   return (
     <div className="try-share">
       <button type="button" className="button-quiet" onClick={() => void share()}>
+        <ActionIcon name="share" />
         Distribuie
       </button>
       {copied === true && <span role="status">Linkul a fost copiat.</span>}

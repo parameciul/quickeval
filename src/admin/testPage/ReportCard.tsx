@@ -10,6 +10,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { saveFile } from '../pdf/share.ts';
 import { IconDownload } from '../shell/icons.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // "Raportul clasei" in the panel Rezultate (spec 2026-11-14): the class's
 // average and its grades by group, from the rows the page already has (no
@@ -56,6 +57,7 @@ export function ReportCard({ test, uploads }: { test: TestInfo; uploads: UploadR
         ))}
       </ul>
       <Link className="button" to={`/teste/${test.code}/raport`}>
+        <ActionIcon name="report" />
         Deschide raportul
       </Link>
       <CsvButton code={test.code} />

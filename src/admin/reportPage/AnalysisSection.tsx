@@ -6,6 +6,7 @@ import { robotStartMessage } from '../../ui/format.ts';
 import { MathText } from '../../ui/MathText.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 const SECTIONS: { key: keyof Omit<ClassAnalysis, 'overview'>; title: string }[] = [
   { key: 'strengths', title: 'Ce a mers bine' },
@@ -39,6 +40,7 @@ export function AnalysisSection({ code, report }: { code: string; report: ClassR
   const button = (label: string) =>
     !canAsk ? null : (
     <button type="button" className="button-quiet button-small" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>
+      <ActionIcon name="retry" />
       {label}
     </button>
   );

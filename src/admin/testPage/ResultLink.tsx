@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { studentResultUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // One student's result link, with copy and WhatsApp share. When the upload
 // has no link yet (an older upload), the first opening makes it.
@@ -60,6 +61,7 @@ export function ResultLink({
   return (
     <span className="result-share">
       <button type="button" className="button-quiet button-small" aria-expanded={open} disabled={busy} onClick={show}>
+        <ActionIcon name="link" />
         Link rezultat
       </button>
       {open && (
@@ -68,13 +70,16 @@ export function ResultLink({
             <>
               <input type="text" readOnly value={url} aria-label={`Linkul cu rezultatul elevului ${studentName}`} />
               <a className="button-quiet button-small" href={url} target="_blank" rel="noopener">
+                <ActionIcon name="open" />
                 Deschide
               </a>
               <button type="button" className="button-quiet button-small" onClick={copy}>
+                <ActionIcon name={copied ? 'check' : 'copy'} />
                 {copied ? 'Copiat!' : 'Copiază'}
               </button>
               {whatsapp && (
                 <a className="button-quiet button-small" href={whatsapp} target="_blank" rel="noopener">
+                  <ActionIcon name="share" />
                   WhatsApp
                 </a>
               )}

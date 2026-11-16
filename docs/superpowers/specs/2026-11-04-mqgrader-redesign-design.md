@@ -109,7 +109,7 @@ The lockup on teacher pages and the landing page is the mark, "MQGrader" (bold) 
 
 ### 2.5 Components
 
-Buttons are 8 px rounded: outline by default, filled blue for the one main action of a screen. Pills (stage names, states) are small flat tinted blocks. Tables keep their lines. Icons are 1.5 px line drawings in the text colour, never in tinted squares.
+Buttons are fully round, their words in medium weight (500, not bold), each with the line icon of its verb: outline by default, filled blue for the one main action of a screen. Pills (stage names, states) are small flat tinted blocks. Tables keep their lines. Icons are 1.5 px line drawings in the text colour, never in tinted squares.
 
 ## 3. Landing page (`/`, `index.html`)
 
@@ -137,7 +137,7 @@ The landing page is indexed (SEO, GEO and AEO work: canonical, Open Graph, JSON-
 - A bar of 80 px on the left (the menu "Meniu"), from top to bottom: "Test nou" (a blue square with +, the word under it; to `/teste/nou`), "Teste" (link; current on every `/teste` page), "Clase" (opens the panel "Clasele tale"; marked on every `/clase` page), "De făcut" (opens the panel "Ce ai de făcut"; a number shows how many things wait), and at the bottom "Setări" (only for an administrator, as `adminOnly` is today). Each item has its icon and a short word under it.
 - A top bar over the page: the lockup (the mark sits at the top of the 80 px bar, "MQGrader" and "by Laura Miron" start the top bar), the school year, the theme button, and the user's initials, which open a small menu with the name and email, "Contul meu" and "Ieși din cont". The search box comes with Phase 8f (§11.10). The old footer goes.
 - The panels open beside the bar, over the page, 384 px wide. Only one is open at a time; Esc and × close it, and so does opening a page. Small menus (the initials, Schimbă clasa, ⋯) close on a click outside them and on Esc.
-- "Clasele tale": the classes of the chosen school year that are not archived, each with its number of students and its tests in work (draft, open, in evaluation, or done with a thing in "De făcut"); a test in "De făcut" is orange; the class of the page is marked. "+ Clasă nouă" and "Arhivate (n)" open the page Clase (`/clase`) until Phase 7 replaces it.
+- "Clasele tale": the classes of the chosen school year that are not archived, each with its number of students and its tests in work (draft, open, in evaluation, or done with a thing in "De făcut"); a test in "De făcut" is orange; the class of the page is marked. "Clasă nouă" and "Arhivate (n)" open the page Clase (`/clase`) until Phase 7 replaces it.
 - "Ce ai de făcut": one card per thing in "De făcut" (§5): the stage as a pill, the test and its class, what to do, one sentence, and one button to the test (to the review for Verificare, §7); the first card's button is the filled one. Under them, how many other tests of the year are in work. With nothing: "Nimic nu te așteaptă acum."
 - A demo account has a button in the top bar, before the school year (§11.6).
 - On a phone (below 900 px; round 6, design M2): the top bar holds the lockup and ☰. The 80 px bar becomes a bar at the bottom of the screen with the same four items in the same order (Test nou, Teste, Clase, De făcut with its number); Setări leaves it. ☰ drops a menu from the top bar: Setări (administrators), the school year, "Temă întunecată" (a switch), the user's name and email, "Contul meu" and "Ieși din cont". The panels cover the screen between the two bars.
@@ -244,7 +244,7 @@ The panel of the stage Rezultate (§6). A draft has one line: "Rezultatele se pu
 
 ## 9. Clase (Phase 7)
 
-- No page with all classes. "Clase" in the bar opens the panel "Clasele tale": each class with its students and its tests in work (orange when one waits), the current class marked; "+ Clasă nouă" and "Arhivate (n)". `/admin/clase` opens the last class seen (else the first).
+- No page with all classes. "Clase" in the bar opens the panel "Clasele tale": each class with its students and its tests in work (orange when one waits), the current class marked; "Clasă nouă" and "Arhivate (n)". `/admin/clase` opens the last class seen (else the first).
 - The class page starts with one line: the name, "Schimbă clasa ˅" (a menu of the classes, a dot for a class that waits, "+ Clasă nouă"), the facts ("28 elevi · 3 teste · anul școlar 2026–2027"), "Test nou pentru această clasă", and ⋯ ("Redenumește clasa", "Arhivează clasa").
 - Tab "Note și teste": the grades table, a row per student and a narrow column (about 156 px) per test, oldest on the left; a cell shows the grade, an orange dot when points wait, "—" when no paper was sent; the last row is "Media testului". There is no average per student. Beside it, "Testele clasei", newest first: name, date, sent, stage, next step, and "Arată și testele arhivate (n)".
 - Tab "Elevi": on the left the students (search, an orange dot for points to check, "+ Adaugă elevi"); on the right one student: "Redenumește", "A plecat din clasă", "Șterge"; each test with date, points, grade ("1 punct de verificat" when one waits), the result ("Publicat" or "Nepublicat" with "Copiază linkul", "După verificare", "Nu a trimis lucrarea"), the paper; "Toate notele elevului, din toate clasele".
@@ -331,7 +331,7 @@ The user picked one option per page on 2026-11-08 (decisions 29 to 39). The prot
 
 - A teacher with no class and no test sees on the Teste page "Bun venit, Maria.", "Trei pași până la primul test corectat." and the card "Primii pași" ("0 din 3"): 1 "Adaugă o clasă" ("Clasă nouă", filled), 2 "Fă un test" ("Test nou", off until a class exists), 3 "Tipărește-l cu cod QR". A done step shows a tick. The card goes once a test exists.
 - Each empty state has an icon, a heading, one sentence and at most one button:
-  - "Clasele tale" with no class: "Încă nu ai nicio clasă", "+ Clasă nouă".
+  - "Clasele tale" with no class: "Încă nu ai nicio clasă", "Clasă nouă".
   - "De făcut" with nothing: "Nimic nu te așteaptă acum".
   - A class with no students: "Clasa 7A nu are încă elevi", "Adaugă elevi".
   - A class with no tests: "Niciun test pentru Clasa 7A", "Test nou pentru această clasă".

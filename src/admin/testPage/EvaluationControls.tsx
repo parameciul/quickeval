@@ -6,6 +6,7 @@ import { bucharestInputToIso, bucharestInputValue } from '../../ui/bucharestTime
 import { formatDateTime } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -109,6 +110,7 @@ export function EvaluationControls({
                 if (window.confirm('Marchezi testul ca terminat? Elevii nu mai pot încărca lucrări, iar notele rămân cum sunt.')) finish.mutate();
               }}
             >
+              <ActionIcon name="check" />
               Marchează ca terminat
             </button>
           </p>
@@ -128,6 +130,7 @@ export function EvaluationControls({
                 if (window.confirm(confirmText)) start.mutate();
               }}
             >
+              <ActionIcon name="play" />
               Pornește evaluarea acum
             </button>
             {needsSelection && <span className="hint">Selectează cel puțin o lucrare cu fișiere din tabel.</span>}
@@ -141,6 +144,7 @@ export function EvaluationControls({
         <p>
           Evaluarea pornește automat la {formatDateTime(test.evaluationAt)}.{' '}
           <button type="button" className="button-quiet button-small" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
+            <ActionIcon name="close" />
             Anulează programarea
           </button>
         </p>
@@ -158,6 +162,7 @@ export function EvaluationControls({
             required
           />
           <button className="button-quiet button-small" type="submit" disabled={fileSteps.length > 0 || schedule.isPending}>
+            <ActionIcon name="clock" />
             Programează
           </button>
         </form>

@@ -47,7 +47,7 @@ describe('LastClassPage', () => {
     renderAdmin('/clase', createFakeApi({ classes: [], students: {} }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Încă nu ai nicio clasă' })).toBeInTheDocument();
     expect(screen.getByText('Adaugă clasa cu numele elevilor, câte unul pe rând.')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '+ Clasă nouă' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Clasă nouă' }));
     expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe('LastClassPage', () => {
     // One line: the word and the links stay together.
     expect(screen.getByText(/^Arhivate:/).parentElement).toHaveClass('class-empty-archived');
     expect(screen.getByRole('link', { name: 'Clasa 9R2' })).toHaveAttribute('href', '/clase/2');
-    expect(screen.getByRole('button', { name: '+ Clasă nouă' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clasă nouă' })).toBeInTheDocument();
   });
 
   it('opens "Schimbă clasa" at "Arhivate" on the last class when a link asks for it', async () => {

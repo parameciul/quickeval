@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { DOCX_TYPE, fileProblem, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE } from '../../shared/files.ts';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 const ACCEPT = ['.pdf', '.docx', PDF_TYPE, DOCX_TYPE].join(',');
 
@@ -47,6 +48,7 @@ export function TestFileInput({
         }}
       />
       <label htmlFor={id} className="button-quiet button-small file-pick">
+        <ActionIcon name="upload" />
         {label}
       </label>
       {actions}

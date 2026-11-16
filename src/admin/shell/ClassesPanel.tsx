@@ -8,6 +8,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { IconClasses } from './icons.tsx';
 import { Panel } from './Panel.tsx';
 import { inWork, type TodoItem } from './todo.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // "Clasele tale" (redesign spec §4): the classes of the school year that are
 // not archived, each with its students and its tests in work; a test that
@@ -15,7 +16,7 @@ import { inWork, type TodoItem } from './todo.ts';
 // nepublicate"). The class of the page is marked. Until the tests of the year
 // arrive a class shows no line about them (or the panel says why they could
 // not be read), never "Nimic în lucru". With no class, its empty state holds
-// the one "+ Clasă nouă"; "Arhivate (n)" stays at the foot.
+// the one "Clasă nouă"; "Arhivate (n)" stays at the foot.
 export function ClassesPanel({
   year,
   todo,
@@ -48,7 +49,8 @@ export function ClassesPanel({
           title={archived > 0 ? 'Nu ai nicio clasă activă' : 'Încă nu ai nicio clasă'}
           action={
             <Link className="button button-small" to="/clase" state={{ newClass: true }}>
-              + Clasă nouă
+              <ActionIcon name="add" />
+              Clasă nouă
             </Link>
           }
         >
@@ -96,7 +98,8 @@ export function ClassesPanel({
       <div className="panel-actions">
         {(classes.data === undefined || active.length > 0) && (
           <Link className="button-quiet button-small" to="/clase" state={{ newClass: true }}>
-            + Clasă nouă
+            <ActionIcon name="add" />
+            Clasă nouă
           </Link>
         )}
         {archived > 0 && (

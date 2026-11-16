@@ -7,6 +7,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ApiError } from '../api.ts';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { State, useStateHeading, WayIn } from '../wayIn/WayIn.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // What the left half shows: a form, or what happened after one. "pending" is
 // an account that confirmed its email and waits for an administrator: its
@@ -84,6 +85,7 @@ export function LoginPage() {
             </p>
           </div>
           <button type="button" className="button-quiet way-in-wide" onClick={() => setMode({ name: 'login' })}>
+            <ActionIcon name="logout" />
             Ieși
           </button>
         </State>
@@ -152,6 +154,7 @@ function LoginForm({ onForgot, onPending }: { onForgot: () => void; onPending: (
         />
       </div>
       <button className="button way-in-wide" type="submit" disabled={login.isPending}>
+        <ActionIcon name="login" />
         {login.isPending ? 'Se verifică…' : 'Intră'}
       </button>
       {login.error && !pending && <ErrorMessage error={login.error} />}
@@ -177,6 +180,7 @@ function ForgotForm({ onSent }: { onSent: () => void }) {
         <input id="forgot-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
       </div>
       <button className="button way-in-wide" type="submit" disabled={forgot.isPending}>
+        <ActionIcon name="send" />
         {forgot.isPending ? 'Se trimite…' : 'Trimite linkul'}
       </button>
       {forgot.error && <ErrorMessage error={forgot.error} />}
@@ -232,6 +236,7 @@ function SignupForm({ onSent }: { onSent: () => void }) {
           />
         </div>
         <button className="button way-in-wide" type="submit" disabled={signup.isPending}>
+          <ActionIcon name="add-person" />
           {signup.isPending ? 'Se trimite…' : 'Cere contul'}
         </button>
         {signup.error && <ErrorMessage error={signup.error} />}

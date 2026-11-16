@@ -1,4 +1,5 @@
 import { ApiError, LoginExpiredError } from './api.ts';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 // The Romanian text for a failed request. Only the API client's own errors
 // carry Romanian text; any other error gets a generic message instead of the
@@ -20,6 +21,7 @@ export function ErrorMessage({ error }: { error: unknown }) {
       <p className="alert-text">{errorText(error)}</p>
       {(error instanceof LoginExpiredError || isLoginRequired(error)) && (
         <button type="button" className="button-quiet button-small" onClick={() => window.location.reload()}>
+          <ActionIcon name="retry" />
           {isLoginRequired(error) ? 'Intră din nou' : 'Reîncarcă pagina'}
         </button>
       )}

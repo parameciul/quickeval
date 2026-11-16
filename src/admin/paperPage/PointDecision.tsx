@@ -5,6 +5,7 @@ import { pageLabel, parsePoints } from '../../ui/format.ts';
 import { MathText } from '../../ui/MathText.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { pointsText } from '../reviewPage/points.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // What waits for the teacher's decision on the open row: an exercise to check,
 // or the pages the robot could not read.
@@ -45,6 +46,7 @@ export function PointDecision({
           </p>
           <div className="point-foot">
             <button type="button" className="button" data-confirm disabled={pending} onClick={() => onDecide({})}>
+              <ActionIcon name="check" />
               Am verificat paginile
             </button>
           </div>
@@ -107,6 +109,7 @@ function ItemDecision({
       </p>
       <div className="review-decide">
         <button type="button" className="button" data-confirm disabled={pending} onClick={() => onDecide({})}>
+          <ActionIcon name="check" />
           Accept {pointsText(item.points)}
         </button>
         <span className="stepper" role="group" aria-label="Alt punctaj">
@@ -135,6 +138,7 @@ function ItemDecision({
           </button>
         </span>
         <button type="button" className="button-quiet" disabled={pending} onClick={save}>
+          <ActionIcon name="check" />
           Salvează
         </button>
       </div>

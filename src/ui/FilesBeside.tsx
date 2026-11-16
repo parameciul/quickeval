@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ActionIcon } from './ActionIcon.tsx';
 
 // A paper's pages beside its result: the teacher's page of a paper, a Quick
 // Try's two results and the student's result. A strip with the count and one
@@ -19,6 +20,7 @@ export function FilesBeside({ count, files, children }: { count: number; files: 
         <div className="files-head">
           <h2>Fișiere ({count})</h2>
           <button type="button" className="button-quiet button-small" aria-expanded={open} onClick={() => setOpen(!open)}>
+            <ActionIcon name={open ? 'eye-off' : 'eye'} />
             {open ? 'Ascunde fișierele' : 'Arată fișierele'}
           </button>
         </div>

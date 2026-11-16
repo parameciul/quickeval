@@ -10,6 +10,7 @@ import { CesTag } from '../CesTag.tsx';
 import { CopyRefused, useCopyLink } from '../CopyLink.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { GradeChip } from './GradeChip.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // A paper the student sent has a result link; a student who did not send one
 // (no upload, or one still on the phone) has none.
@@ -137,6 +138,7 @@ function ResultLinkRow({
                 aria-label={`${row.resultsOpen ? 'Oprește publicarea' : 'Publică'}: ${row.studentName}`}
                 onClick={() => publish.mutate({ submissionId: row.submissionId, startedAt: row.startedAt, open: !row.resultsOpen })}
               >
+                <ActionIcon name={row.resultsOpen ? 'eye-off' : 'eye'} />
                 {row.resultsOpen ? 'Oprește publicarea' : 'Publică'}
               </button>
             )}
@@ -185,6 +187,7 @@ export function CopyResultLink({
           aria-label={named ? `Fă linkul: ${studentName}` : undefined}
           onClick={() => make.mutate()}
         >
+          <ActionIcon name="link" />
           Fă linkul
         </button>
         {make.error && <ErrorMessage error={make.error} />}
@@ -200,6 +203,7 @@ export function CopyResultLink({
         aria-label={named && !copied ? `Copiază linkul: ${studentName}` : undefined}
         onClick={() => copy(url)}
       >
+        <ActionIcon name={copied ? 'check' : 'copy'} />
         {copied ? 'Copiat!' : 'Copiază linkul'}
       </button>
       {refused && <CopyRefused field={field} url={url} label={`Linkul cu rezultatul elevului ${studentName}`} />}

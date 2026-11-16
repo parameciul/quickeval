@@ -5,6 +5,7 @@ import type { TestStatus } from '../../../shared/tests.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // "Recorectează tot" (spec §8.5): the robot grades again every graded upload
 // and every upload whose grading failed, for example after a new barem. The
@@ -55,6 +56,7 @@ export function RegradeAllButton({
               if (window.confirm(`Recorectezi ${what}? Punctajele și comentariile schimbate de tine se pierd.`)) regrade.mutate();
             }}
           >
+            <ActionIcon name="retry" />
             Recorectează tot
           </button>
         </p>

@@ -8,6 +8,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { stagesOf } from '../stages.ts';
 import { archivedPublished, todoOf } from '../shell/todo.ts';
 import { nextStep, type NextStep } from '../testsPage/nextStep.ts';
+import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
 
 // "Testele clasei", beside the grades table (spec §9): the newest test first,
 // each with its date, the papers sent, its stage (orange when it waits on the
@@ -87,6 +88,7 @@ export function ClassTests({
                 {step !== null &&
                   (step.kind === 'link' ? (
                     <Link className={waits ? 'button button-small' : 'button-quiet button-small'} to={step.to}>
+                      <ActionIcon name={actionIconFor(step.label)} />
                       {step.label}
                     </Link>
                   ) : (
@@ -96,6 +98,7 @@ export function ClassTests({
                       disabled={publish.isPending}
                       onClick={() => publish.mutate(test.code)}
                     >
+                      <ActionIcon name={actionIconFor(step.label)} />
                       {step.label}
                     </button>
                   ))}

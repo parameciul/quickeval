@@ -8,6 +8,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { MoveOnLink } from './MoveOnLink.tsx';
 import { TestFiles } from './TestFiles.tsx';
 import { cesBaremActive, showsCes } from './variant.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // "Varianta CES" in the panel Pregătire (spec: CES variant, CES switch): the
 // adapted test that the CES students of the class get, with its own barem.
@@ -91,6 +92,7 @@ export function CesWaiting({ test }: { test: TestInfo }) {
       </p>
       <MoveOnLink className="button-quiet button-small" stage="Pregătire">
         Mergi la varianta CES
+        <ActionIcon name="arrow" />
       </MoveOnLink>
     </div>
   );

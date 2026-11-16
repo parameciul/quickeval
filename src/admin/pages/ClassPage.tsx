@@ -17,6 +17,7 @@ import { ClassTests } from '../classPage/ClassTests.tsx';
 import { NewClassDialog, RenameDialog } from '../classPage/ClassDialogs.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import type { AdminApi } from '../api.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The state a link passes to the class page (the panel "Clasele tale"):
 // `newClass` opens "Clasă nouă" on arrival, `archived` opens "Schimbă clasa"
@@ -93,6 +94,7 @@ function ClassDetails({ classId }: { classId: number }) {
             // The strip goes with the write: the focus moves to the class name.
             onClick={() => archive.mutate(false, { onSuccess: () => heading.current?.focus() })}
           >
+            <ActionIcon name="unarchive" />
             Scoate din arhivă
           </button>
         </div>
@@ -121,6 +123,7 @@ function ClassDetails({ classId }: { classId: number }) {
         <div className="class-head-actions">
           {!info.archived && (
             <Link className="button" to={`/teste/nou?clasa=${classId}`}>
+              <ActionIcon name="add" />
               Test nou pentru această clasă
             </Link>
           )}

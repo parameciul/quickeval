@@ -509,7 +509,7 @@ describe('the panel Clasele tale', () => {
     // The open test misses its files: they wait on the teacher.
     expect(links[0]).toHaveTextContent('6E21 elevEcuații · Pregătire · lipsesc testul și baremul');
     expect(links[1]).toHaveTextContent('Nimic în lucru');
-    expect(within(panel).getByRole('link', { name: '+ Clasă nouă' })).toHaveAttribute('href', '/clase');
+    expect(within(panel).getByRole('link', { name: 'Clasă nouă' })).toHaveAttribute('href', '/clase');
     expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toHaveAttribute('href', '/clase');
     expect(within(panel).getByRole('button', { name: 'Închide' })).toHaveFocus();
   });
@@ -526,7 +526,7 @@ describe('the panel Clasele tale', () => {
     renderAdmin('/', withClasses());
     await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
     const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
-    await userEvent.click(within(panel).getByRole('link', { name: '+ Clasă nouă' }));
+    await userEvent.click(within(panel).getByRole('link', { name: 'Clasă nouă' }));
     expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
   });
 
@@ -617,8 +617,8 @@ describe('the panel Clasele tale', () => {
     const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
     expect(within(panel).getByRole('heading', { level: 3, name: 'Încă nu ai nicio clasă' })).toBeInTheDocument();
     expect(panel).toHaveTextContent('Adaugă clasa cu numele elevilor, câte unul pe rând.');
-    expect(within(panel).getAllByRole('link', { name: '+ Clasă nouă' })).toHaveLength(1);
-    await userEvent.click(within(panel).getByRole('link', { name: '+ Clasă nouă' }));
+    expect(within(panel).getAllByRole('link', { name: 'Clasă nouă' })).toHaveLength(1);
+    await userEvent.click(within(panel).getByRole('link', { name: 'Clasă nouă' }));
     expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
   });
 
@@ -629,7 +629,7 @@ describe('the panel Clasele tale', () => {
     const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
     expect(await within(panel).findByRole('heading', { name: 'Nu ai nicio clasă activă' })).toBeInTheDocument();
     expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toBeInTheDocument();
-    expect(within(panel).getAllByRole('link', { name: '+ Clasă nouă' })).toHaveLength(1);
+    expect(within(panel).getAllByRole('link', { name: 'Clasă nouă' })).toHaveLength(1);
   });
 });
 

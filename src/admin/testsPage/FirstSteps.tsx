@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { NewClassDialog } from '../classPage/ClassDialogs.tsx';
 import { IconDone } from '../shell/icons.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // "Primii pași" of a new teacher's Teste page (redesign spec §11.9): add a
 // class, make a test, print it with the QR code. The class is the only step
@@ -27,6 +28,7 @@ export function FirstSteps({ hasClass }: { hasClass: boolean }) {
           <p>Numele clasei și elevii, câte unul pe rând. Poți lipi lista din catalog.</p>
           {!hasClass && (
             <button type="button" className="button button-small" onClick={() => setNewClassOpen(true)}>
+              <ActionIcon name="add" />
               Clasă nouă
             </button>
           )}
@@ -39,10 +41,12 @@ export function FirstSteps({ hasClass }: { hasClass: boolean }) {
           <p>Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.</p>
           {hasClass ? (
             <Link className="button button-small" to="/teste/nou">
+              <ActionIcon name="add" />
               Test nou
             </Link>
           ) : (
             <button type="button" className="button-quiet button-small" disabled>
+              <ActionIcon name="add" />
               Test nou
             </button>
           )}

@@ -5,6 +5,7 @@ import type { TestVariant } from '../../../shared/files.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { partsOf } from './variant.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The generated barem's controls on the barem row, next to the file button:
 // "Generează baremul" (or "Încearcă din nou" after a failure), the waiting
@@ -66,10 +67,12 @@ export function useGeneratedBarem({
   const buttons = (
     <>
       <button type="button" className="button-quiet button-small" disabled={!hasTest || waiting || generate.isPending} onClick={onGenerate}>
+        <ActionIcon name={failed ? 'retry' : 'generate'} />
         {failed ? 'Încearcă din nou' : ces ? 'Generează baremul CES' : 'Generează baremul'}
       </button>
       {unchecked && request === 'none' && (
         <button type="button" className="button button-small" disabled={confirm.isPending} onClick={() => confirm.mutate()}>
+          <ActionIcon name="check" />
           {ces ? 'Am verificat baremul CES' : 'Am verificat baremul'}
         </button>
       )}

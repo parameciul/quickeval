@@ -14,6 +14,7 @@ import { CopyResultLink } from '../testPage/ResultLinksTable.tsx';
 import { AddStudentsDialog, RenameDialog } from './ClassDialogs.tsx';
 import { NoStudents, orderedStudents } from './GradesTable.tsx';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // "Elevi" tab of the class page (spec §9): the students on the left (search,
 // an orange dot for points to check, "+ Adaugă elevi"), one student on the
@@ -64,6 +65,7 @@ export function ClassStudents({
   if (students.length === 0) {
     const add = (
       <button type="button" className="button button-small" onClick={() => setAddOpen(true)}>
+        <ActionIcon name="add-person" />
         Adaugă elevi
       </button>
     );

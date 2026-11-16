@@ -4,6 +4,7 @@ import type { RobotStart, TestInfo } from '../../../shared/api.ts';
 import { SUBJECT_NAMES, SUBJECTS, type Subject } from '../../../shared/subjects.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The subject in a few words, for Fișa testului.
 export function subjectLine(test: Pick<TestInfo, 'subject'>): string {
@@ -76,9 +77,11 @@ export function SubjectForm({
       {changes && remakes(test) && <p className="hint">Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.</p>}
       <span className="row-actions">
         <button className="button button-small" type="submit" disabled={chosen === null || save.isPending}>
+          <ActionIcon name="check" />
           Salvează
         </button>
         <button type="button" className="button-quiet button-small" onClick={onClose}>
+          <ActionIcon name="close" />
           Renunță
         </button>
       </span>
@@ -110,6 +113,7 @@ export function SubjectChange({
   if (open) return <SubjectForm test={test} onDone={onChanged} onRobot={onRobot} onClose={() => setOpen(false)} />;
   return (
     <button type="button" className="button-quiet button-small" onClick={() => setOpen(true)}>
+      <ActionIcon name="edit" />
       {test.subject === null ? 'Alege materia' : 'Schimbă materia'}
     </button>
   );

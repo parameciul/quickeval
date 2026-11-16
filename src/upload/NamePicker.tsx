@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { LinkStudent } from '../../shared/api.ts';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 // The class list. A tap on a name asks "Ești tu?" first, because the upload
 // then belongs to that name on this phone. Names that already sent their
@@ -32,9 +33,11 @@ export function NamePicker({
               setChosen(null);
             }}
           >
+            <ActionIcon name="check" />
             Da, încep
           </button>
           <button type="button" className="button-quiet button-big" disabled={busy} onClick={() => setChosen(null)}>
+            <ActionIcon name="close" />
             Nu, aleg alt nume
           </button>
         </div>

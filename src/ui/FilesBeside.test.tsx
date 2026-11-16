@@ -33,6 +33,16 @@ describe('FilesBeside', () => {
     expect(screen.queryByRole('list', { name: 'Pagini' })).toBeNull();
   });
 
+  it('shows the eye while the files are hidden and the crossed eye while they show', async () => {
+    setup();
+    const icon = () => screen.getByRole('button', { name: /fișierele/ }).querySelector('svg.action-icon');
+    const shown = icon()!.innerHTML;
+    expect(icon()).toHaveAttribute('aria-hidden', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
+    expect(icon()).not.toBeNull();
+    expect(icon()!.innerHTML).not.toBe(shown);
+  });
+
   it('counts no files as zero', () => {
     setup(0);
     expect(screen.getByRole('heading', { name: 'Fișiere (0)' })).toBeInTheDocument();

@@ -10,6 +10,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { IconClock, IconDone } from '../shell/icons.tsx';
 import { MoveOnLink } from './MoveOnLink.tsx';
 import { QrDownload, QrOverlay, uploadLink } from './UploadLink.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // Whether a test has results to publish or to stop: something is graded, or
 // results are already open (for all, or for single uploads). Before that the
@@ -33,6 +34,7 @@ export function NoResultsYet() {
       action={
         <MoveOnLink stage="Corectare" className="button-quiet button-small">
           Mergi la Corectare
+          <ActionIcon name="arrow" />
         </MoveOnLink>
       }
     >
@@ -56,10 +58,12 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
 
   const button = test.resultsOpen ? (
     <button type="button" className="button-quiet button-small" disabled={toggle.isPending} onClick={() => toggle.mutate()}>
+      <ActionIcon name="eye-off" />
       Oprește accesul la rezultate
     </button>
   ) : (
     <button type="button" className="button button-small" disabled={toggle.isPending} onClick={() => toggle.mutate()}>
+      <ActionIcon name="eye" />
       Publică toate rezultatele
     </button>
   );
@@ -127,10 +131,12 @@ function StudentLink({ code, token }: { code: string; token: string }) {
       <QRCodeSVG value={url} size={88} marginSize={2} title="Codul QR al linkului" className="publish-qr" />
       <div className="publish-link-actions">
         <button type="button" className="button-quiet button-small" onClick={() => copy(url)}>
+          <ActionIcon name={copied ? 'check' : 'copy'} />
           {copied ? 'Copiat!' : 'Copiază linkul'}
         </button>
         <QrDownload url={url} fileName={`cod-qr-elevi-${code}.png`} />
         <button ref={showButton} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
+          <ActionIcon name="qr" />
           Arată codul QR pe tot ecranul
         </button>
       </div>

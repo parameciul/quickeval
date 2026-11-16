@@ -9,6 +9,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { AccountsSection } from '../settingsPage/AccountsSection.tsx';
 import { agoText, RobotLine } from '../testPage/RobotLine.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) => index + 1);
 // A page left open reads the robot's state again this often (the robot checks
@@ -243,6 +244,7 @@ function RobotKey({ hasKey, madeAt }: { hasKey: boolean; madeAt: string | null }
             if (!hasKey || window.confirm('Faci o cheie nouă? Cheia de acum nu va mai funcționa.')) create.mutate();
           }}
         >
+          <ActionIcon name="key" />
           {hasKey ? 'Fă o cheie nouă' : 'Fă cheia robotului'}
         </button>
       </div>
@@ -258,6 +260,7 @@ function RobotKey({ hasKey, madeAt }: { hasKey: boolean; madeAt: string | null }
             </label>
             <input id="robot-key" type="text" value={key} readOnly onFocus={(event) => event.target.select()} />
             <button type="button" className="button button-small" onClick={copy}>
+              <ActionIcon name="copy" />
               Copiază cheia
             </button>
             {copied === 'yes' && <span role="status">Copiat!</span>}

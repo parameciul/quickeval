@@ -22,6 +22,7 @@ import { GradedResult } from '../submissionPage/GradedResult.tsx';
 import { waitingText } from '../submissionPage/waitingText.ts';
 import { heldBackHint } from '../testPage/paperCounts.ts';
 import { NotFoundPage } from './NotFoundPage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // While the robot grades the upload, the page asks for news every 10 seconds.
 export function resultRefreshInterval(submission: SubmissionDetail | undefined): number | false {
@@ -500,6 +501,7 @@ function Paper({
             </p>
           </div>
           <Link className="button-quiet" to={`/teste/${code}${stageHash('Verificare')}`}>
+            <ActionIcon name="back" />
             Înapoi la test
           </Link>
         </div>
@@ -674,6 +676,7 @@ function Paper({
                   disabled={actions.retry.isPending}
                   onClick={() => actions.retry.mutate(submission.startedAt)}
                 >
+                  <ActionIcon name="retry" />
                   Reîncearcă
                 </button>
               )}

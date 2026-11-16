@@ -11,6 +11,7 @@ import { ErrorMessage } from '../admin/ErrorMessage.tsx';
 import { formatDate, formatDateTime } from '../ui/format.ts';
 import { paperOf, phaseOf } from './phase.ts';
 import { ShareButton } from './Share.tsx';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 // The head of the try's page, the same in every state and view: the try's
 // name (which she may change), when it was sent, until when its link works,
@@ -116,6 +117,7 @@ function TryTitle({ code, title }: { code: string; title: string }) {
       />
       <div className="try-rename-actions">
         <button type="submit" className="button" disabled={rename.isPending}>
+          <ActionIcon name="check" />
           Salvează
         </button>
         <button
@@ -126,6 +128,7 @@ function TryTitle({ code, title }: { code: string; title: string }) {
             setDraft(null);
           }}
         >
+          <ActionIcon name="close" />
           Renunță
         </button>
       </div>
