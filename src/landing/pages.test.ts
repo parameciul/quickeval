@@ -255,8 +255,8 @@ describe('the pages that answer a search', () => {
       featureList: string[];
       screenshot: string;
     };
-    expect(org.sameAs).toEqual(['https://lauramiron.pages.dev/']);
-    expect(person.sameAs).toEqual(['https://lauramiron.pages.dev/']);
+    expect(org.sameAs).toEqual(['https://lauramiron.mqgrader.ro/']);
+    expect(person.sameAs).toEqual(['https://lauramiron.mqgrader.ro/']);
     expect(person.url).toBe('https://mqgrader.ro/despre/');
     // A raster logo, as the structured data asks for: an SVG is refused.
     expect(org.logo?.url).toBe('https://mqgrader.ro/logo.png');
@@ -264,7 +264,10 @@ describe('the pages that answer a search', () => {
     expect(app.screenshot).toBe('https://mqgrader.ro/app-teste.png');
     // The page for Laura is the one the Person points at, and it links back.
     expect(landing).not.toMatch(/aggregateRating|"offers"/);
-    expect(despre).toContain('https://lauramiron.pages.dev/');
+    expect(despre).toContain('https://lauramiron.mqgrader.ro/');
+    // Laura's site moved; the old host only redirects, so no page links to it.
+    expect(landing).not.toContain('lauramiron.pages.dev');
+    expect(despre).not.toContain('lauramiron.pages.dev');
   });
 
   it('gives the contact address on the page about the author', () => {
