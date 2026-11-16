@@ -1,6 +1,7 @@
 import type { EvaluationStart, QuickTryInfo, StudentResultView, SubmissionFile } from '../../shared/api.ts';
 import { uploadTypeOf } from '../../shared/files.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
+import { putFile, type UploadRequest } from '../upload/api.ts';
 
 // The calls of a Quick Try's page that are its own (the test, its files and
 // the review go through the teacher app's client, at tryBase). The page gets
@@ -10,6 +11,10 @@ export interface TryApi {
   // The student's pages, in upload order.
   listPages(): Promise<SubmissionFile[]>;
   addPage(file: File): Promise<SubmissionFile>;
+  // The phone page's send: the same route, with its progress (0 to 1).
+  uploadPage(file: Blob, name: string, onProgress: (sent: number) => void): Promise<SubmissionFile>;
+  // A page already sent, for its preview.
+  pageBlob(fileId: number): Promise<Blob>;
   deletePage(fileId: number): Promise<void>;
   // "Pornește corectarea". `filesVersion`: the version of the robot's barem
   // the page showed, which then counts as checked.
@@ -50,8 +55,9 @@ export async function apiRequest<T>(fetchImpl: typeof fetch, url: string, method
   return readAnswer<T>(res);
 }
 
-export function createTryClient(token: string, options: { fetchImpl?: typeof fetch } = {}): TryApi {
+export function createTryClient(token: string, options: { fetchImpl?: typeof fetch; newRequest?: () => UploadRequest } = {}): TryApi {
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
+  const newRequest = options.newRequest ?? (() => new XMLHttpRequest() as unknown as UploadRequest);
   const base = tryBase(token);
   const request = <T>(method: string, path: string, body?: unknown, file?: File) => apiRequest<T>(fetchImpl, `${base}${path}`, method, body, file);
 
@@ -59,6 +65,17 @@ export function createTryClient(token: string, options: { fetchImpl?: typeof fet
     info: () => request<QuickTryInfo>('GET', ''),
     listPages: async () => (await request<{ files: SubmissionFile[] }>('GET', '/paper')).files,
     addPage: async (file) => (await request<{ file: SubmissionFile }>('PUT', '/paper', undefined, file)).file,
+    uploadPage: (file, name, onProgress) => putFile(newRequest(), `${base}/paper`, file, name, onProgress),
+    pageBlob: async (fileId) => {
+      let res: Response;
+      try {
+        res = await fetchImpl(`${base}/paper/${fileId}`, { credentials: 'same-origin' });
+      } catch {
+        throw new ApiError(0, 'network', NETWORK_MESSAGE);
+      }
+      if (!res.ok) await readAnswer(res);
+      return res.blob();
+    },
     deletePage: async (fileId) => {
       await request('DELETE', `/paper/${fileId}`);
     },

@@ -64,6 +64,13 @@ export function createFakeTryApi(data: FakeTryData = {}) {
       pages.push(stored);
       return structuredClone(stored);
     }),
+    uploadPage: vi.fn(async (file: Blob, name: string, onProgress: (sent: number) => void) => {
+      const stored: SubmissionFile = { id: nextId++, name, contentType: file.type, size: file.size, position: pages.length + 1 };
+      pages.push(stored);
+      onProgress(1);
+      return structuredClone(stored);
+    }),
+    pageBlob: vi.fn(async (_fileId: number) => new Blob(['jpg'], { type: 'image/jpeg' })),
     deletePage: vi.fn(async (fileId: number) => {
       const index = pages.findIndex((page) => page.id === fileId);
       if (index < 0) throw new ApiError(404, 'not_found', 'Nu am găsit fișierul.');

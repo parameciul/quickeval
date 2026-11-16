@@ -59,6 +59,47 @@ export interface UploadRequest {
   send(body: Blob): void;
 }
 
+// One file as the whole body of a PUT, with its progress: XMLHttpRequest,
+// because fetch cannot report upload progress. The answer is `{ file }`; a
+// refusal rejects with its ApiError. The try's phone page uses it too.
+export function putFile(
+  request: UploadRequest,
+  url: string,
+  file: Blob,
+  name: string,
+  onProgress: (sent: number) => void,
+  headers: Record<string, string> = {},
+): Promise<SubmissionFile> {
+  return new Promise((resolve, reject) => {
+    request.open('PUT', url);
+    request.setRequestHeader('Content-Type', file.type);
+    request.setRequestHeader('X-File-Name', encodeURIComponent(name));
+    for (const [header, value] of Object.entries(headers)) request.setRequestHeader(header, value);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) onProgress(event.loaded / event.total);
+    };
+    const lost = () => reject(new ApiError(0, 'network', NETWORK_MESSAGE));
+    request.onerror = lost;
+    request.onabort = lost;
+    request.ontimeout = lost;
+    request.onload = () => {
+      let answer: Response;
+      try {
+        answer = new Response(request.responseText, {
+          status: request.status,
+          headers: { 'Content-Type': request.getResponseHeader('Content-Type') ?? '' },
+        });
+      } catch {
+        // A status that a Response cannot hold (0, 204, 304): the answer is lost.
+        lost();
+        return;
+      }
+      readAnswer<{ file: SubmissionFile }>(answer).then((data) => resolve(data.file), reject);
+    };
+    request.send(file);
+  });
+}
+
 export interface UploadClientOptions {
   fetchImpl?: typeof fetch;
   newRequest?: () => UploadRequest;
@@ -85,37 +126,8 @@ export function createUploadClient(options: UploadClientOptions = {}): UploadApi
     return readAnswer<T>(res);
   }
 
-  // XMLHttpRequest, because fetch cannot report upload progress.
   function upload(url: string, secret: string, file: Blob, name: string, onProgress: (sent: number) => void): Promise<SubmissionFile> {
-    return new Promise((resolve, reject) => {
-      const request = newRequest();
-      request.open('PUT', url);
-      request.setRequestHeader('Content-Type', file.type);
-      request.setRequestHeader('X-File-Name', encodeURIComponent(name));
-      request.setRequestHeader(SESSION_HEADER, secret);
-      request.upload.onprogress = (event) => {
-        if (event.lengthComputable && event.total > 0) onProgress(event.loaded / event.total);
-      };
-      const lost = () => reject(new ApiError(0, 'network', NETWORK_MESSAGE));
-      request.onerror = lost;
-      request.onabort = lost;
-      request.ontimeout = lost;
-      request.onload = () => {
-        let answer: Response;
-        try {
-          answer = new Response(request.responseText, {
-            status: request.status,
-            headers: { 'Content-Type': request.getResponseHeader('Content-Type') ?? '' },
-          });
-        } catch {
-          // A status that a Response cannot hold (0, 204, 304): the answer is lost.
-          lost();
-          return;
-        }
-        readAnswer<{ file: SubmissionFile }>(answer).then((data) => resolve(data.file), reject);
-      };
-      request.send(file);
-    });
+    return putFile(newRequest(), url, file, name, onProgress, { [SESSION_HEADER]: secret });
   }
 
   return {
