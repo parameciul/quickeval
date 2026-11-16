@@ -65,8 +65,8 @@ const SENTENCES: Record<StageName, string> = {
 // sentence, and the controls of that stage.
 export function StagePanel({ stage, ...props }: PanelProps & { stage: StageName }) {
   const id = useId();
-  // A link inside a panel to another stage (MoveOnLink) can sit at the end of
-  // a long panel: after it, the page shows the top of the new panel, and its
+  // A link to another stage (MoveOnLink: the bar at the foot of the page,
+  // StageBar, or a link inside a panel) can be clicked far down a long page: after it, the page shows the top of the new panel, and its
   // heading takes the focus, so a screen reader names it. Chrome does not
   // always scroll to an element that takes the focus right after a click, so
   // the panel is scrolled into view first (jsdom has no scrollIntoView). A

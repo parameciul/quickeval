@@ -269,13 +269,14 @@ describe('NewTestPage', () => {
     expect(third).toHaveClass('is-done');
   });
 
-  it('counts a barem asked from the test as there, and not one for later', async () => {
+  it('says a barem asked from the test is being generated, and not one for later', async () => {
     renderAdmin('/teste/nou', classes());
     await fillClassAndTitle();
     const third = stepOf(screen.getByRole('heading', { level: 2, name: 'Baremul' }));
     await userEvent.upload(testField(), pdf('Test.pdf'));
     await userEvent.click(choice(/^Generează baremul din test/));
-    expect(stepTag(third)).toBe('Gata');
+    expect(stepTag(third)).toBe('Se generează');
+    expect(third).not.toHaveClass('is-done');
     await userEvent.click(choice(/^Mai târziu/));
     expect(stepTag(third)).toBe('Poți și mai târziu');
     expect(third).not.toHaveClass('is-done');

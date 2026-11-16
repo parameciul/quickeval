@@ -25,9 +25,11 @@ describe('NewTestState', () => {
     ]);
   });
 
-  it('says a barem the robot will write is being generated, not done', () => {
-    render(<NewTestState hasClass hasTitle missing={['test']} generating={['barem']} wantsCes={false} />);
-    const rows = within(screen.getByRole('region', { name: 'Starea testului' })).getAllByRole('listitem').map((row) => row.textContent);
-    expect(rows).toEqual(['Clasagata', 'Titlulgata', 'Testullipsește', 'Baremulse generează']);
+  it('says a barem the robot will write comes later, and does not count it as done', () => {
+    render(<NewTestState hasClass hasTitle missing={[]} generating={['barem']} wantsCes={false} />);
+    const card = screen.getByRole('region', { name: 'Starea testului' });
+    expect(card).toHaveTextContent('3 din 4 făcute');
+    const rows = within(card).getAllByRole('listitem').map((row) => row.textContent);
+    expect(rows).toEqual(['Clasagata', 'Titlulgata', 'Testulgata', 'Baremulse va genera']);
   });
 });

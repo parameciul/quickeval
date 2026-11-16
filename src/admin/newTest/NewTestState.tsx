@@ -13,20 +13,22 @@ export function NewTestState({
   hasClass: boolean;
   hasTitle: boolean;
   missing: MissingPart[];
-  // Parts that are not missing because the robot will write them.
+  // Parts that are not missing because the robot will write them once the test
+  // is made: neither here nor missing, so they do not count as done.
   generating: MissingPart[];
   wantsCes: boolean;
 }) {
   const parts: MissingPart[] = wantsCes ? ['test', 'barem', 'cesTest', 'cesBarem'] : ['test', 'barem'];
   const items = [
-    { key: 'class', label: 'Clasa', done: hasClass, todo: 'de ales', doneWord: 'gata' },
-    { key: 'title', label: 'Titlul', done: hasTitle, todo: 'de scris', doneWord: 'gata' },
+    { key: 'class', label: 'Clasa', done: hasClass, todo: 'de ales', doneWord: 'gata', later: false },
+    { key: 'title', label: 'Titlul', done: hasTitle, todo: 'de scris', doneWord: 'gata', later: false },
     ...parts.map((part) => ({
       key: part,
       label: `${missingName(part)[0]?.toUpperCase()}${missingName(part).slice(1)}`,
-      done: !missing.includes(part),
+      done: !missing.includes(part) && !generating.includes(part),
+      later: generating.includes(part),
       todo: 'lipsește',
-      doneWord: generating.includes(part) ? 'se generează' : 'gata',
+      doneWord: 'gata',
     })),
   ];
   const done = items.filter((item) => item.done).length;
@@ -40,7 +42,7 @@ export function NewTestState({
       </p>
       <ul>
         {items.map((item) => (
-          <li key={item.key} className={item.done ? 'is-done' : 'is-todo'}>
+          <li key={item.key} className={item.done ? 'is-done' : item.later ? 'is-later' : 'is-todo'}>
             <span className="state-mark" aria-hidden="true">
               {item.done && (
                 <svg
@@ -57,7 +59,7 @@ export function NewTestState({
               )}
             </span>
             <span>{item.label}</span>
-            <span className="state-word">{item.done ? item.doneWord : item.todo}</span>
+            <span className="state-word">{item.done ? item.doneWord : item.later ? 'se va genera' : item.todo}</span>
           </li>
         ))}
       </ul>

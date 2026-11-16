@@ -2238,6 +2238,7 @@ table.tests .row-actions {
    stage in progress. */
 .stage-dot {
   position: relative;
+  align-self: start;
   grid-row: span 2;
   display: grid;
   place-items: center;
@@ -2367,7 +2368,7 @@ table.tests .row-actions {
   bottom: 0;
   z-index: 4;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.25rem 1rem;
   min-height: 2.5rem;
@@ -2382,8 +2383,24 @@ table.tests .row-actions {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
   margin-right: auto;
   font-weight: 500;
+}
+
+/* One line, never taller than the room the page keeps under a focused
+   control: the words give way with an ellipsis, the button never. */
+.stage-bar-state > span:last-child,
+.stage-bar-wait {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-bar > a {
+  flex: none;
+  white-space: nowrap;
 }
 
 .stage-bar-mark {
@@ -3008,26 +3025,6 @@ table.tests .row-actions {
     bottom: var(--bottom);
     margin: 1.5rem calc(-1 * max(1rem, env(safe-area-inset-right, 0px))) -1.5rem calc(-1 * max(1rem, env(safe-area-inset-left, 0px)));
     padding-inline: max(1rem, env(safe-area-inset-left, 0px)) max(1rem, env(safe-area-inset-right, 0px));
-    flex-wrap: nowrap;
-  }
-
-  /* One line, never taller than the room the page keeps under a focused
-     control: the words give way with an ellipsis, the button never. */
-  .stage-bar-state,
-  .stage-bar-wait {
-    min-width: 0;
-  }
-
-  .stage-bar-state > span:last-child,
-  .stage-bar-wait {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .stage-bar > a {
-    flex: none;
-    white-space: nowrap;
   }
 }
 
@@ -4327,12 +4324,15 @@ input[type="file"] {
   font-size: 0.8125rem;
 }
 
-.new-test-state li.is-done .state-word {
+.new-test-state li.is-done .state-word,
+.new-test-state li.is-later .state-word {
   color: var(--muted);
 }
 
-.new-test-next {
-  position: static;
+.new-test-state li.is-later .state-mark {
+  border-style: dashed;
+  border-color: var(--control);
+  background: none;
 }
 
 .new-test-next ul {

@@ -129,16 +129,19 @@ export function NewTestPage() {
 
   // Where each step stands, for the mark on it: the class and the title come
   // first; the files can wait, so an empty step says so instead of blocking.
+  const baremThere = !missing.includes('barem') && !(withCes && missing.includes('cesBarem'));
   const stepDone = [
     selected !== '' && title.trim() !== '',
     !missing.includes('test') && !(withCes && missing.includes('cesTest')),
-    !missing.includes('barem') && !(withCes && missing.includes('cesBarem')),
+    baremThere && generating.length === 0,
   ];
   const stepMark = (index: number) =>
     stepDone[index] ? (
       <span className="step-state tag tag-ok">Gata</span>
     ) : index === 0 ? (
       <span className="step-state tag tag-wait">De completat</span>
+    ) : index === 2 && baremThere ? (
+      <span className="step-state tag">Se generează</span>
     ) : (
       <span className="step-state tag">Poți și mai târziu</span>
     );
