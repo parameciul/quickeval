@@ -11,6 +11,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { stageFromHash, stagesOf, type StageName } from '../stages.ts';
 import { StageList } from '../testPage/StageList.tsx';
 import { excludedFor, selectedIds } from '../testPage/selection.ts';
+import { StageBar } from '../testPage/StageBar.tsx';
 import { StagePanel } from '../testPage/StagePanel.tsx';
 import { waitsForBarem, waitsForPrint } from '../testPage/StartRobotButton.tsx';
 import { TestMenu } from '../testPage/TestMenu.tsx';
@@ -119,6 +120,7 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
         />
         <TestSheet test={test} uploads={uploads} />
       </div>
+      <StageBar stages={stages} chosen={chosen} />
     </section>
   );
 }

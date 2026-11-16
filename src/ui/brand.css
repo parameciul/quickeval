@@ -1043,12 +1043,26 @@ table.search-table {
   background: var(--ink-tint);
 }
 
+.panel-new {
+  display: grid;
+  padding: 0.5rem 1rem 1rem;
+}
+
+.panel-new .button {
+  width: 100%;
+}
+
 .class-item-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.125rem;
+}
+
+.class-item-head b {
+  font-size: 1rem;
+  font-weight: 400;
 }
 
 .class-item-head span,
@@ -2172,9 +2186,9 @@ table.tests .row-actions {
 .stage-list li:not(:last-child)::after {
   content: "";
   position: absolute;
-  top: 36px;
-  bottom: -8px;
-  left: 21px;
+  top: 46px;
+  bottom: -4px;
+  left: 27px;
   width: 2px;
   background: var(--active);
 }
@@ -2187,10 +2201,10 @@ table.tests .row-actions {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-columns: 36px minmax(0, 1fr);
   column-gap: 12px;
-  align-items: start;
-  padding: 10px;
+  align-items: center;
+  padding: 8px;
   border-radius: var(--radius);
   color: var(--text);
   text-decoration: none;
@@ -2204,37 +2218,57 @@ table.tests .row-actions {
   background: var(--ink-tint);
 }
 
+/* A stage's icon in a round dot: grey until reached, blue when done (with a
+   small tick), orange when it waits on the teacher, filled blue when it is the
+   stage in progress. */
 .stage-dot {
+  position: relative;
   grid-row: span 2;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--control);
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: var(--sheet);
+  background: var(--active);
+  color: var(--muted);
 }
 
-.stage-dot svg {
-  width: 12px;
-  height: 12px;
+.stage-dot .action-icon {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
-.stage-list .is-done .stage-dot {
-  border-color: var(--ink);
+.stage-dot .stage-tick {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  box-sizing: content-box;
+  width: 10px;
+  height: 10px;
+  padding: 3px;
+  border: 2px solid var(--sheet);
+  border-radius: 50%;
   background: var(--ink);
   color: var(--on-ink);
 }
 
+.stage-list a[aria-current="step"] .stage-tick {
+  border-color: var(--ink-tint);
+}
+
+.stage-list .is-done .stage-dot {
+  background: var(--ink-tint);
+  color: var(--ink);
+}
+
 .stage-list .is-wait .stage-dot {
-  border-color: var(--orange-mark);
-  background: var(--orange-mark);
-  box-shadow: inset 0 0 0 4px var(--sheet);
+  background: var(--marker);
+  color: var(--orange);
 }
 
 .stage-list .is-now .stage-dot {
-  border-color: var(--ink);
-  background: var(--ink-tint);
+  background: var(--ink);
+  color: var(--on-ink);
 }
 
 .stage-name {
@@ -2301,10 +2335,58 @@ table.tests .row-actions {
   font-size: 1rem;
 }
 
-.next-stage {
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--line);
-  text-align: right;
+/* The bar at the foot of the test page (design A, bar C2): the stage on show,
+   what waits in the next one, and a small button into it. It sticks to the
+   bottom of the window while the page is longer, and rests at the page's end
+   when it is shorter. It runs to the edges of the page's room. */
+.stage-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  min-height: 2.5rem;
+  margin: 1.5rem -2rem -3rem;
+  padding: 0.375rem 2rem;
+  border-top: 1px solid var(--rule);
+  background: var(--sheet);
+  font-size: 0.875rem;
+}
+
+.stage-bar-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+  font-weight: 500;
+}
+
+.stage-bar-mark {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--active);
+  color: var(--muted);
+}
+
+.stage-bar-state.is-done .stage-bar-mark {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.stage-bar-mark .action-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+  stroke-width: 2.4;
+}
+
+.stage-bar-wait {
+  color: var(--orange);
+  font-weight: 500;
 }
 
 /* The box at the top of Rezultate (spec 2026-11-14): grey while the results
@@ -2897,6 +2979,14 @@ table.tests .row-actions {
   /* The sheet's text is small, but a phone zooms into a field under 16px. */
   .test-sheet input {
     font-size: 1rem;
+  }
+}
+
+@media (max-width: 56.25rem) {
+  .stage-bar {
+    bottom: var(--bottom);
+    margin: 1.5rem -1rem -1.5rem;
+    padding-inline: 1rem;
   }
 }
 
@@ -3921,6 +4011,19 @@ input[type="file"] {
   border-radius: var(--radius-panel);
   background: var(--sheet);
   counter-increment: step;
+  position: relative;
+}
+
+.step.is-done::before {
+  content: "¹3";
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.step-state {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
 }
 
 .step::before {
@@ -4083,9 +4186,70 @@ input[type="file"] {
   margin-top: 1.25rem;
 }
 
-.new-test-next {
+.new-test-side {
   position: sticky;
   top: calc(var(--top) + 1.5rem);
+  display: grid;
+  gap: 1rem;
+}
+
+.new-test-count {
+  margin: 0;
+  padding: 0 1.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.new-test-state ul {
+  display: grid;
+  margin: 0;
+  padding: 0.5rem 1.25rem 1rem;
+  list-style: none;
+}
+
+.new-test-state li {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9375rem;
+}
+
+.new-test-state .state-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1.5px solid var(--orange-mark);
+  border-radius: 50%;
+  background: var(--marker);
+}
+
+.new-test-state li.is-done .state-mark {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.new-test-state .state-mark svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.new-test-state .state-word {
+  margin-left: auto;
+  color: var(--orange);
+  font-size: 0.8125rem;
+}
+
+.new-test-state li.is-done .state-word {
+  color: var(--muted);
+}
+
+.new-test-next {
+  position: static;
 }
 
 .new-test-next ul {
@@ -4124,7 +4288,7 @@ input[type="file"] {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .new-test-next {
+  .new-test-side {
     position: static;
   }
 }
@@ -5526,7 +5690,9 @@ table.items tr.edit-row > td {
 
 .paper-action {
   display: grid;
-  gap: 0.15rem;
+  grid-template-columns: 1.125rem minmax(0, 1fr);
+  column-gap: 0.7rem;
+  row-gap: 0.15rem;
   padding: 0.6rem 0.7rem;
   border: 0;
   border-radius: 6px;
@@ -5542,9 +5708,24 @@ table.items tr.edit-row > td {
   background: var(--raised);
 }
 
+.paper-action > .action-icon {
+  grid-row: span 2;
+  margin-top: 0.1rem;
+  color: var(--muted);
+}
+
+.paper-action.is-danger > .action-icon {
+  color: var(--red);
+}
+
+.paper-action-label,
+.paper-action-hint {
+  grid-column: 2;
+}
+
 .paper-action-label {
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .paper-action.is-danger .paper-action-label {

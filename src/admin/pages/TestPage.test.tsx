@@ -985,7 +985,7 @@ describe('TestPage stages', () => {
     expect(within(stages).getByRole('link', { name: /^Pregătire / })).toHaveAttribute('aria-current', 'step');
     expect(within(stages).getByRole('link', { name: /^Verificare / })).not.toHaveAttribute('aria-current');
     expect(screen.queryByRole('heading', { level: 2, name: 'Verificare' })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('link', { name: 'Următoarea etapă: Tipărire →' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Mergi la Tipărire' }));
     // The new panel's heading takes the focus, so the page shows its top.
     expect(await screen.findByRole('heading', { level: 2, name: 'Tipărire' })).toHaveFocus();
     await expectLocation('/teste/6E2-26T1#tiparire');
@@ -1006,7 +1006,7 @@ describe('TestPage stages', () => {
     };
     window.addEventListener('click', noNewTab, true);
     await user.keyboard('{Control>}');
-    await user.click(await screen.findByRole('link', { name: 'Următoarea etapă: Tipărire →' }));
+    await user.click(await screen.findByRole('link', { name: 'Mergi la Tipărire' }));
     await user.keyboard('{/Control}');
     window.removeEventListener('click', noNewTab, true);
     expect(screen.getByRole('heading', { level: 2, name: 'Pregătire' })).toBeInTheDocument();
@@ -1139,7 +1139,7 @@ describe('TestPage Verificare', () => {
     expect(within(panel).queryByText('Stan Eva')).not.toBeInTheDocument();
     expect(within(panel).queryByRole('table')).not.toBeInTheDocument();
     expect(within(panel).queryByRole('heading', { name: 'Gata' })).not.toBeInTheDocument();
-    expect(within(panel).getByRole('link', { name: 'Următoarea etapă: Rezultate →' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toBeInTheDocument();
   });
 
   it('continues the check, with the students done under Gata', async () => {
@@ -1160,16 +1160,16 @@ describe('TestPage Verificare', () => {
     renderAdmin(`${PAGE}#verificare`, reviewApi(rows({ marin: 2, pop: 1 })));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
     expect(within(panel).getByText('Toate cele 3 puncte sunt verificate.')).toBeInTheDocument();
-    expect(within(panel).getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
-    // The box leads to Rezultate: no second link under it.
-    expect(within(panel).queryByRole('link', { name: 'Următoarea etapă: Rezultate →' })).not.toBeInTheDocument();
+    // The bar at the foot leads to Rezultate; the box has no button of its own.
+    expect(within(panel).queryByRole('link', { name: 'Mergi la Rezultate' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
     expect(within(panel).queryByRole('link', { name: /verificarea$/ })).not.toBeInTheDocument();
     expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument();
     expect(within(panel).queryByRole('list', { name: 'De verificat' })).not.toBeInTheDocument();
     const done = within(within(panel).getByRole('list', { name: 'Gata' })).getAllByRole('link');
     expect(done.map((link) => link.textContent)).toEqual(['✓ Marin Dan', '✓ Pop Ion']);
     // It opens Rezultate as the stage links do: its heading takes the focus.
-    await userEvent.click(within(panel).getByRole('link', { name: 'Mergi la Rezultate' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Mergi la Rezultate' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Rezultate' })).toHaveFocus();
   });
 
@@ -1183,8 +1183,7 @@ describe('TestPage Verificare', () => {
     renderAdmin(`${PAGE}#verificare`, reviewApi(rows().slice(2)));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
     expect(within(panel).getByText('Nimic de verificat.')).toBeInTheDocument();
-    expect(within(panel).getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
-    expect(within(panel).queryByRole('link', { name: 'Următoarea etapă: Rezultate →' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
     expect(within(panel).queryByRole('list')).not.toBeInTheDocument();
     expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument();
   });

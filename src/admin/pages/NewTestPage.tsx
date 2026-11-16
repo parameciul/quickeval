@@ -13,6 +13,7 @@ import { ErrorMessage, errorText } from '../ErrorMessage.tsx';
 import { missingParts } from '../missing.ts';
 import { MissingList } from '../MissingList.tsx';
 import { FileDrop } from '../newTest/FileDrop.tsx';
+import { NewTestState } from '../newTest/NewTestState.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
@@ -120,6 +121,13 @@ export function NewTestPage() {
     },
   });
 
+  // Where each step stands, for the mark on it: the class and the title come
+  // first; the files can wait, so an empty step says so instead of blocking.
+  const stepDone = [selected !== '' && title.trim() !== '', !missing.includes('test') && !(withCes && missing.includes('cesTest')), !missing.includes('barem') && !(withCes && missing.includes('cesBarem'))];
+  const stepMark = (index: number) =>
+    stepDone[index] ? <span className="step-state tag tag-ok">Gata</span> : index === 0 ? <span className="step-state tag tag-wait">De completat</span> : <span className="step-state tag">Poți și mai târziu</span>;
+  const stepClass = (index: number) => (stepDone[index] ? 'step is-done' : 'step');
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     create.mutate();
@@ -161,7 +169,7 @@ export function NewTestPage() {
         <div className="new-test">
           <form onSubmit={onSubmit}>
             <ol className="steps">
-              <li className="step">
+              <li className={stepClass(0)}>{stepMark(0)}
                 <div>
                   <h2>Clasa și titlul</h2>
                   <p>Titlul îl văd și elevii, pe pagina lor.</p>
@@ -203,7 +211,7 @@ export function NewTestPage() {
                   <CesSwitch names={cesNames} on={cesOn} onToggle={setCesOn} />
                 </li>
               )}
-              <li className="step">
+              <li className={stepClass(1)}>{stepMark(1)}
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
                     <h2>Testul</h2>
@@ -226,7 +234,7 @@ export function NewTestPage() {
                   )}
                 </div>
               </li>
-              <li className="step">
+              <li className={stepClass(2)}>{stepMark(2)}
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
                     <h2>Baremul</h2>
@@ -288,6 +296,8 @@ export function NewTestPage() {
             {create.error && <ErrorMessage error={create.error} />}
           </form>
 
+          <aside className="new-test-side">
+          <NewTestState hasClass={selected !== ''} hasTitle={title.trim() !== ''} missing={missing} wantsCes={withCes} />
           <section className="class-card new-test-next" aria-labelledby="new-test-next">
             <div className="class-card-head">
               <h2 id="new-test-next">După ce creezi testul</h2>
@@ -327,6 +337,7 @@ export function NewTestPage() {
               </li>
             </ul>
           </section>
+          </aside>
         </div>
       )}
       {newClass && <NewClassDialog onClose={() => setNewClass(false)} onCreated={(id) => setClassId(String(id))} />}

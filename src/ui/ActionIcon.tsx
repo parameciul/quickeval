@@ -39,6 +39,20 @@ const PATHS = {
   ),
   download: <path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9M4 14.5v2h12v-2" />,
   edit: <path d="M12.5 4.5l3 3-8 8h-3v-3zM11 6l3 3" />,
+  doc: <path d="M5 2.75h7l3 3v11.5H5zM8 9h4.5M8 12h4.5" />,
+  phone: (
+    <>
+      <rect x="5.5" y="2.5" width="9" height="15" rx="2" />
+      <path d="M9 14.5h2" />
+    </>
+  ),
+  sliders: (
+    <>
+      <path d="M3.5 6h7M15 6h1.5M3.5 14h1.5M9.5 14h7" />
+      <circle cx="12.75" cy="6" r="2" />
+      <circle cx="7.25" cy="14" r="2" />
+    </>
+  ),
   eye: (
     <>
       <path d="M2.5 10S5.25 5 10 5s7.5 5 7.5 5-2.75 5-7.5 5-7.5-5-7.5-5z" />

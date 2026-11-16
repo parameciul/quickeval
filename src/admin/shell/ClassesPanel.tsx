@@ -63,6 +63,12 @@ export function ClassesPanel({
               <ErrorMessage error={tests.error} />
             </div>
           ) : null}
+          <div className="panel-new">
+            <Link className="button" to="/clase" state={{ newClass: true }}>
+              <ActionIcon name="add" />
+              Clasă nouă
+            </Link>
+          </div>
           <nav className="class-list">
             {active.map((item) => {
               const work = (tests.data ?? []).filter((test) => test.classId === item.id && inWork(test));
@@ -96,12 +102,6 @@ export function ClassesPanel({
         </>
       )}
       <div className="panel-actions">
-        {(classes.data === undefined || active.length > 0) && (
-          <Link className="button-quiet button-small" to="/clase" state={{ newClass: true }}>
-            <ActionIcon name="add" />
-            Clasă nouă
-          </Link>
-        )}
         {archived > 0 && (
           <Link to="/clase" state={{ archived: true }}>
             Arhivate ({archived})

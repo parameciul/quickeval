@@ -5,7 +5,6 @@ import { countLabel } from '../../ui/format.ts';
 import { CesTag } from '../CesTag.tsx';
 import { paperPath } from '../paperPage/paths.ts';
 import { pointKey, reviewPath } from '../reviewPage/points.ts';
-import { MoveOnLink } from './MoveOnLink.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The graded papers that had points to check, in the class order (by name):
@@ -32,12 +31,6 @@ export function showsOverview(test: TestInfo): boolean {
   return test.status !== 'draft' && test.gradedCount > 0;
 }
 
-// The overview has its own "Mergi la Rezultate" when nothing is left to check:
-// the stage panel then leaves out its link to the next stage.
-export function overviewLeadsOn(test: TestInfo, uploads: UploadRow[]): boolean {
-  return showsOverview(test) && reviewCounts(uploads).left === 0;
-}
-
 // The panel Verificare as an overview of the check: how far it is, one orange
 // button into the paper page at the first point left, and a label per student
 // with points (those left first, then those done). The points themselves are
@@ -46,18 +39,10 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
   const waitId = useId();
   const doneId = useId();
   const { total, checked, left, waiting, done } = reviewCounts(uploads);
-  const toResults = (
-    <MoveOnLink stage="Rezultate" className="button">
-      Mergi la Rezultate
-      <ActionIcon name="arrow" />
-    </MoveOnLink>
-  );
-
   if (total === 0) {
     return (
       <div className="review-done-box">
         <p>Nimic de verificat.</p>
-        {toResults}
       </div>
     );
   }
@@ -91,7 +76,6 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
       ) : (
         <div className="review-done-box">
           <p>{total === 1 ? 'Singurul punct de verificat a fost verificat.' : `Toate cele ${countLabel(total, 'punct', 'puncte')} sunt verificate.`}</p>
-          {toResults}
         </div>
       )}
       {waiting.length > 0 && (

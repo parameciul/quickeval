@@ -20,11 +20,11 @@ import { SubjectChange } from './SubjectForm.tsx';
 import { clearPrint } from './printPdf.ts';
 import { PrintTest } from './PrintTest.tsx';
 import { RegradeAllButton } from './RegradeAllButton.tsx';
-import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
+import { isMoveOn } from './MoveOnLink.tsx';
 import { ReportCard } from './ReportCard.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
 import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
-import { overviewLeadsOn, ReviewOverview, showsOverview } from './ReviewOverview.tsx';
+import { ReviewOverview, showsOverview } from './ReviewOverview.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
@@ -61,20 +61,10 @@ const SENTENCES: Record<StageName, string> = {
     'După ce rezultatele sunt publicate, fiecare elev are acces la rezultatul lui: nota finală, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.',
 };
 
-const NEXT: Partial<Record<StageName, StageName>> = {
-  Pregătire: 'Tipărire',
-  Tipărire: 'În clasă',
-  'În clasă': 'Corectare',
-  Corectare: 'Verificare',
-  Verificare: 'Rezultate',
-};
-
 // The panel of one stage of the test page (redesign spec §6): its name, its
 // sentence, and the controls of that stage.
 export function StagePanel({ stage, ...props }: PanelProps & { stage: StageName }) {
   const id = useId();
-  // Verificare leads to Rezultate from its own box once all is checked.
-  const next = stage === 'Verificare' && overviewLeadsOn(props.test, props.uploads) ? undefined : NEXT[stage];
   // A link inside a panel to another stage (MoveOnLink) can sit at the end of
   // a long panel: after it, the page shows the top of the new panel, and its
   // heading takes the focus, so a screen reader names it. Chrome does not
@@ -106,11 +96,6 @@ export function StagePanel({ stage, ...props }: PanelProps & { stage: StageName 
         {stage === 'Corectare' && <GradingPanel {...props} />}
         {stage === 'Verificare' && <ReviewPanel {...props} />}
         {stage === 'Rezultate' && <ResultsPanel {...props} />}
-        {next && (
-          <p className="next-stage">
-            <MoveOnLink stage={next}>Următoarea etapă: {next} →</MoveOnLink>
-          </p>
-        )}
       </div>
     </section>
   );

@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { ActionIcon, type ActionIconName } from '../../ui/ActionIcon.tsx';
 import { stageHash, type Stage, type StageName, type StageState } from '../stages.ts';
 
 // What the dot of a stage says, for a screen reader.
@@ -7,6 +8,17 @@ const STATE_WORDS: Record<StageState, string> = {
   wait: 'te așteaptă',
   now: 'în lucru',
   later: 'urmează',
+};
+
+// The icon of each stage: the landing page's, so the stages look the same in
+// the app.
+export const STAGE_ICONS: Record<StageName, ActionIconName> = {
+  Pregătire: 'doc',
+  Tipărire: 'print',
+  'În clasă': 'phone',
+  Corectare: 'check',
+  Verificare: 'eye',
+  Rezultate: 'link',
 };
 
 // The six stages of the test page as a vertical list (redesign spec §6): a dot
@@ -20,6 +32,7 @@ export function StageList({ stages, chosen }: { stages: Stage[]; chosen: StageNa
           <li key={stage.name} className={`is-${stage.state}`}>
             <Link to={{ hash: stageHash(stage.name) }} replace aria-current={stage.name === chosen ? 'step' : undefined}>
               <span className="stage-dot" aria-hidden="true">
+                <ActionIcon name={STAGE_ICONS[stage.name]} />
                 {stage.state === 'done' && <TickIcon />}
               </span>
               <span className="stage-name">{stage.name}</span>{' '}
@@ -42,7 +55,7 @@ export function StageList({ stages, chosen }: { stages: Stage[]; chosen: StageNa
 
 function TickIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="stage-tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3.5 8.5l3 3 6-6.5" />
     </svg>
   );
