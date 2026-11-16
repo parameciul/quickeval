@@ -303,10 +303,17 @@ export const correctItemBody = z
       .transform((raw) => raw.trim())
       .pipe(z.string().max(TEXT_LIMITS.comment, { message: `Comentariul are cel mult ${TEXT_LIMITS.comment} de caractere.` }))
       .optional(),
+    // The student's answer as the result shows it: the teacher corrects what
+    // the robot read wrong on the paper. Empty when the student wrote none.
+    studentAnswer: z
+      .string()
+      .transform((raw) => raw.trim())
+      .pipe(z.string().max(TEXT_LIMITS.studentAnswer, { message: `Răspunsul elevului are cel mult ${TEXT_LIMITS.studentAnswer} de caractere.` }))
+      .optional(),
     // True: the teacher checked the item. False takes the check back.
     reviewed: z.boolean().optional(),
   })
-  .refine((body) => body.points !== undefined || body.comment !== undefined || body.reviewed !== undefined, {
+  .refine((body) => body.points !== undefined || body.comment !== undefined || body.studentAnswer !== undefined || body.reviewed !== undefined, {
     message: 'Nu ai schimbat nimic.',
   });
 
@@ -1031,8 +1038,13 @@ export interface LinkStudent {
 // The page behind an upload link. The name list is empty unless uploads are open.
 // `multi` is true for the link that uploads for many students on one phone:
 // it never locks after one upload. The default link locks after one upload.
+// `test.key` names the test, the same on both of its links and never the
+// same for two tests: the phone finds by it the result links it kept through
+// the test's other link. `test.resultsOpen` says that students can read
+// results (open for all, or some published alone); always false while the
+// test is a draft or open.
 export interface LinkInfo {
-  test: { code: string; title: string; className: string; status: TestStatus };
+  test: { code: string; title: string; className: string; status: TestStatus; key: string; resultsOpen: boolean };
   students: LinkStudent[];
   multi: boolean;
 }

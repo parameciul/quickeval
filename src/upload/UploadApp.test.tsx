@@ -249,6 +249,103 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
+  it('says where the result is when the results are published and this phone kept no link', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByText('Rezultatele au fost publicate.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Linkul cu rezultatul tău este salvat pe telefonul și în browserul cu care ai trimis lucrarea. Dacă nu îl găsești acolo, cere profesorului linkul tău.',
+      ),
+    ).toBeInTheDocument();
+    // Nothing went wrong: no error, and no word of the closed uploads.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('Încărcarea s-a închis.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Vezi rezultatul' })).not.toBeInTheDocument();
+    expect(api.getLink).toHaveBeenCalledTimes(1);
+    expectNoGradingWords();
+  });
+
+  it('shows the kept link with no error once the results are published', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion');
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByText('Rezultatele au fost publicate.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/cere profesorului linkul tău/)).not.toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('finds a result link this phone kept through the other link of the test, and asks for that link only once', async () => {
+    const other = 'multilinktoken22';
+    const closed = { ...linkInfo({ status: 'done', resultsOpen: true }), students: [] };
+    const api = createFakeUploadApi(closed);
+    // The paper went through the link for many uploads, before the phone
+    // remembered which test a link belongs to.
+    saveResultLink(other, 11, 'result-token-11', 'Pop Ion');
+    const first = render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
+    expect(screen.getByText(/Linkul cu rezultatul pentru Pop Ion/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(api.getLink.mock.calls.map(([asked]) => asked)).toEqual([LINK_TOKEN, other]);
+    expectNoGradingWords();
+
+    first.unmount();
+    api.getLink.mockClear();
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('link', { name: 'Vezi rezultatul' })).toBeInTheDocument();
+    expect(api.getLink.mock.calls.map(([asked]) => asked)).toEqual([LINK_TOKEN]);
+  });
+
+  it('shows no result link kept for another test, or for a link the server no longer knows', async () => {
+    const closed = { ...linkInfo({ status: 'done', resultsOpen: true }), students: [] };
+    const api = createFakeUploadApi(closed);
+    saveResultLink('otherlinktoken22', 11, 'result-token-11', 'Pop Ion');
+    saveResultLink('deadlinktoken222', 12, 'result-token-12', 'Stan Eva');
+    api.getLink.mockImplementation(async (asked: string) => {
+      if (asked === 'deadlinktoken222') throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+      const info = structuredClone(closed);
+      if (asked === 'otherlinktoken22') info.test.key = 'test-key-2';
+      return info;
+    });
+    const first = render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByText(/cere profesorului linkul tău/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Vezi rezultatul' })).not.toBeInTheDocument();
+    expect(api.getLink).toHaveBeenCalledTimes(3);
+
+    // Neither is asked for again.
+    first.unmount();
+    api.getLink.mockClear();
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByText(/cere profesorului linkul tău/)).toBeInTheDocument();
+    expect(api.getLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('still shows the closed page when the other link cannot be asked now', async () => {
+    const closed = { ...linkInfo({ status: 'done', resultsOpen: true }), students: [] };
+    const api = createFakeUploadApi(closed);
+    saveResultLink('multilinktoken22', 11, 'result-token-11', 'Pop Ion');
+    api.getLink.mockImplementation(async (asked: string) => {
+      if (asked !== LINK_TOKEN) throw new ApiError(0, 'network', 'Nu am putut ajunge la server.');
+      return structuredClone(closed);
+    });
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByText('Rezultatele au fost publicate.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // Not remembered as unknown: the next visit asks again.
+    expect(localStorage.getItem('qe.link.multilinktoken22')).toBeNull();
+  });
+
+  it('asks for no other link while the uploads are open', async () => {
+    const api = createFakeUploadApi(linkInfo({ multi: true }));
+    saveResultLink('multilinktoken22', 12, 'result-token-12', 'Stan Eva');
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
+    expect(api.getLink).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(`qe.link.${LINK_TOKEN}`)).toBe('test-key-1');
+  });
+
   it('locks the default link after one upload on this phone', async () => {
     const api = createFakeUploadApi();
     saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion');

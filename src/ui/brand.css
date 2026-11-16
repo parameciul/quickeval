@@ -1501,6 +1501,17 @@ textarea {
   margin: 0;
 }
 
+/* Good news in the place of an alert: the student page once the results are
+   published. */
+.notice-ok {
+  max-width: 40rem;
+  margin-block: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
 /* A label: a small flat tinted block. Grey by default; orange (.tag-wait)
    only for what waits on the teacher, green for what is done and shown. */
 .tag {

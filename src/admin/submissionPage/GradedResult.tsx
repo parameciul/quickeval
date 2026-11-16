@@ -95,6 +95,13 @@ function commentRows(text: string): number {
   return Math.min(14, Math.max(5, rows + 1));
 }
 
+// The same for the student's answer: a shorter text in a narrower column.
+function answerRows(text: string): number {
+  let rows = 0;
+  for (const line of text.split('\n')) rows += Math.max(1, Math.ceil(line.length / 28));
+  return Math.min(10, Math.max(3, rows + 1));
+}
+
 // The graded result of an upload (spec §14.1): the grade, the pages the robot
 // could not read, the points of each exercise with the items to check, and
 // the robot's words to the student. Each change answers with the whole
@@ -295,9 +302,9 @@ function ItemRows({
   );
 }
 
-// One row of the exercises table. Modifică turns the points and the comment
-// cells into inputs in the same row, so the teacher sees the exercise, the
-// student's answer, and the robot's confidence while typing. Saving an item
+// One row of the exercises table. Modifică turns the points, the student's
+// answer and the comment cells into inputs in the same row, so the teacher
+// sees the exercise and the robot's confidence while typing. Saving an item
 // that waits for a check also checks it: the teacher has looked at it. On the
 // paper page a click on the row, or its "Arată pe lucrare", opens it: the
 // paper shows its answer. There a row to check is calm (design C of the spec):
@@ -323,6 +330,7 @@ function ItemRow({
   const rowClick = useRowClick(onOpen && (() => onOpen('byRow')), open);
   const [points, setPoints] = useState(formatPoints(item.points));
   const [comment, setComment] = useState(item.comment);
+  const [answer, setAnswer] = useState(item.studentAnswer);
   const [problem, setProblem] = useState<string | null>(null);
   const check = useMutation({ mutationFn: () => correct(item.id, { reviewed: true }), onSuccess: onSaved });
   const save = useMutation({
@@ -342,6 +350,7 @@ function ItemRow({
   const startEditing = () => {
     setPoints(formatPoints(item.points));
     setComment(item.comment);
+    setAnswer(item.studentAnswer);
     setProblem(null);
     setEditing(true);
   };
@@ -364,6 +373,7 @@ function ItemRow({
     const change: ItemChange = {};
     if (value !== item.points) change.points = value;
     if (comment.trim() !== item.comment) change.comment = comment.trim();
+    if (answer.trim() !== item.studentAnswer) change.studentAnswer = answer.trim();
     if (item.needsReview && !item.reviewed) change.reviewed = true;
     if (Object.keys(change).length === 0) cancelEditing();
     else save.mutate(change);
@@ -415,7 +425,25 @@ function ItemRow({
         )}
       </td>
       <td data-label="Răspunsul elevului">
-        <MathText text={item.studentAnswer} />
+        {editing ? (
+          <>
+            {/* The robot may have read the paper wrong: the student's result
+                shows this text, so the teacher can put it right. */}
+            <label className="sr-only" htmlFor={`${id}-answer`}>
+              Răspunsul elevului
+            </label>
+            <textarea
+              id={`${id}-answer`}
+              rows={answerRows(answer)}
+              className="cell-area"
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              maxLength={TEXT_LIMITS.studentAnswer}
+            />
+          </>
+        ) : (
+          <MathText text={item.studentAnswer} />
+        )}
       </td>
       <td data-label="Comentariu">
         {editing ? (

@@ -125,6 +125,74 @@ export function singleUploadLocked(uploadToken: string): boolean {
   return loadResultLinks(uploadToken).length > 0;
 }
 
+// A test has two links (the default one, and the one for many uploads), each
+// with its own token, and the kept result links are stored per token. So the
+// phone also remembers which test each link names (`LinkInfo.test.key`): once
+// the uploads closed, either link shows the result links kept through both.
+
+const linkKeyOf = (uploadToken: string) => `qe.link.${uploadToken}`;
+
+// Remembered for a link the server does not know (its test is gone), so the
+// page never asks for it again. No test has this key.
+export const UNKNOWN_TEST_KEY = '-';
+
+// At most this many other links are asked for on one visit.
+const MAX_LINKS_TO_ASK = 5;
+
+export function rememberTestKey(uploadToken: string, testKey: string): void {
+  try {
+    localStorage.setItem(linkKeyOf(uploadToken), testKey);
+  } catch {
+    // Blocked storage: the link is asked for again on the next visit.
+  }
+}
+
+// The link tokens this phone kept a result link through.
+function tokensWithResults(): string[] {
+  const tokens = new Set<string>();
+  const prefix = 'qe.result.';
+  for (let index = 0; index < localStorage.length; index++) {
+    const key = localStorage.key(index);
+    if (!key?.startsWith(prefix)) continue;
+    const end = key.lastIndexOf('.');
+    if (end > prefix.length) tokens.add(key.slice(prefix.length, end));
+  }
+  return [...tokens].sort();
+}
+
+// The other links with a kept result link whose test this phone does not
+// know yet (kept before the phone remembered tests): the page asks the server
+// for each, once.
+export function tokensToAsk(uploadToken: string): string[] {
+  try {
+    return tokensWithResults()
+      .filter((token) => token !== uploadToken && localStorage.getItem(linkKeyOf(token)) === null)
+      .slice(0, MAX_LINKS_TO_ASK);
+  } catch {
+    return [];
+  }
+}
+
+// The result links this phone kept for one test: through this link, and
+// through every other link remembered as the same test. One per result.
+export function loadTestResultLinks(uploadToken: string, testKey: string): SavedResultLink[] {
+  let tokens = [uploadToken];
+  try {
+    if (testKey !== UNKNOWN_TEST_KEY) {
+      tokens = tokens.concat(tokensWithResults().filter((token) => token !== uploadToken && localStorage.getItem(linkKeyOf(token)) === testKey));
+    }
+  } catch {
+    // Blocked storage: only this link's own, which then come back empty too.
+  }
+  const found = new Map<string, SavedResultLink>();
+  for (const token of tokens) {
+    for (const link of loadResultLinks(token)) {
+      if (!found.has(link.resultToken)) found.set(link.resultToken, link);
+    }
+  }
+  return [...found.values()].sort((a, b) => a.studentId - b.studentId);
+}
+
 // The address to keep and to share, for one result page.
 export function resultPageUrl(resultToken: string): string {
   return `${window.location.origin}${studentResultPath(resultToken)}`;

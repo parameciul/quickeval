@@ -41,6 +41,19 @@ export async function setResultsOpen(
   return row ? row.results_open === 1 : null;
 }
 
+// Whether students of a test can read results now: open for all, or some
+// upload's result published alone.
+export async function resultsPublished(db: D1Database, testId: number): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `SELECT 1 AS published FROM tests t
+       WHERE t.id = ? AND (t.results_open = 1 OR EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.results_open = 1))`,
+    )
+    .bind(testId)
+    .first<{ published: number }>();
+  return row !== null;
+}
+
 // Publishes or takes back the result page of a single upload of one of the
 // teacher's tests. Returns whether that student can open the page now (the
 // test may keep results open for all), or null when the upload the page shows
