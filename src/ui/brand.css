@@ -7925,7 +7925,7 @@ table.results-table.is-phone tr.is-muted .missing-note {
   color: var(--text);
   font: inherit;
   font-size: 0.84375rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8045,8 +8045,7 @@ table.results-table.is-phone tr.is-muted .missing-note {
   text-transform: uppercase;
 }
 
-.class-menu-item.is-muted,
-.class-menu-item.is-muted b {
+.class-menu-item.is-muted {
   color: var(--muted);
 }
 
@@ -8105,7 +8104,7 @@ table.results-table.is-phone tr.is-muted .missing-note {
   color: var(--muted);
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8402,10 +8401,16 @@ table.grades-table th.grade-head {
   white-space: normal;
 }
 
+/* A test's name in its column head: at most two lines, then "…" (the
+   whole name is the link's tooltip). */
 table.grades-table th.grade-head a {
-  display: block;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -8420,7 +8425,6 @@ table.grades-table th.grade-head a:hover {
 
 .grade-head-note.is-waiting {
   color: var(--orange);
-  font-weight: 600;
 }
 
 table.grades-table th.is-muted a {
@@ -8428,7 +8432,7 @@ table.grades-table th.is-muted a {
 }
 
 table.grades-table tbody th {
-  font-weight: 600;
+  font-weight: 400;
 }
 
 table.grades-table tbody th a,
@@ -8461,11 +8465,6 @@ table.grades-table td.grade-state {
   font-size: 0.8125rem;
 }
 
-table.grades-table td.grade-flag {
-  color: var(--orange);
-  font-weight: 700;
-}
-
 table.grades-table td.grade-flag .flag-dot {
   margin-right: 0.4375rem;
 }
@@ -8475,7 +8474,12 @@ table.grades-table tfoot td {
   border-top: 1px solid var(--rule);
   border-bottom: 0;
   background: var(--raised);
-  font-weight: 700;
+  font-weight: 500;
+}
+
+/* The sticky name column is white on the student rows, grey on this one. */
+table.grades-table tfoot th:first-child {
+  background: var(--raised);
 }
 
 /* "Testele clasei": one row per test, its next step on the right. */
@@ -8502,10 +8506,17 @@ table.grades-table tfoot td {
   font-size: 0.8125rem;
 }
 
+/* A test's name: at most two lines, then "…" (the whole name is the
+   link's tooltip). */
 a.class-test-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   color: var(--text);
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -8520,7 +8531,6 @@ a.class-test-title:hover {
 
 .class-test-stage.is-waiting {
   color: var(--orange);
-  font-weight: 600;
 }
 
 .class-tests-empty {
@@ -8789,11 +8799,6 @@ table.history-table td.grade-state {
 
 table.history-table td.grade-state {
   font-size: 0.8125rem;
-}
-
-table.history-table td.grade-flag {
-  color: var(--orange);
-  font-weight: 700;
 }
 
 table.history-table td.grade-flag .flag-dot {

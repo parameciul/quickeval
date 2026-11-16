@@ -165,6 +165,20 @@ describe('brand.css', () => {
     expect(value(declarations('.class-dot'), 'background')).toBe('hsl(var(--tone-hue) 60% 52%)');
   });
 
+  it('draws the class page as the test page: no bold, test names cut after two lines', () => {
+    expect(value(declarations('table.grades-table tbody th'), 'font-weight')).toBe('400');
+    expect(value(declarations('table.grades-table th.grade-head a'), 'font-weight')).toBe('500');
+    expect(value(declarations('table.grades-table th.grade-head a'), '-webkit-line-clamp')).toBe('2');
+    expect(value(declarations('a.class-test-title'), 'font-weight')).toBe('500');
+    expect(value(declarations('a.class-test-title'), '-webkit-line-clamp')).toBe('2');
+    expect(value(declarations('.grade-head-note.is-waiting'), 'font-weight')).toBeUndefined();
+    expect(value(declarations('.class-test-stage.is-waiting'), 'font-weight')).toBeUndefined();
+    expect(value(declarations('.class-switch-button'), 'font-weight')).toBe('500');
+    expect(value(declarations('.class-tab'), 'font-weight')).toBe('500');
+    expect(css).not.toContain('table.grades-table td.grade-flag {');
+    expect(css).not.toContain('.class-menu-item.is-muted b');
+  });
+
   it('keeps the phone menu inside the screen a phone shows now', () => {
     expect(declarations('.phone-menu')).toContain('max-height: calc(100dvh - var(--top) - var(--bottom))');
   });

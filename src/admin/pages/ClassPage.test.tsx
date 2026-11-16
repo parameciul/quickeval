@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { TestDetail } from '../../../shared/api.ts';
 import { createFakeApi, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { classToneHue } from '../../ui/classTone.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 
 // A class with two tests (T1 older, T2 newer) and three students (one left).
@@ -181,6 +182,23 @@ describe('ClassPage', () => {
     expect(other).toHaveTextContent('1 elev');
     const current = screen.getByRole('link', { name: /Clasa 6E2/ });
     expect(current).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('writes each class of "Schimbă clasa" after a dot in its own colour, not in bold', async () => {
+    const data = classData();
+    renderAdmin(
+      '/clase/1',
+      createFakeApi({ ...data, classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 0 }] }),
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
+    const first = await screen.findByRole('link', { name: /Clasa 6E2/ });
+    const second = screen.getByRole('link', { name: /Clasa 9R2/ });
+    expect(first.querySelector('b')).toBeNull();
+    const firstDot = first.querySelector<HTMLElement>('.class-dot');
+    const secondDot = second.querySelector<HTMLElement>('.class-dot');
+    expect(firstDot).toHaveAttribute('aria-hidden', 'true');
+    expect(firstDot!.style.getPropertyValue('--tone-hue')).toBe(String(classToneHue(1)));
+    expect(secondDot!.style.getPropertyValue('--tone-hue')).toBe(String(classToneHue(2)));
   });
 
   it('lists the archived classes last in "Schimbă clasa", under "Arhivate"', async () => {
@@ -535,6 +553,24 @@ describe('ClassPage grade table', () => {
     expect(dot.closest('td')).toHaveTextContent('6');
     expect(table.getByRole('link', { name: '9' }).closest('td')).not.toHaveClass('grade-flag');
     expect(table.getAllByRole('img', { name: /de verificat/ })).toHaveLength(1);
+  });
+
+  it('draws each grade in a chip of its grade colour, also one with points to check', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    const table = await tableOf();
+    const nine = table.getByRole('link', { name: '9' }).querySelector('.grade-chip');
+    expect(nine).toHaveClass('points-5');
+    const flagged = table.getByRole('img', { name: '2 puncte de verificat' }).closest('td')!.querySelector('.grade-chip');
+    expect(flagged).toHaveTextContent('6');
+    expect(flagged).toHaveClass('points-3');
+  });
+
+  it('gives the whole name of a test as the tooltip of its column head and of its row in "Testele clasei"', async () => {
+    renderAdmin('/clase/1', gradedClass());
+    const table = await tableOf();
+    expect(table.getByRole('link', { name: 'Fracții' })).toHaveAttribute('title', 'Fracții');
+    const list = within(screen.getByRole('complementary', { name: 'Testele clasei' }));
+    expect(list.getByRole('link', { name: 'Fracții' })).toHaveAttribute('title', 'Fracții');
   });
 
   it('shows a status for an upload that is not graded, and a dash for none', async () => {

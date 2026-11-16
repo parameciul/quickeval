@@ -12,6 +12,7 @@ import { stagesOf } from '../stages.ts';
 import { archivedPublished, todoOf } from '../shell/todo.ts';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { GradeChip } from '../testPage/GradeChip.tsx';
 
 function gradeKey(studentId: number, testCode: string): string {
   return `${studentId}|${testCode}`;
@@ -55,14 +56,17 @@ function TestHeader({ test, readOnly }: { test: TestSummary; readOnly: boolean }
   const note = headNote(test, readOnly);
   return (
     <th scope="col" className={test.archived ? 'grade-head is-muted' : 'grade-head'}>
-      <Link to={`/teste/${test.code}`}>{test.title}</Link>
+      <Link to={`/teste/${test.code}`} title={test.title}>
+        {test.title}
+      </Link>
       <span className={note.waits ? 'grade-head-note is-waiting' : 'grade-head-note'}>{note.text}</span>
       {test.archived && <span className="grade-head-note">arhivat</span>}
     </th>
   );
 }
 
-// A grade cell: the grade (orange with a dot when points wait), the state of an
+// A grade cell: the grade in its colour chip (an orange dot before it when
+// points wait; the chip keeps the grade's colour), the state of an
 // upload not graded yet, or "—" for no paper. The student page draws it too.
 export function GradeCell({ grade }: { grade: ClassGrade | undefined }) {
   if (!grade) {
@@ -85,7 +89,7 @@ export function GradeCell({ grade }: { grade: ClassGrade | undefined }) {
     <td className={flagged ? 'grade-flag' : undefined} title={flagged ? waiting : undefined}>
       <Link to={`/teste/${grade.testCode}/elevi/${grade.submissionId}`}>
         {flagged && <span className="flag-dot" role="img" aria-label={waiting}></span>}
-        {formatPoints(grade.grade)}
+        <GradeChip grade={grade.grade} />
       </Link>
     </td>
   );
