@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import page from '../../../index.html?raw';
 import headers from '../../../public/_headers?raw';
-import type { QuickTryAvailability } from '../../../shared/api.ts';
+import type { QuickTryAvailability, SubmissionFile } from '../../../shared/api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import { tryTest } from '../../test/fakeTryApi.tsx';
 import { ApiError } from '../../ui/ApiError.ts';
@@ -29,6 +29,7 @@ function fakeLandingApi(availability: Partial<QuickTryAvailability> = {}) {
     uploadTestFile: vi.fn(async () => {}),
     generateBarem: vi.fn(async () => {}),
     addPage: vi.fn(async () => {}),
+    listPages: vi.fn(async (_token: string): Promise<SubmissionFile[]> => []),
     start: vi.fn(async () => {}),
     getTest: vi.fn(async () => grading),
   } satisfies LandingApi;
@@ -41,7 +42,15 @@ function fakeTurnstile(answer: string | null = 'turnstile-ok') {
 
 async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile()) {
   document.body.innerHTML = new DOMParser().parseFromString(page, 'text/html').body.innerHTML;
-  await initQuickTry(document, { api, storage: localStorage, now: () => NOW, loadTurnstile: turnstile.load, refreshMs: 5 });
+  await initQuickTry(document, {
+    api,
+    storage: localStorage,
+    now: () => NOW,
+    loadTurnstile: turnstile.load,
+    refreshMs: 5,
+    origin: 'https://mqgrader.ro',
+    drawQr: async () => {},
+  });
   return { api, turnstile };
 }
 
@@ -64,6 +73,13 @@ function fillForm() {
 }
 
 const pagesRow = () => within(dialog()).getByLabelText(/^Lucrarea elevului/).closest<HTMLElement>('[data-try-pick]')!;
+function sendByPhone() {
+  pick(/^Testul/, pdf('test.pdf'));
+  pick(/^Baremul/, pdf('barem.pdf'));
+  within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
+  send();
+}
+
 const send = () => within(dialog()).getByRole('button', { name: 'Trimite' }).click();
 const store = (madeAt = NOW.toISOString()) => localStorage.setItem(STORED_TRY_KEY, JSON.stringify({ token: TOKEN, code: CODE, madeAt }));
 
@@ -234,6 +250,51 @@ describe("the landing page's Quick Try", () => {
     send();
     await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledTimes(2));
     expect(api.addPage).not.toHaveBeenCalled();
+  });
+
+  it('after a send with the phone, the window stays open on the code', async () => {
+    await mount();
+    button()!.click();
+    sendByPhone();
+    const phone = dialog().querySelector<HTMLElement>('[data-try-phone]')!;
+    await waitFor(() => expect(phone).toBeVisible());
+    expect(dialog().hasAttribute('open')).toBe(true);
+    expect(within(phone).getByRole('heading', { name: 'Fă pozele cu telefonul' })).toHaveFocus();
+    expect(dialog().querySelector('[data-try-form]')).not.toBeVisible();
+  });
+
+  it('Esc closes the code window, and the card shows the try', async () => {
+    const { api } = await mount();
+    api.getTest.mockResolvedValue(tryTest({ status: 'open', files }));
+    button()!.click();
+    sendByPhone();
+    const phone = dialog().querySelector<HTMLElement>('[data-try-phone]')!;
+    await waitFor(() => expect(phone).toBeVisible());
+    const cancel = new Event('cancel', { cancelable: true });
+    dialog().dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(false);
+    // The browser closes the dialog after a cancel that is not prevented.
+    dialog().removeAttribute('open');
+    dialog().dispatchEvent(new Event('close'));
+    await waitFor(() => expect(screen.getByRole('status')).toBeVisible());
+    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toHaveAttribute('href', `/try/${TOKEN}`);
+    expect(phone).not.toBeVisible();
+    const reads = api.listPages.mock.calls.length;
+    await new Promise((done) => setTimeout(done, 30));
+    expect(api.listPages).toHaveBeenCalledTimes(reads);
+  });
+
+  it('after "Pornește corectarea" the window closes and the card follows the grading', async () => {
+    const { api } = await mount();
+    api.listPages.mockResolvedValue([{ id: 1, name: 'p1.jpg', contentType: 'image/jpeg', size: 10, position: 1 }]);
+    button()!.click();
+    sendByPhone();
+    const start = await within(dialog()).findByRole('button', { name: 'Pornește corectarea' });
+    await waitFor(() => expect(start).toBeEnabled());
+    start.click();
+    await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
+    expect(api.start).toHaveBeenCalledWith(TOKEN);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Se corectează… Durează câteva minute.'));
   });
 
   it('sends with the phone and keeps the try on the device', async () => {

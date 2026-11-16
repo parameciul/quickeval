@@ -363,6 +363,32 @@
           <button class="btn btn-primary" type="submit" data-try-send>Trimite</button>
         </div>
       </form>
+      <div class="try-phone" data-try-phone hidden>
+        <h2 id="try-phone-title" tabindex="-1">Fă pozele cu telefonul</h2>
+        <p class="try-lede">Testul și baremul au ajuns. Scanează codul cu camera telefonului și fotografiază lucrarea elevului.</p>
+        <p class="try-phone-barem" data-try-phone-barem hidden>Baremul se face acum din test. Îl citești pe pagina încercării, apoi pornești corectarea de acolo.</p>
+        <div class="try-phone-body">
+          <div class="try-phone-code">
+            <svg class="try-qr" data-try-qr role="img" aria-label="Cod QR pentru telefon" xmlns="http://www.w3.org/2000/svg"></svg>
+            <p class="try-qr-link" data-try-qr-link hidden></p>
+            <p class="try-phone-note">Codul merge doar pentru această încercare.</p>
+          </div>
+          <div class="try-phone-pages">
+            <h3 class="try-phone-count">Pagini primite <span class="try-chip is-ok" data-try-phone-count>0</span></h3>
+            <ol class="try-phone-list" data-try-phone-list></ol>
+            <p class="try-phone-wait" data-try-phone-wait>Se așteaptă pozele de pe telefon…</p>
+            <p class="try-phone-wait" data-try-phone-idle hidden>Nu a venit nicio pagină de 15 minute. <button class="link try-phone-again" type="button" data-try-phone-again>Verifică din nou</button></p>
+          </div>
+        </div>
+        <p class="try-error" data-try-phone-error role="alert" hidden></p>
+        <p class="try-progress" data-try-phone-progress aria-live="polite" hidden></p>
+        <div class="try-actions try-phone-actions">
+          <label class="link try-phone-files">Alege fișiere de pe calculator<input class="try-pick-input" type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" data-try-phone-files /></label>
+          <button class="btn" type="button" data-try-phone-close>Închide</button>
+          <a class="btn" href="/" data-try-phone-open hidden>Deschide încercarea</a>
+          <button class="btn btn-primary" type="button" data-try-phone-start disabled>Pornește corectarea</button>
+        </div>
+      </div>
     </dialog>
   </body>
 </html>

@@ -4,6 +4,8 @@ import { ApiError, messageOf } from '../../ui/ApiError.ts';
 import { phaseOf, scoreOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import type { LandingApi } from './api.ts';
+import { openPhoneStep, type PhoneStep } from './phone.ts';
+import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf } from './status.ts';
 import { forgetStoredTry, readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
@@ -24,6 +26,9 @@ export interface QuickTryDeps {
   loadTurnstile: LoadTurnstile;
   // How often the status line reads the try again while the robot works.
   refreshMs?: number;
+  // The QR window: the site's address, and how its code is drawn.
+  origin?: string;
+  drawQr?: typeof drawQr;
 }
 
 const FULL_TEXT =
@@ -118,6 +123,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   let sending = false;
   // "Cu telefonul": the pages come from the phone after the send.
   let byPhone = false;
+  // The QR window, while it shows.
+  let phoneStep: PhoneStep | null = null;
 
   // The button, or the line that says why there is none.
   function refreshButton(): void {
@@ -233,8 +240,19 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   // Esc and a phone's back button close a dialog: not while it sends, so the
   // form stays to show how the send ended.
   dialog.addEventListener('cancel', (event) => {
-    if (sending) event.preventDefault();
+    if (sending || phoneStep?.busy()) event.preventDefault();
   });
+
+  // The QR window ends (Închide, Esc, the start): the dialog closes and the
+  // card follows the try, as after a send.
+  function endPhoneStep(): void {
+    if (!phoneStep || !stored) return;
+    phoneStep.close();
+    phoneStep = null;
+    closeDialog(dialog!);
+    void follow(stored).then(() => statusLink.focus());
+  }
+  dialog.addEventListener('close', endPhoneStep);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -277,10 +295,20 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         deps.now,
       );
       sending = false;
-      closeDialog(dialog!);
+      const withPhone = values.byPhone;
       form!.reset();
       choosePhone(false);
       for (const input of pickInputs) showPick(input, []);
+      if (withPhone) {
+        phoneStep = openPhoneStep(
+          dialog!,
+          { api: deps.api, origin: deps.origin ?? window.location.origin, drawQr: deps.drawQr ?? drawQr },
+          done,
+          { robotBarem: values.barem === null, onStarted: endPhoneStep, onClosed: endPhoneStep },
+        );
+        return;
+      }
+      closeDialog(dialog!);
       await follow(done);
       statusLink.focus();
     } catch (err) {

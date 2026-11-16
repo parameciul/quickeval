@@ -22,6 +22,7 @@ function fakeLandingApi() {
     generateBarem: vi.fn(async () => void calls.push('generate')),
     addPage: vi.fn(async (_token: string, file: File) => void calls.push(`page:${file.name}`)),
     start: vi.fn(async () => void calls.push('start')),
+    listPages: vi.fn(async () => []),
     getTest: vi.fn(),
   } satisfies LandingApi;
   return { api, calls };
