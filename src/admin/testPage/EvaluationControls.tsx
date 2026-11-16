@@ -40,11 +40,11 @@ export function EvaluationControls({
 }: {
   test: TestInfo;
   uploads: UploadRow[];
-  // The selected uploads to grade now (submission ids). Empty: the start
-  // button stays off.
+  // The selected uploads to grade now (submission ids): all of them unless
+  // the teacher unchecked some. Empty: the start button stays off.
   selected: number[];
   onChanged: () => Promise<void>;
-  // After the evaluation started now: the page clears the selection.
+  // After the evaluation started now: the page forgets the unchecked uploads.
   onStarted: () => void;
   onRobot: (robot: RobotStart | null) => void;
 }) {

@@ -1303,6 +1303,14 @@ describe('TestPage evaluation', () => {
   const FILES = { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: { name: 'Barem.pdf', type: PDF_TYPE } };
   const NOW = new Date('2026-10-08T07:00:00.000Z');
 
+  // Pop Ion sent his paper, Stan Eva is still sending hers (one file), Marin
+  // Dan sent nothing. New objects, so no earlier test changed them.
+  const twoWithFiles = () => [
+    fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 3, submittedAt: '2026-10-06T07:40:00.000Z' }),
+    fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1, startedAt: '2026-10-06T07:25:00.000Z' }),
+    fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+  ];
+
   function evaluationApi(overrides: Parameters<typeof fakeTest>[0], rows = uploads, lastCheckAt: string | null = null) {
     const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, print: { status: 'ready', fromWord: false }, ...overrides }, structuredClone(rows));
     detail.robot.lastCheckAt = lastCheckAt;
@@ -1323,16 +1331,18 @@ describe('TestPage evaluation', () => {
   });
 
   it('starts the evaluation now for the selected uploads, after the teacher confirms', async () => {
-    const api = evaluationApi({});
+    const api = evaluationApi({}, twoWithFiles());
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin(`${PAGE}#corectare`, api);
     const start = await screen.findByRole('button', { name: 'Pornește evaluarea acum' });
-    // Nothing selected yet: the button stays off.
-    expect(start).toBeDisabled();
-    expect(screen.getByText('Selectează cel puțin o lucrare cu fișiere din tabel.')).toBeInTheDocument();
-    // Select one upload with files (its row checkbox, not the shared header).
-    const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
-    await userEvent.click(within(pop).getByLabelText('Selectează lucrarea elevului Pop Ion'));
+    // Every upload with files starts checked: the button is on.
+    expect(start).toBeEnabled();
+    expect(screen.getByLabelText('Selectează lucrarea elevului Pop Ion')).toBeChecked();
+    expect(screen.getByLabelText('Selectează lucrarea elevului Stan Eva')).toBeChecked();
+    expect(screen.getByLabelText('Selectează toate lucrările cu fișiere')).toBeChecked();
+    // Uncheck one upload to grade it later (its row checkbox, not the shared header).
+    const stan = screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
+    await userEvent.click(within(stan).getByLabelText('Selectează lucrarea elevului Stan Eva'));
     expect(start).toBeEnabled();
     await userEvent.click(start);
     expect(api.evaluateTest).not.toHaveBeenCalled();
@@ -1342,24 +1352,38 @@ describe('TestPage evaluation', () => {
     );
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5]);
     expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.');
+    expect(screen.getByText('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.')).toHaveAttribute('role', 'status');
+    // The unchecked paper waits for a later evaluation.
+    expect(screen.getByText(/1 lucrare cu fișiere nu a fost corectată/)).toBeInTheDocument();
     expect(screen.getByText(/^Robotul corectează lucrările trimise\. Evaluarea a pornit la 8 oct\. 2026, 10:00\.$/)).toBeInTheDocument();
     expect(screen.getByText('Robotul nu a verificat încă dacă are lucrări de corectat.')).toBeInTheDocument();
     expect(screen.getByText('Corectarea poate întârzia.')).toBeInTheDocument();
     expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
   });
 
-  it('keeps the selection while the teacher looks at another stage', async () => {
-    const api = evaluationApi({});
+  it('starts the evaluation for every upload with files when the teacher unchecks nothing', async () => {
+    const api = evaluationApi({}, twoWithFiles());
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin(`${PAGE}#corectare`, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pornește evaluarea acum' }));
+    expect(confirm).toHaveBeenLastCalledWith(
+      'Pornești evaluarea acum pentru 2 lucrări? Elevii nu mai pot încărca după asta. Lucrările neselectate cu fișiere așteaptă o evaluare ulterioară.',
+    );
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5, 6]);
+  });
+
+  it('keeps an unchecked upload unchecked while the teacher looks at another stage', async () => {
+    const api = evaluationApi({}, twoWithFiles());
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(`${PAGE}#corectare`, api);
     const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
     await userEvent.click(within(pop).getByLabelText('Selectează lucrarea elevului Pop Ion'));
     await openStage('În clasă');
     await openStage('Corectare');
-    expect(screen.getByLabelText('Selectează lucrarea elevului Pop Ion')).toBeChecked();
+    expect(screen.getByLabelText('Selectează lucrarea elevului Pop Ion')).not.toBeChecked();
+    expect(screen.getByLabelText('Selectează lucrarea elevului Stan Eva')).toBeChecked();
     await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
-    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5]);
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [6]);
   });
 
   it('selects only the uploads with files for the evaluation', async () => {
@@ -1378,19 +1402,41 @@ describe('TestPage evaluation', () => {
     ];
     renderAdmin(`${PAGE}#corectare`, evaluationApi({}, rows));
     const start = await screen.findByRole('button', { name: 'Pornește evaluarea acum' });
-    expect(start).toBeDisabled();
+    expect(start).toBeEnabled();
     // The student without files has no checkbox; the graded one cannot be picked.
     const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
     expect(within(marin).queryByRole('checkbox')).not.toBeInTheDocument();
-    // The header checkbox selects every upload with files, and clears them again.
-    await userEvent.click(screen.getByLabelText('Selectează toate lucrările cu fișiere'));
-    expect(start).toBeEnabled();
-    await userEvent.click(screen.getByLabelText('Selectează toate lucrările cu fișiere'));
+    // The header checkbox clears every upload with files, and checks them again.
+    const all = screen.getByLabelText('Selectează toate lucrările cu fișiere');
+    await userEvent.click(all);
     expect(start).toBeDisabled();
-    // One row at a time works too.
+    expect(screen.getByText('Selectează cel puțin o lucrare cu fișiere din tabel.')).toBeInTheDocument();
+    await userEvent.click(all);
+    expect(start).toBeEnabled();
+    // One row at a time works too; with only some checked, the header box is mixed.
+    await userEvent.click(all);
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     await userEvent.click(within(pop).getByLabelText('Selectează lucrarea elevului Pop Ion'));
     expect(start).toBeEnabled();
+    expect(all).toBePartiallyChecked();
+  });
+
+  it('checks a paper sent after the page opened', async () => {
+    const api = evaluationApi({}, twoWithFiles());
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const { queryClient } = renderAdmin(`${PAGE}#corectare`, api);
+    const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
+    await userEvent.click(within(stan).getByLabelText('Selectează lucrarea elevului Stan Eva'));
+    // Marin Dan sends a paper; the page reads the test again.
+    const detail = await api.getTest('6E2-26T1');
+    const marin = detail.uploads.find((row) => row.studentId === 12)!;
+    Object.assign(marin, { submissionId: 7, status: 'uploading', fileCount: 2, startedAt: '2026-10-06T07:30:00.000Z' });
+    api.getTest.mockResolvedValue(structuredClone(detail));
+    await queryClient.invalidateQueries({ queryKey: ['test', '6E2-26T1'] });
+    expect(await screen.findByLabelText('Selectează lucrarea elevului Marin Dan')).toBeChecked();
+    expect(screen.getByLabelText('Selectează lucrarea elevului Stan Eva')).not.toBeChecked();
+    await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5, 7]);
   });
 
   it('leaves the graded uploads out of the selection', async () => {
@@ -1403,7 +1449,6 @@ describe('TestPage evaluation', () => {
     renderAdmin(`${PAGE}#corectare`, api);
     const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
     expect(within(pop).queryByRole('checkbox')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByLabelText('Selectează toate lucrările cu fișiere'));
     await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [6]);
   });
@@ -1435,7 +1480,7 @@ describe('TestPage evaluation', () => {
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1 }),
     ];
     renderAdmin(`${PAGE}#corectare`, evaluationApi({}, rows));
-    expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Marchează ca terminat' })).not.toBeInTheDocument();
     expect(screen.queryByText('✓ Corectat complet')).not.toBeInTheDocument();
   });
@@ -1731,8 +1776,8 @@ describe('TestPage evaluation', () => {
     renderAdmin(`${PAGE}#corectare`, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Recorectează tot' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Lucrările se corectează din nou după ce pornești evaluarea.');
-    // The regraded uploads wait for grading: select them first.
-    await userEvent.click(screen.getByLabelText('Selectează toate lucrările cu fișiere'));
+    // The regraded uploads wait for grading, checked.
+    expect(await screen.findByLabelText('Selectează toate lucrările cu fișiere')).toBeChecked();
     // Once the evaluation starts, the words are not true any more.
     await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5, 6]);
