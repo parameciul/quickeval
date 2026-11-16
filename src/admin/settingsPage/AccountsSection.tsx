@@ -7,6 +7,7 @@ import { countLabel, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // "Conturi" of Setări (redesign spec §11.8): the administrators approve or
 // refuse new accounts (one by one, or all that wait at once), make a demo
@@ -215,6 +216,7 @@ function PendingRow({ account }: { account: Account }) {
               disabled={approve.isPending}
               onClick={() => approve.mutate()}
             >
+              <ActionIcon name="check" />
               Aprobă
             </button>
             <button
@@ -226,6 +228,7 @@ function PendingRow({ account }: { account: Account }) {
                 if (window.confirm(`Refuzi contul lui ${account.name}? Cererea se șterge.`)) reject.mutate();
               }}
             >
+              <ActionIcon name="close" />
               Refuză
             </button>
           </span>
@@ -307,6 +310,7 @@ function AccountRow({ account }: { account: Account }) {
               aria-controls={details ? detailsId : undefined}
               onClick={() => setDetails((open) => !open)}
             >
+              <ActionIcon name="info" />
               Detalii
             </button>
             {account.role === 'teacher' && (

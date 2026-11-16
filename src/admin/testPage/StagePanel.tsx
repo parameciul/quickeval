@@ -31,6 +31,7 @@ import { TestFiles } from './TestFiles.tsx';
 import { PapersProgress } from './PapersProgress.tsx';
 import { MultiUploadLink, QrOverlay, UploadLink, uploadLink } from './UploadLink.tsx';
 import { UploadsTable } from './UploadsTable.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 export interface PanelProps {
   test: TestInfo;
@@ -198,6 +199,7 @@ function ClassPanel(props: PanelProps) {
           <UploadLink token={token} qr={false} />
           <p>
             <button ref={button} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
+              <ActionIcon name="qr" />
               Arată codul QR pe tot ecranul
             </button>
           </p>
@@ -355,6 +357,7 @@ function TestActions({ test, uploads, onChanged, onRobot }: PanelProps) {
         </p>
         <p>
           <button type="button" className="button" disabled={start.isPending} onClick={() => start.mutate()}>
+            <ActionIcon name="play" />
             Începe testul
           </button>
         </p>
@@ -384,6 +387,7 @@ function TestActions({ test, uploads, onChanged, onRobot }: PanelProps) {
                   if (window.confirm(question)) stop.mutate();
                 }}
               >
+                <ActionIcon name="stop" />
                 Oprește testul
               </button>
             </p>
@@ -397,6 +401,7 @@ function TestActions({ test, uploads, onChanged, onRobot }: PanelProps) {
       <p className="hint">Încărcarea este închisă. Dacă o redeschizi, elevii care nu au trimis pot încărca acum.</p>
       <p>
         <button type="button" className="button-quiet" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
+          <ActionIcon name="retry" />
           Redeschide încărcarea
         </button>
       </p>

@@ -8,6 +8,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { printPdf } from './printPdf.ts';
 import { partsOf } from './variant.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // How many copies to print, in a line: the class without its CES students
 // when the test has a CES variant, the CES students for the CES test.
@@ -64,6 +65,7 @@ export function PrintTest({
           <>
             <p>
               <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
+                <ActionIcon name="qr" />
                 Pregătește testul cu cod QR
               </button>
             </p>
@@ -83,7 +85,7 @@ export function PrintTest({
             <div className="card-actions">
               <PrintButton url={printFileUrl(test.code, variant)} main={!ces} />
               <a className="button-quiet" href={printFileUrl(test.code, variant)} download>
-                <DownloadIcon />
+                <ActionIcon name="download" />
                 Descarcă PDF
               </a>
             </div>
@@ -101,6 +103,7 @@ export function PrintTest({
             <p>{ces ? 'Nu am putut pregăti testul CES cu cod QR.' : 'Nu am putut pregăti testul cu cod QR.'}</p>
             <p>
               <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
+                <ActionIcon name="retry" />
                 Încearcă din nou
               </button>
             </p>
@@ -128,7 +131,7 @@ function PrintButton({ url, main }: { url: string; main: boolean }) {
           setState((await printPdf(url)) === 'failed' ? 'failed' : 'idle');
         }}
       >
-        <PrinterIcon />
+        <ActionIcon name="print" />
         {state === 'busy' ? 'Se pregătește…' : 'Tipărește'}
       </button>
       {state === 'failed' && (
@@ -152,23 +155,5 @@ function PageDrawing() {
         <span key={index} className={index % 3 === 2 ? 'print-page-line is-short' : 'print-page-line'} />
       ))}
     </span>
-  );
-}
-
-function PrinterIcon() {
-  return (
-    <svg className="button-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <path d="M5.5 7.5V3h9v4.5" />
-      <rect x="2.75" y="7.5" width="14.5" height="6.5" rx="1.5" />
-      <path d="M5.5 12h9v5h-9z" />
-    </svg>
-  );
-}
-
-function DownloadIcon() {
-  return (
-    <svg className="button-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <path d="M10 3v9.5M6 9l4 4 4-4M3.5 16.5h13" />
-    </svg>
   );
 }

@@ -5,6 +5,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { IconDone } from './icons.tsx';
 import { Panel } from './Panel.tsx';
 import { todoPath, type TodoItem } from './todo.ts';
+import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
 
 // The line under the cards: the tests of the year in work that need nothing
 // now ("the other" ones only when a card stands above it).
@@ -68,6 +69,7 @@ export function TodoPanel({
               <h3>{approvals === 1 ? 'Un cont nou așteaptă aprobarea' : `${approvals} conturi noi așteaptă aprobarea`}</h3>
               <p className="todo-text">Profesorul și-a confirmat emailul. Până aprobi contul, nu se poate conecta.</p>
               <Link className="button button-small" to="/setari" aria-label="Deschide Setări: conturi de aprobat">
+                <ActionIcon name="open" />
                 Deschide
               </Link>
             </li>
@@ -85,6 +87,7 @@ export function TodoPanel({
                 to={todoPath(item)}
                 aria-label={`${item.action}: ${item.testTitle}, ${item.className}`}
               >
+                <ActionIcon name={actionIconFor(item.action)} />
                 {item.action}
               </Link>
             </li>

@@ -9,6 +9,7 @@ import { IconClasses } from '../shell/icons.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { NewClassDialog } from '../classPage/ClassDialogs.tsx';
 import type { ClassLinkState } from './ClassPage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The key that remembers which class the teacher opened last, so /clase reopens it.
 const LAST_CLASS_KEY = 'quickeval:lastClass';
@@ -49,7 +50,8 @@ export function LastClassPage() {
         level={1}
         action={
           <button type="button" className="button button-small" onClick={() => setNewClassOpen(true)}>
-            + Clasă nouă
+            <ActionIcon name="add" />
+            Clasă nouă
           </button>
         }
       >

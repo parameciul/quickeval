@@ -1244,9 +1244,12 @@ table.search-table {
 
 /* Buttons and forms */
 
-/* Buttons are 8px rounded: an outline by default, filled blue for the one
-   main action of a screen, orange (.button-wait) for the one main action of
-   a screen whose work waits on the teacher. */
+/* Buttons are fully round, in medium weight, each with the icon of its verb
+   (`ui/ActionIcon.tsx`) before its words, or after them for "Mergi la …":
+   an outline by default, filled blue for the one main action of a screen,
+   orange (.button-wait) for the one main action of a screen whose work waits
+   on the teacher. Round sets them apart from the labels (.tag, .status),
+   which are flat blocks with small corners. */
 .button,
 .button-quiet {
   display: inline-flex;
@@ -1254,15 +1257,33 @@ table.search-table {
   justify-content: center;
   gap: 0.5rem;
   min-height: 2.5rem;
-  padding: 0.4rem 1rem;
-  border-radius: var(--radius);
+  padding: 0.4rem 1.1rem;
+  border-radius: 999px;
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
   text-decoration: none;
   cursor: pointer;
   transition: background-color 120ms, border-color 120ms;
+}
+
+.action-icon {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* The icon's side of the button is a little tighter, so the icon and the
+   words look centred together. */
+.button:has(> .action-icon:first-child),
+.button-quiet:has(> .action-icon:first-child) {
+  padding-left: 0.85rem;
+}
+
+.button:has(> .action-icon:last-child:not(:first-child)),
+.button-quiet:has(> .action-icon:last-child:not(:first-child)) {
+  padding-right: 0.85rem;
 }
 
 .button {
@@ -1295,13 +1316,28 @@ table.search-table {
 
 .button-quiet:hover {
   border-color: var(--muted);
+  background: var(--raised);
   color: var(--text);
 }
 
 .button-small {
   min-height: 2rem;
-  padding: 0.2rem 0.75rem;
+  padding: 0.2rem 0.8rem;
   font-size: 0.8125rem;
+  gap: 0.4rem;
+}
+
+.button-small .action-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.button-small:has(> .action-icon:first-child) {
+  padding-left: 0.6rem;
+}
+
+.button-small:has(> .action-icon:last-child:not(:first-child)) {
+  padding-right: 0.6rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3356,7 +3392,7 @@ table.items tr.item-decision > td {
   gap: 0.25rem;
   padding: 0.25rem 0.375rem;
   border: 1px solid var(--rule);
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: var(--sheet);
   box-shadow: var(--float);
 }
@@ -4323,6 +4359,8 @@ input[type="file"] {
 
 .button-danger:hover {
   border-color: var(--error-fg);
+  background: var(--error-bg);
+  color: var(--error-fg);
 }
 
 /* The upload link: the address, a QR code, and the projector view */
@@ -5953,6 +5991,20 @@ table.items tr.edit-row > td {
   min-height: 3.25rem;
   padding-inline: 1.5rem;
   font-size: 1.1rem;
+  gap: 0.6rem;
+}
+
+.button-big .action-icon {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+.button-big:has(> .action-icon:first-child) {
+  padding-left: 1.2rem;
+}
+
+.button-big:has(> .action-icon:last-child:not(:first-child)) {
+  padding-right: 1.2rem;
 }
 
 .big-actions {
@@ -7596,7 +7648,7 @@ table.results-table.is-phone tr.is-muted .missing-note {
   height: 2.5rem;
   padding: 0;
   border: 1px solid var(--control);
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: var(--sheet);
   color: var(--muted);
   cursor: pointer;
@@ -8687,13 +8739,6 @@ td.student-paper a:hover {
 
 .print-body .card-actions {
   margin: 0.5rem 0 0.25rem;
-}
-
-.button-icon {
-  width: 1.05em;
-  height: 1.05em;
-  margin-right: 0.4rem;
-  vertical-align: -0.15em;
 }
 
 /* The page drawing: white like paper in both themes. Its colours (#fff, the

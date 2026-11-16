@@ -11,6 +11,7 @@ import { IconClasses, IconTests } from '../shell/icons.tsx';
 import { stagesOf } from '../stages.ts';
 import { archivedPublished, todoOf } from '../shell/todo.ts';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 function gradeKey(studentId: number, testCode: string): string {
   return `${studentId}|${testCode}`;
@@ -127,6 +128,7 @@ export function GradesTable({
   if (students.length === 0) {
     const add = (
       <button type="button" className="button button-small" onClick={onShowStudents}>
+        <ActionIcon name="add-person" />
         Adaugă elevi
       </button>
     );
@@ -139,6 +141,7 @@ export function GradesTable({
   if (tests.length === 0) {
     const newTest = (
       <Link className="button button-small" to={`/teste/nou?clasa=${classId}`}>
+        <ActionIcon name="add" />
         Test nou pentru această clasă
       </Link>
     );

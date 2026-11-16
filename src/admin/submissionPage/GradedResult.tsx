@@ -7,6 +7,7 @@ import { confidenceLabel, pageLabel, parsePoints, pointsLevel } from '../../ui/f
 import { MathText } from '../../ui/MathText.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 type Saved = (submission: SubmissionDetail) => Promise<void>;
 type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>;
@@ -235,6 +236,7 @@ function UnreadablePages({
     <div className="warning">
       <p>Robotul nu a putut citi: {pages}. Verifică pozele și punctajele exercițiilor de pe ele.</p>
       <button type="button" className="button-quiet button-small" disabled={review.isPending} onClick={() => review.mutate()}>
+        <ActionIcon name="check" />
         Am verificat paginile
       </button>
       {review.error && <ErrorMessage error={review.error} />}
@@ -685,6 +687,7 @@ function SummarySection({ submissionId, evaluation, onSaved }: { submissionId: n
         <h3>Rezumat</h3>
         {!editing && (
           <button type="button" className="button-quiet button-small" aria-label="Modifică rezumatul" onClick={start}>
+            <ActionIcon name="edit" />
             Modifică
           </button>
         )}
@@ -708,9 +711,11 @@ function SummarySection({ submissionId, evaluation, onSaved }: { submissionId: n
           )}
           <div className="form-row">
             <button type="button" className="button button-small" disabled={save.isPending} onClick={saveNow}>
+              <ActionIcon name="check" />
               Salvează
             </button>
             <button type="button" className="button-quiet button-small" onClick={() => setEditing(false)}>
+              <ActionIcon name="close" />
               Renunță
             </button>
           </div>
@@ -787,6 +792,7 @@ function ListSection({
         <h3>{title}</h3>
         {!editing && (
           <button type="button" className="button-quiet button-small" aria-label={`Modifică ${title.toLowerCase()}`} onClick={start}>
+            <ActionIcon name="edit" />
             Modifică
           </button>
         )}
@@ -811,9 +817,11 @@ function ListSection({
           )}
           <div className="form-row">
             <button type="button" className="button button-small" disabled={save.isPending} onClick={saveNow}>
+              <ActionIcon name="check" />
               Salvează
             </button>
             <button type="button" className="button-quiet button-small" onClick={() => setEditing(false)}>
+              <ActionIcon name="close" />
               Renunță
             </button>
           </div>

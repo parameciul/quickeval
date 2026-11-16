@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { isStripeCheckoutUrl, paymentReturnOf } from '../../shared/payments.ts';
 import { GENERIC_MESSAGE, messageOf } from './ApiError.ts';
+import { ActionIcon } from './ActionIcon.tsx';
 
 // The pay button of any paid feature, in both apps. `startCheckout` asks the
 // API for the Stripe payment page (useApi().startCheckout in the teacher app,
@@ -43,6 +44,7 @@ export function PayButton({
   return (
     <>
       <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => void pay()}>
+        <ActionIcon name="pay" />
         {busy ? 'Se deschide plata…' : label}
       </button>
       {error !== null && (

@@ -17,6 +17,7 @@ import type { ActiveSession, UploadApi } from './api.ts';
 import { PhotoViewer } from './PhotoViewer.tsx';
 import { forgetSecret } from './session.ts';
 import { jpegName, shrinkPhoto } from './shrink.ts';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 const PICK_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
 const TOO_MANY = `Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`;
@@ -257,10 +258,12 @@ export function UploadScreen({
 
       <div className="big-actions">
         <label className="button button-big pick-button">
+          <ActionIcon name="camera" />
           Fă o poză
           <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={addFiles} />
         </label>
         <label className="button-quiet button-big pick-button">
+          <ActionIcon name="upload" />
           Alege fișiere
           <input type="file" accept={PICK_ACCEPT} multiple className="sr-only" onChange={addFiles} />
         </label>
@@ -312,11 +315,13 @@ export function UploadScreen({
                       enqueue(item.key, item.name);
                     }}
                   >
+                    <ActionIcon name="retry" />
                     Încearcă din nou
                   </button>
                 )}
                 {item.state !== 'sending' && item.state !== 'waiting' && (
                   <button type="button" className="button-quiet button-small" onClick={() => remove(item)} aria-label={`Șterge pagina ${index + 1}`}>
+                    <ActionIcon name="trash" />
                     Șterge
                   </button>
                 )}
@@ -330,6 +335,7 @@ export function UploadScreen({
         {hasFailed && <p className="hint">Încearcă din nou sau șterge paginile cu eroare.</p>}
         {!hasFailed && items.length > 0 && !allSent && <p className="hint">Așteaptă să se încarce toate paginile.</p>}
         <button type="button" className="button button-big" disabled={!allSent || confirming} onClick={confirm}>
+          <ActionIcon name="send" />
           Am trimis tot
         </button>
       </div>

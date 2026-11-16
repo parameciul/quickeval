@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { saveFile } from '../pdf/share.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The address students open: https://<host>/u/<token>.
 export function uploadLink(token: string): string {
@@ -44,6 +45,7 @@ export function UploadLink({
       <div className="form-row">
         <input id={inputId} type="text" value={url} readOnly onFocus={(event) => event.target.select()} />
         <button type="button" className="button-quiet button-small" onClick={copy}>
+          <ActionIcon name="copy" />
           Copiază linkul
         </button>
         {copied === 'yes' && <span role="status">Copiat!</span>}
@@ -55,6 +57,7 @@ export function UploadLink({
           <div className="qr-actions">
             {downloadName && <QrDownload url={url} fileName={downloadName} />}
             <button type="button" className="button-quiet button-small qr-full" onClick={() => setFullScreen(true)}>
+              <ActionIcon name="qr" />
               Arată codul QR pe tot ecranul
             </button>
           </div>
@@ -98,6 +101,7 @@ export function QrDownload({ url, fileName }: { url: string; fileName: string })
           setDrawing(true);
         }}
       >
+        <ActionIcon name="download" />
         Descarcă codul QR
       </button>
       {failed && <span role="status">Nu am putut descărca codul QR.</span>}
@@ -172,6 +176,7 @@ function MultiUploadCreator({
       <h3>{MULTI_LABEL}</h3>
       <p className="hint">{MULTI_HINT}</p>
       <button type="button" className="button-quiet" disabled={busy} onClick={createLink}>
+        <ActionIcon name="link" />
         Creează linkul pentru mai multe încărcări
       </button>
       {error !== null && error !== undefined ? <ErrorMessage error={error} /> : null}
@@ -200,6 +205,7 @@ export function QrOverlay({ url, onClose }: { url: string; onClose: () => void }
       <QRCodeSVG value={url} size={1024} marginSize={4} title="Codul QR al linkului" className="qr-big" />
       <p className="qr-url">{url}</p>
       <button ref={close} type="button" className="button" onClick={onClose}>
+        <ActionIcon name="close" />
         Închide
       </button>
     </div>

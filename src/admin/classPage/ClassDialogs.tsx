@@ -9,6 +9,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { Modal } from '../Modal.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The names of the paste that the class already has (a student who left counts)
 // or that the paste holds twice, each named once as typed. The server stays the
@@ -129,6 +130,7 @@ export function NewClassDialog({ onClose, onCreated }: { onClose(): void; onCrea
         {field.warnings}
         {create.error && <ErrorMessage error={create.error} />}
         <button type="submit" className="button modal-submit" disabled={field.blocked || create.isPending}>
+          <ActionIcon name="add" />
           Adaugă clasa
         </button>
       </form>
@@ -186,6 +188,7 @@ export function AddStudentsDialog({
           className="button modal-submit"
           disabled={field.names.length === 0 || field.blocked || add.isPending}
         >
+          <ActionIcon name="add-person" />
           {field.names.length > 0 ? `Adaugă ${studentCountLabel(field.names.length)}` : 'Adaugă elevii'}
         </button>
       </form>
@@ -243,6 +246,7 @@ export function RenameDialog({
         </div>
         {rename.error && <ErrorMessage error={rename.error} />}
         <button type="submit" className="button modal-submit" disabled={rename.isPending}>
+          <ActionIcon name="check" />
           Salvează
         </button>
       </form>

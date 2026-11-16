@@ -16,6 +16,7 @@ import {
 import { forgetSecret, loadSecret, saveSecret, savedStudent } from './session.ts';
 import { UploadScreen } from './UploadScreen.tsx';
 import { StudentHeader } from './StudentHeader.tsx';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 export const UNKNOWN_LINK = 'Link greșit. Cere profesorului linkul nou.';
 
@@ -167,6 +168,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
               </p>
               <p className="hint">Poți încărca lucrarea după ce îl începe profesorul.</p>
               <button type="button" className="button button-big" onClick={() => load(null)}>
+                <ActionIcon name="retry" />
                 Verifică din nou
               </button>
             </>
@@ -212,6 +214,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
                   className="button-quiet button-small"
                   onClick={() => void leaveName(token, phase.info, phase.session)}
                 >
+                  <ActionIcon name="edit" />
                   Alege alt nume
                 </button>
               </p>
@@ -236,6 +239,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
                 <>
                   <p className="hint">Poți trimite acum lucrarea altui elev, cu același link.</p>
                   <button type="button" className="button button-big" onClick={() => load(null)}>
+                    <ActionIcon name="add-person" />
                     Trimite pentru alt elev
                   </button>
                 </>
@@ -299,6 +303,7 @@ export function ResultLinkBox({ resultToken, studentName, fresh = false }: { res
       </p>
       <p>
         <button type="button" className="button-quiet button-small" onClick={copy}>
+          <ActionIcon name={copied ? 'check' : 'copy'} />
           {copied ? 'Copiat!' : 'Copiază linkul'}
         </button>
       </p>

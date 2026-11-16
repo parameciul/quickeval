@@ -1,4 +1,5 @@
 import { ApiError } from '../ui/ApiError.ts';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 // An answer that says the try's 7 days are over (410 `expired`): every call
 // of the link answers so once they are.
@@ -16,6 +17,7 @@ export function BadLink() {
       <p>Verifică dacă l-ai copiat întreg. O încercare se șterge după 7 zile.</p>
       <a className="button" href="/">
         Mergi la pagina principală
+        <ActionIcon name="arrow" />
       </a>
     </section>
   );
@@ -27,6 +29,7 @@ export function Expired() {
       <h1>Încercarea a expirat</h1>
       <p>Linkul unei încercări rapide merge 7 zile. Poți face o încercare nouă de pe pagina principală.</p>
       <a className="button" href="/">
+        <ActionIcon name="add" />
         Fă o încercare nouă
       </a>
     </section>

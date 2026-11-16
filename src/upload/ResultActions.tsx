@@ -3,6 +3,7 @@ import type { StudentResultView } from '../../shared/api.ts';
 import { renderPdf } from '../admin/pdf/renderPdf.ts';
 import { saveFile } from '../admin/pdf/share.ts';
 import { studentPdf, studentPdfFileName, studentPdfInputFromResult } from '../admin/pdf/studentPdf.ts';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 type ShareState = 'idle' | 'copied' | 'manual';
 
@@ -66,10 +67,12 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
     <div className="result-actions">
       <div className="result-actions-row">
         <button type="button" className="button-quiet button-small" onClick={() => void sendLink()}>
+          <ActionIcon name="share" />
           Trimite linkul
         </button>
         {pdfInput && (
           <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => void downloadPdf()}>
+            <ActionIcon name="file" />
             Descarcă PDF
           </button>
         )}

@@ -10,6 +10,7 @@ import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { GradeChip } from './GradeChip.tsx';
 import { heldBackHint, PAPER_PART_LABEL } from './paperCounts.ts';
 import { canSelect, selectableIds } from './selection.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // Who uploaded what: one row per student of the class, with the grade once
 // the robot graded it, next to the name, in its colour, as in the table of
@@ -223,6 +224,7 @@ function UploadTableRow({
                 disabled={retry.isPending}
                 onClick={() => retry.mutate({ submissionId, startedAt })}
               >
+                <ActionIcon name="retry" />
                 Reîncearcă
               </button>
             )}
@@ -239,6 +241,7 @@ function UploadTableRow({
                   if (window.confirm(message)) reset.mutate({ submissionId, startedAt });
                 }}
               >
+                <ActionIcon name="unlock" />
                 {row.fileCount > 0 ? 'Șterge și deblochează' : 'Deblochează'}
               </button>
             )}

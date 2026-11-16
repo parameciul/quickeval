@@ -12,6 +12,7 @@ import { MathText } from '../ui/MathText.tsx';
 import { onTabKeyDown } from '../ui/tabKeys.ts';
 import { pageFileUrl, type TryApi } from './api.ts';
 import { paperOf, scoreOf } from './phase.ts';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 type View = 'verificare' | 'elev';
 // Each view's name, and the short one a phone shows.
@@ -103,6 +104,7 @@ function Summary({ detail }: { detail: TestDetail }) {
             <p>Robotul nu a fost sigur de ele. Le verifici cu pagina lucrării alături și schimbi punctajul dacă e nevoie.</p>
           </div>
           <Link className="button" to={reviewPath(detail.test.code)}>
+            <ActionIcon name="search" />
             Verifică {countLabel(paper.flagCount, 'punct', 'puncte')}
           </Link>
         </div>
@@ -125,6 +127,7 @@ function Checking({ code, submissionId, points }: { code: string; submissionId: 
   const all = (
     <p className="try-all">
       <Link className="button-quiet" to={paperPath(code, 'try', { submissionId, key: null }, 'toate')}>
+        <ActionIcon name="list" />
         Toate exercițiile
       </Link>
     </p>
@@ -156,6 +159,7 @@ function Checking({ code, submissionId, points }: { code: string; submissionId: 
                 {point.kind === 'item' ? <MathText text={point.reason} /> : `Robotul nu a putut citi: ${point.pages.map(pageLabel).join(', ')}.`}
               </span>
               <Link className="button-quiet" to={reviewPath(code, { submissionId, key: pointKey(point) })} aria-label={`Verifică ${name}`}>
+                <ActionIcon name="search" />
                 Verifică
               </Link>
             </li>

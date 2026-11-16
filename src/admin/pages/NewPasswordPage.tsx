@@ -5,6 +5,7 @@ import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../../../shared/accoun
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { BackHome, State, useStateHeading, WayIn } from '../wayIn/WayIn.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // /parola-noua#<token>: the link from the "Am uitat parola" email. Shown
 // without a login. The token is after "#", so it never reaches a server log.
@@ -58,6 +59,7 @@ export function NewPasswordPage() {
                 />
               </div>
               <button type="submit" className="button way-in-wide" disabled={reset.isPending}>
+                <ActionIcon name="check" />
                 {reset.isPending ? 'Se salvează…' : 'Salvează parola'}
               </button>
               {reset.error && <ErrorMessage error={reset.error} />}

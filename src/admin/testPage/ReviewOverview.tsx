@@ -6,6 +6,7 @@ import { CesTag } from '../CesTag.tsx';
 import { paperPath } from '../paperPage/paths.ts';
 import { pointKey, reviewPath } from '../reviewPage/points.ts';
 import { MoveOnLink } from './MoveOnLink.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The graded papers that had points to check, in the class order (by name):
 // all their points, those checked, those left, and the papers with points
@@ -48,6 +49,7 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
   const toResults = (
     <MoveOnLink stage="Rezultate" className="button">
       Mergi la Rezultate
+      <ActionIcon name="arrow" />
     </MoveOnLink>
   );
 
@@ -82,6 +84,7 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
             </p>
           </div>
           <Link className="button button-wait" to={reviewPath(test.code)}>
+            <ActionIcon name="search" />
             {checked === 0 ? 'Începe verificarea' : 'Continuă verificarea'}
           </Link>
         </div>

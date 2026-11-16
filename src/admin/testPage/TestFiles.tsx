@@ -10,6 +10,7 @@ import { FileDrop } from '../newTest/FileDrop.tsx';
 import { TestFileInput } from '../TestFileInput.tsx';
 import { useGeneratedBarem } from './GeneratedBarem.tsx';
 import { partsOf } from './variant.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The part of the missing list (missingOf) that each file is.
 const PART: Record<TestVariant, Record<TestFileKind, MissingPart>> = {
@@ -266,9 +267,11 @@ function BaremNotesEditor({
         {changed ? (
           <span className="row-actions">
             <button className="button button-small" type="submit" disabled={save.isPending || locked}>
+              <ActionIcon name="check" />
               Salvează indicațiile
             </button>
             <button type="button" className="button-quiet button-small" disabled={save.isPending} onClick={() => setText(notes)}>
+              <ActionIcon name="close" />
               Renunță
             </button>
           </span>

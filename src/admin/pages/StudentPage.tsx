@@ -15,6 +15,7 @@ import { RenameDialog } from '../classPage/ClassDialogs.tsx';
 import { ResultCell } from '../classPage/ClassStudents.tsx';
 import { GradeCell } from '../classPage/GradesTable.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The state a link to the student page passes: the class the teacher came
 // from, for "←".
@@ -82,6 +83,7 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
           )}
         </div>
         <button ref={renameButton} type="button" className="button-quiet" onClick={() => setRenameOpen(true)}>
+          <ActionIcon name="edit" />
           Redenumește
         </button>
       </div>

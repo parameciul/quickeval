@@ -14,6 +14,7 @@ import { missingParts } from '../missing.ts';
 import { MissingList } from '../MissingList.tsx';
 import { FileDrop } from '../newTest/FileDrop.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // Where the barem comes from: a file now, the robot from the test, or later.
 type BaremChoice = 'upload' | 'generate' | 'later';
@@ -278,6 +279,7 @@ export function NewTestPage() {
             </ol>
             <div className="new-test-foot">
               <button className="button button-big" type="submit" disabled={create.isPending || selected === ''}>
+                <ActionIcon name="add" />
                 {create.isPending ? 'Se creează…' : 'Creează testul'}
               </button>
               <span className="form-hint">Testul rămâne ciornă până apeși „Începe testul”.</span>

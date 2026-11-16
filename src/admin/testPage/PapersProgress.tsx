@@ -4,6 +4,7 @@ import { countLabel } from '../../ui/format.ts';
 import { reviewPath } from '../reviewPage/points.ts';
 import { PAPER_PART_LABEL, paperCounts } from './paperCounts.ts';
 import { cesBaremActive } from './variant.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // The progress of the papers above the papers table (spec 2026-11-12 §5.2):
 // one bar of the students, each part named in the legend under it, and apart
@@ -41,6 +42,7 @@ export function PapersProgress({ test, uploads }: { test: TestInfo; uploads: Upl
           <span className="papers-points-count">{countLabel(points, 'punct de verificat', 'puncte de verificat')}</span>{' '}
           <span className="hint">în {countLabel(papers, 'lucrare', 'lucrări')}</span>{' '}
           <Link className="button button-small" to={reviewPath(test.code)}>
+            <ActionIcon name="search" />
             Verifică
           </Link>
         </p>

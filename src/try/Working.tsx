@@ -5,6 +5,7 @@ import { ErrorMessage } from '../admin/ErrorMessage.tsx';
 import { MathText } from '../ui/MathText.tsx';
 import { fileChangesLeft } from './phase.ts';
 import { TestFile } from './Prepare.tsx';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 // The paper went to grading (spec §3.3, state 3).
 export function Grading() {
@@ -34,6 +35,7 @@ export function BaremProblem({ detail }: { detail: TestDetail }) {
       <p>Corectează cu baremul așa cum este, sau încarcă alt barem.</p>
       <div className="card-actions">
         <button type="button" className="button" disabled={accept.isPending} onClick={() => accept.mutate()}>
+          <ActionIcon name="check" />
           Folosește oricum
         </button>
       </div>
@@ -65,6 +67,7 @@ export function Failed({ detail }: { detail: TestDetail }) {
       </p>
       <p>Încercarea aceasta nu se numără în limita ta de azi. Poți face o încercare nouă de pe pagina principală.</p>
       <a className="button" href="/">
+        <ActionIcon name="add" />
         Fă o încercare nouă
       </a>
     </div>

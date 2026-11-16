@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { displayClassName } from '../../../shared/classes.ts';
 import { todoPath, type TodoItem } from '../shell/todo.ts';
+import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
 
 // "Ce ai de făcut" in place on the Teste page (redesign spec §5): one row per
 // thing that waits, with one button to its test; the first is the filled one.
@@ -25,6 +26,7 @@ export function TodoRows({ id, items, hidden }: { id: string; items: TodoItem[];
                 to={todoPath(item)}
                 aria-label={`${item.action}: ${where}`}
               >
+                <ActionIcon name={actionIconFor(item.action)} />
                 {item.action}
               </Link>
             </li>

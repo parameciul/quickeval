@@ -9,6 +9,7 @@ import { FileDrop } from '../admin/newTest/FileDrop.tsx';
 import { formatFileSize } from '../ui/format.ts';
 import type { TryApi } from './api.ts';
 import { fileChangesLeft } from './phase.ts';
+import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 const PAGE_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
 
@@ -65,6 +66,7 @@ export function Prepare({ detail, tryApi }: { detail: TestDetail; tryApi: TryApi
       </p>
       <div className="card-actions">
         <button type="button" className="button" disabled={missing.length > 0 || start.isPending} onClick={() => start.mutate()}>
+          <ActionIcon name="play" />
           Pornește corectarea
         </button>
       </div>
@@ -127,6 +129,7 @@ function Barem({ detail, robotBarem, disabled }: { detail: TestDetail; robotBare
         </p>
         <p>
           <a className="button-quiet" href={testFileUrl(test.code, 'barem', undefined, api.base)} target="_blank" rel="noopener">
+            <ActionIcon name="download" />
             Descarcă baremul
           </a>
         </p>
@@ -154,6 +157,7 @@ function Barem({ detail, robotBarem, disabled }: { detail: TestDetail; robotBare
         disabled={test.files.test === null || disabled || generate.isPending}
         onClick={() => generate.mutate()}
       >
+        <ActionIcon name="generate" />
         Fă baremul din test
       </button>
       {generate.error && <ErrorMessage error={generate.error} />}
@@ -200,6 +204,7 @@ function Pages({ tryApi }: { tryApi: TryApi }) {
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(page.id)}
               >
+                <ActionIcon name="trash" />
                 Șterge
               </button>
             </li>
@@ -207,6 +212,7 @@ function Pages({ tryApi }: { tryApi: TryApi }) {
         </ol>
       )}
       <label className={list.length >= MAX_STUDENT_FILES || add.isPending ? 'button-quiet is-disabled' : 'button-quiet'}>
+        <ActionIcon name="upload" />
         Adaugă pagini
         <input
           type="file"

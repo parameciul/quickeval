@@ -10,6 +10,7 @@ import { PdfActions } from '../pdf/PdfActions.tsx';
 import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentPdf.ts';
 import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
 import { ResultLink } from '../testPage/ResultLink.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // Recorectează, Resetează and Reîncearcă of the paper page, and the news after
 // the first and the last. The test page and the test list count grades and
@@ -103,6 +104,7 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
         </div>
         <div className="submission-tools">
           <Link className="button-quiet button-small" to={`/elevi/${submission.studentId}`}>
+            <ActionIcon name="report" />
             Toate notele elevului
           </Link>
           {pdfInput && (

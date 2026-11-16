@@ -8,6 +8,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { stagesOf } from '../stages.ts';
 import { startedLabel } from './greeting.ts';
 import { nextStep } from './nextStep.ts';
+import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
 
 // "În lucru" or "Terminate" on the Teste page (redesign spec §5): a table
 // with the test, its stage, its papers and the next step. `first` is the
@@ -131,6 +132,7 @@ function TestRow({
             <span className="waiting">Nimic de făcut acum</span>
           ) : step.kind === 'link' ? (
             <Link className={buttonClass} to={step.to} aria-label={`${step.label}: ${where}`}>
+              <ActionIcon name={actionIconFor(step.label)} />
               {step.label}
             </Link>
           ) : (
@@ -141,6 +143,7 @@ function TestRow({
               aria-label={`${step.label}: ${where}`}
               onClick={() => results.mutate(true)}
             >
+              <ActionIcon name={actionIconFor(step.label)} />
               {step.label}
             </button>
           )}
@@ -153,6 +156,7 @@ function TestRow({
               aria-label={`Oprește accesul: ${where}`}
               onClick={() => results.mutate(false)}
             >
+              <ActionIcon name="eye-off" />
               Oprește accesul
             </button>
           )}

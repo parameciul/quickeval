@@ -5,6 +5,7 @@ import { MAX_PASSWORD_LENGTH } from '../../../shared/accounts.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { BackHome, State, useStateHeading, WayIn } from '../wayIn/WayIn.tsx';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // /confirma-email#<token>: the link from the email of a new account. Shown
 // without a login. It confirms only with the password chosen at the sign-up:
@@ -52,6 +53,7 @@ export function ConfirmEmailPage() {
                 />
               </div>
               <button type="submit" className="button way-in-wide" disabled={confirm.isPending}>
+                <ActionIcon name="check" />
                 {confirm.isPending ? 'Se confirmă…' : 'Confirmă adresa'}
               </button>
               {confirm.error && <ErrorMessage error={confirm.error} />}
