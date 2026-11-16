@@ -52,13 +52,14 @@ export function TestMenu({
   const subjectLabel = test.subject === null ? 'Alege materia' : 'Schimbă materia';
 
   const actions: MenuAction[] = [
-    { label: 'Redenumește testul', hint: 'Schimbi titlul testului.', busy: false, onChoose: () => setDialog('rename') },
-    { label: subjectLabel, hint: subjectHint(test), busy: robotReads(test), onChoose: () => setDialog('subject') },
+    { label: 'Redenumește testul', hint: 'Schimbi titlul testului.', icon: 'edit', busy: false, onChoose: () => setDialog('rename') },
+    { label: subjectLabel, hint: subjectHint(test), icon: 'subject', busy: robotReads(test), onChoose: () => setDialog('subject') },
   ];
   if (test.archived) {
     actions.push({
       label: 'Scoate din arhivă',
       hint: 'Testul apare din nou în lista clasei și în Teste.',
+      icon: 'unarchive',
       busy: archive.isPending,
       onChoose: () => archive.mutate(false),
     });
@@ -66,6 +67,7 @@ export function TestMenu({
     actions.push({
       label: 'Arhivează testul',
       hint: 'Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.',
+      icon: 'archive',
       busy: archive.isPending,
       onChoose: () => (hasOpenResults(test) ? setDialog('archive') : archive.mutate(true)),
     });
@@ -73,6 +75,7 @@ export function TestMenu({
   actions.push({
     label: 'Șterge testul',
     hint: `Se șterg și toate lucrările încărcate de elevi.${printed ? ' Codurile QR de pe testele tipărite nu mai funcționează.' : ''}`,
+    icon: 'trash',
     danger: true,
     busy: remove.isPending,
     onChoose: () => {

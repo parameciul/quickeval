@@ -132,6 +132,26 @@ describe('brand.css', () => {
     expect(value(declarations('.test-sheet input'), 'font-size')).toBe('1rem');
   });
 
+  it('ticks a done step of Test nou with a CSS escape, so the file stays ASCII there', () => {
+    expect(value(declarations('.step.is-done::before'), 'content')).toBe('"\\2713"');
+  });
+
+  it('keeps room under a focused control for the sticky bar at the foot of the test page, only on a page with it', () => {
+    expect(value(declarations('html'), 'scroll-padding-bottom')).toBeUndefined();
+    expect(value(declarations('html:has(.stage-bar)'), 'scroll-padding-bottom')).toBe('3.5rem');
+    expect(css).toContain('  html:has(.stage-bar) {\n    scroll-padding-bottom: calc(3.5rem + 4rem + env(safe-area-inset-bottom, 0px));');
+  });
+
+  it('keeps the bar at the foot of the test page on one line, and its note off a narrow phone', () => {
+    expect(value(declarations('.stage-bar'), 'flex-wrap')).toBe('nowrap');
+    expect(css).toContain('.stage-bar-wait {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;');
+    const start = css.lastIndexOf('@media (max-width: 56.25rem)', css.indexOf('  .stage-bar {\n    bottom: var(--bottom);'));
+    expect(start).toBeGreaterThanOrEqual(0);
+    const narrow = css.indexOf('@media (max-width: 30rem)', start);
+    expect(narrow).toBeGreaterThan(start);
+    expect(css.slice(narrow, css.indexOf('\n}\n', narrow))).toContain('.stage-bar-wait {\n    display: none;');
+  });
+
   it('keeps the phone menu inside the screen a phone shows now', () => {
     expect(declarations('.phone-menu')).toContain('max-height: calc(100dvh - var(--top) - var(--bottom))');
   });

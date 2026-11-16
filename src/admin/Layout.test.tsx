@@ -89,6 +89,9 @@ const withTodo = () =>
 
 const menu = () => screen.findByRole('navigation', { name: 'Meniu' });
 
+// Whether `first` comes before `then` in the page.
+const before = (first: Element, then: Element) => (first.compareDocumentPosition(then) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -510,6 +513,7 @@ describe('the panel Clasele tale', () => {
     expect(links[0]).toHaveTextContent('6E21 elevEcuații · Pregătire · lipsesc testul și baremul');
     expect(links[1]).toHaveTextContent('Nimic în lucru');
     expect(within(panel).getByRole('link', { name: 'Clasă nouă' })).toHaveAttribute('href', '/clase');
+    expect(before(within(panel).getByRole('link', { name: 'Clasă nouă' }), list)).toBe(true);
     expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toHaveAttribute('href', '/clase');
     expect(within(panel).getByRole('button', { name: 'Închide' })).toHaveFocus();
   });
@@ -620,6 +624,51 @@ describe('the panel Clasele tale', () => {
     expect(within(panel).getAllByRole('link', { name: 'Clasă nouă' })).toHaveLength(1);
     await userEvent.click(within(panel).getByRole('link', { name: 'Clasă nouă' }));
     expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
+  });
+
+  it('keeps "Clasă nouă" while the classes load, at the top, where it stays once they arrive', async () => {
+    const api = withClasses();
+    const loaded = await api.listClasses(2026);
+    const waiting: ((classes: typeof loaded) => void)[] = [];
+    const arrive = () => waiting.forEach((resolve) => resolve(loaded));
+    api.listClasses.mockImplementation(() => new Promise((resolve) => waiting.push(resolve)));
+    renderAdmin('/cont', api);
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
+    const hint = within(panel).getByText('Se încarcă…');
+    expect(within(panel).getAllByRole('link', { name: 'Clasă nouă' })).toHaveLength(1);
+    const newClass = within(panel).getByRole('link', { name: 'Clasă nouă' });
+    expect(newClass).toHaveAttribute('href', '/clase');
+    expect(before(newClass, hint)).toBe(true);
+    arrive();
+    const list = await within(panel).findByRole('navigation');
+    expect(within(panel).getByRole('link', { name: 'Clasă nouă' })).toBe(newClass);
+    expect(before(newClass, list)).toBe(true);
+  });
+
+  it('keeps "Clasă nouă" when the classes cannot be read, above the error', async () => {
+    const api = withClasses();
+    api.listClasses.mockRejectedValue(new ApiError(500, 'server_error', 'Serverul nu răspunde acum.'));
+    renderAdmin('/cont', api);
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
+    const error = await within(panel).findByText('Serverul nu răspunde acum.');
+    expect(within(panel).getAllByRole('link', { name: 'Clasă nouă' })).toHaveLength(1);
+    expect(before(within(panel).getByRole('link', { name: 'Clasă nouă' }), error)).toBe(true);
+  });
+
+  it('has no foot when no class is archived', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
+      students: {},
+      me: fakeTeacher(),
+    });
+    renderAdmin('/', api);
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
+    expect(await within(panel).findByRole('link', { name: /^6E2/ })).toBeInTheDocument();
+    expect(within(panel).queryByRole('link', { name: /^Arhivate/ })).not.toBeInTheDocument();
+    expect(panel.querySelector('.panel-actions')).toBeNull();
   });
 
   it('keeps the way to the archived classes when the year has only those', async () => {

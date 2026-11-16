@@ -20,6 +20,9 @@ const pdf = (name: string) => new File(['%PDF-1.7'], name, { type: PDF_TYPE });
 const testField = () => screen.getByLabelText(/^Fișierul testului/);
 const baremField = () => screen.getByLabelText(/^Fișierul baremului/);
 const choice = (name: RegExp) => screen.getByRole('radio', { name });
+// The step a heading is in, and the tag at its top right.
+const stepOf = (heading: HTMLElement) => heading.closest('li')!;
+const stepTag = (step: HTMLElement) => step.querySelector(':scope > .step-state')?.textContent;
 
 // The class and the title, the first step.
 async function fillClassAndTitle(classId = '1') {
@@ -241,6 +244,44 @@ describe('NewTestPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Clasa este arhivată.');
   });
 
+  it('marks each step: the class and the title to fill in first, the files that can wait, and Gata once each is there', async () => {
+    renderAdmin('/teste/nou', classes());
+    const first = stepOf(await screen.findByRole('heading', { level: 2, name: 'Clasa și titlul' }));
+    const second = stepOf(screen.getByRole('heading', { level: 2, name: 'Testul' }));
+    const third = stepOf(screen.getByRole('heading', { level: 2, name: 'Baremul' }));
+    expect([stepTag(first), stepTag(second), stepTag(third)]).toEqual(['De completat', 'Poți și mai târziu', 'Poți și mai târziu']);
+    for (const step of [first, second, third]) expect(step).not.toHaveClass('is-done');
+
+    // The class alone is not enough: the title is still to write.
+    await userEvent.selectOptions(screen.getByLabelText('Clasa'), '1');
+    expect(stepTag(first)).toBe('De completat');
+    expect(first).not.toHaveClass('is-done');
+    await userEvent.type(screen.getByLabelText('Titlul testului'), 'Fracții');
+    expect(stepTag(first)).toBe('Gata');
+    expect(first).toHaveClass('step', 'is-done');
+
+    await userEvent.upload(testField(), pdf('Test.pdf'));
+    expect(stepTag(second)).toBe('Gata');
+    expect(second).toHaveClass('is-done');
+    expect(stepTag(third)).toBe('Poți și mai târziu');
+    await userEvent.upload(baremField(), pdf('Barem.pdf'));
+    expect(stepTag(third)).toBe('Gata');
+    expect(third).toHaveClass('is-done');
+  });
+
+  it('says a barem asked from the test will be generated, and not one for later', async () => {
+    renderAdmin('/teste/nou', classes());
+    await fillClassAndTitle();
+    const third = stepOf(screen.getByRole('heading', { level: 2, name: 'Baremul' }));
+    await userEvent.upload(testField(), pdf('Test.pdf'));
+    await userEvent.click(choice(/^Generează baremul din test/));
+    expect(stepTag(third)).toBe('Se va genera');
+    expect(third).not.toHaveClass('is-done');
+    await userEvent.click(choice(/^Mai târziu/));
+    expect(stepTag(third)).toBe('Poți și mai târziu');
+    expect(third).not.toHaveClass('is-done');
+  });
+
   it('asks for a class first when the year has none', async () => {
     renderAdmin('/teste/nou', createFakeApi());
     expect(await screen.findByRole('link', { name: 'Adaugă întâi o clasă.' })).toHaveAttribute('href', '/clase');
@@ -324,6 +365,31 @@ describe('NewTestPage, a class with a CES student', () => {
     expect(api.createTest).toHaveBeenCalledWith({ classId: 2, title: 'Fracții', cesOff: false });
     expect(api.uploadTestFile).toHaveBeenCalledWith('9R2-26T1', 'test', ces, 'ces');
     expect(api.generateBarem.mock.calls).toEqual([['9R2-26T1'], ['9R2-26T1', 'ces']]);
+  });
+
+  it('marks the test and barem steps Gata only once the CES parts are there too, while the switch is on', async () => {
+    renderAdmin('/teste/nou', withCes());
+    await fillClassAndTitle('2');
+    const toggle = await screen.findByRole('switch', { name: 'Test separat pentru elevii cu CES' });
+    const second = stepOf(screen.getByRole('heading', { level: 2, name: 'Testul' }));
+    const third = stepOf(screen.getByRole('heading', { level: 2, name: 'Baremul' }));
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului:/), pdf('Test.pdf'));
+    await userEvent.upload(screen.getByLabelText(/^Fișierul baremului:/), pdf('Barem.pdf'));
+    expect([stepTag(second), stepTag(third)]).toEqual(['Poți și mai târziu', 'Poți și mai târziu']);
+    expect(second).not.toHaveClass('is-done');
+    expect(third).not.toHaveClass('is-done');
+
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului CES/), pdf('Test adaptat.pdf'));
+    expect(stepTag(second)).toBe('Gata');
+    expect(second).toHaveClass('is-done');
+    expect(stepTag(third)).toBe('Poți și mai târziu');
+    await userEvent.upload(cesBaremChoices().getByLabelText(/^Fișierul baremului CES/), pdf('Barem adaptat.pdf'));
+    expect(stepTag(third)).toBe('Gata');
+    expect(third).toHaveClass('is-done');
+
+    // Off, the CES parts are not asked for: the class files are enough.
+    await userEvent.click(toggle);
+    expect([stepTag(second), stepTag(third)]).toEqual(['Gata', 'Gata']);
   });
 
   it('turned off, hides the CES files, asks nothing for them, and creates the test without them', async () => {

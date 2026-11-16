@@ -39,6 +39,20 @@ const PATHS = {
   ),
   download: <path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9M4 14.5v2h12v-2" />,
   edit: <path d="M12.5 4.5l3 3-8 8h-3v-3zM11 6l3 3" />,
+  doc: <path d="M5 2.75h7l3 3v11.5H5zM8 9h4.5M8 12h4.5" />,
+  phone: (
+    <>
+      <rect x="5.5" y="2.5" width="9" height="15" rx="2" />
+      <path d="M9 14.5h2" />
+    </>
+  ),
+  sliders: (
+    <>
+      <path d="M3.5 6h7M15 6h1.5M3.5 14h1.5M9.5 14h7" />
+      <circle cx="12.75" cy="6" r="2" />
+      <circle cx="7.25" cy="14" r="2" />
+    </>
+  ),
   eye: (
     <>
       <path d="M2.5 10S5.25 5 10 5s7.5 5 7.5 5-2.75 5-7.5 5-7.5-5-7.5-5z" />
@@ -96,6 +110,8 @@ const PATHS = {
     </>
   ),
   stop: <rect x="5" y="5" width="10" height="10" rx="1.5" />,
+  // An open book: the subject of a test.
+  subject: <path d="M10 5.5C8.5 4.25 6.25 3.75 3.5 4v11.5c2.75-.25 5 .25 6.5 1.5 1.5-1.25 3.75-1.75 6.5-1.5V4c-2.75-.25-5 .25-6.5 1.5zM10 5.5V17" />,
   trash: <path d="M3.5 5.5h13M8 5.5v-2h4v2M5 5.5l.75 11h8.5l.75-11M8.5 8.5v5M11.5 8.5v5" />,
   unlock: (
     <>

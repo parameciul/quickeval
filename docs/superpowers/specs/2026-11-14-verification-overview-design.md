@@ -43,7 +43,7 @@ The panel of the stage Verificare (`ReviewPanel` in `src/admin/testPage/StagePan
 2. **"De verificat"** (with "N elevi · clic pe un nume"): one rounded label per student with points left, "Bogdan Ionescu 1/4" (checked / to check), in the orange tint. A click opens that student's first point left (`reviewPath(code, { submissionId, key })`).
 3. **"Gata"** (with "N elevi"): one grey label per student whose points are all checked, "✓ Ana Popescu". A click opens the paper with all its exercises (`paperPath(..., 'toate')`).
 
-When every point is checked, the progress line becomes a green box: "Toate cele 59 de puncte sunt verificate." with the blue "Mergi la Rezultate"; the "Gata" labels stay. A test whose graded papers never had a point to check shows "Nimic de verificat." with "Mergi la Rezultate". Before any paper is graded, the panel keeps today's hint.
+When every point is checked, the progress line becomes a green box: "Toate cele 59 de puncte sunt verificate.", with no button: "Mergi la Rezultate" is in the bar at the foot of the page (`StageBar`); the "Gata" labels stay. A test whose graded papers never had a point to check shows "Nimic de verificat.", and the same bar leads to Rezultate. Before any paper is graded, the panel keeps today's hint.
 
 The list of points (`ReviewList.tsx`, a row per point with its reason and "Decide") and the papers table (`Papers`) leave this panel.
 

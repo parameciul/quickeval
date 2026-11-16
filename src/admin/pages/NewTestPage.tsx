@@ -10,9 +10,10 @@ import { CesTag } from '../CesTag.tsx';
 import { Crumbs } from '../Crumbs.tsx';
 import { NewClassDialog } from '../classPage/ClassDialogs.tsx';
 import { ErrorMessage, errorText } from '../ErrorMessage.tsx';
-import { missingParts } from '../missing.ts';
+import { missingParts, type MissingPart } from '../missing.ts';
 import { MissingList } from '../MissingList.tsx';
 import { FileDrop } from '../newTest/FileDrop.tsx';
+import { NewTestState } from '../newTest/NewTestState.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
@@ -120,6 +121,32 @@ export function NewTestPage() {
     },
   });
 
+  // The barem parts the robot will write once the test is made: not here yet, not missing.
+  const generating: MissingPart[] = [
+    ...(barem === 'generate' && testFile !== null ? (['barem'] as const) : []),
+    ...(withCes && cesBarem === 'generate' && cesTestFile !== null ? (['cesBarem'] as const) : []),
+  ];
+
+  // Where each step stands, for the mark on it: the class and the title come
+  // first; the files can wait, so an empty step says so instead of blocking.
+  const baremThere = !missing.includes('barem') && !(withCes && missing.includes('cesBarem'));
+  const stepDone = [
+    selected !== '' && title.trim() !== '',
+    !missing.includes('test') && !(withCes && missing.includes('cesTest')),
+    baremThere && generating.length === 0,
+  ];
+  const stepMark = (index: number) =>
+    stepDone[index] ? (
+      <span className="step-state tag tag-ok">Gata</span>
+    ) : index === 0 ? (
+      <span className="step-state tag tag-wait">De completat</span>
+    ) : index === 2 && baremThere ? (
+      <span className="step-state tag">Se va genera</span>
+    ) : (
+      <span className="step-state tag">Poți și mai târziu</span>
+    );
+  const stepClass = (index: number) => (stepDone[index] ? 'step is-done' : 'step');
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     create.mutate();
@@ -161,7 +188,7 @@ export function NewTestPage() {
         <div className="new-test">
           <form onSubmit={onSubmit}>
             <ol className="steps">
-              <li className="step">
+              <li className={stepClass(0)}>
                 <div>
                   <h2>Clasa și titlul</h2>
                   <p>Titlul îl văd și elevii, pe pagina lor.</p>
@@ -197,13 +224,14 @@ export function NewTestPage() {
                     />
                   </div>
                 </div>
+                {stepMark(0)}
               </li>
               {cesNames.length > 0 && (
                 <li className="new-test-ces">
                   <CesSwitch names={cesNames} on={cesOn} onToggle={setCesOn} />
                 </li>
               )}
-              <li className="step">
+              <li className={stepClass(1)}>
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
                     <h2>Testul</h2>
@@ -225,8 +253,9 @@ export function NewTestPage() {
                     </div>
                   )}
                 </div>
+                {stepMark(1)}
               </li>
-              <li className="step">
+              <li className={stepClass(2)}>
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
                     <h2>Baremul</h2>
@@ -275,6 +304,7 @@ export function NewTestPage() {
                     </div>
                   )}
                 </div>
+                {stepMark(2)}
               </li>
             </ol>
             <div className="new-test-foot">
@@ -288,45 +318,48 @@ export function NewTestPage() {
             {create.error && <ErrorMessage error={create.error} />}
           </form>
 
-          <section className="class-card new-test-next" aria-labelledby="new-test-next">
-            <div className="class-card-head">
-              <h2 id="new-test-next">După ce creezi testul</h2>
-            </div>
-            <ul>
-              <li>
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-                  <path d="M8.5 11.5a3 3 0 0 0 4.24 0l2.5-2.5a3 3 0 0 0-4.24-4.24L10 5.76" />
-                  <path d="M11.5 8.5a3 3 0 0 0-4.24 0l-2.5 2.5a3 3 0 0 0 4.24 4.24l1-1" />
-                </svg>
-                <div>
-                  <b>Linkul elevilor e gata imediat</b>
-                  <span>Testul primește linkul și codul QR din prima clipă, ca ciornă.</span>
-                </div>
-              </li>
-              <li>
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-                  <path d="M5.5 7.5V3h9v4.5" />
-                  <rect x="2.75" y="7.5" width="14.5" height="6.5" rx="1.5" />
-                  <path d="M5.5 12h9v5h-9z" />
-                </svg>
-                <div>
-                  <b>Tipărești testul cu cod QR</b>
-                  <span>Din ciornă, cu zile înainte. Fiecare pagină are codul.</span>
-                </div>
-              </li>
-              <li>
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-                  <circle cx="7.5" cy="7" r="2.75" />
-                  <path d="M2.75 16c.6-2.6 2.5-4 4.75-4s4.15 1.4 4.75 4" />
-                  <path d="M13 4.6a2.6 2.6 0 0 1 0 5M14.5 12.2c1.4.5 2.4 1.8 2.75 3.8" />
-                </svg>
-                <div>
-                  <b>În ziua testului: Începe testul</b>
-                  <span>Elevii scanează codul și trimit pozele. Fără cont și fără aplicație.</span>
-                </div>
-              </li>
-            </ul>
-          </section>
+          <aside className="new-test-side">
+            <NewTestState hasClass={selected !== ''} hasTitle={title.trim() !== ''} missing={missing} generating={generating} wantsCes={withCes} />
+            <section className="class-card new-test-next" aria-labelledby="new-test-next">
+              <div className="class-card-head">
+                <h2 id="new-test-next">După ce creezi testul</h2>
+              </div>
+              <ul>
+                <li>
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M8.5 11.5a3 3 0 0 0 4.24 0l2.5-2.5a3 3 0 0 0-4.24-4.24L10 5.76" />
+                    <path d="M11.5 8.5a3 3 0 0 0-4.24 0l-2.5 2.5a3 3 0 0 0 4.24 4.24l1-1" />
+                  </svg>
+                  <div>
+                    <b>Linkul elevilor e gata imediat</b>
+                    <span>Testul primește linkul și codul QR din prima clipă, ca ciornă.</span>
+                  </div>
+                </li>
+                <li>
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M5.5 7.5V3h9v4.5" />
+                    <rect x="2.75" y="7.5" width="14.5" height="6.5" rx="1.5" />
+                    <path d="M5.5 12h9v5h-9z" />
+                  </svg>
+                  <div>
+                    <b>Tipărești testul cu cod QR</b>
+                    <span>Din ciornă, cu zile înainte. Fiecare pagină are codul.</span>
+                  </div>
+                </li>
+                <li>
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                    <circle cx="7.5" cy="7" r="2.75" />
+                    <path d="M2.75 16c.6-2.6 2.5-4 4.75-4s4.15 1.4 4.75 4" />
+                    <path d="M13 4.6a2.6 2.6 0 0 1 0 5M14.5 12.2c1.4.5 2.4 1.8 2.75 3.8" />
+                  </svg>
+                  <div>
+                    <b>În ziua testului: Începe testul</b>
+                    <span>Elevii scanează codul și trimit pozele. Fără cont și fără aplicație.</span>
+                  </div>
+                </li>
+              </ul>
+            </section>
+          </aside>
         </div>
       )}
       {newClass && <NewClassDialog onClose={() => setNewClass(false)} onCreated={(id) => setClassId(String(id))} />}

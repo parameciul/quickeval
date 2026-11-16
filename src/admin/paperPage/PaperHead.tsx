@@ -69,6 +69,7 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
     paperActions.push({
       label: 'Recorectează',
       hint: 'Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.',
+      icon: 'retry',
       busy: regrade.isPending,
       onChoose: () => {
         if (window.confirm(`Recorectezi lucrarea elevului ${submission.studentName}? Corecturile tale se pierd.`)) regrade.mutate(gradedAt);
@@ -78,6 +79,7 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
   paperActions.push({
     label: 'Resetează',
     hint: 'Se șterg fișierele, iar elevul poate lua încărcarea de la capăt, și de pe alt telefon.',
+    icon: 'trash',
     danger: true,
     busy: reset.isPending,
     onChoose: () => {

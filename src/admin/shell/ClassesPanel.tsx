@@ -15,8 +15,10 @@ import { ActionIcon } from '../../ui/ActionIcon.tsx';
 // waits on the teacher is orange and says what waits ("Logaritmi · Rezultate ·
 // nepublicate"). The class of the page is marked. Until the tests of the year
 // arrive a class shows no line about them (or the panel says why they could
-// not be read), never "Nimic în lucru". With no class, its empty state holds
-// the one "Clasă nouă"; "Arhivate (n)" stays at the foot.
+// not be read), never "Nimic în lucru". "Clasă nouă" is first, above the
+// loading line, an error and the list, so it never moves when the classes
+// arrive; with no class, its empty state holds the one "Clasă nouă".
+// "Arhivate (n)" is at the foot, when there are any.
 export function ClassesPanel({
   year,
   todo,
@@ -35,15 +37,27 @@ export function ClassesPanel({
   const archived = classes.data?.filter((item) => item.archived).length ?? 0;
   const todoOf = (test: TestSummary) => todo.find((item) => item.code === test.code);
 
+  const newClass = (
+    <div className="panel-new">
+      <Link className="button" to="/clase" state={{ newClass: true }}>
+        <ActionIcon name="add" />
+        Clasă nouă
+      </Link>
+    </div>
+  );
+
+  const empty = !classes.error && classes.data !== undefined && active.length === 0;
+
   return (
     <Panel id="panel-clase" title="Clasele tale" onClose={onClose}>
+      {!empty && newClass}
       {classes.error ? (
         <div className="panel-body">
           <ErrorMessage error={classes.error} />
         </div>
       ) : !classes.data ? (
         <p className="panel-body hint">Se încarcă…</p>
-      ) : active.length === 0 ? (
+      ) : empty ? (
         <EmptyState
           icon={<IconClasses />}
           title={archived > 0 ? 'Nu ai nicio clasă activă' : 'Încă nu ai nicio clasă'}
@@ -74,7 +88,7 @@ export function ClassesPanel({
                   aria-current={item.id === currentClassId ? 'page' : undefined}
                 >
                   <span className="class-item-head">
-                    <b>{item.name}</b>
+                    <span>{item.name}</span>
                     <span>{studentCountLabel(item.studentCount)}</span>
                   </span>
                   {!tests.data ? null : work.length === 0 ? (
@@ -95,19 +109,13 @@ export function ClassesPanel({
           </nav>
         </>
       )}
-      <div className="panel-actions">
-        {(classes.data === undefined || active.length > 0) && (
-          <Link className="button-quiet button-small" to="/clase" state={{ newClass: true }}>
-            <ActionIcon name="add" />
-            Clasă nouă
-          </Link>
-        )}
-        {archived > 0 && (
+      {archived > 0 && (
+        <div className="panel-actions">
           <Link to="/clase" state={{ archived: true }}>
             Arhivate ({archived})
           </Link>
-        )}
-      </div>
+        </div>
+      )}
     </Panel>
   );
 }
