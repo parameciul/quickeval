@@ -6,6 +6,7 @@ import { parsePositiveId } from '../../../shared/ids.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
 import { countLabel, studentCountLabel } from '../../ui/format.ts';
 import { onTabKeyDown } from '../../ui/tabKeys.ts';
+import { classToneStyle } from '../../ui/classTone.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ArchiveDialog, hasOpenResults } from '../ArchiveDialog.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -267,7 +268,8 @@ function IconDots() {
   );
 }
 
-// The menu beside the name: switch to another class of the year (a dot marks a
+// The menu beside the name: switch to another class of the year (each with its
+// own colour dot, as in "Clasele tale"; an orange dot by the count marks a
 // class whose test waits on the teacher), open an archived one (its own group,
 // at the end, so the teacher can take it out of the archive), or start a new
 // one. `showArchived` opens it at that group, for the panel's "Arhivate (n)".
@@ -308,7 +310,10 @@ function ClassSwitcher({
       aria-current={entry.id === classId ? 'page' : undefined}
       onClick={() => setOpen(false)}
     >
-      <b>{displayClassName(entry.name)}</b>
+      <span className="class-item-name">
+        <span className="class-dot" style={classToneStyle(entry.id)} aria-hidden="true" />
+        {displayClassName(entry.name)}
+      </span>
       <span className="class-menu-note">
         {waiting.has(entry.id) && <span className="flag-dot" role="img" aria-label="te așteaptă"></span>}
         {studentCountLabel(entry.studentCount)}

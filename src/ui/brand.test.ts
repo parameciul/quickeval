@@ -165,6 +165,32 @@ describe('brand.css', () => {
     expect(value(declarations('.class-dot'), 'background')).toBe('hsl(var(--tone-hue) 60% 52%)');
   });
 
+  it('draws the class page as the test page: no bold, test names cut after two lines', () => {
+    expect(value(declarations('table.grades-table tbody th'), 'font-weight')).toBe('400');
+    expect(value(declarations('table.grades-table th.grade-head a'), 'font-weight')).toBe('500');
+    expect(value(declarations('table.grades-table th.grade-head a'), '-webkit-line-clamp')).toBe('2');
+    expect(value(declarations('a.class-test-title'), 'font-weight')).toBe('500');
+    expect(value(declarations('a.class-test-title'), '-webkit-line-clamp')).toBe('2');
+    expect(value(declarations('.grade-head-note.is-waiting'), 'font-weight')).toBeUndefined();
+    expect(value(declarations('.class-test-stage.is-waiting'), 'font-weight')).toBeUndefined();
+    expect(value(declarations('.class-switch-button'), 'font-weight')).toBe('500');
+    expect(value(declarations('.class-tab'), 'font-weight')).toBe('500');
+    expect(value(declarations('.text-button'), 'font-weight')).toBe('500');
+    expect(value(declarations('.student-pick[aria-current="true"]'), 'font-weight')).toBe('500');
+    expect(value(declarations('table.student-results tbody th a'), 'font-weight')).toBe('500');
+    expect(value(declarations('table.grades-table th.grade-head a'), 'overflow-wrap')).toBe('anywhere');
+    expect(value(declarations('a.class-test-title'), 'overflow-wrap')).toBe('anywhere');
+    // No rule paints a waiting grade orange or bold any more: the dot says it.
+    expect(css).not.toMatch(/td\.grade-flag\s*\{/);
+    expect(css).not.toMatch(/\.class-menu-item\.is-muted b\b/);
+    expect(css).not.toMatch(/table\.student-results \.is-waiting\s*\{/);
+    // A student who left: the chip is grey like the rest of the row.
+    expect(declarations('table.grades-table tr.is-muted .grade-chip')).toContain('color: var(--muted)');
+    // The link's underline does not reach the chip, an inline block: it has its own.
+    expect(value(declarations('table.history-table td a:hover .grade-chip'), 'text-decoration')).toBe('underline');
+    expect(css).toContain('table.grades-table td a:hover .grade-chip,\ntable.history-table td a:hover .grade-chip {');
+  });
+
   it('keeps the phone menu inside the screen a phone shows now', () => {
     expect(declarations('.phone-menu')).toContain('max-height: calc(100dvh - var(--top) - var(--bottom))');
   });

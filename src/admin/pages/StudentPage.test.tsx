@@ -80,10 +80,11 @@ describe('StudentPage', () => {
     await screen.findByRole('heading', { level: 1, name: 'Pop Ion' });
     const now = card(/^2027-2028/);
 
-    // Points wait: orange with a dot, and the result waits for the check.
+    // Points wait: a dot before the grade's colour chip, and the result waits for the check.
     const waiting = within(rowOf(now, 'Ecuații'));
     expect(waiting.getByText('76,4 / 100')).toBeInTheDocument();
     expect(waiting.getByRole('img', { name: '1 punct de verificat' }).closest('td')).toHaveClass('grade-flag');
+    expect(waiting.getByText('7,64')).toHaveClass('grade-chip', 'points-4');
     expect(waiting.getByRole('link', { name: /7,64/ })).toHaveAttribute('href', '/teste/7E2-27T3/elevi/31');
     expect(waiting.getByText('După verificare')).toBeInTheDocument();
     expect(waiting.getByRole('link', { name: 'Lucrarea' })).toHaveAttribute('href', '/teste/7E2-27T3/elevi/31');

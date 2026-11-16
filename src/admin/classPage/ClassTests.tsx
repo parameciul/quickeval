@@ -69,7 +69,7 @@ export function ClassTests({
             return (
               <li key={test.code} className={test.archived ? 'is-muted' : undefined}>
                 <div className="class-test-text">
-                  <Link className="class-test-title" to={`/teste/${test.code}`}>
+                  <Link className="class-test-title" to={`/teste/${test.code}`} title={test.title}>
                     {test.title}
                   </Link>
                   <span>

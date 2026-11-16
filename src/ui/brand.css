@@ -7925,7 +7925,7 @@ table.results-table.is-phone tr.is-muted .missing-note {
   color: var(--text);
   font: inherit;
   font-size: 0.84375rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8045,9 +8045,12 @@ table.results-table.is-phone tr.is-muted .missing-note {
   text-transform: uppercase;
 }
 
-.class-menu-item.is-muted,
-.class-menu-item.is-muted b {
+.class-menu-item.is-muted {
   color: var(--muted);
+}
+
+.class-menu-item.is-muted .class-dot {
+  opacity: 0.6;
 }
 
 .class-menu-foot {
@@ -8064,7 +8067,7 @@ table.results-table.is-phone tr.is-muted .missing-note {
   color: var(--ink);
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8105,7 +8108,7 @@ table.results-table.is-phone tr.is-muted .missing-note {
   color: var(--muted);
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8357,8 +8360,9 @@ table.results-table.is-phone tr.is-muted .missing-note {
   top: calc(var(--top) + 1.5rem);
 }
 
-/* The grades table: a row per student, a 156px column per test, the numbers
-   on the right; orange only for a grade whose points wait on the teacher. */
+/* The grades table: a row per student, a 156px column per test, each grade
+   in its grade colour chip on the right; an orange dot before a grade whose
+   points wait on the teacher. */
 .class-grades {
   overflow: hidden;
 }
@@ -8402,10 +8406,17 @@ table.grades-table th.grade-head {
   white-space: normal;
 }
 
+/* A test's name in its column head: at most two lines, then "…" (the
+   whole name is the link's tooltip). */
 table.grades-table th.grade-head a {
-  display: block;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -8420,7 +8431,6 @@ table.grades-table th.grade-head a:hover {
 
 .grade-head-note.is-waiting {
   color: var(--orange);
-  font-weight: 600;
 }
 
 table.grades-table th.is-muted a {
@@ -8428,7 +8438,7 @@ table.grades-table th.is-muted a {
 }
 
 table.grades-table tbody th {
-  font-weight: 600;
+  font-weight: 400;
 }
 
 table.grades-table tbody th a,
@@ -8448,8 +8458,15 @@ table.grades-table tbody th .tag {
 }
 
 table.grades-table tr.is-muted th,
-table.grades-table tr.is-muted td {
+table.grades-table tr.is-muted td,
+table.grades-table tr.is-muted .grade-chip {
   color: var(--muted);
+}
+
+/* The chip is an inline block: the link's underline does not reach it. */
+table.grades-table td a:hover .grade-chip,
+table.history-table td a:hover .grade-chip {
+  text-decoration: underline;
 }
 
 table.grades-table td.grade-none,
@@ -8461,11 +8478,6 @@ table.grades-table td.grade-state {
   font-size: 0.8125rem;
 }
 
-table.grades-table td.grade-flag {
-  color: var(--orange);
-  font-weight: 700;
-}
-
 table.grades-table td.grade-flag .flag-dot {
   margin-right: 0.4375rem;
 }
@@ -8475,7 +8487,12 @@ table.grades-table tfoot td {
   border-top: 1px solid var(--rule);
   border-bottom: 0;
   background: var(--raised);
-  font-weight: 700;
+  font-weight: 500;
+}
+
+/* The sticky name column is white on the student rows, grey on this one. */
+table.grades-table tfoot th:first-child {
+  background: var(--raised);
 }
 
 /* "Testele clasei": one row per test, its next step on the right. */
@@ -8502,10 +8519,18 @@ table.grades-table tfoot td {
   font-size: 0.8125rem;
 }
 
+/* A test's name: at most two lines, then "…" (the whole name is the
+   link's tooltip). */
 a.class-test-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
   color: var(--text);
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -8520,7 +8545,6 @@ a.class-test-title:hover {
 
 .class-test-stage.is-waiting {
   color: var(--orange);
-  font-weight: 600;
 }
 
 .class-tests-empty {
@@ -8594,7 +8618,7 @@ input.student-search:focus {
 
 .student-pick[aria-current="true"] {
   background: var(--ink-tint);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .student-pick.is-muted {
@@ -8710,7 +8734,7 @@ table.student-results tbody th a {
   display: block;
   color: var(--text);
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -8723,10 +8747,6 @@ table.student-results tbody th span {
   color: var(--muted);
   font-size: 0.8125rem;
   font-weight: 400;
-}
-
-table.student-results .is-waiting {
-  color: var(--orange);
 }
 
 table.student-results .tag {
@@ -8789,11 +8809,6 @@ table.history-table td.grade-state {
 
 table.history-table td.grade-state {
   font-size: 0.8125rem;
-}
-
-table.history-table td.grade-flag {
-  color: var(--orange);
-  font-weight: 700;
 }
 
 table.history-table td.grade-flag .flag-dot {

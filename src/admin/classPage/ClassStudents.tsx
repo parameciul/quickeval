@@ -15,6 +15,7 @@ import { AddStudentsDialog, RenameDialog } from './ClassDialogs.tsx';
 import { NoStudents, orderedStudents } from './GradesTable.tsx';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { GradeChip } from '../testPage/GradeChip.tsx';
 
 // "Elevi" tab of the class page (spec §9): the students on the left (search,
 // an orange dot for points to check, "+ Adaugă elevi"), one student on the
@@ -301,7 +302,7 @@ function StudentDetail({
                     <td className="num">
                       {graded && grade.grade !== null ? (
                         <>
-                          <b className={grade.flagCount > 0 ? 'is-waiting' : undefined}>{formatPoints(grade.grade)}</b>
+                          <GradeChip grade={grade.grade} />
                           {grade.flagCount > 0 && (
                             <span className="tag tag-wait">
                               {countLabel(grade.flagCount, 'punct de verificat', 'puncte de verificat')}
