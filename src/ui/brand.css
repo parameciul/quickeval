@@ -8049,6 +8049,10 @@ table.results-table.is-phone tr.is-muted .missing-note {
   color: var(--muted);
 }
 
+.class-menu-item.is-muted .class-dot {
+  opacity: 0.6;
+}
+
 .class-menu-foot {
   margin-top: 0.25rem;
   padding: 0.5rem 0.625rem 0.25rem;
@@ -8063,7 +8067,7 @@ table.results-table.is-phone tr.is-muted .missing-note {
   color: var(--ink);
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8356,8 +8360,9 @@ table.results-table.is-phone tr.is-muted .missing-note {
   top: calc(var(--top) + 1.5rem);
 }
 
-/* The grades table: a row per student, a 156px column per test, the numbers
-   on the right; orange only for a grade whose points wait on the teacher. */
+/* The grades table: a row per student, a 156px column per test, each grade
+   in its grade colour chip on the right; an orange dot before a grade whose
+   points wait on the teacher. */
 .class-grades {
   overflow: hidden;
 }
@@ -8409,6 +8414,7 @@ table.grades-table th.grade-head a {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+  overflow-wrap: anywhere;
   color: var(--text);
   font-weight: 500;
   text-decoration: none;
@@ -8452,8 +8458,15 @@ table.grades-table tbody th .tag {
 }
 
 table.grades-table tr.is-muted th,
-table.grades-table tr.is-muted td {
+table.grades-table tr.is-muted td,
+table.grades-table tr.is-muted .grade-chip {
   color: var(--muted);
+}
+
+/* The chip is an inline block: the link's underline does not reach it. */
+table.grades-table td a:hover .grade-chip,
+table.history-table td a:hover .grade-chip {
+  text-decoration: underline;
 }
 
 table.grades-table td.grade-none,
@@ -8514,6 +8527,7 @@ a.class-test-title {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+  overflow-wrap: anywhere;
   color: var(--text);
   font-size: 0.9375rem;
   font-weight: 500;
@@ -8604,7 +8618,7 @@ input.student-search:focus {
 
 .student-pick[aria-current="true"] {
   background: var(--ink-tint);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .student-pick.is-muted {
@@ -8720,7 +8734,7 @@ table.student-results tbody th a {
   display: block;
   color: var(--text);
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -8733,10 +8747,6 @@ table.student-results tbody th span {
   color: var(--muted);
   font-size: 0.8125rem;
   font-weight: 400;
-}
-
-table.student-results .is-waiting {
-  color: var(--orange);
 }
 
 table.student-results .tag {

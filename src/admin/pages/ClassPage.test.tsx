@@ -215,6 +215,7 @@ describe('ClassPage', () => {
     const archived = group.getByRole('link', { name: /Clasa 9R2/ });
     expect(archived).toHaveAttribute('href', '/clase/2');
     expect(archived).toHaveClass('is-muted');
+    expect(archived.querySelector<HTMLElement>('.class-dot')!.style.getPropertyValue('--tone-hue')).toBe(String(classToneHue(2)));
     expect(group.queryByRole('link', { name: /Clasa 6E2/ })).not.toBeInTheDocument();
   });
 
@@ -706,6 +707,9 @@ describe('ClassPage "Elevi" tab', () => {
     const student = await detail();
     expect(student.getByText('După verificare')).toBeInTheDocument();
     expect(student.getByText('2 puncte de verificat')).toBeInTheDocument();
+    // The grade is a chip of its colour, as in the grades table, never bold.
+    expect(student.getByText('6')).toHaveClass('grade-chip', 'points-3');
+    expect(student.getByText('2 puncte de verificat').closest('td')!.querySelector('b')).toBeNull();
     expect(student.getByText('Trimis')).toBeInTheDocument();
     const papers = student.getAllByRole('link', { name: 'Lucrarea' }).map((link) => link.getAttribute('href'));
     expect(papers).toEqual(['/teste/6E2-26T2/elevi/505', '/teste/6E2-26T1/elevi/502']);
