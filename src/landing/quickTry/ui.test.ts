@@ -224,6 +224,7 @@ describe("the landing page's Quick Try", () => {
     expect(pages).toHaveTextContent('Faci pozele cu telefonul');
     expect(pages).toHaveTextContent('Codul QR apare după ce apeși Trimite');
     expect(within(pages).queryByRole('button', { name: 'Cu telefonul' })).toBeNull();
+    expect(within(pages).getByRole('button', { name: 'Schimbă' })).toHaveFocus();
     within(pages).getByRole('button', { name: 'Schimbă' }).click();
     expect(pages).not.toHaveClass('is-chosen');
     expect(pages).not.toHaveClass('is-phone');

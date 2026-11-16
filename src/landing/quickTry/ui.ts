@@ -223,7 +223,11 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = 'Codul QR apare după ce apeși Trimite';
   }
 
-  phonePick.addEventListener('click', () => choosePhone(true));
+  phonePick.addEventListener('click', () => {
+    choosePhone(true);
+    // The button hides: the focus goes to its "Schimbă".
+    phoneUndo.focus();
+  });
   phoneUndo.addEventListener('click', () => {
     choosePhone(false);
     phonePick.focus();

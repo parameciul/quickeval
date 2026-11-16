@@ -22,6 +22,9 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
   const pages = useQuery({ queryKey: ['try', 'pages'], queryFn: () => tryApi.listPages(), refetchOnWindowFocus: false });
   const [done, setDone] = useState<number | null>(null);
   const [round, setRound] = useState(0);
+  // The server's word on a page refused because the grading started: the
+  // read-only view keeps it.
+  const [refused, setRefused] = useState<string | null>(null);
 
   const pagesApi = useMemo<PagesApi>(
     () => ({
@@ -30,7 +33,11 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
           return await tryApi.uploadPage(file, name, onProgress);
         } catch (err) {
           // The grading started on the laptop meanwhile: the page turns read only.
-          if (err instanceof ApiError && err.code === 'paper_sent') void queryClient.invalidateQueries({ queryKey: ['test', info.code] });
+          if (err instanceof ApiError && err.code === 'paper_sent') {
+            setRefused(err.message);
+            void queryClient.invalidateQueries({ queryKey: ['try', 'pages'] });
+            void queryClient.invalidateQueries({ queryKey: ['test', info.code] });
+          }
           throw err;
         }
       },
@@ -51,6 +58,7 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
       <section className="phone-page">
         <h1>Lucrarea elevului</h1>
         <p className="phone-title">{title}</p>
+        {refused && <p className="hint">{refused}</p>}
         <p className="alert">Lucrarea a fost trimisă. Nu mai poți schimba paginile.</p>
         <h3>Paginile ({pages.data.length})</h3>
         <ol className="page-list">

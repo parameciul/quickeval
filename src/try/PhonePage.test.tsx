@@ -78,13 +78,18 @@ describe("a try's phone page", () => {
     expectNoGradingWords();
   });
 
-  it('turns read only when a page is refused because the paper was sent', async () => {
+  it('turns read only when a page is refused because the paper was sent, with the pages sent and the message', async () => {
     const { api, tryApi } = setup();
     await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 });
+    await pick([jpeg('pagina-1.jpg')]);
+    await waitFor(() => expect(screen.getByText('Încărcat')).toBeInTheDocument());
     tryApi.uploadPage.mockRejectedValueOnce(new ApiError(409, 'paper_sent', 'Lucrarea a plecat deja la corectare.'));
     api.getTest.mockResolvedValue(tryTest({ status: 'evaluating' }, { status: 'submitted' }));
-    await pick([jpeg('pagina-1.jpg')]);
+    await pick([jpeg('pagina-2.jpg')]);
     expect(await screen.findByText('Lucrarea a fost trimisă. Nu mai poți schimba paginile.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Paginile (1)' })).toBeInTheDocument();
+    expect(screen.getByText('pagina-1.jpg')).toBeInTheDocument();
+    expect(screen.getByText('Lucrarea a plecat deja la corectare.')).toBeInTheDocument();
     expectNoGradingWords();
   });
 

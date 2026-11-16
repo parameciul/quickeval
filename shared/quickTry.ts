@@ -30,7 +30,7 @@ export function quickTryPhonePath(token: string): string {
 export const PHONE_REFRESH_MS = 3000;
 export const PHONE_IDLE_MS = 15 * 60 * 1000;
 
-const QUICK_TRY_TOKEN =/^[a-z2-7]{32}$/;
+const QUICK_TRY_TOKEN = /^[a-z2-7]{32}$/;
 
 // The secret part of a try's link: 32 characters from a-z and 2-7, longer than
 // an upload or result token so the three cannot be confused.
