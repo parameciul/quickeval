@@ -10,6 +10,7 @@ import { Crumbs } from '../Crumbs.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { stageFromHash, stagesOf, type StageName } from '../stages.ts';
 import { StageList } from '../testPage/StageList.tsx';
+import { excludedFor, selectedIds } from '../testPage/selection.ts';
 import { StagePanel } from '../testPage/StagePanel.tsx';
 import { waitsForBarem, waitsForPrint } from '../testPage/StartRobotButton.tsx';
 import { TestMenu } from '../testPage/TestMenu.tsx';
@@ -55,10 +56,12 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
   // When the robot starts, after the teacher started or restarted grading.
   const [robotNotice, setRobotNotice] = useState<string | null>(null);
   const onRobot = (robot: RobotStart | null) => setRobotNotice(robot ? robotStartMessage(robot) : null);
-  // The uploads to grade at the next Start evaluation (submission ids).
-  // Empty at first, so the start button stays off until the teacher selects.
-  const [selected, setSelected] = useState<number[]>([]);
+  // The uploads the teacher unchecked (submission ids). Every other upload
+  // with files that waits for grading is checked, those sent later included,
+  // so the teacher only unchecks the papers to grade later.
+  const [excluded, setExcluded] = useState<number[]>([]);
   const { test, uploads, robot, showModel } = detail;
+  const selected = test.status === 'open' ? selectedIds(uploads, excluded) : [];
   const { stages, current } = stagesOf(test);
   // The page opens on the stage the test is at when it first loads. Data kept
   // from an earlier visit can be old, so only data read for this visit fixes
@@ -109,7 +112,8 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
           robot={robot}
           showModel={showModel}
           selected={selected}
-          onSelect={setSelected}
+          onSelect={(ids) => setExcluded(excludedFor(uploads, ids))}
+          onSelectionReset={() => setExcluded([])}
           onChanged={refresh}
           onRobot={onRobot}
         />

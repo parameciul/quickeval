@@ -9,13 +9,15 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { GradeChip } from './GradeChip.tsx';
 import { heldBackHint, PAPER_PART_LABEL } from './paperCounts.ts';
+import { canSelect, selectableIds } from './selection.ts';
 
 // Who uploaded what: one row per student of the class, with the grade once
 // the robot graded it, next to the name, in its colour, as in the table of
 // Rezultate. The table takes the full width of its card; the model
-// of a grading, when the setting shows it, is one line of the row's ⋯ menu. While the uploads are open, the teacher selects the
+// of a grading, when the setting shows it, is one line of the row's ⋯ menu. While the uploads are open, the teacher chooses the
 // uploads to grade now: one checkbox per row with files, and one in the header
-// for all of them. The result links and their publishing are in the panel
+// for all of them. Every such upload starts checked; the teacher unchecks the
+// ones to grade later. The result links and their publishing are in the panel
 // Rezultate (ResultLinksTable), not here.
 export function UploadsTable({
   code,
@@ -44,8 +46,7 @@ export function UploadsTable({
   onRobot: (robot: RobotStart | null) => void;
 }) {
   if (uploads.length === 0) return <p className="hint">Clasa nu are elevi. Adaugă-i din pagina clasei.</p>;
-  const eligible = selectable ? uploads.filter((row) => canSelect(row)) : [];
-  const eligibleIds = eligible.map((row) => row.submissionId!);
+  const eligibleIds = selectable ? selectableIds(uploads) : [];
   const allChecked = eligibleIds.length > 0 && eligibleIds.every((id) => selected.includes(id));
   const someChecked = eligibleIds.some((id) => selected.includes(id));
   return (
@@ -100,12 +101,6 @@ export function UploadsTable({
       </table>
     </div>
   );
-}
-
-// Only an upload with files that still waits for grading can be selected:
-// graded uploads are done, failed ones need Reîncearcă.
-function canSelect(row: UploadRow): boolean {
-  return row.submissionId !== null && row.fileCount > 0 && (row.status === 'uploading' || row.status === 'submitted');
 }
 
 // Row classes for the narrow-screen cards, read from the markup instead of

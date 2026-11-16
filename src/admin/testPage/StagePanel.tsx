@@ -41,6 +41,8 @@ export interface PanelProps {
   // table of Corectare. Kept by the page, so another panel does not lose them.
   selected: number[];
   onSelect: (ids: number[]) => void;
+  // After the evaluation started now: every upload is checked again next time.
+  onSelectionReset: () => void;
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
 }
@@ -243,7 +245,7 @@ function GradingPanel(props: PanelProps) {
           uploads={uploads}
           selected={selected}
           onChanged={onChanged}
-          onStarted={() => props.onSelect([])}
+          onStarted={props.onSelectionReset}
           onRobot={onRobot}
         />
       ) : (

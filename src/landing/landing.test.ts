@@ -23,7 +23,7 @@ describe('the landing page', () => {
     // Laura's statement is the heading, the one h1 of the page.
     expect(all('h1').map(text)).toEqual(['Weekendul tău, fără teancul de lucrări.']);
     expect(text(doc.querySelector('.l-lede'))).toBe(
-      'MQGrader este o platformă web pentru profesorii din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.',
+      'MQGrader.ro este o platformă web dedicată profesorilor din România, care simplifică corectarea testelor: elevii încarcă pozele lucrărilor direct de pe telefon, iar fiecare lucrare este punctată rapid, conform baremului.',
     );
   });
 

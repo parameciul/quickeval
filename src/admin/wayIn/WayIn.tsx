@@ -17,7 +17,7 @@ export type Stage = {
 // statement is the eyebrow above the heading; the heading itself names what
 // the product is, for the people and the machines that arrive from a search.
 export const PITCH_HEADING = 'Weekendul tău, fără teancul de lucrări.';
-export const PITCH_LINE = 'MQGrader este o platformă web pentru profesorii din România. Elevii trimit pozele lucrărilor de pe telefon. Fiecare lucrare primește punctaj conform baremului.';
+export const PITCH_LINE = 'MQGrader.ro este o platformă web dedicată profesorilor din România, care simplifică corectarea testelor: elevii încarcă pozele lucrărilor direct de pe telefon, iar fiecare lucrare este punctată rapid, conform baremului.';
 export const STAGES_TITLE = 'Un test, în șase etape';
 
 export const STAGES: Stage[] = [
