@@ -73,7 +73,7 @@ describe('the QR window after a send with the phone', () => {
     expect(dialog.querySelector('[data-try-form]')).not.toBeVisible();
     expect(dialog).toHaveAttribute('aria-labelledby', 'try-phone-title');
     expect(view.getByRole('heading', { name: 'Fă pozele cu telefonul' })).toHaveFocus();
-    expect(drawQr).toHaveBeenCalledWith(block.querySelector('[data-try-qr]'), `https://mqgrader.ro/try/${TOKEN}/telefon`);
+    expect(drawQr).toHaveBeenCalledWith(expect.any(SVGSVGElement), `https://mqgrader.ro/try/${TOKEN}/telefon`);
     expect(view.getByText('Codul merge doar pentru această încercare.')).toBeVisible();
   });
 
@@ -137,6 +137,25 @@ describe('the QR window after a send with the phone', () => {
     expect(api.addPage.mock.calls.map(([, picked]) => picked.name)).toEqual(['a.jpg', 'b.pdf']);
   });
 
+  it('keeps "Închide" off while files from the laptop are on their way', async () => {
+    const { api, block, view } = open();
+    let finish = () => {};
+    api.addPage.mockImplementationOnce(() => new Promise<void>((done) => (finish = done)));
+    pickOnLaptop(block, new File(['jpg'], 'a.jpg', { type: 'image/jpeg' }));
+    await waitFor(() => expect(view.getByRole('button', { name: 'Închide' })).toBeDisabled());
+    finish();
+    await waitFor(() => expect(view.getByRole('button', { name: 'Închide' })).toBeEnabled());
+  });
+
+  it('goes on with the next laptop file after one is refused, and shows why', async () => {
+    const { api, block, view } = open();
+    api.addPage.mockRejectedValueOnce(new ApiError(409, 'too_many_files', 'Poți trimite cel mult 20 de fișiere.'));
+    pickOnLaptop(block, new File(['jpg'], 'a.jpg', { type: 'image/jpeg' }), new File(['jpg'], 'b.jpg', { type: 'image/jpeg' }));
+    expect(await view.findByRole('alert')).toHaveTextContent('a.jpg: Poți trimite cel mult 20 de fișiere.');
+    await waitFor(() => expect(api.addPage).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(view.getByText('Pagina 1')).toBeVisible());
+  });
+
   it('refuses a wrong file type with its message, sending nothing', async () => {
     const { api, block, view } = open();
     pickOnLaptop(block, new File(['x'], 'p.heic', { type: 'image/heic' }));
@@ -150,6 +169,32 @@ describe('the QR window after a send with the phone', () => {
     await waitFor(() => expect(link).toBeVisible());
     expect(link).toHaveTextContent(`https://mqgrader.ro/try/${TOKEN}/telefon`);
     expect(block.querySelector('[data-try-qr]')).not.toBeVisible();
+  });
+
+  it('draws nothing when the code is ready only after the window closed', async () => {
+    let ready = () => {};
+    const { block, view } = open({
+      drawQr: async (svg) => {
+        await new Promise<void>((done) => (ready = done));
+        svg.append(document.createElementNS('http://www.w3.org/2000/svg', 'path'));
+      },
+    });
+    view.getByRole('button', { name: 'Închide' }).click();
+    ready();
+    await new Promise((done) => setTimeout(done, 10));
+    expect(block.querySelector('[data-try-qr]')!.children).toHaveLength(0);
+  });
+
+  it('shows the drawn code', async () => {
+    const { block } = open({
+      drawQr: async (svg) => {
+        svg.setAttribute('viewBox', '0 0 29 29');
+        svg.append(document.createElementNS('http://www.w3.org/2000/svg', 'path'));
+      },
+    });
+    const qr = block.querySelector('[data-try-qr]')!;
+    await waitFor(() => expect(qr.children).toHaveLength(1));
+    expect(qr.getAttribute('viewBox')).toBe('0 0 29 29');
   });
 
   it('stops reading when it closes', async () => {

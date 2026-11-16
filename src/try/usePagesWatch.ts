@@ -10,11 +10,34 @@ export function usePagesWatch(open: boolean, pageCount: number): { interval: num
   const [idle, setIdle] = useState(false);
   const [round, setRound] = useState(0);
 
+  // Only visible time counts toward the 15 minutes: the clock stops while
+  // the tab is hidden and goes on with what was left.
   useEffect(() => {
     setIdle(false);
     if (!open) return;
-    const timer = setTimeout(() => setIdle(true), PHONE_IDLE_MS);
-    return () => clearTimeout(timer);
+    let left = PHONE_IDLE_MS;
+    let startedAt = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const run = () => {
+      startedAt = Date.now();
+      timer = setTimeout(() => setIdle(true), left);
+    };
+    const pause = () => {
+      if (timer === null) return;
+      clearTimeout(timer);
+      timer = null;
+      left = Math.max(0, left - (Date.now() - startedAt));
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') pause();
+      else if (timer === null) run();
+    };
+    if (document.visibilityState !== 'hidden') run();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      pause();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [open, pageCount, round]);
 
   const again = useCallback(() => setRound((value) => value + 1), []);

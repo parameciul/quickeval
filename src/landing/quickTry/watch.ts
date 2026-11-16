@@ -9,7 +9,7 @@ export interface PagesWatch {
 
 // Reads the try's pages while the QR window shows: at once, then every 3 s,
 // never in a hidden tab, and no more after 15 minutes with no new page (the
-// D1 read limit). A failed read keeps the last pages; the next tick reads
+// D1 read limit; only visible time counts). A failed read keeps the last pages; the next tick reads
 // again. After stop(), nothing runs and a late answer is dropped.
 export function watchPages(options: {
   read: () => Promise<SubmissionFile[]>;
@@ -28,6 +28,7 @@ export function watchPages(options: {
   let run = 0;
   let count = -1;
   let since = now();
+  let lastTick = since;
 
   const later = (current: number) => {
     timer = setTimeout(() => void tick(current), refreshMs);
@@ -35,6 +36,11 @@ export function watchPages(options: {
 
   async function tick(current: number): Promise<void> {
     if (current !== run) return;
+    // Only visible time counts toward the 15 minutes: a hidden span moves
+    // their start forward.
+    const at = now();
+    if (!options.isVisible()) since += at - lastTick;
+    lastTick = at;
     if (now() - since >= idleMs) {
       run += 1;
       options.onIdle();
@@ -61,6 +67,7 @@ export function watchPages(options: {
     if (timer) clearTimeout(timer);
     run += 1;
     since = now();
+    lastTick = since;
     void tick(run);
   }
 

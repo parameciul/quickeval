@@ -93,6 +93,17 @@ describe("a try's phone page", () => {
     expectNoGradingWords();
   });
 
+  it('turns read only when a delete is refused because the paper was sent', async () => {
+    const { api, tryApi } = setup([page(1, 'a.pdf')]);
+    await screen.findByRole('heading', { name: 'Paginile (1)' });
+    tryApi.deletePage.mockRejectedValueOnce(new ApiError(409, 'paper_sent', 'Lucrarea a plecat deja la corectare.'));
+    api.getTest.mockResolvedValue(tryTest({ status: 'evaluating' }, { status: 'submitted' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge pagina 1' }));
+    expect(await screen.findByText('Lucrarea a fost trimisă. Nu mai poți schimba paginile.')).toBeInTheDocument();
+    expect(screen.getByText('a.pdf')).toBeInTheDocument();
+    expect(screen.getByText('Lucrarea a plecat deja la corectare.')).toBeInTheDocument();
+  });
+
   it('shows the expired notice for an expired try', async () => {
     const api = createFakeApi({ classes: [], students: {}, tests: [tryTest()] });
     renderTry('/telefon', api, createFakeTryApi({ info: { expired: true } }));

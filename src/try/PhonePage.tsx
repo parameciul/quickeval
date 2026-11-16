@@ -26,26 +26,27 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
   // read-only view keeps it.
   const [refused, setRefused] = useState<string | null>(null);
 
-  const pagesApi = useMemo<PagesApi>(
-    () => ({
-      uploadFile: async (file, name, onProgress) => {
-        try {
-          return await tryApi.uploadPage(file, name, onProgress);
-        } catch (err) {
-          // The grading started on the laptop meanwhile: the page turns read only.
-          if (err instanceof ApiError && err.code === 'paper_sent') {
-            setRefused(err.message);
-            void queryClient.invalidateQueries({ queryKey: ['try', 'pages'] });
-            void queryClient.invalidateQueries({ queryKey: ['test', info.code] });
-          }
-          throw err;
+  const pagesApi = useMemo<PagesApi>(() => {
+    // The grading started on the laptop meanwhile: the page turns read only,
+    // with the pages read again and the server's word kept.
+    const watchRefusal = async <T,>(call: () => Promise<T>): Promise<T> => {
+      try {
+        return await call();
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'paper_sent') {
+          setRefused(err.message);
+          void queryClient.invalidateQueries({ queryKey: ['try', 'pages'] });
+          void queryClient.invalidateQueries({ queryKey: ['test', info.code] });
         }
-      },
-      deleteFile: (fileId) => tryApi.deletePage(fileId),
+        throw err;
+      }
+    };
+    return {
+      uploadFile: (file, name, onProgress) => watchRefusal(() => tryApi.uploadPage(file, name, onProgress)),
+      deleteFile: (fileId) => watchRefusal(() => tryApi.deletePage(fileId)),
       fileBlob: (fileId) => tryApi.pageBlob(fileId),
-    }),
-    [tryApi, queryClient, info.code],
-  );
+    };
+  }, [tryApi, queryClient, info.code]);
 
   if (detail.isPending || pages.isPending) return <p>Se încarcă…</p>;
   if (isExpired(detail.error)) return <Expired />;

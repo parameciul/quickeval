@@ -81,6 +81,21 @@ describe('watchPages', () => {
     watch.stop();
   });
 
+  it('counts the 15 minutes only while the tab is visible', async () => {
+    let visible = true;
+    const { onIdle, watch } = start(undefined, () => visible);
+    await vi.advanceTimersByTimeAsync(0);
+    visible = false;
+    await vi.advanceTimersByTimeAsync(IDLE * 2);
+    expect(onIdle).not.toHaveBeenCalled();
+    visible = true;
+    await vi.advanceTimersByTimeAsync(IDLE - REFRESH * 2);
+    expect(onIdle).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(REFRESH * 4);
+    expect(onIdle).toHaveBeenCalledTimes(1);
+    watch.stop();
+  });
+
   it('again() starts it anew', async () => {
     const { read, onIdle, watch } = start();
     await vi.advanceTimersByTimeAsync(IDLE + REFRESH);

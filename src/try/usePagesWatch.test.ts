@@ -9,7 +9,15 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  setVisibility('visible');
 });
+
+function setVisibility(state: DocumentVisibilityState) {
+  Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+  act(() => {
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+}
 
 const watch = (open: boolean, pageCount: number) =>
   renderHook(({ open: isOpen, pageCount: count }) => usePagesWatch(isOpen, count), { initialProps: { open, pageCount } });
@@ -44,6 +52,19 @@ describe('usePagesWatch', () => {
     act(() => vi.advanceTimersByTime(2000));
     expect(result.current.idle).toBe(false);
     act(() => vi.advanceTimersByTime(PHONE_IDLE_MS));
+    expect(result.current.idle).toBe(true);
+  });
+
+  it('counts the 15 minutes only while the tab is visible', () => {
+    const { result } = watch(true, 0);
+    act(() => vi.advanceTimersByTime(PHONE_IDLE_MS - 1000));
+    setVisibility('hidden');
+    act(() => vi.advanceTimersByTime(PHONE_IDLE_MS * 2));
+    expect(result.current.idle).toBe(false);
+    setVisibility('visible');
+    act(() => vi.advanceTimersByTime(999));
+    expect(result.current.idle).toBe(false);
+    act(() => vi.advanceTimersByTime(1));
     expect(result.current.idle).toBe(true);
   });
 

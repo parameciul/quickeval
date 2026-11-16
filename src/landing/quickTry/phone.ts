@@ -70,8 +70,10 @@ export function openPhoneStep(
   root.setAttribute('aria-labelledby', 'try-phone-title');
   title.focus();
 
+  // "Închide" waits too while files or the start are on their way, like Esc.
   const refreshStart = () => {
     start.disabled = pageCount === 0 || starting || sendingFiles;
+    close.disabled = starting || sendingFiles;
   };
   refreshStart();
 
@@ -105,13 +107,24 @@ export function openPhoneStep(
     idleMs: deps.idleMs,
   });
 
-  deps.drawQr(qr, address).catch(() => {
-    // No code: the address as text still takes the phone there.
-    if (closed) return;
-    qr.setAttribute('hidden', '');
-    qrLink.textContent = address;
-    qrLink.hidden = false;
-  });
+  // Drawn apart, then moved in: a code ready only after the window closed
+  // never lands in a later window.
+  const drawn = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  deps.drawQr(drawn, address).then(
+    () => {
+      if (closed) return;
+      const box = drawn.getAttribute('viewBox');
+      if (box) qr.setAttribute('viewBox', box);
+      qr.replaceChildren(...drawn.childNodes);
+    },
+    () => {
+      // No code: the address as text still takes the phone there.
+      if (closed) return;
+      qr.setAttribute('hidden', '');
+      qrLink.textContent = address;
+      qrLink.hidden = false;
+    },
+  );
 
   const sayError = (text: string) => {
     error.textContent = text;
@@ -130,14 +143,19 @@ export function openPhoneStep(
     }
     sendingFiles = true;
     refreshStart();
+    // One at a time; a refused file never stops the files after it.
+    const problems: string[] = [];
     try {
       for (const [index, file] of picked.entries()) {
         progress.textContent = `Se trimit paginile: ${index + 1} din ${picked.length}…`;
         progress.hidden = false;
-        await deps.api.addPage(stored.token, file);
+        try {
+          await deps.api.addPage(stored.token, file);
+        } catch (err) {
+          problems.push(`${file.name}: ${messageOf(err)}`);
+        }
       }
-    } catch (err) {
-      if (!closed) sayError(messageOf(err));
+      if (problems.length > 0 && !closed) sayError(problems.join(' '));
     } finally {
       sendingFiles = false;
       progress.hidden = true;
