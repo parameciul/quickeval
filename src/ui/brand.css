@@ -1080,6 +1080,22 @@ table.search-table {
   font-weight: 400;
 }
 
+/* The class's own colour as a dot before its name; the name is always written,
+   so the colour is never the only cue. */
+.class-item-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.class-dot {
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: hsl(var(--tone-hue) 60% 52%);
+}
+
 .class-item-head > span + span,
 .class-item-test {
   font-size: 0.8125rem;
@@ -1199,7 +1215,6 @@ table.search-table {
 
 .class-item-test.is-waiting {
   color: var(--orange);
-  font-weight: 600;
 }
 
 /* "Ce ai de făcut": one card per thing that waits. */
