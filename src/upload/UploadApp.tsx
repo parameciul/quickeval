@@ -7,10 +7,14 @@ import type { ActiveSession, UploadApi } from './api.ts';
 import { NamePicker } from './NamePicker.tsx';
 import {
   loadResultLinks,
+  loadTestResultLinks,
   pruneStaleResultLinks,
+  rememberTestKey,
   resultPageUrl,
   saveResultLink,
   singleUploadLocked,
+  tokensToAsk,
+  UNKNOWN_TEST_KEY,
   type SavedResultLink,
 } from './resultLinks.ts';
 import { forgetSecret, loadSecret, saveSecret, savedStudent } from './session.ts';
@@ -116,12 +120,17 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
       try {
         const info = await api.getLink(token);
         if (!isCurrent()) return;
+        rememberTestKey(token, info.test.key);
         // The QR code is on the printed test before the teacher starts it.
         if (info.test.status === 'draft') {
           setPhase({ kind: 'notStarted', info });
           return;
         }
         if (info.test.status !== 'open') {
+          // The paper may have gone through the test's other link: learn
+          // which test the other kept links belong to, before they are read.
+          await learnOtherLinks(api, token);
+          if (!isCurrent()) return;
           setPhase({ kind: 'closed', info });
           return;
         }
@@ -173,15 +182,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
               </button>
             </>
           )}
-          {phase.kind === 'closed' && token && (
-            <>
-              <p className="alert" role="alert">
-                Încărcarea s-a închis.
-              </p>
-              <KeptResultLinks uploadToken={token} />
-              <p className="hint">Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
-            </>
-          )}
+          {phase.kind === 'closed' && token && <ClosedScreen uploadToken={token} info={phase.info} />}
           {phase.kind === 'names' && token && (
             <>
               <KeptResultLinks uploadToken={token} />
@@ -248,6 +249,57 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           )}
         </ErrorBoundary>
       </main>
+    </>
+  );
+}
+
+// Asks the server which test each other link with a kept result link names,
+// and remembers the answers. A link the server does not know is remembered as
+// such; one that could not be asked now is asked again on the next visit.
+async function learnOtherLinks(api: UploadApi, uploadToken: string): Promise<void> {
+  await Promise.all(
+    tokensToAsk(uploadToken).map(async (other) => {
+      try {
+        rememberTestKey(other, (await api.getLink(other)).test.key);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) rememberTestKey(other, UNKNOWN_TEST_KEY);
+      }
+    }),
+  );
+}
+
+// The page once the uploads closed. The teacher sends this link again when
+// the results are published: the page then gives the result link this phone
+// kept (through either link of the test), or says where the result is. A
+// result opens only by its own link, so the page cannot hand it out by name.
+function ClosedScreen({ uploadToken, info }: { uploadToken: string; info: LinkInfo }) {
+  const [links] = useState<SavedResultLink[]>(() => loadTestResultLinks(uploadToken, info.test.key));
+  const kept = links.length > 0 && (
+    <section aria-label="Linkurile tale cu rezultate">
+      {links.map((link) => (
+        <ResultLinkBox key={link.resultToken} resultToken={link.resultToken} studentName={link.studentName} />
+      ))}
+    </section>
+  );
+  if (!info.test.resultsOpen) {
+    return (
+      <>
+        <p className="alert" role="alert">
+          Încărcarea s-a închis.
+        </p>
+        {kept}
+        <p className="hint">Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
+      </>
+    );
+  }
+  return (
+    <>
+      <p className="notice-ok">Rezultatele au fost publicate.</p>
+      {kept || (
+        <p className="hint">
+          Linkul cu rezultatul tău este salvat pe telefonul și în browserul cu care ai trimis lucrarea. Dacă nu îl găsești acolo, cere profesorului linkul tău.
+        </p>
+      )}
     </>
   );
 }

@@ -371,6 +371,10 @@ describe('the panel Rezultate, where students find their results', () => {
     ]);
     expect(within(ways[0]!).getByText('Salvat pe telefon la încărcarea rezolvărilor. Nu trebuie să facă nimic.')).toBeInTheDocument();
     expect(within(ways[1]!).getByText('Codul QR de pe test, de pe telefonul cu care au trimis.')).toBeInTheDocument();
+    // The test's link gives a result only on the phone that sent the paper.
+    expect(
+      within(ways[1]!).getByText('Pe alt telefon sau în alt browser, linkul testului nu arată rezultatul: trimite-i elevului linkul lui, din tabelul „Elevii”.'),
+    ).toBeInTheDocument();
     expect(within(ways[1]!).getByTitle('Codul QR al linkului')).toBeInTheDocument();
     expect(within(published).getByText('Dacă oprești accesul, linkurile cu rezultate și pozele lor nu se mai deschid până publici din nou rezultatele.')).toBeInTheDocument();
     await user.click(within(ways[1]!).getByRole('button', { name: 'Copiază linkul' }));

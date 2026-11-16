@@ -100,6 +100,28 @@ describe('PATCH /api/admin/submissions/:id/items/:itemId', () => {
     expect(res.body.submission.evaluation).toMatchObject({ total: 7, grade: 7 });
   });
 
+  it("changes the student's answer without changing the points", async () => {
+    const res = await correct(items['I.1']!, { studentAnswer: '  x = 121  ' });
+    expect(res.status).toBe(200);
+    expect(itemOf(res.body, 'I.1')).toMatchObject({ points: 4, studentAnswer: 'x = 121', comment: 'Comentariu.', changedByTeacher: true });
+    expect(itemOf(res.body, 'II.1')).toMatchObject({ studentAnswer: 'r', changedByTeacher: false });
+    expect(res.body.submission.evaluation).toMatchObject({ total: 7, grade: 7 });
+    expect((await evaluationRow())!.updated_at).not.toBe(GRADED_AT);
+
+    // The robot may have read an answer where the student wrote none.
+    const emptied = await correct(items['I.1']!, { studentAnswer: '' });
+    expect(emptied.status).toBe(200);
+    expect(itemOf(emptied.body, 'I.1')).toMatchObject({ studentAnswer: '', comment: 'Comentariu.' });
+  });
+
+  it('refuses an answer that is too long, and changes nothing', async () => {
+    const res = await correct(items['I.1']!, { studentAnswer: 'x'.repeat(501) });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'invalid', message: 'Răspunsul elevului are cel mult 500 de caractere.' });
+    const row = await api.db.prepare('SELECT student_answer, changed_by_teacher FROM evaluation_items WHERE id = ?').bind(items['I.1']).first();
+    expect(row).toEqual({ student_answer: 'r', changed_by_teacher: 0 });
+  });
+
   it('marks an item as checked, keeps the first time, and takes the check back', async () => {
     const res = await correct(items['II.1']!, { reviewed: true });
     expect(res.status).toBe(200);
