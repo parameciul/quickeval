@@ -138,7 +138,7 @@ describe('the pages that answer a search', () => {
     const doc = parse(html);
     const byline = text(doc.querySelector('.byline'));
     expect(byline).toContain('Laura Miron');
-    expect(byline).toContain('12 noiembrie 2026');
+    expect(byline).toContain('17 noiembrie 2026');
     const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
     const nodes: {
       '@type': string;
@@ -151,7 +151,7 @@ describe('the pages that answer a search', () => {
     const page = nodes.find((n) => n['@type'] === 'WebPage')!;
     expect(page.url).toBe(url);
     expect(page.datePublished).toBe('2026-11-10');
-    expect(page.dateModified).toBe('2026-11-12');
+    expect(page.dateModified).toBe('2026-11-17');
     expect(page.publisher?.['@id']).toBe('https://mqgrader.ro/#organization');
     expect(page.author?.['@id']).toBe('https://mqgrader.ro/#laura-miron');
   });
@@ -168,6 +168,12 @@ describe('the pages that answer a search', () => {
       expect(heading, id).not.toBeNull();
       expect(heading?.tagName).toMatch(/^H[23]$/);
     }
+    // Each entry is its section's heading, word for word.
+    const entries = Array.from(nav.querySelectorAll('a[href^="#"]'), (a) => [
+      text(a),
+      text(doc.getElementById((a.getAttribute('href') ?? '').slice(1))),
+    ]);
+    for (const [entry, heading] of entries) expect(entry).toBe(heading);
     expect(text(nav.querySelector('h2'))).toBe('Cuprins');
   });
 
@@ -275,6 +281,36 @@ describe('the pages that answer a search', () => {
     const mail = Array.from(doc.querySelectorAll('a[href^="mailto:"]')).map((a) => a.getAttribute('href'));
     expect(mail).toEqual(['mailto:contact@mqgrader.ro', 'mailto:contact@mqgrader.ro']);
     expect(text(doc.getElementById('contact'))).toBe('Contact');
+  });
+
+  it('opens the page about the author with her own story, in her words', () => {
+    const doc = parse(despre);
+    expect(text(doc.querySelector('.page-lede'))).toBe(
+      'Când orele de curs se termină, începe a doua zi de muncă a unui profesor: teancurile nesfârșite de teste și nopțile lungi petrecute corectând. Acolo s-a născut MQGrader.',
+    );
+    // The two paragraphs under the first heading, before the facts.
+    const story = all(doc, '.prose > p').slice(0, 2).map(text);
+    expect(doc.querySelector('.prose > p')?.previousElementSibling?.id).toBe('cine');
+    expect(story).toEqual([
+      'Proiectul nu vine din birourile unei companii de software care a încercat să anticipeze nevoile școlii, ci direct de la catedră. A fost creat de Laura Miron — profesoară de matematică la Liceul Teoretic „William Shakespeare” din Timișoara și autoarea platformei Matematică cu Laura Miron — împreună cu soțul ei, tocmai pentru a lua din greutatea munților de hârtie de pe birou.',
+      'Este o unealtă construită de cineva care trăiește realitatea din educație zi de zi, gândită să redea profesorilor cel mai prețios bun: timpul liber.',
+    ]);
+    // Her site's name in the story is the link to her site.
+    const site = doc.querySelector('.prose > p a');
+    expect(text(site)).toBe('Matematică cu Laura Miron');
+    expect(site?.getAttribute('href')).toBe('https://lauramiron.mqgrader.ro/');
+  });
+
+  it('says one thing in one way across the four pages', () => {
+    for (const { html } of PAGES) {
+      // Wordings that read badly, replaced once and for all.
+      expect(html).not.toContain('de pe mână');
+      expect(html).not.toContain('abonament de vânzare');
+      expect(html).not.toContain('în lucru');
+    }
+    expect(llms).not.toContain('abonament de vânzare');
+    // The demo limit is said the same way wherever a page names it.
+    for (const html of [ghid, despre]) expect(html).toContain('un test, cu cel mult 35 de lucrări');
   });
 
   it("gives advice in the guide that fits MQGrader's way of grading", () => {
