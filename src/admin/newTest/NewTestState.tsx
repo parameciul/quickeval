@@ -1,4 +1,4 @@
-import { missingName, type MissingPart } from "../missing.ts";
+import { missingName, type MissingPart } from '../missing.ts';
 
 // "Starea testului" beside the form of Test nou: what the new test has and
 // what it still misses, so the teacher sees where the form stands. A part that
@@ -14,25 +14,20 @@ export function NewTestState({
   missing: MissingPart[];
   wantsCes: boolean;
 }) {
-  const parts: MissingPart[] = wantsCes
-    ? ["test", "barem", "cesTest", "cesBarem"]
-    : ["test", "barem"];
+  const parts: MissingPart[] = wantsCes ? ['test', 'barem', 'cesTest', 'cesBarem'] : ['test', 'barem'];
   const items = [
-    { key: "class", label: "Clasa", done: hasClass, todo: "de ales" },
-    { key: "title", label: "Titlul", done: hasTitle, todo: "de scris" },
+    { key: 'class', label: 'Clasa', done: hasClass, todo: 'de ales' },
+    { key: 'title', label: 'Titlul', done: hasTitle, todo: 'de scris' },
     ...parts.map((part) => ({
       key: part,
       label: `${missingName(part)[0]?.toUpperCase()}${missingName(part).slice(1)}`,
       done: !missing.includes(part),
-      todo: "lipsește",
+      todo: 'lipsește',
     })),
   ];
   const done = items.filter((item) => item.done).length;
   return (
-    <section
-      className="class-card new-test-state"
-      aria-labelledby="new-test-state"
-    >
+    <section className="class-card new-test-state" aria-labelledby="new-test-state">
       <div className="class-card-head">
         <h2 id="new-test-state">Starea testului</h2>
       </div>
@@ -41,7 +36,7 @@ export function NewTestState({
       </p>
       <ul>
         {items.map((item) => (
-          <li key={item.key} className={item.done ? "is-done" : "is-todo"}>
+          <li key={item.key} className={item.done ? 'is-done' : 'is-todo'}>
             <span className="state-mark" aria-hidden="true">
               {item.done && (
                 <svg
@@ -58,7 +53,7 @@ export function NewTestState({
               )}
             </span>
             <span>{item.label}</span>
-            <span className="state-word">{item.done ? "gata" : item.todo}</span>
+            <span className="state-word">{item.done ? 'gata' : item.todo}</span>
           </li>
         ))}
       </ul>

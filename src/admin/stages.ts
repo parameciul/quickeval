@@ -9,6 +9,15 @@ export type StageName = 'Pregătire' | 'Tipărire' | 'În clasă' | 'Corectare' 
 // blue); later: not yet (grey).
 export type StageState = 'done' | 'wait' | 'now' | 'later';
 
+// A stage's state in words: for a screen reader in the list of stages, and on
+// the bar at the foot of the test page.
+export const STATE_WORDS: Record<StageState, string> = {
+  done: 'gata',
+  wait: 'te așteaptă',
+  now: 'în lucru',
+  later: 'urmează',
+};
+
 export interface Stage {
   name: StageName;
   state: StageState;

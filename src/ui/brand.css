@@ -130,7 +130,18 @@ html {
   -webkit-text-size-adjust: 100%;
   scrollbar-gutter: stable;
   scroll-padding-top: 6rem;
+  scroll-padding-bottom: 3.5rem;
   overscroll-behavior-y: none;
+}
+
+/* The bottom room is for the sticky bar at the foot of the test page, so a
+   control that takes the focus at the window's bottom is not under it. On the
+   phone the bottom menu sits under that bar: the same room, plus the menu's
+   height (the shell's --bottom, which html does not see). */
+@media (max-width: 56.25rem) {
+  html {
+    scroll-padding-bottom: calc(3.5rem + 4rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 body {
@@ -1060,12 +1071,12 @@ table.search-table {
   margin-bottom: 0.125rem;
 }
 
-.class-item-head b {
+.class-item-head > span:first-child {
   font-size: 1rem;
   font-weight: 400;
 }
 
-.class-item-head span,
+.class-item-head > span + span,
 .class-item-test {
   font-size: 0.8125rem;
   color: var(--muted);
@@ -2983,10 +2994,12 @@ table.tests .row-actions {
 }
 
 @media (max-width: 56.25rem) {
+  /* The page's side room on the phone, a safe-area inset included, so the
+     bar reaches the screen's edges. */
   .stage-bar {
     bottom: var(--bottom);
-    margin: 1.5rem -1rem -1.5rem;
-    padding-inline: 1rem;
+    margin: 1.5rem calc(-1 * max(1rem, env(safe-area-inset-right, 0px))) -1.5rem calc(-1 * max(1rem, env(safe-area-inset-left, 0px)));
+    padding-inline: max(1rem, env(safe-area-inset-left, 0px)) max(1rem, env(safe-area-inset-right, 0px));
   }
 }
 
@@ -4015,15 +4028,49 @@ input[type="file"] {
 }
 
 .step.is-done::before {
-  content: "¹3";
+  content: "\2713";
   background: var(--ink);
   color: var(--on-ink);
 }
 
+/* The step's tag sits at the top right, over the heading's line: the heading
+   under it stops short of it (the one heading, or the right one of a pair).
+   On a narrow screen the tag gets a line of its own above the step instead. */
 .step-state {
   position: absolute;
   top: 1rem;
   right: 1.25rem;
+}
+
+.step > div > h2,
+.step-pair > div:last-child > h2 {
+  padding-right: 8.5rem;
+}
+
+@media (max-width: 767px) {
+  .step-pair > div:first-child > h2 {
+    padding-right: 8.5rem;
+  }
+
+  .step-pair > div:last-child > h2 {
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 30rem) {
+  .step {
+    padding-top: 2.75rem;
+  }
+
+  .step-state {
+    top: 0.875rem;
+  }
+
+  .step > div > h2,
+  .step-pair > div:first-child > h2,
+  .step-pair > div:last-child > h2 {
+    padding-right: 0;
+  }
 }
 
 .step::before {

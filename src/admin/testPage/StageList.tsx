@@ -1,14 +1,6 @@
 import { Link } from 'react-router';
 import { ActionIcon, type ActionIconName } from '../../ui/ActionIcon.tsx';
-import { stageHash, type Stage, type StageName, type StageState } from '../stages.ts';
-
-// What the dot of a stage says, for a screen reader.
-const STATE_WORDS: Record<StageState, string> = {
-  done: 'gata',
-  wait: 'te așteaptă',
-  now: 'în lucru',
-  later: 'urmează',
-};
+import { stageHash, STATE_WORDS, type Stage, type StageName } from '../stages.ts';
 
 // The icon of each stage: the landing page's, so the stages look the same in
 // the app.

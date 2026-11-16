@@ -132,6 +132,14 @@ describe('brand.css', () => {
     expect(value(declarations('.test-sheet input'), 'font-size')).toBe('1rem');
   });
 
+  it('ticks a done step of Test nou with a CSS escape, so the file stays ASCII there', () => {
+    expect(value(declarations('.step.is-done::before'), 'content')).toBe('"\\2713"');
+  });
+
+  it('keeps room under a focused control for the sticky bar at the foot of the test page', () => {
+    expect(value(declarations('html'), 'scroll-padding-bottom')).toBe('3.5rem');
+  });
+
   it('keeps the phone menu inside the screen a phone shows now', () => {
     expect(declarations('.phone-menu')).toContain('max-height: calc(100dvh - var(--top) - var(--bottom))');
   });

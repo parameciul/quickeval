@@ -622,6 +622,41 @@ describe('the panel Clasele tale', () => {
     expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
   });
 
+  it('keeps "Clasă nouă" while the classes load', async () => {
+    const api = withClasses();
+    api.listClasses.mockImplementation(() => new Promise(() => {}));
+    renderAdmin('/cont', api);
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
+    expect(within(panel).getByText('Se încarcă…')).toBeInTheDocument();
+    expect(within(panel).getAllByRole('link', { name: 'Clasă nouă' })).toHaveLength(1);
+    expect(within(panel).getByRole('link', { name: 'Clasă nouă' })).toHaveAttribute('href', '/clase');
+  });
+
+  it('keeps "Clasă nouă" when the classes cannot be read', async () => {
+    const api = withClasses();
+    api.listClasses.mockRejectedValue(new ApiError(500, 'server_error', 'Serverul nu răspunde acum.'));
+    renderAdmin('/cont', api);
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
+    expect(await within(panel).findByText('Serverul nu răspunde acum.')).toBeInTheDocument();
+    expect(within(panel).getAllByRole('link', { name: 'Clasă nouă' })).toHaveLength(1);
+  });
+
+  it('has no foot when no class is archived', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
+      students: {},
+      me: fakeTeacher(),
+    });
+    renderAdmin('/', api);
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
+    expect(await within(panel).findByRole('link', { name: /^6E2/ })).toBeInTheDocument();
+    expect(within(panel).queryByRole('link', { name: /^Arhivate/ })).not.toBeInTheDocument();
+    expect(panel.querySelector('.panel-actions')).toBeNull();
+  });
+
   it('keeps the way to the archived classes when the year has only those', async () => {
     const api = createFakeApi({ classes: [{ id: 2, name: '9R2', schoolYear: 2026, archived: true, studentCount: 0 }], students: {}, me: fakeTeacher() });
     renderAdmin('/', api);

@@ -27,14 +27,18 @@ describe('StageBar', () => {
     expect(nav).toHaveTextContent('Corectare · gata');
     const link = screen.getByRole('link', { name: 'Mergi la Verificare' });
     expect(link).toHaveAttribute('href', '/#verificare');
-    expect(link).toHaveClass('button', 'button-small');
+    // A quiet outline: the filled blue is for the panel's own main action.
+    expect(link).toHaveClass('button-quiet', 'button-small');
+    expect(link).not.toHaveClass('button');
     expect(link).not.toHaveClass('button-wait');
   });
 
   it('turns orange and says what waits when the next stage waits on the teacher', () => {
     bar('Corectare', stages({ Verificare: { state: 'wait', note: '47 de puncte nesigure' } }));
     expect(screen.getByText('47 de puncte nesigure')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Mergi la Verificare' })).toHaveClass('button-wait');
+    const link = screen.getByRole('link', { name: 'Mergi la Verificare' });
+    expect(link).toHaveClass('button', 'button-small', 'button-wait');
+    expect(link).not.toHaveClass('button-quiet');
   });
 
   it('says a stage in progress is in progress, with no tick', () => {
