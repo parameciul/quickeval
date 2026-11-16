@@ -227,6 +227,17 @@ a { color: inherit; }
 .try-pick-action { flex: none; pointer-events: none; }
 .try-pick.is-chosen .try-pick-box { border-style: solid; border-color: var(--border); background: var(--surface); }
 .try-pick.is-chosen .try-pick-icon { background: var(--ok-bg); color: var(--ok-fg); }
+.try-pick-pages { cursor: default; }
+.try-pick-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.try-pick-box:has(.try-pick-input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 2px; }
+.try-pick-pages .try-pick-hint { white-space: normal; }
+.try-pick-phone, .try-pick.is-phone .try-pick-done, .try-pick.is-phone .try-pick-action { display: none; }
+.try-pick.is-phone .try-pick-phone { display: block; }
+.try-phone-pick { flex: none; gap: 6px; }
+.try-phone-pick svg { width: 16px; height: 16px; }
+.try-pick-box [hidden] { display: none; }
+/* On a phone, "Alege fișierele" already offers the camera. */
+@media (max-width: 767.98px) { .try-phone-pick { display: none; } }
 .try-check { display: flex; gap: 8px; align-items: center; font-size: 15px; }
 .try-turnstile:empty { display: none; }
 .try-error { color: var(--orange); font-weight: 600; }

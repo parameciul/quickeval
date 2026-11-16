@@ -63,6 +63,7 @@ function fillForm() {
   pick(/^Lucrarea elevului/, photo('p1.jpg'), photo('p2.jpg'));
 }
 
+const pagesRow = () => within(dialog()).getByLabelText(/^Lucrarea elevului/).closest<HTMLElement>('[data-try-pick]')!;
 const send = () => within(dialog()).getByRole('button', { name: 'Trimite' }).click();
 const store = (madeAt = NOW.toISOString()) => localStorage.setItem(STORED_TRY_KEY, JSON.stringify({ token: TOKEN, code: CODE, madeAt }));
 
@@ -183,7 +184,7 @@ describe("the landing page's Quick Try", () => {
   it('shows each chosen file in its row, and empties the rows once the form is sent', async () => {
     await mount();
     button()!.click();
-    const row = (label: RegExp) => within(dialog()).getByLabelText(label).closest('label')!;
+    const row = (label: RegExp) => within(dialog()).getByLabelText(label).closest<HTMLElement>('[data-try-pick]')!;
     expect(row(/^Testul/)).toHaveTextContent('Alege testul');
     expect(row(/^Testul/)).not.toHaveClass('is-chosen');
     fillForm();
@@ -196,6 +197,56 @@ describe("the landing page's Quick Try", () => {
     await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
     expect(row(/^Testul/)).toHaveTextContent('Alege testul');
     expect(row(/^Lucrarea elevului/)).not.toHaveClass('is-chosen');
+  });
+
+  it('"Cu telefonul" marks the row as chosen and "Schimbă" puts it back', async () => {
+    await mount();
+    button()!.click();
+    const pages = pagesRow();
+    within(pages).getByRole('button', { name: 'Cu telefonul' }).click();
+    expect(pages).toHaveClass('is-chosen', 'is-phone');
+    expect(pages).toHaveTextContent('Faci pozele cu telefonul');
+    expect(pages).toHaveTextContent('Codul QR apare după ce apeși Trimite');
+    expect(within(pages).queryByRole('button', { name: 'Cu telefonul' })).toBeNull();
+    within(pages).getByRole('button', { name: 'Schimbă' }).click();
+    expect(pages).not.toHaveClass('is-chosen');
+    expect(pages).not.toHaveClass('is-phone');
+    expect(pages).toHaveTextContent('Alege paginile');
+    expect(within(pages).getByRole('button', { name: 'Cu telefonul' })).toBeVisible();
+  });
+
+  it('picking files after choosing the phone leaves the phone choice', async () => {
+    await mount();
+    button()!.click();
+    const pages = pagesRow();
+    within(pages).getByRole('button', { name: 'Cu telefonul' }).click();
+    pick(/^Lucrarea elevului/, photo('p1.jpg'), photo('p2.jpg'));
+    expect(pages).not.toHaveClass('is-phone');
+    expect(pages).toHaveTextContent('2 pagini');
+  });
+
+  it('choosing the phone forgets picked files', async () => {
+    const { api } = await mount();
+    button()!.click();
+    fillForm();
+    within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
+    expect((within(dialog()).getByLabelText(/^Lucrarea elevului/) as HTMLInputElement).value).toBe('');
+    send();
+    await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledTimes(2));
+    expect(api.addPage).not.toHaveBeenCalled();
+  });
+
+  it('sends with the phone and keeps the try on the device', async () => {
+    const { api } = await mount();
+    button()!.click();
+    pick(/^Testul/, pdf('test.pdf'));
+    pick(/^Baremul/, pdf('barem.pdf'));
+    within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
+    send();
+    await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(localStorage.getItem(STORED_TRY_KEY)!)).toEqual({ token: TOKEN, code: CODE, madeAt: NOW.toISOString() });
+    expect(api.addPage).not.toHaveBeenCalled();
+    expect(api.start).not.toHaveBeenCalled();
   });
 
   it("moves the focus to the try's link once the form is sent", async () => {

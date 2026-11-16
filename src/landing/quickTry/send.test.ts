@@ -27,7 +27,7 @@ function fakeLandingApi() {
   return { api, calls };
 }
 
-const full: TryForm = { title: '', test: pdf('test.pdf'), barem: pdf('barem.pdf'), robotBarem: false, pages: [photo('p1.jpg'), photo('p2.jpg')] };
+const full: TryForm = { title: '', test: pdf('test.pdf'), barem: pdf('barem.pdf'), robotBarem: false, pages: [photo('p1.jpg'), photo('p2.jpg')], byPhone: false };
 
 describe('the form before it is sent', () => {
   it('asks for the test, a barem or the robot, and the pages', () => {
@@ -51,6 +51,15 @@ describe('the form before it is sent', () => {
 
   it('takes her barem over the robot when she gives both', () => {
     expect(formProblem({ ...full, robotBarem: true })).toBeNull();
+  });
+
+  it('needs no pages when the pages come from the phone', () => {
+    expect(formProblem({ ...full, pages: [], byPhone: true })).toBeNull();
+  });
+
+  it('still needs the test and a barem choice with the phone', () => {
+    expect(formProblem({ ...full, pages: [], byPhone: true, test: null })).toBe('Alege fișierul testului.');
+    expect(formProblem({ ...full, pages: [], byPhone: true, barem: null })).toBe('Alege fișierul baremului sau cere ca baremul să fie făcut din test.');
   });
 });
 
@@ -97,6 +106,20 @@ describe('sending a try', () => {
     await sendTry(api, { ...full, barem: null, robotBarem: true }, undefined, { onCreated: vi.fn(), onProgress: vi.fn() }, () => NOW);
     expect(calls).toEqual(['create', 'test:test.pdf', 'generate', 'page:p1.jpg', 'page:p2.jpg']);
     expect(api.create).toHaveBeenCalledWith(undefined, 'test');
+  });
+
+  it('with the phone, sends the test and the barem, no page, and does not start', async () => {
+    const { api, calls } = fakeLandingApi();
+    const progress = vi.fn();
+    await sendTry(api, { ...full, byPhone: true }, 'raspuns', { onCreated: vi.fn(), onProgress: progress }, () => NOW);
+    expect(calls).toEqual(['create', 'test:test.pdf', 'barem:barem.pdf']);
+    expect(progress.mock.calls.map(([text]) => text)).toEqual(['Se pregătește încercarea…', 'Se trimite testul…', 'Se trimite baremul…']);
+  });
+
+  it('with the phone and no barem, asks for the generated barem and does not start', async () => {
+    const { api, calls } = fakeLandingApi();
+    await sendTry(api, { ...full, barem: null, robotBarem: true, byPhone: true }, 'raspuns', { onCreated: vi.fn(), onProgress: vi.fn() }, () => NOW);
+    expect(calls).toEqual(['create', 'test:test.pdf', 'generate']);
   });
 
   it('keeps the try as soon as it is made, so a send that breaks half-way can go on from its page', async () => {
