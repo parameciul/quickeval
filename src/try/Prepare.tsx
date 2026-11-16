@@ -9,6 +9,8 @@ import { FileDrop } from '../admin/newTest/FileDrop.tsx';
 import { formatFileSize } from '../ui/format.ts';
 import type { TryApi } from './api.ts';
 import { fileChangesLeft } from './phase.ts';
+import { PhoneCode } from './PhoneCode.tsx';
+import { usePagesWatch } from './usePagesWatch.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 const PAGE_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
@@ -17,7 +19,7 @@ const PAGE_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.
 // own, or the robot's, which she downloads and reads), and the student's
 // pages, then "Pornește corectarea". The landing page's form sends these
 // first; here she sends what is missing and may replace a file.
-export function Prepare({ detail, tryApi }: { detail: TestDetail; tryApi: TryApi }) {
+export function Prepare({ detail, token, tryApi }: { detail: TestDetail; token: string; tryApi: TryApi }) {
   const queryClient = useQueryClient();
   const { test } = detail;
   const pages = useQuery({ queryKey: ['try', 'pages'], queryFn: () => tryApi.listPages() });
@@ -55,7 +57,7 @@ export function Prepare({ detail, tryApi }: { detail: TestDetail; tryApi: TryApi
           <div>
             <h2>Lucrarea elevului</h2>
             <p>Pozele sau PDF-ul lucrării unui elev, în ordinea paginilor. Cel mult {MAX_STUDENT_FILES} de fișiere.</p>
-            <Pages tryApi={tryApi} />
+            <Pages token={token} tryApi={tryApi} />
           </div>
         </li>
       </ol>
@@ -167,9 +169,15 @@ function Barem({ detail, robotBarem, disabled }: { detail: TestDetail; robotBare
 
 // The student's pages: each one sent as it is picked, in order, and each one
 // can be taken out again before the grading.
-function Pages({ tryApi }: { tryApi: TryApi }) {
+function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
   const queryClient = useQueryClient();
-  const pages = useQuery({ queryKey: ['try', 'pages'], queryFn: () => tryApi.listPages() });
+  // The phone's code: while it shows, the list is read again (usePagesWatch).
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [pageCount, setPageCount] = useState(0);
+  const watch = usePagesWatch(phoneOpen, pageCount);
+  const pages = useQuery({ queryKey: ['try', 'pages'], queryFn: () => tryApi.listPages(), refetchInterval: watch.interval });
+  const shownCount = pages.data?.length ?? 0;
+  if (shownCount !== pageCount) setPageCount(shownCount);
   const [problem, setProblem] = useState<string | null>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['try', 'pages'] });
   const add = useMutation({
@@ -211,18 +219,40 @@ function Pages({ tryApi }: { tryApi: TryApi }) {
           ))}
         </ol>
       )}
-      <label className={list.length >= MAX_STUDENT_FILES || add.isPending ? 'button-quiet is-disabled' : 'button-quiet'}>
-        <ActionIcon name="upload" />
-        Adaugă pagini
-        <input
-          type="file"
-          className="sr-only"
-          accept={PAGE_ACCEPT}
-          multiple
-          disabled={list.length >= MAX_STUDENT_FILES || add.isPending}
-          onChange={onPick}
-        />
-      </label>
+      <div className="try-page-actions">
+        <label className={list.length >= MAX_STUDENT_FILES || add.isPending ? 'button-quiet is-disabled' : 'button-quiet'}>
+          <ActionIcon name="upload" />
+          Adaugă pagini
+          <input
+            type="file"
+            className="sr-only"
+            accept={PAGE_ACCEPT}
+            multiple
+            disabled={list.length >= MAX_STUDENT_FILES || add.isPending}
+            onChange={onPick}
+          />
+        </label>
+        <button type="button" className="button-quiet" aria-expanded={phoneOpen} aria-controls="try-phone-code" onClick={() => setPhoneOpen((open) => !open)}>
+          <ActionIcon name="phone" />
+          Fă poze cu telefonul
+        </button>
+      </div>
+      {phoneOpen && <PhoneCode id="try-phone-code" token={token} />}
+      {watch.idle && (
+        <p className="hint">
+          Nu a venit nicio pagină de 15 minute.{' '}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              watch.again();
+              void pages.refetch();
+            }}
+          >
+            Verifică din nou
+          </button>
+        </p>
+      )}
       {add.isPending && <p className="hint">Se trimit paginile…</p>}
       {problem && (
         <p className="alert" role="alert">
