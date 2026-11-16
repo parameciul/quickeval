@@ -138,8 +138,8 @@ describe('brand.css', () => {
 
   it('keeps room under a focused control for the sticky bar at the foot of the test page, only on a page with it', () => {
     expect(value(declarations('html'), 'scroll-padding-bottom')).toBeUndefined();
-    expect(value(declarations('html:has(.stage-bar)'), 'scroll-padding-bottom')).toBe('3.5rem');
-    expect(css).toContain('  html:has(.stage-bar) {\n    scroll-padding-bottom: calc(3.5rem + 4rem + env(safe-area-inset-bottom, 0px));');
+    expect(value(declarations('html:has(.stage-bar)'), 'scroll-padding-bottom')).toBe('4.25rem');
+    expect(css).toContain('  html:has(.stage-bar) {\n    scroll-padding-bottom: calc(4.25rem + 4rem + env(safe-area-inset-bottom, 0px));');
   });
 
   it('keeps the bar at the foot of the test page on one line, and its note off a narrow phone', () => {
@@ -150,6 +150,13 @@ describe('brand.css', () => {
     const narrow = css.indexOf('@media (max-width: 30rem)', start);
     expect(narrow).toBeGreaterThan(start);
     expect(css.slice(narrow, css.indexOf('\n}\n', narrow))).toContain('.stage-bar-wait {\n    display: none;');
+  });
+
+  it('puts the bar at the foot of a short page, and gives it the room of a button', () => {
+    expect(value(declarations('.shell > .page:has(.stage-bar)'), 'display')).toBe('flex');
+    expect(value(declarations('.test-page:has(.stage-bar)'), 'flex')).toBe('1');
+    expect(value(declarations('.stage-bar'), 'margin')).toBe('auto -2rem -3rem');
+    expect(value(declarations('.stage-bar'), 'min-height')).toBe('3.25rem');
   });
 
   it('keeps the phone menu inside the screen a phone shows now', () => {
