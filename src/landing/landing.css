@@ -252,7 +252,7 @@ a { color: inherit; }
 /* The QR window: after a send with the phone, the dialog shows the code of
    the try's phone page and the pages as they arrive. */
 .try-phone { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
-.try-phone[hidden], .try-phone [hidden] { display: none; }
+.try-form[hidden], .try-phone[hidden], .try-phone [hidden] { display: none; }
 .try-phone h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
 .try-phone h2:focus { outline: none; }
 .try-phone-barem { font-size: 15px; }
