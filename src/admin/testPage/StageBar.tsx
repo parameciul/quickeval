@@ -39,7 +39,7 @@ export function StageBar({ stages, chosen }: { stages: Stage[]; chosen: StageNam
         </span>
       </span>
       {waits && ahead.note !== '' && <span className="stage-bar-wait">{ahead.note}</span>}
-      <MoveOnLink stage={next} className={waits ? 'button button-small button-wait' : 'button-quiet button-small'}>
+      <MoveOnLink stage={next} className={waits ? 'button button-small button-wait' : 'button button-small'}>
         {next === 'În clasă' ? 'Mergi la etapa În clasă' : `Mergi la ${next}`}
         <ActionIcon name="arrow" />
       </MoveOnLink>

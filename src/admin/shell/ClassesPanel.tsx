@@ -8,6 +8,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { IconClasses } from './icons.tsx';
 import { Panel } from './Panel.tsx';
 import { inWork, type TodoItem } from './todo.ts';
+import { classToneStyle } from '../../ui/classTone.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
 // "Clasele tale" (redesign spec §4): the classes of the school year that are
@@ -88,7 +89,10 @@ export function ClassesPanel({
                   aria-current={item.id === currentClassId ? 'page' : undefined}
                 >
                   <span className="class-item-head">
-                    <span>{item.name}</span>
+                    <span className="class-item-name">
+                      <span className="class-dot" style={classToneStyle(item.id)} aria-hidden="true" />
+                      {item.name}
+                    </span>
                     <span>{studentCountLabel(item.studentCount)}</span>
                   </span>
                   {!tests.data ? null : work.length === 0 ? (

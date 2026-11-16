@@ -615,6 +615,23 @@ describe('the panel Clasele tale', () => {
     expect(within(list).getByRole('link', { name: /^6E3/ })).toHaveTextContent('Inducție · Pregătire · baremul de verificatMulțimi · Deschis');
   });
 
+  it('draws each class with a dot in its own colour before its name', async () => {
+    renderAdmin('/', withTodo());
+    const bar = await menu();
+    await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
+    const list = within(screen.getByRole('complementary', { name: 'Clasele tale' })).getByRole('navigation');
+    const hues = within(list)
+      .getAllByRole('link')
+      .map((link) => {
+        const dot = link.querySelector<HTMLElement>('.class-dot');
+        expect(dot).not.toBeNull();
+        expect(dot).toHaveAttribute('aria-hidden', 'true');
+        return dot!.style.getPropertyValue('--tone-hue');
+      });
+    expect(hues.every((hue) => hue !== '')).toBe(true);
+    expect(new Set(hues).size).toBe(hues.length);
+  });
+
   it('says so when the year has no class, with one "Clasă nouă"', async () => {
     renderAdmin('/', createFakeApi({ classes: [], students: {}, me: fakeTeacher() }));
     await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));

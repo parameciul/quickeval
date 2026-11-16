@@ -28,8 +28,8 @@ describe('StageBar', () => {
     const link = screen.getByRole('link', { name: 'Mergi la Verificare' });
     expect(link).toHaveAttribute('href', '/#verificare');
     // A quiet outline: the filled blue is for the panel's own main action.
-    expect(link).toHaveClass('button-quiet', 'button-small');
-    expect(link).not.toHaveClass('button');
+    expect(link).toHaveClass('button', 'button-small');
+    expect(link).not.toHaveClass('button-quiet');
     expect(link).not.toHaveClass('button-wait');
   });
 
@@ -55,7 +55,7 @@ describe('StageBar', () => {
     expect(nav.querySelector('.stage-bar-mark svg')).toBeNull();
     expect(nav.querySelector('.stage-bar-wait')).toBeNull();
     const link = screen.getByRole('link', { name: 'Mergi la Rezultate' });
-    expect(link).toHaveClass('button-quiet', 'button-small');
+    expect(link).toHaveClass('button', 'button-small');
     expect(link).not.toHaveClass('button-wait');
   });
 
