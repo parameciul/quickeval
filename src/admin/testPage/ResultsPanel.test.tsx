@@ -193,6 +193,20 @@ describe('the panel Rezultate', () => {
     expect(within(row('Pop Ion')).getByRole('button', { name: 'Copiat!' })).toBeInTheDocument();
   });
 
+  it("shows each paper's short code beside its link, and none for a paper without one", async () => {
+    const rows = graded().map((upload) =>
+      upload.studentId === 10 ? { ...upload, resultToken: 'result-token-5', resultCode: 'K7M92P' } : upload,
+    );
+    renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
+    const pop = await screen.findByRole('row', { name: /^Pop Ion/ });
+    // "Codul" is for screen readers only.
+    expect(within(pop).getByText('K7M-92P')).toHaveTextContent('Codul K7M-92P');
+    expect(within(pop).getByText('Codul')).toHaveClass('sr-only');
+    expect(within(row('Stan Eva')).queryByText(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/)).not.toBeInTheDocument();
+    // A student who sent nothing has neither.
+    expect(within(row('Marin Dan')).getByText('Nu a trimis lucrarea.')).toBeInTheDocument();
+  });
+
   it('makes the link of an older paper first, then copies it', async () => {
     const user = userEvent.setup();
     const api = apiWith({ status: 'done' }, graded());
@@ -371,9 +385,9 @@ describe('the panel Rezultate, where students find their results', () => {
     ]);
     expect(within(ways[0]!).getByText('Salvat pe telefon la încărcarea rezolvărilor. Nu trebuie să facă nimic.')).toBeInTheDocument();
     expect(within(ways[1]!).getByText('Codul QR de pe test, de pe telefonul cu care au trimis.')).toBeInTheDocument();
-    // The test's link gives a result only on the phone that sent the paper.
+    // On another phone the student types the code of the ticket.
     expect(
-      within(ways[1]!).getByText('Pe alt telefon sau în alt browser, linkul testului nu arată rezultatul: trimite-i elevului linkul lui, din tabelul „Elevii”.'),
+      within(ways[1]!).getByText('Pe alt telefon, elevul scrie codul de pe biletul lui. Codul fiecărui elev este și în tabelul „Elevii”.'),
     ).toBeInTheDocument();
     expect(within(ways[1]!).getByTitle('Codul QR al linkului')).toBeInTheDocument();
     expect(within(published).getByText('Dacă oprești accesul, linkurile cu rezultate și pozele lor nu se mai deschid până publici din nou rezultatele.')).toBeInTheDocument();

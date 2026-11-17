@@ -5110,6 +5110,21 @@ table.uploads .row-actions {
   margin-left: auto;
 }
 
+/* The short code of a result link, beside "Copiază linkul" in Rezultate. */
+.result-link-with-code {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.result-code {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* The files strip while the files are hidden: same look as the link strip.
    The selector outweighs the collapsed layout's "padding-bottom: 0" below,
    so the title and the button stay in the middle of the strip. */
