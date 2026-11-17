@@ -11,7 +11,7 @@ afterEach(() => {
 describe('drawQr', () => {
   it('draws a white ground and one path of cells, with no style attribute', async () => {
     const svg = svgOf();
-    await drawQr(svg, 'https://mqgrader.ro/try/abc/telefon');
+    await drawQr(svg, 'https://mqgrader.ro/try/abc/phone');
     expect(svg.querySelectorAll('rect')).toHaveLength(1);
     expect(svg.querySelector('rect')!.getAttribute('fill')).toBe('#ffffff');
     expect(svg.querySelectorAll('path')).toHaveLength(1);
@@ -22,7 +22,7 @@ describe('drawQr', () => {
 
   it('sets a square viewBox', async () => {
     const svg = svgOf();
-    await drawQr(svg, 'https://mqgrader.ro/try/abc/telefon');
+    await drawQr(svg, 'https://mqgrader.ro/try/abc/phone');
     const [x, y, width, height] = svg.getAttribute('viewBox')!.split(' ').map(Number);
     expect([x, y]).toEqual([0, 0]);
     expect(width).toBe(height);

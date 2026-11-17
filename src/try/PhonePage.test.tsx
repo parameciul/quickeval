@@ -10,10 +10,10 @@ import { expectNoGradingWords } from '../test/gradingWords.ts';
 const page = (id: number, name: string): SubmissionFile => ({ id, name, contentType: 'application/pdf', size: 900, position: id });
 const jpeg = (name: string) => new File([new Uint8Array(10)], name, { type: 'image/jpeg' });
 
-function setup(pages: SubmissionFile[] = [], test = tryTest({ title: 'Fracții 6B' })) {
+function setup(pages: SubmissionFile[] = [], test = tryTest({ title: 'Fracții 6B' }), path = '/phone') {
   const api = createFakeApi({ classes: [], students: {}, tests: [test] });
   const tryApi = createFakeTryApi({ pages });
-  renderTry('/telefon', api, tryApi);
+  renderTry(path, api, tryApi);
   return { api, tryApi };
 }
 
@@ -31,6 +31,17 @@ describe("a try's phone page", () => {
     expect(screen.getByText('Fracții 6B')).toBeInTheDocument();
     expect(screen.getByLabelText('Fă o poză')).toHaveAttribute('capture', 'environment');
     expect(screen.getByLabelText('Alege fișiere')).toBeInTheDocument();
+  });
+
+  it('opens from the old Romanian address too, never the try with its result', async () => {
+    setup([], undefined, '/telefon');
+    expect(await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Deschide încercarea' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the flag of the old address', async () => {
+    setup([], undefined, '/telefon?here=1');
+    expect(await screen.findByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
   });
 
   it('lists the pages the try already has', async () => {
@@ -67,6 +78,57 @@ describe("a try's phone page", () => {
     await userEvent.click(screen.getByRole('button', { name: 'Am terminat' }));
     await screen.findByRole('heading', { name: 'Paginile au ajuns' });
     expect(within(main).queryAllByRole('link')).toHaveLength(0);
+  });
+
+  it('on the phone that made the try, the last screen opens the try', async () => {
+    setup([page(1, 'a.pdf')], undefined, '/phone?here=1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Am terminat' }));
+    expect(await screen.findByRole('heading', { name: 'Paginile au ajuns' })).toBeInTheDocument();
+    expect(screen.getByText('1 pagină este la încercare.')).toBeInTheDocument();
+    expect(screen.queryByText('Continuă acolo.')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mai adaugă pagini' })).toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('on the phone that made the try, leads to the try before any page is sent', async () => {
+    setup([], undefined, '/phone?here=1');
+    await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 });
+    expect(screen.getByRole('button', { name: 'Am terminat' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('on the phone that made the try, hides the link to the try while a page is on its way', async () => {
+    const { tryApi } = setup([], undefined, '/phone?here=1');
+    let arrive: (file: SubmissionFile) => void = () => {};
+    tryApi.uploadPage.mockImplementationOnce(() => new Promise<SubmissionFile>((done) => (arrive = done)));
+    await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 });
+    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+    await pick([jpeg('pagina-1.jpg')]);
+    await waitFor(() => expect(tryApi.uploadPage).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('link', { name: 'Deschide încercarea' })).not.toBeInTheDocument();
+    arrive(page(901, 'pagina-1.jpg'));
+    expect(await screen.findByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+  });
+
+  it('on the phone that made the try, a failed try sends her to the try page', async () => {
+    setup([page(1, 'a.pdf')], tryTest({ barem: { request: 'failed', unchecked: false } }), '/phone?here=1');
+    expect(await screen.findByText('Încercarea nu a mers. Continuă pe pagina încercării.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('a scanned phone page has no link to the try once the paper is sent', async () => {
+    setup([page(1, 'a.pdf')], tryTest({ status: 'evaluating' }, { status: 'submitted' }));
+    expect(await screen.findByText('Lucrarea a fost trimisă. Nu mai poți schimba paginile.')).toBeInTheDocument();
+    expect(within(screen.getByRole('main')).queryAllByRole('link')).toHaveLength(0);
+  });
+
+  it('on the phone that made the try, the read-only page opens the try', async () => {
+    setup([page(1, 'a.pdf')], tryTest({ status: 'evaluating' }, { status: 'submitted' }), '/phone?here=1');
+    expect(await screen.findByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+    expectNoGradingWords();
   });
 
   it('is read only once the paper is sent', async () => {
@@ -114,7 +176,7 @@ describe("a try's phone page", () => {
 
   it('shows the expired notice for an expired try', async () => {
     const api = createFakeApi({ classes: [], students: {}, tests: [tryTest()] });
-    renderTry('/telefon', api, createFakeTryApi({ info: { expired: true } }));
+    renderTry('/phone', api, createFakeTryApi({ info: { expired: true } }));
     expect(await screen.findByRole('heading', { name: 'Încercarea a expirat' })).toBeInTheDocument();
   });
 });

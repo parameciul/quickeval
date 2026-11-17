@@ -411,7 +411,7 @@ label.button-quiet.is-disabled {
   font-weight: 600;
 }
 
-/* The phone page of a try (/try/<token>/telefon): one column, like the
+/* The phone page of a try (/try/<token>/phone): one column, like the
    student's upload page. */
 .phone-page {
   max-width: 30rem;
@@ -430,6 +430,17 @@ label.button-quiet.is-disabled {
 .phone-done {
   text-align: center;
   padding-top: 2rem;
+}
+
+/* On the phone that made the try: "Deschide încercarea" over "Mai adaugă pagini". */
+.phone-to-try {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.phone-done .button + .button-quiet,
+.phone-page .alert + .button {
+  margin-top: 0.75rem;
 }
 
 .phone-tick {

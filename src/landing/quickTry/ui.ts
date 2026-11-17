@@ -1,5 +1,5 @@
 import type { QuickTryAvailability } from '../../../shared/api.ts';
-import { QUICK_TRY_DAYS } from '../../../shared/quickTry.ts';
+import { PHONE_MEDIA, QUICK_TRY_DAYS, quickTryPhonePath } from '../../../shared/quickTry.ts';
 import { ApiError, messageOf } from '../../ui/ApiError.ts';
 import { phaseOf, scoreOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui/format.ts';
@@ -29,7 +29,17 @@ export interface QuickTryDeps {
   // The QR window: the site's address, and how its code is drawn.
   origin?: string;
   drawQr?: typeof drawQr;
+  // A phone takes the photos itself: after the send it opens the try's phone
+  // page in its own tab, through `go`, in place of the QR window. `watchPhone`
+  // calls back when that may change (the phone turns).
+  isPhone?: () => boolean;
+  go?: (path: string) => void;
+  watchPhone?: (onChange: () => void) => void;
+  // Ends the page's own listeners (tests mount the page again and again).
+  signal?: AbortSignal;
 }
+
+const onAPhone = () => window.matchMedia?.(PHONE_MEDIA).matches ?? false;
 
 const FULL_TEXT =
   'Încercările gratuite de azi s-au terminat. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.';
@@ -125,6 +135,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   let byPhone = false;
   // The QR window, while it shows.
   let phoneStep: PhoneStep | null = null;
+  // On a phone: "Fă poze" and its own camera, in place of the QR code.
+  let here = false;
 
   // The button, or the line that says why there is none.
   function refreshButton(): void {
@@ -219,9 +231,21 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     pagesInput.value = '';
     const row = pagesInput.closest<HTMLElement>('[data-try-pick]')!;
     row.classList.add('is-chosen', 'is-phone');
-    row.querySelector<HTMLElement>('[data-try-pick-name]')!.textContent = 'Faci pozele cu telefonul';
-    row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = 'Codul QR apare după ce apeși Trimite';
+    row.querySelector<HTMLElement>('[data-try-pick-name]')!.textContent = here ? 'Faci pozele cu acest telefon' : 'Faci pozele cu telefonul';
+    row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = here ? 'Camera se deschide după ce apeși Trimite' : 'Codul QR apare după ce apeși Trimite';
   }
+
+  // The pages row's phone button, for this device. The markup keeps it hidden
+  // so a phone never shows "Cu telefonul" first.
+  function applyDevice(): void {
+    here = (deps.isPhone ?? onAPhone)();
+    phonePick.classList.toggle('is-here', here);
+    phonePick.querySelector<HTMLElement>('[data-try-phone-pick-text]')!.textContent = here ? 'Fă poze' : 'Cu telefonul';
+    if (byPhone) choosePhone(true);
+    else phonePick.hidden = false;
+  }
+  applyDevice();
+  (deps.watchPhone ?? ((onChange) => window.matchMedia?.(PHONE_MEDIA).addEventListener?.('change', onChange, { signal: deps.signal })))(applyDevice);
 
   phonePick.addEventListener('click', () => {
     choosePhone(true);
@@ -303,6 +327,15 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       form!.reset();
       choosePhone(false);
       for (const input of pickInputs) showPick(input, []);
+      if (withPhone && here) {
+        // Back may show this page again from the browser's cache: closed, and
+        // with no button for a second try. The try is read then ("pageshow"),
+        // not now, when the answer would land on a page that is leaving.
+        closeDialog(dialog!);
+        refreshButton();
+        (deps.go ?? ((path: string) => window.location.assign(path)))(quickTryPhonePath(done.token, true));
+        return;
+      }
       if (withPhone) {
         phoneStep = openPhoneStep(
           dialog!,
@@ -332,6 +365,19 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       check?.reset();
     }
   }
+
+  // Shown again from the browser's cache (Back from the phone page): the try
+  // read again, since its pages or its state may have changed meanwhile.
+  window.addEventListener(
+    'pageshow',
+    (event) => {
+      if (!(event as PageTransitionEvent).persisted) return;
+      stored = readStoredTry(deps.storage, deps.now());
+      if (stored) void follow(stored);
+      else refreshButton();
+    },
+    { signal: deps.signal },
+  );
 
   const [answer] = await Promise.allSettled([deps.api.availability(), stored ? follow(stored) : Promise.resolve()]);
   if (answer.status === 'fulfilled') {

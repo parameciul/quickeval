@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import type { QuickTryInfo } from '../../shared/api.ts';
 import { useApi } from '../admin/ApiContext.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
@@ -10,10 +11,15 @@ import type { TryApi } from './api.ts';
 import { phaseOf } from './phase.ts';
 import { Expired, isExpired } from './TryNotice.tsx';
 
-// The phone page of a try (/try/<token>/telefon): the student's pages, sent
+// The phone page of a try (/try/<token>/phone): the student's pages, sent
 // like a student sends them, with no result and no link to the try's page.
 // The laptop is in charge: "Am terminat" writes nothing on the server.
+// Opened by the form on the same phone (?here=1), that phone is the teacher's
+// and is in charge itself: the page then links to the try. Without the flag
+// there is no link, but no lock either: the QR code holds the try's link.
 export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi }) {
+  const [params] = useSearchParams();
+  const here = params.get('here') === '1';
   const api = useApi();
   const queryClient = useQueryClient();
   const detail = useQuery({ queryKey: ['test', info.code], queryFn: () => api.getTest(info.code) });
@@ -62,8 +68,15 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
         <p className="phone-title">{title}</p>
         {refused && <p className="hint">{refused}</p>}
         <p className="alert">
-          {phase === 'failed' ? 'Încercarea nu a mers. Continuă pe calculator.' : 'Lucrarea a fost trimisă. Nu mai poți schimba paginile.'}
+          {phase === 'failed'
+            ? `Încercarea nu a mers. Continuă ${here ? 'pe pagina încercării' : 'pe calculator'}.`
+            : 'Lucrarea a fost trimisă. Nu mai poți schimba paginile.'}
         </p>
+        {here && (
+          <Link className="button button-big" to="/">
+            Deschide încercarea
+          </Link>
+        )}
         <h3>Paginile ({pages.data.length})</h3>
         <ol className="page-list">
           {pages.data.map((page) => (
@@ -87,9 +100,15 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
         </span>
         <h1>Paginile au ajuns</h1>
         <p>
-          {countLabel(done, 'pagină', 'pagini')} {done === 1 ? 'este' : 'sunt'} pe calculator.
+          {countLabel(done, 'pagină', 'pagini')} {done === 1 ? 'este' : 'sunt'} {here ? 'la încercare' : 'pe calculator'}.
         </p>
-        <p>Continuă acolo.</p>
+        {here ? (
+          <Link className="button button-big" to="/">
+            Deschide încercarea
+          </Link>
+        ) : (
+          <p>Continuă acolo.</p>
+        )}
         <button
           type="button"
           className="button-quiet button-big"
@@ -120,6 +139,15 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
         listTitle="Paginile"
         finishLabel="Am terminat"
         onFinish={(count) => setDone(count)}
+        idleFooter={
+          here && (
+            <p className="phone-to-try">
+              <Link className="link" to="/">
+                Deschide încercarea
+              </Link>
+            </p>
+          )
+        }
       />
     </div>
   );

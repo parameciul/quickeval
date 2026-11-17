@@ -80,6 +80,7 @@ export function PagesUploader({
   onFinish,
   onLost,
   shrink = shrinkPhoto,
+  idleFooter,
 }: {
   pages: PagesApi;
   files: SubmissionFile[];
@@ -90,6 +91,9 @@ export function PagesUploader({
   // A 401 from any call: the upload is no longer this page's.
   onLost?: (message: string) => void;
   shrink?: (file: File) => Promise<Blob>;
+  // Shown under the last button only while no page waits or is on its way:
+  // a way out of the screen would stop the pages still waiting.
+  idleFooter?: ReactNode;
 }) {
   const [initialFiles] = useState(files);
   const [items, setItems] = useState<PageItem[]>(() => initialFiles.map(sentItem));
@@ -266,6 +270,7 @@ export function PagesUploader({
 
   const allSent = items.length > 0 && items.every((item) => item.state === 'sent');
   const hasFailed = items.some((item) => item.state === 'failed');
+  const busy = items.some((item) => item.state === 'waiting' || item.state === 'sending');
   const viewingIndex = items.findIndex((item) => item.key === viewingKey);
   const viewing = viewingIndex >= 0 ? items[viewingIndex] : undefined;
 
@@ -368,6 +373,8 @@ export function PagesUploader({
           {finishLabel}
         </button>
       </div>
+
+      {!busy && idleFooter}
 
       {viewing?.preview && <PhotoViewer src={viewing.preview} label={`Pagina ${viewingIndex + 1}`} onClose={() => setViewingKey(null)} />}
     </section>

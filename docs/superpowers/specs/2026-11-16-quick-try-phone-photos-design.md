@@ -62,6 +62,7 @@ Lucrarea elevului
 - "Schimbă" puts the row back as it was, with both buttons. Picking files also leaves the phone choice.
 - With the phone chosen, the form needs no pages: the test and the barem (or "Nu am barem") are still required and checked as today.
 - "Cu telefonul" shows only on a screen 768px wide or more **(builder call, made in design)**: on a phone, "Alege fișierele" already offers the camera.
+- **Changed after the build (owner, 2026-11-17):** a phone could only pick saved photos. On a phone (`PHONE_MEDIA`: a touch screen under 768px wide, or under 500px high when held sideways) the button is "Fă poze": after "Trimite" the form closes and the same tab opens `/try/<token>/phone?here=1`, the phone page with its camera. With `here=1` that page links to the try ("Deschide încercarea"), shown only while no page is on its way. The try's own page shows a "Fă poze" link there on a phone, in place of its code.
 
 ### 3.2 After "Trimite": the QR window (variant 2A, owner)
 
@@ -93,7 +94,7 @@ Alege fișiere de pe calculator        [Închide] [Pornește corectarea]
 
 ### 3.3 The phone page (variant 3A, owner)
 
-Address: `/try/<token>/telefon`, a page of the try's app. It has the header of the try's page (the lockup, the theme button) and one column:
+Address: `/try/<token>/phone` (first built as `/try/<token>/telefon`, which now redirects there), a page of the try's app. It has the header of the try's page (the lockup, the theme button) and one column:
 
 ```
 Lucrarea elevului
@@ -148,7 +149,7 @@ How the phone reaches the try:
 - The server is unchanged if possible: the phone page and both lists use `GET`, `PUT` and `DELETE /api/try/<token>/paper` and the test read already on the allow-list. If the builder finds a needed change, it follows `server/AGENTS.md` (rules inside the write's SQL, at most 15 queries).
 - Reading on a timer **(builder call, made in design)**: the QR window and the open code of §3.4 read the pages again every 3 seconds, only while they show and the tab is visible, and stop after 15 minutes with no new page; a button "Verifică din nou" then reads once and starts the timer again. Nothing else in this design reads on a timer.
 - The landing page has no React and its security policy allows no inline script or style (`landing.test.ts`). The code there is drawn as SVG elements made by script.
-- `/try/*` is already noindex and closed to crawlers, and `_redirects` already serves the try's app for `/try/<token>/telefon`.
+- `/try/*` is already noindex and closed to crawlers, and `_redirects` already serves the try's app for `/try/<token>/phone`.
 - No student-facing word about how the work is graded (§3.3).
 - Tests for every new behaviour, happy path and edge cases; the whole suite before a push.
 

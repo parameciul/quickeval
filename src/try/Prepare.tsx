@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ChangeEvent } from 'react';
+import { Link } from 'react-router';
 import type { TestDetail } from '../../shared/api.ts';
-import { PHONE_IDLE_TEXT } from '../../shared/quickTry.ts';
+import { PHONE_IDLE_TEXT, PHONE_MEDIA } from '../../shared/quickTry.ts';
 import { fileProblem, MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { testFileUrl } from '../admin/api.ts';
 import { useApi } from '../admin/ApiContext.tsx';
@@ -174,6 +175,8 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
   const queryClient = useQueryClient();
   // The phone's code: while it shows, the list is read again (usePagesWatch).
   const [phoneOpen, setPhoneOpen] = useState(false);
+  // On a phone the pages come from its own camera, on the phone page.
+  const [onPhone] = useState(() => window.matchMedia?.(PHONE_MEDIA).matches ?? false);
   const [pageCount, setPageCount] = useState(0);
   const watch = usePagesWatch(phoneOpen, pageCount);
   const pages = useQuery({ queryKey: ['try', 'pages'], queryFn: () => tryApi.listPages(), refetchInterval: watch.interval });
@@ -233,10 +236,17 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
             onChange={onPick}
           />
         </label>
-        <button type="button" className="button-quiet" aria-expanded={phoneOpen} aria-controls="try-phone-code" onClick={() => setPhoneOpen((open) => !open)}>
-          <ActionIcon name="phone" />
-          Fă poze cu telefonul
-        </button>
+        {onPhone ? (
+          <Link className="button-quiet" to="/phone?here=1">
+            <ActionIcon name="phone" />
+            Fă poze
+          </Link>
+        ) : (
+          <button type="button" className="button-quiet" aria-expanded={phoneOpen} aria-controls="try-phone-code" onClick={() => setPhoneOpen((open) => !open)}>
+            <ActionIcon name="phone" />
+            Fă poze cu telefonul
+          </button>
+        )}
       </div>
       {phoneOpen && <PhoneCode id="try-phone-code" token={token} />}
       <div aria-live="polite">
