@@ -30,12 +30,19 @@ export const UNKNOWN_LINK = 'Link greșit. Cere profesorului linkul nou.';
 type Phase =
   | { kind: 'loading' }
   | { kind: 'failed'; message: string }
+  | { kind: 'opening' }
   | { kind: 'notStarted'; info: LinkInfo }
   | { kind: 'closed'; info: LinkInfo }
   | { kind: 'names'; info: LinkInfo; message: string | null }
   | { kind: 'upload'; info: LinkInfo; session: ActiveSession }
   | { kind: 'sent'; info: LinkInfo; fileCount: number; resultToken: string; resultCode: string | null; studentName: string }
   | { kind: 'locked'; info: LinkInfo };
+
+// Outside the component: `load` depends on it, and a new function on every
+// render would load the link again and again.
+function replacePage(url: string) {
+  window.location.replace(url);
+}
 
 // The student app at /u/<token>: pick your name, add the pages, send them.
 // The default link sends one upload from this phone and then locks: opening
@@ -47,11 +54,15 @@ export function UploadApp({
   api,
   token,
   goTo = (url) => window.location.assign(url),
+  openResult = replacePage,
 }: {
   api: UploadApi;
   token: string | null;
   // Opens another page; tests pass a fake.
   goTo?: (url: string) => void;
+  // Opens the result in place of this page, so Back does not come back here
+  // and open it again; tests pass a fake.
+  openResult?: (url: string) => void;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
 
@@ -143,6 +154,15 @@ export function UploadApp({
           // which test the other kept links belong to, before they are read.
           await learnOtherLinks(api, token);
           if (!isCurrent()) return;
+          // Published, and this phone keeps the link of one paper of this
+          // test: the student came for that result, so it opens at once. With
+          // more (a shared phone) the page cannot know whose it is.
+          const kept = info.test.resultsOpen ? loadTestResultLinks(token, info.test.key) : [];
+          if (kept.length === 1) {
+            setPhase({ kind: 'opening' });
+            openResult(studentResultPath(kept[0]!.resultToken));
+            return;
+          }
           setPhase({ kind: 'closed', info });
           return;
         }
@@ -159,7 +179,7 @@ export function UploadApp({
         if (isCurrent()) setPhase({ kind: 'failed', message: messageOf(err) });
       }
     },
-    [api, token, begin],
+    [api, token, begin, openResult],
   );
 
   useEffect(() => {
@@ -176,12 +196,13 @@ export function UploadApp({
       <main className="wrap upload-page">
         <ErrorBoundary>
           {phase.kind === 'loading' && <p>Se încarcă…</p>}
+          {phase.kind === 'opening' && <p>Se deschide rezultatul…</p>}
           {phase.kind === 'failed' && (
             <p className="alert" role="alert">
               {phase.message}
             </p>
           )}
-          {phase.kind !== 'loading' && phase.kind !== 'failed' && <TestTitle info={phase.info} />}
+          {phase.kind !== 'loading' && phase.kind !== 'failed' && phase.kind !== 'opening' && <TestTitle info={phase.info} />}
           {phase.kind === 'notStarted' && (
             <>
               <p className="alert" role="alert">
@@ -289,12 +310,16 @@ async function learnOtherLinks(api: UploadApi, uploadToken: string): Promise<voi
 }
 
 // The page once the uploads closed. The teacher sends this link again when
-// the results are published: the page then gives the result link this phone
-// kept (through either link of the test), or says where the result is. A
+// the results are published: a phone that kept the link of one paper of the
+// test (through either link) opens that result before this page shows; one
+// that kept none or several asks for the code, and shows no ticket. A
 // result opens only by its own link, so the page cannot hand it out by name.
 // A student whose phone has no link (another phone, a cleared browser) types
-// the short code of the ticket: the page then keeps the link on this phone
-// too, and opens the result when the results are published.
+// the short code of the ticket once the results are published: the page keeps
+// the link on this phone too and opens the result. Before that there is no
+// field: a code would open nothing, and typed on a classmate's phone it would
+// only add a link there, so that phone would ask for a code after the publish
+// instead of opening its own result.
 function ClosedScreen({
   api,
   uploadToken,
@@ -306,9 +331,7 @@ function ClosedScreen({
   info: LinkInfo;
   goTo: (url: string) => void;
 }) {
-  const [links, setLinks] = useState<SavedResultLink[]>(() => loadTestResultLinks(uploadToken, info.test.key));
-  // With a kept link the field waits behind "Am alt cod" (a shared phone).
-  const [otherCode, setOtherCode] = useState(false);
+  const [links] = useState<SavedResultLink[]>(() => loadTestResultLinks(uploadToken, info.test.key));
   const opened = (answer: ResultCodeAnswer) => {
     // A link this phone already keeps (it sent that paper) stays as it is,
     // and learns its code if it was kept before links had codes.
@@ -317,38 +340,29 @@ function ClosedScreen({
     } else {
       rememberResultCode(answer.resultToken, answer.resultCode);
     }
-    setLinks(loadTestResultLinks(uploadToken, info.test.key));
-    setOtherCode(false);
-    if (info.test.resultsOpen) goTo(studentResultPath(answer.resultToken));
+    goTo(studentResultPath(answer.resultToken));
   };
-  const kept = links.length > 0 && <Tickets links={links} info={info} />;
-  const entry =
-    links.length === 0 || otherCode ? (
-      <CodeEntry api={api} token={uploadToken} onOpened={opened} />
-    ) : (
-      <p className="other-code">
-        <button type="button" className="link-button" onClick={() => setOtherCode(true)}>
-          Am alt cod
-        </button>
-      </p>
-    );
   if (!info.test.resultsOpen) {
+    // The tickets this phone kept stay, so a student who did not save one
+    // after sending can still save it.
     return (
       <>
         <p className="alert" role="alert">
           Încărcarea s-a închis.
         </p>
         <p className="hint">Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
-        {kept}
-        {entry}
+        <p className="hint">Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.</p>
+        {links.length > 0 && <Tickets links={links} info={info} />}
       </>
     );
   }
+  // Published: one kept link opened before this page showed, so here the phone
+  // keeps none or several (a shared phone). No tickets: the student's own code
+  // opens the right result.
   return (
     <>
       <p className="notice-ok">Rezultatele au fost publicate.</p>
-      {kept}
-      {entry}
+      <CodeEntry api={api} token={uploadToken} onOpened={opened} />
     </>
   );
 }

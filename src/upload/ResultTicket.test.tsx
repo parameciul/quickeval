@@ -38,18 +38,29 @@ describe('ResultTicket', () => {
     expectNoGradingWords();
   });
 
-  it('says how to find the result again: one line, then the two options, numbered, with no camera', () => {
-    show();
-    const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
-    expect(within(ticket).getByText('Ca să vezi rezultatul, alege una dintre variante:')).toBeInTheDocument();
-    const options = within(within(ticket).getByRole('list')).getAllByRole('listitem').map((item) => item.textContent);
-    expect(options).toEqual([...TICKET_HOW.steps]);
-    expect(options).toEqual([
+  // The steps are for later: they are on the saved picture (SaveTicket's
+  // tests), never on the page, where they read like something to do now.
+  it('shows no steps to see the result on the page', () => {
+    for (const resultCode of ['K7M92P', null]) {
+      const shown = show({ resultCode, fresh: true });
+      const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
+      expect(within(ticket).queryByText(/^Ca să vezi rezultatul/)).not.toBeInTheDocument();
+      for (const step of TICKET_HOW.steps) expect(within(ticket).queryByText(step)).not.toBeInTheDocument();
+      expect(within(ticket).queryByRole('list')).not.toBeInTheDocument();
+      shown.unmount();
+    }
+  });
+
+  it('writes, for the picture, one line, then the two options, with no camera', () => {
+    expect(TICKET_HOW.intro).toBe('Ca să vezi rezultatul, alege una dintre variante:');
+    expect(TICKET_HOW.steps).toEqual([
       'Ține apăsat pe codul QR.',
       'Deschide linkul de trimitere a lucrării și introdu codul, dacă nu ești redirecționat direct la rezultat.',
     ]);
+    expect(TICKET_HOW_NO_CODE).toEqual({ intro: 'Ca să vezi rezultatul, ține apăsat pe codul QR.', steps: [] });
     // Scanning is for another phone, where someone else would see the result.
-    expect(ticket.textContent!.toLowerCase()).not.toMatch(/camer|scane/);
+    const words = [TICKET_HOW.intro, ...TICKET_HOW.steps, TICKET_HOW_NO_CODE.intro].join(' ').toLowerCase();
+    expect(words).not.toMatch(/camer|scane/);
   });
 
   it('opens the result on a tap or a long press of the QR code', () => {
@@ -68,9 +79,6 @@ describe('ResultTicket', () => {
   it('shows no code row for a link kept before links had codes', () => {
     show({ resultCode: null });
     expect(screen.queryByText('Codul tău')).not.toBeInTheDocument();
-    expect(screen.getByText(TICKET_HOW_NO_CODE.intro)).toBeInTheDocument();
-    expect(TICKET_HOW_NO_CODE.intro).toBe('Ca să vezi rezultatul, ține apăsat pe codul QR.');
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
     expect(screen.getByTitle('Codul QR al rezultatului')).toBeInTheDocument();
   });
 

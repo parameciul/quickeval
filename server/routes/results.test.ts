@@ -59,7 +59,10 @@ describe('student result links', () => {
     const { resultToken } = await uploadAndConfirm(pop);
     const closed = await api.request('GET', `/api/u/result/${resultToken}`);
     expect(closed.status).toBe(403);
-    expect(closed.body).toEqual({ error: 'results_closed', message: 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.' });
+    expect(closed.body).toEqual({
+      error: 'results_closed',
+      message: 'Rezultatele nu sunt disponibile încă. Probabil profesorul nu a terminat de corectat. Revino mai târziu.',
+    });
 
     const opened = await api.request('POST', `/api/admin/tests/${code}/results/open`);
     expect(opened.status).toBe(200);

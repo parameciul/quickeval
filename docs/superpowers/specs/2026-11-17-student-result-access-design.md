@@ -86,7 +86,7 @@ One card, as in the mockup:
 - The student's name; the class and the test's code.
 - The QR code of the result address, at least 176 px wide, dark on white in both themes (`QRCodeSVG` of `qrcode.react`, level M).
 - "Codul tău" and the code, large.
-- One line: "Scanează codul QR cu camera. Sau deschide linkul testului și scrie codul."
+- One line: "Scanează codul QR cu camera. Sau deschide linkul testului și scrie codul." (Since changed: the steps of `TICKET_HOW`, and only on the saved picture of §7.2, never on the page, where they read like something to do now.)
 
 Under the card:
 
@@ -113,14 +113,16 @@ The ticket replaces `ResultLinkBox` on the "sent" screen, the locked screen, the
 
 ### 7.4 The test's page after the uploads closed (`ClosedScreen`)
 
-- With a kept link: the tickets, then a quiet link "Am alt cod", which opens the field.
-- With no kept link: the field at once, in both states (results published or not):
+- With the kept link of one paper once the results are published: that result opens at once, in place of the page (`location.replace`, so Back does not open it again). The student came for it; a ticket, a code and a link to it would only be in the way.
+- With the links of several papers once the results are published (a shared phone): the field at once, as with no kept link, and no ticket. The page cannot know whose result to open; the student's own code tells it.
+- Before the results are published: "Încărcarea s-a închis.", "Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.", and every kept ticket (one or several), so a student who did not save the ticket after sending can still save it. No code field and no "Am alt cod": a code would open nothing yet, and typed on a classmate's phone it would only add a link there, so that phone would ask for a code after the publish instead of opening its own result.
+- With no kept link once the results are published: the field at once:
   - "Scrie codul tău", one large field (`autocapitalize="characters"`, `autocomplete="off"`, no spell check; it shows the dash by itself after the third character), and "Vezi rezultatul".
-  - A good code keeps the link on this phone (`saveResultLink`, under this link's token, marked `byCode`) and, once the results are published, opens the result page; before that, the page shows the ticket. A link opened with a code never locks the default link (`singleUploadLocked`): a borrowed phone must still send its own paper if the teacher opens the uploads again. A link this phone already keeps for that student stays as it is.
+  - A good code keeps the link on this phone (`saveResultLink`, under this link's token, marked `byCode`) and opens the result page. A link opened with a code never locks the default link (`singleUploadLocked`): a borrowed phone must still send its own paper if the teacher opens the uploads again. A link this phone already keeps for that student stays as it is.
   - A refusal shows the API's message under the field, and the field keeps what was typed.
   - Under it, "Nu știi codul?": "Caută în poze biletul cu codul QR." / "Caută în mesaje linkul pe care ți l-ai trimis." / "Deschide testul pe telefonul cu care ai trimis lucrarea." / "Dacă nu găsești nimic, cere profesorului codul tău."
 - The old hint ("Linkul cu rezultatul tău este salvat pe telefonul…") goes: the list says it.
-- The field is not shown while the test is open or a draft.
+- The field is not shown while the test is open or a draft, nor once it is closed until the results are published.
 
 ## 8. The teacher pages
 

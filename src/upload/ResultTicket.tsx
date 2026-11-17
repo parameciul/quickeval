@@ -17,7 +17,8 @@ export interface TicketTest {
 
 // What the ticket is: the student's own link to the result.
 export const TICKET_TITLE = 'Biletul tău cu linkul spre rezultat';
-// How the student finds the result later, on their own phone. A phone opens
+// How the student finds the result later, on their own phone: written on the
+// saved picture only, never on the page. A phone opens
 // the link of a QR code in a picture of its gallery on a long press; the
 // test's link opens the result by itself on the phone that sent the work, and
 // asks for the code on any other. No word on scanning with a camera: that is
@@ -124,16 +125,9 @@ export function ResultTicket({
             </p>
           )}
         </div>
-        <div className="ticket-foot">
-          <p>{how.intro}</p>
-          {how.steps.length > 0 && (
-            <ol>
-              {how.steps.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-          )}
-        </div>
+        {/* No "how to see the result" here: those steps are for later, so
+            they are only on the saved picture. On the page they read like
+            something to do now. */}
       </div>
       <div className="ticket-actions">
         {save.button}

@@ -14,7 +14,13 @@ export const UNKNOWN_RESULT_LINK = 'Link greșit. Cere profesorului linkul nou.'
 // The student's result page at /u/result/<resultToken>: the grade, the
 // mistakes, and the final words. Read-only.
 export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: string | null }) {
-  const [phase, setPhase] = useState<{ kind: 'loading' } | { kind: 'failed'; message: string } | { kind: 'ready'; result: StudentResultView }>({
+  const [phase, setPhase] = useState<
+    | { kind: 'loading' }
+    | { kind: 'failed'; message: string }
+    // Not published yet: no error, the student only came early.
+    | { kind: 'notYet'; message: string }
+    | { kind: 'ready'; result: StudentResultView }
+  >({
     kind: 'loading',
   });
 
@@ -32,7 +38,9 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
       })
       .catch((err) => {
         if (err instanceof ApiError && err.code === 'unknown_link') forgetResultLinkByToken(resultToken);
-        if (current) setPhase({ kind: 'failed', message: messageOf(err) });
+        if (!current) return;
+        if (err instanceof ApiError && err.code === 'results_closed') setPhase({ kind: 'notYet', message: messageOf(err) });
+        else setPhase({ kind: 'failed', message: messageOf(err) });
       });
     return () => {
       current = false;
@@ -47,6 +55,11 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
           {phase.kind === 'loading' && <p>Se încarcă…</p>}
           {phase.kind === 'failed' && (
             <p className="alert" role="alert">
+              {phase.message}
+            </p>
+          )}
+          {phase.kind === 'notYet' && (
+            <p className="notice" role="status">
               {phase.message}
             </p>
           )}

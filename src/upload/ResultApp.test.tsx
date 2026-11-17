@@ -131,12 +131,24 @@ describe('ResultApp', () => {
     expectNoGradingWords();
   });
 
-  it('shows the server message when the results are closed', async () => {
+  it('shows the server message in a calm grey box, not as an error, when the results are not published', async () => {
     const api = createFakeUploadApi();
-    api.getResult.mockRejectedValueOnce(new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.'));
+    const message = 'Rezultatele nu sunt disponibile încă. Probabil profesorul nu a terminat de corectat. Revino mai târziu.';
+    api.getResult.mockRejectedValueOnce(new ApiError(403, 'results_closed', message));
     render(<ResultApp api={api} resultToken="result-token-11" />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
+    const notice = await screen.findByRole('status');
+    expect(notice).toHaveTextContent(message);
+    expect(notice).toHaveClass('notice');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expectNoGradingWords();
+  });
+
+  it('keeps a real error in the red box', async () => {
+    const api = createFakeUploadApi();
+    api.getResult.mockRejectedValueOnce(new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.'));
+    render(<ResultApp api={api} resultToken="result-token-11" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Link greșit. Cere profesorului linkul nou.');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('shows a wrong-link message for an address without a valid token', async () => {

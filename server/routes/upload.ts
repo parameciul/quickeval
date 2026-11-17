@@ -48,6 +48,10 @@ const otherDevice = () =>
   new ApiError(409, 'other_device', 'Încărcarea a început pe alt telefon. Roagă profesorul să o reseteze.');
 const tooManyFiles = () => new ApiError(409, 'too_many_files', `Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`);
 const fileNotFound = () => new ApiError(404, 'not_found', 'Nu am găsit fișierul.');
+// A result link opened before the teacher published the results: nothing is
+// wrong, the student only came early.
+const resultsClosed = () =>
+  new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Probabil profesorul nu a terminat de corectat. Revino mai târziu.');
 
 // The test behind the link in the URL.
 async function linkTest(c: Context<AppEnv>): Promise<LinkTest> {
@@ -302,7 +306,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       const resultToken = c.req.param('resultToken') ?? '';
       const found = isResultToken(resultToken) ? await findResultByToken(c.env.DB, resultToken) : null;
       if (!found) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
-      if (!found.resultsOpen) throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
+      if (!found.resultsOpen) throw resultsClosed();
       return c.json({ result: found.result });
     });
 
@@ -316,7 +320,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       }
       const open = await resultsOpenByToken(c.env.DB, resultToken);
       if (open === null) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
-      if (!open) throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
+      if (!open) throw resultsClosed();
       throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
     });
   }

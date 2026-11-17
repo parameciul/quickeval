@@ -1506,6 +1506,17 @@ textarea {
   margin: 0;
 }
 
+/* Calm news in the place of an alert, grey like a label: nothing went wrong,
+   the student came early (a result link before the results are published). */
+.notice {
+  max-width: 40rem;
+  margin-block: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--active);
+  color: var(--text);
+}
+
 /* Good news in the place of an alert: the student page once the results are
    published. */
 .notice-ok {
@@ -6593,7 +6604,7 @@ table.items tr.edit-row > td {
   display: grid;
   justify-items: center;
   gap: 0.75rem;
-  padding: 1.125rem 1rem 0.875rem;
+  padding: 1.125rem 1rem 1rem;
 }
 
 .ticket-who {
@@ -6642,23 +6653,6 @@ a.ticket-qr {
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.ticket-foot {
-  padding: 0 1rem 0.875rem;
-  color: var(--muted);
-  font-size: 0.8125rem;
-}
-
-.ticket-foot p {
-  margin: 0;
-  color: var(--text);
-  font-weight: 600;
-}
-
-.ticket-foot ol {
-  margin: 0.25rem 0 0;
-  padding-left: 1.25rem;
 }
 
 .ticket-actions {
@@ -6756,14 +6750,6 @@ a.ticket-qr {
 
 .code-where li {
   margin-top: 0.25rem;
-}
-
-.other-code {
-  margin: 1rem 0 0;
-}
-
-.other-code .link-button {
-  min-height: 2.75rem;
 }
 
 /* The whole result link, as text that wraps: students keep it as a
