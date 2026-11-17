@@ -61,10 +61,11 @@ function sentItem(file: SubmissionFile): PageItem {
   };
 }
 
-// A refusal the same file would get again (a closed paper, too many files):
-// only a lost connection or a server failure is worth another try.
+// A paper that left for grading takes no page ever again. Every other refusal
+// may pass later (the test starts, a page is deleted), so the page keeps its
+// file and its retry button.
 function canSendAgain(err: unknown): boolean {
-  return !(err instanceof ApiError && err.status >= 400 && err.status < 500);
+  return !(err instanceof ApiError && err.code === 'paper_sent');
 }
 
 // The pages of a paper: photo tips, the camera and file buttons, the list of

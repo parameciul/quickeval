@@ -1,6 +1,6 @@
 import type { SubmissionFile } from '../../../shared/api.ts';
 import { fileProblem, MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE } from '../../../shared/files.ts';
-import { quickTryPhonePath } from '../../../shared/quickTry.ts';
+import { PHONE_IDLE_TEXT, quickTryPhonePath } from '../../../shared/quickTry.ts';
 import { messageOf } from '../../ui/ApiError.ts';
 import { formatFileSize } from '../../ui/format.ts';
 import type { LandingApi } from './api.ts';
@@ -64,16 +64,20 @@ export function openPhoneStep(
   openLink.classList.toggle('btn-primary', options.robotBarem);
   start.hidden = options.robotBarem;
   $('barem').hidden = !options.robotBarem;
+  $('hint').hidden = options.robotBarem;
+  $('idle-text').textContent = PHONE_IDLE_TEXT;
 
   form.hidden = true;
   block.hidden = false;
   root.setAttribute('aria-labelledby', 'try-phone-title');
   title.focus();
 
-  // "Închide" waits too while files or the start are on their way, like Esc.
+  // "Închide" waits too while files or the start are on their way, like Esc,
+  // and so does a second pick of files: one send at a time.
   const refreshStart = () => {
     start.disabled = pageCount === 0 || starting || sendingFiles;
     close.disabled = starting || sendingFiles;
+    files.disabled = starting || sendingFiles;
   };
   refreshStart();
 
@@ -134,7 +138,7 @@ export function openPhoneStep(
   async function sendFiles(): Promise<void> {
     const picked = Array.from(files.files ?? []);
     files.value = '';
-    if (picked.length === 0) return;
+    if (picked.length === 0 || sendingFiles || starting) return;
     error.hidden = true;
     if (pageCount + picked.length > MAX_STUDENT_FILES) return sayError(`Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`);
     for (const file of picked) {
@@ -151,6 +155,8 @@ export function openPhoneStep(
         progress.hidden = false;
         try {
           await deps.api.addPage(stored.token, file);
+          // Counted now: the next read may come after the next pick.
+          pageCount += 1;
         } catch (err) {
           problems.push(`${file.name}: ${messageOf(err)}`);
         }
@@ -205,6 +211,7 @@ export function openPhoneStep(
     if (closed) return;
     closed = true;
     watch.stop();
+    files.disabled = false;
     files.removeEventListener('change', onFiles);
     start.removeEventListener('click', onStart);
     close.removeEventListener('click', onClose);

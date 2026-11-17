@@ -78,6 +78,14 @@ describe("a try's phone page", () => {
     expectNoGradingWords();
   });
 
+  it('says the try did not work, not that the paper was sent, when the robot failed', async () => {
+    setup([page(1, 'a.pdf')], tryTest({ barem: { request: 'failed', unchecked: false } }));
+    expect(await screen.findByText('Încercarea nu a mers. Continuă pe calculator.')).toBeInTheDocument();
+    expect(screen.queryByText(/Lucrarea a fost trimisă/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Fă o poză')).not.toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
   it('turns read only when a page is refused because the paper was sent, with the pages sent and the message', async () => {
     const { api, tryApi } = setup();
     await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 });

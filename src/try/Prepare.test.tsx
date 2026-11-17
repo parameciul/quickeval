@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PHONE_IDLE_MS, PHONE_REFRESH_MS } from '../../shared/quickTry.ts';
+import { PHONE_IDLE_MS, PHONE_IDLE_TEXT, PHONE_REFRESH_MS } from '../../shared/quickTry.ts';
 import { PDF_TYPE } from '../../shared/files.ts';
 import { ApiError } from '../ui/ApiError.ts';
 import { createFakeApi } from '../test/fakeApi.ts';
@@ -119,6 +119,7 @@ describe("the phone's code on a try's page", () => {
     expect(screen.getByTitle('Cod QR pentru telefon')).toBeInTheDocument();
     expect(screen.getByText('Scanează codul cu camera telefonului')).toBeInTheDocument();
     expect(screen.getByText(/Paginile apar în lista de mai sus imediat ce le trimiți/)).toBeInTheDocument();
+    expect(screen.getByText(/Pornește corectarea după ce au ajuns toate paginile/)).toBeInTheDocument();
     await userEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('Scanează codul cu camera telefonului')).not.toBeInTheDocument();
@@ -145,6 +146,8 @@ describe("the phone's code on a try's page", () => {
       await vi.advanceTimersByTimeAsync(PHONE_IDLE_MS);
     });
     const again = await screen.findByRole('button', { name: 'Verifică din nou' });
+    expect(again.parentElement).toHaveTextContent(PHONE_IDLE_TEXT);
+    expect(again.parentElement!.parentElement).toHaveAttribute('aria-live', 'polite');
     const calls = tryApi.listPages.mock.calls.length;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS * 3);

@@ -9,7 +9,7 @@ export function PhoneCode({ id, token }: { id?: string; token: string }) {
       <QRCodeSVG value={window.location.origin + quickTryPhonePath(token)} size={150} level="M" marginSize={2} title="Cod QR pentru telefon" className="phone-qr" />
       <div>
         <p className="phone-code-lead">Scanează codul cu camera telefonului</p>
-        <p className="hint">Paginile apar în lista de mai sus imediat ce le trimiți. Codul merge doar pentru această încercare.</p>
+        <p className="hint">Paginile apar în lista de mai sus imediat ce le trimiți. Pornește corectarea după ce au ajuns toate paginile. Codul merge doar pentru această încercare.</p>
       </div>
     </div>
   );

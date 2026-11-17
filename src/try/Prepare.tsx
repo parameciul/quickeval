@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ChangeEvent } from 'react';
 import type { TestDetail } from '../../shared/api.ts';
+import { PHONE_IDLE_TEXT } from '../../shared/quickTry.ts';
 import { fileProblem, MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { testFileUrl } from '../admin/api.ts';
 import { useApi } from '../admin/ApiContext.tsx';
@@ -238,21 +239,23 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
         </button>
       </div>
       {phoneOpen && <PhoneCode id="try-phone-code" token={token} />}
-      {watch.idle && (
-        <p className="hint">
-          Nu a venit nicio pagină de 15 minute.{' '}
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => {
-              watch.again();
-              void pages.refetch();
-            }}
-          >
-            Verifică din nou
-          </button>
-        </p>
-      )}
+      <div aria-live="polite">
+        {watch.idle && (
+          <p className="hint">
+            {PHONE_IDLE_TEXT}{' '}
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => {
+                watch.again();
+                void pages.refetch();
+              }}
+            >
+              Verifică din nou
+            </button>
+          </p>
+        )}
+      </div>
       {add.isPending && <p className="hint">Se trimit paginile…</p>}
       {problem && (
         <p className="alert" role="alert">

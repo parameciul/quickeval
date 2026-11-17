@@ -29,6 +29,7 @@ export function quickTryPhonePath(token: string): string {
 // stops after this long with no new page (the D1 read limit).
 export const PHONE_REFRESH_MS = 3000;
 export const PHONE_IDLE_MS = 15 * 60 * 1000;
+export const PHONE_IDLE_TEXT = `Nu a venit nicio pagină de ${PHONE_IDLE_MS / 60_000} minute.`;
 
 const QUICK_TRY_TOKEN = /^[a-z2-7]{32}$/;
 

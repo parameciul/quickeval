@@ -18,7 +18,7 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
   const queryClient = useQueryClient();
   const detail = useQuery({ queryKey: ['test', info.code], queryFn: () => api.getTest(info.code) });
   // Read when the page opens and after "Mai adaugă pagini" only: the uploader
-  // holds the list in between, and a new read would start it anew.
+  // reads `files` once and holds the list itself in between.
   const pages = useQuery({ queryKey: ['try', 'pages'], queryFn: () => tryApi.listPages(), refetchOnWindowFocus: false });
   const [done, setDone] = useState<number | null>(null);
   const [round, setRound] = useState(0);
@@ -54,13 +54,16 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
   if (pages.data === undefined) return <ErrorMessage error={pages.error} />;
   const title = detail.data.test.title;
 
-  if (phaseOf(detail.data) !== 'prepare') {
+  const phase = phaseOf(detail.data);
+  if (phase !== 'prepare') {
     return (
       <section className="phone-page">
         <h1>Lucrarea elevului</h1>
         <p className="phone-title">{title}</p>
         {refused && <p className="hint">{refused}</p>}
-        <p className="alert">Lucrarea a fost trimisă. Nu mai poți schimba paginile.</p>
+        <p className="alert">
+          {phase === 'failed' ? 'Încercarea nu a mers. Continuă pe calculator.' : 'Lucrarea a fost trimisă. Nu mai poți schimba paginile.'}
+        </p>
         <h3>Paginile ({pages.data.length})</h3>
         <ol className="page-list">
           {pages.data.map((page) => (

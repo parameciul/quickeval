@@ -9,8 +9,9 @@ export interface PagesWatch {
 
 // Reads the try's pages while the QR window shows: at once, then every 3 s,
 // never in a hidden tab, and no more after 15 minutes with no new page (the
-// D1 read limit; only visible time counts). A failed read keeps the last pages; the next tick reads
-// again. After stop(), nothing runs and a late answer is dropped.
+// D1 read limit; only visible time counts). A failed read keeps the last
+// pages; the next tick reads again. After stop(), nothing runs and a late
+// answer is dropped.
 export function watchPages(options: {
   read: () => Promise<SubmissionFile[]>;
   onPages: (pages: SubmissionFile[]) => void;
@@ -28,7 +29,21 @@ export function watchPages(options: {
   let run = 0;
   let count = -1;
   let since = now();
-  let lastTick = since;
+  // When the tab went hidden, or null while it shows. Taken from the
+  // visibility events, not from the ticks: a hidden tab's timers run late.
+  let hiddenAt: number | null = null;
+
+  // Only visible time counts toward the 15 minutes: a hidden span moves
+  // their start forward.
+  const onVisibility = () => {
+    if (!options.isVisible()) {
+      hiddenAt ??= now();
+    } else if (hiddenAt !== null) {
+      since += now() - hiddenAt;
+      hiddenAt = null;
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibility);
 
   const later = (current: number) => {
     timer = setTimeout(() => void tick(current), refreshMs);
@@ -36,12 +51,8 @@ export function watchPages(options: {
 
   async function tick(current: number): Promise<void> {
     if (current !== run) return;
-    // Only visible time counts toward the 15 minutes: a hidden span moves
-    // their start forward.
-    const at = now();
-    if (!options.isVisible()) since += at - lastTick;
-    lastTick = at;
-    if (now() - since >= idleMs) {
+    onVisibility();
+    if ((hiddenAt ?? now()) - since >= idleMs) {
       run += 1;
       options.onIdle();
       return;
@@ -67,7 +78,7 @@ export function watchPages(options: {
     if (timer) clearTimeout(timer);
     run += 1;
     since = now();
-    lastTick = since;
+    hiddenAt = options.isVisible() ? null : since;
     void tick(run);
   }
 
@@ -75,6 +86,7 @@ export function watchPages(options: {
   return {
     stop() {
       run += 1;
+      document.removeEventListener('visibilitychange', onVisibility);
       if (timer) clearTimeout(timer);
       timer = null;
     },

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import page from '../../../index.html?raw';
 import type { SubmissionFile } from '../../../shared/api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
+import { PHONE_IDLE_TEXT } from '../../../shared/quickTry.ts';
 import { ApiError } from '../../ui/ApiError.ts';
 import type { LandingApi } from './api.ts';
 import { openPhoneStep } from './phone.ts';
@@ -147,6 +148,21 @@ describe('the QR window after a send with the phone', () => {
     await waitFor(() => expect(view.getByRole('button', { name: 'Închide' })).toBeEnabled());
   });
 
+  it('takes no second pick of laptop files while the first ones are on their way', async () => {
+    const { api, block, view } = open({ pages: [file(1)] });
+    let finish = () => {};
+    api.addPage.mockImplementationOnce(() => new Promise<void>((done) => (finish = done)));
+    pickOnLaptop(block, new File(['jpg'], 'a.jpg', { type: 'image/jpeg' }));
+    const input = block.querySelector<HTMLInputElement>('[data-try-phone-files]')!;
+    await waitFor(() => expect(input).toBeDisabled());
+    pickOnLaptop(block, new File(['jpg'], 'b.jpg', { type: 'image/jpeg' }));
+    expect(api.addPage).toHaveBeenCalledTimes(1);
+    expect(view.getByRole('button', { name: 'Pornește corectarea' })).toBeDisabled();
+    finish();
+    await waitFor(() => expect(input).toBeEnabled());
+    expect(api.addPage).toHaveBeenCalledTimes(1);
+  });
+
   it('goes on with the next laptop file after one is refused, and shows why', async () => {
     const { api, block, view } = open();
     api.addPage.mockRejectedValueOnce(new ApiError(409, 'too_many_files', 'Poți trimite cel mult 20 de fișiere.'));
@@ -209,9 +225,22 @@ describe('the QR window after a send with the phone', () => {
     expect(dialog).toHaveAttribute('aria-labelledby', 'try-title');
   });
 
+  it("tells to start only after all the pages came, and not with the robot's barem", () => {
+    expect(open().view.getByText('Pornește corectarea după ce au ajuns toate paginile.')).toBeVisible();
+    step?.close();
+    expect(open({ robotBarem: true }).view.getByText('Pornește corectarea după ce au ajuns toate paginile.')).not.toBeVisible();
+  });
+
+  it('announces the page count and the idle line to screen readers', () => {
+    const { block } = open();
+    expect(block.querySelector('.try-phone-count')).toHaveAttribute('aria-live', 'polite');
+    expect(block.querySelector('[data-try-phone-idle]')!.parentElement).toHaveAttribute('aria-live', 'polite');
+  });
+
   it('shows "Verifică din nou" once idle and reads again on it', async () => {
     const { api, view } = open({ idleMs: 20 });
     const again = await view.findByRole('button', { name: 'Verifică din nou' });
+    expect(again.parentElement).toHaveTextContent(PHONE_IDLE_TEXT);
     const reads = api.listPages.mock.calls.length;
     await new Promise((done) => setTimeout(done, 30));
     expect(api.listPages).toHaveBeenCalledTimes(reads);

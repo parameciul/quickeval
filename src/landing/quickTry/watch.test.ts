@@ -21,6 +21,11 @@ function start(read = vi.fn(async (): Promise<SubmissionFile[]> => []), visible 
   return { read, onPages, onIdle, watch };
 }
 
+function setVisibility(state: DocumentVisibilityState) {
+  Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+  document.dispatchEvent(new Event('visibilitychange'));
+}
+
 describe('watchPages', () => {
   it('reads at once and then every 3 s', async () => {
     const { read, onPages, watch } = start();
@@ -94,6 +99,24 @@ describe('watchPages', () => {
     await vi.advanceTimersByTimeAsync(REFRESH * 4);
     expect(onIdle).toHaveBeenCalledTimes(1);
     watch.stop();
+  });
+
+  it('does not count hidden time that ended before a slow tick', async () => {
+    // A hidden tab's timers run late: the tick after the tab shows again must
+    // not count the hidden span as visible.
+    let visible = true;
+    const { onIdle, watch } = start(undefined, () => visible);
+    await vi.advanceTimersByTimeAsync(IDLE - REFRESH * 10);
+    visible = false;
+    setVisibility('hidden');
+    await vi.advanceTimersByTimeAsync(REFRESH / 2);
+    vi.setSystemTime(Date.now() + 60_000);
+    visible = true;
+    setVisibility('visible');
+    await vi.advanceTimersByTimeAsync(REFRESH * 4);
+    expect(onIdle).not.toHaveBeenCalled();
+    watch.stop();
+    setVisibility('visible');
   });
 
   it('again() starts it anew', async () => {
