@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoGradingWords } from '../test/gradingWords.ts';
-import { ResultTicket, TICKET_HOW } from './ResultTicket.tsx';
+import { ResultTicket, TICKET_HOW, TICKET_HOW_NO_CODE, TICKET_TITLE } from './ResultTicket.tsx';
 import { renderTicket, saveTicket, savesThroughShare } from './ticketImage.ts';
 
 // `drop` makes the hidden QR canvas draw without giving its element back, as
@@ -69,6 +69,7 @@ describe('Salvează biletul', () => {
     await showReady();
     const drawn = vi.mocked(renderTicket).mock.calls[0]![0];
     expect(drawn).toMatchObject({
+      label: TICKET_TITLE,
       testTitle: 'Fracții',
       studentName: 'Pop Ion',
       classLine: 'Clasa 6E2 · 6E2-26T1',
@@ -110,7 +111,7 @@ describe('Salvează biletul', () => {
 
   it('saves a ticket without a code for a link that has none', async () => {
     await showReady(null);
-    expect(vi.mocked(renderTicket).mock.calls[0]![0]).toMatchObject({ code: null, how: 'Scanează codul QR cu camera.' });
+    expect(vi.mocked(renderTicket).mock.calls[0]![0]).toMatchObject({ code: null, how: TICKET_HOW_NO_CODE });
   });
 
   it('takes the note away after a few seconds', async () => {

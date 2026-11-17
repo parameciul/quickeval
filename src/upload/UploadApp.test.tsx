@@ -261,7 +261,7 @@ describe('UploadApp', () => {
     const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
     render(<UploadApp api={api} token={LINK_TOKEN} />);
     expect(await screen.findByText('Rezultatele au fost publicate.')).toBeInTheDocument();
-    expect(screen.getByText('Deschide testul pe telefonul cu care ai trimis lucrarea.')).toBeInTheDocument();
+    expect(screen.getByText('Deschide linkul testului pe telefonul cu care ai trimis lucrarea.')).toBeInTheDocument();
     expect(screen.getByText('Dacă nu găsești nimic, cere profesorului codul tău.')).toBeInTheDocument();
     // Nothing went wrong: no error, and no word of the closed uploads.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

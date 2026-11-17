@@ -69,6 +69,8 @@ describe('the panel Rezultate', () => {
     expect(screen.queryByRole('button', { name: 'Publică toate rezultatele' })).not.toBeInTheDocument();
     // A sent paper has its link before the grading; one still on the phone has none.
     expect(within(row('Pop Ion')).getByRole('button', { name: /^Fă linkul:/ })).toBeInTheDocument();
+    expect(within(row('Pop Ion')).queryByRole('link', { name: /^Deschide rezultatul/ })).not.toBeInTheDocument();
+    expect(within(row('Stan Eva')).queryByRole('link', { name: /^Deschide rezultatul/ })).not.toBeInTheDocument();
     expect(within(row('Pop Ion')).getByText('Nepublicat')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Publică:/ })).not.toBeInTheDocument();
     expect(within(row('Stan Eva')).getByText('Nu a trimis lucrarea.')).toBeInTheDocument();
@@ -215,6 +217,29 @@ describe('the panel Rezultate', () => {
     expect(api.getResultLink).toHaveBeenCalledWith(5, FAKE_STARTED_AT);
     await user.click(await within(row('Pop Ion')).findByRole('button', { name: /^Copiază linkul:/ }));
     expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/result/result-token-5`);
+    // The link just made opens too.
+    expect(within(row('Pop Ion')).getByRole('link', { name: 'Deschide rezultatul: Pop Ion' })).toHaveAttribute(
+      'href',
+      `${window.location.origin}/u/result/result-token-5`,
+    );
+  });
+
+  it("opens a student's result page in a new tab, published or not", async () => {
+    const rows = graded().map((upload) =>
+      upload.studentId === 10 ? { ...upload, resultToken: 't10', resultsOpen: true } : upload.studentId === 11 ? { ...upload, resultToken: 't11' } : upload,
+    );
+    renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
+    await screen.findByRole('table', { name: 'Linkurile cu rezultatele elevilor' });
+    for (const [name, token] of [
+      ['Pop Ion', 't10'],
+      ['Stan Eva', 't11'],
+    ]) {
+      const open = within(row(name!)).getByRole('link', { name: `Deschide rezultatul: ${name}` });
+      expect(open).toHaveTextContent('Deschide');
+      expect(open).toHaveAttribute('href', `${window.location.origin}/u/result/${token}`);
+      expect(open).toHaveAttribute('target', '_blank');
+      expect(open).toHaveAttribute('rel', 'noopener');
+    }
   });
 
   it('shows the link in a field when the browser refuses to copy it', async () => {

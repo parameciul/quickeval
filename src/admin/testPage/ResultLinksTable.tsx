@@ -161,7 +161,8 @@ function ResultLinkRow({
   );
 }
 
-// "Copiază linkul". A paper sent before the links were made with the upload
+// "Copiază linkul" and "Deschide", which opens the student's result page in
+// a new tab, as the student sees it. A paper sent before the links were made with the upload
 // has none yet: "Fă linkul" makes it first, so the copy runs in its own tap
 // (a browser may refuse a copy that comes after waiting for the API). When the
 // browser refuses to copy, the link shows in a field, to copy by hand.
@@ -217,6 +218,16 @@ export function CopyResultLink({
         <ActionIcon name={copied ? 'check' : 'copy'} />
         {copied ? 'Copiat!' : 'Copiază linkul'}
       </button>
+      <a
+        className="button-quiet button-small"
+        href={url}
+        target="_blank"
+        rel="noopener"
+        aria-label={named ? `Deschide rezultatul: ${studentName}` : undefined}
+      >
+        <ActionIcon name="open" />
+        Deschide
+      </a>
       {refused && <CopyRefused field={field} url={url} label={`Linkul cu rezultatul elevului ${studentName}`} />}
     </span>
   );
