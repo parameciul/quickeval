@@ -89,3 +89,24 @@ export async function shrinkPhoto(file: File, tools: PhotoTools = browserPhotoTo
     photo.close();
   }
 }
+
+// A preview's picture: at most PREVIEW_SIDE px, so a list of big photos does
+// not keep each one decoded at full size. The photo itself when it cannot be
+// made smaller.
+export const PREVIEW_SIDE = 240;
+
+export async function previewPhoto(photo: Blob, tools: PhotoTools = browserPhotoTools): Promise<Blob> {
+  let decoded: DecodedPhoto;
+  try {
+    decoded = await tools.decode(photo);
+  } catch {
+    return photo;
+  }
+  try {
+    return (await tools.encode(decoded.source, fitWithin(decoded.width, decoded.height, PREVIEW_SIDE), JPEG_QUALITY)) ?? photo;
+  } catch {
+    return photo;
+  } finally {
+    decoded.close();
+  }
+}

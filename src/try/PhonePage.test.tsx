@@ -40,7 +40,8 @@ describe("a try's phone page", () => {
   });
 
   it('keeps the flag of the old address', async () => {
-    setup([], undefined, '/telefon?here=1');
+    setup([page(1, 'a.pdf')], undefined, '/telefon?here=1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Am terminat' }));
     expect(await screen.findByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
   });
 
@@ -80,6 +81,12 @@ describe("a try's phone page", () => {
     expect(within(main).queryAllByRole('link')).toHaveLength(0);
   });
 
+  it('on the phone that made the try, has no link to the try while she takes the photos', async () => {
+    setup([page(1, 'a.pdf')], undefined, '/phone?here=1');
+    await screen.findByRole('button', { name: 'Am terminat' });
+    expect(within(screen.getByRole('main')).queryAllByRole('link')).toHaveLength(0);
+  });
+
   it('on the phone that made the try, the last screen opens the try', async () => {
     setup([page(1, 'a.pdf')], undefined, '/phone?here=1');
     await userEvent.click(await screen.findByRole('button', { name: 'Am terminat' }));
@@ -89,27 +96,6 @@ describe("a try's phone page", () => {
     expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mai adaugă pagini' })).toBeInTheDocument();
     expectNoGradingWords();
-  });
-
-  it('on the phone that made the try, leads to the try before any page is sent', async () => {
-    setup([], undefined, '/phone?here=1');
-    await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 });
-    expect(screen.getByRole('button', { name: 'Am terminat' })).toBeDisabled();
-    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
-    expectNoGradingWords();
-  });
-
-  it('on the phone that made the try, hides the link to the try while a page is on its way', async () => {
-    const { tryApi } = setup([], undefined, '/phone?here=1');
-    let arrive: (file: SubmissionFile) => void = () => {};
-    tryApi.uploadPage.mockImplementationOnce(() => new Promise<SubmissionFile>((done) => (arrive = done)));
-    await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 });
-    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
-    await pick([jpeg('pagina-1.jpg')]);
-    await waitFor(() => expect(tryApi.uploadPage).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole('link', { name: 'Deschide încercarea' })).not.toBeInTheDocument();
-    arrive(page(901, 'pagina-1.jpg'));
-    expect(await screen.findByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
   });
 
   it('on the phone that made the try, a failed try sends her to the try page', async () => {

@@ -1,9 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 
-// One photo on the whole screen. Escape or the button closes it.
+// One photo on the whole screen. Escape or the button closes it, and the focus
+// goes back to what opened it.
 export function PhotoViewer({ src, label, onClose }: { src: string; label: string; onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const opener = document.activeElement;
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    };
+  }, []);
   useEffect(() => {
     close.current?.focus();
     const onKey = (event: KeyboardEvent) => {

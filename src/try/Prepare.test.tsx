@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PHONE_IDLE_MS, PHONE_IDLE_TEXT, PHONE_REFRESH_MS } from '../../shared/quickTry.ts';
 import { PDF_TYPE } from '../../shared/files.ts';
 import { ApiError } from '../ui/ApiError.ts';
@@ -19,6 +19,12 @@ function setup(overrides: Parameters<typeof tryTest>[0] = {}, pages = [page]) {
 }
 
 const startButton = () => screen.findByRole('button', { name: 'Pornește corectarea' });
+const pageList = () => screen.findByRole('list', { name: 'Paginile lucrării' });
+
+beforeEach(() => {
+  Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(() => 'blob:preview'), configurable: true });
+  Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });
+});
 
 describe("a try's files before the grading", () => {
   it('sends a missing test file and says what is still missing', async () => {
@@ -73,14 +79,47 @@ describe("a try's files before the grading", () => {
     const first = new File(['a'], 'p1.jpg', { type: 'image/jpeg' });
     const second = new File(['b'], 'p2.pdf', { type: PDF_TYPE });
     await userEvent.upload(screen.getByLabelText('Adaugă pagini'), [first, second]);
-    expect(await screen.findByText(/Pagina 2: p2.pdf/)).toBeInTheDocument();
+    await waitFor(async () => expect(within(await pageList()).getAllByRole('listitem')).toHaveLength(2));
     expect(tryApi.addPage.mock.calls.map(([file]) => file.name)).toEqual(['p1.jpg', 'p2.pdf']);
     await userEvent.upload(screen.getByLabelText('Adaugă pagini'), new File(['x'], 'nota.txt', { type: 'text/plain' }), { applyAccept: false });
     expect(screen.getByRole('alert')).toHaveTextContent('Trimite poze JPG sau PDF.');
     expect(tryApi.addPage).toHaveBeenCalledTimes(2);
     await userEvent.click(screen.getByRole('button', { name: 'Șterge pagina 1' }));
-    await waitFor(() => expect(screen.queryByText(/p1.jpg/)).not.toBeInTheDocument());
-    expect(within(screen.getByRole('list', { name: 'Paginile lucrării' })).getByText(/Pagina 1: p2.pdf/)).toBeInTheDocument();
+    await waitFor(async () => expect(within(await pageList()).getAllByRole('listitem')).toHaveLength(1));
+    // The PDF is left, as page 1.
+    expect(within(await pageList()).getByText('PDF')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Pagina 1' })).not.toBeInTheDocument();
+  });
+
+  it('shows each page as a preview with its number and size, not its file name', async () => {
+    const pdfPage = { id: 32, name: 'scan-cu-un-nume-foarte-lung-2026.pdf', contentType: PDF_TYPE, size: 4096, position: 2 };
+    const { tryApi } = setup({}, [page, pdfPage]);
+    const list = await pageList();
+    expect(await within(list).findByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', 'blob:preview');
+    expect(within(list).getByText('Pagina 2')).toBeInTheDocument();
+    expect(within(list).getByText('PDF')).toBeInTheDocument();
+    expect(within(list).getByText('2 KB')).toBeInTheDocument();
+    expect(list).not.toHaveTextContent('p1.jpg');
+    expect(list).not.toHaveTextContent(pdfPage.name);
+    // Only a photo is read for its preview.
+    expect(tryApi.pageBlob.mock.calls.map(([id]) => id)).toEqual([31]);
+  });
+
+  it('opens a page large from its preview', async () => {
+    setup();
+    await userEvent.click(await screen.findByRole('button', { name: 'Vezi pagina 1' }));
+    expect(screen.getByRole('dialog', { name: 'Pagina 1' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Închide' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+
+  it('links to a photo whose preview could not be read', async () => {
+    const api = createFakeApi({ classes: [], students: {}, tests: [tryTest({})] });
+    const tryApi = createFakeTryApi({ pages: [structuredClone(page)] });
+    tryApi.pageBlob.mockRejectedValue(new ApiError(404, 'not_found', 'Nu am găsit fișierul.'));
+    renderTry('/', api, tryApi);
+    expect(await screen.findByRole('link', { name: 'Deschide pagina 1' })).toHaveAttribute('href', `/api/try/${TRY_TOKEN}/paper/${page.id}`);
   });
 
   it('counts the file changes left, and stops them at the limit', async () => {
@@ -146,7 +185,35 @@ describe("the phone's code on a try's page", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS);
     });
-    expect(await screen.findByText(/Pagina 1: p2.pdf/)).toBeInTheDocument();
+    expect(await screen.findByText('Pagina 1')).toBeInTheDocument();
+  });
+
+  it('closes the large page when the phone deletes that page', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { tryApi } = setup();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(await phoneButton());
+    await user.click(await screen.findByRole('button', { name: 'Vezi pagina 1' }));
+    expect(screen.getByRole('dialog', { name: 'Pagina 1' })).toBeInTheDocument();
+    await tryApi.deletePage(page.id);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS);
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it("reads each photo once for its preview, not again on the phone's watch", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { tryApi } = setup();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(await phoneButton());
+    await screen.findByRole('img', { name: 'Pagina 1' });
+    const lists = tryApi.listPages.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS * 3);
+    });
+    expect(tryApi.listPages.mock.calls.length).toBeGreaterThan(lists);
+    expect(tryApi.pageBlob).toHaveBeenCalledTimes(1);
   });
 
   it('shows "Verifică din nou" once idle and reads again on it', async () => {
