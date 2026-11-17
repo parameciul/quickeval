@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import type { AnswerArea } from '../../../shared/schemas.ts';
 import { formatFileSize } from '../../ui/format.ts';
@@ -86,6 +86,39 @@ export function ReviewPhoto({
     onPage(area.page - 1);
   };
 
+  // With a width of the teacher's own the page can be taller than its box,
+  // which then scrolls (brand.css). Another answer, part or page brings the
+  // answer on the page shown to the middle of the box (the part being
+  // stepped through, else the answer's first area there), or the top of the
+  // page when it has none; again once the photo has loaded and has its shape.
+  const box = useRef<HTMLElement>(null);
+  const pageNumber = index + 1;
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!element) return;
+    const place = () => {
+      if (element.scrollHeight <= element.clientHeight) return;
+      const pane = element.querySelector<HTMLElement>('.zoom-pane');
+      const stepped = framed?.areas[partIndex];
+      const area = stepped?.page === pageNumber ? stepped : focus?.areas.find((other) => other.page === pageNumber);
+      if (!pane || !area) {
+        element.scrollTop = 0;
+        return;
+      }
+      const paneBox = pane.getBoundingClientRect();
+      const paneTop = paneBox.top - element.getBoundingClientRect().top + element.scrollTop;
+      const middle = paneTop + ((area.y0 + area.y1) / 2) * paneBox.height;
+      element.scrollTop = Math.max(0, middle - element.clientHeight / 2);
+    };
+    place();
+    const image = element.querySelector('.zoom-pane img');
+    if (!(image instanceof HTMLImageElement) || image.complete) return;
+    const onLoad = () => requestAnimationFrame(place);
+    image.addEventListener('load', onLoad, { once: true });
+    return () => image.removeEventListener('load', onLoad);
+    // Only the answer, its part and the page move the box: not every render.
+  }, [focusKey, fileKey, partIndex]);
+
   const hide = onHide ? (
     <button type="button" className="button-quiet button-small icon-button photo-hide" aria-label="Ascunde lucrarea" title="Ascunde lucrarea" onClick={onHide}>
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -138,7 +171,7 @@ export function ReviewPhoto({
       </span>
     ) : undefined;
   return (
-    <figure className="review-photo">
+    <figure className="review-photo" ref={box}>
       <div className="review-photo-top">
         <div className="review-photo-name">
           <figcaption>{caption}</figcaption>

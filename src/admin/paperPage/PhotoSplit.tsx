@@ -1,4 +1,4 @@
-import { type PointerEvent as ReactPointerEvent, type RefObject, useRef, useState } from 'react';
+import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
 
 // The paper's share of the room the exercises and the paper have together:
 // the teacher's own width, kept in this browser. None is today's start width
@@ -46,10 +46,34 @@ export function shareStyle(share: number | null): Record<string, string> | undef
   return { '--main-share': tenths(1 - share), '--photo-share': tenths(share) };
 }
 
+// The least widths brand.css keeps for the exercises and for the paper.
+const LEAST_MAIN_REM = 28;
+const LEAST_PHOTO_REM = 20;
+
+export interface ShareRange {
+  min: number;
+  max: number;
+}
+
+const WHOLE_RANGE: ShareRange = { min: MIN_SHARE, max: MAX_SHARE };
+
+// The shares the screen can show: the limits, narrowed so that neither column
+// goes under its least width in the room the two have (`room`, in px).
+export function shareRange(room: number, rem: number): ShareRange {
+  if (!(room > 0) || !(rem > 0)) return WHOLE_RANGE;
+  const min = Math.max(MIN_SHARE, Math.ceil(((LEAST_PHOTO_REM * rem) / room) * 1000) / 1000);
+  const max = Math.min(MAX_SHARE, Math.floor((1 - (LEAST_MAIN_REM * rem) / room) * 1000) / 1000);
+  return max >= min ? { min, max } : { min, max: min };
+}
+
+const within = (share: number, range: ShareRange) => clampShare(Math.min(range.max, Math.max(range.min, share)));
+
 // The bar between the exercises and the paper, on a wide screen only
 // (brand.css): drag it, or use the arrow keys, Home and End while it has the
 // focus, to make the paper wider or narrower; a double click goes back to the
-// start width. The width is saved when the drag ends.
+// start width. The width is saved when the drag ends. It never goes past what
+// the screen can show: on a smaller screen a saved width wider than that shows
+// at the widest the screen allows, and is kept for a bigger one.
 export function PhotoSplit({
   panes,
   share,
@@ -60,38 +84,59 @@ export function PhotoSplit({
   onShare: (share: number | null) => void;
 }) {
   const [dragging, setDragging] = useState(false);
+  const bar = useRef<HTMLDivElement>(null);
   const last = useRef(share);
-  const shown = share ?? START_SHARE;
+  const [range, setRange] = useState<ShareRange>(WHOLE_RANGE);
 
-  const change = (next: number | null, save: boolean) => {
-    const value = next === null ? null : clampShare(next);
+  // The room of the two columns: from the exercises' left edge to the panes'
+  // right edge, less the bar.
+  const measure = (): { room: number; right: number; width: number } | null => {
+    const box = panes.current;
+    const main = box?.querySelector<HTMLElement>('.paper-main');
+    const own = bar.current;
+    if (!box || !main || !own) return null;
+    const width = own.getBoundingClientRect().width;
+    const right = box.getBoundingClientRect().right;
+    return { room: right - main.getBoundingClientRect().left - width, right, width };
+  };
+  const remeasure = (): ShareRange => {
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const next = shareRange(measure()?.room ?? 0, rem);
+    setRange((old) => (old.min === next.min && old.max === next.max ? old : next));
+    return next;
+  };
+  useLayoutEffect(() => {
+    remeasure();
+    window.addEventListener('resize', remeasure);
+    return () => window.removeEventListener('resize', remeasure);
+  });
+
+  const shown = within(share ?? START_SHARE, range);
+
+  const change = (next: number | null, save: boolean, limits: ShareRange = range) => {
+    const value = next === null ? null : within(next, limits);
     last.current = value;
     onShare(value);
     if (save) savePhotoShare(value);
   };
 
-  // The share under the pointer: the room from the exercises' left edge to the
-  // panes' right edge, less the bar, is the room of the two.
-  const shareAt = (event: ReactPointerEvent<HTMLDivElement>): number | null => {
-    const box = panes.current;
-    const main = box?.querySelector<HTMLElement>('.paper-main');
-    if (!box || !main) return null;
-    const bar = event.currentTarget.getBoundingClientRect();
-    const right = box.getBoundingClientRect().right;
-    const room = right - main.getBoundingClientRect().left - bar.width;
-    if (room <= 0) return null;
-    return (right - event.clientX - bar.width / 2) / room;
+  // The share under the pointer.
+  const shareAt = (clientX: number): number | null => {
+    const sizes = measure();
+    if (!sizes || sizes.room <= 0) return null;
+    return (sizes.right - clientX - sizes.width / 2) / sizes.room;
   };
 
   const percent = Math.round(shown * 100);
   return (
     <div
+      ref={bar}
       className={dragging ? 'photo-split is-dragging' : 'photo-split'}
       role="separator"
       aria-orientation="vertical"
       aria-label="Lățimea lucrării"
-      aria-valuemin={Math.round(MIN_SHARE * 100)}
-      aria-valuemax={Math.round(MAX_SHARE * 100)}
+      aria-valuemin={Math.round(range.min * 100)}
+      aria-valuemax={Math.round(range.max * 100)}
       aria-valuenow={percent}
       aria-valuetext={`Lucrarea ia ${percent}% din loc`}
       tabIndex={0}
@@ -99,11 +144,12 @@ export function PhotoSplit({
         if (event.button !== 0) return;
         event.preventDefault();
         event.currentTarget.setPointerCapture?.(event.pointerId);
+        remeasure();
         setDragging(true);
       }}
       onPointerMove={(event) => {
         if (!dragging) return;
-        const next = shareAt(event);
+        const next = shareAt(event.clientX);
         if (next !== null) change(next, false);
       }}
       onPointerUp={(event) => {
@@ -118,12 +164,14 @@ export function PhotoSplit({
       }}
       onDoubleClick={() => change(null, true)}
       onKeyDown={(event) => {
+        const limits = remeasure();
+        const from = within(share ?? START_SHARE, limits);
         const step = event.shiftKey ? BIG_KEY_STEP : KEY_STEP;
         // The bar moves the way the arrow points: left makes the paper wider.
-        if (event.key === 'ArrowLeft') change(shown + step, true);
-        else if (event.key === 'ArrowRight') change(shown - step, true);
-        else if (event.key === 'Home') change(MIN_SHARE, true);
-        else if (event.key === 'End') change(MAX_SHARE, true);
+        if (event.key === 'ArrowLeft') change(from + step, true, limits);
+        else if (event.key === 'ArrowRight') change(from - step, true, limits);
+        else if (event.key === 'Home') change(limits.min, true, limits);
+        else if (event.key === 'End') change(limits.max, true, limits);
         else return;
         event.preventDefault();
       }}

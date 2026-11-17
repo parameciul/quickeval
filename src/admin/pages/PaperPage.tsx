@@ -474,11 +474,19 @@ function Paper({
   // A row that opens with the paper in it comes to the top of the screen,
   // under the top bar: the paper of the row that closed, above it, would
   // otherwise move it up out of sight, or leave its paper below the screen.
+  // Only a row the teacher opens: another row of this paper, or the point a
+  // decision opened (`paperFocus`, also on another student's paper). Not the
+  // page as it opens, reloads or comes back (the browser keeps its place),
+  // and not the same row drawn again after a new grading.
   const rowWithPhoto = photoInRow && !photoFolded;
+  const scrollFor = useRef<{ key: string | null; pending: boolean }>({ key, pending: focusTarget === 'point' });
   useLayoutEffect(() => {
-    if (!rowWithPhoto) return;
+    const wanted = scrollFor.current;
+    if (wanted.key !== key) scrollFor.current = { key, pending: key !== null };
+    if (!rowWithPhoto || !scrollFor.current.pending) return;
+    scrollFor.current.pending = false;
     main.current?.querySelector('table.items tr.is-open, .pages-check.is-open')?.scrollIntoView?.({ block: 'start' });
-  }, [rowWithPhoto, key, submissionId]);
+  }, [rowWithPhoto, key]);
 
   // The address names a paper of another test.
   if (submission !== undefined && submission.testCode !== code) return <NotFoundPage />;

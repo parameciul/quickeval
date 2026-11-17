@@ -1468,17 +1468,30 @@ describe('the open row with its paper on a phone', () => {
     delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
   });
 
-  it('comes to the top of the screen each time a row opens with its paper', async () => {
+  it('brings a row the teacher opens to the top of the screen, not the row the page opens on', async () => {
     const scroll = stubScroll();
     screenOf(375);
     renderAdmin(paperAt(11, '32', 'all'), apiWith(), <LocationProbe />);
     expect(await screen.findByText('Ana Pop · 3/3')).toBeInTheDocument();
-    await waitFor(() => expect(scroll).toHaveBeenCalled());
-    expect(scroll.mock.contexts.at(-1)).toBe(openRow());
-    expect(scroll).toHaveBeenLastCalledWith({ block: 'start' });
-    scroll.mockClear();
+    // The page as it opens (or reloads, or comes back) keeps its place.
+    await pause(50);
+    expect(scroll).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
     await expectLocation(at(11, '31', 'all'));
+    await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+    expect(scroll.mock.contexts[0]).toBe(openRow());
+    expect(scroll).toHaveBeenLastCalledWith({ block: 'start' });
+  });
+
+  it('brings the point a decision opens to the top of the screen', async () => {
+    const scroll = stubScroll();
+    screenOf(375);
+    renderAdmin(paperAt(11, 'pages'), apiWith(), <LocationProbe />);
+    await screen.findByRole('region', { name: 'Decizia' });
+    await pause(50);
+    expect(scroll).not.toHaveBeenCalled();
+    await userEvent.click(within(decision()).getByRole('button', { name: 'Am verificat paginile' }));
+    await expectLocation(at(11, '32'));
     await waitFor(() => expect(scroll).toHaveBeenCalled());
     expect(scroll.mock.contexts.at(-1)).toBe(openRow());
   });
@@ -1490,5 +1503,66 @@ describe('the open row with its paper on a phone', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
     await expectLocation(at(11, '31', 'all'));
     expect(scroll).not.toHaveBeenCalled();
+  });
+});
+
+// A photo box taller pages than itself, as with a wide paper of the teacher's
+// own: the box is 1000px high and scrolls, the page in it 1500px high, 100px
+// under the box's top. jsdom draws nothing, so the layout is made up here.
+function tallPhotoBox() {
+  const scrolled = new WeakMap<Element, number>();
+  const own = (element: Element, name: 'scrollHeight' | 'clientHeight') =>
+    element.classList.contains('review-photo') ? (name === 'scrollHeight' ? 2000 : 1000) : 0;
+  const restore = [
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return own(this, 'scrollHeight');
+    }),
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return own(this, 'clientHeight');
+    }),
+    vi.spyOn(Element.prototype, 'scrollTop', 'get').mockImplementation(function (this: Element) {
+      return scrolled.get(this) ?? 0;
+    }),
+    vi.spyOn(Element.prototype, 'scrollTop', 'set').mockImplementation(function (this: Element, value: number) {
+      scrolled.set(this, value);
+    }),
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const scroll = this.closest('.review-photo') ? (scrolled.get(this.closest('.review-photo')!) ?? 0) : 0;
+      const pane = this.classList.contains('zoom-pane');
+      const top = pane ? 100 - scroll : 0;
+      const height = pane ? 1500 : 0;
+      return { top, bottom: top + height, height, left: 0, right: 0, width: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    }),
+  ];
+  return () => {
+    for (const spy of restore) spy.mockRestore();
+  };
+}
+
+describe('the paper taller than its box', () => {
+  it('scrolls the box to the answer on the page shown, and to the next part on its page', async () => {
+    const restore = tallPhotoBox();
+    renderAdmin(ION_I3, apiWith(framed()));
+    expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
+    const box = document.querySelector('.review-photo')!;
+    // The first part (page 1, 30%–40%): its middle, 100 + 0,35 × 1500, in the middle of the box.
+    await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
+    await userEvent.click(screen.getByRole('button', { name: 'Partea următoare' }));
+    expect(await screen.findByText('Ion Popa · 2/2')).toBeInTheDocument();
+    // The second part (page 2, 50%–80%).
+    await waitFor(() => expect(document.querySelector('.review-photo')!.scrollTop).toBeCloseTo(100 + 0.65 * 1500 - 500));
+    restore();
+  });
+
+  it('goes back to the top of a page that holds none of the answer', async () => {
+    const restore = tallPhotoBox();
+    renderAdmin(ION_I3, apiWith(framed([TOP])));
+    expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
+    const box = document.querySelector('.review-photo')!;
+    await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina 2' }));
+    expect(await screen.findByText('Ion Popa · 2/2')).toBeInTheDocument();
+    expect(document.querySelector('.review-photo')!.scrollTop).toBe(0);
+    restore();
   });
 });

@@ -1,6 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { TestDetail } from '../../../shared/api.ts';
 import { createFakeApi, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { classToneHue } from '../../ui/classTone.ts';
@@ -645,12 +645,37 @@ describe('ClassPage "Elevi" tab', () => {
     expect(screen.queryByRole('button', { name: /Arată și testele arhivate/ })).not.toBeInTheDocument();
   });
 
-  it('tells the card where it starts and the room under it, so it can reach the foot of the screen', async () => {
+  it('tells the card where it starts and the room under it, and measures again when the page changes size', async () => {
+    // jsdom has no layout and no ResizeObserver: both are made up here.
+    let pageChanged = () => {};
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          pageChanged = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
     renderAdmin('/classes/1', gradedClass());
     await openStudents();
     const card = screen.getByRole('list', { name: 'Elevii clasei' }).closest('.student-split') as HTMLElement;
-    expect(card.style.getPropertyValue('--split-top')).toMatch(/^\d+px$/);
-    expect(card.style.getPropertyValue('--split-foot')).toMatch(/^\d+px$/);
+    let top = 200;
+    vi.spyOn(card, 'getBoundingClientRect').mockImplementation(() => ({ top, bottom: top + 500, height: 500, left: 0, right: 0, width: 0, x: 0, y: top, toJSON: () => ({}) }) as DOMRect);
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(100);
+    // The page keeps 48px under it, and a parent 2px of border.
+    card.parentElement!.style.paddingBottom = '48px';
+    card.parentElement!.parentElement!.style.borderBottom = '2px solid';
+    fireEvent(window, new Event('resize'));
+    expect(card.style.getPropertyValue('--split-top')).toBe('300px');
+    expect(card.style.getPropertyValue('--split-foot')).toBe('50px');
+    // A notice above the card pushes it down: the page changes size.
+    top = 260;
+    act(() => pageChanged());
+    expect(card.style.getPropertyValue('--split-top')).toBe('360px');
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('finds a student by a part of the name, without diacritics', async () => {

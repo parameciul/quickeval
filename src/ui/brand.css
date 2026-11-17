@@ -5351,12 +5351,12 @@ table.uploads .row-actions {
 
 /* The points, the confidence and the actions take only their own width; the
    answer gets a fair share, the comment the rest. The decision under an open
-   row is its row's only cell, so its last too: it wraps, and the table keeps
-   its width. */
+   row, and the paper under it on a narrow screen, are their row's only cell,
+   so its last too: they wrap, and the table keeps its width. */
 @media (min-width: 48.01rem) {
   .graded-result table.items td[data-label="Puncte"],
   .graded-result table.items td[data-label="Siguranța robotului"],
-  .graded-result table.items tr:not(.item-decision) > td:last-child {
+  .graded-result table.items tr:not(.item-decision):not(.item-photo) > td:last-child {
     width: 1%;
     white-space: nowrap;
   }

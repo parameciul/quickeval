@@ -67,8 +67,11 @@ export function ClassStudents({
   // list of students scrolls inside it (brand.css): it needs to know where it
   // starts on the page, which moves with the lines above it, and the room the
   // page keeps under it (the padding at the foot of the page), so the page
-  // itself never scrolls.
+  // itself never scrolls. Measured once the card shows, and again whenever
+  // the page changes size (a line above it that wraps, a notice, the fonts
+  // arriving) or the window does.
   const split = useRef<HTMLDivElement>(null);
+  const hasStudents = students.length > 0;
   useLayoutEffect(() => {
     const element = split.current;
     if (!element) return;
@@ -83,8 +86,18 @@ export function ClassStudents({
     };
     place();
     window.addEventListener('resize', place);
-    return () => window.removeEventListener('resize', place);
-  });
+    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(place) : null;
+    watch?.observe(document.body);
+    let live = true;
+    void document.fonts?.ready.then(() => {
+      if (live) place();
+    });
+    return () => {
+      live = false;
+      window.removeEventListener('resize', place);
+      watch?.disconnect();
+    };
+  }, [hasStudents]);
 
   if (students.length === 0) {
     const add = (

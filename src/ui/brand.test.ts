@@ -199,12 +199,12 @@ describe('brand.css', () => {
     expect(value(declarations('.upload-page .button-small'), 'min-height')).toBe('2.75rem');
   });
 
-  it('lets the decision under an open row wrap, so the exercises table never scrolls sideways', () => {
+  it('lets the decision and the paper under an open row wrap, so the exercises table never scrolls sideways', () => {
     const start = css.indexOf('@media (min-width: 48.01rem) {\n  .graded-result table.items td[data-label="Puncte"]');
     expect(start).toBeGreaterThanOrEqual(0);
     const rule = css.slice(start, css.indexOf('}', start));
     expect(rule).toContain('white-space: nowrap');
-    expect(rule).toContain('tr:not(.item-decision) > td:last-child');
+    expect(rule).toContain('tr:not(.item-decision):not(.item-photo) > td:last-child');
     expect(rule).not.toMatch(/table\.items td:last-child/);
   });
 

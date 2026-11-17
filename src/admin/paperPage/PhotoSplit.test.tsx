@@ -2,10 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { MAX_SHARE, MIN_SHARE, PHOTO_WIDTH_KEY, PhotoSplit, savedPhotoShare, shareStyle } from './PhotoSplit.tsx';
+import { MAX_SHARE, MIN_SHARE, PHOTO_WIDTH_KEY, PhotoSplit, savedPhotoShare, shareRange, shareStyle } from './PhotoSplit.tsx';
 
-// The bar between a 600px column of exercises (left 100) and the paper, in
-// panes that end at 1100: 1000px for the two, less the 20px bar.
+// The bar between a column of exercises (left 100) and the paper, in panes
+// that end at `right`: `right - 100` for the two, less the 20px bar. A wide
+// screen by default (1980px of room), where every share fits.
 function Harness({ start = null, onShare }: { start?: number | null; onShare?: (share: number | null) => void }) {
   const panes = useRef<HTMLDivElement>(null);
   const [share, setShare] = useState<number | null>(start);
@@ -24,9 +25,9 @@ function Harness({ start = null, onShare }: { start?: number | null; onShare?: (
   );
 }
 
-function layOut() {
-  const box = (left: number, right: number) => ({ left, right, width: right - left, top: 0, bottom: 800, height: 800, x: left, y: 0, toJSON: () => ({}) }) as DOMRect;
-  vi.spyOn(screen.getByTestId('panes'), 'getBoundingClientRect').mockReturnValue(box(0, 1100));
+function layOut(right = 2100) {
+  const box = (left: number, end: number) => ({ left, right: end, width: end - left, top: 0, bottom: 800, height: 800, x: left, y: 0, toJSON: () => ({}) }) as DOMRect;
+  vi.spyOn(screen.getByTestId('panes'), 'getBoundingClientRect').mockReturnValue(box(0, right));
   vi.spyOn(document.querySelector<HTMLElement>('.paper-main')!, 'getBoundingClientRect').mockReturnValue(box(100, 700));
   vi.spyOn(screen.getByRole('separator'), 'getBoundingClientRect').mockReturnValue(box(700, 720));
 }
@@ -55,6 +56,19 @@ describe('savedPhotoShare', () => {
     });
     expect(savedPhotoShare()).toBeNull();
     vi.restoreAllMocks();
+  });
+});
+
+describe('shareRange', () => {
+  it('keeps the exercises at 28rem and the paper at 20rem in the room the two have', () => {
+    // 963px, a 1366px screen: the paper between 320px and 515px.
+    expect(shareRange(963, 16)).toEqual({ min: 0.333, max: 0.534 });
+    // A wide screen: the limits themselves.
+    expect(shareRange(2000, 16)).toEqual({ min: MIN_SHARE, max: MAX_SHARE });
+    // Not measured (no layout): the limits.
+    expect(shareRange(0, 16)).toEqual({ min: MIN_SHARE, max: MAX_SHARE });
+    // Too narrow for both: one share, the paper's least.
+    expect(shareRange(700, 16)).toEqual({ min: 0.458, max: 0.458 });
   });
 });
 
@@ -119,9 +133,9 @@ describe('PhotoSplit', () => {
     const bar = screen.getByRole('separator');
     fireEvent.pointerDown(bar, { button: 0, pointerId: 1, clientX: 710 });
     expect(bar).toHaveClass('is-dragging');
-    // The pointer at 500: the paper gets 1100 - 500 - 10 = 590 of 980.
-    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 500 });
-    expect(shares.at(-1)).toBeCloseTo(590 / 980);
+    // The pointer at 1200: the paper gets 2100 - 1200 - 10 = 890 of 1980.
+    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 1200 });
+    expect(shares.at(-1)).toBeCloseTo(890 / 1980);
     expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBeNull();
     // Far to the left: the widest paper.
     fireEvent.pointerMove(bar, { pointerId: 1, clientX: 50 });
@@ -132,6 +146,30 @@ describe('PhotoSplit', () => {
     // A move after the drag ended changes nothing.
     fireEvent.pointerMove(bar, { pointerId: 1, clientX: 900 });
     expect(shares.at(-1)).toBe(MAX_SHARE);
+  });
+
+  it('goes no further than the screen can show, and starts the keys from what it shows', async () => {
+    // 963px of room: the paper between 33% and 53%.
+    render(<Harness start={0.75} />);
+    layOut(1083);
+    const bar = screen.getByRole('separator');
+    fireEvent(window, new Event('resize'));
+    // A width saved on a bigger screen shows at the widest this one allows.
+    expect(bar).toHaveAttribute('aria-valuenow', '53');
+    expect(bar).toHaveAttribute('aria-valuemin', '33');
+    expect(bar).toHaveAttribute('aria-valuemax', '53');
+    bar.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(bar).toHaveAttribute('aria-valuenow', '51');
+    expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBe('0.514');
+    await userEvent.keyboard('{End}');
+    expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBe('0.534');
+    await userEvent.keyboard('{Home}');
+    expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBe('0.333');
+    fireEvent.pointerDown(bar, { button: 0, pointerId: 1, clientX: 710 });
+    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 0 });
+    fireEvent.pointerUp(bar, { pointerId: 1, clientX: 0 });
+    expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBe('0.534');
   });
 
   it('starts no drag on a right click', () => {
