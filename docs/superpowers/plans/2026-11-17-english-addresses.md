@@ -86,9 +86,9 @@ ranking yet. This is the cheapest moment they will ever have.
   `src/upload/UploadApp.test.tsx`. Also `public/_headers` (comment) and
   `docs/seo-audit-mqgrader-ro.md`. Grep again before the work starts.
 - Rename the `Cuprins` `id`s on `/guide/` and `/marking-scheme/` and the landing
-  anchors (`#how`, `#faq`, `#help`, `#contact`, `#more`) in the same pass.
-- Optional: rename `og-ghid.png` etc. Not needed: file names of images do not rank.
-- After deploy: `npm run indexnow` (old and new URLs), submit the sitemap again in
+  anchors (`#how`, `#faq`, `#benefits`, `#contact`, `#more`) in the same pass.
+- The share cards move too (`og-guide.png` etc.), with a 301 from each old name.
+- After deploy: `npm run indexnow` (it reads only `sitemap.xml`, so it announces the new URLs), submit the sitemap again in
   Google Search Console and Bing, "Request indexing" on the 4 new URLs, write the
   switch date in `docs/analytics.md` (the Rybbit page history splits there).
 - Tests: a unit test reads `public/_redirects` and checks each old path; the existing
