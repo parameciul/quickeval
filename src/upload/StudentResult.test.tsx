@@ -5,6 +5,7 @@ import type { StudentResultView } from '../../shared/api.ts';
 import { StudentResult } from './StudentResult.tsx';
 
 const result: StudentResultView = {
+  resultCode: null,
   testCode: 'PROBA-26T1',
   testTitle: 'Încercare rapidă',
   className: 'PROBA',

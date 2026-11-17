@@ -1,19 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import type { StudentResultView } from '../../shared/api.ts';
+import { displayClassName } from '../../shared/classes.ts';
+import { formatResultCode } from '../../shared/tests.ts';
 import { renderPdf } from '../admin/pdf/renderPdf.ts';
 import { saveFile } from '../admin/pdf/share.ts';
 import { studentPdf, studentPdfFileName, studentPdfInputFromResult } from '../admin/pdf/studentPdf.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { TICKET_HOW, TICKET_HOW_NO_CODE } from './ResultTicket.tsx';
+import { useSaveTicket } from './SaveTicket.tsx';
+import { shareLink } from './shareLink.ts';
 
 type ShareState = 'idle' | 'copied' | 'manual';
 
 // How long "Linkul a fost copiat." stays on screen.
 const COPIED_MS = 4000;
 
-// The result page's two actions, so a student can pass the result on to a
-// parent: "Trimite linkul" opens the phone's share sheet, else copies the
-// link, else shows it to copy by hand; "Descarcă PDF" saves the same student
-// PDF the teacher gives, once the result is graded.
+// The result page's actions, so a student can pass the result on to a parent
+// and find it again: "Trimite linkul" opens the phone's share sheet, else
+// copies the link, else shows it to copy by hand; "Salvează biletul" saves
+// the result ticket as a picture (the QR code of this page and its short
+// code); "Descarcă PDF" saves the same student PDF the teacher gives, once
+// the result is graded.
 export function ResultActions({ result, url }: { result: StudentResultView; url: string }) {
   const [share, setShare] = useState<ShareState>('idle');
   const [busy, setBusy] = useState(false);
@@ -21,6 +28,19 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
   // A second tap can come before the disabled button is drawn.
   const working = useRef(false);
   const pdfInput = studentPdfInputFromResult(result);
+  const code = result.resultCode ? formatResultCode(result.resultCode) : null;
+  const save = useSaveTicket({
+    url,
+    testCode: result.testCode,
+    picture: {
+      testTitle: result.testTitle,
+      studentName: result.studentName,
+      classLine: `${displayClassName(result.className)} · ${result.testCode}`,
+      code,
+      how: code ? TICKET_HOW : TICKET_HOW_NO_CODE,
+    },
+    className: 'button-quiet button-small',
+  });
 
   useEffect(() => {
     if (share !== 'copied') return;
@@ -30,22 +50,8 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
 
   async function sendLink() {
     setShare('idle');
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ url, title: `${result.studentName} · ${result.testTitle}` });
-        return;
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      setShare('copied');
-    } catch {
-      // No clipboard (an old browser, or a page not on https): the student
-      // copies the link by hand.
-      setShare('manual');
-    }
+    const sent = await shareLink({ url, title: `${result.studentName} · ${result.testTitle}` });
+    if (sent === 'copied' || sent === 'manual') setShare(sent);
   }
 
   async function downloadPdf() {
@@ -70,6 +76,7 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
           <ActionIcon name="share" />
           Trimite linkul
         </button>
+        {save.button}
         {pdfInput && (
           <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => void downloadPdf()}>
             <ActionIcon name="file" />
@@ -88,6 +95,7 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
           <p className="result-link-url">{url}</p>
         </div>
       )}
+      {save.note}
       {busy && (
         <p role="status" className="hint">
           Se face PDF-ul…

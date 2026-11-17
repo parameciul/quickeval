@@ -1,9 +1,9 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
-import { startSessionBody, type ConfirmAnswer, type LinkInfo, type UploadSession } from '../../shared/api.ts';
+import { resultCodeBody, startSessionBody, type ConfirmAnswer, type LinkInfo, type ResultCodeAnswer, type UploadSession } from '../../shared/api.ts';
 import { checkoutBody } from '../../shared/payments.ts';
 import { MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, studentFileKey } from '../../shared/files.ts';
-import { isResultToken, isUploadToken } from '../../shared/tests.ts';
+import { isResultToken, isUploadToken, normalizeResultCode } from '../../shared/tests.ts';
 import {
   addSubmissionFile,
   confirmSubmission,
@@ -20,7 +20,14 @@ import {
   type LinkTest,
   type SessionRecord,
 } from '../db/links.ts';
-import { confirmResultToken, findResultByToken, findResultFile, resultsOpenByToken, resultsPublished } from '../db/results.ts';
+import {
+  confirmResultToken,
+  findResultByToken,
+  findResultFile,
+  openResultByCode,
+  resultsOpenByToken,
+  resultsPublished,
+} from '../db/results.ts';
 import { listPayments, type PaidTest, type PaymentPayer } from '../db/payments.ts';
 import { listSubmissionFiles, publicFile } from '../db/submissions.ts';
 import type { AppEnv, AppOptions, Env } from '../env.ts';
@@ -139,7 +146,8 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
         break;
       } catch (err) {
         if (!isUniqueViolation(err)) throw err;
-        if (!String(err instanceof Error ? err.message : err).includes('result_token')) throw otherDevice();
+        // The link's short code is made in the same statement (a trigger).
+        if (!/result_token|result_code/.test(String(err instanceof Error ? err.message : err))) throw otherDevice();
         if (attempt === 2) throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
       }
     }
@@ -257,12 +265,28 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       await explainRefusal(c, promote);
       throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
     }
-    const resultToken = await confirmResultToken(c.env.DB, current.submissionId, sessionHash);
+    const link = await confirmResultToken(c.env.DB, current.submissionId, sessionHash);
     // confirmSubmission already sent the upload, so files exist: a missing
     // token means the teacher reset the upload in between. Back to the names,
     // not "add at least a photo".
-    if (!resultToken) throw new ApiError(401, 'no_session', 'Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
-    return c.json({ status: 'submitted', fileCount, resultToken } satisfies { status: string } & ConfirmAnswer);
+    if (!link) throw new ApiError(401, 'no_session', 'Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
+    return c.json({ status: 'submitted', fileCount, ...link } satisfies { status: string } & ConfirmAnswer);
+  });
+
+  // The result link of a student who lost it, by its short code. The code
+  // works only here, on the page of its own test (either link of the test),
+  // and wrong codes are limited per test. It gives the link whether or not
+  // the results are published: the result page itself says when they are not.
+  routes.post('/:token/cod', async (c) => {
+    const test = await linkTest(c);
+    if (test.status === 'draft') throw notStarted();
+    const { code } = await readJson(c, resultCodeBody);
+    const found = await openResultByCode(c.env.DB, test.id, normalizeResultCode(code), nowIso());
+    if (found === 'limited') {
+      throw new ApiError(429, 'too_many_tries', 'Prea multe încercări. Încearcă din nou peste câteva minute.');
+    }
+    if (!found) throw new ApiError(404, 'unknown_code', 'Codul nu este bun. Verifică fiecare literă și încearcă din nou.');
+    return c.json(found satisfies ResultCodeAnswer);
   });
 
   // A student's result page by its secret link. Only while the teacher keeps

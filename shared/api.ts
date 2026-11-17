@@ -381,6 +381,21 @@ export const shownUpload = z.object({ startedAt: z.string({ message: 'Reîncarc�
 
 export type ShownUploadBody = z.output<typeof shownUpload>;
 
+// The student app: open a result by the short code of its link, typed on the
+// test's page. Any text is taken: the server counts a text that is not a code
+// as a wrong try.
+export const resultCodeBody = z.object({
+  code: z.string({ message: 'Scrie codul tău.' }).max(40, { message: 'Codul are 6 caractere.' }),
+});
+
+// The result link a code opened, with what the phone keeps beside it.
+export interface ResultCodeAnswer {
+  resultToken: string;
+  resultCode: string;
+  studentId: number;
+  studentName: string;
+}
+
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({
   studentId: z
@@ -833,6 +848,8 @@ export interface UploadRow {
   // The secret of the student's result page. Null until the upload has one
   // (older uploads get it when the teacher asks for the link).
   resultToken: string | null;
+  // The short code the student types on the test's page; made with the link.
+  resultCode: string | null;
   // Whether this student can open the result page: the test keeps results
   // open for all, or the teacher published this upload alone.
   resultsOpen: boolean;
@@ -1071,6 +1088,9 @@ export interface SessionStart {
 export interface ConfirmAnswer {
   fileCount: number;
   resultToken: string;
+  // The short code of the result link (`formatResultCode` shows it). Null only
+  // for a paper the database gave no code.
+  resultCode: string | null;
 }
 
 // One exercise of a graded upload. `aiPoints` are the robot's points;
@@ -1176,6 +1196,8 @@ export interface StudentResultView {
   status: Exclude<UploadStatus, 'none'>;
   files: SubmissionFile[];
   evaluation: StudentEvaluation | null;
+  // The short code of this result's link, for the ticket the student saves.
+  resultCode: string | null;
 }
 
 // The teacher's link to one student's result page.

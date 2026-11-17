@@ -372,6 +372,7 @@ interface UploadSqlRow {
   model: string | null;
   effort: string | null;
   result_token: string | null;
+  result_code: string | null;
   submission_open: number | null;
   test_open: number;
   file_count: number;
@@ -401,7 +402,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       .prepare(
         `SELECT st.id AS student_id, st.full_name, e.active, st.ces, s.variant,
            s.id AS submission_id, s.status, s.started_at, s.submitted_at, s.auto_submitted, s.last_error, ev.grade, ev.total, ev.max_total, ev.created_at AS graded_at, ev.model, ev.effort,
-           s.result_token, s.results_open AS submission_open, (SELECT t.results_open FROM tests t WHERE t.id = ?) AS test_open,
+           s.result_token, s.result_code, s.results_open AS submission_open, (SELECT t.results_open FROM tests t WHERE t.id = ?) AS test_open,
            (SELECT COUNT(*) FROM submission_files f WHERE f.submission_id = s.id) AS file_count,
            ev.unreadable_json, ev.pages_reviewed_at,
            ${flagCountSql('ev')} AS flag_count, ${checkedCountSql('ev')} AS checked_count
@@ -461,6 +462,7 @@ export async function listUploads(db: D1Database, testId: number, classId: numbe
       model: row.model,
       effort: row.effort,
       resultToken: row.result_token,
+      resultCode: row.result_code,
       resultsOpen: row.submission_id !== null && (row.test_open === 1 || row.submission_open === 1),
       flagCount: row.flag_count,
       checkedCount: row.checked_count,

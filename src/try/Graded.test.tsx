@@ -15,6 +15,7 @@ const files = { test: { name: 'test.pdf', type: PDF_TYPE }, barem: { name: 'bare
 const photo = { id: 61, name: 'p1.jpg', contentType: 'image/jpeg', size: 1000, position: 1 };
 
 const studentResult: StudentResultView = {
+  resultCode: null,
   testCode: TRY_CODE,
   testTitle: QUICK_TRY_TITLE,
   className: 'PROBA',

@@ -3,7 +3,7 @@ import { displayClassName } from '../../shared/classes.ts';
 import { ApiError, messageOf } from '../ui/ApiError.ts';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { resultFileUrl, type UploadApi } from './api.ts';
-import { forgetResultLinkByToken } from './resultLinks.ts';
+import { forgetResultLinkByToken, rememberResultCode } from './resultLinks.ts';
 import { ResultActions } from './ResultActions.tsx';
 import { StudentResult } from './StudentResult.tsx';
 import type { StudentResultView } from '../../shared/api.ts';
@@ -27,6 +27,7 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
     api
       .getResult(resultToken)
       .then((result) => {
+        if (result.resultCode) rememberResultCode(resultToken, result.resultCode);
         if (current) setPhase({ kind: 'ready', result });
       })
       .catch((err) => {

@@ -5110,6 +5110,21 @@ table.uploads .row-actions {
   margin-left: auto;
 }
 
+/* The short code of a result link, beside "Copiază linkul" in Rezultate. */
+.result-link-with-code {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.result-code {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* The files strip while the files are hidden: same look as the link strip.
    The selector outweighs the collapsed layout's "padding-bottom: 0" below,
    so the title and the button stay in the middle of the strip. */
@@ -6365,17 +6380,210 @@ table.items tr.edit-row > td {
   margin-top: 0;
 }
 
-/* A kept link to a student's result page, on the phone that sent the upload. */
-.result-link-box {
-  margin-top: 0.75rem;
-  padding: 0.75rem 1rem;
+/* A student's way back to the result page, drawn as a ticket (the test, the
+   name, the QR code of the result link and its short code), on the phone that
+   sent the upload. A screenshot of it must work later, so the QR code is
+   large, and dark on white in both themes. */
+.tickets {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.ticket-box {
+  max-width: 24rem;
+  margin-top: 1rem;
+}
+
+.ticket-box p {
+  margin: 0;
+}
+
+.ticket {
   border: 1.5px solid var(--rule);
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
+  background: var(--sheet);
+  overflow: hidden;
+}
+
+.ticket-top {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.875rem 1rem;
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.ticket-top span {
+  font-size: 0.8125rem;
+}
+
+.ticket-top strong {
+  font-size: 1.1875rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.ticket-mid {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 1.125rem 1rem 0.875rem;
+}
+
+.ticket-who {
+  justify-self: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.ticket-who span {
+  color: var(--muted);
+}
+
+.ticket-qr {
+  /* About four modules of white, which readers need on a dark page. */
+  padding: 1.375rem;
+  border-radius: var(--radius);
+  background: #ffffff;
+  line-height: 0;
+}
+
+.ticket-code {
+  justify-self: stretch;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius);
+  background: var(--ink-tint);
+}
+
+.ticket-code span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.ticket-code strong {
+  font-size: 1.625rem;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ticket-foot {
+  padding: 0 1rem 0.875rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.ticket-actions {
+  display: grid;
+  gap: 0.625rem;
+  margin-top: 0.875rem;
+}
+
+.ticket-box > .hint,
+.ticket-box > .alert {
+  margin-top: 0.75rem;
+}
+
+.ticket-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin-top: 0.875rem;
+}
+
+.ticket-links .link-button {
+  min-height: 2.75rem;
+}
+
+.ticket-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.ticket-box .result-link-url {
+  margin-block: 0.25rem 0.5rem;
+}
+
+/* "Scrie codul tău": the short code of the ticket, typed on the test's page
+   by a student whose phone has no link. One large field, then where to look
+   for a code that is not at hand. */
+.code-entry {
+  max-width: 24rem;
+  margin-top: 1rem;
+}
+
+.code-form {
+  display: grid;
+  gap: 0.625rem;
+  padding: 1rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 0.875rem;
   background: var(--sheet);
 }
 
-.result-link-box p {
-  margin: 0 0 0.5rem;
+.code-form label {
+  font-size: 1.0625rem;
+}
+
+.code-form input.code-input {
+  width: 100%;
+  min-height: 3.75rem;
+  padding-inline: 1rem;
+  border-width: 2px;
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.code-form input.code-input::placeholder {
+  color: var(--control);
+  font-weight: 400;
+}
+
+.code-form input.code-input[aria-invalid="true"] {
+  border-color: var(--error-fg);
+}
+
+.code-form .alert {
+  margin: 0;
+}
+
+.code-where {
+  margin-top: 1.125rem;
+}
+
+.code-where p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.code-where ul {
+  margin: 0.375rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.code-where li {
+  margin-top: 0.25rem;
+}
+
+.other-code {
+  margin: 1rem 0 0;
+}
+
+.other-code .link-button {
+  min-height: 2.75rem;
 }
 
 /* The whole result link, as text that wraps: students keep it as a

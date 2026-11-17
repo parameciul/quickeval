@@ -110,8 +110,9 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
         <li>
           <p className="publish-way-title">Scanează din nou linkul testului pentru elevi</p>
           <p className="hint">Codul QR de pe test, de pe telefonul cu care au trimis.</p>
-          {/* A result opens only by its own link, which that phone kept. */}
-          <p className="hint">Pe alt telefon sau în alt browser, linkul testului nu arată rezultatul: trimite-i elevului linkul lui, din tabelul „Elevii”.</p>
+          {/* A result opens only by its own link: the phone that sent kept
+              it, and any other phone opens it with the link's short code. */}
+          <p className="hint">Pe alt telefon, elevul scrie codul de pe biletul lui. Codul fiecărui elev este și în tabelul „Elevii”.</p>
           {test.uploadToken !== null && <StudentLink code={test.code} token={test.uploadToken} />}
         </li>
       </ol>

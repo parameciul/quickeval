@@ -17,7 +17,7 @@ export function UploadScreen({
   api: UploadApi;
   token: string;
   session: ActiveSession;
-  onSent: (fileCount: number, resultToken: string) => void;
+  onSent: (fileCount: number, resultToken: string, resultCode: string | null) => void;
   onLost: (message: string) => void;
   shrink?: (file: File) => Promise<Blob>;
 }) {
@@ -32,9 +32,9 @@ export function UploadScreen({
 
   const confirm = async () => {
     if (!window.confirm('Ești sigur? După confirmare nu mai poți schimba nimic.')) return;
-    const { fileCount, resultToken } = await api.confirm(token, session.secret);
+    const { fileCount, resultToken, resultCode } = await api.confirm(token, session.secret);
     forgetSecret(token, session.studentId);
-    onSent(fileCount, resultToken);
+    onSent(fileCount, resultToken, resultCode);
   };
 
   return (

@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { buildTestCode, cleanTitle, isResultToken, isUploadToken, normalizeTestCode } from './tests.ts';
+import {
+  buildTestCode,
+  cleanTitle,
+  formatResultCode,
+  isResultToken,
+  isUploadToken,
+  normalizeResultCode,
+  normalizeTestCode,
+  RESULT_CODE_ALPHABET,
+} from './tests.ts';
 
 describe('buildTestCode', () => {
   it('joins the class, the last two digits of the school year, and the number', () => {
@@ -35,6 +44,38 @@ describe('isResultToken', () => {
     expect(isResultToken('abcdefghijkmnop2')).toBe(false);
     expect(isResultToken('abcdefghijkmnop2abcdefc8')).toBe(false);
     expect(isResultToken('abcdefghijkmnop2abcdefcD')).toBe(false);
+  });
+});
+
+describe('result codes', () => {
+  it('uses 31 characters, none of them easy to confuse', () => {
+    expect(RESULT_CODE_ALPHABET).toHaveLength(31);
+    expect(RESULT_CODE_ALPHABET).not.toMatch(/[01OIL]/);
+    expect(new Set(RESULT_CODE_ALPHABET).size).toBe(31);
+  });
+
+  it('reads a code in any letter case, with or without the dash and spaces', () => {
+    expect(normalizeResultCode('K7M92P')).toBe('K7M92P');
+    expect(normalizeResultCode('k7m-92p')).toBe('K7M92P');
+    expect(normalizeResultCode('  K7M 92P ')).toBe('K7M92P');
+    expect(normalizeResultCode('k7m - 92p')).toBe('K7M92P');
+  });
+
+  it('refuses what is not a code', () => {
+    expect(normalizeResultCode('')).toBeNull();
+    expect(normalizeResultCode('K7M92')).toBeNull();
+    expect(normalizeResultCode('K7M92PP')).toBeNull();
+    // 0, O, 1, I and L are not in the alphabet.
+    expect(normalizeResultCode('K7M90P')).toBeNull();
+    expect(normalizeResultCode('K7MO2P')).toBeNull();
+    expect(normalizeResultCode('K1M92P')).toBeNull();
+    expect(normalizeResultCode('KIM92P')).toBeNull();
+    expect(normalizeResultCode('KLM92P')).toBeNull();
+    expect(normalizeResultCode('K7M92Ș')).toBeNull();
+  });
+
+  it('shows a code with a dash in the middle', () => {
+    expect(formatResultCode('K7M92P')).toBe('K7M-92P');
   });
 });
 

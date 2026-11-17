@@ -19,6 +19,15 @@ const TEST_CODE = /^[A-Z0-9]{1,8}-\d{2}T\d{1,3}$/;
 const UPLOAD_TOKEN = /^[a-z2-7]{16}$/;
 const RESULT_TOKEN = /^[a-z2-7]{24}$/;
 
+// The characters of a result code: no 0, O, 1, I or L, which look alike in a
+// picture or in handwriting. Migration 0034 makes the codes from the same set.
+export const RESULT_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+export const RESULT_CODE_LENGTH = 6;
+// Wrong codes typed on one test's page: at most this many in a window.
+export const RESULT_CODE_TRIES = 10;
+export const RESULT_CODE_WINDOW_MINUTES = 10;
+const RESULT_CODE = new RegExp(`^[${RESULT_CODE_ALPHABET}]{${RESULT_CODE_LENGTH}}$`);
+
 // Class "6E2" in school year 2026, test number 1: "6E2-26T1".
 export function buildTestCode(className: string, schoolYear: number, number: number): string {
   return `${className}-${String(schoolYear % 100).padStart(2, '0')}T${number}`;
@@ -40,6 +49,19 @@ export function isUploadToken(raw: string): boolean {
 // longer than an upload token so the two cannot be confused.
 export function isResultToken(raw: string): boolean {
   return RESULT_TOKEN.test(raw);
+}
+
+// A result code as a student types it: any letter case, with or without the
+// dash or spaces. Returns the stored form ("K7M92P"), or null for anything
+// that is not a code.
+export function normalizeResultCode(raw: string): string | null {
+  const code = raw.replace(/[\s-]/g, '').toUpperCase();
+  return RESULT_CODE.test(code) ? code : null;
+}
+
+// A stored result code as the pages show it: "K7M-92P".
+export function formatResultCode(code: string): string {
+  return `${code.slice(0, 3)}-${code.slice(3)}`;
 }
 
 // Joins inner whitespace into single spaces and trims.

@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { StudentEvaluation, StudentResultView, SubmissionFile, UploadStatus } from '../../shared/api.ts';
+import type { ResultCodeAnswer, StudentEvaluation, StudentResultView, SubmissionFile, UploadStatus } from '../../shared/api.ts';
+import { RESULT_CODE_TRIES, RESULT_CODE_WINDOW_MINUTES } from '../../shared/tests.ts';
 import { isUniqueViolation } from '../errors.ts';
 import { newResultToken } from '../secrets.ts';
 import { getEvaluation } from './evaluations.ts';
@@ -130,33 +131,83 @@ export async function teacherResultToken(db: D1Database, shown: ShownUpload): Pr
 // The result link of an upload the student just sent, named by its id and the
 // hash of the phone's secret: an id that came back for another student's new
 // upload gives this phone nothing. Older uploads without a link get one now.
-export async function confirmResultToken(db: D1Database, submissionId: number, sessionHash: string): Promise<string | null> {
-  const row = await db
-    .prepare('SELECT result_token FROM submissions WHERE id = ? AND session_hash = ?')
-    .bind(submissionId, sessionHash)
-    .first<{ result_token: string | null }>();
+// The link comes with its short code, which the database makes with it (a
+// trigger of migration 0034; a code that clashes inside the test fails the
+// UPDATE on the unique index, and the next try draws another).
+export async function confirmResultToken(
+  db: D1Database,
+  submissionId: number,
+  sessionHash: string,
+): Promise<{ resultToken: string; resultCode: string | null } | null> {
+  const read = () =>
+    db
+      .prepare('SELECT result_token, result_code FROM submissions WHERE id = ? AND session_hash = ?')
+      .bind(submissionId, sessionHash)
+      .first<{ result_token: string | null; result_code: string | null }>();
+  const row = await read();
   if (!row) return null;
-  if (row.result_token) return row.result_token;
+  if (row.result_token) return { resultToken: row.result_token, resultCode: row.result_code };
   for (let attempt = 0; attempt < 3; attempt++) {
-    const token = newResultToken();
-    let set: { result_token: string } | null = null;
     try {
-      set = await db
-        .prepare('UPDATE submissions SET result_token = ? WHERE id = ? AND session_hash = ? AND result_token IS NULL RETURNING result_token')
-        .bind(token, submissionId, sessionHash)
-        .first<{ result_token: string }>();
+      await db
+        .prepare('UPDATE submissions SET result_token = ? WHERE id = ? AND session_hash = ? AND result_token IS NULL')
+        .bind(newResultToken(), submissionId, sessionHash)
+        .run();
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
     }
-    if (set) return set.result_token;
-    const again = await db
-      .prepare('SELECT result_token FROM submissions WHERE id = ? AND session_hash = ?')
-      .bind(submissionId, sessionHash)
-      .first<{ result_token: string | null }>();
-    if (again?.result_token) return again.result_token;
+    // Read after the write: the trigger sets the code after the UPDATE.
+    const again = await read();
     if (!again) return null;
+    if (again.result_token) return { resultToken: again.result_token, resultCode: again.result_code };
   }
   return null;
+}
+
+// A result link by its short code, typed on the page of the test `testId`.
+// Wrong codes are counted per test: at most RESULT_CODE_TRIES in a window of
+// RESULT_CODE_WINDOW_MINUTES, so the codes of a test cannot be guessed. The
+// first statement takes a try, and refuses it when none is left, inside its
+// own SQL; a right code gives its try back. `code` is null for a text that is
+// not a code: it costs a try like any wrong code.
+export async function openResultByCode(
+  db: D1Database,
+  testId: number,
+  code: string | null,
+  now: string,
+): Promise<ResultCodeAnswer | 'limited' | null> {
+  const windowStart = new Date(Date.parse(now) - RESULT_CODE_WINDOW_MINUTES * 60_000).toISOString();
+  const [taken, found] = await db.batch<{ tries: number } | CodeRow>([
+    db
+      .prepare(
+        `INSERT INTO result_code_tries (test_id, tries, since) VALUES (?, 1, ?)
+         ON CONFLICT (test_id) DO UPDATE SET
+           tries = CASE WHEN since <= ? THEN 1 ELSE tries + 1 END,
+           since = CASE WHEN since <= ? THEN excluded.since ELSE since END
+         WHERE since <= ? OR tries < ?
+         RETURNING tries`,
+      )
+      .bind(testId, now, windowStart, windowStart, windowStart, RESULT_CODE_TRIES),
+    db
+      .prepare(
+        `SELECT s.result_token, s.result_code, s.student_id, st.full_name
+         FROM submissions s JOIN students st ON st.id = s.student_id
+         WHERE s.test_id = ? AND s.result_code = ? AND s.result_token IS NOT NULL`,
+      )
+      .bind(testId, code ?? ''),
+  ]);
+  if ((taken?.results ?? []).length === 0) return 'limited';
+  const row = (found?.results ?? [])[0] as CodeRow | undefined;
+  if (!row) return null;
+  await db.prepare('UPDATE result_code_tries SET tries = tries - 1 WHERE test_id = ? AND tries > 0').bind(testId).run();
+  return { resultToken: row.result_token, resultCode: row.result_code, studentId: row.student_id, studentName: row.full_name };
+}
+
+interface CodeRow {
+  result_token: string;
+  result_code: string;
+  student_id: number;
+  full_name: string;
 }
 
 interface ResultRow {
@@ -169,6 +220,7 @@ interface ResultRow {
   status: Exclude<UploadStatus, 'none'>;
   student_name: string;
   submitted_at: string | null;
+  result_code: string | null;
 }
 
 // One student's result page by its secret link. Null for an unknown link. The
@@ -176,7 +228,7 @@ interface ResultRow {
 // While closed the answer carries no files and no grading, so polling an
 // unpublished link costs one query.
 const RESULT_SELECT = `SELECT t.code, t.title, c.name AS class_name, t.results_open AS test_open, s.results_open AS submission_open,
-    s.id AS submission_id, s.status, st.full_name AS student_name, s.submitted_at
+    s.id AS submission_id, s.status, st.full_name AS student_name, s.submitted_at, s.result_code
   FROM submissions s
   JOIN tests t ON t.id = s.test_id
   JOIN classes c ON c.id = t.class_id
@@ -199,6 +251,8 @@ export async function findResultByToken(
       status: row.status,
       files: [],
       evaluation: null,
+      // The route refuses a closed page, so nothing of it reaches the student.
+      resultCode: null,
     };
     return { result, resultsOpen: false };
   }
@@ -224,6 +278,7 @@ async function openResult(db: D1Database, row: ResultRow): Promise<StudentResult
     status: row.status,
     files: files satisfies SubmissionFile[],
     evaluation: evaluation ? toStudentEvaluation(evaluation) : null,
+    resultCode: row.result_code,
   };
 }
 

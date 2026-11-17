@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import type { UploadRow } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
+import { formatResultCode } from '../../../shared/tests.ts';
 import { countLabel } from '../../ui/format.ts';
 import { studentResultUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
@@ -114,14 +115,24 @@ function ResultLinkRow({
       <td data-label="Punctaj">{points}</td>
       <td className="result-link-cell">
         {hasLink(row) ? (
-          <CopyResultLink
-            key={row.submissionId}
-            submissionId={row.submissionId}
-            startedAt={row.startedAt}
-            resultToken={row.resultToken}
-            studentName={row.studentName}
-            named
-          />
+          <span className="result-link-with-code">
+            {/* The short code the student types on the test's page; the
+                teacher can read it out to a student who lost the link. */}
+            {row.resultCode !== null && (
+              <span className="result-code">
+                <span className="sr-only">Codul </span>
+                {formatResultCode(row.resultCode)}
+              </span>
+            )}
+            <CopyResultLink
+              key={row.submissionId}
+              submissionId={row.submissionId}
+              startedAt={row.startedAt}
+              resultToken={row.resultToken}
+              studentName={row.studentName}
+              named
+            />
+          </span>
         ) : (
           'Nu a trimis lucrarea.'
         )}

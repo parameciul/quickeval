@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { LinkInfo, LinkStudent } from '../../shared/api.ts';
+import { studentResultPath, type LinkInfo, type LinkStudent, type ResultCodeAnswer } from '../../shared/api.ts';
 import { displayClassName } from '../../shared/classes.ts';
 import { ApiError, GENERIC_MESSAGE, messageOf } from '../ui/ApiError.ts';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import type { ActiveSession, UploadApi } from './api.ts';
+import { CodeEntry } from './CodeEntry.tsx';
 import { NamePicker } from './NamePicker.tsx';
 import {
+  loadResultLink,
   loadResultLinks,
   loadTestResultLinks,
   pruneStaleResultLinks,
+  rememberResultCode,
   rememberTestKey,
-  resultPageUrl,
   saveResultLink,
   singleUploadLocked,
   tokensToAsk,
@@ -19,6 +21,7 @@ import {
 } from './resultLinks.ts';
 import { forgetSecret, loadSecret, saveSecret, savedStudent } from './session.ts';
 import { UploadScreen } from './UploadScreen.tsx';
+import { ResultTicket } from './ResultTicket.tsx';
 import { StudentHeader } from './StudentHeader.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 
@@ -31,7 +34,7 @@ type Phase =
   | { kind: 'closed'; info: LinkInfo }
   | { kind: 'names'; info: LinkInfo; message: string | null }
   | { kind: 'upload'; info: LinkInfo; session: ActiveSession }
-  | { kind: 'sent'; info: LinkInfo; fileCount: number; resultToken: string; studentName: string }
+  | { kind: 'sent'; info: LinkInfo; fileCount: number; resultToken: string; resultCode: string | null; studentName: string }
   | { kind: 'locked'; info: LinkInfo };
 
 // The student app at /u/<token>: pick your name, add the pages, send them.
@@ -40,7 +43,16 @@ type Phase =
 // send for a classmate by mistake or on purpose. The link for many uploads
 // (made by the teacher on demand) keeps the name list after each sent upload,
 // so one phone can send for several students in turn.
-export function UploadApp({ api, token }: { api: UploadApi; token: string | null }) {
+export function UploadApp({
+  api,
+  token,
+  goTo = (url) => window.location.assign(url),
+}: {
+  api: UploadApi;
+  token: string | null;
+  // Opens another page; tests pass a fake.
+  goTo?: (url: string) => void;
+}) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
 
   // Starts or resumes the upload of one student on this phone. `auto` is true
@@ -182,10 +194,10 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
               </button>
             </>
           )}
-          {phase.kind === 'closed' && token && <ClosedScreen uploadToken={token} info={phase.info} />}
+          {phase.kind === 'closed' && token && <ClosedScreen api={api} uploadToken={token} info={phase.info} goTo={goTo} />}
           {phase.kind === 'names' && token && (
             <>
-              <KeptResultLinks uploadToken={token} />
+              <KeptResultLinks uploadToken={token} info={phase.info} />
               <NamePicker
                 students={phase.info.students}
                 message={phase.message}
@@ -195,7 +207,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           )}
           {phase.kind === 'locked' && token && (
             <>
-              <KeptResultLinks uploadToken={token} />
+              <KeptResultLinks uploadToken={token} info={phase.info} />
               <p className="hint">
                 Ai trimis deja lucrarea de pe acest telefon. Cu acest link nu mai poți încărca alte lucrări, nici pentru alt elev.
               </p>
@@ -223,29 +235,37 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
                 api={api}
                 token={token}
                 session={phase.session}
-                onSent={(fileCount, resultToken) => {
-                  saveResultLink(token, phase.session.studentId, resultToken, phase.session.studentName);
-                  setPhase({ kind: 'sent', info: phase.info, fileCount, resultToken, studentName: phase.session.studentName });
+                onSent={(fileCount, resultToken, resultCode) => {
+                  saveResultLink(token, phase.session.studentId, resultToken, phase.session.studentName, resultCode);
+                  setPhase({ kind: 'sent', info: phase.info, fileCount, resultToken, resultCode, studentName: phase.session.studentName });
                 }}
                 onLost={(message) => load(message)}
               />
             </>
           )}
           {phase.kind === 'sent' && token && (
-            <section className="sent">
-              <h2>Gata! Lucrarea ta a fost trimisă.</h2>
-              <p>{phase.fileCount === 1 ? 'Ai trimis un fișier.' : `Ai trimis ${phase.fileCount} fișiere.`}</p>
-              <ResultLinkBox resultToken={phase.resultToken} studentName={phase.studentName} fresh />
+            <>
+              <section className="sent">
+                <h2>Gata! Lucrarea ta a fost trimisă.</h2>
+                <p>{phase.fileCount === 1 ? 'Ai trimis un fișier.' : `Ai trimis ${phase.fileCount} fișiere.`}</p>
+              </section>
+              <ResultTicket
+                resultToken={phase.resultToken}
+                resultCode={phase.resultCode}
+                studentName={phase.studentName}
+                test={phase.info.test}
+                fresh
+              />
               {phase.info.multi && (
                 <>
                   <p className="hint">Poți trimite acum lucrarea altui elev, cu același link.</p>
-                  <button type="button" className="button button-big" onClick={() => load(null)}>
+                  <button type="button" className="button-quiet button-big" onClick={() => load(null)}>
                     <ActionIcon name="add-person" />
                     Trimite pentru alt elev
                   </button>
                 </>
               )}
-            </section>
+            </>
           )}
         </ErrorBoundary>
       </main>
@@ -272,34 +292,63 @@ async function learnOtherLinks(api: UploadApi, uploadToken: string): Promise<voi
 // the results are published: the page then gives the result link this phone
 // kept (through either link of the test), or says where the result is. A
 // result opens only by its own link, so the page cannot hand it out by name.
-function ClosedScreen({ uploadToken, info }: { uploadToken: string; info: LinkInfo }) {
-  const [links] = useState<SavedResultLink[]>(() => loadTestResultLinks(uploadToken, info.test.key));
-  const kept = links.length > 0 && (
-    <section aria-label="Linkurile tale cu rezultate">
-      {links.map((link) => (
-        <ResultLinkBox key={link.resultToken} resultToken={link.resultToken} studentName={link.studentName} />
-      ))}
-    </section>
-  );
+// A student whose phone has no link (another phone, a cleared browser) types
+// the short code of the ticket: the page then keeps the link on this phone
+// too, and opens the result when the results are published.
+function ClosedScreen({
+  api,
+  uploadToken,
+  info,
+  goTo,
+}: {
+  api: UploadApi;
+  uploadToken: string;
+  info: LinkInfo;
+  goTo: (url: string) => void;
+}) {
+  const [links, setLinks] = useState<SavedResultLink[]>(() => loadTestResultLinks(uploadToken, info.test.key));
+  // With a kept link the field waits behind "Am alt cod" (a shared phone).
+  const [otherCode, setOtherCode] = useState(false);
+  const opened = (answer: ResultCodeAnswer) => {
+    // A link this phone already keeps (it sent that paper) stays as it is,
+    // and learns its code if it was kept before links had codes.
+    if (loadResultLink(uploadToken, answer.studentId)?.resultToken !== answer.resultToken) {
+      saveResultLink(uploadToken, answer.studentId, answer.resultToken, answer.studentName, answer.resultCode, true);
+    } else {
+      rememberResultCode(answer.resultToken, answer.resultCode);
+    }
+    setLinks(loadTestResultLinks(uploadToken, info.test.key));
+    setOtherCode(false);
+    if (info.test.resultsOpen) goTo(studentResultPath(answer.resultToken));
+  };
+  const kept = links.length > 0 && <Tickets links={links} info={info} />;
+  const entry =
+    links.length === 0 || otherCode ? (
+      <CodeEntry api={api} token={uploadToken} onOpened={opened} />
+    ) : (
+      <p className="other-code">
+        <button type="button" className="link-button" onClick={() => setOtherCode(true)}>
+          Am alt cod
+        </button>
+      </p>
+    );
   if (!info.test.resultsOpen) {
     return (
       <>
         <p className="alert" role="alert">
           Încărcarea s-a închis.
         </p>
-        {kept}
         <p className="hint">Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
+        {kept}
+        {entry}
       </>
     );
   }
   return (
     <>
       <p className="notice-ok">Rezultatele au fost publicate.</p>
-      {kept || (
-        <p className="hint">
-          Linkul cu rezultatul tău este salvat pe telefonul și în browserul cu care ai trimis lucrarea. Dacă nu îl găsești acolo, cere profesorului linkul tău.
-        </p>
-      )}
+      {kept}
+      {entry}
     </>
   );
 }
@@ -307,63 +356,25 @@ function ClosedScreen({ uploadToken, info }: { uploadToken: string; info: LinkIn
 // The result links this phone kept for one upload link (the same QR code).
 // Shown on the upload page, so a student who did not keep the link gets it
 // back on the same phone.
-function KeptResultLinks({ uploadToken }: { uploadToken: string }) {
+function KeptResultLinks({ uploadToken, info }: { uploadToken: string; info: LinkInfo }) {
   const [links] = useState<SavedResultLink[]>(() => loadResultLinks(uploadToken));
   if (links.length === 0) return null;
-  return (
-    <section aria-label="Linkurile tale cu rezultate">
-      {links.map((link) => (
-        <ResultLinkBox key={link.studentId} resultToken={link.resultToken} studentName={link.studentName} />
-      ))}
-    </section>
-  );
+  return <Tickets links={links} info={info} />;
 }
 
-// One kept result link, with a copy button. After sending it also says the
-// result comes only after the teacher opens the results.
-export function ResultLinkBox({ resultToken, studentName, fresh = false }: { resultToken: string; studentName: string; fresh?: boolean }) {
-  const [copied, setCopied] = useState(false);
-  const url = resultPageUrl(resultToken);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  };
+// The kept result links of one test, each as its ticket.
+function Tickets({ links, info }: { links: SavedResultLink[]; info: LinkInfo }) {
   return (
-    <div className="result-link-box">
-      <p>
-        {fresh ? (
-          <>
-            Păstrează linkul cu rezultatul{studentName ? ` pentru ${studentName}` : ''}:
-          </>
-        ) : (
-          <>
-            Linkul cu rezultatul{studentName ? ` pentru ${studentName}` : ''}:
-          </>
-        )}
-      </p>
-      <p>
-        <a href={url}>Vezi rezultatul</a>
-      </p>
-      {/* The whole address as text, never cut off: students often keep it as
-          a screenshot, and a cut address in the picture is a broken link. */}
-      <p className="result-link-url">
-        {url}
-      </p>
-      <p>
-        <button type="button" className="button-quiet button-small" onClick={copy}>
-          <ActionIcon name={copied ? 'check' : 'copy'} />
-          {copied ? 'Copiat!' : 'Copiază linkul'}
-        </button>
-      </p>
-      {fresh && (
-        <p className="hint">
-          Rezultatul apare aici după ce profesorul publică rezultatele: nota, punctajul pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.
-        </p>
-      )}
+    <div className="tickets">
+      {links.map((link) => (
+        <ResultTicket
+          key={link.resultToken}
+          resultToken={link.resultToken}
+          resultCode={link.resultCode}
+          studentName={link.studentName}
+          test={info.test}
+        />
+      ))}
     </div>
   );
 }

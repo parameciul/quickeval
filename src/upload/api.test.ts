@@ -70,6 +70,17 @@ describe('createUploadClient', () => {
     expect(init!.headers).toMatchObject({ 'X-Upload-Session': 'saved-secret', 'Content-Type': 'application/json' });
   });
 
+  it('sends a typed code to the test of the link, with no upload secret', async () => {
+    const answer = { resultToken: 'abcdefghijkmnop2abcdefcd', resultCode: 'K7M92P', studentId: 11, studentName: 'Pop Ion' };
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, answer));
+    await expect(createUploadClient({ fetchImpl }).openByCode(TOKEN, 'K7M-92P')).resolves.toEqual(answer);
+    const [url, init] = fetchImpl.mock.calls[0]!;
+    expect(url).toBe(`/api/u/${TOKEN}/cod`);
+    expect(init!.method).toBe('POST');
+    expect(init!.body).toBe(JSON.stringify({ code: 'K7M-92P' }));
+    expect(init!.headers).not.toHaveProperty('X-Upload-Session');
+  });
+
   it('turns an error answer into an ApiError with the server message', async () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse(409, { error: 'other_device', message: 'Încărcarea a început pe alt telefon. Roagă profesorul să o reseteze.' }),
