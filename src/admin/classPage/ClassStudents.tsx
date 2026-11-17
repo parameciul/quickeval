@@ -18,7 +18,7 @@ import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { GradeChip } from '../testPage/GradeChip.tsx';
 
 // "Elevi" tab of the class page (spec §9): the students on the left (search,
-// an orange dot for points to check, "+ Adaugă elevi"), one student on the
+// an orange dot for points to check, "Adaugă elevi"), one student on the
 // right with each test of the class. The first student is chosen at first.
 // `readOnly` (an archived class): no adding, renaming, leaving or deleting.
 export function ClassStudents({
@@ -114,7 +114,8 @@ export function ClassStudents({
         )}
         {!readOnly && (
           <button type="button" className="text-button student-add" onClick={() => setAddOpen(true)}>
-            + Adaugă elevi
+            <ActionIcon name="add-person" />
+            Adaugă elevi
           </button>
         )}
         {addDialog}
@@ -239,9 +240,11 @@ function StudentDetail({
         {!readOnly && (
           <div className="student-detail-actions">
             <button type="button" className="text-button is-quiet" onClick={() => setRenameOpen(true)}>
+              <ActionIcon name="edit" />
               Redenumește
             </button>
             <button type="button" className="text-button is-quiet" disabled={ces.isPending} onClick={() => ces.mutate()}>
+              <ActionIcon name={student.ces ? 'ces-off' : 'ces'} />
               {student.ces ? 'Scoate marcajul CES' : 'Marchează CES'}
             </button>
             <button
@@ -250,10 +253,12 @@ function StudentDetail({
               disabled={toggle.isPending}
               onClick={() => toggle.mutate()}
             >
+              <ActionIcon name={student.active ? 'leave' : 'back-in'} />
               {student.active ? 'A plecat din clasă' : 'Revine în clasă'}
             </button>
             {student.canDelete && (
               <button type="button" className="text-button is-danger" disabled={remove.isPending} onClick={askRemove}>
+                <ActionIcon name="trash" />
                 Șterge
               </button>
             )}

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { ItemChange, ReviewPoint, SubmissionDetail, TestDetail } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
@@ -17,12 +17,14 @@ import { drawnAreas, saveFrames, savedFrames } from '../reviewPage/areas.ts';
 import { isReviewKey } from '../reviewPage/keys.ts';
 import { firstSpot, isSpotOf, pageIndex, pointKey, pointQueue, stepPoint, withoutPoint, type QueuedPoint } from '../reviewPage/points.ts';
 import { type ReviewFocus, ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
+import { PhotoSplit, savedPhotoShare, shareStyle } from '../paperPage/PhotoSplit.tsx';
 import { stageHash } from '../stages.ts';
 import { GradedResult } from '../submissionPage/GradedResult.tsx';
 import { waitingText } from '../submissionPage/waitingText.ts';
 import { heldBackHint } from '../testPage/paperCounts.ts';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
 
 // While the robot grades the upload, the page asks for news every 10 seconds.
 export function resultRefreshInterval(submission: SubmissionDetail | undefined): number | false {
@@ -304,6 +306,11 @@ function Paper({
     photoMoved.current = false;
     photoToggle.current?.focus({ preventScroll: true });
   }, [photoFolded]);
+  // The paper's width beside the exercises, on a wide screen: the teacher's
+  // own (dragged on the bar between them), kept in this browser, or none.
+  const panes = useRef<HTMLDivElement>(null);
+  const [photoShare, setPhotoShare] = useState(savedPhotoShare);
+  const phone = useMediaQuery(PHONE);
   // Graded again ("Recorectează"), the paper is no longer checked: it shows
   // as the saved choice says, and its toggles are saved again.
   const graded = row?.status === 'graded';
@@ -460,6 +467,30 @@ function Paper({
     return () => window.removeEventListener('keydown', onKey);
   });
 
+  // On a phone the paper opens inside the open row, right after the student's
+  // answer, not at the end of the page (an exercise, or the pages the robot
+  // could not read while they wait); with no row open it stays at the end.
+  const photoInRow = phone && evaluation !== null && (item !== undefined || (key === 'pages' && decisionView !== null));
+  // A row that opens with the paper in it comes to the top of the screen,
+  // under the top bar: the paper of the row that closed, above it, would
+  // otherwise move it up out of sight, or leave its paper below the screen.
+  // Only a row the teacher opens: another row of this paper, or the point a
+  // decision opened (`paperFocus`, also on another student's paper). Not the
+  // page as it opens, reloads or comes back (the browser keeps its place),
+  // and not the same row drawn again after a new grading. Only as the row
+  // opens, once its paper is read: a row opened while its paper was not in
+  // it (on a computer, or with the paper hidden) never moves the page later,
+  // when the screen turns narrow or the paper shows again.
+  const rowWithPhoto = photoInRow && !photoFolded;
+  const loaded = submission !== undefined;
+  const scrollFor = useRef<{ key: string | null; pending: boolean }>({ key, pending: focusTarget === 'point' });
+  useLayoutEffect(() => {
+    if (scrollFor.current.key !== key) scrollFor.current = { key, pending: key !== null };
+    if (!scrollFor.current.pending || !loaded) return;
+    scrollFor.current.pending = false;
+    if (rowWithPhoto) main.current?.querySelector('table.items tr.is-open, .pages-check.is-open')?.scrollIntoView?.({ block: 'start' });
+  }, [rowWithPhoto, key, loaded]);
+
   // The address names a paper of another test.
   if (submission !== undefined && submission.testCode !== code) return <NotFoundPage />;
 
@@ -479,6 +510,19 @@ function Paper({
     );
   };
   const showsDecision = decisionView !== null && evaluation !== null;
+  const showsPhoto = submission !== undefined && !photoFolded;
+  const splitShown = showsPhoto && !photoInRow;
+  const photo = showsPhoto ? (
+    <ReviewPhoto
+      submission={submission}
+      page={shownPage}
+      onPage={(index) => setPageChoice({ view: viewKey, page: index })}
+      focus={focus}
+      frames={frames}
+      onFrames={onFrames}
+      onHide={() => onPhotoFold(true, true)}
+    />
+  ) : null;
 
   return (
     <section className={place === 'try' ? 'paper-page is-try' : 'paper-page'}>
@@ -624,7 +668,17 @@ function Paper({
         </p>
       )}
       <div
-        className={['paper-panes', place === 'try' ? 'is-single' : folded ? 'is-folded' : '', photoFolded ? 'is-photo-folded' : ''].filter(Boolean).join(' ')}
+        ref={panes}
+        className={[
+          'paper-panes',
+          place === 'try' ? 'is-single' : folded ? 'is-folded' : '',
+          photoFolded ? 'is-photo-folded' : '',
+          splitShown ? 'has-split' : '',
+          splitShown && photoShare !== null ? 'has-photo-width' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        style={splitShown ? shareStyle(photoShare) : undefined}
       >
         {place === 'app' && (
           <StudentList uploads={uploads} testStatus={test.status} mode={mode} current={submissionId} folded={folded} onFold={onFold} pathOf={(other) => pathOf(studentSpot(other, mode))} />
@@ -664,6 +718,7 @@ function Paper({
                 },
                 onlyToCheck: mode === 'review',
                 decisionFor,
+                photo: photoInRow ? photo : null,
               }}
             />
           ) : submission.status === 'failed' ? (
@@ -686,17 +741,8 @@ function Paper({
             <p className="hint">{waitingText(submission, heldBackHint(me.data))}</p>
           )}
         </div>
-        {submission !== undefined && !photoFolded && (
-          <ReviewPhoto
-            submission={submission}
-            page={shownPage}
-            onPage={(index) => setPageChoice({ view: viewKey, page: index })}
-            focus={focus}
-            frames={frames}
-            onFrames={onFrames}
-            onHide={() => onPhotoFold(true, true)}
-          />
-        )}
+        {splitShown && <PhotoSplit panes={panes} share={photoShare} onShare={setPhotoShare} />}
+        {!photoInRow && photo}
       </div>
     </section>
   );

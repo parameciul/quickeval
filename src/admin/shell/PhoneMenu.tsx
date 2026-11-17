@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import type { Teacher } from '../../../shared/api.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { ThemeSwitch } from '../../ui/ThemeButton.tsx';
 import { demoUsage } from '../account/DemoMeters.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -50,9 +51,11 @@ export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): v
         </div>
       )}
       <Link className="menu-row menu-link" to="/account">
+        <ActionIcon name="person" />
         Contul meu
       </Link>
       <button type="button" className="menu-row menu-link menu-quiet" disabled={logout.isPending} onClick={() => logout.mutate()}>
+        <ActionIcon name="logout" />
         Ieși din cont
       </button>
       {logout.error && <ErrorMessage error={logout.error} />}

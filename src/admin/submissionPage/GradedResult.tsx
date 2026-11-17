@@ -8,6 +8,7 @@ import { MathText } from '../../ui/MathText.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { CARDS, useMediaQuery } from '../../ui/useMediaQuery.ts';
 
 type Saved = (submission: SubmissionDetail) => Promise<void>;
 type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>;
@@ -19,7 +20,9 @@ type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>
 // or closes it when it is the open one; `byRow` for a click on the row or its
 // "Verifică", `toPaper` for "Arată pe lucrare"), only the rows to check, and
 // the decision of an open or kept row while it waits for a check (null when
-// none waits). Without it the result is a plain list.
+// none waits). Without it the result is a plain list. On a phone `photo` is
+// the paper, shown inside the open row (right after the student's answer)
+// instead of at the end of the page.
 export type OpenHow = 'byRow' | 'toPaper';
 
 export interface ItemsCheck {
@@ -28,6 +31,7 @@ export interface ItemsCheck {
   onOpen: (key: string, how: OpenHow) => void;
   onlyToCheck: boolean;
   decisionFor: (key: string) => ReactNode;
+  photo?: ReactNode;
 }
 
 // The decision of a row: the open row's acts; a kept row's stays in place,
@@ -68,7 +72,8 @@ function useRowClick(onOpen: (() => void) | undefined, open: boolean) {
   useEffect(() => cancel, []);
   if (!onOpen) return undefined;
   return (event: MouseEvent<HTMLTableRowElement>) => {
-    if (event.target instanceof Element && event.target.closest('button, a, input, textarea, select, label')) return;
+    // A click on the paper shown in the row zooms it, never closes the row.
+    if (event.target instanceof Element && event.target.closest('button, a, input, textarea, select, label, .inline-photo')) return;
     if (event.detail > 1) {
       cancel();
       return;
@@ -120,6 +125,7 @@ export function GradedResult({
   check?: ItemsCheck;
 }) {
   const api = useApi();
+  const cards = useMediaQuery(CARDS);
   const correct: Correct = (itemId, change) => api.correctItem(submissionId, itemId, { ...change, gradedAt: evaluation.gradedAt });
   const shown = check?.onlyToCheck
     ? evaluation.items.filter((item) => (item.needsReview && !item.reviewed) || String(item.id) === check.openKey || check.keptKeys.includes(String(item.id)))
@@ -180,6 +186,8 @@ export function GradedResult({
                   kept={kept}
                   onOpen={check ? (how) => check.onOpen(key, how) : undefined}
                   decision={item.needsReview && !item.reviewed ? rowDecision(check, key) : null}
+                  photo={open ? (check?.photo ?? null) : null}
+                  photoInRow={cards}
                 />
               );
             })}
@@ -235,6 +243,11 @@ function UnreadablePages({
             </button>
           )}
         </p>
+        {open && check.photo && (
+          <div className="inline-photo" role="group" aria-label="Lucrarea, la paginile necitite">
+            {check.photo}
+          </div>
+        )}
         {decision}
       </div>
     );
@@ -281,6 +294,8 @@ function ItemRows({
   kept,
   onOpen,
   decision,
+  photo,
+  photoInRow,
 }: {
   item: EvaluationItemInfo;
   correct: Correct;
@@ -289,10 +304,24 @@ function ItemRows({
   kept: boolean;
   onOpen?: (how: OpenHow) => void;
   decision: ReactNode;
+  // The paper inside the open row: a cell of the card's grid when the table is
+  // cards, else a row of its own under the exercise, across the table.
+  photo: ReactNode;
+  photoInRow: boolean;
 }) {
+  const shown = photo !== null && photo !== undefined;
   return (
     <>
-      <ItemRow item={item} correct={correct} onSaved={onSaved} open={open} kept={kept} onOpen={onOpen} />
+      <ItemRow item={item} correct={correct} onSaved={onSaved} open={open} kept={kept} onOpen={onOpen} photo={shown && photoInRow ? photo : null} />
+      {shown && !photoInRow && (
+        <tr className="item-photo">
+          <td colSpan={6}>
+            <div className="inline-photo" role="group" aria-label={`Lucrarea, la ${item.exerciseId}`}>
+              {photo}
+            </div>
+          </td>
+        </tr>
+      )}
       {decision !== null && (
         <tr className={open ? 'item-decision' : 'item-decision is-kept'}>
           <td colSpan={6}>{decision}</td>
@@ -318,6 +347,7 @@ function ItemRow({
   open = false,
   kept = false,
   onOpen,
+  photo = null,
 }: {
   item: EvaluationItemInfo;
   correct: Correct;
@@ -325,6 +355,7 @@ function ItemRow({
   open?: boolean;
   kept?: boolean;
   onOpen?: (how: OpenHow) => void;
+  photo?: ReactNode;
 }) {
   const [editing, setEditing] = useState(false);
   const rowClick = useRowClick(onOpen && (() => onOpen('byRow')), open);
@@ -381,7 +412,11 @@ function ItemRow({
 
   return (
     <tr
-      className={[toCheck ? (calm ? 'is-to-check' : 'is-flagged') : '', open ? 'is-open' : kept ? 'is-kept' : '', onOpen ? 'is-openable' : ''].filter(Boolean).join(' ') || undefined}
+      className={
+        [toCheck ? (calm ? 'is-to-check' : 'is-flagged') : '', open ? 'is-open' : kept ? 'is-kept' : '', onOpen ? 'is-openable' : '', photo !== null ? 'has-photo' : '']
+          .filter(Boolean)
+          .join(' ') || undefined
+      }
       onClick={rowClick}
     >
       <th scope="row" title={item.label}>
@@ -578,6 +613,13 @@ function ItemRow({
         )}
         {save.error && <ErrorMessage error={save.error} />}
       </td>
+      {photo !== null && (
+        <td className="inline-photo-cell">
+          <div className="inline-photo" role="group" aria-label={`Lucrarea, la ${item.exerciseId}`}>
+            {photo}
+          </div>
+        </td>
+      )}
     </tr>
   );
 }

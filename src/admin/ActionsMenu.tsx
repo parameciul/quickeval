@@ -37,25 +37,40 @@ export function ActionsMenu({ label, menuId, actions }: { label: string; menuId:
       {open && (
         <div className="class-menu paper-actions-menu" id={menuId} role="menu" aria-label={label}>
           {actions.map((action, index) => (
-            <button
-              key={action.label}
-              type="button"
-              role="menuitem"
-              className={action.danger ? 'paper-action is-danger' : 'paper-action'}
-              aria-label={action.label}
-              aria-describedby={`${menuId}-hint-${index}`}
-              disabled={action.busy}
-              onClick={run(action)}
-            >
-              <ActionIcon name={action.icon} />
-              <span className="paper-action-label">{action.label}</span>
-              <span className="paper-action-hint" id={`${menuId}-hint-${index}`}>
-                {action.hint}
-              </span>
-            </button>
+            <ActionMenuItem key={action.label} action={action} hintId={`${menuId}-hint-${index}`} onClick={run(action)} />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+// One item of such a menu: the icon, the name, and under it what it does (its
+// accessible description). The class page's ⋯ draws its items with it too.
+export function ActionMenuItem({
+  action,
+  hintId,
+  onClick,
+}: {
+  action: Omit<MenuAction, 'onChoose'>;
+  hintId: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      className={action.danger ? 'paper-action is-danger' : 'paper-action'}
+      aria-label={action.label}
+      aria-describedby={hintId}
+      disabled={action.busy}
+      onClick={onClick}
+    >
+      <ActionIcon name={action.icon} />
+      <span className="paper-action-label">{action.label}</span>
+      <span className="paper-action-hint" id={hintId}>
+        {action.hint}
+      </span>
+    </button>
   );
 }

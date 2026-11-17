@@ -28,6 +28,14 @@ async function pick(name: string, item: string) {
 }
 
 describe('the accounts on Setări', () => {
+  it('draws every item of a teacher’s ⋯ with the icon of its verb', async () => {
+    renderAdmin('/settings', withAccounts());
+    await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Bogdan' }));
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual(['Fă cont complet', 'Parolă nouă', 'Închide contul']);
+    for (const item of items) expect(item.querySelector('svg.action-icon'), item.textContent).not.toBeNull();
+  });
+
   it('lists the accounts that wait in their own card, and approves one', async () => {
     const api = withAccounts();
     renderAdmin('/settings', api);

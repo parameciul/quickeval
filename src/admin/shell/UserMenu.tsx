@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import type { Teacher } from '../../../shared/api.ts';
+import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { initials } from './initials.ts';
 import { useLogout } from './useLogout.ts';
@@ -30,8 +31,12 @@ export function UserMenu({ teacher }: { teacher: Teacher }) {
             <b>{teacher.name}</b>
             <span>{teacher.email}</span>
           </p>
-          <Link to="/account">Contul meu</Link>
+          <Link to="/account">
+            <ActionIcon name="person" />
+            Contul meu
+          </Link>
           <button type="button" disabled={logout.isPending} onClick={() => logout.mutate()}>
+            <ActionIcon name="logout" />
             Ieși din cont
           </button>
           {logout.error && <ErrorMessage error={logout.error} />}

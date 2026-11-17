@@ -184,6 +184,7 @@ function RejectAll({ pending }: { pending: Account[] }) {
           if (window.confirm(`Refuzi toate cele ${pending.length} conturi care așteaptă? Cererile se șterg.`)) rejectAll.mutate();
         }}
       >
+        <ActionIcon name="close" />
         Refuză toate
       </button>
       {rejectAll.error && <ErrorMessage error={rejectAll.error} />}
@@ -583,35 +584,39 @@ function AccountMenu({
       {open && (
         <div className="class-menu class-more-menu" id={menuId} role="menu">
           {active ? (
-            <button type="button" role="menuitem" className="class-menu-item" disabled={busy} onClick={run(() => onChange({ demo: !account.demo }))}>
+            <button type="button" role="menuitem" className="class-menu-item has-icon" disabled={busy} onClick={run(() => onChange({ demo: !account.demo }))}>
+              <ActionIcon name={account.demo ? 'unlock' : 'clock'} />
               {account.demo ? 'Fă cont complet' : 'Fă cont demo'}
             </button>
           ) : (
-            <button type="button" role="menuitem" className="class-menu-item" disabled={busy} onClick={run(() => onChange({ status: 'active' }))}>
+            <button type="button" role="menuitem" className="class-menu-item has-icon" disabled={busy} onClick={run(() => onChange({ status: 'active' }))}>
+              <ActionIcon name="login" />
               Redeschide contul
             </button>
           )}
           <button
             type="button"
             role="menuitem"
-            className="class-menu-item"
+            className="class-menu-item has-icon"
             disabled={busy}
             onClick={run(() => {
               if (window.confirm(`Faci o parolă nouă pentru ${account.name}? Parola de acum nu va mai funcționa.`)) onNewPassword();
             })}
           >
+            <ActionIcon name="key" />
             Parolă nouă
           </button>
           {active && (
             <button
               type="button"
               role="menuitem"
-              className="class-menu-item is-danger"
+              className="class-menu-item has-icon is-danger"
               disabled={busy}
               onClick={run(() => {
                 if (window.confirm(`Închizi contul lui ${account.name}? Nu va mai putea intra, dar datele rămân.`)) onChange({ status: 'disabled' });
               })}
             >
+              <ActionIcon name="lock" />
               Închide contul
             </button>
           )}
