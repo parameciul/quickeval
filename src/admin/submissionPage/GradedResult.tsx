@@ -243,7 +243,11 @@ function UnreadablePages({
             </button>
           )}
         </p>
-        {open && check.photo && <div className="inline-photo">{check.photo}</div>}
+        {open && check.photo && (
+          <div className="inline-photo" role="group" aria-label="Lucrarea, la paginile necitite">
+            {check.photo}
+          </div>
+        )}
         {decision}
       </div>
     );
@@ -312,7 +316,9 @@ function ItemRows({
       {shown && !photoInRow && (
         <tr className="item-photo">
           <td colSpan={6}>
-            <div className="inline-photo">{photo}</div>
+            <div className="inline-photo" role="group" aria-label={`Lucrarea, la ${item.exerciseId}`}>
+              {photo}
+            </div>
           </td>
         </tr>
       )}
@@ -609,7 +615,9 @@ function ItemRow({
       </td>
       {photo !== null && (
         <td className="inline-photo-cell">
-          <div className="inline-photo">{photo}</div>
+          <div className="inline-photo" role="group" aria-label={`Lucrarea, la ${item.exerciseId}`}>
+            {photo}
+          </div>
         </td>
       )}
     </tr>

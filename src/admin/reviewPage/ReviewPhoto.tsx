@@ -11,6 +11,9 @@ import { ZoomPhoto } from './ZoomPhoto.tsx';
 
 // The answer to check: `key` names it (the paper and the item), `label` is the
 // exercise ("II.1"), `areas` are the ones the review can draw (drawnAreas).
+// The paper's box, named by the bar that sets its width (PhotoSplit).
+export const PAPER_PHOTO_ID = 'paper-photo';
+
 export interface ReviewFocus {
   key: string;
   label: string;
@@ -129,7 +132,7 @@ export function ReviewPhoto({
 
   if (!file) {
     return (
-      <div className="review-photo">
+      <div className="review-photo" id={PAPER_PHOTO_ID}>
         {hide && <div className="review-photo-top is-end">{hide}</div>}
         <p className="hint">Elevul nu a încărcat niciun fișier.</p>
       </div>
@@ -171,7 +174,7 @@ export function ReviewPhoto({
       </span>
     ) : undefined;
   return (
-    <figure className="review-photo" ref={box}>
+    <figure className="review-photo" id={PAPER_PHOTO_ID} ref={box}>
       <div className="review-photo-top">
         <div className="review-photo-name">
           <figcaption>{caption}</figcaption>

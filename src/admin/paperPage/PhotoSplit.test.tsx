@@ -92,6 +92,9 @@ describe('PhotoSplit', () => {
     expect(bar).toHaveAttribute('aria-valuemin', '20');
     expect(bar).toHaveAttribute('aria-valuemax', '75');
     expect(bar).toHaveAttribute('tabindex', '0');
+    expect(bar).toHaveAttribute('aria-controls', 'paper-photo');
+    // The keys and the double click are said in words, not only in the tip under the pointer.
+    expect(bar).toHaveAccessibleDescription(/^Săgeata stânga lărgește lucrarea, săgeata dreapta o îngustează, cu Shift mai mult\. Home: cea mai îngustă\. End: cea mai lată\. Dublu clic: lățimea de început\.$/);
     expect(screen.getByTestId('panes').style.getPropertyValue('--photo-share')).toBe('');
   });
 

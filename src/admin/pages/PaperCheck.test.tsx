@@ -683,6 +683,7 @@ describe('the points to check on the paper page', () => {
     const bar = screen.getByRole('separator', { name: 'Lățimea lucrării' });
     expect(bar.previousElementSibling).toHaveClass('paper-main');
     expect(bar.nextElementSibling).toHaveClass('review-photo');
+    expect(document.getElementById(bar.getAttribute('aria-controls')!)).toBe(bar.nextElementSibling);
     // No width of her own yet: the start width, with the page no taller than the screen.
     expect(panes).toHaveClass('has-split');
     expect(panes).not.toHaveClass('has-photo-width');
@@ -1385,6 +1386,7 @@ describe('the paper on a phone', () => {
     expect(cell).not.toBeNull();
     expect(openRow()).toHaveClass('has-photo');
     expect(within(cell as HTMLElement).getByText('Ana Pop · 3/3')).toBeInTheDocument();
+    expect(within(cell as HTMLElement).getByRole('group', { name: 'Lucrarea, la II.1' })).toContainElement(screen.getByText('Ana Pop · 3/3'));
     expect(document.querySelector('.paper-panes > .review-photo')).toBeNull();
     expect(screen.queryByRole('separator')).not.toBeInTheDocument();
     expect(document.querySelectorAll('.review-photo')).toHaveLength(1);
@@ -1431,6 +1433,7 @@ describe('the paper on a phone', () => {
     const inline = pages.querySelector(':scope > .inline-photo')!;
     expect(inline).not.toBeNull();
     expect(inline.nextElementSibling).toHaveClass('decision-slot');
+    expect(inline).toHaveAccessibleName('Lucrarea, la paginile necitite');
     expect(document.querySelector('.paper-panes > .review-photo')).toBeNull();
   });
 
@@ -1441,6 +1444,7 @@ describe('the paper on a phone', () => {
     const next = openRow().nextElementSibling!;
     expect(next).toHaveClass('item-photo');
     expect(next.querySelector('td')).toHaveAttribute('colspan', '6');
+    expect(within(next as HTMLElement).getByRole('group', { name: 'Lucrarea, la II.1' })).toBeInTheDocument();
     expect(next.nextElementSibling).toHaveClass('item-decision');
     expect(openRow().querySelector('td.inline-photo-cell')).toBeNull();
   });
