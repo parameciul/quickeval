@@ -191,7 +191,7 @@ describe('the panel Rezultate', () => {
     const rows = graded().map((upload) => (upload.studentId === 10 ? { ...upload, resultToken: 'result-token-5' } : upload));
     renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
     await user.click(within(await screen.findByRole('row', { name: /^Pop Ion/ })).getByRole('button', { name: /^Copiază linkul:/ }));
-    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/rezultat/result-token-5`);
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/result/result-token-5`);
     expect(within(row('Pop Ion')).getByRole('button', { name: 'Copiat!' })).toBeInTheDocument();
   });
 
@@ -216,11 +216,11 @@ describe('the panel Rezultate', () => {
     await user.click(within(await screen.findByRole('row', { name: /^Pop Ion/ })).getByRole('button', { name: /^Fă linkul:/ }));
     expect(api.getResultLink).toHaveBeenCalledWith(5, FAKE_STARTED_AT);
     await user.click(await within(row('Pop Ion')).findByRole('button', { name: /^Copiază linkul:/ }));
-    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/rezultat/result-token-5`);
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/result/result-token-5`);
     // The link just made opens too.
     expect(within(row('Pop Ion')).getByRole('link', { name: 'Deschide rezultatul: Pop Ion' })).toHaveAttribute(
       'href',
-      `${window.location.origin}/u/rezultat/result-token-5`,
+      `${window.location.origin}/u/result/result-token-5`,
     );
   });
 
@@ -236,7 +236,7 @@ describe('the panel Rezultate', () => {
     ]) {
       const open = within(row(name!)).getByRole('link', { name: `Deschide rezultatul: ${name}` });
       expect(open).toHaveTextContent('Deschide');
-      expect(open).toHaveAttribute('href', `${window.location.origin}/u/rezultat/${token}`);
+      expect(open).toHaveAttribute('href', `${window.location.origin}/u/result/${token}`);
       expect(open).toHaveAttribute('target', '_blank');
       expect(open).toHaveAttribute('rel', 'noopener');
     }
@@ -249,7 +249,7 @@ describe('the panel Rezultate', () => {
     renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
     await user.click(within(await screen.findByRole('row', { name: /^Pop Ion/ })).getByRole('button', { name: /^Copiază linkul:/ }));
     expect(await screen.findByLabelText('Linkul cu rezultatul elevului Pop Ion')).toHaveValue(
-      `${window.location.origin}/u/rezultat/result-token-5`,
+      `${window.location.origin}/u/result/result-token-5`,
     );
   });
 

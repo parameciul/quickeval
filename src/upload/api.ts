@@ -51,7 +51,7 @@ const SESSION_HEADER = 'X-Upload-Session';
 // A file of a student's result page opens straight from the API: the secret
 // link is the key, and the teacher's open results are the gate.
 export function resultFileUrl(resultToken: string, fileId: number): string {
-  return `/api/u/rezultat/${encodeURIComponent(resultToken)}/files/${fileId}`;
+  return `/api/u/result/${encodeURIComponent(resultToken)}/files/${fileId}`;
 }
 
 // The parts of XMLHttpRequest the upload uses. Tests pass a fake.
@@ -155,11 +155,11 @@ export function createUploadClient(options: UploadClientOptions = {}): UploadApi
       if (!res.ok) await readAnswer(res);
       return res.blob();
     },
-    openByCode: (token, code) => json<ResultCodeAnswer>('POST', `${base(token)}/cod`, null, { code }),
+    openByCode: (token, code) => json<ResultCodeAnswer>('POST', `${base(token)}/code`, null, { code }),
     getResult: async (resultToken) =>
-      (await json<{ result: StudentResultView }>('GET', `/api/u/rezultat/${encodeURIComponent(resultToken)}`, null)).result,
+      (await json<{ result: StudentResultView }>('GET', `/api/u/result/${encodeURIComponent(resultToken)}`, null)).result,
     resultFileBlob: async (resultToken, fileId) => {
-      const res = await send(`/api/u/rezultat/${encodeURIComponent(resultToken)}/files/${fileId}`, {});
+      const res = await send(`/api/u/result/${encodeURIComponent(resultToken)}/files/${fileId}`, {});
       if (!res.ok) await readAnswer(res);
       return res.blob();
     },

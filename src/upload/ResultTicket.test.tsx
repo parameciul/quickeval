@@ -5,7 +5,7 @@ import { expectNoGradingWords } from '../test/gradingWords.ts';
 import { ResultTicket, TICKET_HOW, TICKET_HOW_NO_CODE } from './ResultTicket.tsx';
 
 const TEST = { title: 'Fracții', className: '6E2', code: '6E2-26T1' };
-const URL_TEXT = `${window.location.origin}/u/rezultat/result-token-11`;
+const URL_TEXT = `${window.location.origin}/u/result/result-token-11`;
 
 // Sets what the browser offers: the share sheet, the clipboard, or neither.
 function browserOffers({ share, writeText }: { share?: (data: ShareData) => Promise<void>; writeText?: (text: string) => Promise<void> }) {

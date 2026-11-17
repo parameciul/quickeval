@@ -499,7 +499,7 @@ describe('the paper page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Link rezultat' }));
     // The upload already has a link, so no new request is needed.
     expect(api.getResultLink).not.toHaveBeenCalled();
-    const url = `${window.location.origin}/u/rezultat/abcdefghijkmnop2abcdefcd`;
+    const url = `${window.location.origin}/u/result/abcdefghijkmnop2abcdefcd`;
     expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('href', url);
     expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('target', '_blank');

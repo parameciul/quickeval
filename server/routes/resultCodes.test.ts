@@ -58,7 +58,7 @@ describe('result codes', () => {
 
     await api.request('POST', `/api/admin/tests/${code}/close`);
     await api.request('POST', `/api/admin/tests/${code}/results/open`);
-    const result = await api.request('GET', `/api/u/rezultat/${resultToken}`);
+    const result = await api.request('GET', `/api/u/result/${resultToken}`);
     expect(result.status).toBe(200);
     expect(result.body.result.resultCode).toBe(resultCode);
   });
@@ -112,7 +112,7 @@ describe('result codes', () => {
 });
 
 describe('opening a result by its code', () => {
-  const typeCode = (typed: string, link = token) => api.request('POST', `/api/u/${link}/cod`, { code: typed });
+  const typeCode = (typed: string, link = token) => api.request('POST', `/api/u/${link}/code`, { code: typed });
   const wrongCode = (right: string) => (right.startsWith('2') ? '3' : '2') + right.slice(1);
 
   it('gives the result link for the right code, through either link of the test', async () => {
@@ -123,6 +123,11 @@ describe('opening a result by its code', () => {
 
     const multi = (await api.request('POST', `/api/admin/tests/${code}/multi-link`)).body.token as string;
     expect((await typeCode(resultCode, multi)).body.resultToken).toBe(resultToken);
+
+    // The first name of the path, for pages opened before the rename.
+    const old = await api.request('POST', `/api/u/${token}/cod`, { code: resultCode });
+    expect(old.status).toBe(200);
+    expect(old.body).toEqual(res.body);
   });
 
   it('reads the code as the student types it, before and after the uploads close', async () => {
@@ -148,7 +153,7 @@ describe('opening a result by its code', () => {
   });
 
   it('refuses a body with no code, an unknown link and a test that has not started', async () => {
-    expect((await api.request('POST', `/api/u/${token}/cod`, {})).status).toBe(400);
+    expect((await api.request('POST', `/api/u/${token}/code`, {})).status).toBe(400);
     expect((await typeCode('K7M92P', 'abcdefghijkmnop2')).status).toBe(404);
     const cls = await makeClass(api, '7A', ['Alt Elev']);
     const draft = await makeTest(api, cls.id, 'Ecuații');
@@ -204,7 +209,7 @@ describe('opening a result by its code', () => {
   });
 
   it('refuses a cross-site request', async () => {
-    const res = await api.fetch(`/api/u/${token}/cod`, {
+    const res = await api.fetch(`/api/u/${token}/code`, {
       method: 'POST',
       body: JSON.stringify({ code: 'K7M92P' }),
       headers: { 'Content-Type': 'application/json', Origin: 'https://example.com' },

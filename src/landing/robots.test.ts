@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import baremRaw from '../../barem/index.html?raw';
-import despreRaw from '../../despre/index.html?raw';
-import ghidRaw from '../../ghid/index.html?raw';
-import preturiRaw from '../../preturi/index.html?raw';
+import baremRaw from '../../marking-scheme/index.html?raw';
+import despreRaw from '../../about/index.html?raw';
+import ghidRaw from '../../guide/index.html?raw';
+import preturiRaw from '../../pricing/index.html?raw';
 import llms from '../../public/llms.txt?raw';
 import robots from '../../public/robots.txt?raw';
 import sitemap from '../../public/sitemap.xml?raw';
@@ -68,10 +68,10 @@ describe('sitemap.xml and llms.txt', () => {
     // The landing page first, then the four pages that answer a search.
     expect(urls).toEqual([
       'https://mqgrader.ro/',
-      'https://mqgrader.ro/ghid/',
-      'https://mqgrader.ro/barem/',
-      'https://mqgrader.ro/despre/',
-      'https://mqgrader.ro/preturi/',
+      'https://mqgrader.ro/guide/',
+      'https://mqgrader.ro/marking-scheme/',
+      'https://mqgrader.ro/about/',
+      'https://mqgrader.ro/pricing/',
     ]);
     // The private apps and a Quick Try's page are never in it.
     for (const url of urls) expect(url).not.toMatch(/\/(teacher|u|try)\//);

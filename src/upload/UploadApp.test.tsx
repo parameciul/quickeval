@@ -32,7 +32,7 @@ describe('UploadApp', () => {
     expect(banner).toHaveTextContent('by Laura Miron');
     expect(within(banner).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
       'https://mqgrader.ro/',
-      'https://mqgrader.ro/despre/',
+      'https://mqgrader.ro/about/',
     ]);
     expect(within(banner).getByRole('button', { name: 'Temă întunecată' })).toBeInTheDocument();
     expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
@@ -227,7 +227,7 @@ describe('UploadApp', () => {
     expect(await screen.findByText('Încărcat')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Am trimis tot' }));
     expect(await screen.findByRole('heading', { name: 'Gata! Lucrarea ta a fost trimisă.' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
+    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/result/result-token-11`);
     // The ticket: a screenshot of it holds the QR code and the short code.
     const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
     expect(within(ticket).getByText('Fracții')).toBeInTheDocument();
@@ -235,7 +235,7 @@ describe('UploadApp', () => {
     expect(within(ticket).getByText('K7M-92P')).toBeInTheDocument();
     // The whole address is text on the page (not cut off in a field), one tap away.
     await userEvent.click(within(ticket).getByRole('button', { name: 'Arată linkul întreg' }));
-    expect(screen.getByText(`${window.location.origin}/u/rezultat/result-token-11`)).toHaveClass('result-link-url');
+    expect(screen.getByText(`${window.location.origin}/u/result/result-token-11`)).toHaveClass('result-link-url');
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.getByText('Rezultatul apare aici după ce profesorul publică rezultatele: nota, punctajul pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.')).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(`qe.result.${LINK_TOKEN}.11`)!)).toEqual({ resultToken: 'result-token-11', studentName: 'Pop Ion', resultCode: 'K7M92P' });
@@ -248,7 +248,7 @@ describe('UploadApp', () => {
     saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
     render(<UploadApp api={api} token={LINK_TOKEN} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
-    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
+    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/result/result-token-11`);
     const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
     expect(within(ticket).getByText('K7M-92P')).toBeInTheDocument();
     // Not right after sending: no word on when the result appears.
@@ -276,7 +276,7 @@ describe('UploadApp', () => {
     saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion');
     render(<UploadApp api={api} token={LINK_TOKEN} />);
     expect(await screen.findByText('Rezultatele au fost publicate.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
+    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/result/result-token-11`);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText(/cere profesorului linkul tău/)).not.toBeInTheDocument();
     expectNoGradingWords();
@@ -290,7 +290,7 @@ describe('UploadApp', () => {
     // remembered which test a link belongs to.
     saveResultLink(other, 11, 'result-token-11', 'Pop Ion');
     const first = render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/rezultat/result-token-11`);
+    expect(await screen.findByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/result/result-token-11`);
     // Kept before links had codes: the ticket has the QR code and no code row.
     const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
     expect(within(ticket).getByTitle('Codul QR al rezultatului')).toBeInTheDocument();
@@ -364,7 +364,7 @@ describe('UploadApp', () => {
     render(<UploadApp api={api} token={LINK_TOKEN} />);
     expect(await screen.findByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute(
       'href',
-      `${window.location.origin}/u/rezultat/result-token-11`,
+      `${window.location.origin}/u/result/result-token-11`,
     );
     expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
     expect(screen.getByText(/Ai trimis deja lucrarea de pe acest telefon/)).toBeInTheDocument();
@@ -391,7 +391,7 @@ describe('UploadApp', () => {
     expect(await screen.findByRole('heading', { name: 'Alege-ți numele' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute(
       'href',
-      `${window.location.origin}/u/rezultat/result-token-11`,
+      `${window.location.origin}/u/result/result-token-11`,
     );
     // The sent student cannot be picked again, but another one can.
     expect(screen.getByRole('button', { name: 'Pop Ion, a trimis' })).toBeDisabled();
