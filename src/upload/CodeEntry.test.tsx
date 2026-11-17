@@ -143,6 +143,26 @@ describe('the code field on the closed test page', () => {
     expect(api.openByCode).not.toHaveBeenCalled();
   });
 
+  // Every text sent costs one of the test's shared tries: a text that can
+  // never be a code (too short, or with a character the codes do not use)
+  // stays on the phone.
+  it('does not send a text that can never be a code, so it costs no try', async () => {
+    const api = createFakeUploadApi(published());
+    render(<UploadApp api={api} token={LINK_TOKEN} goTo={vi.fn()} />);
+    await screen.findByText('Rezultatele au fost publicate.');
+    const button = () => screen.getByRole('button', { name: 'Vezi rezultatul' });
+    const message = 'Codul are 6 caractere, fără 0, O, 1, I sau L. Verifică biletul.';
+    for (const typed of ['K7M92', 'K7MO2P', 'K7M12P']) {
+      await userEvent.clear(field());
+      await userEvent.type(field(), typed);
+      await userEvent.click(button());
+      expect(await screen.findByRole('alert')).toHaveTextContent(message);
+      expect(field()).toHaveAttribute('aria-invalid', 'true');
+    }
+    expect(api.openByCode).not.toHaveBeenCalled();
+    expectNoGradingWords();
+  });
+
   it('keeps the field behind "Am alt cod" when this phone has a ticket', async () => {
     const api = createFakeUploadApi(published());
     saveResultLink(LINK_TOKEN, 12, 'result-token-12', 'Stan Eva', 'ABC234');

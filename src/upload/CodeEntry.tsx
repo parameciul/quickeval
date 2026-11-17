@@ -1,13 +1,13 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
 import type { ResultCodeAnswer } from '../../shared/api.ts';
-import { RESULT_CODE_LENGTH } from '../../shared/tests.ts';
+import { normalizeResultCode, RESULT_CODE_LENGTH } from '../../shared/tests.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { messageOf } from '../ui/ApiError.ts';
 import type { UploadApi } from './api.ts';
 
 // The code as the field shows it while the student types: capitals, only
 // letters and digits, a dash after the third. What is not in the codes'
-// alphabet stays, so the student sees what was typed; the server refuses it.
+// alphabet stays, so the student sees what was typed; the field refuses it.
 export function typedCode(raw: string): string {
   const plain = raw
     .toUpperCase()
@@ -43,6 +43,12 @@ export function CodeEntry({
     if (working.current) return;
     if (code === '') {
       setError('Scrie codul de pe biletul tău.');
+      return;
+    }
+    // Every text sent costs one of the test's shared tries, so a text that
+    // can never be a code is refused here and costs none.
+    if (normalizeResultCode(code) === null) {
+      setError('Codul are 6 caractere, fără 0, O, 1, I sau L. Verifică biletul.');
       return;
     }
     working.current = true;
