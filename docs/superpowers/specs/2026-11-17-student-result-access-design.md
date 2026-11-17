@@ -53,19 +53,20 @@ For the screen: design A of the mockup, "the ticket" (the user's pick over B, "t
 ## 5. The code
 
 - Six characters from `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (31 characters: no 0, O, 1, I, L). Stored without a dash, shown as `K7M-92P`.
-- `shared/tests.ts` holds the alphabet, `normalizeResultCode(raw)` (upper case; drops spaces and dashes; null unless six characters of the alphabet) and `formatResultCode(code)`. `server/secrets.ts` makes a new code with the crypto random source, beside `newResultToken()`.
+- `shared/tests.ts` holds the alphabet, `normalizeResultCode(raw)` (upper case; drops spaces and dashes; null unless six characters of the alphabet) and `formatResultCode(code)`.
 - Migration `0034_result_codes.sql`:
   - `ALTER TABLE submissions ADD COLUMN result_code TEXT`.
+  - A code for every paper that already has a `result_token` (not a Quick Try's), drawn again where two papers of one test drew the same, before the index.
   - A unique index on `(test_id, result_code)` where `result_code IS NOT NULL`.
+  - Two triggers (after an INSERT, and after an UPDATE of `result_token`) give a paper its code whenever it gets its `result_token` and has no code, unless its test is a Quick Try. So every path that makes a link makes its code: the INSERT of `createSubmission`, and the lazy UPDATEs of `confirmResultToken` and `teacherResultToken`. A clash fails the statement on the unique index, and the caller tries again with a new token, as it does today (three tries).
   - A table `result_code_tries (test_id INTEGER PRIMARY KEY, tries INTEGER NOT NULL, since TEXT NOT NULL)`. It has no `teacher_versions` trigger: no teacher page shows it.
-- A paper gets its code in the same statement that gives it its `result_token`: the INSERT of `createSubmission`, and the lazy UPDATEs of `confirmResultToken` and `teacherResultToken` (which now also fill a missing code on a paper that has a token). A unique clash makes a new code and tries again, as the token does today (three tries).
-- An older paper with a token and no code gets its code the first time its result link is confirmed, asked for by the teacher, or read (`GET /api/u/rezultat/<token>`: one guarded UPDATE, only when the code is null).
+- The code comes from SQLite's `random()`, not from the crypto source: it is a short key used only with the test's own link, behind the limit of §6, not a secret on its own.
+- A paper whose link is made again keeps its code. A reset deletes the paper, so its code goes with it.
 - A Quick Try paper has no code (null).
-- A reset deletes the paper, so its code goes with it.
 
 ## 6. The API
 
-- `ConfirmAnswer` gains `resultCode: string`.
+- `ConfirmAnswer` gains `resultCode: string | null`.
 - `StudentResultView` gains `resultCode: string | null` (null for a Quick Try).
 - The teacher's uploads rows gain `resultCode: string | null`, read in the query that already reads `result_token` (no new query).
 - New: `POST /api/u/:token/cod`, body `{ code }` (a zod schema in `shared/api.ts`). It stays under the `promoteDue` middleware and the same-origin write check.
@@ -94,26 +95,27 @@ Under the card:
 - "Arată linkul întreg": opens the whole address as text that wraps (`.result-link-url`) with "Copiază linkul". The address is never cut off.
 - "Vezi rezultatul", a plain link to the result page.
 
-The ticket replaces `ResultLinkBox` on the "sent" screen, the locked screen, the kept links above the name list and the closed screen. On the "sent" screen it also keeps the line "Rezultatul apare după ce profesorul publică rezultatele." A link kept by an older version of the page has no code and no test title: the page reads them once from `GET /api/u/rezultat/<token>` and keeps them (`SavedResultLink` gains `resultCode` and `testTitle`); until the answer comes, and when it fails, the ticket shows without the code row.
+The ticket replaces `ResultLinkBox` on the "sent" screen, the locked screen, the kept links above the name list and the closed screen. On the "sent" screen it also keeps the line "Rezultatul apare aici după ce profesorul publică rezultatele: …". The test's title comes from the page's link (`LinkInfo.test`), so the phone keeps only the code beside each link (`SavedResultLink.resultCode`). A link kept by an older version of the page has no code: its ticket shows without the code row, and learns the code the first time its result page opens (`rememberResultCode`). It cannot be read before: the result page answers 403 while the results are closed.
 
 ### 7.2 The saved picture (`src/upload/ticketImage.ts`)
 
-- A PNG of 1080 × 1350, white, drawn on a canvas: the MQGrader mark and "MQGrader by Laura Miron", the test's title (two lines at most, then "…"), "<student> · <class> · <date sent, Romania's time>", the QR code, "Codul tău", the code, and the line of §7.1. No grade, no points.
-- It waits for the page's font (`document.fonts.ready`) and falls back to the system font.
-- The file is named `rezultat-<test code>-<student name folded to ASCII>.png`.
-- Saving: when the browser can share files (`navigator.canShare({ files })`) and the device is an iPhone or iPad, the share sheet opens (it has "Save Image"); everywhere else the file downloads (`saveFile` of `src/admin/pdf/share.ts`). A failure says "Nu am putut salva biletul. Fă o poză ecranului."
-- After a save the button says "Biletul a fost salvat" for a few seconds.
+- A PNG of 1080 × 1350, white in both themes, drawn on a canvas: the MQGrader mark and "MQGrader by Laura Miron", the test's title (two lines at most, then "…"), "<student> · Clasa <class> · <test code>", the QR code, "Codul tău", the code, and the line of §7.1. No grade, no points, no date.
+- It waits for the page's font (`document.fonts`) and falls back to the system font.
+- The file is named `bilet-<test code>-<student name folded to ASCII>.png`.
+- The picture is made once, as soon as the ticket shows, so the tap saves it with no wait: an iPhone opens its share sheet only inside the tap, and refuses it after the waits of drawing. A tap before the picture is ready waits for it; a picture that failed is made again on the tap.
+- Saving: on an iPhone or iPad (an iPad that says it is a Mac has a touch screen), the share sheet opens (it has "Save Image"), and the file downloads when the sheet is not possible; everywhere else the file downloads (`saveFile` of `src/admin/pdf/share.ts`). A failure says "Nu am putut salva biletul. Fă o poză ecranului."
+- After a save, "Biletul a fost salvat. Îl găsești lângă pozele tale sau în descărcări." shows for a few seconds. A closed share sheet says nothing.
 
 ### 7.3 The result page
 
-`ResultActions` gains "Salvează biletul" beside "Trimite linkul" and "Descarcă PDF" (not on a Quick Try: `resultCode` is null). It makes the same picture.
+`ResultActions` gains "Salvează biletul" between "Trimite linkul" and "Descarcă PDF", also before the result is graded. It makes the same picture. A Quick Try's page does not use `ResultActions`, so it has no ticket.
 
 ### 7.4 The test's page after the uploads closed (`ClosedScreen`)
 
 - With a kept link: the tickets, then a quiet link "Am alt cod", which opens the field.
 - With no kept link: the field at once, in both states (results published or not):
   - "Scrie codul tău", one large field (`autocapitalize="characters"`, `autocomplete="off"`, no spell check; it shows the dash by itself after the third character), and "Vezi rezultatul".
-  - A good code keeps the link on this phone (`saveResultLink`, under this link's token) and opens the result page.
+  - A good code keeps the link on this phone (`saveResultLink`, under this link's token, marked `byCode`) and, once the results are published, opens the result page; before that, the page shows the ticket. A link opened with a code never locks the default link (`singleUploadLocked`): a borrowed phone must still send its own paper if the teacher opens the uploads again. A link this phone already keeps for that student stays as it is.
   - A refusal shows the API's message under the field, and the field keeps what was typed.
   - Under it, "Nu știi codul?": "Caută în poze biletul cu codul QR." / "Caută în mesaje linkul pe care ți l-ai trimis." / "Deschide testul pe telefonul cu care ai trimis lucrarea." / "Dacă nu găsești nimic, cere profesorului codul tău."
 - The old hint ("Linkul cu rezultatul tău este salvat pe telefonul…") goes: the list says it.
@@ -121,8 +123,8 @@ The ticket replaces `ResultLinkBox` on the "sent" screen, the locked screen, the
 
 ## 8. The teacher pages
 
-- `ResultLinksTable` shows each paper's code beside "Copiază linkul", so the teacher can read it out.
-- `ResultsAccess`: the second way ("the test's link for the students scanned again") gains one sentence: the student types the code there.
+- `ResultLinksTable` shows each paper's code beside "Copiază linkul", so the teacher can read it out ("Codul" before it, for screen readers only).
+- `ResultsAccess`: the second way's last line becomes "Pe alt telefon, elevul scrie codul de pe biletul lui. Codul fiecărui elev este și în tabelul „Elevii”."
 - Nothing else changes. The CSV and the PDFs carry no code.
 
 ## 9. Tests
@@ -137,14 +139,11 @@ The ticket replaces `ResultLinkBox` on the "sent" screen, the locked screen, the
 - The limit: 10 wrong tries per test per 10 minutes; a right code does not count. A classmate who types 10 wrong codes closes the field for the whole test for at most 10 minutes; the kept links, the QR codes and the teacher's links still work. Accepted.
 - The lazy fill of an old paper's code is one more change of its `submissions` row, so the teacher's page reads once more. Accepted: it happens once per old paper.
 - The button is "Salvează biletul", not "Salvează în poze": on Android the file goes to the downloads, which most galleries show as an album, but not all.
-- The iPhone opens the share sheet for the picture; other phones download it. Both need a look on real phones before the merge.
+- The iPhone opens the share sheet for the picture; other phones download it. Both need a look on real phones before the merge, and so does a scan of a screenshot (light and dark) and of the saved picture.
 - The code route works before the results are published.
 - The teacher sees the code only in the links table.
 - The picture carries the student's name (a shared phone holds several tickets).
 
-## 11. Left to the builder
+## 11. Settled by the prototype
 
-- The exact SQL of the try upsert and of the lazy fill, within the rules of `server/AGENTS.md`.
-- The ticket's CSS in `src/ui/brand.css`, both themes, from the mockup's values.
-- How the canvas gets the QR code (a hidden `QRCodeCanvas`, or the modules drawn as rectangles).
-- The updates of `AGENTS.md`, `src/AGENTS.md` and `server/AGENTS.md`.
+The prototype (2026-11-17) settled what this section once left to the builder: the SQL of the codes and of the try upsert (§5, §6), the ticket's CSS in both themes (a white edge of about four modules around the QR code, for a dark page), the hidden `QRCodeCanvas` the picture is drawn from, and the notes in `src/AGENTS.md` and `server/AGENTS.md`. It was checked in the browser at 375 px and on a desktop, light and dark, and the saved picture was looked at as a file.
