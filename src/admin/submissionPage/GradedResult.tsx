@@ -13,7 +13,7 @@ type Saved = (submission: SubmissionDetail) => Promise<void>;
 type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>;
 
 // The paper page's hold on the rows (spec 2026-11-12 §4.4): the open row
-// (an item's id, or "pagini" for the pages the robot could not read), the
+// (an item's id, or "pages" for the pages the robot could not read), the
 // rows to check opened before it that stay open (`keptKeys`: a row that
 // closed would move the rows under it), a click on a row (the page opens it,
 // or closes it when it is the open one; `byRow` for a click on the row or its

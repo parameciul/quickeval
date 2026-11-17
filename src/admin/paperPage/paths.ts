@@ -2,10 +2,10 @@ import type { UploadRow } from '../../../shared/api.ts';
 import { papersToCheck, pointKey, pointQueue, reviewPath, type QueuedPoint } from '../reviewPage/points.ts';
 
 // The paper page (spec 2026-11-12 §4): one student's exercises beside the
-// paper. "toate" shows every exercise, "verificare" only the points to check.
+// paper. "all" shows every exercise, "review" only the points to check.
 export type PaperMode = 'all' | 'review';
 
-// A spot of the page: a paper, and its open exercise ("pagini" for the pages
+// A spot of the page: a paper, and its open exercise ("pages" for the pages
 // the robot could not read) or none.
 export interface PaperSpot {
   submissionId: number;

@@ -4,6 +4,7 @@ import { englishAddress, englishHash, englishPath, englishSearch } from './legac
 describe('englishPath', () => {
   it.each([
     ['/teste/nou', '/tests/new'],
+    ['/teste/nou/', '/tests/new/'],
     ['/teste/6E2-26T1', '/tests/6E2-26T1'],
     ['/teste/6E2-26T1/elevi/5', '/tests/6E2-26T1/papers/5'],
     ['/teste/6E2-26T1/raport', '/tests/6E2-26T1/report'],
@@ -48,6 +49,9 @@ describe('englishSearch', () => {
     expect(englishSearch('?q=stef&arata=elevi')).toBe('?q=stef&show=students');
     expect(englishSearch('?tab=corectarea')).toBe('?tab=grading');
     expect(englishSearch('?tab=robotul')).toBe('?tab=robot');
+    expect(englishSearch('?tab=conturi')).toBe('?tab=accounts');
+    expect(englishSearch('?q=pop&arata=clase')).toBe('?q=pop&show=classes');
+    expect(englishSearch('?q=pop&arata=teste')).toBe('?q=pop&show=tests');
   });
 
   it("keeps Stripe's session_id when it turns the payment's return", () => {
@@ -59,6 +63,13 @@ describe('englishSearch', () => {
     for (const search of ['', '?', '?q=stef%20ana', '?paper=12&item=pages', '?tab=altceva', '?here=1']) {
       expect(englishSearch(search)).toBe(search);
     }
+  });
+
+  it('keeps the text of a search when it turns its other names', () => {
+    const search = englishSearch('?q=%C8%99tefan+ana%2B1&arata=elevi');
+    expect(search).toBe('?q=%C8%99tefan+ana%2B1&show=students');
+    expect(new URLSearchParams(search).get('q')).toBe('ștefan ana+1');
+    expect(new URLSearchParams(englishSearch('?q=a%20b&clasa=2')).get('q')).toBe('a b');
   });
 
   it('turns a value only under its own name', () => {

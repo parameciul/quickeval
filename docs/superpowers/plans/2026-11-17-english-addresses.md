@@ -128,7 +128,7 @@ Not indexed, so no SEO risk. The risk is links in sent emails and bookmarks.
 
 - `lucrare`→`paper`, `punct`→`item` (`pagini`→`pages`), `clasa`→`class`,
   `arhivate`→`archived`, `vedere`→`view` (`toate`→`all`), `arata`→`show`,
-  `tab` values `robotul`→`robot`, `corectarea`→`grading`, `altceva`→`other`.
+  `tab` values `robotul`→`robot`, `corectarea`→`grading` (`altceva` was only an unknown tab in a test, never an address).
 - Stage anchors: `#pregatire`→`#prepare`, `#tiparire`→`#print`, `#in-clasa`→`#in-class`,
   `#corectare`→`#grading`, `#verificare`→`#review`, `#rezultate`→`#results`.
 - Read old and new names; write only new ones. One small helper per page, so the

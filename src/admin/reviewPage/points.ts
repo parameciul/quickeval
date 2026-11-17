@@ -20,7 +20,7 @@ export interface ReviewSpot {
   key: string | null;
 }
 
-// The point's name in the address: the item's id, or "pagini" for the pages
+// The point's name in the address: the item's id, or "pages" for the pages
 // the robot could not read.
 export function pointKey(point: ReviewPoint): string {
   return point.kind === 'pages' ? 'pages' : String(point.itemId);

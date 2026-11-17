@@ -59,7 +59,8 @@ export function englishPath(pathname: string): string {
   const first = own(FIRST, parts[1]);
   if (first === undefined) return pathname;
   if (parts[1] === 'teste') {
-    if (parts[2] === 'nou' && parts.length === 3) parts[2] = 'new';
+    // "/teste/nou" and "/teste/nou/": React Router opened Test nou for both.
+    if (parts[2] === 'nou' && (parts.length === 3 || (parts.length === 4 && parts[3] === ''))) parts[2] = 'new';
     const under = own(UNDER_TEST, parts[3]);
     if (under !== undefined) parts[3] = under;
   }
