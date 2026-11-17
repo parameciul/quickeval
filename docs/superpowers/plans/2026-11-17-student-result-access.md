@@ -39,7 +39,7 @@ Settled while building the prototype and looking at it on 2026-11-17 (375 px and
 1. **The database makes the codes.** Two triggers of migration 0034 give a paper its code when it gets its `result_token` and has none, from SQLite's `random()`; a Quick Try's test gets none. The code is never a secret on its own: it works only with the test's own link and behind the limit.
 2. **The limit:** 10 wrong codes per test in 10 minutes (`RESULT_CODE_TRIES`, `RESULT_CODE_WINDOW_MINUTES`); a right code gives its try back; a text that is not a code costs a try; refused tries do not move the window. The route answers before and after the results are published.
 3. **The ticket's buttons:** "Salvează biletul" (filled), "Trimite-mi linkul", then the links "Vezi rezultatul" and "Arată linkul întreg". The share sheet gets the text "Codul meu: K7M-92P".
-4. **The picture is made as the ticket shows.** An iPhone opens its share sheet only inside the tap; the picture is ready by then, so the tap calls the save with no wait. On an iPhone or iPad the share sheet opens ("Save Image"), elsewhere the file downloads as `bilet-<test code>-<student>.png`. The page and the picture always show the QR code dark on white, with a wide white edge.
+4. **On an iPhone or iPad the picture is made as the ticket shows.** Their share sheet opens only inside the tap; the picture is ready by then, so the tap calls the save with no wait, and the share sheet offers "Save Image". Elsewhere the file downloads as `bilet-<test code>-<student>.png`, and the picture is made on the tap. A page with many tickets (a shared phone) makes one picture at a time, the hidden QR canvas is about `QR_SIZE` (520) real pixels whatever the screen's pixel ratio (the QR library multiplies by it), and every canvas is emptied or removed once its picture is made or failed: a phone limits canvas memory. The page and the picture always show the QR code dark on white, with a wide white edge.
 5. **A link opened with a code is marked `byCode`** and never locks the default link of that phone; a link the phone already keeps for that student stays as it was.
 6. **Old kept links** (from before codes) show their ticket without the code row, and learn their code when their result page opens.
 7. **The test browser has no canvas:** `src/test/setup.ts` makes `getContext` return `null` (as jsdom's own does) without jsdom's "Not implemented" line for every QR code and ticket picture.
@@ -48,7 +48,7 @@ Settled while building the prototype and looking at it on 2026-11-17 (375 px and
 
 1. A guesser with the test's link types codes one after another: the 11th wrong code within 10 minutes is refused, also when it is the right one, and the field opens again after the window (Task 2: "stops after 10 wrong codes in 10 minutes, for the right code too, then opens again").
 2. A borrowed phone opens a friend's result with the code, then the teacher opens the uploads again: that phone can still send its own paper (Task 5: "does not lock the default link of a phone that only opened a result with its code").
-3. An iPhone tap on "Salvează biletul" must reach the save with no wait, or Safari refuses the share sheet and the picture lands in Files (Task 4: "saves the picture inside the tap, with no wait, and says so"; and "waits for the picture when the tap comes before it is ready").
+3. An iPhone tap on "Salvează biletul" must reach the save with no wait, or Safari refuses the share sheet and the picture lands in Files; and a shared phone with many tickets must not run out of canvas memory (Task 4: "saves the picture inside the tap, with no wait, and says so"; "waits for the picture when the tap comes before it is ready"; "makes one picture at a time when many tickets show").
 4. A link kept before codes existed still shows a working ticket, and learns its code later (Task 3: "shows no code row for a link kept before links had codes"; Task 4: "teaches the code to a link this phone kept before links had codes").
 5. A paper the teacher reset loses its code with it, so an old screenshot of that code opens nothing (Task 2: "forgets the code of a paper the teacher reset").
 
@@ -2606,11 +2606,11 @@ The `git diff` line prints nothing.
 
 **Files:**
 - Create: `src/upload/ticketImage.ts`, `src/upload/ticketImage.test.ts`, `src/upload/SaveTicket.tsx`, `src/upload/SaveTicket.test.tsx`
-- Modify: `src/test/setup.ts`, `src/upload/ResultTicket.tsx`, `src/upload/ResultActions.tsx`, `src/upload/ResultActions.test.tsx`, `src/upload/ResultApp.tsx`, `src/upload/ResultApp.test.tsx`, `src/upload/resultLinks.ts`
+- Modify: `src/test/setup.ts`, `src/upload/ResultTicket.tsx`, `src/upload/ResultActions.tsx`, `src/upload/ResultActions.test.tsx`, `src/upload/ResultApp.tsx`, `src/upload/ResultApp.test.tsx`, `src/upload/resultLinks.ts`, and spec §7.2 (`docs/superpowers/specs/2026-11-17-student-result-access-design.md`: the picture is made early only on an iPhone or iPad, and the canvas memory)
 
 **Interfaces:**
 - Consumes: Task 3's `ResultTicket`, `TICKET_HOW`, `TICKET_HOW_NO_CODE`; `saveFile` and `shareFile` of `src/admin/pdf/share.ts`.
-- Produces: `TicketPicture { testTitle; studentName; classLine; code: string | null; how; qr: CanvasImageSource }`, `TICKET_WIDTH` (1080), `TICKET_HEIGHT` (1350), `ticketFileName(testCode, studentName)`, `wrapLines(measure, text, width, maxLines)`, `drawTicket(context, picture)`, `renderTicket(picture): Promise<Blob>`, `savesThroughShare(): boolean`, `saveTicket(blob, fileName, title): Promise<ShareResult>` in `src/upload/ticketImage.ts`; `useSaveTicket({ url, testCode, picture: Omit<TicketPicture, 'qr'>, className }): { button: ReactNode; note: ReactNode }` in `src/upload/SaveTicket.tsx`; `rememberResultCode(resultToken, resultCode)` in `src/upload/resultLinks.ts`.
+- Produces: `TicketPicture { testTitle; studentName; classLine; code: string | null; how; qr: CanvasImageSource }`, `TICKET_WIDTH` (1080), `TICKET_HEIGHT` (1350), `QR_SIZE` (520), `ticketFileName(testCode, studentName)`, `wrapLines(measure, text, width, maxLines)`, `drawTicket(context, picture)`, `renderTicket(picture): Promise<Blob>`, `savesThroughShare(): boolean`, `saveTicket(blob, fileName, title): Promise<ShareResult>` in `src/upload/ticketImage.ts`; `useSaveTicket({ url, testCode, picture: Omit<TicketPicture, 'qr'>, className }): { button: ReactNode; note: ReactNode }` in `src/upload/SaveTicket.tsx`; `rememberResultCode(resultToken, resultCode)` in `src/upload/resultLinks.ts`.
 
 - [ ] **Step 1: Create `src/upload/ticketImage.test.ts`**
 
@@ -2769,12 +2769,14 @@ describe('drawTicket', () => {
 });
 
 describe('renderTicket', () => {
-  it('draws on a canvas of the picture size and gives a PNG', async () => {
+  it('draws on a canvas of the picture size, gives a PNG and frees the canvas', async () => {
     const { context } = fakeContext();
     const png = new Blob(['png'], { type: 'image/png' });
     const sizes: number[][] = [];
+    const canvases: HTMLCanvasElement[] = [];
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement) {
       sizes.push([this.width, this.height]);
+      canvases.push(this);
       return context;
     } as never);
     const toBlob = vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (callback: BlobCallback) {
@@ -2783,6 +2785,8 @@ describe('renderTicket', () => {
     await expect(renderTicket(picture)).resolves.toBe(png);
     expect(sizes).toEqual([[TICKET_WIDTH, TICKET_HEIGHT]]);
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
+    // Phones limit canvas memory: the canvas is emptied once the PNG is made.
+    expect([canvases[0]!.width, canvases[0]!.height]).toEqual([0, 0]);
   });
 
   it('fails when the browser gives no canvas or no picture', async () => {
@@ -2835,12 +2839,13 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoGradingWords } from '../test/gradingWords.ts';
 import { ResultTicket, TICKET_HOW } from './ResultTicket.tsx';
-import { renderTicket, saveTicket } from './ticketImage.ts';
+import { renderTicket, saveTicket, savesThroughShare } from './ticketImage.ts';
 
 vi.mock('./ticketImage.ts', async (original) => ({
   ...(await original<typeof import('./ticketImage.ts')>()),
   renderTicket: vi.fn(),
   saveTicket: vi.fn(),
+  savesThroughShare: vi.fn(),
 }));
 
 const TEST = { title: 'Fracții', className: '6E2', code: '6E2-26T1' };
@@ -2862,11 +2867,14 @@ async function showReady(resultCode: string | null = 'K7M92P') {
 beforeEach(() => {
   vi.mocked(renderTicket).mockResolvedValue(png);
   vi.mocked(saveTicket).mockResolvedValue('downloaded');
+  // An iPhone: the picture is made as the ticket shows.
+  vi.mocked(savesThroughShare).mockReturnValue(true);
 });
 
 afterEach(() => {
   vi.mocked(renderTicket).mockReset();
   vi.mocked(saveTicket).mockReset();
+  vi.mocked(savesThroughShare).mockReset();
   vi.useRealTimers();
 });
 
@@ -2954,8 +2962,8 @@ describe('Salvează biletul', () => {
     show();
     await vi.waitFor(() => expect(renderTicket).toHaveBeenCalledTimes(1));
     await act(async () => {});
-    // The QR canvas stays for the second try.
-    expect(document.querySelector('canvas')).not.toBeNull();
+    // The QR canvas goes after a failure too; the tap draws it again.
+    expect(document.querySelector('canvas')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Salvează biletul' }));
     expect(await screen.findByRole('status')).toBeInTheDocument();
     expect(renderTicket).toHaveBeenCalledTimes(2);
@@ -2973,6 +2981,50 @@ describe('Salvează biletul', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salvează biletul' }));
     expect(await screen.findByRole('status')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('makes the picture on the tap on a phone that downloads it', async () => {
+    vi.mocked(savesThroughShare).mockReturnValue(false);
+    show();
+    await act(async () => {});
+    expect(renderTicket).not.toHaveBeenCalled();
+    expect(document.querySelector('canvas')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Salvează biletul' }));
+    expect(await screen.findByRole('status')).toBeInTheDocument();
+    expect(renderTicket).toHaveBeenCalledTimes(1);
+    expect(saveTicket).toHaveBeenCalledWith(png, 'bilet-6E2-26T1-Pop-Ion.png', 'Pop Ion · Fracții');
+  });
+
+  it('makes one picture at a time when many tickets show', async () => {
+    let running = 0;
+    let most = 0;
+    const finish: (() => void)[] = [];
+    vi.mocked(renderTicket).mockImplementation(
+      () =>
+        new Promise<Blob>((resolve) => {
+          running += 1;
+          most = Math.max(most, running);
+          finish.push(() => {
+            running -= 1;
+            resolve(png);
+          });
+        }),
+    );
+    render(
+      <>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <ResultTicket key={n} resultToken={`result-token-${n}`} resultCode="K7M92P" studentName={`Elev ${n}`} test={TEST} />
+        ))}
+      </>,
+    );
+    for (let n = 1; n <= 5; n++) {
+      await vi.waitFor(() => expect(renderTicket).toHaveBeenCalledTimes(n));
+      // At most one hidden QR canvas on the page.
+      expect(document.querySelectorAll('canvas').length).toBeLessThanOrEqual(1);
+      await act(async () => finish[n - 1]!());
+    }
+    expect(most).toBe(1);
+    expect(document.querySelector('canvas')).toBeNull();
   });
 
   it('tells the student when the phone refuses to save it', async () => {
@@ -3070,7 +3122,6 @@ describe('Salvează biletul on the result page', () => {
     vi.mocked(renderTicket).mockResolvedValue(png);
     vi.mocked(saveTicket).mockResolvedValue('downloaded');
     render(<ResultActions result={graded} url={URL_TEXT} />);
-    await vi.waitFor(() => expect(renderTicket).toHaveBeenCalledTimes(1));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Salvează biletul' }));
     });
@@ -3191,7 +3242,8 @@ export const TICKET_WIDTH = 1080;
 export const TICKET_HEIGHT = 1350;
 
 const MARGIN = 80;
-const QR_SIZE = 520;
+// The QR code's side in the picture, in pixels.
+export const QR_SIZE = 520;
 // A white edge around the QR code, which readers need.
 const QR_EDGE = 28;
 const FONT = '"Schibsted Grotesk", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif';
@@ -3343,7 +3395,13 @@ export async function renderTicket(picture: TicketPicture): Promise<Blob> {
   if (!context) throw new Error('no canvas');
   drawTicket(context, picture);
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('no picture'))), 'image/png');
+    canvas.toBlob((blob) => {
+      // Phones limit canvas memory: free this one at once.
+      canvas.width = 0;
+      canvas.height = 0;
+      if (blob) resolve(blob);
+      else reject(new Error('no picture'));
+    }, 'image/png');
   });
 }
 
@@ -3369,23 +3427,36 @@ export async function saveTicket(blob: Blob, fileName: string, title: string): P
 import { QRCodeCanvas } from 'qrcode.react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
-import { renderTicket, saveTicket, ticketFileName, type TicketPicture } from './ticketImage.ts';
+import { QR_SIZE, renderTicket, saveTicket, savesThroughShare, ticketFileName, type TicketPicture } from './ticketImage.ts';
 
 // How long "Biletul a fost salvat." stays on screen.
 const SAVED_MS = 4000;
 
 type SaveState = 'idle' | 'busy' | 'saved' | 'failed';
 
+// One picture at a time on the page: each holds two canvases while it is
+// drawn, and a phone limits canvas memory (a shared phone may show many
+// tickets). A turn ends when its picture is made or failed.
+let line: Promise<void> = Promise.resolve();
+
+function takeTurn(): Promise<() => void> {
+  let release: () => void = () => {};
+  const done = new Promise<void>((resolve) => (release = resolve));
+  const turn = line.then(() => release);
+  line = line.then(() => done);
+  return turn;
+}
+
 // "Salvează biletul": saves the result ticket as a picture, one tap, so it
 // lands beside the student's photos. Gives the button and, apart, the note of
 // what happened, so each page puts them where its layout wants them.
 //
-// The picture is made once, as soon as the ticket shows, so a tap saves it
-// with no wait: an iPhone opens its share sheet (with "Save Image") only right
-// in the tap, and refuses it after the waits of drawing the picture. A tap
-// that comes before the picture is ready waits for it. The QR code is drawn
-// on a hidden canvas, which goes once the picture is made (phones limit
-// canvas memory); after a failure it stays, so a tap can try again.
+// On an iPhone or iPad the picture is made as soon as the ticket shows (one
+// ticket at a time), so a tap saves it with no wait: the share sheet opens
+// only right inside the tap, and is refused after the waits of drawing the
+// picture. Elsewhere the file downloads, which may wait, so the picture is
+// made on the tap. A picture that failed is made again on the next tap. The
+// QR code is drawn on a hidden canvas only while a picture is made.
 export function useSaveTicket({
   url,
   testCode,
@@ -3400,55 +3471,74 @@ export function useSaveTicket({
 }): { button: ReactNode; note: ReactNode } {
   const qr = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<SaveState>('idle');
-  const [drawing, setDrawing] = useState(true);
+  // A picture is being drawn while `round` is ahead of `doneRound`.
+  const [round, setRound] = useState(0);
+  const [doneRound, setDoneRound] = useState(0);
   const ready = useRef<Blob | null>(null);
   const pending = useRef<Promise<Blob> | null>(null);
+  const settle = useRef<{ resolve: (png: Blob) => void; reject: (err: unknown) => void } | null>(null);
+  const release = useRef<(() => void) | null>(null);
   const working = useRef(false);
   const latest = useRef(picture);
   latest.current = picture;
-  const key = JSON.stringify([url, picture]);
 
-  // Another ticket in the same place: its picture is made again.
-  useEffect(() => {
-    ready.current = null;
-    pending.current = null;
-    setDrawing(true);
-  }, [key]);
-
-  useEffect(() => {
-    if (!drawing) return;
-    const drawn = qr.current;
-    if (!drawn) return;
-    let current = true;
-    const made = renderTicket({ ...latest.current, qr: drawn });
+  // Starts drawing the picture; the effect below makes it.
+  const startDraw = (): Promise<Blob> => {
+    const made = new Promise<Blob>((resolve, reject) => (settle.current = { resolve, reject }));
+    made.catch(() => {});
     pending.current = made;
-    made.then(
-      (png) => {
-        if (!current) return;
-        ready.current = png;
-        setDrawing(false);
-      },
-      () => {
-        if (current) pending.current = null;
-      },
-    );
+    setRound((value) => value + 1);
+    return made;
+  };
+
+  useEffect(() => {
+    if (!savesThroughShare()) return;
+    let current = true;
+    void takeTurn().then((done) => {
+      if (!current || ready.current || pending.current) {
+        done();
+        return;
+      }
+      release.current = done;
+      startDraw();
+    });
     return () => {
       current = false;
+      release.current?.();
+      release.current = null;
     };
-  }, [drawing, key]);
+  }, []);
+
+  useEffect(() => {
+    if (round === 0) return;
+    const drawn = qr.current;
+    const waiting = settle.current;
+    if (!drawn || !waiting) return;
+    const end = () => {
+      if (settle.current === waiting) settle.current = null;
+      release.current?.();
+      release.current = null;
+      setDoneRound(round);
+    };
+    renderTicket({ ...latest.current, qr: drawn }).then(
+      (png) => {
+        ready.current = png;
+        end();
+        waiting.resolve(png);
+      },
+      (err: unknown) => {
+        pending.current = null;
+        end();
+        waiting.reject(err);
+      },
+    );
+  }, [round]);
 
   useEffect(() => {
     if (state !== 'saved') return;
     const timer = setTimeout(() => setState('idle'), SAVED_MS);
     return () => clearTimeout(timer);
   }, [state]);
-
-  // A picture made now, when the one made at the start failed.
-  const drawAgain = () => {
-    const drawn = qr.current;
-    if (!drawn) return Promise.reject(new Error('no QR code'));
-    return renderTicket({ ...latest.current, qr: drawn });
-  };
 
   async function save() {
     if (working.current) return;
@@ -3457,7 +3547,7 @@ export function useSaveTicket({
     const wanted = latest.current;
     try {
       // With the picture ready, saveTicket runs inside the tap: no wait before it.
-      const png = ready.current ?? (await (pending.current ?? drawAgain()).catch(drawAgain));
+      const png = ready.current ?? (await (pending.current ?? startDraw()).catch(() => startDraw()));
       const result = await saveTicket(png, ticketFileName(testCode, wanted.studentName), `${wanted.studentName} · ${wanted.testTitle}`);
       // The student closed the share sheet: nothing was saved, nothing failed.
       setState(result === 'cancelled' ? 'idle' : 'saved');
@@ -3468,9 +3558,12 @@ export function useSaveTicket({
     }
   }
 
+  // The QR library draws at the screen's pixel ratio: this size gives a
+  // canvas of about QR_SIZE pixels on every screen.
+  const qrSize = Math.ceil(QR_SIZE / (window.devicePixelRatio || 1));
   const button = (
     <>
-      {drawing && <QRCodeCanvas ref={qr} value={url} size={1024} marginSize={0} level="M" hidden aria-hidden="true" />}
+      {round !== doneRound && <QRCodeCanvas ref={qr} value={url} size={qrSize} marginSize={0} level="M" hidden aria-hidden="true" />}
       <button type="button" className={className} disabled={state === 'busy'} onClick={() => void save()}>
         <ActionIcon name={state === 'saved' ? 'check' : 'download'} />
         Salvează biletul
@@ -3807,16 +3900,35 @@ export function rememberResultCode(resultToken: string, resultCode: string): voi
 // Drops the kept links whose upload the teacher reset: the student is back in
 ```
 
-- [ ] **Step 28: Typecheck and run the whole suite**
+- [ ] **Step 28: Edit `docs/superpowers/specs/2026-11-17-student-result-access-design.md`**
+
+Find this block:
+
+```markdown
+- The file is named `bilet-<test code>-<student name folded to ASCII>.png`.
+- The picture is made once, as soon as the ticket shows, so the tap saves it with no wait: an iPhone opens its share sheet only inside the tap, and refuses it after the waits of drawing. A tap before the picture is ready waits for it; a picture that failed is made again on the tap.
+- Saving: on an iPhone or iPad (an iPad that says it is a Mac has a touch screen), the share sheet opens (it has "Save Image"), and the file downloads when the sheet is not possible; everywhere else the file downloads (`saveFile` of `src/admin/pdf/share.ts`). A failure says "Nu am putut salva biletul. Fă o poză ecranului."
+```
+
+Replace it with:
+
+```markdown
+- The file is named `bilet-<test code>-<student name folded to ASCII>.png`.
+- On an iPhone or iPad the picture is made as soon as the ticket shows, so the tap saves it with no wait: their share sheet opens only inside the tap, and is refused after the waits of drawing. A tap before the picture is ready waits for it; a picture that failed is made again on the tap. Elsewhere the file downloads, which may wait, so the picture is made on the tap.
+- A phone limits canvas memory, and a shared phone may show many tickets: the page makes one picture at a time, draws the hidden QR code at about 520 real pixels whatever the screen's pixel ratio, and empties or removes every canvas once its picture is made or failed.
+- Saving: on an iPhone or iPad (an iPad that says it is a Mac has a touch screen), the share sheet opens (it has "Save Image"), and the file downloads when the sheet is not possible; everywhere else the file downloads (`saveFile` of `src/admin/pdf/share.ts`). A failure says "Nu am putut salva biletul. Fă o poză ecranului."
+```
+
+- [ ] **Step 29: Typecheck and run the whole suite**
 
 Run: `npm run typecheck`, then `npm test`
 
-Expected: no type error; `Test Files  1 failed | 191 passed | 1 skipped (193)`, `Tests  1 failed | 2956 passed | 3 skipped (2960)`; the one failure is the known `src/landing/pages.test.ts` test.
+Expected: no type error; `Test Files  1 failed | 191 passed | 1 skipped (193)`, `Tests  1 failed | 2958 passed | 3 skipped (2962)`; the one failure is the known `src/landing/pages.test.ts` test.
 
-- [ ] **Step 29: Check against the prototype and commit**
+- [ ] **Step 30: Check against the prototype and commit**
 
 ```bash
-git add src/upload/ticketImage.ts src/upload/ticketImage.test.ts src/upload/SaveTicket.tsx src/upload/SaveTicket.test.tsx src/test/setup.ts src/upload/ResultTicket.tsx src/upload/ResultActions.tsx src/upload/ResultActions.test.tsx src/upload/ResultApp.tsx src/upload/ResultApp.test.tsx src/upload/resultLinks.ts
+git add src/upload/ticketImage.ts src/upload/ticketImage.test.ts src/upload/SaveTicket.tsx src/upload/SaveTicket.test.tsx src/test/setup.ts src/upload/ResultTicket.tsx src/upload/ResultActions.tsx src/upload/ResultActions.test.tsx src/upload/ResultApp.tsx src/upload/ResultApp.test.tsx src/upload/resultLinks.ts docs/superpowers/specs/2026-11-17-student-result-access-design.md
 git diff --cached --stat refs/protora/ra4 -- . ':!docs/superpowers/plans'
 git commit -m "Save the result ticket as a picture"
 ```
@@ -4725,7 +4837,7 @@ Replace it with:
 
 Run: `npm run typecheck`, then `npm test`
 
-Expected: no type error; `Test Files  1 failed | 192 passed | 1 skipped (194)`, `Tests  1 failed | 2972 passed | 3 skipped (2976)`; the one failure is the known `src/landing/pages.test.ts` test.
+Expected: no type error; `Test Files  1 failed | 192 passed | 1 skipped (194)`, `Tests  1 failed | 2974 passed | 3 skipped (2978)`; the one failure is the known `src/landing/pages.test.ts` test.
 
 - [ ] **Step 27: Check against the prototype and commit**
 
@@ -4930,7 +5042,7 @@ Replace it with:
 
 ```markdown
 - Light is the default theme on every page: `public/theme.js` and `currentTheme()` follow only a saved choice, never the system setting.
-- `upload/`: the student app. A kept result link is a ticket (`ResultTicket.tsx`, spec `docs/superpowers/specs/2026-11-17-student-result-access-design.md`): the test, the student, the QR code of the result link (dark on white in both themes) and its short code (`formatResultCode`), because students keep it as a screenshot; then "Salvează biletul" (`SaveTicket.tsx`: the same ticket as a 1080×1350 PNG drawn on a canvas, `ticketImage.ts`, made as soon as the ticket shows, so the tap saves it with no wait: an iPhone opens its share sheet only inside the tap; the share sheet on an iPhone or iPad, a download elsewhere), "Trimite-mi linkul" (`shareLink.ts`: the share sheet with the code, else copy, else the link as text) and "Arată linkul întreg" (the whole address as text that wraps, never in a field that cuts it off). The phone keeps each link's code beside it; a link kept before codes existed shows its ticket without the code row until its result page opens (`rememberResultCode`). The kept result links are stored per link token, and a test has two links (the default one, and the one for many uploads), so the phone also remembers which test each link names (`qe.link.<token>` holds `LinkInfo.test.key`; `resultLinks.ts`). Once the uploads closed, the page (`ClosedScreen` in `UploadApp.tsx`) shows the links kept through either link of the test (`loadTestResultLinks`; a link kept before the phone remembered tests is asked for once, `learnOtherLinks`), and has three states: results not published, "Încărcarea s-a închis."; published with a kept link, "Rezultatele au fost publicate." and the tickets, with no alert; published with none, that line. With no kept link the page shows "Scrie codul tău" (`CodeEntry.tsx`, `POST /api/u/<token>/cod`) and where to look for a lost code; with one, the field waits behind "Am alt cod". A good code keeps the link on this phone, marked `byCode` (such a link never locks the default link: a borrowed phone still sends its own paper), and, once the results are published, opens the result page (`goTo`). A result never opens from the test's link by picking a name. `api.ts` (the only code that calls `/api/u`, with XMLHttpRequest for upload progress), `session.ts` (the phone's secret in localStorage), `shrink.ts` (photos made smaller on the phone). `StudentResult.tsx` takes `fileUrl`, so a Quick Try's page shows the same student result. `StudentHeader.tsx` is the header of both student pages (the site's lockup linking to mqgrader.ro, "Despre", the theme button). `ResultActions.tsx`: "Trimite linkul" (share sheet, else copy, else the link as text) and "Descarcă PDF" (the teacher's student PDF, from `studentPdfInputFromResult`; pdfmake stays a lazy import).
+- `upload/`: the student app. A kept result link is a ticket (`ResultTicket.tsx`, spec `docs/superpowers/specs/2026-11-17-student-result-access-design.md`): the test, the student, the QR code of the result link (dark on white in both themes) and its short code (`formatResultCode`), because students keep it as a screenshot; then "Salvează biletul" (`SaveTicket.tsx`: the same ticket as a 1080×1350 PNG drawn on a canvas, `ticketImage.ts`; on an iPhone or iPad it is made as soon as the ticket shows, one ticket at a time, so the tap opens the share sheet with no wait (it opens only inside the tap); elsewhere it is made on the tap and downloads; the hidden QR canvas is about `QR_SIZE` real pixels and every canvas is freed after use, because phones limit canvas memory), "Trimite-mi linkul" (`shareLink.ts`: the share sheet with the code, else copy, else the link as text) and "Arată linkul întreg" (the whole address as text that wraps, never in a field that cuts it off). The phone keeps each link's code beside it; a link kept before codes existed shows its ticket without the code row until its result page opens (`rememberResultCode`). The kept result links are stored per link token, and a test has two links (the default one, and the one for many uploads), so the phone also remembers which test each link names (`qe.link.<token>` holds `LinkInfo.test.key`; `resultLinks.ts`). Once the uploads closed, the page (`ClosedScreen` in `UploadApp.tsx`) shows the links kept through either link of the test (`loadTestResultLinks`; a link kept before the phone remembered tests is asked for once, `learnOtherLinks`), and has three states: results not published, "Încărcarea s-a închis."; published with a kept link, "Rezultatele au fost publicate." and the tickets, with no alert; published with none, that line. With no kept link the page shows "Scrie codul tău" (`CodeEntry.tsx`, `POST /api/u/<token>/cod`) and where to look for a lost code; with one, the field waits behind "Am alt cod". A good code keeps the link on this phone, marked `byCode` (such a link never locks the default link: a borrowed phone still sends its own paper), and, once the results are published, opens the result page (`goTo`). A result never opens from the test's link by picking a name. `api.ts` (the only code that calls `/api/u`, with XMLHttpRequest for upload progress), `session.ts` (the phone's secret in localStorage), `shrink.ts` (photos made smaller on the phone). `StudentResult.tsx` takes `fileUrl`, so a Quick Try's page shows the same student result. `StudentHeader.tsx` is the header of both student pages (the site's lockup linking to mqgrader.ro, "Despre", the theme button). `ResultActions.tsx`: "Trimite linkul" (share sheet, else copy, else the link as text) and "Descarcă PDF" (the teacher's student PDF, from `studentPdfInputFromResult`; pdfmake stays a lazy import).
 - `try/`: a Quick Try's page (`/try/<token>`, spec `docs/superpowers/specs/2026-11-09-quick-try-design.md` §3.3). It reuses the teacher app through `createApiClient({ base: '/api/try/<token>' })`: the calls and the file links (`AdminApi.base`) go to the try's link, and only the calls of the server's allow-list are used (`TRY_ADMIN_CALLS` in `test/fakeTryApi.tsx`, whose `tryAdminApi()` makes a page test fail on any other call). `api.ts` is the try's own client (`info`, the student's pages, `start`, the student `result`). `phase.ts` says where the try stands from its test (`prepare`, `grading`, `problem`, `failed` as the server's give-back, `graded`), reads it again every 10 s while the robot works, and gives the graded paper's grade (`scoreOf`, also used by the landing card). `TryHead.tsx` is the head of every state: the name with its rename, the times, the subject ("Materia: …", read only: a try has no "Schimbă"), the test and barem to download, "Distribuie". `Prepare.tsx` holds the test, the barem (her own, or the robot's to download, then "Pornește corectarea" with its `filesVersion`), the student's pages and the file changes left; `Working.tsx` the grading, the barem's problem ("Folosește oricum" or another barem) and the failure (no retry); `Graded.tsx` the grade and the points to check, then the two views under tabs that stay at the top (`try-tabs`, the page's own; `try.css` keeps the scrollbar's room so views of any height start at the same place): "Verificare" (the points to check, each opening the teacher app's own paper page (`TryPaperPage`) at `/teste/<code>/verificare?lucrare=&punct=` inside the try's router, with only the points to check by default (`vedere=toate` shows all), and without the students, the path, the head's actions, the result link and "Reîncearcă", whose routes the try's allow-list does not have; its links to `/teste/<code>` come back to the try, `#rezultate` opens the student's result, and the app's address of the paper, `/teste/<code>/elevi/<id>`, opens the page with every exercise; under the points, "Toate exercițiile" opens that view too, also when no point is left; there is no teacher's result of its own: the paper page holds it) and "Rezultatul elevului" (`StudentResult`, checked with `expectNoGradingWords()`). `ui/FilesBeside.tsx` is the paper's files strip that opens them left of the result, on the try's student result and on the student's result; `try.css` gives the try's top bar the shell's `--bar` and `--top`, and `--top` on `.try-panel` sticks the shown files under the tabs. "Distribuie" (`Share.tsx`) shares or copies the try's link. The page never shows the test's upload link or a QR code.
 ```
 
@@ -4955,7 +5067,7 @@ Replace it with:
 
 Run: `npm run typecheck`, then `npm test`
 
-Expected: no type error; `Test Files  1 failed | 192 passed | 1 skipped (194)`, `Tests  1 failed | 2973 passed | 3 skipped (2977)` (the same with `TZ=UTC`); the one failure is the known `src/landing/pages.test.ts` test.
+Expected: no type error; `Test Files  1 failed | 192 passed | 1 skipped (194)`, `Tests  1 failed | 2975 passed | 3 skipped (2979)` (the same with `TZ=UTC`); the one failure is the known `src/landing/pages.test.ts` test.
 
 - [ ] **Step 11: Check against the prototype and commit**
 
