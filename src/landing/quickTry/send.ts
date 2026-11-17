@@ -20,6 +20,9 @@ export interface TryForm {
   // "Nu am barem": the barem is made from the test. Her own file wins.
   robotBarem: boolean;
   pages: File[];
+  // "Cu telefonul": the pages come from the phone after the send, through
+  // the QR code; the form sends none and does not start the grading.
+  byPhone: boolean;
 }
 
 // Why the form cannot be sent yet, in Romanian; null when it can. The files
@@ -35,6 +38,7 @@ export function formProblem(form: TryForm): string | null {
   } else if (!form.robotBarem) {
     return 'Alege fișierul baremului sau cere ca baremul să fie făcut din test.';
   }
+  if (form.byPhone) return null;
   if (form.pages.length === 0) return 'Alege pozele sau PDF-ul lucrării.';
   if (form.pages.length > MAX_STUDENT_FILES) return `Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`;
   for (const page of form.pages) {
@@ -63,7 +67,8 @@ export interface SendEvents {
 
 // Makes the try and sends what the form holds, in order. With her barem the
 // grading starts at once; with the robot's she starts it on the try's page,
-// after she reads it (spec §3.3, state 2). A refusal throws its ApiError.
+// after she reads it (spec §3.3, state 2). With the phone it stops after
+// the barem. A refusal throws its ApiError.
 export async function sendTry(
   api: LandingApi,
   form: TryForm,
@@ -84,6 +89,8 @@ export async function sendTry(
     events.onProgress('Se cere baremul…');
     await api.generateBarem(token, code);
   }
+  // With the phone, the QR window takes the pages and starts the grading.
+  if (form.byPhone) return stored;
   for (const [index, page] of form.pages.entries()) {
     events.onProgress(`Se trimit paginile lucrării: ${index + 1} din ${form.pages.length}…`);
     await api.addPage(token, page);

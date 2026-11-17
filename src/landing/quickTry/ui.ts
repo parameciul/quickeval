@@ -4,6 +4,8 @@ import { ApiError, messageOf } from '../../ui/ApiError.ts';
 import { phaseOf, scoreOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import type { LandingApi } from './api.ts';
+import { openPhoneStep, type PhoneStep } from './phone.ts';
+import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf } from './status.ts';
 import { forgetStoredTry, readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
@@ -24,6 +26,9 @@ export interface QuickTryDeps {
   loadTurnstile: LoadTurnstile;
   // How often the status line reads the try again while the robot works.
   refreshMs?: number;
+  // The QR window: the site's address, and how its code is drawn.
+  origin?: string;
+  drawQr?: typeof drawQr;
 }
 
 const FULL_TEXT =
@@ -65,6 +70,7 @@ function showPick(input: HTMLInputElement, chosen: File[]): void {
   const name = row.querySelector<HTMLElement>('[data-try-pick-name]')!;
   const hint = row.querySelector<HTMLElement>('[data-try-pick-hint]')!;
   const action = row.querySelector<HTMLElement>('[data-try-pick-action]')!;
+  row.classList.remove('is-phone');
   row.classList.toggle('is-chosen', chosen.length > 0);
   if (chosen.length === 0) {
     name.textContent = row.dataset.empty ?? '';
@@ -104,6 +110,9 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const sendButton = form.querySelector<HTMLButtonElement>('[data-try-send]')!;
   const closeButton = form.querySelector<HTMLButtonElement>('[data-try-close]')!;
   const turnstileBox = form.querySelector<HTMLElement>('[data-try-turnstile]')!;
+  const pagesInput = form.elements.namedItem('pages') as HTMLInputElement;
+  const phonePick = form.querySelector<HTMLButtonElement>('[data-try-phone-pick]')!;
+  const phoneUndo = form.querySelector<HTMLButtonElement>('[data-try-phone-undo]')!;
   const refreshMs = deps.refreshMs ?? 10_000;
 
   let availability: QuickTryAvailability | null = null;
@@ -112,6 +121,10 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   let widget: Promise<TurnstileWidget> | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let sending = false;
+  // "Cu telefonul": the pages come from the phone after the send.
+  let byPhone = false;
+  // The QR window, while it shows.
+  let phoneStep: PhoneStep | null = null;
 
   // The button, or the line that says why there is none.
   function refreshButton(): void {
@@ -171,7 +184,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       test: files('test')[0] ?? null,
       barem: files('barem')[0] ?? null,
       robotBarem: (form!.elements.namedItem('robotBarem') as HTMLInputElement).checked,
-      pages: files('pages'),
+      pages: byPhone ? [] : files('pages'),
+      byPhone,
     };
   }
 
@@ -195,13 +209,54 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
 
   closeButton.addEventListener('click', () => closeDialog(dialog));
 
+  // The pages row's chosen state for the phone: its name and hint, and
+  // "Schimbă" in place of the two buttons. Leaving it shows the picked files.
+  function choosePhone(on: boolean): void {
+    byPhone = on;
+    phonePick.hidden = on;
+    phoneUndo.hidden = !on;
+    if (!on) return showPick(pagesInput, Array.from(pagesInput.files ?? []));
+    pagesInput.value = '';
+    const row = pagesInput.closest<HTMLElement>('[data-try-pick]')!;
+    row.classList.add('is-chosen', 'is-phone');
+    row.querySelector<HTMLElement>('[data-try-pick-name]')!.textContent = 'Faci pozele cu telefonul';
+    row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = 'Codul QR apare după ce apeși Trimite';
+  }
+
+  phonePick.addEventListener('click', () => {
+    choosePhone(true);
+    // The button hides: the focus goes to its "Schimbă".
+    phoneUndo.focus();
+  });
+  phoneUndo.addEventListener('click', () => {
+    choosePhone(false);
+    phonePick.focus();
+  });
+
   const pickInputs = Array.from(form.querySelectorAll<HTMLInputElement>('[data-try-pick] input[type="file"]'));
-  for (const input of pickInputs) input.addEventListener('change', () => showPick(input, Array.from(input.files ?? [])));
+  for (const input of pickInputs) {
+    input.addEventListener('change', () => {
+      // Picking files leaves the phone choice.
+      if (input === pagesInput && byPhone) choosePhone(false);
+      showPick(input, Array.from(input.files ?? []));
+    });
+  }
   // Esc and a phone's back button close a dialog: not while it sends, so the
   // form stays to show how the send ended.
   dialog.addEventListener('cancel', (event) => {
-    if (sending) event.preventDefault();
+    if (sending || phoneStep?.busy()) event.preventDefault();
   });
+
+  // The QR window ends (Închide, Esc, the start): the dialog closes and the
+  // card follows the try, as after a send.
+  function endPhoneStep(): void {
+    if (!phoneStep || !stored) return;
+    phoneStep.close();
+    phoneStep = null;
+    closeDialog(dialog!);
+    void follow(stored).then(() => statusLink.focus());
+  }
+  dialog.addEventListener('close', endPhoneStep);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -244,9 +299,20 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         deps.now,
       );
       sending = false;
-      closeDialog(dialog!);
+      const withPhone = values.byPhone;
       form!.reset();
+      choosePhone(false);
       for (const input of pickInputs) showPick(input, []);
+      if (withPhone) {
+        phoneStep = openPhoneStep(
+          dialog!,
+          { api: deps.api, origin: deps.origin ?? window.location.origin, drawQr: deps.drawQr ?? drawQr },
+          done,
+          { robotBarem: values.barem === null, onStarted: endPhoneStep, onClosed: endPhoneStep },
+        );
+        return;
+      }
+      closeDialog(dialog!);
       await follow(done);
       statusLink.focus();
     } catch (err) {

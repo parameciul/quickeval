@@ -227,6 +227,17 @@ a { color: inherit; }
 .try-pick-action { flex: none; pointer-events: none; }
 .try-pick.is-chosen .try-pick-box { border-style: solid; border-color: var(--border); background: var(--surface); }
 .try-pick.is-chosen .try-pick-icon { background: var(--ok-bg); color: var(--ok-fg); }
+.try-pick-pages { cursor: default; }
+.try-pick-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.try-pick-box:has(.try-pick-input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 2px; }
+.try-pick-pages .try-pick-hint { white-space: normal; }
+.try-pick-phone, .try-pick.is-phone .try-pick-done, .try-pick.is-phone .try-pick-action { display: none; }
+.try-pick.is-phone .try-pick-phone { display: block; }
+.try-phone-pick { flex: none; gap: 6px; }
+.try-phone-pick svg { width: 16px; height: 16px; }
+.try-pick-box [hidden] { display: none; }
+/* On a phone, "Alege fișierele" already offers the camera. */
+@media (max-width: 767.98px) { .try-phone-pick { display: none; } }
 .try-check { display: flex; gap: 8px; align-items: center; font-size: 15px; }
 .try-turnstile:empty { display: none; }
 .try-error { color: var(--orange); font-weight: 600; }
@@ -238,6 +249,36 @@ a { color: inherit; }
 /* What only a signed-out visitor sees (data-guest) and what only a signed-in
    teacher sees (data-member): landing.ts swaps them once the API answers. */
 [data-guest][hidden], [data-member][hidden] { display: none; }
+/* The QR window: after a send with the phone, the dialog shows the code of
+   the try's phone page and the pages as they arrive. */
+.try-phone { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+/* The form and the QR window take turns in the dialog: their display:flex
+   must not beat [hidden]. */
+.try-form[hidden], .try-phone[hidden], .try-phone [hidden] { display: none; }
+.try-phone h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.try-phone h2:focus { outline: none; }
+.try-phone-barem { font-size: 15px; }
+.try-phone-body { display: grid; grid-template-columns: 204px 1fr; gap: 20px; align-items: start; }
+.try-phone-code { display: flex; flex-direction: column; gap: 8px; }
+.try-qr { display: block; width: 204px; height: 204px; padding: 8px; border: 1px solid var(--border); border-radius: var(--r); background: #ffffff; }
+.try-qr-link { padding: 12px; border: 1px solid var(--border); border-radius: var(--r); font-size: 14px; overflow-wrap: anywhere; }
+.try-phone-note { color: var(--muted); font-size: 13px; }
+.try-phone-pages { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.try-phone-count { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; }
+.try-phone-list { display: flex; flex-direction: column; gap: 6px; padding: 0; list-style: none; }
+.try-phone-list li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--ground); font-size: 15px; }
+.try-phone-size { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.try-phone-live { display: flex; flex-direction: column; gap: 8px; }
+.try-phone-wait { color: var(--muted); font-size: 14px; }
+.try-phone-again { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; cursor: pointer; }
+.try-phone-actions { align-items: center; }
+.try-phone-files { position: relative; margin-right: auto; cursor: pointer; }
+.try-phone-files:has(.try-pick-input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 2px; }
+@media (max-width: 560px) {
+  .try-phone { padding: 20px 16px; }
+  .try-phone-body { grid-template-columns: 1fr; }
+  .try-qr { margin: 0 auto; }
+}
 /* Turnstile's check is 300 px wide: on a phone the form keeps room for it, and
    the two buttons of the hero take the whole width, the one in the row too. */
 @media (max-width: 420px) {

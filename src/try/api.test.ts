@@ -58,6 +58,51 @@ describe('createTryClient', () => {
     expect((error as ApiError).code).toBe('network');
   });
 
+  it("uploadPage puts the file to the try's paper with its name and reports progress", async () => {
+    const stored = { id: 9, name: 'pagina ș.jpg', contentType: 'image/jpeg', size: 3, position: 1 };
+    const headers: Record<string, string> = {};
+    let opened = '';
+    let body: Blob | null = null;
+    const request = {
+      upload: { onprogress: null as ((event: { loaded: number; total: number; lengthComputable: boolean }) => void) | null },
+      onload: null as (() => void) | null,
+      onerror: null,
+      onabort: null,
+      ontimeout: null,
+      status: 201,
+      responseText: JSON.stringify({ file: stored }),
+      open: (method: string, url: string) => {
+        opened = `${method} ${url}`;
+      },
+      setRequestHeader: (name: string, value: string) => {
+        headers[name] = value;
+      },
+      getResponseHeader: () => 'application/json',
+      send(file: Blob) {
+        body = file;
+        this.upload.onprogress?.({ loaded: 1, total: 2, lengthComputable: true });
+        this.onload?.();
+      },
+    };
+    const api = createTryClient(TOKEN, { newRequest: () => request });
+    const blob = new Blob(['jpg'], { type: 'image/jpeg' });
+    const progress: number[] = [];
+    expect(await api.uploadPage(blob, 'pagina ș.jpg', (sent) => progress.push(sent))).toEqual(stored);
+    expect(opened).toBe(`PUT /api/try/${TOKEN}/paper`);
+    expect(body).toBe(blob);
+    expect(headers).toMatchObject({ 'Content-Type': 'image/jpeg', 'X-File-Name': 'pagina%20%C8%99.jpg' });
+    expect(progress).toEqual([0.5]);
+  });
+
+  it('pageBlob throws the API error for a missing page', async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(404, { error: 'not_found', message: 'Nu am găsit fișierul.' }));
+    await expect(createTryClient(TOKEN, { fetchImpl }).pageBlob(5)).rejects.toMatchObject({ status: 404, message: 'Nu am găsit fișierul.' });
+    expect(String(fetchImpl.mock.calls[0]![0])).toBe(`/api/try/${TOKEN}/paper/5`);
+
+    const ok = createTryClient(TOKEN, { fetchImpl: async () => new Response('jpg', { status: 200, headers: { 'Content-Type': 'image/jpeg' } }) });
+    expect(await (await ok.pageBlob(5)).text()).toBe('jpg');
+  });
+
   it("builds the try's base and its page links", () => {
     expect(tryBase(TOKEN)).toBe(`/api/try/${TOKEN}`);
     expect(pageFileUrl(TOKEN, 12)).toBe(`/api/try/${TOKEN}/paper/12`);

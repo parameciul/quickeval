@@ -1,6 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PHONE_IDLE_MS, PHONE_IDLE_TEXT, PHONE_REFRESH_MS } from '../../shared/quickTry.ts';
 import { PDF_TYPE } from '../../shared/files.ts';
 import { ApiError } from '../ui/ApiError.ts';
 import { createFakeApi } from '../test/fakeApi.ts';
@@ -94,10 +95,77 @@ describe("a try's files before the grading", () => {
     expect(screen.getByLabelText(/Fișierul baremului/)).toBeDisabled();
   });
 
-  it('never shows the students\' link or a QR code', async () => {
+  it("never shows the students' link, nor a QR code until the phone's is asked for", async () => {
     setup({ files: { test: testFile, barem: baremFile } });
     await startButton();
     expect(document.body.textContent).not.toContain('abcdefghijkmnop2');
     expect(screen.queryByText(/QR/)).not.toBeInTheDocument();
+  });
+});
+
+describe("the phone's code on a try's page", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const phoneButton = () => screen.findByRole('button', { name: 'Fă poze cu telefonul' });
+
+  it('opens and closes the phone code', async () => {
+    setup();
+    const button = await phoneButton();
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTitle('Cod QR pentru telefon')).toBeInTheDocument();
+    expect(screen.getByText('Scanează codul cu camera telefonului')).toBeInTheDocument();
+    expect(screen.getByText(/Paginile apar în lista de mai sus imediat ce le trimiți/)).toBeInTheDocument();
+    expect(screen.getByText(/Pornește corectarea după ce au ajuns toate paginile/)).toBeInTheDocument();
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Scanează codul cu camera telefonului')).not.toBeInTheDocument();
+  });
+
+  it('shows a page that arrives while the code is open', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { tryApi } = setup({}, []);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(await phoneButton());
+    tryApi.addPage(new File(['%PDF'], 'p2.pdf', { type: PDF_TYPE }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS);
+    });
+    expect(await screen.findByText(/Pagina 1: p2.pdf/)).toBeInTheDocument();
+  });
+
+  it('shows "Verifică din nou" once idle and reads again on it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { tryApi } = setup();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(await phoneButton());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PHONE_IDLE_MS);
+    });
+    const again = await screen.findByRole('button', { name: 'Verifică din nou' });
+    expect(again.parentElement).toHaveTextContent(PHONE_IDLE_TEXT);
+    expect(again.parentElement!.parentElement).toHaveAttribute('aria-live', 'polite');
+    const calls = tryApi.listPages.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS * 3);
+    });
+    expect(tryApi.listPages).toHaveBeenCalledTimes(calls);
+    await user.click(again);
+    await waitFor(() => expect(tryApi.listPages.mock.calls.length).toBeGreaterThan(calls));
+    expect(screen.queryByRole('button', { name: 'Verifică din nou' })).not.toBeInTheDocument();
+  });
+
+  it('reads nothing on a timer while the code is closed', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { tryApi } = setup();
+    await phoneButton();
+    const calls = tryApi.listPages.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(tryApi.listPages).toHaveBeenCalledTimes(calls);
   });
 });

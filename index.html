@@ -341,15 +341,19 @@
           </span>
         </label>
         <label class="try-check"><input type="checkbox" name="robotBarem" /> Nu am barem: fă-l din test</label>
-        <label class="try-pick" data-try-pick data-empty="Alege paginile" data-hint="Poze sau PDF, cel mult 20 de fișiere">
-          <span class="try-pick-label">Lucrarea elevului</span>
-          <input class="try-pick-input" type="file" name="pages" multiple accept="image/jpeg,image/png,image/webp,application/pdf" />
-          <span class="try-pick-box">
-            <span class="try-pick-icon"><svg class="try-pick-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><rect x="2.75" y="4.5" width="14.5" height="11" rx="2" /><circle cx="10" cy="10" r="2.6" /></svg><svg class="try-pick-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
-            <span class="try-pick-text"><span class="try-pick-name" data-try-pick-name>Alege paginile</span><span class="try-pick-hint" data-try-pick-hint>Poze sau PDF, cel mult 20 de fișiere</span></span>
-            <span class="btn btn-small try-pick-action" aria-hidden="true" data-try-pick-action>Alege fișierele</span>
-          </span>
-        </label>
+        <div class="try-pick try-pick-pages" data-try-pick data-empty="Alege paginile" data-hint="Poze sau PDF, cel mult 20 de fișiere">
+          <span class="try-pick-label" id="try-pages-label">Lucrarea elevului</span>
+          <div class="try-pick-box">
+            <label class="try-pick-main">
+              <input class="try-pick-input" type="file" name="pages" multiple accept="image/jpeg,image/png,image/webp,application/pdf" aria-labelledby="try-pages-label try-pages-name" />
+              <span class="try-pick-icon"><svg class="try-pick-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><rect x="2.75" y="4.5" width="14.5" height="11" rx="2" /><circle cx="10" cy="10" r="2.6" /></svg><svg class="try-pick-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg><svg class="try-pick-phone" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><rect x="5.5" y="2.5" width="9" height="15" rx="2" /><path d="M9 14.75h2" /></svg></span>
+              <span class="try-pick-text"><span class="try-pick-name" id="try-pages-name" data-try-pick-name>Alege paginile</span><span class="try-pick-hint" data-try-pick-hint>Poze sau PDF, cel mult 20 de fișiere</span></span>
+              <span class="btn btn-small try-pick-action" aria-hidden="true" data-try-pick-action>Alege fișierele</span>
+            </label>
+            <button class="btn btn-small try-phone-pick" type="button" data-try-phone-pick><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h2v2h-2zM15 15h2v2h-2z" /></svg>Cu telefonul</button>
+            <button class="btn btn-small" type="button" data-try-phone-undo hidden>Schimbă</button>
+          </div>
+        </div>
         <div class="try-turnstile" data-try-turnstile></div>
         <p class="try-error" data-try-error role="alert" hidden></p>
         <p class="try-recover" data-try-recover hidden>Încercarea a fost făcută. <a class="link" data-try-recover-link href="/">Deschide încercarea</a> ca să trimiți ce lipsește.</p>
@@ -359,6 +363,35 @@
           <button class="btn btn-primary" type="submit" data-try-send>Trimite</button>
         </div>
       </form>
+      <div class="try-phone" data-try-phone hidden>
+        <h2 id="try-phone-title" tabindex="-1">Fă pozele cu telefonul</h2>
+        <p class="try-lede">Testul și baremul au ajuns. Scanează codul cu camera telefonului și fotografiază lucrarea elevului.</p>
+        <p class="try-phone-barem" data-try-phone-barem hidden>Baremul se face acum din test. Îl citești pe pagina încercării, apoi pornești corectarea de acolo.</p>
+        <div class="try-phone-body">
+          <div class="try-phone-code">
+            <svg class="try-qr" data-try-qr shape-rendering="crispEdges" role="img" aria-label="Cod QR pentru telefon" xmlns="http://www.w3.org/2000/svg"></svg>
+            <p class="try-qr-link" data-try-qr-link hidden></p>
+            <p class="try-phone-note">Codul merge doar pentru această încercare.</p>
+          </div>
+          <div class="try-phone-pages">
+            <h3 class="try-phone-count" aria-live="polite">Pagini primite <span class="try-chip is-ok" data-try-phone-count>0</span></h3>
+            <ol class="try-phone-list" data-try-phone-list></ol>
+            <div class="try-phone-live" aria-live="polite">
+              <p class="try-phone-wait" data-try-phone-wait>Se așteaptă pozele de pe telefon…</p>
+              <p class="try-phone-wait" data-try-phone-idle hidden><span data-try-phone-idle-text>Nu a venit nicio pagină de 15 minute.</span> <button class="link try-phone-again" type="button" data-try-phone-again>Verifică din nou</button></p>
+            </div>
+            <p class="try-phone-note" data-try-phone-hint>Pornește corectarea după ce au ajuns toate paginile.</p>
+          </div>
+        </div>
+        <p class="try-error" data-try-phone-error role="alert" hidden></p>
+        <p class="try-progress" data-try-phone-progress aria-live="polite" hidden></p>
+        <div class="try-actions try-phone-actions">
+          <label class="link try-phone-files">Alege fișiere de pe calculator<input class="try-pick-input" type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" data-try-phone-files /></label>
+          <button class="btn" type="button" data-try-phone-close>Închide</button>
+          <a class="btn" href="/" data-try-phone-open hidden>Deschide încercarea</a>
+          <button class="btn btn-primary" type="button" data-try-phone-start disabled>Pornește corectarea</button>
+        </div>
+      </div>
     </dialog>
   </body>
 </html>

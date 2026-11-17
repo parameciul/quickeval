@@ -12,6 +12,7 @@ import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
 import type { TryApi } from './api.ts';
+import { PhonePage } from './PhonePage.tsx';
 import { TryHome } from './TryHome.tsx';
 import { BadLink, Expired, isExpired } from './TryNotice.tsx';
 
@@ -54,6 +55,7 @@ function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
   return (
     <Routes>
       <Route path="/" element={home} />
+      <Route path="/telefon" element={<PhonePage info={info.data} tryApi={tryApi} />} />
       <Route path="/teste/:code" element={home} />
       <Route path="/teste/:code/verificare" element={<TryPaperPage />} />
       <Route path="/teste/:code/elevi/:id" element={<AllExercises />} />

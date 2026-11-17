@@ -1,4 +1,4 @@
-import type { QuickTryAvailability, QuickTryCreated, TestDetail } from '../../../shared/api.ts';
+import type { QuickTryAvailability, QuickTryCreated, SubmissionFile, TestDetail } from '../../../shared/api.ts';
 import type { TestFileKind } from '../../../shared/files.ts';
 import { apiRequest, tryBase } from '../../try/api.ts';
 
@@ -11,6 +11,8 @@ export interface LandingApi {
   uploadTestFile(token: string, code: string, kind: TestFileKind, file: File): Promise<void>;
   generateBarem(token: string, code: string): Promise<void>;
   addPage(token: string, file: File): Promise<void>;
+  // The pages the try has, for the QR window's list.
+  listPages(token: string): Promise<SubmissionFile[]>;
   start(token: string): Promise<void>;
   getTest(token: string, code: string): Promise<TestDetail>;
 }
@@ -30,6 +32,7 @@ export function createLandingApi(fetchImpl: typeof fetch = (input, init) => fetc
     addPage: async (token, file) => {
       await call(`${tryBase(token)}/paper`, 'PUT', undefined, file);
     },
+    listPages: async (token) => (await call<{ files: SubmissionFile[] }>(`${tryBase(token)}/paper`, 'GET')).files,
     start: async (token) => {
       await call(`${tryBase(token)}/start`, 'POST', {});
     },

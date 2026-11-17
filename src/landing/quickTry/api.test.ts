@@ -44,6 +44,14 @@ describe("the landing page's client", () => {
     expect(new Headers(page.headers).get('Content-Type')).toBe('image/jpeg');
   });
 
+  it("listPages reads the try's paper", async () => {
+    const pages = [{ id: 1, name: 'p1.jpg', contentType: 'image/jpeg', size: 10, position: 1 }];
+    const fetchImpl = fakeFetch({ files: pages });
+    expect(await createLandingApi(fetchImpl).listPages(TOKEN)).toEqual(pages);
+    expect(fetchImpl.mock.calls[0]![0]).toBe(`/api/try/${TOKEN}/paper`);
+    expect(fetchImpl.mock.calls[0]![1]!.method).toBe('GET');
+  });
+
   it("gives the server's refusal as an ApiError with its message", async () => {
     const api = createLandingApi(fakeFetch({ error: 'quick_try_daily_limit', message: 'Limita de încercări gratuite pentru azi a fost atinsă.' }, 429));
     await expect(api.create('x', '')).rejects.toEqual(new ApiError(429, 'quick_try_daily_limit', 'Limita de încercări gratuite pentru azi a fost atinsă.'));

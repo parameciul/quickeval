@@ -20,6 +20,17 @@ export const QUICK_TRY_CLASS = 'PROBA';
 export const QUICK_TRY_STUDENT = 'Elev';
 export const QUICK_TRY_TITLE = 'Încercare rapidă';
 
+// The phone page that sends the student's pages to a try (spec
+// docs/superpowers/specs/2026-11-16-quick-try-phone-photos-design.md).
+export function quickTryPhonePath(token: string): string {
+  return `/try/${token}/telefon`;
+}
+// While its QR code shows, the laptop reads the try's pages this often, and
+// stops after this long with no new page (the D1 read limit).
+export const PHONE_REFRESH_MS = 3000;
+export const PHONE_IDLE_MS = 15 * 60 * 1000;
+export const PHONE_IDLE_TEXT = `Nu a venit nicio pagină de ${PHONE_IDLE_MS / 60_000} minute.`;
+
 const QUICK_TRY_TOKEN = /^[a-z2-7]{32}$/;
 
 // The secret part of a try's link: 32 characters from a-z and 2-7, longer than
