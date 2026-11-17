@@ -85,29 +85,29 @@ const detail = async () => within(await screen.findByRole('region', { name: /^(P
 describe('ClassPage', () => {
   it('shows the class name, the facts and the new-test link', async () => {
     const api = gradedClass();
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     expect(await screen.findByRole('heading', { level: 1, name: 'Clasa 6E2' })).toBeInTheDocument();
     expect(await screen.findByText(/3 elevi · 2 teste · anul școlar 2026-2027/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Test nou pentru această clasă' })).toHaveAttribute(
       'href',
-      '/teste/nou?clasa=1',
+      '/tests/new?class=1',
     );
   });
 
   it('says "1 test" for one test', async () => {
     const data = classData();
-    renderAdmin('/clase/1', createFakeApi({ ...data, tests: [data.tests[0]!] }));
+    renderAdmin('/classes/1', createFakeApi({ ...data, tests: [data.tests[0]!] }));
     expect(await screen.findByText(/3 elevi · 1 test · anul școlar/)).toBeInTheDocument();
   });
 
   it('shows the two tabs, "Elevi" with its count', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     expect(await screen.findByRole('tab', { name: 'Note și teste' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByRole('tab', { name: 'Elevi 3' })).toHaveAttribute('aria-selected', 'false');
   });
 
   it('moves between the tabs with the arrow keys, Home and End, and Tab reaches only the chosen one', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const notes = await screen.findByRole('tab', { name: 'Note și teste' });
     const students = screen.getByRole('tab', { name: 'Elevi 3' });
     expect(notes).toHaveAttribute('tabindex', '0');
@@ -134,13 +134,13 @@ describe('ClassPage', () => {
   it('offers no new test for an archived class', async () => {
     const api = gradedClass();
     await api.updateClass(1, { archived: true });
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     expect(await screen.findByText('Arhivată')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Test nou pentru această clasă' })).not.toBeInTheDocument();
   });
 
   it('shows the not-found page for a bad class id', async () => {
-    renderAdmin('/clase/abc', gradedClass());
+    renderAdmin('/classes/abc', gradedClass());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
   });
 
@@ -168,7 +168,7 @@ describe('ClassPage', () => {
       ],
     );
     renderAdmin(
-      '/clase/1',
+      '/classes/1',
       createFakeApi({
         classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 1 }],
         students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false, ces: false }] },
@@ -187,7 +187,7 @@ describe('ClassPage', () => {
   it('writes each class of "Schimbă clasa" after a dot in its own colour, not in bold', async () => {
     const data = classData();
     renderAdmin(
-      '/clase/1',
+      '/classes/1',
       createFakeApi({ ...data, classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 0 }] }),
     );
     await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
@@ -204,7 +204,7 @@ describe('ClassPage', () => {
   it('lists the archived classes last in "Schimbă clasa", under "Arhivate"', async () => {
     const data = classData();
     renderAdmin(
-      '/clase/1',
+      '/classes/1',
       createFakeApi({
         ...data,
         classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: true, studentCount: 0 }],
@@ -213,14 +213,14 @@ describe('ClassPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
     const group = within(await screen.findByRole('group', { name: 'Arhivate' }));
     const archived = group.getByRole('link', { name: /Clasa 9R2/ });
-    expect(archived).toHaveAttribute('href', '/clase/2');
+    expect(archived).toHaveAttribute('href', '/classes/2');
     expect(archived).toHaveClass('is-muted');
     expect(archived.querySelector<HTMLElement>('.class-dot')!.style.getPropertyValue('--tone-hue')).toBe(String(classToneHue(2)));
     expect(group.queryByRole('link', { name: /Clasa 6E2/ })).not.toBeInTheDocument();
   });
 
   it('shows no "Arhivate" group when no class is archived', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
     await screen.findByRole('link', { name: /Clasa 6E2/ });
     expect(screen.queryByRole('group', { name: 'Arhivate' })).not.toBeInTheDocument();
@@ -229,7 +229,7 @@ describe('ClassPage', () => {
   it('opens "Schimbă clasa" at "Arhivate" when a link asks for it', async () => {
     const data = classData();
     renderAdmin(
-      { pathname: '/clase/1', state: { archived: true } },
+      { pathname: '/classes/1', state: { archived: true } },
       createFakeApi({
         ...data,
         classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: true, studentCount: 0 }],
@@ -242,7 +242,7 @@ describe('ClassPage', () => {
   it('takes an archived class out of the archive from its menu', async () => {
     const api = gradedClass();
     await api.updateClass(1, { archived: true });
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' }));
     await userEvent.click(screen.getByRole('menuitem', { name: 'Scoate din arhivă' }));
     expect(api.updateClass).toHaveBeenLastCalledWith(1, { archived: false });
@@ -253,7 +253,7 @@ describe('ClassPage', () => {
   it('closes the small menus when a class is picked, on Esc and on a click outside', async () => {
     const data = classData();
     renderAdmin(
-      '/clase/1',
+      '/classes/1',
       createFakeApi({
         classes: [...data.classes, { id: 2, name: '9R2', schoolYear: 2026, archived: false, studentCount: 0 }],
         students: { ...data.students, 2: [{ id: 20, fullName: 'Radu Ema', active: true, canDelete: false, ces: false }] },
@@ -264,7 +264,7 @@ describe('ClassPage', () => {
     const switcher = await screen.findByRole('button', { name: 'Schimbă clasa' });
     await userEvent.click(switcher);
     await userEvent.click(await screen.findByRole('link', { name: /Clasa 9R2/ }));
-    await expectLocation('/clase/2');
+    await expectLocation('/classes/2');
     expect(screen.queryByRole('link', { name: /Clasa 9R2/ })).not.toBeInTheDocument();
 
     const reopened = await screen.findByRole('button', { name: 'Schimbă clasa' });
@@ -281,7 +281,7 @@ describe('ClassPage', () => {
   });
 
   it('closes the "⋯" menu on Esc and gives the focus back to its button', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
 
     const more = await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' });
     await userEvent.click(more);
@@ -293,7 +293,7 @@ describe('ClassPage', () => {
 
   it('renames the class in a dialog from its menu', async () => {
     const api = gradedClass();
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     const more = await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' });
 
     await userEvent.click(more);
@@ -311,7 +311,7 @@ describe('ClassPage', () => {
   });
 
   it('closes a dialog on Esc and on ×, and gives the focus back', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const more = await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' });
     await userEvent.click(more);
     await userEvent.click(screen.getByRole('menuitem', { name: 'Redenumește clasa' }));
@@ -330,7 +330,7 @@ describe('ClassPage', () => {
 
   it('makes a new class with its students in one step, from "Schimbă clasa"', async () => {
     const api = gradedClass();
-    renderAdmin('/clase/1', api, <LocationProbe />);
+    renderAdmin('/classes/1', api, <LocationProbe />);
     await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
     await userEvent.click(await screen.findByRole('button', { name: '+ Clasă nouă' }));
 
@@ -343,13 +343,13 @@ describe('ClassPage', () => {
     const created = await (api.createClass as unknown as { mock: { results: { value: Promise<{ id: number }> }[] } }).mock
       .results[0]!.value;
     expect(api.addStudents).toHaveBeenCalledWith(created.id, ['Pop Ana', 'Radu Ion']);
-    await expectLocation(`/clase/${created.id}`);
+    await expectLocation(`/classes/${created.id}`);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('makes a new class with no students', async () => {
     const api = gradedClass();
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
     await userEvent.click(await screen.findByRole('button', { name: '+ Clasă nouă' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Clasă nouă' }));
@@ -360,7 +360,7 @@ describe('ClassPage', () => {
   });
 
   it('opens "Clasă nouă" when a link asks for it', async () => {
-    renderAdmin({ pathname: '/clase/1', state: { newClass: true } }, gradedClass());
+    renderAdmin({ pathname: '/classes/1', state: { newClass: true } }, gradedClass());
     expect(await screen.findByRole('dialog', { name: 'Clasă nouă' })).toBeInTheDocument();
   });
 });
@@ -376,7 +376,7 @@ describe('ClassPage, archiving a class with open results', () => {
     const data = classData();
     data.tests[1]!.test.publishedCount = 1;
     const api = createFakeApi(data);
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     await archiveFromMenu();
     const dialog = screen.getByRole('dialog', { name: 'Arhivezi clasa?' });
     expect(
@@ -396,7 +396,7 @@ describe('ClassPage, archiving a class with open results', () => {
     const data = classData();
     for (const detail of data.tests) detail.test.publishedCount = 0;
     const api = createFakeApi(data);
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     await archiveFromMenu();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.updateClass).toHaveBeenCalledWith(1, { archived: true });
@@ -411,7 +411,7 @@ describe('ClassPage, an archived class', () => {
   };
 
   it('says it is archived in a strip and in the facts, and offers no new test', async () => {
-    renderAdmin('/clase/1', await archivedClass());
+    renderAdmin('/classes/1', await archivedClass());
     expect(await screen.findByText('Clasă arhivată.')).toBeInTheDocument();
     expect(
       screen.getByText('Notele și testele rămân aici. Nu poți face un test nou și nu poți adăuga elevi.', { exact: false }),
@@ -422,7 +422,7 @@ describe('ClassPage, an archived class', () => {
 
   it('takes the class out of the archive from its strip', async () => {
     const api = await archivedClass();
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Scoate din arhivă' }));
     expect(api.updateClass).toHaveBeenLastCalledWith(1, { archived: false });
     expect(await screen.findByRole('link', { name: 'Test nou pentru această clasă' })).toBeInTheDocument();
@@ -432,7 +432,7 @@ describe('ClassPage, an archived class', () => {
   });
 
   it('lists "Scoate din arhivă" first in ⋯, then "Redenumește clasa"', async () => {
-    renderAdmin('/clase/1', await archivedClass());
+    renderAdmin('/classes/1', await archivedClass());
     await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' }));
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Scoate din arhivă',
@@ -441,13 +441,13 @@ describe('ClassPage, an archived class', () => {
   });
 
   it('gives each test with a graded paper its report as the one step, and nothing to publish', async () => {
-    renderAdmin('/clase/1', await archivedClass());
+    renderAdmin('/classes/1', await archivedClass());
     const list = within(await screen.findByRole('complementary', { name: 'Testele clasei' }));
     const items = list.getAllByRole('listitem');
     // T2 (newest, nothing graded) has no step; T1 leads to its report.
     expect(within(items[0]!).queryByRole('link', { name: 'Raportul clasei' })).not.toBeInTheDocument();
     expect(within(items[0]!).queryByRole('button')).not.toBeInTheDocument();
-    expect(within(items[1]!).getByRole('link', { name: 'Raportul clasei' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+    expect(within(items[1]!).getByRole('link', { name: 'Raportul clasei' })).toHaveAttribute('href', '/tests/6E2-26T1/report');
     // Nothing waits on the teacher in an archived class: no orange stage.
     expect(screen.getByRole('complementary', { name: 'Testele clasei' }).querySelectorAll('.is-waiting')).toHaveLength(0);
     const heads = screen.getByRole('table', { name: 'Notele elevilor la teste' }).querySelectorAll('.grade-head-note.is-waiting');
@@ -459,7 +459,7 @@ describe('ClassPage, an archived class', () => {
     const api = await archivedClass();
     await api.setTestArchived('6E2-26T1', true);
     await api.setResultsOpen('6E2-26T1', true);
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     const aside = await screen.findByRole('complementary', { name: 'Testele clasei' });
     await userEvent.click(within(aside).getByRole('button', { name: /Arată și testele arhivate/ }));
     const items = within(aside).getAllByRole('listitem');
@@ -467,7 +467,7 @@ describe('ClassPage, an archived class', () => {
     expect(within(items[0]!).queryByRole('link', { name: 'Oprește accesul' })).not.toBeInTheDocument();
     expect(within(items[1]!).getByText('Rezultate · publicate · test arhivat')).toHaveClass('is-waiting');
     const stop = within(items[1]!).getByRole('link', { name: 'Oprește accesul' });
-    expect(stop).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
+    expect(stop).toHaveAttribute('href', '/tests/6E2-26T1#results');
     expect(stop).toHaveClass('button');
     expect(aside.querySelectorAll('.is-waiting')).toHaveLength(1);
     const heads = screen.getByRole('table', { name: 'Notele elevilor la teste' }).querySelectorAll('.grade-head-note.is-waiting');
@@ -478,7 +478,7 @@ describe('ClassPage, an archived class', () => {
   });
 
   it('shows the students read only, with the link to all their grades', async () => {
-    renderAdmin('/clase/1', await archivedClass());
+    renderAdmin('/classes/1', await archivedClass());
     await openStudents();
     const chosen = await detail();
     expect(chosen.getByRole('link', { name: 'Toate notele elevului, din toate clasele' })).toBeInTheDocument();
@@ -489,7 +489,7 @@ describe('ClassPage, an archived class', () => {
   });
 
   it('offers no new test for an archived class with no tests', async () => {
-    renderAdmin('/clase/1', await archivedClass({ ...classData(), tests: [] }));
+    renderAdmin('/classes/1', await archivedClass({ ...classData(), tests: [] }));
     const heading = await screen.findByRole('heading', { level: 2, name: 'Niciun test pentru Clasa 6E2' });
     const card = heading.closest('.class-card') as HTMLElement;
     expect(card).toHaveTextContent('Clasa e arhivată: nu i se mai fac teste.');
@@ -497,7 +497,7 @@ describe('ClassPage, an archived class', () => {
   });
 
   it('offers no "Adaugă elevi" when the archived class has no students', async () => {
-    renderAdmin('/clase/1', await archivedClass({ ...classData(), students: { 1: [] } }));
+    renderAdmin('/classes/1', await archivedClass({ ...classData(), students: { 1: [] } }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Clasa 6E2 nu are elevi' })).toBeInTheDocument();
     expect(screen.getByText('Clasa e arhivată: nu i se mai adaugă elevi.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Adaugă elevi/ })).not.toBeInTheDocument();
@@ -511,14 +511,14 @@ describe('ClassPage grade table', () => {
   const tableOf = async () => within(await screen.findByRole('table', { name: 'Notele elevilor la teste' }));
 
   it('shows one column per test, the oldest test on the left, with its date and state', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
     const headers = table.getAllByRole('columnheader');
     expect(headers).toHaveLength(3);
-    expect(within(headers[1]!).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
+    expect(within(headers[1]!).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/tests/6E2-26T1');
     expect(headers[1]).toHaveTextContent('06.10 · de verificat');
     expect(within(headers[1]!).getByText('06.10 · de verificat')).toHaveClass('is-waiting');
-    expect(within(headers[2]!).getByRole('link', { name: 'Geometrie' })).toHaveAttribute('href', '/teste/6E2-26T2');
+    expect(within(headers[2]!).getByRole('link', { name: 'Geometrie' })).toHaveAttribute('href', '/tests/6E2-26T2');
   });
 
   it('opens the student page from a name, which leads back to this class', async () => {
@@ -533,21 +533,21 @@ describe('ClassPage grade table', () => {
         grades: [],
       },
     ];
-    renderAdmin('/clase/1', createFakeApi({ ...classData(), histories }));
+    renderAdmin('/classes/1', createFakeApi({ ...classData(), histories }));
     const table = within(await screen.findByRole('table', { name: 'Notele elevilor la teste' }));
     await userEvent.click(table.getByRole('link', { name: 'Pop Ion' }));
     const path = within(await screen.findByRole('navigation', { name: 'Unde ești' }));
-    expect(path.getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
+    expect(path.getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/classes/1');
   });
 
   it('links a grade to the result of the student', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
-    expect(table.getByRole('link', { name: '9' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/501');
+    expect(table.getByRole('link', { name: '9' })).toHaveAttribute('href', '/tests/6E2-26T1/papers/501');
   });
 
   it('marks a grade with points to check with an orange dot, and no other grade', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
     const dot = table.getByRole('img', { name: '2 puncte de verificat' });
     expect(dot.closest('td')).toHaveClass('grade-flag');
@@ -557,7 +557,7 @@ describe('ClassPage grade table', () => {
   });
 
   it('draws each grade in a chip of its grade colour, also one with points to check', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
     const nine = table.getByRole('link', { name: '9' }).querySelector('.grade-chip');
     expect(nine).toHaveClass('points-5');
@@ -567,7 +567,7 @@ describe('ClassPage grade table', () => {
   });
 
   it('gives the whole name of a test as the tooltip of its column head and of its row in "Testele clasei"', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
     expect(table.getByRole('link', { name: 'Fracții' })).toHaveAttribute('title', 'Fracții');
     const list = within(screen.getByRole('complementary', { name: 'Testele clasei' }));
@@ -575,10 +575,10 @@ describe('ClassPage grade table', () => {
   });
 
   it('shows a status for an upload that is not graded, and a dash for none', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
     const popRow = within(table.getByRole('link', { name: 'Pop Ion' }).closest('tr')!);
-    expect(popRow.getByRole('link', { name: 'Încarcă…' })).toHaveAttribute('href', '/teste/6E2-26T2/elevi/504');
+    expect(popRow.getByRole('link', { name: 'Încarcă…' })).toHaveAttribute('href', '/tests/6E2-26T2/papers/504');
     const albuRow = within(table.getByRole('link', { name: 'Albu Dan' }).closest('tr')!);
     expect(albuRow.getByText('Trimis')).toBeInTheDocument();
     const leftRow = within(table.getByRole('link', { name: 'Ionescu Ana' }).closest('tr')!);
@@ -586,7 +586,7 @@ describe('ClassPage grade table', () => {
   });
 
   it('shows the test average in the last row "Media testului"', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
     const row = table.getByRole('rowheader', { name: 'Media testului' }).closest('tr')!;
     const cells = within(row).getAllByRole('cell');
@@ -596,14 +596,14 @@ describe('ClassPage grade table', () => {
   });
 
   it('lists students who left after the others, marked', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
     const names = table.getAllByRole('rowheader').map((cell) => cell.textContent);
     expect(names).toEqual(['Albu Dan', 'Pop Ion', 'Ionescu Ana a plecat', 'Media testului']);
   });
 
   it('says what to do when the class has no students, and leads to "Elevi"', async () => {
-    renderAdmin('/clase/1', createFakeApi({ ...classData(), students: { 1: [] } }));
+    renderAdmin('/classes/1', createFakeApi({ ...classData(), students: { 1: [] } }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Clasa 6E2 nu are încă elevi' })).toBeInTheDocument();
     expect(screen.getByText('Lipește lista din catalog, câte un elev pe rând.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Adaugă elevi' }));
@@ -611,18 +611,18 @@ describe('ClassPage grade table', () => {
   });
 
   it('says so when the class has no tests, with "Test nou pentru această clasă"', async () => {
-    renderAdmin('/clase/1', createFakeApi({ ...classData(), tests: [] }));
+    renderAdmin('/classes/1', createFakeApi({ ...classData(), tests: [] }));
     const heading = await screen.findByRole('heading', { level: 2, name: 'Niciun test pentru Clasa 6E2' });
     const card = heading.closest('.class-card') as HTMLElement;
     expect(card).toHaveTextContent('Testele clasei și notele lor apar aici.');
-    expect(within(card).getByRole('link', { name: 'Test nou pentru această clasă' })).toHaveAttribute('href', '/teste/nou?clasa=1');
+    expect(within(card).getByRole('link', { name: 'Test nou pentru această clasă' })).toHaveAttribute('href', '/tests/new?class=1');
   });
 
 });
 
 describe('ClassPage "Elevi" tab', () => {
   it('lists the students with a search, the first one chosen', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const list = await openStudents();
     const names = list.getAllByRole('button').map((button) => button.textContent);
     expect(names).toEqual(['Albu Dan', 'Pop Ion', 'Ionescu Ana']);
@@ -635,7 +635,7 @@ describe('ClassPage "Elevi" tab', () => {
   it('finds a student by a part of the name, without diacritics', async () => {
     const data = classData();
     renderAdmin(
-      '/clase/1',
+      '/classes/1',
       createFakeApi({
         ...data,
         students: { 1: [...data.students[1]!, { id: 13, fullName: 'Ștefănescu Ioana', active: true, canDelete: true, ces: false }] },
@@ -651,14 +651,14 @@ describe('ClassPage "Elevi" tab', () => {
   });
 
   it('marks a student whose test has points to check', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const list = await openStudents();
     expect(within(list.getByRole('button', { name: /Albu Dan/ })).getByRole('img', { name: 'puncte de verificat' })).toBeInTheDocument();
     expect(within(list.getByRole('button', { name: 'Pop Ion' })).queryByRole('img')).toBeNull();
   });
 
   it('shows the chosen student with each test, its date, points, grade and result', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const list = await openStudents();
     await userEvent.click(list.getByRole('button', { name: 'Ionescu Ana' }));
     const student = await detail();
@@ -673,12 +673,12 @@ describe('ClassPage "Elevi" tab', () => {
     expect(within(rows[1]!).getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
     expect(student.getByRole('link', { name: 'Toate notele elevului, din toate clasele' })).toHaveAttribute(
       'href',
-      '/elevi/11',
+      '/students/11',
     );
   });
 
   it('shows a published result, and an upload still in progress', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const list = await openStudents();
     await userEvent.click(list.getByRole('button', { name: 'Pop Ion' }));
     const student = await detail();
@@ -691,7 +691,7 @@ describe('ClassPage "Elevi" tab', () => {
   it('shows every result as published when the whole test is published', async () => {
     const data = classData();
     const [t2, t1] = data.tests;
-    renderAdmin('/clase/1', createFakeApi({ ...data, tests: [t2!, { ...t1!, test: { ...t1!.test, resultsOpen: true } }] }));
+    renderAdmin('/classes/1', createFakeApi({ ...data, tests: [t2!, { ...t1!, test: { ...t1!.test, resultsOpen: true } }] }));
     const list = await openStudents();
     await userEvent.click(list.getByRole('button', { name: 'Ionescu Ana' }));
     const student = await detail();
@@ -702,7 +702,7 @@ describe('ClassPage "Elevi" tab', () => {
   });
 
   it('says a result waits for the check, and links each paper', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     await openStudents();
     const student = await detail();
     expect(student.getByText('După verificare')).toBeInTheDocument();
@@ -712,12 +712,12 @@ describe('ClassPage "Elevi" tab', () => {
     expect(student.getByText('2 puncte de verificat').closest('td')!.querySelector('b')).toBeNull();
     expect(student.getByText('Trimis')).toBeInTheDocument();
     const papers = student.getAllByRole('link', { name: 'Lucrarea' }).map((link) => link.getAttribute('href'));
-    expect(papers).toEqual(['/teste/6E2-26T2/elevi/505', '/teste/6E2-26T1/elevi/502']);
+    expect(papers).toEqual(['/tests/6E2-26T2/papers/505', '/tests/6E2-26T1/papers/502']);
   });
 
   it('marks a student as gone from the class', async () => {
     const api = gradedClass();
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     await openStudents();
     await userEvent.click((await detail()).getByRole('button', { name: 'A plecat din clasă' }));
     expect(api.setStudentActive).toHaveBeenCalledWith(1, 12, false);
@@ -725,7 +725,7 @@ describe('ClassPage "Elevi" tab', () => {
 
   it('marks the chosen student as CES, shows the mark in both tabs, and takes it away', async () => {
     const api = gradedClass();
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     await openStudents();
     const before = await detail();
     expect(before.queryByText('CES')).not.toBeInTheDocument();
@@ -752,14 +752,14 @@ describe('ClassPage "Elevi" tab', () => {
 
   it('offers no CES button in an archived class', async () => {
     const data = classData();
-    renderAdmin('/clase/1', createFakeApi({ ...data, classes: [{ ...data.classes[0]!, archived: true }] }));
+    renderAdmin('/classes/1', createFakeApi({ ...data, classes: [{ ...data.classes[0]!, archived: true }] }));
     await openStudents();
     expect((await detail()).queryByRole('button', { name: 'Marchează CES' })).not.toBeInTheDocument();
   });
 
   it('renames the chosen student in a dialog', async () => {
     const api = gradedClass();
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     await openStudents();
     await userEvent.click((await detail()).getByRole('button', { name: 'Redenumește' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Redenumește Albu Dan' }));
@@ -772,7 +772,7 @@ describe('ClassPage "Elevi" tab', () => {
 
   it('adds students in a dialog, and warns of a name already in the class', async () => {
     const api = gradedClass();
-    renderAdmin('/clase/1', api);
+    renderAdmin('/classes/1', api);
     await openStudents();
     await userEvent.click(screen.getByRole('button', { name: '+ Adaugă elevi' }));
     const box = await screen.findByRole('dialog', { name: 'Adaugă elevi în Clasa 6E2' });
@@ -792,7 +792,7 @@ describe('ClassPage "Elevi" tab', () => {
   });
 
   it('offers to add students when the class has none', async () => {
-    renderAdmin('/clase/1', createFakeApi({ ...classData(), students: { 1: [] } }));
+    renderAdmin('/classes/1', createFakeApi({ ...classData(), students: { 1: [] } }));
     await userEvent.click(await screen.findByRole('tab', { name: 'Elevi 0' }));
     expect(screen.getByRole('heading', { level: 2, name: 'Clasa 6E2 nu are încă elevi' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Adaugă elevi' }));
@@ -804,27 +804,27 @@ describe('ClassPage "Testele clasei"', () => {
   const aside = async () => within(await screen.findByRole('complementary', { name: 'Testele clasei' }));
 
   it('lists the tests newest first, with their date, papers, stage and next step', async () => {
-    renderAdmin('/clase/1', gradedClass());
+    renderAdmin('/classes/1', gradedClass());
     const list = await aside();
     expect(list.getByText('2 în 2026-2027')).toBeInTheDocument();
     const items = list.getAllByRole('listitem');
     expect(items).toHaveLength(2);
     const [newest, oldest] = items;
 
-    expect(within(newest!).getByRole('link', { name: 'Geometrie' })).toHaveAttribute('href', '/teste/6E2-26T2');
+    expect(within(newest!).getByRole('link', { name: 'Geometrie' })).toHaveAttribute('href', '/tests/6E2-26T2');
     expect(within(newest!).getByText('20.10')).toBeInTheDocument();
     expect(within(newest!).getByText(/1 din 2 trimise/)).toBeInTheDocument();
     expect(within(newest!).getByText(/^În clasă/)).toBeInTheDocument();
     expect(within(newest!).getByRole('link', { name: 'Pornește corectarea' })).toHaveAttribute(
       'href',
-      '/teste/6E2-26T2#corectare',
+      '/tests/6E2-26T2#grading',
     );
 
-    expect(within(oldest!).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
+    expect(within(oldest!).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/tests/6E2-26T1');
     expect(within(oldest!).getByText('06.10')).toBeInTheDocument();
     expect(within(oldest!).getByText(/^Verificare/)).toHaveClass('is-waiting');
     const check = within(oldest!).getByRole('link', { name: 'Verifică 2 puncte' });
-    expect(check).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
+    expect(check).toHaveAttribute('href', '/tests/6E2-26T1/review');
     expect(check).toHaveClass('button');
   });
 
@@ -836,7 +836,7 @@ describe('ClassPage "Testele clasei"', () => {
       startedAt: '2026-09-20T07:00:00.000Z',
       archived: true,
     });
-    renderAdmin('/clase/1', createFakeApi(classData([archived])));
+    renderAdmin('/classes/1', createFakeApi(classData([archived])));
     // The facts count only the tests that are not archived.
     expect(await screen.findByText(/3 elevi · 2 teste · anul școlar/)).toBeInTheDocument();
 

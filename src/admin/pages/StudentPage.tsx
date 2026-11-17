@@ -21,7 +21,7 @@ import { ActionIcon } from '../../ui/ActionIcon.tsx';
 // from, for "←".
 export type StudentLinkState = { fromClass?: number } | null;
 
-// /elevi/:id: a student's history (spec §11.2): one card per class and school
+// /students/:id: a student's history (spec §11.2): one card per class and school
 // year, newest first, with a row per started test of that class.
 export function StudentPage() {
   const studentId = parsePositiveId(useParams().id);
@@ -58,8 +58,8 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
     <section className="history-page">
       <Crumbs
         items={[
-          { label: 'Clase', to: '/clase' },
-          ...(back ? [{ label: displayClassName(back.name), to: `/clase/${back.id}` }] : []),
+          { label: 'Clase', to: '/classes' },
+          ...(back ? [{ label: displayClassName(back.name), to: `/classes/${back.id}` }] : []),
           { label: student.fullName },
         ]}
       />
@@ -113,7 +113,7 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
 function ClassLink({ cls }: { cls: StudentClass }) {
   return (
     <>
-      <Link to={`/clase/${cls.id}`}>{displayClassName(cls.name)}</Link>
+      <Link to={`/classes/${cls.id}`}>{displayClassName(cls.name)}</Link>
       {!cls.active && (
         <>
           {' '}
@@ -166,7 +166,7 @@ function YearCard({ cls, history }: { cls: StudentClass; history: StudentHistory
                   return (
                     <tr key={test.code}>
                       <th scope="row">
-                        <Link to={`/teste/${test.code}`}>{test.title}</Link>
+                        <Link to={`/tests/${test.code}`}>{test.title}</Link>
                         <span>{formatDate(test.startedAt)}</span>
                       </th>
                       <td className="num">
@@ -180,7 +180,7 @@ function YearCard({ cls, history }: { cls: StudentClass; history: StudentHistory
                       </td>
                       <td className="student-paper">
                         {grade !== undefined && (
-                          <Link to={`/teste/${test.code}/elevi/${grade.submissionId}`}>Lucrarea</Link>
+                          <Link to={`/tests/${test.code}/papers/${grade.submissionId}`}>Lucrarea</Link>
                         )}
                       </td>
                     </tr>

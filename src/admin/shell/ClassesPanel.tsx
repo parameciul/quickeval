@@ -40,7 +40,7 @@ export function ClassesPanel({
 
   const newClass = (
     <div className="panel-new">
-      <Link className="button" to="/clase" state={{ newClass: true }}>
+      <Link className="button" to="/classes" state={{ newClass: true }}>
         <ActionIcon name="add" />
         Clasă nouă
       </Link>
@@ -63,7 +63,7 @@ export function ClassesPanel({
           icon={<IconClasses />}
           title={archived > 0 ? 'Nu ai nicio clasă activă' : 'Încă nu ai nicio clasă'}
           action={
-            <Link className="button button-small" to="/clase" state={{ newClass: true }}>
+            <Link className="button button-small" to="/classes" state={{ newClass: true }}>
               <ActionIcon name="add" />
               Clasă nouă
             </Link>
@@ -85,7 +85,7 @@ export function ClassesPanel({
                 <Link
                   key={item.id}
                   className="class-item"
-                  to={`/clase/${item.id}`}
+                  to={`/classes/${item.id}`}
                   aria-current={item.id === currentClassId ? 'page' : undefined}
                 >
                   <span className="class-item-head">
@@ -115,7 +115,7 @@ export function ClassesPanel({
       )}
       {archived > 0 && (
         <div className="panel-actions">
-          <Link to="/clase" state={{ archived: true }}>
+          <Link to="/classes" state={{ archived: true }}>
             Arhivate ({archived})
           </Link>
         </div>

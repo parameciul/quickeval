@@ -29,7 +29,7 @@ interface Group {
 
 // The address of the results page for a search.
 export function resultsPath(text: string): string {
-  return `/cautare?q=${encodeURIComponent(text.trim())}`;
+  return `/search?q=${encodeURIComponent(text.trim())}`;
 }
 
 function groupsOf(results: SearchResults, text: string): Group[] {
@@ -37,7 +37,7 @@ function groupsOf(results: SearchResults, text: string): Group[] {
     {
       title: 'Elevi',
       options: results.students.slice(0, SHOWN_PER_GROUP).map((student) => ({
-        to: `/elevi/${student.id}`,
+        to: `/students/${student.id}`,
         name: (
           <>
             <Highlight text={student.fullName} query={text} />
@@ -50,7 +50,7 @@ function groupsOf(results: SearchResults, text: string): Group[] {
     {
       title: 'Clase',
       options: results.classes.slice(0, SHOWN_PER_GROUP).map((cls) => ({
-        to: `/clase/${cls.id}`,
+        to: `/classes/${cls.id}`,
         name: (
           <>
             Clasa <Highlight text={cls.name} query={text} />
@@ -62,7 +62,7 @@ function groupsOf(results: SearchResults, text: string): Group[] {
     {
       title: 'Teste',
       options: results.tests.slice(0, SHOWN_PER_GROUP).map((test) => ({
-        to: `/teste/${test.code}`,
+        to: `/tests/${test.code}`,
         name: <Highlight text={test.title} query={text} />,
         meta: `${displayClassName(test.className)} · ${test.archived ? 'arhivat' : startedText(test)}`,
       })),
@@ -109,7 +109,7 @@ export function SearchBox({ id, always = false }: { id: string; always?: boolean
   const go = (to: string) => {
     setOpen(false);
     setActive(-1);
-    if (!to.startsWith('/cautare')) setText('');
+    if (!to.startsWith('/search')) setText('');
     void navigate(to);
   };
 

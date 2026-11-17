@@ -7,7 +7,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { BackHome, State, useStateHeading, WayIn } from '../wayIn/WayIn.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
-// /confirma-email#<token>: the link from the email of a new account. Shown
+// /confirm-email#<token>: the link from the email of a new account. Shown
 // without a login. It confirms only with the password chosen at the sign-up:
 // mail programs open links to check them, and someone who asked for an
 // account with another person's email cannot get that person to confirm it.

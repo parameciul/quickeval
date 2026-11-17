@@ -56,7 +56,7 @@ export function ReportCard({ test, uploads }: { test: TestInfo; uploads: UploadR
           </li>
         ))}
       </ul>
-      <Link className="button" to={`/teste/${test.code}/raport`}>
+      <Link className="button" to={`/tests/${test.code}/report`}>
         <ActionIcon name="report" />
         Deschide raportul
       </Link>

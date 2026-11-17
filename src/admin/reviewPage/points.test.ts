@@ -30,9 +30,9 @@ const uploads = () => [
 const keys = (queue: (QueuedPoint | null)[]) => queue.map((entry) => (entry ? `${entry.submissionId}:${pointKey(entry.point)}` : null));
 
 describe('the points of the review', () => {
-  it('names a point by its item, or "pagini" for the pages', () => {
+  it('names a point by its item, or "pages" for the pages', () => {
     expect(pointKey(fakePoint(5))).toBe('5');
-    expect(pointKey(pages)).toBe('pagini');
+    expect(pointKey(pages)).toBe('pages');
   });
 
   it('splits the graded papers into those with points to check and the others', () => {
@@ -41,11 +41,11 @@ describe('the points of the review', () => {
   });
 
   it('queues the points paper by paper, the pages first', () => {
-    expect(keys(pointQueue(uploads()))).toEqual(['11:pagini', '11:5', '14:9']);
+    expect(keys(pointQueue(uploads()))).toEqual(['11:pages', '11:5', '14:9']);
   });
 
   it('opens on the first point, else the first other graded paper, else nowhere', () => {
-    expect(firstSpot(uploads())).toEqual({ submissionId: 11, key: 'pagini' });
+    expect(firstSpot(uploads())).toEqual({ submissionId: 11, key: 'pages' });
     const noPoints = uploads().map((row) => ({ ...row, reviewPoints: [] }));
     expect(firstSpot(noPoints)).toEqual({ submissionId: 11, key: null });
     expect(firstSpot(uploads().filter((row) => row.status !== 'graded'))).toBeNull();
@@ -53,13 +53,13 @@ describe('the points of the review', () => {
 
   it('steps to the next or the previous point, going round', () => {
     const queue = pointQueue(uploads());
-    expect(keys([stepPoint(queue, { submissionId: 11, key: 'pagini' }, 1)])).toEqual(['11:5']);
-    expect(keys([stepPoint(queue, { submissionId: 14, key: '9' }, 1)])).toEqual(['11:pagini']);
-    expect(keys([stepPoint(queue, { submissionId: 11, key: 'pagini' }, -1)])).toEqual(['14:9']);
+    expect(keys([stepPoint(queue, { submissionId: 11, key: 'pages' }, 1)])).toEqual(['11:5']);
+    expect(keys([stepPoint(queue, { submissionId: 14, key: '9' }, 1)])).toEqual(['11:pages']);
+    expect(keys([stepPoint(queue, { submissionId: 11, key: 'pages' }, -1)])).toEqual(['14:9']);
     // From a paper with no point open: the first or the last point.
-    expect(keys([stepPoint(queue, { submissionId: 13, key: null }, 1)])).toEqual(['11:pagini']);
+    expect(keys([stepPoint(queue, { submissionId: 13, key: null }, 1)])).toEqual(['11:pages']);
     expect(keys([stepPoint(queue, { submissionId: 13, key: null }, -1)])).toEqual(['14:9']);
-    expect(keys([stepPoint(queue, null, 1)])).toEqual(['11:pagini']);
+    expect(keys([stepPoint(queue, null, 1)])).toEqual(['11:pages']);
   });
 
   it('has no next point when the current one is the last, or none waits', () => {
@@ -70,9 +70,9 @@ describe('the points of the review', () => {
   });
 
   it('writes the address of a paper and its point', () => {
-    expect(reviewPath('6E2-26T1')).toBe('/teste/6E2-26T1/verificare');
-    expect(reviewPath('6E2-26T1', { submissionId: 11 })).toBe('/teste/6E2-26T1/verificare?lucrare=11');
-    expect(reviewPath('6E2-26T1', { submissionId: 11, key: 'pagini' })).toBe('/teste/6E2-26T1/verificare?lucrare=11&punct=pagini');
+    expect(reviewPath('6E2-26T1')).toBe('/tests/6E2-26T1/review');
+    expect(reviewPath('6E2-26T1', { submissionId: 11 })).toBe('/tests/6E2-26T1/review?paper=11');
+    expect(reviewPath('6E2-26T1', { submissionId: 11, key: 'pages' })).toBe('/tests/6E2-26T1/review?paper=11&item=pages');
   });
 
   it('finds the page the robot names, counting from 0', () => {

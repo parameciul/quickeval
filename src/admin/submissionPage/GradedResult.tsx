@@ -217,8 +217,8 @@ function UnreadablePages({
   if (evaluation.pagesReviewed) return check?.onlyToCheck ? null : <p className="hint">Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.</p>;
   if (check) {
     // The open pages' decision says why itself.
-    const open = check.openKey === 'pagini';
-    const decision = rowDecision(check, 'pagini');
+    const open = check.openKey === 'pages';
+    const decision = rowDecision(check, 'pages');
     return (
       <div className={open ? 'pages-check is-open' : decision !== null ? 'pages-check is-kept' : 'pages-check'}>
         <p>
@@ -229,7 +229,7 @@ function UnreadablePages({
               className="button-quiet button-small icon-button verifica-btn"
               aria-label="Verifică paginile necitite"
               title="Verifică"
-              onClick={() => check.onOpen('pagini', 'byRow')}
+              onClick={() => check.onOpen('pages', 'byRow')}
             >
               <CheckMark />
             </button>

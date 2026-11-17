@@ -40,7 +40,7 @@ export function FirstSteps({ hasClass }: { hasClass: boolean }) {
           <h3>Fă un test</h3>
           <p>Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.</p>
           {hasClass ? (
-            <Link className="button button-small" to="/teste/nou">
+            <Link className="button button-small" to="/tests/new">
               <ActionIcon name="add" />
               Test nou
             </Link>

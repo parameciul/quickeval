@@ -40,7 +40,7 @@ describe('the search results page', () => {
       const found = await real(query, year);
       return { ...found, students: found.students.map((s) => (s.id === 10 ? { ...s, lastGrade: 7.1 } : s)) };
     });
-    expect(await openPage('/cautare?q=stef', api)).toHaveTextContent('Rezultate pentru „stef”');
+    expect(await openPage('/search?q=stef', api)).toHaveTextContent('Rezultate pentru „stef”');
     expect(await screen.findByText('3 rezultate în anul școlar 2026-2027. Diacriticele nu contează.')).toBeInTheDocument();
     const chips = screen.getByRole('group', { name: 'Arată' });
     expect(within(chips).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Toate 3', 'Elevi 3', 'Clase 0', 'Teste 0']);
@@ -54,41 +54,41 @@ describe('the search results page', () => {
       'Ștefan RaduClasa 10Bultima notă 7,1',
       'Ştefania PopClasa 9Anicio notă încă',
     ]);
-    expect(within(rows[1]!).getByRole('link', { name: 'Ștefan Radu' })).toHaveAttribute('href', '/elevi/10');
+    expect(within(rows[1]!).getByRole('link', { name: 'Ștefan Radu' })).toHaveAttribute('href', '/students/10');
     expect(within(rows[0]!).getByText('Stef', { selector: 'mark' })).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Clase' })).not.toBeInTheDocument();
     expect(api.search).toHaveBeenCalledWith('stef', 2026);
   });
 
   it('shows the classes and the tests with their state', async () => {
-    await openPage('/cautare?q=ste');
+    await openPage('/search?q=ste');
     const classes = await screen.findByRole('table', { name: 'Clase' });
     expect(within(classes).getByRole('row').textContent).toBe('Clasa 12STEniciun elevarhivată');
-    expect(within(classes).getByRole('link', { name: 'Clasa 12STE' })).toHaveAttribute('href', '/clase/3');
+    expect(within(classes).getByRole('link', { name: 'Clasa 12STE' })).toHaveAttribute('href', '/classes/3');
     const tests = screen.getByRole('table', { name: 'Teste' });
     expect(within(tests).getAllByRole('row').map((row) => row.textContent)).toEqual([
       'Teorema lui StewartClasa 9A · arhivatRezultate · publicate · test arhivat',
       'Ștergerea fracțiilorClasa 10B · ciornăPregătire · lipsesc testul și baremul',
     ]);
-    expect(within(tests).getByRole('link', { name: 'Teorema lui Stewart' })).toHaveAttribute('href', '/teste/9A-26T1');
+    expect(within(tests).getByRole('link', { name: 'Teorema lui Stewart' })).toHaveAttribute('href', '/tests/9A-26T1');
   });
 
   it('shows one group with its chip, kept in the address', async () => {
-    await openPage('/cautare?q=ste');
+    await openPage('/search?q=ste');
     await screen.findByRole('table', { name: 'Clase' });
     await userEvent.click(screen.getByRole('button', { name: 'Teste 2' }));
-    await expectLocation('/cautare?q=ste&arata=teste');
+    await expectLocation('/search?q=ste&show=tests');
     expect(screen.getByRole('button', { name: 'Teste 2' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('table', { name: 'Teste' })).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Elevi' })).not.toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Clase' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Toate 6' }));
-    await expectLocation('/cautare?q=ste');
+    await expectLocation('/search?q=ste');
     expect(screen.getByRole('table', { name: 'Elevi' })).toBeInTheDocument();
   });
 
   it('shows every group for a chip of an empty group in the address', async () => {
-    await openPage('/cautare?q=stef&arata=clase');
+    await openPage('/search?q=stef&show=classes');
     expect(await screen.findByRole('table', { name: 'Elevi' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Toate 3' })).toHaveAttribute('aria-pressed', 'true');
   });
@@ -113,7 +113,7 @@ describe('the search results page', () => {
   });
 
   it('says when it finds nothing', async () => {
-    await openPage('/cautare?q=zzz');
+    await openPage('/search?q=zzz');
     expect(await screen.findByText('Niciun rezultat în anul școlar 2026-2027. Diacriticele nu contează.')).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Arată' })).not.toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
@@ -121,7 +121,7 @@ describe('the search results page', () => {
 
   it('asks for two letters with no search, or a search too short', async () => {
     const api = searchApi();
-    for (const path of ['/cautare', '/cautare?q=%20s%20']) {
+    for (const path of ['/search', '/search?q=%20s%20']) {
       const { unmount } = renderAdmin(path, api);
       expect(await screen.findByRole('heading', { level: 1, name: 'Caută' })).toBeInTheDocument();
       expect(screen.getByText('Scrie cel puțin două litere în caseta de căutare.')).toBeInTheDocument();
@@ -133,7 +133,7 @@ describe('the search results page', () => {
   it('shows the error when the search fails', async () => {
     const api = searchApi();
     api.search.mockRejectedValue(new Error('network'));
-    await openPage('/cautare?q=stef', api);
+    await openPage('/search?q=stef', api);
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.queryByText('Se încarcă…')).not.toBeInTheDocument();
   });

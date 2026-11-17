@@ -30,7 +30,7 @@ export function UserMenu({ teacher }: { teacher: Teacher }) {
             <b>{teacher.name}</b>
             <span>{teacher.email}</span>
           </p>
-          <Link to="/cont">Contul meu</Link>
+          <Link to="/account">Contul meu</Link>
           <button type="button" disabled={logout.isPending} onClick={() => logout.mutate()}>
             Ieși din cont
           </button>

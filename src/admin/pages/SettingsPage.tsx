@@ -16,18 +16,18 @@ const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) 
 // every 10 minutes, and the robot line moves on by itself).
 const REFRESH_MS = 60_000;
 
-type Tab = 'conturi' | 'corectarea' | 'robotul';
+type Tab = 'accounts' | 'grading' | 'robot';
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'conturi', label: 'Conturi' },
-  { id: 'corectarea', label: 'Corectarea' },
-  { id: 'robotul', label: 'Robotul' },
+  { id: 'accounts', label: 'Conturi' },
+  { id: 'grading', label: 'Corectarea' },
+  { id: 'robot', label: 'Robotul' },
 ];
 const TAB_IDS = TABS.map(({ id }) => id);
 
-// The tab in the address: `?tab=corectarea` or `?tab=robotul`; none (or one it
+// The tab in the address: `?tab=grading` or `?tab=robot`; none (or one it
 // does not know) is "Conturi".
 function tabOf(value: string | null): Tab {
-  return value === 'corectarea' || value === 'robotul' ? value : 'conturi';
+  return value === 'grading' || value === 'robot' ? value : 'accounts';
 }
 
 // Setări (redesign spec §11.8), for the administrators only: three tabs, the
@@ -60,7 +60,7 @@ export function SettingsPage() {
     );
   }
 
-  const show = (next: Tab) => setParams(next === 'conturi' ? {} : { tab: next }, { replace: true });
+  const show = (next: Tab) => setParams(next === 'accounts' ? {} : { tab: next }, { replace: true });
 
   return (
     <section className="settings-page">
@@ -85,7 +85,7 @@ export function SettingsPage() {
             onClick={() => show(id)}
           >
             {label}
-            {id === 'conturi' && waiting > 0 && (
+            {id === 'accounts' && waiting > 0 && (
               <>
                 {' '}
                 <span className="tag tag-urgent settings-count">
@@ -106,13 +106,13 @@ export function SettingsPage() {
           className="settings-panel"
           hidden={tab !== id}
         >
-          {isAdmin && id === 'conturi' && <AccountsSection />}
-          {isAdmin && id !== 'conturi' && (
+          {isAdmin && id === 'accounts' && <AccountsSection />}
+          {isAdmin && id !== 'accounts' && (
             <>
               {settings.isPending && <p>Se încarcă…</p>}
               {settings.error && <ErrorMessage error={settings.error} />}
-              {settings.data && id === 'corectarea' && <GradingCard settings={settings.data} />}
-              {settings.data && id === 'robotul' && (
+              {settings.data && id === 'grading' && <GradingCard settings={settings.data} />}
+              {settings.data && id === 'robot' && (
                 <>
                   <RobotState settings={settings.data} />
                   <RobotKey hasKey={settings.data.hasRobotKey} madeAt={settings.data.robotKeyAt} />

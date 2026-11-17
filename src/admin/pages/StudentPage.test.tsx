@@ -49,17 +49,17 @@ const rowOf = (region: ReturnType<typeof card>, test: string) => region.getByRol
 describe('StudentPage', () => {
   it('shows the name, the class now and the earlier ones, each a link', async () => {
     const api = apiWith();
-    renderAdmin('/elevi/10', api);
+    renderAdmin('/students/10', api);
     expect(await screen.findByRole('heading', { level: 1, name: 'Pop Ion' })).toBeInTheDocument();
     expect(api.getStudentHistory).toHaveBeenCalledWith(10);
     const line = screen.getByText(/înainte în/);
     expect(line).toHaveTextContent('Clasa 7E2 în 2027-2028 · înainte în Clasa 6E2 a plecat (2026-2027)');
-    expect(within(line).getByRole('link', { name: 'Clasa 7E2' })).toHaveAttribute('href', '/clase/2');
-    expect(within(line).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
+    expect(within(line).getByRole('link', { name: 'Clasa 7E2' })).toHaveAttribute('href', '/classes/2');
+    expect(within(line).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/classes/1');
   });
 
   it('shows one card per school year and class, newest first, a row per test', async () => {
-    renderAdmin('/elevi/10', apiWith());
+    renderAdmin('/students/10', apiWith());
     await screen.findByRole('heading', { level: 1, name: 'Pop Ion' });
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
       '2027-2028 · Clasa 7E2',
@@ -71,12 +71,12 @@ describe('StudentPage', () => {
       'Logaritmi',
       'Test inițial',
     ]);
-    expect(now.getByRole('link', { name: 'Ecuații' })).toHaveAttribute('href', '/teste/7E2-27T3');
+    expect(now.getByRole('link', { name: 'Ecuații' })).toHaveAttribute('href', '/tests/7E2-27T3');
     expect(within(rowOf(now, 'Ecuații')).getByText('3 noiembrie 2027')).toBeInTheDocument();
   });
 
   it('shows the points, the grade as the grades table draws it, the result and the paper', async () => {
-    renderAdmin('/elevi/10', apiWith());
+    renderAdmin('/students/10', apiWith());
     await screen.findByRole('heading', { level: 1, name: 'Pop Ion' });
     const now = card(/^2027-2028/);
 
@@ -85,9 +85,9 @@ describe('StudentPage', () => {
     expect(waiting.getByText('76,4 / 100')).toBeInTheDocument();
     expect(waiting.getByRole('img', { name: '1 punct de verificat' }).closest('td')).toHaveClass('grade-flag');
     expect(waiting.getByText('7,64')).toHaveClass('grade-chip', 'points-4');
-    expect(waiting.getByRole('link', { name: /7,64/ })).toHaveAttribute('href', '/teste/7E2-27T3/elevi/31');
+    expect(waiting.getByRole('link', { name: /7,64/ })).toHaveAttribute('href', '/tests/7E2-27T3/papers/31');
     expect(waiting.getByText('După verificare')).toBeInTheDocument();
-    expect(waiting.getByRole('link', { name: 'Lucrarea' })).toHaveAttribute('href', '/teste/7E2-27T3/elevi/31');
+    expect(waiting.getByRole('link', { name: 'Lucrarea' })).toHaveAttribute('href', '/tests/7E2-27T3/papers/31');
 
     const published = within(rowOf(now, 'Logaritmi'));
     expect(published.getByText('Publicat')).toBeInTheDocument();
@@ -106,7 +106,7 @@ describe('StudentPage', () => {
   });
 
   it('puts the legend of the grades table under each card', async () => {
-    renderAdmin('/elevi/10', apiWith());
+    renderAdmin('/students/10', apiWith());
     await screen.findByRole('heading', { level: 1, name: 'Pop Ion' });
     expect(card(/^2027-2028/).getByText(/Nota se poate schimba după verificare/)).toHaveTextContent(
       'Nota se poate schimba după verificare. „—”: elevul nu a trimis lucrarea.',
@@ -115,28 +115,28 @@ describe('StudentPage', () => {
   });
 
   it('leads back to the class the teacher came from, else to the class the student is in now', async () => {
-    renderAdmin({ pathname: '/elevi/10', state: { fromClass: 1 } }, apiWith());
+    renderAdmin({ pathname: '/students/10', state: { fromClass: 1 } }, apiWith());
     const path = within(await screen.findByRole('navigation', { name: 'Unde ești' }));
-    expect(path.getByRole('link', { name: 'Clase' })).toHaveAttribute('href', '/clase');
-    expect(path.getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
+    expect(path.getByRole('link', { name: 'Clase' })).toHaveAttribute('href', '/classes');
+    expect(path.getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/classes/1');
     expect(path.getByText('Pop Ion')).toHaveAttribute('aria-current', 'page');
   });
 
   it('leads back to the class the student is in now when no class is named', async () => {
-    renderAdmin('/elevi/10', apiWith());
+    renderAdmin('/students/10', apiWith());
     const path = within(await screen.findByRole('navigation', { name: 'Unde ești' }));
-    expect(path.getByRole('link', { name: 'Clasa 7E2' })).toHaveAttribute('href', '/clase/2');
+    expect(path.getByRole('link', { name: 'Clasa 7E2' })).toHaveAttribute('href', '/classes/2');
   });
 
   it('says so in a class with no started test', async () => {
-    renderAdmin('/elevi/10', apiWith([{ ...history, tests: history.tests.filter((test) => test.classId === 1) }]));
+    renderAdmin('/students/10', apiWith([{ ...history, tests: history.tests.filter((test) => test.classId === 1) }]));
     await screen.findByRole('heading', { level: 1, name: 'Pop Ion' });
     expect(card(/^2027-2028/).getByText('Niciun test început în această clasă.')).toBeInTheDocument();
   });
 
   it('renames the student in a dialog', async () => {
     const api = apiWith();
-    renderAdmin('/elevi/10', api);
+    renderAdmin('/students/10', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Redenumește' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Redenumește Pop Ion' }));
     const field = dialog.getByLabelText('Numele elevului');
@@ -147,12 +147,12 @@ describe('StudentPage', () => {
   });
 
   it('shows the not-found page for an id that is not a number', async () => {
-    renderAdmin('/elevi/abc', apiWith());
+    renderAdmin('/students/abc', apiWith());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
   });
 
   it('shows the server message for a student that does not exist', async () => {
-    renderAdmin('/elevi/99', apiWith());
+    renderAdmin('/students/99', apiWith());
     expect(await screen.findByRole('alert')).toHaveTextContent('Nu am găsit ce cauți.');
   });
 });

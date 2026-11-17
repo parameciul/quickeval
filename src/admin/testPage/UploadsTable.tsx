@@ -216,7 +216,7 @@ function UploadTableRow({
       <td className="actions-cell">
         {submissionId !== null && startedAt !== null && (
           <span className="row-actions">
-            <Link to={`/teste/${code}/elevi/${submissionId}`}>Vezi lucrarea</Link>
+            <Link to={`/tests/${code}/papers/${submissionId}`}>Vezi lucrarea</Link>
             {row.status === 'failed' && (
               <button
                 type="button"

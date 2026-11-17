@@ -35,7 +35,7 @@ export function DemoButton({ teacher }: { teacher: Teacher }) {
       {open && (
         <section className="demo-menu" id="demo-menu" aria-label="Cont demo">
           <DemoSummary usage={usage} />
-          <Link to="/cont">Contul meu</Link>
+          <Link to="/account">Contul meu</Link>
         </section>
       )}
     </div>

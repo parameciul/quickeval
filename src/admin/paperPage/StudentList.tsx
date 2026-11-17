@@ -34,7 +34,7 @@ export function StudentList({
   const papers = listedPapers(uploads, mode);
   const withPoints = papers.filter((row) => row.status === 'graded' && row.reviewPoints.length > 0);
   const groups =
-    mode === 'verificare'
+    mode === 'review'
       ? [
           { title: 'Cu puncte de verificat', rows: withPoints },
           { title: 'Celelalte lucrări', rows: papers.slice(withPoints.length) },

@@ -36,7 +36,7 @@ export function usePaperActions(code: string, submissionId: number) {
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['submission', submissionId] });
       await refreshLists();
-      navigate(`/teste/${code}`);
+      navigate(`/tests/${code}`);
     },
   });
   const regrade = useMutation({
@@ -105,7 +105,7 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
           </p>
         </div>
         <div className="submission-tools">
-          <Link className="button-quiet button-small" to={`/elevi/${submission.studentId}`}>
+          <Link className="button-quiet button-small" to={`/students/${submission.studentId}`}>
             <ActionIcon name="report" />
             Toate notele elevului
           </Link>

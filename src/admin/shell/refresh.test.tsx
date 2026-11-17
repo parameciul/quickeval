@@ -59,7 +59,7 @@ describe('useDataVersion', () => {
   it('does not read the page a second time after the teacher\'s own save', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     const api = apiWithOneTest();
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     await userEvent.type(await screen.findByLabelText('Parola de acum'), 'parola-veche');
     await userEvent.type(screen.getByLabelText(/^Parola nouă/), 'parola-noua');
     await waitFor(() => expect(api.dataVersion).toHaveBeenCalledTimes(1));
@@ -81,7 +81,7 @@ describe('useDataVersion', () => {
   it('compares the next answer after a failed question', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     const api = apiWithOneTest();
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     await userEvent.type(await screen.findByLabelText('Parola de acum'), 'parola-veche');
     await userEvent.type(screen.getByLabelText(/^Parola nouă/), 'parola-noua');
     await waitFor(() => expect(api.dataVersion).toHaveBeenCalledTimes(1));

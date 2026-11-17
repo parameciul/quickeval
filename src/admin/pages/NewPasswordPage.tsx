@@ -7,7 +7,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { BackHome, State, useStateHeading, WayIn } from '../wayIn/WayIn.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
-// /parola-noua#<token>: the link from the "Am uitat parola" email. Shown
+// /new-password#<token>: the link from the "Am uitat parola" email. Shown
 // without a login. The token is after "#", so it never reaches a server log.
 export function NewPasswordPage() {
   const api = useApi();

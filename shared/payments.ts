@@ -62,8 +62,12 @@ export interface CheckoutAnswer {
 }
 
 // The query parameter the payment page adds to the return address.
-export const PAYMENT_RETURN_PARAM = 'plata';
-export type PaymentReturn = 'reusita' | 'anulata';
+export const PAYMENT_RETURN_PARAM = 'payment';
+export type PaymentReturn = 'success' | 'cancelled';
+// Its first name and values, before addresses became English: a payment page
+// open during that deploy still comes back with them.
+const OLD_RETURN_PARAM = 'plata';
+const OLD_RETURNS: Record<string, PaymentReturn> = { reusita: 'success', anulata: 'cancelled' };
 
 export const FEATURE_KEY = /^[a-z][a-z0-9_]{0,39}$/;
 
@@ -80,14 +84,17 @@ export function isReturnPath(path: string, payer: Payer): boolean {
 // The return address for one outcome. `{CHECKOUT_SESSION_ID}` is filled in by Stripe.
 export function returnUrl(origin: string, path: string, outcome: PaymentReturn): string {
   const glue = path.includes('?') ? '&' : '?';
-  const session = outcome === 'reusita' ? '&session_id={CHECKOUT_SESSION_ID}' : '';
+  const session = outcome === 'success' ? '&session_id={CHECKOUT_SESSION_ID}' : '';
   return `${origin}${path}${glue}${PAYMENT_RETURN_PARAM}=${outcome}${session}`;
 }
 
 // The outcome in a page address that the payment page sent back, if any.
 export function paymentReturnOf(search: string): PaymentReturn | null {
-  const value = new URLSearchParams(search).get(PAYMENT_RETURN_PARAM);
-  return value === 'reusita' || value === 'anulata' ? value : null;
+  const params = new URLSearchParams(search);
+  const value = params.get(PAYMENT_RETURN_PARAM);
+  if (value === 'success' || value === 'cancelled') return value;
+  const old = params.get(OLD_RETURN_PARAM) ?? '';
+  return Object.hasOwn(OLD_RETURNS, old) ? OLD_RETURNS[old]! : null;
 }
 
 export const checkoutBody = z.object({

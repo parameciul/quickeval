@@ -81,7 +81,7 @@ describe('payments before the Stripe account', () => {
 describe('POST /api/admin/payments/checkout', () => {
   it('makes a pending payment with the catalog price and returns the Stripe page', async () => {
     await start();
-    const res = await checkout({ feature: 'pro', returnPath: '/teacher/setari' });
+    const res = await checkout({ feature: 'pro', returnPath: '/teacher/settings' });
     expect(res.status).toBe(201);
     expect(res.body.url).toMatch(/^https:\/\/checkout\.stripe\.com\/c\/\d+$/);
     expect(sessions).toHaveLength(1);
@@ -89,8 +89,8 @@ describe('POST /api/admin/payments/checkout', () => {
       amount: 4900,
       currency: 'ron',
       name: 'Cont Pro',
-      successUrl: 'http://localhost/teacher/setari?plata=reusita&session_id={CHECKOUT_SESSION_ID}',
-      cancelUrl: 'http://localhost/teacher/setari?plata=anulata',
+      successUrl: 'http://localhost/teacher/settings?payment=success&session_id={CHECKOUT_SESSION_ID}',
+      cancelUrl: 'http://localhost/teacher/settings?payment=cancelled',
     });
     const row = await api.db.prepare('SELECT * FROM payments').first<Record<string, unknown>>();
     expect(row).toMatchObject({ teacher_id: api.teacherId, student_id: null, feature: 'pro', amount: 4900, status: 'pending' });

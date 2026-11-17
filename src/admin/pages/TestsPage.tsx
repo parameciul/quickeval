@@ -32,17 +32,17 @@ export function TestsPage() {
   // The test whose row takes the focus once a publish has moved it.
   const [focusCode, setFocusCode] = useState<string | null>(null);
 
-  const requested = Number(params.get('clasa'));
+  const requested = Number(params.get('class'));
   const chosenClass = classes.data?.find((item) => item.id === requested)?.id ?? null;
-  const showArchived = params.get('arhivate') === '1';
+  const showArchived = params.get('archived') === '1';
 
   // A class that is not one of the year's (an old link, or another school year)
   // leaves the address, so the chips and the address agree.
-  const staleClass = classes.data !== undefined && params.has('clasa') && chosenClass === null;
+  const staleClass = classes.data !== undefined && params.has('class') && chosenClass === null;
   useEffect(() => {
     if (!staleClass) return;
     const next = new URLSearchParams(params);
-    next.delete('clasa');
+    next.delete('class');
     setParams(next, { replace: true });
   }, [staleClass, params, setParams]);
 
@@ -106,7 +106,7 @@ export function TestsPage() {
             )}
           </p>
         </div>
-        <Link className="button" to="/teste/nou">
+        <Link className="button" to="/tests/new">
           <ActionIcon name="add" />
           Test nou
         </Link>
@@ -115,17 +115,17 @@ export function TestsPage() {
 
       <div className="filters">
         <div className="chips" role="group" aria-label="Clasa">
-          <button type="button" className="chip" aria-pressed={chosenClass === null} onClick={() => change('clasa', null)}>
+          <button type="button" className="chip" aria-pressed={chosenClass === null} onClick={() => change('class', null)}>
             Toate clasele
           </button>
           {classes.data?.map((item) => (
-            <button key={item.id} type="button" className="chip" aria-pressed={item.id === chosenClass} onClick={() => change('clasa', String(item.id))}>
+            <button key={item.id} type="button" className="chip" aria-pressed={item.id === chosenClass} onClick={() => change('class', String(item.id))}>
               {displayClassName(item.name)}
             </button>
           ))}
         </div>
         <label className="check-label">
-          <input type="checkbox" checked={showArchived} onChange={(event) => change('arhivate', event.target.checked ? '1' : null)} />
+          <input type="checkbox" checked={showArchived} onChange={(event) => change('archived', event.target.checked ? '1' : null)} />
           Arată și testele arhivate
         </label>
       </div>

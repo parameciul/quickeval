@@ -16,7 +16,7 @@ describe('the CES mark', () => {
       fakeUpload({ studentId: 1, studentName: 'Bursașiu Teodor', submissionId: 11, status: 'graded', grade: 8, flagCount: 1, ces: true, variant: 'ces' }),
       fakeUpload({ studentId: 2, studentName: 'Ene Ana', submissionId: 12, status: 'graded', grade: 7, flagCount: 1 }),
     ];
-    renderAdmin('/teste/6E2-26T1/verificare', createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, uploads)] }));
+    renderAdmin('/tests/6E2-26T1/review', createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, uploads)] }));
     const queue = within(await screen.findByRole('navigation', { name: 'Elevii' }));
     expect(within(queue.getByRole('link', { name: /^Bursașiu Teodor/ })).getByText('CES')).toBeInTheDocument();
     expect(within(queue.getByRole('link', { name: /^Ene Ana/ })).queryByText('CES')).not.toBeInTheDocument();
@@ -28,7 +28,7 @@ describe('the CES mark', () => {
       students: { 1: [student(10, 'Bursașiu Teodor', true), student(11, 'Bursuc Ana')] },
       tests: [],
     });
-    renderAdmin('/cautare?q=burs', api);
+    renderAdmin('/search?q=burs', api);
     const row = (await screen.findByRole('rowheader', { name: /Bursașiu Teodor/ })).closest('tr')!;
     expect(within(row).getByText('CES')).toHaveAttribute('title', 'Cerințe educaționale speciale');
     expect(within(screen.getByRole('rowheader', { name: /Bursuc Ana/ })).queryByText('CES')).not.toBeInTheDocument();
@@ -41,7 +41,7 @@ describe('the CES mark', () => {
       tests: [],
       grades: [],
     };
-    renderAdmin('/elevi/10', createFakeApi({ classes: [], students: {}, histories: [history] }));
+    renderAdmin('/students/10', createFakeApi({ classes: [], students: {}, histories: [history] }));
     const heading = await screen.findByRole('heading', { level: 1, name: /Bursașiu Teodor/ });
     expect(within(heading).getByText('CES')).toBeInTheDocument();
   });
@@ -54,7 +54,7 @@ describe('the CES files', () => {
       files: { test: { name: 'test.pdf', type: PDF_TYPE }, barem: null },
       ces: noCesVariant({ studentCount: 1, files: { test: file, barem: { name: 'Barem adaptat.pdf', type: PDF_TYPE } }, print: { status: 'ready', fromWord: false } }),
     });
-    renderAdmin('/teste/6E2-26T1#pregatire', createFakeApi({ classes: [], students: {}, tests: [test] }));
+    renderAdmin('/tests/6E2-26T1#prepare', createFakeApi({ classes: [], students: {}, tests: [test] }));
     const panel = within(await screen.findByRole('region', { name: 'Pregătire' }));
     expect(panel.getByRole('link', { name: 'Test adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/test');
     expect(panel.getByRole('link', { name: 'Barem adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/barem');

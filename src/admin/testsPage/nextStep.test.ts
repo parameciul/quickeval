@@ -6,8 +6,8 @@ import { nextStep, type NextStep } from './nextStep.ts';
 
 const started = { startedAt: '2026-10-06T07:15:00.000Z' };
 const graded = { ...started, evaluationStartedAt: '2026-10-07T07:15:00.000Z', submittedCount: 22, gradedCount: 22 };
-const page = (label: string): NextStep => ({ kind: 'link', label, to: '/teste/6E2-26T1' });
-const review = (label: string): NextStep => ({ kind: 'link', label, to: '/teste/6E2-26T1/verificare' });
+const page = (label: string): NextStep => ({ kind: 'link', label, to: '/tests/6E2-26T1' });
+const review = (label: string): NextStep => ({ kind: 'link', label, to: '/tests/6E2-26T1/review' });
 
 const CASES: [string, TestSummary, NextStep][] = [
   ['checks the generated barem', fakeSummary({ barem: { request: 'none', unchecked: true } }), page('Verifică baremul')],
@@ -36,7 +36,7 @@ const CASES: [string, TestSummary, NextStep][] = [
   [
     'starts the grading of an open test in the panel Corectare',
     fakeSummary({ status: 'open', ...started }),
-    { kind: 'link', label: 'Pornește corectarea', to: '/teste/6E2-26T1#corectare' },
+    { kind: 'link', label: 'Pornește corectarea', to: '/tests/6E2-26T1#grading' },
   ],
   ['waits for the time set for the grading', fakeSummary({ status: 'open', ...started, evaluationAt: '2026-10-06T12:00:00.000Z' }), null],
   ['waits while the papers are graded', fakeSummary({ status: 'evaluating', ...started, submittedCount: 22, gradedCount: 15 }), null],
@@ -44,13 +44,13 @@ const CASES: [string, TestSummary, NextStep][] = [
   ['checks one point', fakeSummary({ status: 'evaluating', ...graded, flagCount: 1 }), review('Verifică 1 punct')],
   ['publishes the results on the row', fakeSummary({ status: 'done', ...graded }), { kind: 'publish', label: 'Publică rezultatele' }],
   ['publishes for everyone after some students', fakeSummary({ status: 'done', ...graded, publishedCount: 2 }), { kind: 'publish', label: 'Publică pentru toți' }],
-  ['opens the class report of published results', fakeSummary({ status: 'done', ...graded, resultsOpen: true }), { kind: 'link', label: 'Raportul clasei', to: '/teste/6E2-26T1/raport' }],
+  ['opens the class report of published results', fakeSummary({ status: 'done', ...graded, resultsOpen: true }), { kind: 'link', label: 'Raportul clasei', to: '/tests/6E2-26T1/report' }],
   [
     'closes the open results of an archived test',
     fakeSummary({ status: 'done', ...graded, archived: true, publishedCount: 2 }),
-    { kind: 'link', label: 'Oprește accesul', to: '/teste/6E2-26T1#rezultate' },
+    { kind: 'link', label: 'Oprește accesul', to: '/tests/6E2-26T1#results' },
   ],
-  ['opens the class report of an archived test with closed results', fakeSummary({ status: 'done', ...graded, archived: true }), { kind: 'link', label: 'Raportul clasei', to: '/teste/6E2-26T1/raport' }],
+  ['opens the class report of an archived test with closed results', fakeSummary({ status: 'done', ...graded, archived: true }), { kind: 'link', label: 'Raportul clasei', to: '/tests/6E2-26T1/report' }],
   ['has nothing for a done test without a graded paper', fakeSummary({ status: 'done', ...started, submittedCount: 2 }), null],
 ];
 

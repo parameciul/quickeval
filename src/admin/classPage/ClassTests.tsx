@@ -63,13 +63,13 @@ export function ClassTests({
             const step: NextStep = live
               ? nextStep(test, current)
               : test.gradedCount > 0
-                ? { kind: 'link', label: 'Raportul clasei', to: `/teste/${test.code}/raport` }
+                ? { kind: 'link', label: 'Raportul clasei', to: `/tests/${test.code}/report` }
                 : null;
             const waits = live && todoOf(test) !== null;
             return (
               <li key={test.code} className={test.archived ? 'is-muted' : undefined}>
                 <div className="class-test-text">
-                  <Link className="class-test-title" to={`/teste/${test.code}`} title={test.title}>
+                  <Link className="class-test-title" to={`/tests/${test.code}`} title={test.title}>
                     {test.title}
                   </Link>
                   <span>

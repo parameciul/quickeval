@@ -16,7 +16,7 @@ export function accountTag(teacher: Teacher): string {
   return teacher.demo ? 'Cont demo' : 'Cont complet';
 }
 
-// /cont (redesign spec §11.5): one column of three cards: who is logged in and
+// /account (redesign spec §11.5): one column of three cards: who is logged in and
 // what the account has used, the password, and "Ieși din cont". No pay button:
 // nothing is on sale.
 export function AccountPage() {
@@ -75,7 +75,7 @@ function AccountCard({ teacher }: { teacher: Teacher }) {
             </dl>
             {teacher.role === 'admin' && (
               <p className="account-line is-muted">
-                Conturile și robotul sunt în <Link to="/setari">Setări</Link>.
+                Conturile și robotul sunt în <Link to="/settings">Setări</Link>.
               </p>
             )}
           </>

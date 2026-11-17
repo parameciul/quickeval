@@ -11,10 +11,10 @@ import { NewClassDialog } from '../classPage/ClassDialogs.tsx';
 import type { ClassLinkState } from './ClassPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
-// The key that remembers which class the teacher opened last, so /clase reopens it.
+// The key that remembers which class the teacher opened last, so /classes reopens it.
 const LAST_CLASS_KEY = 'quickeval:lastClass';
 
-// /clase: opens the last class the teacher saw (else the first one of the year),
+// /classes: opens the last class the teacher saw (else the first one of the year),
 // instead of showing a page with all classes (redesign spec §9). What a link
 // asks for (state `newClass` or `archived`) goes on to that class page. With no
 // active class, the page is an empty state with "Clasă nouă", and lists the
@@ -35,7 +35,7 @@ export function LastClassPage() {
     const saved = localStorage.getItem(LAST_CLASS_KEY);
     const target = list.find((item) => item.id === Number(saved)) ?? list[0];
     localStorage.setItem(LAST_CLASS_KEY, String(target!.id));
-    navigate(`/clase/${target!.id}`, { replace: true, state: linkState });
+    navigate(`/classes/${target!.id}`, { replace: true, state: linkState });
   }, [classes.data, navigate, linkState]);
 
   if (classes.error) return <ErrorMessage error={classes.error} />;
@@ -64,7 +64,7 @@ export function LastClassPage() {
             {archived.map((item, index) => (
               <span key={item.id}>
                 {index > 0 && ', '}
-                <Link to={`/clase/${item.id}`}>{displayClassName(item.name)}</Link>
+                <Link to={`/classes/${item.id}`}>{displayClassName(item.name)}</Link>
               </span>
             ))}
           </span>

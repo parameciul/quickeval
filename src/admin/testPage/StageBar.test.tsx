@@ -26,7 +26,7 @@ describe('StageBar', () => {
     const nav = screen.getByRole('navigation', { name: 'Etapa următoare' });
     expect(nav).toHaveTextContent('Corectare · gata');
     const link = screen.getByRole('link', { name: 'Mergi la Verificare' });
-    expect(link).toHaveAttribute('href', '/#verificare');
+    expect(link).toHaveAttribute('href', '/#review');
     // A quiet outline: the filled blue is for the panel's own main action.
     expect(link).toHaveClass('button', 'button-small');
     expect(link).not.toHaveClass('button-quiet');

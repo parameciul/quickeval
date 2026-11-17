@@ -117,7 +117,7 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
           <ul className="review-chips" aria-labelledby={doneId}>
             {done.map((row) => (
               <li key={row.submissionId}>
-                <Link className="review-chip is-done" to={paperPath(test.code, 'app', { submissionId: row.submissionId, key: null }, 'toate')}>
+                <Link className="review-chip is-done" to={paperPath(test.code, 'app', { submissionId: row.submissionId, key: null }, 'all')}>
                   <span aria-hidden="true">✓</span> {row.studentName}
                   {isCes(row) && <CesTag />}
                 </Link>

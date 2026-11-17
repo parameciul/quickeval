@@ -78,7 +78,7 @@ describe('ReportPage with CES papers', () => {
   };
 
   it('shows the CES papers in a table of their own, with the mark, when their exercises differ', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ cesExercises: [{ id: 'C1', label: 'Exercițiul CES 1', maxPoints: 9 }], rows: [...report().rows, cesRow] })));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(report({ cesExercises: [{ id: 'C1', label: 'Exercițiul CES 1', maxPoints: 9 }], rows: [...report().rows, cesRow] })));
     const results = within(await screen.findByRole('region', { name: 'Rezultatele elevilor' }));
     const tables = results.getAllByRole('table');
     expect(tables).toHaveLength(2);
@@ -94,7 +94,7 @@ describe('ReportPage with CES papers', () => {
   });
 
   it('keeps one table, with the mark, when the CES papers share the class columns', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ rows: [...report().rows, { ...cesRow, items: report().rows[0]!.items }] })));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(report({ rows: [...report().rows, { ...cesRow, items: report().rows[0]!.items }] })));
     const results = within(await screen.findByRole('region', { name: 'Rezultatele elevilor' }));
     expect(results.getAllByRole('table')).toHaveLength(1);
     expect(results.queryByRole('heading', { name: 'Varianta CES' })).not.toBeInTheDocument();
@@ -120,7 +120,7 @@ describe('ReportPage on a phone', () => {
   });
 
   it('puts the grade right after the name and the total last, and says the table scrolls', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     const results = within(await screen.findByRole('region', { name: 'Rezultatele elevilor' }));
     expect(results.getByText('Glisează tabelul spre stânga pentru punctaje.')).toBeInTheDocument();
     const table = results.getByRole('table', { name: 'Punctajele elevilor pe exerciții' });
@@ -142,7 +142,7 @@ describe('ReportPage on a phone', () => {
 
   it('says nothing about swiping when the whole table fits', async () => {
     vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockReturnValue(300);
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
     expect(table).toHaveClass('is-phone');
     expect(screen.queryByText('Glisează tabelul spre stânga pentru punctaje.')).not.toBeInTheDocument();
@@ -150,7 +150,7 @@ describe('ReportPage on a phone', () => {
 
   it('draws the CES table for the phone too', async () => {
     const cesRow = { ...report().rows[0]!, submissionId: 7, studentId: 13, studentName: 'Bursașiu Teodor', ces: true, variant: 'ces' as const, items: [{ exerciseId: 'C1', points: 8, maxPoints: 9, flagged: false }] };
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ cesExercises: [{ id: 'C1', label: 'Exercițiul CES 1', maxPoints: 9 }], rows: [...report().rows, cesRow] })));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(report({ cesExercises: [{ id: 'C1', label: 'Exercițiul CES 1', maxPoints: 9 }], rows: [...report().rows, cesRow] })));
     const ces = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții, varianta CES' });
     expect(ces).toHaveClass('is-phone');
     expect(within(ces).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Elev', 'Nota', 'C19p', 'Total']);
@@ -159,36 +159,36 @@ describe('ReportPage on a phone', () => {
 
 describe('ReportPage', () => {
   it('names the test, its class and its date, and leads back to the test', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     expect(await screen.findByRole('heading', { level: 1, name: 'Raportul clasei' })).toBeInTheDocument();
     const path = within(screen.getByRole('navigation', { name: 'Unde ești' }));
     expect(path.getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Teste', '/'],
-      ['Clasa 6E2', '/clase/1'],
-      ['Fracții', '/teste/6E2-26T1'],
+      ['Clasa 6E2', '/classes/1'],
+      ['Fracții', '/tests/6E2-26T1'],
     ]);
     expect(path.getByText('Raportul clasei')).toHaveAttribute('aria-current', 'page');
     const line = screen.getByText(/^Fracții ·/);
     expect(line).toHaveTextContent('Fracții · Clasa 6E2 · 6 octombrie 2026');
-    expect(within(line).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
+    expect(within(line).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/classes/1');
   });
 
   it('lists the parts of the report with their counts, the first one marked', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     const parts = within(await screen.findByRole('navigation', { name: 'Părțile raportului' }));
     const links = parts.getAllByRole('link');
     expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['Pe scurt', '#pe-scurt'],
-      ['Rezultatele elevilor3', '#rezultate'],
-      ['Pe exerciții2', '#exercitii'],
-      ['Analiza clasei', '#analiza'],
+      ['Pe scurt', '#summary'],
+      ['Rezultatele elevilor3', '#results'],
+      ['Pe exerciții2', '#exercises'],
+      ['Analiza clasei', '#analysis'],
     ]);
     expect(links[0]).toHaveAttribute('aria-current', 'true');
-    for (const id of ['pe-scurt', 'rezultate', 'exercitii', 'analiza']) expect(document.getElementById(id)).not.toBeNull();
+    for (const id of ['summary', 'results', 'exercises', 'analysis']) expect(document.getElementById(id)).not.toBeNull();
   });
 
   it('shows the numbers of the class in "Pe scurt"', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     const tiles = within(await screen.findByRole('region', { name: 'Pe scurt' }));
     expect(tiles.getByText('Media testului').nextSibling).toHaveTextContent('7,75');
     // The average in its grade colour, as on the test page; the other numbers plain.
@@ -201,13 +201,13 @@ describe('ReportPage', () => {
   });
 
   it('shows a row per student, the items to check marked, and the students with no paper', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     const results = within(await screen.findByRole('region', { name: 'Rezultatele elevilor' }));
     expect(results.getByText('2 din 3 elevi')).toBeInTheDocument();
     const table = results.getByRole('table', { name: 'Punctajele elevilor pe exerciții' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual(['Avram Dan', 'Pop Ion', 'Stan Eva']);
-    expect(within(rows[1]!).getByRole('link', { name: 'Pop Ion' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/6');
+    expect(within(rows[1]!).getByRole('link', { name: 'Pop Ion' })).toHaveAttribute('href', '/tests/6E2-26T1/papers/6');
     const flagged = within(rows[1]!).getByText('(de verificat)').closest('td')!;
     expect(flagged).toHaveClass('flagged-cell');
     expect(within(rows[0]!).queryByText('(de verificat)')).not.toBeInTheDocument();
@@ -217,14 +217,14 @@ describe('ReportPage', () => {
   });
 
   it('says why a student with a paper has no result yet', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'submitted', ces: false }] })));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(report({ missing: [{ studentId: 12, studentName: 'Stan Eva', status: 'submitted', ces: false }] })));
     const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
     const row = within(table).getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!;
     expect(within(row).getByRole('cell')).toHaveTextContent('Trimis');
   });
 
   it('puts the points of each exercise first, with its maximum, then the total and the grade', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'Elev',
@@ -244,7 +244,7 @@ describe('ReportPage', () => {
   });
 
   it('draws the names, the points and the grades as the test page does: no bold, the grade in a chip', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
     expect(table.querySelector('b, strong')).toBeNull();
     expect(screen.getByRole('table', { name: 'Statistici pe exerciții' }).querySelector('b, strong')).toBeNull();
@@ -265,28 +265,28 @@ describe('ReportPage', () => {
       reports: { '6E2-26T1': report() },
       settings: fakeSettings({ showModelColumn: true }),
     });
-    renderAdmin('/teste/6E2-26T1/raport', api);
+    renderAdmin('/tests/6E2-26T1/report', api);
     const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
     expect(within(table).queryByRole('columnheader', { name: 'Model' })).not.toBeInTheDocument();
     expect(screen.queryByText(/claude-/)).not.toBeInTheDocument();
   });
 
   it('has the buttons for the PDF, the CSV, and sharing, only when something is graded', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     expect(await screen.findByRole('button', { name: 'Descarcă PDF' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Descarcă CSV' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trimite' })).toBeInTheDocument();
   });
 
   it('has no buttons for a class with nothing graded', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ rows: [] })));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(report({ rows: [] })));
     expect(await screen.findByText('Nicio lucrare nu este corectată încă', { exact: false })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Descarcă PDF' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Descarcă CSV' })).not.toBeInTheDocument();
   });
 
   it('shows the grade groups and the statistics of each exercise', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     const groups = await screen.findByRole('list', { name: 'Notele pe grupe' });
     const counts = within(groups)
       .getAllByRole('listitem')
@@ -308,7 +308,7 @@ describe('ReportPage', () => {
   });
 
   it('shows the analysis', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith());
+    renderAdmin('/tests/6E2-26T1/report', apiWith());
     expect(await screen.findByText('Clasa a lucrat bine la fracții.')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Ce a mers bine' })).toHaveTextContent('Fracții echivalente');
     expect(screen.getByRole('region', { name: 'Greșeli frecvente' })).toHaveTextContent('Semnul la mutarea termenilor');
@@ -319,7 +319,7 @@ describe('ReportPage', () => {
 
   it('says that an analysis may be out of date, and asks for a new one', async () => {
     const api = apiWith(report({ analysis: { status: 'ready', stale: true, attempts: 0, content: ANALYSIS } }));
-    renderAdmin('/teste/6E2-26T1/raport', api);
+    renderAdmin('/tests/6E2-26T1/report', api);
     expect(await screen.findByText('Analiza poate fi depășită', { exact: false })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Regenerează' })).toHaveLength(1);
     await userEvent.click(screen.getByRole('button', { name: 'Regenerează' }));
@@ -328,13 +328,13 @@ describe('ReportPage', () => {
   });
 
   it('says when the robot writes the analysis, and when it could not', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ analysis: { status: 'requested', stale: false, attempts: 0, content: null } })));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(report({ analysis: { status: 'requested', stale: false, attempts: 0, content: null } })));
     expect(await screen.findByText('Robotul scrie analiza clasei.', { exact: false })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Regenerează' })).not.toBeInTheDocument();
   });
 
   it('says that the last attempt failed and keeps the Regenerează button, when an attempt failed and the analysis is still requested', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ analysis: { status: 'requested', stale: false, attempts: 1, content: null } })));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(report({ analysis: { status: 'requested', stale: false, attempts: 1, content: null } })));
     expect(
       await screen.findByText('Ultima încercare a eșuat. Robotul va încerca din nou la următoarea rulare.'),
     ).toBeInTheDocument();
@@ -347,7 +347,7 @@ describe('ReportPage', () => {
       test: { code: '6E2-26T1', title: 'Fracții', classId: 1, className: '6E2', status: 'open', startedAt: '2026-10-06T07:15:00.000Z' },
       analysis: { status: 'requested', stale: false, attempts: 0, content: null },
     });
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(reopened));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(reopened));
     expect(await screen.findByText('Analiza se scrie după ce testul este corectat din nou.')).toBeInTheDocument();
     expect(screen.queryByText('Robotul scrie analiza clasei.', { exact: false })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Regenerează' })).not.toBeInTheDocument();
@@ -357,24 +357,24 @@ describe('ReportPage', () => {
   it('marks the last part whose top passed the upper third, and the last part at the end of the page', () => {
     const at = (top: number, height = 400) => ({ top, height }) as DOMRect;
     // A screen 900px tall: the line is at 300px.
-    expect(currentPart([at(-500), at(250), at(700), at(1400)], 900, false)).toBe('rezultate');
-    expect(currentPart([at(-500), at(-100), at(299), at(1400)], 900, false)).toBe('exercitii');
-    expect(currentPart([at(100), at(600), at(1200), at(1800)], 900, false)).toBe('pe-scurt');
+    expect(currentPart([at(-500), at(250), at(700), at(1400)], 900, false)).toBe('results');
+    expect(currentPart([at(-500), at(-100), at(299), at(1400)], 900, false)).toBe('exercises');
+    expect(currentPart([at(100), at(600), at(1200), at(1800)], 900, false)).toBe('summary');
     // A short last part at the end of the page never reaches the line.
-    expect(currentPart([at(-900), at(-600), at(-200), at(500, 120)], 900, true)).toBe('analiza');
+    expect(currentPart([at(-900), at(-600), at(-200), at(500, 120)], 900, true)).toBe('analysis');
     // Not laid out (no height): nothing passed.
-    expect(currentPart([at(0, 0), at(0, 0), at(0, 0), at(0, 0)], 900, true)).toBe('pe-scurt');
+    expect(currentPart([at(0, 0), at(0, 0), at(0, 0), at(0, 0)], 900, true)).toBe('summary');
   });
 
   it('offers the first analysis of a test graded before analyses existed', async () => {
     const api = apiWith(report({ analysis: { status: 'none', stale: false, attempts: 0, content: null } }));
-    renderAdmin('/teste/6E2-26T1/raport', api);
+    renderAdmin('/tests/6E2-26T1/report', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Fă analiza clasei' }));
     expect(api.regenerateAnalysis).toHaveBeenCalledWith('6E2-26T1');
   });
 
   it('offers a new try after a failed analysis', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ analysis: { status: 'failed', stale: false, attempts: 0, content: null } })));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(report({ analysis: { status: 'failed', stale: false, attempts: 0, content: null } })));
     expect(await screen.findByText('Robotul nu a putut scrie analiza clasei.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Regenerează' })).toBeInTheDocument();
   });
@@ -397,21 +397,21 @@ describe('ReportPage', () => {
       ],
       missing: [],
     });
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(wide));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(wide));
     const table = await screen.findByRole('table', { name: 'Punctajele elevilor pe exerciții' });
     expect(within(table).getAllByRole('columnheader')).toHaveLength(43);
     expect(table.parentElement).toHaveClass('table-wrap');
   });
 
   it('says that nothing is graded yet, without tables', async () => {
-    renderAdmin('/teste/6E2-26T1/raport', apiWith(report({ rows: [], analysis: { status: 'none', stale: false, attempts: 0, content: null } })));
+    renderAdmin('/tests/6E2-26T1/report', apiWith(report({ rows: [], analysis: { status: 'none', stale: false, attempts: 0, content: null } })));
     expect(await screen.findByText('Nicio lucrare nu este corectată încă', { exact: false })).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fă analiza clasei' })).not.toBeInTheDocument();
   });
 
   it('shows the not-found page for a bad code and an error for an unknown test', async () => {
-    renderAdmin('/teste/nu-este-cod/raport', apiWith());
+    renderAdmin('/tests/nu-este-cod/report', apiWith());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
   });
 });

@@ -43,10 +43,10 @@ function MoveButtons() {
   const navigate = useNavigate();
   return (
     <>
-      <button type="button" onClick={() => void navigate('/cont', { replace: true })}>
+      <button type="button" onClick={() => void navigate('/account', { replace: true })}>
         Înlocuiește adresa
       </button>
-      <button type="button" onClick={() => void navigate('/cont#x')}>
+      <button type="button" onClick={() => void navigate('/account#x')}>
         Alt hash
       </button>
     </>
@@ -110,7 +110,7 @@ describe('the shell', () => {
   it('has Test nou, Teste, Clase and De făcut in the bar', async () => {
     renderAdmin('/', withClasses());
     const bar = await menu();
-    expect(within(bar).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/teste/nou');
+    expect(within(bar).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/tests/new');
     expect(within(bar).getByRole('link', { name: 'Teste' })).toHaveAttribute('aria-current', 'page');
     expect(within(bar).getByRole('button', { name: 'Clase' })).toHaveAttribute('aria-expanded', 'false');
     expect(within(bar).getByRole('button', { name: 'De făcut' })).toHaveAttribute('aria-expanded', 'false');
@@ -122,7 +122,7 @@ describe('the shell', () => {
     await userEvent.click(await screen.findByRole('button', { name: /contul tău/ }));
     scroll.mockClear();
     await userEvent.click(screen.getByRole('link', { name: 'Contul meu' }));
-    await expectLocation('/cont');
+    await expectLocation('/account');
     expect(scroll).toHaveBeenCalledWith(0, 0);
   });
 
@@ -131,7 +131,7 @@ describe('the shell', () => {
     renderAdmin('/', withClasses(), withBack);
     await userEvent.click(await screen.findByRole('button', { name: /contul tău/ }));
     await userEvent.click(screen.getByRole('link', { name: 'Contul meu' }));
-    await expectLocation('/cont');
+    await expectLocation('/account');
     scroll.mockClear();
     await back();
     await expectLocation(/^\/$/);
@@ -151,9 +151,9 @@ describe('the shell', () => {
     await screen.findByRole('button', { name: /contul tău/ });
     scroll.mockClear();
     await userEvent.click(screen.getByRole('button', { name: 'Înlocuiește adresa' }));
-    await expectLocation('/cont');
+    await expectLocation('/account');
     await userEvent.click(screen.getByRole('button', { name: 'Alt hash' }));
-    await expectLocation('/cont');
+    await expectLocation('/account');
     expect(scroll).not.toHaveBeenCalled();
   });
 
@@ -162,7 +162,7 @@ describe('the shell', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'LM, contul tău: Laura Miron' }));
     expect(screen.getByText('profesor@example.com')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('link', { name: 'Contul meu' }));
-    await expectLocation('/cont');
+    await expectLocation('/account');
     // The new page closes the menu (Contul meu shows the email on its own).
     expect(screen.getByRole('button', { name: 'LM, contul tău: Laura Miron' })).toHaveAttribute('aria-expanded', 'false');
     expect(document.getElementById('user-menu')).toBeNull();
@@ -206,7 +206,7 @@ describe('the shell', () => {
     renderAdmin('/', withClasses(), withBack);
     await userEvent.click(await screen.findByRole('button', { name: /contul tău/ }));
     await userEvent.click(screen.getByRole('link', { name: 'Contul meu' }));
-    await expectLocation('/cont');
+    await expectLocation('/account');
     await back();
     await expectLocation(/^\/$/);
     expect(screen.getByRole('button', { name: /contul tău/ })).toHaveAttribute('aria-expanded', 'false');
@@ -234,7 +234,7 @@ describe('the shell', () => {
   });
 
   it('closes only the QR view on Esc when a panel is open too', async () => {
-    renderAdmin('/teste/6E2-26T2#in-clasa', withClasses());
+    renderAdmin('/tests/6E2-26T2#in-class', withClasses());
     const bar = await menu();
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
@@ -255,10 +255,10 @@ describe('the phone menu', () => {
     await userEvent.click(burger);
     expect(burger).toHaveAttribute('aria-expanded', 'true');
     const more = screen.getByRole('region', { name: 'Mai mult' });
-    expect(within(more).getByRole('link', { name: 'Setări' })).toHaveAttribute('href', '/setari');
+    expect(within(more).getByRole('link', { name: 'Setări' })).toHaveAttribute('href', '/settings');
     expect(within(more).getByLabelText('Anul școlar')).toHaveValue('2026');
     expect(within(more).getByText('profesor@example.com')).toBeInTheDocument();
-    expect(within(more).getByRole('link', { name: 'Contul meu' })).toHaveAttribute('href', '/cont');
+    expect(within(more).getByRole('link', { name: 'Contul meu' })).toHaveAttribute('href', '/account');
     expect(within(more).getByRole('button', { name: 'Ieși din cont' })).toBeInTheDocument();
 
     await userEvent.click(within(more).getByRole('switch', { name: 'Temă întunecată' }));
@@ -269,7 +269,7 @@ describe('the phone menu', () => {
   });
 
   it('shows a demo account its papers in ☰, and only to a demo account', async () => {
-    renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 20 }) }));
+    renderAdmin('/classes', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 20 }) }));
     await menu();
     await userEvent.click(screen.getByRole('button', { name: 'Mai mult' }));
     const more = screen.getByRole('region', { name: 'Mai mult' });
@@ -322,7 +322,7 @@ describe('the phone menu', () => {
     expect(isOpen()).toBe(false);
     await userEvent.click(burger);
     await userEvent.click(within(screen.getByRole('region', { name: 'Mai mult' })).getByRole('link', { name: 'Contul meu' }));
-    await expectLocation('/cont');
+    await expectLocation('/account');
     expect(isOpen()).toBe(false);
   });
 
@@ -343,7 +343,7 @@ describe('the phone menu', () => {
     await menu();
     await userEvent.click(screen.getByRole('button', { name: 'Mai mult' }));
     await userEvent.click(within(screen.getByRole('region', { name: 'Mai mult' })).getByRole('link', { name: 'Contul meu' }));
-    await expectLocation('/cont');
+    await expectLocation('/account');
     await back();
     await expectLocation(/^\/$/);
     expect(screen.queryByRole('region', { name: 'Mai mult' })).not.toBeInTheDocument();
@@ -369,11 +369,11 @@ describe('De făcut', () => {
     ]);
     expect(cards[0]).toHaveTextContent('PregătireInducție · 6E3');
     expect(within(panel).getByText('Celălalt test în lucru nu are nevoie de tine acum.')).toBeInTheDocument();
-    expect(within(cards[0]!).getByRole('link')).toHaveAttribute('href', expect.not.stringContaining('verificare'));
+    expect(within(cards[0]!).getByRole('link')).toHaveAttribute('href', expect.not.stringContaining('review'));
     const start = within(cards[1]!).getByRole('link', { name: 'Începe: Ecuații, 6E2' });
-    expect(start).toHaveAttribute('href', '/teste/6E2-26T2/verificare');
+    expect(start).toHaveAttribute('href', '/tests/6E2-26T2/review');
     await userEvent.click(start);
-    await expectLocation('/teste/6E2-26T2/verificare');
+    await expectLocation('/tests/6E2-26T2/review');
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 
@@ -396,7 +396,7 @@ describe('De făcut', () => {
     expect(card).toHaveTextContent('Urgent');
     expect(within(card).getByRole('heading')).toHaveTextContent('2 conturi noi așteaptă aprobarea');
     await userEvent.click(within(card).getByRole('link', { name: /Setări/ }));
-    await expectLocation('/setari');
+    await expectLocation('/settings');
   });
 
   it('says one account in the singular, and counts it with the tests that wait', async () => {
@@ -424,7 +424,7 @@ describe('De făcut', () => {
   it('reads the tests of the year again after a change, and when the version changed', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     const api = withTodo();
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     await userEvent.type(await screen.findByLabelText('Parola de acum'), 'parola-veche');
     await userEvent.type(screen.getByLabelText(/^Parola nouă/), 'parola-noua');
     expect(api.listTests).toHaveBeenCalledTimes(1);
@@ -508,13 +508,13 @@ describe('the panel Clasele tale', () => {
     const list = within(panel).getByRole('navigation');
     expect(list).not.toHaveAttribute('aria-label');
     const links = within(list).getAllByRole('link');
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/clase/1', '/clase/2']);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/classes/1', '/classes/2']);
     // The open test misses its files: they wait on the teacher.
     expect(links[0]).toHaveTextContent('6E21 elevEcuații · Pregătire · lipsesc testul și baremul');
     expect(links[1]).toHaveTextContent('Nimic în lucru');
-    expect(within(panel).getByRole('link', { name: 'Clasă nouă' })).toHaveAttribute('href', '/clase');
+    expect(within(panel).getByRole('link', { name: 'Clasă nouă' })).toHaveAttribute('href', '/classes');
     expect(before(within(panel).getByRole('link', { name: 'Clasă nouă' }), list)).toBe(true);
-    expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toHaveAttribute('href', '/clase');
+    expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toHaveAttribute('href', '/classes');
     expect(within(panel).getByRole('button', { name: 'Închide' })).toHaveFocus();
   });
 
@@ -539,7 +539,7 @@ describe('the panel Clasele tale', () => {
     const bar = await menu();
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
     await userEvent.click(screen.getByRole('link', { name: /^6E3/ }));
-    await expectLocation('/clase/2');
+    await expectLocation('/classes/2');
     expect(screen.queryByRole('complementary', { name: 'Clasele tale' })).not.toBeInTheDocument();
     expect(within(bar).getByRole('button', { name: 'Clase' })).toHaveAttribute('aria-current', 'page');
     expect(within(bar).getByRole('link', { name: 'Teste' })).not.toHaveAttribute('aria-current');
@@ -594,7 +594,7 @@ describe('the panel Clasele tale', () => {
     const bar = await menu();
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
     await userEvent.click(screen.getByRole('link', { name: /^6E3/ }));
-    await expectLocation('/clase/2');
+    await expectLocation('/classes/2');
     await back();
     await expectLocation(/^\/$/);
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
@@ -649,13 +649,13 @@ describe('the panel Clasele tale', () => {
     const waiting: ((classes: typeof loaded) => void)[] = [];
     const arrive = () => waiting.forEach((resolve) => resolve(loaded));
     api.listClasses.mockImplementation(() => new Promise((resolve) => waiting.push(resolve)));
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
     const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
     const hint = within(panel).getByText('Se încarcă…');
     expect(within(panel).getAllByRole('link', { name: 'Clasă nouă' })).toHaveLength(1);
     const newClass = within(panel).getByRole('link', { name: 'Clasă nouă' });
-    expect(newClass).toHaveAttribute('href', '/clase');
+    expect(newClass).toHaveAttribute('href', '/classes');
     expect(before(newClass, hint)).toBe(true);
     arrive();
     const list = await within(panel).findByRole('navigation');
@@ -666,7 +666,7 @@ describe('the panel Clasele tale', () => {
   it('keeps "Clasă nouă" when the classes cannot be read, above the error', async () => {
     const api = withClasses();
     api.listClasses.mockRejectedValue(new ApiError(500, 'server_error', 'Serverul nu răspunde acum.'));
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
     const panel = screen.getByRole('complementary', { name: 'Clasele tale' });
     const error = await within(panel).findByText('Serverul nu răspunde acum.');
@@ -703,7 +703,7 @@ describe('the panels before the tests of the year arrive', () => {
   it('say the list is loading, not that nothing waits', async () => {
     const api = withClasses();
     api.listTests.mockImplementation(() => new Promise(() => {}));
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     const bar = await menu();
     await userEvent.click(within(bar).getByRole('button', { name: 'De făcut' }));
     const todo = screen.getByRole('complementary', { name: 'Ce ai de făcut' });
@@ -717,7 +717,7 @@ describe('the panels before the tests of the year arrive', () => {
   it('show why the list could not be read', async () => {
     const api = withClasses();
     api.listTests.mockRejectedValue(new ApiError(500, 'server_error', 'Serverul nu răspunde acum.'));
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     const bar = await menu();
     await userEvent.click(within(bar).getByRole('button', { name: 'De făcut' }));
     const todo = screen.getByRole('complementary', { name: 'Ce ai de făcut' });

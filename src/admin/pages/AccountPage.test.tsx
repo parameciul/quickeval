@@ -11,7 +11,7 @@ afterEach(() => {
 
 describe('AccountPage', () => {
   it('shows an administrator who is logged in, the counts and where Setări is', async () => {
-    renderAdmin('/cont', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ testsEvaluated: 21, papersGraded: 596 }) }));
+    renderAdmin('/account', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ testsEvaluated: 21, papersGraded: 596 }) }));
     const card = await screen.findByRole('region', { name: 'Contul tău' });
     expect(within(card).getByText('Administrator')).toHaveClass('tag-ok');
     expect(within(card).getByText('Laura Miron')).toBeInTheDocument();
@@ -19,7 +19,7 @@ describe('AccountPage', () => {
     expect(within(card).getByText('LM')).toBeInTheDocument();
     expect(within(card).getByText('Teste corectate').nextElementSibling).toHaveTextContent('21');
     expect(within(card).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('596');
-    expect(within(card).getByRole('link', { name: 'Setări' })).toHaveAttribute('href', '/setari');
+    expect(within(card).getByRole('link', { name: 'Setări' })).toHaveAttribute('href', '/settings');
     // No pay button: nothing is on sale.
     expect(screen.queryByRole('button', { name: /plătește|cumpără/i })).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Parola' })).toBeInTheDocument();
@@ -27,7 +27,7 @@ describe('AccountPage', () => {
   });
 
   it('shows a complete account with its counts and no link to Setări', async () => {
-    renderAdmin('/cont', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', testsEvaluated: 1, papersGraded: 28 }) }));
+    renderAdmin('/account', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', testsEvaluated: 1, papersGraded: 28 }) }));
     const card = await screen.findByRole('region', { name: 'Contul tău' });
     expect(within(card).getByText('Cont complet')).toBeInTheDocument();
     expect(within(card).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('28');
@@ -35,7 +35,7 @@ describe('AccountPage', () => {
   });
 
   it('shows a demo account its one test and its papers, and what is left', async () => {
-    renderAdmin('/cont', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 18, papersWaiting: 2 }) }));
+    renderAdmin('/account', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 18, papersWaiting: 2 }) }));
     const card = await screen.findByRole('region', { name: 'Contul tău' });
     expect(within(card).getByText('Cont demo')).not.toHaveClass('tag-ok');
     expect(within(card).getByText('Teste corectate').nextElementSibling).toHaveTextContent('1 din 1');
@@ -45,7 +45,7 @@ describe('AccountPage', () => {
   });
 
   it('turns the papers meter orange and asks for a complete account when none are left', async () => {
-    renderAdmin('/cont', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 3, papersGraded: 34, papersWaiting: 4 }) }));
+    renderAdmin('/account', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 3, papersGraded: 34, papersWaiting: 4 }) }));
     const card = await screen.findByRole('region', { name: 'Contul tău' });
     // A regrade counts the test again, but the account has one test.
     expect(within(card).getByText('Teste corectate').nextElementSibling).toHaveTextContent('1 din 1');
@@ -56,7 +56,7 @@ describe('AccountPage', () => {
 
   it('changes the password', async () => {
     const api = createFakeApi();
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     await userEvent.type(await screen.findByLabelText('Parola de acum'), 'parola-veche');
     await userEvent.type(screen.getByLabelText(/^Parola nouă/), 'parola-noua');
     await userEvent.click(screen.getByRole('button', { name: 'Schimbă parola' }));
@@ -68,7 +68,7 @@ describe('AccountPage', () => {
   it('shows a refused password change', async () => {
     const api = createFakeApi();
     api.changePassword.mockRejectedValueOnce(new ApiError(400, 'wrong_password', 'Parola de acum nu este corectă.'));
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     await userEvent.type(await screen.findByLabelText('Parola de acum'), 'gresita');
     await userEvent.type(screen.getByLabelText(/^Parola nouă/), 'parola-noua');
     await userEvent.click(screen.getByRole('button', { name: 'Schimbă parola' }));
@@ -79,7 +79,7 @@ describe('AccountPage', () => {
     const api = createFakeApi();
     const assign = vi.fn();
     vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, assign });
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Ieși din cont' }));
     expect(api.logout).toHaveBeenCalled();
     await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/teacher/'));

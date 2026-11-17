@@ -24,7 +24,7 @@ export interface TodoItem {
 // Where the button of a thing to do goes: the review for the points to check
 // (redesign spec §7), the test page for the rest.
 export function todoPath(item: TodoItem): string {
-  return item.stage === 'Verificare' ? reviewPath(item.code) : `/teste/${item.code}`;
+  return item.stage === 'Verificare' ? reviewPath(item.code) : `/tests/${item.code}`;
 }
 
 // An archived test with a result page open (for all, or for some students).

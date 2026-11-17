@@ -68,7 +68,7 @@ export function TodoPanel({
               </p>
               <h3>{approvals === 1 ? 'Un cont nou așteaptă aprobarea' : `${approvals} conturi noi așteaptă aprobarea`}</h3>
               <p className="todo-text">Profesorul și-a confirmat emailul. Până aprobi contul, nu se poate conecta.</p>
-              <Link className="button button-small" to="/setari" aria-label="Deschide Setări: conturi de aprobat">
+              <Link className="button button-small" to="/settings" aria-label="Deschide Setări: conturi de aprobat">
                 <ActionIcon name="open" />
                 Deschide
               </Link>

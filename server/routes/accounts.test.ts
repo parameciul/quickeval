@@ -29,7 +29,7 @@ async function signup(email = 'ana@example.com', options: { confirm?: boolean } 
   const res = await api.request('POST', '/api/auth/signup', { name: 'Ana Pop', email, password: 'parola-lunga' });
   expect(res.status).toBe(201);
   if (options.confirm !== false) {
-    const token = /confirma-email#([\w-]+)/.exec(emails.at(-1)!.text)![1];
+    const token = /confirm-email#([\w-]+)/.exec(emails.at(-1)!.text)![1];
     expect((await api.request('POST', '/api/auth/confirm', { token, password: 'parola-lunga' })).status).toBe(200);
   }
   const row = await api.db.prepare('SELECT id FROM teachers WHERE email = ?').bind(email).first<{ id: number }>();

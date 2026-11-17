@@ -57,10 +57,10 @@ describe('PayButton safety', () => {
 
 describe('PaymentReturnNotice', () => {
   it('says what happened on the payment page, and nothing without it', () => {
-    const { rerender } = render(<PaymentReturnNotice search="?plata=reusita&session_id=cs_1" />);
+    const { rerender } = render(<PaymentReturnNotice search="?payment=success&session_id=cs_1" />);
     expect(screen.getByRole('status')).toHaveTextContent('Plata se verifică.');
     expectNoGradingWords();
-    rerender(<PaymentReturnNotice search="?plata=anulata" />);
+    rerender(<PaymentReturnNotice search="?payment=cancelled" />);
     expect(screen.getByRole('status')).toHaveTextContent('Plata a fost anulată.');
     rerender(<PaymentReturnNotice search="" />);
     expect(screen.queryByRole('status')).toBeNull();

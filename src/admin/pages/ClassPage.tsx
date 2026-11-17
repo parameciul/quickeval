@@ -49,7 +49,7 @@ function ClassDetails({ classId }: { classId: number }) {
   const [newClassOpen, setNewClassOpen] = useState(linkState?.newClass === true);
   const heading = useRef<HTMLHeadingElement>(null);
   const detail = useQuery({ queryKey: ['class', classId], queryFn: () => api.getClass(classId) });
-  // Remember which class the teacher opened last, so /clase reopens it.
+  // Remember which class the teacher opened last, so /classes reopens it.
   useEffect(() => {
     localStorage.setItem('quickeval:lastClass', String(classId));
   }, [classId]);
@@ -123,7 +123,7 @@ function ClassDetails({ classId }: { classId: number }) {
         </div>
         <div className="class-head-actions">
           {!info.archived && (
-            <Link className="button" to={`/teste/nou?clasa=${classId}`}>
+            <Link className="button" to={`/tests/new?class=${classId}`}>
               <ActionIcon name="add" />
               Test nou pentru această clasă
             </Link>
@@ -306,7 +306,7 @@ function ClassSwitcher({
     <Link
       key={entry.id}
       className={entry.archived ? 'class-menu-item is-muted' : 'class-menu-item'}
-      to={`/clase/${entry.id}`}
+      to={`/classes/${entry.id}`}
       aria-current={entry.id === classId ? 'page' : undefined}
       onClick={() => setOpen(false)}
     >

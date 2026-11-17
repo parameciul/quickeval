@@ -63,7 +63,7 @@ export function PaymentReturnNotice({ search = window.location.search }: { searc
   if (outcome === null) return null;
   return (
     <p className="alert-text" role="status">
-      {outcome === 'reusita' ? 'Plata se verifică. Funcția se deschide după confirmare.' : 'Plata a fost anulată. Nu ai plătit nimic.'}
+      {outcome === 'success' ? 'Plata se verifică. Funcția se deschide după confirmare.' : 'Plata a fost anulată. Nu ai plătit nimic.'}
     </p>
   );
 }
