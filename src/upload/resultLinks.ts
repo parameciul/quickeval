@@ -107,6 +107,29 @@ export function forgetResultLinkByToken(resultToken: string): void {
   }
 }
 
+// Writes the short code into every kept link of this result token that has
+// none: a link kept before links had codes learns it when its result page
+// opens, so its ticket shows the code from then on.
+export function rememberResultCode(resultToken: string, resultCode: string): void {
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith('qe.result.')) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        if (parsed.resultToken !== resultToken || typeof parsed.resultCode === 'string') continue;
+        localStorage.setItem(key, JSON.stringify({ ...parsed, resultCode }));
+      } catch {
+        continue;
+      }
+    }
+  } catch {
+    // Blocked storage: the ticket stays without its code.
+  }
+}
+
 // Drops the kept links whose upload the teacher reset: the student is back in
 // the name list (`none` or `in_progress`), so the old result link is stale.
 // Links of students who left the class stay: they still prove this phone sent.

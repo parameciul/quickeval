@@ -108,13 +108,13 @@ describe('ResultApp', () => {
     expectNoGradingWords();
   });
 
-  it('shows only the send, PDF and files buttons, and the files after it', async () => {
+  it('shows only the send, ticket, PDF and files buttons, and the files after it', async () => {
     const api = createFakeUploadApi();
     api.getResult.mockResolvedValue(structuredClone(graded));
     render(<ResultApp api={api} resultToken="result-token-11" />);
     await screen.findByRole('heading', { name: 'Pop Ion' });
     const buttons = within(screen.getByRole('main')).getAllByRole('button');
-    expect(buttons.map((button) => button.textContent)).toEqual(['Trimite linkul', 'Descarcă PDF', 'Arată fișierele']);
+    expect(buttons.map((button) => button.textContent)).toEqual(['Trimite linkul', 'Salvează biletul', 'Descarcă PDF', 'Arată fișierele']);
     await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
     expect(await screen.findByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', '/api/u/rezultat/result-token-11/files/21');
     expect(screen.getByTitle('Pagina 2')).toHaveAttribute('src', '/api/u/rezultat/result-token-11/files/22');
@@ -155,6 +155,19 @@ describe('ResultApp', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Link greșit. Cere profesorului linkul nou.');
     expect(loadResultLinks('abcdefghijkmnop2')).toEqual([]);
     expectNoGradingWords();
+  });
+
+  it('teaches the code to a link this phone kept before links had codes', async () => {
+    const api = createFakeUploadApi();
+    api.getResult.mockResolvedValue(structuredClone(graded));
+    saveResultLink('abcdefghijkmnop2', 11, 'result-token-11', 'Pop Ion');
+    saveResultLink('abcdefghijkmnop2', 12, 'result-token-12', 'Stan Eva');
+    render(<ResultApp api={api} resultToken="result-token-11" />);
+    await screen.findByRole('heading', { name: 'Pop Ion' });
+    expect(loadResultLinks('abcdefghijkmnop2')).toEqual([
+      { studentId: 11, studentName: 'Pop Ion', resultToken: 'result-token-11', resultCode: 'K7M92P' },
+      { studentId: 12, studentName: 'Stan Eva', resultToken: 'result-token-12', resultCode: null },
+    ]);
   });
 
   it('hides empty final sections', async () => {

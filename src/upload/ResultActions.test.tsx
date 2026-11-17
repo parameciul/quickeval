@@ -5,9 +5,15 @@ import { renderPdf } from '../admin/pdf/renderPdf.ts';
 import { saveFile } from '../admin/pdf/share.ts';
 import { expectNoGradingWords } from '../test/gradingWords.ts';
 import { ResultActions } from './ResultActions.tsx';
+import { renderTicket, saveTicket } from './ticketImage.ts';
 
 vi.mock('../admin/pdf/renderPdf.ts', () => ({ renderPdf: vi.fn() }));
 vi.mock('../admin/pdf/share.ts', () => ({ saveFile: vi.fn() }));
+vi.mock('./ticketImage.ts', async (original) => ({
+  ...(await original<typeof import('./ticketImage.ts')>()),
+  renderTicket: vi.fn(),
+  saveTicket: vi.fn(),
+}));
 
 const URL_TEXT = 'https://mqgrader.ro/u/rezultat/abc';
 
@@ -40,12 +46,44 @@ function browserOffers({ share, writeText }: { share?: (data: ShareData) => Prom
 
 beforeEach(() => {
   browserOffers({});
+  // The ticket's picture is made as the page shows.
+  vi.mocked(renderTicket).mockResolvedValue(new Blob(['png'], { type: 'image/png' }));
 });
 
 afterEach(() => {
   vi.mocked(renderPdf).mockReset();
   vi.mocked(saveFile).mockReset();
+  vi.mocked(renderTicket).mockReset();
+  vi.mocked(saveTicket).mockReset();
+  vi.restoreAllMocks();
   browserOffers({});
+});
+
+describe('Salvează biletul on the result page', () => {
+  it('saves the ticket of this result, with its code', async () => {
+    const png = new Blob(['png'], { type: 'image/png' });
+    vi.mocked(renderTicket).mockResolvedValue(png);
+    vi.mocked(saveTicket).mockResolvedValue('downloaded');
+    render(<ResultActions result={graded} url={URL_TEXT} />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Salvează biletul' }));
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent('Biletul a fost salvat.');
+    expect(vi.mocked(renderTicket).mock.calls[0]![0]).toMatchObject({
+      testTitle: 'Fracții',
+      studentName: 'Pop Ion',
+      classLine: 'Clasa 6E2 · 6E2-26T1',
+      code: 'K7M-92P',
+    });
+    expect(saveTicket).toHaveBeenCalledWith(png, 'bilet-6E2-26T1-Pop-Ion.png', 'Pop Ion · Fracții');
+    expectNoGradingWords();
+  });
+
+  it('is there before the result is graded too', () => {
+    render(<ResultActions result={{ ...graded, status: 'submitted', evaluation: null }} url={URL_TEXT} />);
+    expect(screen.getByRole('button', { name: 'Salvează biletul' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Descarcă PDF' })).toBeNull();
+  });
 });
 
 describe('ResultActions', () => {

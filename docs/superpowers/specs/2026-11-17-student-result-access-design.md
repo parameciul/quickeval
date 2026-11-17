@@ -102,7 +102,8 @@ The ticket replaces `ResultLinkBox` on the "sent" screen, the locked screen, the
 - A PNG of 1080 × 1350, white in both themes, drawn on a canvas: the MQGrader mark and "MQGrader by Laura Miron", the test's title (two lines at most, then "…"), "<student> · Clasa <class> · <test code>", the QR code, "Codul tău", the code, and the line of §7.1. No grade, no points, no date.
 - It waits for the page's font (`document.fonts`) and falls back to the system font.
 - The file is named `bilet-<test code>-<student name folded to ASCII>.png`.
-- The picture is made once, as soon as the ticket shows, so the tap saves it with no wait: an iPhone opens its share sheet only inside the tap, and refuses it after the waits of drawing. A tap before the picture is ready waits for it; a picture that failed is made again on the tap.
+- On an iPhone or iPad the picture is made as soon as the ticket shows, so the tap saves it with no wait: their share sheet opens only inside the tap, and is refused after the waits of drawing. A tap before the picture is ready waits for it; a picture that failed is made again on the tap. Elsewhere the file downloads, which may wait, so the picture is made on the tap.
+- A phone limits canvas memory, and a shared phone may show many tickets: the page makes one picture at a time, draws the hidden QR code at about 520 real pixels whatever the screen's pixel ratio, and empties or removes every canvas once its picture is made or failed.
 - Saving: on an iPhone or iPad (an iPad that says it is a Mac has a touch screen), the share sheet opens (it has "Save Image"), and the file downloads when the sheet is not possible; everywhere else the file downloads (`saveFile` of `src/admin/pdf/share.ts`). A failure says "Nu am putut salva biletul. Fă o poză ecranului."
 - After a save, "Biletul a fost salvat. Îl găsești lângă pozele tale sau în descărcări." shows for a few seconds. A closed share sheet says nothing.
 

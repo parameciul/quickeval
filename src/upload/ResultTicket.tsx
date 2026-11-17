@@ -4,6 +4,7 @@ import { displayClassName } from '../../shared/classes.ts';
 import { formatResultCode } from '../../shared/tests.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { resultPageUrl } from './resultLinks.ts';
+import { useSaveTicket } from './SaveTicket.tsx';
 import { shareLink } from './shareLink.ts';
 
 // The test a ticket is for, as the student knows it.
@@ -47,6 +48,13 @@ export function ResultTicket({
   const [copied, setCopied] = useState(false);
   const url = resultPageUrl(resultToken);
   const code = resultCode ? formatResultCode(resultCode) : null;
+  const classLine = `${displayClassName(test.className)} · ${test.code}`;
+  const save = useSaveTicket({
+    url,
+    testCode: test.code,
+    picture: { testTitle: test.title, studentName, classLine, code, how: code ? TICKET_HOW : TICKET_HOW_NO_CODE },
+    className: 'button button-big',
+  });
 
   useEffect(() => {
     if (share !== 'copied') return;
@@ -87,9 +95,7 @@ export function ResultTicket({
         <div className="ticket-mid">
           <p className="ticket-who">
             <strong>{studentName}</strong>
-            <span>
-              {displayClassName(test.className)} · {test.code}
-            </span>
+            <span>{classLine}</span>
           </p>
           {/* Dark on white in both themes, with a white edge: phones read it from a screenshot. */}
           <div className="ticket-qr">
@@ -105,11 +111,13 @@ export function ResultTicket({
         <p className="ticket-foot">{code ? TICKET_HOW : TICKET_HOW_NO_CODE}</p>
       </div>
       <div className="ticket-actions">
+        {save.button}
         <button type="button" className="button-quiet button-big" onClick={() => void send()}>
           <ActionIcon name="send" />
           Trimite-mi linkul
         </button>
       </div>
+      {save.note}
       {share === 'copied' && (
         <p role="status" className="hint">
           Linkul a fost copiat.

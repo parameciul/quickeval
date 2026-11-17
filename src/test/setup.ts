@@ -11,6 +11,13 @@ configure({ asyncUtilTimeout: 3000 });
 // to the top. Tests spy on it. The guard: this file also runs outside a browser.
 if (typeof window !== 'undefined') window.scrollTo = () => {};
 
+// jsdom has no canvas: getContext gives null, as jsdom's own does, without its
+// "Not implemented" line for every QR code and ticket picture. Tests that
+// draw spy on it.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext;
+}
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
