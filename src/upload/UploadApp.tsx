@@ -10,7 +10,6 @@ import {
   loadTestResultLinks,
   pruneStaleResultLinks,
   rememberTestKey,
-  resultPageUrl,
   saveResultLink,
   singleUploadLocked,
   tokensToAsk,
@@ -19,6 +18,7 @@ import {
 } from './resultLinks.ts';
 import { forgetSecret, loadSecret, saveSecret, savedStudent } from './session.ts';
 import { UploadScreen } from './UploadScreen.tsx';
+import { ResultTicket } from './ResultTicket.tsx';
 import { StudentHeader } from './StudentHeader.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 
@@ -31,7 +31,7 @@ type Phase =
   | { kind: 'closed'; info: LinkInfo }
   | { kind: 'names'; info: LinkInfo; message: string | null }
   | { kind: 'upload'; info: LinkInfo; session: ActiveSession }
-  | { kind: 'sent'; info: LinkInfo; fileCount: number; resultToken: string; studentName: string }
+  | { kind: 'sent'; info: LinkInfo; fileCount: number; resultToken: string; resultCode: string | null; studentName: string }
   | { kind: 'locked'; info: LinkInfo };
 
 // The student app at /u/<token>: pick your name, add the pages, send them.
@@ -185,7 +185,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           {phase.kind === 'closed' && token && <ClosedScreen uploadToken={token} info={phase.info} />}
           {phase.kind === 'names' && token && (
             <>
-              <KeptResultLinks uploadToken={token} />
+              <KeptResultLinks uploadToken={token} info={phase.info} />
               <NamePicker
                 students={phase.info.students}
                 message={phase.message}
@@ -195,7 +195,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
           )}
           {phase.kind === 'locked' && token && (
             <>
-              <KeptResultLinks uploadToken={token} />
+              <KeptResultLinks uploadToken={token} info={phase.info} />
               <p className="hint">
                 Ai trimis deja lucrarea de pe acest telefon. Cu acest link nu mai poți încărca alte lucrări, nici pentru alt elev.
               </p>
@@ -223,29 +223,37 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
                 api={api}
                 token={token}
                 session={phase.session}
-                onSent={(fileCount, resultToken) => {
-                  saveResultLink(token, phase.session.studentId, resultToken, phase.session.studentName);
-                  setPhase({ kind: 'sent', info: phase.info, fileCount, resultToken, studentName: phase.session.studentName });
+                onSent={(fileCount, resultToken, resultCode) => {
+                  saveResultLink(token, phase.session.studentId, resultToken, phase.session.studentName, resultCode);
+                  setPhase({ kind: 'sent', info: phase.info, fileCount, resultToken, resultCode, studentName: phase.session.studentName });
                 }}
                 onLost={(message) => load(message)}
               />
             </>
           )}
           {phase.kind === 'sent' && token && (
-            <section className="sent">
-              <h2>Gata! Lucrarea ta a fost trimisă.</h2>
-              <p>{phase.fileCount === 1 ? 'Ai trimis un fișier.' : `Ai trimis ${phase.fileCount} fișiere.`}</p>
-              <ResultLinkBox resultToken={phase.resultToken} studentName={phase.studentName} fresh />
+            <>
+              <section className="sent">
+                <h2>Gata! Lucrarea ta a fost trimisă.</h2>
+                <p>{phase.fileCount === 1 ? 'Ai trimis un fișier.' : `Ai trimis ${phase.fileCount} fișiere.`}</p>
+              </section>
+              <ResultTicket
+                resultToken={phase.resultToken}
+                resultCode={phase.resultCode}
+                studentName={phase.studentName}
+                test={phase.info.test}
+                fresh
+              />
               {phase.info.multi && (
                 <>
                   <p className="hint">Poți trimite acum lucrarea altui elev, cu același link.</p>
-                  <button type="button" className="button button-big" onClick={() => load(null)}>
+                  <button type="button" className="button-quiet button-big" onClick={() => load(null)}>
                     <ActionIcon name="add-person" />
                     Trimite pentru alt elev
                   </button>
                 </>
               )}
-            </section>
+            </>
           )}
         </ErrorBoundary>
       </main>
@@ -274,13 +282,7 @@ async function learnOtherLinks(api: UploadApi, uploadToken: string): Promise<voi
 // result opens only by its own link, so the page cannot hand it out by name.
 function ClosedScreen({ uploadToken, info }: { uploadToken: string; info: LinkInfo }) {
   const [links] = useState<SavedResultLink[]>(() => loadTestResultLinks(uploadToken, info.test.key));
-  const kept = links.length > 0 && (
-    <section aria-label="Linkurile tale cu rezultate">
-      {links.map((link) => (
-        <ResultLinkBox key={link.resultToken} resultToken={link.resultToken} studentName={link.studentName} />
-      ))}
-    </section>
-  );
+  const kept = links.length > 0 && <Tickets links={links} info={info} />;
   if (!info.test.resultsOpen) {
     return (
       <>
@@ -307,63 +309,25 @@ function ClosedScreen({ uploadToken, info }: { uploadToken: string; info: LinkIn
 // The result links this phone kept for one upload link (the same QR code).
 // Shown on the upload page, so a student who did not keep the link gets it
 // back on the same phone.
-function KeptResultLinks({ uploadToken }: { uploadToken: string }) {
+function KeptResultLinks({ uploadToken, info }: { uploadToken: string; info: LinkInfo }) {
   const [links] = useState<SavedResultLink[]>(() => loadResultLinks(uploadToken));
   if (links.length === 0) return null;
-  return (
-    <section aria-label="Linkurile tale cu rezultate">
-      {links.map((link) => (
-        <ResultLinkBox key={link.studentId} resultToken={link.resultToken} studentName={link.studentName} />
-      ))}
-    </section>
-  );
+  return <Tickets links={links} info={info} />;
 }
 
-// One kept result link, with a copy button. After sending it also says the
-// result comes only after the teacher opens the results.
-export function ResultLinkBox({ resultToken, studentName, fresh = false }: { resultToken: string; studentName: string; fresh?: boolean }) {
-  const [copied, setCopied] = useState(false);
-  const url = resultPageUrl(resultToken);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  };
+// The kept result links of one test, each as its ticket.
+function Tickets({ links, info }: { links: SavedResultLink[]; info: LinkInfo }) {
   return (
-    <div className="result-link-box">
-      <p>
-        {fresh ? (
-          <>
-            Păstrează linkul cu rezultatul{studentName ? ` pentru ${studentName}` : ''}:
-          </>
-        ) : (
-          <>
-            Linkul cu rezultatul{studentName ? ` pentru ${studentName}` : ''}:
-          </>
-        )}
-      </p>
-      <p>
-        <a href={url}>Vezi rezultatul</a>
-      </p>
-      {/* The whole address as text, never cut off: students often keep it as
-          a screenshot, and a cut address in the picture is a broken link. */}
-      <p className="result-link-url">
-        {url}
-      </p>
-      <p>
-        <button type="button" className="button-quiet button-small" onClick={copy}>
-          <ActionIcon name={copied ? 'check' : 'copy'} />
-          {copied ? 'Copiat!' : 'Copiază linkul'}
-        </button>
-      </p>
-      {fresh && (
-        <p className="hint">
-          Rezultatul apare aici după ce profesorul publică rezultatele: nota, punctajul pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.
-        </p>
-      )}
+    <div className="tickets">
+      {links.map((link) => (
+        <ResultTicket
+          key={link.resultToken}
+          resultToken={link.resultToken}
+          resultCode={link.resultCode}
+          studentName={link.studentName}
+          test={info.test}
+        />
+      ))}
     </div>
   );
 }

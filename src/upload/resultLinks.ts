@@ -14,6 +14,21 @@ export interface SavedResultLink {
   studentId: number;
   studentName: string;
   resultToken: string;
+  // The link's short code. Null for a link kept before links had codes.
+  resultCode: string | null;
+}
+
+// What the phone stored for one kept link, read with care: it is the page's
+// own data, but an older version of the page wrote less.
+function readSaved(raw: string, studentId: number): SavedResultLink | null {
+  const parsed = JSON.parse(raw) as { resultToken?: unknown; studentName?: unknown; resultCode?: unknown };
+  if (typeof parsed.resultToken !== 'string' || parsed.resultToken === '') return null;
+  return {
+    studentId,
+    studentName: typeof parsed.studentName === 'string' ? parsed.studentName : '',
+    resultToken: parsed.resultToken,
+    resultCode: typeof parsed.resultCode === 'string' && parsed.resultCode !== '' ? parsed.resultCode : null,
+  };
 }
 
 const keyOf = (uploadToken: string, studentId: number) => `qe.result.${uploadToken}.${studentId}`;
@@ -32,13 +47,8 @@ export function loadResultLinks(uploadToken: string): SavedResultLink[] {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
       try {
-        const parsed = JSON.parse(raw) as { resultToken?: unknown; studentName?: unknown };
-        if (typeof parsed.resultToken !== 'string' || parsed.resultToken === '') continue;
-        found.push({
-          studentId,
-          studentName: typeof parsed.studentName === 'string' ? parsed.studentName : '',
-          resultToken: parsed.resultToken,
-        });
+        const saved = readSaved(raw, studentId);
+        if (saved) found.push(saved);
       } catch {
         continue;
       }
@@ -49,9 +59,15 @@ export function loadResultLinks(uploadToken: string): SavedResultLink[] {
   return found.sort((a, b) => a.studentId - b.studentId);
 }
 
-export function saveResultLink(uploadToken: string, studentId: number, resultToken: string, studentName: string): void {
+export function saveResultLink(
+  uploadToken: string,
+  studentId: number,
+  resultToken: string,
+  studentName: string,
+  resultCode: string | null = null,
+): void {
   try {
-    localStorage.setItem(keyOf(uploadToken, studentId), JSON.stringify({ resultToken, studentName }));
+    localStorage.setItem(keyOf(uploadToken, studentId), JSON.stringify({ resultToken, studentName, resultCode }));
   } catch {
     // Blocked storage: the link then lasts until the page closes.
   }
@@ -61,13 +77,7 @@ export function loadResultLink(uploadToken: string, studentId: number): SavedRes
   try {
     const raw = localStorage.getItem(keyOf(uploadToken, studentId));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { resultToken?: unknown; studentName?: unknown };
-    if (typeof parsed.resultToken !== 'string' || parsed.resultToken === '') return null;
-    return {
-      studentId,
-      studentName: typeof parsed.studentName === 'string' ? parsed.studentName : '',
-      resultToken: parsed.resultToken,
-    };
+    return readSaved(raw, studentId);
   } catch {
     return null;
   }

@@ -4,6 +4,7 @@ import { renderPdf } from '../admin/pdf/renderPdf.ts';
 import { saveFile } from '../admin/pdf/share.ts';
 import { studentPdf, studentPdfFileName, studentPdfInputFromResult } from '../admin/pdf/studentPdf.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { shareLink } from './shareLink.ts';
 
 type ShareState = 'idle' | 'copied' | 'manual';
 
@@ -30,22 +31,8 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
 
   async function sendLink() {
     setShare('idle');
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ url, title: `${result.studentName} · ${result.testTitle}` });
-        return;
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      setShare('copied');
-    } catch {
-      // No clipboard (an old browser, or a page not on https): the student
-      // copies the link by hand.
-      setShare('manual');
-    }
+    const sent = await shareLink({ url, title: `${result.studentName} · ${result.testTitle}` });
+    if (sent === 'copied' || sent === 'manual') setShare(sent);
   }
 
   async function downloadPdf() {

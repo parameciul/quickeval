@@ -22,9 +22,18 @@ afterEach(() => {
 describe('result links kept on the phone', () => {
   it('keeps one link per upload link and student', () => {
     saveResultLink(TOKEN, 10, 'rt-10', 'Pop Ion');
-    expect(loadResultLink(TOKEN, 10)).toEqual({ studentId: 10, studentName: 'Pop Ion', resultToken: 'rt-10' });
+    expect(loadResultLink(TOKEN, 10)).toEqual({ studentId: 10, studentName: 'Pop Ion', resultToken: 'rt-10', resultCode: null });
     expect(loadResultLink(TOKEN, 11)).toBeNull();
     expect(loadResultLink('otherlinktoken22', 10)).toBeNull();
+  });
+
+  it('keeps the short code of a link, and reads a link kept before links had codes', () => {
+    saveResultLink(TOKEN, 10, 'rt-10', 'Pop Ion', 'K7M92P');
+    expect(loadResultLink(TOKEN, 10)).toEqual({ studentId: 10, studentName: 'Pop Ion', resultToken: 'rt-10', resultCode: 'K7M92P' });
+    expect(loadResultLinks(TOKEN)).toEqual([{ studentId: 10, studentName: 'Pop Ion', resultToken: 'rt-10', resultCode: 'K7M92P' }]);
+    // What an older version of the page stored.
+    localStorage.setItem(`qe.result.${TOKEN}.11`, JSON.stringify({ resultToken: 'rt-11', studentName: 'Ionescu Ana' }));
+    expect(loadResultLink(TOKEN, 11)).toEqual({ studentId: 11, studentName: 'Ionescu Ana', resultToken: 'rt-11', resultCode: null });
   });
 
   it('lists every link kept for one upload link', () => {
@@ -32,8 +41,8 @@ describe('result links kept on the phone', () => {
     saveResultLink(TOKEN, 10, 'rt-10', 'Ionescu Ana');
     saveResultLink('otherlinktoken22', 12, 'rt-12', 'Stan Eva');
     expect(loadResultLinks(TOKEN)).toEqual([
-      { studentId: 10, studentName: 'Ionescu Ana', resultToken: 'rt-10' },
-      { studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11' },
+      { studentId: 10, studentName: 'Ionescu Ana', resultToken: 'rt-10', resultCode: null },
+      { studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11', resultCode: null },
     ]);
     expect(loadResultLinks('nothinghere000000')).toEqual([]);
   });
@@ -56,14 +65,14 @@ describe('result links kept on the phone', () => {
     saveResultLink('otherlinktoken22', 12, 'rt-dead', 'Stan Eva');
     forgetResultLinkByToken('rt-dead');
     expect(loadResultLink(TOKEN, 10)).toBeNull();
-    expect(loadResultLink(TOKEN, 11)).toEqual({ studentId: 11, studentName: 'Ionescu Ana', resultToken: 'rt-alive' });
+    expect(loadResultLink(TOKEN, 11)).toEqual({ studentId: 11, studentName: 'Ionescu Ana', resultToken: 'rt-alive', resultCode: null });
     expect(loadResultLinks('otherlinktoken22')).toEqual([]);
   });
 
   it('keeps every link when the dead token is unknown, even with blocked storage', () => {
     saveResultLink(TOKEN, 10, 'rt-10', 'Pop Ion');
     expect(() => forgetResultLinkByToken('rt-missing')).not.toThrow();
-    expect(loadResultLink(TOKEN, 10)).toEqual({ studentId: 10, studentName: 'Pop Ion', resultToken: 'rt-10' });
+    expect(loadResultLink(TOKEN, 10)).toEqual({ studentId: 10, studentName: 'Pop Ion', resultToken: 'rt-10', resultCode: null });
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
       throw new Error('blocked');
     });
@@ -86,16 +95,16 @@ describe('result links kept on the phone', () => {
     saveResultLink('deadlinktoken222', 13, 'rt-13', 'Dan Ilie');
     rememberTestKey(TOKEN, 'key-a');
     // Not remembered yet: the other link's papers are not this test's.
-    expect(loadTestResultLinks(TOKEN, 'key-a')).toEqual([{ studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11' }]);
+    expect(loadTestResultLinks(TOKEN, 'key-a')).toEqual([{ studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11', resultCode: null }]);
     rememberTestKey(multi, 'key-a');
     rememberTestKey('otherlinktoken22', 'key-b');
     rememberTestKey('deadlinktoken222', UNKNOWN_TEST_KEY);
     expect(loadTestResultLinks(TOKEN, 'key-a')).toEqual([
-      { studentId: 10, studentName: 'Ionescu Ana', resultToken: 'rt-10' },
-      { studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11' },
+      { studentId: 10, studentName: 'Ionescu Ana', resultToken: 'rt-10', resultCode: null },
+      { studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11', resultCode: null },
     ]);
     // A link the server does not know never matches, whatever key is asked.
-    expect(loadTestResultLinks(TOKEN, UNKNOWN_TEST_KEY)).toEqual([{ studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11' }]);
+    expect(loadTestResultLinks(TOKEN, UNKNOWN_TEST_KEY)).toEqual([{ studentId: 11, studentName: 'Pop Ion', resultToken: 'rt-11', resultCode: null }]);
   });
 
   it('names the other links with a kept result and no remembered test, at most 5', () => {
@@ -140,7 +149,7 @@ describe('result links kept on the phone', () => {
     ]);
     // The reset uploads unlock; the sent one still locks. A student who left
     // the class is not in the list, so their link stays.
-    expect(loadResultLinks(TOKEN)).toEqual([{ studentId: 12, studentName: 'Stan Eva', resultToken: 'rt-12' }]);
+    expect(loadResultLinks(TOKEN)).toEqual([{ studentId: 12, studentName: 'Stan Eva', resultToken: 'rt-12', resultCode: null }]);
     expect(singleUploadLocked(TOKEN)).toBe(true);
     pruneStaleResultLinks(TOKEN, [{ id: 12, name: 'Stan Eva', state: 'none' }]);
     expect(loadResultLinks(TOKEN)).toEqual([]);
