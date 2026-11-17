@@ -101,7 +101,7 @@ export function CodeEntry({
         <ul>
           <li>Caută în poze biletul cu codul QR.</li>
           <li>Caută în mesaje linkul pe care ți l-ai trimis.</li>
-          <li>Deschide testul pe telefonul cu care ai trimis lucrarea.</li>
+          <li>Deschide linkul testului pe telefonul cu care ai trimis lucrarea.</li>
           <li>Dacă nu găsești nimic, cere profesorului codul tău.</li>
         </ul>
       </div>

@@ -6,7 +6,7 @@ import { renderPdf } from '../admin/pdf/renderPdf.ts';
 import { saveFile } from '../admin/pdf/share.ts';
 import { studentPdf, studentPdfFileName, studentPdfInputFromResult } from '../admin/pdf/studentPdf.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
-import { TICKET_HOW, TICKET_HOW_NO_CODE } from './ResultTicket.tsx';
+import { TICKET_HOW, TICKET_HOW_NO_CODE, TICKET_TITLE } from './ResultTicket.tsx';
 import { useSaveTicket } from './SaveTicket.tsx';
 import { shareLink } from './shareLink.ts';
 
@@ -33,6 +33,7 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
     url,
     testCode: result.testCode,
     picture: {
+      label: TICKET_TITLE,
       testTitle: result.testTitle,
       studentName: result.studentName,
       classLine: `${displayClassName(result.className)} · ${result.testCode}`,

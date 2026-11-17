@@ -6451,6 +6451,10 @@ table.items tr.edit-row > td {
   line-height: 0;
 }
 
+a.ticket-qr {
+  display: block;
+}
+
 .ticket-code {
   justify-self: stretch;
   display: flex;
@@ -6478,7 +6482,17 @@ table.items tr.edit-row > td {
   padding: 0 1rem 0.875rem;
   color: var(--muted);
   font-size: 0.8125rem;
-  text-align: center;
+}
+
+.ticket-foot p {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ticket-foot ol {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
 }
 
 .ticket-actions {

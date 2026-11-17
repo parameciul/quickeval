@@ -4,6 +4,7 @@ import { displayClassName } from '../../shared/classes.ts';
 import { formatResultCode } from '../../shared/tests.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { resultPageUrl } from './resultLinks.ts';
+import type { TicketHow } from './ticketImage.ts';
 import { useSaveTicket } from './SaveTicket.tsx';
 import { shareLink } from './shareLink.ts';
 
@@ -14,9 +15,21 @@ export interface TicketTest {
   code: string;
 }
 
-export const TICKET_TITLE = 'Biletul tău pentru rezultat';
-export const TICKET_HOW = 'Scanează codul QR cu camera. Sau deschide linkul testului și scrie codul.';
-export const TICKET_HOW_NO_CODE = 'Scanează codul QR cu camera.';
+// What the ticket is: the student's own link to the result.
+export const TICKET_TITLE = 'Biletul tău cu linkul spre rezultat';
+// How the student finds the result later, on their own phone. A phone opens
+// the link of a QR code in a picture of its gallery on a long press; the
+// test's link opens the result by itself on the phone that sent the work, and
+// asks for the code on any other. No word on scanning with a camera: that is
+// another phone, where someone else would see the result.
+export const TICKET_HOW: TicketHow = {
+  intro: 'Ca să vezi rezultatul, alege una dintre variante:',
+  steps: [
+    'Ține apăsat pe codul QR.',
+    'Deschide linkul de trimitere a lucrării și introdu codul, dacă nu ești redirecționat direct la rezultat.',
+  ],
+};
+export const TICKET_HOW_NO_CODE: TicketHow = { intro: 'Ca să vezi rezultatul, ține apăsat pe codul QR.', steps: [] };
 
 // How long "Linkul a fost copiat." stays on screen.
 const COPIED_MS = 4000;
@@ -49,10 +62,11 @@ export function ResultTicket({
   const url = resultPageUrl(resultToken);
   const code = resultCode ? formatResultCode(resultCode) : null;
   const classLine = `${displayClassName(test.className)} · ${test.code}`;
+  const how = code ? TICKET_HOW : TICKET_HOW_NO_CODE;
   const save = useSaveTicket({
     url,
     testCode: test.code,
-    picture: { testTitle: test.title, studentName, classLine, code, how: code ? TICKET_HOW : TICKET_HOW_NO_CODE },
+    picture: { label: TICKET_TITLE, testTitle: test.title, studentName, classLine, code, how },
     className: 'button button-big',
   });
 
@@ -97,10 +111,12 @@ export function ResultTicket({
             <strong>{studentName}</strong>
             <span>{classLine}</span>
           </p>
-          {/* Dark on white in both themes, with a white edge: phones read it from a screenshot. */}
-          <div className="ticket-qr">
+          {/* Dark on white in both themes, with a white edge: phones read it
+              from a screenshot. A link too, so a tap or a long press on the
+              page opens the result, as the ticket says. */}
+          <a className="ticket-qr" href={url}>
             <QRCodeSVG value={url} size={176} marginSize={0} level="M" title="Codul QR al rezultatului" />
-          </div>
+          </a>
           {code && (
             <p className="ticket-code">
               <span>Codul tău</span>
@@ -108,7 +124,16 @@ export function ResultTicket({
             </p>
           )}
         </div>
-        <p className="ticket-foot">{code ? TICKET_HOW : TICKET_HOW_NO_CODE}</p>
+        <div className="ticket-foot">
+          <p>{how.intro}</p>
+          {how.steps.length > 0 && (
+            <ol>
+              {how.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          )}
+        </div>
       </div>
       <div className="ticket-actions">
         {save.button}

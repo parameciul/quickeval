@@ -52,7 +52,7 @@ describe('the code field on the closed test page', () => {
     expect(within(entry).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       'Caută în poze biletul cu codul QR.',
       'Caută în mesaje linkul pe care ți l-ai trimis.',
-      'Deschide testul pe telefonul cu care ai trimis lucrarea.',
+      'Deschide linkul testului pe telefonul cu care ai trimis lucrarea.',
       'Dacă nu găsești nimic, cere profesorului codul tău.',
     ]);
     // Nothing went wrong: no error, and no word of the closed uploads.

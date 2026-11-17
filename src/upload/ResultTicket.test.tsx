@@ -27,16 +27,36 @@ describe('ResultTicket', () => {
   it('shows the test, the student, the QR code of the result link and the code', () => {
     show();
     const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
-    expect(within(ticket).getByText('Biletul tău pentru rezultat')).toBeInTheDocument();
+    expect(within(ticket).getByText('Biletul tău cu linkul spre rezultat')).toBeInTheDocument();
     expect(within(ticket).getByText('Fracții')).toBeInTheDocument();
     expect(within(ticket).getByText('Pop Ion')).toBeInTheDocument();
     expect(within(ticket).getByText('Clasa 6E2 · 6E2-26T1')).toBeInTheDocument();
     expect(within(ticket).getByTitle('Codul QR al rezultatului')).toBeInTheDocument();
     expect(within(ticket).getByText('Codul tău')).toBeInTheDocument();
     expect(within(ticket).getByText('K7M-92P')).toBeInTheDocument();
-    expect(within(ticket).getByText(TICKET_HOW)).toBeInTheDocument();
     expect(within(ticket).getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', URL_TEXT);
     expectNoGradingWords();
+  });
+
+  it('says how to find the result again: one line, then the two options, numbered, with no camera', () => {
+    show();
+    const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
+    expect(within(ticket).getByText('Ca să vezi rezultatul, alege una dintre variante:')).toBeInTheDocument();
+    const options = within(within(ticket).getByRole('list')).getAllByRole('listitem').map((item) => item.textContent);
+    expect(options).toEqual([...TICKET_HOW.steps]);
+    expect(options).toEqual([
+      'Ține apăsat pe codul QR.',
+      'Deschide linkul de trimitere a lucrării și introdu codul, dacă nu ești redirecționat direct la rezultat.',
+    ]);
+    // Scanning is for another phone, where someone else would see the result.
+    expect(ticket.textContent!.toLowerCase()).not.toMatch(/camer|scane/);
+  });
+
+  it('opens the result on a tap or a long press of the QR code', () => {
+    show();
+    const qr = screen.getByTitle('Codul QR al rezultatului').closest('a')!;
+    expect(qr).toHaveAttribute('href', URL_TEXT);
+    expect(qr).toHaveClass('ticket-qr');
   });
 
   it('draws the QR code dark on white, whatever the theme', () => {
@@ -48,7 +68,9 @@ describe('ResultTicket', () => {
   it('shows no code row for a link kept before links had codes', () => {
     show({ resultCode: null });
     expect(screen.queryByText('Codul tău')).not.toBeInTheDocument();
-    expect(screen.getByText(TICKET_HOW_NO_CODE)).toBeInTheDocument();
+    expect(screen.getByText(TICKET_HOW_NO_CODE.intro)).toBeInTheDocument();
+    expect(TICKET_HOW_NO_CODE.intro).toBe('Ca să vezi rezultatul, ține apăsat pe codul QR.');
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
     expect(screen.getByTitle('Codul QR al rezultatului')).toBeInTheDocument();
   });
 

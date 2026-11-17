@@ -5,21 +5,30 @@ import { saveFile, shareFile, type ShareResult } from '../admin/pdf/share.ts';
 // the page's theme: it is a picture to keep, and phones read a dark QR code
 // on white best. It holds no grade and no points.
 
+// How the ticket is used: a line, then the options, numbered.
+export interface TicketHow {
+  intro: string;
+  steps: readonly string[];
+}
+
 export interface TicketPicture {
+  // What the picture is ("Biletul tău cu linkul spre rezultat"): a picture
+  // found later in the gallery says it holds the student's result link.
+  label: string;
   testTitle: string;
   studentName: string;
   // "Clasa 6E2 · 6E2-26T1".
   classLine: string;
   // The code as shown ("K7M-92P"), or null for a link without one.
   code: string | null;
-  // "Scanează codul QR cu camera. …": how the ticket is used.
-  how: string;
+  // How the ticket is used: up to two lines of intro, three of each option.
+  how: TicketHow;
   // The QR code of the result link, already drawn (a canvas of the QR library).
   qr: CanvasImageSource;
 }
 
 export const TICKET_WIDTH = 1080;
-export const TICKET_HEIGHT = 1350;
+export const TICKET_HEIGHT = 1600;
 
 const MARGIN = 80;
 // The QR code's side in the picture, in pixels.
@@ -32,6 +41,9 @@ const MUTED = '#4a566a';
 const INK = '#1b5cc8';
 const TINT = '#e6eefb';
 const ORANGE = '#e2590b';
+
+// Where an option's text starts, after its number.
+const STEP_INDENT = 44;
 
 const font = (weight: number, size: number) => `${weight} ${size}px ${FONT}`;
 
@@ -112,11 +124,14 @@ export function drawTicket(context: CanvasRenderingContext2D, picture: TicketPic
   context.font = font(400, 28);
   context.fillText('by Laura Miron', MARGIN + 116, MARGIN + 88);
 
-  // The test and the student.
+  // What the picture is, then the test and the student.
   context.textAlign = 'center';
+  context.fillStyle = INK;
+  context.font = font(600, 36);
+  context.fillText(picture.label, centre, 262);
   context.fillStyle = TEXT;
   context.font = font(700, 60);
-  let y = 290;
+  let y = 345;
   for (const line of wrapLines((text) => context.measureText(text).width, picture.testTitle, inner, 2)) {
     context.fillText(line, centre, y);
     y += 72;
@@ -130,7 +145,7 @@ export function drawTicket(context: CanvasRenderingContext2D, picture: TicketPic
   }
 
   // The QR code, lower when there is no code under it.
-  const qrTop = picture.code ? 470 : 560;
+  const qrTop = picture.code ? 580 : 670;
   context.fillStyle = '#ffffff';
   context.fillRect(centre - QR_SIZE / 2 - QR_EDGE, qrTop - QR_EDGE, QR_SIZE + 2 * QR_EDGE, QR_SIZE + 2 * QR_EDGE);
   context.imageSmoothingEnabled = false;
@@ -138,25 +153,41 @@ export function drawTicket(context: CanvasRenderingContext2D, picture: TicketPic
 
   if (picture.code) {
     context.fillStyle = TINT;
-    context.fillRect(MARGIN, 1040, inner, 150);
+    context.fillRect(MARGIN, 1150, inner, 150);
     context.textAlign = 'left';
     context.fillStyle = MUTED;
     context.font = font(400, 34);
-    context.fillText('Codul tău', MARGIN + 40, 1128);
+    context.fillText('Codul tău', MARGIN + 40, 1238);
     context.textAlign = 'right';
     context.fillStyle = INK;
     context.font = font(700, 92);
-    context.fillText(picture.code, TICKET_WIDTH - MARGIN - 40, 1148);
+    context.fillText(picture.code, TICKET_WIDTH - MARGIN - 40, 1258);
   }
 
-  context.textAlign = 'center';
-  context.fillStyle = MUTED;
-  context.font = font(400, 30);
-  y = 1250;
-  for (const line of wrapLines((text) => context.measureText(text).width, picture.how, inner, 2)) {
-    context.fillText(line, centre, y);
+  // How to use it: the intro, then the options numbered, each wrapped under
+  // its own text. A lone intro is centred.
+  const left = MARGIN + 40;
+  const width = inner - 80;
+  const measure = (text: string) => context.measureText(text).width;
+  const steps = picture.how.steps;
+  context.textAlign = steps.length === 0 ? 'center' : 'left';
+  context.fillStyle = TEXT;
+  context.font = font(600, 30);
+  y = 1360;
+  for (const line of wrapLines(measure, picture.how.intro, steps.length === 0 ? inner : width, 2)) {
+    context.fillText(line, steps.length === 0 ? centre : left, y);
     y += 40;
   }
+  context.fillStyle = MUTED;
+  context.font = font(400, 30);
+  steps.forEach((step, index) => {
+    y += 12;
+    context.fillText(`${index + 1}.`, left, y);
+    for (const line of wrapLines(measure, step, width - STEP_INDENT, 3)) {
+      context.fillText(line, left + STEP_INDENT, y);
+      y += 40;
+    }
+  });
 }
 
 // The picture as a PNG file. Waits for the page's font first, so the picture
