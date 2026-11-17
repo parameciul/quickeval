@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type ChangeEvent } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router';
 import type { TestDetail } from '../../shared/api.ts';
 import { PHONE_IDLE_TEXT, PHONE_MEDIA } from '../../shared/quickTry.ts';
@@ -13,6 +13,8 @@ import type { TryApi } from './api.ts';
 import { fileChangesLeft } from './phase.ts';
 import { PhoneCode } from './PhoneCode.tsx';
 import { usePagesWatch } from './usePagesWatch.ts';
+import { PhotoViewer } from '../upload/PhotoViewer.tsx';
+import type { SubmissionFile } from '../../shared/api.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 const PAGE_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
@@ -183,6 +185,8 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
   const shownCount = pages.data?.length ?? 0;
   if (shownCount !== pageCount) setPageCount(shownCount);
   const [problem, setProblem] = useState<string | null>(null);
+  // A page's photo, large.
+  const [viewing, setViewing] = useState<{ src: string; label: string } | null>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['try', 'pages'] });
   const add = useMutation({
     mutationFn: async (files: File[]) => {
@@ -203,11 +207,13 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
   return (
     <>
       {list.length > 0 && (
-        <ol className="try-pages" aria-label="Paginile lucrării">
+        <ol className="page-list try-pages" aria-label="Paginile lucrării">
           {list.map((page, index) => (
-            <li key={page.id}>
-              <span>
-                Pagina {index + 1}: {page.name} · {formatFileSize(page.size)}
+            <li key={page.id} className="page-item">
+              <PagePreview page={page} label={`Pagina ${index + 1}`} tryApi={tryApi} onView={(src) => setViewing({ src, label: `Pagina ${index + 1}` })} />
+              <span className="page-info">
+                <span className="page-name">Pagina {index + 1}</span>
+                <span className="hint">{formatFileSize(page.size)}</span>
               </span>
               <button
                 type="button"
@@ -217,7 +223,7 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
                 onClick={() => remove.mutate(page.id)}
               >
                 <ActionIcon name="trash" />
-                Șterge
+                <span className="try-page-remove">Șterge</span>
               </button>
             </li>
           ))}
@@ -248,6 +254,7 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
           </button>
         )}
       </div>
+      {viewing && <PhotoViewer src={viewing.src} label={viewing.label} onClose={() => setViewing(null)} />}
       {phoneOpen && <PhoneCode id="try-phone-code" token={token} />}
       <div aria-live="polite">
         {watch.idle && (
@@ -276,5 +283,32 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
       {add.error && <ErrorMessage error={add.error} />}
       {remove.error && <ErrorMessage error={remove.error} />}
     </>
+  );
+}
+
+// A page's preview: its photo, read once (a page never changes), or "PDF".
+// The pages show by number, not by file name: a phone's photo names say
+// nothing and are too long for its screen.
+function PagePreview({ page, label, tryApi, onView }: { page: SubmissionFile; label: string; tryApi: TryApi; onView: (src: string) => void }) {
+  const photo = page.contentType.startsWith('image/');
+  const blob = useQuery({ queryKey: ['try', 'page-photo', page.id], queryFn: () => tryApi.pageBlob(page.id), enabled: photo, staleTime: Infinity });
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!blob.data) return;
+    const url = URL.createObjectURL(blob.data);
+    setSrc(url);
+    return () => URL.revokeObjectURL(url);
+  }, [blob.data]);
+  if (!src) {
+    return (
+      <span className="thumb thumb-file" aria-hidden="true">
+        {photo ? 'Poză' : 'PDF'}
+      </span>
+    );
+  }
+  return (
+    <button type="button" className="thumb" onClick={() => onView(src)} aria-label={`Vezi ${label.toLowerCase()}`}>
+      <img src={src} alt={label} />
+    </button>
   );
 }

@@ -39,18 +39,21 @@ html {
   text-align: center;
 }
 
+/* The pages as on the student's page: a preview, the number and size, "Șterge". */
 .try-pages {
-  display: grid;
-  gap: 0.5rem;
   margin: 0 0 1rem;
-  padding-left: 1.25rem;
 }
 
-.try-pages li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+.try-pages .page-name {
+  white-space: normal;
+}
+
+/* A phone keeps the room for "Pagina 1": "Șterge" is its icon there (its
+   name stays "Șterge pagina 1"). */
+@media (max-width: 479.98px) {
+  .try-page-remove {
+    display: none;
+  }
 }
 
 label.button-quiet.is-disabled {
@@ -433,11 +436,6 @@ label.button-quiet.is-disabled {
 }
 
 /* On the phone that made the try: "Deschide încercarea" over "Mai adaugă pagini". */
-.phone-to-try {
-  margin-top: 1rem;
-  text-align: center;
-}
-
 .phone-done .button + .button-quiet,
 .phone-page .alert + .button {
   margin-top: 0.75rem;

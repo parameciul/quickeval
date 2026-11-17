@@ -15,7 +15,9 @@ import { Expired, isExpired } from './TryNotice.tsx';
 // like a student sends them, with no result and no link to the try's page.
 // The laptop is in charge: "Am terminat" writes nothing on the server.
 // Opened by the form on the same phone (?here=1), that phone is the teacher's
-// and is in charge itself: the page then links to the try. Without the flag
+// and is in charge itself: once the photos are done (or the paper went to
+// grading) the page links to the try. Not while she takes them: a link there
+// is a way out that stops the photos still waiting. Without the flag
 // there is no link, but no lock either: the QR code holds the try's link.
 export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi }) {
   const [params] = useSearchParams();
@@ -139,15 +141,6 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
         listTitle="Paginile"
         finishLabel="Am terminat"
         onFinish={(count) => setDone(count)}
-        idleFooter={
-          here && (
-            <p className="phone-to-try">
-              <Link className="link" to="/">
-                Deschide încercarea
-              </Link>
-            </p>
-          )
-        }
       />
     </div>
   );
