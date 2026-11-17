@@ -76,8 +76,8 @@ describe('TestsPage', () => {
 
   it('links each test to its page and offers a new test', async () => {
     renderAdmin('/', withTests());
-    expect(await screen.findByRole('link', { name: 'Ecuații' })).toHaveAttribute('href', '/teste/6E2-26T2');
-    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/teste/nou');
+    expect(await screen.findByRole('link', { name: 'Ecuații' })).toHaveAttribute('href', '/tests/6E2-26T2');
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/tests/new');
   });
 
   it('says so when the year has no tests, for a teacher who has had tests graded', async () => {
@@ -125,7 +125,7 @@ describe('TestsPage', () => {
     expect(first).toHaveClass('is-done');
     expect(within(first!).getByRole('heading', { level: 3 })).toHaveAccessibleName('Adaugă o clasă gata');
     expect(within(first!).queryByRole('button')).not.toBeInTheDocument();
-    expect(within(second!).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/teste/nou');
+    expect(within(second!).getByRole('link', { name: 'Test nou' })).toHaveAttribute('href', '/tests/new');
   });
 
   it('counts an archived class as no class for the first step', async () => {
@@ -154,7 +154,7 @@ describe('TestsPage', () => {
   });
 
   it('marks Teste in the menu on test pages', async () => {
-    renderAdmin('/teste/6E2-26T2', withTests());
+    renderAdmin('/tests/6E2-26T2', withTests());
     const menu = await screen.findByRole('navigation', { name: 'Meniu' });
     expect(within(menu).getByRole('link', { name: 'Teste' })).toHaveAttribute('aria-current', 'page');
     expect(within(menu).getByRole('button', { name: 'Clase' })).not.toHaveAttribute('aria-current');
@@ -181,7 +181,7 @@ const withWaiting = () =>
 
 describe('TestsPage, what waits', () => {
   it('opens the list of what waits in place, for every class, the first button filled', async () => {
-    renderAdmin('/?clasa=2', withWaiting());
+    renderAdmin('/?class=2', withWaiting());
     const toggle = await screen.findByRole('button', { name: '2 lucruri te așteaptă' });
     expect(screen.getByText(/în 2 teste\.$/)).toBeInTheDocument();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -200,7 +200,7 @@ describe('TestsPage, what waits', () => {
     ]);
     const first = within(list).getByRole('link', { name: 'Începe: Ecuații, Clasa 6E2' });
     expect(first).toHaveClass('button');
-    expect(first).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
+    expect(first).toHaveAttribute('href', '/tests/6E2-26T1/review');
     expect(within(list).getByRole('link', { name: 'Deschide: Logaritmi, Clasa 6E2' })).toHaveClass('button-quiet');
 
     await userEvent.click(toggle);
@@ -245,7 +245,7 @@ describe('TestsPage, what waits', () => {
     );
     const check = await screen.findByRole('link', { name: 'Verifică 3 puncte: Ecuații, Clasa 6E2' });
     expect(check).toHaveClass('button');
-    expect(check).toHaveAttribute('href', '/teste/6E2-26T1/verificare');
+    expect(check).toHaveAttribute('href', '/tests/6E2-26T1/review');
     expect(screen.getByRole('link', { name: 'Pornește corectarea: Mulțimi, Clasa 6E2' })).toHaveClass('button-quiet');
     expect(within(rowOf('Simulare')).getByText('Nimic de făcut acum')).toBeInTheDocument();
   });
@@ -308,25 +308,25 @@ describe('TestsPage filters', () => {
     expect(screen.getByRole('link', { name: 'Pătrate' })).toBeInTheDocument();
     expect(chip('Clasa 6E3')).toHaveAttribute('aria-pressed', 'true');
     expect(chip('Toate clasele')).toHaveAttribute('aria-pressed', 'false');
-    await expectLocation('/?clasa=2');
+    await expectLocation('/?class=2');
     await userEvent.click(chip('Toate clasele'));
     expect(await screen.findByRole('link', { name: 'Fracții' })).toBeInTheDocument();
     await expectLocation(/^\/$/);
   });
 
   it('opens with the class from the address', async () => {
-    renderAdmin('/?clasa=2', withManyClasses());
+    renderAdmin('/?class=2', withManyClasses());
     expect(await screen.findByRole('link', { name: 'Pătrate' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Fracții' })).not.toBeInTheDocument();
     expect(chip('Clasa 6E3')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('shows all tests when the class in the address is not a class of the year', async () => {
-    renderAdmin('/?clasa=99&arhivate=1', withManyClasses(), <LocationProbe />);
+    renderAdmin('/?class=99&archived=1', withManyClasses(), <LocationProbe />);
     expect(await screen.findByRole('link', { name: 'Fracții' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Pătrate' })).toBeInTheDocument();
     expect(chip('Toate clasele')).toHaveAttribute('aria-pressed', 'true');
-    await expectLocation('/?arhivate=1');
+    await expectLocation('/?archived=1');
   });
 
   it('hides archived tests until asked, then shows them finished and marked', async () => {
@@ -338,28 +338,28 @@ describe('TestsPage filters', () => {
     expect(within(row).getByText('Arhivat')).toHaveClass('tag');
     expect(row).toHaveClass('is-muted');
     expect(within(screen.getByRole('region', { name: 'Terminate' })).getByRole('link', { name: 'Vechi' })).toBeInTheDocument();
-    await expectLocation('/?arhivate=1');
+    await expectLocation('/?archived=1');
     await userEvent.click(screen.getByLabelText('Arată și testele arhivate'));
     await waitFor(() => expect(screen.queryByRole('link', { name: 'Vechi' })).not.toBeInTheDocument());
     await expectLocation(/^\/$/);
   });
 
   it('opens with the archived tests when the address asks', async () => {
-    renderAdmin('/?arhivate=1', withManyClasses());
+    renderAdmin('/?archived=1', withManyClasses());
     expect(await screen.findByRole('link', { name: 'Vechi' })).toBeInTheDocument();
     expect(screen.getByLabelText('Arată și testele arhivate')).toBeChecked();
   });
 
   it('keeps the other choice when one changes', async () => {
-    renderAdmin('/?arhivate=1', withManyClasses(), <LocationProbe />);
+    renderAdmin('/?archived=1', withManyClasses(), <LocationProbe />);
     await screen.findByRole('link', { name: 'Vechi' });
     await userEvent.click(chip('Clasa 6E3'));
-    await expectLocation('/?arhivate=1&clasa=2');
+    await expectLocation('/?archived=1&class=2');
   });
 
   it('says so when the choice leaves no test', async () => {
     renderAdmin(
-      '/?clasa=1',
+      '/?class=1',
       createFakeApi({
         classes: [
           { id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 },
@@ -464,11 +464,11 @@ describe('TestsPage results', () => {
 
   it('gives an archived test with open results one way to close them: its next step', async () => {
     for (const open of [{ resultsOpen: true }, { publishedCount: 1 }]) {
-      const view = renderAdmin('/?arhivate=1', withPublishing({ archived: true, ...open }));
+      const view = renderAdmin('/?archived=1', withPublishing({ archived: true, ...open }));
       const row = await findRow('Fracții');
       expect(stageText(row)).toHaveTextContent('Rezultate · publicate · test arhivat');
       expect(within(row).getAllByRole('link', { name: /^Oprește accesul/ })).toHaveLength(1);
-      expect(within(row).getByRole('link', { name: 'Oprește accesul: Fracții, Clasa 6E2' })).toHaveAttribute('href', '/teste/6E2-26T1#rezultate');
+      expect(within(row).getByRole('link', { name: 'Oprește accesul: Fracții, Clasa 6E2' })).toHaveAttribute('href', '/tests/6E2-26T1#results');
       expect(within(row).queryByRole('button', { name: /Oprește accesul|Publică/ })).not.toBeInTheDocument();
       view.unmount();
     }
@@ -538,14 +538,14 @@ describe('TestsPage results', () => {
       }),
     );
     const graded = await findRow('Fracții');
-    expect(within(graded).getByRole('link', { name: 'Raportul clasei: Fracții, Clasa 6E2' })).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+    expect(within(graded).getByRole('link', { name: 'Raportul clasei: Fracții, Clasa 6E2' })).toHaveAttribute('href', '/tests/6E2-26T1/report');
     expect(within(rowOf('Ecuații')).queryByRole('link', { name: /^Raportul clasei/ })).not.toBeInTheDocument();
   });
 });
 
 describe('TestsPage small details', () => {
   it('puts a space between the title of an archived test and its tag', async () => {
-    renderAdmin('/?arhivate=1', createFakeApi({ classes: oneClass, students: {}, tests: [fakeTest({ code: '6E2-26T1', title: 'Vechi', status: 'done', archived: true })] }));
+    renderAdmin('/?archived=1', createFakeApi({ classes: oneClass, students: {}, tests: [fakeTest({ code: '6E2-26T1', title: 'Vechi', status: 'done', archived: true })] }));
     const row = await findRow('Vechi');
     expect(row.querySelector('th')!.textContent).toMatch(/^Vechi Arhivat/);
   });

@@ -82,7 +82,7 @@ const apiWith = (detail: SubmissionDetail = submission) =>
     submissions: [structuredClone(detail)],
   });
 
-const page = '/teste/6E2-26T1/elevi/5';
+const page = '/tests/6E2-26T1/papers/5';
 const row = (label: string) => screen.getByRole('row', { name: new RegExp(label) });
 
 // Opens "Alte acțiuni" at the top of the page and chooses an item.
@@ -104,9 +104,9 @@ describe('the paper page', () => {
     expect(screen.getByText('Început 6 oct. 2026, 10:20 · trimis 6 oct. 2026, 10:40')).toBeInTheDocument();
     const path = screen.getByRole('navigation', { name: 'Unde ești' });
     expect(within(path).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Teste', 'Clasa 6E2', 'Fracții', 'Pop Ion']);
-    expect(within(path).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/teste/6E2-26T1');
-    expect(within(path).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/clase/1');
-    expect(screen.getByRole('link', { name: 'Toate notele elevului' })).toHaveAttribute('href', '/elevi/10');
+    expect(within(path).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/tests/6E2-26T1');
+    expect(within(path).getByRole('link', { name: 'Clasa 6E2' })).toHaveAttribute('href', '/classes/1');
+    expect(screen.getByRole('link', { name: 'Toate notele elevului' })).toHaveAttribute('href', '/students/10');
   });
 
   it('shows the paper beside the exercises, one page at a time with its file, and a PDF in a frame with a link', async () => {
@@ -216,7 +216,7 @@ describe('the paper page', () => {
 
   it('reads the tests of the year once after a check, not twice', async () => {
     const api = apiWith(graded);
-    renderAdmin(`${page}?punct=32`, api);
+    renderAdmin(`${page}?item=32`, api);
     const check = await screen.findByRole('button', { name: 'Accept 1p' });
     await vi.waitFor(() => expect(api.listTests).toHaveBeenCalled());
     const before = api.listTests.mock.calls.length;
@@ -399,7 +399,7 @@ describe('the paper page', () => {
   it('shows the server message when a correction fails', async () => {
     const api = apiWith(graded);
     api.correctItem.mockRejectedValueOnce(new ApiError(409, 'not_graded', 'Lucrarea se corectează din nou. Reîncarcă pagina.'));
-    renderAdmin(`${page}?punct=32`, api);
+    renderAdmin(`${page}?item=32`, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Accept 1p' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Lucrarea se corectează din nou. Reîncarcă pagina.');
   });
@@ -489,7 +489,7 @@ describe('the paper page', () => {
     renderAdmin(page, api, <LocationProbe />);
     await chooseAction('Resetează');
     expect(api.resetSubmission).toHaveBeenCalledWith(5, '2026-10-06T07:20:00.000Z');
-    await expectLocation('/teste/6E2-26T1');
+    await expectLocation('/tests/6E2-26T1');
   });
 
   it('shows the student result link with copy and WhatsApp share', async () => {
@@ -515,17 +515,17 @@ describe('the paper page', () => {
     expect(screen.queryByText(/Linkul cu rezultatul/)).not.toBeInTheDocument();
   });
   it('shows the not-found page for an upload id that is not a number', async () => {
-    renderAdmin('/teste/6E2-26T1/elevi/abc', apiWith());
+    renderAdmin('/tests/6E2-26T1/papers/abc', apiWith());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
   });
 
   it('shows the not-found page when the upload belongs to another test', async () => {
-    renderAdmin('/teste/6E2-26T9/elevi/5', apiWith());
+    renderAdmin('/tests/6E2-26T9/papers/5', apiWith());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();
   });
 
   it('shows the server message for an upload that does not exist', async () => {
-    renderAdmin('/teste/6E2-26T1/elevi/99', apiWith());
+    renderAdmin('/tests/6E2-26T1/papers/99', apiWith());
     expect(await screen.findByRole('alert')).toHaveTextContent('Nu am găsit ce cauți.');
   });
 

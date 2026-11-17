@@ -35,14 +35,14 @@ export interface TestStages {
 }
 
 // The address of each stage's panel on the test page (redesign spec §6):
-// "#corectare".
+// "#grading".
 const STAGE_HASHES: Record<StageName, string> = {
-  Pregătire: '#pregatire',
-  Tipărire: '#tiparire',
-  'În clasă': '#in-clasa',
-  Corectare: '#corectare',
-  Verificare: '#verificare',
-  Rezultate: '#rezultate',
+  Pregătire: '#prepare',
+  Tipărire: '#print',
+  'În clasă': '#in-class',
+  Corectare: '#grading',
+  Verificare: '#review',
+  Rezultate: '#results',
 };
 
 export function stageHash(name: StageName): string {

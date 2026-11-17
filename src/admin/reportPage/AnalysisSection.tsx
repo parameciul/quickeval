@@ -46,9 +46,9 @@ export function AnalysisSection({ code, report }: { code: string; report: ClassR
   );
 
   return (
-    <section id="analiza" className="report-part class-card" aria-labelledby="analiza-title">
+    <section id="analysis" className="report-part class-card" aria-labelledby="analysis-title">
       <div className="class-card-head">
-        <h2 id="analiza-title">Analiza clasei</h2>
+        <h2 id="analysis-title">Analiza clasei</h2>
         {status === 'ready' && content && !stale && button('Regenerează')}
       </div>
       <div className="report-analysis">

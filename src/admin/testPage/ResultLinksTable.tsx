@@ -98,7 +98,7 @@ function ResultLinkRow({
   return (
     <tr className={hasLink(row) ? undefined : 'is-muted'}>
       <th scope="row">
-        {row.submissionId === null ? row.studentName : <Link to={`/teste/${code}/elevi/${row.submissionId}`}>{row.studentName}</Link>}
+        {row.submissionId === null ? row.studentName : <Link to={`/tests/${code}/papers/${row.submissionId}`}>{row.studentName}</Link>}
         {(row.ces || row.variant === 'ces') && <CesTag />}
         {!row.active && <span className="tag">a plecat</span>}
       </th>

@@ -14,16 +14,16 @@ import { useSearch } from '../search/useSearch.ts';
 import { stagesOf } from '../stages.ts';
 import { startedText } from '../testsPage/TestGroup.tsx';
 
-const GROUPS = { elevi: 'Elevi', clase: 'Clase', teste: 'Teste' } as const;
+const GROUPS = { students: 'Elevi', classes: 'Clase', tests: 'Teste' } as const;
 type GroupName = keyof typeof GROUPS;
 
 function countsOf(results: SearchResults): Record<GroupName, number> {
-  return { elevi: results.students.length, clase: results.classes.length, teste: results.tests.length };
+  return { students: results.students.length, classes: results.classes.length, tests: results.tests.length };
 }
 
 // The results page (redesign spec §11.10): everything the search found in the
 // school year, one card per group, and chips that show one group. The search
-// and the chip live in the address (?q=stef&arata=elevi), so a link or a
+// and the chip live in the address (?q=stef&show=students), so a link or a
 // reload keeps them.
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
@@ -43,14 +43,14 @@ export function SearchPage() {
   // An older answer, kept while the new one comes, is not shown here.
   const results = search.isPlaceholderData ? undefined : search.data;
   const counts = results ? countsOf(results) : null;
-  const total = counts ? counts.elevi + counts.clase + counts.teste : 0;
+  const total = counts ? counts.students + counts.classes + counts.tests : 0;
   // A chip whose group is empty cannot be chosen; an old link to one shows all.
-  const asked = params.get('arata');
+  const asked = params.get('show');
   const show = asked && asked in GROUPS && counts && counts[asked as GroupName] > 0 ? (asked as GroupName) : null;
   const choose = (name: GroupName | null) => {
     const next = new URLSearchParams(params);
-    if (name === null) next.delete('arata');
-    else next.set('arata', name);
+    if (name === null) next.delete('show');
+    else next.set('show', name);
     setParams(next, { replace: true });
   };
   const shows = (name: GroupName) => (show === null || show === name) && counts !== null && counts[name] > 0;
@@ -77,12 +77,12 @@ export function SearchPage() {
               ))}
             </div>
           )}
-          {shows('elevi') && (
-            <ResultsCard title="Elevi" count={counts.elevi}>
+          {shows('students') && (
+            <ResultsCard title="Elevi" count={counts.students}>
               {results.students.map((student) => (
                 <tr key={student.id}>
                   <th scope="row">
-                    <Link to={`/elevi/${student.id}`}>
+                    <Link to={`/students/${student.id}`}>
                       <Highlight text={student.fullName} query={text} />
                     </Link>
                     {student.ces && <CesTag />}
@@ -95,12 +95,12 @@ export function SearchPage() {
               ))}
             </ResultsCard>
           )}
-          {shows('clase') && (
-            <ResultsCard title="Clase" count={counts.clase}>
+          {shows('classes') && (
+            <ResultsCard title="Clase" count={counts.classes}>
               {results.classes.map((cls) => (
                 <tr key={cls.id}>
                   <th scope="row">
-                    <Link to={`/clase/${cls.id}`}>
+                    <Link to={`/classes/${cls.id}`}>
                       Clasa <Highlight text={cls.name} query={text} />
                     </Link>
                   </th>
@@ -110,14 +110,14 @@ export function SearchPage() {
               ))}
             </ResultsCard>
           )}
-          {shows('teste') && (
-            <ResultsCard title="Teste" count={counts.teste}>
+          {shows('tests') && (
+            <ResultsCard title="Teste" count={counts.tests}>
               {results.tests.map((test) => {
                 const { current } = stagesOf(test);
                 return (
                   <tr key={test.code}>
                     <th scope="row">
-                      <Link to={`/teste/${test.code}`}>
+                      <Link to={`/tests/${test.code}`}>
                         <Highlight text={test.title} query={text} />
                       </Link>
                     </th>

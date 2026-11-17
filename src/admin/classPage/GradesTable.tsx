@@ -56,7 +56,7 @@ function TestHeader({ test, readOnly }: { test: TestSummary; readOnly: boolean }
   const note = headNote(test, readOnly);
   return (
     <th scope="col" className={test.archived ? 'grade-head is-muted' : 'grade-head'}>
-      <Link to={`/teste/${test.code}`} title={test.title}>
+      <Link to={`/tests/${test.code}`} title={test.title}>
         {test.title}
       </Link>
       <span className={note.waits ? 'grade-head-note is-waiting' : 'grade-head-note'}>{note.text}</span>
@@ -79,7 +79,7 @@ export function GradeCell({ grade }: { grade: ClassGrade | undefined }) {
   if (grade.status !== 'graded' || grade.grade === null) {
     return (
       <td className="grade-state">
-        <Link to={`/teste/${grade.testCode}/elevi/${grade.submissionId}`}>{uploadStatusLabel(grade.status)}</Link>
+        <Link to={`/tests/${grade.testCode}/papers/${grade.submissionId}`}>{uploadStatusLabel(grade.status)}</Link>
       </td>
     );
   }
@@ -87,7 +87,7 @@ export function GradeCell({ grade }: { grade: ClassGrade | undefined }) {
   const waiting = countLabel(grade.flagCount, 'punct de verificat', 'puncte de verificat');
   return (
     <td className={flagged ? 'grade-flag' : undefined} title={flagged ? waiting : undefined}>
-      <Link to={`/teste/${grade.testCode}/elevi/${grade.submissionId}`}>
+      <Link to={`/tests/${grade.testCode}/papers/${grade.submissionId}`}>
         {flagged && <span className="flag-dot" role="img" aria-label={waiting}></span>}
         <GradeChip grade={grade.grade} />
       </Link>
@@ -144,7 +144,7 @@ export function GradesTable({
   }
   if (tests.length === 0) {
     const newTest = (
-      <Link className="button button-small" to={`/teste/nou?clasa=${classId}`}>
+      <Link className="button button-small" to={`/tests/new?class=${classId}`}>
         <ActionIcon name="add" />
         Test nou pentru această clasă
       </Link>
@@ -183,7 +183,7 @@ export function GradesTable({
             {orderedStudents(students).map((student) => (
               <tr key={student.id} className={student.active ? undefined : 'is-muted'}>
                 <th scope="row">
-                  <Link to={`/elevi/${student.id}`} state={{ fromClass: classId } satisfies StudentLinkState}>
+                  <Link to={`/students/${student.id}`} state={{ fromClass: classId } satisfies StudentLinkState}>
                     {student.fullName}
                   </Link>
                   {student.ces && (

@@ -5,6 +5,7 @@ import { normalizeTestCode } from '../../shared/tests.ts';
 import type { AdminApi } from '../admin/api.ts';
 import { ApiProvider } from '../admin/ApiContext.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
+import { englishAddress } from '../admin/legacyAddress.ts';
 import { TryPaperPage } from '../admin/pages/PaperPage.tsx';
 import { paperPath } from '../admin/paperPage/paths.ts';
 import { ApiError } from '../ui/ApiError.ts';
@@ -17,7 +18,7 @@ import { TryHome } from './TryHome.tsx';
 import { BadLink, Expired, isExpired } from './TryNotice.tsx';
 
 // A Quick Try's page at /try/<token>: the try's states, and the teacher app's
-// own paper page at /teste/<code>/verificare (its links to /teste/<code> come
+// own paper page at /tests/<code>/review (its links to /tests/<code> come
 // back here; the try's own address for the page, which stays there). `token` is null
 // for an address that is not a try's link.
 export function TryRoutes({ token, api, tryApi }: { token: string | null; api: AdminApi; tryApi: TryApi }) {
@@ -43,7 +44,12 @@ export function TryRoutes({ token, api, tryApi }: { token: string | null; api: A
 }
 
 function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
+  const location = useLocation();
   const info = useQuery({ queryKey: ['try'], queryFn: () => tryApi.info() });
+  // An old Romanian address of a paper (/teste/<code>/verificare?lucrare=…)
+  // becomes its English one before a page reads it.
+  const english = englishAddress(location);
+  if (english) return <Navigate replace to={english} state={location.state} />;
   if (info.isPending) return <p>Se încarcă…</p>;
   if (isExpired(info.error)) return <Expired />;
   if (info.data === undefined) {
@@ -58,9 +64,9 @@ function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
       <Route path="/phone" element={<PhonePage info={info.data} tryApi={tryApi} />} />
       {/* The phone page's first address: its QR codes must not fall to "*", the try's page. */}
       <Route path="/telefon" element={<ToPhonePage />} />
-      <Route path="/teste/:code" element={home} />
-      <Route path="/teste/:code/verificare" element={<TryPaperPage />} />
-      <Route path="/teste/:code/elevi/:id" element={<AllExercises />} />
+      <Route path="/tests/:code" element={home} />
+      <Route path="/tests/:code/review" element={<TryPaperPage />} />
+      <Route path="/tests/:code/papers/:id" element={<AllExercises />} />
       <Route path="*" element={<Navigate replace to="/" />} />
     </Routes>
   );
@@ -73,7 +79,7 @@ function AllExercises() {
   const code = normalizeTestCode(params.code ?? '');
   const submissionId = parsePositiveId(params.id);
   if (code === null || submissionId === null) return <Navigate replace to="/" />;
-  return <Navigate replace to={paperPath(code, 'try', { submissionId, key: null }, 'toate')} />;
+  return <Navigate replace to={paperPath(code, 'try', { submissionId, key: null }, 'all')} />;
 }
 
 // The old address of the phone page, with its flag and anchor kept.

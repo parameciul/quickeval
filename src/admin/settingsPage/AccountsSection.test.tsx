@@ -30,7 +30,7 @@ async function pick(name: string, item: string) {
 describe('the accounts on Setări', () => {
   it('lists the accounts that wait in their own card, and approves one', async () => {
     const api = withAccounts();
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     const waiting = await card('1 cont așteaptă aprobarea');
     const line = row(waiting, 'Ana Pop');
     expect(line).toHaveTextContent('ana@example.com');
@@ -46,14 +46,14 @@ describe('the accounts on Setări', () => {
   });
 
   it('names its tables after their cards', async () => {
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     expect(await screen.findByRole('table', { name: '1 cont așteaptă aprobarea' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Toate conturile' })).toBeInTheDocument();
   });
 
   it('keeps the focus in the card when one of several waiting accounts is approved', async () => {
     const carmen = fakeAccount({ id: 5, name: 'Carmen', email: 'carmen@example.com', role: 'teacher', demo: true, status: 'pending' });
-    renderAdmin('/setari', createFakeApi({ classes: [], students: {}, accounts: [structuredClone(ana), structuredClone(carmen), structuredClone(laura)] }));
+    renderAdmin('/settings', createFakeApi({ classes: [], students: {}, accounts: [structuredClone(ana), structuredClone(carmen), structuredClone(laura)] }));
     await userEvent.click(await screen.findByRole('button', { name: 'Aprobă Ana Pop' }));
     expect(await screen.findByRole('heading', { name: '1 cont așteaptă aprobarea' })).toHaveFocus();
   });
@@ -61,7 +61,7 @@ describe('the accounts on Setări', () => {
   it('refuses an account after a confirmation', async () => {
     const api = withAccounts();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Refuză Ana Pop' }));
     expect(api.rejectAccount).toHaveBeenCalledWith(2, ana.createdAt);
     await screen.findByRole('region', { name: 'Toate conturile' });
@@ -72,7 +72,7 @@ describe('the accounts on Setări', () => {
     const carmen = fakeAccount({ id: 5, name: 'Carmen', email: 'carmen@example.com', role: 'teacher', demo: true, status: 'pending' });
     const api = createFakeApi({ classes: [], students: {}, accounts: [structuredClone(ana), structuredClone(carmen), structuredClone(laura)] });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     const waiting = await card('2 conturi așteaptă aprobarea');
     await userEvent.click(within(waiting).getByRole('button', { name: 'Refuză toate' }));
     expect(confirm).toHaveBeenCalledWith('Refuzi toate cele 2 conturi care așteaptă? Cererile se șterg.');
@@ -84,20 +84,20 @@ describe('the accounts on Setări', () => {
   });
 
   it('offers no "Refuză toate" for a single account that waits', async () => {
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     await screen.findByRole('button', { name: 'Aprobă Ana Pop' });
     expect(screen.queryByRole('button', { name: 'Refuză toate' })).not.toBeInTheDocument();
   });
 
   it('shows no card of waiting accounts when none waits', async () => {
-    renderAdmin('/setari', createFakeApi({ classes: [], students: {}, accounts: [structuredClone(laura), structuredClone(bogdan)] }));
+    renderAdmin('/settings', createFakeApi({ classes: [], students: {}, accounts: [structuredClone(laura), structuredClone(bogdan)] }));
     expect(await card('Toate conturile')).toHaveTextContent('2 conturi');
     expect(screen.queryByRole('region', { name: /așteaptă aprobarea/ })).not.toBeInTheDocument();
   });
 
   it('shows the kind of each account and what it used, and makes a demo account complete', async () => {
     const api = withAccounts();
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     const all = await card('Toate conturile');
     expect(all).toHaveTextContent('3 conturi');
     expect(row(all, 'Laura Miron')).toHaveTextContent('administrator');
@@ -114,7 +114,7 @@ describe('the accounts on Setări', () => {
   it('closes an account after a confirmation, and opens it again', async () => {
     const api = withAccounts();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     await pick('Bogdan', 'Închide contul');
     expect(confirm).toHaveBeenCalledWith('Închizi contul lui Bogdan? Nu va mai putea intra, dar datele rămân.');
     expect(api.updateAccount).toHaveBeenCalledWith(3, { status: 'disabled' });
@@ -137,7 +137,7 @@ describe('the accounts on Setări', () => {
       focused = document.activeElement?.getAttribute('aria-label') ?? null;
       return false;
     });
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     await pick('Bogdan', 'Parolă nouă');
     expect(focused).toBe('Mai multe pentru Bogdan');
   });
@@ -145,7 +145,7 @@ describe('the accounts on Setări', () => {
   it('keeps an account open when the closing is not confirmed', async () => {
     const api = withAccounts();
     vi.spyOn(window, 'confirm').mockReturnValue(false);
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     await pick('Bogdan', 'Închide contul');
     expect(api.updateAccount).not.toHaveBeenCalled();
   });
@@ -153,7 +153,7 @@ describe('the accounts on Setări', () => {
   it('makes a new password for a teacher and shows it once, under the row', async () => {
     const api = withAccounts();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     await pick('Bogdan', 'Parolă nouă');
     expect(api.resetPassword).toHaveBeenCalledWith(3);
     const all = await card('Toate conturile');
@@ -164,7 +164,7 @@ describe('the accounts on Setări', () => {
 
   it('keeps a new password while the teacher looks at another tab', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     await pick('Bogdan', 'Parolă nouă');
     expect(await screen.findByText(FAKE_TEMPORARY_PASSWORD)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('tab', { name: 'Robotul' }));
@@ -173,7 +173,7 @@ describe('the accounts on Setări', () => {
   });
 
   it('closes ⋯ on Esc and gives the focus back to it', async () => {
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     const more = await screen.findByRole('button', { name: 'Mai multe pentru Bogdan' });
     await userEvent.click(more);
     expect(more).toHaveAttribute('aria-expanded', 'true');
@@ -183,7 +183,7 @@ describe('the accounts on Setări', () => {
   });
 
   it('offers no ⋯ for an administrator, oneself included', async () => {
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     const all = await card('Toate conturile');
     expect(row(all, 'Mihai')).toHaveTextContent('mihai@example.com');
     expect(within(all).queryByRole('button', { name: 'Mai multe pentru Laura Miron' })).not.toBeInTheDocument();
@@ -241,7 +241,7 @@ describe('the accounts on Setări', () => {
         },
       },
     });
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     const all = await card('Toate conturile');
     const details = within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' });
     expect(details).toHaveAttribute('aria-expanded', 'false');
@@ -317,7 +317,7 @@ describe('the accounts on Setări', () => {
         },
       },
     });
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     const all = await card('Toate conturile');
     await userEvent.click(within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' }));
     const robot = await screen.findByRole('heading', { name: 'Consumul robotului' });
@@ -343,7 +343,7 @@ describe('the accounts on Setări', () => {
   });
 
   it('says when the robot has not worked for an account yet', async () => {
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     const all = await card('Toate conturile');
     await userEvent.click(within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' }));
     const robot = await screen.findByRole('heading', { name: 'Consumul robotului' });
@@ -362,7 +362,7 @@ describe('the accounts on Setări', () => {
         { name: 'Altcineva', email: 'alt@example.com', askedAt: '2026-10-19T08:00:00.000Z', refusedAt: '2026-10-21T09:10:00.000Z', by: null },
       ],
     });
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     const refused = await card('Conturi refuzate');
     expect(refused).toHaveTextContent('2 cereri');
     const line = row(refused, 'Cineva');
@@ -374,13 +374,13 @@ describe('the accounts on Setări', () => {
   });
 
   it('shows no card of refused accounts when none was refused', async () => {
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     await card('Toate conturile');
     expect(screen.queryByRole('region', { name: /Conturi refuzate/ })).not.toBeInTheDocument();
   });
 
   it('closes the details of an account again', async () => {
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     const all = await card('Toate conturile');
     const details = within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' });
     await userEvent.click(details);
@@ -392,7 +392,7 @@ describe('the accounts on Setări', () => {
 
   it('makes up the history of an account from the times it keeps', async () => {
     const approved = fakeAccount({ id: 3, name: 'Bogdan', email: 'bogdan@example.com', role: 'teacher', approvedAt: '2026-10-28T10:00:00.000Z' });
-    renderAdmin('/setari', createFakeApi({ classes: [], students: {}, accounts: [structuredClone(laura), structuredClone(approved)] }));
+    renderAdmin('/settings', createFakeApi({ classes: [], students: {}, accounts: [structuredClone(laura), structuredClone(approved)] }));
     const all = await card('Toate conturile');
     await userEvent.click(within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' }));
     const heading = await screen.findByRole('heading', { name: 'Istoricul contului' });
@@ -404,7 +404,7 @@ describe('the accounts on Setări', () => {
   });
 
   it('offers the details of an administrator too', async () => {
-    renderAdmin('/setari', withAccounts());
+    renderAdmin('/settings', withAccounts());
     const all = await card('Toate conturile');
     expect(within(row(all, 'Mihai')).getByRole('button', { name: 'Detalii pentru Mihai' })).toBeInTheDocument();
   });

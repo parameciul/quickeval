@@ -35,7 +35,7 @@ export function TryHome({ info, token, tryApi }: { info: QuickTryInfo; token: st
         <>
           <Graded detail={detail.data} token={token} tryApi={tryApi} />
           <p className="try-invite">
-            Îți place? <a href="/teacher/#cont-nou">Creează un cont: corectezi gratuit un test pentru toată clasa.</a>
+            Îți place? <a href="/teacher/#new-account">Creează un cont: corectezi gratuit un test pentru toată clasa.</a>
           </p>
         </>
       )}

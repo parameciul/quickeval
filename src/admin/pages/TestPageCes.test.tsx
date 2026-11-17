@@ -23,7 +23,7 @@ function apiWith(overrides: Parameters<typeof fakeTest>[0] = {}) {
   });
 }
 
-const PAGE = '/teste/9R2-26T1';
+const PAGE = '/tests/9R2-26T1';
 const block = async () => within(await screen.findByRole('region', { name: 'Varianta CES' }));
 
 afterEach(() => {
@@ -32,14 +32,14 @@ afterEach(() => {
 
 describe('Varianta CES in Pregătire', () => {
   it('is not offered while the class has no CES student', async () => {
-    renderAdmin(`${PAGE}#pregatire`, apiWith());
+    renderAdmin(`${PAGE}#prepare`, apiWith());
     expect(await screen.findByLabelText('Înlocuiește testul')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Varianta CES' })).not.toBeInTheDocument();
   });
 
   it('uploads the CES test and barem apart from the class files', async () => {
     const api = apiWith({ ces: noCesVariant({ studentCount: 1 }) });
-    renderAdmin(`${PAGE}#pregatire`, api);
+    renderAdmin(`${PAGE}#prepare`, api);
     const ces = await block();
     expect(ces.getByText('Clasa are 1 elev cu CES')).toBeInTheDocument();
     const file = new File(['%PDF-1.7'], 'Test adaptat.pdf', { type: PDF_TYPE });
@@ -55,7 +55,7 @@ describe('Varianta CES in Pregătire', () => {
 
   it('generates the CES barem during the evaluation and checks it', async () => {
     const api = apiWith({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: { test: FILES.test, barem: null }, waiting: 1 }) });
-    renderAdmin(`${PAGE}#pregatire`, api);
+    renderAdmin(`${PAGE}#prepare`, api);
     const ces = await block();
     await userEvent.click(ces.getByRole('button', { name: 'Generează baremul CES' }));
     expect(api.generateBarem).toHaveBeenCalledWith('9R2-26T1', 'ces');
@@ -67,7 +67,7 @@ describe('Varianta CES in Pregătire', () => {
       status: 'evaluating',
       ces: noCesVariant({ studentCount: 1, files: FILES, filesVersion: 4, barem: { request: 'none', unchecked: true } }),
     });
-    renderAdmin(`${PAGE}#pregatire`, api);
+    renderAdmin(`${PAGE}#prepare`, api);
     const ces = await block();
     expect(ces.getByText('Barem CES generat automat, doar pentru notare. Verifică-l și corectează-l în Word dacă e nevoie.')).toBeInTheDocument();
     await userEvent.click(ces.getByRole('button', { name: 'Am verificat baremul CES' }));
@@ -77,7 +77,7 @@ describe('Varianta CES in Pregătire', () => {
 
   it('saves the CES barem comments apart', async () => {
     const api = apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES }) });
-    renderAdmin(`${PAGE}#pregatire`, api);
+    renderAdmin(`${PAGE}#prepare`, api);
     const ces = await block();
     await userEvent.type(ces.getByLabelText('Indicații suplimentare pentru corectarea CES'), 'Fără depunctări pentru scris.');
     await userEvent.click(ces.getByRole('button', { name: 'Salvează indicațiile' }));
@@ -85,14 +85,14 @@ describe('Varianta CES in Pregătire', () => {
   });
 
   it('warns when the CES barem does not total as much as the class barem', async () => {
-    renderAdmin(`${PAGE}#pregatire`, apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES, totalPoints: 90, classTotalPoints: 100 }) }));
+    renderAdmin(`${PAGE}#prepare`, apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES, totalPoints: 90, classTotalPoints: 100 }) }));
     expect((await block()).getByText('Baremul CES are 90 puncte, iar baremul clasei 100. Baremul CES ar trebui să aibă tot atâtea puncte.')).toBeInTheDocument();
   });
 
   it('shows the CES students and the switch, on by default, and turns it off after asking', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const api = apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES }) });
-    renderAdmin(`${PAGE}#pregatire`, api);
+    renderAdmin(`${PAGE}#prepare`, api);
     const ces = await block();
     expect(ces.getByText('Bursașiu Teodor')).toBeInTheDocument();
     const toggle = ces.getByRole('switch', { name: 'Test separat pentru elevii cu CES' });
@@ -107,7 +107,7 @@ describe('Varianta CES in Pregătire', () => {
   it('turns the switch on again without asking, and asks for the CES files', async () => {
     vi.spyOn(window, 'confirm');
     const api = apiWith({ ces: noCesVariant({ studentCount: 1, off: true }) });
-    renderAdmin(`${PAGE}#pregatire`, api);
+    renderAdmin(`${PAGE}#prepare`, api);
     await userEvent.click((await block()).getByRole('switch', { name: 'Test separat pentru elevii cu CES' }));
     expect(window.confirm).not.toHaveBeenCalled();
     expect(api.setCesOff).toHaveBeenCalledWith('9R2-26T1', false);
@@ -115,14 +115,14 @@ describe('Varianta CES in Pregătire', () => {
   });
 
   it('says why a variant with graded CES papers cannot be turned off', async () => {
-    renderAdmin(`${PAGE}#pregatire`, apiWith({ status: 'done', ces: noCesVariant({ studentCount: 1, files: FILES, papers: 1 }) }));
+    renderAdmin(`${PAGE}#prepare`, apiWith({ status: 'done', ces: noCesVariant({ studentCount: 1, files: FILES, papers: 1 }) }));
     const ces = await block();
     expect(ces.getByText('Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi oprită. Poți înlocui fișierele ei.')).toBeInTheDocument();
     expect(ces.getByRole('switch')).toBeDisabled();
   });
 
   it('marks the missing CES files in orange, and the files it has as ready', async () => {
-    renderAdmin(`${PAGE}#pregatire`, apiWith({ ces: noCesVariant({ studentCount: 1, files: { test: FILES.test, barem: null } }) }));
+    renderAdmin(`${PAGE}#prepare`, apiWith({ ces: noCesVariant({ studentCount: 1, files: { test: FILES.test, barem: null } }) }));
     const ces = await block();
     expect(ces.getByText('gata')).toHaveClass('file-mark', 'is-ready');
     expect(ces.getByText('lipsește')).toHaveClass('file-mark', 'is-missing');
@@ -130,7 +130,7 @@ describe('Varianta CES in Pregătire', () => {
 
   it('marks a generated barem that waits to be checked as "de verificat", not "gata"', async () => {
     renderAdmin(
-      `${PAGE}#pregatire`,
+      `${PAGE}#prepare`,
       apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES, barem: { request: 'none', unchecked: true } }) }),
     );
     const ces = await block();
@@ -140,7 +140,7 @@ describe('Varianta CES in Pregătire', () => {
 
   it('says the CES barem waits while the class barem is generated', async () => {
     renderAdmin(
-      `${PAGE}#pregatire`,
+      `${PAGE}#prepare`,
       apiWith({
         files: { test: FILES.test, barem: null },
         barem: { request: 'requested', unchecked: false },
@@ -154,7 +154,7 @@ describe('Varianta CES in Pregătire', () => {
   it('stays while it has files, even with no CES student left, and can be removed', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const api = apiWith({ ces: noCesVariant({ files: { test: FILES.test, barem: null } }) });
-    renderAdmin(`${PAGE}#pregatire`, api);
+    renderAdmin(`${PAGE}#prepare`, api);
     const ces = await block();
     expect(ces.getByText(/Nu mai e niciun elev cu CES în clasă\./)).toBeInTheDocument();
     expect(ces.queryByRole('switch')).not.toBeInTheDocument();
@@ -166,7 +166,7 @@ describe('Varianta CES in Pregătire', () => {
 describe('what a draft misses, under "Începe testul"', () => {
   it('lists each missing part and why it matters, and still starts', async () => {
     const api = apiWith({ ces: noCesVariant({ studentCount: 1 }) });
-    renderAdmin(`${PAGE}#in-clasa`, api);
+    renderAdmin(`${PAGE}#in-class`, api);
     const list = await screen.findByText('Înainte să începi, lipsesc:');
     const box = within(list.closest('.missing-list') as HTMLElement);
     expect(box.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
@@ -179,7 +179,7 @@ describe('what a draft misses, under "Începe testul"', () => {
   });
 
   it('shows nothing when the draft misses nothing, or the switch is off', async () => {
-    renderAdmin(`${PAGE}#in-clasa`, apiWith({ ces: noCesVariant({ studentCount: 1, off: true }) }));
+    renderAdmin(`${PAGE}#in-class`, apiWith({ ces: noCesVariant({ studentCount: 1, off: true }) }));
     expect(await screen.findByRole('button', { name: 'Începe testul' })).toBeInTheDocument();
     expect(screen.queryByText(/Înainte să începi/)).not.toBeInTheDocument();
   });
@@ -187,7 +187,7 @@ describe('what a draft misses, under "Începe testul"', () => {
 
 describe('the CES print PDF in Tipărire', () => {
   it('downloads the CES test with the same QR code', async () => {
-    renderAdmin(`${PAGE}#tiparire`, apiWith({ print: { status: 'ready', fromWord: false }, ces: noCesVariant({ studentCount: 1, files: FILES, print: { status: 'ready', fromWord: false } }) }));
+    renderAdmin(`${PAGE}#print`, apiWith({ print: { status: 'ready', fromWord: false }, ces: noCesVariant({ studentCount: 1, files: FILES, print: { status: 'ready', fromWord: false } }) }));
     const ces = await screen.findByRole('region', { name: 'Testul CES cu cod QR' });
     expect(within(ces).getByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/ces/print');
     const test = screen.getByRole('region', { name: 'Testul cu cod QR' });
@@ -197,7 +197,7 @@ describe('the CES print PDF in Tipărire', () => {
 
   it('tries a failed CES print PDF again', async () => {
     const api = apiWith({ print: { status: 'ready', fromWord: false }, ces: noCesVariant({ studentCount: 1, files: FILES, print: { status: 'failed', fromWord: false } }) });
-    renderAdmin(`${PAGE}#tiparire`, api);
+    renderAdmin(`${PAGE}#print`, api);
     expect(await screen.findByText('Nu am putut pregăti testul CES cu cod QR.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }));
     expect(api.retryPrint).toHaveBeenCalledWith('9R2-26T1', 'ces');
@@ -206,7 +206,7 @@ describe('the CES print PDF in Tipărire', () => {
 
 describe('the CES papers in Corectare', () => {
   it('says that the CES papers wait for the CES barem, and leads to Pregătire', async () => {
-    renderAdmin(`${PAGE}#corectare`, apiWith({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: { test: FILES.test, barem: null }, waiting: 1 }) }));
+    renderAdmin(`${PAGE}#grading`, apiWith({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: { test: FILES.test, barem: null }, waiting: 1 }) }));
     const notice = (await screen.findByText(/1 lucrare CES așteaptă baremul CES\./)).closest('.warning') as HTMLElement;
     expect(notice).toHaveTextContent('Încarcă sau generează baremul CES la Pregătire. Celelalte lucrări se corectează între timp.');
     await userEvent.click(within(notice).getByRole('link', { name: 'Mergi la varianta CES' }));
@@ -214,14 +214,14 @@ describe('the CES papers in Corectare', () => {
   });
 
   it('shows no waiting notice once the CES barem is active', async () => {
-    renderAdmin(`${PAGE}#corectare`, apiWith({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: FILES, waiting: 1 }) }));
+    renderAdmin(`${PAGE}#grading`, apiWith({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: FILES, waiting: 1 }) }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Corectare' })).toBeInTheDocument();
     expect(screen.queryByText(/așteaptă baremul CES/)).not.toBeInTheDocument();
   });
 
   it('accepts a CES list with a problem, apart from the class list', async () => {
     const api = apiWith({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: FILES, exerciseList: { status: 'problem', message: 'Punctele fac 95.' } }) });
-    renderAdmin(`${PAGE}#corectare`, api);
+    renderAdmin(`${PAGE}#grading`, api);
     const banner = (await screen.findByText('Baremul CES are o problemă.')).closest('.warning') as HTMLElement;
     expect(banner).toHaveTextContent('Punctele fac 95.');
     await userEvent.click(within(banner).getByRole('button', { name: 'Folosește oricum' }));
@@ -229,7 +229,7 @@ describe('the CES papers in Corectare', () => {
   });
 
   it('marks the CES student in the papers table', async () => {
-    renderAdmin(`${PAGE}#corectare`, apiWith({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: FILES }) }));
+    renderAdmin(`${PAGE}#grading`, apiWith({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: FILES }) }));
     const row = (await screen.findByRole('rowheader', { name: /Bursașiu Teodor/ })).closest('tr')!;
     expect(within(row).getByText('CES')).toHaveAttribute('title', 'Cerințe educaționale speciale');
     expect(within(screen.getByRole('rowheader', { name: /Ene Ana/ })).queryByText('CES')).not.toBeInTheDocument();

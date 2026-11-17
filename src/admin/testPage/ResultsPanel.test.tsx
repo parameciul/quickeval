@@ -14,7 +14,7 @@ vi.mock('../pdf/share.ts', () => ({ saveFile: vi.fn(), shareFile: vi.fn() }));
 const saveFile = vi.mocked(share.saveFile);
 
 // The panel Rezultate of the test page (redesign spec §8, spec 2026-11-14).
-const PAGE = '/teste/6E2-26T1#rezultate';
+const PAGE = '/tests/6E2-26T1#results';
 
 // What the panel says under its heading: what each student gets.
 const SENTENCE =
@@ -112,7 +112,7 @@ describe('the panel Rezultate', () => {
     const rows = [...graded(), fakeUpload({ studentId: 13, studentName: 'Vlad Ana', active: false, submissionId: 7, status: 'graded', grade: 6 })];
     renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
     await screen.findByRole('table', { name: 'Linkurile cu rezultatele elevilor' });
-    expect(within(row('Pop Ion')).getByRole('link', { name: 'Pop Ion' })).toHaveAttribute('href', '/teste/6E2-26T1/elevi/5');
+    expect(within(row('Pop Ion')).getByRole('link', { name: 'Pop Ion' })).toHaveAttribute('href', '/tests/6E2-26T1/papers/5');
     expect(within(row('Marin Dan')).queryByRole('link')).not.toBeInTheDocument();
     expect(within(row('Vlad Ana')).getByText('a plecat')).toBeInTheDocument();
   });
@@ -265,7 +265,7 @@ describe('the panel Rezultate', () => {
     expect(groups.querySelector('.bar-1')).toHaveStyle({ width: '100%' });
     expect(groups.querySelector('.bar-3')).toHaveStyle({ width: '0%' });
     const open = within(card).getByRole('link', { name: 'Deschide raportul' });
-    expect(open).toHaveAttribute('href', '/teste/6E2-26T1/raport');
+    expect(open).toHaveAttribute('href', '/tests/6E2-26T1/report');
     expect(open).toHaveClass('button');
     expect(open).toHaveTextContent(/^Deschide raportul$/);
     expect(within(card).getByRole('button', { name: 'CSV pentru catalog' })).toHaveClass('text-button', 'is-quiet');

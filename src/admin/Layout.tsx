@@ -26,9 +26,9 @@ import { YearSelect } from './shell/YearSelect.tsx';
 // administrator's bar reads them every five minutes.
 const ACCOUNTS_REFRESH_MS = 5 * 60_000;
 
-// The class of a /clase/:id page, for the panel to mark it.
+// The class of a /classes/:id page, for the panel to mark it.
 function classOfPath(pathname: string): number | null {
-  const match = matchPath({ path: '/clase/:id', end: false }, pathname);
+  const match = matchPath({ path: '/classes/:id', end: false }, pathname);
   const id = Number(match?.params.id);
   return Number.isInteger(id) && id > 0 ? id : null;
 }
@@ -39,8 +39,8 @@ function classOfPath(pathname: string): number | null {
 export function Layout() {
   const api = useApi();
   const location = useLocation();
-  const onTests = location.pathname === '/' || (location.pathname.startsWith('/teste') && location.pathname !== '/teste/nou');
-  const onClasses = location.pathname.startsWith('/clase');
+  const onTests = location.pathname === '/' || (location.pathname.startsWith('/tests') && location.pathname !== '/tests/new');
+  const onClasses = location.pathname.startsWith('/classes');
   const { year } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   // The tests of the year: "De făcut" and the panel of the classes read them.
@@ -129,7 +129,7 @@ export function Layout() {
   // wait for the login, so they never ask the API without it. The pages that
   // confirm a new account's email and set a new password need no login.
   const loggedOut = isLoginRequired(me.error);
-  const openPage = location.pathname === '/confirma-email' || location.pathname === '/parola-noua';
+  const openPage = location.pathname === '/confirm-email' || location.pathname === '/new-password';
   // These fill the screen under the top bar with the two halves of the way in.
   const wayIn = !me.data && (openPage || loggedOut);
 

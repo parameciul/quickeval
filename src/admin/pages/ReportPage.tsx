@@ -16,7 +16,7 @@ import { AnalysisSection } from '../reportPage/AnalysisSection.tsx';
 import { ExerciseStatsTable, GradeGroups, ReportTiles, ResultsTable } from '../reportPage/ReportTables.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 
-// /teste/:code/raport: the class report (spec §11.3): one page, with the list
+// /tests/:code/report: the class report (spec §11.3): one page, with the list
 // of its parts on the left.
 export function ReportPage() {
   const code = normalizeTestCode(useParams().code ?? '');
@@ -25,10 +25,10 @@ export function ReportPage() {
 }
 
 const PARTS = [
-  { id: 'pe-scurt', name: 'Pe scurt' },
-  { id: 'rezultate', name: 'Rezultatele elevilor' },
-  { id: 'exercitii', name: 'Pe exerciții' },
-  { id: 'analiza', name: 'Analiza clasei' },
+  { id: 'summary', name: 'Pe scurt' },
+  { id: 'results', name: 'Rezultatele elevilor' },
+  { id: 'exercises', name: 'Pe exerciții' },
+  { id: 'analysis', name: 'Analiza clasei' },
 ] as const;
 type PartId = (typeof PARTS)[number]['id'];
 
@@ -43,12 +43,12 @@ export function currentPart(tops: (DOMRect | undefined)[], viewport: number, atE
     if (rect && rect.height > 0 && rect.top <= viewport / 3) current = PARTS[index]!.id;
   });
   const last = tops[tops.length - 1];
-  if (atEnd && last && last.height > 0 && last.top < viewport) current = 'analiza';
+  if (atEnd && last && last.height > 0 && last.top < viewport) current = 'analysis';
   return current;
 }
 
 function useCurrentPart(ready: boolean): PartId {
-  const [current, setCurrent] = useState<PartId>('pe-scurt');
+  const [current, setCurrent] = useState<PartId>('summary');
   useEffect(() => {
     if (!ready) return;
     const measure = () => {
@@ -85,8 +85,8 @@ function ReportView({ code }: { code: string }) {
   const stats = classStats(report);
   const [classTable, cesTable] = reportTables(report);
   const counts: Partial<Record<PartId, string>> = {
-    rezultate: String(report.rows.length + report.missing.length),
-    exercitii: String(report.exercises.length),
+    results: String(report.rows.length + report.missing.length),
+    exercises: String(report.exercises.length),
   };
 
   return (
@@ -94,8 +94,8 @@ function ReportView({ code }: { code: string }) {
       <Crumbs
         items={[
           { label: 'Teste', to: '/' },
-          { label: displayClassName(report.test.className), to: `/clase/${report.test.classId}` },
-          { label: report.test.title, to: `/teste/${code}` },
+          { label: displayClassName(report.test.className), to: `/classes/${report.test.classId}` },
+          { label: report.test.title, to: `/tests/${code}` },
           { label: 'Raportul clasei' },
         ]}
       />
@@ -104,7 +104,7 @@ function ReportView({ code }: { code: string }) {
         <div>
           <h1>Raportul clasei</h1>
           <p className="lead-line">
-            {report.test.title} · <Link to={`/clase/${report.test.classId}`}>{displayClassName(report.test.className)}</Link>
+            {report.test.title} · <Link to={`/classes/${report.test.classId}`}>{displayClassName(report.test.className)}</Link>
             {report.test.startedAt !== null && ` · ${formatDate(report.test.startedAt)}`}
           </p>
         </div>
@@ -136,12 +136,12 @@ function ReportView({ code }: { code: string }) {
             <GradeGroups stats={stats} />
           </aside>
           <div className="report-main">
-            <section id="pe-scurt" className="report-part" aria-label="Pe scurt">
+            <section id="summary" className="report-part" aria-label="Pe scurt">
               <ReportTiles stats={stats} />
             </section>
-            <section id="rezultate" className="report-part class-card" aria-labelledby="rezultate-title">
+            <section id="results" className="report-part class-card" aria-labelledby="results-title">
               <div className="class-card-head">
-                <h2 id="rezultate-title">Rezultatele elevilor</h2>
+                <h2 id="results-title">Rezultatele elevilor</h2>
                 <span>
                   {stats.gradedCount} din {stats.activeCount} elevi
                 </span>
@@ -155,9 +155,9 @@ function ReportView({ code }: { code: string }) {
                 </>
               )}
             </section>
-            <section id="exercitii" className="report-part class-card" aria-labelledby="exercitii-title">
+            <section id="exercises" className="report-part class-card" aria-labelledby="exercises-title">
               <div className="class-card-head">
-                <h2 id="exercitii-title">Pe exerciții</h2>
+                <h2 id="exercises-title">Pe exerciții</h2>
                 <span>{countLabel(report.exercises.length, 'exercițiu', 'exerciții')}</span>
               </div>
               <ExerciseStatsTable perExercise={stats.perExercise} />

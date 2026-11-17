@@ -120,7 +120,7 @@ describe('stagesOf', () => {
 describe('stageHash and stageFromHash', () => {
   it('give each stage its own address, and read it back', () => {
     const names = stagesOf(summary()).stages.map((stage) => stage.name);
-    expect(names.map(stageHash)).toEqual(['#pregatire', '#tiparire', '#in-clasa', '#corectare', '#verificare', '#rezultate']);
+    expect(names.map(stageHash)).toEqual(['#prepare', '#print', '#in-class', '#grading', '#review', '#results']);
     for (const name of names) expect(stageFromHash(stageHash(name))).toBe(name);
   });
 

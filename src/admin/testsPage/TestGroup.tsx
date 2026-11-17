@@ -101,7 +101,7 @@ function TestRow({
   return (
     <tr className={test.archived ? 'is-muted' : undefined}>
       <th scope="row" className="test-name">
-        <Link ref={link} to={`/teste/${test.code}`}>
+        <Link ref={link} to={`/tests/${test.code}`}>
           {test.title}
         </Link>
         {test.archived && ' '}

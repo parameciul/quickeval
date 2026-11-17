@@ -87,7 +87,7 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
 
   return (
     <section className="test-page">
-      <Crumbs items={[{ label: 'Teste', to: '/' }, { label: displayClassName(test.className), to: `/clase/${test.classId}` }, { label: test.title }]} />
+      <Crumbs items={[{ label: 'Teste', to: '/' }, { label: displayClassName(test.className), to: `/classes/${test.classId}` }, { label: test.title }]} />
       <div className="test-head">
         <div className="test-title">
           <h1>{test.title}</h1>

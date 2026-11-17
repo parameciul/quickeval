@@ -13,7 +13,7 @@ import { stageHash, type Stage } from '../stages.ts';
 export type NextStep = { kind: 'link'; label: string; to: string } | { kind: 'publish'; label: string } | null;
 
 export function nextStep(test: TestSummary, current: Stage): NextStep {
-  const page = `/teste/${test.code}`;
+  const page = `/tests/${test.code}`;
   const link = (label: string, to = page): NextStep => ({ kind: 'link', label, to });
   switch (current.name) {
     case 'Pregătire': {
@@ -37,6 +37,6 @@ export function nextStep(test: TestSummary, current: Stage): NextStep {
       // An archived test waits only for its open results to close.
       if (current.state === 'wait' && test.archived) return link('Oprește accesul', `${page}${stageHash('Rezultate')}`);
       if (current.state === 'wait') return { kind: 'publish', label: test.publishedCount > 0 ? 'Publică pentru toți' : 'Publică rezultatele' };
-      return current.state === 'done' && test.gradedCount > 0 ? link('Raportul clasei', `${page}/raport`) : null;
+      return current.state === 'done' && test.gradedCount > 0 ? link('Raportul clasei', `${page}/report`) : null;
   }
 }

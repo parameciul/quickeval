@@ -91,7 +91,7 @@ export function NewClassDialog({ onClose, onCreated }: { onClose(): void; onCrea
       await queryClient.invalidateQueries({ queryKey: ['classes'] });
       onClose();
       if (onCreated) onCreated(id);
-      else navigate(`/clase/${id}`);
+      else navigate(`/classes/${id}`);
     },
   });
   return (

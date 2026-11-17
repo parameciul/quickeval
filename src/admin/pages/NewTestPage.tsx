@@ -20,11 +20,11 @@ import { ActionIcon } from '../../ui/ActionIcon.tsx';
 // Where the barem comes from: a file now, the robot from the test, or later.
 type BaremChoice = 'upload' | 'generate' | 'later';
 
-// /teste/nou (redesign spec §11.7): three numbered steps, the class and the
+// /tests/new (redesign spec §11.7): three numbered steps, the class and the
 // title, the test, and the barem, with what happens next on the side. The
 // barem's drop area sits in the card of its choice, and the test's in a frame
 // of the same size, so the two areas are equally wide.
-// ?clasa=<id> picks the class (the class page links here). The test and the
+// ?class=<id> picks the class (the class page links here). The test and the
 // barem can come now or later; the test page holds them too. A class with a CES
 // student shows them and the CES switch, on by default (spec: CES switch); on,
 // the CES test and the CES barem sit beside the class ones. Under the button,
@@ -36,7 +36,7 @@ export function NewTestPage() {
   const { year } = useSchoolYear();
   const [params] = useSearchParams();
   const classes = useQuery({ queryKey: ['classes', year], queryFn: () => api.listClasses(year) });
-  const [classId, setClassId] = useState(params.get('clasa') ?? '');
+  const [classId, setClassId] = useState(params.get('class') ?? '');
   const [title, setTitle] = useState('');
   const [testFile, setTestFile] = useState<File | null>(null);
   const [baremFile, setBaremFile] = useState<File | null>(null);
@@ -91,7 +91,7 @@ export function NewTestPage() {
     },
     onSuccess: async ({ code, notice }) => {
       await queryClient.invalidateQueries({ queryKey: ['tests'] });
-      navigate(`/teste/${code}`, { state: notice ? { notice } : null });
+      navigate(`/tests/${code}`, { state: notice ? { notice } : null });
     },
   });
 
@@ -181,7 +181,7 @@ export function NewTestPage() {
       {classes.error && <ErrorMessage error={classes.error} />}
       {classes.data && open.length === 0 && (
         <p className="hint">
-          Nu ai nicio clasă în anul școlar {formatSchoolYear(year)}. <Link to="/clase">Adaugă întâi o clasă.</Link>
+          Nu ai nicio clasă în anul școlar {formatSchoolYear(year)}. <Link to="/classes">Adaugă întâi o clasă.</Link>
         </p>
       )}
       {open.length > 0 && (
@@ -202,7 +202,7 @@ export function NewTestPage() {
                         </option>
                       ))}
                     </select>
-                    {params.get('clasa') === null && (
+                    {params.get('class') === null && (
                       <span className="form-hint">
                         Nu e în listă?{' '}
                         <button type="button" className="link-button" onClick={() => setNewClass(true)}>

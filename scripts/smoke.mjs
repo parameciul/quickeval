@@ -92,14 +92,14 @@ const missingPage = await page('/pagina-care-nu-exista');
 check('a missing page answers 404', missingPage.res.status === 404, String(missingPage.res.status));
 check('a missing page is not the landing page', !missingPage.text.includes('Weekendul tău, fără teancul de lucrări.'));
 
-for (const path of ['/teacher/', '/teacher/clase', '/teacher/teste/6E2-26T1']) {
+for (const path of ['/teacher/', '/teacher/classes', '/teacher/tests/6E2-26T1']) {
   const admin = await page(path);
   check(`teacher app at ${path}`, admin.res.status === 200 && admin.text.includes('<title>MQGrader · Profesor</title>'), String(admin.res.status));
 }
 
 const student = await page('/u/abcdefghijkmnop2');
 check('student app at /u/<token>', student.res.status === 200 && student.text.includes('<title>MQGrader · Trimite lucrarea</title>'), String(student.res.status));
-for (const path of ['/teacher/', '/teacher/clase', '/u/abcdefghijkmnop2']) {
+for (const path of ['/teacher/', '/teacher/classes', '/u/abcdefghijkmnop2']) {
   const headers = (await page(path)).res.headers;
   check(`noindex header on ${path}`, (headers.get('x-robots-tag') ?? '').includes('noindex'));
   check(`content security policy on ${path}`, (headers.get('content-security-policy') ?? '').includes("default-src 'self'"));

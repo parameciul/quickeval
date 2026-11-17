@@ -13,7 +13,7 @@ type Saved = (submission: SubmissionDetail) => Promise<void>;
 type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>;
 
 // The paper page's hold on the rows (spec 2026-11-12 §4.4): the open row
-// (an item's id, or "pagini" for the pages the robot could not read), the
+// (an item's id, or "pages" for the pages the robot could not read), the
 // rows to check opened before it that stay open (`keptKeys`: a row that
 // closed would move the rows under it), a click on a row (the page opens it,
 // or closes it when it is the open one; `byRow` for a click on the row or its
@@ -217,8 +217,8 @@ function UnreadablePages({
   if (evaluation.pagesReviewed) return check?.onlyToCheck ? null : <p className="hint">Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.</p>;
   if (check) {
     // The open pages' decision says why itself.
-    const open = check.openKey === 'pagini';
-    const decision = rowDecision(check, 'pagini');
+    const open = check.openKey === 'pages';
+    const decision = rowDecision(check, 'pages');
     return (
       <div className={open ? 'pages-check is-open' : decision !== null ? 'pages-check is-kept' : 'pages-check'}>
         <p>
@@ -229,7 +229,7 @@ function UnreadablePages({
               className="button-quiet button-small icon-button verifica-btn"
               aria-label="Verifică paginile necitite"
               title="Verifică"
-              onClick={() => check.onOpen('pagini', 'byRow')}
+              onClick={() => check.onOpen('pages', 'byRow')}
             >
               <CheckMark />
             </button>

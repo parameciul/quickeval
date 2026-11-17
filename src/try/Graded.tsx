@@ -22,10 +22,10 @@ const VIEWS: { id: View; label: string; short: string | null }[] = [
 ];
 const VIEW_IDS = VIEWS.map((view) => view.id);
 
-// The review's own links back (#verificare, #rezultate) open the view they
+// The review's own links back (#review, #results) open the view they
 // name: the results are the student's.
 function viewOfHash(hash: string): View {
-  return hash === '#rezultate' ? 'elev' : 'verificare';
+  return hash === '#results' ? 'elev' : 'verificare';
 }
 
 // The graded paper (spec §3.3, state 4): its grade and the points to check,
@@ -126,7 +126,7 @@ function Summary({ detail }: { detail: TestDetail }) {
 function Checking({ code, submissionId, points }: { code: string; submissionId: number; points: ReviewPoint[] }) {
   const all = (
     <p className="try-all">
-      <Link className="button-quiet" to={paperPath(code, 'try', { submissionId, key: null }, 'toate')}>
+      <Link className="button-quiet" to={paperPath(code, 'try', { submissionId, key: null }, 'all')}>
         <ActionIcon name="list" />
         Toate exercițiile
       </Link>

@@ -61,9 +61,9 @@ describe('todoOf', () => {
   });
 
   it('opens the review for the points to check, and the test page for the rest', () => {
-    expect(todoPath(todoOf(summary({ ...graded, flagCount: 3 }))!)).toBe('/teste/6E2-26T1/verificare');
-    expect(todoPath(todoOf(summary({ ...graded }))!)).toBe('/teste/6E2-26T1');
-    expect(todoPath(todoOf(summary({ status: 'draft', barem: generated }))!)).toBe('/teste/6E2-26T1');
+    expect(todoPath(todoOf(summary({ ...graded, flagCount: 3 }))!)).toBe('/tests/6E2-26T1/review');
+    expect(todoPath(todoOf(summary({ ...graded }))!)).toBe('/tests/6E2-26T1');
+    expect(todoPath(todoOf(summary({ status: 'draft', barem: generated }))!)).toBe('/tests/6E2-26T1');
   });
 
   it('asks to publish checked results that are not published', () => {
@@ -117,7 +117,7 @@ describe('an archived test with open results, in "De făcut"', () => {
 
   it('opens the test page, and keeps the test out of "În lucru"', () => {
     const test = summary({ ...graded, archived: true, resultsOpen: true });
-    expect(todoPath(todoOf(test)!)).toBe('/teste/6E2-26T1');
+    expect(todoPath(todoOf(test)!)).toBe('/tests/6E2-26T1');
     expect(stagesOf(test).current).toEqual({ name: 'Rezultate', state: 'wait', note: 'publicate · test arhivat' });
     expect(inWork(test)).toBe(false);
   });

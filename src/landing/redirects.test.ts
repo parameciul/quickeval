@@ -37,6 +37,6 @@ describe('the old Romanian addresses of the public pages', () => {
   it('leaves the new addresses and the apps alone', () => {
     for (const [, now] of MOVED) expect(firstRule(`/${now}/`)).toBeUndefined();
     expect(firstRule('/u/abcdefghijkmnop2')).toEqual(['/u/*', '/u/', '200']);
-    expect(firstRule('/teacher/setari')).toEqual(['/teacher/*', '/teacher/', '200']);
+    expect(firstRule('/teacher/settings')).toEqual(['/teacher/*', '/teacher/', '200']);
   });
 });

@@ -33,7 +33,7 @@ export function Rail({
 }) {
   return (
     <nav className="rail" aria-label="Meniu" inert={inert}>
-      <Link className="rail-new" to="/teste/nou">
+      <Link className="rail-new" to="/tests/new">
         <span className="rail-square">
           <IconPlus />
         </span>
@@ -73,7 +73,7 @@ export function Rail({
         )}
       </button>
       {admin && (
-        <NavLink className="rail-item rail-foot" to="/setari">
+        <NavLink className="rail-item rail-foot" to="/settings">
           <IconSettings />
           <span className="rail-word">Setări</span>
         </NavLink>

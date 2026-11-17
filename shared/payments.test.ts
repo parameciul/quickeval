@@ -3,8 +3,8 @@ import { checkoutBody, isReturnPath, isStripeCheckoutUrl, PAID_FEATURES, payment
 
 describe('isReturnPath', () => {
   it('takes paths of the teacher app for teachers and of the student app for students', () => {
-    expect(isReturnPath('/teacher/teste/6E2-26T1', 'teacher')).toBe(true);
-    expect(isReturnPath('/teacher/setari?tab=1', 'teacher')).toBe(true);
+    expect(isReturnPath('/teacher/tests/6E2-26T1', 'teacher')).toBe(true);
+    expect(isReturnPath('/teacher/settings?tab=1', 'teacher')).toBe(true);
     expect(isReturnPath('/u/abcdefghijkmnop2', 'student')).toBe(true);
     expect(isReturnPath('/u/abcdefghijkmnop2', 'teacher')).toBe(false);
     expect(isReturnPath('/teacher/', 'student')).toBe(false);
@@ -19,18 +19,26 @@ describe('isReturnPath', () => {
 
 describe('returnUrl', () => {
   it('adds the outcome, and the Stripe session placeholder on success', () => {
-    expect(returnUrl('https://q.test', '/teacher/setari', 'reusita')).toBe(
-      'https://q.test/teacher/setari?plata=reusita&session_id={CHECKOUT_SESSION_ID}',
+    expect(returnUrl('https://q.test', '/teacher/settings', 'success')).toBe(
+      'https://q.test/teacher/settings?payment=success&session_id={CHECKOUT_SESSION_ID}',
     );
-    expect(returnUrl('https://q.test', '/teacher/teste?clasa=3', 'anulata')).toBe('https://q.test/teacher/teste?clasa=3&plata=anulata');
+    expect(returnUrl('https://q.test', '/teacher/?class=3', 'cancelled')).toBe('https://q.test/teacher/?class=3&payment=cancelled');
   });
 });
 
 describe('paymentReturnOf', () => {
   it('reads the outcome, and nothing else', () => {
-    expect(paymentReturnOf('?plata=reusita&session_id=cs_1')).toBe('reusita');
-    expect(paymentReturnOf('?plata=anulata')).toBe('anulata');
+    expect(paymentReturnOf('?payment=success&session_id=cs_1')).toBe('success');
+    expect(paymentReturnOf('?payment=cancelled')).toBe('cancelled');
+    expect(paymentReturnOf('?payment=alt')).toBeNull();
+  });
+
+  it('reads the first name and values too, for a payment page open during the rename', () => {
+    expect(paymentReturnOf('?plata=reusita&session_id=cs_1')).toBe('success');
+    expect(paymentReturnOf('?plata=anulata')).toBe('cancelled');
     expect(paymentReturnOf('?plata=alt')).toBeNull();
+    expect(paymentReturnOf('?plata=toString')).toBeNull();
+    expect(paymentReturnOf('?payment=cancelled&plata=reusita')).toBe('cancelled');
     expect(paymentReturnOf('')).toBeNull();
   });
 });

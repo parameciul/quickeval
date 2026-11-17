@@ -20,10 +20,10 @@ export interface ReviewSpot {
   key: string | null;
 }
 
-// The point's name in the address: the item's id, or "pagini" for the pages
+// The point's name in the address: the item's id, or "pages" for the pages
 // the robot could not read.
 export function pointKey(point: ReviewPoint): string {
-  return point.kind === 'pages' ? 'pagini' : String(point.itemId);
+  return point.kind === 'pages' ? 'pages' : String(point.itemId);
 }
 
 function isGraded(row: UploadRow): row is GradedRow {
@@ -74,9 +74,9 @@ export function stepPoint(queue: QueuedPoint[], spot: ReviewSpot | null, step: 1
 
 // The address of the review, on a paper and maybe one of its points.
 export function reviewPath(code: string, spot?: { submissionId: number; key?: string | null }): string {
-  const base = `/teste/${code}/verificare`;
+  const base = `/tests/${code}/review`;
   if (spot === undefined) return base;
-  return spot.key ? `${base}?lucrare=${spot.submissionId}&punct=${spot.key}` : `${base}?lucrare=${spot.submissionId}`;
+  return spot.key ? `${base}?paper=${spot.submissionId}&item=${spot.key}` : `${base}?paper=${spot.submissionId}`;
 }
 
 // The page of an upload that the robot names "student/page-02.jpg": the

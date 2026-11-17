@@ -20,8 +20,8 @@ type Mode =
   | { name: 'forgot-sent' }
   | { name: 'pending'; email: string };
 
-// The link "Cere un cont de profesor" of the landing page opens /teacher/#cont-nou.
-export const SIGNUP_HASH = '#cont-nou';
+// The link "Cere un cont de profesor" of the landing page opens /teacher/#new-account.
+export const SIGNUP_HASH = '#new-account';
 
 // Shown instead of every page while nobody is logged in (redesign spec §11.4):
 // "Intră în cont", "Cont nou de profesor", "Am uitat parola", and the state

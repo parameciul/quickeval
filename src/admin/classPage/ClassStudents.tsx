@@ -291,7 +291,7 @@ function StudentDetail({
                 return (
                   <tr key={test.code}>
                     <th scope="row">
-                      <Link to={`/teste/${test.code}`}>{test.title}</Link>
+                      <Link to={`/tests/${test.code}`}>{test.title}</Link>
                       <span>{test.startedAt === null ? 'ciornă' : formatDayMonth(test.startedAt)}</span>
                     </th>
                     <td className="num hide-phone">
@@ -318,7 +318,7 @@ function StudentDetail({
                     </td>
                     <td className="student-paper">
                       {grade !== undefined && (
-                        <Link to={`/teste/${test.code}/elevi/${grade.submissionId}`}>Lucrarea</Link>
+                        <Link to={`/tests/${test.code}/papers/${grade.submissionId}`}>Lucrarea</Link>
                       )}
                     </td>
                   </tr>
@@ -330,7 +330,7 @@ function StudentDetail({
       )}
       <p className="class-card-foot">
         <span>Elevul vede rezultatul pe linkul lui, după ce îl publici.</span>
-        <Link to={`/elevi/${student.id}`} state={{ fromClass: classId } satisfies StudentLinkState}>
+        <Link to={`/students/${student.id}`} state={{ fromClass: classId } satisfies StudentLinkState}>
           Toate notele elevului, din toate clasele
         </Link>
       </p>

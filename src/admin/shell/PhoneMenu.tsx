@@ -30,7 +30,7 @@ export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): v
   return (
     <section ref={box} className="phone-menu" id="phone-menu" aria-label="Mai mult">
       {teacher.role === 'admin' && (
-        <Link className="menu-row menu-link" to="/setari">
+        <Link className="menu-row menu-link" to="/settings">
           <IconSettings />
           <span>Setări</span>
         </Link>
@@ -49,7 +49,7 @@ export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): v
           <DemoSummary usage={demoUsage(teacher)} />
         </div>
       )}
-      <Link className="menu-row menu-link" to="/cont">
+      <Link className="menu-row menu-link" to="/account">
         Contul meu
       </Link>
       <button type="button" className="menu-row menu-link menu-quiet" disabled={logout.isPending} onClick={() => logout.mutate()}>

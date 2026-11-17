@@ -1,6 +1,6 @@
 # English addresses: plan, priorities and risks
 
-Date: 2026-11-17. Status: decision 1 = A (owner, 2026-11-17). P0, P1a and P1b built on branch `claude/mqgrader-i18n-plan-c87def`; P2 to P4 not started.
+Date: 2026-11-17. Status: decision 1 = A (owner, 2026-11-17). P0, P1a and P1b merged (PR #112). P2 and P3 built on branch `feature/english-teacher-addresses`; P4 not started.
 
 ## Goal
 
@@ -112,10 +112,11 @@ adds tickets that must work for years.
 
 Not indexed, so no SEO risk. The risk is links in sent emails and bookmarks.
 
-- First, put every teacher path builder in one module, so the rename changes one file.
+- Built without a module of path builders: once the paths are English they are final, so the paths were renamed where they are written.
 - New routes: `tests/new`, `tests/:code`, `tests/:code/papers/:submissionId`,
   `tests/:code/report`, `tests/:code/review`, `classes`, `classes/:id`,
   `students/:id`, `search`, `settings`, `account`, `confirm-email`, `new-password`.
+- Built: one module, `src/admin/legacyAddress.ts`, turns an old path, query and hash into the English ones (exact maps, so an email token in the hash never changes), and `AppRoutes` and the try's routes send an old address there before the login check. The report page's anchors (`#pe-scurt`, `#rezultate`, `#exercitii`, `#analiza`) became `#summary`, `#results`, `#exercises`, `#analysis` too.
 - Keep every old path as a router redirect (`<Navigate replace>`, like
   `ReviewRedirect` today) that keeps the rest of the path, the query and the hash
   (the email tokens are in the hash). Keep them for ever: they cost nothing.
@@ -127,7 +128,7 @@ Not indexed, so no SEO risk. The risk is links in sent emails and bookmarks.
 
 - `lucrare`→`paper`, `punct`→`item` (`pagini`→`pages`), `clasa`→`class`,
   `arhivate`→`archived`, `vedere`→`view` (`toate`→`all`), `arata`→`show`,
-  `tab` values `robotul`→`robot`, `corectarea`→`grading`, `altceva`→`other`.
+  `tab` values `robotul`→`robot`, `corectarea`→`grading` (`altceva` was only an unknown tab in a test, never an address).
 - Stage anchors: `#pregatire`→`#prepare`, `#tiparire`→`#print`, `#in-clasa`→`#in-class`,
   `#corectare`→`#grading`, `#verificare`→`#review`, `#rezultate`→`#results`.
 - Read old and new names; write only new ones. One small helper per page, so the

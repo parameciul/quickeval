@@ -100,7 +100,7 @@ describe('a graded try', () => {
     expect(screen.queryByRole('link', { name: 'Toate notele elevului' })).not.toBeInTheDocument();
     expect(screen.queryByText('Linkul cu rezultatul elevului')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Toate exercițiile' }));
-    expect(screen.getByTestId('location')).toHaveTextContent(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&punct=71&vedere=toate`);
+    expect(screen.getByTestId('location')).toHaveTextContent(`/tests/PROBA-26T1/review?paper=${TRY_SUBMISSION}&item=71&view=all`);
     expect(await screen.findByRole('heading', { name: 'Ce a lucrat bine' })).toBeInTheDocument();
   });
 
@@ -112,7 +112,7 @@ describe('a graded try', () => {
     expect(within(summary).getByText(formatPoints(paper.grade!))).toBeInTheDocument();
     expect(within(summary).getByText(`${formatPoints(paper.total!)} din 10 puncte`)).toBeInTheDocument();
     expect(within(summary).getByText('1 punct nesigur')).toBeInTheDocument();
-    expect(within(summary).getByRole('link', { name: 'Verifică 1 punct' })).toHaveAttribute('href', '/teste/PROBA-26T1/verificare');
+    expect(within(summary).getByRole('link', { name: 'Verifică 1 punct' })).toHaveAttribute('href', '/tests/PROBA-26T1/review');
   });
 
   it('lists each point to check with its reason, and opens the review at it', async () => {
@@ -122,7 +122,7 @@ describe('a graded try', () => {
     expect(within(panel).getByText('Scrisul se citește greu.')).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole('link', { name: 'Verifică Subiectul I, ex. 1' }));
     expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&punct=71`);
+    expect(screen.getByTestId('location')).toHaveTextContent(`/tests/PROBA-26T1/review?paper=${TRY_SUBMISSION}&item=71`);
   });
 
   it("has two views, with no teacher's result of its own: the paper page shows all the exercises", async () => {
@@ -143,7 +143,7 @@ describe('a graded try', () => {
     const panel = await screen.findByRole('tabpanel');
     await userEvent.click(within(panel).getByRole('link', { name: 'Toate exercițiile' }));
     expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&vedere=toate`);
+    expect(screen.getByTestId('location')).toHaveTextContent(`/tests/PROBA-26T1/review?paper=${TRY_SUBMISSION}&view=all`);
     expect(screen.getByRole('button', { name: 'Toate exercițiile' })).toHaveAttribute('aria-pressed', 'true');
     expect(await screen.findByRole('heading', { name: 'Ce a lucrat bine' })).toBeInTheDocument();
   });
@@ -156,7 +156,7 @@ describe('a graded try', () => {
     expect(panel).not.toHaveTextContent('page-02');
     expect(within(panel).getByRole('link', { name: 'Verifică Pagini greu de citit' })).toHaveAttribute(
       'href',
-      `/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&punct=pagini`,
+      `/tests/PROBA-26T1/review?paper=${TRY_SUBMISSION}&item=pages`,
     );
   });
 
@@ -174,19 +174,39 @@ describe('a graded try', () => {
     expect(screen.getByText('Rezultatul elevului este gata.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Verifică/ })).not.toBeInTheDocument();
     // All the exercises stay one click away.
-    expect(screen.getByRole('link', { name: 'Toate exercițiile' })).toHaveAttribute('href', `/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&vedere=toate`);
+    expect(screen.getByRole('link', { name: 'Toate exercițiile' })).toHaveAttribute('href', `/tests/PROBA-26T1/review?paper=${TRY_SUBMISSION}&view=all`);
     expect(screen.getByRole('tab', { name: 'Verificare' })).toHaveTextContent(/^Verificare$/);
   });
 
   it("opens the student's result from the review's link to the results", async () => {
-    setup('/teste/PROBA-26T1#rezultate');
+    setup('/tests/PROBA-26T1#results');
     expect(await screen.findByRole('tab', { name: 'Rezultatul elevului' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it("opens the paper page with all the exercises from the app's address of the paper", async () => {
+    setup(`/tests/PROBA-26T1/papers/${TRY_SUBMISSION}`);
+    expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(`/tests/PROBA-26T1/review?paper=${TRY_SUBMISSION}&view=all`);
+  });
+
+  // The try's addresses were Romanian until 2026-11-17: a try is kept 7 days,
+  // so a tab or a link of one made before still holds them.
+  it("opens the student's result from the old Romanian address of the results", async () => {
+    setup('/teste/PROBA-26T1#rezultate');
+    expect(await screen.findByRole('tab', { name: 'Rezultatul elevului' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/tests\/PROBA-26T1#results$/);
+  });
+
+  it('opens the review at its point from its old Romanian address', async () => {
+    setup(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&punct=71&vedere=toate`);
+    expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(`/tests/PROBA-26T1/review?paper=${TRY_SUBMISSION}&item=71&view=all`);
+  });
+
+  it('opens the paper page with all the exercises from the old Romanian address of the paper', async () => {
     setup(`/teste/PROBA-26T1/elevi/${TRY_SUBMISSION}`);
     expect(await screen.findByRole('heading', { name: 'Verificare', level: 1 })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(`/teste/PROBA-26T1/verificare?lucrare=${TRY_SUBMISSION}&vedere=toate`);
+    expect(screen.getByTestId('location')).toHaveTextContent(`/tests/PROBA-26T1/review?paper=${TRY_SUBMISSION}&view=all`);
   });
 
   it('shows the page the student would see, with no word on how it was graded', async () => {
@@ -214,7 +234,7 @@ describe('a graded try', () => {
   it('invites her to a free class test with an account', async () => {
     setup();
     const invite = await screen.findByRole('link', { name: 'Creează un cont: corectezi gratuit un test pentru toată clasa.' });
-    expect(invite).toHaveAttribute('href', '/teacher/#cont-nou');
+    expect(invite).toHaveAttribute('href', '/teacher/#new-account');
     expect(screen.getByText(/Îți place\?/)).toBeInTheDocument();
   });
 });

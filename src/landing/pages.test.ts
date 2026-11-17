@@ -10,6 +10,7 @@ import tryRaw from '../../try/index.html?raw';
 import studentRaw from '../../u/index.html?raw';
 import headers from '../../public/_headers?raw';
 import { expandPartials, PARTIALS } from './partials.ts';
+import { SIGNUP_HASH } from '../admin/pages/LoginPage.tsx';
 import { PITCH_LINE } from '../admin/wayIn/WayIn.tsx';
 
 // The pages that answer a search, beside the landing page. They are plain
@@ -119,6 +120,8 @@ describe('the pages that answer a search', () => {
       .map((href) => href.split('#')[0] ?? '');
     const known = new Set(['/', ...LINKS, '/teacher/']);
     for (const href of internal) expect(known.has(href) || href.startsWith('/teacher/')).toBe(true);
+    // A link into the teacher app with a hash opens the sign-up, by its own name.
+    for (const a of all(doc, 'a[href^="/teacher/#"]')) expect(a.getAttribute('href')).toBe(`/teacher/${SIGNUP_HASH}`);
     // A link that stays on the page goes to a heading that is there.
     const anchors = all(doc, 'a[href^="#"]').map((a) => (a.getAttribute('href') ?? '').slice(1));
     for (const id of anchors) expect(doc.getElementById(id), id).not.toBeNull();

@@ -84,7 +84,7 @@ describe('the search box', () => {
     await userEvent.keyboard('{ArrowDown}{ArrowDown}');
     expect(box).toHaveAttribute('aria-activedescendant', screen.getByRole('option', { name: 'Ștefan Radu, Clasa 10B' }).id);
     await userEvent.keyboard('{Enter}');
-    await expectLocation('/elevi/10');
+    await expectLocation('/students/10');
     expect(box).toHaveValue('');
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
@@ -92,7 +92,7 @@ describe('the search box', () => {
   it('opens the results page with Enter when no line is chosen, and keeps the search in the box', async () => {
     const box = await openSearch();
     await userEvent.type(box, ' stef {Enter}');
-    await expectLocation('/cautare?q=stef');
+    await expectLocation('/search?q=stef');
     expect(box).toHaveValue(' stef ');
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
@@ -101,7 +101,7 @@ describe('the search box', () => {
     const box = await openSearch();
     await userEvent.type(box, 'stew');
     await userEvent.click(await screen.findByRole('option', { name: 'Teorema lui Stewart, Clasa 9A · ciornă' }));
-    await expectLocation('/teste/9A-26T1');
+    await expectLocation('/tests/9A-26T1');
   });
 
   it('opens no list before the first answer', async () => {
@@ -143,7 +143,7 @@ describe('the search box', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     expect(box).not.toHaveAttribute('aria-controls');
     await userEvent.keyboard('{ArrowDown}{Enter}');
-    await expectLocation('/cautare?q=zzz');
+    await expectLocation('/search?q=zzz');
   });
 
   it('searches again after a change the teacher made', async () => {

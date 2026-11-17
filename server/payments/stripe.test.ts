@@ -64,8 +64,8 @@ describe('checkout form', () => {
         amount: 1500,
         currency: 'ron',
         expiresAtS: 1_800_003_600,
-        successUrl: 'https://x.test/teacher/?plata=reusita&session_id={CHECKOUT_SESSION_ID}',
-        cancelUrl: 'https://x.test/teacher/?plata=anulata',
+        successUrl: 'https://x.test/teacher/?payment=success&session_id={CHECKOUT_SESSION_ID}',
+        cancelUrl: 'https://x.test/teacher/?payment=cancelled',
       }),
     );
     const params = new URLSearchParams(form);
@@ -87,8 +87,8 @@ describe('createCheckoutSession', () => {
     amount: 4900,
     currency: 'ron',
     expiresAtS: 1_800_003_600,
-    successUrl: 'https://q.test/teacher/?plata=reusita',
-    cancelUrl: 'https://q.test/teacher/?plata=anulata',
+    successUrl: 'https://q.test/teacher/?payment=success',
+    cancelUrl: 'https://q.test/teacher/?payment=cancelled',
   };
   const answer = (status: number, body: unknown) =>
     vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));

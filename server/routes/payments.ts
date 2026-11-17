@@ -125,8 +125,8 @@ export async function startCheckout(
       amount: feature.amount,
       currency: feature.currency,
       expiresAtS: Math.floor(expiresAt.getTime() / 1000),
-      successUrl: returnUrl(origin, request.returnPath, 'reusita'),
-      cancelUrl: returnUrl(origin, request.returnPath, 'anulata'),
+      successUrl: returnUrl(origin, request.returnPath, 'success'),
+      cancelUrl: returnUrl(origin, request.returnPath, 'cancelled'),
     });
   } catch (err) {
     console.error('Stripe checkout:', err instanceof Error ? err.message : String(err));

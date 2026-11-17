@@ -44,7 +44,7 @@ describe("a Quick Try's page", () => {
 
   it('comes back to the try from an address of the teacher app that it does not have', async () => {
     const { api, tryApi } = fakes();
-    renderTry('/teste/PROBA-26T1/raport', api, tryApi);
+    renderTry('/tests/PROBA-26T1/report', api, tryApi);
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
   });
   it('says the try expired when its test answers so while the page is open', async () => {

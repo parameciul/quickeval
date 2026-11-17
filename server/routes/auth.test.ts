@@ -58,7 +58,7 @@ const loginWith = (cookie: string, email: string, password: string) =>
 const wrongBody = async () => (await login('nimeni@example.com', 'orice-parola')).body;
 
 // The token of the confirmation link in the last email.
-const linkToken = () => /confirma-email#([\w-]+)/.exec(emails.at(-1)!.text)![1]!;
+const linkToken = () => /confirm-email#([\w-]+)/.exec(emails.at(-1)!.text)![1]!;
 const confirm = (token: string, password = 'parola-lunga') => api.request('POST', '/api/auth/confirm', { token, password });
 
 async function setPasswordOf(email: string, password: string): Promise<void> {
@@ -81,7 +81,7 @@ describe('POST /api/auth/signup', () => {
     // Only the administrators' email waits for the confirmation.
     expect(emails).toHaveLength(1);
     expect(emails[0]!.to).toEqual(['ana.pop@example.com']);
-    expect(emails[0]!.text).toMatch(/http:\/\/localhost\/teacher\/confirma-email#[\w-]{43}/);
+    expect(emails[0]!.text).toMatch(/http:\/\/localhost\/teacher\/confirm-email#[\w-]{43}/);
     expect(row!.confirm_token_hash).not.toBe(linkToken());
   });
 
@@ -96,7 +96,7 @@ describe('POST /api/auth/signup', () => {
     expect(emails[1]!.to).toEqual(['profesor@example.com', 'admin2@example.com']);
     expect(emails[1]!.text).toContain('Ana Pop');
     expect(emails[1]!.text).toContain('ana.pop@example.com');
-    expect(emails[1]!.text).toContain('http://localhost/teacher/setari');
+    expect(emails[1]!.text).toContain('http://localhost/teacher/settings');
     const again = await confirm(token);
     expect(again.status).toBe(404);
     expect(again.body.error).toBe('bad_link');
@@ -511,7 +511,7 @@ describe('a browser that logged in before', () => {
 });
 
 const forgot = (email: string) => api.request('POST', '/api/auth/forgot-password', { email });
-const resetToken = () => /parola-noua#([\w-]+)/.exec(emails.at(-1)!.text)![1]!;
+const resetToken = () => /new-password#([\w-]+)/.exec(emails.at(-1)!.text)![1]!;
 const reset = (token: string, newPassword = 'parola-noua-lunga') => api.request('POST', '/api/auth/reset-password', { token, newPassword });
 const flush = () => new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -523,7 +523,7 @@ describe('password reset by email', () => {
     expect(res.status).toBe(200);
     await flush();
     expect(emails.at(-1)!.to).toEqual(['profesor@example.com']);
-    expect(emails.at(-1)!.text).toMatch(/http:\/\/localhost\/teacher\/parola-noua#[\w-]{43}/);
+    expect(emails.at(-1)!.text).toMatch(/http:\/\/localhost\/teacher\/new-password#[\w-]{43}/);
     const token = resetToken();
     expect((await reset(token)).status).toBe(200);
     expect((await login('profesor@example.com', 'parola-veche')).status).toBe(401);

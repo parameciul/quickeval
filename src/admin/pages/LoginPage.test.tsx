@@ -11,7 +11,7 @@ describe('the login form', () => {
   it('takes the place of every page while nobody is logged in, and opens the page after the login', async () => {
     const api = createFakeApi();
     api.me.mockRejectedValueOnce(loginRequired());
-    renderAdmin('/clase', api);
+    renderAdmin('/classes', api);
     expect(await screen.findByRole('heading', { name: 'Intră în cont' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Meniu' })).not.toBeInTheDocument();
     // Logged out, the top bar has the lockup and the theme, no school year.
@@ -75,10 +75,10 @@ describe('the login form', () => {
     expect(screen.getByRole('heading', { name: 'Intră în cont' })).toBeInTheDocument();
   });
 
-  it('opens on the new account form from the link "#cont-nou" of the landing page', async () => {
+  it('opens on the new account form from the link "#new-account" of the landing page', async () => {
     const api = createFakeApi();
     api.me.mockRejectedValueOnce(loginRequired());
-    renderAdmin('/#cont-nou', api);
+    renderAdmin('/#new-account', api);
     const heading = await screen.findByRole('heading', { name: 'Cont nou de profesor' });
     // The first state takes no focus: the page has just opened.
     expect(heading).not.toHaveFocus();
@@ -97,14 +97,14 @@ describe('the login form', () => {
 
 describe('the menu by role', () => {
   it('shows Setări to an administrator', async () => {
-    renderAdmin('/clase', createFakeApi());
+    renderAdmin('/classes', createFakeApi());
     const menu = await screen.findByRole('navigation', { name: 'Meniu' });
-    expect(within(menu).getByRole('link', { name: 'Setări' })).toHaveAttribute('href', '/setari');
+    expect(within(menu).getByRole('link', { name: 'Setări' })).toHaveAttribute('href', '/settings');
   });
 
   it('hides Setări from a teacher, and the page refuses them', async () => {
     const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ id: 2, role: 'teacher' }) });
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     const menu = await screen.findByRole('navigation', { name: 'Meniu' });
     expect(within(menu).queryByRole('link', { name: 'Setări' })).not.toBeInTheDocument();
     expect(within(menu).getByRole('link', { name: 'Teste' })).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('the menu by role', () => {
 
   it('tells a demo account how many papers it has left, in the top bar before the school year', async () => {
     const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 2 }) });
-    renderAdmin('/clase', api);
+    renderAdmin('/classes', api);
     const button = await screen.findByRole('button', { name: 'Demo · 33 de lucrări rămase' });
     expect(button.compareDocumentPosition(screen.getByLabelText('Anul școlar')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(button).not.toHaveClass('is-full');
@@ -135,7 +135,7 @@ describe('the menu by role', () => {
   });
 
   it('closes the demo menu on Esc, with the focus back on its button, and on a click outside it', async () => {
-    renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 }) }));
+    renderAdmin('/classes', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 }) }));
     const button = await screen.findByRole('button', { name: /^Demo · / });
     await userEvent.click(button);
     await userEvent.tab();
@@ -149,7 +149,7 @@ describe('the menu by role', () => {
   });
 
   it('opens one small menu at a time from the keyboard', async () => {
-    renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 }) }));
+    renderAdmin('/classes', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 }) }));
     const demo = await screen.findByRole('button', { name: /^Demo · / });
     demo.focus();
     await userEvent.keyboard('{Enter}');
@@ -164,14 +164,14 @@ describe('the menu by role', () => {
 
   it('counts the papers on their way to the robot as used', async () => {
     const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, papersGraded: 33, papersWaiting: 1 }) });
-    renderAdmin('/clase', api);
+    renderAdmin('/classes', api);
     expect(await screen.findByRole('button', { name: 'Demo · 1 lucrare rămasă' })).toBeInTheDocument();
   });
 
   it('reads the demo button again after a change, so it shows the papers left', async () => {
     const teacher = fakeTeacher({ role: 'teacher', demo: true, papersGraded: 2 });
     const api = createFakeApi({ classes: [], students: {}, me: teacher });
-    renderAdmin('/cont', api);
+    renderAdmin('/account', api);
     expect(await screen.findByRole('button', { name: 'Demo · 33 de lucrări rămase' })).toBeInTheDocument();
     teacher.papersGraded = 20;
     await userEvent.type(screen.getByLabelText('Parola de acum'), 'parola-veche');
@@ -182,7 +182,7 @@ describe('the menu by role', () => {
 
   it('turns the ring orange and asks for a complete account when the papers are used up', async () => {
     const api = createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 2, papersGraded: 35 }) });
-    renderAdmin('/clase', api);
+    renderAdmin('/classes', api);
     const button = await screen.findByRole('button', { name: 'Demo · 0 lucrări rămase' });
     expect(button).toHaveClass('is-full');
     await userEvent.click(button);
@@ -192,7 +192,7 @@ describe('the menu by role', () => {
   });
 
   it('shows no demo button to a complete account', async () => {
-    renderAdmin('/clase', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher' }) }));
+    renderAdmin('/classes', createFakeApi({ classes: [], students: {}, me: fakeTeacher({ role: 'teacher' }) }));
     await screen.findByRole('heading', { name: 'Încă nu ai nicio clasă' });
     expect(screen.queryByRole('button', { name: /^Demo/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Cont demo/)).not.toBeInTheDocument();

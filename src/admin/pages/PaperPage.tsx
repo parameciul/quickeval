@@ -31,7 +31,7 @@ export function resultRefreshInterval(submission: SubmissionDetail | undefined):
   return waits ? 10_000 : false;
 }
 
-// /teste/:code/elevi/:submissionId: the paper page (spec 2026-11-12 §4): the
+// /tests/:code/papers/:submissionId: the paper page (spec 2026-11-12 §4): the
 // students, all the exercises of one student (or only the points to check),
 // and the paper, side by side.
 export function PaperPage() {
@@ -42,8 +42,8 @@ export function PaperPage() {
   return <PaperLoader key={code} code={code} place="app" submissionId={submissionId} />;
 }
 
-// /teste/:code/verificare in the teacher app: the paper page with only the
-// points to check, at the paper and point the address names (`?lucrare=12&punct=34`),
+// /tests/:code/review in the teacher app: the paper page with only the
+// points to check, at the paper and point the address names (`?paper=12&item=34`),
 // else at the first point. Before any paper is graded: the test's Verificare.
 export function ReviewRedirect() {
   const code = normalizeTestCode(useParams().code ?? '');
@@ -62,10 +62,10 @@ function useTestDetail(code: string) {
 // The spot an address of the review names, when the paper is of this test,
 // else the first point (or the first graded paper).
 function askedSpot(detail: TestDetail, params: URLSearchParams): PaperSpot | null {
-  const asked = parsePositiveId(params.get('lucrare') ?? undefined);
+  const asked = parsePositiveId(params.get('paper') ?? undefined);
   // (A student who sent nothing has no paper id: no address names that row.)
   const named = asked !== null && detail.uploads.some((row) => row.submissionId === asked);
-  return named ? { submissionId: asked, key: params.get('punct') } : null;
+  return named ? { submissionId: asked, key: params.get('item') } : null;
 }
 
 function RedirectLoader({ code }: { code: string }) {
@@ -74,11 +74,11 @@ function RedirectLoader({ code }: { code: string }) {
   if (detail.isPending) return <p>Se încarcă…</p>;
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
   const spot = askedSpot(detail.data, params) ?? firstSpot(detail.data.uploads);
-  if (spot === null) return <Navigate replace to={`/teste/${code}${stageHash('Verificare')}`} />;
-  return <Navigate replace to={paperPath(code, 'app', spot, 'verificare')} />;
+  if (spot === null) return <Navigate replace to={`/tests/${code}${stageHash('Verificare')}`} />;
+  return <Navigate replace to={paperPath(code, 'app', spot, 'review')} />;
 }
 
-// A Quick Try's review (`/teste/:code/verificare` inside the try's router): the
+// A Quick Try's review (`/tests/:code/review` inside the try's router): the
 // same page, for the try's one paper. An address that names no paper of this
 // test is first written with the spot the page opens on, and only then is the
 // paper drawn: no decision is made on a spot the address does not hold.
@@ -100,7 +100,7 @@ function TryPaperLoader({ code }: { code: string }) {
     return (
       <section className="paper-page">
         <p className="hint">Nicio lucrare nu este corectată încă.</p>
-        <Link to={`/teste/${code}${stageHash('Verificare')}`}>Înapoi la test</Link>
+        <Link to={`/tests/${code}${stageHash('Verificare')}`}>Înapoi la test</Link>
       </section>
     );
   }
@@ -192,7 +192,7 @@ function Paper({
   const location = useLocation();
   const [params] = useSearchParams();
   const mode = modeOf(params, place);
-  const key = params.get('punct');
+  const key = params.get('item');
   const spot: PaperSpot = { submissionId, key };
   const { test, uploads } = detail;
   const row = uploads.find((other) => other.submissionId === submissionId);
@@ -228,12 +228,12 @@ function Paper({
   // not read; null once it is checked.
   const viewOf = (at: string | null): DecisionView | null => {
     if (!evaluation || at === null) return null;
-    if (at === 'pagini') return evaluation.unreadable.length > 0 && !evaluation.pagesReviewed ? { kind: 'pages', pages: evaluation.unreadable } : null;
+    if (at === 'pages') return evaluation.unreadable.length > 0 && !evaluation.pagesReviewed ? { kind: 'pages', pages: evaluation.unreadable } : null;
     const found = evaluation.items.find((other) => String(other.id) === at);
     return found && found.needsReview && !found.reviewed ? { kind: 'item', item: found } : null;
   };
   // The open row and what waits on it.
-  const item = key !== null && key !== 'pagini' ? evaluation?.items.find((other) => String(other.id) === key) : undefined;
+  const item = key !== null && key !== 'pages' ? evaluation?.items.find((other) => String(other.id) === key) : undefined;
   const decisionView = viewOf(key);
 
   // A row to check stays open, its decision dimmed, when the teacher clicks
@@ -267,7 +267,7 @@ function Paper({
   const pageCount = submission?.files.length ?? 0;
   const firstArea = frames ? focus?.areas[0] : undefined;
   const firstPage =
-    key === 'pagini' && evaluation
+    key === 'pages' && evaluation
       ? (pageIndex(evaluation.unreadable[0] ?? '') ?? 0)
       : firstArea
         ? firstArea.page - 1
@@ -379,7 +379,7 @@ function Paper({
   });
   const failed = decide.variables;
   const decideError =
-    decide.isError && failed && failed.submission.id === submissionId && (failed.view.kind === 'pages' ? key === 'pagini' : String(failed.view.item.id) === key)
+    decide.isError && failed && failed.submission.id === submissionId && (failed.view.kind === 'pages' ? key === 'pages' : String(failed.view.item.id) === key)
       ? decide.error
       : null;
 
@@ -404,7 +404,7 @@ function Paper({
           const now = shown.current;
           if (now.spot.submissionId !== from.submissionId || now.spot.key !== from.key || now.mode !== fromMode) return;
           if (next) go({ submissionId: next.submissionId, key: pointKey(next.point) }, fromMode, 'point');
-          else if (fromMode === 'verificare') go({ submissionId: changed.id, key: null });
+          else if (fromMode === 'review') go({ submissionId: changed.id, key: null });
           else go(from, fromMode, 'student');
         },
       },
@@ -486,8 +486,8 @@ function Paper({
         <Crumbs
           items={[
             { label: 'Teste', to: '/' },
-            { label: displayClassName(test.className), to: `/clase/${test.classId}` },
-            { label: test.title, to: `/teste/${code}` },
+            { label: displayClassName(test.className), to: `/classes/${test.classId}` },
+            { label: test.title, to: `/tests/${code}` },
             { label: submission?.studentName ?? row?.studentName ?? 'Lucrarea' },
           ]}
         />
@@ -500,7 +500,7 @@ function Paper({
               {submission && ` · ${submission.studentName}`}
             </p>
           </div>
-          <Link className="button-quiet" to={`/teste/${code}${stageHash('Verificare')}`}>
+          <Link className="button-quiet" to={`/tests/${code}${stageHash('Verificare')}`}>
             <ActionIcon name="back" />
             Înapoi la test
           </Link>
@@ -511,10 +511,10 @@ function Paper({
       {place === 'app' && submission !== undefined && <PaperHead submission={submission} actions={actions} />}
       <div className="paper-bar">
         <div className="paper-switch" role="group" aria-label="Exercițiile arătate">
-          <button type="button" aria-pressed={mode === 'toate'} onClick={() => go(spot, 'toate')}>
+          <button type="button" aria-pressed={mode === 'all'} onClick={() => go(spot, 'all')}>
             Toate exercițiile
           </button>
-          <button type="button" aria-pressed={mode === 'verificare'} onClick={() => go(spot, 'verificare')}>
+          <button type="button" aria-pressed={mode === 'review'} onClick={() => go(spot, 'review')}>
             Doar de verificat ({queue.length})
           </button>
         </div>
@@ -541,7 +541,7 @@ function Paper({
         {/* The moves, small: "‹ Punct 3/47 ›" (only the points to check),
             "‹ Elev 2/7 ›" and "Lucrarea", on one row also on a phone. */}
         <div className="review-actions">
-          {mode === 'verificare' && walked.length > 0 && (
+          {mode === 'review' && walked.length > 0 && (
             <span className="move-group" role="group" aria-label="Punctele de verificat">
               <button
                 type="button"
@@ -618,9 +618,9 @@ function Paper({
           )}
         </div>
       </div>
-      {mode === 'verificare' && queue.length === 0 && (
+      {mode === 'review' && queue.length === 0 && (
         <p className="review-done" role="status">
-          Toate punctele sunt verificate. <Link to={`/teste/${code}${stageHash('Rezultate')}`}>Mergi la Rezultate</Link>
+          Toate punctele sunt verificate. <Link to={`/tests/${code}${stageHash('Rezultate')}`}>Mergi la Rezultate</Link>
         </p>
       )}
       <div
@@ -662,7 +662,7 @@ function Paper({
                   }
                   navigate(pathOf({ submissionId, key: open }), { replace: true, state: { paperKeep: true } });
                 },
-                onlyToCheck: mode === 'verificare',
+                onlyToCheck: mode === 'review',
                 decisionFor,
               }}
             />

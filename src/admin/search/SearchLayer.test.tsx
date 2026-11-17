@@ -116,7 +116,7 @@ describe('the search on a phone', () => {
     await userEvent.click(magnifier);
     await userEvent.type(screen.getByRole('combobox', { name: 'Caută elevi, clase și teste' }), 'stef');
     await userEvent.click(await screen.findByRole('option', { name: 'Ștefan Radu, Clasa 10B' }));
-    await expectLocation('/elevi/10');
+    await expectLocation('/students/10');
     expect(screen.queryByRole('dialog', { name: 'Caută' })).not.toBeInTheDocument();
   });
 

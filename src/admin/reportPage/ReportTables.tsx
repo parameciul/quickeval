@@ -178,7 +178,7 @@ export function ResultsTable({
               return (
                 <tr key={row.submissionId}>
                   <th scope="row">
-                    <Link to={`/teste/${code}/elevi/${row.submissionId}`}>{row.studentName}</Link>
+                    <Link to={`/tests/${code}/papers/${row.submissionId}`}>{row.studentName}</Link>
                     {(row.ces || row.variant === 'ces') && <CesTag />}
                   </th>
                   {phone ? [grade, ...points, total] : [...points, total, grade]}

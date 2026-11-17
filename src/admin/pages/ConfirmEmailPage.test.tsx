@@ -11,7 +11,7 @@ describe('ConfirmEmailPage', () => {
   it('confirms the email of the link without a login, with the password chosen at the sign-up', async () => {
     const api = createFakeApi();
     api.me.mockRejectedValue(loginRequired());
-    renderAdmin('/confirma-email#token-din-link', api);
+    renderAdmin('/confirm-email#token-din-link', api);
     const button = await screen.findByRole('button', { name: 'Confirmă adresa' });
     expect(screen.getByRole('heading', { level: 1, name: 'Confirmă adresa de email' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Intră în cont' })).not.toBeInTheDocument();
@@ -30,7 +30,7 @@ describe('ConfirmEmailPage', () => {
     const api = createFakeApi();
     api.me.mockRejectedValue(loginRequired());
     api.confirmEmail.mockRejectedValueOnce(new ApiError(404, 'bad_link', 'Linkul nu mai este valabil. Cere contul din nou de pe pagina de intrare.'));
-    renderAdmin('/confirma-email#vechi', api);
+    renderAdmin('/confirm-email#vechi', api);
     await userEvent.type(await screen.findByLabelText('Parola'), 'parola-lunga');
     await userEvent.click(screen.getByRole('button', { name: 'Confirmă adresa' }));
     expect(await screen.findByText(/Linkul nu mai este valabil/)).toBeInTheDocument();
@@ -39,7 +39,7 @@ describe('ConfirmEmailPage', () => {
   it('asks to open the link again when it has no token', async () => {
     const api = createFakeApi();
     api.me.mockRejectedValue(loginRequired());
-    renderAdmin('/confirma-email', api);
+    renderAdmin('/confirm-email', api);
     expect(await screen.findByText('Linkul nu este întreg. Deschide-l din nou din email.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Confirmă adresa' })).not.toBeInTheDocument();
   });

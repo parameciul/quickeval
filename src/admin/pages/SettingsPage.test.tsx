@@ -7,8 +7,8 @@ import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdm
 import { lastRunText } from './SettingsPage.tsx';
 
 const withSettings = (settings = fakeSettings()) => createFakeApi({ classes: [], students: {}, settings });
-const ROBOT = '/setari?tab=robotul';
-const GRADING = '/setari?tab=corectarea';
+const ROBOT = '/settings?tab=robot';
+const GRADING = '/settings?tab=grading';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -29,7 +29,7 @@ describe('SettingsPage', () => {
   });
 
   it('is in the menu', async () => {
-    renderAdmin('/setari', withSettings());
+    renderAdmin('/settings', withSettings());
     const menu = await screen.findByRole('navigation', { name: 'Meniu' });
     expect(within(menu).getByRole('link', { name: 'Setări' })).toHaveAttribute('aria-current', 'page');
     expect(await screen.findByRole('heading', { name: 'Setări' })).toBeInTheDocument();
@@ -37,20 +37,20 @@ describe('SettingsPage', () => {
   });
 
   it('opens on Conturi, and keeps the chosen tab in the address', async () => {
-    renderAdmin('/setari', withSettings(), <LocationProbe />);
+    renderAdmin('/settings', withSettings(), <LocationProbe />);
     const tabs = await screen.findByRole('tablist', { name: 'Setări' });
     expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Conturi', 'Corectarea', 'Robotul']);
     expect(within(tabs).getByRole('tab', { name: 'Conturi' })).toHaveAttribute('aria-selected', 'true');
     await userEvent.click(within(tabs).getByRole('tab', { name: 'Robotul' }));
-    await expectLocation('/setari?tab=robotul');
+    await expectLocation('/settings?tab=robot');
     expect(within(tabs).getByRole('tab', { name: 'Robotul' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel', { name: 'Robotul' })).toHaveTextContent('Starea robotului');
     await userEvent.click(within(tabs).getByRole('tab', { name: 'Conturi' }));
-    await expectLocation(/^\/setari$/);
+    await expectLocation(/^\/settings$/);
   });
 
   it('moves between the tabs with the arrow keys, Home and End', async () => {
-    renderAdmin('/setari', withSettings(), <LocationProbe />);
+    renderAdmin('/settings', withSettings(), <LocationProbe />);
     const tabs = await screen.findByRole('tablist', { name: 'Setări' });
     const [accounts, grading, robot] = within(tabs).getAllByRole('tab');
     expect(accounts).toHaveAttribute('tabindex', '0');
@@ -59,12 +59,12 @@ describe('SettingsPage', () => {
     await userEvent.keyboard('{ArrowRight}');
     expect(grading).toHaveFocus();
     expect(grading).toHaveAttribute('aria-selected', 'true');
-    await expectLocation('/setari?tab=corectarea');
+    await expectLocation('/settings?tab=grading');
     await userEvent.keyboard('{End}');
     expect(robot).toHaveFocus();
     await userEvent.keyboard('{ArrowRight}');
     expect(accounts).toHaveFocus();
-    await expectLocation(/^\/setari$/);
+    await expectLocation(/^\/settings$/);
     await userEvent.keyboard('{ArrowLeft}');
     expect(robot).toHaveFocus();
     await userEvent.keyboard('{Home}');
@@ -85,7 +85,7 @@ describe('SettingsPage', () => {
 
   it('shows no tabs to a teacher who is not an administrator, not even while it loads', async () => {
     const api = createFakeApi({ classes: [], students: {}, me: { ...fakeAccount(), role: 'teacher' } });
-    renderAdmin('/setari', api);
+    renderAdmin('/settings', api);
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(screen.queryByText('Doar administratorii văd această pagină.')).not.toBeInTheDocument();
     expect(await screen.findByText('Doar administratorii au acces la Setări.')).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('SettingsPage', () => {
     expect(await screen.findByRole('tab', { name: 'Corectarea' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByLabelText('Lucrări corectate deodată')).toBeInTheDocument();
     first.unmount();
-    renderAdmin('/setari?tab=altceva', withSettings());
+    renderAdmin('/settings?tab=altceva', withSettings());
     expect(await screen.findByRole('tab', { name: 'Conturi' })).toHaveAttribute('aria-selected', 'true');
   });
 
