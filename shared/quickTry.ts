@@ -22,9 +22,13 @@ export const QUICK_TRY_TITLE = 'Încercare rapidă';
 
 // The phone page that sends the student's pages to a try (spec
 // docs/superpowers/specs/2026-11-16-quick-try-phone-photos-design.md).
-export function quickTryPhonePath(token: string): string {
-  return `/try/${token}/telefon`;
+// `here`: opened on the phone that sent the form, so the page may lead to the
+// try itself; a phone that scanned the code gets no such link.
+export function quickTryPhonePath(token: string, here = false): string {
+  return `/try/${token}/telefon${here ? '?aici=1' : ''}`;
 }
+// A phone in the hand: it takes the photos itself, with no QR code.
+export const PHONE_MEDIA = '(max-width: 767.98px) and (pointer: coarse)';
 // While its QR code shows, the laptop reads the try's pages this often, and
 // stops after this long with no new page (the D1 read limit).
 export const PHONE_REFRESH_MS = 3000;

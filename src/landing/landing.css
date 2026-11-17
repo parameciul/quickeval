@@ -237,7 +237,16 @@ a { color: inherit; }
 .try-phone-pick svg { width: 16px; height: 16px; }
 .try-pick-box [hidden] { display: none; }
 /* On a phone, "Alege fișierele" already offers the camera. */
-@media (max-width: 767.98px) { .try-phone-pick { display: none; } }
+/* On a phone the button opens the camera there after the send, not a code. */
+.try-phone-pick .try-icon-cam, .try-phone-pick.is-here .try-icon-qr { display: none; }
+.try-phone-pick.is-here .try-icon-cam { display: block; }
+/* A phone is too narrow for the text and two buttons on one line: the second
+   button goes under the first. */
+@media (max-width: 767.98px) {
+  .try-pick-pages .try-pick-box { flex-wrap: wrap; }
+  .try-pick-pages .try-pick-main { flex-basis: 100%; }
+  .try-pick-pages .try-pick-box > .btn { margin-left: auto; }
+}
 .try-check { display: flex; gap: 8px; align-items: center; font-size: 15px; }
 .try-turnstile:empty { display: none; }
 .try-error { color: var(--orange); font-weight: 600; }

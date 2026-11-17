@@ -40,7 +40,7 @@ function fakeTurnstile(answer: string | null = 'turnstile-ok') {
   return { load: vi.fn(async (_container: HTMLElement, _siteKey: string) => widget), widget };
 }
 
-async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile()) {
+async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone: { isPhone?: () => boolean; go?: (path: string) => void } = {}) {
   document.body.innerHTML = new DOMParser().parseFromString(page, 'text/html').body.innerHTML;
   await initQuickTry(document, {
     api,
@@ -50,6 +50,8 @@ async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile()) {
     refreshMs: 5,
     origin: 'https://mqgrader.ro',
     drawQr: async () => {},
+    isPhone: phone.isPhone ?? (() => false),
+    go: phone.go,
   });
   return { api, turnstile };
 }
@@ -240,6 +242,30 @@ describe("the landing page's Quick Try", () => {
     pick(/^Lucrarea elevului/, photo('p1.jpg'), photo('p2.jpg'));
     expect(pages).not.toHaveClass('is-phone');
     expect(pages).toHaveTextContent('2 pagini');
+  });
+
+  it('on a phone, the button says "Fă poze" and the row says the camera opens after the send', async () => {
+    await mount(undefined, undefined, { isPhone: () => true });
+    button()!.click();
+    const pages = pagesRow();
+    expect(within(pages).queryByRole('button', { name: 'Cu telefonul' })).toBeNull();
+    within(pages).getByRole('button', { name: 'Fă poze' }).click();
+    expect(pages).toHaveTextContent('Faci pozele cu acest telefon');
+    expect(pages).toHaveTextContent('Camera se deschide după ce apeși Trimite');
+  });
+
+  it("on a phone, a send with the photos opens the try's phone page in this tab", async () => {
+    const go = vi.fn();
+    const { api } = await mount(undefined, undefined, { isPhone: () => true, go });
+    button()!.click();
+    pick(/^Testul/, pdf('test.pdf'));
+    pick(/^Baremul/, pdf('barem.pdf'));
+    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    send();
+    await waitFor(() => expect(go).toHaveBeenCalledWith(`/try/${TOKEN}/telefon?aici=1`));
+    expect(api.addPage).not.toHaveBeenCalled();
+    expect(dialog().querySelector('[data-try-phone]')).not.toBeVisible();
+    expect(JSON.parse(localStorage.getItem(STORED_TRY_KEY)!)).toMatchObject({ token: TOKEN });
   });
 
   it('choosing the phone forgets picked files', async () => {

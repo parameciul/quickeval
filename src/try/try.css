@@ -432,6 +432,12 @@ label.button-quiet.is-disabled {
   padding-top: 2rem;
 }
 
+/* On the phone that made the try: "Deschide încercarea" over "Mai adaugă pagini". */
+.phone-done .button + .button-quiet,
+.phone-page .alert + .button {
+  margin-top: 0.75rem;
+}
+
 .phone-tick {
   display: inline-grid;
   place-items: center;

@@ -10,10 +10,10 @@ import { expectNoGradingWords } from '../test/gradingWords.ts';
 const page = (id: number, name: string): SubmissionFile => ({ id, name, contentType: 'application/pdf', size: 900, position: id });
 const jpeg = (name: string) => new File([new Uint8Array(10)], name, { type: 'image/jpeg' });
 
-function setup(pages: SubmissionFile[] = [], test = tryTest({ title: 'Fracții 6B' })) {
+function setup(pages: SubmissionFile[] = [], test = tryTest({ title: 'Fracții 6B' }), path = '/telefon') {
   const api = createFakeApi({ classes: [], students: {}, tests: [test] });
   const tryApi = createFakeTryApi({ pages });
-  renderTry('/telefon', api, tryApi);
+  renderTry(path, api, tryApi);
   return { api, tryApi };
 }
 
@@ -67,6 +67,21 @@ describe("a try's phone page", () => {
     await userEvent.click(screen.getByRole('button', { name: 'Am terminat' }));
     await screen.findByRole('heading', { name: 'Paginile au ajuns' });
     expect(within(main).queryAllByRole('link')).toHaveLength(0);
+  });
+
+  it('on the phone that made the try, the last screen opens the try', async () => {
+    setup([page(1, 'a.pdf')], undefined, '/telefon?aici=1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Am terminat' }));
+    expect(await screen.findByRole('heading', { name: 'Paginile au ajuns' })).toBeInTheDocument();
+    expect(screen.getByText('1 pagină este la încercare.')).toBeInTheDocument();
+    expect(screen.queryByText('Continuă acolo.')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mai adaugă pagini' })).toBeInTheDocument();
+  });
+
+  it('on the phone that made the try, the read-only page opens the try', async () => {
+    setup([page(1, 'a.pdf')], tryTest({ status: 'evaluating' }, { status: 'submitted' }), '/telefon?aici=1');
+    expect(await screen.findByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
   });
 
   it('is read only once the paper is sent', async () => {

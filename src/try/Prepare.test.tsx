@@ -110,6 +110,18 @@ describe("the phone's code on a try's page", () => {
 
   const phoneButton = () => screen.findByRole('button', { name: 'Fă poze cu telefonul' });
 
+  it("on a phone, leads to the phone page with its camera, not to a code", async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('pointer: coarse'), media: query }));
+    try {
+      setup();
+      const link = await screen.findByRole('link', { name: 'Fă poze' });
+      expect(link).toHaveAttribute('href', '/telefon?aici=1');
+      expect(screen.queryByRole('button', { name: 'Fă poze cu telefonul' })).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('opens and closes the phone code', async () => {
     setup();
     const button = await phoneButton();

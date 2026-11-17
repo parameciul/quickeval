@@ -1,5 +1,5 @@
 import type { QuickTryAvailability } from '../../../shared/api.ts';
-import { QUICK_TRY_DAYS } from '../../../shared/quickTry.ts';
+import { PHONE_MEDIA, QUICK_TRY_DAYS, quickTryPhonePath } from '../../../shared/quickTry.ts';
 import { ApiError, messageOf } from '../../ui/ApiError.ts';
 import { phaseOf, scoreOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui/format.ts';
@@ -29,7 +29,13 @@ export interface QuickTryDeps {
   // The QR window: the site's address, and how its code is drawn.
   origin?: string;
   drawQr?: typeof drawQr;
+  // A phone takes the photos itself: after the send it opens the try's phone
+  // page in its own tab, through `go`, in place of the QR window.
+  isPhone?: () => boolean;
+  go?: (path: string) => void;
 }
+
+const onAPhone = () => window.matchMedia?.(PHONE_MEDIA).matches ?? false;
 
 const FULL_TEXT =
   'Încercările gratuite de azi s-au terminat. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.';
@@ -114,6 +120,11 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const phonePick = form.querySelector<HTMLButtonElement>('[data-try-phone-pick]')!;
   const phoneUndo = form.querySelector<HTMLButtonElement>('[data-try-phone-undo]')!;
   const refreshMs = deps.refreshMs ?? 10_000;
+  const here = (deps.isPhone ?? onAPhone)();
+  if (here) {
+    phonePick.classList.add('is-here');
+    phonePick.querySelector<HTMLElement>('[data-try-phone-pick-text]')!.textContent = 'Fă poze';
+  }
 
   let availability: QuickTryAvailability | null = null;
   let stored = readStoredTry(deps.storage, deps.now());
@@ -219,8 +230,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     pagesInput.value = '';
     const row = pagesInput.closest<HTMLElement>('[data-try-pick]')!;
     row.classList.add('is-chosen', 'is-phone');
-    row.querySelector<HTMLElement>('[data-try-pick-name]')!.textContent = 'Faci pozele cu telefonul';
-    row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = 'Codul QR apare după ce apeși Trimite';
+    row.querySelector<HTMLElement>('[data-try-pick-name]')!.textContent = here ? 'Faci pozele cu acest telefon' : 'Faci pozele cu telefonul';
+    row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = here ? 'Camera se deschide după ce apeși Trimite' : 'Codul QR apare după ce apeși Trimite';
   }
 
   phonePick.addEventListener('click', () => {
@@ -303,6 +314,10 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       form!.reset();
       choosePhone(false);
       for (const input of pickInputs) showPick(input, []);
+      if (withPhone && here) {
+        (deps.go ?? ((path: string) => window.location.assign(path)))(quickTryPhonePath(done.token, true));
+        return;
+      }
       if (withPhone) {
         phoneStep = openPhoneStep(
           dialog!,
