@@ -20,6 +20,23 @@ export const QUICK_TRY_CLASS = 'PROBA';
 export const QUICK_TRY_STUDENT = 'Elev';
 export const QUICK_TRY_TITLE = 'Încercare rapidă';
 
+// The phone page that sends the student's pages to a try (spec
+// docs/superpowers/specs/2026-11-16-quick-try-phone-photos-design.md).
+// `here`: opened on the phone that sent the form, so the page shows a link to
+// the try. A phone that scanned the code gets no link; that is no lock, since
+// the code holds the try's whole link.
+export function quickTryPhonePath(token: string, here = false): string {
+  return `/try/${token}/phone${here ? '?here=1' : ''}`;
+}
+// A phone in the hand, upright or sideways: it takes the photos itself, with
+// no QR code.
+export const PHONE_MEDIA = '(pointer: coarse) and (max-width: 767.98px), (pointer: coarse) and (max-height: 500px)';
+// While its QR code shows, the laptop reads the try's pages this often, and
+// stops after this long with no new page (the D1 read limit).
+export const PHONE_REFRESH_MS = 3000;
+export const PHONE_IDLE_MS = 15 * 60 * 1000;
+export const PHONE_IDLE_TEXT = `Nu a venit nicio pagină de ${PHONE_IDLE_MS / 60_000} minute.`;
+
 const QUICK_TRY_TOKEN = /^[a-z2-7]{32}$/;
 
 // The secret part of a try's link: 32 characters from a-z and 2-7, longer than

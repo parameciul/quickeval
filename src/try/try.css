@@ -39,18 +39,21 @@ html {
   text-align: center;
 }
 
+/* The pages as on the student's page: a preview, the number and size, "Șterge". */
 .try-pages {
-  display: grid;
-  gap: 0.5rem;
   margin: 0 0 1rem;
-  padding-left: 1.25rem;
 }
 
-.try-pages li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+.try-pages .page-name {
+  white-space: normal;
+}
+
+/* A phone keeps the room for "Pagina 1": "Șterge" is its icon there (its
+   name stays "Șterge pagina 1"). */
+@media (max-width: 479.98px) {
+  .try-page-remove {
+    display: none;
+  }
 }
 
 label.button-quiet.is-disabled {
@@ -409,4 +412,82 @@ label.button-quiet.is-disabled {
   padding-top: 1.5rem;
   border-top: 1px solid var(--rule);
   font-weight: 600;
+}
+
+/* The phone page of a try (/try/<token>/phone): one column, like the
+   student's upload page. */
+.phone-page {
+  max-width: 30rem;
+  margin: 0 auto;
+}
+
+.phone-page h1 {
+  margin-bottom: 0.25rem;
+}
+
+.phone-title {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+.phone-done {
+  text-align: center;
+  padding-top: 2rem;
+}
+
+/* On the phone that made the try: "Deschide încercarea" over "Mai adaugă pagini". */
+.phone-done .button + .button-quiet,
+.phone-page .alert + .button {
+  margin-top: 0.75rem;
+}
+
+.phone-tick {
+  display: inline-grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+  font-size: 1.75rem;
+}
+
+/* "Adaugă pagini" and "Fă poze cu telefonul", then the phone's code under
+   them: the code on the left, its two lines on the right. */
+.try-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.phone-code {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.75rem;
+}
+
+.phone-code p {
+  margin: 0 0 0.25rem;
+}
+
+.phone-code-lead {
+  font-weight: 500;
+}
+
+/* White in both themes: a phone reads dark cells on a light ground. */
+.phone-qr {
+  flex: none;
+  background: #ffffff;
+  border-radius: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .phone-code {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

@@ -293,7 +293,7 @@ describe('the pages that answer a search', () => {
     expect(doc.querySelector('.prose > p')?.previousElementSibling?.id).toBe('cine');
     expect(story).toEqual([
       'Proiectul nu vine din birourile unei companii de software care a încercat să anticipeze nevoile școlii, ci direct de la catedră. A fost creat de Laura Miron — profesoară de matematică la Liceul Teoretic „William Shakespeare” din Timișoara și autoarea platformei Matematică cu Laura Miron — împreună cu soțul ei, tocmai pentru a lua din greutatea munților de hârtie de pe birou.',
-      'Este o unealtă construită de cineva care trăiește realitatea din educație zi de zi, gândită să redea profesorilor cel mai prețios bun: timpul liber.',
+      'Este o unealtă construită de cineva care trăiește realitatea din educație zi de zi, gândită să redea profesorilor cel mai prețios bun: puțin timp liber.',
     ]);
     // Her site's name in the story is the link to her site.
     const site = doc.querySelector('.prose > p a');

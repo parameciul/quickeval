@@ -1,9 +1,11 @@
 import type { QuickTryAvailability } from '../../../shared/api.ts';
-import { QUICK_TRY_DAYS } from '../../../shared/quickTry.ts';
+import { PHONE_MEDIA, QUICK_TRY_DAYS, quickTryPhonePath } from '../../../shared/quickTry.ts';
 import { ApiError, messageOf } from '../../ui/ApiError.ts';
 import { phaseOf, scoreOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import type { LandingApi } from './api.ts';
+import { openPhoneStep, type PhoneStep } from './phone.ts';
+import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf } from './status.ts';
 import { forgetStoredTry, readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
@@ -24,7 +26,20 @@ export interface QuickTryDeps {
   loadTurnstile: LoadTurnstile;
   // How often the status line reads the try again while the robot works.
   refreshMs?: number;
+  // The QR window: the site's address, and how its code is drawn.
+  origin?: string;
+  drawQr?: typeof drawQr;
+  // A phone takes the photos itself: after the send it opens the try's phone
+  // page in its own tab, through `go`, in place of the QR window. `watchPhone`
+  // calls back when that may change (the phone turns).
+  isPhone?: () => boolean;
+  go?: (path: string) => void;
+  watchPhone?: (onChange: () => void) => void;
+  // Ends the page's own listeners (tests mount the page again and again).
+  signal?: AbortSignal;
 }
+
+const onAPhone = () => window.matchMedia?.(PHONE_MEDIA).matches ?? false;
 
 const FULL_TEXT =
   'Încercările gratuite de azi s-au terminat. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.';
@@ -65,6 +80,7 @@ function showPick(input: HTMLInputElement, chosen: File[]): void {
   const name = row.querySelector<HTMLElement>('[data-try-pick-name]')!;
   const hint = row.querySelector<HTMLElement>('[data-try-pick-hint]')!;
   const action = row.querySelector<HTMLElement>('[data-try-pick-action]')!;
+  row.classList.remove('is-phone');
   row.classList.toggle('is-chosen', chosen.length > 0);
   if (chosen.length === 0) {
     name.textContent = row.dataset.empty ?? '';
@@ -104,6 +120,9 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const sendButton = form.querySelector<HTMLButtonElement>('[data-try-send]')!;
   const closeButton = form.querySelector<HTMLButtonElement>('[data-try-close]')!;
   const turnstileBox = form.querySelector<HTMLElement>('[data-try-turnstile]')!;
+  const pagesInput = form.elements.namedItem('pages') as HTMLInputElement;
+  const phonePick = form.querySelector<HTMLButtonElement>('[data-try-phone-pick]')!;
+  const phoneUndo = form.querySelector<HTMLButtonElement>('[data-try-phone-undo]')!;
   const refreshMs = deps.refreshMs ?? 10_000;
 
   let availability: QuickTryAvailability | null = null;
@@ -112,6 +131,12 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   let widget: Promise<TurnstileWidget> | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let sending = false;
+  // "Cu telefonul": the pages come from the phone after the send.
+  let byPhone = false;
+  // The QR window, while it shows.
+  let phoneStep: PhoneStep | null = null;
+  // On a phone: "Fă poze" and its own camera, in place of the QR code.
+  let here = false;
 
   // The button, or the line that says why there is none.
   function refreshButton(): void {
@@ -171,7 +196,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       test: files('test')[0] ?? null,
       barem: files('barem')[0] ?? null,
       robotBarem: (form!.elements.namedItem('robotBarem') as HTMLInputElement).checked,
-      pages: files('pages'),
+      pages: byPhone ? [] : files('pages'),
+      byPhone,
     };
   }
 
@@ -195,13 +221,66 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
 
   closeButton.addEventListener('click', () => closeDialog(dialog));
 
+  // The pages row's chosen state for the phone: its name and hint, and
+  // "Schimbă" in place of the two buttons. Leaving it shows the picked files.
+  function choosePhone(on: boolean): void {
+    byPhone = on;
+    phonePick.hidden = on;
+    phoneUndo.hidden = !on;
+    if (!on) return showPick(pagesInput, Array.from(pagesInput.files ?? []));
+    pagesInput.value = '';
+    const row = pagesInput.closest<HTMLElement>('[data-try-pick]')!;
+    row.classList.add('is-chosen', 'is-phone');
+    row.querySelector<HTMLElement>('[data-try-pick-name]')!.textContent = here ? 'Faci pozele cu acest telefon' : 'Faci pozele cu telefonul';
+    row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = here ? 'Camera se deschide după ce apeși Trimite' : 'Codul QR apare după ce apeși Trimite';
+  }
+
+  // The pages row's phone button, for this device. The markup keeps it hidden
+  // so a phone never shows "Cu telefonul" first.
+  function applyDevice(): void {
+    here = (deps.isPhone ?? onAPhone)();
+    phonePick.classList.toggle('is-here', here);
+    phonePick.querySelector<HTMLElement>('[data-try-phone-pick-text]')!.textContent = here ? 'Fă poze' : 'Cu telefonul';
+    if (byPhone) choosePhone(true);
+    else phonePick.hidden = false;
+  }
+  applyDevice();
+  (deps.watchPhone ?? ((onChange) => window.matchMedia?.(PHONE_MEDIA).addEventListener?.('change', onChange, { signal: deps.signal })))(applyDevice);
+
+  phonePick.addEventListener('click', () => {
+    choosePhone(true);
+    // The button hides: the focus goes to its "Schimbă".
+    phoneUndo.focus();
+  });
+  phoneUndo.addEventListener('click', () => {
+    choosePhone(false);
+    phonePick.focus();
+  });
+
   const pickInputs = Array.from(form.querySelectorAll<HTMLInputElement>('[data-try-pick] input[type="file"]'));
-  for (const input of pickInputs) input.addEventListener('change', () => showPick(input, Array.from(input.files ?? [])));
+  for (const input of pickInputs) {
+    input.addEventListener('change', () => {
+      // Picking files leaves the phone choice.
+      if (input === pagesInput && byPhone) choosePhone(false);
+      showPick(input, Array.from(input.files ?? []));
+    });
+  }
   // Esc and a phone's back button close a dialog: not while it sends, so the
   // form stays to show how the send ended.
   dialog.addEventListener('cancel', (event) => {
-    if (sending) event.preventDefault();
+    if (sending || phoneStep?.busy()) event.preventDefault();
   });
+
+  // The QR window ends (Închide, Esc, the start): the dialog closes and the
+  // card follows the try, as after a send.
+  function endPhoneStep(): void {
+    if (!phoneStep || !stored) return;
+    phoneStep.close();
+    phoneStep = null;
+    closeDialog(dialog!);
+    void follow(stored).then(() => statusLink.focus());
+  }
+  dialog.addEventListener('close', endPhoneStep);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -244,9 +323,29 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         deps.now,
       );
       sending = false;
-      closeDialog(dialog!);
+      const withPhone = values.byPhone;
       form!.reset();
+      choosePhone(false);
       for (const input of pickInputs) showPick(input, []);
+      if (withPhone && here) {
+        // Back may show this page again from the browser's cache: closed, and
+        // with no button for a second try. The try is read then ("pageshow"),
+        // not now, when the answer would land on a page that is leaving.
+        closeDialog(dialog!);
+        refreshButton();
+        (deps.go ?? ((path: string) => window.location.assign(path)))(quickTryPhonePath(done.token, true));
+        return;
+      }
+      if (withPhone) {
+        phoneStep = openPhoneStep(
+          dialog!,
+          { api: deps.api, origin: deps.origin ?? window.location.origin, drawQr: deps.drawQr ?? drawQr },
+          done,
+          { robotBarem: values.barem === null, onStarted: endPhoneStep, onClosed: endPhoneStep },
+        );
+        return;
+      }
+      closeDialog(dialog!);
       await follow(done);
       statusLink.focus();
     } catch (err) {
@@ -266,6 +365,19 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       check?.reset();
     }
   }
+
+  // Shown again from the browser's cache (Back from the phone page): the try
+  // read again, since its pages or its state may have changed meanwhile.
+  window.addEventListener(
+    'pageshow',
+    (event) => {
+      if (!(event as PageTransitionEvent).persisted) return;
+      stored = readStoredTry(deps.storage, deps.now());
+      if (stored) void follow(stored);
+      else refreshButton();
+    },
+    { signal: deps.signal },
+  );
 
   const [answer] = await Promise.allSettled([deps.api.availability(), stored ? follow(stored) : Promise.resolve()]);
   if (answer.status === 'fulfilled') {

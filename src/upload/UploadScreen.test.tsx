@@ -147,6 +147,16 @@ describe('UploadScreen', () => {
     expectNoGradingWords();
   });
 
+  it('lets the student send again a page the server refused for now', async () => {
+    const { api } = setup();
+    api.uploadFile.mockRejectedValueOnce(new ApiError(409, 'not_started', 'Testul nu a început încă.'));
+    await pick([jpeg()]);
+    expect(await screen.findByText('Testul nu a început încă.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }));
+    expect(await screen.findByText('Încărcat')).toBeInTheDocument();
+    expect(api.uploadFile).toHaveBeenCalledTimes(2);
+  });
+
   it('deletes a sent page on the server', async () => {
     const { api } = setup();
     await pick([jpeg('a.jpg'), jpeg('b.jpg')]);

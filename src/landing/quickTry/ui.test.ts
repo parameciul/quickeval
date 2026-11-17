@@ -2,11 +2,12 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import page from '../../../index.html?raw';
 import headers from '../../../public/_headers?raw';
-import type { QuickTryAvailability } from '../../../shared/api.ts';
+import type { QuickTryAvailability, SubmissionFile } from '../../../shared/api.ts';
 import { PDF_TYPE } from '../../../shared/files.ts';
 import { tryTest } from '../../test/fakeTryApi.tsx';
 import { ApiError } from '../../ui/ApiError.ts';
 import type { LandingApi } from './api.ts';
+import { PHONE_MEDIA } from '../../../shared/quickTry.ts';
 import { STORED_TRY_KEY } from './storage.ts';
 import { initQuickTry, type TurnstileWidget } from './ui.ts';
 
@@ -17,7 +18,11 @@ const files = { test: { name: 'test.pdf', type: PDF_TYPE }, barem: { name: 'bare
 const grading = tryTest({ status: 'evaluating', files }, { status: 'submitted' });
 const graded = tryTest({ status: 'done', files }, { status: 'graded' });
 
+let mounted = new AbortController();
+
 afterEach(() => {
+  mounted.abort();
+  mounted = new AbortController();
   document.body.innerHTML = '';
   localStorage.clear();
 });
@@ -29,6 +34,7 @@ function fakeLandingApi(availability: Partial<QuickTryAvailability> = {}) {
     uploadTestFile: vi.fn(async () => {}),
     generateBarem: vi.fn(async () => {}),
     addPage: vi.fn(async () => {}),
+    listPages: vi.fn(async (_token: string): Promise<SubmissionFile[]> => []),
     start: vi.fn(async () => {}),
     getTest: vi.fn(async () => grading),
   } satisfies LandingApi;
@@ -39,9 +45,27 @@ function fakeTurnstile(answer: string | null = 'turnstile-ok') {
   return { load: vi.fn(async (_container: HTMLElement, _siteKey: string) => widget), widget };
 }
 
-async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile()) {
+interface PhoneDeps {
+  isPhone?: () => boolean;
+  go?: (path: string) => void;
+  watchPhone?: (onChange: () => void) => void;
+}
+
+async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone: PhoneDeps = {}) {
   document.body.innerHTML = new DOMParser().parseFromString(page, 'text/html').body.innerHTML;
-  await initQuickTry(document, { api, storage: localStorage, now: () => NOW, loadTurnstile: turnstile.load, refreshMs: 5 });
+  await initQuickTry(document, {
+    api,
+    storage: localStorage,
+    now: () => NOW,
+    loadTurnstile: turnstile.load,
+    refreshMs: 5,
+    origin: 'https://mqgrader.ro',
+    drawQr: async () => {},
+    isPhone: phone.isPhone ?? (() => false),
+    go: phone.go,
+    watchPhone: phone.watchPhone ?? (() => {}),
+    signal: mounted.signal,
+  });
   return { api, turnstile };
 }
 
@@ -61,6 +85,21 @@ function fillForm() {
   pick(/^Testul/, pdf('test.pdf'));
   pick(/^Baremul/, pdf('barem.pdf'));
   pick(/^Lucrarea elevului/, photo('p1.jpg'), photo('p2.jpg'));
+}
+
+const pagesRow = () => within(dialog()).getByLabelText(/^Lucrarea elevului/).closest<HTMLElement>('[data-try-pick]')!;
+function sendByPhone() {
+  pick(/^Testul/, pdf('test.pdf'));
+  pick(/^Baremul/, pdf('barem.pdf'));
+  within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
+  send();
+}
+
+// A page shown: from the browser's back/forward cache when `persisted`.
+function pageShow(persisted: boolean): Event {
+  const shown = new Event('pageshow');
+  Object.defineProperty(shown, 'persisted', { value: persisted });
+  return shown;
 }
 
 const send = () => within(dialog()).getByRole('button', { name: 'Trimite' }).click();
@@ -183,7 +222,7 @@ describe("the landing page's Quick Try", () => {
   it('shows each chosen file in its row, and empties the rows once the form is sent', async () => {
     await mount();
     button()!.click();
-    const row = (label: RegExp) => within(dialog()).getByLabelText(label).closest('label')!;
+    const row = (label: RegExp) => within(dialog()).getByLabelText(label).closest<HTMLElement>('[data-try-pick]')!;
     expect(row(/^Testul/)).toHaveTextContent('Alege testul');
     expect(row(/^Testul/)).not.toHaveClass('is-chosen');
     fillForm();
@@ -196,6 +235,201 @@ describe("the landing page's Quick Try", () => {
     await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
     expect(row(/^Testul/)).toHaveTextContent('Alege testul');
     expect(row(/^Lucrarea elevului/)).not.toHaveClass('is-chosen');
+  });
+
+  it('"Cu telefonul" marks the row as chosen and "Schimbă" puts it back', async () => {
+    await mount();
+    button()!.click();
+    const pages = pagesRow();
+    within(pages).getByRole('button', { name: 'Cu telefonul' }).click();
+    expect(pages).toHaveClass('is-chosen', 'is-phone');
+    expect(pages).toHaveTextContent('Faci pozele cu telefonul');
+    expect(pages).toHaveTextContent('Codul QR apare după ce apeși Trimite');
+    expect(within(pages).queryByRole('button', { name: 'Cu telefonul' })).toBeNull();
+    expect(within(pages).getByRole('button', { name: 'Schimbă' })).toHaveFocus();
+    within(pages).getByRole('button', { name: 'Schimbă' }).click();
+    expect(pages).not.toHaveClass('is-chosen');
+    expect(pages).not.toHaveClass('is-phone');
+    expect(pages).toHaveTextContent('Alege paginile');
+    expect(within(pages).getByRole('button', { name: 'Cu telefonul' })).toBeVisible();
+  });
+
+  it('picking files after choosing the phone leaves the phone choice', async () => {
+    await mount();
+    button()!.click();
+    const pages = pagesRow();
+    within(pages).getByRole('button', { name: 'Cu telefonul' }).click();
+    pick(/^Lucrarea elevului/, photo('p1.jpg'), photo('p2.jpg'));
+    expect(pages).not.toHaveClass('is-phone');
+    expect(pages).toHaveTextContent('2 pagini');
+  });
+
+  it('on a phone, the button says "Fă poze" and the row says the camera opens after the send', async () => {
+    await mount(undefined, undefined, { isPhone: () => true });
+    button()!.click();
+    const pages = pagesRow();
+    expect(within(pages).queryByRole('button', { name: 'Cu telefonul' })).toBeNull();
+    within(pages).getByRole('button', { name: 'Fă poze' }).click();
+    expect(pages).toHaveTextContent('Faci pozele cu acest telefon');
+    expect(pages).toHaveTextContent('Camera se deschide după ce apeși Trimite');
+  });
+
+  it("on a phone, a send with the photos opens the try's phone page in this tab", async () => {
+    const go = vi.fn();
+    const { api } = await mount(undefined, undefined, { isPhone: () => true, go });
+    button()!.click();
+    pick(/^Testul/, pdf('test.pdf'));
+    pick(/^Baremul/, pdf('barem.pdf'));
+    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    send();
+    await waitFor(() => expect(go).toHaveBeenCalledWith(`/try/${TOKEN}/phone?here=1`));
+    expect(api.addPage).not.toHaveBeenCalled();
+    expect(dialog().querySelector('[data-try-phone]')).not.toBeVisible();
+    expect(JSON.parse(localStorage.getItem(STORED_TRY_KEY)!)).toMatchObject({ token: TOKEN });
+  });
+
+  it('closes the form and hides the try button before it opens the phone page, so Back finds the page as it should be', async () => {
+    const atGo: { open: boolean; button: boolean }[] = [];
+    const go = vi.fn(() => {
+      atGo.push({ open: dialog().hasAttribute('open'), button: button() !== null });
+    });
+    const { api } = await mount(undefined, undefined, { isPhone: () => true, go });
+    button()!.click();
+    pick(/^Testul/, pdf('test.pdf'));
+    pick(/^Baremul/, pdf('barem.pdf'));
+    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    const reads = api.getTest.mock.calls.length;
+    send();
+    await waitFor(() => expect(go).toHaveBeenCalled());
+    expect(atGo).toEqual([{ open: false, button: false }]);
+    // The try is read when the page shows again, not just before it leaves.
+    expect(api.getTest).toHaveBeenCalledTimes(reads);
+  });
+
+  it('reads the try again when the browser shows the page again from its cache', async () => {
+    store();
+    const api = fakeLandingApi();
+    // A graded try is read once: no timer reads it again.
+    api.getTest.mockResolvedValue(graded);
+    await mount(api);
+    await waitFor(() => expect(api.getTest).toHaveBeenCalledTimes(1));
+    window.dispatchEvent(pageShow(false));
+    expect(api.getTest).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(pageShow(true));
+    await waitFor(() => expect(api.getTest).toHaveBeenCalledTimes(2));
+  });
+
+  it('on a phone, a send with no barem asks the robot for it, then opens the phone page', async () => {
+    const go = vi.fn();
+    const { api } = await mount(undefined, undefined, { isPhone: () => true, go });
+    button()!.click();
+    pick(/^Testul/, pdf('test.pdf'));
+    within(dialog()).getByLabelText('Nu am barem: fă-l din test').click();
+    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    send();
+    await waitFor(() => expect(go).toHaveBeenCalledWith(`/try/${TOKEN}/phone?here=1`));
+    expect(api.generateBarem).toHaveBeenCalledWith(TOKEN, CODE);
+  });
+
+  it('on a phone, a send that broke half-way stays in the form with the link, and opens no phone page', async () => {
+    const go = vi.fn();
+    const api = fakeLandingApi();
+    api.uploadTestFile.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new ApiError(0, 'network', 'Nu mă pot conecta la server.'));
+    await mount(api, undefined, { isPhone: () => true, go });
+    button()!.click();
+    pick(/^Testul/, pdf('test.pdf'));
+    pick(/^Baremul/, pdf('barem.pdf'));
+    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    send();
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent('Nu mă pot conecta la server.'));
+    expect(within(dialog()).getByRole('link', { name: 'Deschide încercarea' })).toHaveAttribute('href', `/try/${TOKEN}`);
+    expect(go).not.toHaveBeenCalled();
+  });
+
+  it('shows the pages button only once the script knows the device, and changes it when the phone turns', async () => {
+    const raw = new DOMParser().parseFromString(page, 'text/html');
+    expect(raw.querySelector('[data-try-phone-pick]')!.hasAttribute('hidden')).toBe(true);
+    let phone = false;
+    let turned = () => {};
+    await mount(undefined, undefined, { isPhone: () => phone, watchPhone: (onChange) => (turned = onChange) });
+    button()!.click();
+    expect(within(pagesRow()).getByRole('button', { name: 'Cu telefonul' })).toBeVisible();
+    phone = true;
+    turned();
+    expect(within(pagesRow()).getByRole('button', { name: 'Fă poze' })).toBeVisible();
+  });
+
+  it('counts a phone held sideways as a phone', () => {
+    expect(PHONE_MEDIA).toBe('(pointer: coarse) and (max-width: 767.98px), (pointer: coarse) and (max-height: 500px)');
+  });
+
+  it('choosing the phone forgets picked files', async () => {
+    const { api } = await mount();
+    button()!.click();
+    fillForm();
+    within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
+    expect((within(dialog()).getByLabelText(/^Lucrarea elevului/) as HTMLInputElement).value).toBe('');
+    send();
+    await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledTimes(2));
+    expect(api.addPage).not.toHaveBeenCalled();
+  });
+
+  it('after a send with the phone, the window stays open on the code', async () => {
+    await mount();
+    button()!.click();
+    sendByPhone();
+    const phone = dialog().querySelector<HTMLElement>('[data-try-phone]')!;
+    await waitFor(() => expect(phone).toBeVisible());
+    expect(dialog().hasAttribute('open')).toBe(true);
+    expect(within(phone).getByRole('heading', { name: 'Fă pozele cu telefonul' })).toHaveFocus();
+    expect(dialog().querySelector('[data-try-form]')).not.toBeVisible();
+  });
+
+  it('Esc closes the code window, and the card shows the try', async () => {
+    const { api } = await mount();
+    api.getTest.mockResolvedValue(tryTest({ status: 'open', files }));
+    button()!.click();
+    sendByPhone();
+    const phone = dialog().querySelector<HTMLElement>('[data-try-phone]')!;
+    await waitFor(() => expect(phone).toBeVisible());
+    const cancel = new Event('cancel', { cancelable: true });
+    dialog().dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(false);
+    // The browser closes the dialog after a cancel that is not prevented.
+    dialog().removeAttribute('open');
+    dialog().dispatchEvent(new Event('close'));
+    await waitFor(() => expect(screen.getByRole('status')).toBeVisible());
+    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toHaveAttribute('href', `/try/${TOKEN}`);
+    expect(phone).not.toBeVisible();
+    const reads = api.listPages.mock.calls.length;
+    await new Promise((done) => setTimeout(done, 30));
+    expect(api.listPages).toHaveBeenCalledTimes(reads);
+  });
+
+  it('after "Pornește corectarea" the window closes and the card follows the grading', async () => {
+    const { api } = await mount();
+    api.listPages.mockResolvedValue([{ id: 1, name: 'p1.jpg', contentType: 'image/jpeg', size: 10, position: 1 }]);
+    button()!.click();
+    sendByPhone();
+    const start = await within(dialog()).findByRole('button', { name: 'Pornește corectarea' });
+    await waitFor(() => expect(start).toBeEnabled());
+    start.click();
+    await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
+    expect(api.start).toHaveBeenCalledWith(TOKEN);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Se corectează… Durează câteva minute.'));
+  });
+
+  it('sends with the phone and keeps the try on the device', async () => {
+    const { api } = await mount();
+    button()!.click();
+    pick(/^Testul/, pdf('test.pdf'));
+    pick(/^Baremul/, pdf('barem.pdf'));
+    within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
+    send();
+    await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(localStorage.getItem(STORED_TRY_KEY)!)).toEqual({ token: TOKEN, code: CODE, madeAt: NOW.toISOString() });
+    expect(api.addPage).not.toHaveBeenCalled();
+    expect(api.start).not.toHaveBeenCalled();
   });
 
   it("moves the focus to the try's link once the form is sent", async () => {
