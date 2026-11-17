@@ -832,6 +832,7 @@ table.search-table {
 .user-menu button {
   display: flex;
   align-items: center;
+  gap: 0.625rem;
   min-height: 2.25rem;
   padding: 0 0.625rem;
   border: 0;
@@ -843,11 +844,6 @@ table.search-table {
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-}
-
-.user-menu a,
-.user-menu button {
-  gap: 0.625rem;
 }
 
 .user-menu .action-icon {
@@ -9142,19 +9138,37 @@ input.student-search:focus {
 
 /* On a computer the card reaches down to the foot of the screen (never
    shorter than 28rem) and the list scrolls inside it: a tall screen shows
-   more students. `--split-top` is where the card starts on the page
-   (ClassStudents). */
+   more students. The page fills the room under the top bar (the shell's
+   grid stretches it, as for the test page's bar), and the class page, its
+   tab panel and the card take what is left of it, column by column; the
+   card counts as 28rem when the page is measured, so its students never
+   make the page taller, and a short screen scrolls the page as before. */
 @media (min-width: 760.02px) {
+  .shell > .page:has(> .class-page .student-split),
+  .class-page:has(.student-split),
+  .class-page:has(.student-split) > #class-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .class-page:has(.student-split),
+  .class-page:has(.student-split) > #class-panel {
+    flex: 1 1 auto;
+  }
+
   .student-split {
-    height: max(28rem, calc(100dvh - var(--split-top, 13rem) - var(--split-foot, 1.5rem)));
+    flex: 1 1 0;
+    min-height: 28rem;
   }
 
   .student-list {
     min-height: 0;
   }
 
+  /* A short list keeps "Adaugă elevi" right under its last student; a long
+     one shrinks to the card and scrolls. */
   .student-list ul {
-    flex: 1;
+    flex: 0 1 auto;
     min-height: 0;
     max-height: none;
   }

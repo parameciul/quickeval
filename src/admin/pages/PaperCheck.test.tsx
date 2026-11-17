@@ -1500,6 +1500,51 @@ describe('the open row with its paper on a phone', () => {
     expect(scroll.mock.contexts.at(-1)).toBe(openRow());
   });
 
+  it('does not move the page later for a row opened on a computer, when the screen turns narrow', async () => {
+    const scroll = stubScroll();
+    // A tablet turned from landscape to portrait: the media queries change.
+    let width = 1024;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return (query === '(max-width: 56.25rem)' && width <= 900) || (query === '(max-width: 48rem)' && width <= 768);
+      },
+      media: query,
+      addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    }));
+    renderAdmin(paperAt(11, '32', 'all'), apiWith(), <LocationProbe />);
+    expect(await screen.findByText('Ana Pop · 3/3')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată pe lucrare Subiectul I, ex. 1' }));
+    await expectLocation(at(11, '31', 'all'));
+    await pause(50);
+    width = 820;
+    act(() => {
+      for (const listener of listeners) listener();
+    });
+    // The paper is now in the open row, and the page stays where it was.
+    await waitFor(() => expect(openRow().nextElementSibling).toHaveClass('item-photo'));
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it('does not move the page when the hidden paper shows again in the open row', async () => {
+    const scroll = stubScroll();
+    screenOf(375);
+    renderAdmin(paperAt(11, '32', 'all'), apiWith(), <LocationProbe />);
+    expect(await screen.findByText('Ana Pop · 3/3')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ascunde lucrarea' }));
+    // With the paper hidden she opens another row by a click on it.
+    await userEvent.click(screen.getByRole('rowheader', { name: /^I\.1\b/ }));
+    await expectLocation(at(11, '31', 'all'));
+    await pause(50);
+    expect(scroll).not.toHaveBeenCalled();
+    // Later "Lucrarea" shows the paper again, in that row: the page stays.
+    await userEvent.click(screen.getByRole('button', { name: 'Lucrarea' }));
+    await waitFor(() => expect(openRow().querySelector('td.inline-photo-cell')).not.toBeNull());
+    await pause(50);
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
   it('does not move the page on a computer, where the paper stays beside the exercises', async () => {
     const scroll = stubScroll();
     renderAdmin(paperAt(11, '32', 'all'), apiWith(), <LocationProbe />);
@@ -1555,6 +1600,40 @@ describe('the paper taller than its box', () => {
     expect(await screen.findByText('Ion Popa · 2/2')).toBeInTheDocument();
     // The second part (page 2, 50%–80%).
     await waitFor(() => expect(document.querySelector('.review-photo')!.scrollTop).toBeCloseTo(100 + 0.65 * 1500 - 500));
+    restore();
+  });
+
+  it('brings the answer back to the middle when the box or the page changes size', async () => {
+    // jsdom has no ResizeObserver: this one keeps what the page watches.
+    const watchers: (() => void)[] = [];
+    const watched: Element[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          watchers.push(callback);
+        }
+        observe(element: Element) {
+          watched.push(element);
+        }
+        disconnect() {}
+      },
+    );
+    const restore = tallPhotoBox();
+    renderAdmin(ION_I3, apiWith(framed()));
+    expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
+    const box = document.querySelector('.review-photo')!;
+    await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
+    expect(watched).toContain(box);
+    expect(watched).toContain(screen.getByTestId('zoom-pane'));
+    // The box was not yet taller than the screen when the answer opened (no
+    // width of her own yet), so it stayed at the top; then she drags the
+    // paper wider and the box grows.
+    box.scrollTop = 0;
+    act(() => {
+      for (const watcher of watchers) watcher();
+    });
+    expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500);
     restore();
   });
 

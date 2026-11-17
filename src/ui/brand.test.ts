@@ -290,4 +290,25 @@ describe('brand.css', () => {
     expect(value(declarations('html'), 'scroll-padding-top')).toBeDefined();
     expect(value(declarations('html'), 'overscroll-behavior-y')).toBe('none');
   });
+
+  it('lets the "Elevi" card fill the room under the top bar with no measuring, its list scrolling inside it', () => {
+    // On a computer (the first indented rule, inside the media query): the
+    // page, the class page and its tab panel are columns; the card takes
+    // what is left, and counts as 28rem when the page is measured.
+    expect(value(declarations('  .shell > .page:has(> .class-page .student-split),\n  .class-page:has(.student-split),\n  .class-page:has(.student-split) > #class-panel'), 'flex-direction')).toBe('column');
+    const card = declarations('  .student-split');
+    expect(value(card, 'flex')).toBe('1 1 0');
+    expect(value(card, 'min-height')).toBe('28rem');
+    expect(value(card, 'height')).toBeUndefined();
+    expect(css).not.toContain('--split-top');
+    // A short list keeps "Adaugă elevi" right under it; a long one scrolls.
+    const list = declarations('  .student-list ul');
+    expect(value(list, 'flex')).toBe('0 1 auto');
+    expect(value(list, 'min-height')).toBe('0');
+  });
+
+  it('writes the gap of the account menu in its one rule', () => {
+    expect(css.split('.user-menu a,\n.user-menu button {')).toHaveLength(2);
+    expect(value(declarations('.user-menu a,\n.user-menu button'), 'gap')).toBe('0.625rem');
+  });
 });

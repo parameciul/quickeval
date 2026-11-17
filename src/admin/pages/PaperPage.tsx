@@ -477,16 +477,19 @@ function Paper({
   // Only a row the teacher opens: another row of this paper, or the point a
   // decision opened (`paperFocus`, also on another student's paper). Not the
   // page as it opens, reloads or comes back (the browser keeps its place),
-  // and not the same row drawn again after a new grading.
+  // and not the same row drawn again after a new grading. Only as the row
+  // opens, once its paper is read: a row opened while its paper was not in
+  // it (on a computer, or with the paper hidden) never moves the page later,
+  // when the screen turns narrow or the paper shows again.
   const rowWithPhoto = photoInRow && !photoFolded;
+  const loaded = submission !== undefined;
   const scrollFor = useRef<{ key: string | null; pending: boolean }>({ key, pending: focusTarget === 'point' });
   useLayoutEffect(() => {
-    const wanted = scrollFor.current;
-    if (wanted.key !== key) scrollFor.current = { key, pending: key !== null };
-    if (!rowWithPhoto || !scrollFor.current.pending) return;
+    if (scrollFor.current.key !== key) scrollFor.current = { key, pending: key !== null };
+    if (!scrollFor.current.pending || !loaded) return;
     scrollFor.current.pending = false;
-    main.current?.querySelector('table.items tr.is-open, .pages-check.is-open')?.scrollIntoView?.({ block: 'start' });
-  }, [rowWithPhoto, key]);
+    if (rowWithPhoto) main.current?.querySelector('table.items tr.is-open, .pages-check.is-open')?.scrollIntoView?.({ block: 'start' });
+  }, [rowWithPhoto, key, loaded]);
 
   // The address names a paper of another test.
   if (submission !== undefined && submission.testCode !== code) return <NotFoundPage />;

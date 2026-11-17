@@ -129,26 +129,82 @@ describe('PhotoSplit', () => {
     expect(bar).toHaveAttribute('aria-valuenow', '75');
   });
 
-  it('follows a drag and saves the width only when the drag ends', () => {
+  it('follows a drag on the panes, and tells the page and saves the width only when the drag ends', () => {
     const shares: (number | null)[] = [];
     render(<Harness onShare={(share) => shares.push(share)} />);
     layOut();
     const bar = screen.getByRole('separator');
-    fireEvent.pointerDown(bar, { button: 0, pointerId: 1, clientX: 710 });
+    const panes = screen.getByTestId('panes');
+    fireEvent.pointerDown(bar, { button: 0, buttons: 1, pointerId: 1, clientX: 710 });
     expect(bar).toHaveClass('is-dragging');
     // The pointer at 1200: the paper gets 2100 - 1200 - 10 = 890 of 1980.
-    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 1200 });
-    expect(shares.at(-1)).toBeCloseTo(890 / 1980);
+    fireEvent.pointerMove(bar, { buttons: 1, pointerId: 1, clientX: 1200 });
+    expect(bar).toHaveAttribute('aria-valuenow', String(Math.round((890 / 1980) * 100)));
+    expect(panes.style.getPropertyValue('--photo-share')).toBe('4.49fr');
+    expect(panes).toHaveClass('has-photo-width');
+    // The page is not told of each move, and nothing is saved yet.
+    expect(shares).toEqual([]);
     expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBeNull();
     // Far to the left: the widest paper.
-    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 50 });
-    expect(shares.at(-1)).toBe(MAX_SHARE);
+    fireEvent.pointerMove(bar, { buttons: 1, pointerId: 1, clientX: 50 });
+    expect(bar).toHaveAttribute('aria-valuenow', '75');
+    expect(panes.style.getPropertyValue('--photo-share')).toBe('7.5fr');
     fireEvent.pointerUp(bar, { pointerId: 1, clientX: 50 });
     expect(bar).not.toHaveClass('is-dragging');
+    expect(shares).toEqual([MAX_SHARE]);
     expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBe('0.75');
+    // Letting go also loses the pointer: the width is not given twice.
+    fireEvent.lostPointerCapture(bar, { pointerId: 1 });
+    expect(shares).toEqual([MAX_SHARE]);
     // A move after the drag ended changes nothing.
-    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 900 });
-    expect(shares.at(-1)).toBe(MAX_SHARE);
+    fireEvent.pointerMove(bar, { buttons: 1, pointerId: 1, clientX: 900 });
+    expect(bar).toHaveAttribute('aria-valuenow', '75');
+    expect(shares).toEqual([MAX_SHARE]);
+  });
+
+  it('a click on the bar with no move changes and saves nothing', () => {
+    const shares: (number | null)[] = [];
+    render(<Harness onShare={(share) => shares.push(share)} />);
+    layOut();
+    const bar = screen.getByRole('separator');
+    fireEvent.pointerDown(bar, { button: 0, buttons: 1, pointerId: 1, clientX: 710 });
+    fireEvent.pointerUp(bar, { pointerId: 1, clientX: 710 });
+    expect(shares).toEqual([]);
+    expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBeNull();
+    expect(screen.getByTestId('panes')).not.toHaveClass('has-photo-width');
+  });
+
+  it('ends the drag when the pointer is lost to another window, keeping the width it reached', () => {
+    const shares: (number | null)[] = [];
+    render(<Harness onShare={(share) => shares.push(share)} />);
+    layOut();
+    const bar = screen.getByRole('separator');
+    fireEvent.pointerDown(bar, { button: 0, buttons: 1, pointerId: 1, clientX: 710 });
+    fireEvent.pointerMove(bar, { buttons: 1, pointerId: 1, clientX: 1200 });
+    // Alt+Tab in the middle of the drag: no pointerup ever comes.
+    fireEvent.lostPointerCapture(bar, { pointerId: 1 });
+    expect(bar).not.toHaveClass('is-dragging');
+    expect(shares).toHaveLength(1);
+    expect(shares[0]).toBeCloseTo(890 / 1980, 2);
+    expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBe(String(shares[0]));
+    // Back in the window, the pointer only passes over the bar: nothing moves.
+    fireEvent.pointerMove(bar, { buttons: 0, pointerId: 1, clientX: 400 });
+    expect(shares).toHaveLength(1);
+  });
+
+  it('ends the drag at a move with no button held', () => {
+    const shares: (number | null)[] = [];
+    render(<Harness onShare={(share) => shares.push(share)} />);
+    layOut();
+    const bar = screen.getByRole('separator');
+    fireEvent.pointerDown(bar, { button: 0, buttons: 1, pointerId: 1, clientX: 710 });
+    fireEvent.pointerMove(bar, { buttons: 1, pointerId: 1, clientX: 1200 });
+    fireEvent.pointerMove(bar, { buttons: 0, pointerId: 1, clientX: 400 });
+    expect(bar).not.toHaveClass('is-dragging');
+    expect(shares).toHaveLength(1);
+    expect(shares[0]).toBeCloseTo(890 / 1980, 2);
+    fireEvent.pointerMove(bar, { buttons: 1, pointerId: 1, clientX: 400 });
+    expect(shares).toHaveLength(1);
   });
 
   it('goes no further than the screen can show, and starts the keys from what it shows', async () => {
@@ -169,8 +225,8 @@ describe('PhotoSplit', () => {
     expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBe('0.534');
     await userEvent.keyboard('{Home}');
     expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBe('0.333');
-    fireEvent.pointerDown(bar, { button: 0, pointerId: 1, clientX: 710 });
-    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 0 });
+    fireEvent.pointerDown(bar, { button: 0, buttons: 1, pointerId: 1, clientX: 710 });
+    fireEvent.pointerMove(bar, { buttons: 1, pointerId: 1, clientX: 0 });
     fireEvent.pointerUp(bar, { pointerId: 1, clientX: 0 });
     expect(localStorage.getItem(PHOTO_WIDTH_KEY)).toBe('0.534');
   });
@@ -179,8 +235,8 @@ describe('PhotoSplit', () => {
     render(<Harness />);
     layOut();
     const bar = screen.getByRole('separator');
-    fireEvent.pointerDown(bar, { button: 2, pointerId: 1, clientX: 710 });
-    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 500 });
+    fireEvent.pointerDown(bar, { button: 2, buttons: 2, pointerId: 1, clientX: 710 });
+    fireEvent.pointerMove(bar, { buttons: 2, pointerId: 1, clientX: 500 });
     expect(bar).toHaveAttribute('aria-valuenow', '40');
   });
 

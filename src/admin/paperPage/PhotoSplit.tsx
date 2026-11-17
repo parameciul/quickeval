@@ -67,6 +67,12 @@ export function shareRange(room: number, rem: number): ShareRange {
   return max >= min ? { min, max } : { min, max: min };
 }
 
+interface Sizes {
+  room: number;
+  right: number;
+  width: number;
+}
+
 const within = (share: number, range: ShareRange) => clampShare(Math.min(range.max, Math.max(range.min, share)));
 
 // The bar between the exercises and the paper, on a wide screen only
@@ -75,6 +81,14 @@ const within = (share: number, range: ShareRange) => clampShare(Math.min(range.m
 // start width. The width is saved when the drag ends. It never goes past what
 // the screen can show: on a smaller screen a saved width wider than that shows
 // at the widest the screen allows, and is kept for a bigger one.
+//
+// The paper is the pane the bar sizes (its value, as the separator pattern
+// has it): Home gives it its least width, End its most, and the arrows move
+// the bar their way, so ← makes the paper wider.
+//
+// While a drag lasts, the bar writes the new width straight on the panes and
+// tells the page only when it ends: the page is not drawn again on every move
+// of the pointer.
 export function PhotoSplit({
   panes,
   share,
@@ -84,14 +98,17 @@ export function PhotoSplit({
   share: number | null;
   onShare: (share: number | null) => void;
 }) {
-  const [dragging, setDragging] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
-  const last = useRef(share);
   const [range, setRange] = useState<ShareRange>(WHOLE_RANGE);
+  // The drag under way: the sizes measured when it started, and the share it
+  // reached (none before the first move).
+  const drag = useRef<{ sizes: Sizes | null; limits: ShareRange; share: number | null } | null>(null);
+  const [dragShare, setDragShare] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   // The room of the two columns: from the exercises' left edge to the panes'
   // right edge, less the bar.
-  const measure = (): { room: number; right: number; width: number } | null => {
+  const measure = (): Sizes | null => {
     const box = panes.current;
     const main = box?.querySelector<HTMLElement>('.paper-main');
     const own = bar.current;
@@ -100,32 +117,51 @@ export function PhotoSplit({
     const right = box.getBoundingClientRect().right;
     return { room: right - main.getBoundingClientRect().left - width, right, width };
   };
-  const remeasure = (): ShareRange => {
+  const remeasure = (sizes: Sizes | null = measure()): ShareRange => {
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const next = shareRange(measure()?.room ?? 0, rem);
+    const next = shareRange(sizes?.room ?? 0, rem);
     setRange((old) => (old.min === next.min && old.max === next.max ? old : next));
     return next;
   };
+  // Measured when the bar shows, and again when the window or the exercises'
+  // column changes size (the students folded or unfolded): not on every
+  // render of the page.
   useLayoutEffect(() => {
-    remeasure();
-    window.addEventListener('resize', remeasure);
-    return () => window.removeEventListener('resize', remeasure);
-  });
+    const again = () => remeasure();
+    again();
+    window.addEventListener('resize', again);
+    const main = panes.current?.querySelector('.paper-main');
+    const watch = typeof ResizeObserver === 'function' && main ? new ResizeObserver(again) : null;
+    if (main) watch?.observe(main);
+    return () => {
+      window.removeEventListener('resize', again);
+      watch?.disconnect();
+    };
+    // The refs and setRange never change.
+  }, []);
 
-  const shown = within(share ?? START_SHARE, range);
+  const shown = within(dragShare ?? share ?? START_SHARE, range);
 
-  const change = (next: number | null, save: boolean, limits: ShareRange = range) => {
+  const change = (next: number | null, limits: ShareRange = range) => {
     const value = next === null ? null : within(next, limits);
-    last.current = value;
     onShare(value);
-    if (save) savePhotoShare(value);
+    savePhotoShare(value);
   };
 
-  // The share under the pointer.
-  const shareAt = (clientX: number): number | null => {
-    const sizes = measure();
-    if (!sizes || sizes.room <= 0) return null;
-    return (sizes.right - clientX - sizes.width / 2) / sizes.room;
+  // The end of a drag, however it ends (the button let go, the browser
+  // cancelling it, or the pointer lost to another window): the page gets the
+  // width it reached, which is saved. Once only: letting go also loses the
+  // pointer.
+  const endDrag = () => {
+    const ended = drag.current;
+    if (ended === null) return;
+    drag.current = null;
+    setDragging(false);
+    setDragShare(null);
+    if (ended.share !== null) {
+      onShare(ended.share);
+      savePhotoShare(ended.share);
+    }
   };
 
   const percent = Math.round(shown * 100);
@@ -147,34 +183,44 @@ export function PhotoSplit({
         if (event.button !== 0) return;
         event.preventDefault();
         event.currentTarget.setPointerCapture?.(event.pointerId);
-        remeasure();
+        const sizes = measure();
+        drag.current = { sizes, limits: remeasure(sizes), share: null };
         setDragging(true);
       }}
       onPointerMove={(event) => {
-        if (!dragging) return;
-        const next = shareAt(event.clientX);
-        if (next !== null) change(next, false);
+        const now = drag.current;
+        if (now === null) return;
+        // No button held any more: the drag ended out of sight.
+        if (event.buttons === 0) {
+          endDrag();
+          return;
+        }
+        const sizes = now.sizes;
+        if (!sizes || sizes.room <= 0) return;
+        const next = within((sizes.right - event.clientX - sizes.width / 2) / sizes.room, now.limits);
+        now.share = next;
+        setDragShare(next);
+        const box = panes.current;
+        if (!box) return;
+        for (const [name, value] of Object.entries(shareStyle(next)!)) box.style.setProperty(name, value);
+        box.classList.add('has-photo-width');
       }}
       onPointerUp={(event) => {
-        if (!dragging) return;
+        if (drag.current === null) return;
         event.currentTarget.releasePointerCapture?.(event.pointerId);
-        setDragging(false);
-        savePhotoShare(last.current);
+        endDrag();
       }}
-      onPointerCancel={() => {
-        setDragging(false);
-        savePhotoShare(last.current);
-      }}
-      onDoubleClick={() => change(null, true)}
+      onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
+      onDoubleClick={() => change(null)}
       onKeyDown={(event) => {
         const limits = remeasure();
         const from = within(share ?? START_SHARE, limits);
         const step = event.shiftKey ? BIG_KEY_STEP : KEY_STEP;
-        // The bar moves the way the arrow points: left makes the paper wider.
-        if (event.key === 'ArrowLeft') change(from + step, true, limits);
-        else if (event.key === 'ArrowRight') change(from - step, true, limits);
-        else if (event.key === 'Home') change(limits.min, true, limits);
-        else if (event.key === 'End') change(limits.max, true, limits);
+        if (event.key === 'ArrowLeft') change(from + step, limits);
+        else if (event.key === 'ArrowRight') change(from - step, limits);
+        else if (event.key === 'Home') change(limits.min, limits);
+        else if (event.key === 'End') change(limits.max, limits);
         else return;
         event.preventDefault();
       }}

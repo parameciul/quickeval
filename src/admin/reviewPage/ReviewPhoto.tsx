@@ -93,7 +93,8 @@ export function ReviewPhoto({
   // which then scrolls (brand.css). Another answer, part or page brings the
   // answer on the page shown to the middle of the box (the part being
   // stepped through, else the answer's first area there), or the top of the
-  // page when it has none; again once the photo has loaded and has its shape.
+  // page when it has none; again once the photo has loaded and has its
+  // shape, and whenever the box or the page changes size.
   const box = useRef<HTMLElement>(null);
   const pageNumber = index + 1;
   useLayoutEffect(() => {
@@ -114,12 +115,26 @@ export function ReviewPhoto({
       element.scrollTop = Math.max(0, middle - element.clientHeight / 2);
     };
     place();
+    // Again when the box or the page in it changes size: the photo has loaded,
+    // the teacher dragged the paper wider (the box may only now be taller than
+    // the screen), or the window changed. A zoom moves the page inside the
+    // pane and leaves the pane's size, so it never moves the box.
+    const pane = element.querySelector('.zoom-pane');
+    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(() => place()) : null;
+    if (watch) {
+      watch.observe(element);
+      if (pane) watch.observe(pane);
+    }
     const image = element.querySelector('.zoom-pane img');
-    if (!(image instanceof HTMLImageElement) || image.complete) return;
     const onLoad = () => requestAnimationFrame(place);
-    image.addEventListener('load', onLoad, { once: true });
-    return () => image.removeEventListener('load', onLoad);
-    // Only the answer, its part and the page move the box: not every render.
+    const waits = image instanceof HTMLImageElement && !image.complete;
+    if (waits) image.addEventListener('load', onLoad, { once: true });
+    return () => {
+      watch?.disconnect();
+      if (waits) image.removeEventListener('load', onLoad);
+    };
+    // Only the answer, its part, the page and a new size move the box: not
+    // every render.
   }, [focusKey, fileKey, partIndex]);
 
   const hide = onHide ? (

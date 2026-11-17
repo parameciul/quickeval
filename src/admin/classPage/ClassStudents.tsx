@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import type { AdminApi } from '../api.ts';
 import type { ClassGrade, StudentRow, TestSummary } from '../../../shared/api.ts';
@@ -63,42 +63,6 @@ export function ClassStudents({
     />
   );
 
-  // The card reaches down to the foot of the screen on a computer, and its
-  // list of students scrolls inside it (brand.css): it needs to know where it
-  // starts on the page, which moves with the lines above it, and the room the
-  // page keeps under it (the padding at the foot of the page), so the page
-  // itself never scrolls. Measured once the card shows, and again whenever
-  // the page changes size (a line above it that wraps, a notice, the fonts
-  // arriving) or the window does.
-  const split = useRef<HTMLDivElement>(null);
-  const hasStudents = students.length > 0;
-  useLayoutEffect(() => {
-    const element = split.current;
-    if (!element) return;
-    const place = () => {
-      let foot = 0;
-      for (let parent = element.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
-        const style = getComputedStyle(parent);
-        foot += (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0);
-      }
-      element.style.setProperty('--split-top', `${Math.round(element.getBoundingClientRect().top + window.scrollY)}px`);
-      element.style.setProperty('--split-foot', `${Math.round(foot)}px`);
-    };
-    place();
-    window.addEventListener('resize', place);
-    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(place) : null;
-    watch?.observe(document.body);
-    let live = true;
-    void document.fonts?.ready.then(() => {
-      if (live) place();
-    });
-    return () => {
-      live = false;
-      window.removeEventListener('resize', place);
-      watch?.disconnect();
-    };
-  }, [hasStudents]);
-
   if (students.length === 0) {
     const add = (
       <button type="button" className="button button-small" onClick={() => setAddOpen(true)}>
@@ -115,7 +79,7 @@ export function ClassStudents({
   }
 
   return (
-    <div className="class-card student-split" ref={split}>
+    <div className="class-card student-split">
       <div className="student-list">
         <label htmlFor="student-search" className="sr-only">
           Caută un elev
