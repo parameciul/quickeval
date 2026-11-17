@@ -109,6 +109,17 @@ describe("a try's files before the grading", () => {
     setup();
     await userEvent.click(await screen.findByRole('button', { name: 'Vezi pagina 1' }));
     expect(screen.getByRole('dialog', { name: 'Pagina 1' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Închide' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+
+  it('links to a photo whose preview could not be read', async () => {
+    const api = createFakeApi({ classes: [], students: {}, tests: [tryTest({})] });
+    const tryApi = createFakeTryApi({ pages: [structuredClone(page)] });
+    tryApi.pageBlob.mockRejectedValue(new ApiError(404, 'not_found', 'Nu am găsit fișierul.'));
+    renderTry('/', api, tryApi);
+    expect(await screen.findByRole('link', { name: 'Deschide pagina 1' })).toHaveAttribute('href', `/api/try/${TRY_TOKEN}/paper/${page.id}`);
   });
 
   it('counts the file changes left, and stops them at the limit', async () => {
@@ -175,6 +186,34 @@ describe("the phone's code on a try's page", () => {
       await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS);
     });
     expect(await screen.findByText('Pagina 1')).toBeInTheDocument();
+  });
+
+  it('closes the large page when the phone deletes that page', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { tryApi } = setup();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(await phoneButton());
+    await user.click(await screen.findByRole('button', { name: 'Vezi pagina 1' }));
+    expect(screen.getByRole('dialog', { name: 'Pagina 1' })).toBeInTheDocument();
+    await tryApi.deletePage(page.id);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS);
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it("reads each photo once for its preview, not again on the phone's watch", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { tryApi } = setup();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(await phoneButton());
+    await screen.findByRole('img', { name: 'Pagina 1' });
+    const lists = tryApi.listPages.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS * 3);
+    });
+    expect(tryApi.listPages.mock.calls.length).toBeGreaterThan(lists);
+    expect(tryApi.pageBlob).toHaveBeenCalledTimes(1);
   });
 
   it('shows "Verifică din nou" once idle and reads again on it', async () => {

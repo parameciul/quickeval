@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fitWithin, jpegName, shrinkPhoto, type PhotoTools } from './shrink.ts';
+import { fitWithin, jpegName, previewPhoto, shrinkPhoto, type PhotoTools } from './shrink.ts';
 
 // Fake tools: a photo of the given size that encodes to `encodedBytes` bytes.
 function tools(width: number, height: number, encodedBytes: number | null) {
@@ -84,5 +84,22 @@ describe('shrinkPhoto', () => {
     const original = photo('image/jpeg', 3000);
     expect(await shrinkPhoto(original, failing)).toBe(original);
     expect(close).toHaveBeenCalled();
+  });
+});
+
+describe('previewPhoto', () => {
+  it('makes a photo a small JPEG of at most 240 px for a preview', async () => {
+    const { fake, close } = tools(4000, 3000, 20);
+    const result = await previewPhoto(new Blob([new Uint8Array(9000)], { type: 'image/jpeg' }), fake);
+    expect(result.size).toBe(20);
+    expect(fake.encode).toHaveBeenCalledWith(expect.anything(), { width: 240, height: 180 }, 0.85);
+    expect(close).toHaveBeenCalled();
+  });
+
+  it('keeps the photo when it cannot be read', async () => {
+    const { fake } = tools(4000, 3000, 20);
+    fake.decode.mockRejectedValueOnce(new Error('no decoder'));
+    const original = new Blob([new Uint8Array(9000)], { type: 'image/jpeg' });
+    expect(await previewPhoto(original, fake)).toBe(original);
   });
 });
