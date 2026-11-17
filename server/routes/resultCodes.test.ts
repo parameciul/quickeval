@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeClass, makeTest, startTest, startedAtOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -108,5 +108,107 @@ describe('result codes', () => {
     await expect(
       api.db.prepare('UPDATE submissions SET result_code = ? WHERE student_id = ?').bind(first.resultCode, ana).run(),
     ).rejects.toThrow(/UNIQUE/);
+  });
+});
+
+describe('opening a result by its code', () => {
+  const typeCode = (typed: string, link = token) => api.request('POST', `/api/u/${link}/cod`, { code: typed });
+  const wrongCode = (right: string) => (right.startsWith('2') ? '3' : '2') + right.slice(1);
+
+  it('gives the result link for the right code, through either link of the test', async () => {
+    const { resultToken, resultCode } = await uploadAndConfirm(pop);
+    const res = await typeCode(resultCode);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ resultToken, resultCode, studentId: pop, studentName: 'Pop Ion' });
+
+    const multi = (await api.request('POST', `/api/admin/tests/${code}/multi-link`)).body.token as string;
+    expect((await typeCode(resultCode, multi)).body.resultToken).toBe(resultToken);
+  });
+
+  it('reads the code as the student types it, before and after the uploads close', async () => {
+    const { resultToken, resultCode } = await uploadAndConfirm(pop);
+    const typed = `${resultCode.slice(0, 3).toLowerCase()} - ${resultCode.slice(3).toLowerCase()} `;
+    expect((await typeCode(typed)).body.resultToken).toBe(resultToken);
+    await api.request('POST', `/api/admin/tests/${code}/close`);
+    expect((await typeCode(resultCode)).body.resultToken).toBe(resultToken);
+  });
+
+  it('refuses a wrong code, a text that is not a code, and the code of another test', async () => {
+    const { resultCode } = await uploadAndConfirm(pop);
+    const wrong = await typeCode(wrongCode(resultCode));
+    expect(wrong.status).toBe(404);
+    expect(wrong.body).toEqual({ error: 'unknown_code', message: 'Codul nu este bun. Verifică fiecare literă și încearcă din nou.' });
+    expect((await typeCode('')).status).toBe(404);
+    expect((await typeCode('nu știu')).status).toBe(404);
+
+    const cls = await makeClass(api, '7A', ['Alt Elev']);
+    const otherCode = await makeTest(api, cls.id, 'Ecuații');
+    const otherToken = await startTest(api, otherCode);
+    expect((await typeCode(resultCode, otherToken)).status).toBe(404);
+  });
+
+  it('refuses a body with no code, an unknown link and a test that has not started', async () => {
+    expect((await api.request('POST', `/api/u/${token}/cod`, {})).status).toBe(400);
+    expect((await typeCode('K7M92P', 'abcdefghijkmnop2')).status).toBe(404);
+    const cls = await makeClass(api, '7A', ['Alt Elev']);
+    const draft = await makeTest(api, cls.id, 'Ecuații');
+    const draftToken = (await api.db.prepare('SELECT upload_token FROM tests WHERE code = ?').bind(draft).first<{ upload_token: string }>())!.upload_token;
+    const res = await typeCode('K7M92P', draftToken);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('not_started');
+  });
+
+  it('stops after 10 wrong codes in 10 minutes, for the right code too, then opens again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-11-17T08:00:00.000Z'));
+      const { resultToken, resultCode } = await uploadAndConfirm(pop);
+      for (let attempt = 0; attempt < 10; attempt++) expect((await typeCode(wrongCode(resultCode))).status).toBe(404);
+      const stopped = await typeCode(resultCode);
+      expect(stopped.status).toBe(429);
+      expect(stopped.body).toEqual({ error: 'too_many_tries', message: 'Prea multe încercări. Încearcă din nou peste câteva minute.' });
+      // Refused tries do not push the window forward.
+      vi.setSystemTime(new Date('2026-11-17T08:09:59.000Z'));
+      expect((await typeCode(resultCode)).status).toBe(429);
+      vi.setSystemTime(new Date('2026-11-17T08:10:00.000Z'));
+      expect((await typeCode(resultCode)).body.resultToken).toBe(resultToken);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not count a right code, and counts a text that is not a code', async () => {
+    const { resultCode } = await uploadAndConfirm(pop);
+    for (let attempt = 0; attempt < 9; attempt++) expect((await typeCode('nu știu')).status).toBe(404);
+    for (let attempt = 0; attempt < 5; attempt++) expect((await typeCode(resultCode)).status).toBe(200);
+    expect((await typeCode(wrongCode(resultCode))).status).toBe(404);
+    expect((await typeCode(resultCode)).status).toBe(429);
+  });
+
+  it('counts the wrong codes of each test apart', async () => {
+    const { resultCode } = await uploadAndConfirm(pop);
+    const cls = await makeClass(api, '7A', ['Alt Elev']);
+    const otherCode = await makeTest(api, cls.id, 'Ecuații');
+    const otherToken = await startTest(api, otherCode);
+    for (let attempt = 0; attempt < 10; attempt++) await typeCode('nu știu', otherToken);
+    expect((await typeCode('nu știu', otherToken)).status).toBe(429);
+    expect((await typeCode(resultCode)).status).toBe(200);
+  });
+
+  it('forgets the code of a paper the teacher reset', async () => {
+    const { resultCode } = await uploadAndConfirm(pop);
+    const submissionId = await submissionIdOf(pop);
+    const reset = await api.request('POST', `/api/admin/submissions/${submissionId}/reset`, { startedAt: await startedAtOf(api, submissionId) });
+    expect(reset.status).toBe(200);
+    expect((await typeCode(resultCode)).status).toBe(404);
+  });
+
+  it('refuses a cross-site request', async () => {
+    const res = await api.fetch(`/api/u/${token}/cod`, {
+      method: 'POST',
+      body: JSON.stringify({ code: 'K7M92P' }),
+      headers: { 'Content-Type': 'application/json', Origin: 'https://example.com' },
+    });
+    expect(res.status).toBe(403);
   });
 });

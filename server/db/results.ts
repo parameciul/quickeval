@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { StudentEvaluation, StudentResultView, SubmissionFile, UploadStatus } from '../../shared/api.ts';
+import type { ResultCodeAnswer, StudentEvaluation, StudentResultView, SubmissionFile, UploadStatus } from '../../shared/api.ts';
+import { RESULT_CODE_TRIES, RESULT_CODE_WINDOW_MINUTES } from '../../shared/tests.ts';
 import { isUniqueViolation } from '../errors.ts';
 import { newResultToken } from '../secrets.ts';
 import { getEvaluation } from './evaluations.ts';
@@ -161,6 +162,52 @@ export async function confirmResultToken(
     if (again.result_token) return { resultToken: again.result_token, resultCode: again.result_code };
   }
   return null;
+}
+
+// A result link by its short code, typed on the page of the test `testId`.
+// Wrong codes are counted per test: at most RESULT_CODE_TRIES in a window of
+// RESULT_CODE_WINDOW_MINUTES, so the codes of a test cannot be guessed. The
+// first statement takes a try, and refuses it when none is left, inside its
+// own SQL; a right code gives its try back. `code` is null for a text that is
+// not a code: it costs a try like any wrong code.
+export async function openResultByCode(
+  db: D1Database,
+  testId: number,
+  code: string | null,
+  now: string,
+): Promise<ResultCodeAnswer | 'limited' | null> {
+  const windowStart = new Date(Date.parse(now) - RESULT_CODE_WINDOW_MINUTES * 60_000).toISOString();
+  const [taken, found] = await db.batch<{ tries: number } | CodeRow>([
+    db
+      .prepare(
+        `INSERT INTO result_code_tries (test_id, tries, since) VALUES (?, 1, ?)
+         ON CONFLICT (test_id) DO UPDATE SET
+           tries = CASE WHEN since <= ? THEN 1 ELSE tries + 1 END,
+           since = CASE WHEN since <= ? THEN excluded.since ELSE since END
+         WHERE since <= ? OR tries < ?
+         RETURNING tries`,
+      )
+      .bind(testId, now, windowStart, windowStart, windowStart, RESULT_CODE_TRIES),
+    db
+      .prepare(
+        `SELECT s.result_token, s.result_code, s.student_id, st.full_name
+         FROM submissions s JOIN students st ON st.id = s.student_id
+         WHERE s.test_id = ? AND s.result_code = ? AND s.result_token IS NOT NULL`,
+      )
+      .bind(testId, code ?? ''),
+  ]);
+  if ((taken?.results ?? []).length === 0) return 'limited';
+  const row = (found?.results ?? [])[0] as CodeRow | undefined;
+  if (!row) return null;
+  await db.prepare('UPDATE result_code_tries SET tries = tries - 1 WHERE test_id = ? AND tries > 0').bind(testId).run();
+  return { resultToken: row.result_token, resultCode: row.result_code, studentId: row.student_id, studentName: row.full_name };
+}
+
+interface CodeRow {
+  result_token: string;
+  result_code: string;
+  student_id: number;
+  full_name: string;
 }
 
 interface ResultRow {

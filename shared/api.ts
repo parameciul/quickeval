@@ -381,6 +381,21 @@ export const shownUpload = z.object({ startedAt: z.string({ message: 'Reîncarc�
 
 export type ShownUploadBody = z.output<typeof shownUpload>;
 
+// The student app: open a result by the short code of its link, typed on the
+// test's page. Any text is taken: the server counts a text that is not a code
+// as a wrong try.
+export const resultCodeBody = z.object({
+  code: z.string({ message: 'Scrie codul tău.' }).max(40, { message: 'Codul are 6 caractere.' }),
+});
+
+// The result link a code opened, with what the phone keeps beside it.
+export interface ResultCodeAnswer {
+  resultToken: string;
+  resultCode: string;
+  studentId: number;
+  studentName: string;
+}
+
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({
   studentId: z
