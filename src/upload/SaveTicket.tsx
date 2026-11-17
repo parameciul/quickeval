@@ -53,6 +53,7 @@ export function useSaveTicket({
   const settle = useRef<{ resolve: (png: Blob) => void; reject: (err: unknown) => void } | null>(null);
   const release = useRef<(() => void) | null>(null);
   const working = useRef(false);
+  const mounted = useRef(false);
   const latest = useRef(picture);
   latest.current = picture;
 
@@ -64,6 +65,16 @@ export function useSaveTicket({
     setRound((value) => value + 1);
     return made;
   };
+
+  // Whatever turn this ticket holds when it goes away is given on.
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      release.current?.();
+      release.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!savesThroughShare()) return;
@@ -88,6 +99,12 @@ export function useSaveTicket({
   // picture may already be made or on its way.
   const drawInTurn = async (): Promise<Blob> => {
     const done = await takeTurn();
+    // The ticket went away while it waited: a draw would never end, and
+    // would hold the line for every ticket after it.
+    if (!mounted.current) {
+      done();
+      throw new Error('The ticket is gone.');
+    }
     if (ready.current) {
       done();
       return ready.current;

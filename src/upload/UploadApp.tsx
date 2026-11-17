@@ -11,6 +11,7 @@ import {
   loadResultLinks,
   loadTestResultLinks,
   pruneStaleResultLinks,
+  rememberResultCode,
   rememberTestKey,
   saveResultLink,
   singleUploadLocked,
@@ -309,9 +310,12 @@ function ClosedScreen({
   // With a kept link the field waits behind "Am alt cod" (a shared phone).
   const [otherCode, setOtherCode] = useState(false);
   const opened = (answer: ResultCodeAnswer) => {
-    // A link this phone already keeps (it sent that paper) stays as it is.
+    // A link this phone already keeps (it sent that paper) stays as it is,
+    // and learns its code if it was kept before links had codes.
     if (loadResultLink(uploadToken, answer.studentId)?.resultToken !== answer.resultToken) {
       saveResultLink(uploadToken, answer.studentId, answer.resultToken, answer.studentName, answer.resultCode, true);
+    } else {
+      rememberResultCode(answer.resultToken, answer.resultCode);
     }
     setLinks(loadTestResultLinks(uploadToken, info.test.key));
     setOtherCode(false);

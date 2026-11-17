@@ -210,6 +210,23 @@ describe('the code field on the closed test page', () => {
     expect(loadResultLink(LINK_TOKEN, 11)).not.toHaveProperty('byCode');
   });
 
+  it('teaches the code to a link this phone kept before links had codes', async () => {
+    const api = createFakeUploadApi(closedOnly());
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', null);
+    render(<UploadApp api={api} token={LINK_TOKEN} goTo={vi.fn()} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Am alt cod' }));
+    await userEvent.type(field(), 'K7M92P');
+    await userEvent.click(screen.getByRole('button', { name: 'Vezi rezultatul' }));
+    const ticket = await screen.findByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
+    expect(await within(ticket).findByText('K7M-92P')).toBeInTheDocument();
+    expect(loadResultLink(LINK_TOKEN, 11)).toEqual({
+      studentId: 11,
+      studentName: 'Pop Ion',
+      resultToken: 'result-token-11',
+      resultCode: 'K7M92P',
+    });
+  });
+
   it('shows no code field while the uploads are open or the test has not started', async () => {
     const open = render(<UploadApp api={createFakeUploadApi()} token={LINK_TOKEN} goTo={vi.fn()} />);
     expect(await screen.findByRole('button', { name: 'Pop Ion' })).toBeInTheDocument();

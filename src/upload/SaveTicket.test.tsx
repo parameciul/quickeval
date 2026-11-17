@@ -244,6 +244,30 @@ describe('Salvează biletul', () => {
     expect(renderTicket).toHaveBeenCalledTimes(2);
   });
 
+  it('gives the turn on when a ticket goes away while its tap waits for it', async () => {
+    // The first picture takes its time; the others are made at once.
+    vi.mocked(renderTicket).mockImplementationOnce(() => new Promise<Blob>(() => {}));
+    const shown = render(
+      <>
+        {[1, 2].map((n) => (
+          <ResultTicket key={n} resultToken={`result-token-${n}`} resultCode="K7M92P" studentName={`Elev ${n}`} test={TEST} />
+        ))}
+      </>,
+    );
+    await vi.waitFor(() => expect(renderTicket).toHaveBeenCalledTimes(1));
+    // A tap on the second ticket waits for its turn; then the screen changes.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Salvează biletul' })[1]!);
+    await act(async () => {});
+    shown.rerender(
+      <ResultTicket key={3} resultToken="result-token-3" resultCode="K7M92P" studentName="Elev 3" test={TEST} />,
+    );
+    // The new ticket still gets its picture: nothing holds the line.
+    await vi.waitFor(() =>
+      expect(vi.mocked(renderTicket).mock.calls.map((call) => call[0].studentName)).toContain('Elev 3'),
+    );
+    expect(vi.mocked(renderTicket).mock.calls.map((call) => call[0].studentName)).not.toContain('Elev 2');
+  });
+
   it('gives the turn on when the QR code cannot be drawn, and tries again on the tap', async () => {
     qrRef.drop = true;
     render(
