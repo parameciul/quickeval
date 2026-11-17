@@ -252,3 +252,28 @@ describe('GET /api/admin/tests/:code/files/:kind', () => {
     expect((await api.fetch(`/api/admin/tests/${foreign.code}/files/test`)).status).toBe(404);
   });
 });
+
+describe('the first, Romanian API paths', () => {
+  it('are gone: "barem" and "ces" answer 404, and the data stays as it was', async () => {
+    await addTestFiles(api, code);
+    const t = `/api/admin/tests/${code}`;
+    expect((await putFile(code, 'barem', pdf('x'), PDF_TYPE, 'barem.pdf')).status).toBe(404);
+    for (const [method, path, body] of [
+      ['GET', `${t}/files/barem`, undefined],
+      ['PUT', `${t}/barem-notes`, { notes: 'Vechi.' }],
+      ['POST', `${t}/barem/generate`, undefined],
+      ['POST', `${t}/barem/checked`, { filesVersion: 0 }],
+      ['GET', `${t}/ces/files/test`, undefined],
+      ['PUT', `${t}/ces/barem-notes`, { notes: 'Vechi.' }],
+      ['PUT', `${t}/ces/off`, { off: true }],
+      ['DELETE', `${t}/ces`, undefined],
+      ['GET', `${t}/ces/print`, undefined],
+      ['PUT', `/api/admin/students/${studentId}/ces`, { ces: true }],
+    ] as const) {
+      const res = await api.request(method, path, body);
+      expect([method, path, res.status]).toEqual([method, path, 404]);
+    }
+    const test = (await api.request('GET', t)).body.test;
+    expect([test.baremNotes, test.ces.off, test.files.barem.name]).toEqual(['', false, 'barem.pdf']);
+  });
+});
