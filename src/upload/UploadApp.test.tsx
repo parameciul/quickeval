@@ -317,7 +317,69 @@ describe('UploadApp', () => {
     render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
     expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
     expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
+    expect(screen.getByText('Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.')).toBeInTheDocument();
     expect(openResult).not.toHaveBeenCalled();
+    expect(api.getResult).not.toHaveBeenCalled();
+  });
+
+  it('keeps the ticket and opens nothing when other results are published but not the one this phone sent', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
+    api.getResult.mockRejectedValue(
+      new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Probabil profesorul nu a terminat de corectat. Revino mai târziu.'),
+    );
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    expect(await screen.findByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
+    expect(api.getResult).toHaveBeenCalledWith('result-token-11');
+    expect(screen.getByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(screen.getByText('Rezultatul tău nu a fost publicat încă. Revino pe acest link după ce profesorul îl publică.')).toBeInTheDocument();
+    expect(screen.queryByText('Rezultatele au fost publicate.')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+    expectNoGradingWords();
+  });
+
+  it('forgets a kept link the server no longer knows and asks for the code, with no error', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
+    api.getResult.mockRejectedValue(new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.'));
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    expect(await screen.findByLabelText('Scrie codul tău')).toBeInTheDocument();
+    expect(screen.getByText('Rezultatele au fost publicate.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+    expect(localStorage.getItem(`qe.result.${LINK_TOKEN}.11`)).toBeNull();
+  });
+
+  it('opens the result when the phone also kept a link of another test', async () => {
+    const closed = { ...linkInfo({ status: 'done', resultsOpen: true }), students: [] };
+    const api = createFakeUploadApi(closed);
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    saveResultLink('otherlinktoken22', 11, 'result-token-99', 'Pop Ion', 'XYZ234');
+    api.getLink.mockImplementation(async (asked: string) => {
+      const info = structuredClone(closed);
+      if (asked === 'otherlinktoken22') info.test.key = 'test-key-2';
+      return info;
+    });
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    await vi.waitFor(() => expect(openResult).toHaveBeenCalledWith('/u/result/result-token-11'));
+    expect(openResult).toHaveBeenCalledTimes(1);
+  });
+
+  it('says an archived test closed its results, in place of waiting for them', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', archived: true }), students: [] });
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={vi.fn()} />);
+    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(
+      screen.getByText('Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Revino pe acest link/)).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
+    expectNoGradingWords();
   });
 
   it('opens a result this phone kept through the other link of the test, and asks for that link only once', async () => {

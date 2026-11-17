@@ -114,7 +114,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     // Asked only once the uploads closed: an open test's page reads nothing more.
     const resultsOpen = test.status !== 'draft' && test.status !== 'open' && (await resultsPublished(c.env.DB, test.id));
     return c.json({
-      test: { code: test.code, title: test.title, className: test.className, status: test.status, key, resultsOpen },
+      test: { code: test.code, title: test.title, className: test.className, status: test.status, key, resultsOpen, archived: test.archived },
       students: test.status === 'open' ? await listLinkStudents(c.env.DB, test) : [],
       multi: test.multi,
     } satisfies LinkInfo);

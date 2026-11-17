@@ -1061,7 +1061,16 @@ export interface LinkStudent {
 // results (open for all, or some published alone); always false while the
 // test is a draft or open.
 export interface LinkInfo {
-  test: { code: string; title: string; className: string; status: TestStatus; key: string; resultsOpen: boolean };
+  test: {
+    code: string;
+    title: string;
+    className: string;
+    status: TestStatus;
+    key: string;
+    resultsOpen: boolean;
+    // The test or its class is archived, which closes its results for good.
+    archived: boolean;
+  };
   students: LinkStudent[];
   multi: boolean;
 }

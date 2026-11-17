@@ -7,6 +7,7 @@ import type { ActiveSession, UploadApi } from './api.ts';
 import { CodeEntry } from './CodeEntry.tsx';
 import { NamePicker } from './NamePicker.tsx';
 import {
+  forgetResultLinkByToken,
   loadResultLink,
   loadResultLinks,
   loadTestResultLinks,
@@ -32,7 +33,9 @@ type Phase =
   | { kind: 'failed'; message: string }
   | { kind: 'opening' }
   | { kind: 'notStarted'; info: LinkInfo }
-  | { kind: 'closed'; info: LinkInfo }
+  // `waiting`: the test has published results, but not the one of the paper
+  // this phone sent.
+  | { kind: 'closed'; info: LinkInfo; waiting?: boolean }
   | { kind: 'names'; info: LinkInfo; message: string | null }
   | { kind: 'upload'; info: LinkInfo; session: ActiveSession }
   | { kind: 'sent'; info: LinkInfo; fileCount: number; resultToken: string; resultCode: string | null; studentName: string }
@@ -154,13 +157,19 @@ export function UploadApp({
           // which test the other kept links belong to, before they are read.
           await learnOtherLinks(api, token);
           if (!isCurrent()) return;
-          // Published, and this phone keeps the link of one paper of this
-          // test: the student came for that result, so it opens at once. With
-          // more (a shared phone) the page cannot know whose it is.
+          // Published, and this phone sent one paper of this test: the student
+          // came for that result, so it opens at once. With more (a shared
+          // phone) the page cannot know whose it is.
           const kept = info.test.resultsOpen ? loadTestResultLinks(token, info.test.key) : [];
           if (kept.length === 1) {
-            setPhase({ kind: 'opening' });
-            openResult(studentResultPath(kept[0]!.resultToken));
+            const own = await ownResult(api, kept[0]!.resultToken);
+            if (!isCurrent()) return;
+            if (own === 'open') {
+              setPhase({ kind: 'opening' });
+              openResult(studentResultPath(kept[0]!.resultToken));
+              return;
+            }
+            setPhase({ kind: 'closed', info, waiting: own === 'closed' });
             return;
           }
           setPhase({ kind: 'closed', info });
@@ -215,7 +224,9 @@ export function UploadApp({
               </button>
             </>
           )}
-          {phase.kind === 'closed' && token && <ClosedScreen api={api} uploadToken={token} info={phase.info} goTo={goTo} />}
+          {phase.kind === 'closed' && token && (
+            <ClosedScreen api={api} uploadToken={token} info={phase.info} waiting={phase.waiting ?? false} goTo={goTo} />
+          )}
           {phase.kind === 'names' && token && (
             <>
               <KeptResultLinks uploadToken={token} info={phase.info} />
@@ -310,39 +321,39 @@ async function learnOtherLinks(api: UploadApi, uploadToken: string): Promise<voi
 }
 
 // The page once the uploads closed. The teacher sends this link again when
-// the results are published: a phone that kept the link of one paper of the
-// test (through either link) opens that result before this page shows; one
-// that kept none or several asks for the code, and shows no ticket. A
-// result opens only by its own link, so the page cannot hand it out by name.
-// A student whose phone has no link (another phone, a cleared browser) types
-// the short code of the ticket once the results are published: the page keeps
-// the link on this phone too and opens the result. Before that there is no
-// field: a code would open nothing, and typed on a classmate's phone it would
-// only add a link there, so that phone would ask for a code after the publish
-// instead of opening its own result.
+// the results are published: a phone that sent one paper of the test (through
+// either link) opens that result before this page shows; one that sent none
+// or several asks for the code, and shows no ticket. A result opens only by
+// its own link, so the page cannot hand it out by name. A student whose phone
+// sent nothing (another phone, a cleared browser) types the short code of the
+// ticket once the results are published, and the result opens. The phone
+// keeps only the links it sent: a code typed on a classmate's phone would
+// otherwise open there by itself for its owner. Before the publish there is
+// no field: a code would open nothing yet.
 function ClosedScreen({
   api,
   uploadToken,
   info,
+  waiting,
   goTo,
 }: {
   api: UploadApi;
   uploadToken: string;
   info: LinkInfo;
+  // The test has published results, but not the one of the paper this phone sent.
+  waiting: boolean;
   goTo: (url: string) => void;
 }) {
   const [links] = useState<SavedResultLink[]>(() => loadTestResultLinks(uploadToken, info.test.key));
   const opened = (answer: ResultCodeAnswer) => {
-    // A link this phone already keeps (it sent that paper) stays as it is,
-    // and learns its code if it was kept before links had codes.
-    if (loadResultLink(uploadToken, answer.studentId)?.resultToken !== answer.resultToken) {
-      saveResultLink(uploadToken, answer.studentId, answer.resultToken, answer.studentName, answer.resultCode, true);
-    } else {
+    // A link this phone sent learns its code if it was kept before links had
+    // codes; a code never adds a link to the phone.
+    if (loadResultLink(uploadToken, answer.studentId)?.resultToken === answer.resultToken) {
       rememberResultCode(answer.resultToken, answer.resultCode);
     }
     goTo(studentResultPath(answer.resultToken));
   };
-  if (!info.test.resultsOpen) {
+  if (!info.test.resultsOpen || waiting) {
     // The tickets this phone kept stay, so a student who did not save one
     // after sending can still save it.
     // Grey, not red: closed uploads are the normal next step, not an error.
@@ -352,7 +363,7 @@ function ClosedScreen({
           Încărcarea s-a închis.
         </p>
         <p className="hint">Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
-        <p className="hint">Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.</p>
+        <p className="hint">{waitLine(info, waiting)}</p>
         {links.length > 0 && <Tickets links={links} info={info} />}
       </>
     );
@@ -366,6 +377,33 @@ function ClosedScreen({
       <CodeEntry api={api} token={uploadToken} onOpened={opened} />
     </>
   );
+}
+
+// What the closed page says while no result opens from it.
+function waitLine(info: LinkInfo, waiting: boolean): string {
+  if (waiting) return 'Rezultatul tău nu a fost publicat încă. Revino pe acest link după ce profesorul îl publică.';
+  // Archiving closes the results, and they may never open again.
+  if (info.test.archived) return 'Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.';
+  return 'Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.';
+}
+
+// Whether the result of a paper this phone sent can open now: 'closed' while
+// the teacher keeps it unpublished (other results of the test may be out),
+// 'gone' for a link the server no longer knows (a reset paper: it is
+// forgotten, so the page asks for the code), else 'open'. On any other
+// trouble the result page opens and says what is wrong.
+async function ownResult(api: UploadApi, resultToken: string): Promise<'open' | 'closed' | 'gone'> {
+  try {
+    await api.getResult(resultToken);
+    return 'open';
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'results_closed') return 'closed';
+    if (err instanceof ApiError && err.code === 'unknown_link') {
+      forgetResultLinkByToken(resultToken);
+      return 'gone';
+    }
+    return 'open';
+  }
 }
 
 // The result links this phone kept for one upload link (the same QR code).
