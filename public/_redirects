@@ -1,3 +1,19 @@
+# The four public pages and their share cards had Romanian addresses until
+# 2026-11-17. Search engines and shared links still hold them: keep these 301s.
+# They come first, because the first rule that matches wins.
+/ghid /guide/ 301
+/ghid/* /guide/:splat 301
+/og-ghid.png /og-guide.png 301
+/barem /marking-scheme/ 301
+/barem/* /marking-scheme/:splat 301
+/og-barem.png /og-marking-scheme.png 301
+/despre /about/ 301
+/despre/* /about/:splat 301
+/og-despre.png /og-about.png 301
+/preturi /pricing/ 301
+/preturi/* /pricing/:splat 301
+/og-preturi.png /og-pricing.png 301
+
 # The teacher app, the student app and a Quick Try's page are single-page apps:
 # every /teacher page loads /teacher/ (teacher/index.html), every /u/<token>
 # page loads /u/ (u/index.html), every /try/<token> page loads /try/

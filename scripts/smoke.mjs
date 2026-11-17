@@ -54,10 +54,10 @@ for (const path of [
   '/og-image.png',
   '/app-teste.png',
   '/app-verificare.png',
-  '/og-ghid.png',
-  '/og-barem.png',
-  '/og-despre.png',
-  '/og-preturi.png',
+  '/og-guide.png',
+  '/og-marking-scheme.png',
+  '/og-about.png',
+  '/og-pricing.png',
   '/logo.png',
   '/favicon.svg',
   '/4c7f1a9db35e6280f4b7a1c9d2e6085f.txt',
@@ -71,21 +71,21 @@ check('pictures are cached for a day', (picture.headers.get('cache-control') ?? 
 // The pages that answer a search: built by Vite from their own folders, open
 // to search engines, each with the address the sitemap lists.
 const SHARE = {
-  '/ghid/': 'og-ghid.png',
-  '/barem/': 'og-barem.png',
-  '/despre/': 'og-despre.png',
-  '/preturi/': 'og-preturi.png',
+  '/guide/': 'og-guide.png',
+  '/marking-scheme/': 'og-marking-scheme.png',
+  '/about/': 'og-about.png',
+  '/pricing/': 'og-pricing.png',
 };
 for (const [path, card] of Object.entries(SHARE)) {
   const content = await page(path);
   check(`content page ${path}`, content.res.status === 200, String(content.res.status));
   check(`content page ${path} may be indexed`, !(content.res.headers.get('x-robots-tag') ?? '').includes('noindex'));
   check(`content page ${path} points at itself`, content.text.includes(`<link rel="canonical" href="https://mqgrader.ro${path}"`));
-  check(`content page ${path} links the others`, ['/ghid/', '/barem/', '/despre/', '/preturi/'].every((link) => content.text.includes(`href="${link}"`)));
+  check(`content page ${path} links the others`, ['/guide/', '/marking-scheme/', '/about/', '/pricing/'].every((link) => content.text.includes(`href="${link}"`)));
   check(`content page ${path} has its own share card`, content.text.includes(`property="og:image" content="https://mqgrader.ro/${card}"`));
   check(`content page ${path} says who wrote it and when`, content.text.includes('class="byline"') && content.text.includes('actualizat 10 noiembrie 2026'));
 }
-const guide = await page('/ghid/');
+const guide = await page('/guide/');
 check('the guide shows the review screen', guide.text.includes('src="/app-verificare.png"') && guide.text.includes('width="1600"'));
 // public/404.html is what keeps Pages from answering like a single-page app.
 const missingPage = await page('/pagina-care-nu-exista');

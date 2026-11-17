@@ -11,7 +11,7 @@ import { SITE_URL, StudentHeader } from './StudentHeader.tsx';
 
 export const UNKNOWN_RESULT_LINK = 'Link greșit. Cere profesorului linkul nou.';
 
-// The student's result page at /u/rezultat/<resultToken>: the grade, the
+// The student's result page at /u/result/<resultToken>: the grade, the
 // mistakes, and the final words. Read-only.
 export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: string | null }) {
   const [phase, setPhase] = useState<{ kind: 'loading' } | { kind: 'failed'; message: string } | { kind: 'ready'; result: StudentResultView }>({

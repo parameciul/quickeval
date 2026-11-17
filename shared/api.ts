@@ -1212,5 +1212,5 @@ export interface ResultsOpenAnswer {
 
 // The path of a student's result page, under the student app.
 export function studentResultPath(resultToken: string): string {
-  return `/u/rezultat/${resultToken}`;
+  return `/u/result/${resultToken}`;
 }

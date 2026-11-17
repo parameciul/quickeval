@@ -4,7 +4,7 @@ import { ThemeButton } from '../ui/ThemeButton.tsx';
 // Absolute, because student links also open on the old host, whose own pages
 // are not for readers.
 export const SITE_URL = 'https://mqgrader.ro/';
-export const ABOUT_URL = 'https://mqgrader.ro/despre/';
+export const ABOUT_URL = 'https://mqgrader.ro/about/';
 
 // The header of both student pages: the site's lockup, which opens the site,
 // "Despre" and the theme button. Nothing here says how the work is graded.

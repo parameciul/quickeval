@@ -1,5 +1,5 @@
-# Cloudflare Pages headers. The landing page (/) and the four content pages (/ghid/,
-# /barem/, /despre/, /preturi/) are public and may be indexed.
+# Cloudflare Pages headers. The landing page (/) and the four content pages (/guide/,
+# /marking-scheme/, /about/, /pricing/) are public and may be indexed.
 # The teacher app and the student app are private: they carry noindex. The API
 # sets its own X-Robots-Tag (server/app.ts), because _headers does not reach Functions.
 # The pages may show the site's own files in a frame (frame-src 'self'): the PDF

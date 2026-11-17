@@ -247,7 +247,7 @@ describe('createApiClient tests and uploads', () => {
     expect(testFileUrl('6E2-26T1', 'test')).toBe('/api/admin/tests/6E2-26T1/files/test');
     expect(printFileUrl('6E2-26T1')).toBe('/api/admin/tests/6E2-26T1/print');
     expect(submissionFileUrl(7, 12)).toBe('/api/admin/submissions/7/files/12');
-    expect(studentResultUrl('abcdefghijkmnop2abcdefcd')).toBe(`${window.location.origin}/u/rezultat/abcdefghijkmnop2abcdefcd`);
+    expect(studentResultUrl('abcdefghijkmnop2abcdefcd')).toBe(`${window.location.origin}/u/result/abcdefghijkmnop2abcdefcd`);
   });
 });
 

@@ -50,7 +50,7 @@ describe('ResultApp', () => {
     expect(banner).toHaveTextContent('by Laura Miron');
     expect(within(banner).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
       'https://mqgrader.ro/',
-      'https://mqgrader.ro/despre/',
+      'https://mqgrader.ro/about/',
     ]);
     expect(within(banner).getByRole('button', { name: 'Temă întunecată' })).toBeInTheDocument();
     expect(screen.queryByText(/Profesorul tău folosește|Încearcă gratuit|Ești profesor/)).not.toBeInTheDocument();
@@ -116,8 +116,8 @@ describe('ResultApp', () => {
     const buttons = within(screen.getByRole('main')).getAllByRole('button');
     expect(buttons.map((button) => button.textContent)).toEqual(['Trimite linkul', 'Salvează biletul', 'Descarcă PDF', 'Arată fișierele']);
     await userEvent.click(screen.getByRole('button', { name: 'Arată fișierele' }));
-    expect(await screen.findByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', '/api/u/rezultat/result-token-11/files/21');
-    expect(screen.getByTitle('Pagina 2')).toHaveAttribute('src', '/api/u/rezultat/result-token-11/files/22');
+    expect(await screen.findByRole('img', { name: 'Pagina 1' })).toHaveAttribute('src', '/api/u/result/result-token-11/files/21');
+    expect(screen.getByTitle('Pagina 2')).toHaveAttribute('src', '/api/u/result/result-token-11/files/22');
     await userEvent.click(screen.getByRole('button', { name: 'Ascunde fișierele' }));
     expect(screen.queryByRole('img', { name: 'Pagina 1' })).not.toBeInTheDocument();
     expectNoGradingWords();

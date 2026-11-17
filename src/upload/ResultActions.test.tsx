@@ -15,7 +15,7 @@ vi.mock('./ticketImage.ts', async (original) => ({
   saveTicket: vi.fn(),
 }));
 
-const URL_TEXT = 'https://mqgrader.ro/u/rezultat/abc';
+const URL_TEXT = 'https://mqgrader.ro/u/result/abc';
 
 const graded: StudentResultView = {
   resultCode: 'K7M92P',
