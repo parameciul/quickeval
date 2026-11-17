@@ -124,10 +124,8 @@ describe('opening a result by its code', () => {
     const multi = (await api.request('POST', `/api/admin/tests/${code}/multi-link`)).body.token as string;
     expect((await typeCode(resultCode, multi)).body.resultToken).toBe(resultToken);
 
-    // The first name of the path, for pages opened before the rename.
-    const old = await api.request('POST', `/api/u/${token}/cod`, { code: resultCode });
-    expect(old.status).toBe(200);
-    expect(old.body).toEqual(res.body);
+    // The path's first, Romanian name is gone.
+    expect((await api.request('POST', `/api/u/${token}/cod`, { code: resultCode })).status).toBe(404);
   });
 
   it('reads the code as the student types it, before and after the uploads close', async () => {

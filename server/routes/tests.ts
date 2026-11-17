@@ -22,7 +22,7 @@ import {
   type SubjectAnswer,
   type TestFileAnswer,
 } from '../../shared/api.ts';
-import { PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
+import { PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, testFileKindOfPath, type TestFileKind } from '../../shared/files.ts';
 import { QUICK_TRY_FILE_CHANGES } from '../../shared/quickTry.ts';
 import { unsupportedMessage } from '../../shared/subjects.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
@@ -76,10 +76,9 @@ import { ApiError, demoLimit, isUniqueViolation, notFound } from '../errors.ts';
 import { nowIso, parseSchoolYear, parseTestCode, readJson } from '../http.ts';
 import { newUploadToken } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
-import { fileKindOfPath, withOldPath } from './oldPaths.ts';
 
 function parseFileKind(raw: string | undefined): TestFileKind {
-  const kind = fileKindOfPath(raw);
+  const kind = raw === undefined ? null : testFileKindOfPath(raw);
   if (kind === null) throw notFound();
   return kind;
 }
@@ -166,7 +165,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // Extra teacher comments for the barem: saved as part of the test, read by
   // the robot as part of the barem. Like a new barem file: the exercise list
   // is cleared and the robot makes it again during evaluation.
-  routes.on('PUT', withOldPath('/:code/marking-scheme-notes', '/:code/barem-notes'), async (c) => {
+  routes.put('/:code/marking-scheme-notes', async (c) => {
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
     const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
@@ -291,7 +290,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   // "Generează baremul": the robot writes the barem from the test file.
-  routes.on('POST', withOldPath('/:code/marking-scheme/generate', '/:code/barem/generate'), async (c) => {
+  routes.post('/:code/marking-scheme/generate', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
       if (!test.files.test) throw new ApiError(409, 'missing_test_file', 'Încarcă testul înainte să generezi baremul.');
@@ -307,7 +306,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   });
 
   // The teacher checked the generated barem as the page showed it.
-  routes.on('POST', withOldPath('/:code/marking-scheme/checked', '/:code/barem/checked'), async (c) => {
+  routes.post('/:code/marking-scheme/checked', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const body = await readJson(c, baremCheckedBody);
     if (!(await confirmBarem(c.env.DB, c.var.teacher.id, test.id, body.filesVersion, nowIso()))) {
