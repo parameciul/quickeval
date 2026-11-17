@@ -139,7 +139,8 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
         break;
       } catch (err) {
         if (!isUniqueViolation(err)) throw err;
-        if (!String(err instanceof Error ? err.message : err).includes('result_token')) throw otherDevice();
+        // The link's short code is made in the same statement (a trigger).
+        if (!/result_token|result_code/.test(String(err instanceof Error ? err.message : err))) throw otherDevice();
         if (attempt === 2) throw new ApiError(500, 'retry', 'A apărut o eroare. Încearcă din nou.');
       }
     }
@@ -257,12 +258,12 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
       await explainRefusal(c, promote);
       throw new ApiError(409, 'no_files', 'Adaugă cel puțin o poză sau un PDF.');
     }
-    const resultToken = await confirmResultToken(c.env.DB, current.submissionId, sessionHash);
+    const link = await confirmResultToken(c.env.DB, current.submissionId, sessionHash);
     // confirmSubmission already sent the upload, so files exist: a missing
     // token means the teacher reset the upload in between. Back to the names,
     // not "add at least a photo".
-    if (!resultToken) throw new ApiError(401, 'no_session', 'Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
-    return c.json({ status: 'submitted', fileCount, resultToken } satisfies { status: string } & ConfirmAnswer);
+    if (!link) throw new ApiError(401, 'no_session', 'Încărcarea nu mai este valabilă. Alege-ți din nou numele.');
+    return c.json({ status: 'submitted', fileCount, ...link } satisfies { status: string } & ConfirmAnswer);
   });
 
   // A student's result page by its secret link. Only while the teacher keeps

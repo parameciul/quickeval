@@ -13,6 +13,7 @@ afterEach(() => {
 });
 
 const graded: StudentResultView = {
+  resultCode: 'K7M92P',
   testCode: '6E2-26T1',
   testTitle: 'Fracții',
   className: '6E2',

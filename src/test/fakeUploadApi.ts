@@ -22,6 +22,9 @@ export function linkInfo(overrides: Partial<LinkInfo['test']> & { multi?: boolea
   };
 }
 
+// The short code of every fake result link, as the server stores it.
+export const FAKE_RESULT_CODE = 'K7M92P';
+
 interface FakeSession {
   studentId: number;
   secret: string;
@@ -91,7 +94,7 @@ export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
       session.sent = true;
       const student = info.students.find((s) => s.id === session.studentId);
       if (student) student.state = 'done';
-      return { fileCount: session.files.length, resultToken: session.resultToken };
+      return { fileCount: session.files.length, resultToken: session.resultToken, resultCode: FAKE_RESULT_CODE };
     }),
     fileBlob: vi.fn(async (_token: string, _secret: string, _fileId: number) => new Blob(['jpeg'], { type: 'image/jpeg' })),
     getResult: vi.fn(async (_resultToken: string): Promise<StudentResultView> => ({
@@ -103,6 +106,7 @@ export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
       status: 'graded',
       files: [],
       evaluation: null,
+      resultCode: FAKE_RESULT_CODE,
     })),
     resultFileBlob: vi.fn(async (_resultToken: string, _fileId: number) => new Blob(['jpeg'], { type: 'image/jpeg' })),
     listPayments: vi.fn(async (_token: string, _secret: string): Promise<PaymentRow[]> => []),

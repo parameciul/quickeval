@@ -130,31 +130,35 @@ export async function teacherResultToken(db: D1Database, shown: ShownUpload): Pr
 // The result link of an upload the student just sent, named by its id and the
 // hash of the phone's secret: an id that came back for another student's new
 // upload gives this phone nothing. Older uploads without a link get one now.
-export async function confirmResultToken(db: D1Database, submissionId: number, sessionHash: string): Promise<string | null> {
-  const row = await db
-    .prepare('SELECT result_token FROM submissions WHERE id = ? AND session_hash = ?')
-    .bind(submissionId, sessionHash)
-    .first<{ result_token: string | null }>();
+// The link comes with its short code, which the database makes with it (a
+// trigger of migration 0034; a code that clashes inside the test fails the
+// UPDATE on the unique index, and the next try draws another).
+export async function confirmResultToken(
+  db: D1Database,
+  submissionId: number,
+  sessionHash: string,
+): Promise<{ resultToken: string; resultCode: string | null } | null> {
+  const read = () =>
+    db
+      .prepare('SELECT result_token, result_code FROM submissions WHERE id = ? AND session_hash = ?')
+      .bind(submissionId, sessionHash)
+      .first<{ result_token: string | null; result_code: string | null }>();
+  const row = await read();
   if (!row) return null;
-  if (row.result_token) return row.result_token;
+  if (row.result_token) return { resultToken: row.result_token, resultCode: row.result_code };
   for (let attempt = 0; attempt < 3; attempt++) {
-    const token = newResultToken();
-    let set: { result_token: string } | null = null;
     try {
-      set = await db
-        .prepare('UPDATE submissions SET result_token = ? WHERE id = ? AND session_hash = ? AND result_token IS NULL RETURNING result_token')
-        .bind(token, submissionId, sessionHash)
-        .first<{ result_token: string }>();
+      await db
+        .prepare('UPDATE submissions SET result_token = ? WHERE id = ? AND session_hash = ? AND result_token IS NULL')
+        .bind(newResultToken(), submissionId, sessionHash)
+        .run();
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
     }
-    if (set) return set.result_token;
-    const again = await db
-      .prepare('SELECT result_token FROM submissions WHERE id = ? AND session_hash = ?')
-      .bind(submissionId, sessionHash)
-      .first<{ result_token: string | null }>();
-    if (again?.result_token) return again.result_token;
+    // Read after the write: the trigger sets the code after the UPDATE.
+    const again = await read();
     if (!again) return null;
+    if (again.result_token) return { resultToken: again.result_token, resultCode: again.result_code };
   }
   return null;
 }
@@ -169,6 +173,7 @@ interface ResultRow {
   status: Exclude<UploadStatus, 'none'>;
   student_name: string;
   submitted_at: string | null;
+  result_code: string | null;
 }
 
 // One student's result page by its secret link. Null for an unknown link. The
@@ -176,7 +181,7 @@ interface ResultRow {
 // While closed the answer carries no files and no grading, so polling an
 // unpublished link costs one query.
 const RESULT_SELECT = `SELECT t.code, t.title, c.name AS class_name, t.results_open AS test_open, s.results_open AS submission_open,
-    s.id AS submission_id, s.status, st.full_name AS student_name, s.submitted_at
+    s.id AS submission_id, s.status, st.full_name AS student_name, s.submitted_at, s.result_code
   FROM submissions s
   JOIN tests t ON t.id = s.test_id
   JOIN classes c ON c.id = t.class_id
@@ -199,6 +204,7 @@ export async function findResultByToken(
       status: row.status,
       files: [],
       evaluation: null,
+      resultCode: row.result_code,
     };
     return { result, resultsOpen: false };
   }
@@ -224,6 +230,7 @@ async function openResult(db: D1Database, row: ResultRow): Promise<StudentResult
     status: row.status,
     files: files satisfies SubmissionFile[],
     evaluation: evaluation ? toStudentEvaluation(evaluation) : null,
+    resultCode: row.result_code,
   };
 }
 
