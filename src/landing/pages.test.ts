@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import baremRaw from '../../barem/index.html?raw';
-import despreRaw from '../../despre/index.html?raw';
-import ghidRaw from '../../ghid/index.html?raw';
+import baremRaw from '../../marking-scheme/index.html?raw';
+import despreRaw from '../../about/index.html?raw';
+import ghidRaw from '../../guide/index.html?raw';
 import landingRaw from '../../index.html?raw';
-import preturiRaw from '../../preturi/index.html?raw';
+import preturiRaw from '../../pricing/index.html?raw';
 import llms from '../../public/llms.txt?raw';
 import teacherRaw from '../../teacher/index.html?raw';
 import tryRaw from '../../try/index.html?raw';
@@ -30,13 +30,13 @@ const [ghid, barem, despre, preturi, landing] = [...RAW, landingRaw].map(expandP
 type Page = { path: string; url: string; image: string; html: string; name: string };
 
 const PAGES: Page[] = [
-  { path: '/ghid/', url: 'https://mqgrader.ro/ghid/', image: 'https://mqgrader.ro/og-ghid.png', html: ghid, name: 'Ghidul corectării' },
-  { path: '/barem/', url: 'https://mqgrader.ro/barem/', image: 'https://mqgrader.ro/og-barem.png', html: barem, name: 'Baremul' },
-  { path: '/despre/', url: 'https://mqgrader.ro/despre/', image: 'https://mqgrader.ro/og-despre.png', html: despre, name: 'Despre' },
-  { path: '/preturi/', url: 'https://mqgrader.ro/preturi/', image: 'https://mqgrader.ro/og-preturi.png', html: preturi, name: 'Cât costă' },
+  { path: '/guide/', url: 'https://mqgrader.ro/guide/', image: 'https://mqgrader.ro/og-guide.png', html: ghid, name: 'Ghidul corectării' },
+  { path: '/marking-scheme/', url: 'https://mqgrader.ro/marking-scheme/', image: 'https://mqgrader.ro/og-marking-scheme.png', html: barem, name: 'Baremul' },
+  { path: '/about/', url: 'https://mqgrader.ro/about/', image: 'https://mqgrader.ro/og-about.png', html: despre, name: 'Despre' },
+  { path: '/pricing/', url: 'https://mqgrader.ro/pricing/', image: 'https://mqgrader.ro/og-pricing.png', html: preturi, name: 'Cât costă' },
 ];
 
-const LINKS = ['/ghid/', '/barem/', '/despre/', '/preturi/'];
+const LINKS = ['/guide/', '/marking-scheme/', '/about/', '/pricing/'];
 
 const STATS_SCRIPT = 'https://stats.mqgrader.ro/api/script.js?siteId=b5be2803e8ab';
 
@@ -106,7 +106,7 @@ describe('the pages that answer a search', () => {
       expect(button?.getAttribute('aria-label')).toBe('Mai multe pagini');
     }
     // The landing page adds its two jumps down the page in front of them.
-    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(['#cum', '#ajutor', ...LINKS]);
+    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(['#how', '#benefits', ...LINKS]);
   });
 
   it.each(PAGES)('$path leads only to pages and files that exist', ({ html }) => {
@@ -179,7 +179,7 @@ describe('the pages that answer a search', () => {
 
   it.each(PAGES)('$path ends by sending the reader to the other three pages', ({ path, html }) => {
     const doc = parse(html);
-    const end = doc.querySelector('#citeste-si');
+    const end = doc.querySelector('#read-also');
     expect(text(end)).toBe('Citește și');
     const list = doc.querySelector('.read-on');
     const targets = Array.from(list!.querySelectorAll('a'), (a) => a.getAttribute('href'));
@@ -263,7 +263,7 @@ describe('the pages that answer a search', () => {
     };
     expect(org.sameAs).toEqual(['https://lauramiron.mqgrader.ro/']);
     expect(person.sameAs).toEqual(['https://lauramiron.mqgrader.ro/']);
-    expect(person.url).toBe('https://mqgrader.ro/despre/');
+    expect(person.url).toBe('https://mqgrader.ro/about/');
     // A raster logo, as the structured data asks for: an SVG is refused.
     expect(org.logo?.url).toBe('https://mqgrader.ro/logo.png');
     expect(app.featureList.length).toBeGreaterThanOrEqual(5);
@@ -290,7 +290,7 @@ describe('the pages that answer a search', () => {
     );
     // The two paragraphs under the first heading, before the facts.
     const story = all(doc, '.prose > p').slice(0, 2).map(text);
-    expect(doc.querySelector('.prose > p')?.previousElementSibling?.id).toBe('cine');
+    expect(doc.querySelector('.prose > p')?.previousElementSibling?.id).toBe('who');
     expect(story).toEqual([
       'Proiectul nu vine din birourile unei companii de software care a încercat să anticipeze nevoile școlii, ci direct de la catedră. A fost creat de Laura Miron — profesoară de matematică la Liceul Teoretic „William Shakespeare” din Timișoara și autoarea platformei Matematică cu Laura Miron — împreună cu soțul ei, tocmai pentru a lua din greutatea munților de hârtie de pe birou.',
       'Este o unealtă construită de cineva care trăiește realitatea din educație zi de zi, gândită să redea profesorilor cel mai prețios bun: puțin timp liber.',
@@ -315,7 +315,7 @@ describe('the pages that answer a search', () => {
 
   it("gives advice in the guide that fits MQGrader's way of grading", () => {
     const doc = parse(ghid);
-    const habits = Array.from(doc.querySelectorAll('#obiceiuri + ol > li b')).map(text);
+    const habits = Array.from(doc.querySelectorAll('#habits + ol > li b')).map(text);
     expect(habits).toEqual([
       'Confirmă baremul înainte de prima lucrare.',
       'Cere pozele în clasă, la sfârșitul orei.',
@@ -356,10 +356,10 @@ describe('the product text names no single subject', () => {
   const ONLY_MATH = /profesori(i)? de matematic|testel(e|or) de matematic|test de matematic(ă|a) (cu|după)|la matematică: ce este/i;
   it.each([
     ['index.html', landing],
-    ['/ghid/', ghid],
-    ['/barem/', barem],
-    ['/despre/', despre],
-    ['/preturi/', preturi],
+    ['/guide/', ghid],
+    ['/marking-scheme/', barem],
+    ['/about/', despre],
+    ['/pricing/', preturi],
     ['llms.txt', llms],
     ['the footer', PARTIALS['site-foot']!],
     ['PITCH_LINE', PITCH_LINE],
@@ -380,7 +380,7 @@ describe('the product text names no single subject', () => {
 describe('who builds MQGrader', () => {
   it.each([
     ['index.html', landing],
-    ['/despre/', despre],
+    ['/about/', despre],
     ['llms.txt', llms],
   ])('%s names Laura Miron and her husband', (_name, source) => {
     expect(source).toContain('împreună cu soțul ei');

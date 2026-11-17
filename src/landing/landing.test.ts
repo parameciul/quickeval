@@ -45,13 +45,13 @@ describe('the landing page', () => {
   });
 
   it("keeps Laura Miron's texts word for word", () => {
-    expect(text(doc.getElementById('gata-t'))).toBe('Gata cu orele pierdute noaptea târziu corectând teze și teste!');
+    expect(text(doc.getElementById('ready-t'))).toBe('Gata cu orele pierdute noaptea târziu corectând teze și teste!');
     expect(all('.ink .l-body').map(text)).toEqual([
       'Descoperă noua platformă care îți ia o mare greutate de pe umeri și îți oferă corectură riguroasă, exact după barem, în doar câteva minute.',
       'Ce o face diferită? Controlul rămâne 100% la tine. Știm că fiecare elev e unic și pot apărea situații nuanțate, așa că platforma îți permite să modifici oricând punctajele în cazurile discutabile sau creative.',
     ]);
-    expect(text(doc.getElementById('ajutor-t'))).toBe('Cum te ajută platforma noastră?');
-    expect(all('#ajutor .benefits h3').map(text)).toEqual(['Acuratețe după barem', 'Control total în situații discutabile', 'Economie masivă de timp']);
+    expect(text(doc.getElementById('benefits-t'))).toBe('Cum te ajută platforma noastră?');
+    expect(all('#benefits .benefits h3').map(text)).toEqual(['Acuratețe după barem', 'Control total în situații discutabile', 'Economie masivă de timp']);
   });
 
   it('leads to the login, and to a new account', () => {
@@ -76,17 +76,17 @@ describe('the landing page', () => {
   });
 
   it('sends readers from its own text to the pages that answer a search', () => {
-    const more = all('#mai-multe .more-list a').map((a) => [text(a.querySelector('b')), a.getAttribute('href')]);
+    const more = all('#more .more-list a').map((a) => [text(a.querySelector('b')), a.getAttribute('href')]);
     expect(more).toEqual([
-      ['Cum corectezi testele după barem', '/ghid/'],
-      ['Baremul de corectare', '/barem/'],
-      ['Despre MQGrader', '/despre/'],
-      ['Cât costă', '/preturi/'],
+      ['Cum corectezi testele după barem', '/guide/'],
+      ['Baremul de corectare', '/marking-scheme/'],
+      ['Despre MQGrader', '/about/'],
+      ['Cât costă', '/pricing/'],
     ]);
     // Every card says what the page is about, in one line.
-    for (const a of all('#mai-multe .more-list a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
+    for (const a of all('#more .more-list a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
     // The header's menu names the same four pages.
-    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['#cum', '#ajutor', '/ghid/', '/barem/', '/despre/', '/preturi/']);
+    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['#how', '#benefits', '/guide/', '/marking-scheme/', '/about/', '/pricing/']);
     // The account picture waits until the app's look settles.
     expect(doc.getElementById('aplicatia')).toBeNull();
   });
@@ -132,7 +132,7 @@ describe('the landing page', () => {
       expect.arrayContaining(['Organization', 'Person', 'WebSite', 'WebPage', 'SoftwareApplication', 'FAQPage']),
     );
     const faq = nodes.find((n) => n['@type'] === 'FAQPage')!.mainEntity!;
-    const visible = all('#intrebari .benefits li').map((li) => [text(li.querySelector('h3')), text(li.querySelector('p'))]);
+    const visible = all('#faq .benefits li').map((li) => [text(li.querySelector('h3')), text(li.querySelector('p'))]);
     expect(faq.map((q) => [q.name, q.acceptedAnswer.text])).toEqual(visible);
     expect(page).not.toMatch(/aggregateRating|"offers"/);
   });

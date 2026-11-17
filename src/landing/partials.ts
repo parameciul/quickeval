@@ -14,10 +14,10 @@ const SITE_FOOT = `<footer class="site-foot">
             <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
           </a>
           <nav class="foot-nav" aria-label="Pagini">
-            <a href="/ghid/">Ghidul corectării</a>
-            <a href="/barem/">Baremul</a>
-            <a href="/despre/">Despre</a>
-            <a href="/preturi/">Cât costă</a>
+            <a href="/guide/">Ghidul corectării</a>
+            <a href="/marking-scheme/">Baremul</a>
+            <a href="/about/">Despre</a>
+            <a href="/pricing/">Cât costă</a>
           </nav>
           <span class="note">Corectarea testelor după barem · Timișoara · 2026</span>
         </div>

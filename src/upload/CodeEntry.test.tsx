@@ -68,7 +68,7 @@ describe('the code field on the closed test page', () => {
     await userEvent.type(field(), 'k7m92p');
     expect(field()).toHaveValue('K7M-92P');
     await userEvent.click(screen.getByRole('button', { name: 'Vezi rezultatul' }));
-    await vi.waitFor(() => expect(goTo).toHaveBeenCalledWith('/u/rezultat/result-token-11'));
+    await vi.waitFor(() => expect(goTo).toHaveBeenCalledWith('/u/result/result-token-11'));
     expect(api.openByCode).toHaveBeenCalledWith(LINK_TOKEN, 'K7M-92P');
     expect(loadResultLink(LINK_TOKEN, 11)).toEqual({
       studentId: 11,
@@ -173,7 +173,7 @@ describe('the code field on the closed test page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Am alt cod' }));
     await userEvent.type(field(), 'K7M92P');
     await userEvent.click(screen.getByRole('button', { name: 'Vezi rezultatul' }));
-    await vi.waitFor(() => expect(goTo).toHaveBeenCalledWith('/u/rezultat/result-token-11'));
+    await vi.waitFor(() => expect(goTo).toHaveBeenCalledWith('/u/result/result-token-11'));
     // Both tickets are kept on this phone.
     expect(await screen.findByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Stan Eva' })).toBeInTheDocument();

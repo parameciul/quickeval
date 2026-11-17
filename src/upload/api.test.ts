@@ -75,7 +75,7 @@ describe('createUploadClient', () => {
     const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, answer));
     await expect(createUploadClient({ fetchImpl }).openByCode(TOKEN, 'K7M-92P')).resolves.toEqual(answer);
     const [url, init] = fetchImpl.mock.calls[0]!;
-    expect(url).toBe(`/api/u/${TOKEN}/cod`);
+    expect(url).toBe(`/api/u/${TOKEN}/code`);
     expect(init!.method).toBe('POST');
     expect(init!.body).toBe(JSON.stringify({ code: 'K7M-92P' }));
     expect(init!.headers).not.toHaveProperty('X-Upload-Session');
@@ -164,8 +164,8 @@ describe('createUploadClient', () => {
     const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, { result }));
     const client = createUploadClient({ fetchImpl });
     expect(await client.getResult('abcdefghijkmnop2abcdefcd')).toEqual(result);
-    expect(fetchImpl.mock.calls[0]![0]).toBe('/api/u/rezultat/abcdefghijkmnop2abcdefcd');
-    expect(resultFileUrl('abcdefghijkmnop2abcdefcd', 7)).toBe('/api/u/rezultat/abcdefghijkmnop2abcdefcd/files/7');
+    expect(fetchImpl.mock.calls[0]![0]).toBe('/api/u/result/abcdefghijkmnop2abcdefcd');
+    expect(resultFileUrl('abcdefghijkmnop2abcdefcd', 7)).toBe('/api/u/result/abcdefghijkmnop2abcdefcd/files/7');
   });
 
   it('downloads a sent file with the session secret', async () => {

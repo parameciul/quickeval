@@ -1,4 +1,4 @@
-/* The content pages (/ghid/, /barem/, /despre/, /preturi/) sit on the landing
+/* The content pages (/guide/, /marking-scheme/, /about/, /pricing/) sit on the landing
    page's look: they load landing.css first, then this file. Nothing here is
    inline, because the security policy in public/_headers allows no inline
    style. */

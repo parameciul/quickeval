@@ -7,25 +7,25 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://mqgrader.ro/ghid/</loc>
+    <loc>https://mqgrader.ro/guide/</loc>
     <lastmod>2026-11-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://mqgrader.ro/barem/</loc>
+    <loc>https://mqgrader.ro/marking-scheme/</loc>
     <lastmod>2026-11-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://mqgrader.ro/despre/</loc>
+    <loc>https://mqgrader.ro/about/</loc>
     <lastmod>2026-11-17</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://mqgrader.ro/preturi/</loc>
+    <loc>https://mqgrader.ro/pricing/</loc>
     <lastmod>2026-11-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
