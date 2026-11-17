@@ -251,7 +251,8 @@ export async function findResultByToken(
       status: row.status,
       files: [],
       evaluation: null,
-      resultCode: row.result_code,
+      // The route refuses a closed page, so nothing of it reaches the student.
+      resultCode: null,
     };
     return { result, resultsOpen: false };
   }

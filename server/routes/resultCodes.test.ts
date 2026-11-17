@@ -211,4 +211,26 @@ describe('opening a result by its code', () => {
     });
     expect(res.status).toBe(403);
   });
+
+  it('stays within 15 D1 queries, for a right and for a wrong code', async () => {
+    const { resultCode } = await uploadAndConfirm(pop);
+    const db = api.env.DB;
+    for (const typed of [resultCode, wrongCode(resultCode)]) {
+      let queries = 0;
+      api.env.DB = new Proxy(db, {
+        get(target, key) {
+          const value = Reflect.get(target, key) as unknown;
+          if (key === 'prepare') return (sql: string) => ((queries += 1), target.prepare(sql));
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      });
+      try {
+        expect((await typeCode(typed)).status).toBe(typed === resultCode ? 200 : 404);
+      } finally {
+        api.env.DB = db;
+      }
+      expect(queries).toBeGreaterThan(2);
+      expect(queries).toBeLessThanOrEqual(15);
+    }
+  });
 });

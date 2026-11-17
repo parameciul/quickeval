@@ -5,6 +5,20 @@ import { expectNoGradingWords } from '../test/gradingWords.ts';
 import { ResultTicket, TICKET_HOW } from './ResultTicket.tsx';
 import { renderTicket, saveTicket, savesThroughShare } from './ticketImage.ts';
 
+// `drop` makes the hidden QR canvas draw without giving its element back, as
+// a library that did not pass its ref on would.
+const qrRef = vi.hoisted(() => ({ drop: false }));
+vi.mock('qrcode.react', async (original) => {
+  const library = await original<typeof import('qrcode.react')>();
+  const { forwardRef, createElement } = await import('react');
+  return {
+    ...library,
+    QRCodeCanvas: forwardRef<HTMLCanvasElement, Parameters<typeof library.QRCodeCanvas>[0]>((props, ref) =>
+      qrRef.drop ? createElement('canvas', { hidden: true }) : createElement(library.QRCodeCanvas, { ...props, ref }),
+    ),
+  };
+});
+
 vi.mock('./ticketImage.ts', async (original) => ({
   ...(await original<typeof import('./ticketImage.ts')>()),
   renderTicket: vi.fn(),
@@ -40,6 +54,7 @@ afterEach(() => {
   vi.mocked(saveTicket).mockReset();
   vi.mocked(savesThroughShare).mockReset();
   vi.useRealTimers();
+  qrRef.drop = false;
 });
 
 describe('Salvează biletul', () => {
@@ -189,6 +204,63 @@ describe('Salvează biletul', () => {
     }
     expect(most).toBe(1);
     expect(document.querySelector('canvas')).toBeNull();
+  });
+
+  it('waits in line for a tap on a ticket whose turn has not come yet', async () => {
+    let running = 0;
+    let most = 0;
+    const finish: (() => void)[] = [];
+    vi.mocked(renderTicket).mockImplementation(
+      () =>
+        new Promise<Blob>((resolve) => {
+          running += 1;
+          most = Math.max(most, running);
+          finish.push(() => {
+            running -= 1;
+            resolve(png);
+          });
+        }),
+    );
+    render(
+      <>
+        {[1, 2].map((n) => (
+          <ResultTicket key={n} resultToken={`result-token-${n}`} resultCode="K7M92P" studentName={`Elev ${n}`} test={TEST} />
+        ))}
+      </>,
+    );
+    await vi.waitFor(() => expect(renderTicket).toHaveBeenCalledTimes(1));
+    // The second ticket's turn has not come: its tap waits for it.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Salvează biletul' })[1]!);
+    await act(async () => {});
+    expect(renderTicket).toHaveBeenCalledTimes(1);
+    expect(document.querySelectorAll('canvas').length).toBeLessThanOrEqual(1);
+    await act(async () => finish[0]!());
+    await vi.waitFor(() => expect(renderTicket).toHaveBeenCalledTimes(2));
+    await act(async () => finish[1]!());
+    expect(await screen.findByRole('status')).toBeInTheDocument();
+    expect(saveTicket).toHaveBeenCalledTimes(1);
+    expect(saveTicket).toHaveBeenCalledWith(png, 'bilet-6E2-26T1-Elev-2.png', 'Elev 2 · Fracții');
+    expect(most).toBe(1);
+    expect(renderTicket).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives the turn on when the QR code cannot be drawn, and tries again on the tap', async () => {
+    qrRef.drop = true;
+    render(
+      <>
+        {[1, 2].map((n) => (
+          <ResultTicket key={n} resultToken={`result-token-${n}`} resultCode="K7M92P" studentName={`Elev ${n}`} test={TEST} />
+        ))}
+      </>,
+    );
+    // Both tickets had their turn: no hidden canvas is left waiting.
+    for (let tick = 0; tick < 5; tick++) await act(async () => {});
+    expect(document.querySelector('canvas')).toBeNull();
+    expect(renderTicket).not.toHaveBeenCalled();
+    qrRef.drop = false;
+    await userEvent.click(screen.getAllByRole('button', { name: 'Salvează biletul' })[0]!);
+    expect(await screen.findByRole('status')).toBeInTheDocument();
+    expect(renderTicket).toHaveBeenCalledTimes(1);
   });
 
   it('tells the student when the phone refuses to save it', async () => {

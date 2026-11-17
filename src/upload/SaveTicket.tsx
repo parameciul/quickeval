@@ -83,17 +83,42 @@ export function useSaveTicket({
     };
   }, []);
 
+  // A tap that has to draw takes a turn too, so a ticket whose turn has not
+  // come yet never draws beside another one. When its turn comes, the
+  // picture may already be made or on its way.
+  const drawInTurn = async (): Promise<Blob> => {
+    const done = await takeTurn();
+    if (ready.current) {
+      done();
+      return ready.current;
+    }
+    if (pending.current) {
+      done();
+      return pending.current;
+    }
+    release.current = done;
+    return startDraw();
+  };
+
   useEffect(() => {
     if (round === 0) return;
     const drawn = qr.current;
     const waiting = settle.current;
-    if (!drawn || !waiting) return;
+    if (!waiting) return;
     const end = () => {
       if (settle.current === waiting) settle.current = null;
       release.current?.();
       release.current = null;
       setDoneRound(round);
     };
+    if (!drawn) {
+      // No QR canvas to draw from: fail this picture and give the turn on,
+      // so the tickets after it are not kept waiting.
+      pending.current = null;
+      end();
+      waiting.reject(new Error('The QR code was not drawn.'));
+      return;
+    }
     renderTicket({ ...latest.current, qr: drawn }).then(
       (png) => {
         ready.current = png;
@@ -121,7 +146,7 @@ export function useSaveTicket({
     const wanted = latest.current;
     try {
       // With the picture ready, saveTicket runs inside the tap: no wait before it.
-      const png = ready.current ?? (await (pending.current ?? startDraw()).catch(() => startDraw()));
+      const png = ready.current ?? (await (pending.current ?? drawInTurn()).catch(() => drawInTurn()));
       const result = await saveTicket(png, ticketFileName(testCode, wanted.studentName), `${wanted.studentName} · ${wanted.testTitle}`);
       // The student closed the share sheet: nothing was saved, nothing failed.
       setState(result === 'cancelled' ? 'idle' : 'saved');
