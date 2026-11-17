@@ -41,7 +41,7 @@
             "author": { "@id": "https://mqgrader.ro/#laura-miron" },
             "publisher": { "@id": "https://mqgrader.ro/#organization" },
             "datePublished": "2026-11-10",
-            "dateModified": "2026-11-12"
+            "dateModified": "2026-11-17"
           },
           {
             "@type": "BreadcrumbList",
@@ -97,58 +97,59 @@
               <span>Despre</span>
             </nav>
             <h1 class="page-h1">Despre MQGrader</h1>
-            <p class="page-lede">MQGrader e construit de o profesoară de matematică, împreună cu soțul ei, pentru orele pe care ea le are de corectat. Nu e un produs gândit de o firmă de software care a întrebat profesori ce ar vrea.</p>
-            <p class="byline">Scris de Laura Miron, profesoară de matematică · actualizat 12 noiembrie 2026</p>
+            <p class="page-lede">Când orele de curs se termină, începe a doua zi de muncă a unui profesor: teancurile nesfârșite de teste și nopțile lungi petrecute corectând. Acolo s-a născut MQGrader.</p>
+            <p class="byline">Scris de Laura Miron, profesoară de matematică · actualizat 17 noiembrie 2026</p>
           </div>
 
           <div class="prose">
             <h2 id="cine">Cine îl construiește</h2>
-            <p><b>Laura Miron</b> predă matematică la Liceul William Shakespeare din Timișoara. Ține și site-ul <a href="https://lauramiron.mqgrader.ro/" rel="me">Matematică cu Laura Miron</a>, unde publică materiale pentru elevi. MQGrader a plecat din orele ei: din teancurile de teste și din serile în care corectura nu se termina. Îl construiește împreună cu soțul ei.</p>
+            <p>Proiectul nu vine din birourile unei companii de software care a încercat să anticipeze nevoile școlii, ci direct de la catedră. A fost creat de <b>Laura Miron</b> — profesoară de matematică la Liceul Teoretic „William Shakespeare” din Timișoara și autoarea platformei <a href="https://lauramiron.mqgrader.ro/" rel="me">Matematică cu Laura Miron</a> — împreună cu soțul ei, tocmai pentru a lua din greutatea munților de hârtie de pe birou.</p>
+            <p>Este o unealtă construită de cineva care trăiește realitatea din educație zi de zi, gândită să redea profesorilor cel mai prețios bun: putin timp liber.</p>
 
             <div class="facts">
               <dl>
                 <div><dt>Cine</dt><dd>Laura Miron, profesoară de matematică, împreună cu soțul ei</dd></div>
-                <div><dt>Unde</dt><dd>Liceul William Shakespeare, Timișoara</dd></div>
+                <div><dt>Unde</dt><dd>Liceul Teoretic „William Shakespeare”, Timișoara</dd></div>
                 <div><dt>Site-ul ei</dt><dd><a href="https://lauramiron.mqgrader.ro/" rel="me">Matematică cu Laura Miron</a></dd></div>
-                <div><dt>Produsul</dt><dd>MQGrader, la adresa mqgrader.ro, în lucru</dd></div>
+                <div><dt>Produsul</dt><dd>MQGrader, la adresa mqgrader.ro, în dezvoltare</dd></div>
                 <div><dt>Materii</dt><dd>Matematică, fizică, chimie, biologie, științe, limba română și limba engleză</dd></div>
                 <div><dt>Contact</dt><dd><a href="mailto:contact@mqgrader.ro">contact@mqgrader.ro</a></dd></div>
               </dl>
             </div>
 
             <h2 id="de-ce">De ce a apărut</h2>
-            <p>Corectura unui test nu e grea. E lungă. Un test cu șase exerciții la trei clase înseamnă peste o sută de lucrări, fiecare cu punctaj pe fiecare pas, iar punctajul trebuie să fie același pentru toți — altfel primele lucrări corectate au altă soartă decât ultimele.</p>
-            <p>Aplicația a apărut ca să ia partea care se poate repeta: cititul pozelor, găsirea pasului din barem, adunatul punctelor. Partea care cere judecată a rămas acolo unde îi e locul, la profesor.</p>
+            <p>Corectarea unui test nu este grea, ci lungă. Un test cu șase exerciții, dat la trei clase, înseamnă în jur de o sută de lucrări, fiecare punctată pas cu pas. Iar punctajul trebuie să fie același pentru toți elevii: ultima lucrare se corectează la fel ca prima.</p>
+            <p>MQGrader preia partea repetitivă: citirea lucrărilor fotografiate, găsirea fiecărui pas în barem, adunarea punctelor. Partea care cere judecată rămâne acolo unde îi este locul: la profesor.</p>
 
             <h2 id="ce-face">Ce face</h2>
             <ul>
-              <li>Citește pozele lucrărilor trimise de elevi de pe telefon, fără ca ei să aibă cont.</li>
-              <li>Dă punctaj pas cu pas, conform baremului, cu puncte parțiale pentru pașii făcuți.</li>
-              <li>Pune deoparte punctele nesigure, cu motivul, ca să le hotărască profesorul.</li>
-              <li>Leagă pozele de numele elevului, ca să nu fie un teanc de fișiere.</li>
-              <li>Face rezultatul fiecărui elev, raportul clasei, un PDF pentru fiecare elev și un CSV pentru catalog.</li>
+              <li>Citește lucrările pe care elevii le fotografiază și le trimit de pe telefon, fără să aibă nevoie de cont.</li>
+              <li>Propune punctajul pas cu pas, conform baremului, cu puncte parțiale pentru pașii rezolvați.</li>
+              <li>Pune deoparte punctele nesigure și spune de ce, ca să decidă profesorul.</li>
+              <li>Grupează pozele pe elevi, ca să nu primești o grămadă de fișiere fără nume.</li>
+              <li>Pregătește rezultatul fiecărui elev, raportul clasei, câte un PDF pentru fiecare elev și un fișier CSV pentru catalog.</li>
             </ul>
 
             <h2 id="ce-nu-face">Ce nu face</h2>
             <ul>
-              <li>Nu dă nota finală în locul profesorului. Punctajul propus nu ajunge la elev până nu l-a văzut profesorul.</li>
-              <li>Nu corectează după un barem neconfirmat. Un barem propus de platformă stă pe loc până îl verifică profesorul.</li>
-              <li>Nu cere elevilor cont, aplicație sau adresă de email.</li>
-              <li>Nu publică nimic singur: rezultatele se publică atunci când profesorul apasă butonul.</li>
+              <li>Nu dă nota finală în locul profesorului. Punctajul propus nu ajunge la elev până când nu l-a văzut profesorul.</li>
+              <li>Nu corectează după un barem neconfirmat. Baremul propus de platformă așteaptă până când îl verifică profesorul.</li>
+              <li>Nu le cere elevilor cont, aplicație sau adresă de email.</li>
+              <li>Nu publică nimic de la sine: rezultatele ajung la elevi doar atunci când le publică profesorul.</li>
             </ul>
 
-            <h2 id="acum">Unde e produsul acum</h2>
-            <p>MQGrader e în lucru și se schimbă des. Conturile se fac pe bază de cerere: ceri unul, îți confirmi adresa de email, iar un administrator îl aprobă. Un cont demo poate corecta un test, cu 35 de lucrări.</p>
-            <p>Ce include fiecare fel de cont, fără cifre rotunjite: <a href="/preturi/">Cât costă MQGrader</a>.</p>
+            <h2 id="acum">Unde este produsul acum</h2>
+            <p>MQGrader este încă în dezvoltare și se schimbă des. Conturile se deschid pe bază de cerere: ceri un cont, îți confirmi adresa de email, iar un administrator îl aprobă. Cu un cont demo poți corecta un test, cu cel mult 35 de lucrări.</p>
+            <p>Ce include fiecare tip de cont afli pe pagina <a href="/preturi/">Cât costă MQGrader</a>.</p>
 
             <h2 id="contact">Contact</h2>
-            <p>Ești profesor și ai o întrebare, o idee pentru aplicație sau ai găsit o greșeală în ea? Scrie la <a href="mailto:contact@mqgrader.ro">contact@mqgrader.ro</a>. Răspunde Laura Miron, profesoară de matematică la Liceul William Shakespeare din Timișoara.</p>
+            <p>Ești profesor și ai o întrebare, o idee pentru aplicație sau ai găsit o greșeală? Scrie-ne la <a href="mailto:contact@mqgrader.ro">contact@mqgrader.ro</a>. Îți răspunde Laura Miron.</p>
 
             <h2 id="citeste-si">Citește și</h2>
             <ul class="read-on">
-              <li><a href="/ghid/">Cum corectezi testele după barem</a> — cele șase etape, unde se duce timpul și ce rămâne de hotărât profesorului.</li>
+              <li><a href="/ghid/">Cum corectezi testele după barem</a> — cele șase etape, unde se duce timpul și ce decizii rămân la profesor.</li>
               <li><a href="/barem/">Baremul de corectare: ce este și cum îl folosești</a> — de unde vine baremul unui test și ce conține unul bun.</li>
-              <li><a href="/preturi/">Cât costă MQGrader</a> — ce include un cont demo și ce se întâmplă până apare un abonament.</li>
+              <li><a href="/preturi/">Cât costă MQGrader</a> — ce include un cont demo și de ce nu există încă un abonament.</li>
             </ul>
           </div>
         </article>
@@ -156,8 +157,8 @@
         <section class="sec tint band" aria-labelledby="despre-cta">
           <div class="wrap">
             <div>
-              <h2 id="despre-cta">Vezi cum arată, pe un test de-al tău</h2>
-              <p>Sau citește întâi cum se face corectura, etapă cu etapă.</p>
+              <h2 id="despre-cta">Vezi cum funcționează, pe un test de-al tău</h2>
+              <p>Sau citește mai întâi cum decurge corectarea, etapă cu etapă.</p>
             </div>
             <p class="cta">
               <a class="btn btn-primary btn-large" href="/teacher/#cont-nou">Cere un cont de profesor</a>
