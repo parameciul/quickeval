@@ -125,6 +125,8 @@ describe('the teacher API through the link', () => {
   });
 
   it('refuses every route that is not on the allow-list', async () => {
+    // With a barem stored, the old GET files/barem would answer 200 if it passed the list.
+    expect((await putTestFile('barem')).status).toBe(200);
     const submissionId = (await api.request('GET', `/api/try/${token}`)).body.submissionId as number;
     const refused: [string, string][] = [
       ['GET', `/tests`],

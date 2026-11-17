@@ -266,7 +266,11 @@ describe('the first, Romanian API paths', () => {
       expect([path, (await api.fetch(path)).status]).toEqual([path, 200]);
     }
 
-    expect((await putFile(code, 'barem', pdf('x'), PDF_TYPE, 'barem.pdf')).status).toBe(404);
+    // The old file uploads, under a name the fixtures do not use.
+    for (const path of [`${t}/files/barem`, `${t}/ces/files/test`, `${t}/ces/files/barem`, `${t}/sen/files/barem`]) {
+      const res = await api.fetch(path, { method: 'PUT', body: pdf('nou'), headers: { 'Content-Type': PDF_TYPE, 'X-File-Name': 'nou.pdf' } });
+      expect([path, res.status]).toEqual([path, 404]);
+    }
     for (const [method, path, body] of [
       ['GET', `${t}/files/barem`, undefined],
       ['PUT', `${t}/barem-notes`, { notes: 'Vechi.' }],
@@ -298,5 +302,8 @@ describe('the first, Romanian API paths', () => {
       'barem.pdf',
       'ces-test.pdf',
     ]);
+    expect(await (await api.fetch(`${t}/files/marking-scheme`)).text()).toBe('%PDF-1.7 barem');
+    expect(await (await api.fetch(`${t}/sen/files/marking-scheme`)).text()).toBe('%PDF-1.7 ces/barem');
+    expect((await api.request('GET', `/api/admin/students/${studentId}/history`)).body.student.ces).toBe(false);
   });
 });
