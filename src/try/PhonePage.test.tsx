@@ -39,6 +39,11 @@ describe("a try's phone page", () => {
     expect(screen.queryByRole('link', { name: 'Deschide încercarea' })).not.toBeInTheDocument();
   });
 
+  it('keeps the flag of the old address', async () => {
+    setup([], undefined, '/telefon?here=1');
+    expect(await screen.findByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+  });
+
   it('lists the pages the try already has', async () => {
     setup([page(1, 'a.pdf'), page(2, 'b.pdf')]);
     expect(await screen.findByRole('heading', { name: 'Paginile (2)' })).toBeInTheDocument();
@@ -94,6 +99,19 @@ describe("a try's phone page", () => {
     expectNoGradingWords();
   });
 
+  it('on the phone that made the try, hides the link to the try while a page is on its way', async () => {
+    const { tryApi } = setup([], undefined, '/phone?here=1');
+    let arrive: (file: SubmissionFile) => void = () => {};
+    tryApi.uploadPage.mockImplementationOnce(() => new Promise<SubmissionFile>((done) => (arrive = done)));
+    await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 });
+    expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+    await pick([jpeg('pagina-1.jpg')]);
+    await waitFor(() => expect(tryApi.uploadPage).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('link', { name: 'Deschide încercarea' })).not.toBeInTheDocument();
+    arrive(page(901, 'pagina-1.jpg'));
+    expect(await screen.findByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+  });
+
   it('on the phone that made the try, a failed try sends her to the try page', async () => {
     setup([page(1, 'a.pdf')], tryTest({ barem: { request: 'failed', unchecked: false } }), '/phone?here=1');
     expect(await screen.findByText('Încercarea nu a mers. Continuă pe pagina încercării.')).toBeInTheDocument();
@@ -105,13 +123,6 @@ describe("a try's phone page", () => {
     setup([page(1, 'a.pdf')], tryTest({ status: 'evaluating' }, { status: 'submitted' }));
     expect(await screen.findByText('Lucrarea a fost trimisă. Nu mai poți schimba paginile.')).toBeInTheDocument();
     expect(within(screen.getByRole('main')).queryAllByRole('link')).toHaveLength(0);
-  });
-
-  it('reads the pages again after "Am terminat", so the try page shows them at once', async () => {
-    const { tryApi } = setup([page(1, 'a.pdf')], undefined, '/phone?here=1');
-    await userEvent.click(await screen.findByRole('button', { name: 'Am terminat' }));
-    await screen.findByRole('heading', { name: 'Paginile au ajuns' });
-    await waitFor(() => expect(tryApi.listPages).toHaveBeenCalledTimes(2));
   });
 
   it('on the phone that made the try, the read-only page opens the try', async () => {

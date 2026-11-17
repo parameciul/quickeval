@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Navigate, Route, Routes, useParams } from 'react-router';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 import { parsePositiveId } from '../../shared/ids.ts';
 import { normalizeTestCode } from '../../shared/tests.ts';
 import type { AdminApi } from '../admin/api.ts';
@@ -57,7 +57,7 @@ function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
       <Route path="/" element={home} />
       <Route path="/phone" element={<PhonePage info={info.data} tryApi={tryApi} />} />
       {/* The phone page's first address: its QR codes must not fall to "*", the try's page. */}
-      <Route path="/telefon" element={<Navigate replace to="/phone" />} />
+      <Route path="/telefon" element={<ToPhonePage />} />
       <Route path="/teste/:code" element={home} />
       <Route path="/teste/:code/verificare" element={<TryPaperPage />} />
       <Route path="/teste/:code/elevi/:id" element={<AllExercises />} />
@@ -74,4 +74,10 @@ function AllExercises() {
   const submissionId = parsePositiveId(params.id);
   if (code === null || submissionId === null) return <Navigate replace to="/" />;
   return <Navigate replace to={paperPath(code, 'try', { submissionId, key: null }, 'toate')} />;
+}
+
+// The old address of the phone page, with its flag and anchor kept.
+function ToPhonePage() {
+  const { search, hash } = useLocation();
+  return <Navigate replace to={{ pathname: '/phone', search, hash }} />;
 }

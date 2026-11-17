@@ -18,7 +18,11 @@ const files = { test: { name: 'test.pdf', type: PDF_TYPE }, barem: { name: 'bare
 const grading = tryTest({ status: 'evaluating', files }, { status: 'submitted' });
 const graded = tryTest({ status: 'done', files }, { status: 'graded' });
 
+let mounted = new AbortController();
+
 afterEach(() => {
+  mounted.abort();
+  mounted = new AbortController();
   document.body.innerHTML = '';
   localStorage.clear();
 });
@@ -60,6 +64,7 @@ async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone:
     isPhone: phone.isPhone ?? (() => false),
     go: phone.go,
     watchPhone: phone.watchPhone ?? (() => {}),
+    signal: mounted.signal,
   });
   return { api, turnstile };
 }
@@ -88,6 +93,13 @@ function sendByPhone() {
   pick(/^Baremul/, pdf('barem.pdf'));
   within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
   send();
+}
+
+// A page shown: from the browser's back/forward cache when `persisted`.
+function pageShow(persisted: boolean): Event {
+  const shown = new Event('pageshow');
+  Object.defineProperty(shown, 'persisted', { value: persisted });
+  return shown;
 }
 
 const send = () => within(dialog()).getByRole('button', { name: 'Trimite' }).click();
@@ -276,19 +288,22 @@ describe("the landing page's Quick Try", () => {
     expect(JSON.parse(localStorage.getItem(STORED_TRY_KEY)!)).toMatchObject({ token: TOKEN });
   });
 
-  it('closes the form and shows the card before it opens the phone page, so Back finds the page as it should be', async () => {
-    const go = vi.fn();
+  it('closes the form and hides the try button before it opens the phone page, so Back finds the page as it should be', async () => {
+    const atGo: { open: boolean; button: boolean }[] = [];
+    const go = vi.fn(() => {
+      atGo.push({ open: dialog().hasAttribute('open'), button: button() !== null });
+    });
     const { api } = await mount(undefined, undefined, { isPhone: () => true, go });
-    api.getTest.mockResolvedValue(tryTest({ status: 'open', files }));
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
     pick(/^Baremul/, pdf('barem.pdf'));
     within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    const reads = api.getTest.mock.calls.length;
     send();
     await waitFor(() => expect(go).toHaveBeenCalled());
-    expect(dialog().hasAttribute('open')).toBe(false);
-    await waitFor(() => expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toHaveAttribute('href', `/try/${TOKEN}`));
-    expect(button()).toBeNull();
+    expect(atGo).toEqual([{ open: false, button: false }]);
+    // The try is read when the page shows again, not just before it leaves.
+    expect(api.getTest).toHaveBeenCalledTimes(reads);
   });
 
   it('reads the try again when the browser shows the page again from its cache', async () => {
@@ -297,12 +312,11 @@ describe("the landing page's Quick Try", () => {
     // A graded try is read once: no timer reads it again.
     api.getTest.mockResolvedValue(graded);
     await mount(api);
-    await new Promise((done) => setTimeout(done, 20));
-    const reads = api.getTest.mock.calls.length;
-    const shown = new Event('pageshow');
-    Object.defineProperty(shown, 'persisted', { value: true });
-    window.dispatchEvent(shown);
-    await waitFor(() => expect(api.getTest.mock.calls.length).toBeGreaterThan(reads));
+    await waitFor(() => expect(api.getTest).toHaveBeenCalledTimes(1));
+    window.dispatchEvent(pageShow(false));
+    expect(api.getTest).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(pageShow(true));
+    await waitFor(() => expect(api.getTest).toHaveBeenCalledTimes(2));
   });
 
   it('on a phone, a send with no barem asks the robot for it, then opens the phone page', async () => {

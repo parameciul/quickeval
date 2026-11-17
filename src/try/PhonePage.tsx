@@ -138,19 +138,17 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
         }
         listTitle="Paginile"
         finishLabel="Am terminat"
-        onFinish={(count) => {
-          // The try's page shares this cache: it shows the new pages at once.
-          void queryClient.invalidateQueries({ queryKey: ['try', 'pages'] });
-          setDone(count);
-        }}
+        onFinish={(count) => setDone(count)}
+        idleFooter={
+          here && (
+            <p className="phone-to-try">
+              <Link className="link" to="/">
+                Deschide încercarea
+              </Link>
+            </p>
+          )
+        }
       />
-      {here && (
-        <p className="phone-to-try">
-          <Link className="link" to="/">
-            Deschide încercarea
-          </Link>
-        </p>
-      )}
     </div>
   );
 }
