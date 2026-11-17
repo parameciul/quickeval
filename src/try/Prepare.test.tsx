@@ -115,7 +115,7 @@ describe("the phone's code on a try's page", () => {
     try {
       setup();
       const link = await screen.findByRole('link', { name: 'Fă poze' });
-      expect(link).toHaveAttribute('href', '/telefon?aici=1');
+      expect(link).toHaveAttribute('href', '/phone?here=1');
       expect(screen.queryByRole('button', { name: 'Fă poze cu telefonul' })).not.toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();

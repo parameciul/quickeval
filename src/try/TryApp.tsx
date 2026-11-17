@@ -55,7 +55,9 @@ function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
   return (
     <Routes>
       <Route path="/" element={home} />
-      <Route path="/telefon" element={<PhonePage info={info.data} tryApi={tryApi} />} />
+      <Route path="/phone" element={<PhonePage info={info.data} tryApi={tryApi} />} />
+      {/* The phone page's first address: its QR codes must not fall to "*", the try's page. */}
+      <Route path="/telefon" element={<Navigate replace to="/phone" />} />
       <Route path="/teste/:code" element={home} />
       <Route path="/teste/:code/verificare" element={<TryPaperPage />} />
       <Route path="/teste/:code/elevi/:id" element={<AllExercises />} />

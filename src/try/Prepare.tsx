@@ -237,7 +237,7 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
           />
         </label>
         {onPhone ? (
-          <Link className="button-quiet" to="/telefon?aici=1">
+          <Link className="button-quiet" to="/phone?here=1">
             <ActionIcon name="phone" />
             Fă poze
           </Link>

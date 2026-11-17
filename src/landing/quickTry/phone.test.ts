@@ -74,7 +74,7 @@ describe('the QR window after a send with the phone', () => {
     expect(dialog.querySelector('[data-try-form]')).not.toBeVisible();
     expect(dialog).toHaveAttribute('aria-labelledby', 'try-phone-title');
     expect(view.getByRole('heading', { name: 'Fă pozele cu telefonul' })).toHaveFocus();
-    expect(drawQr).toHaveBeenCalledWith(expect.any(SVGSVGElement), `https://mqgrader.ro/try/${TOKEN}/telefon`);
+    expect(drawQr).toHaveBeenCalledWith(expect.any(SVGSVGElement), `https://mqgrader.ro/try/${TOKEN}/phone`);
     expect(view.getByText('Codul merge doar pentru această încercare.')).toBeVisible();
   });
 
@@ -183,7 +183,7 @@ describe('the QR window after a send with the phone', () => {
     const { block } = open({ drawQr: async () => Promise.reject(new Error('offline')) });
     const link = block.querySelector<HTMLElement>('[data-try-qr-link]')!;
     await waitFor(() => expect(link).toBeVisible());
-    expect(link).toHaveTextContent(`https://mqgrader.ro/try/${TOKEN}/telefon`);
+    expect(link).toHaveTextContent(`https://mqgrader.ro/try/${TOKEN}/phone`);
     expect(block.querySelector('[data-try-qr]')).not.toBeVisible();
   });
 

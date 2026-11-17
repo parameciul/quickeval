@@ -433,6 +433,11 @@ label.button-quiet.is-disabled {
 }
 
 /* On the phone that made the try: "Deschide încercarea" over "Mai adaugă pagini". */
+.phone-to-try {
+  margin-top: 1rem;
+  text-align: center;
+}
+
 .phone-done .button + .button-quiet,
 .phone-page .alert + .button {
   margin-top: 0.75rem;

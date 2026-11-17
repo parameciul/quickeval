@@ -30,12 +30,15 @@ export interface QuickTryDeps {
   origin?: string;
   drawQr?: typeof drawQr;
   // A phone takes the photos itself: after the send it opens the try's phone
-  // page in its own tab, through `go`, in place of the QR window.
+  // page in its own tab, through `go`, in place of the QR window. `watchPhone`
+  // calls back when that may change (the phone turns).
   isPhone?: () => boolean;
   go?: (path: string) => void;
+  watchPhone?: (onChange: () => void) => void;
 }
 
 const onAPhone = () => window.matchMedia?.(PHONE_MEDIA).matches ?? false;
+const watchAPhone = (onChange: () => void) => window.matchMedia?.(PHONE_MEDIA).addEventListener?.('change', onChange);
 
 const FULL_TEXT =
   'Încercările gratuite de azi s-au terminat. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.';
@@ -120,11 +123,6 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const phonePick = form.querySelector<HTMLButtonElement>('[data-try-phone-pick]')!;
   const phoneUndo = form.querySelector<HTMLButtonElement>('[data-try-phone-undo]')!;
   const refreshMs = deps.refreshMs ?? 10_000;
-  const here = (deps.isPhone ?? onAPhone)();
-  if (here) {
-    phonePick.classList.add('is-here');
-    phonePick.querySelector<HTMLElement>('[data-try-phone-pick-text]')!.textContent = 'Fă poze';
-  }
 
   let availability: QuickTryAvailability | null = null;
   let stored = readStoredTry(deps.storage, deps.now());
@@ -136,6 +134,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   let byPhone = false;
   // The QR window, while it shows.
   let phoneStep: PhoneStep | null = null;
+  // On a phone: "Fă poze" and its own camera, in place of the QR code.
+  let here = false;
 
   // The button, or the line that says why there is none.
   function refreshButton(): void {
@@ -234,6 +234,18 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = here ? 'Camera se deschide după ce apeși Trimite' : 'Codul QR apare după ce apeși Trimite';
   }
 
+  // The pages row's phone button, for this device. The markup keeps it hidden
+  // so a phone never shows "Cu telefonul" first.
+  function applyDevice(): void {
+    here = (deps.isPhone ?? onAPhone)();
+    phonePick.classList.toggle('is-here', here);
+    phonePick.querySelector<HTMLElement>('[data-try-phone-pick-text]')!.textContent = here ? 'Fă poze' : 'Cu telefonul';
+    if (byPhone) choosePhone(true);
+    else phonePick.hidden = false;
+  }
+  applyDevice();
+  (deps.watchPhone ?? watchAPhone)(applyDevice);
+
   phonePick.addEventListener('click', () => {
     choosePhone(true);
     // The button hides: the focus goes to its "Schimbă".
@@ -315,6 +327,11 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       choosePhone(false);
       for (const input of pickInputs) showPick(input, []);
       if (withPhone && here) {
+        // Back may show this page again from the browser's cache: closed, with
+        // the try's card and no button for a second try.
+        closeDialog(dialog!);
+        refreshButton();
+        void follow(done);
         (deps.go ?? ((path: string) => window.location.assign(path)))(quickTryPhonePath(done.token, true));
         return;
       }
@@ -347,6 +364,15 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       check?.reset();
     }
   }
+
+  // Shown again from the browser's cache (Back from the phone page): the try
+  // read again, since its pages or its state may have changed meanwhile.
+  window.addEventListener('pageshow', (event) => {
+    if (!(event as PageTransitionEvent).persisted) return;
+    stored = readStoredTry(deps.storage, deps.now());
+    if (stored) void follow(stored);
+    else refreshButton();
+  });
 
   const [answer] = await Promise.allSettled([deps.api.availability(), stored ? follow(stored) : Promise.resolve()]);
   if (answer.status === 'fulfilled') {
