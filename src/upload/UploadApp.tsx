@@ -345,9 +345,10 @@ function ClosedScreen({
   if (!info.test.resultsOpen) {
     // The tickets this phone kept stay, so a student who did not save one
     // after sending can still save it.
+    // Grey, not red: closed uploads are the normal next step, not an error.
     return (
       <>
-        <p className="alert" role="alert">
+        <p className="notice" role="status">
           Încărcarea s-a închis.
         </p>
         <p className="hint">Dacă nu ai trimis lucrarea, spune-i profesorului.</p>

@@ -133,10 +133,13 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
-  it('says the uploads are closed once the test is closed', async () => {
+  it('says the uploads are closed once the test is closed, in a calm grey box, not as an error', async () => {
     const api = createFakeUploadApi({ ...linkInfo({ status: 'evaluating' }), students: [] });
     render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
+    const notice = await screen.findByRole('status');
+    expect(notice).toHaveTextContent('Încărcarea s-a închis.');
+    expect(notice).toHaveClass('notice');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
     expectNoGradingWords();
   });
@@ -247,7 +250,7 @@ describe('UploadApp', () => {
     saveSecret(LINK_TOKEN, 11, 'secret-11');
     saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
     render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
     expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/result/result-token-11`);
     const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
     expect(within(ticket).getByText('K7M-92P')).toBeInTheDocument();
@@ -312,7 +315,7 @@ describe('UploadApp', () => {
     saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
     const openResult = vi.fn();
     render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
     expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
     expect(openResult).not.toHaveBeenCalled();
   });

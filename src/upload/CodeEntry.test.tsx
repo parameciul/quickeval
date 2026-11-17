@@ -94,7 +94,7 @@ describe('the code field on the closed test page', () => {
   // phone it would only add a link there.
   it('shows no field while the results are not published, with or without tickets', async () => {
     const empty = render(<UploadApp api={createFakeUploadApi(closedOnly())} token={LINK_TOKEN} goTo={vi.fn()} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
     expect(screen.getByText('Dacă nu ai trimis lucrarea, spune-i profesorului.')).toBeInTheDocument();
     expect(screen.getByText('Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.')).toBeInTheDocument();
     expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();

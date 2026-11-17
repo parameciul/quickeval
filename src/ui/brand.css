@@ -1507,7 +1507,8 @@ textarea {
 }
 
 /* Calm news in the place of an alert, grey like a label: nothing went wrong,
-   the student came early (a result link before the results are published). */
+   the student came early (a result link before the results are published, the
+   test's link once the uploads closed). */
 .notice {
   max-width: 40rem;
   margin-block: 0.75rem;
