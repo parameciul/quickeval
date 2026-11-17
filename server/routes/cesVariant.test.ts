@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PDF_TYPE } from '../../shared/files.ts';
+import { PDF_TYPE, TEST_FILE_PATHS } from '../../shared/files.ts';
 import { requestBarem, saveBaremNotes, saveTestFile } from '../db/tests.ts';
 import { addCesFiles, addSubmission, addTestFiles, makeClass, makeTest, markCes, otherTeacherTest, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
@@ -14,7 +14,7 @@ let students: number[];
 
 const pdf = (text: string) => new TextEncoder().encode(`%PDF-1.7 ${text}`);
 const putCesFile = async (kind: 'test' | 'barem', name: string, text: string, target = code) => {
-  const res = await api.fetch(`/api/admin/tests/${target}/ces/files/${kind}`, {
+  const res = await api.fetch(`/api/admin/tests/${target}/sen/files/${TEST_FILE_PATHS[kind]}`, {
     method: 'PUT',
     body: pdf(text),
     headers: { 'Content-Type': PDF_TYPE, 'X-File-Name': encodeURIComponent(name) },
@@ -125,7 +125,7 @@ describe('the CES variant of a test page', () => {
   });
 });
 
-describe('PUT /ces/files/:kind', () => {
+describe('PUT /sen/files/:kind', () => {
   it('stores the CES test under ces/, apart from the class files, and starts the robot for its print PDF', async () => {
     await addTestFiles(api, code, ['test']);
     const before = await row();
@@ -139,7 +139,7 @@ describe('PUT /ces/files/:kind', () => {
     expect(after!.test_file_key).toBe(before!.test_file_key);
     expect((await info()).files.test).toEqual({ name: 'Test adaptat.pdf', type: PDF_TYPE });
 
-    const file = await api.fetch(`/api/admin/tests/${code}/ces/files/test`);
+    const file = await api.fetch(`/api/admin/tests/${code}/sen/files/test`);
     expect(file.status).toBe(200);
     expect(await file.text()).toBe('%PDF-1.7 ces');
   });
@@ -170,10 +170,10 @@ describe('PUT /ces/files/:kind', () => {
     const res = await putCesFile('barem', 'barem CES.pdf', 'b');
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('ces_grading');
-    const notes = await api.request('PUT', `/api/admin/tests/${code}/ces/barem-notes`, { notes: 'Altfel.' });
+    const notes = await api.request('PUT', `/api/admin/tests/${code}/sen/marking-scheme-notes`, { notes: 'Altfel.' });
     expect(notes.body.error).toBe('ces_grading');
     await addCesFiles(api, code, ['test']);
-    const generate = await api.request('POST', `/api/admin/tests/${code}/ces/barem/generate`);
+    const generate = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/generate`);
     expect(generate.status).toBe(409);
     expect(generate.body.error).toBe('ces_grading');
     expect((await row())!.ces_barem_request).toBe('none');
@@ -206,10 +206,10 @@ describe('PUT /ces/files/:kind', () => {
   });
 });
 
-describe('PUT /ces/barem-notes', () => {
+describe('PUT /sen/marking-scheme-notes', () => {
   it('saves the CES notes, counts a new CES files version and clears the CES list only', async () => {
     await setTest("exercise_list_status = 'ready', ces_exercise_list_status = 'ready'");
-    const res = await api.request('PUT', `/api/admin/tests/${code}/ces/barem-notes`, { notes: 'Punctează pe pași.' });
+    const res = await api.request('PUT', `/api/admin/tests/${code}/sen/marking-scheme-notes`, { notes: 'Punctează pe pași.' });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ baremNotes: 'Punctează pe pași.', robot: null });
     expect(await row()).toMatchObject({ ces_files_version: 1, files_version: 0, ces_exercise_list_status: 'none', exercise_list_status: 'ready' });
@@ -217,9 +217,9 @@ describe('PUT /ces/barem-notes', () => {
   });
 });
 
-describe('POST /ces/barem/generate and /ces/barem/checked', () => {
+describe('POST /sen/marking-scheme/generate and /sen/marking-scheme/checked', () => {
   it('refuses without a CES test file', async () => {
-    const res = await api.request('POST', `/api/admin/tests/${code}/ces/barem/generate`);
+    const res = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/generate`);
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('missing_test_file');
   });
@@ -228,7 +228,7 @@ describe('POST /ces/barem/generate and /ces/barem/checked', () => {
     await startTest(api, code);
     await addCesFiles(api, code, ['test']);
     await setTest("evaluation_at = '2099-01-01T10:00:00.000Z'");
-    const open = await api.request('POST', `/api/admin/tests/${code}/ces/barem/generate`);
+    const open = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/generate`);
     expect(open.status).toBe(200);
     expect(open.body).toEqual({ barem: { request: 'requested', unchecked: false }, robot: 'dispatched' });
     expect(await row()).toMatchObject({ ces_barem_request: 'requested', evaluation_at: '2099-01-01T10:00:00.000Z' });
@@ -236,47 +236,47 @@ describe('POST /ces/barem/generate and /ces/barem/checked', () => {
     // A test in evaluation with nothing to grade would end at the next request.
     await addSubmission(api, code, students[1]!, { status: 'submitted', files: 1 });
     await setTest("status = 'evaluating', ces_barem_request = 'none'");
-    const evaluating = await api.request('POST', `/api/admin/tests/${code}/ces/barem/generate`);
+    const evaluating = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/generate`);
     expect(evaluating.status).toBe(200);
     // The class barem cannot be generated then.
     await addTestFiles(api, code, ['test']);
-    expect((await api.request('POST', `/api/admin/tests/${code}/barem/generate`)).status).toBe(409);
+    expect((await api.request('POST', `/api/admin/tests/${code}/marking-scheme/generate`)).status).toBe(409);
   });
 
   it('refuses a CES barem once the test is done', async () => {
     await addCesFiles(api, code, ['test']);
     await setTest("status = 'done'");
-    const res = await api.request('POST', `/api/admin/tests/${code}/ces/barem/generate`);
+    const res = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/generate`);
     expect(res.body.error).toBe('not_editable');
   });
 
   it('confirms the CES barem as the page showed it, and starts the robot during the evaluation', async () => {
     await addCesFiles(api, code, ['test', 'barem']);
     await setTest("ces_barem_unchecked = 1, ces_files_version = 3");
-    const stale = await api.request('POST', `/api/admin/tests/${code}/ces/barem/checked`, { filesVersion: 2 });
+    const stale = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/checked`, { filesVersion: 2 });
     expect(stale.status).toBe(409);
     expect(stale.body.error).toBe('stale');
 
-    const draft = await api.request('POST', `/api/admin/tests/${code}/ces/barem/checked`, { filesVersion: 3 });
+    const draft = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/checked`, { filesVersion: 3 });
     expect(draft.body).toEqual({ barem: { request: 'none', unchecked: false }, robot: null });
     expect(dispatchRobot).not.toHaveBeenCalled();
 
     await setTest("status = 'evaluating', ces_barem_unchecked = 1");
     await addSubmission(api, code, students[0]!, { status: 'submitted', files: 1 });
-    const evaluating = await api.request('POST', `/api/admin/tests/${code}/ces/barem/checked`, { filesVersion: 3 });
+    const evaluating = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/checked`, { filesVersion: 3 });
     expect(evaluating.body.robot).toBe('dispatched');
     // The class barem's check is apart.
-    expect((await api.request('POST', `/api/admin/tests/${code}/barem/checked`, { filesVersion: 0 })).status).toBe(409);
+    expect((await api.request('POST', `/api/admin/tests/${code}/marking-scheme/checked`, { filesVersion: 0 })).status).toBe(409);
   });
 });
 
-describe('DELETE /ces', () => {
+describe('DELETE /sen', () => {
   it('removes the CES files, from the database and from R2', async () => {
     await putCesFile('test', 'Test adaptat.pdf', 'ces');
     await putCesFile('barem', 'Barem adaptat.pdf', 'b');
     await setTest("ces_print_status = 'ready', ces_print_file_key = 'x/ces-print.pdf', ces_barem_notes = 'N'");
     await api.env.FILES.put('x/ces-print.pdf', 'p');
-    const res = await api.request('DELETE', `/api/admin/tests/${code}/ces`);
+    const res = await api.request('DELETE', `/api/admin/tests/${code}/sen`);
     expect(res.status).toBe(200);
     expect(res.body.ces).toMatchObject({ files: { test: null, barem: null }, baremNotes: '', filesVersion: 3, print: { status: 'none', fromWord: false } });
     expect(await api.env.FILES.get(`t/1/2026/${code}/ces/test/test-adaptat.pdf`)).toBeNull();
@@ -288,7 +288,7 @@ describe('DELETE /ces', () => {
     await addCesFiles(api, code);
     const id = await addSubmission(api, code, students[0]!, { status: 'graded', files: 1 });
     await api.db.prepare("UPDATE submissions SET variant = 'ces' WHERE id = ?").bind(id).run();
-    const res = await api.request('DELETE', `/api/admin/tests/${code}/ces`);
+    const res = await api.request('DELETE', `/api/admin/tests/${code}/sen`);
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('ces_papers');
     expect((await row())!.ces_test_file_key).not.toBeNull();
@@ -298,8 +298,8 @@ describe('DELETE /ces', () => {
     await addCesFiles(api, code, ['test']);
     await markCes(api, students[0]!);
     await addSubmission(api, code, students[0]!, { status: 'submitted', files: 1 });
-    expect((await api.request('DELETE', `/api/admin/tests/${code}/ces`)).status).toBe(200);
-    const again = await api.request('DELETE', `/api/admin/tests/${code}/ces`);
+    expect((await api.request('DELETE', `/api/admin/tests/${code}/sen`)).status).toBe(200);
+    const again = await api.request('DELETE', `/api/admin/tests/${code}/sen`);
     expect(again.status).toBe(409);
     expect(again.body.error).toBe('no_ces');
   });
@@ -307,23 +307,23 @@ describe('DELETE /ces', () => {
   it('starts the robot during the evaluation: the CES papers that waited go as class papers', async () => {
     await addCesFiles(api, code, ['test']);
     await markCes(api, students[0]!);
-    expect((await api.request('DELETE', `/api/admin/tests/${code}/ces`)).body.robot).toBeNull();
+    expect((await api.request('DELETE', `/api/admin/tests/${code}/sen`)).body.robot).toBeNull();
     expect(dispatchRobot).not.toHaveBeenCalled();
 
     await startTest(api, code);
     await addCesFiles(api, code, ['test']);
     await addSubmission(api, code, students[0]!, { status: 'submitted', files: 1 });
     await setTest("status = 'evaluating'");
-    const res = await api.request('DELETE', `/api/admin/tests/${code}/ces`);
+    const res = await api.request('DELETE', `/api/admin/tests/${code}/sen`);
     expect(res.status).toBe(200);
     expect(res.body.robot).toBe('dispatched');
     expect(dispatchRobot).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('PUT /students/:id/ces', () => {
+describe('PUT /students/:id/sen', () => {
   it('starts the robot when a test of the student is in evaluation with a CES variant', async () => {
-    const mark = (ces: boolean) => api.request('PUT', `/api/admin/students/${students[0]}/ces`, { ces });
+    const mark = (ces: boolean) => api.request('PUT', `/api/admin/students/${students[0]}/sen`, { ces });
     expect((await mark(true)).body).toEqual({ student: { id: students[0], ces: true } });
     await startTest(api, code);
     // A sent paper keeps the test in evaluation.
@@ -345,18 +345,18 @@ describe('the CES print PDF and exercise list', () => {
   it('tries a failed CES print PDF again', async () => {
     await addCesFiles(api, code, ['test']);
     await setTest("ces_print_status = 'failed', ces_print_attempts = 3");
-    const res = await api.request('POST', `/api/admin/tests/${code}/ces/print/retry`);
+    const res = await api.request('POST', `/api/admin/tests/${code}/sen/print/retry`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ print: { status: 'none', fromWord: false }, robot: 'dispatched' });
     expect((await row())!.ces_print_status).toBe('none');
-    expect((await api.request('POST', `/api/admin/tests/${code}/ces/print/retry`)).status).toBe(409);
+    expect((await api.request('POST', `/api/admin/tests/${code}/sen/print/retry`)).status).toBe(409);
   });
 
   it('serves the CES print PDF once it is ready', async () => {
-    expect((await api.fetch(`/api/admin/tests/${code}/ces/print`)).status).toBe(404);
+    expect((await api.fetch(`/api/admin/tests/${code}/sen/print`)).status).toBe(404);
     await setTest("ces_print_status = 'ready', ces_print_file_key = 'x/ces-print.pdf'");
     await api.env.FILES.put('x/ces-print.pdf', '%PDF-1.7 qr');
-    const res = await api.fetch(`/api/admin/tests/${code}/ces/print`);
+    const res = await api.fetch(`/api/admin/tests/${code}/sen/print`);
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Disposition')).toContain('-CES-cu-cod-qr.pdf');
   });
@@ -364,13 +364,13 @@ describe('the CES print PDF and exercise list', () => {
   it('accepts a CES list with a problem and tries a failed one again, apart from the class list', async () => {
     await setTest("status = 'evaluating', exercise_list_status = 'problem', ces_exercise_list_status = 'problem'");
     await addSubmission(api, code, students[0]!, { status: 'submitted', files: 1 });
-    const accepted = await api.request('POST', `/api/admin/tests/${code}/ces/exercise-list/accept`);
+    const accepted = await api.request('POST', `/api/admin/tests/${code}/sen/exercise-list/accept`);
     expect(accepted.body).toMatchObject({ exerciseList: { status: 'accepted' }, robot: 'dispatched' });
     expect(await row()).toMatchObject({ ces_exercise_list_status: 'accepted', exercise_list_status: 'problem' });
     await setTest("ces_exercise_list_status = 'failed'");
-    const retried = await api.request('POST', `/api/admin/tests/${code}/ces/exercise-list/retry`);
+    const retried = await api.request('POST', `/api/admin/tests/${code}/sen/exercise-list/retry`);
     expect(retried.body).toMatchObject({ exerciseList: { status: 'none', message: null } });
-    expect((await api.request('POST', `/api/admin/tests/${code}/ces/exercise-list/retry`)).status).toBe(409);
+    expect((await api.request('POST', `/api/admin/tests/${code}/sen/exercise-list/retry`)).status).toBe(409);
   });
 });
 

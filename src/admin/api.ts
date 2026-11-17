@@ -40,7 +40,7 @@ import type {
   TestSummary,
   UpdateClassInput,
 } from '../../shared/api.ts';
-import { uploadTypeOf, type TestFileKind, type TestVariant } from '../../shared/files.ts';
+import { CES_PATH, TEST_FILE_PATHS, uploadTypeOf, type TestFileKind, type TestVariant } from '../../shared/files.ts';
 import type { CheckoutAnswer, CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import type { Subject } from '../../shared/subjects.ts';
 import { studentResultPath } from '../../shared/api.ts';
@@ -171,9 +171,9 @@ export interface AdminApi {
 }
 
 // The part of a test's address that names its variant: the CES variant's
-// routes are under /ces.
+// routes are under /sen.
 function variantPath(code: string, variant: TestVariant | undefined): string {
-  return `/tests/${encodeURIComponent(code)}${variant === 'ces' ? '/ces' : ''}`;
+  return `/tests/${encodeURIComponent(code)}${variant === 'ces' ? `/${CES_PATH}` : ''}`;
 }
 
 export const ADMIN_BASE = '/api/admin';
@@ -181,7 +181,7 @@ export const ADMIN_BASE = '/api/admin';
 // Files open straight from the API: the browser sends the login cookie (or
 // the address carries a Quick Try's token, in `base`).
 export function testFileUrl(code: string, kind: TestFileKind, variant?: TestVariant, base = ADMIN_BASE): string {
-  return `${base}${variantPath(code, variant)}/files/${kind}`;
+  return `${base}${variantPath(code, variant)}/files/${TEST_FILE_PATHS[kind]}`;
 }
 
 // The test with the QR code, made for printing.
@@ -326,7 +326,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     renameStudent: async (studentId, fullName) =>
       (await request<{ student: { id: number; fullName: string } }>('PATCH', `/students/${studentId}`, { fullName })).student,
     setStudentCes: async (studentId, ces) =>
-      (await request<{ student: { id: number; ces: boolean } }>('PUT', `/students/${studentId}/ces`, { ces })).student,
+      (await request<{ student: { id: number; ces: boolean } }>('PUT', `/students/${studentId}/${CES_PATH}`, { ces })).student,
     getStudentHistory: (studentId) => request<StudentHistory>('GET', `/students/${studentId}/history`),
     search: (query, schoolYear) => request<SearchResults>('GET', `/search?q=${encodeURIComponent(query)}&year=${schoolYear}`),
     listTests: async (schoolYear) => (await request<{ tests: TestSummary[] }>('GET', `/tests?year=${schoolYear}`)).tests,
@@ -337,12 +337,12 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     deleteTest: async (code) => {
       await request('DELETE', test(code));
     },
-    uploadTestFile: (code, kind, file, variant) => request<TestFileAnswer>('PUT', `${variantPath(code, variant)}/files/${kind}`, undefined, file),
-    saveBaremNotes: (code, notes, variant) => request<BaremNotesAnswer>('PUT', `${variantPath(code, variant)}/barem-notes`, { notes }),
-    generateBarem: (code, variant) => request<BaremGenerateAnswer>('POST', `${variantPath(code, variant)}/barem/generate`),
+    uploadTestFile: (code, kind, file, variant) => request<TestFileAnswer>('PUT', `${variantPath(code, variant)}/files/${TEST_FILE_PATHS[kind]}`, undefined, file),
+    saveBaremNotes: (code, notes, variant) => request<BaremNotesAnswer>('PUT', `${variantPath(code, variant)}/marking-scheme-notes`, { notes }),
+    generateBarem: (code, variant) => request<BaremGenerateAnswer>('POST', `${variantPath(code, variant)}/marking-scheme/generate`),
     confirmBarem: (code, filesVersion, variant) =>
-      request<BaremCheckedAnswer>('POST', `${variantPath(code, variant)}/barem/checked`, { filesVersion }),
-    setCesOff: (code, off) => request<CesOffAnswer>('PUT', `${test(code)}/ces/off`, { off }),
+      request<BaremCheckedAnswer>('POST', `${variantPath(code, variant)}/marking-scheme/checked`, { filesVersion }),
+    setCesOff: (code, off) => request<CesOffAnswer>('PUT', `${test(code)}/${CES_PATH}/off`, { off }),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
     stopTest: (code) => request<StoppedTest>('POST', `${test(code)}/stop`),
     createMultiUploadLink: async (code) =>

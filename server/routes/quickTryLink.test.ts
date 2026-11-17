@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PDF_TYPE } from '../../shared/files.ts';
+import { PDF_TYPE, TEST_FILE_PATHS } from '../../shared/files.ts';
 import { NEEDS_PRINT } from '../db/runner.ts';
 import { addEvaluation } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
@@ -24,7 +24,7 @@ async function newTry(): Promise<{ token: string; code: string }> {
 const put = (path: string, bytes: BodyInit, type: string, name = 'fisier') =>
   api.fetch(path, { method: 'PUT', body: bytes, headers: { 'Content-Type': type, 'X-File-Name': encodeURIComponent(name) } });
 const putPaper = (bytes: BodyInit = jpeg()) => put(`/api/try/${token}/paper`, bytes, 'image/jpeg', 'pagina1.jpg');
-const putTestFile = (kind: 'test' | 'barem') => put(`/api/try/${token}/tests/${code}/files/${kind}`, pdf(kind), PDF_TYPE, `${kind}.pdf`);
+const putTestFile = (kind: 'test' | 'barem') => put(`/api/try/${token}/tests/${code}/files/${TEST_FILE_PATHS[kind]}`, pdf(kind), PDF_TYPE, `${kind}.pdf`);
 const start = (body: unknown = {}) => api.request('POST', `/api/try/${token}/start`, body);
 const paperStatus = async () =>
   (await api.db.prepare("SELECT s.status FROM submissions s JOIN tests t ON t.id = s.test_id WHERE t.quick_try = 1").first<{ status: string }>())!.status;
@@ -137,10 +137,14 @@ describe('the teacher API through the link', () => {
       ['POST', `/tests/${code}/results/open`],
       ['GET', `/tests/${code}/report`],
       ['GET', `/tests/${code}/print`],
+      ['PUT', `/tests/${code}/marking-scheme-notes`],
       ['PUT', `/tests/${code}/barem-notes`],
       ['POST', `/tests/${code}/finish`],
       ['POST', `/tests/${code}/archive`],
+      ['GET', `/tests/${code}/sen/files/test`],
       ['GET', `/tests/${code}/ces/files/test`],
+      ['POST', `/tests/${code}/marking-scheme/checked`],
+      ['POST', `/tests/${code}/barem/checked`],
       ['GET', `/submissions/${submissionId}/result-link`],
       ['POST', `/submissions/${submissionId}/reset`],
       ['POST', `/submissions/${submissionId}/regrade`],
@@ -203,7 +207,7 @@ describe('POST /api/try/<token>/start', () => {
 
   it("counts a robot's barem as checked when the page names its version", async () => {
     await putTestFile('test');
-    const asked = await api.request('POST', `/api/try/${token}/tests/${code}/barem/generate`);
+    const asked = await api.request('POST', `/api/try/${token}/tests/${code}/marking-scheme/generate`);
     expect(asked.body.barem.request).toBe('requested');
     // The robot saves its barem (as saveGeneratedBarem does): unchecked.
     await api.db

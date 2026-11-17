@@ -56,8 +56,8 @@ describe('the CES files', () => {
     });
     renderAdmin('/tests/6E2-26T1#prepare', createFakeApi({ classes: [], students: {}, tests: [test] }));
     const panel = within(await screen.findByRole('region', { name: 'Pregătire' }));
-    expect(panel.getByRole('link', { name: 'Test adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/test');
-    expect(panel.getByRole('link', { name: 'Barem adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/files/barem');
+    expect(panel.getByRole('link', { name: 'Test adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/sen/files/test');
+    expect(panel.getByRole('link', { name: 'Barem adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/sen/files/marking-scheme');
     expect(within(screen.getByRole('region', { name: 'Fișa testului' })).queryByRole('link')).not.toBeInTheDocument();
   });
 });

@@ -54,7 +54,7 @@ describe("a try's files before the grading", () => {
 
   it("starts with the robot's barem the page showed, after she downloads it", async () => {
     const { tryApi } = setup({ files: { test: testFile, barem: baremFile }, barem: { request: 'none', unchecked: true }, filesVersion: 2 });
-    expect(await screen.findByRole('link', { name: 'Descarcă baremul' })).toHaveAttribute('href', `/api/try/${TRY_TOKEN}/tests/${TRY_CODE}/files/barem`);
+    expect(await screen.findByRole('link', { name: 'Descarcă baremul' })).toHaveAttribute('href', `/api/try/${TRY_TOKEN}/tests/${TRY_CODE}/files/marking-scheme`);
     expect(screen.getByText(/Corectarea pornește doar când apeși/)).toBeInTheDocument();
     await userEvent.click(await startButton());
     expect(tryApi.start).toHaveBeenCalledWith(2);

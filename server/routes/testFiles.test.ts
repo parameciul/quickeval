@@ -45,8 +45,8 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
   });
 
   it('replaces a file: the new one is stored, the old one deleted', async () => {
-    await putFile(code, 'barem', pdf('vechi'), PDF_TYPE, 'barem.pdf');
-    const res = await putFile(code, 'barem', docx, DOCX_TYPE, 'Barem nou.docx');
+    await putFile(code, 'marking-scheme', pdf('vechi'), PDF_TYPE, 'barem.pdf');
+    const res = await putFile(code, 'marking-scheme', docx, DOCX_TYPE, 'Barem nou.docx');
     expect(res.status).toBe(200);
     const listed = await api.env.FILES.list({ prefix: `t/${api.teacherId}/2026/${code}/barem/` });
     expect(listed.objects.map((o) => o.key)).toEqual([`t/${api.teacherId}/2026/${code}/barem/barem-nou.docx`]);
@@ -72,7 +72,7 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
     await putFile(code, 'test', pdf('enunț'), PDF_TYPE, 'test.pdf');
     expect(await listState()).toEqual({ exercise_list_status: 'ready', exercise_list_json: '{}', exercise_list_attempts: 2 });
 
-    await putFile(code, 'barem', pdf('barem'), PDF_TYPE, 'barem.pdf');
+    await putFile(code, 'marking-scheme', pdf('barem'), PDF_TYPE, 'barem.pdf');
     expect(await listState()).toEqual({ exercise_list_status: 'none', exercise_list_json: null, exercise_list_attempts: 0 });
   });
 
@@ -86,7 +86,7 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
     // An upload waits for grading, so the test stays in evaluation.
     await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
     await api.db.prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = ? WHERE code = ?").bind(list, code).run();
-    const res = await putFile(code, 'barem', pdf('x'), PDF_TYPE, 'barem.pdf');
+    const res = await putFile(code, 'marking-scheme', pdf('x'), PDF_TYPE, 'barem.pdf');
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe('evaluating');
     expect(dispatchRobot).not.toHaveBeenCalled();
@@ -99,7 +99,7 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
       .bind(list, code)
       .run();
     dispatchRobot.mockResolvedValueOnce(true);
-    const res = await putFile(code, 'barem', pdf('nou'), PDF_TYPE, 'barem.pdf');
+    const res = await putFile(code, 'marking-scheme', pdf('nou'), PDF_TYPE, 'barem.pdf');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ file: { name: 'barem.pdf', type: PDF_TYPE }, robot: 'dispatched' });
     expect(dispatchRobot).toHaveBeenCalledTimes(1);
@@ -113,7 +113,7 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
   it('says the robot did not start when GitHub does not take the request', async () => {
     await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
     await api.db.prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'problem' WHERE code = ?").bind(code).run();
-    const res = await putFile(code, 'barem', pdf('nou'), PDF_TYPE, 'barem.pdf');
+    const res = await putFile(code, 'marking-scheme', pdf('nou'), PDF_TYPE, 'barem.pdf');
     expect(res.status).toBe(200);
     expect((await res.json()).robot).toBe('next_check');
     expect(dispatchRobot).toHaveBeenCalledTimes(1);
@@ -131,7 +131,7 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
 
   it('does not start the robot for a new barem on a test whose uploads are open', async () => {
     await api.db.prepare("UPDATE tests SET status = 'open', exercise_list_status = 'problem' WHERE code = ?").bind(code).run();
-    const res = await putFile(code, 'barem', pdf('nou'), PDF_TYPE, 'barem.pdf');
+    const res = await putFile(code, 'marking-scheme', pdf('nou'), PDF_TYPE, 'barem.pdf');
     expect(res.status).toBe(200);
     expect((await res.json()).robot).toBeNull();
     expect(dispatchRobot).not.toHaveBeenCalled();
@@ -151,7 +151,7 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
       .prepare("UPDATE tests SET status = 'evaluating', exercise_list_status = 'problem' WHERE code = ?")
       .bind(foreign.code)
       .run();
-    expect((await putFile(foreign.code, 'barem', pdf('x'), PDF_TYPE, 'barem.pdf')).status).toBe(404);
+    expect((await putFile(foreign.code, 'marking-scheme', pdf('x'), PDF_TYPE, 'barem.pdf')).status).toBe(404);
     expect(dispatchRobot).not.toHaveBeenCalled();
     const row = await api.db.prepare('SELECT exercise_list_status FROM tests WHERE code = ?').bind(foreign.code).first();
     expect(row).toEqual({ exercise_list_status: 'problem' });
@@ -163,10 +163,10 @@ describe('PUT /api/admin/tests/:code/files/:kind', () => {
   });
 });
 
-describe('PUT /api/admin/tests/:code/barem-notes', () => {
+describe('PUT /api/admin/tests/:code/marking-scheme-notes', () => {
   const notesOf = () =>
     api.db.prepare('SELECT barem_notes, exercise_list_status, files_version FROM tests WHERE code = ?').bind(code).first();
-  const saveNotes = (body: unknown) => api.request('PUT', `/api/admin/tests/${code}/barem-notes`, body);
+  const saveNotes = (body: unknown) => api.request('PUT', `/api/admin/tests/${code}/marking-scheme-notes`, body);
 
   it('saves the notes and shows them on the test', async () => {
     const res = await saveNotes({ notes: '  Acceptă și metoda cu proporții.  ' });
@@ -226,7 +226,7 @@ describe('PUT /api/admin/tests/:code/barem-notes', () => {
 
   it('answers 404 for a test of another teacher', async () => {
     const foreign = await otherTeacherTest(api);
-    expect((await api.request('PUT', `/api/admin/tests/${foreign.code}/barem-notes`, { notes: 'x' })).status).toBe(404);
+    expect((await api.request('PUT', `/api/admin/tests/${foreign.code}/marking-scheme-notes`, { notes: 'x' })).status).toBe(404);
   });
 });
 
@@ -242,7 +242,7 @@ describe('GET /api/admin/tests/:code/files/:kind', () => {
   });
 
   it('answers 404 when there is no file yet, and for a test of another teacher', async () => {
-    expect((await api.fetch(`/api/admin/tests/${code}/files/barem`)).status).toBe(404);
+    expect((await api.fetch(`/api/admin/tests/${code}/files/marking-scheme`)).status).toBe(404);
     const foreign = await otherTeacherTest(api);
     await api.db
       .prepare("UPDATE tests SET test_file_key = 'x/t.pdf', test_file_name = 't.pdf', test_file_type = 'application/pdf' WHERE code = ?")

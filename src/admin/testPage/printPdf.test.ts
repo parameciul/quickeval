@@ -165,7 +165,7 @@ describe('printPdf', () => {
   it('gives up a print still loading when a new print takes its place', async () => {
     vi.useFakeTimers();
     const first = printPdf(URL);
-    const second = printPdf('/api/admin/tests/6E2-26T1/ces/print');
+    const second = printPdf('/api/admin/tests/6E2-26T1/sen/print');
     await expect(first).resolves.toBe('cancelled');
     expect(document.querySelectorAll('iframe')).toHaveLength(1);
     // The first print's timer is gone: no tab opens for it later.
@@ -197,9 +197,9 @@ describe('printPdf', () => {
     const first = printPdf(URL);
     loadFrame({ contentType: 'application/pdf' });
     await first;
-    const second = printPdf('/api/admin/tests/6E2-26T1/ces/print');
+    const second = printPdf('/api/admin/tests/6E2-26T1/sen/print');
     expect(document.querySelectorAll('iframe')).toHaveLength(1);
-    expect(document.querySelector('iframe')!.getAttribute('src')).toBe('/api/admin/tests/6E2-26T1/ces/print');
+    expect(document.querySelector('iframe')!.getAttribute('src')).toBe('/api/admin/tests/6E2-26T1/sen/print');
     loadFrame({ contentType: 'application/pdf' });
     await expect(second).resolves.toBe('printed');
   });

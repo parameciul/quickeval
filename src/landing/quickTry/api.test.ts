@@ -33,7 +33,7 @@ describe("the landing page's client", () => {
     await api.getTest(TOKEN, 'PROBA-26T1');
     expect(fetchImpl.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
       [`/api/try/${TOKEN}/tests/PROBA-26T1/files/test`, 'PUT'],
-      [`/api/try/${TOKEN}/tests/PROBA-26T1/barem/generate`, 'POST'],
+      [`/api/try/${TOKEN}/tests/PROBA-26T1/marking-scheme/generate`, 'POST'],
       [`/api/try/${TOKEN}/paper`, 'PUT'],
       [`/api/try/${TOKEN}/start`, 'POST'],
       [`/api/try/${TOKEN}/tests/PROBA-26T1`, 'GET'],

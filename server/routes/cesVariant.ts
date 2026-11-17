@@ -12,7 +12,7 @@ import {
   type PrintRetryAnswer,
   type TestFileAnswer,
 } from '../../shared/api.ts';
-import { isTestFileKind, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
+import { PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, type TestFileKind } from '../../shared/files.ts';
 import { acceptExerciseList, retryExerciseList } from '../db/lifecycle.ts';
 import {
   confirmBarem,
@@ -34,10 +34,12 @@ import { ApiError, notFound } from '../errors.ts';
 import { nowIso, parseTestCode, readJson } from '../http.ts';
 import { newUploadToken } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
+import { fileKindOfPath, withOldPath } from './oldPaths.ts';
 
 function parseFileKind(raw: string | undefined): TestFileKind {
-  if (raw === undefined || !isTestFileKind(raw)) throw notFound();
-  return raw;
+  const kind = fileKindOfPath(raw);
+  if (kind === null) throw notFound();
+  return kind;
 }
 
 // While the robot grades a CES paper, it reads the CES files: they stay as they
@@ -50,12 +52,12 @@ function refuseWhileCesGrading(test: TestRecord): void {
   }
 }
 
-// /api/admin/tests/:code/ces/…: the CES variant of a test (spec: CES variant),
+// /api/admin/tests/:code/sen/…: the CES variant of a test (spec: CES variant),
 // its own test file, barem, barem comments, exercise list and print PDF. Like
 // the class routes, but a CES barem may change while the class papers are
 // graded: the CES papers wait for an active CES barem.
 export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<typeof robotStarter>): void {
-  routes.put('/:code/ces/files/:kind', async (c) => {
+  routes.on('PUT', withOldPath('/:code/sen/files/:kind', '/:code/ces/files/:kind'), async (c) => {
     const kind = parseFileKind(c.req.param('kind'));
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
@@ -84,7 +86,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
     return c.json({ file: { name: file.name, type: file.contentType }, robot } satisfies TestFileAnswer);
   });
 
-  routes.get('/:code/ces/files/:kind', async (c) => {
+  routes.on('GET', withOldPath('/:code/sen/files/:kind', '/:code/ces/files/:kind'), async (c) => {
     const kind = parseFileKind(c.req.param('kind'));
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const stored = test.ces.files[kind];
@@ -96,7 +98,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
   // "Șterge varianta CES": only while no paper went to grading with it. Its
   // students then get the class test again: during the evaluation, the CES
   // papers that waited for the CES barem go to the robot as class papers.
-  routes.delete('/:code/ces', async (c) => {
+  routes.on('DELETE', withOldPath('/:code/sen', '/:code/ces'), async (c) => {
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
     const keys = await removeCesVariant(c.env.DB, teacherId, test.id, nowIso());
@@ -116,7 +118,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
   // test, and the CES files go; refused once a paper went to grading with the
   // CES variant. During the evaluation, the CES papers that waited go to the
   // robot as class papers. On: the page asks for the CES files again.
-  routes.put('/:code/ces/off', async (c) => {
+  routes.on('PUT', withOldPath('/:code/sen/off', '/:code/ces/off'), async (c) => {
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
     const body = await readJson(c, cesOffBody);
@@ -131,7 +133,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
   });
 
   // The teacher's comments for the CES barem, read by the robot as part of it.
-  routes.put('/:code/ces/barem-notes', async (c) => {
+  routes.on('PUT', withOldPath('/:code/sen/marking-scheme-notes', '/:code/ces/barem-notes'), async (c) => {
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
     refuseWhileCesGrading(test);
@@ -147,7 +149,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
 
   // "Generează baremul" for the CES test: the robot writes a barem for grading
   // only, from the CES test and the class barem.
-  routes.post('/:code/ces/barem/generate', async (c) => {
+  routes.on('POST', withOldPath('/:code/sen/marking-scheme/generate', '/:code/ces/barem/generate'), async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     refuseWhileCesGrading(test);
     if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, nowIso(), 'ces'))) {
@@ -161,7 +163,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
 
   // The teacher checked the generated CES barem. CES papers that waited for it
   // go to the robot now.
-  routes.post('/:code/ces/barem/checked', async (c) => {
+  routes.on('POST', withOldPath('/:code/sen/marking-scheme/checked', '/:code/ces/barem/checked'), async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const body = await readJson(c, baremCheckedBody);
     const status = await confirmBarem(c.env.DB, c.var.teacher.id, test.id, body.filesVersion, nowIso(), 'ces');
@@ -171,14 +173,14 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
   });
 
   // The CES test with the QR code: the same link as the class test.
-  routes.get('/:code/ces/print', async (c) => {
+  routes.on('GET', withOldPath('/:code/sen/print', '/:code/ces/print'), async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const object = test.ces.print.status === 'ready' && test.ces.print.key ? await c.env.FILES.get(test.ces.print.key) : null;
     if (!object) throw notFound();
     return fileResponse(object, `${test.summary.code}-CES-cu-cod-qr.pdf`, PDF_TYPE);
   });
 
-  routes.post('/:code/ces/print/retry', async (c) => {
+  routes.on('POST', withOldPath('/:code/sen/print/retry', '/:code/ces/print/retry'), async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     if (!(await retryPrint(c.env.DB, c.var.teacher.id, test.id, newUploadToken(), nowIso(), 'ces'))) {
       throw new ApiError(409, 'not_failed', 'Testul CES cu cod QR nu poate fi încercat din nou.');
@@ -186,7 +188,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
     return c.json({ print: { status: 'none', fromWord: test.ces.print.fromWord }, robot: await startRobot(c.env) } satisfies PrintRetryAnswer);
   });
 
-  routes.post('/:code/ces/exercise-list/accept', async (c) => {
+  routes.on('POST', withOldPath('/:code/sen/exercise-list/accept', '/:code/ces/exercise-list/accept'), async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const status = await acceptExerciseList(c.env.DB, c.var.teacher.id, test.id, nowIso(), 'ces');
     if (status === null) throw new ApiError(409, 'no_problem', 'Lista de exerciții CES nu are nicio problemă.');
@@ -194,7 +196,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
     return c.json({ exerciseList: { status: 'accepted', message: test.ces.exerciseList.message }, robot } satisfies ExerciseListAnswer);
   });
 
-  routes.post('/:code/ces/exercise-list/retry', async (c) => {
+  routes.on('POST', withOldPath('/:code/sen/exercise-list/retry', '/:code/ces/exercise-list/retry'), async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const status = await retryExerciseList(c.env.DB, c.var.teacher.id, test.id, nowIso(), 'ces');
     if (status === null) throw new ApiError(409, 'not_failed', 'Lista de exerciții CES nu a eșuat.');

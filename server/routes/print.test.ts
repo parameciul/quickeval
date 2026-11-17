@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PDF_TYPE, printFileKey } from '../../shared/files.ts';
+import { PDF_TYPE, printFileKey, TEST_FILE_PATHS, type TestFileKind } from '../../shared/files.ts';
 import { saveTestFile } from '../db/tests.ts';
 import { addSubmission, addTestFiles, makeClass, makeTest, otherTeacherTest, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
@@ -17,8 +17,8 @@ const printRow = () =>
     .bind(code)
     .first<{ print_status: string; print_file_key: string | null; print_attempts: number; files_version: number }>();
 const setTest = (sql: string, ...params: unknown[]) => api.db.prepare(`UPDATE tests SET ${sql} WHERE code = ?`).bind(...params, code).run();
-const putTestFile = (name: string, text: string, kind = 'test') =>
-  api.fetch(`/api/admin/tests/${code}/files/${kind}`, {
+const putTestFile = (name: string, text: string, kind: TestFileKind = 'test') =>
+  api.fetch(`/api/admin/tests/${code}/files/${TEST_FILE_PATHS[kind]}`, {
     method: 'PUT',
     body: pdf(text),
     headers: { 'Content-Type': PDF_TYPE, 'X-File-Name': encodeURIComponent(name) },

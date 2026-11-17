@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PDF_TYPE } from '../../shared/files.ts';
+import { PDF_TYPE, TEST_FILE_PATHS, type TestFileKind } from '../../shared/files.ts';
 import { addTestFiles, makeClass, makeTest, otherTeacherTest, startTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -26,14 +26,14 @@ const otherRow = (otherCode: string) =>
     .bind(otherCode)
     .first<{ barem_request: string; barem_unchecked: number; evaluation_at: string | null }>();
 const setTest = (sql: string, ...params: unknown[]) => api.db.prepare(`UPDATE tests SET ${sql} WHERE code = ?`).bind(...params, code).run();
-const putTestFile = (name: string, text: string, kind = 'test') =>
-  api.fetch(`/api/admin/tests/${code}/files/${kind}`, {
+const putTestFile = (name: string, text: string, kind: TestFileKind = 'test') =>
+  api.fetch(`/api/admin/tests/${code}/files/${TEST_FILE_PATHS[kind]}`, {
     method: 'PUT',
     body: pdf(text),
     headers: { 'Content-Type': PDF_TYPE, 'X-File-Name': encodeURIComponent(name) },
   });
-const generate = (target = code) => api.request('POST', `/api/admin/tests/${target}/barem/generate`);
-const checked = (filesVersion: number, target = code) => api.request('POST', `/api/admin/tests/${target}/barem/checked`, { filesVersion });
+const generate = (target = code) => api.request('POST', `/api/admin/tests/${target}/marking-scheme/generate`);
+const checked = (filesVersion: number, target = code) => api.request('POST', `/api/admin/tests/${target}/marking-scheme/checked`, { filesVersion });
 
 beforeEach(async () => {
   dispatchRobot = vi.fn(async () => true);
@@ -46,7 +46,7 @@ afterEach(async () => {
   await api.dispose();
 });
 
-describe('POST /barem/generate', () => {
+describe('POST /marking-scheme/generate', () => {
   it('requests a barem, clears the schedule, and starts the robot', async () => {
     await startTest(api, code);
     await addTestFiles(api, code, ['test']);
@@ -95,7 +95,7 @@ describe('POST /barem/generate', () => {
   });
 });
 
-describe('POST /barem/checked', () => {
+describe('POST /marking-scheme/checked', () => {
   it('confirms an unchecked barem with the shown filesVersion', async () => {
     await addTestFiles(api, code, ['test', 'barem']);
     await setTest('barem_unchecked = 1');
@@ -131,7 +131,7 @@ describe('POST /barem/checked', () => {
   });
 
   it('refuses a body without a filesVersion', async () => {
-    const res = await api.request('POST', `/api/admin/tests/${code}/barem/checked`, {});
+    const res = await api.request('POST', `/api/admin/tests/${code}/marking-scheme/checked`, {});
     expect(res.status).toBe(400);
   });
 

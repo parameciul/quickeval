@@ -45,7 +45,7 @@ describe('Varianta CES in Pregătire', () => {
     const file = new File(['%PDF-1.7'], 'Test adaptat.pdf', { type: PDF_TYPE });
     await userEvent.upload(ces.getByLabelText(/^Fișierul testului CES/), file);
     expect(api.uploadTestFile).toHaveBeenCalledWith('9R2-26T1', 'test', file, 'ces');
-    expect(await ces.findByRole('link', { name: 'Test adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/ces/files/test');
+    expect(await ces.findByRole('link', { name: 'Test adaptat.pdf' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/sen/files/test');
     // The class test is still the class test.
     expect(screen.getByRole('link', { name: 'test.pdf' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/files/test');
     const barem = new File(['%PDF-1.7'], 'Barem adaptat.pdf', { type: PDF_TYPE });
@@ -189,7 +189,7 @@ describe('the CES print PDF in Tipărire', () => {
   it('downloads the CES test with the same QR code', async () => {
     renderAdmin(`${PAGE}#print`, apiWith({ print: { status: 'ready', fromWord: false }, ces: noCesVariant({ studentCount: 1, files: FILES, print: { status: 'ready', fromWord: false } }) }));
     const ces = await screen.findByRole('region', { name: 'Testul CES cu cod QR' });
-    expect(within(ces).getByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/ces/print');
+    expect(within(ces).getByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/sen/print');
     const test = screen.getByRole('region', { name: 'Testul cu cod QR' });
     expect(within(test).getByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/9R2-26T1/print');
     expect(screen.getByText('Același cod QR ca pe testul clasei: elevii cu CES încarcă pe același link.')).toBeInTheDocument();
