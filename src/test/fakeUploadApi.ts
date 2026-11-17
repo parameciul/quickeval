@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
-import type { LinkInfo, StudentResultView, SubmissionFile } from '../../shared/api.ts';
+import type { LinkInfo, ResultCodeAnswer, StudentResultView, SubmissionFile } from '../../shared/api.ts';
+import { normalizeResultCode } from '../../shared/tests.ts';
 import type { CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { ApiError } from '../ui/ApiError.ts';
 import type { UploadApi } from '../upload/api.ts';
@@ -97,6 +98,13 @@ export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
       return { fileCount: session.files.length, resultToken: session.resultToken, resultCode: FAKE_RESULT_CODE };
     }),
     fileBlob: vi.fn(async (_token: string, _secret: string, _fileId: number) => new Blob(['jpeg'], { type: 'image/jpeg' })),
+    // The one code the fake knows is Pop Ion's (FAKE_RESULT_CODE), typed any way.
+    openByCode: vi.fn(async (_token: string, code: string): Promise<ResultCodeAnswer> => {
+      if (normalizeResultCode(code) !== FAKE_RESULT_CODE) {
+        throw new ApiError(404, 'unknown_code', 'Codul nu este bun. Verifică fiecare literă și încearcă din nou.');
+      }
+      return { resultToken: 'result-token-11', resultCode: FAKE_RESULT_CODE, studentId: 11, studentName: 'Pop Ion' };
+    }),
     getResult: vi.fn(async (_resultToken: string): Promise<StudentResultView> => ({
       testCode: info.test.code,
       testTitle: info.test.title,

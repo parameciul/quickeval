@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { LinkInfo, LinkStudent } from '../../shared/api.ts';
+import { studentResultPath, type LinkInfo, type LinkStudent, type ResultCodeAnswer } from '../../shared/api.ts';
 import { displayClassName } from '../../shared/classes.ts';
 import { ApiError, GENERIC_MESSAGE, messageOf } from '../ui/ApiError.ts';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import type { ActiveSession, UploadApi } from './api.ts';
+import { CodeEntry } from './CodeEntry.tsx';
 import { NamePicker } from './NamePicker.tsx';
 import {
+  loadResultLink,
   loadResultLinks,
   loadTestResultLinks,
   pruneStaleResultLinks,
@@ -40,7 +42,16 @@ type Phase =
 // send for a classmate by mistake or on purpose. The link for many uploads
 // (made by the teacher on demand) keeps the name list after each sent upload,
 // so one phone can send for several students in turn.
-export function UploadApp({ api, token }: { api: UploadApi; token: string | null }) {
+export function UploadApp({
+  api,
+  token,
+  goTo = (url) => window.location.assign(url),
+}: {
+  api: UploadApi;
+  token: string | null;
+  // Opens another page; tests pass a fake.
+  goTo?: (url: string) => void;
+}) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
 
   // Starts or resumes the upload of one student on this phone. `auto` is true
@@ -182,7 +193,7 @@ export function UploadApp({ api, token }: { api: UploadApi; token: string | null
               </button>
             </>
           )}
-          {phase.kind === 'closed' && token && <ClosedScreen uploadToken={token} info={phase.info} />}
+          {phase.kind === 'closed' && token && <ClosedScreen api={api} uploadToken={token} info={phase.info} goTo={goTo} />}
           {phase.kind === 'names' && token && (
             <>
               <KeptResultLinks uploadToken={token} info={phase.info} />
@@ -280,28 +291,60 @@ async function learnOtherLinks(api: UploadApi, uploadToken: string): Promise<voi
 // the results are published: the page then gives the result link this phone
 // kept (through either link of the test), or says where the result is. A
 // result opens only by its own link, so the page cannot hand it out by name.
-function ClosedScreen({ uploadToken, info }: { uploadToken: string; info: LinkInfo }) {
-  const [links] = useState<SavedResultLink[]>(() => loadTestResultLinks(uploadToken, info.test.key));
+// A student whose phone has no link (another phone, a cleared browser) types
+// the short code of the ticket: the page then keeps the link on this phone
+// too, and opens the result when the results are published.
+function ClosedScreen({
+  api,
+  uploadToken,
+  info,
+  goTo,
+}: {
+  api: UploadApi;
+  uploadToken: string;
+  info: LinkInfo;
+  goTo: (url: string) => void;
+}) {
+  const [links, setLinks] = useState<SavedResultLink[]>(() => loadTestResultLinks(uploadToken, info.test.key));
+  // With a kept link the field waits behind "Am alt cod" (a shared phone).
+  const [otherCode, setOtherCode] = useState(false);
+  const opened = (answer: ResultCodeAnswer) => {
+    // A link this phone already keeps (it sent that paper) stays as it is.
+    if (loadResultLink(uploadToken, answer.studentId)?.resultToken !== answer.resultToken) {
+      saveResultLink(uploadToken, answer.studentId, answer.resultToken, answer.studentName, answer.resultCode, true);
+    }
+    setLinks(loadTestResultLinks(uploadToken, info.test.key));
+    setOtherCode(false);
+    if (info.test.resultsOpen) goTo(studentResultPath(answer.resultToken));
+  };
   const kept = links.length > 0 && <Tickets links={links} info={info} />;
+  const entry =
+    links.length === 0 || otherCode ? (
+      <CodeEntry api={api} token={uploadToken} onOpened={opened} />
+    ) : (
+      <p className="other-code">
+        <button type="button" className="link-button" onClick={() => setOtherCode(true)}>
+          Am alt cod
+        </button>
+      </p>
+    );
   if (!info.test.resultsOpen) {
     return (
       <>
         <p className="alert" role="alert">
           Încărcarea s-a închis.
         </p>
-        {kept}
         <p className="hint">Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
+        {kept}
+        {entry}
       </>
     );
   }
   return (
     <>
       <p className="notice-ok">Rezultatele au fost publicate.</p>
-      {kept || (
-        <p className="hint">
-          Linkul cu rezultatul tău este salvat pe telefonul și în browserul cu care ai trimis lucrarea. Dacă nu îl găsești acolo, cere profesorului linkul tău.
-        </p>
-      )}
+      {kept}
+      {entry}
     </>
   );
 }

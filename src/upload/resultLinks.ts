@@ -16,18 +16,22 @@ export interface SavedResultLink {
   resultToken: string;
   // The link's short code. Null for a link kept before links had codes.
   resultCode: string | null;
+  // Opened on this phone with its code, not sent from it: such a link never
+  // locks the default link (a borrowed phone must still send its own paper).
+  byCode?: true;
 }
 
 // What the phone stored for one kept link, read with care: it is the page's
 // own data, but an older version of the page wrote less.
 function readSaved(raw: string, studentId: number): SavedResultLink | null {
-  const parsed = JSON.parse(raw) as { resultToken?: unknown; studentName?: unknown; resultCode?: unknown };
+  const parsed = JSON.parse(raw) as { resultToken?: unknown; studentName?: unknown; resultCode?: unknown; byCode?: unknown };
   if (typeof parsed.resultToken !== 'string' || parsed.resultToken === '') return null;
   return {
     studentId,
     studentName: typeof parsed.studentName === 'string' ? parsed.studentName : '',
     resultToken: parsed.resultToken,
     resultCode: typeof parsed.resultCode === 'string' && parsed.resultCode !== '' ? parsed.resultCode : null,
+    ...(parsed.byCode === true ? { byCode: true as const } : {}),
   };
 }
 
@@ -65,9 +69,11 @@ export function saveResultLink(
   resultToken: string,
   studentName: string,
   resultCode: string | null = null,
+  byCode = false,
 ): void {
   try {
-    localStorage.setItem(keyOf(uploadToken, studentId), JSON.stringify({ resultToken, studentName, resultCode }));
+    const saved = byCode ? { resultToken, studentName, resultCode, byCode: true } : { resultToken, studentName, resultCode };
+    localStorage.setItem(keyOf(uploadToken, studentId), JSON.stringify(saved));
   } catch {
     // Blocked storage: the link then lasts until the page closes.
   }
@@ -152,10 +158,11 @@ export function pruneStaleResultLinks(uploadToken: string, students: LinkStudent
 
 // Whether the default (single-upload) link on this phone already sent an
 // upload that still counts: at least one kept result link whose student
-// already sent (or left the class after sending). Callers first prune the
+// already sent (or left the class after sending), and that this phone did
+// not only open with its code. Callers first prune the
 // stale links, so a reset upload unlocks the phone again.
 export function singleUploadLocked(uploadToken: string): boolean {
-  return loadResultLinks(uploadToken).length > 0;
+  return loadResultLinks(uploadToken).some((link) => !link.byCode);
 }
 
 // A test has two links (the default one, and the one for many uploads), each

@@ -1,4 +1,12 @@
-import type { ConfirmAnswer, LinkInfo, SessionStart, StudentResultView, SubmissionFile, UploadSession } from '../../shared/api.ts';
+import type {
+  ConfirmAnswer,
+  LinkInfo,
+  ResultCodeAnswer,
+  SessionStart,
+  StudentResultView,
+  SubmissionFile,
+  UploadSession,
+} from '../../shared/api.ts';
 import type { CheckoutAnswer, CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
 
@@ -18,6 +26,8 @@ export interface UploadApi {
   confirm(token: string, secret: string): Promise<ConfirmAnswer>;
   // A file already sent, for its preview after a page reload.
   fileBlob(token: string, secret: string, fileId: number): Promise<Blob>;
+  // The result link behind a short code, typed on the page of the link's test.
+  openByCode(token: string, code: string): Promise<ResultCodeAnswer>;
   // One student's result page by its secret link.
   getResult(resultToken: string): Promise<StudentResultView>;
   // A file of that result page, for its preview.
@@ -133,6 +143,7 @@ export function createUploadClient(options: UploadClientOptions = {}): UploadApi
       if (!res.ok) await readAnswer(res);
       return res.blob();
     },
+    openByCode: (token, code) => json<ResultCodeAnswer>('POST', `${base(token)}/cod`, null, { code }),
     getResult: async (resultToken) =>
       (await json<{ result: StudentResultView }>('GET', `/api/u/rezultat/${encodeURIComponent(resultToken)}`, null)).result,
     resultFileBlob: async (resultToken, fileId) => {

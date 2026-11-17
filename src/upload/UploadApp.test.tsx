@@ -261,11 +261,8 @@ describe('UploadApp', () => {
     const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
     render(<UploadApp api={api} token={LINK_TOKEN} />);
     expect(await screen.findByText('Rezultatele au fost publicate.')).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'Linkul cu rezultatul tău este salvat pe telefonul și în browserul cu care ai trimis lucrarea. Dacă nu îl găsești acolo, cere profesorului linkul tău.',
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Deschide testul pe telefonul cu care ai trimis lucrarea.')).toBeInTheDocument();
+    expect(screen.getByText('Dacă nu găsești nimic, cere profesorului codul tău.')).toBeInTheDocument();
     // Nothing went wrong: no error, and no word of the closed uploads.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText('Încărcarea s-a închis.')).not.toBeInTheDocument();
@@ -321,7 +318,7 @@ describe('UploadApp', () => {
       return info;
     });
     const first = render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByText(/cere profesorului linkul tău/)).toBeInTheDocument();
+    expect(await screen.findByText(/cere profesorului codul tău/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Vezi rezultatul' })).not.toBeInTheDocument();
     expect(api.getLink).toHaveBeenCalledTimes(3);
 
@@ -329,7 +326,7 @@ describe('UploadApp', () => {
     first.unmount();
     api.getLink.mockClear();
     render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByText(/cere profesorului linkul tău/)).toBeInTheDocument();
+    expect(await screen.findByText(/cere profesorului codul tău/)).toBeInTheDocument();
     expect(api.getLink).toHaveBeenCalledTimes(1);
   });
 
