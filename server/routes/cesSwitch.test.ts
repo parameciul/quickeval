@@ -16,7 +16,7 @@ let code: string;
 const setTest = (sql: string) => api.db.prepare(`UPDATE tests SET ${sql} WHERE code = ?`).bind(code).run();
 const testOf = async (target = code) => (await api.request('GET', `/api/admin/tests/${target}`)).body.test;
 const listed = async () => (await api.request('GET', '/api/admin/tests?year=2026')).body.tests.find((t: { code: string }) => t.code === code);
-const setOff = (off: boolean) => api.request('PUT', `/api/admin/tests/${code}/ces/off`, { off });
+const setOff = (off: boolean) => api.request('PUT', `/api/admin/tests/${code}/sen/off`, { off });
 
 beforeEach(async () => {
   dispatchRobot = vi.fn(async () => true);
@@ -51,7 +51,7 @@ describe('a new test and the CES switch', () => {
   });
 });
 
-describe('PUT /ces/off', () => {
+describe('PUT /sen/off', () => {
   it('off removes the CES files, from the database and from R2; on asks for them again', async () => {
     await markCes(api, students[0]!);
     const key = `t/1/2026/${code}/ces/test/test-adaptat.pdf`;
@@ -90,14 +90,14 @@ describe('PUT /ces/off', () => {
   });
 
   it('answers 404 for an unknown test', async () => {
-    expect((await api.request('PUT', '/api/admin/tests/9R2-26T9/ces/off', { off: true })).status).toBe(404);
+    expect((await api.request('PUT', '/api/admin/tests/9R2-26T9/sen/off', { off: true })).status).toBe(404);
   });
 });
 
 describe('a CES file', () => {
   it('turns the switch on', async () => {
     await setOff(true);
-    const res = await api.fetch(`/api/admin/tests/${code}/ces/files/test`, {
+    const res = await api.fetch(`/api/admin/tests/${code}/sen/files/test`, {
       method: 'PUT',
       body: new TextEncoder().encode('%PDF-1.7 ces'),
       headers: { 'Content-Type': PDF_TYPE, 'X-File-Name': encodeURIComponent('Test adaptat.pdf') },

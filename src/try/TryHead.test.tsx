@@ -53,7 +53,7 @@ describe("the try's header", () => {
   it('lets her download the test and the barem the try used', async () => {
     setup();
     expect(await screen.findByRole('link', { name: 'Descarcă testul' })).toHaveAttribute('href', `/api/try/${TRY_TOKEN}/tests/${TRY_CODE}/files/test`);
-    expect(screen.getByRole('link', { name: 'Descarcă baremul' })).toHaveAttribute('href', `/api/try/${TRY_TOKEN}/tests/${TRY_CODE}/files/barem`);
+    expect(screen.getByRole('link', { name: 'Descarcă baremul' })).toHaveAttribute('href', `/api/try/${TRY_TOKEN}/tests/${TRY_CODE}/files/marking-scheme`);
   });
 
   it('renames the try', async () => {

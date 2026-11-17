@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEMO_PAPER_LIMIT } from '../../shared/accounts.ts';
-import { DOCX_TYPE } from '../../shared/files.ts';
+import { DOCX_TYPE, TEST_FILE_PATHS } from '../../shared/files.ts';
 import { unsupportedMessage } from '../../shared/subjects.ts';
 import { addSubmission, addTestFiles, makeClass, makeTest, ROBOT_KEY, robotRequest, setRobotKey, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
@@ -42,7 +42,7 @@ const putBarem = (headers: Record<string, string> = {}) =>
   });
 const evaluate = (testCode: string, body: object = {}) => api.request('POST', `/api/admin/tests/${testCode}/evaluate`, body);
 const putFile = (kind: 'test' | 'barem') =>
-  api.fetch(`/api/admin/tests/${code}/files/${kind}`, {
+  api.fetch(`/api/admin/tests/${code}/files/${TEST_FILE_PATHS[kind]}`, {
     method: 'PUT',
     body: new TextEncoder().encode(`%PDF-1.7 ${kind} bun`),
     headers: { 'Content-Type': 'application/pdf', 'X-File-Name': `${kind}.pdf` },

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PDF_TYPE } from '../../shared/files.ts';
+import { PDF_TYPE, TEST_FILE_PATHS } from '../../shared/files.ts';
 import { QUICK_TRY_CLEANUP_BATCH } from '../../shared/quickTry.ts';
 import { sha256Hex } from '../secrets.ts';
 import { addEvaluation } from '../test/fixtures.ts';
@@ -29,7 +29,7 @@ async function fullTry(ip = '203.0.113.5'): Promise<{ token: string; teacherId: 
   const res = await api.request('POST', '/api/try', { turnstileToken: 'ok' }, { 'CF-Connecting-IP': ip });
   const { token, code } = res.body as { token: string; code: string };
   for (const kind of ['test', 'barem'] as const) {
-    expect((await put(`/api/try/${token}/tests/${code}/files/${kind}`, pdf(kind), PDF_TYPE, `${kind}.pdf`)).status).toBe(200);
+    expect((await put(`/api/try/${token}/tests/${code}/files/${TEST_FILE_PATHS[kind]}`, pdf(kind), PDF_TYPE, `${kind}.pdf`)).status).toBe(200);
   }
   expect((await put(`/api/try/${token}/paper`, jpeg(), 'image/jpeg', 'pagina1.jpg')).status).toBe(201);
   const row = await api.db.prepare('SELECT teacher_id FROM quick_tries WHERE token_hash = ?').bind(await sha256Hex(token)).first<{ teacher_id: number }>();

@@ -151,13 +151,13 @@ describe('PrintTest', () => {
     const ces = within(await card('Testul CES cu cod QR'));
     expect(within(await card()).getByText('Tipărește 21 de copii, pentru elevii fără CES.')).toBeInTheDocument();
     expect(ces.getByText('Tipărește 2 copii, pentru elevii cu CES.')).toBeInTheDocument();
-    expect(ces.getByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/ces/print');
+    expect(ces.getByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/sen/print');
     expect(ces.getByRole('button', { name: 'Tipărește' })).toHaveClass('button-quiet');
     // The line of a draft is said once, on the class test.
     expect(within(await card()).getByText(/Poți tipări testul de acum/)).toBeInTheDocument();
     expect(ces.queryByText(/Poți tipări testul de acum/)).not.toBeInTheDocument();
     await userEvent.click(ces.getByRole('button', { name: 'Tipărește' }));
-    expect(printPdf).toHaveBeenCalledWith('/api/admin/tests/6E2-26T1/ces/print');
+    expect(printPdf).toHaveBeenCalledWith('/api/admin/tests/6E2-26T1/sen/print');
   });
 
   it('counts every student for the class test while the CES students have no CES test', async () => {

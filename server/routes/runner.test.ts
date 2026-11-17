@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { TEST_FILE_PATHS, type TestFileKind } from '../../shared/files.ts';
 import { addEvaluation, addSubmission, addTestFiles, makeClass, makeTest, ROBOT_KEY, robotRequest, setRobotKey, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -15,8 +16,8 @@ const setTest = (sql: string, ...params: unknown[]) =>
 const setRunner = (sql: string, ...params: unknown[]) =>
   api.db.prepare(`UPDATE runner_state SET ${sql} WHERE id = 1`).bind(...params).run();
 // The teacher replaces the test file or the barem with a small PDF.
-const putFile = (kind: string, text: string) =>
-  api.fetch(`/api/admin/tests/${code}/files/${kind}`, {
+const putFile = (kind: TestFileKind, text: string) =>
+  api.fetch(`/api/admin/tests/${code}/files/${TEST_FILE_PATHS[kind]}`, {
     method: 'PUT',
     body: new TextEncoder().encode(`%PDF-1.7 ${text}`),
     headers: { 'Content-Type': 'application/pdf', 'X-File-Name': `${kind}.pdf` },
@@ -375,7 +376,7 @@ describe('GET /api/runner/tests/:id', () => {
 
   it('counts each file that the teacher replaces', async () => {
     const testId = await testIdOf(api, code);
-    for (const kind of ['test', 'barem', 'barem']) {
+    for (const kind of ['test', 'barem', 'barem'] as const) {
       const put = await putFile(kind, 'nou');
       expect(put.status).toBe(200);
     }

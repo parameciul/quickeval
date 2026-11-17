@@ -31,6 +31,20 @@ export function isTestFileKind(raw: string): raw is TestFileKind {
   return raw === 'test' || raw === 'barem';
 }
 
+// A test file's kind as an API address names it: the barem is
+// "marking-scheme" there, and stays "barem" in the database, R2 and the robot.
+export const TEST_FILE_PATHS: Record<TestFileKind, string> = { test: 'test', barem: 'marking-scheme' };
+
+// The kind an address names, or null.
+export function testFileKindOfPath(raw: string): TestFileKind | null {
+  if (raw === TEST_FILE_PATHS.test) return 'test';
+  if (raw === TEST_FILE_PATHS.barem) return 'barem';
+  return null;
+}
+
+// The CES variant's part of an API address: "sen" (special educational needs).
+export const CES_PATH = 'sen';
+
 const EXTENSION_BY_TYPE: Record<string, string> = {
   [PDF_TYPE]: 'pdf',
   [DOCX_TYPE]: 'docx',

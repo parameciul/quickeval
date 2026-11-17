@@ -61,7 +61,7 @@ describe('a Quick Try paper', () => {
     const put = (url: string, body: BodyInit, type: string) =>
       api!.fetch(url, { method: 'PUT', body, headers: { 'Content-Type': type, 'X-File-Name': 'f' } });
     expect((await put(`/api/try/${token}/tests/${code}/files/test`, '%PDF-1.7 test', PDF_TYPE)).status).toBe(200);
-    expect((await put(`/api/try/${token}/tests/${code}/files/barem`, '%PDF-1.7 barem', PDF_TYPE)).status).toBe(200);
+    expect((await put(`/api/try/${token}/tests/${code}/files/marking-scheme`, '%PDF-1.7 barem', PDF_TYPE)).status).toBe(200);
     expect((await put(`/api/try/${token}/paper`, new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x70]), 'image/jpeg')).status).toBe(201);
     expect((await api.request('POST', `/api/try/${token}/start`, {})).body.status).toBe('evaluating');
 

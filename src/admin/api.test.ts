@@ -180,7 +180,7 @@ describe('createApiClient tests and uploads', () => {
       robot: 'dispatched',
     });
     const [url, init] = fetchImpl.mock.calls[0]!;
-    expect(url).toBe('/api/admin/tests/6E2-26T1/files/barem');
+    expect(url).toBe('/api/admin/tests/6E2-26T1/files/marking-scheme');
     expect(init!.method).toBe('PUT');
     expect(init!.body).toBe(file);
     expect(init!.headers).toMatchObject({ 'Content-Type': DOCX_TYPE, 'X-File-Name': 'Barem%20%C8%99.docx' });
@@ -222,7 +222,7 @@ describe('createApiClient tests and uploads', () => {
       'POST /api/auth/login',
     ]);
     expect(createApiClient({ fetchImpl }).base).toBe('/api/admin');
-    expect(testFileUrl('PROBA-26T1', 'barem', undefined, '/api/try/abc')).toBe('/api/try/abc/tests/PROBA-26T1/files/barem');
+    expect(testFileUrl('PROBA-26T1', 'barem', undefined, '/api/try/abc')).toBe('/api/try/abc/tests/PROBA-26T1/files/marking-scheme');
     expect(submissionFileUrl(7, 12, '/api/try/abc')).toBe('/api/try/abc/submissions/7/files/12');
   });
 

@@ -1,5 +1,5 @@
 import type { QuickTryAvailability, QuickTryCreated, SubmissionFile, TestDetail } from '../../../shared/api.ts';
-import type { TestFileKind } from '../../../shared/files.ts';
+import { TEST_FILE_PATHS, type TestFileKind } from '../../../shared/files.ts';
 import { apiRequest, tryBase } from '../../try/api.ts';
 
 // The calls of the landing page's Quick Try form: what it reads before the
@@ -24,10 +24,10 @@ export function createLandingApi(fetchImpl: typeof fetch = (input, init) => fetc
     availability: () => call<QuickTryAvailability>('/api/try/availability', 'GET'),
     create: (turnstileToken, title) => call<QuickTryCreated>('/api/try', 'POST', turnstileToken === undefined ? { title } : { turnstileToken, title }),
     uploadTestFile: async (token, code, kind, file) => {
-      await call(`${test(token, code)}/files/${kind}`, 'PUT', undefined, file);
+      await call(`${test(token, code)}/files/${TEST_FILE_PATHS[kind]}`, 'PUT', undefined, file);
     },
     generateBarem: async (token, code) => {
-      await call(`${test(token, code)}/barem/generate`, 'POST');
+      await call(`${test(token, code)}/marking-scheme/generate`, 'POST');
     },
     addPage: async (token, file) => {
       await call(`${tryBase(token)}/paper`, 'PUT', undefined, file);

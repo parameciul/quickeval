@@ -5,6 +5,7 @@ import { robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError, notFound } from '../errors.ts';
 import { parseId, readJson } from '../http.ts';
+import { withOldPath } from './oldPaths.ts';
 
 // /api/admin/students
 export function studentRoutes(options: AppOptions = {}): Hono<AppEnv> {
@@ -25,7 +26,7 @@ export function studentRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // The CES mark: the student gets the CES variant of the tests that have one.
   // During an evaluation the mark can free a waiting paper or make the CES
   // exercise list due: the robot starts.
-  routes.put('/:id/ces', async (c) => {
+  routes.on('PUT', withOldPath('/:id/sen', '/:id/ces'), async (c) => {
     const body = await readJson(c, studentCesBody);
     const saved = await setStudentCes(c.env.DB, c.var.teacher.id, parseId(c.req.param('id')), body.ces);
     if (!saved) throw notFound();

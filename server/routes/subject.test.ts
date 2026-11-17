@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { TEST_FILE_PATHS, type TestFileKind } from '../../shared/files.ts';
 import { addSubmission, addTestFiles, makeClass, makeTest, robotRequest, setRobotKey, startTest, testIdOf } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
@@ -19,8 +20,8 @@ const subjectRow = () =>
     subject_by: string | null;
   }>();
 const detail = async () => (await api.request('GET', `/api/admin/tests/${code}`)).body.test;
-const putFile = (kind: string, text: string) =>
-  api.fetch(`/api/admin/tests/${code}/files/${kind}`, {
+const putFile = (kind: TestFileKind, text: string) =>
+  api.fetch(`/api/admin/tests/${code}/files/${TEST_FILE_PATHS[kind]}`, {
     method: 'PUT',
     body: new TextEncoder().encode(`%PDF-1.7 ${text}`),
     headers: { 'Content-Type': 'application/pdf', 'X-File-Name': `${kind}.pdf` },

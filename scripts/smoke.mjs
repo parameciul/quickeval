@@ -130,9 +130,9 @@ check('create a test', test.status === 201 && code === `${name}-26T1`, JSON.stri
 const testFile = await api('PUT', `/api/admin/tests/${code}/files/test`, pdf, { 'Content-Type': 'application/pdf', 'X-File-Name': 'test.pdf' });
 check('upload the test file', testFile.status === 200, JSON.stringify(testFile.body));
 
-const barem = await api('PUT', `/api/admin/tests/${code}/files/barem`, pdf, { 'Content-Type': 'application/pdf', 'X-File-Name': encodeURIComponent('barem probă.pdf') });
+const barem = await api('PUT', `/api/admin/tests/${code}/files/marking-scheme`, pdf, { 'Content-Type': 'application/pdf', 'X-File-Name': encodeURIComponent('barem probă.pdf') });
 check('upload the barem', barem.status === 200 && barem.body?.file?.name === 'barem probă.pdf', JSON.stringify(barem.body));
-const stored = await fetch(`${base}/api/admin/tests/${code}/files/barem`);
+const stored = await fetch(`${base}/api/admin/tests/${code}/files/marking-scheme`);
 check('read the barem back', stored.status === 200 && (await stored.text()) === '%PDF-1.4\n%%EOF\n', String(stored.status));
 
 // The draft has its link already: the test with the QR code is printed before the start.

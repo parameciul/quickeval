@@ -176,7 +176,7 @@ describe('a CES paper', () => {
     expect(await variantOf(cesPaper)).toEqual({ variant: 'ces', status: 'submitted' });
     expect(await claim()).toMatchObject({ submissionId: cesPaper, variant: 'ces' });
     // Its variant blocks the removal of the CES variant.
-    expect((await api.request('DELETE', `/api/admin/tests/${code}/ces`)).body.error).toBe('ces_papers');
+    expect((await api.request('DELETE', `/api/admin/tests/${code}/sen`)).body.error).toBe('ces_papers');
   });
 
   it('stays a class paper when graded again, if it went to grading before the variants existed', async () => {

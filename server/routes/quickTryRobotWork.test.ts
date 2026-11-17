@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PDF_TYPE } from '../../shared/files.ts';
+import { PDF_TYPE, TEST_FILE_PATHS } from '../../shared/files.ts';
 import { QUICK_TRY_FILE_CHANGES } from '../../shared/quickTry.ts';
 import { addTestFiles, makeClass, makeTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
@@ -14,12 +14,12 @@ let code: string;
 
 const pdf = (text: string) => new TextEncoder().encode(`%PDF-1.7 ${text}`);
 const putFile = (kind: 'test' | 'barem', base = `/api/try/${token}`, target = code) =>
-  api.fetch(`${base}/tests/${target}/files/${kind}`, {
+  api.fetch(`${base}/tests/${target}/files/${TEST_FILE_PATHS[kind]}`, {
     method: 'PUT',
     body: pdf(kind),
     headers: { 'Content-Type': PDF_TYPE, 'X-File-Name': `${kind}.pdf` },
   });
-const generate = () => api.request('POST', `/api/try/${token}/tests/${code}/barem/generate`);
+const generate = () => api.request('POST', `/api/try/${token}/tests/${code}/marking-scheme/generate`);
 const row = () =>
   api.db.prepare('SELECT files_version, barem_request FROM tests WHERE quick_try = 1').first<{ files_version: number; barem_request: string }>();
 
