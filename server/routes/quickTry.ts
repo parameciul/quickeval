@@ -41,14 +41,13 @@ const fileNotFound = () => new ApiError(404, 'not_found', 'Nu am găsit fișieru
 // What a try's link may call of the teacher API, after /api/try/<token>:
 // reading the test and its files, replacing the test or the barem, asking for
 // a barem, "Folosește oricum", and the review of the one paper. Everything
-// else of the teacher API answers 404. "barem" is the old name of
-// "marking-scheme" in these paths (server/routes/oldPaths.ts).
+// else of the teacher API answers 404.
 const ALLOWED: readonly [string, RegExp][] = [
   ['GET', /^\/tests\/[^/]+$/],
   ['PATCH', /^\/tests\/[^/]+$/],
-  ['GET', /^\/tests\/[^/]+\/files\/(test|marking-scheme|barem)$/],
-  ['PUT', /^\/tests\/[^/]+\/files\/(test|marking-scheme|barem)$/],
-  ['POST', /^\/tests\/[^/]+\/(marking-scheme|barem)\/generate$/],
+  ['GET', /^\/tests\/[^/]+\/files\/(test|marking-scheme)$/],
+  ['PUT', /^\/tests\/[^/]+\/files\/(test|marking-scheme)$/],
+  ['POST', /^\/tests\/[^/]+\/marking-scheme\/generate$/],
   ['POST', /^\/tests\/[^/]+\/exercise-list\/accept$/],
   ['GET', /^\/submissions\/\d+$/],
   ['GET', /^\/submissions\/\d+\/files\/\d+$/],

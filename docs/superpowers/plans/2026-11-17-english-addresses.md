@@ -1,6 +1,6 @@
 # English addresses: plan, priorities and risks
 
-Date: 2026-11-17. Status: decision 1 = A (owner, 2026-11-17). P0, P1a and P1b merged (PR #112). P2 and P3 merged (PR #114). P4 built on branch `feature/english-api-paths`; its cleanup follows a few hours after its deploy (owner, 2026-11-17: three teachers use the app).
+Date: 2026-11-17. Status: decision 1 = A (owner, 2026-11-17). P0, P1a and P1b merged (PR #112). P2 and P3 merged (PR #114). P4 merged (PR #115); its cleanup, which removes the old API paths, built on branch `feature/remove-old-api-paths` (2026-11-18). Left: the indexing steps, after the cleanup's deploy.
 
 ## Goal
 
@@ -153,6 +153,10 @@ Not indexed, so no SEO risk. The risk is links in sent emails and bookmarks.
   and `/cod` API aliases of P1b, never the `/u/rezultat/<token>` page path, and
   `parseFileKind` then reads `testFileKindOfPath` alone (until then a mixed path such
   as `/sen/files/barem` answers too, which is harmless).
+- Done 2026-11-18 (branch `feature/remove-old-api-paths`): `server/routes/oldPaths.ts`
+  is gone, the routes and the `ALLOWED` list take only the English names, and
+  `parseFileKind` reads `testFileKindOfPath`. A test checks that the old paths
+  answer 404.
 - The robot's paths (`/api/runner/…`, `files/barem`, `?variant=ces`) stay: only
   the robot calls them, and its run may use the code of an older commit.
 - Map the URL values to the internal values at the route: `/files/marking-scheme`

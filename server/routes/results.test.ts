@@ -144,19 +144,19 @@ describe('student result links', () => {
     }
   });
 
-  it('serves the result and its files at the first address /api/u/rezultat too, for pages opened before the rename', async () => {
+  it('serves nothing at the first, Romanian address /api/u/rezultat', async () => {
     const { resultToken } = await uploadAndConfirm(pop);
     const fileRow = await api.db
       .prepare('SELECT id FROM submission_files WHERE submission_id = ?')
       .bind(await submissionIdOf(pop))
       .first<{ id: number }>();
-    expect((await api.request('GET', `/api/u/rezultat/${resultToken}`)).status).toBe(403);
     await api.request('POST', `/api/admin/tests/${code}/results/open`);
-    const result = await api.request('GET', `/api/u/rezultat/${resultToken}`);
-    expect(result.status).toBe(200);
-    expect(result.body).toEqual((await api.request('GET', `/api/u/result/${resultToken}`)).body);
-    expect((await api.fetch(`/api/u/rezultat/${resultToken}/files/${fileRow!.id}`)).status).toBe(200);
-    expect((await api.request('GET', '/api/u/rezultat/short')).body.error).toBe('unknown_link');
+    expect((await api.request('GET', `/api/u/result/${resultToken}`)).status).toBe(200);
+    expect((await api.fetch(`/api/u/result/${resultToken}/files/${fileRow!.id}`)).status).toBe(200);
+    const old = await api.request('GET', `/api/u/rezultat/${resultToken}`);
+    expect(old.status).toBe(404);
+    expect(old.body.result).toBeUndefined();
+    expect((await api.fetch(`/api/u/rezultat/${resultToken}/files/${fileRow!.id}`)).status).toBe(404);
   });
 });
 

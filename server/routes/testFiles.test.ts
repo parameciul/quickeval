@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE, PDF_TYPE } from '../../shared/files.ts';
-import { addSubmission, addTestFiles, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
+import { addCesFiles, addSubmission, addTestFiles, makeClass, makeTest, otherTeacherTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -250,5 +250,60 @@ describe('GET /api/admin/tests/:code/files/:kind', () => {
       .run();
     await api.env.FILES.put('x/t.pdf', '%PDF-1.7 secret');
     expect((await api.fetch(`/api/admin/tests/${foreign.code}/files/test`)).status).toBe(404);
+  });
+});
+
+describe('the first, Romanian API paths', () => {
+  it('are gone: "barem" and "ces" answer 404, and the data stays as it was', async () => {
+    // Every file and the CES print PDF exist, so a GET that still had its old
+    // path would answer 200: the English paths below do.
+    await addTestFiles(api, code);
+    await addCesFiles(api, code);
+    await api.db.prepare("UPDATE tests SET ces_print_status = 'ready', ces_print_file_key = ? WHERE code = ?").bind(`fixture/${code}/ces/print.pdf`, code).run();
+    for (const key of ['test', 'barem', 'ces/test', 'ces/barem', 'ces/print']) await api.env.FILES.put(`fixture/${code}/${key}.pdf`, `%PDF-1.7 ${key}`);
+    const t = `/api/admin/tests/${code}`;
+    for (const path of [`${t}/files/marking-scheme`, `${t}/sen/files/test`, `${t}/sen/files/marking-scheme`, `${t}/sen/print`]) {
+      expect([path, (await api.fetch(path)).status]).toEqual([path, 200]);
+    }
+
+    // The old file uploads, under a name the fixtures do not use.
+    for (const path of [`${t}/files/barem`, `${t}/ces/files/test`, `${t}/ces/files/barem`, `${t}/sen/files/barem`]) {
+      const res = await api.fetch(path, { method: 'PUT', body: pdf('nou'), headers: { 'Content-Type': PDF_TYPE, 'X-File-Name': 'nou.pdf' } });
+      expect([path, res.status]).toEqual([path, 404]);
+    }
+    for (const [method, path, body] of [
+      ['GET', `${t}/files/barem`, undefined],
+      ['PUT', `${t}/barem-notes`, { notes: 'Vechi.' }],
+      ['POST', `${t}/barem/generate`, undefined],
+      ['POST', `${t}/barem/checked`, { filesVersion: 0 }],
+      ['GET', `${t}/ces/files/test`, undefined],
+      ['GET', `${t}/ces/files/barem`, undefined],
+      ['GET', `${t}/sen/files/barem`, undefined],
+      ['GET', `${t}/ces/files/marking-scheme`, undefined],
+      ['PUT', `${t}/ces/barem-notes`, { notes: 'Vechi.' }],
+      ['POST', `${t}/ces/barem/generate`, undefined],
+      ['POST', `${t}/ces/barem/checked`, { filesVersion: 0 }],
+      ['PUT', `${t}/ces/off`, { off: true }],
+      ['DELETE', `${t}/ces`, undefined],
+      ['GET', `${t}/ces/print`, undefined],
+      ['POST', `${t}/ces/print/retry`, undefined],
+      ['POST', `${t}/ces/exercise-list/accept`, undefined],
+      ['POST', `${t}/ces/exercise-list/retry`, undefined],
+      ['PUT', `/api/admin/students/${studentId}/ces`, { ces: true }],
+    ] as const) {
+      const res = await api.request(method, path, body);
+      expect([method, path, res.status]).toEqual([method, path, 404]);
+    }
+    const test = (await api.request('GET', t)).body.test;
+    expect([test.baremNotes, test.ces.baremNotes, test.ces.off, test.files.barem.name, test.ces.files.test.name]).toEqual([
+      '',
+      '',
+      false,
+      'barem.pdf',
+      'ces-test.pdf',
+    ]);
+    expect(await (await api.fetch(`${t}/files/marking-scheme`)).text()).toBe('%PDF-1.7 barem');
+    expect(await (await api.fetch(`${t}/sen/files/marking-scheme`)).text()).toBe('%PDF-1.7 ces/barem');
+    expect((await api.request('GET', `/api/admin/students/${studentId}/history`)).body.student.ces).toBe(false);
   });
 });

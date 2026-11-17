@@ -281,49 +281,41 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // works only here, on the page of its own test (either link of the test),
   // and wrong codes are limited per test. It gives the link whether or not
   // the results are published: the result page itself says when they are not.
-  // "/cod" is the first name of this path: a page opened before the rename
-  // still sends it, so it stays for one release.
-  for (const path of ['/:token/code', '/:token/cod']) {
-    routes.post(path, async (c) => {
-      const test = await linkTest(c);
-      if (test.status === 'draft') throw notStarted();
-      const { code } = await readJson(c, resultCodeBody);
-      const found = await openResultByCode(c.env.DB, test.id, normalizeResultCode(code), nowIso());
-      if (found === 'limited') {
-        throw new ApiError(429, 'too_many_tries', 'Prea multe încercări. Încearcă din nou peste câteva minute.');
-      }
-      if (!found) throw new ApiError(404, 'unknown_code', 'Codul nu este bun. Verifică fiecare literă și încearcă din nou.');
-      return c.json(found satisfies ResultCodeAnswer);
-    });
-  }
+  routes.post('/:token/code', async (c) => {
+    const test = await linkTest(c);
+    if (test.status === 'draft') throw notStarted();
+    const { code } = await readJson(c, resultCodeBody);
+    const found = await openResultByCode(c.env.DB, test.id, normalizeResultCode(code), nowIso());
+    if (found === 'limited') {
+      throw new ApiError(429, 'too_many_tries', 'Prea multe încercări. Încearcă din nou peste câteva minute.');
+    }
+    if (!found) throw new ApiError(404, 'unknown_code', 'Codul nu este bun. Verifică fiecare literă și încearcă din nou.');
+    return c.json(found satisfies ResultCodeAnswer);
+  });
 
   // A student's result page by its secret link. Only while the teacher keeps
   // the results of the test open; the files go through the same check.
-  // "/rezultat" is the first name of these paths: a page opened before the
-  // rename still asks for it, so it stays for one release.
-  for (const base of ['/result', '/rezultat']) {
-    routes.get(`${base}/:resultToken`, async (c) => {
-      const resultToken = c.req.param('resultToken') ?? '';
-      const found = isResultToken(resultToken) ? await findResultByToken(c.env.DB, resultToken) : null;
-      if (!found) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
-      if (!found.resultsOpen) throw resultsClosed();
-      return c.json({ result: found.result });
-    });
+  routes.get('/result/:resultToken', async (c) => {
+    const resultToken = c.req.param('resultToken') ?? '';
+    const found = isResultToken(resultToken) ? await findResultByToken(c.env.DB, resultToken) : null;
+    if (!found) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    if (!found.resultsOpen) throw resultsClosed();
+    return c.json({ result: found.result });
+  });
 
-    routes.get(`${base}/:resultToken/files/:fileId`, async (c) => {
-      const resultToken = c.req.param('resultToken') ?? '';
-      if (!isResultToken(resultToken)) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
-      const file = await findResultFile(c.env.DB, resultToken, parseId(c.req.param('fileId')));
-      if (file) {
-        const object = await c.env.FILES.get(file.key);
-        if (object) return fileResponse(object, file.name, file.type);
-      }
-      const open = await resultsOpenByToken(c.env.DB, resultToken);
-      if (open === null) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
-      if (!open) throw resultsClosed();
-      throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
-    });
-  }
+  routes.get('/result/:resultToken/files/:fileId', async (c) => {
+    const resultToken = c.req.param('resultToken') ?? '';
+    if (!isResultToken(resultToken)) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    const file = await findResultFile(c.env.DB, resultToken, parseId(c.req.param('fileId')));
+    if (file) {
+      const object = await c.env.FILES.get(file.key);
+      if (object) return fileResponse(object, file.name, file.type);
+    }
+    const open = await resultsOpenByToken(c.env.DB, resultToken);
+    if (open === null) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    if (!open) throw resultsClosed();
+    throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+  });
 
   return routes;
 }
