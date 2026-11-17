@@ -280,6 +280,17 @@ describe('ClassPage', () => {
     expect(screen.queryByRole('link', { name: /Clasa 6E2/ })).not.toBeInTheDocument();
   });
 
+  it('draws each item of "⋯" with its icon and says what it does', async () => {
+    renderAdmin('/classes/1', gradedClass());
+    await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' }));
+    const rename = await screen.findByRole('menuitem', { name: 'Redenumește clasa' });
+    const archive = screen.getByRole('menuitem', { name: 'Arhivează clasa' });
+    expect(rename).toHaveAccessibleDescription('Schimbă numele clasei. Elevii, notele și testele rămân.');
+    expect(archive).toHaveAccessibleDescription('O scoate din listele anului. Notele și testele rămân.');
+    for (const item of [rename, archive]) expect(item.querySelector('svg.action-icon')).not.toBeNull();
+    expect(screen.getAllByRole('menuitem').map((item) => item.getAttribute('aria-label'))).toEqual(['Redenumește clasa', 'Arhivează clasa']);
+  });
+
   it('closes the "⋯" menu on Esc and gives the focus back to its button', async () => {
     renderAdmin('/classes/1', gradedClass());
 
@@ -332,7 +343,7 @@ describe('ClassPage', () => {
     const api = gradedClass();
     renderAdmin('/classes/1', api, <LocationProbe />);
     await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
-    await userEvent.click(await screen.findByRole('button', { name: '+ Clasă nouă' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Clasă nouă' }));
 
     const dialog = within(await screen.findByRole('dialog', { name: 'Clasă nouă' }));
     await userEvent.type(dialog.getByLabelText('Numele clasei'), '7B');
@@ -351,7 +362,7 @@ describe('ClassPage', () => {
     const api = gradedClass();
     renderAdmin('/classes/1', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Schimbă clasa' }));
-    await userEvent.click(await screen.findByRole('button', { name: '+ Clasă nouă' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Clasă nouă' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Clasă nouă' }));
     await userEvent.type(dialog.getByLabelText('Numele clasei'), '7B');
     await userEvent.click(dialog.getByRole('button', { name: 'Adaugă clasa' }));
@@ -434,10 +445,10 @@ describe('ClassPage, an archived class', () => {
   it('lists "Scoate din arhivă" first in ⋯, then "Redenumește clasa"', async () => {
     renderAdmin('/classes/1', await archivedClass());
     await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Clasa 6E2' }));
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
-      'Scoate din arhivă',
-      'Redenumește clasa',
-    ]);
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual(['Scoate din arhivă', 'Redenumește clasa']);
+    expect(items[0]).toHaveAccessibleDescription('O aduce înapoi în listele anului.');
+    expect(items[0]!.querySelector('svg.action-icon')).not.toBeNull();
   });
 
   it('gives each test with a graded paper its report as the one step, and nothing to publish', async () => {
@@ -485,7 +496,7 @@ describe('ClassPage, an archived class', () => {
     expect(chosen.queryByRole('button', { name: 'Redenumește' })).not.toBeInTheDocument();
     expect(chosen.queryByRole('button', { name: 'A plecat din clasă' })).not.toBeInTheDocument();
     expect(chosen.queryByRole('button', { name: 'Șterge' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '+ Adaugă elevi' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adaugă elevi' })).not.toBeInTheDocument();
   });
 
   it('offers no new test for an archived class with no tests', async () => {
@@ -585,21 +596,23 @@ describe('ClassPage grade table', () => {
     expect(leftRow.getByTitle('Nu a trimis lucrarea')).toHaveTextContent('—');
   });
 
-  it('shows the test average in the last row "Media testului"', async () => {
+  it('shows the test average in the last row "Media", in an outlined chip of its colour', async () => {
     renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
-    const row = table.getByRole('rowheader', { name: 'Media testului' }).closest('tr')!;
+    const row = table.getByRole('rowheader', { name: 'Media' }).closest('tr')!;
     const cells = within(row).getAllByRole('cell');
     // Oldest first: T1 has 9, 6 and 5 -> 6,67; T2 has none graded -> —.
     expect(cells[0]).toHaveTextContent('6,67');
+    expect(within(cells[0]!).getByText('6,67')).toHaveClass('grade-chip', 'is-average', 'points-3');
     expect(cells[1]).toHaveTextContent('—');
+    expect(cells[1]!.querySelector('.grade-chip')).toBeNull();
   });
 
   it('lists students who left after the others, marked', async () => {
     renderAdmin('/classes/1', gradedClass());
     const table = await tableOf();
     const names = table.getAllByRole('rowheader').map((cell) => cell.textContent);
-    expect(names).toEqual(['Albu Dan', 'Pop Ion', 'Ionescu Ana a plecat', 'Media testului']);
+    expect(names).toEqual(['Albu Dan', 'Pop Ion', 'Ionescu Ana a plecat', 'Media']);
   });
 
   it('says what to do when the class has no students, and leads to "Elevi"', async () => {
@@ -628,8 +641,16 @@ describe('ClassPage "Elevi" tab', () => {
     expect(names).toEqual(['Albu Dan', 'Pop Ion', 'Ionescu Ana']);
     expect(list.getByRole('button', { name: /Albu Dan/ })).toHaveAttribute('aria-current', 'true');
     expect(await screen.findByRole('heading', { level: 2, name: 'Albu Dan' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '+ Adaugă elevi' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Adaugă elevi' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Arată și testele arhivate/ })).not.toBeInTheDocument();
+  });
+
+  it('tells the card where it starts and the room under it, so it can reach the foot of the screen', async () => {
+    renderAdmin('/classes/1', gradedClass());
+    await openStudents();
+    const card = screen.getByRole('list', { name: 'Elevii clasei' }).closest('.student-split') as HTMLElement;
+    expect(card.style.getPropertyValue('--split-top')).toMatch(/^\d+px$/);
+    expect(card.style.getPropertyValue('--split-foot')).toMatch(/^\d+px$/);
   });
 
   it('finds a student by a part of the name, without diacritics', async () => {
@@ -715,6 +736,16 @@ describe('ClassPage "Elevi" tab', () => {
     expect(papers).toEqual(['/tests/6E2-26T2/papers/505', '/tests/6E2-26T1/papers/502']);
   });
 
+  it('gives every action of the chosen student the icon of its verb', async () => {
+    renderAdmin('/classes/1', gradedClass());
+    await openStudents();
+    const chosen = await detail();
+    for (const name of ['Redenumește', 'Marchează CES', 'A plecat din clasă']) {
+      expect(chosen.getByRole('button', { name }).querySelector('svg.action-icon'), name).not.toBeNull();
+    }
+    expect(screen.getByRole('button', { name: 'Adaugă elevi' }).querySelector('svg.action-icon')).not.toBeNull();
+  });
+
   it('marks a student as gone from the class', async () => {
     const api = gradedClass();
     renderAdmin('/classes/1', api);
@@ -774,7 +805,7 @@ describe('ClassPage "Elevi" tab', () => {
     const api = gradedClass();
     renderAdmin('/classes/1', api);
     await openStudents();
-    await userEvent.click(screen.getByRole('button', { name: '+ Adaugă elevi' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Adaugă elevi' }));
     const box = await screen.findByRole('dialog', { name: 'Adaugă elevi în Clasa 6E2' });
     const dialog = within(box);
     const field = dialog.getByLabelText('Numele elevilor, câte unul pe rând');

@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { ClassGrade, StudentRow, TestSummary } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
-import { formatPoints } from '../../../shared/scoring.ts';
 import { compareStudentNames } from '../../../shared/students.ts';
 import { countLabel, formatDayMonth, uploadStatusLabel } from '../../ui/format.ts';
 import { CesTag } from '../CesTag.tsx';
@@ -105,7 +104,8 @@ function testAverage(grades: ClassGrade[], testCode: string): number | null {
 
 // The class page's grade table (spec §9): a row per student, a narrow column
 // per test, the oldest test on the left (`tests` arrive newest first), the last
-// row "Media testului", and no average per student. Draft and open tests keep a
+// row "Media" (each test's average in an outlined chip of its colour, under a
+// dark line), and no average per student. Draft and open tests keep a
 // column, so the page still leads to them. With no students, or no tests, the
 // card is an empty state with its one next step; `readOnly` (an archived
 // class) offers none.
@@ -207,10 +207,10 @@ export function GradesTable({
           </tbody>
           <tfoot>
             <tr>
-              <th scope="row">Media testului</th>
+              <th scope="row">Media</th>
               {shown.map((test) => {
                 const average = testAverage(grades, test.code);
-                return <td key={test.code}>{average === null ? '—' : formatPoints(average)}</td>;
+                return <td key={test.code}>{average === null ? '—' : <GradeChip grade={average} average />}</td>;
               })}
             </tr>
           </tfoot>

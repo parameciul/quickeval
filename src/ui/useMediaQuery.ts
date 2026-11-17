@@ -4,6 +4,10 @@ import { useCallback, useSyncExternalStore } from 'react';
 // one column.
 export const PHONE = '(max-width: 56.25rem)';
 
+// Below this width brand.css draws the exercises table as one card per
+// exercise.
+export const CARDS = '(max-width: 48rem)';
+
 // Whether the screen matches a media query, kept up to date when it changes.
 // Where the browser has no matchMedia (the tests' jsdom), nothing matches.
 export function useMediaQuery(query: string): boolean {

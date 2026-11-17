@@ -157,6 +157,14 @@ describe('the shell', () => {
     expect(scroll).not.toHaveBeenCalled();
   });
 
+  it('draws Contul meu and Ieși din cont with their icons', async () => {
+    renderAdmin('/', withClasses());
+    await userEvent.click(await screen.findByRole('button', { name: 'LM, contul tău: Laura Miron' }));
+    expect(screen.getByRole('link', { name: 'Contul meu' }).querySelector('svg.action-icon')).not.toBeNull();
+    const menu = document.getElementById('user-menu')!;
+    expect(within(menu).getByRole('button', { name: 'Ieși din cont' }).querySelector('svg.action-icon')).not.toBeNull();
+  });
+
   it('opens the account menu from the initials, with Contul meu', async () => {
     renderAdmin('/', withClasses(), <LocationProbe />);
     await userEvent.click(await screen.findByRole('button', { name: 'LM, contul tău: Laura Miron' }));

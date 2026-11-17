@@ -13,6 +13,46 @@ const PATHS = {
       <path d="M2.75 16.5c.7-3 2.8-4.5 5.25-4.5s4.55 1.5 5.25 4.5M15.5 6v5M13 8.5h5" />
     </>
   ),
+  // A label tag: a student marked CES, and the same tag struck out to take
+  // the mark away.
+  ces: (
+    <>
+      <path d="M3.5 3.5h6l7 7-6 6-7-7z" />
+      <circle cx="7" cy="7" r="1.1" />
+    </>
+  ),
+  'ces-off': (
+    <>
+      <path d="M3.5 3.5h6l7 7-6 6-7-7z" />
+      <circle cx="7" cy="7" r="1.1" />
+      <path d="M2.5 17.5l15-15" />
+    </>
+  ),
+  // A person with an arrow out of the class, and back in.
+  leave: (
+    <>
+      <circle cx="7.5" cy="7" r="3" />
+      <path d="M2.25 16.5c.7-3 2.8-4.5 5.25-4.5 1.3 0 2.5.4 3.4 1.2M13 13h5M15.75 10.25 18.5 13l-2.75 2.75" />
+    </>
+  ),
+  'back-in': (
+    <>
+      <circle cx="7.5" cy="7" r="3" />
+      <path d="M2.25 16.5c.7-3 2.8-4.5 5.25-4.5 1.3 0 2.5.4 3.4 1.2M18.5 13h-5M15.75 10.25 13 13l2.75 2.75" />
+    </>
+  ),
+  person: (
+    <>
+      <circle cx="10" cy="7" r="3" />
+      <path d="M4.75 16.5c.7-3 2.8-4.5 5.25-4.5s4.55 1.5 5.25 4.5" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="4" y="9" width="12" height="8" rx="1.5" />
+      <path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
+    </>
+  ),
   archive: <path d="M3 4.5h14v3H3zM4.5 7.5v8.5h11V7.5M8 10.5h4" />,
   unarchive: <path d="M3 4.5h14v3H3zM4.5 7.5v8.5h11V7.5M10 15v-4.5M7.75 12.5 10 10.25l2.25 2.25" />,
   arrow: <path d="M4 10h11.5M11 5.5l4.5 4.5-4.5 4.5" />,

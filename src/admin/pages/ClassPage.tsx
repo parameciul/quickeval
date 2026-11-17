@@ -19,6 +19,7 @@ import { NewClassDialog, RenameDialog } from '../classPage/ClassDialogs.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import type { AdminApi } from '../api.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { ActionMenuItem } from '../ActionsMenu.tsx';
 
 // The state a link passes to the class page (the panel "Clasele tale"):
 // `newClass` opens "Clasă nouă" on arrival, `archived` opens "Schimbă clasa"
@@ -353,7 +354,8 @@ function ClassSwitcher({
                 onNewClass();
               }}
             >
-              + Clasă nouă
+              <ActionIcon name="add" />
+              Clasă nouă
             </button>
           </div>
         </div>
@@ -363,7 +365,8 @@ function ClassSwitcher({
 }
 
 // "⋯": "Redenumește clasa" (a dialog) and "Arhivează clasa"; for an archived
-// class, "Scoate din arhivă" first.
+// class, "Scoate din arhivă" first. Each item is drawn like "Alte acțiuni" of
+// the paper page: its icon, its name and what it does.
 function ClassMenu({
   api,
   classId,
@@ -384,20 +387,20 @@ function ClassMenu({
   const { open, setOpen, box, button } = useSmallMenu();
   const [renameOpen, setRenameOpen] = useState(false);
   const archiveItem = (
-    <button
-      type="button"
-      role="menuitem"
-      className="class-menu-item"
-      disabled={archiving}
+    <ActionMenuItem
+      action={
+        archived
+          ? { label: 'Scoate din arhivă', hint: 'O aduce înapoi în listele anului.', icon: 'unarchive', busy: archiving }
+          : { label: 'Arhivează clasa', hint: 'O scoate din listele anului. Notele și testele rămân.', icon: 'archive', busy: archiving }
+      }
+      hintId="class-more-hint-archive"
       onClick={() => {
         // The menu closes with its item: the focus goes back to ⋯.
         setOpen(false);
         button.current?.focus();
         onArchive();
       }}
-    >
-      {archived ? 'Scoate din arhivă' : 'Arhivează clasa'}
-    </button>
+    />
   );
   return (
     <div className="class-more" ref={box}>
@@ -414,19 +417,16 @@ function ClassMenu({
         <IconDots />
       </button>
       {open && (
-        <div className="class-menu class-more-menu" id="class-more-menu" role="menu">
+        <div className="class-menu class-more-menu class-more-actions" id="class-more-menu" role="menu">
           {archived && archiveItem}
-          <button
-            type="button"
-            role="menuitem"
-            className="class-menu-item"
+          <ActionMenuItem
+            action={{ label: 'Redenumește clasa', hint: 'Schimbă numele clasei. Elevii, notele și testele rămân.', icon: 'edit', busy: false }}
+            hintId="class-more-hint-rename"
             onClick={() => {
               setOpen(false);
               setRenameOpen(true);
             }}
-          >
-            Redenumește clasa
-          </button>
+          />
           {!archived && archiveItem}
         </div>
       )}

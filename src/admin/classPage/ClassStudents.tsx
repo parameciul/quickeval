@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { AdminApi } from '../api.ts';
 import type { ClassGrade, StudentRow, TestSummary } from '../../../shared/api.ts';
@@ -18,7 +18,7 @@ import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { GradeChip } from '../testPage/GradeChip.tsx';
 
 // "Elevi" tab of the class page (spec §9): the students on the left (search,
-// an orange dot for points to check, "+ Adaugă elevi"), one student on the
+// an orange dot for points to check, "Adaugă elevi"), one student on the
 // right with each test of the class. The first student is chosen at first.
 // `readOnly` (an archived class): no adding, renaming, leaving or deleting.
 export function ClassStudents({
@@ -63,6 +63,29 @@ export function ClassStudents({
     />
   );
 
+  // The card reaches down to the foot of the screen on a computer, and its
+  // list of students scrolls inside it (brand.css): it needs to know where it
+  // starts on the page, which moves with the lines above it, and the room the
+  // page keeps under it (the padding at the foot of the page), so the page
+  // itself never scrolls.
+  const split = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = split.current;
+    if (!element) return;
+    const place = () => {
+      let foot = 0;
+      for (let parent = element.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+        const style = getComputedStyle(parent);
+        foot += (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+      }
+      element.style.setProperty('--split-top', `${Math.round(element.getBoundingClientRect().top + window.scrollY)}px`);
+      element.style.setProperty('--split-foot', `${Math.round(foot)}px`);
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  });
+
   if (students.length === 0) {
     const add = (
       <button type="button" className="button button-small" onClick={() => setAddOpen(true)}>
@@ -79,7 +102,7 @@ export function ClassStudents({
   }
 
   return (
-    <div className="class-card student-split">
+    <div className="class-card student-split" ref={split}>
       <div className="student-list">
         <label htmlFor="student-search" className="sr-only">
           Caută un elev
@@ -114,7 +137,8 @@ export function ClassStudents({
         )}
         {!readOnly && (
           <button type="button" className="text-button student-add" onClick={() => setAddOpen(true)}>
-            + Adaugă elevi
+            <ActionIcon name="add-person" />
+            Adaugă elevi
           </button>
         )}
         {addDialog}
@@ -239,9 +263,11 @@ function StudentDetail({
         {!readOnly && (
           <div className="student-detail-actions">
             <button type="button" className="text-button is-quiet" onClick={() => setRenameOpen(true)}>
+              <ActionIcon name="edit" />
               Redenumește
             </button>
             <button type="button" className="text-button is-quiet" disabled={ces.isPending} onClick={() => ces.mutate()}>
+              <ActionIcon name={student.ces ? 'ces-off' : 'ces'} />
               {student.ces ? 'Scoate marcajul CES' : 'Marchează CES'}
             </button>
             <button
@@ -250,10 +276,12 @@ function StudentDetail({
               disabled={toggle.isPending}
               onClick={() => toggle.mutate()}
             >
+              <ActionIcon name={student.active ? 'leave' : 'back-in'} />
               {student.active ? 'A plecat din clasă' : 'Revine în clasă'}
             </button>
             {student.canDelete && (
               <button type="button" className="text-button is-danger" disabled={remove.isPending} onClick={askRemove}>
+                <ActionIcon name="trash" />
                 Șterge
               </button>
             )}
