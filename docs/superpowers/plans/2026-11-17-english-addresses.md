@@ -150,7 +150,9 @@ Not indexed, so no SEO risk. The risk is links in sent emails and bookmarks.
 - When the old paths go: a few hours after the deploy (owner, 2026-11-17: three
   teachers use the app). A tab still on the old app then gets an error with the
   reload button; one reload fixes it. The cleanup PR also removes the `/rezultat`
-  and `/cod` API aliases of P1b, never the `/u/rezultat/<token>` page path.
+  and `/cod` API aliases of P1b, never the `/u/rezultat/<token>` page path, and
+  `parseFileKind` then reads `testFileKindOfPath` alone (until then a mixed path such
+  as `/sen/files/barem` answers too, which is harmless).
 - The robot's paths (`/api/runner/…`, `files/barem`, `?variant=ces`) stay: only
   the robot calls them, and its run may use the code of an older commit.
 - Map the URL values to the internal values at the route: `/files/marking-scheme`
@@ -210,6 +212,6 @@ domain move is one host-level redirect.
 | P0 | today | 1 line | no |
 | P1a + P1b | this week, one PR each | small–medium | only if a redirect is missing (tests cover it) |
 | P2 + P3 | next 1–2 weeks, one PR | medium (many test paths) | old links, covered by redirects |
-| P4 | after P3 | medium | one release with aliases |
+| P4 | after P3 | medium | no: the old paths answer for a few hours |
 | P4 cleanup | a few hours after P4's deploy | small | a tab open from before P4: one reload |
 | P5 | not recommended | large | yes (R6) |

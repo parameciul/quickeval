@@ -93,6 +93,18 @@ describe('the old teacher API paths', () => {
     }
   });
 
+  it('give the CES print PDF under both names', async () => {
+    await api.db
+      .prepare("UPDATE tests SET ces_print_status = 'ready', ces_print_file_key = ? WHERE code = ?")
+      .bind(`fixture/${code}/ces/print.pdf`, code)
+      .run();
+    await api.env.FILES.put(`fixture/${code}/ces/print.pdf`, '%PDF-1.7 print ces');
+    for (const path of [`/api/admin/tests/${code}/sen/print`, `/api/admin/tests/${code}/ces/print`]) {
+      const res = await api.fetch(path);
+      expect([path, res.status, await res.text()]).toEqual([path, 200, '%PDF-1.7 print ces']);
+    }
+  });
+
   it('read the old names as the same data', async () => {
     const t = `/api/admin/tests/${code}`;
     await api.request('PUT', `${t}/barem-notes`, { notes: 'Vechi.' });
