@@ -1,9 +1,10 @@
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi, fakeTeacher } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import { ApiError } from '../api.ts';
+import { visitTab } from '../../ui/visits.ts';
 
 const loginRequired = () => new ApiError(401, 'login_required', 'Intră în cont ca să continui.');
 
@@ -225,5 +226,66 @@ describe('the forgotten password', () => {
     expect(screen.getByRole('heading', { name: 'Am uitat parola' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Înapoi la pagina de intrare' }));
     expect(screen.getByRole('heading', { name: 'Intră în cont' })).toBeInTheDocument();
+  });
+});
+
+describe('the visit counter of the login screen', () => {
+  afterEach(() => {
+    document.getElementById('visit-counter')?.remove();
+    delete window.rybbit;
+    vi.restoreAllMocks();
+  });
+
+  async function signUp(api: ReturnType<typeof createFakeApi>) {
+    api.me.mockRejectedValueOnce(loginRequired());
+    renderAdmin('/#new-account', api);
+    await userEvent.type(await screen.findByLabelText('Numele tău'), 'Ana Pop');
+    await userEvent.type(screen.getByLabelText('Adresa de email'), 'ana@example.com');
+    await userEvent.type(screen.getByLabelText(/^Parola/), 'parola-lunga');
+    await userEvent.click(screen.getByRole('button', { name: 'Cere contul' }));
+  }
+
+  it('counts an account request that was sent, with no name or email', async () => {
+    const event = vi.fn();
+    window.rybbit = { event };
+    await signUp(createFakeApi());
+    await screen.findByRole('heading', { name: 'Verifică-ți emailul' });
+    expect(event.mock.calls).toEqual([['account-request-sent']]);
+  });
+
+  it('counts no refused request', async () => {
+    const event = vi.fn();
+    window.rybbit = { event };
+    const api = createFakeApi();
+    api.signup.mockRejectedValueOnce(new ApiError(409, 'email_taken', 'Există deja un cont cu această adresă.'));
+    await signUp(api);
+    await screen.findByText('Există deja un cont cu această adresă.');
+    expect(event).not.toHaveBeenCalled();
+  });
+
+  async function logIn(api: ReturnType<typeof createFakeApi>) {
+    api.me.mockRejectedValueOnce(loginRequired());
+    renderAdmin('/', api);
+    await userEvent.type(await screen.findByLabelText('Adresa de email'), 'profesor@example.com');
+    await userEvent.type(screen.getByLabelText('Parola'), 'parola-buna');
+    await userEvent.click(screen.getByRole('button', { name: 'Intră' }));
+  }
+
+  it('starts the tab again after a login when the counter was loaded, so it never sees a teacher page', async () => {
+    const reload = vi.spyOn(visitTab, 'reload').mockImplementation(() => {});
+    const script = document.createElement('script');
+    script.id = 'visit-counter';
+    document.head.append(script);
+    const api = createFakeApi();
+    await logIn(api);
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    expect(api.listClasses).not.toHaveBeenCalled();
+  });
+
+  it('opens the page in place after a login when the counter was not loaded', async () => {
+    const reload = vi.spyOn(visitTab, 'reload').mockImplementation(() => {});
+    await logIn(createFakeApi());
+    expect(await screen.findByRole('navigation', { name: 'Meniu' })).toBeInTheDocument();
+    expect(reload).not.toHaveBeenCalled();
   });
 });

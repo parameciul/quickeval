@@ -3,7 +3,15 @@
 MQGrader counts visits with a self-hosted [Rybbit](https://rybbit.com/docs/self-hosting): no cookies, no third party.
 
 - Dashboard: https://stats.mqgrader.ro (sign-up is off; the first account is the administrator).
-- Only the five public pages load the script (`index.html`, `ghid/`, `barem/`, `despre/`, `preturi/`), in their `<head>`, after `theme.js`. The teacher, student and Quick Try pages never load it: their addresses hold tokens and ids, and students use them. `src/landing/pages.test.ts` checks both.
+- The five public pages load the script (`index.html`, `guide/`, `marking-scheme/`, `about/`, `pricing/`), in their `<head>`, after `theme.js`.
+- The student pages (`u/index.html`) and the Quick Try pages (`try/index.html`) load it too. Their addresses hold tokens, so:
+  - `data-mask-patterns` sends a pattern in place of each path with a token: `/u/*` (the test link), `/u/result/*` and `/u/rezultat/*` (the result link), `/try/*` and `/try/*/phone`. The first pattern that matches wins, and a catch-all at the end (`/u/**`, `/try/**`) covers any other path.
+  - `<meta name="referrer" content="no-referrer">`: the next page never learns the address with the token.
+  - Rybbit masks the path only. The query string, the page title and the referrer go as they are, so no page puts a token in a query string or in its title. `src/ui/visits.test.ts` checks all of it with Rybbit's own matching rule.
+- The teacher app loads it only while the login screen shows (`loadTeacherCounter` in `src/ui/visits.ts`, in the built site only). It skips every teacher path but `/teacher/` and `/teacher/#new-account` (the email links hold a token after `#`). After a login, a tab that loaded it starts again, so the counter never sees a logged-in teacher's page. A signed-out deep link (`/teacher/tests/...`) is not counted. The button "Cere un cont de profesor" does not change the address, so `#new-account` counts only the visitors who came from the landing page's link.
+- Two events: `account-request-sent` (a sent sign-up) and `quick-try-sent` (a Quick Try whose files were sent), with no name, email or token.
+- The released Rybbit (updated 2026-11-18) has no "Track URL fragments" setting: its script drops the `#` part of an address (it keeps only `#/` routes), so `/teacher/#new-account` counts as `/teacher/`. The sign-ups still count, as the `account-request-sent` event. The masks also match the form with the `#` part, for the day the setting comes.
+- The dashboard settings of the site (Settings, Tracking): "Session Replay" off, "SPA Navigation" on, "URL Parameters" on (campaign tags), "Initial Page View" on, "Outbound Links" on (it sends the outside link only), "Error Tracking" off (an error message may hold text of the page), "Button Clicks" off (it sends the text of the button, and the student page has a button with each student's name), "Copy Events" off, "Form Interactions" off. "Track URL fragments" on once a release has it. Session Replay records the full address, token included, and what the page shows: it must stay off while the student pages share the site. To record the public pages one day, give the private pages a Rybbit site of their own first.
 - `public/_headers` allows `https://stats.mqgrader.ro` in `script-src` (the script) and `connect-src` (the events it sends). Nothing else is allowed from there.
 
 ## The server

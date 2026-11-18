@@ -3,6 +3,7 @@ import { PHONE_MEDIA, QUICK_TRY_DAYS, quickTryPhonePath } from '../../../shared/
 import { ApiError, messageOf } from '../../ui/ApiError.ts';
 import { phaseOf, scoreOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui/format.ts';
+import { countVisitEvent } from '../../ui/visits.ts';
 import type { LandingApi } from './api.ts';
 import { openPhoneStep, type PhoneStep } from './phone.ts';
 import { drawQr } from './qr.ts';
@@ -322,6 +323,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         },
         deps.now,
       );
+      // Before a phone leaves for the try's phone page: the count goes out first.
+      countVisitEvent('quick-try-sent');
       sending = false;
       const withPhone = values.byPhone;
       form!.reset();

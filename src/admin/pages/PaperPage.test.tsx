@@ -503,6 +503,7 @@ describe('the paper page', () => {
     expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('href', url);
     expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('target', '_blank');
+    expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('rel', 'noopener noreferrer');
     expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
       'href',
       `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul 6E2-26T1: ${url}`)}`,

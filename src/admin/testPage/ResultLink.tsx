@@ -69,7 +69,7 @@ export function ResultLink({
           {url ? (
             <>
               <input type="text" readOnly value={url} aria-label={`Linkul cu rezultatul elevului ${studentName}`} />
-              <a className="button-quiet button-small" href={url} target="_blank" rel="noopener">
+              <a className="button-quiet button-small" href={url} target="_blank" rel="noopener noreferrer">
                 <ActionIcon name="open" />
                 Deschide
               </a>

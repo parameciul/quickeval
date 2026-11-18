@@ -21,6 +21,7 @@ import { type DetectedSubject, unsupportedMessage } from '../../shared/subjects.
 import type { TestVariant } from '../../shared/files.ts';
 import { askForAnalysis, finishTests, promoteStatements } from './lifecycle.ts';
 import { exerciseColumns, type StoredItem } from './exerciseColumns.ts';
+import { countRobotWorkDay } from './usage.ts';
 import { baremActiveSql, columns, needsBaremSql, needsPrintSql, paperVariantSql } from './variant.ts';
 
 // Queries of the robot API (spec §11.3). Each write checks its own rules in
@@ -692,18 +693,21 @@ export async function holdsLease(db: D1Database, runId: string): Promise<boolean
 // for which test and variant, whether it worked, and the tokens Claude
 // reported. The teacher comes from the test, so a test deleted in the same
 // moment logs nothing: there is no account to put it on. A failed attempt has
-// no tokens, and a print PDF is made without Claude.
+// no tokens, and a print PDF is made without Claude. The same batch adds the
+// job to its day, for the usage statistics.
 export async function logRobotWork(
   db: D1Database,
   work: { testId: number; kind: RobotWorkKind; variant: TestVariant; ok: boolean; tokens?: number | null; at: string },
 ): Promise<void> {
-  await db
-    .prepare(
-      `INSERT INTO robot_work (teacher_id, test_id, kind, variant, ok, tokens, at)
-       SELECT teacher_id, id, ?, ?, ?, ?, ? FROM tests WHERE id = ?`,
-    )
-    .bind(work.kind, work.variant, work.ok ? 1 : 0, work.ok ? (work.tokens ?? null) : null, work.at, work.testId)
-    .run();
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO robot_work (teacher_id, test_id, kind, variant, ok, tokens, at)
+         SELECT teacher_id, id, ?, ?, ?, ?, ? FROM tests WHERE id = ?`,
+      )
+      .bind(work.kind, work.variant, work.ok ? 1 : 0, work.ok ? (work.tokens ?? null) : null, work.at, work.testId),
+    countRobotWorkDay(db, work),
+  ]);
 }
 
 // Takes the next upload in line and marks it as this run's: the uploads with

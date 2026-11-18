@@ -39,6 +39,7 @@ import type {
 } from '../../shared/api.ts';
 import { normalizeClassName } from '../../shared/classes.ts';
 import { DOCX_TYPE, uploadTypeOf, type TestFileKind, type TestVariant } from '../../shared/files.ts';
+import { EMPTY_USAGE, type UsagePeriod, type UsageSource, type UsageStats } from '../../shared/usage.ts';
 import type { CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import type { Subject } from '../../shared/subjects.ts';
 import { formatPoints, gradeOf, isValidCorrection, round2 } from '../../shared/scoring.ts';
@@ -67,6 +68,8 @@ export interface FakeData {
   accountDetails?: Record<number, AccountDetail>;
   // The requests an administrator refused, newest first.
   refusedAccounts?: RefusedAccount[];
+  // The usage statistics on Setări, whatever source and period are asked.
+  usage?: Pick<UsageStats, 'totals' | 'rows'>;
 }
 
 // The logged-in teacher of the page tests: Laura, an administrator.
@@ -1066,6 +1069,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       return structuredClone(found);
     }),
     getSettings: vi.fn(async () => structuredClone(settings)),
+    getUsage: vi.fn(async (source: UsageSource, period: UsagePeriod): Promise<UsageStats> => ({
+      source,
+      period,
+      ...structuredClone(data.usage ?? { totals: { ...EMPTY_USAGE }, rows: [] }),
+    })),
     updateSettings: vi.fn(async (maxParallelAgents: number) => {
       settings.maxParallelAgents = maxParallelAgents;
       return structuredClone(settings);

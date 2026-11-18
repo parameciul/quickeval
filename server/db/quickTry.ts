@@ -12,6 +12,7 @@ import {
 } from '../../shared/quickTry.ts';
 import { schoolYearOf } from '../../shared/schoolYear.ts';
 import { buildTestCode } from '../../shared/tests.ts';
+import { countQuickTryDay } from './usage.ts';
 
 // Quick Try's rows (spec §7): a hidden guest teacher with one class, one
 // student, one open test and one paper, and the quick_tries row that names
@@ -106,6 +107,7 @@ export async function createQuickTry(db: D1Database, input: NewQuickTry): Promis
          SELECT t.id, s.id, 'uploading', ?, ?, ? FROM tests t JOIN students s ON s.teacher_id = t.teacher_id WHERE t.teacher_id = (${guest})`,
       )
       .bind(input.sessionHash, input.resultToken, input.now, input.email),
+    countQuickTryDay(db, day, input.tokenHash),
   ]);
   const teacherId = results[0]?.results[0]?.id;
   if (teacherId !== undefined) return { teacherId, code };

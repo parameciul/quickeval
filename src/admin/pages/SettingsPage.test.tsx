@@ -39,7 +39,7 @@ describe('SettingsPage', () => {
   it('opens on Conturi, and keeps the chosen tab in the address', async () => {
     renderAdmin('/settings', withSettings(), <LocationProbe />);
     const tabs = await screen.findByRole('tablist', { name: 'Setări' });
-    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Conturi', 'Corectarea', 'Robotul']);
+    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Conturi', 'Corectarea', 'Robotul', 'Statistici']);
     expect(within(tabs).getByRole('tab', { name: 'Conturi' })).toHaveAttribute('aria-selected', 'true');
     await userEvent.click(within(tabs).getByRole('tab', { name: 'Robotul' }));
     await expectLocation('/settings?tab=robot');
@@ -52,7 +52,7 @@ describe('SettingsPage', () => {
   it('moves between the tabs with the arrow keys, Home and End', async () => {
     renderAdmin('/settings', withSettings(), <LocationProbe />);
     const tabs = await screen.findByRole('tablist', { name: 'Setări' });
-    const [accounts, grading, robot] = within(tabs).getAllByRole('tab');
+    const [accounts, grading, , stats] = within(tabs).getAllByRole('tab');
     expect(accounts).toHaveAttribute('tabindex', '0');
     expect(grading).toHaveAttribute('tabindex', '-1');
     accounts!.focus();
@@ -61,12 +61,13 @@ describe('SettingsPage', () => {
     expect(grading).toHaveAttribute('aria-selected', 'true');
     await expectLocation('/settings?tab=grading');
     await userEvent.keyboard('{End}');
-    expect(robot).toHaveFocus();
+    expect(stats).toHaveFocus();
+    await expectLocation('/settings?tab=stats');
     await userEvent.keyboard('{ArrowRight}');
     expect(accounts).toHaveFocus();
     await expectLocation(/^\/settings$/);
     await userEvent.keyboard('{ArrowLeft}');
-    expect(robot).toHaveFocus();
+    expect(stats).toHaveFocus();
     await userEvent.keyboard('{Home}');
     expect(accounts).toHaveFocus();
     expect(accounts).toHaveAttribute('aria-selected', 'true');

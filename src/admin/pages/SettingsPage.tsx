@@ -8,6 +8,7 @@ import { onTabKeyDown } from '../../ui/tabKeys.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { AccountsSection } from '../settingsPage/AccountsSection.tsx';
+import { UsageSection } from '../settingsPage/UsageSection.tsx';
 import { agoText, RobotLine } from '../testPage/RobotLine.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
@@ -16,25 +17,26 @@ const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) 
 // every 10 minutes, and the robot line moves on by itself).
 const REFRESH_MS = 60_000;
 
-type Tab = 'accounts' | 'grading' | 'robot';
+type Tab = 'accounts' | 'grading' | 'robot' | 'stats';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'accounts', label: 'Conturi' },
   { id: 'grading', label: 'Corectarea' },
   { id: 'robot', label: 'Robotul' },
+  { id: 'stats', label: 'Statistici' },
 ];
 const TAB_IDS = TABS.map(({ id }) => id);
 
-// The tab in the address: `?tab=grading` or `?tab=robot`; none (or one it
-// does not know) is "Conturi".
+// The tab in the address: `?tab=grading`, `?tab=robot` or `?tab=stats`; none
+// (or one it does not know) is "Conturi".
 function tabOf(value: string | null): Tab {
-  return value === 'grading' || value === 'robot' ? value : 'accounts';
+  return value === 'grading' || value === 'robot' || value === 'stats' ? value : 'accounts';
 }
 
-// Setări (redesign spec §11.8), for the administrators only: three tabs, the
+// Setări (redesign spec §11.8), for the administrators only: four tabs, the
 // teachers' accounts first (with a red count of those that wait), how the
-// robot grades, and the robot's state and key. The three panels stay drawn
-// (the others hidden), so a new key or password shown once survives a look at
-// another tab.
+// robot grades, the robot's state and key, and the usage statistics. The
+// panels stay drawn (the others hidden), so a new key or password shown once,
+// or a statistic made, survives a look at another tab.
 export function SettingsPage() {
   const api = useApi();
   const [params, setParams] = useSearchParams();
@@ -107,7 +109,8 @@ export function SettingsPage() {
           hidden={tab !== id}
         >
           {isAdmin && id === 'accounts' && <AccountsSection />}
-          {isAdmin && id !== 'accounts' && (
+          {isAdmin && id === 'stats' && <UsageSection />}
+          {isAdmin && (id === 'grading' || id === 'robot') && (
             <>
               {settings.isPending && <p>Se încarcă…</p>}
               {settings.error && <ErrorMessage error={settings.error} />}

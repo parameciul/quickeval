@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation } from 'react-router';
 import { DEMO_PAPER_LIMIT, MAX_PASSWORD_LENGTH, MAX_TEACHER_NAME_LENGTH, MIN_PASSWORD_LENGTH, normalizeEmail } from '../../../shared/accounts.ts';
 import { countLabel } from '../../ui/format.ts';
+import { countVisitEvent, loadTeacherCounter, teacherCounterLoaded, visitTab } from '../../ui/visits.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ApiError } from '../api.ts';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -25,11 +26,13 @@ export const SIGNUP_HASH = '#new-account';
 
 // Shown instead of every page while nobody is logged in (redesign spec §11.4):
 // "Intră în cont", "Cont nou de profesor", "Am uitat parola", and the state
-// after each. A new state moves the focus to its heading.
+// after each. A new state moves the focus to its heading. The login screen is
+// the only teacher page the visit counter sees (docs/analytics.md).
 export function LoginPage() {
   const { hash } = useLocation();
   const [mode, setMode] = useState<Mode>(hash === SIGNUP_HASH ? { name: 'signup' } : { name: 'login' });
   const heading = useStateHeading(mode.name);
+  useEffect(() => loadTeacherCounter(), []);
 
   return (
     <WayIn>
@@ -111,8 +114,14 @@ function LoginForm({ onForgot, onPending }: { onForgot: () => void; onPending: (
   const [password, setPassword] = useState('');
   const login = useMutation({
     mutationFn: () => api.login(email, password),
-    // Every page reads its data again, now with the login.
+    // Every page reads its data again, now with the login. A tab that loaded
+    // the visit counter starts again instead, so the counter never sees a
+    // page of a logged-in teacher.
     onSuccess: async (teacher) => {
+      if (teacherCounterLoaded()) {
+        visitTab.reload();
+        return;
+      }
       queryClient.setQueryData(['me'], teacher);
       await queryClient.invalidateQueries();
     },
@@ -193,7 +202,13 @@ function SignupForm({ onSent }: { onSent: () => void }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const signup = useMutation({ mutationFn: () => api.signup({ name, email, password }), onSuccess: onSent });
+  const signup = useMutation({
+    mutationFn: () => api.signup({ name, email, password }),
+    onSuccess: () => {
+      countVisitEvent('account-request-sent');
+      onSent();
+    },
+  });
 
   return (
     <>

@@ -606,3 +606,48 @@ describe("the landing page's Quick Try", () => {
     expect(policy).toContain("connect-src 'self' https://stats.mqgrader.ro;");
   });
 });
+
+describe('the count of a Quick Try that was sent', () => {
+  afterEach(() => {
+    delete window.rybbit;
+  });
+
+  it('counts a try once its files are sent', async () => {
+    const event = vi.fn();
+    window.rybbit = { event };
+    await mount();
+    button()!.click();
+    fillForm();
+    send();
+    await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
+    expect(event.mock.calls).toEqual([['quick-try-sent']]);
+  });
+
+  it('counts no try the server refused, and none that broke half-way', async () => {
+    const event = vi.fn();
+    window.rybbit = { event };
+    const api = fakeLandingApi();
+    api.create.mockRejectedValueOnce(new ApiError(429, 'quick_try_ip_limit', 'Limita de încercări gratuite pentru azi a fost atinsă.'));
+    api.addPage.mockRejectedValueOnce(new ApiError(0, 'network', 'Nu mă pot conecta la server.'));
+    await mount(api);
+    button()!.click();
+    fillForm();
+    send();
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent('Limita de încercări'));
+    send();
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent('Nu mă pot conecta la server.'));
+    expect(event).not.toHaveBeenCalled();
+  });
+
+  it('on a phone, counts the try before it leaves for the phone page', async () => {
+    const order: string[] = [];
+    window.rybbit = { event: (name: string) => order.push(name) };
+    await mount(undefined, undefined, { isPhone: () => true, go: (path) => order.push(path) });
+    button()!.click();
+    pick(/^Testul/, pdf('test.pdf'));
+    pick(/^Baremul/, pdf('barem.pdf'));
+    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    send();
+    await waitFor(() => expect(order).toEqual(['quick-try-sent', `/try/${TOKEN}/phone?here=1`]));
+  });
+});

@@ -43,6 +43,7 @@ import type {
 import { CES_PATH, TEST_FILE_PATHS, uploadTypeOf, type TestFileKind, type TestVariant } from '../../shared/files.ts';
 import type { CheckoutAnswer, CheckoutInput, PaymentRow } from '../../shared/payments.ts';
 import type { Subject } from '../../shared/subjects.ts';
+import type { UsagePeriod, UsageSource, UsageStats } from '../../shared/usage.ts';
 import { studentResultPath } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
 
@@ -159,6 +160,8 @@ export interface AdminApi {
   correctItem(submissionId: number, itemId: number, correction: ItemCorrection): Promise<SubmissionDetail>;
   reviewPages(submissionId: number, review: PagesReview): Promise<SubmissionDetail>;
   getSettings(): Promise<Settings>;
+  // The usage statistics of a period (administrators only).
+  getUsage(source: UsageSource, period: UsagePeriod): Promise<UsageStats>;
   updateSettings(maxParallelAgents: number): Promise<Settings>;
   // The Model column of the class report, for all tests.
   setShowModelColumn(show: boolean): Promise<Settings>;
@@ -388,6 +391,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     reviewPages: async (submissionId, review) =>
       (await request<{ submission: SubmissionDetail }>('PATCH', `/submissions/${submissionId}/evaluation`, review)).submission,
     getSettings: async () => (await request<{ settings: Settings }>('GET', '/settings')).settings,
+    getUsage: async (source, period) => (await request<{ stats: UsageStats }>('GET', `/stats?source=${source}&period=${period}`)).stats,
     updateSettings: async (maxParallelAgents) =>
       (await request<{ settings: Settings }>('PATCH', '/settings', { maxParallelAgents })).settings,
     setShowModelColumn: async (showModelColumn) =>

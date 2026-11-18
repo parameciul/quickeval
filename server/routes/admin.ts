@@ -10,6 +10,7 @@ import { settingsRoutes } from './settings.ts';
 import { studentRoutes } from './students.ts';
 import { submissionRoutes } from './submissions.ts';
 import { testRoutes } from './tests.ts';
+import { usageRoutes } from './usage.ts';
 import { dataVersion } from '../db/version.ts';
 import type { DataVersion } from '../../shared/api.ts';
 
@@ -28,6 +29,7 @@ export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.route('/search', searchRoutes());
   routes.route('/submissions', submissionRoutes(options));
   routes.route('/settings', settingsRoutes());
+  routes.route('/stats', usageRoutes());
   routes.route('/account', ownAccountRoutes());
   routes.route('/accounts', accountRoutes(options));
   routes.route('/payments', adminPaymentRoutes(options));

@@ -238,7 +238,8 @@ describe('the panel Rezultate', () => {
       expect(open).toHaveTextContent('Deschide');
       expect(open).toHaveAttribute('href', `${window.location.origin}/u/result/${token}`);
       expect(open).toHaveAttribute('target', '_blank');
-      expect(open).toHaveAttribute('rel', 'noopener');
+      // The student's page never learns the teacher's address (Rybbit counts it).
+      expect(open).toHaveAttribute('rel', 'noopener noreferrer');
     }
   });
 
