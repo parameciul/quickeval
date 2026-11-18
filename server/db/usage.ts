@@ -1,6 +1,7 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type { RobotWorkKind } from '../../shared/accounts.ts';
 import { bucharestDay } from '../../shared/quickTry.ts';
+import { EMPTY_USAGE, type UsageCounts, type UsagePeriod, type UsageSource, type UsageStats, usageKeys } from '../../shared/usage.ts';
 
 // The column of usage_days that counts a job of each kind when it worked.
 const COLUMN: Record<RobotWorkKind, string> = {
@@ -41,4 +42,30 @@ export function countQuickTryDay(db: D1Database, day: string, tokenHash: string)
        ON CONFLICT (day, quick_try, teacher_id) DO UPDATE SET tries = tries + 1`,
     )
     .bind(day, tokenHash);
+}
+
+const SOURCE_FILTER: Record<UsageSource, string> = { all: '', 'quick-try': 'AND quick_try = 1', teachers: 'AND quick_try = 0' };
+
+// The usage statistics of a period ending today (Bucharest): one query that
+// adds the rows of each day (or month) in SQL. A day with no row shows zeros.
+export async function readUsage(db: D1Database, source: UsageSource, period: UsagePeriod, now: string): Promise<UsageStats> {
+  const keys = usageKeys(period, bucharestDay(new Date(now)));
+  const length = period === '12m' ? 7 : 10;
+  const from = period === '12m' ? `${keys.at(-1)}-01` : keys.at(-1)!;
+  const { results } = await db
+    .prepare(
+      `SELECT substr(day, 1, ?1) AS key, SUM(papers) AS papers, SUM(barems) AS barems, SUM(exercise_lists) AS exerciseLists,
+         SUM(analyses) AS analyses, SUM(prints) AS prints, SUM(failed) AS failed, SUM(tokens) AS tokens, SUM(tries) AS tries
+       FROM usage_days WHERE day >= ?2 ${SOURCE_FILTER[source]} GROUP BY key`,
+    )
+    .bind(length, from)
+    .all<UsageCounts & { key: string }>();
+  const byKey = new Map(results.map((row) => [row.key, row]));
+  const rows = keys.map((key) => {
+    const { key: _, ...counts } = byKey.get(key) ?? { key, ...EMPTY_USAGE };
+    return { key, ...counts };
+  });
+  const totals = { ...EMPTY_USAGE };
+  for (const row of rows) for (const name of Object.keys(totals) as (keyof UsageCounts)[]) totals[name] += row[name];
+  return { source, period, totals, rows };
 }

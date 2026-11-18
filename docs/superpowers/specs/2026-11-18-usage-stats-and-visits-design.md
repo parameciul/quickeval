@@ -76,7 +76,7 @@ Past data, in the migration: teacher rows from `robot_work` (it starts at migrat
 - `7d`: the last 7 Bucharest days, today included; one entry per day, days with no work as zeros.
 - `30d`: the last 30 days, one entry per day.
 - `12m`: the last 12 calendar months, this month included; one entry per month.
-- The answer has the totals of the period and the list of days or months. `tries` is in the answer only for `all` and `quick-try`.
+- The answer has the totals of the period and the list of days or months, the newest first (`UsageStats` in `shared/usage.ts`). `tries` is always in it, 0 for `teachers`.
 - One query, summing the rows in SQL (`GROUP BY day` or by month). At most a few thousand small rows a year.
 - English names in the address and its values (the project rule).
 
