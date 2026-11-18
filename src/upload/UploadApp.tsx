@@ -156,7 +156,8 @@ export function UploadApp({
           setPhase({ kind: 'notStarted', info });
           return;
         }
-        if (info.test.status !== 'open') {
+        // Closed: the grading started, or the teacher closed the uploads.
+        if (info.test.status !== 'open' || info.test.uploadsClosed) {
           // The paper may have gone through the test's other link: learn
           // which test the other kept links belong to, before they are read.
           await learnOtherLinks(api, token);

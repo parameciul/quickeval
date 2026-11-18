@@ -7,7 +7,6 @@ import { uploadStatusLabel } from '../../ui/format.ts';
 import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import * as share from '../pdf/share.ts';
-import { MULTI_LABEL } from './UploadLink.tsx';
 
 vi.mock('../pdf/share.ts', () => ({ saveFile: vi.fn(), shareFile: vi.fn() }));
 
@@ -445,7 +444,7 @@ describe('the panel Rezultate, where students find their results', () => {
   it("gives no teacher's multi-upload link in Rezultate", async () => {
     renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true, multiUploadToken: FAKE_MULTI_TOKEN }, graded()));
     await screen.findByRole('region', { name: PUBLISHED });
-    expect(screen.queryByLabelText(MULTI_LABEL)).not.toBeInTheDocument();
+    expect(screen.queryByText(/doar pentru tine/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Nu-l da elevilor/)).not.toBeInTheDocument();
     expect(screen.getAllByTitle('Codul QR al linkului')).toHaveLength(1);
   });

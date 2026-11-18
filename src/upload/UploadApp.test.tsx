@@ -147,6 +147,15 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
+  it('says the uploads are closed while the teacher closed them on an open test, with no names', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'open', uploadsClosed: true }), students: [] });
+    render(<UploadApp api={api} token={LINK_TOKEN} />);
+    const notice = await screen.findByRole('status');
+    expect(notice).toHaveTextContent(/^Încărcarea s-a închis\.\s*Dacă nu ai trimis lucrarea, spune-i profesorului\.$/);
+    expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
   it('says only that an archived test is archived when this phone sent nothing', async () => {
     const api = createFakeUploadApi({ ...linkInfo({ status: 'done', archived: true }), students: [] });
     render(<UploadApp api={api} token={LINK_TOKEN} />);

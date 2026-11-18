@@ -17,6 +17,7 @@ import {
   type PrintRetryAnswer,
   type RegradeAnswer,
   type ReopenAnswer,
+  type UploadsClosedAnswer,
   type RobotStartAnswer,
   type StoppedTest,
   type SubjectAnswer,
@@ -66,6 +67,7 @@ import {
   saveTestFile,
   setTestArchived,
   startTest,
+  setUploadsClosed,
   stopTest,
   toTestInfo,
 } from '../db/tests.ts';
@@ -259,6 +261,19 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     }
     return c.json({ status: 'done' } satisfies FinishedTest);
   });
+
+  // "Închide încărcarea" and its undo: an open test stops (or starts again)
+  // taking the students' uploads, and the grading does not start.
+  for (const [path, closed] of [['close', true], ['open', false]] as const) {
+    routes.post(`/:code/uploads/${path}`, async (c) => {
+      const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
+      const answer = await setUploadsClosed(c.env.DB, c.var.teacher.id, test.id, closed, nowIso());
+      if (answer) return c.json(answer satisfies UploadsClosedAnswer);
+      const status = (await requireTest(c.env.DB, c.var.teacher.id, test.summary.code)).summary.status;
+      if (status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
+      throw new ApiError(409, 'closed', 'Corectarea a pornit, așa că încărcarea e deja închisă. O poți redeschide.');
+    });
+  }
 
   // Reopen uploads: evaluating or done → open.
   routes.post('/:code/reopen', async (c) => {

@@ -1,14 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
 import type { RobotStart, TestInfo, UploadRow } from '../../../shared/api.ts';
-import { MAX_SCHEDULE_DAYS } from '../../../shared/tests.ts';
-import { bucharestInputToIso, bucharestInputValue } from '../../ui/bucharestTime.ts';
-import { formatDateTime } from '../../ui/format.ts';
+import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 // The files the evaluation needs, as steps for the teacher.
 function missingFiles(test: TestInfo): string[] {
@@ -26,10 +21,11 @@ function missingFiles(test: TestInfo): string[] {
   return missing;
 }
 
-// Start evaluation while the uploads are open (spec §8.4): now for the
-// selected uploads, or at a time the teacher picks in Romania's local time.
-// Scheduling needs only the files and always grades every upload: the students
-// may still upload until then.
+// Start the grading of an open test (design A, the "Acum" box of Corectare):
+// now, for the uploads selected in the table. While the students may still
+// upload, the one button closes the uploads and starts the grading; once the
+// teacher closed them ("Închide încărcarea"), it only starts the grading.
+// Either way the uploads may be opened again later ("Redeschide încărcarea").
 export function EvaluationControls({
   test,
   uploads,
@@ -49,8 +45,6 @@ export function EvaluationControls({
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const api = useApi();
-  const [when, setWhen] = useState('');
-  const [badTime, setBadTime] = useState(false);
   const start = useMutation({
     mutationFn: () => api.evaluateTest(test.code, undefined, selected),
     onSuccess: async (answer) => {
@@ -59,16 +53,6 @@ export function EvaluationControls({
       await onChanged();
     },
   });
-  // A time that passed before the click starts the evaluation now.
-  const schedule = useMutation({
-    mutationFn: (at: string) => api.evaluateTest(test.code, at),
-    onSuccess: async (answer) => {
-      setWhen('');
-      onRobot(answer.robot);
-      await onChanged();
-    },
-  });
-  const cancel = useMutation({ mutationFn: () => api.cancelSchedule(test.code), onSuccess: onChanged });
   const finish = useMutation({ mutationFn: () => api.finishTest(test.code), onSuccess: onChanged });
 
   // A test reopened after its grading: every sent paper is graded already, so
@@ -81,99 +65,58 @@ export function EvaluationControls({
   const hasUploads = uploads.some((row) => row.fileCount > 0);
   const startSteps = hasUploads ? fileSteps : [...fileSteps, 'Niciun elev nu a încărcat încă fișiere.'];
   const needsSelection = startSteps.length === 0 && selected.length === 0;
-  const now = Date.now();
+  const closed = test.uploadsClosedAt !== null;
+  const papers = countLabel(selected.length, 'lucrare', 'lucrări');
 
-  const submitSchedule = (event: FormEvent) => {
-    event.preventDefault();
-    const at = bucharestInputToIso(when);
-    setBadTime(at === null);
-    if (at !== null) schedule.mutate(at);
-  };
+  if (allGraded) {
+    return (
+      <>
+        <p className="now-sub">După ce marchezi testul ca terminat, elevii nu mai pot încărca.</p>
+        <div className="now-actions">
+          <button
+            type="button"
+            className="button"
+            disabled={finish.isPending}
+            onClick={() => {
+              if (window.confirm('Marchezi testul ca terminat? Elevii nu mai pot încărca lucrări, iar notele rămân cum sunt.')) finish.mutate();
+            }}
+          >
+            <ActionIcon name="check" />
+            Marchează ca terminat
+          </button>
+        </div>
+        {finish.error && <ErrorMessage error={finish.error} />}
+      </>
+    );
+  }
 
-  const selectedCount = selected.length;
-  const confirmText =
-    selectedCount === 0
-      ? 'Pornești evaluarea acum? Elevii nu mai pot încărca după asta.'
-      : `Pornești evaluarea acum pentru ${selectedCount === 1 ? '1 lucrare' : `${selectedCount} lucrări`}? Elevii nu mai pot încărca după asta. Lucrările neselectate cu fișiere așteaptă o evaluare ulterioară.`;
-
+  const label = closed ? 'Pornește corectarea' : 'Închide încărcarea și pornește corectarea';
+  const confirmText = closed
+    ? `Pornești corectarea pentru ${papers}? Lucrările neselectate cu fișiere așteaptă o corectare ulterioară.`
+    : `Închizi încărcarea și pornești corectarea pentru ${papers}? Elevii nu mai pot trimite; poți redeschide încărcarea oricând. Lucrările neselectate cu fișiere așteaptă o corectare ulterioară.`;
   return (
     <>
-      {allGraded ? (
-        <>
-          <p className="hint">Toate lucrările trimise sunt corectate. După ce marchezi testul ca terminat, elevii nu mai pot încărca.</p>
-          <p className="form-row">
-            <button
-              type="button"
-              className="button"
-              disabled={finish.isPending}
-              onClick={() => {
-                if (window.confirm('Marchezi testul ca terminat? Elevii nu mai pot încărca lucrări, iar notele rămân cum sunt.')) finish.mutate();
-              }}
-            >
-              <ActionIcon name="check" />
-              Marchează ca terminat
-            </button>
-          </p>
-          {finish.error && <ErrorMessage error={finish.error} />}
-        </>
-      ) : (
-        <>
-          <p className="hint">
-            După ce pornește evaluarea, elevii nu mai pot încărca. {selectedCount > 0 ? 'Se corectează numai lucrările selectate din tabel.' : 'Selectează din tabel lucrările de corectat.'}
-          </p>
-          <p className="form-row">
-            <button
-              type="button"
-              className="button"
-              disabled={startSteps.length > 0 || needsSelection || start.isPending}
-              onClick={() => {
-                if (window.confirm(confirmText)) start.mutate();
-              }}
-            >
-              <ActionIcon name="play" />
-              Pornește evaluarea acum
-            </button>
-            {needsSelection && <span className="hint">Selectează cel puțin o lucrare cu fișiere din tabel.</span>}
-          </p>
-          {startSteps.length > 0 && <p className="hint">Ca să pornești evaluarea: {startSteps.join(' ')}</p>}
-          {start.error && <ErrorMessage error={start.error} />}
-        </>
-      )}
-
-      {test.evaluationAt ? (
-        <p>
-          Evaluarea pornește automat la {formatDateTime(test.evaluationAt)}.{' '}
-          <button type="button" className="button-quiet button-small" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
-            <ActionIcon name="close" />
-            Anulează programarea
-          </button>
+      <div className="now-actions">
+        <button
+          type="button"
+          className="button"
+          disabled={startSteps.length > 0 || needsSelection || start.isPending}
+          onClick={() => {
+            if (window.confirm(confirmText)) start.mutate();
+          }}
+        >
+          <ActionIcon name="play" />
+          {label}
+        </button>
+        <p className="hint">
+          {needsSelection
+            ? 'Bifează în tabel cel puțin o lucrare cu fișiere.'
+            : startSteps.length > 0
+              ? `Ca să pornești corectarea: ${startSteps.join(' ')}`
+              : `Se corectează ${selected.length === 1 ? '1 lucrare, bifată' : `${papers}, bifate`} în tabel.${closed ? '' : ' Poți redeschide încărcarea oricând, pentru elevii care nu au trimis.'}`}
         </p>
-      ) : (
-        <form className="form-row" onSubmit={submitSchedule}>
-          <label htmlFor="evaluation-at">Sau pornește evaluarea automat la</label>
-          <input
-            id="evaluation-at"
-            type="datetime-local"
-            value={when}
-            min={bucharestInputValue(new Date(now).toISOString())}
-            max={bucharestInputValue(new Date(now + MAX_SCHEDULE_DAYS * DAY_MS).toISOString())}
-            onChange={(event) => setWhen(event.target.value)}
-            disabled={fileSteps.length > 0}
-            required
-          />
-          <button className="button-quiet button-small" type="submit" disabled={fileSteps.length > 0 || schedule.isPending}>
-            <ActionIcon name="clock" />
-            Programează
-          </button>
-        </form>
-      )}
-      {badTime && (
-        <p className="alert" role="alert">
-          Alege data și ora.
-        </p>
-      )}
-      {schedule.error && <ErrorMessage error={schedule.error} />}
-      {cancel.error && <ErrorMessage error={cancel.error} />}
+      </div>
+      {start.error && <ErrorMessage error={start.error} />}
     </>
   );
 }

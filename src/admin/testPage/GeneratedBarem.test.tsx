@@ -143,17 +143,15 @@ describe('GeneratedBarem', () => {
     await waitFor(() => expect(api.getTest).toHaveBeenCalled());
   });
 
-  it('disables the evaluation buttons while the barem is unchecked', async () => {
+  it('disables the start of the grading while the barem is unchecked', async () => {
     renderAdmin('/tests/6E2-26T1#grading', apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'none', unchecked: true } }));
-    expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Programează' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).toBeDisabled();
     expect(screen.getByText(/Verifică baremul generat înainte de evaluare\./)).toBeInTheDocument();
   });
 
-  it('disables the evaluation buttons while the barem is generating', async () => {
+  it('disables the start of the grading while the barem is generating', async () => {
     renderAdmin('/tests/6E2-26T1#grading', apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'requested', unchecked: false } }));
-    expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Programează' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).toBeDisabled();
     expect(screen.getByText(/Baremul se generează încă\./)).toBeInTheDocument();
   });
 
