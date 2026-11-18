@@ -14,6 +14,10 @@
 /preturi/* /pricing/:splat 301
 /og-preturi.png /og-pricing.png 301
 
+# The guide's picture changed its name when the picture changed, so no cache
+# keeps the old one: the old name leads to the new picture.
+/app-verificare.png /app-graded-paper.png 301
+
 # The teacher app, the student app and a Quick Try's page are single-page apps:
 # every /teacher page loads /teacher/ (teacher/index.html), every /u/<token>
 # page loads /u/ (u/index.html), every /try/<token> page loads /try/
