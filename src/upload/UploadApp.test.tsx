@@ -255,7 +255,7 @@ describe('UploadApp', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     // What to do with the ticket, in the green box; no long text under the buttons.
     expect(screen.getByText('Ai trimis un fișier.')).toBeInTheDocument();
-    expect(screen.getByText('Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează lucrarea.').closest('.sent')).not.toBeNull();
+    expect(screen.getByText('Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează și publică lucrarea.').closest('.sent')).not.toBeNull();
     expect(screen.queryByText(/^Rezultatul apare/)).not.toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(`qe.result.${LINK_TOKEN}.11`)!)).toEqual({ resultToken: 'result-token-11', studentName: 'Pop Ion', resultCode: 'K7M92P' });
     expectNoGradingWords();
@@ -270,7 +270,7 @@ describe('UploadApp', () => {
     const notice = await screen.findByRole('status');
     expect(notice).toHaveClass('sent');
     expect(within(notice).getByRole('heading', { name: 'Lucrarea ta a fost trimisă.' })).toBeInTheDocument();
-    expect(within(notice).getByText('Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează lucrarea.')).toBeInTheDocument();
+    expect(within(notice).getByText('Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează și publică lucrarea.')).toBeInTheDocument();
     expect(screen.queryByText(/Încărcarea s-a închis/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Dacă nu ai trimis lucrarea/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Revino pe acest link/)).not.toBeInTheDocument();
@@ -359,7 +359,7 @@ describe('UploadApp', () => {
     expect(notice).toHaveTextContent('Lucrarea ta a fost trimisă.');
     // Classmates may have their results: this line says why this one does not open.
     expect(within(notice).getByText('Rezultatul tău nu a fost publicat încă.')).toBeInTheDocument();
-    expect(within(notice).getByText('Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează lucrarea.')).toBeInTheDocument();
+    expect(within(notice).getByText('Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează și publică lucrarea.')).toBeInTheDocument();
     expect(screen.queryByText('Rezultatele au fost publicate.')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();
     expect(openResult).not.toHaveBeenCalled();
@@ -401,11 +401,12 @@ describe('UploadApp', () => {
     render(<UploadApp api={api} token={LINK_TOKEN} openResult={vi.fn()} />);
     const notice = await screen.findByRole('status');
     expect(notice).toHaveClass('notice');
-    expect(notice).toHaveTextContent('Testul a fost arhivat și rezultatele nu mai sunt disponibile.');
-    // Results that may never open: no word on saving the ticket for them.
+    expect(notice).toHaveTextContent('Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.');
+    // Results that may never open: no ticket, whose picture promises a result.
     expect(screen.queryByText(/^Salvează biletul de mai jos/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Revino pe acest link/)).not.toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Salvează biletul' })).not.toBeInTheDocument();
     expectNoGradingWords();
   });
 
@@ -415,7 +416,8 @@ describe('UploadApp', () => {
     saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
     const openResult = vi.fn();
     render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
-    expect(await screen.findByText('Testul a fost arhivat și rezultatele nu mai sunt disponibile.')).toBeInTheDocument();
+    expect(await screen.findByText('Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Rezultatul tău nu a fost publicat încă.')).not.toBeInTheDocument();
     expect(screen.queryByText(/^Salvează biletul de mai jos/)).not.toBeInTheDocument();
     expect(openResult).not.toHaveBeenCalled();
@@ -562,7 +564,7 @@ describe('UploadApp', () => {
     const notice = screen.getByRole('status');
     expect(notice).toHaveClass('sent');
     expect(within(notice).getByRole('heading', { name: 'Lucrarea ta a fost trimisă.' })).toBeInTheDocument();
-    expect(within(notice).getByText('Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează lucrarea.')).toBeInTheDocument();
+    expect(within(notice).getByText('Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează și publică lucrarea.')).toBeInTheDocument();
     const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
     expect(notice.compareDocumentPosition(ticket) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(

@@ -26,7 +26,7 @@ export const TICKET_TITLE = 'Biletul tău pentru rezultat';
 // The picture first says what it is for, since it is found later in the
 // gallery, long after the test.
 const TICKET_LEAD = 'Cu acest bilet îți vezi rezultatul la acest test.';
-const TICKET_NOTE = 'Rezultatul apare doar după ce profesorul corectează lucrările.';
+const TICKET_NOTE = 'Rezultatul apare doar după ce profesorul corectează și publică lucrările.';
 export const TICKET_HOW: TicketHow = {
   lead: TICKET_LEAD,
   note: TICKET_NOTE,
@@ -42,6 +42,12 @@ export const TICKET_HOW_NO_CODE: TicketHow = {
   intro: 'Ca să vezi rezultatul, pe telefon ține apăsat pe codul QR și deschide linkul.',
   steps: [],
 };
+
+// The picture saved from the result page: the result is already out, so no
+// note on when it appears.
+export function publishedHow(how: TicketHow): TicketHow {
+  return { ...how, note: '' };
+}
 
 // How long "Linkul a fost copiat." stays on screen.
 const COPIED_MS = 4000;

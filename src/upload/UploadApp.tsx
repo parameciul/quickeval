@@ -30,7 +30,7 @@ export const UNKNOWN_LINK = 'Link greșit. Cere profesorului linkul nou.';
 
 // What the student does with the ticket: one line, under every "sent" title.
 export const SAVE_TICKET_LINE =
-  'Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează lucrarea.';
+  'Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează și publică lucrarea.';
 
 type Phase =
   | { kind: 'loading' }
@@ -353,22 +353,19 @@ function ClosedScreen({
   };
   if (!info.test.resultsOpen || waiting) {
     // Archiving closes the results, and they may never open again: no word
-    // on saving a ticket or waiting for a publish, also when the teacher
-    // published a few results of the archived test.
+    // on waiting for a publish, and no ticket, whose picture promises a
+    // result; also when the teacher published a few results of the test.
     if (info.test.archived) {
       return (
-        <>
-          <div className="notice" role="status">
-            {links.length > 0 ? (
-              <p>Testul a fost arhivat și rezultatele nu mai sunt disponibile.</p>
-            ) : (
-              <p>
-                <strong>Testul a fost arhivat.</strong> Dacă ai nevoie de ceva, întreabă profesorul.
-              </p>
-            )}
-          </div>
-          {links.length > 0 && <Tickets links={links} info={info} />}
-        </>
+        <div className="notice" role="status">
+          {links.length > 0 ? (
+            <p>Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.</p>
+          ) : (
+            <p>
+              <strong>Testul a fost arhivat.</strong> Dacă ai nevoie de ceva, întreabă profesorul.
+            </p>
+          )}
+        </div>
       );
     }
     // No ticket on this phone: the student most likely sent nothing from it,

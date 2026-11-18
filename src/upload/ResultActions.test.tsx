@@ -5,6 +5,7 @@ import { renderPdf } from '../admin/pdf/renderPdf.ts';
 import { saveFile } from '../admin/pdf/share.ts';
 import { expectNoGradingWords } from '../test/gradingWords.ts';
 import { ResultActions } from './ResultActions.tsx';
+import { TICKET_HOW } from './ResultTicket.tsx';
 import { renderTicket, saveTicket } from './ticketImage.ts';
 
 vi.mock('../admin/pdf/renderPdf.ts', () => ({ renderPdf: vi.fn() }));
@@ -74,6 +75,9 @@ describe('Salvează biletul on the result page', () => {
       studentName: 'Pop Ion',
       classLine: 'Clasa 6E2 · 6E2-26T1',
       code: 'K7M-92P',
+      // The result is out: what the ticket is for and how to open it, with no
+      // note on when the result appears.
+      how: { ...TICKET_HOW, note: '' },
     });
     expect(saveTicket).toHaveBeenCalledWith(png, 'bilet-6E2-26T1-Pop-Ion.png', 'Pop Ion · Fracții');
     expectNoGradingWords();

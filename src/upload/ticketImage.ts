@@ -25,7 +25,7 @@ export interface TicketPicture {
   // The code as shown ("K7M-92P"), or null for a link without one.
   code: string | null;
   // What it is for and how it is used: up to two lines of lead, of note and
-  // of intro, three of each option.
+  // of intro, three of each option. An empty note draws nothing.
   how: TicketHow;
   // The QR code of the result link, already drawn (a canvas of the QR library).
   qr: CanvasImageSource;

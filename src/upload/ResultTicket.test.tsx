@@ -54,7 +54,7 @@ describe('ResultTicket', () => {
 
   it('writes, for the picture, what it is for, then the two options, with no camera', () => {
     expect(TICKET_HOW.lead).toBe('Cu acest bilet îți vezi rezultatul la acest test.');
-    expect(TICKET_HOW.note).toBe('Rezultatul apare doar după ce profesorul corectează lucrările.');
+    expect(TICKET_HOW.note).toBe('Rezultatul apare doar după ce profesorul corectează și publică lucrările.');
     expect(TICKET_HOW.intro).toBe('Ca să vezi rezultatul, alege una dintre variante:');
     expect(TICKET_HOW.steps).toEqual([
       'Pe telefon, ține apăsat pe codul QR și deschide linkul.',

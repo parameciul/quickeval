@@ -156,6 +156,16 @@ describe('drawTicket', () => {
     }
   });
 
+  it('draws nothing for an empty note, and keeps the lines after it', () => {
+    const { context, texts } = fakeContext();
+    drawTicket(context, { ...picture, how: { ...HOW, note: '' } });
+    const written = texts.map((entry) => entry.text);
+    expect(written).not.toContain('');
+    expect(written).not.toContain(HOW.note);
+    expect(written).toContain(HOW.lead);
+    expect(written).toContain(HOW.intro);
+  });
+
   it('draws no code for a link without one, and the QR code lower', () => {
     const { context, texts, images } = fakeContext();
     drawTicket(context, { ...picture, code: null, how: { ...HOW, intro: 'Ține apăsat pe codul QR.', steps: [] } });
