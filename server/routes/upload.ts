@@ -1,6 +1,14 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
-import { resultCodeBody, startSessionBody, type ConfirmAnswer, type LinkInfo, type ResultCodeAnswer, type UploadSession } from '../../shared/api.ts';
+import {
+  resultCodeBody,
+  startSessionBody,
+  type ConfirmAnswer,
+  type LinkInfo,
+  type ResultCodeAnswer,
+  type ResultStatusAnswer,
+  type UploadSession,
+} from '../../shared/api.ts';
 import { checkoutBody } from '../../shared/payments.ts';
 import { MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, studentFileKey } from '../../shared/files.ts';
 import { isResultToken, isUploadToken, normalizeResultCode } from '../../shared/tests.ts';
@@ -48,6 +56,10 @@ const otherDevice = () =>
   new ApiError(409, 'other_device', 'Încărcarea a început pe alt telefon. Roagă profesorul să o reseteze.');
 const tooManyFiles = () => new ApiError(409, 'too_many_files', `Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`);
 const fileNotFound = () => new ApiError(404, 'not_found', 'Nu am găsit fișierul.');
+// A result link opened before the teacher published the results: nothing is
+// wrong, the student only came early.
+const resultsClosed = () =>
+  new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Probabil profesorul nu a terminat de corectat. Revino mai târziu.');
 
 // The test behind the link in the URL.
 async function linkTest(c: Context<AppEnv>): Promise<LinkTest> {
@@ -110,7 +122,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     // Asked only once the uploads closed: an open test's page reads nothing more.
     const resultsOpen = test.status !== 'draft' && test.status !== 'open' && (await resultsPublished(c.env.DB, test.id));
     return c.json({
-      test: { code: test.code, title: test.title, className: test.className, status: test.status, key, resultsOpen },
+      test: { code: test.code, title: test.title, className: test.className, status: test.status, key, resultsOpen, archived: test.archived },
       students: test.status === 'open' ? await listLinkStudents(c.env.DB, test) : [],
       multi: test.multi,
     } satisfies LinkInfo);
@@ -289,13 +301,22 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json(found satisfies ResultCodeAnswer);
   });
 
+  // Whether a result link opens now: one small read, for the test's page,
+  // which then opens the result page, where the result itself is read.
+  routes.get('/result/:resultToken/status', async (c) => {
+    const resultToken = c.req.param('resultToken') ?? '';
+    const published = isResultToken(resultToken) ? await resultsOpenByToken(c.env.DB, resultToken) : null;
+    if (published === null) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    return c.json({ published } satisfies ResultStatusAnswer);
+  });
+
   // A student's result page by its secret link. Only while the teacher keeps
   // the results of the test open; the files go through the same check.
   routes.get('/result/:resultToken', async (c) => {
     const resultToken = c.req.param('resultToken') ?? '';
     const found = isResultToken(resultToken) ? await findResultByToken(c.env.DB, resultToken) : null;
     if (!found) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
-    if (!found.resultsOpen) throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
+    if (!found.resultsOpen) throw resultsClosed();
     return c.json({ result: found.result });
   });
 
@@ -309,7 +330,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     }
     const open = await resultsOpenByToken(c.env.DB, resultToken);
     if (open === null) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
-    if (!open) throw new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Întreabă profesorul.');
+    if (!open) throw resultsClosed();
     throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
   });
 

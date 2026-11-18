@@ -54,7 +54,7 @@ describe('GET /api/u/:token', () => {
     const res = await api.request('GET', `/api/u/${token}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      test: { code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false },
+      test: { code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false, archived: false },
       students: [
         { id: ionescu, name: 'Ionescu Ana', state: 'none' },
         { id: pop, name: 'Pop Ion', state: 'in_progress' },
@@ -79,10 +79,21 @@ describe('GET /api/u/:token', () => {
     await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(code).run();
     const res = await api.request('GET', `/api/u/${token}`);
     expect(res.body).toEqual({
-      test: { code, title: 'Fracții', className: '6E2', status: 'done', key: expect.any(String), resultsOpen: false },
+      test: { code, title: 'Fracții', className: '6E2', status: 'done', key: expect.any(String), resultsOpen: false, archived: false },
       students: [],
       multi: false,
     });
+  });
+
+  it('says when the test or its class is archived, which closes its results for good', async () => {
+    await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(code).run();
+    const archived = async () => (await api.request('GET', `/api/u/${token}`)).body.test.archived as boolean;
+    expect(await archived()).toBe(false);
+    await api.db.prepare('UPDATE tests SET archived = 1 WHERE code = ?').bind(code).run();
+    expect(await archived()).toBe(true);
+    await api.db.prepare('UPDATE tests SET archived = 0 WHERE code = ?').bind(code).run();
+    await api.db.prepare('UPDATE classes SET archived = 1 WHERE id = (SELECT class_id FROM tests WHERE code = ?)').bind(code).run();
+    expect(await archived()).toBe(true);
   });
 
   it('shows the test with no names before it starts: the printed QR code holds the link already', async () => {
@@ -92,7 +103,7 @@ describe('GET /api/u/:token', () => {
     const res = await api.request('GET', `/api/u/${draftToken}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      test: { code: draft, title: 'Ecuații', className: '6E2', status: 'draft', key: expect.any(String), resultsOpen: false },
+      test: { code: draft, title: 'Ecuații', className: '6E2', status: 'draft', key: expect.any(String), resultsOpen: false, archived: false },
       students: [],
       multi: false,
     });
@@ -509,7 +520,7 @@ describe('the multi-upload link', () => {
     expect(multi).not.toBe(token);
     const res = await api.request('GET', `/api/u/${multi}`);
     expect(res.status).toBe(200);
-    expect(res.body.test).toEqual({ code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false });
+    expect(res.body.test).toEqual({ code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false, archived: false });
     expect(res.body.students).toEqual([
       { id: ionescu, name: 'Ionescu Ana', state: 'none' },
       { id: pop, name: 'Pop Ion', state: 'none' },

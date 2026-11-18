@@ -133,10 +133,13 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
-  it('says the uploads are closed once the test is closed', async () => {
+  it('says the uploads are closed once the test is closed, in a calm grey box, not as an error', async () => {
     const api = createFakeUploadApi({ ...linkInfo({ status: 'evaluating' }), students: [] });
     render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
+    const notice = await screen.findByRole('status');
+    expect(notice).toHaveTextContent('Încărcarea s-a închis.');
+    expect(notice).toHaveClass('notice');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
     expectNoGradingWords();
   });
@@ -247,12 +250,15 @@ describe('UploadApp', () => {
     saveSecret(LINK_TOKEN, 11, 'secret-11');
     saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
     render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
     expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/result/result-token-11`);
     const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
     expect(within(ticket).getByText('K7M-92P')).toBeInTheDocument();
     // Not right after sending: no word on when the result appears.
     expect(screen.queryByText(/^Rezultatul apare aici/)).not.toBeInTheDocument();
+    // Before the publish: the ticket to save, and no code field.
+    expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Am alt cod' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Alege-ți numele' })).not.toBeInTheDocument();
     expectNoGradingWords();
   });
@@ -271,39 +277,199 @@ describe('UploadApp', () => {
     expectNoGradingWords();
   });
 
-  it('shows the kept link with no error once the results are published', async () => {
+  it('opens the kept result at once, in place of the page, once the results are published', async () => {
     const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
-    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion');
-    render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByText('Rezultatele au fost publicate.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/result/result-token-11`);
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const goTo = vi.fn();
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} goTo={goTo} openResult={openResult} />);
+    await vi.waitFor(() => expect(openResult).toHaveBeenCalledWith('/u/result/result-token-11'));
+    expect(openResult).toHaveBeenCalledTimes(1);
+    expect(goTo).not.toHaveBeenCalled();
+    // Only whether it is published: the result page reads the result itself.
+    expect(api.resultPublished).toHaveBeenCalledWith('result-token-11');
+    expect(api.getResult).not.toHaveBeenCalled();
+    // No ticket, code or link to read: the result is on its way.
+    expect(screen.getByText('Se deschide rezultatul…')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Rezultatele au fost publicate.')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.queryByText(/cere profesorului linkul tău/)).not.toBeInTheDocument();
     expectNoGradingWords();
   });
 
-  it('finds a result link this phone kept through the other link of the test, and asks for that link only once', async () => {
+  it('asks for the code, with no ticket, when this phone kept the links of several papers', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    saveResultLink(LINK_TOKEN, 12, 'result-token-12', 'Stan Eva', 'ABC234');
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    expect(await screen.findByText('Rezultatele au fost publicate.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Scrie codul tău')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Vezi rezultatul' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Am alt cod' })).not.toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('opens nothing before the results are published', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done' }), students: [] });
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
+    expect(screen.getByText('Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.')).toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+    expect(api.resultPublished).not.toHaveBeenCalled();
+  });
+
+  it('keeps the ticket and opens nothing when other results are published but not the one this phone sent', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
+    api.resultPublished.mockResolvedValue(false);
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    expect(await screen.findByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
+    expect(api.resultPublished).toHaveBeenCalledWith('result-token-11');
+    expect(screen.getByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(screen.getByText('Rezultatul tău nu a fost publicat încă. Revino pe acest link după ce profesorul îl publică.')).toBeInTheDocument();
+    expect(screen.queryByText('Rezultatele au fost publicate.')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+    expectNoGradingWords();
+  });
+
+  it('forgets a kept link the server no longer knows and asks for the code, with no error', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
+    api.resultPublished.mockRejectedValue(new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.'));
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    expect(await screen.findByLabelText('Scrie codul tău')).toBeInTheDocument();
+    expect(screen.getByText('Rezultatele au fost publicate.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+    expect(localStorage.getItem(`qe.result.${LINK_TOKEN}.11`)).toBeNull();
+  });
+
+  it('opens the result when the phone also kept a link of another test', async () => {
+    const closed = { ...linkInfo({ status: 'done', resultsOpen: true }), students: [] };
+    const api = createFakeUploadApi(closed);
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    saveResultLink('otherlinktoken22', 11, 'result-token-99', 'Pop Ion', 'XYZ234');
+    api.getLink.mockImplementation(async (asked: string) => {
+      const info = structuredClone(closed);
+      if (asked === 'otherlinktoken22') info.test.key = 'test-key-2';
+      return info;
+    });
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    await vi.waitFor(() => expect(openResult).toHaveBeenCalledWith('/u/result/result-token-11'));
+    expect(openResult).toHaveBeenCalledTimes(1);
+  });
+
+  it('says an archived test closed its results, in place of waiting for them', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', archived: true }), students: [] });
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={vi.fn()} />);
+    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(
+      screen.getByText('Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Revino pe acest link/)).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('says the archived test closed its results also when the teacher published a few of them, but not this one', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', archived: true, resultsOpen: true }), students: [] });
+    api.resultPublished.mockResolvedValue(false);
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    expect(
+      await screen.findByText('Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Revino pe acest link/)).not.toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+  });
+
+  it('opens the result of an archived test when the teacher published it', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', archived: true, resultsOpen: true }), students: [] });
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    await vi.waitFor(() => expect(openResult).toHaveBeenCalledWith('/u/result/result-token-11'));
+  });
+
+  it('opens the result anyway when the check fails for another reason, so the result page says what is wrong', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
+    api.resultPublished.mockRejectedValue(new ApiError(0, 'network', 'Nu am putut ajunge la server.'));
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    await vi.waitFor(() => expect(openResult).toHaveBeenCalledWith('/u/result/result-token-11'));
+    // The link stays: only a link the server does not know is forgotten.
+    expect(localStorage.getItem(`qe.result.${LINK_TOKEN}.11`)).not.toBeNull();
+  });
+
+  it('opens nothing when the page closes while it checks the result', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done', resultsOpen: true }), students: [] });
+    let answer: (published: boolean) => void = () => {};
+    api.resultPublished.mockImplementation(() => new Promise<boolean>((resolve) => (answer = resolve)));
+    saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
+    const openResult = vi.fn();
+    const page = render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    await vi.waitFor(() => expect(api.resultPublished).toHaveBeenCalled());
+    page.unmount();
+    answer(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(openResult).not.toHaveBeenCalled();
+  });
+
+  it('does not lock the default link for a link an older page kept for a typed code', async () => {
+    // What the page wrote before it stopped keeping such links.
+    localStorage.setItem(
+      `qe.result.${LINK_TOKEN}.11`,
+      JSON.stringify({ resultToken: 'result-token-11', studentName: 'Pop Ion', resultCode: 'K7M92P', byCode: true }),
+    );
+    render(<UploadApp api={createFakeUploadApi()} token={LINK_TOKEN} />);
+    expect(await screen.findByRole('button', { name: 'Ionescu Ana' })).toBeEnabled();
+    expect(screen.queryByText(/Ai trimis deja lucrarea de pe acest telefon/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
+  });
+
+  it('opens a result this phone kept through the other link of the test, and asks for that link only once', async () => {
     const other = 'multilinktoken22';
     const closed = { ...linkInfo({ status: 'done', resultsOpen: true }), students: [] };
     const api = createFakeUploadApi(closed);
     // The paper went through the link for many uploads, before the phone
     // remembered which test a link belongs to.
     saveResultLink(other, 11, 'result-token-11', 'Pop Ion');
-    const first = render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByRole('link', { name: 'Vezi rezultatul' })).toHaveAttribute('href', `${window.location.origin}/u/result/result-token-11`);
-    // Kept before links had codes: the ticket has the QR code and no code row.
-    const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
-    expect(within(ticket).getByTitle('Codul QR al rezultatului')).toBeInTheDocument();
-    expect(within(ticket).queryByText('Codul tău')).not.toBeInTheDocument();
+    const openResult = vi.fn();
+    const first = render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    await vi.waitFor(() => expect(openResult).toHaveBeenCalledWith('/u/result/result-token-11'));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(api.getLink.mock.calls.map(([asked]) => asked)).toEqual([LINK_TOKEN, other]);
     expectNoGradingWords();
 
     first.unmount();
     api.getLink.mockClear();
-    render(<UploadApp api={api} token={LINK_TOKEN} />);
-    expect(await screen.findByRole('link', { name: 'Vezi rezultatul' })).toBeInTheDocument();
+    openResult.mockClear();
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={openResult} />);
+    await vi.waitFor(() => expect(openResult).toHaveBeenCalledWith('/u/result/result-token-11'));
     expect(api.getLink.mock.calls.map(([asked]) => asked)).toEqual([LINK_TOKEN]);
+  });
+
+  it('shows the ticket of a link kept before links had codes with the QR code and no code row', async () => {
+    const api = createFakeUploadApi({ ...linkInfo({ status: 'done' }), students: [] });
+    saveResultLink('multilinktoken22', 11, 'result-token-11', 'Pop Ion');
+    render(<UploadApp api={api} token={LINK_TOKEN} openResult={vi.fn()} />);
+    const ticket = await screen.findByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
+    expect(within(ticket).getByTitle('Codul QR al rezultatului')).toBeInTheDocument();
+    expect(within(ticket).queryByText('Codul tău')).not.toBeInTheDocument();
   });
 
   it('shows no result link kept for another test, or for a link the server no longer knows', async () => {

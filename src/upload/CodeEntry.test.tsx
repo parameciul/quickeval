@@ -60,25 +60,41 @@ describe('the code field on the closed test page', () => {
     expectNoGradingWords();
   });
 
-  it('opens the result with the right code, and keeps the link on this phone', async () => {
+  it('opens the result with the right code, and keeps no link on this phone', async () => {
     const api = createFakeUploadApi(published());
     const goTo = vi.fn();
-    render(<UploadApp api={api} token={LINK_TOKEN} goTo={goTo} />);
+    const openResult = vi.fn();
+    const first = render(<UploadApp api={api} token={LINK_TOKEN} goTo={goTo} openResult={openResult} />);
     await screen.findByText('Rezultatele au fost publicate.');
     await userEvent.type(field(), 'k7m92p');
     expect(field()).toHaveValue('K7M-92P');
     await userEvent.click(screen.getByRole('button', { name: 'Vezi rezultatul' }));
     await vi.waitFor(() => expect(goTo).toHaveBeenCalledWith('/u/result/result-token-11'));
     expect(api.openByCode).toHaveBeenCalledWith(LINK_TOKEN, 'K7M-92P');
-    expect(loadResultLink(LINK_TOKEN, 11)).toEqual({
-      studentId: 11,
-      studentName: 'Pop Ion',
-      resultToken: 'result-token-11',
-      resultCode: 'K7M92P',
-      byCode: true,
-    });
-    // The page now shows the ticket, for the next visit.
-    expect(await screen.findByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
+    // A code typed on a borrowed phone must not open by itself for the
+    // phone's owner later: the phone keeps only the links it sent.
+    expect(loadResultLink(LINK_TOKEN, 11)).toBeNull();
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
+
+    // Back, or the next visit: the field again, and nothing opens by itself.
+    first.unmount();
+    render(<UploadApp api={api} token={LINK_TOKEN} goTo={vi.fn()} openResult={openResult} />);
+    expect(await screen.findByLabelText('Scrie codul tău')).toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+  });
+
+  it('ignores a link an older page kept for a typed code: it neither opens by itself nor shows as a ticket', async () => {
+    // What the page wrote before it stopped keeping such links.
+    const oldEntry = JSON.stringify({ resultToken: 'result-token-11', studentName: 'Pop Ion', resultCode: 'K7M92P', byCode: true });
+    localStorage.setItem(`qe.result.${LINK_TOKEN}.11`, oldEntry);
+    const openResult = vi.fn();
+    const after = render(<UploadApp api={createFakeUploadApi(published())} token={LINK_TOKEN} goTo={vi.fn()} openResult={openResult} />);
+    expect(await screen.findByLabelText('Scrie codul tău')).toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+    after.unmount();
+    render(<UploadApp api={createFakeUploadApi(closedOnly())} token={LINK_TOKEN} goTo={vi.fn()} openResult={openResult} />);
+    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
   });
 
   it('sends the code with the Enter key too', async () => {
@@ -90,19 +106,24 @@ describe('the code field on the closed test page', () => {
     await vi.waitFor(() => expect(goTo).toHaveBeenCalledTimes(1));
   });
 
-  it('shows the ticket and opens no page while the results are not published', async () => {
-    const api = createFakeUploadApi(closedOnly());
-    const goTo = vi.fn();
-    render(<UploadApp api={api} token={LINK_TOKEN} goTo={goTo} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Încărcarea s-a închis.');
+  // Before the publish a code would open nothing yet.
+  it('shows no field while the results are not published, with or without tickets', async () => {
+    const empty = render(<UploadApp api={createFakeUploadApi(closedOnly())} token={LINK_TOKEN} goTo={vi.fn()} />);
+    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
     expect(screen.getByText('Dacă nu ai trimis lucrarea, spune-i profesorului.')).toBeInTheDocument();
-    await userEvent.type(field(), 'K7M92P');
-    await userEvent.click(screen.getByRole('button', { name: 'Vezi rezultatul' }));
-    const ticket = await screen.findByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
-    expect(within(ticket).getByText('K7M-92P')).toBeInTheDocument();
-    expect(goTo).not.toHaveBeenCalled();
-    // The field gave way to the ticket.
+    expect(screen.getByText('Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.')).toBeInTheDocument();
     expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Vezi rezultatul' })).not.toBeInTheDocument();
+    expectNoGradingWords();
+    empty.unmount();
+
+    saveResultLink(LINK_TOKEN, 12, 'result-token-12', 'Stan Eva', 'ABC234');
+    saveResultLink(LINK_TOKEN, 10, 'result-token-10', 'Ionescu Ana', 'DEF567');
+    render(<UploadApp api={createFakeUploadApi(closedOnly())} token={LINK_TOKEN} goTo={vi.fn()} />);
+    expect(await screen.findByRole('region', { name: 'Biletul pentru rezultat: Stan Eva' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Ionescu Ana' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Am alt cod' })).not.toBeInTheDocument();
   });
 
   it('shows the refusal under the field and keeps what was typed', async () => {
@@ -163,20 +184,25 @@ describe('the code field on the closed test page', () => {
     expectNoGradingWords();
   });
 
-  it('keeps the field behind "Am alt cod" when this phone has a ticket', async () => {
+  it('opens the result of the code typed on a phone that kept the links of several papers', async () => {
     const api = createFakeUploadApi(published());
+    // Two links: with one, the published result would open by itself.
     saveResultLink(LINK_TOKEN, 12, 'result-token-12', 'Stan Eva', 'ABC234');
+    saveResultLink(LINK_TOKEN, 10, 'result-token-10', 'Ionescu Ana', 'DEF567');
     const goTo = vi.fn();
-    render(<UploadApp api={api} token={LINK_TOKEN} goTo={goTo} />);
-    expect(await screen.findByRole('region', { name: 'Biletul pentru rezultat: Stan Eva' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Am alt cod' }));
+    const openResult = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} goTo={goTo} openResult={openResult} />);
+    await screen.findByText('Rezultatele au fost publicate.');
+    // The field at once, and no ticket.
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
     await userEvent.type(field(), 'K7M92P');
     await userEvent.click(screen.getByRole('button', { name: 'Vezi rezultatul' }));
     await vi.waitFor(() => expect(goTo).toHaveBeenCalledWith('/u/result/result-token-11'));
-    // Both tickets are kept on this phone.
-    expect(await screen.findByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Stan Eva' })).toBeInTheDocument();
+    expect(openResult).not.toHaveBeenCalled();
+    // No new link is kept, the others stay, and no ticket shows.
+    expect(loadResultLink(LINK_TOKEN, 11)).toBeNull();
+    expect(loadResultLink(LINK_TOKEN, 12)).toMatchObject({ resultToken: 'result-token-12' });
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
   });
 
   it('does not lock the default link of a phone that only opened a result with its code', async () => {
@@ -194,31 +220,35 @@ describe('the code field on the closed test page', () => {
     render(<UploadApp api={createFakeUploadApi(reopened)} token={LINK_TOKEN} goTo={vi.fn()} />);
     expect(await screen.findByRole('button', { name: 'Ionescu Ana' })).toBeEnabled();
     expect(screen.queryByText(/Ai trimis deja lucrarea de pe acest telefon/)).not.toBeInTheDocument();
-    // The ticket is still there, above the names.
-    expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' })).toBeInTheDocument();
+    // The code kept nothing, so there is no ticket above the names.
+    expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
   });
 
+  // With several links kept, the published page asks for a code: the
+  // student may type the code of a link this phone already keeps.
   it('keeps a link this phone sent when the same code is typed on it', async () => {
     const api = createFakeUploadApi(published());
     saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', 'K7M92P');
-    render(<UploadApp api={api} token={LINK_TOKEN} goTo={vi.fn()} />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Am alt cod' }));
+    saveResultLink(LINK_TOKEN, 12, 'result-token-12', 'Stan Eva', 'ABC234');
+    const goTo = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} goTo={goTo} openResult={vi.fn()} />);
+    await screen.findByText('Rezultatele au fost publicate.');
     await userEvent.type(field(), 'K7M92P');
     await userEvent.click(screen.getByRole('button', { name: 'Vezi rezultatul' }));
-    await vi.waitFor(() => expect(api.openByCode).toHaveBeenCalled());
-    await screen.findByRole('button', { name: 'Am alt cod' });
-    expect(loadResultLink(LINK_TOKEN, 11)).not.toHaveProperty('byCode');
+    await vi.waitFor(() => expect(goTo).toHaveBeenCalledWith('/u/result/result-token-11'));
+    expect(loadResultLink(LINK_TOKEN, 11)).toEqual({ studentId: 11, studentName: 'Pop Ion', resultToken: 'result-token-11', resultCode: 'K7M92P' });
   });
 
   it('teaches the code to a link this phone kept before links had codes', async () => {
-    const api = createFakeUploadApi(closedOnly());
+    const api = createFakeUploadApi(published());
     saveResultLink(LINK_TOKEN, 11, 'result-token-11', 'Pop Ion', null);
-    render(<UploadApp api={api} token={LINK_TOKEN} goTo={vi.fn()} />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Am alt cod' }));
+    saveResultLink(LINK_TOKEN, 12, 'result-token-12', 'Stan Eva', 'ABC234');
+    const goTo = vi.fn();
+    render(<UploadApp api={api} token={LINK_TOKEN} goTo={goTo} openResult={vi.fn()} />);
+    await screen.findByText('Rezultatele au fost publicate.');
     await userEvent.type(field(), 'K7M92P');
     await userEvent.click(screen.getByRole('button', { name: 'Vezi rezultatul' }));
-    const ticket = await screen.findByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
-    expect(await within(ticket).findByText('K7M-92P')).toBeInTheDocument();
+    await vi.waitFor(() => expect(goTo).toHaveBeenCalledWith('/u/result/result-token-11'));
     expect(loadResultLink(LINK_TOKEN, 11)).toEqual({
       studentId: 11,
       studentName: 'Pop Ion',
@@ -227,7 +257,7 @@ describe('the code field on the closed test page', () => {
     });
   });
 
-  it('shows no code field while the uploads are open or the test has not started', async () => {
+  it('shows no code field while the uploads are open or the test has not started either', async () => {
     const open = render(<UploadApp api={createFakeUploadApi()} token={LINK_TOKEN} goTo={vi.fn()} />);
     expect(await screen.findByRole('button', { name: 'Pop Ion' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();

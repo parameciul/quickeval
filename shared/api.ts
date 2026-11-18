@@ -396,6 +396,12 @@ export interface ResultCodeAnswer {
   studentName: string;
 }
 
+// Whether a result link opens now, without the result: the test's page asks
+// it before it opens the result this phone sent, so the result is read once.
+export interface ResultStatusAnswer {
+  published: boolean;
+}
+
 // The student app: start or resume an upload for one student of the class.
 export const startSessionBody = z.object({
   studentId: z
@@ -1061,7 +1067,17 @@ export interface LinkStudent {
 // results (open for all, or some published alone); always false while the
 // test is a draft or open.
 export interface LinkInfo {
-  test: { code: string; title: string; className: string; status: TestStatus; key: string; resultsOpen: boolean };
+  test: {
+    code: string;
+    title: string;
+    className: string;
+    status: TestStatus;
+    key: string;
+    resultsOpen: boolean;
+    // The test or its class is archived. Archiving closes the results; the
+    // teacher may still publish some, or take the test out of the archive.
+    archived: boolean;
+  };
   students: LinkStudent[];
   multi: boolean;
 }

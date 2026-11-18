@@ -21,6 +21,9 @@ export interface LinkTest {
   multi: boolean;
   // Names the test together with its id: ids of deleted tests come back.
   createdAt: string;
+  // The test or its class is archived. Archiving closes the results; the
+  // teacher may still publish some, or take the test out of the archive.
+  archived: boolean;
 }
 
 // An upload, found by the hash of the phone's secret.
@@ -35,7 +38,7 @@ export async function findTestByToken(db: D1Database, token: string): Promise<Li
   const row = await db
     .prepare(
       `SELECT t.id, t.teacher_id, t.class_id, t.code, t.title, t.status, c.name AS class_name, c.school_year,
-        t.upload_token, t.multi_upload_token, t.created_at
+        t.upload_token, t.multi_upload_token, t.created_at, (t.archived = 1 OR c.archived = 1) AS archived
        FROM tests t JOIN classes c ON c.id = t.class_id
        WHERE t.upload_token = ? OR t.multi_upload_token = ?`,
     )
@@ -52,6 +55,7 @@ export async function findTestByToken(db: D1Database, token: string): Promise<Li
       upload_token: string | null;
       multi_upload_token: string | null;
       created_at: string;
+      archived: number;
     }>();
   if (!row) return null;
   return {
@@ -65,6 +69,7 @@ export async function findTestByToken(db: D1Database, token: string): Promise<Li
     schoolYear: row.school_year,
     multi: row.multi_upload_token === token,
     createdAt: row.created_at,
+    archived: row.archived === 1,
   };
 }
 
