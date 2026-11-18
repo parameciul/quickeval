@@ -83,6 +83,23 @@ describe('Statistici on Setări', () => {
     expect(api.getUsage).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps Generează usable while it works, asks once, then takes the focus to the result', async () => {
+    const api = createFakeApi({ classes: [], students: {}, usage });
+    let answer!: (stats: Awaited<ReturnType<typeof api.getUsage>>) => void;
+    api.getUsage.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    await open(api);
+    const button = screen.getByRole('button', { name: 'Generează' });
+    await generate();
+    expect(await screen.findByText('Se generează…')).toBeInTheDocument();
+    expect(button).toBeEnabled();
+    expect(button).toHaveFocus();
+    await generate();
+    expect(api.getUsage).toHaveBeenCalledTimes(1);
+    answer({ source: 'all', period: '7d', ...usage });
+    const heading = await screen.findByRole('heading', { name: 'Ultimele 7 zile · Toate' });
+    expect(heading).toHaveFocus();
+  });
+
   it('shows the message of a refusal', async () => {
     const api = createFakeApi({ classes: [], students: {} });
     api.getUsage.mockRejectedValueOnce(new ApiError(400, 'invalid', 'Statistica cerută nu este validă.'));

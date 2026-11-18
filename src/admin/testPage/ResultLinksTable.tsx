@@ -222,7 +222,7 @@ export function CopyResultLink({
         className="button-quiet button-small"
         href={url}
         target="_blank"
-        rel="noopener"
+        rel="noopener noreferrer"
         aria-label={named ? `Deschide rezultatul: ${studentName}` : undefined}
       >
         <ActionIcon name="open" />

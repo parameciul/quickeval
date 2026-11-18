@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import type { UsageCounts, UsagePeriod, UsageSource, UsageStats } from '../../../shared/usage.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -51,6 +51,9 @@ export function UsageSection() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    // The button stays enabled while it works (a disabled button loses the
+    // keyboard focus), so a second press waits for the first answer.
+    if (generate.isPending) return;
     generate.mutate({ source, period });
   };
 
@@ -79,7 +82,7 @@ export function UsageSection() {
             ))}
           </select>
         </label>
-        <button type="submit" className="button" disabled={generate.isPending}>
+        <button type="submit" className="button" aria-disabled={generate.isPending || undefined}>
           Generează
         </button>
       </form>
@@ -90,14 +93,18 @@ export function UsageSection() {
   );
 }
 
+// The result takes the focus when it arrives, so a screen reader reads its
+// heading and a keyboard user starts from it.
 function UsageResult({ stats }: { stats: UsageStats }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => heading.current?.focus(), [stats]);
   const columns = columnsOf(stats.source);
   const most = Math.max(1, ...stats.rows.map((row) => row.papers));
   const sourceLabel = SOURCES.find((option) => option.value === stats.source)!.label;
   const periodLabel = PERIODS.find((option) => option.value === stats.period)!.label;
   return (
     <div className="usage-result">
-      <h3 id="usage-result-title">
+      <h3 id="usage-result-title" ref={heading} tabIndex={-1}>
         {periodLabel} · {sourceLabel}
       </h3>
       <dl className="usage-totals" aria-label="Totaluri">
