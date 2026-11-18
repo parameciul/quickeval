@@ -67,6 +67,8 @@ A new migration (the next number) adds one table, for example `usage_days`:
 
 Writing: every `logRobotWork` call also adds to that day's row (an upsert, `INSERT ... ON CONFLICT DO UPDATE`), in the same `db.batch()` as the `robot_work` INSERT. The day comes from JS (SQLite has no time zones). The teacher and the `quick_try` flag come from the test row in the SQL, as `logRobotWork` already does. `createQuickTry` adds 1 to `tries` in the batch of its first INSERT, only when that INSERT made the try.
 
+The live D1 gets migration 0035 before the code, and the code follows at once: robot work done between the two (minutes) is in `robot_work` but not in `usage_days`, a gap that is accepted.
+
 Past data, in the migration: teacher rows from `robot_work` (it starts at migration 0030), Quick Try rows from the `robot_work` of the guest teachers that still exist and their `teachers.created_at` (tries). Older Quick Try days stay empty. The migration turns UTC times into Bucharest days with a fixed `+2 hours`: every row is from after 25 October 2026, when Bucharest is UTC+2. The live D1 gets this migration before the code (`docs/deploy.md`).
 
 ### API
@@ -121,8 +123,10 @@ Perioada: [Ultimele 7 zile ▾]   [Generează]
 
 - The student and Quick Try pages load the same Rybbit script and site id as the public pages, with `data-mask-patterns` covering every path above that holds a token. A path with a token is never sent as is. Session replay stays off (it records the full address).
 - Those pages send **no referrer** (`<meta name="referrer" content="no-referrer">` in `u/index.html` and `try/index.html`, or a `Referrer-Policy` in `_headers` that wins over the `/*` one): a same-origin referrer would carry the token of the page before.
-- The teacher app loads Rybbit only while the login screen shows (the login screen has no address of its own: it shows at any `/teacher/...` address when signed out). After login nothing more is recorded: no page view of a teacher page reaches Rybbit, also after a sign-in in the same tab. The builder picks how (load the script from the login screen and skip every other teacher path with `data-skip-patterns`, or record the two views by hand) and proves it with a test.
-- Two events (Rybbit custom events): "account request sent" after a successful sign-up request, "Quick Try sent" after a successful Quick Try form send. No names, emails or tokens in them. The builder checks Rybbit's event API in its docs.
+- The teacher app loads Rybbit only while the login screen shows (the login screen has no address of its own: it shows at any `/teacher/...` address when signed out), and only in the built site. It skips every teacher path but `/teacher/` and `/teacher/#new-account` (`data-skip-patterns`; the email links `confirm-email` and `new-password` hold a token after `#`). After a login, a tab that loaded it reloads, so no page view of a logged-in teacher's page reaches Rybbit (`/teacher/` is also the logged-in home).
+- Two limits of that: a signed-out deep link (`/teacher/tests/...`) is not counted, and the in-page button "Cere un cont de profesor" does not change the hash, so `#new-account` counts only the visitors who came from the landing page's link. The "account request sent" event counts the real requests.
+- Rybbit masks the path only: the query string, the page title and the referrer are sent as they are. The first mask that matches wins, so each list has its specific patterns first and a catch-all last (`/u/**`, `/try/**`). With "Track URL fragments" on, the path it matches includes the `#` part.
+- Two events (Rybbit custom events, `window.rybbit.event(name)`): `account-request-sent` after a successful sign-up request, `quick-try-sent` after a successful Quick Try form send, before a phone leaves for the try's phone page. No names, emails or tokens in them.
 - No change to what a student sees. The script shows nothing.
 - `public/_headers` already allows `https://stats.mqgrader.ro` in `script-src` and `connect-src` for every page.
 - Update the rules that say these pages never load Rybbit: `AGENTS.md` ("Visit counts" line), `docs/analytics.md`, and `src/landing/pages.test.ts` (it checks that the private pages do not load it; it must now check that they load it with the masks and no referrer).
@@ -130,7 +134,7 @@ Perioada: [Ultimele 7 zile ▾]   [Generează]
 ### Steps for the administrator in the Rybbit dashboard (not code)
 
 - Turn on "Track URL fragments" (needed for `#new-account`).
-- Keep "Session Replay" off: it records the full address, token included, and what the page shows.
+- Keep "Session Replay" off: it records the full address, token included, and what the page shows. "Track URL fragments" and "Session Replay" are settings of the whole site: fragments also split the public pages' anchors, and replay would also record the student pages. To record replays of the public pages one day, give the private pages a Rybbit site of their own first.
 - Keep "URL Parameters" on (query strings, for campaign tags such as `utm_source`). The masks do not cover a query string, so no page may put a token, a code or a name in one: a test checks the query strings each student and Quick Try page sets.
 
 ## Left to the builder

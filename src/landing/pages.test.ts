@@ -207,19 +207,19 @@ describe('the pages that answer a search', () => {
     }
   });
 
-  it('counts visits on the five public pages only, never on the private ones', () => {
-    // The private pages' addresses hold tokens and ids, and students use them.
+  it('counts visits on the public pages, and on the student and Quick Try pages with their tokens hidden', () => {
+    // The private pages' addresses hold tokens: src/ui/visits.test.ts checks
+    // their masks. The teacher app loads the counter on its login screen only.
     const counter = (html: string) =>
       all(parse(html), 'script[src]').filter((s) => s.getAttribute('src')!.includes('stats.mqgrader.ro'));
-    for (const html of [...PAGES.map((p) => p.html), landing]) {
+    for (const html of [...PAGES.map((p) => p.html), landing, studentRaw, tryRaw]) {
       const found = counter(html);
       expect(found).toHaveLength(1);
       expect(found[0]!.getAttribute('src')).toBe(STATS_SCRIPT);
       expect(found[0]!.hasAttribute('defer')).toBe(true);
     }
-    for (const html of [teacherRaw, studentRaw, tryRaw]) {
-      expect(html).not.toContain('stats.mqgrader.ro');
-    }
+    for (const html of [studentRaw, tryRaw]) expect(counter(html)[0]!.hasAttribute('data-mask-patterns')).toBe(true);
+    expect(teacherRaw).not.toContain('stats.mqgrader.ro');
   });
 
   it('takes its footer from the shared part, once', () => {
