@@ -13,7 +13,7 @@ export const LINK_TOKEN = 'abcdefghijkmnop2';
 export function linkInfo(overrides: Partial<LinkInfo['test']> & { multi?: boolean } = {}): LinkInfo {
   const { multi, ...testOverrides } = overrides;
   return {
-    test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'open', key: 'test-key-1', resultsOpen: false, archived: false, ...testOverrides },
+    test: { code: '6E2-26T1', title: 'Fracții', className: '6E2', status: 'open', key: 'test-key-1', resultsOpen: false, archived: false, uploadsClosed: false, ...testOverrides },
     students: [
       { id: 10, name: 'Ionescu Ana', state: 'none' },
       { id: 11, name: 'Pop Ion', state: 'none' },

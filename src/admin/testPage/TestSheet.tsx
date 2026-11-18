@@ -71,7 +71,11 @@ export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRo
       <div className="sheet-head">
         <h2 id={id}>Fișa testului</h2>
         <span className="sheet-tags">
-          <StatusChip status={test.status} />
+          {test.status === 'open' && test.uploadsClosedAt !== null ? (
+            <span className="status status-draft">Încărcare închisă</span>
+          ) : (
+            <StatusChip status={test.status} />
+          )}
           {test.archived && <span className="tag">Arhivat</span>}
         </span>
       </div>

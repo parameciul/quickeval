@@ -79,6 +79,8 @@ const PATHS = {
   ),
   download: <path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9M4 14.5v2h12v-2" />,
   edit: <path d="M12.5 4.5l3 3-8 8h-3v-3zM11 6l3 3" />,
+  // The QR code on the whole screen.
+  expand: <path d="M7.5 3.5h-4v4M12.5 3.5h4v4M7.5 16.5h-4v-4M12.5 16.5h4v-4" />,
   doc: <path d="M5 2.75h7l3 3v11.5H5zM8 9h4.5M8 12h4.5" />,
   phone: (
     <>

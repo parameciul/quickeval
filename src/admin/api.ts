@@ -22,6 +22,7 @@ import type {
   SubjectAnswer,
   FinishedTest,
   ReopenAnswer,
+  UploadsClosedAnswer,
   ResultsOpenAnswer,
   ResultLinkAnswer,
   RobotStart,
@@ -126,7 +127,9 @@ export interface AdminApi {
   retryPrint(code: string, variant?: TestVariant): Promise<PrintRetryAnswer>;
   // Puts a finished test in the archive, or takes it out. Resolves to the new mark.
   setTestArchived(code: string, archived: boolean): Promise<boolean>;
-  // The link that uploads for many students on one phone, made only on demand.
+  // "Închide încărcarea" (closed) and its undo, on an open test: the grading does not start.
+  setUploadsClosed(code: string, closed: boolean): Promise<UploadsClosedAnswer>;
+  // The link that uploads for many students on one phone, made on its first copy or QR code.
   createMultiUploadLink(code: string): Promise<string>;
   // Opens or closes the students' result pages of a test.
   setResultsOpen(code: string, open: boolean): Promise<boolean>;
@@ -348,6 +351,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     setCesOff: (code, off) => request<CesOffAnswer>('PUT', `${test(code)}/${CES_PATH}/off`, { off }),
     startTest: (code) => request<StartedTest>('POST', `${test(code)}/start`),
     stopTest: (code) => request<StoppedTest>('POST', `${test(code)}/stop`),
+    setUploadsClosed: (code, closed) => request<UploadsClosedAnswer>('POST', `${test(code)}/uploads/${closed ? 'close' : 'open'}`),
     createMultiUploadLink: async (code) =>
       (await request<{ multiUploadToken: string }>('POST', `${test(code)}/multi-link`)).multiUploadToken,
     setResultsOpen: async (code, open) =>

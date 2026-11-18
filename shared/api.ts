@@ -642,6 +642,9 @@ export interface TestSummary {
   evaluationAt: string | null;
   // When the uploads closed and the evaluation started.
   evaluationStartedAt: string | null;
+  // While open: when the teacher closed the uploads without starting the
+  // grading ("Închide încărcarea"). Null while the students may upload.
+  uploadsClosedAt: string | null;
   // Active students of the class, uploads that were sent (confirmed or
   // included), and uploads that were graded.
   studentCount: number;
@@ -955,6 +958,11 @@ export type RobotStart = 'dispatched' | 'next_check';
 
 // Reopen uploads: the test is open again, and the robot was started when that
 // made work for it.
+// "Închide încărcarea" and its undo on an open test.
+export interface UploadsClosedAnswer {
+  uploadsClosedAt: string | null;
+}
+
 export interface ReopenAnswer {
   status: TestStatus;
   robot: RobotStart | null;
@@ -1077,6 +1085,8 @@ export interface LinkInfo {
     // The test or its class is archived. Archiving closes the results; the
     // teacher may still publish some, or take the test out of the archive.
     archived: boolean;
+    // An open test whose uploads the teacher closed: the student sees it as closed.
+    uploadsClosed: boolean;
   };
   students: LinkStudent[];
   multi: boolean;

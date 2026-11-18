@@ -22,6 +22,7 @@ import type {
   FinishedTest,
   RefusedAccount,
   ReopenAnswer,
+  UploadsClosedAnswer,
   RobotStart,
   SearchResults,
   Settings,
@@ -117,6 +118,8 @@ export const FAKE_ROBOT_KEY_AT = '2026-10-12T09:30:00.000Z';
 export const FAKE_TOKEN = 'abcdefghijkmnop2';
 export const FAKE_MULTI_TOKEN = 'bbbbbbbbbbbbbbbb';
 export const FAKE_STARTED_AT = '2026-10-06T07:15:00.000Z';
+// When "Închide încărcarea" closed the uploads of a fake test.
+export const FAKE_CLOSED_AT = '2026-10-06T08:05:00.000Z';
 
 const notFound = () => new ApiError(404, 'not_found', 'Nu am găsit ce cauți.');
 const uploadChanged = () => new ApiError(409, 'upload_changed', 'Încărcarea s-a schimbat. Reîncarcă pagina.');
@@ -195,6 +198,7 @@ export function fakeTest(overrides: Partial<TestInfo> = {}, uploads: UploadRow[]
       startedAt: null,
       evaluationAt: null,
       evaluationStartedAt: null,
+      uploadsClosedAt: null,
       studentCount: uploads.filter((row) => row.active).length,
       submittedCount: uploads.filter((row) => row.status !== 'none' && row.status !== 'uploading').length,
       gradedCount: uploads.filter((row) => row.status === 'graded').length,
@@ -243,6 +247,7 @@ export function fakeSummary({ prepared, ...overrides }: SummaryOverrides = {}): 
     startedAt: null,
     evaluationAt: null,
     evaluationStartedAt: null,
+    uploadsClosedAt: null,
     studentCount: 24,
     submittedCount: 0,
     gradedCount: 0,
@@ -790,7 +795,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     startTest: vi.fn(async (code: string): Promise<StartedTest> => {
       const found = findTest(code).test;
       if (found.status !== 'draft') throw new ApiError(409, 'already_started', 'Testul a început deja.');
-      Object.assign(found, { status: 'open', archived: false, uploadToken: found.uploadToken ?? FAKE_TOKEN, startedAt: FAKE_STARTED_AT });
+      Object.assign(found, { status: 'open', archived: false, uploadToken: found.uploadToken ?? FAKE_TOKEN, startedAt: FAKE_STARTED_AT, uploadsClosedAt: null });
       const robot = printWaits(found) ? 'dispatched' : null;
       return { status: found.status, uploadToken: found.uploadToken ?? FAKE_TOKEN, startedAt: FAKE_STARTED_AT, robot };
     }),
@@ -805,8 +810,16 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       if (detail.uploads.some((row) => row.fileCount > 0)) {
         throw new ApiError(409, 'has_uploads', 'Un elev a încărcat deja lucrarea, așa că testul nu mai poate fi oprit.');
       }
-      Object.assign(found, { status: 'draft', startedAt: null, evaluationAt: null });
+      Object.assign(found, { status: 'draft', startedAt: null, evaluationAt: null, uploadsClosedAt: null });
       return { status: 'draft' };
+    }),
+    // Like the server: only an open test; closing twice keeps the first time.
+    setUploadsClosed: vi.fn(async (code: string, closed: boolean): Promise<UploadsClosedAnswer> => {
+      const found = findTest(code).test;
+      if (found.status === 'draft') throw new ApiError(409, 'not_started', 'Testul nu a început încă.');
+      if (found.status !== 'open') throw new ApiError(409, 'closed', 'Corectarea a pornit, așa că încărcarea e deja închisă. O poți redeschide.');
+      found.uploadsClosedAt = closed ? (found.uploadsClosedAt ?? FAKE_CLOSED_AT) : null;
+      return { uploadsClosedAt: found.uploadsClosedAt };
     }),
     createMultiUploadLink: vi.fn(async (code: string) => {
       const found = findTest(code).test;
@@ -857,6 +870,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const found = findTest(code).test;
       found.status = 'open';
       found.archived = false;
+      found.uploadsClosedAt = null;
       // Like the server: a print PDF that waits is work for the robot.
       return { status: 'open', robot: printWaits(found) ? 'dispatched' : null };
     }),

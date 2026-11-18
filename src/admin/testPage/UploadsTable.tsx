@@ -25,6 +25,7 @@ export function UploadsTable({
   uploads,
   showModel,
   uploadsClosed,
+  uploadsPaused = false,
   selectable,
   selected,
   onSelect,
@@ -38,6 +39,9 @@ export function UploadsTable({
   // The uploads are closed (the test is in evaluation or done): a student who
   // sent nothing did not take part.
   uploadsClosed: boolean;
+  // An open test whose uploads the teacher closed: a student still sending
+  // cannot finish until they open again.
+  uploadsPaused?: boolean;
   // True while the test is open: the checkboxes choose the next evaluation.
   selectable: boolean;
   // The selected uploads (submission ids).
@@ -91,6 +95,7 @@ export function UploadsTable({
               row={row}
               showModel={showModel}
               uploadsClosed={uploadsClosed}
+              uploadsPaused={uploadsPaused}
               selectable={selectable}
               checked={row.submissionId !== null && selected.includes(row.submissionId)}
               onToggle={(id, checked) => onSelect(checked ? [...selected, id] : selected.filter((kept) => kept !== id))}
@@ -117,7 +122,7 @@ function rowClassName(row: UploadRow, selectable: boolean): string | undefined {
 // The State cell, once the uploads are closed: a paper held back from
 // grading (`uploading`, with its files) waits for the teacher, and a
 // student with no file did not take part.
-function stateOf(row: UploadRow, uploadsClosed: boolean, heldBackText: string): { label: string; hint: string | null } {
+function stateOf(row: UploadRow, uploadsClosed: boolean, uploadsPaused: boolean, heldBackText: string): { label: string; hint: string | null } {
   if (row.status === 'uploading') {
     if (uploadsClosed) {
       return row.fileCount > 0
@@ -127,7 +132,9 @@ function stateOf(row: UploadRow, uploadsClosed: boolean, heldBackText: string): 
     return row.fileCount > 0
       ? {
           label: 'Deschis, cu fișiere',
-          hint: 'Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”. Numele rămâne blocat până termină sau până îl deblochezi.',
+          hint: uploadsPaused
+            ? 'Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”, iar încărcarea e închisă. Lucrarea se corectează cât e bifată; elevul o poate termina după ce redeschizi încărcarea.'
+            : 'Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”. Numele rămâne blocat până termină sau până îl deblochezi.',
         }
       : { label: 'Deschis, fără fișiere', hint: 'Elevul a ales numele, dar nu a adăugat nimic. Dacă a ales numele greșit, deblochează-l.' };
   }
@@ -140,6 +147,7 @@ function UploadTableRow({
   row,
   showModel,
   uploadsClosed,
+  uploadsPaused,
   selectable,
   checked,
   onToggle,
@@ -150,6 +158,7 @@ function UploadTableRow({
   row: UploadRow;
   showModel: boolean;
   uploadsClosed: boolean;
+  uploadsPaused: boolean;
   selectable: boolean;
   checked: boolean;
   onToggle: (submissionId: number, checked: boolean) => void;
@@ -178,7 +187,7 @@ function UploadTableRow({
     },
   });
   const time = row.submittedAt ?? row.startedAt;
-  const state = stateOf(row, uploadsClosed, heldBackHint(me.data));
+  const state = stateOf(row, uploadsClosed, uploadsPaused, heldBackHint(me.data));
   const submissionId = row.submissionId;
   const startedAt = row.startedAt;
   const gradedAt = row.status === 'graded' ? row.gradedAt : null;

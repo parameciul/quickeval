@@ -54,7 +54,7 @@ describe('GET /api/u/:token', () => {
     const res = await api.request('GET', `/api/u/${token}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      test: { code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false, archived: false },
+      test: { code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false, archived: false, uploadsClosed: false },
       students: [
         { id: ionescu, name: 'Ionescu Ana', state: 'none' },
         { id: pop, name: 'Pop Ion', state: 'in_progress' },
@@ -79,10 +79,33 @@ describe('GET /api/u/:token', () => {
     await api.db.prepare("UPDATE tests SET status = 'done' WHERE code = ?").bind(code).run();
     const res = await api.request('GET', `/api/u/${token}`);
     expect(res.body).toEqual({
-      test: { code, title: 'Fracții', className: '6E2', status: 'done', key: expect.any(String), resultsOpen: false, archived: false },
+      test: { code, title: 'Fracții', className: '6E2', status: 'done', key: expect.any(String), resultsOpen: false, archived: false, uploadsClosed: false },
       students: [],
       multi: false,
     });
+  });
+
+  it('shows the test closed, with no names, while the teacher closed the uploads', async () => {
+    await api.request('POST', `/api/admin/tests/${code}/uploads/close`);
+    const res = await api.request('GET', `/api/u/${token}`);
+    expect(res.body.test).toMatchObject({ status: 'open', uploadsClosed: true });
+    expect(res.body.students).toEqual([]);
+    await api.request('POST', `/api/admin/tests/${code}/uploads/open`);
+    const again = await api.request('GET', `/api/u/${token}`);
+    expect(again.body.test.uploadsClosed).toBe(false);
+    expect(again.body.students.length).toBeGreaterThan(0);
+  });
+
+  it('refuses a new upload and a file while the teacher closed the uploads, and takes them after the undo', async () => {
+    const secret = await newSession(pop);
+    await api.request('POST', `/api/admin/tests/${code}/uploads/close`);
+    const start = await startSession(ionescu);
+    expect(start.status).toBe(409);
+    expect(start.body).toEqual({ error: 'closed', message: 'Încărcarea s-a închis.' });
+    const file = await putFile(secret, jpeg(), 'image/jpeg');
+    expect(file.status).toBe(409);
+    await api.request('POST', `/api/admin/tests/${code}/uploads/open`);
+    expect((await putFile(secret, jpeg(), 'image/jpeg')).status).toBe(201);
   });
 
   it('says when the test or its class is archived, which closes its results for good', async () => {
@@ -103,7 +126,7 @@ describe('GET /api/u/:token', () => {
     const res = await api.request('GET', `/api/u/${draftToken}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      test: { code: draft, title: 'Ecuații', className: '6E2', status: 'draft', key: expect.any(String), resultsOpen: false, archived: false },
+      test: { code: draft, title: 'Ecuații', className: '6E2', status: 'draft', key: expect.any(String), resultsOpen: false, archived: false, uploadsClosed: false },
       students: [],
       multi: false,
     });
@@ -450,6 +473,31 @@ describe('the upload writes check the rules themselves', () => {
     expect(await fileCount(id)).toBe(1);
   });
 
+  it('starts no upload once the uploads closed, even when the route read the test before', async () => {
+    const test = await api.db.prepare('SELECT id FROM tests WHERE code = ?').bind(code).first<{ id: number }>();
+    const start = () => createSubmission(api.db, test!.id, pop, 'hash', 'r'.repeat(24), now);
+    await api.db.prepare('UPDATE tests SET uploads_closed_at = ? WHERE code = ?').bind(now, code).run();
+    expect(await start()).toBeNull();
+    await api.db.prepare("UPDATE tests SET uploads_closed_at = NULL, status = 'evaluating' WHERE code = ?").bind(code).run();
+    expect(await start()).toBeNull();
+    await api.db.prepare("UPDATE tests SET status = 'open', evaluation_at = ? WHERE code = ?").bind(now, code).run();
+    expect(await start()).toBeNull();
+    await api.db.prepare('UPDATE tests SET evaluation_at = NULL WHERE code = ?').bind(code).run();
+    expect(await start()).not.toBeNull();
+  });
+
+  it('adds, deletes, and sends nothing while the teacher closed the uploads', async () => {
+    await newSession(pop);
+    const id = await submissionOf(pop);
+    const hash = await hashOf(id);
+    const fileId = (await addSubmissionFile(api.db, id, hash, photo(1), now))!;
+    await api.db.prepare('UPDATE tests SET uploads_closed_at = ? WHERE code = ?').bind(now, code).run();
+    expect(await addSubmissionFile(api.db, id, hash, photo(2), now)).toBeNull();
+    expect(await deleteSessionFile(api.db, id, hash, fileId, now)).toBe(false);
+    expect(await confirmSubmission(api.db, id, hash, now)).toBeNull();
+    expect(await fileCount(id)).toBe(1);
+  });
+
   it('adds, deletes, and sends nothing from the scheduled time on, also before a request promotes the test', async () => {
     await newSession(pop);
     const id = await submissionOf(pop);
@@ -520,7 +568,7 @@ describe('the multi-upload link', () => {
     expect(multi).not.toBe(token);
     const res = await api.request('GET', `/api/u/${multi}`);
     expect(res.status).toBe(200);
-    expect(res.body.test).toEqual({ code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false, archived: false });
+    expect(res.body.test).toEqual({ code, title: 'Fracții', className: '6E2', status: 'open', key: expect.any(String), resultsOpen: false, archived: false, uploadsClosed: false });
     expect(res.body.students).toEqual([
       { id: ionescu, name: 'Ionescu Ana', state: 'none' },
       { id: pop, name: 'Pop Ion', state: 'none' },

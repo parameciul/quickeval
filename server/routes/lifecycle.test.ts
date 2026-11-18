@@ -186,6 +186,65 @@ describe('POST /api/admin/tests/:code/reopen', () => {
   });
 });
 
+describe('POST /api/admin/tests/:code/uploads/close and /open', () => {
+  const closedAt = async () =>
+    (await api.db.prepare('SELECT status, uploads_closed_at FROM tests WHERE code = ?').bind(code).first<{ status: string; uploads_closed_at: string | null }>())!;
+
+  it('closes the uploads of an open test without starting the grading, keeps the first time, and opens them again', async () => {
+    await api.request('POST', `/api/admin/tests/${code}/start`);
+    const closed = await api.request('POST', `/api/admin/tests/${code}/uploads/close`);
+    expect(closed.status).toBe(200);
+    expect(closed.body.uploadsClosedAt).toEqual(expect.any(String));
+    expect(await closedAt()).toEqual({ status: 'open', uploads_closed_at: closed.body.uploadsClosedAt });
+    const twice = await api.request('POST', `/api/admin/tests/${code}/uploads/close`);
+    expect(twice.body.uploadsClosedAt).toBe(closed.body.uploadsClosedAt);
+    const detail = await api.request('GET', `/api/admin/tests/${code}`);
+    expect(detail.body.test.uploadsClosedAt).toBe(closed.body.uploadsClosedAt);
+    expect(detail.body.test.evaluationStartedAt).toBeNull();
+
+    const opened = await api.request('POST', `/api/admin/tests/${code}/uploads/open`);
+    expect(opened.status).toBe(200);
+    expect(opened.body).toEqual({ uploadsClosedAt: null });
+    expect(await closedAt()).toEqual({ status: 'open', uploads_closed_at: null });
+  });
+
+  it('refuses a draft and a test in grading', async () => {
+    const draft = await api.request('POST', `/api/admin/tests/${code}/uploads/close`);
+    expect(draft.status).toBe(409);
+    expect(draft.body.error).toBe('not_started');
+    await setState("status = 'done'");
+    const done = await api.request('POST', `/api/admin/tests/${code}/uploads/open`);
+    expect(done.status).toBe(409);
+    expect(done.body.error).toBe('closed');
+    expect((await closedAt()).uploads_closed_at).toBeNull();
+  });
+
+  it('opens the uploads again on a stop, a new start and a reopen', async () => {
+    await api.request('POST', `/api/admin/tests/${code}/start`);
+    await api.request('POST', `/api/admin/tests/${code}/uploads/close`);
+    await api.request('POST', `/api/admin/tests/${code}/stop`);
+    expect(await closedAt()).toEqual({ status: 'draft', uploads_closed_at: null });
+
+    await api.request('POST', `/api/admin/tests/${code}/start`);
+    await setState("uploads_closed_at = '2026-10-06T08:00:00.000Z'");
+    await api.db.prepare("UPDATE tests SET status = 'draft' WHERE code = ?").bind(code).run();
+    await api.request('POST', `/api/admin/tests/${code}/start`);
+    expect(await closedAt()).toEqual({ status: 'open', uploads_closed_at: null });
+
+    await setState("status = 'done', uploads_closed_at = '2026-10-06T08:00:00.000Z'");
+    await api.request('POST', `/api/admin/tests/${code}/reopen`);
+    expect(await closedAt()).toEqual({ status: 'open', uploads_closed_at: null });
+  });
+
+  it('answers 404 for a test of another teacher and leaves it open', async () => {
+    const foreign = await otherTeacherTest(api);
+    await api.db.prepare("UPDATE tests SET status = 'open' WHERE code = ?").bind(foreign.code).run();
+    expect((await api.request('POST', `/api/admin/tests/${foreign.code}/uploads/close`)).status).toBe(404);
+    const row = await api.db.prepare('SELECT uploads_closed_at FROM tests WHERE code = ?').bind(foreign.code).first<{ uploads_closed_at: string | null }>();
+    expect(row!.uploads_closed_at).toBeNull();
+  });
+});
+
 describe('POST /api/admin/tests/:code/multi-link', () => {
   it('refuses a test that did not start yet', async () => {
     const res = await api.request('POST', `/api/admin/tests/${code}/multi-link`);

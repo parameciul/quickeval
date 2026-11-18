@@ -80,6 +80,7 @@ interface TestRow {
   started_at: string | null;
   evaluation_at: string | null;
   evaluation_started_at: string | null;
+  uploads_closed_at: string | null;
   upload_token: string | null;
   multi_upload_token: string | null;
   test_file_key: string | null;
@@ -135,7 +136,7 @@ interface TestRow {
 
 const SELECT_TEST = `
   SELECT t.id, t.code, t.title, t.status, t.class_id, c.name AS class_name, c.school_year,
-    t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.upload_token, t.multi_upload_token,
+    t.created_at, t.started_at, t.evaluation_at, t.evaluation_started_at, t.uploads_closed_at, t.upload_token, t.multi_upload_token,
     t.test_file_key, t.test_file_name, t.test_file_type,
     t.barem_file_key, t.barem_file_name, t.barem_file_type, t.barem_notes, t.barem_request, t.barem_unchecked, t.files_version, t.exercise_list_status, t.exercise_list_message,
     t.results_open, t.archived, t.analysis_status, t.analysis_stale, t.analysis_attempts,
@@ -221,6 +222,7 @@ function toRecord(row: TestRow): TestRecord {
       startedAt: row.started_at,
       evaluationAt: row.evaluation_at,
       evaluationStartedAt: row.evaluation_started_at,
+      uploadsClosedAt: row.uploads_closed_at,
       studentCount: row.student_count,
       submittedCount: row.submitted_count,
       gradedCount: row.graded_count,
@@ -536,7 +538,7 @@ export async function startTest(
 ): Promise<{ uploadToken: string; startedAt: string } | null> {
   const row = await db
     .prepare(
-      `UPDATE tests SET status = 'open', archived = 0, upload_token = COALESCE(upload_token, ?), started_at = ?, updated_at = ?
+      `UPDATE tests SET status = 'open', archived = 0, upload_token = COALESCE(upload_token, ?), started_at = ?, uploads_closed_at = NULL, updated_at = ?
        WHERE id = ? AND teacher_id = ? AND status = 'draft'
        RETURNING upload_token, started_at`,
     )
@@ -562,13 +564,36 @@ const NO_STUDENT_FILES = `NOT EXISTS (SELECT 1 FROM submissions s JOIN submissio
 export async function stopTest(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
   const row = await db
     .prepare(
-      `UPDATE tests SET status = 'draft', started_at = NULL, evaluation_at = NULL, updated_at = ?
+      `UPDATE tests SET status = 'draft', started_at = NULL, evaluation_at = NULL, uploads_closed_at = NULL, updated_at = ?
        WHERE id = ? AND teacher_id = ? AND status = 'open' AND evaluation_started_at IS NULL AND ${NO_STUDENT_FILES}
        RETURNING id`,
     )
     .bind(now, testId, teacherId)
     .first<{ id: number }>();
   return row !== null;
+}
+
+// "Închide încărcarea" (closed: true) and its undo on an open test: the
+// students may not upload while it is closed, and the grading does not start.
+// Returns the time the uploads closed (null when open again), or undefined
+// when the test is gone, is not the teacher's, or is not open. Closing twice
+// keeps the first time.
+export async function setUploadsClosed(
+  db: D1Database,
+  teacherId: number,
+  testId: number,
+  closed: boolean,
+  now: string,
+): Promise<{ uploadsClosedAt: string | null } | undefined> {
+  const row = await db
+    .prepare(
+      `UPDATE tests SET uploads_closed_at = CASE WHEN ? = 1 THEN COALESCE(uploads_closed_at, ?) ELSE NULL END, updated_at = ?
+       WHERE id = ? AND teacher_id = ? AND status = 'open'
+       RETURNING uploads_closed_at`,
+    )
+    .bind(closed ? 1 : 0, now, now, testId, teacherId)
+    .first<{ uploads_closed_at: string | null }>();
+  return row ? { uploadsClosedAt: row.uploads_closed_at } : undefined;
 }
 
 // True when a student has uploaded a file to the test.
@@ -601,7 +626,13 @@ export async function createMultiUploadToken(
     )
     .bind(uploadToken, now, testId, teacherId, 'draft')
     .first<{ multi_upload_token: string }>();
-  return row ? { multiUploadToken: row.multi_upload_token } : null;
+  if (row) return { multiUploadToken: row.multi_upload_token };
+  // Another request made the link between the read and the write: that one is kept.
+  const made = await db
+    .prepare('SELECT multi_upload_token FROM tests WHERE id = ? AND teacher_id = ?')
+    .bind(testId, teacherId)
+    .first<{ multi_upload_token: string | null }>();
+  return made?.multi_upload_token ? { multiUploadToken: made.multi_upload_token } : null;
 }
 
 // evaluating or done → open (spec §8.5). Graded results stay; a scheduled
@@ -614,7 +645,7 @@ export async function reopenTest(db: D1Database, teacherId: number, testId: numb
   const [reopened] = await db.batch<{ id: number }>([
     db
       .prepare(
-        `UPDATE tests SET status = 'open', archived = 0, evaluation_at = NULL, updated_at = ?,
+        `UPDATE tests SET status = 'open', archived = 0, evaluation_at = NULL, uploads_closed_at = NULL, updated_at = ?,
            analysis_stale = CASE WHEN analysis_status = 'ready' THEN 1 ELSE analysis_stale END
          WHERE id = ? AND teacher_id = ? AND status IN ('evaluating', 'done')
          RETURNING id`,

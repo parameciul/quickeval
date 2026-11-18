@@ -114,7 +114,7 @@ describe('TestPage and the print PDF', () => {
     const api = apiWith({ status: 'done', print: { status: 'ready', fromWord: false } });
     renderAdmin('/tests/6E2-26T1#in-class', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Redeschide încărcarea' }));
-    expect(await screen.findByText(/^Elevii trimit lucrările\./)).toBeInTheDocument();
+    expect(await screen.findByText('Încărcarea e deschisă.')).toBeInTheDocument();
     await openStage('Tipărire');
     expect(await screen.findByRole('button', { name: 'Tipărește' })).toBeInTheDocument();
     expect(screen.queryByText(robotStartMessage('dispatched'))).not.toBeInTheDocument();

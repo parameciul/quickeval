@@ -89,13 +89,19 @@ export function stagesOf(test: TestSummary): TestStages {
 
   const clasa = (): Stage => {
     if (test.status === 'draft') return stage('În clasă', 'later', 'testul nu a început');
-    if (test.status === 'open') return stage('În clasă', 'now', 'elevii trimit lucrările');
+    if (test.status === 'open') {
+      if (test.uploadsClosedAt !== null) return stage('În clasă', 'now', 'încărcarea închisă');
+      return stage('În clasă', 'now', `${test.submittedCount} din ${test.studentCount} ${test.submittedCount === 1 ? 'a' : 'au'} trimis`);
+    }
     return stage('În clasă', 'done');
   };
 
   const corectare = (): Stage => {
     if (test.status === 'evaluating') return stage('Corectare', 'now', `${test.gradedCount} din ${test.submittedCount} corectate`);
-    return done ? stage('Corectare', 'done') : stage('Corectare', 'later');
+    if (done) return stage('Corectare', 'done');
+    // An open test with sent papers not graded yet: they wait for the start.
+    const waiting = test.status === 'open' ? test.submittedCount - test.gradedCount : 0;
+    return waiting > 0 ? stage('Corectare', 'later', countLabel(waiting, 'lucrare așteaptă', 'lucrări așteaptă')) : stage('Corectare', 'later');
   };
 
   const verificare = (): Stage => {
