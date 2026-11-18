@@ -106,7 +106,7 @@ export function StudentResult({ result, fileUrl, actions }: { result: StudentRes
             </div>
           </>
         ) : (
-          <p role="status">Rezultatul tău nu este gata încă. Revino mai târziu pe acest link.</p>
+          <p role="status">Rezultatul tău nu este gata încă. Apare aici după ce profesorul corectează lucrarea și publică rezultatele. Păstrează biletul.</p>
         )}
       </FilesBeside>
     </section>

@@ -28,6 +28,10 @@ import { ActionIcon } from '../ui/ActionIcon.tsx';
 
 export const UNKNOWN_LINK = 'Link greșit. Cere profesorului linkul nou.';
 
+// What the student does with the ticket: one line, under every "sent" title.
+export const SAVE_TICKET_LINE =
+  'Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează și publică lucrarea.';
+
 type Phase =
   | { kind: 'loading' }
   | { kind: 'failed'; message: string }
@@ -229,7 +233,7 @@ export function UploadApp({
           )}
           {phase.kind === 'names' && token && (
             <>
-              <KeptResultLinks uploadToken={token} info={phase.info} />
+              <KeptResultLinks uploadToken={token} info={phase.info} heading />
               <NamePicker
                 students={phase.info.students}
                 message={phase.message}
@@ -237,15 +241,7 @@ export function UploadApp({
               />
             </>
           )}
-          {phase.kind === 'locked' && token && (
-            <>
-              <KeptResultLinks uploadToken={token} info={phase.info} />
-              <p className="hint">
-                Ai trimis deja lucrarea de pe acest telefon. Cu acest link nu mai poți încărca alte lucrări, nici pentru alt elev.
-              </p>
-              <p className="hint">Dacă trebuie să trimiți pentru alt elev, cere profesorului linkul pentru mai multe încărcări.</p>
-            </>
-          )}
+          {phase.kind === 'locked' && token && <LockedScreen uploadToken={token} info={phase.info} />}
           {phase.kind === 'upload' && token && (
             <>
               {/* On a shared phone the app may reopen a classmate's upload: this
@@ -280,13 +276,13 @@ export function UploadApp({
               <section className="sent">
                 <h2>Gata! Lucrarea ta a fost trimisă.</h2>
                 <p>{phase.fileCount === 1 ? 'Ai trimis un fișier.' : `Ai trimis ${phase.fileCount} fișiere.`}</p>
+                <p>{SAVE_TICKET_LINE}</p>
               </section>
               <ResultTicket
                 resultToken={phase.resultToken}
                 resultCode={phase.resultCode}
                 studentName={phase.studentName}
                 test={phase.info.test}
-                fresh
               />
               {phase.info.multi && (
                 <>
@@ -356,17 +352,41 @@ function ClosedScreen({
     goTo(studentResultPath(answer.resultToken));
   };
   if (!info.test.resultsOpen || waiting) {
-    // The tickets this phone kept stay, so a student who did not save one
-    // after sending can still save it.
-    // Grey, not red: closed uploads are the normal next step, not an error.
+    // Archiving closes the results, and they may never open again: no word
+    // on waiting for a publish, and no ticket, whose picture promises a
+    // result; also when the teacher published a few results of the test.
+    if (info.test.archived) {
+      return (
+        <div className="notice" role="status">
+          {links.length > 0 ? (
+            <p>Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.</p>
+          ) : (
+            <p>
+              <strong>Testul a fost arhivat.</strong> Dacă ai nevoie de ceva, întreabă profesorul.
+            </p>
+          )}
+        </div>
+      );
+    }
+    // No ticket on this phone: the student most likely sent nothing from it,
+    // so the page says only that, in one grey box. Grey, not red: closed
+    // uploads are the normal next step, not an error.
+    if (links.length === 0) {
+      return (
+        <div className="notice" role="status">
+          <p>
+            <strong>Încărcarea s-a închis.</strong>
+          </p>
+          <p>Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
+        </div>
+      );
+    }
+    // This phone sent the work: the tickets it kept stay, so a student who
+    // did not save one after sending can still save it.
     return (
       <>
-        <p className="notice" role="status">
-          Încărcarea s-a închis.
-        </p>
-        <p className="hint">Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
-        <p className="hint">{waitLine(info, waiting)}</p>
-        {links.length > 0 && <Tickets links={links} info={info} />}
+        <SentNotice count={links.length} waiting={waiting} />
+        <Tickets links={links} info={info} />
       </>
     );
   }
@@ -381,14 +401,32 @@ function ClosedScreen({
   );
 }
 
-// What the closed page says while no result opens from it.
-function waitLine(info: LinkInfo, waiting: boolean): string {
-  // Archiving closes the results, and they may never open again: waiting for
-  // a publish would mislead, also when the teacher published a few results
-  // of the archived test.
-  if (info.test.archived) return 'Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.';
-  if (waiting) return 'Rezultatul tău nu a fost publicat încă. Revino pe acest link după ce profesorul îl publică.';
-  return 'Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.';
+// The green box over the tickets this phone kept: the work went, and the
+// ticket is how the student sees the result. `waiting`: other results of the
+// test are out, but not this one, so the student knows why it does not open.
+function SentNotice({ count, waiting = false }: { count: number; waiting?: boolean }) {
+  return (
+    <section className="sent" role="status">
+      <h2>{count === 1 ? 'Lucrarea ta a fost trimisă.' : 'Lucrările au fost trimise de pe acest telefon.'}</h2>
+      {waiting && <p>Rezultatul tău nu a fost publicat încă.</p>}
+      <p>{SAVE_TICKET_LINE}</p>
+    </section>
+  );
+}
+
+// The default link opened again on the phone that sent through it: the work
+// went, so the page says so and keeps the ticket; no other upload from here.
+function LockedScreen({ uploadToken, info }: { uploadToken: string; info: LinkInfo }) {
+  const [links] = useState<SavedResultLink[]>(() => loadResultLinks(uploadToken));
+  return (
+    <>
+      <SentNotice count={Math.max(links.length, 1)} />
+      {links.length > 0 && <Tickets links={links} info={info} />}
+      <p className="hint">
+        Cu acest link nu mai poți trimite altă lucrare. Pentru alt elev, cere profesorului linkul pentru mai multe încărcări.
+      </p>
+    </>
+  );
 }
 
 // Whether the result of a paper this phone sent can open now: 'closed' while
@@ -412,10 +450,17 @@ async function ownResult(api: UploadApi, resultToken: string): Promise<'open' | 
 // The result links this phone kept for one upload link (the same QR code).
 // Shown on the upload page, so a student who did not keep the link gets it
 // back on the same phone.
-function KeptResultLinks({ uploadToken, info }: { uploadToken: string; info: LinkInfo }) {
+function KeptResultLinks({ uploadToken, info, heading = false }: { uploadToken: string; info: LinkInfo; heading?: boolean }) {
   const [links] = useState<SavedResultLink[]>(() => loadResultLinks(uploadToken));
   if (links.length === 0) return null;
-  return <Tickets links={links} info={info} />;
+  return (
+    <>
+      {heading && (
+        <h2>{links.length === 1 ? 'Biletul lucrării trimise de pe acest telefon' : 'Biletele lucrărilor trimise de pe acest telefon'}</h2>
+      )}
+      <Tickets links={links} info={info} />
+    </>
+  );
 }
 
 // The kept result links of one test, each as its ticket.

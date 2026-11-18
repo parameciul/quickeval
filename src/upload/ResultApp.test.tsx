@@ -127,13 +127,15 @@ describe('ResultApp', () => {
     const api = createFakeUploadApi();
     api.getResult.mockResolvedValue({ ...structuredClone(graded), status: 'submitted', evaluation: null });
     render(<ResultApp api={api} resultToken="result-token-11" />);
-    expect(await screen.findByRole('status')).toHaveTextContent('Rezultatul tău nu este gata încă. Revino mai târziu pe acest link.');
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Rezultatul tău nu este gata încă. Apare aici după ce profesorul corectează lucrarea și publică rezultatele. Păstrează biletul.',
+    );
     expectNoGradingWords();
   });
 
   it('shows the server message in a calm grey box, not as an error, when the results are not published', async () => {
     const api = createFakeUploadApi();
-    const message = 'Rezultatele nu sunt disponibile încă. Probabil profesorul nu a terminat de corectat. Revino mai târziu.';
+    const message = 'Rezultatul tău nu este gata încă. Apare aici după ce profesorul corectează lucrarea și publică rezultatele. Păstrează biletul.';
     api.getResult.mockRejectedValueOnce(new ApiError(403, 'results_closed', message));
     render(<ResultApp api={api} resultToken="result-token-11" />);
     const notice = await screen.findByRole('status');

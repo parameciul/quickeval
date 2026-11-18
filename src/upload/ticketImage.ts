@@ -5,14 +5,17 @@ import { saveFile, shareFile, type ShareResult } from '../admin/pdf/share.ts';
 // the page's theme: it is a picture to keep, and phones read a dark QR code
 // on white best. It holds no grade and no points.
 
-// How the ticket is used: a line, then the options, numbered.
+// What the ticket is for and how it is used: a lead line, a note, an intro
+// line, then the options, numbered.
 export interface TicketHow {
+  lead: string;
+  note: string;
   intro: string;
   steps: readonly string[];
 }
 
 export interface TicketPicture {
-  // What the picture is ("Biletul tău cu linkul spre rezultat"): a picture
+  // What the picture is ("Biletul tău pentru rezultat"): a picture
   // found later in the gallery says it holds the student's result link.
   label: string;
   testTitle: string;
@@ -21,14 +24,15 @@ export interface TicketPicture {
   classLine: string;
   // The code as shown ("K7M-92P"), or null for a link without one.
   code: string | null;
-  // How the ticket is used: up to two lines of intro, three of each option.
+  // What it is for and how it is used: up to two lines of lead, of note and
+  // of intro, three of each option. An empty note draws nothing.
   how: TicketHow;
   // The QR code of the result link, already drawn (a canvas of the QR library).
   qr: CanvasImageSource;
 }
 
 export const TICKET_WIDTH = 1080;
-export const TICKET_HEIGHT = 1600;
+export const TICKET_HEIGHT = 1840;
 
 const MARGIN = 80;
 // The QR code's side in the picture, in pixels.
@@ -164,18 +168,32 @@ export function drawTicket(context: CanvasRenderingContext2D, picture: TicketPic
     context.fillText(picture.code, TICKET_WIDTH - MARGIN - 40, 1258);
   }
 
-  // How to use it: the intro, then the options numbered, each wrapped under
-  // its own text. A lone intro is centred.
+  // What it is for, then how to use it: the intro, then the options
+  // numbered, each wrapped under its own text. Without options all is centred.
   const left = MARGIN + 40;
   const width = inner - 80;
   const measure = (text: string) => context.measureText(text).width;
   const steps = picture.how.steps;
-  context.textAlign = steps.length === 0 ? 'center' : 'left';
+  const alone = steps.length === 0;
+  context.textAlign = alone ? 'center' : 'left';
+  y = 1370;
+  context.fillStyle = INK;
+  context.font = font(700, 32);
+  for (const line of wrapLines(measure, picture.how.lead, alone ? inner : width, 2)) {
+    context.fillText(line, alone ? centre : left, y);
+    y += 42;
+  }
+  context.fillStyle = MUTED;
+  context.font = font(400, 30);
+  for (const line of wrapLines(measure, picture.how.note, alone ? inner : width, 2)) {
+    context.fillText(line, alone ? centre : left, y);
+    y += 40;
+  }
+  y += 28;
   context.fillStyle = TEXT;
   context.font = font(600, 30);
-  y = 1360;
-  for (const line of wrapLines(measure, picture.how.intro, steps.length === 0 ? inner : width, 2)) {
-    context.fillText(line, steps.length === 0 ? centre : left, y);
+  for (const line of wrapLines(measure, picture.how.intro, alone ? inner : width, 2)) {
+    context.fillText(line, alone ? centre : left, y);
     y += 40;
   }
   context.fillStyle = MUTED;

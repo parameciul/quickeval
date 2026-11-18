@@ -12,6 +12,8 @@ import {
   type TicketPicture,
 } from './ticketImage.ts';
 
+import { TICKET_HOW } from './ResultTicket.tsx';
+
 vi.mock('../admin/pdf/share.ts', () => ({ saveFile: vi.fn(), shareFile: vi.fn() }));
 
 // Every letter is 10 wide: enough to test the line breaks.
@@ -50,11 +52,13 @@ function fakeContext() {
 
 const QR = { qr: true } as unknown as CanvasImageSource;
 const HOW = {
+  lead: 'Cu el îți vezi rezultatul.',
+  note: 'Apare după ce se corectează.',
   intro: 'Alege una dintre variante:',
   steps: ['Ține apăsat pe codul QR.', 'Deschide linkul testului și scrie codul dacă nu ajungi direct la rezultat.'],
 };
 const picture: TicketPicture = {
-  label: 'Biletul tău cu linkul spre rezultat',
+  label: 'Biletul tău pentru rezultat',
   testTitle: 'Fracții',
   studentName: 'Pop Ion',
   classLine: 'Clasa 6E2 · 6E2-26T1',
@@ -111,11 +115,13 @@ describe('drawTicket', () => {
     expect(written).toEqual([
       'MQGrader',
       'by Laura Miron',
-      'Biletul tău cu linkul spre rezultat',
+      'Biletul tău pentru rezultat',
       'Fracții',
       'Pop Ion · Clasa 6E2 · 6E2-26T1',
       'Codul tău',
       'K7M-92P',
+      'Cu el îți vezi rezultatul.',
+      'Apare după ce se corectează.',
       'Alege una dintre variante:',
       '1.',
       'Ține apăsat pe codul QR.',
@@ -126,6 +132,11 @@ describe('drawTicket', () => {
     // The options start left, each number before its text, the wrapped line under the text.
     const at = (text: string) => texts.find((entry) => entry.text === text)!;
     expect(at('Alege una dintre variante:')).toMatchObject({ x: 120, align: 'left', font: expect.stringMatching(/^600 30px /) });
+    // What the ticket is for comes first, in the site's blue, then the note, muted.
+    expect(at('Cu el îți vezi rezultatul.')).toMatchObject({ x: 120, fill: '#1b5cc8', font: expect.stringMatching(/^700 32px /) });
+    expect(at('Apare după ce se corectează.')).toMatchObject({ x: 120, fill: '#4a566a', font: expect.stringMatching(/^400 30px /) });
+    expect(at('Cu el îți vezi rezultatul.').y).toBeLessThan(at('Apare după ce se corectează.').y);
+    expect(at('Apare după ce se corectează.').y).toBeLessThan(at('Alege una dintre variante:').y);
     expect(at('2.')).toMatchObject({ x: 120, y: at('Deschide linkul testului și scrie codul').y });
     expect(at('dacă nu ajungi direct la rezultat.').x).toBe(at('Deschide linkul testului și scrie codul').x);
     expect(at('dacă nu ajungi direct la rezultat.').x).toBe(164);
@@ -145,14 +156,26 @@ describe('drawTicket', () => {
     }
   });
 
+  it('draws nothing for an empty note, and keeps the lines after it', () => {
+    const { context, texts } = fakeContext();
+    drawTicket(context, { ...picture, how: { ...HOW, note: '' } });
+    const written = texts.map((entry) => entry.text);
+    expect(written).not.toContain('');
+    expect(written).not.toContain(HOW.note);
+    expect(written).toContain(HOW.lead);
+    expect(written).toContain(HOW.intro);
+  });
+
   it('draws no code for a link without one, and the QR code lower', () => {
     const { context, texts, images } = fakeContext();
-    drawTicket(context, { ...picture, code: null, how: { intro: 'Ține apăsat pe codul QR.', steps: [] } });
+    drawTicket(context, { ...picture, code: null, how: { ...HOW, intro: 'Ține apăsat pe codul QR.', steps: [] } });
     const written = texts.map((entry) => entry.text);
     expect(written).not.toContain('Codul tău');
     expect(written).not.toContain('1.');
     // A lone line is centred.
     expect(texts.find((entry) => entry.text === 'Ține apăsat pe codul QR.')).toMatchObject({ x: TICKET_WIDTH / 2, align: 'center' });
+    expect(texts.find((entry) => entry.text === HOW.lead)).toMatchObject({ x: TICKET_WIDTH / 2, align: 'center' });
+    expect(texts.find((entry) => entry.text === HOW.note)).toMatchObject({ x: TICKET_WIDTH / 2, align: 'center' });
     expect(images[0]!.y).toBe(670);
   });
 
@@ -163,13 +186,7 @@ describe('drawTicket', () => {
       testTitle: 'Radacina patrata a unui numar natural patrat perfect si a unui numar rational',
       studentName: 'CONSTANDACHE F. AMELIA PATRICIA',
       classLine: 'Clasa 7E2 · 7E2-26T2',
-      how: {
-        intro: 'Ca să vezi rezultatul, alege una dintre variante:',
-        steps: [
-          'Ține apăsat pe codul QR.',
-          'Deschide linkul de trimitere a lucrării și introdu codul, dacă nu ești redirecționat direct la rezultat.',
-        ],
-      },
+      how: TICKET_HOW,
     });
     const qrEdge = images[0]!.y - 28;
     const muted = texts.filter((entry) => entry.font.startsWith('400 34px') && entry.text !== 'Codul tău');
@@ -180,8 +197,8 @@ describe('drawTicket', () => {
     const band = rects.find((rect) => rect.fill === '#e6eefb')!;
     expect(band.y).toBeGreaterThan(images[0]!.y + 520 + 28);
     // Every line of how to use it is under the band, whole, and inside the picture.
-    const how = texts.filter((entry) => entry.font.startsWith('400 30px') || entry.font.startsWith('600 30px'));
-    expect(how.length).toBeGreaterThanOrEqual(6);
+    const how = texts.filter((entry) => /^(400 30px|600 30px|700 32px)/.test(entry.font));
+    expect(how.length).toBeGreaterThanOrEqual(8);
     expect(how.some((entry) => entry.text.endsWith('…'))).toBe(false);
     for (const entry of how) {
       expect(entry.y - 30).toBeGreaterThan(band.y + band.height);
