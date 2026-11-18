@@ -133,7 +133,7 @@ Perioada: [Ultimele 7 zile ▾]   [Generează]
 
 ### Steps for the administrator in the Rybbit dashboard (not code)
 
-- Update Rybbit first (`cd ~/rybbit && ./update.sh`): the version installed on 2026-11-18 has no "Track URL fragments" setting and drops the `#` part. Then turn on "Track URL fragments" (needed for `#new-account`).
+- Update Rybbit (`cd ~/rybbit && bash ./update.sh`). The released version (2026-11-18) still has no "Track URL fragments" setting and drops the `#` part, so `#new-account` counts as `/teacher/` until a release has it; then turn it on. Turn off "Button Clicks" (it sends the text of the button, and the student page has a button with each student's name) and "Error Tracking" (an error message may hold text of the page).
 - Keep "Session Replay" off: it records the full address, token included, and what the page shows. "Track URL fragments" and "Session Replay" are settings of the whole site: fragments also split the public pages' anchors, and replay would also record the student pages. To record replays of the public pages one day, give the private pages a Rybbit site of their own first.
 - Keep "URL Parameters" on (query strings, for campaign tags such as `utm_source`). The masks do not cover a query string, so no page may put a token, a code or a name in one: a test checks the query strings each student and Quick Try page sets.
 
