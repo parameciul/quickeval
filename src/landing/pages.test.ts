@@ -333,11 +333,11 @@ describe('the pages that answer a search', () => {
     const figure = doc.querySelector('.prose .shot');
     const img = figure?.querySelector('img');
     expect(img?.getAttribute('src')).toBe('/app-verificare.png');
-    expect(img?.getAttribute('width')).toBe('1600');
-    expect(img?.getAttribute('height')).toBe('1000');
+    expect(img?.getAttribute('width')).toBe('1897');
+    expect(img?.getAttribute('height')).toBe('1066');
     expect((img?.getAttribute('alt') ?? '').length).toBeGreaterThan(60);
-    expect(img?.getAttribute('alt')).toContain('Verificarea într-un test de matematică');
-    expect(text(figure?.querySelector('figcaption') ?? null)).toContain('decizia profesorului');
+    expect(img?.getAttribute('alt')).toContain('O lucrare corectată într-un test de matematică');
+    expect(text(figure?.querySelector('figcaption') ?? null)).toContain('numele elevilor schimbate');
     // The page's main image is the one the reader sees, at its real size.
     const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
     const nodes: { '@type': string; primaryImageOfPage?: { url: string; width: number; height: number; caption?: string } }[] =
@@ -345,8 +345,8 @@ describe('the pages that answer a search', () => {
     const page = nodes.find((n) => n['@type'] === 'WebPage')!;
     expect(page.primaryImageOfPage).toMatchObject({
       url: 'https://mqgrader.ro/app-verificare.png',
-      width: 1600,
-      height: 1000,
+      width: 1897,
+      height: 1066,
     });
     expect(page.primaryImageOfPage?.caption?.length).toBeGreaterThan(40);
   });
