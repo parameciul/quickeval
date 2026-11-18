@@ -59,7 +59,11 @@ const fileNotFound = () => new ApiError(404, 'not_found', 'Nu am găsit fișieru
 // A result link opened before the teacher published the results: nothing is
 // wrong, the student only came early.
 const resultsClosed = () =>
-  new ApiError(403, 'results_closed', 'Rezultatele nu sunt disponibile încă. Probabil profesorul nu a terminat de corectat. Revino mai târziu.');
+  new ApiError(403, 'results_closed', 'Rezultatul tău nu este gata încă. Apare aici după ce profesorul corectează lucrarea și publică rezultatele. Păstrează biletul.');
+// Archiving closes the results, and they may never open again: no word on
+// waiting or keeping the ticket.
+const resultsArchived = () =>
+  new ApiError(403, 'results_closed', 'Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.');
 
 // The test behind the link in the URL.
 async function linkTest(c: Context<AppEnv>): Promise<LinkTest> {
@@ -316,7 +320,7 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const resultToken = c.req.param('resultToken') ?? '';
     const found = isResultToken(resultToken) ? await findResultByToken(c.env.DB, resultToken) : null;
     if (!found) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
-    if (!found.resultsOpen) throw resultsClosed();
+    if (!found.resultsOpen) throw found.archived ? resultsArchived() : resultsClosed();
     return c.json({ result: found.result });
   });
 

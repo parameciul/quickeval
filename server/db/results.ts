@@ -216,6 +216,7 @@ interface ResultRow {
   class_name: string;
   test_open: number;
   submission_open: number;
+  archived: number;
   submission_id: number;
   status: Exclude<UploadStatus, 'none'>;
   student_name: string;
@@ -227,7 +228,7 @@ interface ResultRow {
 // caller refuses the page while neither the test nor this upload is published.
 // While closed the answer carries no files and no grading, so polling an
 // unpublished link costs one query.
-const RESULT_SELECT = `SELECT t.code, t.title, c.name AS class_name, t.results_open AS test_open, s.results_open AS submission_open,
+const RESULT_SELECT = `SELECT t.code, t.title, c.name AS class_name, t.results_open AS test_open, s.results_open AS submission_open, t.archived,
     s.id AS submission_id, s.status, st.full_name AS student_name, s.submitted_at, s.result_code
   FROM submissions s
   JOIN tests t ON t.id = s.test_id
@@ -237,7 +238,7 @@ const RESULT_SELECT = `SELECT t.code, t.title, c.name AS class_name, t.results_o
 export async function findResultByToken(
   db: D1Database,
   resultToken: string,
-): Promise<{ result: StudentResultView; resultsOpen: boolean } | null> {
+): Promise<{ result: StudentResultView; resultsOpen: boolean; archived: boolean } | null> {
   const row = await db.prepare(`${RESULT_SELECT} WHERE s.result_token = ?`).bind(resultToken).first<ResultRow>();
   if (!row) return null;
   const open = row.test_open === 1 || row.submission_open === 1;
@@ -254,9 +255,9 @@ export async function findResultByToken(
       // The route refuses a closed page, so nothing of it reaches the student.
       resultCode: null,
     };
-    return { result, resultsOpen: false };
+    return { result, resultsOpen: false, archived: row.archived === 1 };
   }
-  return { result: await openResult(db, row), resultsOpen: open };
+  return { result: await openResult(db, row), resultsOpen: open, archived: row.archived === 1 };
 }
 
 // A Quick Try's student result, by its one paper: the same page as above,

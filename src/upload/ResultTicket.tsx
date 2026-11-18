@@ -16,21 +16,32 @@ export interface TicketTest {
 }
 
 // What the ticket is: the student's own link to the result.
-export const TICKET_TITLE = 'Biletul tău cu linkul spre rezultat';
+export const TICKET_TITLE = 'Biletul tău pentru rezultat';
 // How the student finds the result later, on their own phone: written on the
 // saved picture only, never on the page. A phone opens
 // the link of a QR code in a picture of its gallery on a long press; the
 // test's link opens the result by itself on the phone that sent the work, and
 // asks for the code on any other. No word on scanning with a camera: that is
 // another phone, where someone else would see the result.
+// The picture first says what it is for, since it is found later in the
+// gallery, long after the test.
+const TICKET_LEAD = 'Cu acest bilet îți vezi rezultatul la acest test.';
+const TICKET_NOTE = 'Rezultatul apare doar după ce profesorul corectează lucrările.';
 export const TICKET_HOW: TicketHow = {
+  lead: TICKET_LEAD,
+  note: TICKET_NOTE,
   intro: 'Ca să vezi rezultatul, alege una dintre variante:',
   steps: [
-    'Ține apăsat pe codul QR.',
-    'Deschide linkul de trimitere a lucrării și introdu codul, dacă nu ești redirecționat direct la rezultat.',
+    'Pe telefon, ține apăsat pe codul QR și deschide linkul.',
+    'Deschide linkul de trimitere a lucrării (codul QR de pe test) și introdu codul tău.',
   ],
 };
-export const TICKET_HOW_NO_CODE: TicketHow = { intro: 'Ca să vezi rezultatul, ține apăsat pe codul QR.', steps: [] };
+export const TICKET_HOW_NO_CODE: TicketHow = {
+  lead: TICKET_LEAD,
+  note: TICKET_NOTE,
+  intro: 'Ca să vezi rezultatul, pe telefon ține apăsat pe codul QR și deschide linkul.',
+  steps: [],
+};
 
 // How long "Linkul a fost copiat." stays on screen.
 const COPIED_MS = 4000;
@@ -47,15 +58,12 @@ export function ResultTicket({
   resultCode,
   studentName,
   test,
-  fresh = false,
 }: {
   resultToken: string;
   // Null for a link this phone kept before links had codes.
   resultCode: string | null;
   studentName: string;
   test: TicketTest;
-  // Right after sending: also says when the result appears.
-  fresh?: boolean;
 }) {
   const [share, setShare] = useState<ShareState>('idle');
   const [linkShown, setLinkShown] = useState(false);
@@ -145,11 +153,6 @@ export function ResultTicket({
       {share === 'manual' && (
         <p role="status" className="hint">
           Copiază linkul de aici:
-        </p>
-      )}
-      {fresh && (
-        <p className="hint">
-          Rezultatul apare aici după ce profesorul publică rezultatele: nota, punctajul pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.
         </p>
       )}
       <p className="ticket-links">

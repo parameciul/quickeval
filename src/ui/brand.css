@@ -1518,6 +1518,15 @@ textarea {
   color: var(--text);
 }
 
+/* A notice of more than one line: its lines close together, in one box. */
+.notice > p {
+  margin: 0;
+}
+
+.notice > p + p {
+  margin-top: 0.35rem;
+}
+
 /* Good news in the place of an alert: the student page once the results are
    published. */
 .notice-ok {

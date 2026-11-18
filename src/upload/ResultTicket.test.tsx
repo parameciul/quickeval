@@ -27,7 +27,7 @@ describe('ResultTicket', () => {
   it('shows the test, the student, the QR code of the result link and the code', () => {
     show();
     const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
-    expect(within(ticket).getByText('Biletul tău cu linkul spre rezultat')).toBeInTheDocument();
+    expect(within(ticket).getByText('Biletul tău pentru rezultat')).toBeInTheDocument();
     expect(within(ticket).getByText('Fracții')).toBeInTheDocument();
     expect(within(ticket).getByText('Pop Ion')).toBeInTheDocument();
     expect(within(ticket).getByText('Clasa 6E2 · 6E2-26T1')).toBeInTheDocument();
@@ -42,25 +42,34 @@ describe('ResultTicket', () => {
   // tests), never on the page, where they read like something to do now.
   it('shows no steps to see the result on the page', () => {
     for (const resultCode of ['K7M92P', null]) {
-      const shown = show({ resultCode, fresh: true });
+      const shown = show({ resultCode });
       const ticket = screen.getByRole('region', { name: 'Biletul pentru rezultat: Pop Ion' });
       expect(within(ticket).queryByText(/^Ca să vezi rezultatul/)).not.toBeInTheDocument();
+      expect(within(ticket).queryByText(TICKET_HOW.lead)).not.toBeInTheDocument();
       for (const step of TICKET_HOW.steps) expect(within(ticket).queryByText(step)).not.toBeInTheDocument();
       expect(within(ticket).queryByRole('list')).not.toBeInTheDocument();
       shown.unmount();
     }
   });
 
-  it('writes, for the picture, one line, then the two options, with no camera', () => {
+  it('writes, for the picture, what it is for, then the two options, with no camera', () => {
+    expect(TICKET_HOW.lead).toBe('Cu acest bilet îți vezi rezultatul la acest test.');
+    expect(TICKET_HOW.note).toBe('Rezultatul apare doar după ce profesorul corectează lucrările.');
     expect(TICKET_HOW.intro).toBe('Ca să vezi rezultatul, alege una dintre variante:');
     expect(TICKET_HOW.steps).toEqual([
-      'Ține apăsat pe codul QR.',
-      'Deschide linkul de trimitere a lucrării și introdu codul, dacă nu ești redirecționat direct la rezultat.',
+      'Pe telefon, ține apăsat pe codul QR și deschide linkul.',
+      'Deschide linkul de trimitere a lucrării (codul QR de pe test) și introdu codul tău.',
     ]);
-    expect(TICKET_HOW_NO_CODE).toEqual({ intro: 'Ca să vezi rezultatul, ține apăsat pe codul QR.', steps: [] });
+    expect(TICKET_HOW_NO_CODE).toEqual({
+      lead: TICKET_HOW.lead,
+      note: TICKET_HOW.note,
+      intro: 'Ca să vezi rezultatul, pe telefon ține apăsat pe codul QR și deschide linkul.',
+      steps: [],
+    });
     // Scanning is for another phone, where someone else would see the result.
-    const words = [TICKET_HOW.intro, ...TICKET_HOW.steps, TICKET_HOW_NO_CODE.intro].join(' ').toLowerCase();
-    expect(words).not.toMatch(/camer|scane/);
+    const words = [TICKET_HOW.lead, TICKET_HOW.note, TICKET_HOW.intro, ...TICKET_HOW.steps, TICKET_HOW_NO_CODE.intro].join(' ');
+    expect(words.toLowerCase()).not.toMatch(/camer|scane/);
+    expectNoGradingWords(words);
   });
 
   it('opens the result on a tap or a long press of the QR code', () => {
@@ -82,12 +91,9 @@ describe('ResultTicket', () => {
     expect(screen.getByTitle('Codul QR al rezultatului')).toBeInTheDocument();
   });
 
-  it('says when the result appears only right after sending', () => {
-    const first = show({ fresh: true });
-    expect(screen.getByText(/^Rezultatul apare aici după ce profesorul publică rezultatele/)).toBeInTheDocument();
-    first.unmount();
+  it('writes no long text under its buttons', () => {
     show();
-    expect(screen.queryByText(/^Rezultatul apare aici/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Rezultatul apare/)).not.toBeInTheDocument();
   });
 
   it('keeps the long address behind a button, whole and with a copy button', async () => {

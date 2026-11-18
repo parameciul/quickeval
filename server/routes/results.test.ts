@@ -74,7 +74,7 @@ describe('student result links', () => {
     expect(closed.status).toBe(403);
     expect(closed.body).toEqual({
       error: 'results_closed',
-      message: 'Rezultatele nu sunt disponibile încă. Probabil profesorul nu a terminat de corectat. Revino mai târziu.',
+      message: 'Rezultatul tău nu este gata încă. Apare aici după ce profesorul corectează lucrarea și publică rezultatele. Păstrează biletul.',
     });
 
     const opened = await api.request('POST', `/api/admin/tests/${code}/results/open`);
@@ -89,6 +89,17 @@ describe('student result links', () => {
     const shut = await api.request('POST', `/api/admin/tests/${code}/results/close`);
     expect(shut.body).toEqual({ resultsOpen: false });
     expect((await api.request('GET', `/api/u/result/${resultToken}`)).status).toBe(403);
+  });
+
+  it('says an archived test closed its results, with no word on waiting or keeping the ticket', async () => {
+    const { resultToken } = await uploadAndConfirm(pop);
+    await api.db.prepare('UPDATE tests SET archived = 1 WHERE code = ?').bind(code).run();
+    const closed = await api.request('GET', `/api/u/result/${resultToken}`);
+    expect(closed.status).toBe(403);
+    expect(closed.body).toEqual({
+      error: 'results_closed',
+      message: 'Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.',
+    });
   });
 
   it('shows the graded result without grading internals', async () => {

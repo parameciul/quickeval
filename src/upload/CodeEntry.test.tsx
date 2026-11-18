@@ -109,9 +109,7 @@ describe('the code field on the closed test page', () => {
   // Before the publish a code would open nothing yet.
   it('shows no field while the results are not published, with or without tickets', async () => {
     const empty = render(<UploadApp api={createFakeUploadApi(closedOnly())} token={LINK_TOKEN} goTo={vi.fn()} />);
-    expect(await screen.findByRole('status')).toHaveTextContent('Încărcarea s-a închis.');
-    expect(screen.getByText('Dacă nu ai trimis lucrarea, spune-i profesorului.')).toBeInTheDocument();
-    expect(screen.getByText('Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.')).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent(/^Încărcarea s-a închis\.\s*Dacă nu ai trimis lucrarea, spune-i profesorului\.$/);
     expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Vezi rezultatul' })).not.toBeInTheDocument();
     expectNoGradingWords();
@@ -121,6 +119,8 @@ describe('the code field on the closed test page', () => {
     saveResultLink(LINK_TOKEN, 10, 'result-token-10', 'Ionescu Ana', 'DEF567');
     render(<UploadApp api={createFakeUploadApi(closedOnly())} token={LINK_TOKEN} goTo={vi.fn()} />);
     expect(await screen.findByRole('region', { name: 'Biletul pentru rezultat: Stan Eva' })).toBeInTheDocument();
+    // Two papers from one phone: the green box says both went.
+    expect(screen.getByRole('status')).toHaveTextContent('Lucrările au fost trimise de pe acest telefon.');
     expect(screen.getByRole('region', { name: 'Biletul pentru rezultat: Ionescu Ana' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Scrie codul tău')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Am alt cod' })).not.toBeInTheDocument();
@@ -219,7 +219,7 @@ describe('the code field on the closed test page', () => {
     reopened.students[1]!.state = 'done';
     render(<UploadApp api={createFakeUploadApi(reopened)} token={LINK_TOKEN} goTo={vi.fn()} />);
     expect(await screen.findByRole('button', { name: 'Ionescu Ana' })).toBeEnabled();
-    expect(screen.queryByText(/Ai trimis deja lucrarea de pe acest telefon/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Cu acest link nu mai poți trimite/)).not.toBeInTheDocument();
     // The code kept nothing, so there is no ticket above the names.
     expect(screen.queryByRole('region', { name: /^Biletul pentru rezultat/ })).not.toBeInTheDocument();
   });
