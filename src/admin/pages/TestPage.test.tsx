@@ -2090,21 +2090,21 @@ describe('TestPage uploads switch', () => {
   it('closes the uploads at the end of the hour without grading, and opens them again', async () => {
     const api = switchApi();
     renderAdmin(`${PAGE}#in-class`, api);
-    const toggle = await screen.findByRole('switch', { name: 'Încărcarea lucrărilor' });
+    const toggle = await screen.findByRole('switch', { name: /^Încărcarea lucrărilor/ });
     expect(toggle).toBeChecked();
     expect(screen.getByText('Încărcarea e deschisă.')).toBeInTheDocument();
     expect(screen.getByText('1 din 3 elevi a trimis lucrarea')).toBeInTheDocument();
     await userEvent.click(toggle);
     expect(api.setUploadsClosed).toHaveBeenCalledWith('6E2-26T1', true);
     expect(await screen.findByText('Încărcarea e închisă.')).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Încărcarea lucrărilor' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: /^Încărcarea lucrărilor/ })).not.toBeChecked();
     // No links while closed, and nothing went to the robot.
     expect(screen.queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
     expect(screen.getByText(/linkurile nu primesc lucrări până o redeschizi/)).toBeInTheDocument();
     expect(within(sheet()).getByText('Încărcare închisă')).toBeInTheDocument();
     expect(api.evaluateTest).not.toHaveBeenCalled();
 
-    await userEvent.click(screen.getByRole('switch', { name: 'Încărcarea lucrărilor' }));
+    await userEvent.click(screen.getByRole('switch', { name: /^Încărcarea lucrărilor/ }));
     expect(api.setUploadsClosed).toHaveBeenLastCalledWith('6E2-26T1', false);
     expect(await screen.findByText('Încărcarea e deschisă.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
@@ -2122,7 +2122,7 @@ describe('TestPage uploads switch', () => {
     expect(within(stages).getByRole('link', { name: /^Corectare / })).toHaveTextContent('1 lucrare așteaptă');
     expect(screen.getByText(/^Încă 1 elev își încarcă lucrarea/)).toBeInTheDocument();
     expect(screen.getByText(/^Se corectează 2 lucrări, bifate în tabel\./)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('switch', { name: 'Încărcarea lucrărilor' }));
+    await userEvent.click(screen.getByRole('switch', { name: /^Încărcarea lucrărilor/ }));
     const start = await screen.findByRole('button', { name: 'Pornește corectarea' });
     expect(screen.queryByText(/se închide singură/)).not.toBeInTheDocument();
     await userEvent.click(start);
@@ -2154,11 +2154,44 @@ describe('TestPage uploads switch', () => {
     expect(screen.getByRole('button', { name: 'Redeschide încărcarea' })).toBeInTheDocument();
   });
 
+  it('keeps the focus on the switch and names it with the word it shows', async () => {
+    renderAdmin(`${PAGE}#in-class`, switchApi());
+    const toggle = await screen.findByRole('switch', { name: /^Încărcarea lucrărilor:\s*Deschisă$/ });
+    await userEvent.click(toggle);
+    expect(await screen.findByRole('switch', { name: /^Încărcarea lucrărilor:\s*Închisă$/ })).toHaveFocus();
+  });
+
+  it('says on a closed test with no paper yet that the papers come after a reopen, and why a half-sent paper waits', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, uploadsClosedAt: '2026-10-06T08:05:00.000Z' }, notSent())],
+    });
+    const view = renderAdmin(`${PAGE}#in-class`, api);
+    expect(await screen.findByText('Încărcarea e închisă. Lucrările apar aici după ce o redeschizi și elevii trimit pozele.')).toBeInTheDocument();
+    view.unmount();
+    renderAdmin(`${PAGE}#in-class`, switchApi({ uploadsClosedAt: '2026-10-06T08:05:00.000Z' }));
+    const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
+    expect(within(stan).getByText(/iar încărcarea e închisă/)).toBeInTheDocument();
+  });
+
+  it('makes the teacher link once when both of its buttons are pressed at once', async () => {
+    const api = switchApi();
+    let answer: (token: string) => void = () => undefined;
+    api.createMultiUploadLink.mockImplementationOnce(() => new Promise<string>((resolve) => (answer = resolve)));
+    renderAdmin(`${PAGE}#in-class`, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Copiază linkul tău' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Arată codul QR' })[1]!);
+    await act(async () => answer(FAKE_MULTI_TOKEN));
+    expect(await screen.findByRole('dialog', { name: 'Linkul tău pentru mai multe lucrări' })).toBeInTheDocument();
+    expect(api.createMultiUploadLink).toHaveBeenCalledTimes(1);
+  });
+
   it('says why the switch was refused', async () => {
     const api = switchApi();
     api.setUploadsClosed.mockRejectedValueOnce(new ApiError(409, 'closed', 'Corectarea a pornit, așa că încărcarea e deja închisă. O poți redeschide.'));
     renderAdmin(`${PAGE}#in-class`, api);
-    await userEvent.click(await screen.findByRole('switch', { name: 'Încărcarea lucrărilor' }));
+    await userEvent.click(await screen.findByRole('switch', { name: /^Încărcarea lucrărilor/ }));
     expect(await screen.findByText('Corectarea a pornit, așa că încărcarea e deja închisă. O poți redeschide.')).toBeInTheDocument();
   });
 });

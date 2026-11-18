@@ -2520,7 +2520,7 @@ table.tests .row-actions {
   cursor: pointer;
 }
 
-.uploads-toggle:disabled {
+.uploads-toggle[aria-disabled="true"] {
   cursor: progress;
   opacity: 0.7;
 }

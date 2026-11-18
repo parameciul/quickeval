@@ -25,6 +25,8 @@ async function copyLink(make: () => string | Promise<string>): Promise<void> {
     failure = err;
     throw err;
   });
+  // Never left unhandled, whichever way the copy ends.
+  url.catch(() => undefined);
   try {
     if (typeof ClipboardItem !== 'undefined' && typeof navigator.clipboard.write === 'function') {
       await navigator.clipboard.write([new ClipboardItem({ 'text/plain': url.then((text) => new Blob([text], { type: 'text/plain' })) })]);
@@ -32,6 +34,12 @@ async function copyLink(make: () => string | Promise<string>): Promise<void> {
       await navigator.clipboard.writeText(await url);
     }
   } catch (err) {
+    // A clipboard that gave up before the link came: wait for the link, so a
+    // refusal of the API shows as itself.
+    await url.then(
+      () => undefined,
+      () => undefined,
+    );
     throw failure ?? err;
   }
 }
@@ -119,6 +127,9 @@ export function WaysIn({ test, onChanged }: { test: TestInfo; onChanged: () => P
   const [teacherUrl, setTeacherUrl] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const studentsQr = useRef<HTMLButtonElement>(null);
+  // The teacher's link while it is being made: a second click (or the other
+  // button) waits for the same request instead of making it twice.
+  const making = useRef<Promise<string> | null>(null);
   const teacherQr = useRef<HTMLButtonElement>(null);
   // The uploads closed (or the grading started) while the QR code was on the
   // whole screen: the ways go, so the focus goes to the panel's heading.
@@ -135,13 +146,20 @@ export function WaysIn({ test, onChanged }: { test: TestInfo; onChanged: () => P
   const url = uploadLink(token);
   const draft = test.status === 'draft';
 
-  // The teacher's link: the kept one, else made now.
+  // The teacher's link: the kept one, else made now. The address is ready as
+  // soon as the API answers; the page reads the test again meanwhile.
   const teacherLink = (): string | Promise<string> => {
     if (test.multiUploadToken) return uploadLink(test.multiUploadToken);
-    return api.createMultiUploadLink(test.code).then(async (made) => {
-      await onChanged();
-      return uploadLink(made);
+    if (making.current) return making.current;
+    const made = api.createMultiUploadLink(test.code).then((token) => {
+      onChanged().catch(() => undefined);
+      return uploadLink(token);
     });
+    making.current = made;
+    made.catch(() => {
+      if (making.current === made) making.current = null;
+    });
+    return made;
   };
   const copyTeacher = async () => {
     setError(null);

@@ -473,6 +473,19 @@ describe('the upload writes check the rules themselves', () => {
     expect(await fileCount(id)).toBe(1);
   });
 
+  it('starts no upload once the uploads closed, even when the route read the test before', async () => {
+    const test = await api.db.prepare('SELECT id FROM tests WHERE code = ?').bind(code).first<{ id: number }>();
+    const start = () => createSubmission(api.db, test!.id, pop, 'hash', 'r'.repeat(24), now);
+    await api.db.prepare('UPDATE tests SET uploads_closed_at = ? WHERE code = ?').bind(now, code).run();
+    expect(await start()).toBeNull();
+    await api.db.prepare("UPDATE tests SET uploads_closed_at = NULL, status = 'evaluating' WHERE code = ?").bind(code).run();
+    expect(await start()).toBeNull();
+    await api.db.prepare("UPDATE tests SET status = 'open', evaluation_at = ? WHERE code = ?").bind(now, code).run();
+    expect(await start()).toBeNull();
+    await api.db.prepare('UPDATE tests SET evaluation_at = NULL WHERE code = ?').bind(code).run();
+    expect(await start()).not.toBeNull();
+  });
+
   it('adds, deletes, and sends nothing while the teacher closed the uploads', async () => {
     await newSession(pop);
     const id = await submissionOf(pop);

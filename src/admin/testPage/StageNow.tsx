@@ -64,20 +64,24 @@ export function UploadsBand({ test, onChanged, grading = false }: { test: TestIn
             </>
           )}
         </p>
+        {/* aria-disabled, not disabled, while it saves: a disabled button would
+            drop the keyboard's focus. Its name holds the word it shows. */}
         <button
           type="button"
           role="switch"
           aria-checked={!closed}
-          aria-label="Încărcarea lucrărilor"
           aria-describedby={textId}
+          aria-disabled={toggle.isPending}
           className="uploads-toggle"
-          disabled={toggle.isPending}
-          onClick={() => toggle.mutate()}
+          onClick={() => {
+            if (!toggle.isPending) toggle.mutate();
+          }}
         >
           <span className="uploads-toggle-track" aria-hidden="true">
             <span className="uploads-toggle-knob" />
           </span>
-          <span aria-hidden="true">{closed ? 'Închisă' : 'Deschisă'}</span>
+          <span className="sr-only">Încărcarea lucrărilor: </span>
+          {closed ? 'Închisă' : 'Deschisă'}
         </button>
       </div>
       {toggle.error && <ErrorMessage error={toggle.error} />}

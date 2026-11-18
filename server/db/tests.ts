@@ -626,7 +626,13 @@ export async function createMultiUploadToken(
     )
     .bind(uploadToken, now, testId, teacherId, 'draft')
     .first<{ multi_upload_token: string }>();
-  return row ? { multiUploadToken: row.multi_upload_token } : null;
+  if (row) return { multiUploadToken: row.multi_upload_token };
+  // Another request made the link between the read and the write: that one is kept.
+  const made = await db
+    .prepare('SELECT multi_upload_token FROM tests WHERE id = ? AND teacher_id = ?')
+    .bind(testId, teacherId)
+    .first<{ multi_upload_token: string | null }>();
+  return made?.multi_upload_token ? { multiUploadToken: made.multi_upload_token } : null;
 }
 
 // evaluating or done → open (spec §8.5). Graded results stay; a scheduled

@@ -122,7 +122,9 @@ export async function findStudentSubmission(
 }
 
 // Returns the new upload's id, or null when the student is not an active
-// student of the test's class (checked in the INSERT, so a student removed a
+// student of the test's class, or the uploads are no longer open (closed by
+// the teacher, the grading started, or its scheduled time came). Both are
+// checked in the INSERT, so a student removed a
 // moment ago starts nothing). Throws a UNIQUE error when another phone
 // started this student's upload first.
 export async function createSubmission(
@@ -138,10 +140,11 @@ export async function createSubmission(
       `INSERT INTO submissions (test_id, student_id, status, session_hash, result_token, started_at)
        SELECT t.id, ?, 'uploading', ?, ?, ?
        FROM tests t JOIN enrollments e ON e.class_id = t.class_id AND e.student_id = ? AND e.active = 1
-       WHERE t.id = ?
+       WHERE t.id = ? AND t.status = 'open' AND t.uploads_closed_at IS NULL
+         AND (t.evaluation_at IS NULL OR t.evaluation_at > ?)
        RETURNING id`,
     )
-    .bind(studentId, sessionHash, resultToken, now, studentId, testId)
+    .bind(studentId, sessionHash, resultToken, now, studentId, testId, now)
     .first<{ id: number }>();
   return row ? row.id : null;
 }

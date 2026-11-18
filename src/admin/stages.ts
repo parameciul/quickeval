@@ -91,7 +91,7 @@ export function stagesOf(test: TestSummary): TestStages {
     if (test.status === 'draft') return stage('În clasă', 'later', 'testul nu a început');
     if (test.status === 'open') {
       if (test.uploadsClosedAt !== null) return stage('În clasă', 'now', 'încărcarea închisă');
-      return stage('În clasă', 'now', `${test.submittedCount} din ${test.studentCount} au trimis`);
+      return stage('În clasă', 'now', `${test.submittedCount} din ${test.studentCount} ${test.submittedCount === 1 ? 'a' : 'au'} trimis`);
     }
     return stage('În clasă', 'done');
   };

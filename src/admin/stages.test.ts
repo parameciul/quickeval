@@ -126,6 +126,10 @@ describe('the note of Corectare', () => {
     expect(corectare(summary({ status: 'open', ...started, submittedCount: 5 })).note).toBe('5 lucrări așteaptă');
   });
 
+  it('says "a trimis" for one paper in În clasă', () => {
+    expect(stagesOf(summary({ status: 'open', ...started, submittedCount: 1 })).stages[2]!.note).toBe('1 din 24 a trimis');
+  });
+
   it('says nothing when no sent paper waits', () => {
     expect(corectare(summary({ status: 'open', ...started, submittedCount: 3, gradedCount: 3 })).note).toBe('');
     expect(corectare(summary()).note).toBe('');

@@ -192,7 +192,9 @@ function ClassPanel(props: PanelProps) {
       {test.status === 'open' && <StopTest {...props} />}
       {nothingYet ? (
         <EmptyState icon={<IconQr />} title="Nicio lucrare trimisă încă">
-          Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.
+          {closed
+            ? 'Încărcarea e închisă. Lucrările apar aici după ce o redeschizi și elevii trimit pozele.'
+            : 'Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.'}
         </EmptyState>
       ) : (
         test.status !== 'draft' && <Papers {...props} selectable={false} />
@@ -503,6 +505,7 @@ function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRob
         uploads={uploads}
         showModel={showModel}
         uploadsClosed={test.status === 'evaluating' || test.status === 'done'}
+        uploadsPaused={test.status === 'open' && test.uploadsClosedAt !== null}
         selectable={selectable}
         selected={selected}
         onSelect={onSelect}
