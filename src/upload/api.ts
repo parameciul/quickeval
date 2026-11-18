@@ -2,6 +2,7 @@ import type {
   ConfirmAnswer,
   LinkInfo,
   ResultCodeAnswer,
+  ResultStatusAnswer,
   SessionStart,
   StudentResultView,
   SubmissionFile,
@@ -30,6 +31,8 @@ export interface UploadApi {
   openByCode(token: string, code: string): Promise<ResultCodeAnswer>;
   // One student's result page by its secret link.
   getResult(resultToken: string): Promise<StudentResultView>;
+  // Whether that result page opens now, without reading the result.
+  resultPublished(resultToken: string): Promise<boolean>;
   // A file of that result page, for its preview.
   resultFileBlob(resultToken: string, fileId: number): Promise<Blob>;
   // The student's payments for the test of this link.
@@ -158,6 +161,8 @@ export function createUploadClient(options: UploadClientOptions = {}): UploadApi
     openByCode: (token, code) => json<ResultCodeAnswer>('POST', `${base(token)}/code`, null, { code }),
     getResult: async (resultToken) =>
       (await json<{ result: StudentResultView }>('GET', `/api/u/result/${encodeURIComponent(resultToken)}`, null)).result,
+    resultPublished: async (resultToken) =>
+      (await json<ResultStatusAnswer>('GET', `/api/u/result/${encodeURIComponent(resultToken)}/status`, null)).published,
     resultFileBlob: async (resultToken, fileId) => {
       const res = await send(`/api/u/result/${encodeURIComponent(resultToken)}/files/${fileId}`, {});
       if (!res.ok) await readAnswer(res);

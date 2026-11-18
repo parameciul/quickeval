@@ -55,6 +55,19 @@ describe('student result links', () => {
     expect(submission.body.submission.resultsOpen).toBe(false);
   });
 
+  it('says whether a result link opens, without the result, and 404 for an unknown link', async () => {
+    const { resultToken } = await uploadAndConfirm(pop);
+    const status = () => api.request('GET', `/api/u/result/${resultToken}/status`);
+    expect((await status()).body).toEqual({ published: false });
+    expect((await api.request('POST', `/api/admin/tests/${code}/results/open`)).status).toBe(200);
+    expect((await status()).body).toEqual({ published: true });
+    for (const bad of ['abcdefghijklmnopqrstuvwx', 'short']) {
+      const unknown = await api.request('GET', `/api/u/result/${bad}/status`);
+      expect(unknown.status).toBe(404);
+      expect(unknown.body).toEqual({ error: 'unknown_link', message: 'Link greșit. Cere profesorului linkul nou.' });
+    }
+  });
+
   it('keeps the results closed until the teacher opens them, then closes them again', async () => {
     const { resultToken } = await uploadAndConfirm(pop);
     const closed = await api.request('GET', `/api/u/result/${resultToken}`);

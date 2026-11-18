@@ -105,6 +105,7 @@ export function createFakeUploadApi(info: LinkInfo = linkInfo()) {
       }
       return { resultToken: 'result-token-11', resultCode: FAKE_RESULT_CODE, studentId: 11, studentName: 'Pop Ion' };
     }),
+    resultPublished: vi.fn(async (_resultToken: string): Promise<boolean> => true),
     getResult: vi.fn(async (_resultToken: string): Promise<StudentResultView> => ({
       testCode: info.test.code,
       testTitle: info.test.title,

@@ -21,7 +21,8 @@ export interface LinkTest {
   multi: boolean;
   // Names the test together with its id: ids of deleted tests come back.
   createdAt: string;
-  // The test or its class is archived: its results are closed for good.
+  // The test or its class is archived. Archiving closes the results; the
+  // teacher may still publish some, or take the test out of the archive.
   archived: boolean;
 }
 

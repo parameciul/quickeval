@@ -1,6 +1,14 @@
 import type { Context } from 'hono';
 import { Hono } from 'hono';
-import { resultCodeBody, startSessionBody, type ConfirmAnswer, type LinkInfo, type ResultCodeAnswer, type UploadSession } from '../../shared/api.ts';
+import {
+  resultCodeBody,
+  startSessionBody,
+  type ConfirmAnswer,
+  type LinkInfo,
+  type ResultCodeAnswer,
+  type ResultStatusAnswer,
+  type UploadSession,
+} from '../../shared/api.ts';
 import { checkoutBody } from '../../shared/payments.ts';
 import { MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, studentFileKey } from '../../shared/files.ts';
 import { isResultToken, isUploadToken, normalizeResultCode } from '../../shared/tests.ts';
@@ -291,6 +299,15 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     }
     if (!found) throw new ApiError(404, 'unknown_code', 'Codul nu este bun. Verifică fiecare literă și încearcă din nou.');
     return c.json(found satisfies ResultCodeAnswer);
+  });
+
+  // Whether a result link opens now: one small read, for the test's page,
+  // which then opens the result page, where the result itself is read.
+  routes.get('/result/:resultToken/status', async (c) => {
+    const resultToken = c.req.param('resultToken') ?? '';
+    const published = isResultToken(resultToken) ? await resultsOpenByToken(c.env.DB, resultToken) : null;
+    if (published === null) throw new ApiError(404, 'unknown_link', 'Link greșit. Cere profesorului linkul nou.');
+    return c.json({ published } satisfies ResultStatusAnswer);
   });
 
   // A student's result page by its secret link. Only while the teacher keeps

@@ -329,7 +329,9 @@ async function learnOtherLinks(api: UploadApi, uploadToken: string): Promise<voi
 // ticket once the results are published, and the result opens. The phone
 // keeps only the links it sent: a code typed on a classmate's phone would
 // otherwise open there by itself for its owner. Before the publish there is
-// no field: a code would open nothing yet.
+// no field: a code would open nothing yet. Nor while this phone's own result
+// waits (other results are out): the phone sent that paper, so the page is
+// for its result.
 function ClosedScreen({
   api,
   uploadToken,
@@ -381,23 +383,24 @@ function ClosedScreen({
 
 // What the closed page says while no result opens from it.
 function waitLine(info: LinkInfo, waiting: boolean): string {
-  if (waiting) return 'Rezultatul tău nu a fost publicat încă. Revino pe acest link după ce profesorul îl publică.';
-  // Archiving closes the results, and they may never open again.
+  // Archiving closes the results, and they may never open again: waiting for
+  // a publish would mislead, also when the teacher published a few results
+  // of the archived test.
   if (info.test.archived) return 'Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.';
+  if (waiting) return 'Rezultatul tău nu a fost publicat încă. Revino pe acest link după ce profesorul îl publică.';
   return 'Rezultatele nu au fost publicate încă. Revino pe acest link după ce profesorul le publică.';
 }
 
 // Whether the result of a paper this phone sent can open now: 'closed' while
 // the teacher keeps it unpublished (other results of the test may be out),
 // 'gone' for a link the server no longer knows (a reset paper: it is
-// forgotten, so the page asks for the code), else 'open'. On any other
-// trouble the result page opens and says what is wrong.
+// forgotten, so the page asks for the code), else 'open'. It asks only that,
+// not for the result, which the result page then reads. On any other trouble
+// the result page opens and says what is wrong.
 async function ownResult(api: UploadApi, resultToken: string): Promise<'open' | 'closed' | 'gone'> {
   try {
-    await api.getResult(resultToken);
-    return 'open';
+    return (await api.resultPublished(resultToken)) ? 'open' : 'closed';
   } catch (err) {
-    if (err instanceof ApiError && err.code === 'results_closed') return 'closed';
     if (err instanceof ApiError && err.code === 'unknown_link') {
       forgetResultLinkByToken(resultToken);
       return 'gone';
