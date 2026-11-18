@@ -211,12 +211,17 @@ function classNext() {
   );
 }
 
-// What "Redeschide încărcarea" does, after the grading or during it.
-const REOPEN_HINT = {
-  done: 'Pentru elevii care nu au trimis. Notele date rămân.',
-  grading:
-    'Pentru elevii care nu au trimis. Notele date rămân; lucrările care nu sunt gata așteaptă din nou, până pornești corectarea pentru toate.',
-} as const;
+// The line over "Redeschide încărcarea" once the uploads closed: who did not
+// send and what a reopen is for, or only that everyone sent.
+function closedLine(test: TestInfo): string {
+  const left = Math.max(0, test.studentCount - test.submittedCount);
+  if (left === 0) return 'Au trimis toți elevii.';
+  const theirs = left === 1 ? 'lucrarea lui' : 'lucrările lor';
+  return `Elevii nu mai pot trimite. ${countLabel(left, 'elev nu a', 'elevi nu au')} trimis. Redeschide dacă mai vrei ${theirs}. Notele date nu se schimbă.`;
+}
+
+// What a reopen does while the robot still grades.
+const REOPEN_WHILE_GRADING = 'Dacă redeschizi acum, lucrările care nu sunt gata așteaptă din nou, până pornești corectarea pentru toate.';
 
 // The "Acum" box of În clasă, by the state of the test. The test is printed
 // before the day of the test (its QR code is ready from the start) and started
@@ -279,13 +284,13 @@ function ClassNow({ test, onChanged, onRobot }: PanelProps) {
         )
       }
     >
-      <p className="now-sub">Elevii nu mai pot trimite.</p>
+      <p className="now-sub">{closedLine(test)}</p>
       <div className="now-actions">
         <button type="button" className="button-quiet" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
           <ActionIcon name="retry" />
           Redeschide încărcarea
         </button>
-        <p className="hint">{REOPEN_HINT[test.status === 'done' ? 'done' : 'grading']}</p>
+        {test.status === 'evaluating' && <p className="hint">{REOPEN_WHILE_GRADING}</p>}
       </div>
       {reopen.error && <ErrorMessage error={reopen.error} />}
     </NowBox>
@@ -442,22 +447,19 @@ function GradingNow({ test, uploads, onChanged, onRobot }: PanelProps) {
     );
   }
   const sent = uploads.filter((row) => row.status === 'graded' || row.status === 'grading' || row.status === 'submitted' || row.status === 'failed').length;
-  const left = Math.max(0, test.studentCount - test.submittedCount);
   return (
     <NowBox label={`Acum${since}`} title={`Se corectează: ${test.gradedCount} din ${countLabel(sent, 'lucrare', 'lucrări')} gata`} next={gradingNext()}>
       <span className="now-bar" aria-hidden="true">
         <span style={{ width: `${sent === 0 ? 0 : (test.gradedCount / sent) * 100}%` }} />
       </span>
       <p className="now-sub">Lucrările apar în tabel pe măsură ce sunt gata. Poți închide pagina.</p>
+      <p className="now-sub">{closedLine(test)}</p>
       <div className="now-actions">
-        <span>
-          <strong>Încărcarea e închisă.</strong> {left === 0 ? 'Au trimis toți elevii.' : `${countLabel(left, 'elev nu a', 'elevi nu au')} trimis.`}
-        </span>
         <button type="button" className="button-quiet button-small" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
           <ActionIcon name="retry" />
           Redeschide încărcarea
         </button>
-        <p className="hint">{REOPEN_HINT.grading}</p>
+        <p className="hint">{REOPEN_WHILE_GRADING}</p>
       </div>
       {reopen.error && <ErrorMessage error={reopen.error} />}
     </NowBox>

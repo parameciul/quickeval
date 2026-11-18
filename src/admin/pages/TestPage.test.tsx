@@ -2149,8 +2149,25 @@ describe('TestPage uploads switch', () => {
 
   it('shows no switch once the grading started, and offers to open the uploads again', async () => {
     renderAdmin(`${PAGE}#grading`, switchApi({ status: 'evaluating', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }));
-    expect(await screen.findByText('Încărcarea e închisă.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Elevii nu mai pot trimite. 2 elevi nu au trimis. Redeschide dacă mai vrei lucrările lor. Notele date nu se schimbă.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^Dacă redeschizi acum, lucrările care nu sunt gata așteaptă din nou/)).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Redeschide încărcarea' })).toBeInTheDocument();
+  });
+
+  it('says only that everyone sent once the uploads closed after the whole class sent', async () => {
+    const all = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 })];
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 1 }],
+      students: {},
+      tests: [fakeTest({ status: 'done', uploadToken: FAKE_TOKEN, files: FILES, evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, all)],
+    });
+    renderAdmin(`${PAGE}#in-class`, api);
+    expect(await screen.findByText('Au trimis toți elevii.')).toBeInTheDocument();
+    expect(screen.queryByText(/Elevii nu mai pot trimite/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dacă redeschizi acum/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Redeschide încărcarea' })).toBeInTheDocument();
   });
 
