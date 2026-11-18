@@ -86,7 +86,7 @@ for (const [path, card] of Object.entries(SHARE)) {
   check(`content page ${path} says who wrote it and when`, content.text.includes('class="byline"') && content.text.includes('actualizat 10 noiembrie 2026'));
 }
 const guide = await page('/guide/');
-check('the guide shows the review screen', guide.text.includes('src="/app-verificare.png"') && guide.text.includes('width="1600"'));
+check('the guide shows the review screen', guide.text.includes('src="/app-verificare.png"') && guide.text.includes('width="1897"'));
 // public/404.html is what keeps Pages from answering like a single-page app.
 const missingPage = await page('/pagina-care-nu-exista');
 check('a missing page answers 404', missingPage.res.status === 404, String(missingPage.res.status));
