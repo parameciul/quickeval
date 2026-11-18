@@ -1,10 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { useLocation } from 'react-router';
 import type { RobotStart, TestDetail, TestInfo, UploadRow } from '../../../shared/api.ts';
 import { unsupportedMessage } from '../../../shared/subjects.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
-import { formatDateTime } from '../../ui/format.ts';
+import { countLabel, formatDateTime } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { EmptyState } from '../EmptyState.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -19,8 +19,9 @@ import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
 import { clearPrint } from './printPdf.ts';
 import { PrintTest } from './PrintTest.tsx';
-import { RegradeAllButton } from './RegradeAllButton.tsx';
-import { isMoveOn } from './MoveOnLink.tsx';
+import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
+import { NowBox, UploadsBand } from './StageNow.tsx';
+import { WaysIn } from './WaysIn.tsx';
 import { ReportCard } from './ReportCard.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
 import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
@@ -29,7 +30,6 @@ import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
 import { PapersProgress } from './PapersProgress.tsx';
-import { MultiUploadLink, QrOverlay, UploadLink, uploadLink } from './UploadLink.tsx';
 import { UploadsTable } from './UploadsTable.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
@@ -54,8 +54,9 @@ export interface PanelProps {
 const SENTENCES: Record<StageName, string> = {
   Pregătire: 'Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.',
   Tipărire: 'Tipărești testul. Fiecare pagină are un cod QR.',
-  'În clasă': 'Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.',
-  Corectare: 'Fiecare lucrare primește punctaj conform baremului, pas cu pas, cu 10 puncte din oficiu.',
+  'În clasă':
+    'Elevii trimit pozele lucrării de pe telefon: scanează codul QR de pe foaia testului sau deschid linkul primit de la tine. Fără cont și fără aplicație.',
+  Corectare: 'Fiecare lucrare primește punctaj după barem, pas cu pas, cu 10 puncte din oficiu.',
   Verificare: 'Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.',
   Rezultate:
     'După ce rezultatele sunt publicate, fiecare elev are acces la rezultatul lui: nota finală, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.',
@@ -154,48 +155,41 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
   );
 }
 
+// The numbers of the class: who sent, and who did not yet.
+function sentTitle(test: TestInfo): string {
+  return `${test.submittedCount} din ${countLabel(test.studentCount, 'elev', 'elevi')} ${test.submittedCount === 1 ? 'a trimis' : 'au trimis'} lucrarea`;
+}
+
+function notSent(test: TestInfo): string {
+  const left = Math.max(0, test.studentCount - test.submittedCount);
+  if (left === 0) return 'Au trimis toți elevii.';
+  return `${countLabel(left, 'elev nu a', 'elevi nu au')} trimis încă.`;
+}
+
+// În clasă (design A): the "Acum" box says where the test is and what comes
+// next, then how the students send their work, then the papers. While the
+// test is open, the box's band opens and closes the uploads.
 function ClassPanel(props: PanelProps) {
   const { test, uploads, onChanged } = props;
   // While the test is open and no student has started an upload, the papers
   // table would only say "Nu a trimis". A started upload with no file yet is a
   // row ("Încarcă…", with "Resetează").
   const nothingYet = test.status === 'open' && uploads.every((row) => row.submissionId === null);
-  // The students' link, while they may still need it (spec 2026-11-15 §4):
-  // the printed QR code is the usual way in, the link is for a student without
-  // the printed test. Its QR code on the whole screen belongs to the panel: it
-  // stays open when the first paper turns the empty state into the table, and
-  // closing it gives the focus back to its button.
-  const [fullScreen, setFullScreen] = useState(false);
-  const button = useRef<HTMLButtonElement>(null);
-  const token = (test.status === 'draft' || test.status === 'open') && test.uploadToken !== null ? test.uploadToken : null;
-  // The uploads closed while the QR code was on the whole screen (the teacher
-  // stopped them elsewhere, or a scheduled grading started): the code and its
-  // button go away, so the focus goes to the panel's heading.
-  useEffect(() => {
-    if (token !== null || !fullScreen) return;
-    setFullScreen(false);
-    document.querySelector<HTMLElement>('.stage-head h2')?.focus();
-  }, [token, fullScreen]);
+  const closed = test.status === 'open' && test.uploadsClosedAt !== null;
   return (
     <>
-      <TestActions {...props} />
-      {token !== null && (
-        <div className="class-link">
-          <UploadLink token={token} qr={false} />
-          <p>
-            <button ref={button} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
-              <ActionIcon name="qr" />
-              Arată codul QR pe tot ecranul
-            </button>
-          </p>
-          <p className="hint">
-            {test.status === 'draft'
-              ? 'Codul e pe testul tipărit. Elevii trimit lucrările după ce începi testul.'
-              : 'Pentru un elev fără testul tipărit.'}
-          </p>
-        </div>
+      <ClassNow {...props} />
+      {test.status === 'draft' || (test.status === 'open' && !closed) ? (
+        <WaysIn test={test} onChanged={onChanged} />
+      ) : (
+        closed && (
+          <>
+            <h3>Cum trimit elevii lucrarea</h3>
+            <p className="hint">Încărcarea e închisă: linkurile nu primesc lucrări până o redeschizi. Codul QR de pe foaie rămâne același.</p>
+          </>
+        )
       )}
-      {test.status === 'open' && <MultiUploadLink code={test.code} token={test.multiUploadToken} onChanged={onChanged} />}
+      {test.status === 'open' && <StopTest {...props} />}
       {nothingYet ? (
         <EmptyState icon={<IconQr />} title="Nicio lucrare trimisă încă">
           Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.
@@ -203,23 +197,171 @@ function ClassPanel(props: PanelProps) {
       ) : (
         test.status !== 'draft' && <Papers {...props} selectable={false} />
       )}
-      {fullScreen && token !== null && (
-        <QrOverlay
-          url={uploadLink(token)}
-          onClose={() => {
-            setFullScreen(false);
-            button.current?.focus();
-          }}
-        />
-      )}
     </>
   );
 }
 
+function classNext() {
+  return (
+    <>
+      Corectarea o pornești la etapa <MoveOnLink stage="Corectare">Corectare</MoveOnLink>, acum sau mai târziu.
+    </>
+  );
+}
+
+// What "Redeschide încărcarea" does, after the grading or during it.
+const REOPEN_HINT = {
+  done: 'Pentru elevii care nu au trimis. Notele date rămân.',
+  grading:
+    'Pentru elevii care nu au trimis. Notele date rămân; lucrările care nu sunt gata așteaptă din nou, până pornești corectarea pentru toate.',
+} as const;
+
+// The "Acum" box of În clasă, by the state of the test. The test is printed
+// before the day of the test (its QR code is ready from the start) and started
+// on that day: starting it opens the uploads and gives the test its date.
+function ClassNow({ test, onChanged, onRobot }: PanelProps) {
+  const api = useApi();
+  const start = useMutation({
+    mutationFn: () => api.startTest(test.code),
+    onSuccess: async (started) => {
+      onRobot(started.robot);
+      await onChanged();
+    },
+  });
+  const reopen = useMutation({
+    mutationFn: () => api.reopenTest(test.code),
+    onSuccess: async (reopened) => {
+      onRobot(reopened.robot);
+      await onChanged();
+    },
+  });
+
+  if (test.status === 'draft') {
+    return (
+      <NowBox label="Acum" title="Testul nu a început" next="Elevii trimit pozele lucrării. Le vezi aici, pe măsură ce vin.">
+        <p className="now-sub">Elevii nu pot trimite lucrări încă. Începe testul în ziua testului, când împarți foile: atunci primește data.</p>
+        <div className="now-actions">
+          <button type="button" className="button" disabled={start.isPending} onClick={() => start.mutate()}>
+            <ActionIcon name="play" />
+            Începe testul
+          </button>
+        </div>
+        <MissingList missing={missingOf(test)} lead="Înainte să începi," after="Poți începe oricum." why />
+        {start.error && <ErrorMessage error={start.error} />}
+      </NowBox>
+    );
+  }
+  if (test.status === 'open') {
+    const since = test.startedAt ? `Testul a început pe ${formatDateTime(test.startedAt)}. ` : '';
+    return (
+      <NowBox band={<UploadsBand test={test} onChanged={onChanged} />} title={sentTitle(test)} next={classNext()}>
+        <p className="now-sub">{test.uploadsClosedAt !== null ? 'Lucrările așteaptă să pornești corectarea.' : `${since}${notSent(test)}`}</p>
+        <ScheduledStart test={test} onChanged={onChanged} />
+      </NowBox>
+    );
+  }
+  const closedAt = test.evaluationStartedAt ? ` pe ${formatDateTime(test.evaluationStartedAt)}` : '';
+  return (
+    <NowBox
+      label={`Acum · încărcarea s-a închis${closedAt}`}
+      title={sentTitle(test)}
+      next={
+        test.status === 'done' ? (
+          <>
+            Corectarea s-a terminat. Verifici punctele nesigure la etapa <MoveOnLink stage="Verificare">Verificare</MoveOnLink>.
+          </>
+        ) : (
+          <>
+            Se corectează lucrările la etapa <MoveOnLink stage="Corectare">Corectare</MoveOnLink>: {test.gradedCount} din {test.submittedCount} gata.
+          </>
+        )
+      }
+    >
+      <p className="now-sub">Elevii nu mai pot trimite.</p>
+      <div className="now-actions">
+        <button type="button" className="button-quiet" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
+          <ActionIcon name="retry" />
+          Redeschide încărcarea
+        </button>
+        <p className="hint">{REOPEN_HINT[test.status === 'done' ? 'done' : 'grading']}</p>
+      </div>
+      {reopen.error && <ErrorMessage error={reopen.error} />}
+    </NowBox>
+  );
+}
+
+// "Oprește testul": for a test started by mistake, while no student has
+// uploaded a file and the test was never evaluated (the API checks it too).
+function StopTest({ test, uploads, onChanged, onRobot }: PanelProps) {
+  const api = useApi();
+  const stop = useMutation({
+    mutationFn: () => api.stopTest(test.code),
+    onSuccess: async () => {
+      onRobot(null);
+      await onChanged();
+    },
+  });
+  const canStop = test.evaluationStartedAt === null && uploads.every((row) => row.fileCount === 0);
+  if (!canStop && !stop.error) return null;
+  return (
+    <>
+      {canStop && (
+        <p className="stop-row">
+          <span className="hint">Ai început testul din greșeală?</span>
+          <button
+            type="button"
+            className="button-quiet button-small"
+            disabled={stop.isPending}
+            onClick={() => {
+              const schedule = test.evaluationAt ? ' Corectarea programată se anulează.' : '';
+              const question = `Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge.${schedule}`;
+              if (window.confirm(question)) stop.mutate();
+            }}
+          >
+            <ActionIcon name="stop" />
+            Oprește testul
+          </button>
+        </p>
+      )}
+      {stop.error && <ErrorMessage error={stop.error} />}
+    </>
+  );
+}
+
+// A grading scheduled before the schedule left the page: it still starts by
+// itself, so the page says when and lets the teacher cancel it.
+function ScheduledStart({ test, onChanged }: { test: TestInfo; onChanged: () => Promise<void> }) {
+  const api = useApi();
+  const cancel = useMutation({ mutationFn: () => api.cancelSchedule(test.code), onSuccess: onChanged });
+  if (!test.evaluationAt) return null;
+  return (
+    <>
+      <p className="now-actions">
+        <span>Corectarea pornește automat la {formatDateTime(test.evaluationAt)}.</span>
+        <button type="button" className="button-quiet button-small" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
+          <ActionIcon name="close" />
+          Anulează programarea
+        </button>
+      </p>
+      {cancel.error && <ErrorMessage error={cancel.error} />}
+    </>
+  );
+}
+
+function gradingNext() {
+  return (
+    <>
+      Verifici punctele nesigure la etapa <MoveOnLink stage="Verificare">Verificare</MoveOnLink>.
+    </>
+  );
+}
+
+// Corectare (design A): the "Acum" box with the one action of the stage, by
+// the state of the test, then the papers.
 function GradingPanel(props: PanelProps) {
   const { test, uploads, robot, selected, onChanged, onRobot } = props;
   if (test.status === 'draft') {
-    return <p className="hint">Corectarea începe după ce elevii trimit lucrările. Atunci alegi lucrările și pornești corectarea, acum sau la o oră aleasă.</p>;
+    return <p className="hint">Corectarea începe după ce elevii trimit lucrările. Atunci alegi lucrările și pornești corectarea.</p>;
   }
   return (
     <>
@@ -227,16 +369,20 @@ function GradingPanel(props: PanelProps) {
       <ExerciseListBanner test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
       <CesWaiting test={test} />
       {test.status === 'open' ? (
-        <EvaluationControls
-          test={test}
-          uploads={uploads}
-          selected={selected}
-          onChanged={onChanged}
-          onStarted={props.onSelectionReset}
-          onRobot={onRobot}
-        />
+        <NowBox band={<UploadsBand test={test} onChanged={onChanged} grading />} title={waitingTitle(test, uploads)} next={gradingNext()}>
+          <StillSending uploads={uploads} />
+          <EvaluationControls
+            test={test}
+            uploads={uploads}
+            selected={selected}
+            onChanged={onChanged}
+            onStarted={props.onSelectionReset}
+            onRobot={onRobot}
+          />
+          <ScheduledStart test={test} onChanged={onChanged} />
+        </NowBox>
       ) : (
-        <EvaluationState test={test} />
+        <GradingNow {...props} />
       )}
       {test.status !== 'open' && <PartialEvaluationNotice status={test.status} uploads={uploads} />}
       {(test.status === 'evaluating' || test.evaluationAt) && (
@@ -246,10 +392,73 @@ function GradingPanel(props: PanelProps) {
           )}
         </RobotLine>
       )}
-      <RegradeAllButton code={test.code} testStatus={test.status} uploads={uploads} onChanged={onChanged} onRobot={onRobot} />
       <AnalysisState test={test} uploads={uploads} />
       <Papers {...props} selectable={test.status === 'open'} />
     </>
+  );
+}
+
+// "N lucrări așteaptă corectarea": the sent papers not graded yet, the same
+// number as the note of Corectare in the list of stages.
+function waitingTitle(test: TestInfo, uploads: UploadRow[]): string {
+  const waiting = Math.max(0, test.submittedCount - test.gradedCount);
+  if (waiting === 0) {
+    return uploads.some((row) => row.status === 'graded') ? 'Toate lucrările trimise sunt corectate' : 'Nicio lucrare trimisă nu așteaptă corectarea';
+  }
+  return `${countLabel(waiting, 'lucrare așteaptă', 'lucrări așteaptă')} corectarea`;
+}
+
+// The papers a student is still sending, with files: they can be graded too
+// while they stay checked in the table.
+function StillSending({ uploads }: { uploads: UploadRow[] }) {
+  const sending = uploads.filter((row) => row.status === 'uploading' && row.fileCount > 0).length;
+  if (sending === 0) return null;
+  return (
+    <p className="now-sub">
+      {sending === 1 ? 'Încă 1 elev își încarcă lucrarea' : `Încă ${countLabel(sending, 'elev', 'elevi')} își încarcă lucrarea`}: o poți corecta și pe ea cât e bifată în
+      tabel.
+    </p>
+  );
+}
+
+// The "Acum" box of a test whose uploads closed: grading goes on, or has ended.
+function GradingNow({ test, uploads, onChanged, onRobot }: PanelProps) {
+  const api = useApi();
+  const reopen = useMutation({
+    mutationFn: () => api.reopenTest(test.code),
+    onSuccess: async (reopened) => {
+      onRobot(reopened.robot);
+      await onChanged();
+    },
+  });
+  const since = test.evaluationStartedAt ? ` · corectarea a pornit pe ${formatDateTime(test.evaluationStartedAt)}` : '';
+  if (test.status === 'done') {
+    return (
+      <NowBox label={`Acum${since}`} title="Corectarea s-a terminat" next={gradingNext()}>
+        <p className="now-sub">{countLabel(test.gradedCount, 'lucrare corectată', 'lucrări corectate')}.</p>
+      </NowBox>
+    );
+  }
+  const sent = uploads.filter((row) => row.status === 'graded' || row.status === 'grading' || row.status === 'submitted' || row.status === 'failed').length;
+  const left = Math.max(0, test.studentCount - test.submittedCount);
+  return (
+    <NowBox label={`Acum${since}`} title={`Se corectează: ${test.gradedCount} din ${countLabel(sent, 'lucrare', 'lucrări')} gata`} next={gradingNext()}>
+      <span className="now-bar" aria-hidden="true">
+        <span style={{ width: `${sent === 0 ? 0 : (test.gradedCount / sent) * 100}%` }} />
+      </span>
+      <p className="now-sub">Lucrările apar în tabel pe măsură ce sunt gata. Poți închide pagina.</p>
+      <div className="now-actions">
+        <span>
+          <strong>Încărcarea e închisă.</strong> {left === 0 ? 'Au trimis toți elevii.' : `${countLabel(left, 'elev nu a', 'elevi nu au')} trimis.`}
+        </span>
+        <button type="button" className="button-quiet button-small" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
+          <ActionIcon name="retry" />
+          Redeschide încărcarea
+        </button>
+        <p className="hint">{REOPEN_HINT.grading}</p>
+      </div>
+      {reopen.error && <ErrorMessage error={reopen.error} />}
+    </NowBox>
   );
 }
 
@@ -302,103 +511,6 @@ function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRob
       />
     </>
   );
-}
-
-// What the teacher can do in class, by the state of the test. The test is
-// printed before the day of the test (its QR code is ready from the start) and
-// started on that day: starting it opens the uploads and gives the test its
-// date. A test started by mistake can be stopped while no student has uploaded
-// a file.
-function TestActions({ test, uploads, onChanged, onRobot }: PanelProps) {
-  const api = useApi();
-  const start = useMutation({
-    mutationFn: () => api.startTest(test.code),
-    onSuccess: async (started) => {
-      onRobot(started.robot);
-      await onChanged();
-    },
-  });
-  const stop = useMutation({
-    mutationFn: () => api.stopTest(test.code),
-    onSuccess: async () => {
-      onRobot(null);
-      await onChanged();
-    },
-  });
-  const reopen = useMutation({
-    mutationFn: () => api.reopenTest(test.code),
-    onSuccess: async (reopened) => {
-      onRobot(reopened.robot);
-      await onChanged();
-    },
-  });
-
-  if (test.status === 'draft') {
-    return (
-      <>
-        <p className="hint">
-          Elevii pot încărca lucrările după ce începi testul. Începe-l în ziua testului, când le dai foile: data testului este ziua
-          în care îl începi.
-        </p>
-        <p>
-          <button type="button" className="button" disabled={start.isPending} onClick={() => start.mutate()}>
-            <ActionIcon name="play" />
-            Începe testul
-          </button>
-        </p>
-        <MissingList missing={missingOf(test)} lead="Înainte să începi," after="Poți începe oricum." why />
-        {start.error && <ErrorMessage error={start.error} />}
-      </>
-    );
-  }
-  // Stopping is refused once a student has uploaded a file, or once the test
-  // was evaluated (a reopened test): the API checks it too.
-  const canStop = test.evaluationStartedAt === null && uploads.every((row) => row.fileCount === 0);
-  if (test.status === 'open')
-    return (
-      <>
-        <p className="hint">Elevii trimit lucrările. Corectarea pornește la etapa Corectare, acum sau la o oră aleasă.</p>
-        {canStop && (
-          <>
-            <p className="hint">Ai început testul din greșeală? Îl poți opri cât timp niciun elev nu a încărcat lucrarea.</p>
-            <p>
-              <button
-                type="button"
-                className="button-quiet button-small"
-                disabled={stop.isPending}
-                onClick={() => {
-                  const schedule = test.evaluationAt ? ' Evaluarea programată se anulează.' : '';
-                  const question = `Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge.${schedule}`;
-                  if (window.confirm(question)) stop.mutate();
-                }}
-              >
-                <ActionIcon name="stop" />
-                Oprește testul
-              </button>
-            </p>
-          </>
-        )}
-        {stop.error && <ErrorMessage error={stop.error} />}
-      </>
-    );
-  return (
-    <>
-      <p className="hint">Încărcarea este închisă. Dacă o redeschizi, elevii care nu au trimis pot încărca acum.</p>
-      <p>
-        <button type="button" className="button-quiet" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
-          <ActionIcon name="retry" />
-          Redeschide încărcarea
-        </button>
-      </p>
-      {reopen.error && <ErrorMessage error={reopen.error} />}
-    </>
-  );
-}
-
-// A test whose uploads closed: grading goes on, or has ended.
-function EvaluationState({ test }: { test: TestInfo }) {
-  const since = test.evaluationStartedAt ? ` Evaluarea a pornit la ${formatDateTime(test.evaluationStartedAt)}.` : '';
-  return <p>{test.status === 'done' ? `Corectarea s-a terminat.${since}` : `Robotul corectează lucrările trimise.${since}`}</p>;
 }
 
 // An evaluation with uploads that stayed out of it: the teacher selected others,

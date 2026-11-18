@@ -245,7 +245,9 @@ describe('the shell', () => {
     renderAdmin('/tests/6E2-26T2#in-class', withClasses());
     const bar = await menu();
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Arată codul QR' }))[0]!);
+    const window = screen.getByRole('dialog', { name: 'Linkul testului pentru elevi' });
+    await userEvent.click(within(window).getByRole('button', { name: 'Pe tot ecranul' }));
     expect(screen.getByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: 'Codul QR pentru elevi' })).not.toBeInTheDocument();

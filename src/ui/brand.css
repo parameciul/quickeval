@@ -1724,21 +1724,6 @@ a.class-badge:hover {
   font-size: 0.9rem;
 }
 
-.papers-points {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.25rem 0 0;
-  padding-top: 0.625rem;
-  border-top: 1px solid var(--rule);
-}
-
-.papers-points-count {
-  color: var(--orange);
-  font-weight: 700;
-}
-
 .check-label {
   display: inline-flex;
   align-items: center;
@@ -2411,6 +2396,301 @@ table.tests .row-actions {
   font-size: 1rem;
 }
 
+/* The "Acum" box at the top of În clasă and Corectare (design A): what is
+   true now, the stage's action, and what comes next. While the test is open,
+   the uploads' band runs across its top (design Y3). */
+.now-box {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--raised);
+}
+
+.now-box.has-band {
+  padding-top: 0;
+  overflow: hidden;
+}
+
+.now-box > p,
+.now-actions > p {
+  margin: 0;
+}
+
+.now-label {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.now-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.now-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+}
+
+.now-actions > .hint {
+  flex-basis: 100%;
+}
+
+.now-next {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+}
+
+.now-next strong {
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.now-bar {
+  display: block;
+  max-width: 28rem;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--active);
+}
+
+.now-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--ink);
+}
+
+.uploads-band {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 -1.25rem;
+  padding: 0.75rem 1.25rem;
+}
+
+.uploads-band p {
+  margin: 0;
+  color: var(--text);
+}
+
+.uploads-band.is-open {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.uploads-band.is-shut {
+  background: var(--marker);
+  color: var(--orange);
+}
+
+.uploads-band-dot {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.uploads-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.uploads-toggle:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.uploads-toggle-track {
+  position: relative;
+  display: block;
+  width: 3rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: var(--control);
+  transition: background-color 0.15s;
+}
+
+.uploads-toggle[aria-checked="true"] .uploads-toggle-track {
+  background: var(--ok-fg);
+}
+
+.uploads-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(1.75rem - 6px);
+  height: calc(1.75rem - 6px);
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.15s;
+}
+
+.uploads-toggle[aria-checked="true"] .uploads-toggle-knob {
+  transform: translateX(1.25rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uploads-toggle-track,
+  .uploads-toggle-knob {
+    transition: none;
+  }
+}
+
+/* How the students send their work: one row per way, its buttons on the
+   right; the teacher's own link last, on a tinted row. */
+.ways {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+}
+
+.ways > li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+  padding: 0.875rem 1rem;
+}
+
+.ways > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.ways > li:last-child:nth-child(3) {
+  border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+  background: var(--raised);
+}
+
+.ways-icon {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.ways-icon .action-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.ways-text {
+  margin: 0;
+}
+
+.ways-text strong {
+  display: block;
+  font-weight: 600;
+}
+
+.ways-text span {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.ways-text .ways-tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--marker);
+  color: var(--orange);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.ways-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.stop-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .ways > li {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .ways-buttons {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .uploads-band {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .uploads-toggle {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .now-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* The QR code of a link in a window, the link under it. */
+.qr-window {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.qr-window-code {
+  justify-self: center;
+  width: min(18rem, 100%);
+  height: auto;
+  background: #ffffff;
+}
+
+.qr-window-url {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--raised);
+  word-break: break-all;
+}
+
+.qr-window-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* The bar at the foot of the test page (design A, bar C2): the stage on show,
    what waits in the next one, and a small button into it. It sticks to the
    bottom of the window while the page is longer, and rests at the page's end
@@ -3018,20 +3298,6 @@ table.tests .row-actions {
   margin: 0;
   text-align: right;
   overflow-wrap: anywhere;
-}
-
-/* The students' link in În clasă (spec 2026-11-15 §4). */
-.class-link {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.class-link > p {
-  margin: 0;
-}
-
-.class-link .upload-link label {
-  font-weight: 600;
 }
 
 .rename-form {
@@ -4830,51 +5096,6 @@ input[type="file"] {
   border-color: var(--error-fg);
   background: var(--error-bg);
   color: var(--error-fg);
-}
-
-/* The upload link: the address, a QR code, and the projector view */
-
-.upload-link input[type="text"] {
-  flex: 1 1 18rem;
-  min-width: 0;
-}
-
-.qr {
-  display: block;
-  width: 200px;
-  height: 200px;
-  margin-top: 0.5rem;
-}
-
-/* The QR code with its full-screen button on the same row, right aligned. */
-.qr-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
-  max-width: 44rem;
-  margin-top: 0.5rem;
-}
-
-.qr-row .qr {
-  margin-top: 0;
-}
-
-.qr-row .qr-full {
-  margin-left: auto;
-}
-
-/* The QR code's buttons: full screen, and the PNG download when offered. */
-.qr-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
-}
-
-.qr-actions .qr-full {
-  margin-left: 0;
 }
 
 .qr-overlay {

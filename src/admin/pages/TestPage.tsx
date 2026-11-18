@@ -95,7 +95,7 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
             {studentCountLabel(test.studentCount)} · {test.startedAt ? `început ${formatDateTime(test.startedAt)}` : 'ciornă'}
           </p>
         </div>
-        <TestMenu test={test} onChanged={refresh} onRobot={onRobot} />
+        <TestMenu test={test} uploads={uploads} onChanged={refresh} onRobot={onRobot} />
       </div>
       {refreshError && <ErrorMessage error={refreshError} />}
       {notice && (

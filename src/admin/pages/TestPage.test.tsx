@@ -126,28 +126,34 @@ describe('TestPage', () => {
     const api = apiWith();
     renderAdmin(`${PAGE}#in-class`, api);
     const panel = await screen.findByRole('region', { name: 'În clasă' });
-    expect(within(panel).getByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(within(panel).getByText('Codul e pe testul tipărit. Elevii trimit lucrările după ce începi testul.')).toBeInTheDocument();
+    expect(within(panel).getByText('Testul nu a început')).toBeInTheDocument();
+    expect(within(panel).getByRole('heading', { level: 3, name: 'Cum vor trimite elevii lucrarea' })).toBeInTheDocument();
+    expect(within(panel).getByText('Pentru un elev fără foaie. Linkul merge după ce începi testul.')).toBeInTheDocument();
+    // No address on the page: a copy and a QR code in a window.
+    expect(within(panel).queryByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).not.toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: 'Copiază linkul tău' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Începe testul' }));
     expect(api.startTest).toHaveBeenCalledWith('6E2-26T1');
-    expect(await within(panel).findByText('Pentru un elev fără testul tipărit.')).toBeInTheDocument();
-    expect(within(panel).getByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(within(panel).getByRole('button', { name: 'Arată codul QR pe tot ecranul' })).toBeInTheDocument();
-    expect(within(sheet()).queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+    expect(await within(panel).findByText('Încărcarea e deschisă.')).toBeInTheDocument();
+    expect(within(panel).getByRole('heading', { level: 3, name: 'Cum trimit elevii lucrarea' })).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Copiază linkul tău' })).toBeInTheDocument();
+    expect(within(panel).getAllByRole('button', { name: 'Arată codul QR' })).toHaveLength(2);
+    expect(within(sheet()).queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
   });
 
   it('shows the students link only while the test is a draft or open', async () => {
     for (const status of ['draft', 'open'] as const) {
       const view = renderAdmin(`${PAGE}#in-class`, apiWith({ status }));
-      expect(await screen.findByLabelText('Linkul pentru elevi')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Arată linkurile' })).not.toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
       view.unmount();
     }
     for (const status of ['evaluating', 'done'] as const) {
       const view = renderAdmin(`${PAGE}#in-class`, apiWith({ status }));
       await screen.findByRole('region', { name: 'În clasă' });
-      expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Arată codul QR pe tot ecranul' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Arată codul QR' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Redeschide încărcarea' })).toBeInTheDocument();
       view.unmount();
     }
   });
@@ -155,7 +161,7 @@ describe('TestPage', () => {
   it('shows no students link in a draft made before tests got their link', async () => {
     renderAdmin(`${PAGE}#in-class`, apiWith({ uploadToken: null }));
     await screen.findByRole('region', { name: 'În clasă' });
-    expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
   });
 
   it('shows the print block on a draft and an open test, and once the uploads closed only a PDF made before', async () => {
@@ -182,7 +188,7 @@ describe('TestPage', () => {
     expect(screen.getByText('Poți tipări testul de acum. Elevii încarcă lucrările după ce începi testul.')).toBeInTheDocument();
     expect(within(sheet()).queryByRole('link')).not.toBeInTheDocument();
     await openStage('În clasă');
-    expect(screen.getByText(/Începe-l în ziua testului/)).toBeInTheDocument();
+    expect(screen.getByText(/Începe testul în ziua testului/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Începe testul' })).toBeInTheDocument();
   });
 
@@ -238,12 +244,18 @@ describe('TestPage', () => {
 
   it('shows the QR code on the whole screen and closes it with Escape', async () => {
     renderAdmin(`${PAGE}#in-class`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
+    const show = (await screen.findAllByRole('button', { name: 'Arată codul QR' }))[0]!;
+    await userEvent.click(show);
+    const window_ = screen.getByRole('dialog', { name: 'Linkul testului pentru elevi' });
+    expect(within(window_).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
+    expect(within(window_).getByTitle('Codul QR al linkului')).toBeInTheDocument();
+    await userEvent.click(within(window_).getByRole('button', { name: 'Pe tot ecranul' }));
     const dialog = screen.getByRole('dialog', { name: 'Codul QR pentru elevi' });
     expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Închide' })).toHaveFocus();
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(show).toHaveFocus();
   });
 
   it('uploads the test file and links to it', async () => {
@@ -288,16 +300,16 @@ describe('TestPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Încărcările elevilor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Oprește testul' })).toBeInTheDocument();
-    const show = within(screen.getByRole('region', { name: 'În clasă' })).getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
+    const show = within(screen.getByRole('region', { name: 'În clasă' })).getAllByRole('button', { name: 'Arată codul QR' })[0]!;
     await userEvent.click(show);
-    const dialog = await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
-    expect(within(dialog).getByText(`${window.location.origin}/u/${FAKE_TOKEN}`)).toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Închide' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const window_ = await screen.findByRole('dialog', { name: 'Linkul testului pentru elevi' });
+    await userEvent.keyboard('{Escape}');
+    expect(window_).not.toBeInTheDocument();
     expect(show).toHaveFocus();
     await userEvent.click(show);
-    await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
-    await userEvent.keyboard('{Escape}');
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Linkul testului pentru elevi' })).getByRole('button', { name: 'Pe tot ecranul' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Închide' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(show).toHaveFocus();
   });
@@ -312,8 +324,9 @@ describe('TestPage', () => {
     });
     renderAdmin(`${PAGE}#in-class`, api);
     await screen.findByRole('heading', { name: 'Nicio lucrare trimisă încă' });
-    const show = screen.getByRole('button', { name: 'Arată codul QR pe tot ecranul' });
+    const show = screen.getAllByRole('button', { name: 'Arată codul QR' })[0]!;
     await userEvent.click(show);
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Linkul testului pentru elevi' })).getByRole('button', { name: 'Pe tot ecranul' }));
     expect(await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' })).toBeInTheDocument();
     detail.uploads[1] = fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 });
     await act(async () => {
@@ -326,26 +339,22 @@ describe('TestPage', () => {
     vi.useRealTimers();
   });
 
-  it('closes the QR code on the whole screen and gives the focus to the panel when the uploads close meanwhile', async () => {
-    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, studentCount: 3 }, notSent());
-    const api = createFakeApi({
-      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
-      students: {},
-      tests: [detail],
-    });
-    renderAdmin(`${PAGE}#in-class`, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Arată codul QR pe tot ecranul' }));
-    await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
-    detail.test.status = 'evaluating';
-    await act(async () => {
-      vi.advanceTimersByTime(60_000);
-    });
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Codul QR pentru elevi' })).not.toBeInTheDocument());
-    expect(screen.getByRole('heading', { level: 2, name: 'În clasă' })).toHaveFocus();
-    vi.useRealTimers();
-  });
 
+  it('copies the teacher link, made on its first copy, and shows its QR code', async () => {
+    const user = userEvent.setup();
+    const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN });
+    renderAdmin(`${PAGE}#in-class`, api);
+    await user.click(await screen.findByRole('button', { name: 'Copiază linkul tău' }));
+    expect(api.createMultiUploadLink).toHaveBeenCalledWith('6E2-26T1');
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
+    expect(await screen.findByText('Linkul tău a fost creat și copiat.')).toBeInTheDocument();
+    const qr = screen.getAllByRole('button', { name: 'Arată codul QR' })[1]!;
+    await user.click(qr);
+    const window_ = await screen.findByRole('dialog', { name: 'Linkul tău pentru mai multe lucrări' });
+    expect(within(window_).getByText(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`)).toBeInTheDocument();
+    expect(within(window_).queryByRole('button', { name: 'Pe tot ecranul' })).not.toBeInTheDocument();
+    expect(api.createMultiUploadLink).toHaveBeenCalledTimes(1);
+  });
   it('lists a student who started an upload with no file yet, so the teacher can reset it', async () => {
     const rows = [notSent()[0]!, fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 0 }), notSent()[2]!];
     renderAdmin(
@@ -658,7 +667,7 @@ describe('TestPage', () => {
     expect(await screen.findByText('Serverul nu răspunde. Încearcă din nou.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Fracții' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'În clasă' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Linkul pentru elevi')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
   });
 
   it('reopens the uploads of a closed test', async () => {
@@ -820,20 +829,19 @@ describe('TestPage', () => {
   it('creates the multi-upload link on demand and then shows it', async () => {
     const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN });
     renderAdmin(`${PAGE}#in-class`, api);
-    expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(screen.queryByLabelText('Doar pentru profesor: linkul pentru mai multe încărcări')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Creează linkul pentru mai multe încărcări' }));
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Arată codul QR' }))[1]!);
     expect(api.createMultiUploadLink).toHaveBeenCalledWith('6E2-26T1');
-    expect(await screen.findByLabelText('Doar pentru profesor: linkul pentru mai multe încărcări')).toHaveValue(
-      `${window.location.origin}/u/${FAKE_MULTI_TOKEN}`,
-    );
+    const window_ = await screen.findByRole('dialog', { name: 'Linkul tău pentru mai multe lucrări' });
+    expect(within(window_).getByText(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`)).toBeInTheDocument();
   });
 
   it('shows both upload links when the multi-upload link already exists', async () => {
-    renderAdmin(`${PAGE}#in-class`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN, multiUploadToken: FAKE_MULTI_TOKEN }));
-    expect(await screen.findByLabelText('Linkul pentru elevi')).toHaveValue(`${window.location.origin}/u/${FAKE_TOKEN}`);
-    expect(screen.getByLabelText('Doar pentru profesor: linkul pentru mai multe încărcări')).toHaveValue(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`);
-    expect(screen.queryByRole('button', { name: 'Creează linkul pentru mai multe încărcări' })).not.toBeInTheDocument();
+    const api = apiWith({ status: 'open', uploadToken: FAKE_TOKEN, multiUploadToken: FAKE_MULTI_TOKEN });
+    renderAdmin(`${PAGE}#in-class`, api);
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Arată codul QR' }))[1]!);
+    const window_ = await screen.findByRole('dialog', { name: 'Linkul tău pentru mai multe lucrări' });
+    expect(within(window_).getByText(`${window.location.origin}/u/${FAKE_MULTI_TOKEN}`)).toBeInTheDocument();
+    expect(api.createMultiUploadLink).not.toHaveBeenCalled();
   });
 
   it('shows in Fișa testului the state, who sent a paper, the average in its grade colour, and the facts', async () => {
@@ -1265,7 +1273,7 @@ describe('TestPage and a test started by mistake', () => {
     renderAdmin(`${PAGE}#in-class`, api);
     await userEvent.click(await screen.findByRole('button', { name: 'Oprește testul' }));
     expect(confirm).toHaveBeenCalledWith(
-      'Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge. Evaluarea programată se anulează.',
+      'Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge. Corectarea programată se anulează.',
     );
   });
 
@@ -1276,13 +1284,13 @@ describe('TestPage and a test started by mistake', () => {
       tests: [fakeTest({ status: 'open', evaluationStartedAt: '2026-10-06T09:00:00.000Z' }, structuredClone(noFiles))],
     });
     renderAdmin(`${PAGE}#in-class`, api);
-    expect(await screen.findByText(/^Elevii trimit lucrările\./)).toBeInTheDocument();
+    expect(await screen.findByText('Încărcarea e deschisă.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Oprește testul' })).not.toBeInTheDocument();
   });
 
   it('offers no stop once a student has uploaded a file', async () => {
     renderAdmin(`${PAGE}#in-class`, openApi(uploads));
-    expect(await screen.findByText(/^Elevii trimit lucrările\./)).toBeInTheDocument();
+    expect(await screen.findByText('Încărcarea e deschisă.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Oprește testul' })).not.toBeInTheDocument();
   });
 
@@ -1333,7 +1341,7 @@ describe('TestPage evaluation', () => {
     const api = evaluationApi({}, twoWithFiles());
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin(`${PAGE}#grading`, api);
-    const start = await screen.findByRole('button', { name: 'Pornește evaluarea acum' });
+    const start = await screen.findByRole('button', { name: 'Închide încărcarea și pornește corectarea' });
     // Every upload with files starts checked: the button is on.
     expect(start).toBeEnabled();
     expect(screen.getByLabelText('Selectează lucrarea elevului Pop Ion')).toBeChecked();
@@ -1347,26 +1355,26 @@ describe('TestPage evaluation', () => {
     expect(api.evaluateTest).not.toHaveBeenCalled();
     await userEvent.click(start);
     expect(confirm).toHaveBeenLastCalledWith(
-      'Pornești evaluarea acum pentru 1 lucrare? Elevii nu mai pot încărca după asta. Lucrările neselectate cu fișiere așteaptă o evaluare ulterioară.',
+      'Închizi încărcarea și pornești corectarea pentru 1 lucrare? Elevii nu mai pot trimite; poți redeschide încărcarea oricând. Lucrările neselectate cu fișiere așteaptă o corectare ulterioară.',
     );
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5]);
     expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
     expect(screen.getByText('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.')).toHaveAttribute('role', 'status');
     // The unchecked paper waits for a later evaluation.
     expect(screen.getByText(/1 lucrare cu fișiere nu a fost corectată/)).toBeInTheDocument();
-    expect(screen.getByText(/^Robotul corectează lucrările trimise\. Evaluarea a pornit la 8 oct\. 2026, 10:00\.$/)).toBeInTheDocument();
+    expect(screen.getByText('Acum · corectarea a pornit pe 8 oct. 2026, 10:00')).toBeInTheDocument();
     expect(screen.getByText('Robotul nu a verificat încă dacă are lucrări de corectat.')).toBeInTheDocument();
     expect(screen.getByText('Corectarea poate întârzia.')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Linkul pentru elevi')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
   });
 
   it('starts the evaluation for every upload with files when the teacher unchecks nothing', async () => {
     const api = evaluationApi({}, twoWithFiles());
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(`${PAGE}#grading`, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Pornește evaluarea acum' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Închide încărcarea și pornește corectarea' }));
     expect(confirm).toHaveBeenLastCalledWith(
-      'Pornești evaluarea acum pentru 2 lucrări? Elevii nu mai pot încărca după asta. Lucrările neselectate cu fișiere așteaptă o evaluare ulterioară.',
+      'Închizi încărcarea și pornești corectarea pentru 2 lucrări? Elevii nu mai pot trimite; poți redeschide încărcarea oricând. Lucrările neselectate cu fișiere așteaptă o corectare ulterioară.',
     );
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5, 6]);
   });
@@ -1381,7 +1389,7 @@ describe('TestPage evaluation', () => {
     await openStage('Corectare');
     expect(screen.getByLabelText('Selectează lucrarea elevului Pop Ion')).not.toBeChecked();
     expect(screen.getByLabelText('Selectează lucrarea elevului Stan Eva')).toBeChecked();
-    await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Închide încărcarea și pornește corectarea' }));
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [6]);
   });
 
@@ -1400,7 +1408,7 @@ describe('TestPage evaluation', () => {
       fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
     ];
     renderAdmin(`${PAGE}#grading`, evaluationApi({}, rows));
-    const start = await screen.findByRole('button', { name: 'Pornește evaluarea acum' });
+    const start = await screen.findByRole('button', { name: 'Închide încărcarea și pornește corectarea' });
     expect(start).toBeEnabled();
     // The student without files has no checkbox; the graded one cannot be picked.
     const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
@@ -1409,7 +1417,7 @@ describe('TestPage evaluation', () => {
     const all = screen.getByLabelText('Selectează toate lucrările cu fișiere');
     await userEvent.click(all);
     expect(start).toBeDisabled();
-    expect(screen.getByText('Selectează cel puțin o lucrare cu fișiere din tabel.')).toBeInTheDocument();
+    expect(screen.getByText('Bifează în tabel cel puțin o lucrare cu fișiere.')).toBeInTheDocument();
     await userEvent.click(all);
     expect(start).toBeEnabled();
     // One row at a time works too; with only some checked, the header box is mixed.
@@ -1434,7 +1442,7 @@ describe('TestPage evaluation', () => {
     await queryClient.invalidateQueries({ queryKey: ['test', '6E2-26T1'] });
     expect(await screen.findByLabelText('Selectează lucrarea elevului Marin Dan')).toBeChecked();
     expect(screen.getByLabelText('Selectează lucrarea elevului Stan Eva')).not.toBeChecked();
-    await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Închide încărcarea și pornește corectarea' }));
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5, 7]);
   });
 
@@ -1448,7 +1456,7 @@ describe('TestPage evaluation', () => {
     renderAdmin(`${PAGE}#grading`, api);
     const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
     expect(within(pop).queryByRole('checkbox')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Închide încărcarea și pornește corectarea' }));
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [6]);
   });
 
@@ -1462,14 +1470,14 @@ describe('TestPage evaluation', () => {
     vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin(`${PAGE}#grading`, api);
     expect(await screen.findByText('✓ Corectat complet')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Pornește evaluarea acum' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Selectează cel puțin o lucrare cu fișiere din tabel.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Bifează în tabel cel puțin o lucrare cu fișiere.')).not.toBeInTheDocument();
     const finish = screen.getByRole('button', { name: 'Marchează ca terminat' });
     await userEvent.click(finish);
     expect(api.finishTest).not.toHaveBeenCalled();
     await userEvent.click(finish);
     expect(api.finishTest).toHaveBeenCalledWith('6E2-26T1');
-    expect(await screen.findByText(/^Corectarea s-a terminat\./)).toBeInTheDocument();
+    expect(await screen.findByText('Corectarea s-a terminat')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Marchează ca terminat' })).not.toBeInTheDocument();
   });
 
@@ -1479,7 +1487,7 @@ describe('TestPage evaluation', () => {
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1 }),
     ];
     renderAdmin(`${PAGE}#grading`, evaluationApi({}, rows));
-    expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Marchează ca terminat' })).not.toBeInTheDocument();
     expect(screen.queryByText('✓ Corectat complet')).not.toBeInTheDocument();
   });
@@ -1534,7 +1542,7 @@ describe('TestPage evaluation', () => {
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'submitted', fileCount: 1 }),
     ];
     renderAdmin(`${PAGE}#grading`, evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows));
-    expect(await screen.findByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
+    expect(await screen.findByText('Acum · corectarea a pornit pe 7 oct. 2026, 11:00')).toBeInTheDocument();
     expect(screen.getByText('Evaluare parțială.')).toBeInTheDocument();
     expect(screen.getByText(/1 lucrare cu fișiere nu a fost corectată/)).toBeInTheDocument();
   });
@@ -1542,36 +1550,28 @@ describe('TestPage evaluation', () => {
   it('says nothing partial when every upload with files was graded', async () => {
     const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 })];
     renderAdmin(`${PAGE}#grading`, evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows));
-    expect(await screen.findByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
+    expect(await screen.findByText('Acum · corectarea a pornit pe 7 oct. 2026, 11:00')).toBeInTheDocument();
     expect(screen.queryByText('Evaluare parțială.')).not.toBeInTheDocument();
   });
 
   it('says what the evaluation still needs', async () => {
     const empty = [fakeUpload({ studentId: 12, studentName: 'Marin Dan' })];
     renderAdmin(`${PAGE}#grading`, evaluationApi({ files: { test: FILES.test, barem: null } }, empty));
-    expect(await screen.findByRole('button', { name: 'Pornește evaluarea acum' })).toBeDisabled();
-    expect(screen.getByText('Ca să pornești evaluarea: Încarcă baremul. Niciun elev nu a încărcat încă fișiere.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Sau pornește evaluarea automat la')).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).toBeDisabled();
+    expect(screen.getByText('Ca să pornești corectarea: Încarcă baremul. Niciun elev nu a încărcat încă fișiere.')).toBeInTheDocument();
   });
 
-  it("schedules the evaluation in Romania's time, and cancels the schedule", async () => {
-    const api = evaluationApi({});
-    renderAdmin(`${PAGE}#grading`, api);
-    const input = await screen.findByLabelText('Sau pornește evaluarea automat la');
-    expect(input).toHaveAttribute('min', '2026-10-08T10:00');
-    expect(input).toHaveAttribute('max', '2026-12-07T09:00');
-    fireEvent.change(input, { target: { value: '2026-10-20T10:15' } });
-    await userEvent.click(screen.getByRole('button', { name: 'Programează' }));
-    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', '2026-10-20T07:15:00.000Z');
-    expect(await screen.findByText(/^Evaluarea pornește automat la 20 oct\. 2026, 10:15\./)).toBeInTheDocument();
-    expect(screen.getByText('Robotul nu a verificat încă dacă are lucrări de corectat.')).toBeInTheDocument();
 
+  it('shows a grading scheduled before, with no way to schedule a new one, and cancels it', async () => {
+    const api = evaluationApi({ evaluationAt: '2026-10-20T07:15:00.000Z' });
+    renderAdmin(`${PAGE}#grading`, api);
+    expect(await screen.findByText('Corectarea pornește automat la 20 oct. 2026, 10:15.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Programează' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Anulează programarea' }));
     expect(api.cancelSchedule).toHaveBeenCalledWith('6E2-26T1');
-    expect(await screen.findByLabelText('Sau pornește evaluarea automat la')).toHaveValue('');
-    expect(screen.queryByText(/Robotul nu a verificat/)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/^Corectarea pornește automat/)).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Programează' })).not.toBeInTheDocument();
   });
-
   it('shows a problem of the barem in Corectare, takes a new barem in Pregătire, and grades anyway', async () => {
     const message = 'Punctajele din barem dau 9, dar totalul este 10.';
     const api = evaluationApi({ status: 'evaluating', exerciseList: { status: 'problem', message } });
@@ -1710,9 +1710,10 @@ describe('TestPage evaluation', () => {
     expect(await screen.findByRole('heading', { name: 'Lucrări: 2 din 2 elevi au participat' })).toBeInTheDocument();
     const legend = document.querySelector<HTMLElement>('.papers-progress')!;
     expect(within(legend).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Corectate 1', 'Eșuate 1']);
-    expect(within(legend).getByText('2 puncte de verificat')).toBeInTheDocument();
-    expect(within(legend).getByRole('link', { name: 'Verifică' })).toHaveAttribute('href', '/tests/6E2-26T1/review');
-    expect(screen.getByText('Corectarea s-a terminat. Evaluarea a pornit la 7 oct. 2026, 11:00.')).toBeInTheDocument();
+    // The points to check are named in the stage list, "Urmează" and the bar at the foot, not over the table.
+    expect(within(legend).queryByText('2 puncte de verificat')).not.toBeInTheDocument();
+    expect(within(legend).queryByRole('link', { name: 'Verifică' })).not.toBeInTheDocument();
+    expect(screen.getByText('Acum · corectarea a pornit pe 7 oct. 2026, 11:00')).toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('8,75')).toBeInTheDocument();
     expect(within(pop).getByText('2 de verificat')).toBeInTheDocument();
@@ -1737,16 +1738,19 @@ describe('TestPage evaluation', () => {
     const api = evaluationApi({ status: 'done' }, gradedAndFailed());
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin(`${PAGE}#grading`, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează tot' }));
+    await screen.findByRole('rowheader', { name: 'Pop Ion' });
+    // In "Acțiuni", not in the panel.
+    expect(screen.queryByRole('button', { name: 'Recorectează tot' })).not.toBeInTheDocument();
+    await chooseAction('Recorectează tot');
     expect(api.regradeTest).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Recorectează tot' }));
+    await chooseAction('Recorectează tot');
     expect(confirm).toHaveBeenLastCalledWith('Recorectezi 2 lucrări? Punctajele și comentariile schimbate de tine se pierd.');
     expect(api.regradeTest).toHaveBeenCalledWith('6E2-26T1');
     expect(await screen.findByRole('status')).toHaveTextContent(robotStartMessage('next_check'));
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(await within(pop).findByText('Trimis')).toBeInTheDocument();
     expect(within(screen.getByRole('rowheader', { name: 'Stan Eva' }).closest('tr')!).getByText('Trimis')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Recorectează tot' })).not.toBeInTheDocument();
+    expect(await actionNames()).not.toContain('Recorectează tot');
   });
 
   it('says how many papers the demo limit let go to a regrade', async () => {
@@ -1754,7 +1758,8 @@ describe('TestPage evaluation', () => {
     api.regradeTest.mockResolvedValueOnce({ count: 1, testStatus: 'evaluating', robot: 'next_check' });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(`${PAGE}#grading`, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează tot' }));
+    await screen.findByRole('rowheader', { name: 'Pop Ion' });
+    await chooseAction('Recorectează tot');
     expect(await screen.findByText('Limita contului demo: se corectează din nou 1 din cele 2 lucrări. Celelalte își păstrează rezultatele.')).toBeInTheDocument();
   });
 
@@ -1773,28 +1778,29 @@ describe('TestPage evaluation', () => {
     const api = evaluationApi({ status: 'open' }, gradedAndFailed());
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin(`${PAGE}#grading`, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'Recorectează tot' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('Lucrările se corectează din nou după ce pornești evaluarea.');
+    await screen.findByRole('rowheader', { name: 'Pop Ion' });
+    await chooseAction('Recorectează tot');
+    expect(await screen.findByRole('status')).toHaveTextContent('Lucrările se corectează din nou după ce pornești corectarea.');
     // The regraded uploads wait for grading, checked.
     expect(await screen.findByLabelText('Selectează toate lucrările cu fișiere')).toBeChecked();
     // Once the evaluation starts, the words are not true any more.
-    await userEvent.click(screen.getByRole('button', { name: 'Pornește evaluarea acum' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Închide încărcarea și pornește corectarea' }));
     expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5, 6]);
     expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
-    expect(screen.queryByText('Lucrările se corectează din nou după ce pornești evaluarea.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lucrările se corectează din nou după ce pornești corectarea.')).not.toBeInTheDocument();
     // Nor after the uploads open again.
     await openStage('În clasă');
     await userEvent.click(screen.getByRole('button', { name: 'Redeschide încărcarea' }));
-    expect(await screen.findByText(/^Elevii trimit lucrările\./)).toBeInTheDocument();
+    expect(await screen.findByText('Încărcarea e deschisă.')).toBeInTheDocument();
     await openStage('Corectare');
-    expect(screen.getByRole('button', { name: 'Pornește evaluarea acum' })).toBeInTheDocument();
-    expect(screen.queryByText('Lucrările se corectează din nou după ce pornești evaluarea.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).toBeInTheDocument();
+    expect(screen.queryByText('Lucrările se corectează din nou după ce pornești corectarea.')).not.toBeInTheDocument();
   });
 
   it('offers no regrade while nothing is graded', async () => {
     renderAdmin(`${PAGE}#grading`, evaluationApi({ status: 'evaluating' }));
-    expect(await screen.findByText(/^Robotul corectează lucrările trimise\./)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Recorectează tot' })).not.toBeInTheDocument();
+    expect(await screen.findByText(/^Se corectează: /)).toBeInTheDocument();
+    expect(await actionNames()).not.toContain('Recorectează tot');
     expect(screen.queryByRole('button', { name: 'Recorectează' })).not.toBeInTheDocument();
   });
 
@@ -1829,17 +1835,6 @@ describe('TestPage evaluation', () => {
     });
   }
 
-  it('starts at once a schedule whose time passed before the click, and says when the robot did not start', async () => {
-    const api = evaluationApi({});
-    renderAdmin(`${PAGE}#grading`, api);
-    fireEvent.change(await screen.findByLabelText('Sau pornește evaluarea automat la'), { target: { value: '2026-10-08T10:05' } });
-    vi.setSystemTime(new Date('2026-10-08T07:06:00.000Z'));
-    await userEvent.click(screen.getByRole('button', { name: 'Programează' }));
-    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', '2026-10-08T07:05:00.000Z');
-    expect(await screen.findByText('Se corectează', { selector: '.status' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(NOT_STARTED);
-  });
-
   it('says that the robot did not start for a test in evaluation, also after a reload', async () => {
     renderAdmin(PAGE, failedStartApi({ status: 'evaluating' }));
     expect(await screen.findByRole('status')).toHaveTextContent(NOT_STARTED);
@@ -1857,8 +1852,8 @@ describe('TestPage evaluation', () => {
 
   it.each([
     // The print PDF is ready: a print PDF that waits would be robot work on an open test.
-    ['open', /^Evaluarea pornește automat la/, { evaluationAt: '2026-10-20T07:15:00.000Z', print: { status: 'ready', fromWord: false } }],
-    ['done', /^Corectarea s-a terminat\./, {}],
+    ['open', /^Corectarea pornește automat la/, { evaluationAt: '2026-10-20T07:15:00.000Z', print: { status: 'ready', fromWord: false } }],
+    ['done', /^Corectarea s-a terminat$/, {}],
   ] as const)('says nothing about a robot start on a test that is %s', async (status, line, overrides) => {
     renderAdmin(`${PAGE}#grading`, failedStartApi({ status, ...overrides }));
     expect(await screen.findByText(line)).toBeInTheDocument();
@@ -1922,7 +1917,7 @@ describe('TestPage evaluation', () => {
       `${PAGE}#grading`,
       evaluationApi({ status: 'evaluating', gradedCount: 1, analysis: { status: 'requested', stale: false, attempts: 0 } }, mixed),
     );
-    expect(await screen.findByText(/^Robotul corectează lucrările trimise\./)).toBeInTheDocument();
+    expect(await screen.findByText(/^Se corectează: /)).toBeInTheDocument();
     expect(screen.queryByText('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')).not.toBeInTheDocument();
     await openStage('Rezultate');
     expect(screen.getByRole('link', { name: 'Deschide raportul' })).toBeInTheDocument();
@@ -2071,5 +2066,99 @@ describe('TestPage subject', () => {
     expect(api.setSubject).toHaveBeenCalledWith('6E2-26T1', 'romana');
     await waitFor(() => expect(within(panel).queryByText(unsupportedMessage('istorie'))).not.toBeInTheDocument());
     expect(within(sheet()).getByText('Limba română')).toBeInTheDocument();
+  });
+});
+
+describe('TestPage uploads switch', () => {
+  const FILES = { test: { name: 'Test.pdf', type: PDF_TYPE }, barem: { name: 'Barem.pdf', type: PDF_TYPE } };
+
+  // Pop Ion sent his paper, Stan Eva is still sending hers, Marin Dan sent nothing.
+  const rows = () => [
+    fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 3 }),
+    fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 1 }),
+    fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+  ];
+
+  function switchApi(overrides: Parameters<typeof fakeTest>[0] = {}) {
+    return createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
+      students: {},
+      tests: [fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, print: { status: 'ready', fromWord: false }, ...overrides }, rows())],
+    });
+  }
+
+  it('closes the uploads at the end of the hour without grading, and opens them again', async () => {
+    const api = switchApi();
+    renderAdmin(`${PAGE}#in-class`, api);
+    const toggle = await screen.findByRole('switch', { name: 'Încărcarea lucrărilor' });
+    expect(toggle).toBeChecked();
+    expect(screen.getByText('Încărcarea e deschisă.')).toBeInTheDocument();
+    expect(screen.getByText('1 din 3 elevi a trimis lucrarea')).toBeInTheDocument();
+    await userEvent.click(toggle);
+    expect(api.setUploadsClosed).toHaveBeenCalledWith('6E2-26T1', true);
+    expect(await screen.findByText('Încărcarea e închisă.')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Încărcarea lucrărilor' })).not.toBeChecked();
+    // No links while closed, and nothing went to the robot.
+    expect(screen.queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
+    expect(screen.getByText(/linkurile nu primesc lucrări până o redeschizi/)).toBeInTheDocument();
+    expect(within(sheet()).getByText('Încărcare închisă')).toBeInTheDocument();
+    expect(api.evaluateTest).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('switch', { name: 'Încărcarea lucrărilor' }));
+    expect(api.setUploadsClosed).toHaveBeenLastCalledWith('6E2-26T1', false);
+    expect(await screen.findByText('Încărcarea e deschisă.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
+  });
+
+  it('says on Corectare that the start closes the uploads, and only starts the grading once they are closed', async () => {
+    const api = switchApi();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdmin(`${PAGE}#grading`, api);
+    expect(await screen.findByText(/Când pornești corectarea, se închide singură\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).toBeInTheDocument();
+    // One number for the waiting papers, here and in the list of stages.
+    expect(screen.getByText('1 lucrare așteaptă corectarea')).toBeInTheDocument();
+    const stages = screen.getByRole('navigation', { name: 'Etapele testului' });
+    expect(within(stages).getByRole('link', { name: /^Corectare / })).toHaveTextContent('1 lucrare așteaptă');
+    expect(screen.getByText(/^Încă 1 elev își încarcă lucrarea/)).toBeInTheDocument();
+    expect(screen.getByText(/^Se corectează 2 lucrări, bifate în tabel\./)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('switch', { name: 'Încărcarea lucrărilor' }));
+    const start = await screen.findByRole('button', { name: 'Pornește corectarea' });
+    expect(screen.queryByText(/se închide singură/)).not.toBeInTheDocument();
+    await userEvent.click(start);
+    expect(window.confirm).toHaveBeenLastCalledWith('Pornești corectarea pentru 2 lucrări? Lucrările neselectate cu fișiere așteaptă o corectare ulterioară.');
+    expect(api.evaluateTest).toHaveBeenCalledWith('6E2-26T1', undefined, [5, 6]);
+  });
+
+  it('gives the focus to the panel when the uploads close while the QR code is on the whole screen', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, studentCount: 3 }, notSent());
+    const api = createFakeApi({ classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }], students: {}, tests: [detail] });
+    renderAdmin(`${PAGE}#in-class`, api);
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Arată codul QR' }))[0]!);
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Linkul testului pentru elevi' })).getByRole('button', { name: 'Pe tot ecranul' }));
+    await screen.findByRole('dialog', { name: 'Codul QR pentru elevi' });
+    detail.test.status = 'evaluating';
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Codul QR pentru elevi' })).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { level: 2, name: 'În clasă' })).toHaveFocus();
+    vi.useRealTimers();
+  });
+
+  it('shows no switch once the grading started, and offers to open the uploads again', async () => {
+    renderAdmin(`${PAGE}#grading`, switchApi({ status: 'evaluating', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }));
+    expect(await screen.findByText('Încărcarea e închisă.')).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Redeschide încărcarea' })).toBeInTheDocument();
+  });
+
+  it('says why the switch was refused', async () => {
+    const api = switchApi();
+    api.setUploadsClosed.mockRejectedValueOnce(new ApiError(409, 'closed', 'Corectarea a pornit, așa că încărcarea e deja închisă. O poți redeschide.'));
+    renderAdmin(`${PAGE}#in-class`, api);
+    await userEvent.click(await screen.findByRole('switch', { name: 'Încărcarea lucrărilor' }));
+    expect(await screen.findByText('Corectarea a pornit, așa că încărcarea e deja închisă. O poți redeschide.')).toBeInTheDocument();
   });
 });

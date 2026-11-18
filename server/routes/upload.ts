@@ -74,10 +74,15 @@ async function linkTest(c: Context<AppEnv>): Promise<LinkTest> {
 }
 
 // Students upload only while the test is open: not before the teacher starts
-// it, and not after the uploads closed.
+// it, and not after the uploads closed (the grading started, or the teacher
+// closed them).
 function requireOpen(test: LinkTest): void {
   if (test.status === 'draft') throw notStarted();
-  if (test.status !== 'open') throw closed();
+  if (!uploadsOpen(test)) throw closed();
+}
+
+function uploadsOpen(test: LinkTest): boolean {
+  return test.status === 'open' && !test.uploadsClosed;
 }
 
 // The upload that this phone's secret belongs to, in this test only.
@@ -124,10 +129,11 @@ export function uploadRoutes(options: AppOptions = {}): Hono<AppEnv> {
     // deleted test's id.
     const key = await sha256Hex(`test.${test.id}.${test.createdAt}`);
     // Asked only once the uploads closed: an open test's page reads nothing more.
-    const resultsOpen = test.status !== 'draft' && test.status !== 'open' && (await resultsPublished(c.env.DB, test.id));
+    const open = uploadsOpen(test);
+    const resultsOpen = test.status !== 'draft' && !open && (await resultsPublished(c.env.DB, test.id));
     return c.json({
-      test: { code: test.code, title: test.title, className: test.className, status: test.status, key, resultsOpen, archived: test.archived },
-      students: test.status === 'open' ? await listLinkStudents(c.env.DB, test) : [],
+      test: { code: test.code, title: test.title, className: test.className, status: test.status, key, resultsOpen, archived: test.archived, uploadsClosed: test.status === 'open' && test.uploadsClosed },
+      students: open ? await listLinkStudents(c.env.DB, test) : [],
       multi: test.multi,
     } satisfies LinkInfo);
   });

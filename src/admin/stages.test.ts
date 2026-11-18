@@ -47,8 +47,9 @@ const CASES: [string, TestSummary, string, string][] = [
     'Tipărire · fără cod QR',
   ],
   ['a draft ready for the class', summary(), 'ddllll', 'În clasă · testul nu a început'],
-  ['an open test', summary({ status: 'open', ...started, submittedCount: 19 }), 'ddnlll', 'În clasă · elevii trimit lucrările'],
-  ['an open test before its print PDF', summary({ status: 'open', ...started, prepared: { testFile: true, baremFile: true, print: 'none' } }), 'ddnlll', 'În clasă · elevii trimit lucrările'],
+  ['an open test', summary({ status: 'open', ...started, submittedCount: 19 }), 'ddnlll', 'În clasă · 19 din 24 au trimis'],
+  ['an open test before its print PDF', summary({ status: 'open', ...started, prepared: { testFile: true, baremFile: true, print: 'none' } }), 'ddnlll', 'În clasă · 0 din 24 au trimis'],
+  ['an open test whose uploads the teacher closed', summary({ status: 'open', ...started, submittedCount: 19, uploadsClosedAt: '2026-10-06T08:05:00.000Z' }), 'ddnlll', 'În clasă · încărcarea închisă'],
   [
     'a test opened again after its grading, with points to check',
     summary({ status: 'open', ...graded, flagCount: 1 }),
@@ -114,6 +115,20 @@ describe('stagesOf', () => {
       const todo = todoOf(test);
       expect(waiting.map((stage) => stage.name), name).toEqual(todo ? [todo.stage] : []);
     }
+  });
+});
+
+describe('the note of Corectare', () => {
+  const corectare = (test: TestSummary) => stagesOf(test).stages[3]!;
+
+  it('counts the sent papers that wait for the start, while the test is open', () => {
+    expect(corectare(summary({ status: 'open', ...started, submittedCount: 2, gradedCount: 1 }))).toEqual({ name: 'Corectare', state: 'later', note: '1 lucrare așteaptă' });
+    expect(corectare(summary({ status: 'open', ...started, submittedCount: 5 })).note).toBe('5 lucrări așteaptă');
+  });
+
+  it('says nothing when no sent paper waits', () => {
+    expect(corectare(summary({ status: 'open', ...started, submittedCount: 3, gradedCount: 3 })).note).toBe('');
+    expect(corectare(summary()).note).toBe('');
   });
 });
 

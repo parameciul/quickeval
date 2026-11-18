@@ -1,16 +1,18 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { RobotStart, UploadRow } from '../../../shared/api.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
 import { countLabel } from '../../ui/format.ts';
+import type { MenuAction } from '../ActionsMenu.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
-// "Recorectează tot" (spec §8.5): the robot grades again every graded upload
-// and every upload whose grading failed, for example after a new barem. The
-// teacher's corrections go, so the button asks first.
-export function RegradeAllButton({
+// "Recorectează tot" (spec §8.5), an item of the test's "Acțiuni" menu: the
+// robot grades again every graded upload and every upload whose grading
+// failed, for example after a new barem. The teacher's corrections go, so it
+// asks first. `action` is null while no upload can be graded again; `notes`
+// say what happened, under the menu.
+export function useRegradeAll({
   code,
   testStatus,
   uploads,
@@ -22,10 +24,10 @@ export function RegradeAllButton({
   uploads: UploadRow[];
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
-}) {
+}): { action: MenuAction | null; notes: ReactNode } {
   const api = useApi();
-  // An open test grades the uploads after Start evaluation: the page says so
-  // until the evaluation starts, and not again if the test opens again.
+  // An open test grades the uploads after its grading starts: the page says
+  // so until then, and not again if the test opens again.
   const [regradedOpen, setRegradedOpen] = useState(false);
   // A demo account regrades only the papers it has left.
   const [partly, setPartly] = useState<{ sent: number; asked: number } | null>(null);
@@ -41,27 +43,22 @@ export function RegradeAllButton({
     },
   });
   const waits = regradedOpen && testStatus === 'open';
-  if (count === 0 && !waits && !partly) return null;
-
-  return (
+  const what = countLabel(count, 'lucrare', 'lucrări');
+  const action: MenuAction | null =
+    count > 0
+      ? {
+          label: 'Recorectează tot',
+          hint: `Robotul corectează din nou ${what}. Punctajele schimbate de tine se pierd.`,
+          icon: 'retry',
+          busy: regrade.isPending,
+          onChoose: () => {
+            if (window.confirm(`Recorectezi ${what}? Punctajele și comentariile schimbate de tine se pierd.`)) regrade.mutate();
+          },
+        }
+      : null;
+  const notes = (
     <>
-      {count > 0 && (
-        <p>
-          <button
-            type="button"
-            className="button-quiet"
-            disabled={regrade.isPending}
-            onClick={() => {
-              const what = countLabel(count, 'lucrare', 'lucrări');
-              if (window.confirm(`Recorectezi ${what}? Punctajele și comentariile schimbate de tine se pierd.`)) regrade.mutate();
-            }}
-          >
-            <ActionIcon name="retry" />
-            Recorectează tot
-          </button>
-        </p>
-      )}
-      {waits && <p role="status">Lucrările se corectează din nou după ce pornești evaluarea.</p>}
+      {waits && <p role="status">Lucrările se corectează din nou după ce pornești corectarea.</p>}
       {partly && (
         <p role="status">
           Limita contului demo: se corectează din nou {partly.sent} din cele {partly.asked} lucrări. Celelalte își păstrează rezultatele.
@@ -70,4 +67,5 @@ export function RegradeAllButton({
       {regrade.error && <ErrorMessage error={regrade.error} />}
     </>
   );
+  return { action, notes };
 }

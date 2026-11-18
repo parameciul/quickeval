@@ -24,6 +24,8 @@ export interface LinkTest {
   // The test or its class is archived. Archiving closes the results; the
   // teacher may still publish some, or take the test out of the archive.
   archived: boolean;
+  // An open test whose uploads the teacher closed without grading.
+  uploadsClosed: boolean;
 }
 
 // An upload, found by the hash of the phone's secret.
@@ -38,7 +40,8 @@ export async function findTestByToken(db: D1Database, token: string): Promise<Li
   const row = await db
     .prepare(
       `SELECT t.id, t.teacher_id, t.class_id, t.code, t.title, t.status, c.name AS class_name, c.school_year,
-        t.upload_token, t.multi_upload_token, t.created_at, (t.archived = 1 OR c.archived = 1) AS archived
+        t.upload_token, t.multi_upload_token, t.created_at, (t.archived = 1 OR c.archived = 1) AS archived,
+        t.uploads_closed_at IS NOT NULL AS uploads_closed
        FROM tests t JOIN classes c ON c.id = t.class_id
        WHERE t.upload_token = ? OR t.multi_upload_token = ?`,
     )
@@ -56,6 +59,7 @@ export async function findTestByToken(db: D1Database, token: string): Promise<Li
       multi_upload_token: string | null;
       created_at: string;
       archived: number;
+      uploads_closed: number;
     }>();
   if (!row) return null;
   return {
@@ -70,6 +74,7 @@ export async function findTestByToken(db: D1Database, token: string): Promise<Li
     multi: row.multi_upload_token === token,
     createdAt: row.created_at,
     archived: row.archived === 1,
+    uploadsClosed: row.uploads_closed === 1,
   };
 }
 
@@ -178,8 +183,8 @@ export async function fileSlots(db: D1Database, submissionId: number): Promise<{
   return { count: row?.count ?? 0, next: row?.next ?? 1 };
 }
 
-// An upload may change only while its test is open, before the test's
-// scheduled time, and while it is not yet sent. Each write checks this itself,
+// An upload may change only while its test is open, its uploads not closed
+// by the teacher, before the test's scheduled time, and while it is not yet sent. Each write checks this itself,
 // so two requests at once cannot get past it, and a write that ends after the
 // scheduled time is refused also before a request promotes the test. They also
 // name the phone: ids of deleted uploads come back (no AUTOINCREMENT), so a
@@ -187,7 +192,7 @@ export async function fileSlots(db: D1Database, submissionId: number): Promise<{
 // the same id. The binds are the upload's id, the hash of the phone's secret,
 // and the time.
 const OPEN_UPLOAD = `EXISTS (SELECT 1 FROM submissions s JOIN tests t ON t.id = s.test_id
-  WHERE s.id = ? AND s.session_hash = ? AND s.status = 'uploading' AND t.status = 'open'
+  WHERE s.id = ? AND s.session_hash = ? AND s.status = 'uploading' AND t.status = 'open' AND t.uploads_closed_at IS NULL
     AND (t.evaluation_at IS NULL OR t.evaluation_at > ?))`;
 
 // The new file's id, or null when the upload is closed, sent, gone, or full.
@@ -237,7 +242,7 @@ export async function confirmSubmission(db: D1Database, submissionId: number, se
       .prepare(
         `UPDATE submissions SET status = 'submitted', submitted_at = ?
          WHERE id = ? AND session_hash = ? AND status = 'uploading'
-           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.status = 'open'
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND t.status = 'open' AND t.uploads_closed_at IS NULL
              AND (t.evaluation_at IS NULL OR t.evaluation_at > ?))
            AND EXISTS (SELECT 1 FROM submission_files f WHERE f.submission_id = submissions.id)
          RETURNING id`,
