@@ -332,7 +332,7 @@ describe('the pages that answer a search', () => {
     const doc = parse(ghid);
     const figure = doc.querySelector('.prose .shot');
     const img = figure?.querySelector('img');
-    expect(img?.getAttribute('src')).toBe('/app-verificare.png');
+    expect(img?.getAttribute('src')).toBe('/app-graded-paper.png');
     expect(img?.getAttribute('width')).toBe('1897');
     expect(img?.getAttribute('height')).toBe('1066');
     expect((img?.getAttribute('alt') ?? '').length).toBeGreaterThan(60);
@@ -344,7 +344,7 @@ describe('the pages that answer a search', () => {
       ld['@graph'];
     const page = nodes.find((n) => n['@type'] === 'WebPage')!;
     expect(page.primaryImageOfPage).toMatchObject({
-      url: 'https://mqgrader.ro/app-verificare.png',
+      url: 'https://mqgrader.ro/app-graded-paper.png',
       width: 1897,
       height: 1066,
     });

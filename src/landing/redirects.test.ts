@@ -34,6 +34,11 @@ describe('the old Romanian addresses of the public pages', () => {
     expect(firstRule(`/og-${old}.png`)).toEqual([`/og-${old}.png`, `/og-${now}.png`, '301']);
   });
 
+  it("sends the guide's old picture name to the new picture", () => {
+    expect(firstRule('/app-verificare.png')).toEqual(['/app-verificare.png', '/app-graded-paper.png', '301']);
+    expect(firstRule('/app-graded-paper.png')).toBeUndefined();
+  });
+
   it('leaves the new addresses and the apps alone', () => {
     for (const [, now] of MOVED) expect(firstRule(`/${now}/`)).toBeUndefined();
     expect(firstRule('/u/abcdefghijkmnop2')).toEqual(['/u/*', '/u/', '200']);

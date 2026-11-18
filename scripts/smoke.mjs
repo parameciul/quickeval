@@ -53,7 +53,7 @@ for (const path of [
   '/llms.txt',
   '/og-image.png',
   '/app-teste.png',
-  '/app-verificare.png',
+  '/app-graded-paper.png',
   '/og-guide.png',
   '/og-marking-scheme.png',
   '/og-about.png',
@@ -66,7 +66,7 @@ for (const path of [
   check(`public file ${path}`, file.status === 200, String(file.status));
 }
 // A picture keeps its name: a day of caching, not the year a hashed file gets.
-const picture = await fetch(`${base}/app-verificare.png`);
+const picture = await fetch(`${base}/app-graded-paper.png`);
 check('pictures are cached for a day', (picture.headers.get('cache-control') ?? '') === 'public, max-age=86400', picture.headers.get('cache-control') ?? '');
 // The pages that answer a search: built by Vite from their own folders, open
 // to search engines, each with the address the sitemap lists.
@@ -86,7 +86,7 @@ for (const [path, card] of Object.entries(SHARE)) {
   check(`content page ${path} says who wrote it and when`, content.text.includes('class="byline"') && content.text.includes('actualizat 10 noiembrie 2026'));
 }
 const guide = await page('/guide/');
-check('the guide shows the review screen', guide.text.includes('src="/app-verificare.png"') && guide.text.includes('width="1897"'));
+check('the guide shows a graded paper', guide.text.includes('src="/app-graded-paper.png"') && guide.text.includes('width="1897"'));
 // public/404.html is what keeps Pages from answering like a single-page app.
 const missingPage = await page('/pagina-care-nu-exista');
 check('a missing page answers 404', missingPage.res.status === 404, String(missingPage.res.status));
