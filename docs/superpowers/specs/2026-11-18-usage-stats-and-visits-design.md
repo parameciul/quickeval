@@ -130,8 +130,8 @@ Perioada: [Ultimele 7 zile ▾]   [Generează]
 ### Steps for the administrator in the Rybbit dashboard (not code)
 
 - Turn on "Track URL fragments" (needed for `#new-account`).
-- Keep "Session Replay" off.
-- Turn off "URL Parameters" (query strings): no page needs them, and it is one less way to leak data.
+- Keep "Session Replay" off: it records the full address, token included, and what the page shows.
+- Keep "URL Parameters" on (query strings, for campaign tags such as `utm_source`). The masks do not cover a query string, so no page may put a token, a code or a name in one: a test checks the query strings each student and Quick Try page sets.
 
 ## Left to the builder
 
