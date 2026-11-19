@@ -24,16 +24,15 @@ describe('fastD1', () => {
     expect(await db.prepare('SELECT COUNT(*) AS n FROM t').first('n')).toBe(2);
   });
 
-  it('binds true and false as the integers 1 and 0', async () => {
-    expect(await db.prepare('SELECT typeof(?) AS t, ? AS v').bind(true, true).first()).toEqual({ t: 'integer', v: 1 });
-    expect(await db.prepare('SELECT typeof(?) AS t, ? AS v').bind(false, false).first()).toEqual({ t: 'integer', v: 0 });
+  it('binds true and false as 1 and 0, as REAL like D1', async () => {
+    expect(await db.prepare('SELECT typeof(?) AS t, ? AS v').bind(true, true).first()).toEqual({ t: 'real', v: 1 });
+    expect(await db.prepare('SELECT typeof(?) AS t, ? AS v').bind(false, false).first()).toEqual({ t: 'real', v: 0 });
   });
 
-  it('binds a whole number as an integer and a fraction as a real', async () => {
-    expect(await db.prepare('SELECT typeof(?) AS t').bind(7).first('t')).toBe('integer');
-    expect(await db.prepare('SELECT typeof(?) AS t').bind(1.5).first('t')).toBe('real');
-    await db.prepare('INSERT INTO t (v) VALUES (?)').bind(7).run();
-    expect(await db.prepare('SELECT v FROM t').first('v')).toBe('7');
+  it('binds every number as REAL like D1, and an INTEGER column keeps a whole number', async () => {
+    expect(await db.prepare('SELECT typeof(?) AS t').bind(7).first('t')).toBe('real');
+    await db.prepare('INSERT INTO t (id, v) VALUES (?, ?)').bind(7, 7).run();
+    expect(await db.prepare('SELECT typeof(id) AS t, id FROM t').first()).toEqual({ t: 'integer', id: 7 });
   });
 
   it('refuses undefined when it is bound', () => {

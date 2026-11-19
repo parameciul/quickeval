@@ -4,8 +4,8 @@ import type { D1Database } from '@cloudflare/workers-types';
 // A D1 database for tests, in this process, on node:sqlite. A call through
 // getPlatformProxy is an HTTP round trip to workerd (about 5 ms); here it is a
 // function call. It does what the server code uses of D1, the way D1 does it:
-// foreign keys on, a batch is one transaction, true and false are stored as 1
-// and 0, undefined is refused, a blob comes back as an array of numbers, and
+// foreign keys on, a batch is one transaction, numbers and true and false are
+// bound as REAL, undefined is refused, a blob comes back as an array of numbers, and
 // errors start with "D1_". It does not count rows read: meta.rows_read is NaN,
 // so a test that counts rows must run on the real engine (the "d1" project).
 
@@ -15,9 +15,9 @@ type Row = Record<string, unknown>;
 function toSql(value: unknown): SqlValue {
   if (value === undefined) throw new Error("D1_TYPE_ERROR: Type 'undefined' not supported for value 'undefined'");
   if (value === null) return null;
-  if (typeof value === 'boolean') return value ? 1n : 0n;
-  // node:sqlite binds every number as REAL; D1 binds a whole number as INTEGER.
-  if (typeof value === 'number' && Number.isSafeInteger(value)) return BigInt(value);
+  // D1 binds every number, and true and false, as REAL, as node:sqlite does
+  // (d1Parity.test.ts checks it on both engines).
+  if (typeof value === 'boolean') return value ? 1 : 0;
   if (value instanceof ArrayBuffer) return new Uint8Array(value);
   if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
   return value as SqlValue;
