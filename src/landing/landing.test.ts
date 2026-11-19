@@ -31,7 +31,7 @@ describe('the landing page', () => {
   });
 
   it('tells the day of a test by the clock, with who does each step', () => {
-    const steps = all('#day .clock > li');
+    const steps = all('#how .clock > li');
     expect(steps.map((li) => [text(li.querySelector('time')), text(li.querySelector('h3')), text(li.querySelector('.whos'))])).toEqual([
       ['Luni cu o zi înainte', 'Încarci testul și baremul.', 'Tu MQGrader'],
       ['11:45 ultimele minute ale orei', 'Elevii fotografiază lucrarea.', 'Elevii'],

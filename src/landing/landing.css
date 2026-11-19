@@ -446,11 +446,11 @@ img { display: block; max-width: 100%; height: auto; }
 .tile-go { font-size: 15px; font-weight: 600; color: var(--blue); }
 .ic-done, .ic-phone { display: none; }
 [data-try-pick]:not(.is-chosen) .tile-go { display: none; }
-.is-chosen .ic-file { display: none; }
-.is-chosen:not(.is-phone) .ic-done { display: block; }
-.is-chosen .tile-ic { color: var(--ok-fg); }
-.is-phone .ic-phone { display: block; }
-.is-phone .tile-go { display: none; }
+label.tile.is-chosen .ic-file, .step.is-chosen > .tiles > label.tile .ic-file { display: none; }
+label.tile.is-chosen .ic-done, .step.is-chosen:not(.is-phone) > .tiles > label.tile .ic-done { display: block; }
+label.tile.is-chosen .tile-ic, .step.is-chosen > .tiles > label.tile .tile-ic { color: var(--ok-fg); }
+.step.is-phone > .tiles > label.tile .ic-phone { display: block; }
+.step.is-phone .tile-go { display: none; }
 label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(--ok-fg); background: var(--ok-bg); }
 .tile-choice:has(input:checked) { border-color: var(--blue); background: var(--blue-tint); }
 .tile-choice:has(input:checked)::after { content: ""; position: absolute; top: 10px; right: 10px; width: 12px; height: 12px; border-radius: 50%; background: var(--blue); }

@@ -128,6 +128,20 @@ describe('the pages that answer a search', () => {
     for (const id of anchors) expect(doc.getElementById(id), id).not.toBeNull();
   });
 
+  it('keeps the anchors that links from elsewhere name', () => {
+    const ids: [string, string[]][] = [
+      [landing, ['how', 'ready', 'benefits', 'faq', 'more', 'contact']],
+      [ghid, ['meaning', 'steps', 'time', 'automated', 'habits', 'read-also', 'guide-cta']],
+      [barem, ['what-it-is', 'origin', 'good-scheme', 'in-mqgrader', 'faq', 'read-also', 'marking-scheme-cta']],
+      [despre, ['who', 'why', 'what-it-does', 'what-it-does-not', 'now', 'contact', 'read-also', 'about-cta']],
+      [preturi, ['demo', 'complete', 'why-no-price', 'account', 'read-also', 'pricing-cta']],
+    ];
+    for (const [html, names] of ids) {
+      const doc = parse(html);
+      for (const id of names) expect(doc.getElementById(id), id).not.toBeNull();
+    }
+  });
+
   it.each(PAGES)('$path shows the trail its structured data claims', ({ html, name }) => {
     const doc = parse(html);
     const crumbs = all(doc, '.crumbs a, .crumbs span:not([aria-hidden])').map(text);
