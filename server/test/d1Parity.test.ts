@@ -1,20 +1,21 @@
-import type { D1Database } from '@cloudflare/workers-types';
+import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { fastD1 } from './fastD1.ts';
+import { fastR2 } from './fastR2.ts';
 import { applyMigrations, workerdPlatform } from './testApi.ts';
 
 // The server tests run on fastD1 (node:sqlite). This file runs the same checks
 // on the local workerd D1 and on fastD1, so a difference between the two
 // engines fails here. It runs in the "d1" project, which starts workerd.
 
-type Engine = { name: string; db: D1Database; close: () => Promise<void> };
+type Engine = { name: string; db: D1Database; files: R2Bucket; close: () => Promise<void> };
 
 const engines: Engine[] = [];
 
 beforeAll(async () => {
   const platform = await workerdPlatform();
-  engines.push({ name: 'workerd', db: platform.env.DB, close: () => platform.dispose() });
-  engines.push({ name: 'fast', db: fastD1(), close: async () => {} });
+  engines.push({ name: 'workerd', db: platform.env.DB, files: platform.env.FILES, close: () => platform.dispose() });
+  engines.push({ name: 'fast', db: fastD1(), files: fastR2(), close: async () => {} });
 }, 60000);
 
 afterAll(async () => {
@@ -82,6 +83,31 @@ describe('both engines', () => {
     expect((await db.prepare('UPDATE p_meta SET v = v').run()).meta.changes).toBe(2);
   });
 
+  it.each(['workerd', 'fast'])('%s: counts the rows triggers change in meta.changes, and none for a SELECT', async (name) => {
+    const { db } = engines.find((e) => e.name === name)!;
+    await db.exec('CREATE TABLE IF NOT EXISTS p_src (id INTEGER PRIMARY KEY, v TEXT)');
+    await db.exec('CREATE TABLE IF NOT EXISTS p_log (id INTEGER PRIMARY KEY, v TEXT)');
+    await db.exec('CREATE TRIGGER IF NOT EXISTS p_src_log AFTER INSERT ON p_src BEGIN INSERT INTO p_log (v) VALUES (NEW.v); INSERT INTO p_log (v) VALUES (NEW.v); END');
+    expect((await db.prepare('INSERT INTO p_src (v) VALUES (?)').bind('a').run()).meta.changes).toBe(3);
+    expect((await db.prepare('INSERT INTO p_src (v) VALUES (?) RETURNING id').bind('b').run()).meta.changes).toBe(3);
+    expect((await db.prepare('SELECT * FROM p_src').run()).meta.changes).toBe(0);
+  });
+
+  it.each(['workerd', 'fast'])('%s: sees a new column in a SELECT * it ran before', async (name) => {
+    const { db } = engines.find((e) => e.name === name)!;
+    await db.exec('CREATE TABLE IF NOT EXISTS p_alter (n INTEGER)');
+    await db.prepare('INSERT INTO p_alter (n) VALUES (1)').run();
+    expect(await db.prepare('SELECT * FROM p_alter').first()).toEqual({ n: 1 });
+    await db.prepare('ALTER TABLE p_alter ADD COLUMN extra TEXT').run();
+    expect(await db.prepare('SELECT * FROM p_alter').first()).toEqual({ n: 1, extra: null });
+  });
+
+  it.each(['workerd', 'fast'])('%s: refuses an empty batch and a bigint', async (name) => {
+    const { db } = engines.find((e) => e.name === name)!;
+    await expect(db.batch([])).rejects.toThrow(/No SQL statements detected/);
+    expect(() => db.prepare('SELECT ?').bind(1n)).toThrow(/D1_TYPE_ERROR/);
+  });
+
   it.each(['workerd', 'fast'])('%s: enforces foreign keys', async (name) => {
     const { db } = engines.find((e) => e.name === name)!;
     await db.exec('CREATE TABLE IF NOT EXISTS p_parent (id INTEGER PRIMARY KEY)');
@@ -99,4 +125,18 @@ describe('both engines', () => {
     const { db } = engines.find((e) => e.name === name)!;
     await expect(db.prepare('SELECT * FROM missing_table').all()).rejects.toThrow(/D1_ERROR.*no such table/);
   });
+});
+
+describe('both buckets', () => {
+  it.each(['workerd', 'fast'])('%s: refuses a stream of unknown length', async (name) => {
+    const { files } = engines.find((e) => e.name === name)!;
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1]));
+        controller.close();
+      },
+    });
+    await expect(files.put('stream', stream as never)).rejects.toThrow(/known length/);
+  });
+
 });

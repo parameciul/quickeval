@@ -104,7 +104,8 @@ afterAll(async () => {
 
 // The rows the migrations leave behind (runner_state has one), by table.
 let seed: { table: string; rows: Record<string, unknown>[] }[] = [];
-// The tables the migrations made, read once after them: the reset empties these.
+// The tables the migrations made, read once after them: the reset empties
+// these. A table a test makes itself is not emptied; drop it in the test.
 let tables: string[] = [];
 
 async function tablesOf(db: D1Database): Promise<string[]> {

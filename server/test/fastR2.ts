@@ -22,7 +22,8 @@ async function bytesOf(value: unknown): Promise<Uint8Array> {
   if (value instanceof ArrayBuffer) return new Uint8Array(value.slice(0));
   if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
   if (value instanceof Blob) return new Uint8Array(await value.arrayBuffer());
-  if (value instanceof ReadableStream) return new Uint8Array(await new Response(value).arrayBuffer());
+  // R2 refuses a stream whose length it does not know; the API stores bytes.
+  if (value instanceof ReadableStream) throw new TypeError('Provided readable stream must have a known length (request/response body or readable half of FixedLengthStream)');
   throw new Error('fastR2: this kind of value is not supported');
 }
 
@@ -82,7 +83,10 @@ export function fastR2(): R2Bucket {
       return stored ? objectOf(key, stored) : null;
     },
     async delete(keys: string | string[]) {
-      for (const key of Array.isArray(keys) ? keys : [keys]) objects.delete(key);
+      const list = Array.isArray(keys) ? keys : [keys];
+      // R2 takes at most 1000 keys per call (deleteFiles in server/uploads.ts cuts them).
+      if (list.length > 1000) throw new Error('delete: You can only delete up to 1000 keys at once.');
+      for (const key of list) objects.delete(key);
     },
     async list(options: { prefix?: string } = {}) {
       const listed = [...objects.entries()]

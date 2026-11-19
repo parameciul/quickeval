@@ -32,7 +32,7 @@ describe('TestPage evaluation', () => {
   const sentByPop = (): UploadRow[] => [uploads[0]!, fakeUpload({ studentId: 11, studentName: 'Stan Eva' }), uploads[2]!];
 
   function evaluationApi(overrides: Parameters<typeof fakeTest>[0], rows: UploadRow[] = sentByPop(), lastCheckAt: string | null = null) {
-    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, print: { status: 'ready', fromWord: false }, ...overrides }, structuredClone(rows));
+    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: structuredClone(FILES), print: { status: 'ready', fromWord: false }, ...overrides }, structuredClone(rows));
     detail.robot.lastCheckAt = lastCheckAt;
     return createFakeApi({
       classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],
@@ -539,7 +539,7 @@ describe('TestPage evaluation', () => {
 
   // The API says that GitHub did not take the last request to start the robot.
   function failedStartApi(overrides: Parameters<typeof fakeTest>[0]) {
-    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: FILES, ...overrides }, sentByPop());
+    const detail = fakeTest({ status: 'open', uploadToken: FAKE_TOKEN, files: structuredClone(FILES), ...overrides }, sentByPop());
     detail.robot.startFailed = true;
     return createFakeApi({
       classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 3 }],

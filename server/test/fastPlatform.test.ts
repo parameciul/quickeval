@@ -126,4 +126,10 @@ describe('fastR2', () => {
     await bucket.delete('a/1');
     expect((await bucket.list()).objects).toEqual([]);
   });
+
+  // Production R2 takes at most 1000 keys per delete; the local engine takes
+  // more. The fake follows production, so a test catches a delete too big.
+  it('refuses a delete of more than 1000 keys', async () => {
+    await expect(bucket.delete(Array.from({ length: 1001 }, (_, index) => `k${index}`))).rejects.toThrow(/1000/);
+  });
 });

@@ -27,6 +27,11 @@ describe('summarize', () => {
     expect(files[0].file).toBe('server/b.test.ts');
   });
 
+  it("counts a file's own time, setup included, when the report has it", () => {
+    const report = { testResults: [{ ...file('/root/server/d.test.ts', [500]), startTime: 1000, endTime: 4000 }] };
+    expect(summarize(report, '/root').files[0]).toEqual({ file: 'server/d.test.ts', tests: 1, seconds: 3 });
+  });
+
   it('lists the slowest tests', () => {
     const report = { testResults: [file('/root/server/b.test.ts', [300, 900])] };
     const { tests } = summarize(report, '/root');
