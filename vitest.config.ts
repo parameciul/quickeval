@@ -29,6 +29,11 @@ export default defineConfig({
         test: {
           name: 'web',
           environment: 'jsdom',
+          // One jsdom per worker, a new VM context per file: a new jsdom for
+          // every file took a third of the run. The node projects keep the
+          // default pool: workerd does not load in a VM context.
+          pool: 'vmThreads',
+          vmMemoryLimit: '1024MB',
           include: ['src/**/*.test.{ts,tsx}'],
           setupFiles: ['src/test/setup.ts'],
         },

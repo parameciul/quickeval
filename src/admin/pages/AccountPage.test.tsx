@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi, fakeTeacher } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import { ApiError } from '../api.ts';
+import { logoutTab } from '../shell/useLogout.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -78,7 +79,7 @@ describe('AccountPage', () => {
   it('logs out', async () => {
     const api = createFakeApi();
     const assign = vi.fn();
-    vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, assign });
+    vi.spyOn(logoutTab, 'leave').mockImplementation(assign);
     renderAdmin('/account', api);
     await userEvent.click(await screen.findByRole('button', { name: 'Ieși din cont' }));
     expect(api.logout).toHaveBeenCalled();
