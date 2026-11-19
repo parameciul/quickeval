@@ -24,7 +24,7 @@ export const STAGES: Stage[] = [
   {
     name: 'Pregătire',
     who: 'Tu',
-    text: 'Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.',
+    text: 'Încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.',
     icon: (
       <>
         <path d="M5 2.75h7l3 3v11.5H5z" />

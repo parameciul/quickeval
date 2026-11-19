@@ -323,7 +323,7 @@ describe('NewTestPage, a class with a CES student', () => {
     await fillClassAndTitle('2');
     await screen.findByRole('switch');
     expect(cesBaremChoices().getByRole('radio', { name: /^Generează baremul CES din testul CES/ }).closest('label')).toHaveTextContent(
-      'Pornește de la baremul clasei. Primești o propunere în câteva minute. O verifici și o confirmi înainte de corectare.',
+      'Pornește de la baremul clasei. Se generează în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.',
     );
     expect(cesBaremChoices().getByLabelText(/^Fișierul baremului CES/).closest('.choice-card')).not.toBeNull();
   });

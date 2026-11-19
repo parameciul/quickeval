@@ -38,7 +38,7 @@ export function FirstSteps({ hasClass }: { hasClass: boolean }) {
             2
           </span>
           <h3>Fă un test</h3>
-          <p>Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.</p>
+          <p>Încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.</p>
           {hasClass ? (
             <Link className="button button-small" to="/tests/new">
               <ActionIcon name="add" />

@@ -103,7 +103,7 @@ describe('TestsPage', () => {
       'Tipărește-l cu cod QR',
     ]);
     expect(steps[0]).toHaveTextContent('Numele clasei și elevii, câte unul pe rând. Poți lipi lista din catalog.');
-    expect(steps[1]).toHaveTextContent('Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.');
+    expect(steps[1]).toHaveTextContent('Încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.');
     expect(steps[2]).toHaveTextContent('Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.');
     expect(within(steps[1]!).getByRole('button', { name: 'Test nou' })).toBeDisabled();
     expect(within(steps[2]!).queryByRole('button')).not.toBeInTheDocument();
