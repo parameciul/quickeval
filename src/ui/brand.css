@@ -2383,7 +2383,7 @@ table.tests .row-actions {
 .stage-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.75rem;
+  gap: 1.5rem;
   padding: 1.25rem 1.5rem 1.5rem;
 }
 
@@ -2396,9 +2396,9 @@ table.tests .row-actions {
   font-size: 1rem;
 }
 
-/* The "Acum" box at the top of În clasă and Corectare (design A): what is
-   true now, the stage's action, and what comes next. While the test is open,
-   the uploads' band runs across its top (design Y3). */
+/* The "Acum" box at the top of every stage's panel (spec 2026-11-19): what
+   is true now, the stage's action, and what comes next. A band with a switch
+   runs across its top: the uploads while the test is open, and the results. */
 .now-box {
   display: grid;
   gap: 0.75rem;
@@ -2474,6 +2474,153 @@ table.tests .row-actions {
   background: var(--ink);
 }
 
+/* The words inside the box keep its own gaps. */
+.now-box p {
+  margin: 0;
+}
+
+/* A stage that is done: a green tick before the box's title. */
+.now-title.is-done {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.now-tick {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.now-tick .action-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* What a stage that has not started needs: the stage list's own dots (blue
+   done, orange waits on the teacher, grey later) and a link to the stage
+   where each is done. */
+.ready-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.ready-list > li {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.ready-dot {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--active);
+  color: var(--muted);
+}
+
+.ready-dot .action-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.ready-list .is-done .ready-dot {
+  background: var(--ink-tint);
+  color: var(--ink);
+}
+
+.ready-list .is-wait .ready-dot {
+  background: var(--marker);
+  color: var(--orange);
+}
+
+.ready-what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 0.5rem;
+  min-width: 0;
+}
+
+.ready-what strong {
+  font-weight: 600;
+}
+
+.ready-what > span:last-child {
+  color: var(--muted);
+}
+
+.ready-list .is-wait .ready-what > span:last-child {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+.ready-go {
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  .ready-list > li {
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+  }
+
+  .ready-go {
+    grid-column: 2;
+  }
+}
+
+/* A section of a panel under the "Acum" box: one title style on every stage. */
+.stage-section {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.stage-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.625rem;
+}
+
+.stage-section-head h3,
+.stage-body > h3,
+.stage-body .papers-progress h3,
+.stage-body .ces-variant > h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.stage-section-meta {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* An empty section keeps its place: one dashed box and one sentence. */
+.stage-slot {
+  margin: 0;
+  padding: 0.875rem 1rem;
+  border: 1px dashed var(--control);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+
 .uploads-band {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -2522,7 +2669,6 @@ table.tests .row-actions {
 
 .uploads-toggle[aria-disabled="true"] {
   cursor: progress;
-  opacity: 0.7;
 }
 
 .uploads-toggle-track {
@@ -2583,7 +2729,7 @@ table.tests .row-actions {
   border-top: 1px solid var(--line);
 }
 
-.ways > li:last-child:nth-child(3) {
+.ways:not(.is-results) > li:last-child:nth-child(3) {
   border-radius: 0 0 var(--radius-panel) var(--radius-panel);
   background: var(--raised);
 }
@@ -2621,6 +2767,45 @@ table.tests .row-actions {
   background: var(--marker);
   color: var(--orange);
   font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* The ways of Rezultate run over several lines: their icon and buttons stay
+   on the title's line, and each case is a line with its own small icon. */
+.ways.is-results > li {
+  align-items: start;
+}
+
+.ways.is-results .ways-icon,
+.ways.is-results .ways-buttons {
+  padding-top: 0.125rem;
+}
+
+.ways-text .ways-cases {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0.625rem 0 0;
+  padding: 0.625rem 0 0;
+  border-top: 1px dashed var(--rule);
+  list-style: none;
+}
+
+.ways-cases > li {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.ways-cases .action-icon {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  color: var(--muted);
+}
+
+.ways-cases b {
+  color: var(--text);
   font-weight: 600;
 }
 
@@ -2785,128 +2970,10 @@ table.tests .row-actions {
   font-weight: 500;
 }
 
-/* The box at the top of Rezultate (spec 2026-11-14): grey while the results
-   wait to be published, green once students can read them, with the two ways
-   they find them, numbered. */
-.publish-box {
-  display: grid;
-  gap: 0.5rem;
-  padding: 0.875rem 1rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-panel);
-}
-
-.publish-box.is-published {
-  border-color: color-mix(in srgb, var(--ok-fg) 35%, transparent);
-  background: var(--ok-bg);
-}
-
-.publish-box p {
-  margin: 0;
-}
-
-.publish-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
-}
-
-.publish-head h3 {
-  flex: 1 1 16rem;
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.publish-box.is-published .publish-head h3 {
-  color: var(--ok-fg);
-}
-
-.publish-check {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: var(--ok-fg);
-  color: var(--sheet);
-}
-
-.publish-check svg {
-  width: 1.125rem;
-  height: 1.125rem;
-}
-
+/* In the "Acum" box of Rezultate: the points still to check, said before the
+   teacher publishes. */
 .publish-wait {
   color: var(--orange);
-}
-
-.publish-ways {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: 0.75rem 1.5rem;
-  margin: 0.25rem 0 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: way;
-}
-
-.publish-ways > li {
-  position: relative;
-  display: grid;
-  align-content: start;
-  gap: 0.25rem;
-  padding-left: 2rem;
-  counter-increment: way;
-}
-
-.publish-ways > li::before {
-  content: counter(way);
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 1px solid color-mix(in srgb, var(--ok-fg) 40%, transparent);
-  border-radius: 50%;
-  background: var(--sheet);
-  color: var(--ok-fg);
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.publish-way-title {
-  font-weight: 500;
-}
-
-.publish-link {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
-  margin-top: 0.25rem;
-}
-
-.publish-qr {
-  flex: none;
-  width: 88px;
-  height: 88px;
-  border-radius: 6px;
-  background: #ffffff;
-}
-
-.publish-link-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.publish-link .result-share-box {
-  flex-basis: 100%;
 }
 
 /* The panel Rezultate (spec 2026-11-14): "Raportul clasei" first in the
@@ -2943,24 +3010,19 @@ table.tests .row-actions {
     grid-column: 1;
     grid-template-rows: subgrid;
   }
+
+  /* The section's title on the first row, its table level with the card. */
+  .results-students > .stage-section {
+    grid-row: 1 / span 2;
+    grid-template-rows: subgrid;
+    row-gap: 0.5rem;
+  }
 }
 
 .results-students {
   display: grid;
   gap: 0.5rem;
   min-width: 0;
-}
-
-.results-students-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.5rem;
-}
-
-.results-students-head h3 {
-  margin: 0;
-  font-size: 1rem;
 }
 
 /* "Raportul clasei": the average in its grade colour, the grades by group in
@@ -3068,81 +3130,8 @@ table.tests .row-actions {
   height: 1rem;
 }
 
-/* The overview of the check, in the panel Verificare: the progress (or the
-   green box once all is checked), then a label per student. */
-.review-progress {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1.125rem;
-}
-
-.review-figure {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.review-figure strong {
-  color: var(--text);
-  font-size: 1.625rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.review-bar-column {
-  display: grid;
-  flex: 1 1 14rem;
-  gap: 0.3rem;
-  min-width: 0;
-}
-
-.review-bar {
-  height: 8px;
-  overflow: hidden;
-  border-radius: 4px;
-  background: var(--marker);
-}
-
-.review-bar > span {
-  display: block;
-  height: 100%;
-  background: var(--ink);
-}
-
-.review-left {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.8125rem;
-}
-
-.review-done-box {
-  padding: 0.75rem 1rem;
-  border-radius: 10px;
-  background: var(--ok-bg);
-  color: var(--ok-fg);
-  font-weight: 600;
-}
-
-.review-done-box p {
-  margin: 0;
-}
-
-.review-group h3 {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin: 0 0 0.5rem;
-  font-size: 0.875rem;
-}
-
-.review-hint {
-  color: var(--muted);
-  font-size: 0.8125rem;
-  font-weight: 400;
-}
-
+/* The labels of Verificare, under its "Acum" box: one per student with
+   points left, then one per student done. */
 .review-chips {
   display: flex;
   flex-wrap: wrap;
@@ -3188,17 +3177,6 @@ table.tests .row-actions {
 
 .review-chip .tag {
   border-radius: 999px;
-}
-
-@media (max-width: 40rem) {
-  .review-progress {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .review-bar-column {
-    flex-basis: auto;
-  }
 }
 
 .test-sheet {
@@ -3257,6 +3235,12 @@ table.tests .row-actions {
   font-weight: 500;
   line-height: 1.2;
   overflow-wrap: anywhere;
+}
+
+.sheet-tile dd.is-word {
+  padding-top: 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .sheet-of {
@@ -4902,8 +4886,7 @@ input[type="file"] {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
-  max-width: 44rem;
-  margin: 0.5rem 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -4965,10 +4948,8 @@ input[type="file"] {
 
 /* "Varianta CES" in Pregătire: the adapted test's own files, under the class files. */
 .ces-variant {
-  max-width: 44rem;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1.5px solid var(--rule);
+  display: grid;
+  gap: 0.75rem;
 }
 
 .ces-variant > h3 {
@@ -5053,25 +5034,6 @@ input[type="file"] {
 /* A file of the test: "gata" in green, "lipsește" in orange while a draft or
    open test needs it, "de verificat" in orange for a generated barem not yet
    checked. */
-.file-mark {
-  display: inline-block;
-  margin-left: 0.25rem;
-  padding: 0 0.5rem;
-  border-radius: 999px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.file-mark.is-ready {
-  background: var(--ok-bg);
-  color: var(--ok-fg);
-}
-
-.file-mark.is-missing {
-  border: 1px solid var(--orange-mark);
-  background: var(--marker);
-  color: var(--orange);
-}
 
 /* What a test still misses, under "Creează testul" and "Începe testul". */
 .missing-list strong {

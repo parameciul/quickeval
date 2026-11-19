@@ -71,6 +71,8 @@ const PATHS = {
     </>
   ),
   close: <path d="M5 5l10 10M15 5L5 15" />,
+  // A filled dot: a thing that waits on the teacher, in a stage's list.
+  dot: <circle cx="10" cy="10" r="2.5" fill="currentColor" />,
   copy: (
     <>
       <rect x="7" y="7" width="9.5" height="9.5" rx="1.5" />

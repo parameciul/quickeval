@@ -12,20 +12,19 @@ import { IconQr } from '../shell/icons.tsx';
 import type { StageName } from '../stages.ts';
 import { AnalysisState } from './AnalysisState.tsx';
 import { EvaluationControls } from './EvaluationControls.tsx';
-import { missingOf } from '../missing.ts';
-import { MissingList } from '../MissingList.tsx';
+import { missingNote, missingOf } from '../missing.ts';
 import { CesVariant, CesWaiting } from './CesVariant.tsx';
 import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
 import { clearPrint } from './printPdf.ts';
 import { PrintTest } from './PrintTest.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
-import { NowBox, UploadsBand } from './StageNow.tsx';
+import { baremRow, cesRows, NowBox, ReadyList, StageSection, testFileRow, UploadsBand, type ReadyRow } from './StageNow.tsx';
 import { WaysIn } from './WaysIn.tsx';
 import { ReportCard } from './ReportCard.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
-import { NoResultsYet, ResultsAccess } from './ResultsAccess.tsx';
-import { ReviewOverview, showsOverview } from './ReviewOverview.tsx';
+import { ResultsAccess } from './ResultsAccess.tsx';
+import { ReviewOverview, ReviewWaits, showsOverview } from './ReviewOverview.tsx';
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
@@ -50,7 +49,7 @@ export interface PanelProps {
 
 // The landing page's sentence for each stage (redesign spec §3), but for
 // Rezultate: there the teacher reads what each student gets once the results
-// are published (spec 2026-11-14), not what the landing page promises.
+// are published, in one line like the others.
 const SENTENCES: Record<StageName, string> = {
   Pregătire: 'Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.',
   Tipărire: 'Tipărești testul. Fiecare pagină are un cod QR.',
@@ -58,8 +57,7 @@ const SENTENCES: Record<StageName, string> = {
     'Elevii trimit pozele lucrării de pe telefon: scanează codul QR de pe foaia testului sau deschid linkul primit de la tine. Fără cont și fără aplicație.',
   Corectare: 'Fiecare lucrare primește punctaj după barem, pas cu pas, cu 10 puncte din oficiu.',
   Verificare: 'Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.',
-  Rezultate:
-    'După ce rezultatele sunt publicate, fiecare elev are acces la rezultatul lui: nota finală, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări.',
+  Rezultate: 'Publici rezultatele. Fiecare elev vede pe linkul lui nota, punctele pe exerciții și explicațiile.',
 };
 
 // The panel of one stage of the test page (redesign spec §6): its name, its
@@ -116,7 +114,10 @@ function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) 
           <SubjectChange test={test} onChanged={onChanged} onRobot={onRobot} />
         </div>
       )}
-      <TestFiles test={test} onChanged={onChanged} onRobot={onRobot} />
+      <PrepareNow test={test} />
+      <StageSection title="Fișierele" meta={filesMeta(test)}>
+        <TestFiles test={test} onChanged={onChanged} onRobot={onRobot} />
+      </StageSection>
       <CesVariant test={test} uploads={uploads} onChanged={onChanged} onRobot={onRobot} />
       {waitsForBarem(test) && (
         <RobotLine lastCheckAt={robot.lastCheckAt} lateText="Baremul poate întârzia.">
@@ -127,6 +128,98 @@ function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) 
   );
 }
 
+// "1 din 2 gata": the test file and an active barem.
+function filesMeta(test: TestInfo): string {
+  const ready = Number(test.files.test !== null) + Number(test.files.barem !== null && !test.barem.unchecked);
+  return ready === 2 ? 'gata' : `${ready} din 2 gata`;
+}
+
+// The "Acum" box of Pregătire: what the test still misses, the barem the
+// robot makes or the teacher checks, or that both files are ready.
+function PrepareNow({ test }: { test: TestInfo }) {
+  const before = test.status === 'draft' || test.status === 'open';
+  const next = before ? (
+    <>
+      Tipărești testul cu cod QR la etapa <MoveOnLink stage="Tipărire">Tipărire</MoveOnLink>.
+    </>
+  ) : undefined;
+  const missing = missingOf(test);
+  if (test.barem.request === 'requested' && test.files.barem === null) {
+    return (
+      <NowBox title="Se generează baremul" next={next}>
+        <p className="now-sub">Durează câteva minute. Îl verifici aici, când e gata.</p>
+      </NowBox>
+    );
+  }
+  if (test.files.barem !== null && test.barem.unchecked) {
+    return (
+      <NowBox label="Acum · te așteaptă" title="Verifică baremul generat" next={next}>
+        <p className="now-sub">Citește-l mai jos și confirmă-l. Până atunci, corectarea nu pornește.</p>
+      </NowBox>
+    );
+  }
+  if (missing.length > 0) {
+    const note = missingNote(missing);
+    return (
+      <NowBox label="Acum · te așteaptă" title={note.charAt(0).toUpperCase() + note.slice(1)} next={next}>
+        <p className="now-sub">
+          {missing.includes('test')
+            ? 'Le încarci mai jos. Din test se face testul cu cod QR pe care îl tipărești.'
+            : 'Fără barem, lucrările trimise așteaptă. Îl încarci mai jos sau primești o propunere pe care o verifici tu.'}
+        </p>
+      </NowBox>
+    );
+  }
+  return (
+    <NowBox title="Testul și baremul sunt gata" done next={next}>
+      {!before && <p className="now-sub">Le poți înlocui după ce se termină corectarea, de exemplu ca să corectezi din nou.</p>}
+    </NowBox>
+  );
+}
+
+// The "Acum" box of Tipărire: the test with the QR code is made, ready, or
+// failed; after the test was given, the files stay to print again.
+function PrintNow({ test }: { test: TestInfo }) {
+  if (test.status !== 'draft' && test.status !== 'open') {
+    return (
+      <NowBox title="Testul s-a dat în clasă" done>
+        <p className="now-sub">Fișierele de tipărit rămân aici, de exemplu pentru un elev care a lipsit.</p>
+      </NowBox>
+    );
+  }
+  const next = (
+    <>
+      În ziua testului, îl începi la etapa <MoveOnLink stage="În clasă">În clasă</MoveOnLink>.
+    </>
+  );
+  if (test.files.test === null) {
+    return (
+      <NowBox label="Acum · te așteaptă" title="Lipsește testul" next={next}>
+        <ReadyList rows={[testFileRow(test)]} />
+      </NowBox>
+    );
+  }
+  if (test.print.status === 'failed') {
+    return (
+      <NowBox label="Acum · te așteaptă" title="Testul cu cod QR nu s-a putut face" next={next}>
+        <p className="now-sub">Încearcă din nou mai jos.</p>
+      </NowBox>
+    );
+  }
+  if (test.print.status !== 'ready') {
+    return (
+      <NowBox title="Se pregătește testul cu cod QR" next={next}>
+        <p className="now-sub">Durează un minut sau două.</p>
+      </NowBox>
+    );
+  }
+  return (
+    <NowBox title="Testul cu cod QR e gata de tipărit" done next={next}>
+      <p className="now-sub">Tipărește-l din timp, înainte de ziua testului. Fiecare pagină are codul.</p>
+    </NowBox>
+  );
+}
+
 function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
   // Leaving Tipărire removes the hidden frame of the last "Tipărește".
   useEffect(() => clearPrint, []);
@@ -134,18 +227,23 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
   if (test.status !== 'draft' && test.status !== 'open') {
     return (
       <>
-        <p className="hint">Testul s-a dat în clasă.</p>
-        {test.print.status === 'ready' && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
-        {test.ces.files.test !== null && test.ces.print.status === 'ready' && (
-          <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
-        )}
+        <PrintNow test={test} />
+        <StageSection title="De tipărit">
+          {test.print.status === 'ready' && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
+          {test.ces.files.test !== null && test.ces.print.status === 'ready' && (
+            <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
+          )}
+        </StageSection>
       </>
     );
   }
   return (
     <>
-      <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />
-      {test.ces.files.test !== null && <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />}
+      <PrintNow test={test} />
+      <StageSection title="De tipărit">
+        <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />
+        {test.ces.files.test !== null && <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />}
+      </StageSection>
       {waitsForPrint(test) && (
         <RobotLine lastCheckAt={robot.lastCheckAt} lateText="Testul cu cod QR poate întârzia.">
           <StartRobotButton code={test.code} onChanged={onChanged} onRobot={onRobot} />
@@ -183,10 +281,9 @@ function ClassPanel(props: PanelProps) {
         <WaysIn test={test} onChanged={onChanged} />
       ) : (
         closed && (
-          <>
-            <h3>Cum trimit elevii lucrarea</h3>
+          <StageSection title="Cum trimit elevii lucrarea">
             <p className="hint">Încărcarea e închisă: linkurile nu primesc lucrări până o redeschizi. Codul QR de pe foaie rămâne același.</p>
-          </>
+          </StageSection>
         )
       )}
       {test.status === 'open' && <StopTest {...props} />}
@@ -199,6 +296,26 @@ function ClassPanel(props: PanelProps) {
       ) : (
         test.status !== 'draft' && <Papers {...props} selectable={false} />
       )}
+    </>
+  );
+}
+
+// The test with the QR code as a row of a stage's list.
+function printRow(test: TestInfo): ReadyRow {
+  if (test.print.status === 'ready') return { state: 'done', what: 'Testul cu cod QR', value: 'gata de tipărit' };
+  if (test.files.test === null) return { state: 'later', what: 'Testul cu cod QR', value: 'după ce încarci testul', stage: 'Tipărire' };
+  if (test.print.status === 'failed') return { state: 'wait', what: 'Testul cu cod QR', value: 'nu s-a putut face', stage: 'Tipărire' };
+  return { state: 'later', what: 'Testul cu cod QR', value: 'se pregătește', stage: 'Tipărire' };
+}
+
+// What the test needs before the teacher starts it in class. It never blocks
+// the start: a missing part only makes papers wait later.
+function ClassReady({ test }: { test: TestInfo }) {
+  const rows = [testFileRow(test), baremRow(test), ...cesRows(test), printRow(test)];
+  return (
+    <>
+      <ReadyList rows={rows} />
+      {rows.some((row) => row.state === 'wait') && <p className="now-sub">Poți începe oricum. Ce lipsește adaugi și după, la etapa Pregătire.</p>}
     </>
   );
 }
@@ -253,7 +370,7 @@ function ClassNow({ test, onChanged, onRobot }: PanelProps) {
             Începe testul
           </button>
         </div>
-        <MissingList missing={missingOf(test)} lead="Înainte să începi," after="Poți începe oricum." why />
+        <ClassReady test={test} />
         {start.error && <ErrorMessage error={start.error} />}
       </NowBox>
     );
@@ -368,7 +485,22 @@ function gradingNext() {
 function GradingPanel(props: PanelProps) {
   const { test, uploads, robot, selected, onChanged, onRobot } = props;
   if (test.status === 'draft') {
-    return <p className="hint">Corectarea începe după ce elevii trimit lucrările. Atunci alegi lucrările și pornești corectarea.</p>;
+    return (
+      <>
+        <NowBox label="Acum · corectarea nu a început" title="Corectarea pornește după ce elevii trimit lucrările" next={gradingNext()}>
+          <ReadyList
+            rows={[
+              testFileRow(test),
+              baremRow(test),
+              ...cesRows(test),
+              { state: 'later', what: 'Testul început', value: 'nu încă: îl începi în ziua testului', stage: 'În clasă' },
+              { state: 'later', what: 'Lucrări trimise', value: `0 din ${test.studentCount}` },
+            ]}
+          />
+        </NowBox>
+        <Papers {...props} selectable={false} />
+      </>
+    );
   }
   return (
     <>
@@ -467,7 +599,7 @@ function GradingNow({ test, uploads, onChanged, onRobot }: PanelProps) {
 }
 
 function ReviewPanel({ test, uploads }: PanelProps) {
-  if (!showsOverview(test)) return <p className="hint">Punctele nesigure apar după ce se corectează lucrările.</p>;
+  if (!showsOverview(test)) return <ReviewWaits test={test} />;
   return <ReviewOverview test={test} uploads={uploads} />;
 }
 
@@ -475,7 +607,6 @@ function ReviewPanel({ test, uploads }: PanelProps) {
 // then the students' links beside "Raportul clasei". The links table takes
 // the place of the papers table here.
 function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
-  if (test.status === 'draft') return <NoResultsYet />;
   const count = linksCount(uploads, test.resultsOpen);
   return (
     <>
@@ -484,11 +615,9 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
         <div className="results-grid">
           <ReportCard test={test} uploads={uploads} />
           <div className="results-students">
-            <div className="results-students-head">
-              <h3>Elevii</h3>
-              {count && <span className={count.all ? 'tag tag-ok' : 'tag'}>{count.text}</span>}
-            </div>
-            <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} onChanged={onChanged} />
+            <StageSection title="Elevii" meta={count && <span className={count.all ? 'tag tag-ok' : 'tag'}>{count.text}</span>}>
+              <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} onChanged={onChanged} />
+            </StageSection>
           </div>
         </div>
       </div>
@@ -500,7 +629,7 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
 // Only the table of Corectare has checkboxes, while the test is open.
 function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRobot, selectable }: PanelProps & { selectable: boolean }) {
   return (
-    <>
+    <div className="stage-section">
       <PapersProgress test={test} uploads={uploads} />
       <UploadsTable
         code={test.code}
@@ -514,7 +643,7 @@ function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRob
         onChanged={onChanged}
         onRobot={onRobot}
       />
-    </>
+    </div>
   );
 }
 

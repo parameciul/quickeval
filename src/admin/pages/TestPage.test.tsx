@@ -174,7 +174,7 @@ describe('TestPage', () => {
     expect(screen.getByRole('region', { name: 'Testul cu cod QR' })).toBeInTheDocument();
     open.unmount();
     renderAdmin(`${PAGE}#print`, apiWith({ status: 'evaluating' }));
-    expect(await screen.findByText('Testul s-a dat în clasă.')).toBeInTheDocument();
+    expect(await screen.findByText('Testul s-a dat în clasă')).toHaveClass('now-title', 'is-done');
     expect(screen.queryByRole('region', { name: 'Testul cu cod QR' })).not.toBeInTheDocument();
   });
 
@@ -1074,14 +1074,35 @@ describe('TestPage stages', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Pregătire' })).toBeInTheDocument();
   });
 
-  it('says what a stage that has not come yet will hold', async () => {
+  it('says in the same "Acum" box what a stage that has not come yet needs, and keeps its frame', async () => {
     renderAdmin(`${PAGE}#grading`, apiWith());
-    expect(await screen.findByText(/^Corectarea începe după ce elevii trimit lucrările\./)).toBeInTheDocument();
+    expect(await screen.findByText('Corectarea pornește după ce elevii trimit lucrările')).toHaveClass('now-title');
+    expect(screen.getByText('Acum · corectarea nu a început')).toBeInTheDocument();
+    const needs = () => screen.getByRole('list', { name: 'Ce așteaptă etapa' });
+    expect(within(needs()).getAllByRole('listitem').map((item) => item.querySelector('strong')?.textContent)).toEqual([
+      'Testul',
+      'Baremul',
+      'Testul început',
+      'Lucrări trimise',
+    ]);
+    // What waits on the teacher is orange, with a link to the stage that does it.
+    const barem = within(needs()).getByText('Baremul').closest('li')!;
+    expect(barem).toHaveClass('is-wait');
+    expect(within(barem).getByText('lipsește')).toBeInTheDocument();
+    expect(within(barem).getByRole('link', { name: 'Mergi la Pregătire' })).toHaveAttribute('href', '/tests/6E2-26T1#prepare');
+    // The papers table keeps its place, with every student.
+    expect(screen.getByRole('table', { name: 'Încărcările elevilor' })).toBeInTheDocument();
+    expect(screen.getByText('Urmează').closest('p')).toHaveTextContent('Urmează Verifici punctele nesigure la etapa Verificare.');
+
     await openStage('Verificare');
-    expect(screen.getByText('Punctele nesigure apar după ce se corectează lucrările.')).toBeInTheDocument();
+    expect(screen.getByText('Verificarea începe după corectare')).toHaveClass('now-title');
+    expect(within(needs()).getByText('Testul început')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'De verificat' })).toBeInTheDocument();
+    expect(screen.getByText(/^Aici apar elevii cu puncte nesigure/)).toHaveClass('stage-slot');
+
     await openStage('Rezultate');
-    expect(screen.getByRole('heading', { level: 3, name: 'Rezultatele se publică după corectare' })).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByText('Rezultatele se publică după corectare')).toHaveClass('now-title');
+    expect(screen.getByRole('table', { name: 'Linkurile cu rezultatele elevilor' })).toBeInTheDocument();
   });
 });
 
@@ -1125,16 +1146,19 @@ describe('TestPage Verificare', () => {
     fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
   ];
 
-  it('starts the check: the progress, the orange button, and a label per student left', async () => {
+  it('starts the check: the progress in the "Acum" box, the main button, and a label per student left', async () => {
     renderAdmin(`${PAGE}#review`, reviewApi(rows()));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
-    expect(within(panel).getByText('din 3 verificate', { exact: false })).toBeInTheDocument();
+    expect(within(panel).getByText('Acum · te așteaptă')).toBeInTheDocument();
+    expect(within(panel).getByText('3 puncte de verificat, la 2 elevi')).toHaveClass('now-title');
     expect(within(panel).getByRole('progressbar', { name: 'Puncte verificate' })).toHaveAttribute('aria-valuenow', '0');
     expect(within(panel).getByRole('progressbar', { name: 'Puncte verificate' })).toHaveAttribute('aria-valuemax', '3');
-    expect(within(panel).getByText('Mai sunt 3 puncte, la 2 elevi')).toBeInTheDocument();
+    expect(within(panel).getByText('0 din 3 puncte verificate.')).toBeInTheDocument();
     const start = within(panel).getByRole('link', { name: 'Începe verificarea' });
     expect(start).toHaveAttribute('href', '/tests/6E2-26T1/review');
-    expect(start).toHaveClass('button-wait');
+    // The one main action of the stage, blue like on every other stage.
+    expect(start).toHaveClass('button');
+    expect(start).not.toHaveClass('button-wait');
     expect(within(panel).getByText('2 elevi · clic pe un nume')).toBeInTheDocument();
     const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getAllByRole('link');
     expect(left.map((link) => link.getAttribute('href'))).toEqual([
@@ -1156,7 +1180,8 @@ describe('TestPage Verificare', () => {
     expect(within(panel).getByRole('link', { name: 'Continuă verificarea' })).toHaveAttribute('href', '/tests/6E2-26T1/review');
     expect(within(panel).queryByRole('link', { name: 'Începe verificarea' })).not.toBeInTheDocument();
     expect(within(panel).getByRole('progressbar', { name: 'Puncte verificate' })).toHaveAttribute('aria-valuenow', '2');
-    expect(within(panel).getByText('Mai este 1 punct, la 1 elev')).toBeInTheDocument();
+    expect(within(panel).getByText('1 punct de verificat, la 1 elev')).toBeInTheDocument();
+    expect(within(panel).getByText('2 din 3 puncte verificate.')).toBeInTheDocument();
     const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getAllByRole('link');
     expect(left.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([['Marin Dan 1/2', '/tests/6E2-26T1/review?paper=7&item=41']]);
     expect(within(panel).getByText('1 elev · clic pe un nume')).toBeInTheDocument();
@@ -1167,8 +1192,9 @@ describe('TestPage Verificare', () => {
   it('says when every point is checked and leads to Rezultate', async () => {
     renderAdmin(`${PAGE}#review`, reviewApi(rows({ marin: 2, pop: 1 })));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
-    expect(within(panel).getByText('Toate cele 3 puncte sunt verificate.')).toBeInTheDocument();
-    // The bar at the foot leads to Rezultate; the box has no button of its own.
+    expect(within(panel).getByText('Toate cele 3 puncte sunt verificate')).toHaveClass('now-title', 'is-done');
+    // The box has no button of its own: "Urmează" and the bar at the foot lead to Rezultate.
+    expect(within(panel).getByRole('link', { name: 'Rezultate' })).toHaveAttribute('href', '/tests/6E2-26T1#results');
     expect(within(panel).queryByRole('link', { name: 'Mergi la Rezultate' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/tests/6E2-26T1#results');
     expect(within(panel).queryByRole('link', { name: /verificarea$/ })).not.toBeInTheDocument();
@@ -1184,13 +1210,14 @@ describe('TestPage Verificare', () => {
   it('names the one point when a test had only one to check', async () => {
     renderAdmin(`${PAGE}#review`, reviewApi(rows({ pop: 1 }).slice(1)));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
-    expect(within(panel).getByText('Singurul punct de verificat a fost verificat.')).toBeInTheDocument();
+    expect(within(panel).getByText('Singurul punct de verificat e verificat')).toHaveClass('now-title', 'is-done');
   });
 
   it('says there is nothing to check when no paper had a point', async () => {
     renderAdmin(`${PAGE}#review`, reviewApi(rows().slice(2)));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
-    expect(within(panel).getByText('Nimic de verificat.')).toBeInTheDocument();
+    expect(within(panel).getByText('Nimic de verificat')).toHaveClass('now-title', 'is-done');
+    expect(within(panel).getByText('Lucrările corectate nu au puncte nesigure.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/tests/6E2-26T1#results');
     expect(within(panel).queryByRole('list')).not.toBeInTheDocument();
     expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument();
@@ -1217,14 +1244,16 @@ describe('TestPage Verificare', () => {
     const panel = await screen.findByRole('region', { name: 'Verificare' });
     const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getByRole('link');
     expect(left).toHaveAttribute('href', '/tests/6E2-26T1/review?paper=7');
-    expect(within(panel).getByText('Mai sunt 2 puncte, la 1 elev')).toBeInTheDocument();
+    expect(within(panel).getByText('2 puncte de verificat, la 1 elev')).toBeInTheDocument();
   });
 
   it('waits for the grading before it lists anything', async () => {
     renderAdmin(`${PAGE}#review`, apiWith({ status: 'evaluating' }));
-    expect(await screen.findByText('Punctele nesigure apar după ce se corectează lucrările.')).toBeInTheDocument();
+    expect(await screen.findByText('Verificarea începe după corectare')).toBeInTheDocument();
+    const needs = within(screen.getByRole('list', { name: 'Ce așteaptă etapa' }));
+    expect(needs.getByText('Corectarea').closest('li')).toHaveTextContent('Corectarea urmează: în lucruMergi la Corectare');
     expect(screen.queryByRole('list', { name: 'De verificat' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Nimic de verificat.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nimic de verificat')).not.toBeInTheDocument();
   });
 });
 

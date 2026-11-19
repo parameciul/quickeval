@@ -168,7 +168,8 @@ describe('PrintTest', () => {
 
   it('keeps the PDFs to print again after the test was given', async () => {
     renderAdmin('/tests/6E2-26T1#print', openApi({ status: 'done', print: { status: 'ready', fromWord: false } }));
-    expect(await screen.findByText('Testul s-a dat în clasă.')).toBeInTheDocument();
+    expect(await screen.findByText('Testul s-a dat în clasă')).toHaveClass('now-title', 'is-done');
+    expect(screen.getByText('Fișierele de tipărit rămân aici, de exemplu pentru un elev care a lipsit.')).toBeInTheDocument();
     const given = within(await card());
     expect(given.getByRole('button', { name: 'Tipărește' })).toBeInTheDocument();
     expect(given.getByRole('link', { name: 'Descarcă PDF' })).toHaveAttribute('href', '/api/admin/tests/6E2-26T1/print');
@@ -177,7 +178,7 @@ describe('PrintTest', () => {
 
   it('says only that the test was given when no PDF was made before', async () => {
     renderAdmin('/tests/6E2-26T1#print', openApi({ status: 'evaluating' }));
-    expect(await screen.findByText('Testul s-a dat în clasă.')).toBeInTheDocument();
+    expect(await screen.findByText('Testul s-a dat în clasă')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Testul cu cod QR' })).not.toBeInTheDocument();
     expect(screen.queryByText('Se pregătește testul cu cod QR…')).not.toBeInTheDocument();
   });

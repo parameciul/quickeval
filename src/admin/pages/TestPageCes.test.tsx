@@ -124,8 +124,9 @@ describe('Varianta CES in Pregătire', () => {
   it('marks the missing CES files in orange, and the files it has as ready', async () => {
     renderAdmin(`${PAGE}#prepare`, apiWith({ ces: noCesVariant({ studentCount: 1, files: { test: FILES.test, barem: null } }) }));
     const ces = await block();
-    expect(ces.getByText('gata')).toHaveClass('file-mark', 'is-ready');
-    expect(ces.getByText('lipsește')).toHaveClass('file-mark', 'is-missing');
+    // The labels of every other table and box: green when ready, orange when it waits.
+    expect(ces.getByText('gata')).toHaveClass('tag', 'tag-ok');
+    expect(ces.getByText('lipsește')).toHaveClass('tag', 'tag-wait');
   });
 
   it('marks a generated barem that waits to be checked as "de verificat", not "gata"', async () => {
@@ -134,7 +135,7 @@ describe('Varianta CES in Pregătire', () => {
       apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES, barem: { request: 'none', unchecked: true } }) }),
     );
     const ces = await block();
-    expect(ces.getByText('de verificat')).toHaveClass('file-mark', 'is-missing');
+    expect(ces.getByText('de verificat')).toHaveClass('tag', 'tag-wait');
     expect(ces.getAllByText('gata')).toHaveLength(1);
   });
 
@@ -164,16 +165,20 @@ describe('Varianta CES in Pregătire', () => {
 });
 
 describe('what a draft misses, under "Începe testul"', () => {
-  it('lists each missing part and why it matters, and still starts', async () => {
+  it('lists each missing part in the stage\'s checklist, and still starts', async () => {
     const api = apiWith({ ces: noCesVariant({ studentCount: 1 }) });
     renderAdmin(`${PAGE}#in-class`, api);
-    const list = await screen.findByText('Înainte să începi, lipsesc:');
-    const box = within(list.closest('.missing-list') as HTMLElement);
-    expect(box.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'testul CES: elevii cu CES nu au ce primi pe hârtie',
-      'baremul CES: lucrările CES vor aștepta baremul CES',
-    ]);
-    expect(box.getByText('Poți începe oricum.')).toBeInTheDocument();
+    const list = await screen.findByRole('list', { name: 'Ce așteaptă etapa' });
+    const waiting = within(list)
+      .getAllByRole('listitem')
+      .filter((item) => item.classList.contains('is-wait'))
+      .map((item) => item.querySelector('strong')?.textContent);
+    expect(waiting).toEqual(['Testul CES', 'Baremul CES']);
+    for (const name of waiting) {
+      const item = within(list).getByText(name!).closest('li')!;
+      expect(within(item).getByRole('link', { name: 'Mergi la Pregătire' })).toBeInTheDocument();
+    }
+    expect(screen.getByText('Poți începe oricum. Ce lipsește adaugi și după, la etapa Pregătire.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Începe testul' }));
     expect(api.startTest).toHaveBeenCalledWith('9R2-26T1');
   });
@@ -181,7 +186,8 @@ describe('what a draft misses, under "Începe testul"', () => {
   it('shows nothing when the draft misses nothing, or the switch is off', async () => {
     renderAdmin(`${PAGE}#in-class`, apiWith({ ces: noCesVariant({ studentCount: 1, off: true }) }));
     expect(await screen.findByRole('button', { name: 'Începe testul' })).toBeInTheDocument();
-    expect(screen.queryByText(/Înainte să începi/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Poți începe oricum/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Testul CES')).not.toBeInTheDocument();
   });
 });
 

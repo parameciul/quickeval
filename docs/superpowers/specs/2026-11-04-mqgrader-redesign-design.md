@@ -178,7 +178,7 @@ The landing page is indexed (SEO, GEO and AEO work: canonical, Open Graph, JSON-
 
 ## 6. Test page (`/admin/teste/:code`, Phase 4)
 
-The path above the title, the progress of the papers and the papers table are replaced by `2026-11-12-one-page-paper-check-design.md` §5.
+The path above the title, the progress of the papers and the papers table are replaced by `2026-11-12-one-page-paper-check-design.md` §5. Every panel's "Acum" box, the checklist of a stage that has not started, and the look of the sections are in `2026-11-19-uniform-stages-design.md`, which holds where the two disagree.
 
 - Above the title, the link "← Toate testele". Title: the test's name. Under it: the class (a link to its page), its students ("3 elevi") and the start ("început 6 oct. 2026, 10:15"), or "ciornă" for a draft. Under that, for every stage: the notice of the page before (a new test whose file did not upload), a failed refresh, and what the robot answered to the last button.
 - Left column, 300 px: the six stages of `stagesOf()` (§5) as a vertical list and, under it, "Fișa testului". Each stage is a link: a dot (blue with a tick when done, orange when it waits on the teacher, pale blue when in progress, empty when later), the stage name and its note ("lipsește baremul"; "gata" or "urmează" when the stage has none). The words also say the state to a screen reader ("în lucru", "te așteaptă").
@@ -221,7 +221,7 @@ The page `/admin/teste/:code/verificare` (decision 28): three panes in one panel
 
 ## 8. Rezultate (Phase 5)
 
-The panel's look changed later, in `docs/superpowers/specs/2026-11-14-rezultate-page-design.md`: the stage's sentence, the box at the top with the two ways students find their results, the table with the grade first, and "Raportul clasei" beside the table in place of "Pentru tine". Where the two disagree, the newer spec holds.
+The panel's look changed later, in `docs/superpowers/specs/2026-11-14-rezultate-page-design.md`: the stage's sentence, the box at the top with the two ways students find their results, the table with the grade first, and "Raportul clasei" beside the table in place of "Pentru tine". Where the two disagree, the newer spec holds. The box at the top, its switch and the ways students find their results changed again in `2026-11-19-uniform-stages-design.md`.
 
 The panel of the stage Rezultate (§6). A draft has one line: "Rezultatele se publică după corectare." Every other test:
 
@@ -336,7 +336,7 @@ The user picked one option per page on 2026-11-08 (decisions 29 to 39). The prot
   - A class with no students: "Clasa 7A nu are încă elevi", "Adaugă elevi".
   - A class with no tests: "Niciun test pentru Clasa 7A", "Test nou pentru această clasă".
   - A started test with no paper: "Nicio lucrare trimisă încă", "Arată codul QR pe tot ecranul".
-  - Rezultate with nothing graded: "Rezultatele se publică după corectare", "Mergi la Corectare".
+  - Rezultate with nothing graded: "Rezultatele se publică după corectare", "Mergi la Corectare". Replaced by the "Acum" box of `2026-11-19-uniform-stages-design.md` §3.
 
 ### 11.10 Search (8f)
 

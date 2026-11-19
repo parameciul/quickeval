@@ -142,10 +142,10 @@ function TestFileRow({
             <a href={testFileUrl(code, kind, variant)} target="_blank" rel="noopener">
               {file.name}
             </a>{' '}
-            {unchecked ? <span className="file-mark is-missing">de verificat</span> : <span className="file-mark is-ready">gata</span>}
+            {unchecked ? <span className="tag tag-wait">de verificat</span> : <span className="tag tag-ok">gata</span>}
           </>
         ) : missing ? (
-          <span className="file-mark is-missing">lipsește</span>
+          <span className="tag tag-wait">lipsește</span>
         ) : (
           <span className="hint">lipsește</span>
         )}

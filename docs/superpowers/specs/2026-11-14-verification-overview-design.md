@@ -2,6 +2,8 @@
 
 Date: 2026-11-14. A small change in three parts, asked by the user after daily use.
 
+The Verificare overview's progress row, its orange button and its green box were replaced by the "Acum" box of `2026-11-19-uniform-stages-design.md` §2.
+
 ## Why
 
 - A paper opened from Rezultate (or any table) sometimes opens scrolled to the middle: the teacher app never scrolls to the top on a new page, so the browser keeps the old position.

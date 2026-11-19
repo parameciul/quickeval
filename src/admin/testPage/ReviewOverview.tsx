@@ -1,4 +1,3 @@
-import { useId } from 'react';
 import { Link } from 'react-router';
 import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
@@ -6,6 +5,8 @@ import { CesTag } from '../CesTag.tsx';
 import { paperPath } from '../paperPage/paths.ts';
 import { pointKey, reviewPath } from '../reviewPage/points.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { MoveOnLink } from './MoveOnLink.tsx';
+import { baremRow, NowBox, ReadyList, StageSection, type ReadyRow } from './StageNow.tsx';
 
 // The graded papers that had points to check, in the class order (by name):
 // all their points, those checked, those left, and the papers with points
@@ -31,59 +32,54 @@ export function showsOverview(test: TestInfo): boolean {
   return test.status !== 'draft' && test.gradedCount > 0;
 }
 
-// The panel Verificare as an overview of the check: how far it is, one orange
-// button into the paper page at the first point left, and a label per student
-// with points (those left first, then those done). The points themselves are
-// decided on the paper page; the papers table is in În clasă and Corectare.
+// The panel Verificare as an overview of the check: the "Acum" box with how
+// far it is and one button into the paper page at the first point left, then a
+// label per student with points (those left first, then those done). The
+// points themselves are decided on the paper page; the papers table is in
+// În clasă and Corectare.
 export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
-  const waitId = useId();
-  const doneId = useId();
   const { total, checked, left, waiting, done } = reviewCounts(uploads);
-  if (total === 0) {
-    return (
-      <div className="review-done-box">
-        <p>Nimic de verificat.</p>
-      </div>
-    );
-  }
+  const next = (
+    <>
+      Publici rezultatele la etapa <MoveOnLink stage="Rezultate">Rezultate</MoveOnLink>.
+    </>
+  );
   return (
     <>
-      {left > 0 ? (
-        <div className="review-progress">
-          <p className="review-figure">
-            <strong>{checked}</strong> din {total} verificate
+      {total === 0 ? (
+        <NowBox title="Nimic de verificat" done next={next}>
+          <p className="now-sub">Lucrările corectate nu au puncte nesigure.</p>
+        </NowBox>
+      ) : left > 0 ? (
+        <NowBox label="Acum · te așteaptă" title={`${countLabel(left, 'punct', 'puncte')} de verificat, la ${countLabel(waiting.length, 'elev', 'elevi')}`} next={next}>
+          <span
+            className="now-bar"
+            role="progressbar"
+            aria-label="Puncte verificate"
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuenow={checked}
+          >
+            <span style={{ width: `${Math.round((checked / total) * 100)}%` }} />
+          </span>
+          <p className="now-sub">
+            {checked} din {countLabel(total, 'punct verificat', 'puncte verificate')}.
           </p>
-          <div className="review-bar-column">
-            <div
-              className="review-bar"
-              role="progressbar"
-              aria-label="Puncte verificate"
-              aria-valuemin={0}
-              aria-valuemax={total}
-              aria-valuenow={checked}
-            >
-              <span style={{ width: `${Math.round((checked / total) * 100)}%` }} />
-            </div>
-            <p className="review-left">
-              {left === 1 ? 'Mai este' : 'Mai sunt'} {countLabel(left, 'punct', 'puncte')}, la {countLabel(waiting.length, 'elev', 'elevi')}
-            </p>
+          <div className="now-actions">
+            <Link className="button" to={reviewPath(test.code)}>
+              <ActionIcon name="search" />
+              {checked === 0 ? 'Începe verificarea' : 'Continuă verificarea'}
+            </Link>
           </div>
-          <Link className="button button-wait" to={reviewPath(test.code)}>
-            <ActionIcon name="search" />
-            {checked === 0 ? 'Începe verificarea' : 'Continuă verificarea'}
-          </Link>
-        </div>
+        </NowBox>
       ) : (
-        <div className="review-done-box">
-          <p>{total === 1 ? 'Singurul punct de verificat a fost verificat.' : `Toate cele ${countLabel(total, 'punct', 'puncte')} sunt verificate.`}</p>
-        </div>
+        <NowBox title={total === 1 ? 'Singurul punct de verificat e verificat' : `Toate cele ${countLabel(total, 'punct', 'puncte')} sunt verificate`} done next={next}>
+          <p className="now-sub">Poți deschide oricând o lucrare, ca să schimbi un punctaj.</p>
+        </NowBox>
       )}
       {waiting.length > 0 && (
-        <div className="review-group">
-          <h3>
-            <span id={waitId}>De verificat</span> <span className="review-hint">{countLabel(waiting.length, 'elev', 'elevi')} · clic pe un nume</span>
-          </h3>
-          <ul className="review-chips" aria-labelledby={waitId}>
+        <StageSection title="De verificat" meta={`${countLabel(waiting.length, 'elev', 'elevi')} · clic pe un nume`}>
+          <ul className="review-chips" aria-label="De verificat">
             {waiting.map((row) => {
               const all = row.flagCount + row.checkedCount;
               const ces = isCes(row);
@@ -107,14 +103,11 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
               );
             })}
           </ul>
-        </div>
+        </StageSection>
       )}
       {done.length > 0 && (
-        <div className="review-group">
-          <h3>
-            <span id={doneId}>Gata</span> <span className="review-hint">{countLabel(done.length, 'elev', 'elevi')}</span>
-          </h3>
-          <ul className="review-chips" aria-labelledby={doneId}>
+        <StageSection title="Gata" meta={countLabel(done.length, 'elev', 'elevi')}>
+          <ul className="review-chips" aria-label="Gata">
             {done.map((row) => (
               <li key={row.submissionId}>
                 <Link className="review-chip is-done" to={paperPath(test.code, 'app', { submissionId: row.submissionId, key: null }, 'all')}>
@@ -124,8 +117,43 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
               </li>
             ))}
           </ul>
-        </div>
+        </StageSection>
       )}
+    </>
+  );
+}
+
+// Verificare before a paper is graded: the same "Acum" box, with what the
+// check waits for, and the two lists' places kept with one sentence each.
+export function ReviewWaits({ test }: { test: TestInfo }) {
+  const rows: ReadyRow[] = [];
+  if (test.status === 'draft') {
+    const barem = baremRow(test);
+    if (barem.state !== 'done') rows.push(barem);
+    rows.push({ state: 'later', what: 'Testul început', value: 'nu încă: îl începi în ziua testului', stage: 'În clasă' });
+  } else if (test.status === 'open') {
+    rows.push({ state: 'later', what: 'Corectarea', value: 'nu a pornit', stage: 'Corectare' });
+  } else {
+    rows.push({ state: 'later', what: 'Corectarea', value: 'în lucru', stage: 'Corectare' });
+  }
+  const of = test.status === 'draft' ? countLabel(test.studentCount, 'elev', 'elevi') : countLabel(test.submittedCount, 'lucrare trimisă', 'lucrări trimise');
+  rows.push({ state: 'later', what: 'Lucrări corectate', value: `${test.gradedCount} din ${of}` });
+  return (
+    <>
+      <NowBox
+        label="Acum · verificarea nu a început"
+        title="Verificarea începe după corectare"
+        next={
+          <>
+            Publici rezultatele la etapa <MoveOnLink stage="Rezultate">Rezultate</MoveOnLink>.
+          </>
+        }
+      >
+        <ReadyList rows={rows} />
+      </NowBox>
+      <StageSection title="De verificat">
+        <p className="stage-slot">Aici apar elevii cu puncte nesigure, după ce lucrările lor sunt corectate. Un clic pe nume deschide lucrarea la primul punct.</p>
+      </StageSection>
     </>
   );
 }
