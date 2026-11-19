@@ -6,15 +6,16 @@ import { ApiError } from '../../ui/ApiError.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { Modal } from '../Modal.tsx';
+import { StageSection } from './StageNow.tsx';
 import { QrOverlay, uploadLink } from './UploadLink.tsx';
 
-type Copied = 'yes' | 'made' | 'failed' | null;
+export type Copied = 'yes' | 'made' | 'failed' | null;
 
 // Copies a link. `make` gives the address, or a promise of it when the link
 // is made on this first click (the teacher's link): the copy then hands the
 // clipboard a promise (ClipboardItem), because Safari refuses a copy that
 // comes after an await, outside the click.
-async function copyLink(make: () => string | Promise<string>): Promise<void> {
+export async function copyLink(make: () => string | Promise<string>): Promise<void> {
   const value = make();
   if (typeof value === 'string') {
     await navigator.clipboard.writeText(value);
@@ -44,7 +45,7 @@ async function copyLink(make: () => string | Promise<string>): Promise<void> {
   }
 }
 
-function CopiedNote({ copied }: { copied: Copied }) {
+export function CopiedNote({ copied }: { copied: Copied }) {
   if (copied === 'yes') return <span role="status">Copiat!</span>;
   if (copied === 'made') return <span role="status">Linkul tău a fost creat și copiat.</span>;
   if (copied === 'failed') return <span role="status">Nu am putut copia. Arată codul QR: linkul e sub el.</span>;
@@ -53,12 +54,13 @@ function CopiedNote({ copied }: { copied: Copied }) {
 
 // The QR code of a link in a window, with the link under it, a copy, and for
 // the students' link the code on the whole screen (for the board or the
-// projector).
-function QrWindow({
+// projector). `extra` adds a button (the QR code as a file).
+export function QrWindow({
   title,
   hint,
   url,
   fullScreen,
+  extra,
   returnFocus,
   onClose,
 }: {
@@ -66,6 +68,7 @@ function QrWindow({
   hint: string;
   url: string;
   fullScreen?: () => void;
+  extra?: ReactNode;
   returnFocus: RefObject<HTMLElement | null>;
   onClose: () => void;
 }) {
@@ -91,6 +94,7 @@ function QrWindow({
               Pe tot ecranul
             </button>
           )}
+          {extra}
           <CopiedNote copied={copied} />
         </div>
       </div>
@@ -183,8 +187,7 @@ export function WaysIn({ test, onChanged }: { test: TestInfo; onChanged: () => P
   };
 
   return (
-    <>
-      <h3>{draft ? 'Cum vor trimite elevii lucrarea' : 'Cum trimit elevii lucrarea'}</h3>
+    <StageSection title={draft ? 'Cum vor trimite elevii lucrarea' : 'Cum trimit elevii lucrarea'}>
       <ul className="ways">
         <Way icon="print" title="Scanează codul QR de pe foaia testului" text="Codul e pe fiecare pagină tipărită. E calea obișnuită." />
         <Way
@@ -264,6 +267,6 @@ export function WaysIn({ test, onChanged }: { test: TestInfo; onChanged: () => P
           }}
         />
       )}
-    </>
+    </StageSection>
   );
 }

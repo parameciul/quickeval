@@ -1,14 +1,12 @@
-import { useMutation } from '@tanstack/react-query';
-import { QRCodeSVG } from 'qrcode.react';
-import { useId, useRef, useState } from 'react';
+import { useIsMutating, useMutation } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import type { TestInfo } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
-import { CopyRefused, useCopyLink } from '../CopyLink.tsx';
-import { EmptyState } from '../EmptyState.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { IconClock, IconDone } from '../shell/icons.tsx';
 import { MoveOnLink } from './MoveOnLink.tsx';
+import { NowBox, ReadyList, RESULTS_OPEN, StageSection, SwitchBand, type ReadyRow } from './StageNow.tsx';
+import { CopiedNote, copyLink, QrWindow, type Copied } from './WaysIn.tsx';
 import { QrDownload, QrOverlay, uploadLink } from './UploadLink.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 
@@ -19,140 +17,222 @@ export function hasResultsToManage(test: Pick<TestInfo, 'status' | 'gradedCount'
   return test.status !== 'draft' && (test.gradedCount > 0 || test.resultsOpen || test.publishedCount > 0);
 }
 
-// Whether students can read results now: open for all, or some published alone.
-export function hasPublishedResults(test: Pick<TestInfo, 'resultsOpen' | 'publishedCount'>): boolean {
-  return test.resultsOpen || test.publishedCount > 0;
-}
-
-// Rezultate before there is anything to publish (redesign spec §11.9): its
-// one next step is the stage Corectare.
-export function NoResultsYet() {
+// Rezultate before there is anything to publish: the same "Acum" box as the
+// other stages, with what the results wait for. The students' table and the
+// class report stay under it, in their place.
+function NoResultsYet({ test }: { test: TestInfo }) {
+  const rows: ReadyRow[] = [];
+  if (test.status === 'draft') rows.push({ state: 'later', what: 'Testul început', value: 'nu încă: îl începi în ziua testului', stage: 'În clasă' });
+  rows.push({
+    state: 'later',
+    what: 'Lucrări corectate',
+    value: `${test.gradedCount} din ${countLabel(test.studentCount, 'elev', 'elevi')}`,
+    stage: test.status === 'draft' ? undefined : 'Corectare',
+  });
   return (
-    <EmptyState
-      icon={<IconClock />}
-      title="Rezultatele se publică după corectare"
-      action={
-        <MoveOnLink stage="Corectare" className="button-quiet button-small">
-          Mergi la Corectare
-          <ActionIcon name="arrow" />
-        </MoveOnLink>
-      }
-    >
-      Când lucrările sunt corectate, le publici de aici; fiecare elev primește linkul lui, cu explicații detaliate pentru fiecare problemă și o sinteză finală cu ce merge bine și recomandări.
-    </EmptyState>
+    <NowBox label="Acum · nimic de publicat" title="Rezultatele se publică după corectare">
+      <ReadyList rows={rows} />
+    </NowBox>
   );
 }
 
-// The box at the top of Rezultate (spec 2026-11-14, design C3): publishing
-// and stopping the results of every student at once, and, once students can
-// read results, the two ways they find them. Closing also takes back the
-// results published alone (the API does it), so it closes every link.
+// The "Acum" box of Rezultate: a band with the switch that publishes the
+// results of every student at once, or stops them, then how the students find
+// their results, as În clasă lists how they send their work. Closing also takes
+// back the results published alone (the API does it), so it closes every link.
 export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: () => Promise<void> }) {
   const api = useApi();
-  const headingId = useId();
+  // While it saves, the switch already shows the state asked for: the answer
+  // and the test read again after it take a moment. The test page shows that
+  // state everywhere meanwhile (`useShownDetail`).
   const toggle = useMutation({
-    mutationFn: () => api.setResultsOpen(test.code, !test.resultsOpen),
+    mutationKey: [RESULTS_OPEN, test.code],
+    mutationFn: (open: boolean) => api.setResultsOpen(test.code, open),
     onSuccess: onChanged,
   });
-  if (!hasResultsToManage(test)) return <NoResultsYet />;
+  // A save started before the band was drawn again still counts.
+  const saving = useIsMutating({ mutationKey: [RESULTS_OPEN, test.code] }) > 0;
+  // Stopping the results of a test with nothing graded leaves nothing to
+  // manage: the switch goes, so its focus goes to the panel's heading. Only
+  // after this switch's own stop, never after a refresh from elsewhere.
+  const managing = hasResultsToManage(test);
+  const stopped = useRef(false);
+  useEffect(() => {
+    if (!stopped.current || managing) return;
+    stopped.current = false;
+    if (document.activeElement === document.body) document.querySelector<HTMLElement>('.stage-head h2')?.focus({ preventScroll: true });
+  }, [managing]);
+  if (!managing) return <NoResultsYet test={test} />;
 
-  const button = test.resultsOpen ? (
-    <button type="button" className="button-quiet button-small" disabled={toggle.isPending} onClick={() => toggle.mutate()}>
-      <ActionIcon name="eye-off" />
-      Oprește accesul la rezultate
-    </button>
-  ) : (
-    <button type="button" className="button button-small" disabled={toggle.isPending} onClick={() => toggle.mutate()}>
-      <ActionIcon name="eye" />
-      Publică toate rezultatele
-    </button>
+  const open = toggle.isPending ? toggle.variables : test.resultsOpen;
+  // Results published alone, while the class's are not.
+  const some = !open && test.publishedCount > 0 && !toggle.isPending;
+  const band = (
+    <SwitchBand
+      on={open}
+      name="Rezultatele elevilor"
+      onWord="Publicate"
+      offWord="Nepublicate"
+      pending={saving}
+      onToggle={() => {
+        stopped.current = open;
+        toggle.mutate(!open);
+      }}
+      text={
+        open ? (
+          <>
+            <strong>Rezultatele sunt publicate.</strong> Elevii le văd.
+          </>
+        ) : some ? (
+          <>
+            <strong>{countLabel(test.publishedCount, 'rezultat publicat', 'rezultate publicate')}.</strong> Ceilalți elevi nu le văd încă.
+          </>
+        ) : (
+          <>
+            <strong>Rezultatele nu sunt publicate.</strong> Elevii nu le văd.
+          </>
+        )
+      }
+    />
   );
-  // Points still to check, said before the teacher publishes them all.
-  const waiting =
-    !test.resultsOpen && test.flagCount > 0 ? (
-      <p className="publish-wait">
-        Mai ai {countLabel(test.flagCount, 'punct de verificat', 'puncte de verificat')}. Dacă publici acum, elevii văd punctajul de acum.
-      </p>
-    ) : null;
-
-  if (!hasPublishedResults(test)) {
-    return (
-      <section className="publish-box" aria-labelledby={headingId}>
-        <div className="publish-head">
-          <h3 id={headingId}>Rezultatele nu sunt publicate</h3>
-          {button}
-        </div>
-        {waiting ?? <p className="hint">Elevii nu văd încă rezultatele.</p>}
-        {toggle.error && <ErrorMessage error={toggle.error} />}
-      </section>
-    );
-  }
+  const readers = open ? test.gradedCount : test.publishedCount;
+  // Open for all while no paper is graded now: while the robot grades, every
+  // paper is graded again; else (all reset, or all failed) none has a result.
+  const noneGraded = open && readers === 0;
   return (
-    <section className="publish-box is-published" aria-labelledby={headingId}>
-      <div className="publish-head">
-        <span className="publish-check" aria-hidden="true">
-          <IconDone />
-        </span>
-        <h3 id={headingId}>
-          {test.resultsOpen ? 'Rezultatele sunt publicate.' : 'Unele rezultate sunt publicate.'} Elevii le văd în două feluri:
-        </h3>
-        {button}
-      </div>
-      {waiting}
-      {test.resultsOpen && (
-        <p className="hint publish-stop-hint">Dacă oprești accesul, linkurile cu rezultate și pozele lor nu se mai deschid până publici din nou rezultatele.</p>
-      )}
-      <ol className="publish-ways" role="list">
-        <li>
-          <p className="publish-way-title">Pe linkul lor</p>
-          <p className="hint">Salvat pe telefon la încărcarea rezolvărilor. Nu trebuie să facă nimic.</p>
-        </li>
-        <li>
-          <p className="publish-way-title">Scanează din nou linkul testului pentru elevi</p>
-          <p className="hint">Codul QR de pe test, de pe telefonul cu care au trimis.</p>
-          {/* A result opens only by its own link: the phone that sent kept
-              it, and any other phone opens it with the link's short code. */}
-          <p className="hint">Pe alt telefon, elevul scrie codul de pe biletul lui. Codul fiecărui elev este și în tabelul „Elevii”.</p>
-          {test.uploadToken !== null && <StudentLink code={test.code} token={test.uploadToken} />}
-        </li>
-      </ol>
+    <>
+      <NowBox
+        band={band}
+        title={
+          noneGraded
+            ? 'Nicio lucrare nu e corectată acum'
+            : open || some
+              ? `${countLabel(readers, 'elev își poate', 'elevi își pot')} vedea rezultatul`
+              : `${countLabel(test.gradedCount, 'rezultat gata', 'rezultate gata')} de publicat`
+        }
+      >
+        {noneGraded ? (
+          <p className="now-sub">
+            {test.status === 'evaluating'
+              ? 'Lucrările se corectează din nou. Fiecare elev își vede rezultatul după ce lucrarea lui e corectată.'
+              : 'Când o lucrare e corectată, elevul își vede rezultatul pe linkul lui.'}
+          </p>
+        ) : !open && test.flagCount > 0 ? (
+          <p className="publish-wait">
+            Mai ai {countLabel(test.flagCount, 'punct de verificat', 'puncte de verificat')} la etapa{' '}
+            <MoveOnLink stage="Verificare">Verificare</MoveOnLink>. Dacă publici acum, elevii văd punctajul de acum.
+          </p>
+        ) : (
+          <p className="now-sub">
+            {open
+              ? 'Dacă oprești rezultatele, linkurile cu rezultate și pozele lor nu se mai deschid până le publici din nou.'
+              : 'Când le publici, fiecare elev își vede rezultatul pe linkul lui.'}
+          </p>
+        )}
+      </NowBox>
       {toggle.error && <ErrorMessage error={toggle.error} />}
-    </section>
+      <ResultWays test={test} published={open || some} />
+    </>
   );
 }
 
-// The test's link for the students, in the box: copy it, save its QR code as
-// a PNG file, or show it on the whole screen. When the browser refuses to
-// copy, the link shows in a field, selected, to copy by hand.
-function StudentLink({ code, token }: { code: string; token: string }) {
-  const url = uploadLink(token);
-  const { copied, refused, copy, field } = useCopyLink();
+// How the students find their results, in the rows of În clasă's ways: the
+// result link and the ticket they got after sending, and the test's own link
+// or QR code (the phone that sent goes straight to the result, any other one
+// asks for the ticket's code). The teacher has each student's link and code in
+// the table "Elevii". No address and no QR code show on the page: the QR code
+// opens in a window, with its file and the whole screen.
+function ResultWays({ test, published }: { test: TestInfo; published: boolean }) {
+  const [shown, setShown] = useState(false);
   const [fullScreen, setFullScreen] = useState(false);
-  const showButton = useRef<HTMLButtonElement>(null);
+  const [copied, setCopied] = useState<Copied>(null);
+  const qrButton = useRef<HTMLButtonElement>(null);
+  const url = test.uploadToken === null ? null : uploadLink(test.uploadToken);
   return (
-    <div className="publish-link">
-      <QRCodeSVG value={url} size={88} marginSize={2} title="Codul QR al linkului" className="publish-qr" />
-      <div className="publish-link-actions">
-        <button type="button" className="button-quiet button-small" onClick={() => copy(url)}>
-          <ActionIcon name={copied ? 'check' : 'copy'} />
-          {copied ? 'Copiat!' : 'Copiază linkul'}
-        </button>
-        <QrDownload url={url} fileName={`cod-qr-elevi-${code}.png`} />
-        <button ref={showButton} type="button" className="button-quiet button-small" onClick={() => setFullScreen(true)}>
-          <ActionIcon name="qr" />
-          Arată codul QR pe tot ecranul
-        </button>
-      </div>
-      {refused && <CopyRefused field={field} url={url} label="Linkul testului pentru elevi" />}
-      {fullScreen && (
+    <StageSection title={published ? 'Cum își văd elevii rezultatul' : 'Cum își vor vedea elevii rezultatul'}>
+      <ul className="ways is-results">
+        <li>
+          <span className="ways-icon" aria-hidden="true">
+            <ActionIcon name="phone" />
+          </span>
+          <div className="ways-text">
+            <strong>Cu linkul sau biletul primit după trimitere</strong>
+            <span>
+              După ce își trimit lucrarea, elevii primesc pe telefon linkul rezultatului și biletul cu rezultatul (cu un cod QR și un cod scurt). Le
+              deschid oricând.
+            </span>
+            <ul className="ways-cases">
+              <li>
+                <ActionIcon name="person" />
+                <span>Linkul fiecărui elev îl ai și tu, în tabelul „Elevii” de mai jos: îl copiezi și i-l trimiți.</span>
+              </li>
+            </ul>
+          </div>
+        </li>
+        <li>
+          <span className="ways-icon" aria-hidden="true">
+            <ActionIcon name="qr" />
+          </span>
+          <div className="ways-text">
+            <strong>Cu linkul sau codul QR al testului</strong>
+            <span>Același link și același cod QR de pe foaia testului, cu care au trimis lucrarea.</span>
+            <ul className="ways-cases">
+              <li>
+                <ActionIcon name="phone" />
+                <span>
+                  <b>De pe telefonul cu care au trimis:</b> ajung direct la rezultat. Linkul rezultatului s-a salvat singur pe telefon.
+                </span>
+              </li>
+              <li>
+                <ActionIcon name="key" />
+                <span>
+                  <b>De pe alt telefon sau calculator:</b> scriu codul de pe bilet. Codul fiecărui elev îl găsești în tabelul „Elevii” de mai jos.
+                </span>
+              </li>
+            </ul>
+          </div>
+          {url !== null && (
+            <div className="ways-buttons">
+              <button
+                type="button"
+                className="button-quiet button-small"
+                onClick={() => copyLink(() => url).then(() => setCopied('yes'), () => setCopied('failed'))}
+              >
+                <ActionIcon name="copy" />
+                Copiază linkul
+              </button>
+              <button ref={qrButton} type="button" className="button-quiet button-small" onClick={() => setShown(true)}>
+                <ActionIcon name="qr" />
+                Arată codul QR
+              </button>
+              <CopiedNote copied={copied} />
+            </div>
+          )}
+        </li>
+      </ul>
+      {shown && url !== null && (
+        <QrWindow
+          title="Linkul testului pentru elevi"
+          hint="Elevul scanează codul cu telefonul cu care a trimis lucrarea și își vede rezultatul."
+          url={url}
+          extra={<QrDownload url={url} fileName={`cod-qr-elevi-${test.code}.png`} />}
+          returnFocus={qrButton}
+          fullScreen={() => {
+            setShown(false);
+            setFullScreen(true);
+          }}
+          onClose={() => setShown(false)}
+        />
+      )}
+      {fullScreen && url !== null && (
         <QrOverlay
           url={url}
           onClose={() => {
             setFullScreen(false);
-            showButton.current?.focus();
+            qrButton.current?.focus();
           }}
         />
       )}
-    </div>
+    </StageSection>
   );
 }

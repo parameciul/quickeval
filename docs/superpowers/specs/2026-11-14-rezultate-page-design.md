@@ -2,6 +2,8 @@
 
 The new look of the stage Rezultate on the test page, and of the papers table it shares with Corectare. Front end only: no API change, no migration.
 
+The box at the top (its two buttons and the two ways) and the stage's sentence were replaced by `2026-11-19-uniform-stages-design.md` §4.
+
 Mockup (not in git): `docs/design-proposals/rezultate-designs.html`, design "C3 · Cele două căi", served by `npm run dev:web` at `/docs/design-proposals/rezultate-designs.html`.
 
 ## Why

@@ -102,14 +102,15 @@ export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRo
 
 // One number of the card in its grey box: the label, the value, and with `of`
 // the whole it is part of ("18 din 23"), with `bar` a bar of that part. With
-// `level`, the value takes the colour of a grade (`.points-N`).
+// `level`, the value takes the colour of a grade (`.points-N`). A word (the
+// barem's state) is set at text size: only numbers are large.
 function Tile({ label, of, bar, level, children }: { label: string; of?: number; bar?: boolean; level?: number; children: ReactNode }) {
   const part = typeof children === 'number' ? children : 0;
   const share = of !== undefined && of > 0 ? Math.min(100, Math.round((part / of) * 100)) : 0;
   return (
     <div className="sheet-tile">
       <dt>{label}</dt>
-      <dd className={level === undefined ? undefined : `points-${level}`}>
+      <dd className={level !== undefined ? `points-${level}` : typeof children === 'string' ? 'is-word' : undefined}>
         {children}
         {of !== undefined && <span className="sheet-of"> din {of}</span>}
         {bar && (
