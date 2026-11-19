@@ -19,10 +19,11 @@ const D1_FILES = [
 
 export default defineConfig({
   test: {
-    // Every server test file runs its own local D1 engine (workerd). With one worker per
-    // core the machine runs out of memory and CPU, and calls to the engine fail with
-    // "fetch failed" and timeouts. Eight workers are as fast and stay stable.
-    maxWorkers: 8,
+    // Three quarters of the cores (12 of 16 on the development PC): measured a
+    // little faster than 8 or 16. Only the "d1" project still starts the local
+    // workerd engine, one per file; it has few files, so it no longer limits
+    // the workers.
+    maxWorkers: '75%',
     projects: [
       {
         plugins: [react()],

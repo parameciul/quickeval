@@ -61,10 +61,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   // `--run` runs the whole suite first and writes the report; otherwise it reads one.
   let reportPath = process.argv[2];
   if (reportPath === '--run') {
-    spawnSync('npx', ['vitest', 'run', '--reporter=default', '--reporter=json', `--outputFile.json=${REPORT}`], {
-      stdio: 'inherit',
-      shell: true,
-    });
+    // One command line through the shell: npx is npx.cmd on Windows.
+    spawnSync(`npx vitest run --reporter=default --reporter=json --outputFile.json=${REPORT}`, { stdio: 'inherit', shell: true });
     reportPath = REPORT;
   }
   if (!reportPath) {
