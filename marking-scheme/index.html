@@ -35,11 +35,21 @@
             "name": "Baremul de corectare: ce este",
             "description": "Ce este baremul de corectare, de unde vine la un test de clasă, cum arată un barem bun și cum obții unul în MQGrader, confirmat de tine.",
             "inLanguage": "ro",
-            "isPartOf": { "@id": "https://mqgrader.ro/#website" },
-            "about": { "@id": "https://mqgrader.ro/#app" },
-            "breadcrumb": { "@id": "https://mqgrader.ro/marking-scheme/#breadcrumb" },
-            "author": { "@id": "https://mqgrader.ro/#laura-miron" },
-            "publisher": { "@id": "https://mqgrader.ro/#organization" },
+            "isPartOf": {
+              "@id": "https://mqgrader.ro/#website"
+            },
+            "about": {
+              "@id": "https://mqgrader.ro/#app"
+            },
+            "breadcrumb": {
+              "@id": "https://mqgrader.ro/marking-scheme/#breadcrumb"
+            },
+            "author": {
+              "@id": "https://mqgrader.ro/#laura-miron"
+            },
+            "publisher": {
+              "@id": "https://mqgrader.ro/#organization"
+            },
             "datePublished": "2026-11-10",
             "dateModified": "2026-11-17"
           },
@@ -47,8 +57,18 @@
             "@type": "BreadcrumbList",
             "@id": "https://mqgrader.ro/marking-scheme/#breadcrumb",
             "itemListElement": [
-              { "@type": "ListItem", "position": 1, "name": "MQGrader", "item": "https://mqgrader.ro/" },
-              { "@type": "ListItem", "position": 2, "name": "Baremul", "item": "https://mqgrader.ro/marking-scheme/" }
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "MQGrader",
+                "item": "https://mqgrader.ro/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Baremul",
+                "item": "https://mqgrader.ro/marking-scheme/"
+              }
             ]
           },
           {
@@ -57,32 +77,50 @@
               {
                 "@type": "Question",
                 "name": "Pot corecta fără barem?",
-                "acceptedAnswer": { "@type": "Answer", "text": "Pe hârtie poți, dar atunci punctajul depinde de ce îți amintești de la lucrarea dinainte. În MQGrader, dacă nu ai un barem, platforma îți propune unul pornind de la testul încărcat, iar tu îl verifici înainte să se corecteze ceva." }
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Pe hârtie poți, dar atunci punctajul depinde de ce îți amintești de la lucrarea dinainte. În MQGrader, dacă nu ai un barem pregătit, îl generezi automat din test, iar tu îl revizuiești înainte să se corecteze ceva."
+                }
               },
               {
                 "@type": "Question",
                 "name": "Cine stabilește punctajul final?",
-                "acceptedAnswer": { "@type": "Answer", "text": "Profesorul. Punctajul propus urmează baremul, iar punctele nesigure te așteaptă la verificare: le accepți sau le schimbi. Decizia rămâne a ta." }
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Profesorul. Punctajul propus urmează baremul, iar punctele nesigure te așteaptă la verificare: le accepți sau le schimbi. Decizia rămâne a ta."
+                }
               },
               {
                 "@type": "Question",
                 "name": "Ce sunt cele 10 puncte din oficiu?",
-                "acceptedAnswer": { "@type": "Answer", "text": "La Evaluarea Națională și la bacalaureat, lucrarea are 100 de puncte, dintre care 10 se acordă din oficiu. La testele de clasă poți lucra la fel sau cu orice alt total, cu condiția ca baremul să îl precizeze." }
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "La Evaluarea Națională și la bacalaureat, lucrarea are 100 de puncte, dintre care 10 se acordă din oficiu. La testele de clasă poți lucra la fel sau cu orice alt total, cu condiția ca baremul să îl precizeze."
+                }
               },
               {
                 "@type": "Question",
                 "name": "Pot încărca un barem scris de mine?",
-                "acceptedAnswer": { "@type": "Answer", "text": "Da. Baremul încărcat de tine se folosește întocmai. Baremul propus de platformă este doar o variantă, pe care o confirmi sau o înlocuiești." }
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Da. Baremul încărcat de tine se folosește întocmai. Baremul generat este doar o variantă, pe care o revizuiești, o ajustezi sau o înlocuiești."
+                }
               },
               {
                 "@type": "Question",
                 "name": "Se corectează ceva înainte să confirm baremul?",
-                "acceptedAnswer": { "@type": "Answer", "text": "Nu. Cât timp baremul nu este confirmat, corectarea nu pornește, pentru ca niciun elev să nu primească punctaj după un barem pe care nu l-ai aprobat." }
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Nu. Cât timp baremul nu este confirmat, corectarea nu pornește, pentru ca niciun elev să nu primească punctaj după un barem pe care nu l-ai aprobat."
+                }
               },
               {
                 "@type": "Question",
                 "name": "Ce se întâmplă dacă un elev rezolvă altfel decât în barem?",
-                "acceptedAnswer": { "@type": "Answer", "text": "Exercițiul ajunge la tine ca punct de verificat, împreună cu motivul. Dacă rezolvarea este corectă, îi dai punctajul întreg, chiar dacă metoda nu este cea din barem." }
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Exercițiul ajunge la tine ca punct de verificat, împreună cu motivul. Dacă rezolvarea este corectă, îi dai punctajul întreg, chiar dacă metoda nu este cea din barem."
+                }
               }
             ]
           }
@@ -98,46 +136,53 @@
     <link rel="stylesheet" href="/src/landing/pages.css" />
     <script type="module" src="/src/landing/pages.ts"></script>
   </head>
-  <body>
+  <body class="pg pg-marking-scheme">
     <div class="site">
       <header class="site-top wrap">
-        <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
-          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
-          <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
-        </a>
-        <nav aria-label="Pagina">
-          <div class="nav-links" id="nav-pages" data-nav-links>
+        <div class="bar">
+          <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
+            <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
+          </a>
+          <nav aria-label="Pagina">
+            <div class="links nav-links" id="nav-pages" data-nav-links>
             <a href="/guide/">Ghidul corectării</a>
             <a href="/marking-scheme/" aria-current="page">Baremul</a>
             <a href="/about/">Despre</a>
             <a href="/pricing/">Cât costă</a>
-          </div>
-          <button class="icon-btn nav-btn" type="button" data-nav-toggle aria-expanded="false" aria-controls="nav-pages" aria-label="Mai multe pagini">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" /></svg>
-          </button>
-          <button class="icon-btn" type="button" data-theme-toggle aria-label="Temă întunecată">
-            <svg class="theme-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true" focusable="false"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z" /></svg>
-            <svg class="theme-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="3" /><path d="M8 1.5v1.4M8 13.1v1.4M1.5 8h1.4M13.1 8h1.4M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1" /></svg>
-          </button>
-          <a class="btn" href="/teacher/">Intră în cont</a>
-        </nav>
+            </div>
+            <button class="icon nav-btn" type="button" data-nav-toggle aria-expanded="false" aria-controls="nav-pages" aria-label="Mai multe pagini"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+            <button class="icon" type="button" data-theme-toggle aria-label="Temă întunecată"><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg></button>
+            <a class="btn btn-small" href="/teacher/" data-guest>Intră în cont</a>
+          </nav>
+        </div>
       </header>
-
       <main>
-        <article class="page wrap">
-          <div class="page-head">
-            <nav class="crumbs" aria-label="Traseul paginii">
-              <a href="/">MQGrader</a>
-              <span aria-hidden="true">›</span>
-              <span>Baremul</span>
-            </nav>
-            <h1 class="page-h1">Baremul de corectare: ce este și cum îl folosești</h1>
-            <p class="page-lede">Baremul este lista de pași după care acorzi punctajul. Fără el, corectezi fiecare lucrare după ce îți amintești de la cea dinainte. Mai jos afli ce conține un barem bun, de unde vine și cum obții unul pentru testele tale.</p>
+        <section class="head wrap" aria-labelledby="title">
+          <div>
+            <nav class="crumbs" aria-label="Unde ești"><a href="/">MQGrader</a><span aria-hidden="true">›</span><span>Baremul</span></nav>
+            <h1 id="title" class="t-1">Baremul de corectare</h1>
+            <p class="lede">Baremul este lista de pași după care acorzi punctajul. Fără el, corectezi fiecare lucrare după ce îți amintești de la cea dinainte. Mai jos afli ce conține un barem bun, de unde vine și cum obții unul pentru testele tale.</p>
             <p class="byline">Scris de <a href="/about/">Laura Miron</a>, profesoară de matematică · actualizat 17 noiembrie 2026</p>
           </div>
+          <figure class="sheet" aria-label="Exemplu: baremul unui exercițiu">
+            <h2>Barem · Subiectul al II-lea, exercițiul 2</h2>
+            <p>Rezolvați în ℝ ecuația |x − 1| + |x + 2| = 7.</p>
+            <ol>
+              <li><span>Zerourile modulelor: x = 1 și x = −2</span><b>2p</b></li>
+              <li><span>Cazul x ≤ −2: −2x − 1 = 7, x = −4, convine</span><b>4p</b></li>
+              <li><span>Cazul −2 &lt; x &lt; 1: 3 = 7, fără soluție</span><b>4p</b></li>
+              <li><span>Cazul x ≥ 1: 2x + 1 = 7, x = 3, convine</span><b>4p</b></li>
+              <li><span>Mulțimea soluțiilor S = {−4; 3}</span><b>1p</b></li>
+            </ol>
+            <p class="tot"><span>Total exercițiu</span><span>15p</span></p>
+            <p class="alt">Se acceptă și rezolvarea prin interpretarea geometrică a modulului.</p>
+          </figure>
+        </section>
 
+        <section class="doc wrap" aria-label="Baremul, pe larg">
           <nav class="toc" aria-labelledby="contents">
-            <h2 class="toc-t" id="contents">Cuprins</h2>
+            <h2 id="contents">Cuprins</h2>
             <ol>
               <li><a href="#what-it-is">Ce este baremul de corectare</a></li>
               <li><a href="#origin">De unde vine baremul unui test</a></li>
@@ -146,74 +191,71 @@
               <li><a href="#faq">Întrebări frecvente</a></li>
             </ol>
           </nav>
-
           <div class="prose">
-            <h2 id="what-it-is">Ce este baremul de corectare</h2>
-            <p>Baremul descrie punctajul unui test: pentru fiecare exercițiu, pașii care se punctează și câte puncte valorează fiecare. Nu este o rezolvare a testului, ci regula după care se dă nota.</p>
-            <p>Un barem bun răspunde, pentru fiecare exercițiu, la trei întrebări: ce trebuie să apară în lucrare ca să se acorde punctul, cât valorează fiecare pas și ce nu se punctează. Restul — cât de frumos este scrisă lucrarea, cât de ordonată este, dacă are chenar — nu intră în punctaj.</p>
-
-            <h2 id="origin">De unde vine baremul unui test</h2>
-            <p>Depinde de test:</p>
-            <ul>
-              <li><b>La examenele naționale</b> (Evaluarea Națională, bacalaureat), baremul este stabilit de minister și se publică după probă. Nu îl ai dinainte, iar la corectare se aplică întocmai.</li>
-              <li><b>La testele de clasă și la teze</b>, baremul este al tău. Îl scrii tu, îl iei dintr-o culegere sau îl adaptezi după cel oficial. Nimeni nu îl verifică în locul tău, deci trebuie să îți fie la fel de clar la a treizecea lucrare ca la prima.</li>
-              <li><b>La lucrările scurte</b>, pe care le corectezi pe loc, baremul rămâne uneori doar în mintea ta. Merge, până în ziua în care ai de corectat două clase.</li>
-            </ul>
-
-            <h2 id="good-scheme">Cum arată un barem bun pentru un test de clasă</h2>
-            <p>Nu are nevoie de un format anume, dar trebuie să conțină câteva lucruri:</p>
-            <ul>
-              <li><b>Un rând pentru fiecare punct</b>, cu punctajul scris lângă el. „Rezolvare corectă — 5p” nu te ajută la corectare; „ecuația scrisă corect — 1p, discriminantul calculat — 1p, rădăcinile — 2p, verificarea — 1p” te ajută.</li>
-              <li><b>Totalul</b>, scris o singură dată, la început, împreună cu punctele din oficiu, dacă le folosești.</li>
-              <li><b>Rezolvările alternative</b>, dacă le accepți. Altfel, un elev care rezolvă corect prin altă metodă ajunge să primească mai puțin decât unul care a urmat baremul.</li>
-              <li><b>Greșelile mărunte</b>: o greșeală de calcul care nu schimbă rezultatul, o unitate de măsură lipsă, un desen incomplet. Hotărăște o singură dată dacă scazi puncte pentru ele, ca să nu decizi altfel la fiecare lucrare.</li>
-            </ul>
-
-            <h2 id="in-mqgrader">Cum obții un barem în MQGrader</h2>
-            <p>Ai două variante. Alegi una când creezi testul sau mai târziu, din pagina testului:</p>
-            <ol>
-              <li><b>Încarci baremul tău.</b> Este un fișier cu punctajul, așa cum îl ai deja. Corectarea îl folosește întocmai.</li>
-              <li><b>Generezi baremul din test.</b> Încarci doar testul, iar platforma îți propune un barem: pașii fiecărui exercițiu și punctajul lor. Propunerea așteaptă până când o citești și o confirmi.</li>
-            </ol>
-            <p>A doua variantă este utilă când testul e gata, dar baremul nu. Are o regulă simplă: <b>nimic nu se corectează după un barem pe care nu l-ai confirmat.</b> Citești propunerea și, dacă este bună, o confirmi. Dacă nu ți se potrivește, o înlocuiești cu un fișier al tău, iar corectarea se face după acesta.</p>
-            <div class="callout">
-              <h3>De ce se confirmă baremul</h3>
-              <p>Un barem generat este o propunere, nu o decizie. Dacă s-ar folosi direct, ai avea 30 de lucrări punctate după un barem pe care nu l-ai citit, iar corectarea lor ar trebui luată de la capăt.</p>
-            </div>
-
-            <h2 id="faq">Întrebări frecvente</h2>
-            <ul class="qa">
-              <li><h3>Pot corecta fără barem?</h3><p>Pe hârtie poți, dar atunci punctajul depinde de ce îți amintești de la lucrarea dinainte. În MQGrader, dacă nu ai un barem, platforma îți propune unul pornind de la testul încărcat, iar tu îl verifici înainte să se corecteze ceva.</p></li>
-              <li><h3>Cine stabilește punctajul final?</h3><p>Profesorul. Punctajul propus urmează baremul, iar punctele nesigure te așteaptă la verificare: le accepți sau le schimbi. Decizia rămâne a ta.</p></li>
-              <li><h3>Ce sunt cele 10 puncte din oficiu?</h3><p>La Evaluarea Națională și la bacalaureat, lucrarea are 100 de puncte, dintre care 10 se acordă din oficiu. La testele de clasă poți lucra la fel sau cu orice alt total, cu condiția ca baremul să îl precizeze.</p></li>
-              <li><h3>Pot încărca un barem scris de mine?</h3><p>Da. Baremul încărcat de tine se folosește întocmai. Baremul propus de platformă este doar o variantă, pe care o confirmi sau o înlocuiești.</p></li>
-              <li><h3>Se corectează ceva înainte să confirm baremul?</h3><p>Nu. Cât timp baremul nu este confirmat, corectarea nu pornește, pentru ca niciun elev să nu primească punctaj după un barem pe care nu l-ai aprobat.</p></li>
-              <li><h3>Ce se întâmplă dacă un elev rezolvă altfel decât în barem?</h3><p>Exercițiul ajunge la tine ca punct de verificat, împreună cu motivul. Dacă rezolvarea este corectă, îi dai punctajul întreg, chiar dacă metoda nu este cea din barem.</p></li>
-            </ul>
-
-            <h2 id="read-also">Citește și</h2>
-            <ul class="read-on">
-              <li><a href="/guide/">Cum corectezi testele după barem</a> — cele șase etape, unde se duce timpul și ce decizii rămân la profesor.</li>
-              <li><a href="/about/">Despre MQGrader și Laura Miron</a> — cine construiește platforma, de ce a apărut și ce nu face.</li>
-              <li><a href="/pricing/">Cât costă MQGrader</a> — ce include un cont demo și de ce nu există încă un abonament.</li>
-            </ul>
-          </div>
-        </article>
-
-        <section class="sec tint band" aria-labelledby="marking-scheme-cta">
-          <div class="wrap">
-            <div>
-              <h2 id="marking-scheme-cta">Vezi cum arată un barem propus</h2>
-              <p>Încarci testul, primești propunerea, o confirmi sau o înlocuiești cu a ta.</p>
-            </div>
-            <p class="cta">
-              <a class="btn btn-primary btn-large" href="/teacher/">Intră în cont</a>
-              <a class="link" href="/teacher/#new-account">Cere un cont de profesor</a>
-            </p>
+            <section aria-labelledby="what-it-is">
+              <h2 id="what-it-is">Ce este baremul de corectare</h2>
+              <p>Baremul descrie punctajul unui test: pentru fiecare exercițiu, pașii care se punctează și câte puncte valorează fiecare. Nu este o rezolvare a testului, ci regula după care se dă nota.</p>
+              <p>Un barem bun răspunde, pentru fiecare exercițiu, la trei întrebări: ce trebuie să apară în lucrare ca să se acorde punctul, cât valorează fiecare pas și ce nu se punctează. Restul — cât de frumos este scrisă lucrarea, cât de ordonată este, dacă are chenar — nu intră în punctaj.</p>
+            </section>
+            <section aria-labelledby="origin">
+              <h2 id="origin">De unde vine baremul unui test</h2>
+              <p>Depinde de test:</p>
+              <ul class="dots">
+                <li><b>La examenele naționale</b> (Evaluarea Națională, bacalaureat), baremul este stabilit de minister și se publică după probă. Nu îl ai dinainte, iar la corectare se aplică întocmai.</li>
+                <li><b>La testele de clasă și la teze</b>, baremul este al tău. Îl scrii tu, îl iei dintr-o culegere sau îl adaptezi după cel oficial. Nimeni nu îl verifică în locul tău, deci trebuie să îți fie la fel de clar la a treizecea lucrare ca la prima.</li>
+                <li><b>La lucrările scurte</b>, pe care le corectezi pe loc, baremul rămâne uneori doar în mintea ta. Merge, până în ziua în care ai de corectat două clase.</li>
+              </ul>
+            </section>
+            <section aria-labelledby="good-scheme">
+              <h2 id="good-scheme">Cum arată un barem bun pentru un test de clasă</h2>
+              <p>Nu are nevoie de un format anume, dar trebuie să conțină câteva lucruri:</p>
+              <ol class="nums">
+                <li><p><b>Un rând pentru fiecare punct</b>, cu punctajul scris lângă el. „Rezolvare corectă — 5p” nu te ajută la corectare; „ecuația scrisă corect — 1p, discriminantul calculat — 1p, rădăcinile — 2p, verificarea — 1p” te ajută.</p></li>
+                <li><p><b>Totalul</b>, scris o singură dată, la început, împreună cu punctele din oficiu, dacă le folosești.</p></li>
+                <li><p><b>Rezolvările alternative</b>, dacă le accepți. Altfel, un elev care rezolvă corect prin altă metodă ajunge să primească mai puțin decât unul care a urmat baremul.</p></li>
+                <li><p><b>Greșelile mărunte</b>: o greșeală de calcul care nu schimbă rezultatul, o unitate de măsură lipsă, un desen incomplet. Hotărăște o singură dată dacă scazi puncte pentru ele, ca să nu decizi altfel la fiecare lucrare.</p></li>
+              </ol>
+            </section>
+            <section aria-labelledby="in-mqgrader">
+              <h2 id="in-mqgrader">Cum obții un barem în MQGrader</h2>
+              <p>Ai două variante. Alegi una când creezi testul sau mai târziu, din pagina testului:</p>
+              <div class="two">
+                <div><i>1</i><b>Încarci baremul tău.</b><p>Este un fișier cu punctajul, așa cum îl ai deja. Corectarea îl folosește întocmai.</p></div>
+                <div><i>2</i><b>Generezi baremul din test.</b><p>Încarci doar testul, iar MQGrader generează automat baremul: pașii fiecărui exercițiu și punctajul lor. Apoi îl revizuiești, îl ajustezi dacă e nevoie și îl confirmi.</p></div>
+              </div>
+              <p class="wide">A doua variantă este utilă când testul e gata, dar baremul nu. Are o regulă simplă: nimic nu se corectează după un barem pe care nu l-ai confirmat. Citești baremul generat și, dacă este bun, îl confirmi. Dacă nu ți se potrivește, îl ajustezi sau îl înlocuiești cu un fișier al tău, iar corectarea se face după acesta.</p>
+              <figure class="shot-wide"><span class="shot-l"><img src="/screens/stage-prepare-laptop.webp" width="1440" height="900" alt="Etapa Pregătire: testul și baremul încărcate, gata de corectare" loading="lazy" decoding="async" /></span><figcaption class="cap">Etapa Pregătire, cu testul și baremul gata.</figcaption></figure>
+              <div class="rule"><b>De ce se confirmă baremul</b><p>Un barem generat este un punct de plecare, nu o decizie. Dacă s-ar folosi direct, ai avea 30 de lucrări punctate după un barem pe care nu l-ai citit, iar corectarea lor ar trebui luată de la capăt.</p></div>
+            </section>
           </div>
         </section>
-      </main>
 
+        <section class="faq wrap" aria-labelledby="faq">
+          <h2 id="faq" class="t-2 rise">Întrebări frecvente</h2>
+          <ul class="qa">
+            <li class="rise"><h3>Pot corecta fără barem?</h3><p>Pe hârtie poți, dar atunci punctajul depinde de ce îți amintești de la lucrarea dinainte. În MQGrader, dacă nu ai un barem pregătit, îl generezi automat din test, iar tu îl revizuiești înainte să se corecteze ceva.</p></li>
+            <li class="rise"><h3>Cine stabilește punctajul final?</h3><p>Profesorul. Punctajul propus urmează baremul, iar punctele nesigure te așteaptă la verificare: le accepți sau le schimbi. Decizia rămâne a ta.</p></li>
+            <li class="rise"><h3>Ce sunt cele 10 puncte din oficiu?</h3><p>La Evaluarea Națională și la bacalaureat, lucrarea are 100 de puncte, dintre care 10 se acordă din oficiu. La testele de clasă poți lucra la fel sau cu orice alt total, cu condiția ca baremul să îl precizeze.</p></li>
+            <li class="rise"><h3>Pot încărca un barem scris de mine?</h3><p>Da. Baremul încărcat de tine se folosește întocmai. Baremul generat este doar o variantă, pe care o revizuiești, o ajustezi sau o înlocuiești.</p></li>
+            <li class="rise"><h3>Se corectează ceva înainte să confirm baremul?</h3><p>Nu. Cât timp baremul nu este confirmat, corectarea nu pornește, pentru ca niciun elev să nu primească punctaj după un barem pe care nu l-ai aprobat.</p></li>
+            <li class="rise"><h3>Ce se întâmplă dacă un elev rezolvă altfel decât în barem?</h3><p>Exercițiul ajunge la tine ca punct de verificat, împreună cu motivul. Dacă rezolvarea este corectă, îi dai punctajul întreg, chiar dacă metoda nu este cea din barem.</p></li>
+          </ul>
+        </section>
+
+        <section class="read alt wrap" aria-labelledby="read-also">
+          <h2 id="read-also" class="t-2 rise">Citește și</h2>
+          <ul class="read-on">
+            <li class="rise"><a href="/guide/"><b>Cum corectezi testele după barem</b><span>Cele șase etape, unde se duce timpul și ce decizii rămân la profesor.</span></a></li>
+            <li class="rise"><a href="/about/"><b>Despre MQGrader și Laura Miron</b><span>Cine construiește platforma, de ce a apărut și ce nu face.</span></a></li>
+            <li class="rise"><a href="/pricing/"><b>Cât costă MQGrader</b><span>Ce include un cont demo și de ce nu există încă un abonament.</span></a></li>
+          </ul>
+        </section>
+        <section class="end wrap" aria-labelledby="end-t">
+          <h2 id="end-t" class="rise">Generează un barem din testul tău.</h2>
+          <p class="rise">Încarci testul, generezi automat baremul, apoi îl revizuiești și îl confirmi sau îl înlocuiești cu al tău.</p>
+          <div class="acts rise"><a class="btn" href="/teacher/">Intră în cont</a><a class="btn btn-acc" href="/teacher/#new-account">Cere un cont de profesor <span aria-hidden="true">→</span></a></div>
+        </section>
+      </main>
       <!--#include site-foot -->
     </div>
   </body>

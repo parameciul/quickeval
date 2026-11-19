@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { userEvent } from '@testing-library/user-event';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import raw from '../../index.html?raw';
 import { SIGNUP_HASH } from '../admin/pages/LoginPage.tsx';
 import { THEME_KEY } from '../ui/theme.ts';
@@ -10,7 +12,8 @@ import { initThemeButton, themeLabel } from './themeButton.ts';
 // The page as it is served, with its shared footer in place.
 const page = expandPartials(raw);
 const doc = new DOMParser().parseFromString(page, 'text/html');
-const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+// The words of an element; a button's arrow is drawn, not read.
+const text = (el: Element | null) => (el?.textContent ?? '').replace('→', '').replace(/\s+/g, ' ').trim();
 const all = (selector: string) => Array.from(doc.querySelectorAll(selector));
 
 afterEach(() => {
@@ -27,21 +30,20 @@ describe('the landing page', () => {
     );
   });
 
-  it('shows the six stages in order, with who does each one', () => {
-    const stages = all('.flow-v li');
-    expect(stages.map((li) => text(li.querySelector('h3')))).toEqual([
-      'Pregătire Tu',
-      'Tipărire Tu',
-      'În clasă Elevii',
-      'Corectare MQGrader',
-      'Verificare Tu',
-      'Rezultate Tu',
+  it('tells the day of a test by the clock, with who does each step', () => {
+    const steps = all('#day .clock > li');
+    expect(steps.map((li) => [text(li.querySelector('time')), text(li.querySelector('h3')), text(li.querySelector('.whos'))])).toEqual([
+      ['Luni cu o zi înainte', 'Încarci testul și baremul.', 'Tu MQGrader'],
+      ['11:45 ultimele minute ale orei', 'Elevii fotografiază lucrarea.', 'Elevii'],
+      ['11:55 după oră', 'Pornești corectarea.', 'Tu MQGrader'],
+      ['15:30 de unde ești', 'Verifici punctele nesigure.', 'Tu'],
+      ['16:00 aceeași zi', 'Publici. Elevii își văd rezultatul.', 'MQGrader Tu Elevii'],
     ]);
-    expect(text(stages[5]!.querySelector('p'))).toBe(
-      'Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.',
-    );
-    // The sentence is not a bold lead: it reads like the rest of the stage.
-    expect(stages[5]!.querySelector('b')).toBeNull();
+    // The buttons she presses, in the app's own words.
+    expect(text(steps[2]!)).toContain('„Închide încărcarea și pornește corectarea”');
+    expect(text(steps[4]!)).toContain('„Publică rezultatele”');
+    // AI is how it works, said on the first screen; the headline stays hers.
+    expect(text(doc.querySelector('.hero .lede'))).toContain('cu ajutorul inteligenței artificiale');
   });
 
   it("keeps Laura Miron's texts word for word", () => {
@@ -59,11 +61,14 @@ describe('the landing page', () => {
     // The page is served signed out: the account links wait, hidden, for the API's answer.
     expect(all('[data-member]').every((el) => el.hasAttribute('hidden'))).toBe(true);
     expect(all('[data-guest]').some((el) => el.hasAttribute('hidden'))).toBe(false);
-    expect(links.filter(([name]) => name === 'Intră în cont')).toEqual([
-      ['Intră în cont', '/teacher/'],
-      ['Intră în cont', '/teacher/'],
-    ]);
-    expect(links).toContainEqual(['Cere un cont de profesor', `/teacher/${SIGNUP_HASH}`]);
+    expect(links.filter(([name]) => name === 'Intră în cont')).toEqual([['Intră în cont', '/teacher/']]);
+    // Every way to an account, in the hero and in the bands, opens the sign-up.
+    const signUps = links.filter(([name]) => name === 'Cere un cont de profesor');
+    expect(signUps.length).toBeGreaterThanOrEqual(3);
+    for (const link of signUps) expect(link).toEqual(['Cere un cont de profesor', `/teacher/${SIGNUP_HASH}`]);
+    // One colour per action: the account is dark, the Quick Try orange.
+    for (const a of all('a.btn')) if (text(a) === 'Cere un cont de profesor') expect(a.classList.contains('btn-acc')).toBe(true);
+    for (const button of all('[data-try-open]')) expect(button.classList.contains('btn-go')).toBe(true);
   });
 
   it('shows the brand with its byline and never a meaning of MQ', () => {
@@ -76,7 +81,7 @@ describe('the landing page', () => {
   });
 
   it('sends readers from its own text to the pages that answer a search', () => {
-    const more = all('#more .more-list a').map((a) => [text(a.querySelector('b')), a.getAttribute('href')]);
+    const more = all('#more ul a').map((a) => [text(a.querySelector('b')), a.getAttribute('href')]);
     expect(more).toEqual([
       ['Cum corectezi testele după barem', '/guide/'],
       ['Baremul de corectare', '/marking-scheme/'],
@@ -84,20 +89,24 @@ describe('the landing page', () => {
       ['Cât costă', '/pricing/'],
     ]);
     // Every card says what the page is about, in one line.
-    for (const a of all('#more .more-list a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
+    for (const a of all('#more ul a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
     // The header's menu names the same four pages.
-    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['#how', '#benefits', '/guide/', '/marking-scheme/', '/about/', '/pricing/']);
+    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['/guide/', '/marking-scheme/', '/about/', '/pricing/']);
     // The account picture waits until the app's look settles.
     expect(doc.getElementById('aplicatia')).toBeNull();
   });
 
   it('gives the contact address and says who builds MQGrader', () => {
     const contact = doc.getElementById('contact');
-    expect(text(contact?.querySelector('h2') ?? null)).toBe('Contact');
+    expect(text(contact?.querySelector('h2') ?? null)).toBe('Cine face MQGrader');
     expect(Array.from(contact?.querySelectorAll('a') ?? []).map((a) => [text(a), a.getAttribute('href')])).toEqual([
+      ['Matematică cu Laura Miron', 'https://lauramiron.mqgrader.ro/'],
+      ['Despre MQGrader', '/about/'],
       ['contact@mqgrader.ro', 'mailto:contact@mqgrader.ro'],
     ]);
-    expect(text(contact)).toContain('Laura Miron, profesoară de matematică la Liceul William Shakespeare din Timișoara');
+    expect(text(contact)).toContain(
+      'MQGrader este construit de Laura Miron, profesoară de matematică la Liceul Teoretic „William Shakespeare” din Timișoara și autoarea platformei Matematică cu Laura Miron, împreună cu soțul ei, tocmai pentru a lua din greutatea munților de hârtie de pe birou.',
+    );
     const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
     const org = ld['@graph'].find((n: { '@type': string }) => n['@type'] === 'Organization');
     expect(org.email).toBe('contact@mqgrader.ro');
@@ -132,9 +141,36 @@ describe('the landing page', () => {
       expect.arrayContaining(['Organization', 'Person', 'WebSite', 'WebPage', 'SoftwareApplication', 'FAQPage']),
     );
     const faq = nodes.find((n) => n['@type'] === 'FAQPage')!.mainEntity!;
-    const visible = all('#faq .benefits li').map((li) => [text(li.querySelector('h3')), text(li.querySelector('p'))]);
+    const visible = all('#faq .qa li').map((li) => [text(li.querySelector('h3')), text(li.querySelector('p'))]);
+    expect(visible.length).toBeGreaterThanOrEqual(8);
     expect(faq.map((q) => [q.name, q.acceptedAnswer.text])).toEqual(visible);
+    // The generated barem is revised and confirmed by the teacher, never "a proposal".
+    expect(page).not.toMatch(/propunere|Barem propus/);
     expect(page).not.toMatch(/aggregateRating|"offers"/);
+  });
+
+  it('shows only real screenshots that exist, each with its size and its words', () => {
+    const shots = all('img').filter((img) => (img.getAttribute('src') ?? '').startsWith('/screens/'));
+    expect(shots.length).toBeGreaterThanOrEqual(12);
+    for (const img of shots) {
+      const src = img.getAttribute('src')!;
+      expect(existsSync(resolve(__dirname, '../../public', src.slice(1))), src).toBe(true);
+      expect(Number(img.getAttribute('width'))).toBeGreaterThan(0);
+      expect(Number(img.getAttribute('height'))).toBeGreaterThan(0);
+      expect((img.getAttribute('alt') ?? '').length).toBeGreaterThan(15);
+    }
+    // Below the first screen the pictures wait until they are needed.
+    expect(shots.filter((img) => img.getAttribute('loading') === 'lazy').length).toBeGreaterThan(shots.length / 2);
+  });
+
+  it('keeps every Quick Try button hidden until the page knows a try can be made', () => {
+    const buttons = all('[data-try-open]');
+    expect(buttons.map(text)).toEqual(['Încearcă pe o lucrare, fără cont', 'Încearcă acum', 'Încearcă', 'Încearcă fără cont']);
+    for (const button of buttons) expect(button.hasAttribute('hidden')).toBe(true);
+    // The form names the try after its test file: it asks for no name.
+    expect(doc.querySelector('[data-try-form] input[name="title"]')).toBeNull();
+    // The content pages send a teacher to the try on this page.
+    expect(doc.getElementById('try')).not.toBeNull();
   });
 
   it('has no inline script or style, which the security policy blocks', () => {

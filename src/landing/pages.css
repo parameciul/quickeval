@@ -1,96 +1,158 @@
-/* The content pages (/guide/, /marking-scheme/, /about/, /pricing/) sit on the landing
-   page's look: they load landing.css first, then this file. Nothing here is
-   inline, because the security policy in public/_headers allows no inline
-   style. */
+/* The four content pages (/guide/, /marking-scheme/, /about/, /pricing/): their own
+   parts, after landing.css. Each is scoped by its body class. */
+/* /guide/ */
+  .pg-guide .head { padding-bottom: 72px; }
+  .pg-guide .head h1 { margin-top: 28px; max-width: 15ch; }
+  .pg-guide .head .lede { margin-top: 32px; max-width: 46ch; }
+  .pg-guide .jump { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 56px; }
+  .pg-guide .jump a { display: block; padding: 18px 16px 20px; background: var(--surface); text-decoration: none; transition: background-color .15s; }
+  .pg-guide .jump a:hover { background: var(--blue-tint); }
+  .pg-guide .jump b { display: block; font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--orange); }
+  .pg-guide .jump span { display: block; margin-top: 8px; font-size: 17px; font-weight: 700; }
+  .pg-guide .jump small { display: block; font-size: 14px; color: var(--muted); }
+  .pg-guide .jump .st b { color: var(--blue); }
+  .pg-guide .jump .mq b { color: var(--text); }
 
-.page { padding-block: 64px 96px; }
-.page-head { display: flex; flex-direction: column; gap: 18px; }
-.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.page-h1 { font-size: clamp(32px, 4.4vw, 56px); line-height: 1.02; letter-spacing: -0.04em; font-weight: 800; text-wrap: balance; }
-.page-lede { font-size: 21px; line-height: 1.5; color: var(--muted); }
+  .pg-guide .journey { padding-top: 140px; padding-bottom: 140px; background: var(--ground); }
+  .pg-guide .journey > h2 { max-width: 18ch; }
+  .pg-guide .journey > p { margin-top: 24px; max-width: 46ch; }
+  .pg-guide .stage { display: grid; grid-template-columns: 4fr 8fr; gap: 56px; padding: 64px 0; align-items: start; scroll-margin-top: 16px; }
+  .pg-guide .stage + .stage { box-shadow: inset 0 8px 0 var(--surface); }
+  .pg-guide .stage .n { font-size: clamp(64px, 7vw, 120px); font-weight: 800; letter-spacing: -0.05em; line-height: .85; color: var(--orange); }
+  .pg-guide .stage.st .n { color: var(--blue); }
+  .pg-guide .stage.mq .n { color: var(--text); }
+  .pg-guide .stage h3 { margin-top: 18px; font-size: clamp(28px, 2.6vw, 40px); letter-spacing: -0.03em; line-height: 1.05; }
+  .pg-guide .stage .whos { margin-top: 14px; }
+  .pg-guide .stage p { margin-top: 18px; font-size: 19px; }
+  .pg-guide .stage .do { margin-top: 20px; display: grid; gap: 4px; }
+  .pg-guide .stage .do li { padding: 12px 16px; background: var(--surface); font-size: 17px; }
+  .pg-guide .stage .do b { color: var(--orange); }
+  .pg-guide .pics { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
+  .pg-guide .pics .pair-p .shot-p { width: 200px; }
+  .pg-guide .pics.one { grid-template-columns: 1fr; }
+  .pg-guide .pics figcaption { margin-top: 10px; font-size: 15px; color: var(--muted); }
 
-/* The trail above the heading, the same one the structured data carries. */
-.crumbs { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
-.crumbs a { color: var(--muted); font-weight: 600; text-decoration: none; }
-.crumbs a:hover { color: var(--text); text-decoration: underline; }
-.crumbs span[aria-hidden] { color: var(--control); }
+  .pg-guide .doc2 { display: grid; grid-template-columns: 3fr 9fr; gap: 64px; padding-top: 140px; padding-bottom: 140px; background: var(--surface); }
+  .pg-guide .doc2 .prose { grid-column: 2; }
+  .pg-guide .math { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 32px; }
+  .pg-guide .math div { padding: 24px 20px; background: var(--ground); }
+  .pg-guide .math b { display: block; font-size: clamp(40px, 4vw, 64px); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  .pg-guide .math span { display: block; margin-top: 8px; font-size: 16px; color: var(--muted); }
+  .pg-guide .wide { margin-top: 40px; }
 
-/* Who wrote the page and when, under the lede: the page's own claim. */
-.byline { font-size: 15px; color: var(--muted); }
-.byline a { color: var(--muted); font-weight: 600; text-decoration: none; }
-.byline a:hover { color: var(--text); text-decoration: underline; }
+  @media (max-width: 1100px) { .pg-guide .jump { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 900px) {
+    .pg-guide .head { padding-bottom: 48px; }
+    .pg-guide .jump { grid-template-columns: 1fr 1fr; margin-top: 40px; }
+    .pg-guide .journey, .pg-guide .doc2 { padding-top: 88px; padding-bottom: 88px; }
+    .pg-guide .stage { grid-template-columns: 1fr; gap: 28px; padding: 48px 0; }
+    .pg-guide .pics { grid-template-columns: 1fr; }
+    .pg-guide .pics .pair-p .shot-p { width: calc(50% - 6px); }
+    .pg-guide .doc2 { grid-template-columns: 1fr; gap: 0; }
+    .pg-guide .doc2 .prose { grid-column: 1; }
+    .pg-guide .math { grid-template-columns: 1fr; }
+  }
 
-/* The page's sections, for a reader and for a search engine that quotes one
-   passage out of the page. */
-.toc { margin-top: 48px; padding: 20px 24px; border: 1px solid var(--border); border-radius: var(--r); background: var(--ground); }
-.toc-t { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.toc ol { margin-top: 12px; padding-left: 1.3em; font-size: 16px; line-height: 1.5; }
-.toc li + li { margin-top: 6px; }
-.toc a { color: var(--text); font-weight: 600; text-decoration: none; }
-.toc a:hover { color: var(--blue); text-decoration: underline; }
+/* /marking-scheme/ */
+  .pg-marking-scheme .head { padding-bottom: 96px; display: grid; grid-template-columns: 7fr 5fr; gap: 64px; align-items: end; }
+  .pg-marking-scheme .head h1 { margin-top: 28px; }
+  .pg-marking-scheme .head .lede { margin-top: 32px; max-width: 44ch; }
+  .pg-marking-scheme .sheet { background: #fbfaf5; color: #0c1524; padding: 28px 28px 32px; font-family: Georgia, "Times New Roman", serif; box-shadow: 0 1px 0 #e3dfd3; }
+  .pg-marking-scheme .sheet h2 { font: 700 15px/1.3 Georgia, serif; letter-spacing: .02em; text-transform: uppercase; }
+  .pg-marking-scheme .sheet p { margin-top: 6px; font-size: 15px; color: #4a566a; }
+  .pg-marking-scheme .sheet ol { margin-top: 18px; }
+  .pg-marking-scheme .sheet li { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 10px 0; font-size: 16px; line-height: 1.35; box-shadow: inset 0 -1px 0 #e3dfd3; }
+  .pg-marking-scheme .sheet li b { font-family: var(--font); font-weight: 800; color: var(--orange); white-space: nowrap; }
+  .pg-marking-scheme .sheet .tot { display: flex; justify-content: space-between; margin-top: 14px; font: 700 16px var(--font); }
+  .pg-marking-scheme .sheet .alt { margin-top: 14px; padding: 10px 12px; background: #fdeee3; font-size: 15px; }
+  .pg-marking-scheme .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 32px; }
+  .pg-marking-scheme .two div { padding: 28px 24px 30px; }
+  .pg-marking-scheme .two div:first-child { background: var(--ground); }
+  .pg-marking-scheme .two div:last-child { background: var(--band); color: var(--on-band); }
+  .pg-marking-scheme .two b { display: block; font-size: 24px; letter-spacing: -0.02em; line-height: 1.15; }
+  .pg-marking-scheme .two p { margin-top: 12px; font-size: 18px; }
+  .pg-marking-scheme .two div:last-child p { color: var(--on-band-muted); }
+  .pg-marking-scheme .two i { display: block; font-style: normal; font-size: 40px; font-weight: 800; line-height: 1; margin-bottom: 14px; color: var(--orange); }
+  .pg-marking-scheme .shot-wide { margin-top: 32px; }
+  .pg-marking-scheme .faq { padding-top: 140px; padding-bottom: 140px; }
+  .pg-marking-scheme .faq .qa { margin-top: 48px; }
+  .pg-marking-scheme .faq .qa > div + div { box-shadow: inset 0 6px 0 var(--surface); }
+  @media (max-width: 900px) {
+    .pg-marking-scheme .head { grid-template-columns: 1fr; gap: 40px; padding-bottom: 56px; }
+    .pg-marking-scheme .two { grid-template-columns: 1fr; }
+    .pg-marking-scheme .faq { padding-top: 88px; padding-bottom: 88px; }
+  }
 
-/* The three pages beside this one, at the end of the text. */
-.read-on { list-style: none; padding: 0; margin-top: 24px; border-top: 1px solid var(--border); }
-.read-on li { padding: 16px 0; border-bottom: 1px solid var(--border); font-size: 17px; line-height: 1.6; color: var(--muted); }
-.read-on li + li { margin-top: 0; }
-.read-on a { color: var(--blue); font-weight: 600; }
+/* /about/ */
+  .pg-about .head { padding-bottom: 96px; }
+  .pg-about .head h1 { margin-top: 28px; max-width: 14ch; }
+  .pg-about .head .big { margin-top: 40px; font-size: clamp(24px, 2.6vw, 40px); line-height: 1.25; letter-spacing: -0.02em; font-weight: 600; max-width: 34ch; }
+  .pg-about .card { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 64px; }
+  .pg-about .card div { padding: 22px 22px 26px; background: var(--surface); }
+  .pg-about .card dt { font-size: 15px; font-weight: 700; color: var(--orange); }
+  .pg-about .card dd { margin-top: 6px; font-size: 19px; line-height: 1.4; }
+  .pg-about .card a { font-weight: 600; }
+  .pg-about .does { background: var(--band); color: var(--on-band); padding-top: 140px; padding-bottom: 140px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
+  .pg-about .does ul { margin-top: 40px; display: grid; gap: 4px; }
+  .pg-about .does li { padding: 20px 22px; background: var(--band-2); font-size: 19px; line-height: 1.45; }
+  .pg-about .does li b { display: block; font-size: 21px; margin-bottom: 4px; }
+  .pg-about .does .not li b { color: var(--orange-mark); }
+  .pg-about .does .not li { color: var(--on-band-muted); }
+  .pg-about .does .not li b { color: var(--on-band); }
+  @media (max-width: 900px) {
+    .pg-about .head { padding-bottom: 56px; }
+    .pg-about .card { grid-template-columns: 1fr; margin-top: 40px; }
+    .pg-about .does { grid-template-columns: 1fr; padding-top: 88px; padding-bottom: 88px; gap: 56px; }
+  }
 
-/* Long text: one column as wide as the page, headings that step down from
-   the page heading. */
-.prose { margin-top: 56px; font-size: 18px; line-height: 1.65; }
-.prose > * + * { margin-top: 20px; }
-.prose h2 { font-size: clamp(24px, 2.6vw, 32px); line-height: 1.15; letter-spacing: -0.025em; font-weight: 800; margin-top: 56px; }
-.prose h3 { font-size: 20px; line-height: 1.3; letter-spacing: -0.01em; font-weight: 700; margin-top: 36px; }
-.prose > h2:first-child, .prose > h3:first-child { margin-top: 0; }
-.prose ul, .prose ol { padding-left: 1.35em; }
-.prose li + li { margin-top: 8px; }
-.prose li::marker { color: var(--muted); }
-.prose a { color: var(--blue); font-weight: 600; text-decoration: none; }
-.prose a:hover { text-decoration: underline; }
-.prose b, .prose strong { font-weight: 700; }
-.prose blockquote { margin: 32px 0; padding-left: 20px; border-left: 3px solid var(--orange-mark); font-size: 20px; line-height: 1.5; }
-.prose blockquote p { margin: 0; }
-
-/* A screenshot inside the text column: the app as the teacher sees it. */
-.prose .shot { margin-top: 40px; }
-.prose .shot img { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); }
-.prose .shot figcaption { margin-top: 12px; font-size: 14px; line-height: 1.5; color: var(--muted); }
-.prose .shot + * { margin-top: 40px; }
-
-/* A box for the one thing the reader must not miss. */
-.callout { margin-top: 36px; padding: 20px 24px; border: 1px solid var(--border); border-left: 3px solid var(--orange-mark); border-radius: var(--r); background: var(--ground); }
-.callout > * + * { margin-top: 10px; }
-.callout p { font-size: 17px; line-height: 1.6; margin: 0; }
-.callout h2, .callout h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.35; }
-
-/* Questions and answers, one under the other, inside the text column. */
-.qa { list-style: none; padding: 0; margin-top: 32px; border-top: 1px solid var(--border); }
-.qa li { padding: 20px 0; border-bottom: 1px solid var(--border); }
-.qa li + li { margin-top: 0; }
-.qa h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.35; margin: 0 0 6px; }
-.qa p { margin: 0; font-size: 17px; line-height: 1.6; color: var(--muted); }
-
-/* A table of facts, on a phone still inside the column. */
-.facts { margin-top: 32px; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
-.facts dl { margin: 0; }
-.facts div { display: grid; grid-template-columns: 14rem minmax(0, 1fr); }
-.facts div + div { border-top: 1px solid var(--border); }
-.facts dt, .facts dd { margin: 0; padding: 14px 20px; font-size: 16px; line-height: 1.5; }
-.facts dt { font-weight: 700; background: var(--ground); }
-.facts dd { color: var(--text); }
-
-/* The band at the end of a page: the one next step. */
-.band .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px 40px; flex-wrap: wrap; }
-.band h2 { font-size: clamp(24px, 3vw, 36px); line-height: 1.1; letter-spacing: -0.03em; font-weight: 800; max-width: 22ch; }
-/* The line under the heading; the .cta paragraph keeps the landing page's own rule. */
-.band p:not(.cta) { margin-top: 10px; max-width: 46ch; color: var(--muted); font-size: 17px; }
-
-@media (max-width: 900px) {
-  .page { padding-block: 32px 64px; }
-  .page-lede { font-size: 18px; }
-  .prose { margin-top: 40px; font-size: 17px; }
-  .prose h2 { margin-top: 44px; }
-  .facts div { grid-template-columns: minmax(0, 1fr); }
-  .facts dt { padding-bottom: 4px; }
-  .facts dd { padding-top: 4px; }
-}
+/* /pricing/ */
+  .pg-pricing .head { padding-bottom: 96px; display: grid; grid-template-columns: 7fr 5fr; gap: 64px; align-items: end; }
+  .pg-pricing .head h1 { margin-top: 28px; }
+  .pg-pricing .head .lede { margin-top: 32px; max-width: 42ch; }
+  .pg-pricing .zero { font-size: clamp(120px, 18vw, 280px); font-weight: 800; letter-spacing: -0.07em; line-height: .8; text-align: right; }
+  .pg-pricing .zero small { font-size: .26em; letter-spacing: -0.02em; margin-left: .08em; }
+  .pg-pricing .zero span { display: block; margin-top: 18px; font-size: 18px; letter-spacing: 0; font-weight: 600; color: var(--muted); }
+  .pg-pricing .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 0; padding-bottom: 140px; }
+  .pg-pricing .plan { padding: 40px 36px 44px; background: var(--surface); }
+  .pg-pricing .plan.full { background: var(--band); color: var(--on-band); }
+  .pg-pricing .plan h2 { font-size: clamp(28px, 2.6vw, 40px); letter-spacing: -0.03em; line-height: 1.05; }
+  .pg-pricing .plan .tag { display: inline-block; margin-top: 12px; padding: 3px 10px; font-size: 15px; font-weight: 700; background: var(--ok-bg); color: var(--ok-fg); }
+  .pg-pricing .plan.full .tag { background: var(--band-2); color: var(--on-band-muted); }
+  .pg-pricing .plan > p { margin-top: 20px; font-size: 19px; }
+  .pg-pricing .plan.full > p { color: var(--on-band-muted); }
+  .pg-pricing .plan dl { margin-top: 28px; display: grid; gap: 4px; }
+  .pg-pricing .plan dl div { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: baseline; padding: 16px 18px; background: var(--ground); }
+  .pg-pricing .plan.full dl div { background: var(--band-2); }
+  .pg-pricing .plan dt { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .pg-pricing .plan dd { font-size: 17px; }
+  .pg-pricing .plan dd b { display: block; font-size: 18px; }
+  .pg-pricing .plan .acts { margin-top: 28px; }
+  .pg-pricing .free { padding-bottom: 0; }
+  .pg-pricing .free-in { display: grid; grid-template-columns: auto 1fr auto; gap: 40px; align-items: center; padding: 36px 40px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--orange); border-radius: 14px; }
+  .pg-pricing .free-n { color: var(--orange); }
+  .pg-pricing .free-n { font-size: 96px; font-weight: 800; letter-spacing: -0.05em; line-height: .9; }
+  .pg-pricing .free-n small { font-size: 26px; letter-spacing: 0; color: var(--muted); }
+  .pg-pricing .free h2 { font-size: clamp(24px, 2.2vw, 32px); letter-spacing: -0.02em; line-height: 1.15; max-width: 26ch; }
+  .pg-pricing .free p:not(.free-n) { margin-top: 10px; font-size: 18px; max-width: 52ch; }
+  .pg-pricing .steps { padding-top: 140px; padding-bottom: 140px; background: var(--surface); }
+  .pg-pricing .steps ol { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 56px; counter-reset: s; }
+  .pg-pricing .steps li { counter-increment: s; padding: 28px 22px 30px; background: var(--ground); font-size: 18px; }
+  .pg-pricing .steps li::before { content: counter(s); display: block; font-size: 56px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--orange); margin-bottom: 18px; }
+  .pg-pricing .steps li b { display: block; font-size: 20px; letter-spacing: -0.01em; margin-bottom: 6px; }
+  .pg-pricing .steps > p { margin-top: 32px; font-size: 19px; max-width: 52ch; }
+  .pg-pricing .why { padding-top: 140px; padding-bottom: 140px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
+  .pg-pricing .why h2 { font-size: clamp(30px, 3.4vw, 54px); }
+  .pg-pricing .why p { margin-top: 24px; font-size: 20px; max-width: 40ch; }
+  .pg-pricing .why .rule { margin-top: 0; }
+  @media (max-width: 900px) {
+    .pg-pricing .head { grid-template-columns: 1fr; gap: 32px; padding-bottom: 56px; }
+    .pg-pricing .zero { text-align: left; }
+    .pg-pricing .plans { grid-template-columns: 1fr; padding-bottom: 88px; }
+    .pg-pricing .plan { padding: 28px 18px 32px; }
+    .pg-pricing .plan dl div { grid-template-columns: 72px 1fr; }
+    .pg-pricing .steps, .pg-pricing .why { padding-top: 88px; padding-bottom: 88px; }
+    .pg-pricing .free-in { grid-template-columns: 1fr; gap: 16px; padding: 28px 18px; }
+    .pg-pricing .free-n { font-size: 72px; }
+    .pg-pricing .steps ol { grid-template-columns: 1fr; }
+    .pg-pricing .why { grid-template-columns: 1fr; gap: 40px; }
+  }

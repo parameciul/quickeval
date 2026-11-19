@@ -63,99 +63,109 @@
     <link rel="stylesheet" href="/src/landing/pages.css" />
     <script type="module" src="/src/landing/pages.ts"></script>
   </head>
-  <body>
+  <body class="pg pg-pricing">
     <div class="site">
       <header class="site-top wrap">
-        <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
-          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
-          <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
-        </a>
-        <nav aria-label="Pagina">
-          <div class="nav-links" id="nav-pages" data-nav-links>
+        <div class="bar">
+          <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
+            <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
+          </a>
+          <nav aria-label="Pagina">
+            <div class="links nav-links" id="nav-pages" data-nav-links>
             <a href="/guide/">Ghidul corectării</a>
             <a href="/marking-scheme/">Baremul</a>
             <a href="/about/">Despre</a>
             <a href="/pricing/" aria-current="page">Cât costă</a>
-          </div>
-          <button class="icon-btn nav-btn" type="button" data-nav-toggle aria-expanded="false" aria-controls="nav-pages" aria-label="Mai multe pagini">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" /></svg>
-          </button>
-          <button class="icon-btn" type="button" data-theme-toggle aria-label="Temă întunecată">
-            <svg class="theme-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true" focusable="false"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z" /></svg>
-            <svg class="theme-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="3" /><path d="M8 1.5v1.4M8 13.1v1.4M1.5 8h1.4M13.1 8h1.4M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1" /></svg>
-          </button>
-          <a class="btn" href="/teacher/">Intră în cont</a>
-        </nav>
+            </div>
+            <button class="icon nav-btn" type="button" data-nav-toggle aria-expanded="false" aria-controls="nav-pages" aria-label="Mai multe pagini"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+            <button class="icon" type="button" data-theme-toggle aria-label="Temă întunecată"><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg></button>
+            <a class="btn btn-small" href="/teacher/" data-guest>Intră în cont</a>
+          </nav>
+        </div>
       </header>
-
       <main>
-        <article class="page wrap">
-          <div class="page-head">
-            <nav class="crumbs" aria-label="Traseul paginii">
-              <a href="/">MQGrader</a>
-              <span aria-hidden="true">›</span>
-              <span>Cât costă</span>
-            </nav>
-            <h1 class="page-h1">Cât costă MQGrader</h1>
-            <p class="page-lede">Deocamdată, nimic. MQGrader nu are încă un abonament cu plată și nu încasează nimic. Conturile se deschid pe bază de cerere, iar fiecare cont nou începe ca un cont demo.</p>
+        <section class="head wrap" aria-labelledby="title">
+          <div>
+            <nav class="crumbs" aria-label="Unde ești"><a href="/">MQGrader</a><span aria-hidden="true">›</span><span>Cât costă</span></nav>
+            <h1 id="title" class="t-1">Cât costă MQGrader</h1>
+            <p class="lede">Deocamdată, nimic. MQGrader nu are încă un abonament cu plată și nu încasează nimic. Conturile se deschid pe bază de cerere, iar fiecare cont nou începe ca un cont demo.</p>
             <p class="byline">Scris de <a href="/about/">Laura Miron</a>, profesoară de matematică · actualizat 17 noiembrie 2026</p>
           </div>
+          <p class="zero" aria-label="0 lei">0<small>lei</small><span>contul demo, acum</span></p>
+        </section>
 
-          <div class="prose">
-            <h2 id="demo">Ce include un cont demo</h2>
-            <p>Un cont demo îți dă acces la toată aplicația, cu două limite, pe care le vezi oricând în cont:</p>
-            <div class="facts">
-              <dl>
-                <div><dt>Teste corectate</dt><dd>1</dd></div>
-                <div><dt>Lucrări corectate</dt><dd>35 în total, cu tot cu recorectări</dd></div>
-                <div><dt>Clase și elevi</dt><dd>fără limită</dd></div>
-                <div><dt>Restul aplicației</dt><dd>inclus în întregime: tipărirea testului cu cod QR, verificarea punctelor, rezultatele, raportul clasei, PDF și CSV</dd></div>
-              </dl>
-            </div>
+        <section class="plans wrap" aria-label="Cele două conturi">
+          <article class="plan rise" id="demo" aria-labelledby="demo-t">
+            <h2 id="demo-t">Ce include un cont demo</h2>
+            <span class="tag">Gratuit</span>
+            <p>Acces la toată aplicația, cu două limite, pe care le vezi oricând în cont.</p>
+            <dl>
+              <div><dt>1</dt><dd><b>Test corectat pentru o clasă întreagă</b>de la barem la rezultate</dd></div>
+              <div><dt>35</dt><dd><b>Lucrări corectate</b>în total, cu tot cu recorectări</dd></div>
+              <div><dt>∞</dt><dd><b>Clase și elevi</b>fără limită</dd></div>
+              <div><dt>✓</dt><dd><b>Restul aplicației</b>inclus în întregime: tipărirea testului cu cod QR, verificarea punctelor, rezultatele, raportul clasei, PDF și CSV</dd></div>
+            </dl>
             <p>Limitele sunt alese astfel încât să poți parcurge tot drumul, de la barem la rezultate, pe un test adevărat. Contorul din bara de sus îți arată oricând câte lucrări ți-au mai rămas.</p>
-
-            <h2 id="complete">Ce include un cont complet</h2>
+            <div class="acts"><a class="btn btn-acc" href="/teacher/#new-account">Cere un cont de profesor <span aria-hidden="true">→</span></a></div>
+          </article>
+          <article class="plan full rise" id="complete" aria-labelledby="full-t">
+            <h2 id="full-t">Ce include un cont complet</h2>
+            <span class="tag">Prețul nu este încă stabilit</span>
             <p>Aceleași funcții, fără cele două limite: corectezi oricâte teste, la oricâte clase, fără să numeri lucrările.</p>
+            <dl>
+              <div><dt>∞</dt><dd><b>Teste corectate</b>oricâte</dd></div>
+              <div><dt>∞</dt><dd><b>Lucrări corectate</b>fără să le numeri</dd></div>
+              <div><dt>∞</dt><dd><b>Clase și elevi</b>fără limită</dd></div>
+            </dl>
+            <p>Când ai nevoie de mai mult decât contul demo, îi ceri unui administrator un cont complet.</p>
+          </article>
+        </section>
 
-            <h2 id="why-no-price">De ce nu apare un preț pe această pagină</h2>
-            <p>Pentru că prețul nu este încă stabilit. MQGrader este în dezvoltare, iar un abonament lansat acum ar fi o promisiune pe care produsul nu o poate încă respecta. Când va exista un preț, îl vei găsi aici și vei fi anunțat și în cont.</p>
-            <div class="callout">
-              <h3>Nimic nu se activează singur</h3>
-              <p>Nicio plată nu pornește fără acordul tău. Nu există o perioadă de probă care să se transforme singură în abonament. Cât timp nu apare un preț pe această pagină, nu plătești nimic.</p>
-            </div>
-
-            <h2 id="account">Cum ceri un cont</h2>
-            <ol>
-              <li>Apeși <a href="/teacher/#new-account">Cere un cont de profesor</a> și completezi numele, adresa de email și o parolă.</li>
-              <li>Primești un email și îți confirmi adresa, ca să știm că este a ta.</li>
-              <li>Un administrator îți aprobă contul. Până atunci, contul rămâne în așteptare.</li>
-              <li>Intri în cont și începi cu o clasă și un test.</li>
-            </ol>
-            <p>Contul aprobat este un cont demo, cu limitele de mai sus. Când ai nevoie de mai mult, îi ceri unui administrator un cont complet.</p>
-
-            <h2 id="read-also">Citește și</h2>
-            <ul class="read-on">
-              <li><a href="/guide/">Cum corectezi testele după barem</a> — cele șase etape, de la barem la rezultate.</li>
-              <li><a href="/marking-scheme/">Baremul de corectare: ce este și cum îl folosești</a> — de unde vine baremul unui test și ce conține unul bun.</li>
-              <li><a href="/about/">Despre MQGrader și Laura Miron</a> — cine construiește platforma, ce face și ce nu face.</li>
-            </ul>
-          </div>
-        </article>
-
-        <section class="sec tint band" aria-labelledby="pricing-cta">
-          <div class="wrap">
+        <section class="free wrap" aria-labelledby="free">
+          <div class="free-in rise">
+            <p class="free-n">1<small>/zi</small></p>
             <div>
-              <h2 id="pricing-cta">Începe cu un cont demo</h2>
-              <p>Un test, 35 de lucrări, tot drumul de la barem la rezultate.</p>
+              <h2 id="free">Fără cont: o lucrare gratuită pe zi.</h2>
+              <p>Trimiți testul, baremul și lucrarea unui elev. Primești lucrarea corectată, punctele de verificat și rezultatul pe care l-ar vedea elevul.</p>
             </div>
-            <p class="cta">
-              <a class="btn btn-primary btn-large" href="/teacher/#new-account">Cere un cont</a>
-              <a class="link" href="/guide/">Cum funcționează</a>
-            </p>
+            <a class="btn btn-go" href="/#try">Încearcă pe o lucrare <span aria-hidden="true">→</span></a>
           </div>
         </section>
-      </main>
 
+        <section class="why wrap" aria-labelledby="why-no-price">
+          <div>
+            <h2 id="why-no-price" class="t-2 rise">De ce nu apare un preț pe această pagină</h2>
+            <p class="rise">Pentru că prețul nu este încă stabilit. MQGrader este în dezvoltare, iar un abonament lansat acum ar fi o promisiune pe care produsul nu o poate încă respecta. Când va exista un preț, îl vei găsi aici și vei fi anunțat și în cont.</p>
+          </div>
+          <div class="rule rise"><b>Nimic nu se activează singur</b><p>Nicio plată nu pornește fără acordul tău. Nu există o perioadă de probă care să se transforme singură în abonament. Cât timp nu apare un preț pe această pagină, nu plătești nimic.</p></div>
+        </section>
+
+        <section class="steps wrap" aria-labelledby="account">
+          <h2 id="account" class="t-2 rise">Cum ceri un cont</h2>
+          <ol>
+            <li class="rise"><b>Ceri contul.</b>Apeși „Cere un cont de profesor” și completezi numele, adresa de email și o parolă.</li>
+            <li class="rise"><b>Confirmi adresa.</b>Primești un email și îți confirmi adresa, ca să știm că este a ta.</li>
+            <li class="rise"><b>Contul e aprobat.</b>Un administrator îți aprobă contul. Până atunci, contul rămâne în așteptare.</li>
+            <li class="rise"><b>Începi.</b>Intri în cont și începi cu o clasă și un test.</li>
+          </ol>
+          <p class="rise">Contul aprobat este un cont demo, cu limitele de mai sus. Când ai nevoie de mai mult, îi ceri unui administrator un cont complet.</p>
+        </section>
+
+        <section class="read wrap" aria-labelledby="read-also">
+          <h2 id="read-also" class="t-2 rise">Citește și</h2>
+          <ul class="read-on">
+            <li class="rise"><a href="/guide/"><b>Cum corectezi testele după barem</b><span>Cele șase etape, de la barem la rezultate.</span></a></li>
+            <li class="rise"><a href="/marking-scheme/"><b>Baremul de corectare: ce este și cum îl folosești</b><span>De unde vine baremul unui test și ce conține unul bun.</span></a></li>
+            <li class="rise"><a href="/about/"><b>Despre MQGrader și Laura Miron</b><span>Cine construiește platforma, ce face și ce nu face.</span></a></li>
+          </ul>
+        </section>
+        <section class="end wrap" aria-labelledby="end-t">
+          <h2 id="end-t" class="rise">Începe cu un cont demo.</h2>
+          <p class="rise">Un test, 35 de lucrări, tot drumul de la barem la rezultate.</p>
+          <div class="acts rise"><a class="btn btn-acc" href="/teacher/#new-account">Cere un cont <span aria-hidden="true">→</span></a><a class="btn" href="/guide/">Cum funcționează</a></div>
+        </section>
+      </main>
       <!--#include site-foot -->
     </div>
   </body>

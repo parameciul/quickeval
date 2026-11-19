@@ -6,9 +6,10 @@
 const MARK =
   '<svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>';
 
-// The footer: the lockup, the four content pages, and the line under them.
+// The footer: the lockup, the four content pages, the contact address and the
+// line under them. It sits on the colour of the page's end band, right above it.
 const SITE_FOOT = `<footer class="site-foot">
-        <div class="wrap">
+        <div class="foot wrap">
           <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
             ${MARK}
             <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
@@ -19,6 +20,7 @@ const SITE_FOOT = `<footer class="site-foot">
             <a href="/about/">Despre</a>
             <a href="/pricing/">Cât costă</a>
           </nav>
+          <a class="link" href="mailto:contact@mqgrader.ro">contact@mqgrader.ro</a>
           <span class="note">Corectarea testelor după barem · Timișoara · 2026</span>
         </div>
       </footer>`;

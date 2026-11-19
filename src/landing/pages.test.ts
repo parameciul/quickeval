@@ -106,8 +106,9 @@ describe('the pages that answer a search', () => {
       expect(button?.getAttribute('aria-expanded')).toBe('false');
       expect(button?.getAttribute('aria-label')).toBe('Mai multe pagini');
     }
-    // The landing page adds its two jumps down the page in front of them.
-    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(['#how', '#benefits', ...LINKS]);
+    // The landing page's header names the same four pages, none of them marked.
+    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(LINKS);
+    expect(all(landingDoc, '.site-top .nav-links a[aria-current]')).toEqual([]);
   });
 
   it.each(PAGES)('$path leads only to pages and files that exist', ({ html }) => {

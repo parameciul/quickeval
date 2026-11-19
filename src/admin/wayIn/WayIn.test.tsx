@@ -1,17 +1,14 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import landing from '../../../index.html?raw';
-import { PITCH_HEADING, PITCH_LINE, STAGES, STAGES_TITLE, WayIn } from './WayIn.tsx';
+import { PITCH_HEADING, PITCH_LINE, WayIn } from './WayIn.tsx';
 
 describe('the way in', () => {
-  it('says what the landing page says, word for word', () => {
-    expect(landing).toContain(`<h1 class="l-h1" id="title">${PITCH_HEADING}</h1>`);
-    expect(landing).toContain(`<p class="l-lede">${PITCH_LINE}</p>`);
-    expect(landing).toContain(`<h2>${STAGES_TITLE}</h2>`);
-    const landingStages = [...landing.matchAll(/<h3>([^<]+) <span class="who-tag">([^<]+)<\/span><\/h3><p>(.+?)<\/p>/g)];
-    expect(landingStages.map((match) => [match[1], match[2], match[3]])).toEqual(
-      STAGES.map((stage) => [stage.name, stage.who, stage.lead === undefined ? stage.text : `<b>${stage.lead}</b> ${stage.text}`]),
-    );
+  it("keeps the landing page's heading and Laura Miron's line, word for word", () => {
+    // The landing page tells the day of a test in its own way; the login keeps
+    // the six stages, and shares the heading and the line with it.
+    expect(landing).toMatch(new RegExp(`<h1 id="title"[^>]*>${PITCH_HEADING}</h1>`));
+    expect(landing).toContain(`<p class="l-lede rise">${PITCH_LINE}</p>`);
   });
 
   it('shows the form, the six stages and the legend, the teacher\'s stages marked', () => {

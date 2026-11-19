@@ -1,8 +1,9 @@
-// The landing page's script: the theme button, the header's menu and the Quick
-// Try form.
+// The landing page's script: the entrances, the theme button, the header's
+// menu and the Quick Try form.
 import { createLandingApi } from './quickTry/api.ts';
 import { loadTurnstile } from './quickTry/turnstile.ts';
 import { initQuickTry } from './quickTry/ui.ts';
+import { initReveal } from './reveal.ts';
 import { initSiteMenu } from './siteMenu.ts';
 import { initThemeButton } from './themeButton.ts';
 
@@ -15,6 +16,7 @@ function deviceStorage(): Storage {
   }
 }
 
+initReveal();
 initThemeButton();
 initSiteMenu();
 void initQuickTry(document, { api: createLandingApi(), storage: deviceStorage(), now: () => new Date(), loadTurnstile });
