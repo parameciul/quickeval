@@ -2,18 +2,23 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 import { afterAll } from 'vitest';
-import { getPlatformProxy } from 'wrangler';
 import { createApp } from '../app.ts';
 import type { AppOptions, Env } from '../env.ts';
+import { fastD1 } from './fastD1.ts';
+import { fastR2 } from './fastR2.ts';
 
-// API tests run the real Hono app in Node against the local D1 and R2 engines
-// that `wrangler pages dev` also uses. getPlatformProxy reads the bindings from
-// wrangler.toml. With persist: false the database and the file bucket live in
-// memory only. Starting the local engine costs about half a second, so a test
-// file starts it once (at its first startTestApi()) and closes it after its last
-// test. Every startTestApi() call still sees a database and a bucket in the
-// state of a new one: the migrations are applied once, and dispose() empties
-// all tables and the bucket.
+// API tests run the real Hono app in Node. By default the database and the
+// file bucket are in this process (fastD1 on node:sqlite, fastR2 on a Map):
+// a call is a function call. With QE_TEST_DB=workerd they are the local D1 and
+// R2 engines that `wrangler pages dev` also uses, through getPlatformProxy
+// (bindings from wrangler.toml, persist: false): every call is a round trip to
+// workerd, about 5 ms. The "d1" Vitest project runs its files that way, for
+// what only D1 does (rows read) and to compare the two engines.
+//
+// A test file gets its engine once (at its first startTestApi()) and closes it
+// after its last test. Every startTestApi() call still sees a database and a
+// bucket in the state of a new one: the migrations are applied once, and the
+// next start empties all tables and the bucket.
 
 const MIGRATIONS_DIR = new URL('../../migrations/', import.meta.url);
 const WRANGLER_CONFIG = fileURLToPath(new URL('../../wrangler.toml', import.meta.url));
@@ -59,18 +64,33 @@ export async function applyMigrations(db: D1Database): Promise<void> {
   }
 }
 
-type Platform = Awaited<ReturnType<typeof getPlatformProxy<Pick<Env, 'DB' | 'FILES'>>>>;
+interface Platform {
+  env: { DB: D1Database; FILES: R2Bucket };
+  dispose(): Promise<void>;
+}
+
+// True when the tests of this process use the local workerd engine.
+export function usesWorkerd(): boolean {
+  return process.env.QE_TEST_DB === 'workerd';
+}
+
+// The local workerd engine. wrangler is imported only here, so the default
+// in-process engine never loads it.
+export async function workerdPlatform(): Promise<Platform> {
+  const { getPlatformProxy } = await import('wrangler');
+  return getPlatformProxy<Pick<Env, 'DB' | 'FILES'>>({
+    configPath: WRANGLER_CONFIG,
+    persist: false,
+    remoteBindings: false,
+  }) as unknown as Promise<Platform>;
+}
 
 let shared: Promise<Platform> | undefined;
 // Tests of one file run one after the other, so one engine is never used by two tests.
 let migrated = false;
 
 async function platformOfFile(): Promise<Platform> {
-  shared ??= getPlatformProxy<Pick<Env, 'DB' | 'FILES'>>({
-    configPath: WRANGLER_CONFIG,
-    persist: false,
-    remoteBindings: false,
-  });
+  shared ??= usesWorkerd() ? workerdPlatform() : Promise.resolve({ env: { DB: fastD1(), FILES: fastR2() }, dispose: async () => {} });
   return shared;
 }
 
@@ -78,11 +98,15 @@ afterAll(async () => {
   const platform = await shared?.catch(() => undefined);
   shared = undefined;
   migrated = false;
+  tables = [];
   await platform?.dispose();
 });
 
 // The rows the migrations leave behind (runner_state has one), by table.
 let seed: { table: string; rows: Record<string, unknown>[] }[] = [];
+// The tables the migrations made, read once after them: the reset empties
+// these. A table a test makes itself is not emptied; drop it in the test.
+let tables: string[] = [];
 
 async function tablesOf(db: D1Database): Promise<string[]> {
   const { results } = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all<{ name: string }>();
@@ -91,7 +115,8 @@ async function tablesOf(db: D1Database): Promise<string[]> {
 
 async function saveSeed(db: D1Database): Promise<void> {
   seed = [];
-  for (const table of await tablesOf(db)) {
+  tables = await tablesOf(db);
+  for (const table of tables) {
     const { results } = await db.prepare(`SELECT * FROM "${table}"`).all<Record<string, unknown>>();
     if (results.length > 0) seed.push({ table, rows: results });
   }
@@ -109,7 +134,7 @@ async function resetState(db: D1Database, files: R2Bucket): Promise<void> {
   );
   await db.batch([
     db.prepare('PRAGMA defer_foreign_keys = on'),
-    ...(await tablesOf(db)).map((name) => db.prepare(`DELETE FROM "${name}"`)),
+    ...tables.map((name) => db.prepare(`DELETE FROM "${name}"`)),
     ...inserts,
   ]);
   let cursor: string | undefined;

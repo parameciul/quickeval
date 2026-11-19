@@ -6,6 +6,7 @@ import type { TestInfo } from '../../shared/api.ts';
 import { createFakeApi, fakeAccount, fakeTeacher, fakeTest } from '../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../test/renderAdmin.tsx';
 import { ApiError } from './api.ts';
+import { logoutTab } from './shell/useLogout.ts';
 
 // A screen as narrow as a phone (below 900px), for the code that asks.
 // The files of a draft or open test that misses nothing.
@@ -178,7 +179,7 @@ describe('the shell', () => {
 
   it('logs out from the account menu', async () => {
     const assign = vi.fn();
-    vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, assign });
+    vi.spyOn(logoutTab, 'leave').mockImplementation(assign);
     const api = withClasses();
     renderAdmin('/', api);
     await userEvent.click(await screen.findByRole('button', { name: /contul tău/ }));
