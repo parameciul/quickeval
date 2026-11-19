@@ -94,15 +94,16 @@ function showPick(input: HTMLInputElement, chosen: File[]): void {
   action.textContent = 'Schimbă';
 }
 
-// The landing page's Quick Try (spec §3.1, §3.2): the button, the form in a
+// The landing page's Quick Try (spec §3.1, §3.2): its buttons (the hero's,
+// the try section's, the price row's and the end band's), the form in a
 // window over the page, and the status line of the visitor's try with its
 // link. The page has no React: this works on the page's own elements.
 export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<void> {
   const box = root.querySelector<HTMLElement>('[data-try]');
-  const openButton = root.querySelector<HTMLButtonElement>('[data-try-open]');
+  const openButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-try-open]'));
   const dialog = root.querySelector<HTMLDialogElement>('[data-try-dialog]');
   const form = root.querySelector<HTMLFormElement>('[data-try-form]');
-  if (!box || !openButton || !dialog || !form) return;
+  if (!box || openButtons.length === 0 || !dialog || !form) return;
   const note = box.querySelector<HTMLElement>('[data-try-note]')!;
   const hint = root.querySelector<HTMLElement>('[data-try-hint]');
   const status = box.querySelector<HTMLElement>('[data-try-status]')!;
@@ -119,11 +120,15 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const recoverLink = form.querySelector<HTMLAnchorElement>('[data-try-recover-link]')!;
   const progress = form.querySelector<HTMLElement>('[data-try-progress]')!;
   const sendButton = form.querySelector<HTMLButtonElement>('[data-try-send]')!;
-  const closeButton = form.querySelector<HTMLButtonElement>('[data-try-close]')!;
+  // The window's × and "Renunță".
+  const closeButtons = Array.from(form.querySelectorAll<HTMLButtonElement>('[data-try-close]'));
   const turnstileBox = form.querySelector<HTMLElement>('[data-try-turnstile]')!;
   const pagesInput = form.elements.namedItem('pages') as HTMLInputElement;
   const phonePick = form.querySelector<HTMLButtonElement>('[data-try-phone-pick]')!;
   const phoneUndo = form.querySelector<HTMLButtonElement>('[data-try-phone-undo]')!;
+  const baremInput = form.elements.namedItem('barem') as HTMLInputElement;
+  const robotBarem = form.elements.namedItem('robotBarem') as HTMLInputElement;
+  const robotNote = form.querySelector<HTMLElement>('[data-try-robot-note]');
   const refreshMs = deps.refreshMs ?? 10_000;
 
   let availability: QuickTryAvailability | null = null;
@@ -139,11 +144,11 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   // On a phone: "Fă poze" and its own camera, in place of the QR code.
   let here = false;
 
-  // The button, or the line that says why there is none.
+  // The buttons, or the line that says why there are none.
   function refreshButton(): void {
     const answer = availability ? canStart(availability, stored, phase, deps.now()) : 'off';
-    openButton!.hidden = answer !== 'yes';
-    if (hint) hint.hidden = openButton!.hidden;
+    for (const button of openButtons) button.hidden = answer !== 'yes';
+    if (hint) hint.hidden = answer !== 'yes';
     note.hidden = true;
     if (answer === 'used') show(note, USED_TEXT);
     if (answer === 'full') show(note, FULL_TEXT);
@@ -192,8 +197,10 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
 
   function formValues(): TryForm {
     const files = (name: string) => Array.from((form!.elements.namedItem(name) as HTMLInputElement).files ?? []);
+    // The form has no name field: the try is named after the test file.
+    const title = form!.elements.namedItem('title') as HTMLInputElement | null;
     return {
-      title: (form!.elements.namedItem('title') as HTMLInputElement).value,
+      title: title?.value ?? '',
       test: files('test')[0] ?? null,
       barem: files('barem')[0] ?? null,
       robotBarem: (form!.elements.namedItem('robotBarem') as HTMLInputElement).checked,
@@ -206,11 +213,11 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     show(error, text);
   }
 
-  openButton.addEventListener('click', () => {
+  function openForm(): void {
     error.hidden = true;
     recover.hidden = true;
     sendButton.disabled = false;
-    openDialog(dialog);
+    openDialog(dialog!);
     if (availability && !availability.admin && availability.siteKey && !widget) {
       widget = deps.loadTurnstile(turnstileBox, availability.siteKey);
       widget.catch(() => {
@@ -218,9 +225,21 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         sayError(NO_CHECK_TEXT);
       });
     }
-  });
+  }
+  for (const button of openButtons) button.addEventListener('click', openForm);
 
-  closeButton.addEventListener('click', () => closeDialog(dialog));
+  for (const button of closeButtons) button.addEventListener('click', () => closeDialog(dialog));
+
+  // The barem is her file or the one made from the test, never both: the
+  // choice empties the file, a file clears the choice.
+  function chooseRobotBarem(on: boolean): void {
+    robotBarem.checked = on;
+    if (robotNote) robotNote.hidden = !on;
+    if (!on) return;
+    baremInput.value = '';
+    showPick(baremInput, []);
+  }
+  robotBarem.addEventListener('change', () => chooseRobotBarem(robotBarem.checked));
 
   // The pages row's chosen state for the phone: its name and hint, and
   // "Schimbă" in place of the two buttons. Leaving it shows the picked files.
@@ -263,6 +282,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     input.addEventListener('change', () => {
       // Picking files leaves the phone choice.
       if (input === pagesInput && byPhone) choosePhone(false);
+      if (input === baremInput && (input.files?.length ?? 0) > 0) chooseRobotBarem(false);
       showPick(input, Array.from(input.files ?? []));
     });
   }
@@ -305,7 +325,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     }
     sending = true;
     sendButton.disabled = true;
-    closeButton.disabled = true;
+    for (const button of closeButtons) button.disabled = true;
     let made: StoredTry | null = null;
     try {
       const done = await sendTry(
@@ -328,6 +348,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       sending = false;
       const withPhone = values.byPhone;
       form!.reset();
+      chooseRobotBarem(false);
       choosePhone(false);
       for (const input of pickInputs) showPick(input, []);
       if (withPhone && here) {
@@ -364,7 +385,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       // A try that exists but broke half-way is not sent again (that would
       // make a second try): its page takes what is missing.
       sendButton.disabled = made !== null;
-      closeButton.disabled = false;
+      for (const button of closeButtons) button.disabled = false;
       check?.reset();
     }
   }

@@ -272,7 +272,7 @@ export function NewTestPage() {
                       {choice(
                         'generate',
                         'Generează baremul din test',
-                        'Primești o propunere în câteva minute. O verifici și o confirmi înainte de corectare.',
+                        'Baremul se generează din test în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.',
                         testFile === null ? 'Alege întâi testul, la pasul 2.' : undefined,
                       )}
                       {choice('later', 'Mai târziu', 'Îl adaugi din pagina testului, la Pregătire. Corectarea nu începe fără barem.')}
@@ -296,7 +296,7 @@ export function NewTestPage() {
                         {cesChoice(
                           'generate',
                           'Generează baremul CES din testul CES',
-                          'Pornește de la baremul clasei. Primești o propunere în câteva minute. O verifici și o confirmi înainte de corectare.',
+                          'Pornește de la baremul clasei. Se generează în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.',
                           cesTestFile === null ? 'Alege întâi testul CES, la pasul 2.' : undefined,
                         )}
                         {cesChoice('later', 'Mai târziu', 'Îl adaugi din pagina testului, la Pregătire. Lucrările CES nu se corectează fără el.')}

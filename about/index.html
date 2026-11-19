@@ -63,111 +63,111 @@
     <link rel="stylesheet" href="/src/landing/pages.css" />
     <script type="module" src="/src/landing/pages.ts"></script>
   </head>
-  <body>
+  <body class="pg pg-about">
     <div class="site">
       <header class="site-top wrap">
-        <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
-          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
-          <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
-        </a>
-        <nav aria-label="Pagina">
-          <div class="nav-links" id="nav-pages" data-nav-links>
+        <div class="bar">
+          <a class="brand" href="/" aria-label="MQGrader by Laura Miron">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
+            <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
+          </a>
+          <nav aria-label="Pagina">
+            <div class="links nav-links" id="nav-pages" data-nav-links>
             <a href="/guide/">Ghidul corectării</a>
             <a href="/marking-scheme/">Baremul</a>
             <a href="/about/" aria-current="page">Despre</a>
             <a href="/pricing/">Cât costă</a>
-          </div>
-          <button class="icon-btn nav-btn" type="button" data-nav-toggle aria-expanded="false" aria-controls="nav-pages" aria-label="Mai multe pagini">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" /></svg>
-          </button>
-          <button class="icon-btn" type="button" data-theme-toggle aria-label="Temă întunecată">
-            <svg class="theme-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true" focusable="false"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z" /></svg>
-            <svg class="theme-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="3" /><path d="M8 1.5v1.4M8 13.1v1.4M1.5 8h1.4M13.1 8h1.4M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1" /></svg>
-          </button>
-          <a class="btn" href="/teacher/">Intră în cont</a>
-        </nav>
+            </div>
+            <button class="icon nav-btn" type="button" data-nav-toggle aria-expanded="false" aria-controls="nav-pages" aria-label="Mai multe pagini"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+            <button class="icon" type="button" data-theme-toggle aria-label="Temă întunecată"><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg></button>
+            <a class="btn btn-small" href="/teacher/" data-guest>Intră în cont</a>
+          </nav>
+        </div>
       </header>
-
       <main>
-        <article class="page wrap">
-          <div class="page-head">
-            <nav class="crumbs" aria-label="Traseul paginii">
-              <a href="/">MQGrader</a>
-              <span aria-hidden="true">›</span>
-              <span>Despre</span>
-            </nav>
-            <h1 class="page-h1">Despre MQGrader</h1>
-            <p class="page-lede">Când orele de curs se termină, începe a doua zi de muncă a unui profesor: teancurile nesfârșite de teste și nopțile lungi petrecute corectând. Acolo s-a născut MQGrader.</p>
-            <p class="byline">Scris de Laura Miron, profesoară de matematică · actualizat 17 noiembrie 2026</p>
-          </div>
+        <section class="head wrap" aria-labelledby="title">
+          <nav class="crumbs" aria-label="Unde ești"><a href="/">MQGrader</a><span aria-hidden="true">›</span><span>Despre</span></nav>
+          <h1 id="title" class="t-1">Despre MQGrader</h1>
+          <p class="big page-lede">Când orele de curs se termină, începe a doua zi de muncă a unui profesor: teancurile nesfârșite de teste și nopțile lungi petrecute corectând. Acolo s-a născut MQGrader.</p>
+          <p class="byline">Scris de Laura Miron, profesoară de matematică · actualizat 17 noiembrie 2026</p>
+          <dl class="card">
+            <div><dt>Cine</dt><dd>Laura Miron, profesoară de matematică, împreună cu soțul ei</dd></div>
+            <div><dt>Unde</dt><dd>Liceul Teoretic „William Shakespeare”, Timișoara</dd></div>
+            <div><dt>Site-ul ei</dt><dd><a href="https://lauramiron.mqgrader.ro/">Matematică cu Laura Miron</a></dd></div>
+            <div><dt>Produsul</dt><dd>MQGrader, la adresa mqgrader.ro, în dezvoltare</dd></div>
+            <div><dt>Materii</dt><dd>Matematică, fizică, chimie, biologie, științe, limba română și limba engleză</dd></div>
+          </dl>
+        </section>
 
+        <section class="doc wrap" aria-label="Cine îl construiește și de ce">
+          <nav class="toc" aria-labelledby="contents">
+            <h2 id="contents">Cuprins</h2>
+            <ol>
+              <li><a href="#who">Cine îl construiește</a></li>
+              <li><a href="#why">De ce a apărut</a></li>
+              <li><a href="#what-it-does">Ce face</a></li>
+              <li><a href="#what-it-does-not">Ce nu face</a></li>
+              <li><a href="#now">Unde este produsul acum</a></li>
+              <li><a href="#contact">Contact</a></li>
+            </ol>
+          </nav>
           <div class="prose">
-            <h2 id="who">Cine îl construiește</h2>
-            <p>Proiectul nu vine din birourile unei companii de software care a încercat să anticipeze nevoile școlii, ci direct de la catedră. A fost creat de <b>Laura Miron</b> — profesoară de matematică la Liceul Teoretic „William Shakespeare” din Timișoara și autoarea platformei <a href="https://lauramiron.mqgrader.ro/" rel="me">Matematică cu Laura Miron</a> — împreună cu soțul ei, tocmai pentru a lua din greutatea munților de hârtie de pe birou.</p>
-            <p>Este o unealtă construită de cineva care trăiește realitatea din educație zi de zi, gândită să redea profesorilor cel mai prețios bun: puțin timp liber.</p>
-
-            <div class="facts">
-              <dl>
-                <div><dt>Cine</dt><dd>Laura Miron, profesoară de matematică, împreună cu soțul ei</dd></div>
-                <div><dt>Unde</dt><dd>Liceul Teoretic „William Shakespeare”, Timișoara</dd></div>
-                <div><dt>Site-ul ei</dt><dd><a href="https://lauramiron.mqgrader.ro/" rel="me">Matematică cu Laura Miron</a></dd></div>
-                <div><dt>Produsul</dt><dd>MQGrader, la adresa mqgrader.ro, în dezvoltare</dd></div>
-                <div><dt>Materii</dt><dd>Matematică, fizică, chimie, biologie, științe, limba română și limba engleză</dd></div>
-                <div><dt>Contact</dt><dd><a href="mailto:contact@mqgrader.ro">contact@mqgrader.ro</a></dd></div>
-              </dl>
-            </div>
-
-            <h2 id="why">De ce a apărut</h2>
-            <p>Corectarea unui test nu este grea, ci lungă. Un test cu șase exerciții, dat la trei clase, înseamnă în jur de o sută de lucrări, fiecare punctată pas cu pas. Iar punctajul trebuie să fie același pentru toți elevii: ultima lucrare se corectează la fel ca prima.</p>
-            <p>MQGrader preia partea repetitivă: citirea lucrărilor fotografiate, găsirea fiecărui pas în barem, adunarea punctelor. Partea care cere judecată rămâne acolo unde îi este locul: la profesor.</p>
-
-            <h2 id="what-it-does">Ce face</h2>
-            <ul>
-              <li>Citește lucrările pe care elevii le fotografiază și le trimit de pe telefon, fără să aibă nevoie de cont.</li>
-              <li>Propune punctajul pas cu pas, conform baremului, cu puncte parțiale pentru pașii rezolvați.</li>
-              <li>Pune deoparte punctele nesigure și spune de ce, ca să decidă profesorul.</li>
-              <li>Grupează pozele pe elevi, ca să nu primești o grămadă de fișiere fără nume.</li>
-              <li>Pregătește rezultatul fiecărui elev, raportul clasei, câte un PDF pentru fiecare elev și un fișier CSV pentru catalog.</li>
-            </ul>
-
-            <h2 id="what-it-does-not">Ce nu face</h2>
-            <ul>
-              <li>Nu dă nota finală în locul profesorului. Punctajul propus nu ajunge la elev până când nu l-a văzut profesorul.</li>
-              <li>Nu corectează după un barem neconfirmat. Baremul propus de platformă așteaptă până când îl verifică profesorul.</li>
-              <li>Nu le cere elevilor cont, aplicație sau adresă de email.</li>
-              <li>Nu publică nimic de la sine: rezultatele ajung la elevi doar atunci când le publică profesorul.</li>
-            </ul>
-
-            <h2 id="now">Unde este produsul acum</h2>
-            <p>MQGrader este încă în dezvoltare și se schimbă des. Conturile se deschid pe bază de cerere: ceri un cont, îți confirmi adresa de email, iar un administrator îl aprobă. Cu un cont demo poți corecta un test, cu cel mult 35 de lucrări.</p>
-            <p>Ce include fiecare tip de cont afli pe pagina <a href="/pricing/">Cât costă MQGrader</a>.</p>
-
-            <h2 id="contact">Contact</h2>
-            <p>Ești profesor și ai o întrebare, o idee pentru aplicație sau ai găsit o greșeală? Scrie-ne la <a href="mailto:contact@mqgrader.ro">contact@mqgrader.ro</a>. Îți răspunde Laura Miron.</p>
-
-            <h2 id="read-also">Citește și</h2>
-            <ul class="read-on">
-              <li><a href="/guide/">Cum corectezi testele după barem</a> — cele șase etape, unde se duce timpul și ce decizii rămân la profesor.</li>
-              <li><a href="/marking-scheme/">Baremul de corectare: ce este și cum îl folosești</a> — de unde vine baremul unui test și ce conține unul bun.</li>
-              <li><a href="/pricing/">Cât costă MQGrader</a> — ce include un cont demo și de ce nu există încă un abonament.</li>
-            </ul>
-          </div>
-        </article>
-
-        <section class="sec tint band" aria-labelledby="about-cta">
-          <div class="wrap">
-            <div>
-              <h2 id="about-cta">Vezi cum funcționează, pe un test de-al tău</h2>
-              <p>Sau citește mai întâi cum decurge corectarea, etapă cu etapă.</p>
-            </div>
-            <p class="cta">
-              <a class="btn btn-primary btn-large" href="/teacher/#new-account">Cere un cont de profesor</a>
-              <a class="link" href="/guide/">Ghidul corectării</a>
-            </p>
+              <h2 id="who">Cine îl construiește</h2>
+              <p>Proiectul nu vine din birourile unei companii de software care a încercat să anticipeze nevoile școlii, ci direct de la catedră. A fost creat de Laura Miron — profesoară de matematică la Liceul Teoretic „William Shakespeare” din Timișoara și autoarea platformei <a class="link" href="https://lauramiron.mqgrader.ro/">Matematică cu Laura Miron</a> — împreună cu soțul ei, tocmai pentru a lua din greutatea munților de hârtie de pe birou.</p>
+              <p>Este o unealtă construită de cineva care trăiește realitatea din educație zi de zi, gândită să redea profesorilor cel mai prețios bun: puțin timp liber.</p>
+              <h2 id="why">De ce a apărut</h2>
+              <p>Corectarea unui test nu este grea, ci lungă. Un test cu șase exerciții, dat la trei clase, înseamnă în jur de o sută de lucrări, fiecare punctată pas cu pas. Iar punctajul trebuie să fie același pentru toți elevii: ultima lucrare se corectează la fel ca prima.</p>
+              <p>MQGrader preia partea repetitivă: citirea lucrărilor fotografiate, găsirea fiecărui pas în barem, adunarea punctelor. Partea care cere judecată rămâne acolo unde îi este locul: la profesor.</p>
           </div>
         </section>
-      </main>
 
+        <section class="does wrap" aria-label="Ce face și ce nu face">
+          <div>
+            <h2 id="what-it-does" class="t-2 rise">Ce face</h2>
+            <ul>
+              <li class="rise"><b>Citește lucrările</b>pe care elevii le fotografiază și le trimit de pe telefon, fără să aibă nevoie de cont.</li>
+              <li class="rise"><b>Propune punctajul pas cu pas</b>conform baremului, cu puncte parțiale pentru pașii rezolvați.</li>
+              <li class="rise"><b>Pune deoparte punctele nesigure</b>și spune de ce, ca să decidă profesorul.</li>
+              <li class="rise"><b>Grupează pozele pe elevi</b>ca să nu primești o grămadă de fișiere fără nume.</li>
+              <li class="rise"><b>Pregătește rezultatele</b>rezultatul fiecărui elev, raportul clasei, câte un PDF pentru fiecare elev și un fișier CSV pentru catalog.</li>
+            </ul>
+          </div>
+          <div class="not">
+            <h2 id="what-it-does-not" class="t-2 rise">Ce nu face</h2>
+            <ul>
+              <li class="rise"><b>Nu dă nota finală în locul profesorului.</b>Punctajul propus nu ajunge la elev până când nu l-a văzut profesorul.</li>
+              <li class="rise"><b>Nu corectează după un barem neconfirmat.</b>Baremul generat așteaptă până când profesorul îl revizuiește și îl confirmă.</li>
+              <li class="rise"><b>Nu le cere elevilor cont, aplicație sau adresă de email.</b>Le ajung codul QR de pe test și camera telefonului.</li>
+              <li class="rise"><b>Nu publică nimic de la sine.</b>Rezultatele ajung la elevi doar atunci când le publică profesorul.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="doc wrap" aria-label="Unde este produsul și contact">
+          <div></div>
+          <div class="prose">
+              <h2 id="now">Unde este produsul acum</h2>
+              <p>MQGrader este încă în dezvoltare și se schimbă des. Conturile se deschid pe bază de cerere: ceri un cont, îți confirmi adresa de email, iar un administrator îl aprobă. Cu un cont demo poți corecta un test, cu cel mult 35 de lucrări.</p>
+              <p>Ce include fiecare tip de cont afli pe pagina <a class="link" href="/pricing/">Cât costă MQGrader</a>.</p>
+              <h2 id="contact">Contact</h2>
+              <p>Ești profesor și ai o întrebare, o idee pentru aplicație sau ai găsit o greșeală? Scrie-ne la <a class="link" href="mailto:contact@mqgrader.ro">contact@mqgrader.ro</a>. Îți răspunde Laura Miron.</p>
+          </div>
+        </section>
+
+        <section class="read wrap" aria-labelledby="read-also">
+          <h2 id="read-also" class="t-2 rise">Citește și</h2>
+          <ul class="read-on">
+            <li class="rise"><a href="/guide/"><b>Cum corectezi testele după barem</b><span>Cele șase etape, unde se duce timpul și ce decizii rămân la profesor.</span></a></li>
+            <li class="rise"><a href="/marking-scheme/"><b>Baremul de corectare: ce este și cum îl folosești</b><span>De unde vine baremul unui test și ce conține unul bun.</span></a></li>
+            <li class="rise"><a href="/pricing/"><b>Cât costă MQGrader</b><span>Ce include un cont demo și de ce nu există încă un abonament.</span></a></li>
+          </ul>
+        </section>
+        <section class="end wrap" id="about-cta" aria-labelledby="end-t">
+          <h2 id="end-t" class="rise">Vezi-l pe testul tău.</h2>
+          <p class="rise">Sau citește mai întâi cum decurge corectarea, etapă cu etapă.</p>
+          <div class="acts rise"><a class="btn btn-acc" href="/teacher/#new-account">Cere un cont de profesor <span aria-hidden="true">→</span></a><a class="btn" href="/guide/">Ghidul corectării</a></div>
+        </section>
+      </main>
       <!--#include site-foot -->
     </div>
   </body>

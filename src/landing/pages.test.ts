@@ -106,8 +106,9 @@ describe('the pages that answer a search', () => {
       expect(button?.getAttribute('aria-expanded')).toBe('false');
       expect(button?.getAttribute('aria-label')).toBe('Mai multe pagini');
     }
-    // The landing page adds its two jumps down the page in front of them.
-    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(['#how', '#benefits', ...LINKS]);
+    // The landing page's header names the same four pages, none of them marked.
+    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(LINKS);
+    expect(all(landingDoc, '.site-top .nav-links a[aria-current]')).toEqual([]);
   });
 
   it.each(PAGES)('$path leads only to pages and files that exist', ({ html }) => {
@@ -125,6 +126,20 @@ describe('the pages that answer a search', () => {
     // A link that stays on the page goes to a heading that is there.
     const anchors = all(doc, 'a[href^="#"]').map((a) => (a.getAttribute('href') ?? '').slice(1));
     for (const id of anchors) expect(doc.getElementById(id), id).not.toBeNull();
+  });
+
+  it('keeps the anchors that links from elsewhere name', () => {
+    const ids: [string, string[]][] = [
+      [landing, ['how', 'ready', 'benefits', 'faq', 'more', 'contact']],
+      [ghid, ['meaning', 'steps', 'time', 'automated', 'habits', 'read-also', 'guide-cta']],
+      [barem, ['what-it-is', 'origin', 'good-scheme', 'in-mqgrader', 'faq', 'read-also', 'marking-scheme-cta']],
+      [despre, ['who', 'why', 'what-it-does', 'what-it-does-not', 'now', 'contact', 'read-also', 'about-cta']],
+      [preturi, ['demo', 'complete', 'why-no-price', 'account', 'read-also', 'pricing-cta']],
+    ];
+    for (const [html, names] of ids) {
+      const doc = parse(html);
+      for (const id of names) expect(doc.getElementById(id), id).not.toBeNull();
+    }
   });
 
   it.each(PAGES)('$path shows the trail its structured data claims', ({ html, name }) => {

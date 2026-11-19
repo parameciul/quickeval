@@ -51,7 +51,7 @@ export interface PanelProps {
 // Rezultate: there the teacher reads what each student gets once the results
 // are published, in one line like the others.
 const SENTENCES: Record<StageName, string> = {
-  Pregătire: 'Încarci testul și baremul. Nu ai barem? Primești o propunere pe care o verifici tu.',
+  Pregătire: 'Încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.',
   Tipărire: 'Tipărești testul. Fiecare pagină are un cod QR.',
   'În clasă':
     'Elevii trimit pozele lucrării de pe telefon: scanează codul QR de pe foaia testului sau deschid linkul primit de la tine. Fără cont și fără aplicație.',

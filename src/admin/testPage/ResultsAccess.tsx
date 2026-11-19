@@ -158,7 +158,7 @@ function ResultWays({ test, published }: { test: TestInfo; published: boolean })
           <div className="ways-text">
             <strong>Cu linkul sau biletul primit după trimitere</strong>
             <span>
-              După ce își trimit lucrarea, elevii primesc pe telefon linkul rezultatului și biletul cu rezultatul (cu un cod QR și un cod scurt). Le
+              După ce își trimit lucrarea, elevii primesc pe telefon linkul rezultatului și biletul pentru rezultat (cu un cod QR și un cod scurt). Le
               deschid oricând.
             </span>
             <ul className="ways-cases">

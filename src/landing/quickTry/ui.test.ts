@@ -69,7 +69,9 @@ async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone:
   return { api, turnstile };
 }
 
-const button = () => screen.queryByRole('button', { name: 'Încearcă acum, fără cont' });
+const button = () => screen.queryByRole('button', { name: 'Încearcă pe o lucrare, fără cont' });
+// Every Quick Try button of the page: the hero's, the try section's, the price row's, the end band's.
+const tryButtons = () => Array.from(document.querySelectorAll<HTMLButtonElement>('[data-try-open]'));
 const dialog = () => document.querySelector<HTMLDialogElement>('[data-try-dialog]')!;
 
 function pick(label: RegExp, ...picked: File[]) {
@@ -209,14 +211,54 @@ describe("the landing page's Quick Try", () => {
     expect(button()).toBeNull();
   });
 
-  it('sends the name she writes for the try', async () => {
+  it('names the try after its test file: the form asks for no name', async () => {
     const { api } = await mount();
     button()!.click();
-    const name = within(dialog()).getByRole('textbox', { name: /Numele testului/ }) as HTMLInputElement;
-    name.value = 'Test funcții 9B';
-    fillForm();
+    expect(within(dialog()).queryByRole('textbox')).toBeNull();
+    pick(/^Testul/, pdf('Test funcții 9B.pdf'));
+    pick(/^Baremul/, pdf('barem.pdf'));
+    pick(/^Lucrarea elevului/, photo('p1.jpg'));
     send();
     await waitFor(() => expect(api.create).toHaveBeenCalledWith('turnstile-ok', 'Test funcții 9B'));
+  });
+
+  it('shows and hides every Quick Try button of the page together, and each one opens the form', async () => {
+    await mount();
+    expect(tryButtons()).toHaveLength(4);
+    for (const one of tryButtons()) {
+      expect(one).toBeVisible();
+      one.click();
+      expect(dialog().hasAttribute('open')).toBe(true);
+      within(dialog()).getByRole('button', { name: 'Închide' }).click();
+      expect(dialog().hasAttribute('open')).toBe(false);
+    }
+  });
+
+  it('hides every Quick Try button once the day is used', async () => {
+    await mount(fakeLandingApi({ dailyLimitReached: true }));
+    for (const one of tryButtons()) expect(one).not.toBeVisible();
+  });
+
+  it('keeps the barem one choice: her file, or the one made from the test', async () => {
+    await mount();
+    button()!.click();
+    const robot = within(dialog()).getByLabelText('Nu am barem: îl generez din test') as HTMLInputElement;
+    const note = () => within(dialog()).queryByText(/Baremul se face din test în câteva minute/);
+    const baremRow = () => within(dialog()).getByLabelText(/^Baremul/).closest<HTMLElement>('[data-try-pick]')!;
+    expect(note()).not.toBeVisible();
+    pick(/^Baremul/, pdf('barem.pdf'));
+    expect(baremRow()).toHaveClass('is-chosen');
+    robot.click();
+    expect(robot.checked).toBe(true);
+    expect(note()).toBeVisible();
+    // The choice empties the file she picked.
+    expect(baremRow()).not.toHaveClass('is-chosen');
+    expect(baremRow()).toHaveTextContent('Încarc baremul');
+    // A file picked after it clears the choice.
+    pick(/^Baremul/, pdf('alt-barem.pdf'));
+    expect(robot.checked).toBe(false);
+    expect(note()).not.toBeVisible();
+    expect(baremRow()).toHaveTextContent('alt-barem.pdf');
   });
 
   it('shows each chosen file in its row, and empties the rows once the form is sent', async () => {
@@ -250,7 +292,7 @@ describe("the landing page's Quick Try", () => {
     within(pages).getByRole('button', { name: 'Schimbă' }).click();
     expect(pages).not.toHaveClass('is-chosen');
     expect(pages).not.toHaveClass('is-phone');
-    expect(pages).toHaveTextContent('Alege paginile');
+    expect(pages).toHaveTextContent('Alege fișierele');
     expect(within(pages).getByRole('button', { name: 'Cu telefonul' })).toBeVisible();
   });
 
@@ -324,7 +366,7 @@ describe("the landing page's Quick Try", () => {
     const { api } = await mount(undefined, undefined, { isPhone: () => true, go });
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
-    within(dialog()).getByLabelText('Nu am barem: fă-l din test').click();
+    within(dialog()).getByLabelText('Nu am barem: îl generez din test').click();
     within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
     send();
     await waitFor(() => expect(go).toHaveBeenCalledWith(`/try/${TOKEN}/phone?here=1`));
@@ -464,7 +506,7 @@ describe("the landing page's Quick Try", () => {
     const { api } = await mount();
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
-    within(dialog()).getByLabelText('Nu am barem: fă-l din test').click();
+    within(dialog()).getByLabelText('Nu am barem: îl generez din test').click();
     pick(/^Lucrarea elevului/, photo('p1.jpg'));
     send();
     await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
@@ -559,8 +601,8 @@ describe("the landing page's Quick Try", () => {
 
   it('shows a visitor the login and the new-account link, not the account', async () => {
     await mount();
-    expect(screen.getAllByRole('link', { name: 'Intră în cont' })).toHaveLength(2);
-    expect(screen.getByRole('link', { name: 'Cere un cont de profesor' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Intră în cont' })).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: 'Cere un cont de profesor' }).length).toBeGreaterThanOrEqual(3);
     expect(screen.queryByRole('link', { name: 'Contul tău' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Deschide contul tău' })).toBeNull();
   });
@@ -578,7 +620,7 @@ describe("the landing page's Quick Try", () => {
     const api = fakeLandingApi();
     api.availability.mockRejectedValue(new ApiError(0, 'network', 'Nu mă pot conecta la server.'));
     await mount(api);
-    expect(screen.getAllByRole('link', { name: 'Intră în cont' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Intră în cont' })).toHaveLength(1);
     expect(screen.queryByRole('link', { name: 'Contul tău' })).toBeNull();
   });
 

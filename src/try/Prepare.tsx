@@ -156,7 +156,7 @@ function Barem({ detail, robotBarem, disabled }: { detail: TestDetail; robotBare
     <>
       <p>Baremul după care se dă punctajul. PDF sau Word.</p>
       <TestFile code={test.code} kind="barem" name={null} disabled={disabled} />
-      <p>Nu ai barem? Robotul îl face din test, iar tu îl citești înainte să pornești corectarea.</p>
+      <p>Nu ai un barem pregătit? Îl generezi automat din test, iar apoi îl citești înainte să pornești corectarea.</p>
       <button
         type="button"
         className="button-quiet"

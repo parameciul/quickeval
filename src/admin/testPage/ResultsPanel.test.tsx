@@ -419,7 +419,7 @@ describe('the panel Rezultate, where students find their results', () => {
       'Cu linkul sau biletul primit după trimitere',
       'Cu linkul sau codul QR al testului',
     ]);
-    expect(within(items[0]!).getByText(/elevii primesc pe telefon linkul rezultatului și biletul cu rezultatul/)).toBeInTheDocument();
+    expect(within(items[0]!).getByText(/elevii primesc pe telefon linkul rezultatului și biletul pentru rezultat/)).toBeInTheDocument();
     expect(within(items[0]!).getByText(/Linkul fiecărui elev îl ai și tu, în tabelul „Elevii” de mai jos/)).toBeInTheDocument();
     expect(within(items[1]!).getByText('De pe telefonul cu care au trimis:').closest('span')).toHaveTextContent(
       'De pe telefonul cu care au trimis: ajung direct la rezultat. Linkul rezultatului s-a salvat singur pe telefon.',
