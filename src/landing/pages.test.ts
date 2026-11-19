@@ -96,7 +96,9 @@ describe('the pages that answer a search', () => {
     for (const page of PAGES) {
       const doc = parse(page.html);
       const links = all(doc, '.site-top .nav-links a');
-      expect(links.map((a) => a.getAttribute('href'))).toEqual(LINKS);
+      // "Produs" first: the landing page, one tap away from every page.
+      expect(links.map((a) => [a.textContent, a.getAttribute('href')])[0]).toEqual(['Produs', '/']);
+      expect(links.map((a) => a.getAttribute('href'))).toEqual(['/', ...LINKS]);
       expect(links.filter((a) => a.getAttribute('aria-current') === 'page').map((a) => a.getAttribute('href'))).toEqual([
         page.path,
       ]);
@@ -106,9 +108,9 @@ describe('the pages that answer a search', () => {
       expect(button?.getAttribute('aria-expanded')).toBe('false');
       expect(button?.getAttribute('aria-label')).toBe('Mai multe pagini');
     }
-    // The landing page's header names the same four pages, none of them marked.
-    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(LINKS);
-    expect(all(landingDoc, '.site-top .nav-links a[aria-current]')).toEqual([]);
+    // The landing page's header names the same pages, "Produs" marked.
+    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(['/', ...LINKS]);
+    expect(all(landingDoc, '.site-top .nav-links a[aria-current="page"]').map((a) => a.textContent)).toEqual(['Produs']);
   });
 
   it.each(PAGES)('$path leads only to pages and files that exist', ({ html }) => {
@@ -317,6 +319,10 @@ describe('the pages that answer a search', () => {
     const site = doc.querySelector('.prose > p a');
     expect(text(site)).toBe('Matematică cu Laura Miron');
     expect(site?.getAttribute('href')).toBe('https://lauramiron.mqgrader.ro/');
+  });
+
+  it('speaks of tests, never of teze', () => {
+    for (const html of [landing, ...PAGES.map((p) => p.html), llms]) expect(html).not.toMatch(/\btez(e|ă|a|ele|elor)\b/i);
   });
 
   it('says one thing in one way across the four pages', () => {

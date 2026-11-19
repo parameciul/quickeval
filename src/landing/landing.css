@@ -105,7 +105,11 @@ img { display: block; max-width: 100%; height: auto; }
 .brand .words span { font-size: 13px; font-weight: 500; color: var(--muted); }
 .bar nav { display: flex; align-items: center; gap: 8px; }
 .links { display: flex; align-items: center; gap: 18px; margin-right: 14px; font-size: 16px; font-weight: 500; }
-.links a { padding: 6px 10px; border-radius: var(--radius); text-decoration: none; }
+.links a { padding: 6px 10px; border-radius: var(--radius); text-decoration: none; white-space: nowrap; }
+@media (min-width: 901px) and (max-width: 1100px) {
+  .links { gap: 2px; margin-right: 4px; font-size: 15px; }
+  .links a { padding: 6px 8px; }
+}
 .links a[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--orange-mark); }
 .icon { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; }
 .icon:hover { background: var(--sunk); }

@@ -47,7 +47,7 @@ describe('the landing page', () => {
   });
 
   it("keeps Laura Miron's texts word for word", () => {
-    expect(text(doc.getElementById('ready-t'))).toBe('Gata cu orele pierdute noaptea târziu corectând teze și teste!');
+    expect(text(doc.getElementById('ready-t'))).toBe('Gata cu orele pierdute noaptea târziu corectând teste!');
     expect(all('.ink .l-body').map(text)).toEqual([
       'Descoperă noua platformă care îți ia o mare greutate de pe umeri și îți oferă corectură riguroasă, exact după barem, în doar câteva minute.',
       'Ce o face diferită? Controlul rămâne 100% la tine. Știm că fiecare elev e unic și pot apărea situații nuanțate, așa că platforma îți permite să modifici oricând punctajele în cazurile discutabile sau creative.',
@@ -91,7 +91,7 @@ describe('the landing page', () => {
     // Every card says what the page is about, in one line.
     for (const a of all('#more ul a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
     // The header's menu names the same four pages.
-    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['/guide/', '/marking-scheme/', '/about/', '/pricing/']);
+    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['/', '/guide/', '/marking-scheme/', '/about/', '/pricing/']);
     // The account picture waits until the app's look settles.
     expect(doc.getElementById('aplicatia')).toBeNull();
   });
