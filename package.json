@@ -13,6 +13,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:times": "node scripts/testTimes.mjs --run",
     "test:web": "vitest run --project web",
     "test:server": "vitest run --project server --project shared",
     "test:runner": "vitest run --project runner",
