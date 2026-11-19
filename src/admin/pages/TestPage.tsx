@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useShownDetail } from '../testPage/StageNow.tsx';
 import { useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import type { RobotStart, TestDetail } from '../../../shared/api.ts';
@@ -61,7 +62,9 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
   // with files that waits for grading is checked, those sent later included,
   // so the teacher only unchecks the papers to grade later.
   const [excluded, setExcluded] = useState<number[]>([]);
-  const { test, uploads, robot, showModel } = detail;
+  const { robot, showModel } = detail;
+  // While a switch saves, the page shows the state it asked for.
+  const { test, uploads } = useShownDetail(detail.test, detail.uploads);
   const selected = test.status === 'open' ? selectedIds(uploads, excluded) : [];
   const { stages, current } = stagesOf(test);
   // The page opens on the stage the test is at when it first loads. Data kept

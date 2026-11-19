@@ -102,7 +102,7 @@ export function QrWindow({
   );
 }
 
-export function Way({ icon, title, text, children }: { icon: ActionIconName; title: ReactNode; text: string; children?: ReactNode }) {
+function Way({ icon, title, text, children }: { icon: ActionIconName; title: ReactNode; text: string; children?: ReactNode }) {
   return (
     <li>
       <span className="ways-icon" aria-hidden="true">

@@ -2391,11 +2391,6 @@ table.tests .row-actions {
   margin-block: 0;
 }
 
-.stage-body > h3 {
-  margin-top: 0.75rem;
-  font-size: 1rem;
-}
-
 /* The "Acum" box at the top of every stage's panel (spec 2026-11-19): what
    is true now, the stage's action, and what comes next. A band with a switch
    runs across its top: the uploads while the test is open, and the results. */
@@ -2547,6 +2542,11 @@ table.tests .row-actions {
   color: var(--orange);
 }
 
+.ready-list .is-now .ready-dot {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
 .ready-what {
   display: flex;
   flex-wrap: wrap;
@@ -2599,7 +2599,6 @@ table.tests .row-actions {
 }
 
 .stage-section-head h3,
-.stage-body > h3,
 .stage-body .papers-progress h3,
 .stage-body .ces-variant > h3 {
   margin: 0;
@@ -2667,8 +2666,13 @@ table.tests .row-actions {
   cursor: pointer;
 }
 
+/* While it saves, the switch is already in its new place, a little paler. */
 .uploads-toggle[aria-disabled="true"] {
   cursor: progress;
+}
+
+.uploads-toggle[aria-disabled="true"] .uploads-toggle-track {
+  opacity: 0.75;
 }
 
 .uploads-toggle-track {
@@ -5031,11 +5035,7 @@ input[type="file"] {
   opacity: 0.6;
 }
 
-/* A file of the test: "gata" in green, "lipsește" in orange while a draft or
-   open test needs it, "de verificat" in orange for a generated barem not yet
-   checked. */
-
-/* What a test still misses, under "Creează testul" and "Începe testul". */
+/* What a test still misses, under "Creează testul". */
 .missing-list strong {
   color: var(--orange);
 }
@@ -9844,7 +9844,7 @@ td.student-paper a:hover {
   margin: 0;
 }
 
-.print-body h3 {
+.print-body h4 {
   font-size: 1rem;
 }
 

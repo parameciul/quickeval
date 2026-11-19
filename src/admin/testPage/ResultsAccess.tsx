@@ -1,11 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TestInfo } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { MoveOnLink } from './MoveOnLink.tsx';
-import { NowBox, ReadyList, StageSection, SwitchBand, type ReadyRow } from './StageNow.tsx';
+import { NowBox, ReadyList, RESULTS_OPEN, StageSection, SwitchBand, type ReadyRow } from './StageNow.tsx';
 import { CopiedNote, copyLink, QrWindow, type Copied } from './WaysIn.tsx';
 import { QrDownload, QrOverlay, uploadLink } from './UploadLink.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
@@ -17,15 +17,10 @@ export function hasResultsToManage(test: Pick<TestInfo, 'status' | 'gradedCount'
   return test.status !== 'draft' && (test.gradedCount > 0 || test.resultsOpen || test.publishedCount > 0);
 }
 
-// Whether students can read results now: open for all, or some published alone.
-export function hasPublishedResults(test: Pick<TestInfo, 'resultsOpen' | 'publishedCount'>): boolean {
-  return test.resultsOpen || test.publishedCount > 0;
-}
-
 // Rezultate before there is anything to publish: the same "Acum" box as the
 // other stages, with what the results wait for. The students' table and the
 // class report stay under it, in their place.
-export function NoResultsYet({ test }: { test: TestInfo }) {
+function NoResultsYet({ test }: { test: TestInfo }) {
   const rows: ReadyRow[] = [];
   if (test.status === 'draft') rows.push({ state: 'later', what: 'Testul început', value: 'nu încă: îl începi în ziua testului', stage: 'În clasă' });
   rows.push({
@@ -48,12 +43,24 @@ export function NoResultsYet({ test }: { test: TestInfo }) {
 export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: () => Promise<void> }) {
   const api = useApi();
   // While it saves, the switch already shows the state asked for: the answer
-  // and the test read again after it take a moment.
+  // and the test read again after it take a moment. The test page shows that
+  // state everywhere meanwhile (`useShownDetail`).
   const toggle = useMutation({
+    mutationKey: [RESULTS_OPEN, test.code],
     mutationFn: (open: boolean) => api.setResultsOpen(test.code, open),
     onSuccess: onChanged,
   });
-  if (!hasResultsToManage(test)) return <NoResultsYet test={test} />;
+  // Stopping the results of a test with nothing graded leaves nothing to
+  // manage: the switch goes, so its focus goes to the panel's heading.
+  const managing = hasResultsToManage(test);
+  const wasManaging = useRef(managing);
+  useEffect(() => {
+    if (wasManaging.current && !managing && document.activeElement === document.body) {
+      document.querySelector<HTMLElement>('.stage-head h2')?.focus();
+    }
+    wasManaging.current = managing;
+  }, [managing]);
+  if (!managing) return <NoResultsYet test={test} />;
 
   const open = toggle.isPending ? toggle.variables : test.resultsOpen;
   // Results published alone, while the class's are not.
@@ -84,17 +91,23 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
     />
   );
   const readers = open ? test.gradedCount : test.publishedCount;
+  // Open for all while no paper is graded now: every paper is graded again.
+  const regrading = open && readers === 0;
   return (
     <>
       <NowBox
         band={band}
         title={
-          open || some
-            ? `${countLabel(readers, 'elev își poate', 'elevi își pot')} vedea rezultatul`
-            : `${countLabel(test.gradedCount, 'rezultat gata', 'rezultate gata')} de publicat`
+          regrading
+            ? 'Nicio lucrare nu e corectată acum'
+            : open || some
+              ? `${countLabel(readers, 'elev își poate', 'elevi își pot')} vedea rezultatul`
+              : `${countLabel(test.gradedCount, 'rezultat gata', 'rezultate gata')} de publicat`
         }
       >
-        {!open && test.flagCount > 0 ? (
+        {regrading ? (
+          <p className="now-sub">Lucrările se corectează din nou. Fiecare elev își vede rezultatul după ce lucrarea lui e corectată.</p>
+        ) : !open && test.flagCount > 0 ? (
           <p className="publish-wait">
             Mai ai {countLabel(test.flagCount, 'punct de verificat', 'puncte de verificat')} la etapa{' '}
             <MoveOnLink stage="Verificare">Verificare</MoveOnLink>. Dacă publici acum, elevii văd punctajul de acum.

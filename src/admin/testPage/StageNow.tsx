@@ -1,10 +1,11 @@
-import { useMutation } from '@tanstack/react-query';
-import { useId, type ReactNode } from 'react';
-import type { TestInfo } from '../../../shared/api.ts';
+import { useMutation, useMutationState } from '@tanstack/react-query';
+import { useId, useMemo, type ReactNode } from 'react';
+import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { missingName, missingOf } from '../missing.ts';
+import { cesBaremActive } from './variant.ts';
 import type { StageName } from '../stages.ts';
 import { MoveOnLink } from './MoveOnLink.tsx';
 
@@ -50,16 +51,18 @@ export function NowBox({
 }
 
 // One thing a stage needs, in the list of a stage that has not started: the
-// stage list's own dots (blue done, orange waits on the teacher, grey later),
-// what it is, its state, and a link to the stage where it is done.
+// stage list's own dots (blue tick done, orange waits on the teacher, filled
+// blue in progress, grey later), what it is, its state, and a link to the
+// stage where it is done.
 export interface ReadyRow {
-  state: 'done' | 'wait' | 'later';
+  state: 'done' | 'wait' | 'now' | 'later';
   what: string;
   value: string;
   stage?: StageName;
 }
 
-const READY_WORDS: Record<ReadyRow['state'], string> = { done: 'gata', wait: 'te așteaptă', later: 'urmează' };
+const READY_WORDS: Record<ReadyRow['state'], string> = { done: 'gata', wait: 'te așteaptă', now: 'în lucru', later: 'urmează' };
+const READY_ICONS = { done: 'check', wait: 'dot', now: 'edit', later: 'clock' } as const;
 
 export function ReadyList({ rows }: { rows: ReadyRow[] }) {
   return (
@@ -67,13 +70,14 @@ export function ReadyList({ rows }: { rows: ReadyRow[] }) {
       {rows.map((row) => (
         <li key={row.what} className={`is-${row.state}`}>
           <span className="ready-dot" aria-hidden="true">
-            <ActionIcon name={row.state === 'done' ? 'check' : row.state === 'wait' ? 'dot' : 'clock'} />
+            <ActionIcon name={READY_ICONS[row.state]} />
           </span>
           <span className="ready-what">
             <strong>{row.what}</strong> <span className="sr-only">{READY_WORDS[row.state]}:</span> <span>{row.value}</span>
           </span>
+          {/* Its name names the row too: a list may have several. */}
           {row.stage && (
-            <MoveOnLink stage={row.stage} className="ready-go">
+            <MoveOnLink stage={row.stage} className="ready-go" label={`Mergi la ${row.stage}: ${row.what}`}>
               Mergi la {row.stage}
             </MoveOnLink>
           )}
@@ -98,14 +102,30 @@ export function testFileRow(test: TestInfo): ReadyRow {
 }
 
 // The CES test and barem that a draft or open test still misses (missingOf),
-// as rows of that list: the class files have their own rows.
+// and a generated CES barem that waits for its check, as rows of that list:
+// the class files have their own rows.
 export function cesRows(test: TestInfo): ReadyRow[] {
-  return missingOf(test)
+  const rows: ReadyRow[] = missingOf(test)
     .filter((part) => part === 'cesTest' || part === 'cesBarem')
     .map((part) => {
       const name = missingName(part);
       return { state: 'wait', what: name.charAt(0).toUpperCase() + name.slice(1), value: 'lipsește', stage: 'Pregătire' };
     });
+  if (cesWanted(test) && test.ces.files.barem !== null && test.ces.barem.unchecked) {
+    rows.push({ state: 'wait', what: 'Baremul CES', value: 'de verificat', stage: 'Pregătire' });
+  }
+  return rows;
+}
+
+// The class has a CES student and the CES switch is on.
+export function cesWanted(test: TestInfo): boolean {
+  return test.ces.studentCount > 0 && !test.ces.off;
+}
+
+// The CES files that are not ready, whatever the test's state: the test file,
+// or a barem that is missing, generated and not checked, or being made.
+export function cesNotReady(test: TestInfo): boolean {
+  return cesWanted(test) && (test.ces.files.test === null || !cesBaremActive(test));
 }
 
 // A section of a panel under the "Acum" box: its title, a count or a hint
@@ -177,8 +197,10 @@ export function SwitchBand({
 export function UploadsBand({ test, onChanged, grading = false }: { test: TestInfo; onChanged: () => Promise<void>; grading?: boolean }) {
   const api = useApi();
   // While it saves, the switch already shows the state asked for: the answer
-  // and the test read again after it take a moment.
+  // and the test read again after it take a moment. The test page shows that
+  // state everywhere meanwhile (`useShownDetail`).
   const toggle = useMutation({
+    mutationKey: [UPLOADS_CLOSED, test.code],
     mutationFn: (close: boolean) => api.setUploadsClosed(test.code, close),
     onSuccess: onChanged,
   });
@@ -208,4 +230,36 @@ export function UploadsBand({ test, onChanged, grading = false }: { test: TestIn
       {toggle.error && <ErrorMessage error={toggle.error} />}
     </>
   );
+}
+
+// The keys of the two switches' saves. While one saves, the whole test page
+// shows the state asked for, so the band, the tables and the stage list agree.
+export const UPLOADS_CLOSED = 'uploads-closed';
+export const RESULTS_OPEN = 'results-open';
+
+// The test and its uploads as the page shows them: as read, or, while a
+// switch saves, with the state it asked for. Publishing every result shows
+// each sent paper as published; stopping them shows none.
+export function useShownDetail(test: TestInfo, uploads: UploadRow[]): { test: TestInfo; uploads: UploadRow[] } {
+  const closing = useMutationState({
+    filters: { mutationKey: [UPLOADS_CLOSED, test.code], status: 'pending' },
+    select: (mutation) => mutation.state.variables as boolean,
+  }).at(-1);
+  const opening = useMutationState({
+    filters: { mutationKey: [RESULTS_OPEN, test.code], status: 'pending' },
+    select: (mutation) => mutation.state.variables as boolean,
+  }).at(-1);
+  return useMemo(() => {
+    if (closing === undefined && opening === undefined) return { test, uploads };
+    const shown = { ...test };
+    if (closing !== undefined) shown.uploadsClosedAt = closing ? (test.uploadsClosedAt ?? new Date().toISOString()) : null;
+    if (opening === undefined) return { test: shown, uploads };
+    shown.resultsOpen = opening;
+    if (!opening) shown.publishedCount = 0;
+    const rows = uploads.map((row) => {
+      const published = opening ? row.resultsOpen || row.submissionId !== null : false;
+      return published === row.resultsOpen ? row : { ...row, resultsOpen: published };
+    });
+    return { test: shown, uploads: rows };
+  }, [test, uploads, closing, opening]);
 }

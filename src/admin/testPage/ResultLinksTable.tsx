@@ -42,12 +42,15 @@ export function ResultLinksTable({
   code,
   uploads,
   resultsOpen,
+  started = true,
   onChanged,
 }: {
   code: string;
   uploads: UploadRow[];
   // Whether the test keeps results open for all students.
   resultsOpen: boolean;
+  // A draft: no student could send yet, so a row without a paper says so.
+  started?: boolean;
   onChanged: () => Promise<void>;
 }) {
   if (uploads.length === 0) return <p className="hint">Clasa nu are elevi. Adaugă-i din pagina clasei.</p>;
@@ -66,7 +69,7 @@ export function ResultLinksTable({
         </thead>
         <tbody>
           {uploads.map((row) => (
-            <ResultLinkRow key={row.studentId} code={code} row={row} testResultsOpen={resultsOpen} onChanged={onChanged} />
+            <ResultLinkRow key={row.studentId} code={code} row={row} testResultsOpen={resultsOpen} started={started} onChanged={onChanged} />
           ))}
         </tbody>
       </table>
@@ -78,11 +81,13 @@ function ResultLinkRow({
   code,
   row,
   testResultsOpen,
+  started,
   onChanged,
 }: {
   code: string;
   row: UploadRow;
   testResultsOpen: boolean;
+  started: boolean;
   onChanged: () => Promise<void>;
 }) {
   const api = useApi();
@@ -133,8 +138,10 @@ function ResultLinkRow({
               named
             />
           </span>
-        ) : (
+        ) : started ? (
           'Nu a trimis lucrarea.'
+        ) : (
+          'Testul nu a început.'
         )}
       </td>
       <td className="result-state-cell">

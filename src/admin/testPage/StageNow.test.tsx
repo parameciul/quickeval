@@ -93,7 +93,7 @@ describe('the "Acum" box of Tipărire', () => {
     renderAdmin(`${PAGE}#print`, apiWith({}));
     expect(await title('Lipsește testul')).toBeInTheDocument();
     const needs = screen.getByRole('list', { name: 'Ce așteaptă etapa' });
-    expect(within(needs).getByRole('link', { name: 'Mergi la Pregătire' })).toHaveAttribute('href', '/tests/6E2-26T1#prepare');
+    expect(within(needs).getByRole('link', { name: 'Mergi la Pregătire: Testul' })).toHaveAttribute('href', '/tests/6E2-26T1#prepare');
   });
 });
 
@@ -107,7 +107,7 @@ describe('the checklist of a stage that has not started', () => {
       'Testul gata: încărcat',
       'Baremul te așteaptă: lipseșteMergi la Pregătire',
       'Testul început urmează: nu încă: îl începi în ziua testuluiMergi la În clasă',
-      'Lucrări trimise urmează: 0 din 2',
+      'Lucrări trimise urmează: 0 din 2 elevi',
     ]);
   });
 
@@ -179,5 +179,123 @@ describe('Fișa testului', () => {
     const sheet = within(await screen.findByRole('region', { name: 'Fișa testului' }));
     expect(sheet.getByText('lipsește')).toHaveClass('is-word');
     expect(sheet.getByText('2')).not.toHaveClass('is-word');
+  });
+});
+
+describe('the boxes in the states the first review found', () => {
+  const failed = (): UploadRow[] => [
+    fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'failed', fileCount: 1 }),
+    fakeUpload({ studentId: 11, studentName: 'Stan Eva' }),
+  ];
+  const corectarea = () => within(screen.getByRole('list', { name: 'Ce așteaptă etapa' })).getByText('Corectarea').closest('li')!;
+
+  it('says on Verificare that the grading ended with no paper graded', async () => {
+    renderAdmin(`${PAGE}#review`, apiWith({ status: 'done', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE } }, failed()));
+    await title('Verificarea începe după corectare');
+    expect(corectarea()).toHaveClass('is-wait');
+    expect(corectarea()).toHaveTextContent('s-a terminat fără nicio lucrare corectată');
+  });
+
+  it('says on Verificare that the teacher starts the grading of an open test', async () => {
+    renderAdmin(`${PAGE}#review`, apiWith({ status: 'open', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE } }));
+    await title('Verificarea începe după corectare');
+    expect(corectarea()).toHaveClass('is-wait');
+    expect(corectarea()).toHaveTextContent('o pornești tu');
+  });
+
+  it('asks for the button of an old draft with no link, and does not say the PDF is being made', async () => {
+    renderAdmin(`${PAGE}#print`, apiWith({ uploadToken: null, files: { test: TEST_FILE, barem: BAREM_FILE } }));
+    expect(await title('Testul cu cod QR nu e pregătit')).toBeInTheDocument();
+    expect(screen.getByText('Apasă „Pregătește testul cu cod QR” mai jos.')).toBeInTheDocument();
+    expect(screen.queryByText('Se pregătește testul cu cod QR')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('link', { name: /^În clasă / }));
+    const row = within(await screen.findByRole('list', { name: 'Ce așteaptă etapa' })).getByText('Testul cu cod QR').closest('li')!;
+    expect(row).toHaveClass('is-wait');
+    expect(row).toHaveTextContent('nepregătit');
+  });
+
+  it('speaks of a started test as started on Tipărire', async () => {
+    renderAdmin(`${PAGE}#print`, apiWith({ status: 'open', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE }, print: READY }));
+    expect(await title('Testul cu cod QR e gata de tipărit')).toBeInTheDocument();
+    expect(screen.getByText('Testul a început. Îl poți tipări din nou, de exemplu pentru un elev care a lipsit.')).toBeInTheDocument();
+    expect(next()).toHaveTextContent('Urmează Elevii trimit lucrările la etapa În clasă.');
+    expect(screen.queryByText(/înainte de ziua testului/)).not.toBeInTheDocument();
+  });
+
+  it('shows no empty "De tipărit" after the test was given with no PDF', async () => {
+    renderAdmin(`${PAGE}#print`, apiWith({ status: 'evaluating', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE } }));
+    expect(await title('Testul s-a dat în clasă')).toBeInTheDocument();
+    expect(screen.getByText('Testul nu a avut o variantă cu cod QR făcută aici.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'De tipărit' })).not.toBeInTheDocument();
+  });
+
+  it('puts the print card under "De tipărit" one heading level lower', async () => {
+    renderAdmin(`${PAGE}#print`, apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, print: READY }));
+    const section = (await screen.findByRole('heading', { level: 3, name: 'De tipărit' })).closest('section')!;
+    expect(within(section).getByRole('heading', { level: 4, name: 'Testul cu cod QR' })).toBeInTheDocument();
+  });
+
+  it('says what is missing when only the CES test is', async () => {
+    renderAdmin(
+      `${PAGE}#prepare`,
+      apiWith({ files: { test: TEST_FILE, barem: BAREM_FILE }, print: READY, ces: noCesVariant({ studentCount: 1, files: { test: null, barem: BAREM_FILE } }) }),
+    );
+    expect(await title('Lipsește testul CES')).toBeInTheDocument();
+    expect(screen.getByText('Le încarci mai jos, la „Varianta CES”. Fără ele, elevii cu CES nu au ce primi și lucrările lor așteaptă.')).toBeInTheDocument();
+  });
+
+  it('keeps naming a missing CES barem after the grading started, with no green tick', async () => {
+    const graded = { status: 'evaluating' as const, startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE }, print: READY };
+    const { unmount } = renderAdmin(`${PAGE}#prepare`, apiWith({ ...graded, ces: noCesVariant({ studentCount: 1, files: { test: TEST_FILE, barem: null } }) }));
+    expect(await title('Lipsește baremul CES')).not.toHaveClass('is-done');
+    unmount();
+    const checking = renderAdmin(
+      `${PAGE}#prepare`,
+      apiWith({ ...graded, ces: noCesVariant({ studentCount: 1, files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'none', unchecked: true } }) }),
+    );
+    expect(await title('Verifică baremul CES generat')).toBeInTheDocument();
+    checking.unmount();
+    renderAdmin(
+      `${PAGE}#prepare`,
+      apiWith({ ...graded, ces: noCesVariant({ studentCount: 1, files: { test: TEST_FILE, barem: null }, barem: { request: 'requested', unchecked: false } }) }),
+    );
+    expect(await title('Se generează baremul CES')).toBeInTheDocument();
+    expect(screen.queryByText('Testul și baremul sunt gata')).not.toBeInTheDocument();
+  });
+
+  it('says how to grade again after a test is done, not to wait for the grading', async () => {
+    renderAdmin(`${PAGE}#prepare`, apiWith({ status: 'done', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE }, print: READY }));
+    expect(await title('Testul și baremul sunt gata')).toHaveClass('is-done');
+    expect(screen.getByText('Dacă înlocuiești baremul, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.')).toBeInTheDocument();
+    expect(screen.queryByText(/după ce se termină corectarea/)).not.toBeInTheDocument();
+  });
+
+  it('lists a generated CES barem that waits for its check before the start', async () => {
+    renderAdmin(
+      `${PAGE}#in-class`,
+      apiWith({
+        files: { test: TEST_FILE, barem: BAREM_FILE },
+        print: READY,
+        ces: noCesVariant({ studentCount: 1, files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'none', unchecked: true } }),
+      }),
+    );
+    const row = within(await screen.findByRole('list', { name: 'Ce așteaptă etapa' })).getByText('Baremul CES').closest('li')!;
+    expect(row).toHaveClass('is-wait');
+    expect(row).toHaveTextContent('de verificat');
+    expect(within(row).getByRole('link', { name: 'Mergi la Pregătire: Baremul CES' })).toBeInTheDocument();
+  });
+});
+
+describe('the page while the uploads switch saves', () => {
+  it('shows the uploads closed everywhere at once: the ways go, Fișa testului says so', async () => {
+    const api = apiWith({ status: 'open', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE }, print: READY });
+    api.setUploadsClosed.mockImplementationOnce(() => new Promise(() => undefined));
+    renderAdmin(`${PAGE}#in-class`, api);
+    expect(await screen.findByRole('heading', { level: 3, name: 'Cum trimit elevii lucrarea' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('switch', { name: /^Încărcarea lucrărilor/ }));
+    expect(screen.getByText('Încărcarea e închisă: linkurile nu primesc lucrări până o redeschizi. Codul QR de pe foaie rămâne același.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Fișa testului' })).getByText('Încărcare închisă')).toBeInTheDocument();
   });
 });

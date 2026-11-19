@@ -79,7 +79,7 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
       )}
       {waiting.length > 0 && (
         <StageSection title="De verificat" meta={`${countLabel(waiting.length, 'elev', 'elevi')} · clic pe un nume`}>
-          <ul className="review-chips" aria-label="De verificat">
+          <ul className="review-chips">
             {waiting.map((row) => {
               const all = row.flagCount + row.checkedCount;
               const ces = isCes(row);
@@ -107,7 +107,7 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
       )}
       {done.length > 0 && (
         <StageSection title="Gata" meta={countLabel(done.length, 'elev', 'elevi')}>
-          <ul className="review-chips" aria-label="Gata">
+          <ul className="review-chips">
             {done.map((row) => (
               <li key={row.submissionId}>
                 <Link className="review-chip is-done" to={paperPath(test.code, 'app', { submissionId: row.submissionId, key: null }, 'all')}>
@@ -132,9 +132,12 @@ export function ReviewWaits({ test }: { test: TestInfo }) {
     if (barem.state !== 'done') rows.push(barem);
     rows.push({ state: 'later', what: 'Testul început', value: 'nu încă: îl începi în ziua testului', stage: 'În clasă' });
   } else if (test.status === 'open') {
-    rows.push({ state: 'later', what: 'Corectarea', value: 'nu a pornit', stage: 'Corectare' });
+    rows.push({ state: 'wait', what: 'Corectarea', value: 'o pornești tu', stage: 'Corectare' });
+  } else if (test.status === 'evaluating') {
+    rows.push({ state: 'now', what: 'Corectarea', value: 'se corectează lucrările', stage: 'Corectare' });
   } else {
-    rows.push({ state: 'later', what: 'Corectarea', value: 'în lucru', stage: 'Corectare' });
+    // Done with no paper graded now: every paper failed or was set aside.
+    rows.push({ state: 'wait', what: 'Corectarea', value: 's-a terminat fără nicio lucrare corectată', stage: 'Corectare' });
   }
   const of = test.status === 'draft' ? countLabel(test.studentCount, 'elev', 'elevi') : countLabel(test.submittedCount, 'lucrare trimisă', 'lucrări trimise');
   rows.push({ state: 'later', what: 'Lucrări corectate', value: `${test.gradedCount} din ${of}` });

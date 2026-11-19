@@ -10,9 +10,10 @@ const MOVED_ON = { movedOn: true };
 // its navigation, so StagePanel then shows the top of the new panel and gives
 // its heading the focus. A click with Ctrl or Shift opens a new tab and does
 // not navigate here, so it marks nothing.
-export function MoveOnLink({ stage, className, children }: { stage: StageName; className?: string; children: ReactNode }) {
+// `label` is its accessible name when several such links share their words.
+export function MoveOnLink({ stage, className, label, children }: { stage: StageName; className?: string; label?: string; children: ReactNode }) {
   return (
-    <Link className={className} to={{ hash: stageHash(stage) }} replace state={MOVED_ON}>
+    <Link className={className} to={{ hash: stageHash(stage) }} replace state={MOVED_ON} aria-label={label}>
       {children}
     </Link>
   );

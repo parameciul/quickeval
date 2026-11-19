@@ -12,14 +12,14 @@ import { IconQr } from '../shell/icons.tsx';
 import type { StageName } from '../stages.ts';
 import { AnalysisState } from './AnalysisState.tsx';
 import { EvaluationControls } from './EvaluationControls.tsx';
-import { missingNote, missingOf } from '../missing.ts';
+import { missingNote, missingParts } from '../missing.ts';
 import { CesVariant, CesWaiting } from './CesVariant.tsx';
 import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
 import { clearPrint } from './printPdf.ts';
 import { PrintTest } from './PrintTest.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
-import { baremRow, cesRows, NowBox, ReadyList, StageSection, testFileRow, UploadsBand, type ReadyRow } from './StageNow.tsx';
+import { baremRow, cesNotReady, cesRows, cesWanted, NowBox, ReadyList, StageSection, testFileRow, UploadsBand, type ReadyRow } from './StageNow.tsx';
 import { WaysIn } from './WaysIn.tsx';
 import { ReportCard } from './ReportCard.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
@@ -134,6 +134,20 @@ function filesMeta(test: TestInfo): string {
   return ready === 2 ? 'gata' : `${ready} din 2 gata`;
 }
 
+// What a test misses, in every state: missingOf says nothing once the grading
+// started, but a CES file can still be missing then, and its papers wait.
+function missingNow(test: TestInfo) {
+  const { testFile, baremFile, ces } = test.prepared;
+  return missingParts({ testFile, baremFile, baremRequest: test.barem.request, ces });
+}
+
+// The sentence under a missing part: the test, the barem, or the CES files.
+function missingSentence(missing: ReturnType<typeof missingNow>): string {
+  if (missing.includes('test')) return 'Le încarci mai jos. Din test se face testul cu cod QR pe care îl tipărești.';
+  if (missing.includes('barem')) return 'Fără barem, lucrările trimise așteaptă. Îl încarci mai jos sau primești o propunere pe care o verifici tu.';
+  return 'Le încarci mai jos, la „Varianta CES”. Fără ele, elevii cu CES nu au ce primi și lucrările lor așteaptă.';
+}
+
 // The "Acum" box of Pregătire: what the test still misses, the barem the
 // robot makes or the teacher checks, or that both files are ready.
 function PrepareNow({ test }: { test: TestInfo }) {
@@ -143,7 +157,7 @@ function PrepareNow({ test }: { test: TestInfo }) {
       Tipărești testul cu cod QR la etapa <MoveOnLink stage="Tipărire">Tipărire</MoveOnLink>.
     </>
   ) : undefined;
-  const missing = missingOf(test);
+  const missing = missingNow(test);
   if (test.barem.request === 'requested' && test.files.barem === null) {
     return (
       <NowBox title="Se generează baremul" next={next}>
@@ -162,19 +176,37 @@ function PrepareNow({ test }: { test: TestInfo }) {
     const note = missingNote(missing);
     return (
       <NowBox label="Acum · te așteaptă" title={note.charAt(0).toUpperCase() + note.slice(1)} next={next}>
-        <p className="now-sub">
-          {missing.includes('test')
-            ? 'Le încarci mai jos. Din test se face testul cu cod QR pe care îl tipărești.'
-            : 'Fără barem, lucrările trimise așteaptă. Îl încarci mai jos sau primești o propunere pe care o verifici tu.'}
-        </p>
+        <p className="now-sub">{missingSentence(missing)}</p>
+      </NowBox>
+    );
+  }
+  if (cesWanted(test) && test.ces.files.barem !== null && test.ces.barem.unchecked) {
+    return (
+      <NowBox label="Acum · te așteaptă" title="Verifică baremul CES generat" next={next}>
+        <p className="now-sub">Îl găsești mai jos, la „Varianta CES”. Până îl confirmi, lucrările CES așteaptă.</p>
+      </NowBox>
+    );
+  }
+  if (cesNotReady(test)) {
+    return (
+      <NowBox title="Se generează baremul CES" next={next}>
+        <p className="now-sub">Durează câteva minute. Îl verifici mai jos, la „Varianta CES”, când e gata.</p>
       </NowBox>
     );
   }
   return (
     <NowBox title="Testul și baremul sunt gata" done next={next}>
-      {!before && <p className="now-sub">Le poți înlocui după ce se termină corectarea, de exemplu ca să corectezi din nou.</p>}
+      {test.status === 'evaluating' && <p className="now-sub">Le poți înlocui după ce se termină corectarea.</p>}
+      {test.status === 'done' && (
+        <p className="now-sub">Dacă înlocuiești baremul, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.</p>
+      )}
     </NowBox>
   );
+}
+
+// Whether a PDF to print was made, for the class or the CES test.
+function anyPrint(test: TestInfo): boolean {
+  return test.print.status === 'ready' || (test.ces.files.test !== null && test.ces.print.status === 'ready');
 }
 
 // The "Acum" box of Tipărire: the test with the QR code is made, ready, or
@@ -183,11 +215,20 @@ function PrintNow({ test }: { test: TestInfo }) {
   if (test.status !== 'draft' && test.status !== 'open') {
     return (
       <NowBox title="Testul s-a dat în clasă" done>
-        <p className="now-sub">Fișierele de tipărit rămân aici, de exemplu pentru un elev care a lipsit.</p>
+        <p className="now-sub">
+          {anyPrint(test)
+            ? 'Fișierele de tipărit rămân aici, de exemplu pentru un elev care a lipsit.'
+            : 'Testul nu a avut o variantă cu cod QR făcută aici.'}
+        </p>
       </NowBox>
     );
   }
-  const next = (
+  const started = test.status === 'open';
+  const next = started ? (
+    <>
+      Elevii trimit lucrările la etapa <MoveOnLink stage="În clasă">În clasă</MoveOnLink>.
+    </>
+  ) : (
     <>
       În ziua testului, îl începi la etapa <MoveOnLink stage="În clasă">În clasă</MoveOnLink>.
     </>
@@ -196,6 +237,15 @@ function PrintNow({ test }: { test: TestInfo }) {
     return (
       <NowBox label="Acum · te așteaptă" title="Lipsește testul" next={next}>
         <ReadyList rows={[testFileRow(test)]} />
+      </NowBox>
+    );
+  }
+  // A draft made before tests got their link: the PDF is made only once the
+  // teacher asks for it, with the button below.
+  if (test.uploadToken === null) {
+    return (
+      <NowBox label="Acum · te așteaptă" title="Testul cu cod QR nu e pregătit" next={next}>
+        <p className="now-sub">Apasă „Pregătește testul cu cod QR” mai jos.</p>
       </NowBox>
     );
   }
@@ -215,7 +265,11 @@ function PrintNow({ test }: { test: TestInfo }) {
   }
   return (
     <NowBox title="Testul cu cod QR e gata de tipărit" done next={next}>
-      <p className="now-sub">Tipărește-l din timp, înainte de ziua testului. Fiecare pagină are codul.</p>
+      <p className="now-sub">
+        {started
+          ? 'Testul a început. Îl poți tipări din nou, de exemplu pentru un elev care a lipsit.'
+          : 'Tipărește-l din timp, înainte de ziua testului. Fiecare pagină are codul.'}
+      </p>
     </NowBox>
   );
 }
@@ -228,12 +282,14 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
     return (
       <>
         <PrintNow test={test} />
-        <StageSection title="De tipărit">
-          {test.print.status === 'ready' && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
-          {test.ces.files.test !== null && test.ces.print.status === 'ready' && (
-            <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
-          )}
-        </StageSection>
+        {anyPrint(test) && (
+          <StageSection title="De tipărit">
+            {test.print.status === 'ready' && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
+            {test.ces.files.test !== null && test.ces.print.status === 'ready' && (
+              <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
+            )}
+          </StageSection>
+        )}
       </>
     );
   }
@@ -304,6 +360,7 @@ function ClassPanel(props: PanelProps) {
 function printRow(test: TestInfo): ReadyRow {
   if (test.print.status === 'ready') return { state: 'done', what: 'Testul cu cod QR', value: 'gata de tipărit' };
   if (test.files.test === null) return { state: 'later', what: 'Testul cu cod QR', value: 'după ce încarci testul', stage: 'Tipărire' };
+  if (test.uploadToken === null) return { state: 'wait', what: 'Testul cu cod QR', value: 'nepregătit', stage: 'Tipărire' };
   if (test.print.status === 'failed') return { state: 'wait', what: 'Testul cu cod QR', value: 'nu s-a putut face', stage: 'Tipărire' };
   return { state: 'later', what: 'Testul cu cod QR', value: 'se pregătește', stage: 'Tipărire' };
 }
@@ -494,7 +551,7 @@ function GradingPanel(props: PanelProps) {
               baremRow(test),
               ...cesRows(test),
               { state: 'later', what: 'Testul început', value: 'nu încă: îl începi în ziua testului', stage: 'În clasă' },
-              { state: 'later', what: 'Lucrări trimise', value: `0 din ${test.studentCount}` },
+              { state: 'later', what: 'Lucrări trimise', value: `0 din ${countLabel(test.studentCount, 'elev', 'elevi')}` },
             ]}
           />
         </NowBox>
@@ -616,7 +673,7 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
           <ReportCard test={test} uploads={uploads} />
           <div className="results-students">
             <StageSection title="Elevii" meta={count && <span className={count.all ? 'tag tag-ok' : 'tag'}>{count.text}</span>}>
-              <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} onChanged={onChanged} />
+              <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} started={test.status !== 'draft'} onChanged={onChanged} />
             </StageSection>
           </div>
         </div>

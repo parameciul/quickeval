@@ -58,7 +58,7 @@ export function PrintTest({
     <section className={ready ? 'print-card is-ready' : 'print-card'} aria-labelledby={id}>
       {ready && <PageDrawing />}
       <div className="print-body">
-        <h3 id={id}>{ces ? 'Testul CES cu cod QR' : 'Testul cu cod QR'}</h3>
+        <h4 id={id}>{ces ? 'Testul CES cu cod QR' : 'Testul cu cod QR'}</h4>
         {parts.files.test === null ? (
           <p className="hint">{ces ? 'Încarcă testul CES ca să primești varianta cu cod QR.' : 'Încarcă testul ca să primești varianta cu cod QR.'}</p>
         ) : test.uploadToken === null ? (

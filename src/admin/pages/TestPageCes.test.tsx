@@ -176,7 +176,7 @@ describe('what a draft misses, under "Începe testul"', () => {
     expect(waiting).toEqual(['Testul CES', 'Baremul CES']);
     for (const name of waiting) {
       const item = within(list).getByText(name!).closest('li')!;
-      expect(within(item).getByRole('link', { name: 'Mergi la Pregătire' })).toBeInTheDocument();
+      expect(within(item).getByRole('link', { name: `Mergi la Pregătire: ${name}` })).toBeInTheDocument();
     }
     expect(screen.getByText('Poți începe oricum. Ce lipsește adaugi și după, la etapa Pregătire.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Începe testul' }));

@@ -1089,7 +1089,7 @@ describe('TestPage stages', () => {
     const barem = within(needs()).getByText('Baremul').closest('li')!;
     expect(barem).toHaveClass('is-wait');
     expect(within(barem).getByText('lipsește')).toBeInTheDocument();
-    expect(within(barem).getByRole('link', { name: 'Mergi la Pregătire' })).toHaveAttribute('href', '/tests/6E2-26T1#prepare');
+    expect(within(barem).getByRole('link', { name: 'Mergi la Pregătire: Baremul' })).toHaveAttribute('href', '/tests/6E2-26T1#prepare');
     // The papers table keeps its place, with every student.
     expect(screen.getByRole('table', { name: 'Încărcările elevilor' })).toBeInTheDocument();
     expect(screen.getByText('Urmează').closest('p')).toHaveTextContent('Urmează Verifici punctele nesigure la etapa Verificare.');
@@ -1160,7 +1160,7 @@ describe('TestPage Verificare', () => {
     expect(start).toHaveClass('button');
     expect(start).not.toHaveClass('button-wait');
     expect(within(panel).getByText('2 elevi · clic pe un nume')).toBeInTheDocument();
-    const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getAllByRole('link');
+    const left = within(within(within(panel).getByRole('region', { name: 'De verificat' })).getByRole('list')).getAllByRole('link');
     expect(left.map((link) => link.getAttribute('href'))).toEqual([
       '/tests/6E2-26T1/review?paper=7&item=pages',
       '/tests/6E2-26T1/review?paper=5&item=31',
@@ -1182,10 +1182,10 @@ describe('TestPage Verificare', () => {
     expect(within(panel).getByRole('progressbar', { name: 'Puncte verificate' })).toHaveAttribute('aria-valuenow', '2');
     expect(within(panel).getByText('1 punct de verificat, la 1 elev')).toBeInTheDocument();
     expect(within(panel).getByText('2 din 3 puncte verificate.')).toBeInTheDocument();
-    const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getAllByRole('link');
+    const left = within(within(within(panel).getByRole('region', { name: 'De verificat' })).getByRole('list')).getAllByRole('link');
     expect(left.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([['Marin Dan 1/2', '/tests/6E2-26T1/review?paper=7&item=41']]);
     expect(within(panel).getByText('1 elev · clic pe un nume')).toBeInTheDocument();
-    const done = within(within(panel).getByRole('list', { name: 'Gata' })).getAllByRole('link');
+    const done = within(within(within(panel).getByRole('region', { name: 'Gata' })).getByRole('list')).getAllByRole('link');
     expect(done.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([['✓ Pop Ion', '/tests/6E2-26T1/papers/5']]);
   });
 
@@ -1199,8 +1199,8 @@ describe('TestPage Verificare', () => {
     expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/tests/6E2-26T1#results');
     expect(within(panel).queryByRole('link', { name: /verificarea$/ })).not.toBeInTheDocument();
     expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument();
-    expect(within(panel).queryByRole('list', { name: 'De verificat' })).not.toBeInTheDocument();
-    const done = within(within(panel).getByRole('list', { name: 'Gata' })).getAllByRole('link');
+    expect(within(panel).queryByRole('region', { name: 'De verificat' })).not.toBeInTheDocument();
+    const done = within(within(within(panel).getByRole('region', { name: 'Gata' })).getByRole('list')).getAllByRole('link');
     expect(done.map((link) => link.textContent)).toEqual(['✓ Marin Dan', '✓ Pop Ion']);
     // It opens Rezultate as the stage links do: its heading takes the focus.
     await userEvent.click(screen.getByRole('link', { name: 'Mergi la Rezultate' }));
@@ -1230,10 +1230,10 @@ describe('TestPage Verificare', () => {
     pop!.ces = true;
     renderAdmin(`${PAGE}#review`, reviewApi([marin!, pop!]));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
-    const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getByRole('link');
+    const left = within(within(within(panel).getByRole('region', { name: 'De verificat' })).getByRole('list')).getByRole('link');
     expect(left).toHaveTextContent('Marin DanCES 0/2');
     expect(left).toHaveAccessibleName('Marin Dan, CES: 0 din 2 verificate');
-    const done = within(within(panel).getByRole('list', { name: 'Gata' })).getByRole('link');
+    const done = within(within(within(panel).getByRole('region', { name: 'Gata' })).getByRole('list')).getByRole('link');
     expect(done).toHaveTextContent('✓ Pop IonCES');
   });
 
@@ -1242,7 +1242,7 @@ describe('TestPage Verificare', () => {
     marin!.reviewPoints = [];
     renderAdmin(`${PAGE}#review`, reviewApi([marin!]));
     const panel = await screen.findByRole('region', { name: 'Verificare' });
-    const left = within(within(panel).getByRole('list', { name: 'De verificat' })).getByRole('link');
+    const left = within(within(within(panel).getByRole('region', { name: 'De verificat' })).getByRole('list')).getByRole('link');
     expect(left).toHaveAttribute('href', '/tests/6E2-26T1/review?paper=7');
     expect(within(panel).getByText('2 puncte de verificat, la 1 elev')).toBeInTheDocument();
   });
@@ -1251,8 +1251,10 @@ describe('TestPage Verificare', () => {
     renderAdmin(`${PAGE}#review`, apiWith({ status: 'evaluating' }));
     expect(await screen.findByText('Verificarea începe după corectare')).toBeInTheDocument();
     const needs = within(screen.getByRole('list', { name: 'Ce așteaptă etapa' }));
-    expect(needs.getByText('Corectarea').closest('li')).toHaveTextContent('Corectarea urmează: în lucruMergi la Corectare');
-    expect(screen.queryByRole('list', { name: 'De verificat' })).not.toBeInTheDocument();
+    expect(needs.getByText('Corectarea').closest('li')).toHaveTextContent('Corectarea în lucru: se corectează lucrărileMergi la Corectare');
+    expect(needs.getByText('Corectarea').closest('li')).toHaveClass('is-now');
+    // "De verificat" keeps its place, with a sentence and no list yet.
+    expect(within(screen.getByRole('region', { name: 'De verificat' })).queryByRole('list')).not.toBeInTheDocument();
     expect(screen.queryByText('Nimic de verificat')).not.toBeInTheDocument();
   });
 });

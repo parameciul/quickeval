@@ -60,7 +60,7 @@ describe('the panel Rezultate', () => {
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Linkurile cu rezultatele elevilor' })).toBeInTheDocument();
     expect(within(screen.getByRole('region', { name: 'Raportul clasei' })).getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('link', { name: 'Mergi la În clasă' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Mergi la În clasă: Testul început' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'În clasă' })).toHaveFocus();
     expect(screen.queryByRole('heading', { name: 'Pentru tine' })).not.toBeInTheDocument();
   });
@@ -76,7 +76,7 @@ describe('the panel Rezultate', () => {
     expect(screen.queryByText(/^Linkul arată nota/)).not.toBeInTheDocument();
     expect(screen.getByText('Rezultatele se publică după corectare')).toHaveClass('now-title');
     expect(screen.getByText('0 din 3 elevi')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Mergi la Corectare' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la Corectare: Lucrări corectate' })).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     // A sent paper has its link before the grading; one still on the phone has none.
     expect(within(row('Pop Ion')).getByRole('button', { name: /^Fă linkul:/ })).toBeInTheDocument();
@@ -542,5 +542,46 @@ describe('the panel Rezultate, where students find their results', () => {
     await userEvent.click(within(window_).getByRole('button', { name: 'Descarcă codul QR' }));
     expect(await within(window_).findByText('Nu am putut descărca codul QR.')).toBeInTheDocument();
     expect(saveFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('the panel Rezultate in the states the first review found', () => {
+  it('says the papers are graded again when the results are open and none is graded now', async () => {
+    const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
+    renderAdmin(PAGE, apiWith({ status: 'evaluating', resultsOpen: true }, rows));
+    expect(await screen.findByText('Nicio lucrare nu e corectată acum')).toHaveClass('now-title');
+    expect(screen.getByText('Lucrările se corectează din nou. Fiecare elev își vede rezultatul după ce lucrarea lui e corectată.')).toBeInTheDocument();
+    expect(screen.queryByText(/0 elevi își pot/)).not.toBeInTheDocument();
+  });
+
+  it('gives the focus to the heading when stopping leaves nothing to manage', async () => {
+    const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
+    renderAdmin(PAGE, apiWith({ status: 'evaluating', resultsOpen: true }, rows));
+    await userEvent.click(await screen.findByRole('switch', { name: /^Rezultatele elevilor/ }));
+    expect(await screen.findByText('Rezultatele se publică după corectare')).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Rezultate' })).toHaveFocus();
+  });
+
+  it('keeps the students table in step with the switch while it saves, and ignores a second click', async () => {
+    const api = apiWith({ status: 'done' }, graded());
+    api.setResultsOpen.mockImplementationOnce(() => new Promise(() => undefined));
+    renderAdmin(PAGE, api);
+    expect(await within(await screen.findByRole('row', { name: /^Pop Ion/ })).findByRole('button', { name: 'Publică: Pop Ion' })).toBeInTheDocument();
+    await userEvent.click(resultsSwitch());
+    // Before any answer, every sent paper shows as published, as after the save.
+    expect(within(row('Pop Ion')).getByText('Publicat')).toBeInTheDocument();
+    expect(within(row('Stan Eva')).getByText('Publicat')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Publică:/ })).not.toBeInTheDocument();
+    expect(screen.getByText('toate publicate')).toHaveClass('tag-ok');
+    await userEvent.click(resultsSwitch());
+    expect(api.setResultsOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('says on a draft that the test has not started, not that a student sent nothing', async () => {
+    const nobody = graded().map(({ studentId, studentName }) => fakeUpload({ studentId, studentName }));
+    renderAdmin(PAGE, apiWith({}, nobody));
+    expect(await within(await screen.findByRole('row', { name: /^Pop Ion/ })).findByText('Testul nu a început.')).toBeInTheDocument();
+    expect(screen.queryByText('Nu a trimis lucrarea.')).not.toBeInTheDocument();
   });
 });
