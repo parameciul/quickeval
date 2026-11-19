@@ -189,17 +189,18 @@ describe('the boxes in the states the first review found', () => {
   ];
   const corectarea = () => within(screen.getByRole('list', { name: 'Ce așteaptă etapa' })).getByText('Corectarea').closest('li')!;
 
-  it('says on Verificare that the grading ended with no paper graded', async () => {
+  it('says on Verificare that the grading ended with no paper graded, ticked like the stage list', async () => {
     renderAdmin(`${PAGE}#review`, apiWith({ status: 'done', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE } }, failed()));
     await title('Verificarea începe după corectare');
-    expect(corectarea()).toHaveClass('is-wait');
+    expect(corectarea()).toHaveClass('is-done');
     expect(corectarea()).toHaveTextContent('s-a terminat fără nicio lucrare corectată');
   });
 
   it('says on Verificare that the teacher starts the grading of an open test', async () => {
     renderAdmin(`${PAGE}#review`, apiWith({ status: 'open', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE } }));
     await title('Verificarea începe după corectare');
-    expect(corectarea()).toHaveClass('is-wait');
+    // Grey like Corectare in the stage list: it comes later.
+    expect(corectarea()).toHaveClass('is-later');
     expect(corectarea()).toHaveTextContent('o pornești tu');
   });
 
@@ -244,9 +245,15 @@ describe('the boxes in the states the first review found', () => {
     expect(screen.getByText('Le încarci mai jos, la „Varianta CES”. Fără ele, elevii cu CES nu au ce primi și lucrările lor așteaptă.')).toBeInTheDocument();
   });
 
-  it('keeps naming a missing CES barem after the grading started, with no green tick', async () => {
-    const graded = { status: 'evaluating' as const, startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE }, print: READY };
-    const { unmount } = renderAdmin(`${PAGE}#prepare`, apiWith({ ...graded, ces: noCesVariant({ studentCount: 1, files: { test: TEST_FILE, barem: null } }) }));
+  it('keeps naming a missing CES barem after the grading started while CES papers wait, with no green tick', async () => {
+    const graded = {
+      status: 'evaluating' as const,
+      startedAt: '2026-10-06T07:15:00.000Z',
+      evaluationStartedAt: '2026-10-06T09:00:00.000Z',
+      files: { test: TEST_FILE, barem: BAREM_FILE },
+      print: READY,
+    };
+    const { unmount } = renderAdmin(`${PAGE}#prepare`, apiWith({ ...graded, ces: noCesVariant({ studentCount: 1, files: { test: TEST_FILE, barem: null }, waiting: 1 }) }));
     expect(await title('Lipsește baremul CES')).not.toHaveClass('is-done');
     unmount();
     const checking = renderAdmin(
@@ -257,7 +264,7 @@ describe('the boxes in the states the first review found', () => {
     checking.unmount();
     renderAdmin(
       `${PAGE}#prepare`,
-      apiWith({ ...graded, ces: noCesVariant({ studentCount: 1, files: { test: TEST_FILE, barem: null }, barem: { request: 'requested', unchecked: false } }) }),
+      apiWith({ ...graded, ces: noCesVariant({ studentCount: 1, files: { test: TEST_FILE, barem: null }, barem: { request: 'requested', unchecked: false }, waiting: 1 }) }),
     );
     expect(await title('Se generează baremul CES')).toBeInTheDocument();
     expect(screen.queryByText('Testul și baremul sunt gata')).not.toBeInTheDocument();
@@ -297,5 +304,45 @@ describe('the page while the uploads switch saves', () => {
     expect(screen.getByText('Încărcarea e închisă: linkurile nu primesc lucrări până o redeschizi. Codul QR de pe foaie rămâne același.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
     expect(within(screen.getByRole('region', { name: 'Fișa testului' })).getByText('Încărcare închisă')).toBeInTheDocument();
+  });
+});
+
+describe('the CES files of a test after its first grading', () => {
+  const after = (status: 'evaluating' | 'done') => ({
+    status,
+    startedAt: '2026-10-06T07:15:00.000Z',
+    evaluationStartedAt: '2026-10-06T09:00:00.000Z',
+    files: { test: TEST_FILE, barem: BAREM_FILE },
+    print: READY,
+  });
+
+  it('names no CES file for an older test of a class that marked a student CES later', async () => {
+    // Its CES student was graded on the class's test: nothing waits.
+    renderAdmin(`${PAGE}#prepare`, apiWith({ ...after('done'), ces: noCesVariant({ studentCount: 1 }) }));
+    expect(await title('Testul și baremul sunt gata')).toHaveClass('is-done');
+    expect(screen.queryByText(/CES/, { selector: '.now-title' })).not.toBeInTheDocument();
+  });
+
+  it('names no missing CES barem while no CES paper waits for it', async () => {
+    renderAdmin(`${PAGE}#prepare`, apiWith({ ...after('evaluating'), ces: noCesVariant({ studentCount: 1, files: { test: TEST_FILE, barem: null } }) }));
+    expect(await title('Testul și baremul sunt gata')).toHaveClass('is-done');
+  });
+});
+
+describe('a save started before the band was drawn again', () => {
+  it('still keeps the uploads switch from starting a second save', async () => {
+    const api = apiWith({ status: 'open', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE }, print: READY });
+    api.setUploadsClosed.mockImplementationOnce(() => new Promise(() => undefined));
+    renderAdmin(`${PAGE}#in-class`, api);
+    await userEvent.click(await screen.findByRole('switch', { name: /^Încărcarea lucrărilor/ }));
+    // Away to another stage and back: the band is drawn anew.
+    const stages = screen.getByRole('navigation', { name: 'Etapele testului' });
+    await userEvent.click(within(stages).getByRole('link', { name: /^Pregătire / }));
+    await userEvent.click(within(stages).getByRole('link', { name: /^În clasă / }));
+    const toggle = await screen.findByRole('switch', { name: /^Încărcarea lucrărilor/ });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(toggle);
+    expect(api.setUploadsClosed).toHaveBeenCalledTimes(1);
   });
 });

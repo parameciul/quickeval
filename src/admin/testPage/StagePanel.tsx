@@ -12,14 +12,14 @@ import { IconQr } from '../shell/icons.tsx';
 import type { StageName } from '../stages.ts';
 import { AnalysisState } from './AnalysisState.tsx';
 import { EvaluationControls } from './EvaluationControls.tsx';
-import { missingNote, missingParts } from '../missing.ts';
+import { missingNote, missingOf, type MissingPart } from '../missing.ts';
 import { CesVariant, CesWaiting } from './CesVariant.tsx';
 import { ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
 import { clearPrint } from './printPdf.ts';
 import { PrintTest } from './PrintTest.tsx';
 import { isMoveOn, MoveOnLink } from './MoveOnLink.tsx';
-import { baremRow, cesNotReady, cesRows, cesWanted, NowBox, ReadyList, StageSection, testFileRow, UploadsBand, type ReadyRow } from './StageNow.tsx';
+import { baremRow, beforeGrading, cesNotReady, cesRows, cesWanted, NowBox, ReadyList, StageSection, testFileRow, UploadsBand, type ReadyRow } from './StageNow.tsx';
 import { WaysIn } from './WaysIn.tsx';
 import { ReportCard } from './ReportCard.tsx';
 import { linksCount, ResultLinksTable } from './ResultLinksTable.tsx';
@@ -134,15 +134,17 @@ function filesMeta(test: TestInfo): string {
   return ready === 2 ? 'gata' : `${ready} din 2 gata`;
 }
 
-// What a test misses, in every state: missingOf says nothing once the grading
-// started, but a CES file can still be missing then, and its papers wait.
-function missingNow(test: TestInfo) {
-  const { testFile, baremFile, ces } = test.prepared;
-  return missingParts({ testFile, baremFile, baremRequest: test.barem.request, ces });
+// What a test misses: before its first grading, what missingOf names; after
+// it, only a CES barem that CES papers wait for (a class marked a student CES
+// later has no CES test for its older tests, and nothing waits for one).
+function missingNow(test: TestInfo): MissingPart[] {
+  if (beforeGrading(test)) return missingOf(test);
+  const { files, barem, waiting } = test.ces;
+  return files.test !== null && files.barem === null && waiting > 0 && barem.request !== 'requested' ? ['cesBarem'] : [];
 }
 
 // The sentence under a missing part: the test, the barem, or the CES files.
-function missingSentence(missing: ReturnType<typeof missingNow>): string {
+function missingSentence(missing: MissingPart[]): string {
   if (missing.includes('test')) return 'Le încarci mai jos. Din test se face testul cu cod QR pe care îl tipărești.';
   if (missing.includes('barem')) return 'Fără barem, lucrările trimise așteaptă. Îl încarci mai jos sau primești o propunere pe care o verifici tu.';
   return 'Le încarci mai jos, la „Varianta CES”. Fără ele, elevii cu CES nu au ce primi și lucrările lor așteaptă.';
@@ -180,7 +182,7 @@ function PrepareNow({ test }: { test: TestInfo }) {
       </NowBox>
     );
   }
-  if (cesWanted(test) && test.ces.files.barem !== null && test.ces.barem.unchecked) {
+  if ((cesWanted(test) || test.ces.files.test !== null) && test.ces.files.barem !== null && test.ces.barem.unchecked) {
     return (
       <NowBox label="Acum · te așteaptă" title="Verifică baremul CES generat" next={next}>
         <p className="now-sub">Îl găsești mai jos, la „Varianta CES”. Până îl confirmi, lucrările CES așteaptă.</p>

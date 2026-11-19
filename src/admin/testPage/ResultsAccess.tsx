@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useIsMutating, useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import type { TestInfo } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
@@ -50,15 +50,17 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
     mutationFn: (open: boolean) => api.setResultsOpen(test.code, open),
     onSuccess: onChanged,
   });
+  // A save started before the band was drawn again still counts.
+  const saving = useIsMutating({ mutationKey: [RESULTS_OPEN, test.code] }) > 0;
   // Stopping the results of a test with nothing graded leaves nothing to
-  // manage: the switch goes, so its focus goes to the panel's heading.
+  // manage: the switch goes, so its focus goes to the panel's heading. Only
+  // after this switch's own stop, never after a refresh from elsewhere.
   const managing = hasResultsToManage(test);
-  const wasManaging = useRef(managing);
+  const stopped = useRef(false);
   useEffect(() => {
-    if (wasManaging.current && !managing && document.activeElement === document.body) {
-      document.querySelector<HTMLElement>('.stage-head h2')?.focus();
-    }
-    wasManaging.current = managing;
+    if (!stopped.current || managing) return;
+    stopped.current = false;
+    if (document.activeElement === document.body) document.querySelector<HTMLElement>('.stage-head h2')?.focus({ preventScroll: true });
   }, [managing]);
   if (!managing) return <NoResultsYet test={test} />;
 
@@ -71,8 +73,11 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
       name="Rezultatele elevilor"
       onWord="Publicate"
       offWord="Nepublicate"
-      pending={toggle.isPending}
-      onToggle={() => toggle.mutate(!open)}
+      pending={saving}
+      onToggle={() => {
+        stopped.current = open;
+        toggle.mutate(!open);
+      }}
       text={
         open ? (
           <>
@@ -91,22 +96,27 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
     />
   );
   const readers = open ? test.gradedCount : test.publishedCount;
-  // Open for all while no paper is graded now: every paper is graded again.
-  const regrading = open && readers === 0;
+  // Open for all while no paper is graded now: while the robot grades, every
+  // paper is graded again; else (all reset, or all failed) none has a result.
+  const noneGraded = open && readers === 0;
   return (
     <>
       <NowBox
         band={band}
         title={
-          regrading
+          noneGraded
             ? 'Nicio lucrare nu e corectată acum'
             : open || some
               ? `${countLabel(readers, 'elev își poate', 'elevi își pot')} vedea rezultatul`
               : `${countLabel(test.gradedCount, 'rezultat gata', 'rezultate gata')} de publicat`
         }
       >
-        {regrading ? (
-          <p className="now-sub">Lucrările se corectează din nou. Fiecare elev își vede rezultatul după ce lucrarea lui e corectată.</p>
+        {noneGraded ? (
+          <p className="now-sub">
+            {test.status === 'evaluating'
+              ? 'Lucrările se corectează din nou. Fiecare elev își vede rezultatul după ce lucrarea lui e corectată.'
+              : 'Când o lucrare e corectată, elevul își vede rezultatul pe linkul lui.'}
+          </p>
         ) : !open && test.flagCount > 0 ? (
           <p className="publish-wait">
             Mai ai {countLabel(test.flagCount, 'punct de verificat', 'puncte de verificat')} la etapa{' '}

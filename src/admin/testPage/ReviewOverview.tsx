@@ -132,12 +132,13 @@ export function ReviewWaits({ test }: { test: TestInfo }) {
     if (barem.state !== 'done') rows.push(barem);
     rows.push({ state: 'later', what: 'Testul început', value: 'nu încă: îl începi în ziua testului', stage: 'În clasă' });
   } else if (test.status === 'open') {
-    rows.push({ state: 'wait', what: 'Corectarea', value: 'o pornești tu', stage: 'Corectare' });
+    rows.push({ state: 'later', what: 'Corectarea', value: 'o pornești tu', stage: 'Corectare' });
   } else if (test.status === 'evaluating') {
     rows.push({ state: 'now', what: 'Corectarea', value: 'se corectează lucrările', stage: 'Corectare' });
   } else {
-    // Done with no paper graded now: every paper failed or was set aside.
-    rows.push({ state: 'wait', what: 'Corectarea', value: 's-a terminat fără nicio lucrare corectată', stage: 'Corectare' });
+    // Done with no paper graded now: every paper failed or was set aside. The
+    // stage list ticks Corectare, so the row does too.
+    rows.push({ state: 'done', what: 'Corectarea', value: 's-a terminat fără nicio lucrare corectată', stage: 'Corectare' });
   }
   const of = test.status === 'draft' ? countLabel(test.studentCount, 'elev', 'elevi') : countLabel(test.submittedCount, 'lucrare trimisă', 'lucrări trimise');
   rows.push({ state: 'later', what: 'Lucrări corectate', value: `${test.gradedCount} din ${of}` });

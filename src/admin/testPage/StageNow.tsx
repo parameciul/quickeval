@@ -1,4 +1,4 @@
-import { useMutation, useMutationState } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useMutationState } from '@tanstack/react-query';
 import { useId, useMemo, type ReactNode } from 'react';
 import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
@@ -122,10 +122,20 @@ export function cesWanted(test: TestInfo): boolean {
   return test.ces.studentCount > 0 && !test.ces.off;
 }
 
-// The CES files that are not ready, whatever the test's state: the test file,
-// or a barem that is missing, generated and not checked, or being made.
+// Whether the test is still before its first grading: what it misses then is
+// what missingOf names.
+export function beforeGrading(test: TestInfo): boolean {
+  return (test.status === 'draft' || test.status === 'open') && test.evaluationStartedAt === null;
+}
+
+// The CES files that are not ready. Before the first grading: the CES test, or
+// a CES barem missing, unchecked or being made, while the CES switch is on.
+// After it, only a CES barem that CES papers wait for: without a CES test, a
+// CES student's paper is graded on the class's test, so nothing waits (the
+// rule of "De făcut", `cesBarem.missing`).
 export function cesNotReady(test: TestInfo): boolean {
-  return cesWanted(test) && (test.ces.files.test === null || !cesBaremActive(test));
+  if (beforeGrading(test)) return cesWanted(test) && (test.ces.files.test === null || !cesBaremActive(test));
+  return test.ces.files.test !== null && test.ces.waiting > 0 && !cesBaremActive(test);
 }
 
 // A section of a panel under the "Acum" box: its title, a count or a hint
@@ -205,6 +215,9 @@ export function UploadsBand({ test, onChanged, grading = false }: { test: TestIn
     onSuccess: onChanged,
   });
   const closed = toggle.isPending ? toggle.variables : test.uploadsClosedAt !== null;
+  // A save started before the band was drawn again (the teacher left the
+  // stage and came back) still counts: no second save starts meanwhile.
+  const saving = useIsMutating({ mutationKey: [UPLOADS_CLOSED, test.code] }) > 0;
   return (
     <>
       <SwitchBand
@@ -212,7 +225,7 @@ export function UploadsBand({ test, onChanged, grading = false }: { test: TestIn
         name="Încărcarea lucrărilor"
         onWord="Deschisă"
         offWord="Închisă"
-        pending={toggle.isPending}
+        pending={saving}
         onToggle={() => toggle.mutate(!closed)}
         text={
           closed ? (

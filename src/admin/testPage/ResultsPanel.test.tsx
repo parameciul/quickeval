@@ -585,3 +585,25 @@ describe('the panel Rezultate in the states the first review found', () => {
     expect(screen.queryByText('Nu a trimis lucrarea.')).not.toBeInTheDocument();
   });
 });
+
+describe('the panel Rezultate after the second review', () => {
+  it('does not say the papers are graded again on a done test with none graded', async () => {
+    const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'failed', fileCount: 2 })];
+    renderAdmin(PAGE, apiWith({ status: 'done', resultsOpen: true }, rows));
+    expect(await screen.findByText('Nicio lucrare nu e corectată acum')).toHaveClass('now-title');
+    expect(screen.getByText('Când o lucrare e corectată, elevul își vede rezultatul pe linkul lui.')).toBeInTheDocument();
+    expect(screen.queryByText(/se corectează din nou/)).not.toBeInTheDocument();
+  });
+
+  it('leaves the focus alone when the results stop from elsewhere', async () => {
+    const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
+    const api = apiWith({ status: 'evaluating', resultsOpen: true }, rows);
+    const { queryClient } = renderAdmin(PAGE, api);
+    await screen.findByRole('switch', { name: /^Rezultatele elevilor/ });
+    // Another tab stops them; this page reads the test again.
+    await api.setResultsOpen('6E2-26T1', false);
+    await queryClient.invalidateQueries({ queryKey: ['test', '6E2-26T1'] });
+    expect(await screen.findByText('Rezultatele se publică după corectare')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Rezultate' })).not.toHaveFocus();
+  });
+});
