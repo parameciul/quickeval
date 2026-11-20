@@ -11,6 +11,8 @@ import { subjectLine } from '../admin/testPage/SubjectForm.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
 import { formatDate, formatDateTime } from '../ui/format.ts';
 import { paperOf, phaseOf } from './phase.ts';
+import type { TryApi } from './api.ts';
+import { DeleteTry } from './DeleteTry.tsx';
 import { ShareButton } from './Share.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { t } from '../i18n/t.ts';
@@ -20,7 +22,7 @@ import { t } from '../i18n/t.ts';
 // the subject of the test (spec: any subject; found by the robot, never changed
 // in a try), the test and barem it uses (not while she prepares them: that
 // part of the page has them), and "Distribuie".
-export function TryHead({ detail, info, token }: { detail: TestDetail; info: QuickTryInfo; token: string }) {
+export function TryHead({ detail, info, token, tryApi }: { detail: TestDetail; info: QuickTryInfo; token: string; tryApi: TryApi }) {
   const { test } = detail;
   const paper = paperOf(detail);
   const sent = paper?.submittedAt ? t('Trimisă la corectare {formatDateTime} · ', { formatDateTime: formatDateTime(paper.submittedAt) }) : paper?.startedAt ? t('Începută {formatDateTime} · ', { formatDateTime: formatDateTime(paper.startedAt) }) : '';
@@ -40,7 +42,7 @@ export function TryHead({ detail, info, token }: { detail: TestDetail; info: Qui
           </div>
         )}
       </div>
-      <ShareButton token={token} />
+      <ShareButton token={token} before={<DeleteTry tryApi={tryApi} madeAt={paper?.startedAt ?? paper?.submittedAt ?? new Date().toISOString()} />} />
     </header>
   );
 }

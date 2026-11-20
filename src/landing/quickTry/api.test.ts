@@ -21,12 +21,6 @@ describe("the landing page's client", () => {
     expect(JSON.parse(fetchImpl.mock.calls[1]![1]!.body as string)).toEqual({ turnstileToken: 'raspuns', title: 'Test 9B' });
   });
 
-  it("deletes the try through its own link", async () => {
-    const fetchImpl = fakeFetch({ deleted: true, counted: false });
-    expect(await createLandingApi(fetchImpl).deleteTry(TOKEN)).toEqual({ counted: false });
-    expect(fetchImpl.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([[`/api/try/${TOKEN}`, 'DELETE']]);
-  });
-
   it("sends the files and the start to the try's own link", async () => {
     const fetchImpl = fakeFetch({});
     const api = createLandingApi(fetchImpl);

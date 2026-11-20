@@ -37,7 +37,6 @@ function fakeLandingApi(availability: Partial<QuickTryAvailability> = {}) {
     listPages: vi.fn(async (_token: string): Promise<SubmissionFile[]> => []),
     start: vi.fn(async () => {}),
     getTest: vi.fn(async () => grading),
-    deleteTry: vi.fn(async (_token: string) => ({ counted: true })),
   } satisfies LandingApi;
 }
 
@@ -249,130 +248,16 @@ describe("the landing page's Quick Try", () => {
     }
   });
 
-  describe('deleting her try', () => {
-    const del = () => document.querySelector<HTMLButtonElement>('[data-try-delete]')!;
-
-    it('asks once more, then deletes the try and forgets its link', async () => {
-      store();
-      const api = fakeLandingApi();
-      await mount(api);
-      expect(button()).toBeDisabled();
-      del().click();
-      expect(del()).toHaveTextContent('Sigur? Șterge definitiv');
-      expect(api.deleteTry).not.toHaveBeenCalled();
-      del().click();
-      await waitFor(() => expect(api.deleteTry).toHaveBeenCalledWith(TOKEN));
-      await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
-      expect(localStorage.getItem(STORED_TRY_KEY)).toBeNull();
-    });
-
-    it('keeps one try per device per day after a delete, unless the try had failed', async () => {
-      store();
-      await mount(fakeLandingApi());
-      del().click();
-      del().click();
-      await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
-      expect(button()).toBeDisabled();
-      expect(screen.getByText('Ai făcut încercarea de azi. Mâine poți face alta.')).toBeVisible();
-      // The next visit of the page, with no try stored.
-      document.body.innerHTML = '';
-      await mount(fakeLandingApi());
-      expect(button()).toBeDisabled();
-    });
-
-    it('lets her try again after deleting a try that failed', async () => {
-      store();
-      const api = fakeLandingApi();
-      api.getTest.mockResolvedValue(tryTest({ files, barem: { request: 'failed', unchecked: false } }));
-      api.deleteTry.mockResolvedValue({ counted: false });
-      await mount(api);
-      del().click();
-      del().click();
-      await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
-      expect(button()).toBeEnabled();
-      expect(localStorage.getItem(DELETED_TRY_KEY)).toBeNull();
-    });
-
-    it("follows the server on whether the deleted try counts, not the state the page last saw", async () => {
-      store();
-      const api = fakeLandingApi();
-      api.getTest.mockResolvedValue(tryTest({ files, barem: { request: 'failed', unchecked: false } }));
-      api.deleteTry.mockResolvedValue({ counted: true });
-      await mount(api);
-      del().click();
-      del().click();
-      await waitFor(() => expect(localStorage.getItem(DELETED_TRY_KEY)).toBe(NOW.toISOString()));
-      expect(button()).toBeDisabled();
-    });
-
-    it('keeps no mark on the device of an administrator who deletes her try', async () => {
-      store();
-      await mount(fakeLandingApi({ admin: true }));
-      del().click();
-      del().click();
-      await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
-      expect(localStorage.getItem(DELETED_TRY_KEY)).toBeNull();
-      expect(button()).toBeEnabled();
-    });
-
-    it('hides the card and turns the button off when the page is shown again after a delete in another tab', async () => {
-      store();
-      await mount(fakeLandingApi());
-      expect(screen.getByRole('status')).toBeVisible();
-      localStorage.removeItem(STORED_TRY_KEY);
-      localStorage.setItem(DELETED_TRY_KEY, NOW.toISOString());
-      window.dispatchEvent(pageShow(true));
-      expect(document.querySelector('[data-try-status]')).not.toBeVisible();
-      expect(button()).toBeDisabled();
-      expect(screen.getByText('Ai făcut încercarea de azi. Mâine poți face alta.')).toBeVisible();
-    });
-
-    it('names the button by its question while it asks, and by its job again after', async () => {
-      store();
-      await mount(fakeLandingApi());
-      const job = del().getAttribute('aria-label');
-      del().click();
-      expect(del()).toHaveAccessibleName('Sigur? Șterge definitiv');
-      del().click();
-      await waitFor(() => expect(del().getAttribute('aria-label')).toBe(job));
-    });
-
-    it('goes back to its label when the second press does not come', async () => {
-      vi.useFakeTimers();
-      try {
-        store();
-        await mount(fakeLandingApi());
-        del().click();
-        expect(del()).toHaveTextContent('Sigur?');
-        vi.advanceTimersByTime(5001);
-        expect(del().textContent).toBe('');
-        expect(del()).not.toHaveClass('is-sure');
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
-    it('keeps the try and says so when the delete fails', async () => {
-      store();
-      const api = fakeLandingApi();
-      api.deleteTry.mockRejectedValue(new ApiError(500, 'internal', 'A apărut o eroare.'));
-      await mount(api);
-      del().click();
-      del().click();
-      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Nu am putut șterge încercarea. Încearcă din nou.'));
-      expect(localStorage.getItem(STORED_TRY_KEY)).not.toBeNull();
-      expect(del()).toBeEnabled();
-    });
-
-    it('counts a link that is already gone as deleted', async () => {
-      store();
-      const api = fakeLandingApi();
-      api.deleteTry.mockRejectedValue(new ApiError(404, 'unknown_try', 'Linkul nu este bun.'));
-      await mount(api);
-      del().click();
-      del().click();
-      await waitFor(() => expect(localStorage.getItem(STORED_TRY_KEY)).toBeNull());
-    });
+  it('hides the card and turns the button off when the page is shown again after a delete made on the try page', async () => {
+    store();
+    await mount(fakeLandingApi());
+    expect(screen.getByRole('status')).toBeVisible();
+    localStorage.removeItem(STORED_TRY_KEY);
+    localStorage.setItem(DELETED_TRY_KEY, NOW.toISOString());
+    window.dispatchEvent(pageShow(true));
+    expect(document.querySelector('[data-try-status]')).not.toBeVisible();
+    expect(button()).toBeDisabled();
+    expect(screen.getByText('Ai făcut încercarea de azi. Mâine poți face alta.')).toBeVisible();
   });
 
   it('lets an administrator make another try on the same day', async () => {

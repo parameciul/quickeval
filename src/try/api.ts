@@ -22,6 +22,9 @@ export interface TryApi {
   start(filesVersion?: number): Promise<EvaluationStart>;
   // The page the student would see.
   result(): Promise<StudentResultView>;
+  // Deletes the try: its files and rows (its link stops working). Answers
+  // whether the try still counts for today (false: it had failed).
+  deleteTry(): Promise<{ counted: boolean }>;
 }
 
 export function tryBase(token: string): string {
@@ -82,5 +85,9 @@ export function createTryClient(token: string, options: { fetchImpl?: typeof fet
     },
     start: (filesVersion) => request<EvaluationStart>('POST', '/start', filesVersion === undefined ? {} : { filesVersion }),
     result: async () => (await request<{ result: StudentResultView }>('GET', '/result')).result,
+    deleteTry: async () => {
+      const answer = await request<{ counted?: boolean }>('DELETE', '');
+      return { counted: answer.counted !== false };
+    },
   };
 }

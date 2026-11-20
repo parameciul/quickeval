@@ -340,10 +340,16 @@ label.try-tile.is-disabled {
 
 /* Narrow: "Distribuie" goes under the name, on the left. */
 @media (max-width: 48rem) {
-  .try-head .try-share {
+  .try-head .try-share,
+  .try-head .try-delete-ask {
     justify-items: start;
     max-width: none;
     text-align: left;
+  }
+
+  .try-head .try-share-row,
+  .try-head .try-delete-actions {
+    justify-content: flex-start;
   }
 }
 
@@ -377,6 +383,31 @@ label.try-tile.is-disabled {
   .try-point-why {
     grid-column: 1 / -1;
   }
+}
+
+.try-share-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem 0.75rem;
+}
+
+.try-delete-ask {
+  order: 2;
+  flex-basis: 100%;
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+  max-width: 16rem;
+  text-align: right;
+}
+
+.try-delete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .try-share {

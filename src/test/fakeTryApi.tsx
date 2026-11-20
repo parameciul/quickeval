@@ -77,6 +77,7 @@ export function createFakeTryApi(data: FakeTryData = {}) {
       pages.splice(index, 1);
     }),
     start: vi.fn(async (_filesVersion?: number): Promise<EvaluationStart> => ({ status: 'evaluating', evaluationAt: null, robot: 'dispatched' })),
+    deleteTry: vi.fn(async () => ({ counted: true })),
     result: vi.fn(async () => {
       if (!data.result) throw new ApiError(404, 'unknown_try', 'Linkul nu este bun.');
       return structuredClone(data.result);
