@@ -120,12 +120,12 @@ function ResultFiles({ result, fileUrl }: { result: StudentResultView; fileUrl: 
     <ol className="page-files">
       {result.files.map((file, index) => {
         const url = fileUrl(file.id);
-        const caption = `Pagina ${index + 1}: ${file.name} · ${formatFileSize(file.size)}`;
+        const caption = t('Pagina {n}: {name} · {size}', { n: index + 1, name: file.name, size: formatFileSize(file.size) });
         if (file.contentType.startsWith('image/')) {
           return (
             <li key={file.id}>
               <a href={url} target="_blank" rel="noopener">
-                <img src={url} alt={`Pagina ${index + 1}`} loading="lazy" />
+                <img src={url} alt={t('Pagina {n}', { n: index + 1 })} loading="lazy" />
               </a>
               <p className="hint">{caption}</p>
             </li>
@@ -133,7 +133,7 @@ function ResultFiles({ result, fileUrl }: { result: StudentResultView; fileUrl: 
         }
         return (
           <li key={file.id}>
-            <iframe className="pdf-frame" src={url} title={`Pagina ${index + 1}`} loading="lazy" />
+            <iframe className="pdf-frame" src={url} title={t('Pagina {n}', { n: index + 1 })} loading="lazy" />
             <a href={url} target="_blank" rel="noopener">
               {t('Deschide PDF-ul')}
             </a>

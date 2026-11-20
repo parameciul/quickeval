@@ -18,7 +18,7 @@ import { t } from '../i18n/t.ts';
 type View = 'verificare' | 'elev';
 // Each view's name, and the short one a phone shows.
 const VIEWS: { id: View; label: string; short: string | null }[] = [
-  { id: 'verificare', label: 'Verificare', short: null },
+  { id: 'verificare', label: t('Verificare'), short: null },
   { id: 'elev', label: t('Rezultatul elevului'), short: t('Elev') },
 ];
 const VIEW_IDS = VIEWS.map((view) => view.id);

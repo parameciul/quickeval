@@ -314,8 +314,8 @@ export function PagesUploader({
           {items.map((item, index) => (
             <li key={item.key} className={`page-item is-${item.state}`}>
               {item.preview ? (
-                <button type="button" className="thumb" onClick={() => setViewingKey(item.key)} aria-label={`Vezi pagina ${index + 1}`}>
-                  <img src={item.preview} alt={`Pagina ${index + 1}`} />
+                <button type="button" className="thumb" onClick={() => setViewingKey(item.key)} aria-label={t('Vezi pagina {n}', { n: index + 1 })}>
+                  <img src={item.preview} alt={t('Pagina {n}', { n: index + 1 })} />
                 </button>
               ) : (
                 <span className="thumb thumb-file" aria-hidden="true">
@@ -370,7 +370,7 @@ export function PagesUploader({
         </button>
       </div>
 
-      {viewing?.preview && <PhotoViewer src={viewing.preview} label={`Pagina ${viewingIndex + 1}`} onClose={() => setViewingKey(null)} />}
+      {viewing?.preview && <PhotoViewer src={viewing.preview} label={t('Pagina {n}', { n: viewingIndex + 1 })} onClose={() => setViewingKey(null)} />}
     </section>
   );
 }

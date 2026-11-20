@@ -90,7 +90,7 @@ export function openPhoneStep(
       ...pages.map((page, index) => {
         const item = document.createElement('li');
         const name = document.createElement('span');
-        name.textContent = `Pagina ${index + 1}`;
+        name.textContent = t('Pagina {n}', { n: index + 1 });
         const size = document.createElement('span');
         size.className = 'try-phone-size';
         size.textContent = formatFileSize(page.size);

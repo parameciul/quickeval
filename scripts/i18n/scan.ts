@@ -46,6 +46,12 @@ function looksLikeText(text: string): boolean {
 
 type Node = { type: string; start: number; end: number; [key: string]: unknown };
 
+// The fixed text of a template literal ("Pagina {}"), when it has a word.
+function wordsOf(node: Node): string | null {
+  const raw = ((node.quasis as Node[]) ?? []).map((q) => ((q.value as { cooked: string | null }).cooked ?? '')).join('{}');
+  return /\p{L}{2,}/u.test(raw) ? raw : null;
+}
+
 function isNode(value: unknown): value is Node {
   return typeof value === 'object' && value !== null && typeof (value as Node).type === 'string';
 }
@@ -134,6 +140,23 @@ export function scanSource(file: string, source: string): Finding[] {
         if (attr === 'className' || attr === 'd' || attr === 'viewBox' || attr === 'href' || attr === 'to' || attr === 'id') return;
         if (value && value.type === 'Literal' && typeof value.value === 'string') {
           if ((TEXT_ATTRIBUTES.has(attr) && isShown(value.value)) || looksLikeText(value.value)) report(value, value.value);
+          return;
+        }
+        // A text attribute built from words and values: aria-label={`Pagina ${n}`}.
+        const expression = value && value.type === 'JSXExpressionContainer' ? (value.expression as Node) : null;
+        if (TEXT_ATTRIBUTES.has(attr) && expression?.type === 'TemplateLiteral' && wordsOf(expression)) {
+          report(expression, wordsOf(expression)!);
+          return;
+        }
+        break;
+      }
+      case 'AssignmentExpression': {
+        // element.textContent = `Pagina ${n}`: text on the page.
+        const left = node.left as Node;
+        const right = node.right as Node;
+        const property = left.type === 'MemberExpression' ? (left.property as Node) : null;
+        if (property?.type === 'Identifier' && property.name === 'textContent' && right.type === 'TemplateLiteral' && wordsOf(right)) {
+          report(right, wordsOf(right)!);
           return;
         }
         break;

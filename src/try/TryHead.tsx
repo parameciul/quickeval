@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { QuickTryInfo, TestDetail } from '../../shared/api.ts';
 import type { TestFileKind } from '../../shared/files.ts';
+import { translateMessage } from '../../shared/i18n/messages.ts';
 import { QUICK_TRY_TITLE } from '../../shared/quickTry.ts';
 import { MAX_TITLE_LENGTH } from '../../shared/tests.ts';
 import { testFileUrl } from '../admin/api.ts';
@@ -26,7 +27,7 @@ export function TryHead({ detail, info, token }: { detail: TestDetail; info: Qui
   return (
     <header className="try-head">
       <div className="try-head-main">
-        {test.title !== QUICK_TRY_TITLE && <p className="try-kicker">{QUICK_TRY_TITLE}</p>}
+        {test.title !== QUICK_TRY_TITLE && <p className="try-kicker">{translateMessage(QUICK_TRY_TITLE)}</p>}
         <TryTitle code={test.code} title={test.title} />
         <p className="try-meta">
           {t('{sent}Linkul merge până pe {formatDate}', { sent, formatDate: formatDate(info.expiresAt) })}
@@ -80,7 +81,8 @@ function TryTitle({ code, title }: { code: string; title: string }) {
   if (draft === null) {
     return (
       <div className="try-title">
-        <h1>{title}</h1>
+        {/* The default name is the app's own text; a name the teacher gave stays as it is. */}
+        <h1>{title === QUICK_TRY_TITLE ? translateMessage(title) : title}</h1>
         <button
           ref={pencil}
           type="button"

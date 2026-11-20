@@ -213,7 +213,7 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
         <ol className="page-list try-pages" aria-label={t('Paginile lucrării')}>
           {list.map((page, index) => (
             <li key={page.id} className="page-item">
-              <PagePreview page={page} label={`Pagina ${index + 1}`} token={token} tryApi={tryApi} onView={(src) => setViewing({ id: page.id, src })} />
+              <PagePreview page={page} label={t('Pagina {n}', { n: index + 1 })} token={token} tryApi={tryApi} onView={(src) => setViewing({ id: page.id, src })} />
               <span className="page-info">
                 <span className="page-name">{t('Pagina {v1}', { v1: index + 1 })}</span>
                 <span className="hint">{formatFileSize(page.size)}</span>
@@ -257,7 +257,7 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
           </button>
         )}
       </div>
-      {viewing && viewedIndex >= 0 && <PhotoViewer src={viewing.src} label={`Pagina ${viewedIndex + 1}`} onClose={() => setViewing(null)} />}
+      {viewing && viewedIndex >= 0 && <PhotoViewer src={viewing.src} label={t('Pagina {n}', { n: viewedIndex + 1 })} onClose={() => setViewing(null)} />}
       {phoneOpen && <PhoneCode id="try-phone-code" token={token} />}
       <div aria-live="polite">
         {watch.idle && (
@@ -329,7 +329,7 @@ function PagePreview({
   }, [blob.data]);
   if (blob.isError) {
     return (
-      <a className="thumb thumb-file" href={pageFileUrl(token, page.id)} target="_blank" rel="noreferrer" aria-label={`Deschide ${label.toLowerCase()}`}>
+      <a className="thumb thumb-file" href={pageFileUrl(token, page.id)} target="_blank" rel="noreferrer" aria-label={t('Deschide {label}', { label: label.toLowerCase() })}>
         {t('Poză')}
       </a>
     );
@@ -342,7 +342,7 @@ function PagePreview({
     );
   }
   return (
-    <button type="button" className="thumb" onClick={() => onView(urls.full)} aria-label={`Vezi ${label.toLowerCase()}`}>
+    <button type="button" className="thumb" onClick={() => onView(urls.full)} aria-label={t('Vezi {label}', { label: label.toLowerCase() })}>
       <img src={urls.small} alt={label} />
     </button>
   );

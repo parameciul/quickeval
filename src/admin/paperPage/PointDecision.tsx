@@ -111,7 +111,7 @@ function ItemDecision({
           {t('Accept')}{' '}{pointsText(item.points)}
         </button>
         <span className="stepper" role="group" aria-label={t('Alt punctaj')}>
-          <button type="button" className="button-quiet" aria-label={`Scade ${pointsText(STEP)}`} disabled={pending} onClick={() => move(-STEP)}>
+          <button type="button" className="button-quiet" aria-label={t('Scade {step}', { step: pointsText(STEP) })} disabled={pending} onClick={() => move(-STEP)}>
             −
           </button>
           <label className="sr-only" htmlFor={id}>{t('Alt punctaj, din {formatPoints}', { formatPoints: formatPoints(item.maxPoints) })}

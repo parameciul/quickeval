@@ -20,4 +20,6 @@ export const UI = {
   "Mică": "Low",
   "Foarte mică": "Very low",
   "Limba": "Language",
+  "Pagina {n}": "Page {n}",
+  "Pagina {n}: {name} · {size}": "Page {n}: {name} · {size}",
 } as const satisfies Record<string, string>;

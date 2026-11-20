@@ -514,7 +514,7 @@ function ItemRow({
                 <button
                   type="button"
                   className="button-quiet button-small verificat-btn"
-                  aria-label={`Verificat ${item.label}`}
+                  aria-label={t('Verificat {label}', { label: item.label })}
                   disabled={check.isPending}
                   onClick={() => check.mutate()}
                 >

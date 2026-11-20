@@ -124,7 +124,7 @@ export const GRADE_GROUP_LEVELS = [1, 3, 4, 5] as const;
 // order, as the result page numbers them: "Pagina 2".
 export function pageLabel(name: string): string {
   const match = /page-(\d+)\.[a-z]+$/.exec(name);
-  return match ? `Pagina ${Number(match[1])}` : name;
+  return match ? t('Pagina {n}', { n: Number(match[1]) }) : name;
 }
 
 // Points as the teacher types them: "2,5" or "2.5". Null for anything else.

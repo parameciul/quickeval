@@ -1194,4 +1194,9 @@ export const ADMIN = {
   "cod-qr-elevi-{code}.png": "student-qr-code-{code}.png",
   "raport": "report",
   "bilet": "ticket",
+  "Scade {step}": "Take off {step}",
+  "Verificat {label}": "Checked {label}",
+  "Deschide {label}": "Open {label}",
+  "Vezi {label}": "See {label}",
+  "Vezi pagina {n}": "See page {n}",
 } as const satisfies Record<string, string>;

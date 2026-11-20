@@ -24,6 +24,14 @@ describe('the text of the pages', () => {
     expect(found.map((finding) => finding.text)).toEqual(['Trimite lucrarea', 'Deschis', 'Trimis', 'Ai {} lucrări']);
   });
 
+  it('finds text attributes and textContent built from words and values', () => {
+    const found = scanSource(
+      'x.tsx',
+      ['const a = <img alt={`Pagina ${n}`} />;', 'el.textContent = `Pagina ${n}`;', 'const b = <i className={`is-${x}`} />;'].join('\n'),
+    );
+    expect(found.map((finding) => finding.text)).toEqual(['Pagina {}', 'Pagina {}']);
+  });
+
   it('skips lines and files marked i18n-ignore, and the stage names', () => {
     expect(scanSource('x.ts', "const a = 'Trimite lucrarea'; // i18n-ignore")).toEqual([]);
     expect(scanSource('x.ts', "// i18n-ignore-file\nconst a = 'Trimite lucrarea';")).toEqual([]);

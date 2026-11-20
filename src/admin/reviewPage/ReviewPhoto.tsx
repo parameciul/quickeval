@@ -209,7 +209,7 @@ export function ReviewPhoto({
                   key={other.id}
                   type="button"
                   className="page-switch-button"
-                  aria-label={`Pagina ${number + 1}`}
+                  aria-label={t('Pagina {n}', { n: number + 1 })}
                   aria-current={number === index ? 'true' : undefined}
                   onClick={() => onPage(number)}
                 >
