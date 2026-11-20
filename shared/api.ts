@@ -148,6 +148,11 @@ export interface QuickTryAvailability {
   siteKey: string | null;
 }
 
+// GET /api/auth/session: whether a teacher is logged in on this browser.
+export interface AuthSession {
+  signedIn: boolean;
+}
+
 // GET /api/try/<token>: the try's test code and paper, and until when its link works.
 export interface QuickTryInfo {
   code: string;

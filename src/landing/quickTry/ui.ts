@@ -11,6 +11,7 @@ import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf } from './status.ts';
 import { forgetStoredTry, readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
 import { t } from '../../i18n/t.ts';
+import { showAccount } from '../account.ts';
 
 // The Turnstile check in the form: its answer once the visitor passed it,
 // and a new check (an answer is good for one send).
@@ -50,14 +51,6 @@ const NO_CHECK_TEXT = t('Verificarea nu s-a putut încărca. Reîncarcă pagina 
 
 const tryPath = (token: string) => `/try/${token}`;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-// A logged-in teacher sees the link to the account where a visitor sees the
-// login and the new-account link. The page is served signed out, so a crawler
-// and a browser without the API's answer keep the login.
-export function showAccount(root: ParentNode, signedIn: boolean): void {
-  for (const el of root.querySelectorAll<HTMLElement>('[data-guest]')) el.hidden = signedIn;
-  for (const el of root.querySelectorAll<HTMLElement>('[data-member]')) el.hidden = !signedIn;
-}
 
 function openDialog(dialog: HTMLDialogElement): void {
   if (typeof dialog.showModal === 'function') dialog.showModal();
