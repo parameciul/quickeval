@@ -52,6 +52,27 @@ export function forgetStoredTry(storage: Storage): void {
   }
 }
 
+// The day her try was deleted, kept on her device: one try per device per day
+// holds after a delete (the server also keeps the deleted try in its limits).
+export const DELETED_TRY_KEY = 'quickeval.quickTryDeleted';
+
+export function readDeletedAt(storage: Storage): string | null {
+  try {
+    const raw = storage.getItem(DELETED_TRY_KEY);
+    return raw !== null && !Number.isNaN(Date.parse(raw)) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveDeletedAt(storage: Storage, madeAt: string): void {
+  try {
+    storage.setItem(DELETED_TRY_KEY, madeAt);
+  } catch {
+    // A storage that refuses keeps nothing.
+  }
+}
+
 // Whether the stored try was made on today's Bucharest day: one try per device per day.
 export function usedToday(stored: StoredTry | null, now: Date): boolean {
   return stored !== null && bucharestDay(new Date(stored.madeAt)) === bucharestDay(now);

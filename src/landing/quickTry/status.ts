@@ -1,6 +1,7 @@
 import type { QuickTryAvailability, TestDetail } from '../../../shared/api.ts';
 import { paperOf, phaseOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel } from '../../ui/format.ts';
+import { bucharestDay } from '../../../shared/quickTry.ts';
 import { usedToday, type StoredTry } from './storage.ts';
 import { t } from '../../i18n/t.ts';
 
@@ -61,10 +62,18 @@ export function statusOf(detail: TestDetail): TryStatus {
 // try). An administrator always may.
 export type StartAnswer = 'yes' | 'used' | 'full' | 'off';
 
-export function canStart(availability: QuickTryAvailability, stored: StoredTry | null, phase: TryPhase | null, now: Date): StartAnswer {
+export function canStart(
+  availability: QuickTryAvailability,
+  stored: StoredTry | null,
+  phase: TryPhase | null,
+  now: Date,
+  // When her last try was made, if she deleted it: it still counts for today.
+  deletedAt: string | null = null,
+): StartAnswer {
   if (availability.admin) return 'yes';
   if (!availability.siteKey) return 'off';
   if (usedToday(stored, now) && phase !== 'failed') return 'used';
+  if (deletedAt !== null && bucharestDay(new Date(deletedAt)) === bucharestDay(now)) return 'used';
   if (availability.dailyLimitReached) return 'full';
   return 'yes';
 }

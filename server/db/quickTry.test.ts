@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { bucharestDay, QUICK_TRY_DAILY_LIMIT, QUICK_TRY_IP_LIMIT } from '../../shared/quickTry.ts';
-import { createQuickTry, dailyLimitReached, findQuickTry, type NewQuickTry } from './quickTry.ts';
+import { createQuickTry, dailyLimitReached, deleteTryRows, findQuickTry, type NewQuickTry } from './quickTry.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
@@ -120,6 +120,24 @@ describe('createQuickTry', () => {
     await fill(QUICK_TRY_IP_LIMIT);
     await failLastPaper();
     expect(typeof (await createQuickTry(api.db, input()))).toBe('object');
+    expect(await createQuickTry(api.db, input())).toBe('ip_limit');
+  });
+
+  it('keeps the IP place of a failed try given back when the visitor deletes it, and still counts it in the day', async () => {
+    await fill(QUICK_TRY_IP_LIMIT);
+    await failLastPaper();
+    const failed = await api.db.prepare('SELECT MAX(teacher_id) AS id FROM quick_tries').first<{ id: number }>();
+    await deleteTryRows(api.db, failed!.id);
+    expect(typeof (await createQuickTry(api.db, input()))).toBe('object');
+    expect(await createQuickTry(api.db, input())).toBe('ip_limit');
+    const day = await api.db.prepare('SELECT COUNT(*) AS n FROM quick_tries WHERE by_admin = 0').first<{ n: number }>();
+    expect(day!.n).toBe(QUICK_TRY_IP_LIMIT + 1);
+  });
+
+  it('does not give a place back when a try that did not fail is deleted', async () => {
+    await fill(QUICK_TRY_IP_LIMIT);
+    const last = await api.db.prepare('SELECT MAX(teacher_id) AS id FROM quick_tries').first<{ id: number }>();
+    await deleteTryRows(api.db, last!.id);
     expect(await createQuickTry(api.db, input())).toBe('ip_limit');
   });
 

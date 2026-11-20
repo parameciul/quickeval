@@ -147,10 +147,12 @@ export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
     await loadTry(c);
     const { teacherId } = c.var.quickTry;
     const keys = await tryFileKeys(c.env.DB, [teacherId]);
-    // R2 first: when it fails the rows stay, so the files are found again.
+    // R2 first: when it fails the rows stay, so the files are found again. A
+    // page a phone sends between the key read and the rows' delete may leave
+    // one file in R2 that no row names (accepted: a file of a deleted try).
     if (keys.length > 0) await c.env.FILES.delete(keys);
-    await deleteTryRows(c.env.DB, teacherId);
-    return c.json({ deleted: true });
+    const counted = await deleteTryRows(c.env.DB, teacherId);
+    return c.json({ deleted: true, counted });
   });
 
   routes.use('/:token/*', tryAccess);

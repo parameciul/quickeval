@@ -22,8 +22,8 @@ describe("the landing page's client", () => {
   });
 
   it("deletes the try through its own link", async () => {
-    const fetchImpl = fakeFetch({ deleted: true });
-    await createLandingApi(fetchImpl).deleteTry(TOKEN);
+    const fetchImpl = fakeFetch({ deleted: true, counted: false });
+    expect(await createLandingApi(fetchImpl).deleteTry(TOKEN)).toEqual({ counted: false });
     expect(fetchImpl.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([[`/api/try/${TOKEN}`, 'DELETE']]);
   });
 

@@ -9,7 +9,7 @@ import { openPhoneStep, type PhoneStep } from './phone.ts';
 import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf, type StartAnswer } from './status.ts';
-import { forgetStoredTry, readStoredTry, saveStoredTry, usedToday, type StoredTry } from './storage.ts';
+import { forgetStoredTry, readDeletedAt, readStoredTry, saveDeletedAt, saveStoredTry, type StoredTry } from './storage.ts';
 import { t } from '../../i18n/t.ts';
 import { initAccountLinks, showAccount } from '../account.ts';
 
@@ -52,6 +52,7 @@ const USED_TEXT = t('Ai făcut încercarea de azi. Mâine poți face alta.');
 const SURE_TEXT = t('Sigur? Șterge definitiv');
 const DELETE_FAILED_TEXT = t('Nu am putut șterge încercarea. Încearcă din nou.');
 const SURE_MS = 5000;
+const OFF_TEXT = t('Încercarea gratuită nu este disponibilă acum. Reîncarcă pagina mai târziu.');
 const NO_CHECK_TEXT = t('Verificarea nu s-a putut încărca. Reîncarcă pagina și încearcă din nou.');
 
 const tryPath = (token: string) => `/try/${token}`;
@@ -116,6 +117,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const statusLink = box.querySelector<HTMLAnchorElement>('[data-try-link]')!;
   const deleteButton = box.querySelector<HTMLButtonElement>('[data-try-delete]')!;
   const deleteAsk = deleteButton.querySelector<HTMLElement>('.try-delete-ask')!;
+  const deleteName = deleteButton.getAttribute('aria-label') ?? '';
   const error = form.querySelector<HTMLElement>('[data-try-error]')!;
   const recover = form.querySelector<HTMLElement>('[data-try-recover]')!;
   const recoverLink = form.querySelector<HTMLAnchorElement>('[data-try-recover-link]')!;
@@ -136,6 +138,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   // The availability call ended without an answer: no try can be made.
   let noAnswer = false;
   let stored = readStoredTry(deps.storage, deps.now());
+  // When her deleted try was made: it still counts as today's try.
+  let deletedAt = readDeletedAt(deps.storage);
   let phase: TryPhase | null = null;
   let widget: Promise<TurnstileWidget> | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -151,19 +155,18 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   // this device alone (its try of today), so the buttons show at once and
   // do not jump in late.
   function answerNow(): StartAnswer {
-    if (availability) return canStart(availability, stored, phase, deps.now());
+    if (availability) return canStart(availability, stored, phase, deps.now(), deletedAt);
     if (noAnswer) return 'off';
-    return usedToday(stored, deps.now()) && phase !== 'failed' ? 'used' : 'yes';
+    return canStart({ dailyLimitReached: false, admin: false, signedIn: false, siteKey: 'guess' }, stored, phase, deps.now(), deletedAt);
   }
 
-  // The buttons: open, turned off with the line that says why, or gone when
-  // no try can be made on this site.
+  // The buttons never go: open, or turned off (with the line that says why,
+  // when there is one).
   function refreshButton(): void {
     const answer = answerNow();
-    const why = answer === 'used' ? USED_TEXT : answer === 'full' ? FULL_TEXT : null;
+    const why = answer === 'used' ? USED_TEXT : answer === 'full' ? FULL_TEXT : answer === 'off' ? OFF_TEXT : null;
     for (const button of openButtons) {
-      button.hidden = answer === 'off';
-      button.disabled = why !== null;
+      button.disabled = answer !== 'yes';
       if (why) button.title = why;
       else button.removeAttribute('title');
     }
@@ -224,6 +227,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     sureTimer = null;
     deleteAsk.hidden = true;
     deleteAsk.textContent = '';
+    deleteButton.setAttribute('aria-label', deleteName);
     deleteButton.classList.remove('is-sure');
   }
   deleteButton.addEventListener('click', async () => {
@@ -232,16 +236,19 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     if (!sureTimer) {
       deleteAsk.textContent = SURE_TEXT;
       deleteAsk.hidden = false;
+      deleteButton.setAttribute('aria-label', SURE_TEXT);
       deleteButton.classList.add('is-sure');
       sureTimer = setTimeout(resetDelete, SURE_MS);
       return;
     }
     resetDelete();
     deleteButton.disabled = true;
+    // Whether the try still counts for today: the server says (a failed try
+    // gave its place back); a link already gone is guessed from what the page saw.
+    let counted = phase !== 'failed';
     try {
-      await deps.api.deleteTry(current.token);
+      counted = (await deps.api.deleteTry(current.token)).counted;
     } catch (err) {
-      // A link that is already gone counts as deleted.
       if (!(err instanceof ApiError && (err.status === 404 || err.status === 410))) {
         deleteButton.disabled = false;
         statusText.textContent = DELETE_FAILED_TEXT;
@@ -251,6 +258,11 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     }
     deleteButton.disabled = false;
     if (timer) clearTimeout(timer);
+    // An administrator is never limited, so her device keeps no mark.
+    if (counted && !availability?.admin) {
+      deletedAt = current.madeAt;
+      saveDeletedAt(deps.storage, current.madeAt);
+    }
     stored = null;
     phase = null;
     status.hidden = true;
@@ -464,8 +476,15 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     (event) => {
       if (!(event as PageTransitionEvent).persisted) return;
       stored = readStoredTry(deps.storage, deps.now());
+      deletedAt = readDeletedAt(deps.storage);
       if (stored) void follow(stored);
-      else refreshButton();
+      else {
+        // Deleted in another tab: no card, no timer.
+        if (timer) clearTimeout(timer);
+        status.hidden = true;
+        phase = null;
+        refreshButton();
+      }
     },
     { signal: deps.signal },
   );

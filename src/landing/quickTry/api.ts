@@ -16,7 +16,8 @@ export interface LandingApi {
   start(token: string): Promise<void>;
   getTest(token: string, code: string): Promise<TestDetail>;
   // Deletes the try: its files and rows (its link stops working).
-  deleteTry(token: string): Promise<void>;
+  // Answers whether the try still counts for today (false: it had failed).
+  deleteTry(token: string): Promise<{ counted: boolean }>;
 }
 
 export function createLandingApi(fetchImpl: typeof fetch = (input, init) => fetch(input, init)): LandingApi {
@@ -40,7 +41,8 @@ export function createLandingApi(fetchImpl: typeof fetch = (input, init) => fetc
     },
     getTest: (token, code) => call<TestDetail>(test(token, code), 'GET'),
     deleteTry: async (token) => {
-      await call(tryBase(token), 'DELETE');
+      const answer = await call<{ counted?: boolean }>(tryBase(token), 'DELETE');
+      return { counted: answer.counted !== false };
     },
   };
 }

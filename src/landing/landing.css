@@ -386,7 +386,14 @@ img { display: block; max-width: 100%; height: auto; }
   .pg-home .cta { display: grid; gap: 12px; align-content: start; }
   .pg-home .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
   .pg-home .cta-row .btn { min-height: 48px; padding: 0 22px; font-size: 16px; }
-  .pg-home .cta-hint, .pg-home .cta-note { font-size: 16px; color: var(--muted); }
+  /* The tips under the buttons: a tight group, each with a small tick, so
+     they read as notes to the buttons and not as body text. */
+  .pg-home .cta-tips { display: grid; gap: 4px; margin-top: 4px; }
+  .pg-home .cta-hint, .pg-home .cta-note { position: relative; padding-left: 22px; font-size: 15px; line-height: 1.4; color: var(--muted); }
+  .pg-home .cta-hint::before, .pg-home .cta-note::before { content: ""; position: absolute; left: 2px; top: 0.42em; width: 10px; height: 5px; border-left: 2px solid var(--orange-mark, currentColor); border-bottom: 2px solid var(--orange-mark, currentColor); transform: rotate(-45deg); }
+  /* Why the try button is off: the one note that is not a tip. */
+  .pg-home .cta-hint.try-note { padding-left: 0; color: var(--text); font-weight: 500; }
+  .pg-home .cta-hint.try-note::before { content: none; }
   .pg-home .center { margin-left: auto; margin-right: auto; }
   @media (max-width: 900px) {
     .pg-home .laura { grid-template-columns: 1fr; gap: 40px; padding-top: 88px; padding-bottom: 0; }
@@ -633,7 +640,7 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
   .pg-home .benefits h3 { font-size: calc(19px * 0.9); }
   .pg-home .benefits p { font-size: calc(16px * 0.9); }
   .pg-home .cta-row .btn { font-size: calc(16px * 0.9); }
-  .pg-home .cta-hint, .pg-home .cta-note { font-size: calc(16px * 0.9); }
+  .pg-home .cta-hint, .pg-home .cta-note { font-size: calc(15px * 0.9); }
   .try-line { font-size: calc(16px * 0.9); }
   .try-card-kicker { font-size: calc(14px * 0.9); }
   .try-card-title { font-size: calc(19px * 0.9); }
