@@ -540,7 +540,7 @@ function Paper({
       ) : (
         <div className="review-head">
           <div>
-            <h1>{'Verificare'}</h1>
+            <h1>{t('Verificare')}</h1>
             <p className="test-sub">
               {test.title}
               {submission && ` · ${submission.studentName}`}

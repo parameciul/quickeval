@@ -78,7 +78,7 @@ export function TodoPanel({
           {items.map((item, index) => (
             <li key={item.code} className="todo-card">
               <p className="todo-test">
-                <span className="tag tag-wait">{item.stage}</span>
+                <span className="tag tag-wait">{t(item.stage)}</span>
                 {item.testTitle} · {item.className}
               </p>
               <h3>{item.task}</h3>

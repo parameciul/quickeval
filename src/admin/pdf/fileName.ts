@@ -1,3 +1,4 @@
+import { t } from '../../i18n/t.ts';
 // The name of a downloaded file: letters and digits of the parts, joined by
 // "-". Diacritics are dropped (ș becomes s), so the name opens anywhere.
 export function pdfFileName(...parts: string[]): string {
@@ -10,5 +11,5 @@ export function pdfFileName(...parts: string[]): string {
         .replace(/^-+|-+$/g, ''),
     )
     .filter((part) => part !== '');
-  return `${clean.join('-') || 'raport'}.pdf`;
+  return `${clean.join('-') || t('raport')}.pdf`;
 }

@@ -120,7 +120,7 @@ export function stagesOf(test: TestSummary): TestStages {
     const published = test.resultsOpen || (test.gradedCount > 0 && test.publishedCount >= test.gradedCount);
     if (done && published) {
       const average = test.averageGrade === null ? '' : ` · ${t('media testului {grade}', { grade: formatPoints(test.averageGrade) })}`;
-      return stage('Rezultate', 'done', `publicate${average}`);
+      return stage('Rezultate', 'done', `${t('publicate')}${average}`);
     }
     if (done && test.gradedCount === 0) return stage('Rezultate', 'later', t('nicio lucrare corectată'));
     // The archive closes the results: closed is the normal end of an archived

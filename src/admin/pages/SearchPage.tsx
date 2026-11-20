@@ -126,7 +126,7 @@ export function SearchPage() {
                       {displayClassName(test.className)} · {test.archived ? t('arhivat') : startedText(test)}
                     </td>
                     <td className="num">
-                      <b>{current.name}</b>
+                      <b>{t(current.name)}</b>
                       {current.note && ` · ${current.note}`}
                     </td>
                   </tr>

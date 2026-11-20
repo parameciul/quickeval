@@ -1191,4 +1191,7 @@ export const ADMIN = {
   "Elevi:": "Students:",
   "media testului": "test average",
   "media testului {grade}": "test average {grade}",
+  "cod-qr-elevi-{code}.png": "student-qr-code-{code}.png",
+  "raport": "report",
+  "bilet": "ticket",
 } as const satisfies Record<string, string>;

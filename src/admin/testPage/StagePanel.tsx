@@ -85,7 +85,7 @@ export function StagePanel({ stage, ...props }: PanelProps & { stage: StageName 
     <section className="stage-panel" aria-labelledby={id} ref={panel}>
       <div className="stage-head">
         <h2 id={id} ref={heading} tabIndex={-1}>
-          {stage}
+          {t(stage)}
         </h2>
         <p>{SENTENCES[stage]}</p>
       </div>
@@ -157,7 +157,7 @@ function PrepareNow({ test }: { test: TestInfo }) {
   const before = test.status === 'draft' || test.status === 'open';
   const next = before ? (
     <>
-      {t('Tipărești testul cu cod QR la etapa')}{' '}<MoveOnLink stage={'Tipărire'}>{'Tipărire'}</MoveOnLink>.
+      {t('Tipărești testul cu cod QR la etapa')}{' '}<MoveOnLink stage={'Tipărire'}>{t('Tipărire')}</MoveOnLink>.
     </>
   ) : undefined;
   const missing = missingNow(test);
@@ -229,11 +229,11 @@ function PrintNow({ test }: { test: TestInfo }) {
   const started = test.status === 'open';
   const next = started ? (
     <>
-      {t('Elevii trimit lucrările la etapa')}{' '}<MoveOnLink stage={'În clasă'}>{'În clasă'}</MoveOnLink>.
+      {t('Elevii trimit lucrările la etapa')}{' '}<MoveOnLink stage={'În clasă'}>{t('În clasă')}</MoveOnLink>.
     </>
   ) : (
     <>
-      {t('În ziua testului, îl începi la etapa')}{' '}<MoveOnLink stage={'În clasă'}>{'În clasă'}</MoveOnLink>.
+      {t('În ziua testului, îl începi la etapa')}{' '}<MoveOnLink stage={'În clasă'}>{t('În clasă')}</MoveOnLink>.
     </>
   );
   if (test.files.test === null) {
@@ -383,7 +383,7 @@ function ClassReady({ test }: { test: TestInfo }) {
 function classNext() {
   return (
     <>
-      {t('Corectarea o pornești la etapa')}{' '}<MoveOnLink stage="Corectare">{'Corectare'}</MoveOnLink>{t(', acum sau mai târziu.')}
+      {t('Corectarea o pornești la etapa')}{' '}<MoveOnLink stage="Corectare">{t('Corectare')}</MoveOnLink>{t(', acum sau mai târziu.')}
     </>
   );
 }
@@ -452,11 +452,11 @@ function ClassNow({ test, onChanged, onRobot }: PanelProps) {
       next={
         test.status === 'done' ? (
           <>
-            {t('Corectarea s-a terminat. Verifici punctele nesigure la etapa')}{' '}<MoveOnLink stage="Verificare">{'Verificare'}</MoveOnLink>.
+            {t('Corectarea s-a terminat. Verifici punctele nesigure la etapa')}{' '}<MoveOnLink stage="Verificare">{t('Verificare')}</MoveOnLink>.
           </>
         ) : (
           <>
-            {t('Se corectează lucrările la etapa')}{' '}<MoveOnLink stage="Corectare">{'Corectare'}</MoveOnLink>: {test.gradedCount}{' '}{t('din')}{' '}{test.submittedCount}{' '}{t('gata.')}
+            {t('Se corectează lucrările la etapa')}{' '}<MoveOnLink stage="Corectare">{t('Corectare')}</MoveOnLink>: {test.gradedCount}{' '}{t('din')}{' '}{test.submittedCount}{' '}{t('gata.')}
           </>
         )
       }
@@ -535,7 +535,7 @@ function ScheduledStart({ test, onChanged }: { test: TestInfo; onChanged: () => 
 function gradingNext() {
   return (
     <>
-      {t('Verifici punctele nesigure la etapa')}{' '}<MoveOnLink stage="Verificare">{'Verificare'}</MoveOnLink>.
+      {t('Verifici punctele nesigure la etapa')}{' '}<MoveOnLink stage="Verificare">{t('Verificare')}</MoveOnLink>.
     </>
   );
 }
@@ -632,14 +632,14 @@ function GradingNow({ test, uploads, onChanged, onRobot }: PanelProps) {
   const since = test.evaluationStartedAt ? t(' · corectarea a pornit pe {formatDateTime}', { formatDateTime: formatDateTime(test.evaluationStartedAt) }) : '';
   if (test.status === 'done') {
     return (
-      <NowBox label={`Acum${since}`} title={t('Corectarea s-a terminat')} next={gradingNext()}>
+      <NowBox label={`${t('Acum')}${since}`} title={t('Corectarea s-a terminat')} next={gradingNext()}>
         <p className="now-sub">{countLabel(test.gradedCount, 'lucrare corectată', 'lucrări corectate')}.</p>
       </NowBox>
     );
   }
   const sent = uploads.filter((row) => row.status === 'graded' || row.status === 'grading' || row.status === 'submitted' || row.status === 'failed').length;
   return (
-    <NowBox label={`Acum${since}`} title={t('Se corectează: {gradedCount} din {countLabel} gata', { gradedCount: test.gradedCount, countLabel: countLabel(sent, 'lucrare', 'lucrări') })} next={gradingNext()}>
+    <NowBox label={`${t('Acum')}${since}`} title={t('Se corectează: {gradedCount} din {countLabel} gata', { gradedCount: test.gradedCount, countLabel: countLabel(sent, 'lucrare', 'lucrări') })} next={gradingNext()}>
       <span className="now-bar" aria-hidden="true">
         <span style={{ width: `${sent === 0 ? 0 : (test.gradedCount / sent) * 100}%` }} />
       </span>

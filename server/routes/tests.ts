@@ -291,7 +291,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const object = test.print.status === 'ready' && test.print.key ? await c.env.FILES.get(test.print.key) : null;
     if (!object) throw notFound();
-    return fileResponse(object, `${test.summary.code}-cu-cod-qr.pdf`, PDF_TYPE);
+    return fileResponse(object, `${test.summary.code}-cu-cod-qr.pdf`, PDF_TYPE); // i18n-ignore: a file name
   });
 
   // "Încearcă din nou": the robot makes the print PDF again. Also "Pregătește

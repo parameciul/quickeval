@@ -28,7 +28,7 @@ export function StageList({ stages, chosen }: { stages: Stage[]; chosen: StageNa
                 <ActionIcon name={STAGE_ICONS[stage.name]} />
                 {stage.state === 'done' && <TickIcon />}
               </span>
-              <span className="stage-name">{stage.name}</span>{' '}
+              <span className="stage-name">{t(stage.name)}</span>{' '}
               <span className="stage-note">
                 {stage.note === '' ? (
                   STATE_WORDS[stage.state]

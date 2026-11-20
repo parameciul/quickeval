@@ -36,12 +36,12 @@ export function StageBar({ stages, chosen }: { stages: Stage[]; chosen: StageNam
           {here.state === 'done' && <ActionIcon name="check" />}
         </span>
         <span>
-          {chosen} · {STATE_WORDS[here.state]}
+          {t(chosen)} · {STATE_WORDS[here.state]}
         </span>
       </span>
       {waits && ahead.note !== '' && <span className="stage-bar-wait">{ahead.note}</span>}
       <MoveOnLink stage={next} className={waits ? 'button button-small button-wait' : 'button button-small'}>
-        {next === 'În clasă' ? t('Mergi la etapa În clasă') : t('Mergi la {next}', { next })}
+        {next === 'În clasă' ? t('Mergi la etapa În clasă') : t('Mergi la {next}', { next: t(next) })}
         <ActionIcon name="arrow" />
       </MoveOnLink>
     </nav>

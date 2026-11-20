@@ -82,7 +82,7 @@ export function ClassTests({
                     {test.archived && ` · ${t('arhivat')}`}
                   </span>
                   <span className={waits ? 'class-test-stage is-waiting' : 'class-test-stage'}>
-                    {current.name}
+                    {t(current.name)}
                     {current.note !== '' && ` · ${current.note}`}
                   </span>
                 </div>

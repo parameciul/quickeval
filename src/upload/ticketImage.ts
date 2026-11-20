@@ -64,7 +64,7 @@ export function ticketFileName(testCode: string, studentName: string): string {
         .replace(/^-+|-+$/g, ''),
     )
     .filter((part) => part !== '');
-  return `${['bilet', ...clean].join('-')}.png`;
+  return `${[t('bilet'), ...clean].join('-')}.png`;
 }
 
 // Breaks a text into lines no wider than `width`, at most `maxLines`; what

@@ -121,7 +121,7 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
         ) : !open && test.flagCount > 0 ? (
           <p className="publish-wait">
             {t('Mai ai')}{' '}{countLabel(test.flagCount, 'punct de verificat', 'puncte de verificat')}{' '}{t('la etapa')}{' '}
-            <MoveOnLink stage="Verificare">{'Verificare'}</MoveOnLink>{t('. Dacă publici acum, elevii văd punctajul de acum.')}
+            <MoveOnLink stage="Verificare">{t('Verificare')}</MoveOnLink>{t('. Dacă publici acum, elevii văd punctajul de acum.')}
           </p>
         ) : (
           <p className="now-sub">
@@ -215,7 +215,7 @@ function ResultWays({ test, published }: { test: TestInfo; published: boolean })
           title={t('Linkul testului pentru elevi')}
           hint={t('Elevul scanează codul cu telefonul cu care a trimis lucrarea și își vede rezultatul.')}
           url={url}
-          extra={<QrDownload url={url} fileName={`cod-qr-elevi-${test.code}.png`} />}
+          extra={<QrDownload url={url} fileName={t('cod-qr-elevi-{code}.png', { code: test.code })} />}
           returnFocus={qrButton}
           fullScreen={() => {
             setShown(false);

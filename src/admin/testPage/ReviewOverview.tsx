@@ -42,7 +42,7 @@ export function ReviewOverview({ test, uploads }: { test: TestInfo; uploads: Upl
   const { total, checked, left, waiting, done } = reviewCounts(uploads);
   const next = (
     <>
-      {t('Publici rezultatele la etapa')}{' '}<MoveOnLink stage="Rezultate">{'Rezultate'}</MoveOnLink>.
+      {t('Publici rezultatele la etapa')}{' '}<MoveOnLink stage="Rezultate">{t('Rezultate')}</MoveOnLink>.
     </>
   );
   return (
@@ -149,7 +149,7 @@ export function ReviewWaits({ test }: { test: TestInfo }) {
         title={t('Verificarea începe după corectare')}
         next={
           <>
-            {t('Publici rezultatele la etapa')}{' '}<MoveOnLink stage="Rezultate">{'Rezultate'}</MoveOnLink>.
+            {t('Publici rezultatele la etapa')}{' '}<MoveOnLink stage="Rezultate">{t('Rezultate')}</MoveOnLink>.
           </>
         }
       >

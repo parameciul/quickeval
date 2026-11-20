@@ -148,7 +148,9 @@ export function scanSource(file: string, source: string): Finding[] {
         return;
       case 'TemplateLiteral': {
         const raw = ((node.quasis as Node[]) ?? []).map((q) => ((q.value as { cooked: string | null }).cooked ?? '')).join('{}');
-        if (looksLikeText(raw) || (ROMANIAN.test(raw) && LETTER.test(raw))) report(node, raw);
+        // A value stands between words: `Acum${since}` reads as two words.
+        const spaced = raw.replaceAll('{}', ' ');
+        if (looksLikeText(raw) || (ROMANIAN.test(raw) && LETTER.test(raw)) || (spaced.trim() !== '' && STOPWORDS.test(spaced))) report(node, raw);
         for (const expression of (node.expressions as Node[]) ?? []) walk(expression, [...parents, node]);
         return;
       }

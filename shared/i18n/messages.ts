@@ -85,6 +85,7 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   'Dacă nu ai cerut asta, scrie-i unui administrator.': 'If you did not ask for this, write to an administrator.',
 
   // Classes and students.
+  'Clasa {}': 'Class {}',
   'Alege clasa.': 'Choose the class.',
   'Numele clasei are 1-8 litere și cifre, de exemplu 6E2.': 'The class name has 1-8 letters and digits, for example 6E2.',
   '{} există deja în anul școlar {}.': '{} already exists in the school year {}.',

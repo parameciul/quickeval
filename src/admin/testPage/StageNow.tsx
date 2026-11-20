@@ -78,7 +78,7 @@ export function ReadyList({ rows }: { rows: ReadyRow[] }) {
           </span>
           {/* Its name names the row too: a list may have several. */}
           {row.stage && (
-            <MoveOnLink stage={row.stage} className="ready-go" label={t('Mergi la {stage}: {what}', { stage: row.stage, what: row.what })}>{t('Mergi la {stage}', { stage: row.stage })}
+            <MoveOnLink stage={row.stage} className="ready-go" label={t('Mergi la {stage}: {what}', { stage: t(row.stage), what: row.what })}>{t('Mergi la {stage}', { stage: t(row.stage) })}
             </MoveOnLink>
           )}
         </li>

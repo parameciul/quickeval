@@ -119,7 +119,7 @@ function TestRow({
             ))}
           </span>
           <span className="stage-text">
-            <b>{current.name}</b>
+            <b>{t(current.name)}</b>
             {current.note && ` · ${current.note}`}
           </span>
         </div>
