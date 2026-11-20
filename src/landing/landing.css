@@ -392,8 +392,7 @@ img { display: block; max-width: 100%; height: auto; }
   .pg-home .cta-hint, .pg-home .cta-note { position: relative; padding-left: 22px; font-size: 15px; line-height: 1.4; color: var(--muted); }
   .pg-home .cta-hint::before, .pg-home .cta-note::before { content: ""; position: absolute; left: 2px; top: 0.42em; width: 10px; height: 5px; border-left: 2px solid var(--orange-mark, currentColor); border-bottom: 2px solid var(--orange-mark, currentColor); transform: rotate(-45deg); }
   /* Why the try button is off: the one note that is not a tip. */
-  .pg-home .cta-hint.try-note { color: var(--text); font-weight: 500; }
-  .pg-home .cta-hint.try-note { padding-left: 0; }
+  .pg-home .cta-hint.try-note { padding-left: 0; color: var(--text); font-weight: 500; }
   .pg-home .cta-hint.try-note::before { content: none; }
   .pg-home .center { margin-left: auto; margin-right: auto; }
   @media (max-width: 900px) {

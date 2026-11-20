@@ -35,6 +35,7 @@ export const LANDING = {
   "Nu am putut citi încercarea acum.": "I could not read the try right now.",
   "Se citește încercarea…": "Reading your try…",
   "Sigur? Șterge definitiv": "Sure? Delete for good",
+  "Încercarea gratuită nu este disponibilă acum. Reîncarcă pagina mai târziu.": "The free try is not available right now. Reload the page later.",
   "Nu am putut șterge încercarea. Încearcă din nou.": "I could not delete the try. Try again.",
   "Faci pozele cu acest telefon": "You take the photos with this phone",
   "Faci pozele cu telefonul": "You take the photos with your phone",

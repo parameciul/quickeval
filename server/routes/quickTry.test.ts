@@ -119,12 +119,21 @@ describe('DELETE /api/try/:token', () => {
     const teacher = (await api.db.prepare('SELECT teacher_id FROM quick_tries WHERE token_hash = ?').bind(hash).first<{ teacher_id: number }>())!.teacher_id;
     const res = await api.request('DELETE', `/api/try/${made.body.token}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ deleted: true });
+    expect(res.body).toEqual({ deleted: true, counted: true });
     expect(await count('SELECT COUNT(*) AS n FROM tests WHERE teacher_id = ?', teacher)).toBe(0);
     expect(await count('SELECT COUNT(*) AS n FROM students WHERE teacher_id = ?', teacher)).toBe(0);
     expect(await count('SELECT COUNT(*) AS n FROM classes WHERE teacher_id = ?', teacher)).toBe(0);
     expect((await api.request('GET', `/api/try/${made.body.token}`)).status).toBe(404);
     expect((await api.request('DELETE', `/api/try/${made.body.token}`)).status).toBe(404);
+  });
+
+  it('says whether the deleted try still counts: yes, unless it had failed', async () => {
+    await visitorApi();
+    const fine = await create({ turnstileToken: 'ok' }, '203.0.113.5');
+    expect((await api.request('DELETE', `/api/try/${fine.body.token}`)).body).toEqual({ deleted: true, counted: true });
+    const failed = await create({ turnstileToken: 'ok' }, '203.0.113.6');
+    await api.db.prepare("UPDATE submissions SET status = 'failed' WHERE test_id = (SELECT MAX(id) FROM tests WHERE quick_try = 1)").run();
+    expect((await api.request('DELETE', `/api/try/${failed.body.token}`)).body).toEqual({ deleted: true, counted: false });
   });
 
   it('keeps counting the deleted try in the limits, so deleting gives no new place', async () => {

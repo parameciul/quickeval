@@ -52,6 +52,7 @@ const USED_TEXT = t('Ai făcut încercarea de azi. Mâine poți face alta.');
 const SURE_TEXT = t('Sigur? Șterge definitiv');
 const DELETE_FAILED_TEXT = t('Nu am putut șterge încercarea. Încearcă din nou.');
 const SURE_MS = 5000;
+const OFF_TEXT = t('Încercarea gratuită nu este disponibilă acum. Reîncarcă pagina mai târziu.');
 const NO_CHECK_TEXT = t('Verificarea nu s-a putut încărca. Reîncarcă pagina și încearcă din nou.');
 
 const tryPath = (token: string) => `/try/${token}`;
@@ -163,7 +164,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   // when there is one).
   function refreshButton(): void {
     const answer = answerNow();
-    const why = answer === 'used' ? USED_TEXT : answer === 'full' ? FULL_TEXT : null;
+    const why = answer === 'used' ? USED_TEXT : answer === 'full' ? FULL_TEXT : answer === 'off' ? OFF_TEXT : null;
     for (const button of openButtons) {
       button.disabled = answer !== 'yes';
       if (why) button.title = why;
@@ -242,10 +243,12 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     }
     resetDelete();
     deleteButton.disabled = true;
+    // Whether the try still counts for today: the server says (a failed try
+    // gave its place back); a link already gone is guessed from what the page saw.
+    let counted = phase !== 'failed';
     try {
-      await deps.api.deleteTry(current.token);
+      counted = (await deps.api.deleteTry(current.token)).counted;
     } catch (err) {
-      // A link that is already gone counts as deleted.
       if (!(err instanceof ApiError && (err.status === 404 || err.status === 410))) {
         deleteButton.disabled = false;
         statusText.textContent = DELETE_FAILED_TEXT;
@@ -255,8 +258,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     }
     deleteButton.disabled = false;
     if (timer) clearTimeout(timer);
-    // A try that failed does not count; any other still counts for today.
-    if (phase !== 'failed') {
+    // An administrator is never limited, so her device keeps no mark.
+    if (counted && !availability?.admin) {
       deletedAt = current.madeAt;
       saveDeletedAt(deps.storage, current.madeAt);
     }

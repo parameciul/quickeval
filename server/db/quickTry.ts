@@ -213,9 +213,11 @@ export async function tryFileKeys(db: D1Database, teacherIds: number[]): Promise
 // over, so the try still counts in the day's limits (deleting makes no place
 // for another one), and its link stops working: the link finds its test
 // through a join. The files' keys are read first (`tryFileKeys`).
-export async function deleteTryRows(db: D1Database, teacherId: number): Promise<void> {
+// Answers whether the try still counts in the day's limits: false when it had
+// failed and so had given its IP place back.
+export async function deleteTryRows(db: D1Database, teacherId: number): Promise<boolean> {
   const list = JSON.stringify([teacherId]);
-  await db.batch(
+  const results = await db.batch(
     [
       // A failed try gave its IP place back through its test rows (GAVE_BACK):
       // the place is settled now, before those rows go, so deleting the try
@@ -227,6 +229,8 @@ export async function deleteTryRows(db: D1Database, teacherId: number): Promise<
       `DELETE FROM classes WHERE teacher_id IN (${GUESTS})`,
     ].map((sql) => db.prepare(sql).bind(list)),
   );
+  // The first statement changed a row only for a try that had given its place back.
+  return (results[0]?.meta.changes ?? 0) === 0;
 }
 
 // Deletes the tries' rows in one batch, in the order the foreign keys need:
