@@ -11,7 +11,7 @@ import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf } from './status.ts';
 import { forgetStoredTry, readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
 import { t } from '../../i18n/t.ts';
-import { showAccount } from '../account.ts';
+import { initAccountLinks, showAccount } from '../account.ts';
 
 // The Turnstile check in the form: its answer once the visitor passed it,
 // and a new check (an answer is good for one send).
@@ -40,6 +40,8 @@ export interface QuickTryDeps {
   watchPhone?: (onChange: () => void) => void;
   // Ends the page's own listeners (tests mount the page again and again).
   signal?: AbortSignal;
+  // Asks whether a teacher is logged in, when the availability gave no answer.
+  checkAccount?: (root: ParentNode) => Promise<void>;
 }
 
 const onAPhone = () => window.matchMedia?.(PHONE_MEDIA).matches ?? false;
@@ -401,6 +403,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   if (answer.status === 'fulfilled') {
     availability = answer.value;
     showAccount(root, availability.signedIn);
+  } else {
+    void (deps.checkAccount ?? initAccountLinks)(root);
   }
   refreshButton();
 }

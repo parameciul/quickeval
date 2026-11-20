@@ -8,10 +8,29 @@ import type { AuthSession } from '../../shared/api.ts';
 export const SIGNED_IN_KEY = 'quickeval.signedIn';
 
 export function showAccount(root: ParentNode, signedIn: boolean): void {
+  paintAccount(root, signedIn);
+  rememberSignedIn(signedIn);
+}
+
+function paintAccount(root: ParentNode, signedIn: boolean): void {
   for (const el of root.querySelectorAll<HTMLElement>('[data-guest]')) el.hidden = signedIn;
   for (const el of root.querySelectorAll<HTMLElement>('[data-member]')) el.hidden = !signedIn;
   document.documentElement.toggleAttribute('data-signed-in', signedIn);
-  rememberSignedIn(signedIn);
+}
+
+// A login or logout in another tab (the teacher app, or a public page that
+// learned it) changes the kept answer: this page's links follow at once.
+export function followOtherTabs(root: ParentNode = document, target: Window = window): void {
+  target.addEventListener('storage', (event) => {
+    if (event.key !== SIGNED_IN_KEY && event.key !== null) return;
+    let signedIn = false;
+    try {
+      signedIn = localStorage.getItem(SIGNED_IN_KEY) === '1';
+    } catch {
+      return;
+    }
+    paintAccount(root, signedIn);
+  });
 }
 
 export function rememberSignedIn(signedIn: boolean): void {

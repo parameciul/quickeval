@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import themeScript from '../../public/theme.js?raw';
 import { readFileSync } from 'node:fs';
+import { followOtherTabs, initAccountLinks, rememberSignedIn, showAccount, SIGNED_IN_KEY } from './account.ts';
 
 const landingCss = readFileSync('src/landing/landing.css', 'utf8');
-import { initAccountLinks, rememberSignedIn, showAccount, SIGNED_IN_KEY } from './account.ts';
 
 const HEADER = `
   <nav>
@@ -91,5 +91,40 @@ describe('initAccountLinks', () => {
     await initAccountLinks(document, vi.fn(async () => new Response('not json', { status: 200 })));
     expect(guest().hidden).toBe(false);
     expect(member().hidden).toBe(true);
+  });
+});
+
+describe('followOtherTabs', () => {
+  const otherTab = (key: string | null, value: string | null) => {
+    if (value === null) localStorage.removeItem(SIGNED_IN_KEY);
+    else localStorage.setItem(SIGNED_IN_KEY, value);
+    window.dispatchEvent(new StorageEvent('storage', { key }));
+  };
+
+  it('shows the login at once when the teacher logs out in another tab', () => {
+    const target = new EventTarget() as Window;
+    followOtherTabs(document, target);
+    showAccount(document, true);
+    localStorage.removeItem(SIGNED_IN_KEY);
+    target.dispatchEvent(new StorageEvent('storage', { key: SIGNED_IN_KEY }));
+    expect(guest().hidden).toBe(false);
+    expect(member().hidden).toBe(true);
+    expect(document.documentElement.hasAttribute('data-signed-in')).toBe(false);
+  });
+
+  it('shows the account link when the teacher logs in in another tab, and when storage is cleared again the login', () => {
+    followOtherTabs(document, window);
+    otherTab(SIGNED_IN_KEY, '1');
+    expect(member().hidden).toBe(false);
+    expect(guest().hidden).toBe(true);
+    otherTab(null, null);
+    expect(guest().hidden).toBe(false);
+  });
+
+  it('pays no attention to other keys', () => {
+    followOtherTabs(document, window);
+    localStorage.setItem(SIGNED_IN_KEY, '1');
+    window.dispatchEvent(new StorageEvent('storage', { key: 'quickeval.theme' }));
+    expect(guest().hidden).toBe(false);
   });
 });
