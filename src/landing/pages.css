@@ -156,3 +156,90 @@
     .pg-pricing .steps ol { grid-template-columns: 1fr; }
     .pg-pricing .why { grid-template-columns: 1fr; gap: 40px; }
   }
+
+/* Laptop and desktop sizes for the content pages (see the same block in
+   landing.css). */
+@media (min-width: 901px) {
+  .pg-guide .jump b { font-size: 30px; }
+  .pg-guide .jump span { font-size: 16px; }
+  .pg-guide .stage .n { font-size: clamp(56px, min(5vw, 10vh), 88px); }
+  .pg-guide .stage h3 { font-size: clamp(26px, 2.2vw, 34px); }
+  .pg-guide .stage p { font-size: 18px; }
+  .pg-guide .stage .do li { font-size: 16px; }
+  .pg-guide .math b { font-size: clamp(36px, 3.2vw, 52px); }
+  .pg-marking-scheme .two b { font-size: 22px; }
+  .pg-marking-scheme .two p { font-size: 17px; }
+  .pg-marking-scheme .two i { font-size: 34px; }
+  .pg-about .head .big { font-size: clamp(22px, 2vw, 32px); }
+  .pg-pricing .zero { font-size: clamp(120px, min(12vw, 24vh), 200px); }
+  .pg-pricing .plan h2 { font-size: clamp(26px, 2.2vw, 34px); }
+  .pg-pricing .plan dt { font-size: 30px; }
+  .pg-pricing .free-n { font-size: 80px; }
+  .pg-pricing .free h2 { font-size: clamp(22px, 1.9vw, 28px); }
+  .pg-pricing .steps li::before { font-size: 44px; }
+  .pg-pricing .why h2 { font-size: clamp(28px, 2.8vw, 44px); }
+}
+
+/* Laptops read the text one step smaller still: every font size above at 90%,
+   from 901px up. Phones keep the sizes above. */
+@media (min-width: 901px) {
+  .pg-guide .jump b { font-size: calc(34px * 0.9); }
+  .pg-guide .jump span { font-size: calc(17px * 0.9); }
+  .pg-guide .jump small { font-size: calc(14px * 0.9); }
+  .pg-guide .stage .n { font-size: calc(clamp(64px, 7vw, 120px) * 0.9); }
+  .pg-guide .stage h3 { font-size: calc(clamp(28px, 2.6vw, 40px) * 0.9); }
+  .pg-guide .stage p { font-size: calc(19px * 0.9); }
+  .pg-guide .stage .do li { font-size: calc(17px * 0.9); }
+  .pg-guide .pics figcaption { font-size: calc(15px * 0.9); }
+  .pg-guide .math b { font-size: calc(clamp(40px, 4vw, 64px) * 0.9); }
+  .pg-guide .math span { font-size: calc(16px * 0.9); }
+  .pg-marking-scheme .sheet h2 { font-size: calc(15px * 0.9); }
+  .pg-marking-scheme .sheet p { font-size: calc(15px * 0.9); }
+  .pg-marking-scheme .sheet li { font-size: calc(16px * 0.9); }
+  .pg-marking-scheme .sheet .tot { font-size: calc(16px * 0.9); }
+  .pg-marking-scheme .sheet .alt { font-size: calc(15px * 0.9); }
+  .pg-marking-scheme .two b { font-size: calc(24px * 0.9); }
+  .pg-marking-scheme .two p { font-size: calc(18px * 0.9); }
+  .pg-marking-scheme .two i { font-size: calc(40px * 0.9); }
+  .pg-about .head .big { font-size: calc(clamp(24px, 2.6vw, 40px) * 0.9); }
+  .pg-about .card dt { font-size: calc(15px * 0.9); }
+  .pg-about .card dd { font-size: calc(19px * 0.9); }
+  .pg-about .does li { font-size: calc(19px * 0.9); }
+  .pg-about .does li b { font-size: calc(21px * 0.9); }
+  .pg-pricing .zero { font-size: calc(clamp(120px, 18vw, 280px) * 0.9); }
+  .pg-pricing .zero span { font-size: calc(18px * 0.9); }
+  .pg-pricing .plan h2 { font-size: calc(clamp(28px, 2.6vw, 40px) * 0.9); }
+  .pg-pricing .plan .tag { font-size: calc(15px * 0.9); }
+  .pg-pricing .plan > p { font-size: calc(19px * 0.9); }
+  .pg-pricing .plan dt { font-size: calc(36px * 0.9); }
+  .pg-pricing .plan dd { font-size: calc(17px * 0.9); }
+  .pg-pricing .plan dd b { font-size: calc(18px * 0.9); }
+  .pg-pricing .free-n { font-size: calc(96px * 0.9); }
+  .pg-pricing .free-n small { font-size: calc(26px * 0.9); }
+  .pg-pricing .free h2 { font-size: calc(clamp(24px, 2.2vw, 32px) * 0.9); }
+  .pg-pricing .free p:not(.free-n) { font-size: calc(18px * 0.9); }
+  .pg-pricing .steps li { font-size: calc(18px * 0.9); }
+  .pg-pricing .steps li::before { font-size: calc(56px * 0.9); }
+  .pg-pricing .steps li b { font-size: calc(20px * 0.9); }
+  .pg-pricing .steps > p { font-size: calc(19px * 0.9); }
+  .pg-pricing .why h2 { font-size: calc(clamp(30px, 3.4vw, 54px) * 0.9); }
+  .pg-pricing .why p { font-size: calc(20px * 0.9); }
+  .pg-guide .jump b { font-size: calc(30px * 0.9); }
+  .pg-guide .jump span { font-size: calc(16px * 0.9); }
+  .pg-guide .stage .n { font-size: calc(clamp(56px, min(5vw, 10vh), 88px) * 0.9); }
+  .pg-guide .stage h3 { font-size: calc(clamp(26px, 2.2vw, 34px) * 0.9); }
+  .pg-guide .stage p { font-size: calc(18px * 0.9); }
+  .pg-guide .stage .do li { font-size: calc(16px * 0.9); }
+  .pg-guide .math b { font-size: calc(clamp(36px, 3.2vw, 52px) * 0.9); }
+  .pg-marking-scheme .two b { font-size: calc(22px * 0.9); }
+  .pg-marking-scheme .two p { font-size: calc(17px * 0.9); }
+  .pg-marking-scheme .two i { font-size: calc(34px * 0.9); }
+  .pg-about .head .big { font-size: calc(clamp(22px, 2vw, 32px) * 0.9); }
+  .pg-pricing .zero { font-size: calc(clamp(120px, min(12vw, 24vh), 200px) * 0.9); }
+  .pg-pricing .plan h2 { font-size: calc(clamp(26px, 2.2vw, 34px) * 0.9); }
+  .pg-pricing .plan dt { font-size: calc(30px * 0.9); }
+  .pg-pricing .free-n { font-size: calc(80px * 0.9); }
+  .pg-pricing .free h2 { font-size: calc(clamp(22px, 1.9vw, 28px) * 0.9); }
+  .pg-pricing .steps li::before { font-size: calc(44px * 0.9); }
+  .pg-pricing .why h2 { font-size: calc(clamp(28px, 2.8vw, 44px) * 0.9); }
+}
