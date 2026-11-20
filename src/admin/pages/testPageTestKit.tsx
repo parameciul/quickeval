@@ -2,6 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useNavigate, useNavigationType } from 'react-router';
 import { createFakeApi, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { t } from '../../i18n/t.ts';
 
 export const uploads = [
   fakeUpload({
@@ -35,20 +36,20 @@ export const PAGE = '/tests/6E2-26T1';
 
 // Opens the panel of a stage with its link in the list of stages.
 export async function openStage(name: string) {
-  const stages = await screen.findByRole('navigation', { name: 'Etapele testului' });
+  const stages = await screen.findByRole('navigation', { name: t('Etapele testului') });
   await userEvent.click(within(stages).getByRole('link', { name: new RegExp(`^${name} `) }));
   await screen.findByRole('heading', { level: 2, name });
 }
 
-export const sheet = () => screen.getByRole('region', { name: 'Fișa testului' });
+export const sheet = () => screen.getByRole('region', { name: t('Fișa testului') });
 
 // A fact of Fișa testului, a number of its boxes included: the text after its name.
 export const fact = (name: string) => within(sheet()).getByText(name, { selector: 'dt' }).nextElementSibling;
 
 // Opens "Acțiuni" at the top of the page.
 export async function openActions() {
-  await userEvent.click(await screen.findByRole('button', { name: 'Acțiuni' }));
-  return screen.getByRole('menu', { name: 'Acțiuni' });
+  await userEvent.click(await screen.findByRole('button', { name: t('Acțiuni') }));
+  return screen.getByRole('menu', { name: t('Acțiuni') });
 }
 
 // Opens "Acțiuni" and picks one of its items.
@@ -81,7 +82,7 @@ export function GoToTest() {
   const navigate = useNavigate();
   return (
     <button type="button" onClick={() => navigate(PAGE)}>
-      Mergi la test
+      {t('Mergi la test')}
     </button>
   );
 }

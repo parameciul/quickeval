@@ -8,6 +8,7 @@ import { useApi } from '../ApiContext.tsx';
 import { AnswerFrame } from './AnswerFrame.tsx';
 import { WHOLE_PAGE, type ZoomView } from './zoom.ts';
 import { ZoomPhoto } from './ZoomPhoto.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The answer to check: `key` names it (the paper and the item), `label` is the
 // exercise ("II.1"), `areas` are the ones the review can draw (drawnAreas).
@@ -138,7 +139,7 @@ export function ReviewPhoto({
   }, [focusKey, fileKey, partIndex]);
 
   const hide = onHide ? (
-    <button type="button" className="button-quiet button-small icon-button photo-hide" aria-label="Ascunde lucrarea" title="Ascunde lucrarea" onClick={onHide}>
+    <button type="button" className="button-quiet button-small icon-button photo-hide" aria-label={t('Ascunde lucrarea')} title={t('Ascunde lucrarea')} onClick={onHide}>
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
       </svg>
@@ -149,7 +150,7 @@ export function ReviewPhoto({
     return (
       <div className="review-photo" id={PAPER_PHOTO_ID}>
         {hide && <div className="review-photo-top is-end">{hide}</div>}
-        <p className="hint">Elevul nu a încărcat niciun fișier.</p>
+        <p className="hint">{t('Elevul nu a încărcat niciun fișier.')}</p>
       </div>
     );
   }
@@ -157,7 +158,7 @@ export function ReviewPhoto({
   const caption = `${submission.studentName} · ${index + 1}/${files.length}`;
   const photo = file.contentType.startsWith('image/');
   const parts = framed?.areas.length ?? 0;
-  const partLabel = (number: number) => (parts > 1 ? `${framed!.label} · partea ${number + 1} din ${parts}` : framed!.label);
+  const partLabel = (number: number) => (parts > 1 ? t('{label} · partea {v2} din {parts}', { label: framed!.label, v2: number + 1, parts }) : framed!.label);
   // The controls of an answer in more parts: beside its label on a computer,
   // floating in the pane's corner on a phone. A press on one never reaches the
   // page under it, which would zoom there.
@@ -165,13 +166,13 @@ export function ReviewPhoto({
   const partButtons =
     parts > 1 ? (
       <>
-        <button type="button" className="button-quiet button-small" aria-label="Partea anterioară" disabled={partIndex === 0} onClick={() => goPart(partIndex - 1)}>
+        <button type="button" className="button-quiet button-small" aria-label={t('Partea anterioară')} disabled={partIndex === 0} onClick={() => goPart(partIndex - 1)}>
           ‹
         </button>
         <button
           type="button"
           className="button-quiet button-small"
-          aria-label="Partea următoare"
+          aria-label={t('Partea următoare')}
           disabled={partIndex === parts - 1}
           onClick={() => goPart(partIndex + 1)}
         >
@@ -181,9 +182,9 @@ export function ReviewPhoto({
     ) : undefined;
   const floatingParts =
     touch && partButtons !== undefined ? (
-      <span className="answer-parts is-floating" role="group" aria-label="Părțile răspunsului" onPointerDown={stop} onPointerUp={stop} onClick={stop}>
+      <span className="answer-parts is-floating" role="group" aria-label={t('Părțile răspunsului')} onPointerDown={stop} onPointerUp={stop} onClick={stop}>
         <span className="answer-parts-count">
-          {partIndex + 1} din {parts}
+          {t('{v1} din {parts}', { v1: partIndex + 1, parts })}
         </span>
         {partButtons}
       </span>
@@ -202,7 +203,7 @@ export function ReviewPhoto({
         </div>
         <div className="review-photo-actions">
           {files.length > 1 && (
-            <span className="page-switch" role="group" aria-label="Paginile lucrării">
+            <span className="page-switch" role="group" aria-label={t('Paginile lucrării')}>
               {files.map((other, number) => (
                 <button
                   key={other.id}
@@ -223,7 +224,7 @@ export function ReviewPhoto({
       {photo ? (
         <ZoomPhoto
           src={url}
-          alt={`Pagina ${index + 1} a lucrării`}
+          alt={t('Pagina {v1} a lucrării', { v1: index + 1 })}
           view={view}
           onView={setView}
           tools={
@@ -231,9 +232,9 @@ export function ReviewPhoto({
               <button
                 type="button"
                 className="button-quiet button-small icon-button frame-toggle"
-                aria-label="Arată chenarul"
+                aria-label={t('Arată chenarul')}
                 aria-pressed={frames}
-                title={frames ? 'Ascunde chenarul răspunsului' : 'Arată chenarul răspunsului'}
+                title={frames ? t('Ascunde chenarul răspunsului') : t('Arată chenarul răspunsului')}
                 onClick={() => onFrames(!frames)}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -258,9 +259,9 @@ export function ReviewPhoto({
         </ZoomPhoto>
       ) : (
         <>
-          <iframe className="pdf-frame" src={url} title={`Pagina ${index + 1} a lucrării`} />
+          <iframe className="pdf-frame" src={url} title={t('Pagina {v1} a lucrării', { v1: index + 1 })} />
           <a href={url} target="_blank" rel="noopener">
-            Deschide PDF-ul
+            {t('Deschide PDF-ul')}
           </a>
         </>
       )}

@@ -15,6 +15,7 @@ import { PdfActions } from '../pdf/PdfActions.tsx';
 import { AnalysisSection } from '../reportPage/AnalysisSection.tsx';
 import { ExerciseStatsTable, GradeGroups, ReportTiles, ResultsTable } from '../reportPage/ReportTables.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
+import { t } from '../../i18n/t.ts';
 
 // /tests/:code/report: the class report (spec §11.3): one page, with the list
 // of its parts on the left.
@@ -25,10 +26,10 @@ export function ReportPage() {
 }
 
 const PARTS = [
-  { id: 'summary', name: 'Pe scurt' },
-  { id: 'results', name: 'Rezultatele elevilor' },
-  { id: 'exercises', name: 'Pe exerciții' },
-  { id: 'analysis', name: 'Analiza clasei' },
+  { id: 'summary', name: t('Pe scurt') },
+  { id: 'results', name: t('Rezultatele elevilor') },
+  { id: 'exercises', name: t('Pe exerciții') },
+  { id: 'analysis', name: t('Analiza clasei') },
 ] as const;
 type PartId = (typeof PARTS)[number]['id'];
 
@@ -79,7 +80,7 @@ function ReportView({ code }: { code: string }) {
   // On a phone the results tables put the grade right after the name.
   const phone = useMediaQuery(PHONE);
 
-  if (query.isPending) return <p>Se încarcă…</p>;
+  if (query.isPending) return <p>{t('Se încarcă…')}</p>;
   if (query.data === undefined) return <ErrorMessage error={query.error} />;
   const report = query.data;
   const stats = classStats(report);
@@ -93,16 +94,16 @@ function ReportView({ code }: { code: string }) {
     <section className="report-page">
       <Crumbs
         items={[
-          { label: 'Teste', to: '/' },
+          { label: t('Teste'), to: '/' },
           { label: displayClassName(report.test.className), to: `/classes/${report.test.classId}` },
           { label: report.test.title, to: `/tests/${code}` },
-          { label: 'Raportul clasei' },
+          { label: t('Raportul clasei') },
         ]}
       />
       {query.isRefetchError && <ErrorMessage error={query.error} />}
       <div className="report-head">
         <div>
-          <h1>Raportul clasei</h1>
+          <h1>{t('Raportul clasei')}</h1>
           <p className="lead-line">
             {report.test.title} · <Link to={`/classes/${report.test.classId}`}>{displayClassName(report.test.className)}</Link>
             {report.test.startedAt !== null && ` · ${formatDate(report.test.startedAt)}`}
@@ -117,11 +118,11 @@ function ReportView({ code }: { code: string }) {
       </div>
 
       {!graded ? (
-        <p className="hint">Nicio lucrare nu este corectată încă. Raportul apare după prima corectare.</p>
+        <p className="hint">{t('Nicio lucrare nu este corectată încă. Raportul apare după prima corectare.')}</p>
       ) : (
         <div className="report-layout">
           <aside className="report-side">
-            <nav className="report-toc" aria-label="Părțile raportului">
+            <nav className="report-toc" aria-label={t('Părțile raportului')}>
               <ul>
                 {PARTS.map((part) => (
                   <li key={part.id}>
@@ -136,35 +137,34 @@ function ReportView({ code }: { code: string }) {
             <GradeGroups stats={stats} />
           </aside>
           <div className="report-main">
-            <section id="summary" className="report-part" aria-label="Pe scurt">
+            <section id="summary" className="report-part" aria-label={t('Pe scurt')}>
               <ReportTiles stats={stats} />
             </section>
             <section id="results" className="report-part class-card" aria-labelledby="results-title">
               <div className="class-card-head">
-                <h2 id="results-title">Rezultatele elevilor</h2>
+                <h2 id="results-title">{t('Rezultatele elevilor')}</h2>
                 <span>
-                  {stats.gradedCount} din {stats.activeCount} elevi
-                </span>
+                  {t('{gradedCount} din {activeCount} elevi', { gradedCount: stats.gradedCount, activeCount: stats.activeCount })}</span>
               </div>
               <ResultsTable code={code} table={classTable!} missing={report.missing} phone={phone} scrollHint />
               {cesTable && (
                 <>
-                  <h3 className="report-subhead">Varianta CES</h3>
-                  <p className="hint report-subhead-line">Lucrările variantei CES, cu exercițiile ei. Notele lor intră în media clasei.</p>
-                  <ResultsTable code={code} table={cesTable} missing={[]} caption="Punctajele elevilor pe exerciții, varianta CES" phone={phone} />
+                  <h3 className="report-subhead">{t('Varianta CES')}</h3>
+                  <p className="hint report-subhead-line">{t('Lucrările variantei CES, cu exercițiile ei. Notele lor intră în media clasei.')}</p>
+                  <ResultsTable code={code} table={cesTable} missing={[]} caption={t('Punctajele elevilor pe exerciții, varianta CES')} phone={phone} />
                 </>
               )}
             </section>
             <section id="exercises" className="report-part class-card" aria-labelledby="exercises-title">
               <div className="class-card-head">
-                <h2 id="exercises-title">Pe exerciții</h2>
+                <h2 id="exercises-title">{t('Pe exerciții')}</h2>
                 <span>{countLabel(report.exercises.length, 'exercițiu', 'exerciții')}</span>
               </div>
               <ExerciseStatsTable perExercise={stats.perExercise} />
               {stats.cesPerExercise && (
                 <>
-                  <h3 className="report-subhead">Varianta CES</h3>
-                  <ExerciseStatsTable perExercise={stats.cesPerExercise} caption="Statistici pe exerciții, varianta CES" />
+                  <h3 className="report-subhead">{t('Varianta CES')}</h3>
+                  <ExerciseStatsTable perExercise={stats.cesPerExercise} caption={t('Statistici pe exerciții, varianta CES')} />
                 </>
               )}
             </section>

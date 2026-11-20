@@ -9,6 +9,7 @@ import { NowBox, ReadyList, RESULTS_OPEN, StageSection, SwitchBand, type ReadyRo
 import { CopiedNote, copyLink, QrWindow, type Copied } from './WaysIn.tsx';
 import { QrDownload, QrOverlay, uploadLink } from './UploadLink.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // Whether a test has results to publish or to stop: something is graded, or
 // results are already open (for all, or for single uploads). Before that the
@@ -22,15 +23,15 @@ export function hasResultsToManage(test: Pick<TestInfo, 'status' | 'gradedCount'
 // class report stay under it, in their place.
 function NoResultsYet({ test }: { test: TestInfo }) {
   const rows: ReadyRow[] = [];
-  if (test.status === 'draft') rows.push({ state: 'later', what: 'Testul început', value: 'nu încă: îl începi în ziua testului', stage: 'În clasă' });
+  if (test.status === 'draft') rows.push({ state: 'later', what: t('Testul început'), value: t('nu încă: îl începi în ziua testului'), stage: 'În clasă' });
   rows.push({
     state: 'later',
-    what: 'Lucrări corectate',
-    value: `${test.gradedCount} din ${countLabel(test.studentCount, 'elev', 'elevi')}`,
+    what: t('Lucrări corectate'),
+    value: t('{gradedCount} din {countLabel}', { gradedCount: test.gradedCount, countLabel: countLabel(test.studentCount, 'elev', 'elevi') }),
     stage: test.status === 'draft' ? undefined : 'Corectare',
   });
   return (
-    <NowBox label="Acum · nimic de publicat" title="Rezultatele se publică după corectare">
+    <NowBox label={t('Acum · nimic de publicat')} title={t('Rezultatele se publică după corectare')}>
       <ReadyList rows={rows} />
     </NowBox>
   );
@@ -70,9 +71,9 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
   const band = (
     <SwitchBand
       on={open}
-      name="Rezultatele elevilor"
-      onWord="Publicate"
-      offWord="Nepublicate"
+      name={t('Rezultatele elevilor')}
+      onWord={t('Publicate')}
+      offWord={t('Nepublicate')}
       pending={saving}
       onToggle={() => {
         stopped.current = open;
@@ -81,15 +82,15 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
       text={
         open ? (
           <>
-            <strong>Rezultatele sunt publicate.</strong> Elevii le văd.
+            <strong>{t('Rezultatele sunt publicate.')}</strong>{' '}{t('Elevii le văd.')}
           </>
         ) : some ? (
           <>
-            <strong>{countLabel(test.publishedCount, 'rezultat publicat', 'rezultate publicate')}.</strong> Ceilalți elevi nu le văd încă.
+            <strong>{countLabel(test.publishedCount, 'rezultat publicat', 'rezultate publicate')}.</strong>{' '}{t('Ceilalți elevi nu le văd încă.')}
           </>
         ) : (
           <>
-            <strong>Rezultatele nu sunt publicate.</strong> Elevii nu le văd.
+            <strong>{t('Rezultatele nu sunt publicate.')}</strong>{' '}{t('Elevii nu le văd.')}
           </>
         )
       }
@@ -105,28 +106,28 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
         band={band}
         title={
           noneGraded
-            ? 'Nicio lucrare nu e corectată acum'
+            ? t('Nicio lucrare nu e corectată acum')
             : open || some
               ? `${countLabel(readers, 'elev își poate', 'elevi își pot')} vedea rezultatul`
-              : `${countLabel(test.gradedCount, 'rezultat gata', 'rezultate gata')} de publicat`
+              : t('{countLabel} de publicat', { countLabel: countLabel(test.gradedCount, 'rezultat gata', 'rezultate gata') })
         }
       >
         {noneGraded ? (
           <p className="now-sub">
             {test.status === 'evaluating'
-              ? 'Lucrările se corectează din nou. Fiecare elev își vede rezultatul după ce lucrarea lui e corectată.'
-              : 'Când o lucrare e corectată, elevul își vede rezultatul pe linkul lui.'}
+              ? t('Lucrările se corectează din nou. Fiecare elev își vede rezultatul după ce lucrarea lui e corectată.')
+              : t('Când o lucrare e corectată, elevul își vede rezultatul pe linkul lui.')}
           </p>
         ) : !open && test.flagCount > 0 ? (
           <p className="publish-wait">
-            Mai ai {countLabel(test.flagCount, 'punct de verificat', 'puncte de verificat')} la etapa{' '}
-            <MoveOnLink stage="Verificare">Verificare</MoveOnLink>. Dacă publici acum, elevii văd punctajul de acum.
+            {t('Mai ai')}{' '}{countLabel(test.flagCount, 'punct de verificat', 'puncte de verificat')}{' '}{t('la etapa')}{' '}
+            <MoveOnLink stage="Verificare">{'Verificare'}</MoveOnLink>{t('. Dacă publici acum, elevii văd punctajul de acum.')}
           </p>
         ) : (
           <p className="now-sub">
             {open
-              ? 'Dacă oprești rezultatele, linkurile cu rezultate și pozele lor nu se mai deschid până le publici din nou.'
-              : 'Când le publici, fiecare elev își vede rezultatul pe linkul lui.'}
+              ? t('Dacă oprești rezultatele, linkurile cu rezultate și pozele lor nu se mai deschid până le publici din nou.')
+              : t('Când le publici, fiecare elev își vede rezultatul pe linkul lui.')}
           </p>
         )}
       </NowBox>
@@ -149,22 +150,21 @@ function ResultWays({ test, published }: { test: TestInfo; published: boolean })
   const qrButton = useRef<HTMLButtonElement>(null);
   const url = test.uploadToken === null ? null : uploadLink(test.uploadToken);
   return (
-    <StageSection title={published ? 'Cum își văd elevii rezultatul' : 'Cum își vor vedea elevii rezultatul'}>
+    <StageSection title={published ? t('Cum își văd elevii rezultatul') : t('Cum își vor vedea elevii rezultatul')}>
       <ul className="ways is-results">
         <li>
           <span className="ways-icon" aria-hidden="true">
             <ActionIcon name="phone" />
           </span>
           <div className="ways-text">
-            <strong>Cu linkul sau biletul primit după trimitere</strong>
+            <strong>{t('Cu linkul sau biletul primit după trimitere')}</strong>
             <span>
-              După ce își trimit lucrarea, elevii primesc pe telefon linkul rezultatului și biletul pentru rezultat (cu un cod QR și un cod scurt). Le
-              deschid oricând.
+              {t('După ce își trimit lucrarea, elevii primesc pe telefon linkul rezultatului și biletul pentru rezultat (cu un cod QR și un cod scurt). Le deschid oricând.')}
             </span>
             <ul className="ways-cases">
               <li>
                 <ActionIcon name="person" />
-                <span>Linkul fiecărui elev îl ai și tu, în tabelul „Elevii” de mai jos: îl copiezi și i-l trimiți.</span>
+                <span>{t('Linkul fiecărui elev îl ai și tu, în tabelul „Elevii” de mai jos: îl copiezi și i-l trimiți.')}</span>
               </li>
             </ul>
           </div>
@@ -174,19 +174,19 @@ function ResultWays({ test, published }: { test: TestInfo; published: boolean })
             <ActionIcon name="qr" />
           </span>
           <div className="ways-text">
-            <strong>Cu linkul sau codul QR al testului</strong>
-            <span>Același link și același cod QR de pe foaia testului, cu care au trimis lucrarea.</span>
+            <strong>{t('Cu linkul sau codul QR al testului')}</strong>
+            <span>{t('Același link și același cod QR de pe foaia testului, cu care au trimis lucrarea.')}</span>
             <ul className="ways-cases">
               <li>
                 <ActionIcon name="phone" />
                 <span>
-                  <b>De pe telefonul cu care au trimis:</b> ajung direct la rezultat. Linkul rezultatului s-a salvat singur pe telefon.
+                  <b>{t('De pe telefonul cu care au trimis:')}</b>{' '}{t('ajung direct la rezultat. Linkul rezultatului s-a salvat singur pe telefon.')}
                 </span>
               </li>
               <li>
                 <ActionIcon name="key" />
                 <span>
-                  <b>De pe alt telefon sau calculator:</b> scriu codul de pe bilet. Codul fiecărui elev îl găsești în tabelul „Elevii” de mai jos.
+                  <b>{t('De pe alt telefon sau calculator:')}</b>{' '}{t('scriu codul de pe bilet. Codul fiecărui elev îl găsești în tabelul „Elevii” de mai jos.')}
                 </span>
               </li>
             </ul>
@@ -199,11 +199,11 @@ function ResultWays({ test, published }: { test: TestInfo; published: boolean })
                 onClick={() => copyLink(() => url).then(() => setCopied('yes'), () => setCopied('failed'))}
               >
                 <ActionIcon name="copy" />
-                Copiază linkul
+                {t('Copiază linkul')}
               </button>
               <button ref={qrButton} type="button" className="button-quiet button-small" onClick={() => setShown(true)}>
                 <ActionIcon name="qr" />
-                Arată codul QR
+                {t('Arată codul QR')}
               </button>
               <CopiedNote copied={copied} />
             </div>
@@ -212,8 +212,8 @@ function ResultWays({ test, published }: { test: TestInfo; published: boolean })
       </ul>
       {shown && url !== null && (
         <QrWindow
-          title="Linkul testului pentru elevi"
-          hint="Elevul scanează codul cu telefonul cu care a trimis lucrarea și își vede rezultatul."
+          title={t('Linkul testului pentru elevi')}
+          hint={t('Elevul scanează codul cu telefonul cu care a trimis lucrarea și își vede rezultatul.')}
           url={url}
           extra={<QrDownload url={url} fileName={`cod-qr-elevi-${test.code}.png`} />}
           returnFocus={qrButton}

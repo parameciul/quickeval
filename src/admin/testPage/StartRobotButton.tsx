@@ -4,6 +4,7 @@ import { cesBaremActive } from './variant.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The print PDF of a draft or open test waits for the robot: the test has its
 // link and its file, and the PDF is neither made nor failed.
@@ -61,7 +62,7 @@ export function StartRobotButton({
     <>
       <button type="button" className="button-quiet button-small" disabled={start.isPending} onClick={() => start.mutate()}>
         <ActionIcon name="play" />
-        Pornește robotul
+        {t('Pornește robotul')}
       </button>
       {start.error && <ErrorMessage error={start.error} />}
     </>

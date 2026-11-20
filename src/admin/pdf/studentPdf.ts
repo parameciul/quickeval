@@ -5,6 +5,7 @@ import { formatDate } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
 import { pdfRuns } from './pdfMath.ts';
 import { pdfText } from './pdfSymbols.ts';
+import { t } from '../../i18n/t.ts';
 
 // The student's PDF (spec §14.1): test code and title, the student's name,
 // the date, the grade, the table of exercises, the summary, what went well,
@@ -127,16 +128,16 @@ function drawable(input: StudentPdfInput): StudentPdfInput {
 export function studentPdf(source: StudentPdfInput): TDocumentDefinitions {
   const input = drawable(source);
   const pending = input.items.some((item) => item.pending);
-  const header = ['Exercițiul', 'Puncte', 'Răspunsul tău', 'Comentariu'].map((text) => ({ text, style: 'th' }));
+  const header = [t('Exercițiul'), t('Puncte'), t('Răspunsul tău'), t('Comentariu')].map((text) => ({ text, style: 'th' }));
   const rows = input.items.map((item) => [
     { text: [{ text: item.exerciseId, bold: true }, `\n${item.label}`], fontSize: 9 },
     item.pending
-      ? { text: 'în verificare', italics: true, noWrap: true }
-      : { text: `${formatPoints(item.points)} din ${formatPoints(item.maxPoints)}`, noWrap: true },
+      ? { text: t('în verificare'), italics: true, noWrap: true }
+      : { text: t('{formatPoints} din {formatPoints2}', { formatPoints: formatPoints(item.points), formatPoints2: formatPoints(item.maxPoints) }), noWrap: true },
     { text: pdfRuns(item.studentAnswer), fontSize: 9 },
     { text: pdfRuns(item.comment), fontSize: 9 },
   ]);
-  const officeText = input.officePoints > 0 ? `, cu ${formatPoints(input.officePoints)} din oficiu` : '';
+  const officeText = input.officePoints > 0 ? t(', cu {formatPoints} din oficiu', { formatPoints: formatPoints(input.officePoints) }) : '';
   return {
     info: { title: `${input.testCode} · ${input.studentName}` },
     pageSize: 'A4',
@@ -148,7 +149,7 @@ export function studentPdf(source: StudentPdfInput): TDocumentDefinitions {
       th: { bold: true, fontSize: 9, color: '#586070' },
       muted: { color: '#586070' },
     },
-    footer: (page, pages) => ({ text: `Pagina ${page} din ${pages}`, alignment: 'right', margin: [40, 0, 40, 0], style: 'muted', fontSize: 8 }),
+    footer: (page, pages) => ({ text: t('Pagina {page} din {pages}', { page, pages }), alignment: 'right', margin: [40, 0, 40, 0], style: 'muted', fontSize: 8 }),
     content: [
       { text: input.studentName, style: 'h1' },
       {
@@ -156,18 +157,18 @@ export function studentPdf(source: StudentPdfInput): TDocumentDefinitions {
         style: 'muted',
       },
       { text: `Nota ${formatPoints(input.grade)}`, fontSize: 16, bold: true, margin: [0, 10, 0, 0] },
-      { text: `${formatPoints(input.total)} puncte din ${formatPoints(input.maxTotal)}${officeText}`, margin: [0, 0, 0, 4] },
+      { text: t('{formatPoints} puncte din {formatPoints2}{officeText}', { formatPoints: formatPoints(input.total), formatPoints2: formatPoints(input.maxTotal), officeText }), margin: [0, 0, 0, 4] },
       ...(pending
-        ? [{ text: 'Unele puncte sunt încă în verificare, deci nota se poate schimba.', italics: true, margin: [0, 0, 0, 4] } as Content]
+        ? [{ text: t('Unele puncte sunt încă în verificare, deci nota se poate schimba.'), italics: true, margin: [0, 0, 0, 4] } as Content]
         : []),
-      { text: 'Pe exerciții', style: 'h2' },
+      { text: t('Pe exerciții'), style: 'h2' },
       {
         table: { headerRows: 1, dontBreakRows: true, widths: ['auto', 'auto', '*', '*'], body: [header, ...rows] },
         layout: 'lightHorizontalLines',
       },
-      ...(input.summary ? [{ text: 'Rezumat', style: 'h2' } as Content, { text: pdfRuns(input.summary) } as Content] : []),
-      ...list('Ce ai lucrat bine', input.strengths),
-      ...list('Recomandări', input.recommendations),
+      ...(input.summary ? [{ text: t('Rezumat'), style: 'h2' } as Content, { text: pdfRuns(input.summary) } as Content] : []),
+      ...list(t('Ce ai lucrat bine'), input.strengths),
+      ...list(t('Recomandări'), input.recommendations),
     ],
   };
 }

@@ -16,6 +16,7 @@ import { FileDrop } from '../newTest/FileDrop.tsx';
 import { NewTestState } from '../newTest/NewTestState.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // Where the barem comes from: a file now, the robot from the test, or later.
 type BaremChoice = 'upload' | 'generate' | 'later';
@@ -62,7 +63,7 @@ export function NewTestPage() {
           await (variant ? api.uploadTestFile(code, kind, file, variant) : api.uploadTestFile(code, kind, file));
           return true;
         } catch (err) {
-          notice ??= `Testul a fost creat, dar fișierul ${file.name} nu s-a încărcat: ${errorText(err)}`;
+          notice ??= t('Testul a fost creat, dar fișierul {name} nu s-a încărcat: {errorText}', { name: file.name, errorText: errorText(err) });
           return false;
         }
       };
@@ -73,7 +74,7 @@ export function NewTestPage() {
         try {
           await api.generateBarem(code);
         } catch (err) {
-          notice ??= `Testul a fost creat, dar baremul nu s-a putut genera: ${errorText(err)}`;
+          notice ??= t('Testul a fost creat, dar baremul nu s-a putut genera: {errorText}', { errorText: errorText(err) });
         }
       }
       if (withCes) {
@@ -83,7 +84,7 @@ export function NewTestPage() {
           try {
             await api.generateBarem(code, 'ces');
           } catch (err) {
-            notice ??= `Testul a fost creat, dar baremul CES nu s-a putut genera: ${errorText(err)}`;
+            notice ??= t('Testul a fost creat, dar baremul CES nu s-a putut genera: {errorText}', { errorText: errorText(err) });
           }
         }
       }
@@ -137,13 +138,13 @@ export function NewTestPage() {
   ];
   const stepMark = (index: number) =>
     stepDone[index] ? (
-      <span className="step-state tag tag-ok">Gata</span>
+      <span className="step-state tag tag-ok">{t('Gata')}</span>
     ) : index === 0 ? (
-      <span className="step-state tag tag-wait">De completat</span>
+      <span className="step-state tag tag-wait">{t('De completat')}</span>
     ) : index === 2 && baremThere ? (
-      <span className="step-state tag">Se va genera</span>
+      <span className="step-state tag">{t('Se va genera')}</span>
     ) : (
-      <span className="step-state tag">Poți și mai târziu</span>
+      <span className="step-state tag">{t('Poți și mai târziu')}</span>
     );
   const stepClass = (index: number) => (stepDone[index] ? 'step is-done' : 'step');
 
@@ -174,14 +175,14 @@ export function NewTestPage() {
 
   return (
     <section>
-      <Crumbs items={[{ label: 'Teste', to: '/' }, { label: 'Test nou' }]} />
-      <h1>Test nou</h1>
+      <Crumbs items={[{ label: t('Teste'), to: '/' }, { label: t('Test nou') }]} />
+      <h1>{t('Test nou')}</h1>
 
-      {classes.isPending && <p>Se încarcă…</p>}
+      {classes.isPending && <p>{t('Se încarcă…')}</p>}
       {classes.error && <ErrorMessage error={classes.error} />}
       {classes.data && open.length === 0 && (
         <p className="hint">
-          Nu ai nicio clasă în anul școlar {formatSchoolYear(year)}. <Link to="/classes">Adaugă întâi o clasă.</Link>
+          {t('Nu ai nicio clasă în anul școlar')}{' '}{formatSchoolYear(year)}. <Link to="/classes">{t('Adaugă întâi o clasă.')}</Link>
         </p>
       )}
       {open.length > 0 && (
@@ -190,12 +191,12 @@ export function NewTestPage() {
             <ol className="steps">
               <li className={stepClass(0)}>
                 <div>
-                  <h2>Clasa și titlul</h2>
-                  <p>Titlul îl văd și elevii, pe pagina lor.</p>
+                  <h2>{t('Clasa și titlul')}</h2>
+                  <p>{t('Titlul îl văd și elevii, pe pagina lor.')}</p>
                   <div className="form-field">
-                    <label htmlFor="test-class">Clasa</label>
+                    <label htmlFor="test-class">{t('Clasa')}</label>
                     <select id="test-class" value={selected} onChange={(event) => setClassId(event.target.value)} required>
-                      <option value="">Alege clasa</option>
+                      <option value="">{t('Alege clasa')}</option>
                       {open.map((item) => (
                         <option key={item.id} value={item.id}>
                           {displayClassName(item.name)}
@@ -204,21 +205,21 @@ export function NewTestPage() {
                     </select>
                     {params.get('class') === null && (
                       <span className="form-hint">
-                        Nu e în listă?{' '}
+                        {t('Nu e în listă?')}{' '}
                         <button type="button" className="link-button" onClick={() => setNewClass(true)}>
-                          Clasă nouă
+                          {t('Clasă nouă')}
                         </button>
                       </span>
                     )}
                   </div>
                   <div className="form-field">
-                    <label htmlFor="test-title">Titlul testului</label>
+                    <label htmlFor="test-title">{t('Titlul testului')}</label>
                     <input
                       id="test-title"
                       type="text"
                       value={title}
                       onChange={(event) => setTitle(event.target.value)}
-                      placeholder="de exemplu Test de evaluare inițială"
+                      placeholder={t('de exemplu Test de evaluare inițială')}
                       maxLength={MAX_TITLE_LENGTH}
                       required
                     />
@@ -234,21 +235,21 @@ export function NewTestPage() {
               <li className={stepClass(1)}>
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
-                    <h2>Testul</h2>
-                    <p>Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.</p>
+                    <h2>{t('Testul')}</h2>
+                    <p>{t('Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.')}</p>
                     <div className="file-frame">
-                      <FileDrop id="new-test-file" name="Fișierul testului" onPick={pickTest} />
+                      <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} />
                     </div>
                   </div>
                   {withCes && (
                     <div>
                       <h2>
-                        Testul CES
+                        {t('Testul CES')}
                         <CesTag />
                       </h2>
-                      <p>Testul elevilor cu CES, tipărit cu același cod QR. Poți să-l adaugi și mai târziu.</p>
+                      <p>{t('Testul elevilor cu CES, tipărit cu același cod QR. Poți să-l adaugi și mai târziu.')}</p>
                       <div className="file-frame">
-                        <FileDrop id="new-ces-test-file" name="Fișierul testului CES" onPick={pickCesTest} />
+                        <FileDrop id="new-ces-test-file" name={t('Fișierul testului CES')} onPick={pickCesTest} />
                       </div>
                     </div>
                   )}
@@ -258,48 +259,48 @@ export function NewTestPage() {
               <li className={stepClass(2)}>
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
-                    <h2>Baremul</h2>
-                    <p>După el se dă punctajul.</p>
+                    <h2>{t('Baremul')}</h2>
+                    <p>{t('După el se dă punctajul.')}</p>
                     <fieldset className="choices">
-                      <legend className="sr-only">Baremul</legend>
+                      <legend className="sr-only">{t('Baremul')}</legend>
                       <div className="choice-card">
-                        {choice('upload', 'Încarc baremul acum', 'PDF sau Word.')}
+                        {choice('upload', t('Încarc baremul acum'), t('PDF sau Word.'))}
                         {/* Kept while another choice is made, so the file comes back with it. */}
                         <div className="choice-drop" hidden={barem !== 'upload'}>
-                          <FileDrop id="new-barem-file" name="Fișierul baremului" onPick={setBaremFile} />
+                          <FileDrop id="new-barem-file" name={t('Fișierul baremului')} onPick={setBaremFile} />
                         </div>
                       </div>
                       {choice(
                         'generate',
-                        'Generează baremul din test',
-                        'Baremul se generează din test în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.',
-                        testFile === null ? 'Alege întâi testul, la pasul 2.' : undefined,
+                        t('Generează baremul din test'),
+                        t('Baremul se generează din test în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.'),
+                        testFile === null ? t('Alege întâi testul, la pasul 2.') : undefined,
                       )}
-                      {choice('later', 'Mai târziu', 'Îl adaugi din pagina testului, la Pregătire. Corectarea nu începe fără barem.')}
+                      {choice('later', t('Mai târziu'), t('Îl adaugi din pagina testului, la Pregătire. Corectarea nu începe fără barem.'))}
                     </fieldset>
                   </div>
                   {withCes && (
                     <div>
                       <h2>
-                        Baremul CES
+                        {t('Baremul CES')}
                         <CesTag />
                       </h2>
-                      <p>Doar pentru corectare: 90 de puncte și 10 din oficiu.</p>
+                      <p>{t('Doar pentru corectare: 90 de puncte și 10 din oficiu.')}</p>
                       <fieldset className="choices">
-                        <legend className="sr-only">Baremul CES</legend>
+                        <legend className="sr-only">{t('Baremul CES')}</legend>
                         <div className="choice-card">
-                          {cesChoice('upload', 'Încarc baremul CES acum', 'PDF sau Word.')}
+                          {cesChoice('upload', t('Încarc baremul CES acum'), t('PDF sau Word.'))}
                           <div className="choice-drop" hidden={cesBarem !== 'upload'}>
-                            <FileDrop id="new-ces-barem-file" name="Fișierul baremului CES" onPick={setCesBaremFile} />
+                            <FileDrop id="new-ces-barem-file" name={t('Fișierul baremului CES')} onPick={setCesBaremFile} />
                           </div>
                         </div>
                         {cesChoice(
                           'generate',
-                          'Generează baremul CES din testul CES',
-                          'Pornește de la baremul clasei. Se generează în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.',
-                          cesTestFile === null ? 'Alege întâi testul CES, la pasul 2.' : undefined,
+                          t('Generează baremul CES din testul CES'),
+                          t('Pornește de la baremul clasei. Se generează în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.'),
+                          cesTestFile === null ? t('Alege întâi testul CES, la pasul 2.') : undefined,
                         )}
-                        {cesChoice('later', 'Mai târziu', 'Îl adaugi din pagina testului, la Pregătire. Lucrările CES nu se corectează fără el.')}
+                        {cesChoice('later', t('Mai târziu'), t('Îl adaugi din pagina testului, la Pregătire. Lucrările CES nu se corectează fără el.'))}
                       </fieldset>
                     </div>
                   )}
@@ -310,11 +311,11 @@ export function NewTestPage() {
             <div className="new-test-foot">
               <button className="button button-big" type="submit" disabled={create.isPending || selected === ''}>
                 <ActionIcon name="add" />
-                {create.isPending ? 'Se creează…' : 'Creează testul'}
+                {create.isPending ? t('Se creează…') : t('Creează testul')}
               </button>
-              <span className="form-hint">Testul rămâne ciornă până apeși „Începe testul”.</span>
+              <span className="form-hint">{t('Testul rămâne ciornă până apeși „Începe testul”.')}</span>
             </div>
-            {selected !== '' && <MissingList missing={missing} lead="Încă" after="Poți crea testul acum și le adaugi mai târziu." />}
+            {selected !== '' && <MissingList missing={missing} lead={t('Încă')} after={t('Poți crea testul acum și le adaugi mai târziu.')} />}
             {create.error && <ErrorMessage error={create.error} />}
           </form>
 
@@ -322,7 +323,7 @@ export function NewTestPage() {
             <NewTestState hasClass={selected !== ''} hasTitle={title.trim() !== ''} missing={missing} generating={generating} wantsCes={withCes} />
             <section className="class-card new-test-next" aria-labelledby="new-test-next">
               <div className="class-card-head">
-                <h2 id="new-test-next">După ce creezi testul</h2>
+                <h2 id="new-test-next">{t('După ce creezi testul')}</h2>
               </div>
               <ul>
                 <li>
@@ -331,8 +332,8 @@ export function NewTestPage() {
                     <path d="M11.5 8.5a3 3 0 0 0-4.24 0l-2.5 2.5a3 3 0 0 0 4.24 4.24l1-1" />
                   </svg>
                   <div>
-                    <b>Linkul elevilor e gata imediat</b>
-                    <span>Testul primește linkul și codul QR din prima clipă, ca ciornă.</span>
+                    <b>{t('Linkul elevilor e gata imediat')}</b>
+                    <span>{t('Testul primește linkul și codul QR din prima clipă, ca ciornă.')}</span>
                   </div>
                 </li>
                 <li>
@@ -342,8 +343,8 @@ export function NewTestPage() {
                     <path d="M5.5 12h9v5h-9z" />
                   </svg>
                   <div>
-                    <b>Tipărești testul cu cod QR</b>
-                    <span>Din ciornă, cu zile înainte. Fiecare pagină are codul.</span>
+                    <b>{t('Tipărești testul cu cod QR')}</b>
+                    <span>{t('Din ciornă, cu zile înainte. Fiecare pagină are codul.')}</span>
                   </div>
                 </li>
                 <li>
@@ -353,8 +354,8 @@ export function NewTestPage() {
                     <path d="M13 4.6a2.6 2.6 0 0 1 0 5M14.5 12.2c1.4.5 2.4 1.8 2.75 3.8" />
                   </svg>
                   <div>
-                    <b>În ziua testului: Începe testul</b>
-                    <span>Elevii scanează codul și trimit pozele. Fără cont și fără aplicație.</span>
+                    <b>{t('În ziua testului: Începe testul')}</b>
+                    <span>{t('Elevii scanează codul și trimit pozele. Fără cont și fără aplicație.')}</span>
                   </div>
                 </li>
               </ul>

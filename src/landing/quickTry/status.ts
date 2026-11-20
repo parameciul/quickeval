@@ -2,6 +2,7 @@ import type { QuickTryAvailability, TestDetail } from '../../../shared/api.ts';
 import { paperOf, phaseOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel } from '../../ui/format.ts';
 import { usedToday, type StoredTry } from './storage.ts';
+import { t } from '../../i18n/t.ts';
 
 // The colour of the card's tag: the robot works (blue), she has something to
 // do (orange), the paper is graded and checked (green), the try failed (grey).
@@ -22,35 +23,35 @@ export interface TryStatus {
 export function statusOf(detail: TestDetail): TryStatus {
   const phase = phaseOf(detail);
   const { barem, files } = detail.test;
-  if (phase === 'failed') return { text: 'Încercarea nu a reușit. Nu se numără: poți face alta azi.', working: false, tone: 'off', label: 'Nu a reușit' };
+  if (phase === 'failed') return { text: t('Încercarea nu a reușit. Nu se numără: poți face alta azi.'), working: false, tone: 'off', label: t('Nu a reușit') };
   if (phase === 'graded') {
     const flags = paperOf(detail)?.flagCount ?? 0;
-    if (flags === 0) return { text: 'Lucrarea este corectată.', working: false, tone: 'ok', label: 'Corectată' };
+    if (flags === 0) return { text: t('Lucrarea este corectată.'), working: false, tone: 'ok', label: t('Corectată') };
     return {
-      text: 'Lucrarea este corectată. Robotul nu a fost sigur de câteva puncte: verifică-le.',
+      text: t('Lucrarea este corectată. Robotul nu a fost sigur de câteva puncte: verifică-le.'),
       working: false,
       tone: 'you',
       label: countLabel(flags, 'punct de verificat', 'puncte de verificat'),
     };
   }
-  if (phase === 'grading') return { text: 'Se corectează… Durează câteva minute.', working: true, tone: 'work', label: 'Se corectează' };
+  if (phase === 'grading') return { text: t('Se corectează… Durează câteva minute.'), working: true, tone: 'work', label: t('Se corectează') };
   if (phase === 'problem') {
-    return { text: 'Baremul are o problemă. Deschide încercarea ca să alegi ce faci.', working: false, tone: 'you', label: 'Ai de ales' };
+    return { text: t('Baremul are o problemă. Deschide încercarea ca să alegi ce faci.'), working: false, tone: 'you', label: t('Ai de ales') };
   }
-  if (barem.request === 'requested') return { text: 'Se face baremul…', working: true, tone: 'work', label: 'Se face baremul' };
+  if (barem.request === 'requested') return { text: t('Se face baremul…'), working: true, tone: 'work', label: t('Se face baremul') };
   if (barem.unchecked && files.barem) {
     return {
-      text: 'Baremul este gata. Deschide încercarea ca să-l citești și să pornești corectarea.',
+      text: t('Baremul este gata. Deschide încercarea ca să-l citești și să pornești corectarea.'),
       working: false,
       tone: 'you',
-      label: 'Baremul e gata',
+      label: t('Baremul e gata'),
     };
   }
   return {
-    text: 'Corectarea nu a pornit încă. Deschide încercarea ca să trimiți ce lipsește și s-o pornești.',
+    text: t('Corectarea nu a pornit încă. Deschide încercarea ca să trimiți ce lipsește și s-o pornești.'),
     working: false,
     tone: 'you',
-    label: 'Nu a pornit',
+    label: t('Nu a pornit'),
   };
 }
 

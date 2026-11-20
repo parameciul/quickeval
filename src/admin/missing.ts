@@ -1,4 +1,5 @@
 import type { BaremRequest, CesPrepared, TestSummary } from '../../shared/api.ts';
+import { t } from '../i18n/t.ts';
 
 // What a draft or open test still misses (spec: CES switch and missing
 // warnings), in this order: the test file, the barem, and, while the class has
@@ -7,10 +8,10 @@ import type { BaremRequest, CesPrepared, TestSummary } from '../../shared/api.ts
 export type MissingPart = 'test' | 'barem' | 'cesTest' | 'cesBarem';
 
 const NAMES: Record<MissingPart, string> = {
-  test: 'testul',
-  barem: 'baremul',
-  cesTest: 'testul CES',
-  cesBarem: 'baremul CES',
+  test: t('testul'),
+  barem: t('baremul'),
+  cesTest: t('testul CES'),
+  cesBarem: t('baremul CES'),
 };
 
 // What a test has, or what Test nou will give it.
@@ -44,12 +45,12 @@ export function missingOf(test: TestSummary): MissingPart[] {
 // "testul", "testul și baremul", "testul, baremul și testul CES".
 export function missingNames(missing: MissingPart[]): string {
   const names = missing.map((part) => NAMES[part]);
-  return names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} și ${names[names.length - 1]}`;
+  return names.length <= 1 ? (names[0] ?? '') : t('{join} și {v2}', { join: names.slice(0, -1).join(', '), v2: names[names.length - 1] ?? '' });
 }
 
 // "lipsește testul CES", "lipsesc testul CES și baremul CES".
 export function missingNote(missing: MissingPart[]): string {
-  return `${missing.length === 1 ? 'lipsește' : 'lipsesc'} ${missingNames(missing)}`;
+  return `${missing.length === 1 ? t('lipsește') : t('lipsesc')} ${missingNames(missing)}`;
 }
 
 export function missingName(part: MissingPart): string {

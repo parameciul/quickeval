@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router';
 import { countLabel } from '../../ui/format.ts';
 import { IconClasses, IconPlus, IconSettings, IconTests, IconTodo } from './icons.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The side panels, the phone menu under ☰ and the phone's search over the
 // whole screen: one open at a time.
@@ -32,16 +33,16 @@ export function Rail({
   inert?: boolean;
 }) {
   return (
-    <nav className="rail" aria-label="Meniu" inert={inert}>
+    <nav className="rail" aria-label={t('Meniu')} inert={inert}>
       <Link className="rail-new" to="/tests/new">
         <span className="rail-square">
           <IconPlus />
         </span>
-        <span className="rail-word">Test nou</span>
+        <span className="rail-word">{t('Test nou')}</span>
       </Link>
       <Link className="rail-item" to="/" aria-current={onTests ? 'page' : undefined}>
         <IconTests />
-        <span className="rail-word">Teste</span>
+        <span className="rail-word">{t('Teste')}</span>
       </Link>
       <button
         type="button"
@@ -52,20 +53,20 @@ export function Rail({
         onClick={() => onToggle('clase')}
       >
         <IconClasses />
-        <span className="rail-word">Clase</span>
+        <span className="rail-word">{t('Clase')}</span>
       </button>
       <button
         type="button"
         className="rail-item"
         aria-label={
-          todoCount > 0 ? `De făcut: ${countLabel(todoCount, 'lucru', 'lucruri')}${urgent ? ', unul urgent' : ''}` : 'De făcut'
+          todoCount > 0 ? t('De făcut: {countLabel}{v2}', { countLabel: countLabel(todoCount, 'lucru', 'lucruri'), v2: urgent ? t(', unul urgent') : '' }) : t('De făcut')
         }
         aria-expanded={panel === 'todo'}
         aria-controls={panel === 'todo' ? 'panel-todo' : undefined}
         onClick={() => onToggle('todo')}
       >
         <IconTodo />
-        <span className="rail-word">De făcut</span>
+        <span className="rail-word">{t('De făcut')}</span>
         {todoCount > 0 && (
           <span className={urgent ? 'rail-badge rail-badge-urgent' : 'rail-badge'} aria-hidden="true">
             {todoCount}
@@ -75,7 +76,7 @@ export function Rail({
       {admin && (
         <NavLink className="rail-item rail-foot" to="/settings">
           <IconSettings />
-          <span className="rail-word">Setări</span>
+          <span className="rail-word">{t('Setări')}</span>
         </NavLink>
       )}
     </nav>

@@ -9,6 +9,7 @@ import { Prepare } from './Prepare.tsx';
 import { TryHead } from './TryHead.tsx';
 import { Expired, isExpired } from './TryNotice.tsx';
 import { BaremProblem, Failed, Grading } from './Working.tsx';
+import { t } from '../i18n/t.ts';
 
 // The try's page: the test read through the teacher app's client (the cache
 // key of the test page and the review), and the part of the phase it is in.
@@ -19,7 +20,7 @@ export function TryHome({ info, token, tryApi }: { info: QuickTryInfo; token: st
     queryFn: () => api.getTest(info.code),
     refetchInterval: (query) => (query.state.error ? false : refreshOf(query.state.data)),
   });
-  if (detail.isPending) return <p>Se încarcă…</p>;
+  if (detail.isPending) return <p>{t('Se încarcă…')}</p>;
   // Also after a first good read: the try's 7 days can end while the page is open.
   if (isExpired(detail.error)) return <Expired />;
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
@@ -35,7 +36,7 @@ export function TryHome({ info, token, tryApi }: { info: QuickTryInfo; token: st
         <>
           <Graded detail={detail.data} token={token} tryApi={tryApi} />
           <p className="try-invite">
-            Îți place? <a href="/teacher/#new-account">Creează un cont: corectezi gratuit un test pentru toată clasa.</a>
+            {t('Îți place?')}{' '}<a href="/teacher/#new-account">{t('Creează un cont: corectezi gratuit un test pentru toată clasa.')}</a>
           </p>
         </>
       )}

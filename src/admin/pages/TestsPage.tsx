@@ -13,6 +13,7 @@ import { greeting, todayLine, welcome } from '../testsPage/greeting.ts';
 import { TestGroup } from '../testsPage/TestGroup.tsx';
 import { TodoRows } from '../testsPage/TodoRows.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The start page (redesign spec §5): a greeting with what waits on the
 // teacher, the class chips, and the tests of the selected school year in two
@@ -62,14 +63,14 @@ export function TestsPage() {
   const firstVisit = tests.data?.length === 0 && me.data?.testsEvaluated === 0;
   const hasClass = classes.data?.some((item) => !item.archived) ?? false;
 
-  if (tests.isPending && me.data?.testsEvaluated === 0) return <p>Se încarcă…</p>;
+  if (tests.isPending && me.data?.testsEvaluated === 0) return <p>{t('Se încarcă…')}</p>;
   if (firstVisit) {
     return (
       <section className="tests-page">
         <div className="page-head">
           <div className="greet">
             <h1>{welcome(me.data?.name ?? '')}</h1>
-            <p>{todayLine(now)} · Trei pași până la primul test corectat.</p>
+            <p>{t('{todayLine} · Trei pași până la primul test corectat.', { todayLine: todayLine(now) })}</p>
           </div>
         </div>
         {classes.error && <ErrorMessage error={classes.error} />}
@@ -85,7 +86,7 @@ export function TestsPage() {
           <h1>{greeting(now, me.data?.name ?? '')}</h1>
           <p>
             {todayLine(now)}
-            {tests.data && todo.length === 0 && ' · Nimic nu te așteaptă acum.'}
+            {tests.data && todo.length === 0 && ` ${t('· Nimic nu te așteaptă acum.')}`}
             {todo.length > 0 && (
               <>
                 {' · '}
@@ -96,27 +97,27 @@ export function TestsPage() {
                   aria-controls="todo-inline"
                   onClick={() => setTodoOpen(!todoOpen)}
                 >
-                  {countLabel(todo.length, 'lucru', 'lucruri')} te așteaptă
+                  {countLabel(todo.length, 'lucru', 'lucruri')}{' '}{t('te așteaptă')}
                   <svg viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M4 6l4 4 4-4" />
                   </svg>
                 </button>{' '}
-                în {countLabel(todo.length, 'test', 'teste')}.
+                {t('în')}{' '}{countLabel(todo.length, 'test', 'teste')}.
               </>
             )}
           </p>
         </div>
         <Link className="button" to="/tests/new">
           <ActionIcon name="add" />
-          Test nou
+          {t('Test nou')}
         </Link>
       </div>
       {todo.length > 0 && <TodoRows id="todo-inline" items={todo} hidden={!todoOpen} />}
 
       <div className="filters">
-        <div className="chips" role="group" aria-label="Clasa">
+        <div className="chips" role="group" aria-label={t('Clasa')}>
           <button type="button" className="chip" aria-pressed={chosenClass === null} onClick={() => change('class', null)}>
-            Toate clasele
+            {t('Toate clasele')}
           </button>
           {classes.data?.map((item) => (
             <button key={item.id} type="button" className="chip" aria-pressed={item.id === chosenClass} onClick={() => change('class', String(item.id))}>
@@ -126,19 +127,19 @@ export function TestsPage() {
         </div>
         <label className="check-label">
           <input type="checkbox" checked={showArchived} onChange={(event) => change('archived', event.target.checked ? '1' : null)} />
-          Arată și testele arhivate
+          {t('Arată și testele arhivate')}
         </label>
       </div>
       {classes.error && <ErrorMessage error={classes.error} />}
 
-      {tests.isPending && <p>Se încarcă…</p>}
+      {tests.isPending && <p>{t('Se încarcă…')}</p>}
       {tests.error && <ErrorMessage error={tests.error} />}
-      {tests.data && tests.data.length === 0 && <p className="hint">Nu ai niciun test în acest an școlar.</p>}
+      {tests.data && tests.data.length === 0 && <p className="hint">{t('Nu ai niciun test în acest an școlar.')}</p>}
       {tests.data && tests.data.length > 0 && visible?.length === 0 && !classes.isPending && (
-        <p className="hint">Nu ai teste pentru această alegere.</p>
+        <p className="hint">{t('Nu ai teste pentru această alegere.')}</p>
       )}
-      {!classes.isPending && working.length > 0 && <TestGroup title="În lucru" tests={working} first={first} focusCode={focusCode} onPublished={setFocusCode} />}
-      {!classes.isPending && finished.length > 0 && <TestGroup title="Terminate" tests={finished} first={first} focusCode={focusCode} onPublished={setFocusCode} />}
+      {!classes.isPending && working.length > 0 && <TestGroup title={t('În lucru')} tests={working} first={first} focusCode={focusCode} onPublished={setFocusCode} />}
+      {!classes.isPending && finished.length > 0 && <TestGroup title={t('Terminate')} tests={finished} first={first} focusCode={focusCode} onPublished={setFocusCode} />}
     </section>
   );
 }

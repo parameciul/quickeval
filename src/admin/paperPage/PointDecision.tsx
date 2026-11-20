@@ -6,6 +6,7 @@ import { MathText } from '../../ui/MathText.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { pointsText } from '../reviewPage/points.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // What waits for the teacher's decision on the open row: an exercise to check,
 // or the pages the robot could not read.
@@ -31,7 +32,7 @@ export function PointDecision({
   onDecide: (change: ItemChange) => void;
 }) {
   return (
-    <section className="point-decision" aria-label="Decizia">
+    <section className="point-decision" aria-label={t('Decizia')}>
       {view.kind === 'item' ? (
         // A new grading of the paper starts the choice again: a value chosen
         // on the old one is not for it.
@@ -39,15 +40,13 @@ export function PointDecision({
       ) : (
         <>
           <h2 className="sr-only" tabIndex={-1}>
-            Decide: Paginile necitite
+            {t('Decide: Paginile necitite')}
           </h2>
-          <p className="point-why">
-            Robotul nu a putut citi: {view.pages.map(pageLabel).join(', ')}. Verifică pozele și punctajele exercițiilor de pe ele.
-          </p>
+          <p className="point-why">{t('Robotul nu a putut citi: {join}. Verifică pozele și punctajele exercițiilor de pe ele.', { join: view.pages.map(pageLabel).join(', ') })}</p>
           <div className="point-foot">
             <button type="button" className="button" data-confirm disabled={pending} onClick={() => onDecide({})}>
               <ActionIcon name="check" />
-              Am verificat paginile
+              {t('Am verificat paginile')}
             </button>
           </div>
         </>
@@ -92,7 +91,7 @@ function ItemDecision({
   };
   const save = () => {
     if (!valid) {
-      setProblem(`Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
+      setProblem(t('Punctajul este între 0 și {formatPoints}, din 0,05 în 0,05.', { formatPoints: formatPoints(item.maxPoints) }));
       return;
     }
     setProblem(null);
@@ -101,8 +100,7 @@ function ItemDecision({
 
   return (
     <>
-      <h2 className="sr-only" tabIndex={-1}>
-        Decide: {item.label}
+      <h2 className="sr-only" tabIndex={-1}>{t('Decide: {label}', { label: item.label })}
       </h2>
       <p className="point-why">
         <MathText text={item.reviewReason} />
@@ -110,14 +108,13 @@ function ItemDecision({
       <div className="review-decide">
         <button type="button" className="button" data-confirm disabled={pending} onClick={() => onDecide({})}>
           <ActionIcon name="check" />
-          Accept {pointsText(item.points)}
+          {t('Accept')}{' '}{pointsText(item.points)}
         </button>
-        <span className="stepper" role="group" aria-label="Alt punctaj">
+        <span className="stepper" role="group" aria-label={t('Alt punctaj')}>
           <button type="button" className="button-quiet" aria-label={`Scade ${pointsText(STEP)}`} disabled={pending} onClick={() => move(-STEP)}>
             −
           </button>
-          <label className="sr-only" htmlFor={id}>
-            Alt punctaj, din {formatPoints(item.maxPoints)}
+          <label className="sr-only" htmlFor={id}>{t('Alt punctaj, din {formatPoints}', { formatPoints: formatPoints(item.maxPoints) })}
           </label>
           <input
             id={id}
@@ -133,13 +130,13 @@ function ItemDecision({
               if (event.key === 'Enter' && !pending) save();
             }}
           />
-          <button type="button" className="button-quiet" aria-label={`Adaugă ${pointsText(STEP)}`} disabled={pending} onClick={() => move(STEP)}>
+          <button type="button" className="button-quiet" aria-label={t('Adaugă {pointsText}', { pointsText: pointsText(STEP) })} disabled={pending} onClick={() => move(STEP)}>
             +
           </button>
         </span>
         <button type="button" className="button-quiet" disabled={pending} onClick={save}>
           <ActionIcon name="check" />
-          Salvează
+          {t('Salvează')}
         </button>
       </div>
       {problem && (
@@ -148,9 +145,7 @@ function ItemDecision({
         </p>
       )}
       {other !== null && (
-        <p className="review-preview" role="status">
-          Cu {pointsText(other)} aici, nota devine {formatPoints(gradeOf(round2(evaluation.total - item.points + other), evaluation.maxTotal))}.
-        </p>
+        <p className="review-preview" role="status">{t('Cu {pointsText} aici, nota devine {formatPoints}.', { pointsText: pointsText(other), formatPoints: formatPoints(gradeOf(round2(evaluation.total - item.points + other), evaluation.maxTotal)) })}</p>
       )}
     </>
   );

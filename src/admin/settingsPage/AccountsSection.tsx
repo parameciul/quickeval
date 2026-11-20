@@ -8,6 +8,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // "Conturi" of Setări (redesign spec §11.8): the administrators approve or
 // refuse new accounts (one by one, or all that wait at once), make a demo
@@ -35,7 +36,7 @@ export function AccountsSection() {
 
   return (
     <>
-      {accounts.isPending && <p>Se încarcă…</p>}
+      {accounts.isPending && <p>{t('Se încarcă…')}</p>}
       {accounts.error && <ErrorMessage error={accounts.error} />}
       {accounts.data && (
         <>
@@ -43,18 +44,18 @@ export function AccountsSection() {
           <section className="class-card" aria-labelledby="accounts-all">
             <div className="class-card-head">
               <h2 id="accounts-all" ref={allHeading} tabIndex={-1}>
-                Toate conturile
+                {t('Toate conturile')}
               </h2>
               <span>{countLabel(others.length, 'cont', 'conturi')}</span>
             </div>
             <table className="accounts-table" aria-labelledby="accounts-all">
               <thead>
                 <tr>
-                  <th scope="col">Cont</th>
-                  <th scope="col">Felul</th>
-                  <th scope="col">Până acum</th>
+                  <th scope="col">{t('Cont')}</th>
+                  <th scope="col">{t('Felul')}</th>
+                  <th scope="col">{t('Până acum')}</th>
                   <th scope="col">
-                    <span className="sr-only">Acțiuni</span>
+                    <span className="sr-only">{t('Acțiuni')}</span>
                   </th>
                 </tr>
               </thead>
@@ -78,16 +79,16 @@ function RefusedCard({ refused }: { refused: RefusedAccount[] }) {
   return (
     <section className="class-card" aria-labelledby="accounts-refused">
       <div className="class-card-head">
-        <h2 id="accounts-refused">Conturi refuzate</h2>
+        <h2 id="accounts-refused">{t('Conturi refuzate')}</h2>
         <span>{countLabel(refused.length, 'cerere', 'cereri')}</span>
       </div>
       <table className="accounts-table" aria-labelledby="accounts-refused">
         <thead>
           <tr>
-            <th scope="col">Cont</th>
-            <th scope="col">Cerut</th>
-            <th scope="col">Refuzat</th>
-            <th scope="col">De</th>
+            <th scope="col">{t('Cont')}</th>
+            <th scope="col">{t('Cerut')}</th>
+            <th scope="col">{t('Refuzat')}</th>
+            <th scope="col">{t('De')}</th>
           </tr>
         </thead>
         <tbody>
@@ -106,7 +107,7 @@ function RefusedCard({ refused }: { refused: RefusedAccount[] }) {
           ))}
         </tbody>
       </table>
-      <p className="class-card-foot">Cererile refuzate se șterg: aici rămâne doar cine le-a cerut și cine le-a refuzat.</p>
+      <p className="class-card-foot">{t('Cererile refuzate se șterg: aici rămâne doar cine le-a cerut și cine le-a refuzat.')}</p>
     </section>
   );
 }
@@ -137,18 +138,17 @@ function WaitingCard({ pending, heading }: { pending: Account[]; heading: RefObj
     <section className="class-card accounts-waiting" aria-labelledby="accounts-waiting">
       <div className="class-card-head">
         <h2 id="accounts-waiting" ref={heading} tabIndex={-1}>
-          {countLabel(pending.length, 'cont', 'conturi')} așteaptă aprobarea
-        </h2>
+          {t('{countLabel} așteaptă aprobarea', { countLabel: countLabel(pending.length, 'cont', 'conturi') })}</h2>
         {pending.length > 1 && <RejectAll pending={pending} />}
       </div>
       <table className="accounts-table" aria-labelledby="accounts-waiting">
         <thead>
           <tr>
-            <th scope="col">Cont</th>
-            <th scope="col">Cerut</th>
+            <th scope="col">{t('Cont')}</th>
+            <th scope="col">{t('Cerut')}</th>
             <th scope="col">Email</th>
             <th scope="col">
-              <span className="sr-only">Acțiuni</span>
+              <span className="sr-only">{t('Acțiuni')}</span>
             </th>
           </tr>
         </thead>
@@ -158,9 +158,7 @@ function WaitingCard({ pending, heading }: { pending: Account[]; heading: RefObj
           ))}
         </tbody>
       </table>
-      <p className="class-card-foot">
-        Un cont aprobat este un cont demo: un test, cel mult {DEMO_PAPER_LIMIT} de lucrări. Îl faci complet din lista de mai jos.
-      </p>
+      <p className="class-card-foot">{t('Un cont aprobat este un cont demo: un test, cel mult {DEMO_PAPER_LIMIT} de lucrări. Îl faci complet din lista de mai jos.', { DEMO_PAPER_LIMIT })}</p>
     </section>
   );
 }
@@ -181,11 +179,11 @@ function RejectAll({ pending }: { pending: Account[] }) {
         className="text-button is-danger"
         disabled={rejectAll.isPending}
         onClick={() => {
-          if (window.confirm(`Refuzi toate cele ${pending.length} conturi care așteaptă? Cererile se șterg.`)) rejectAll.mutate();
+          if (window.confirm(t('Refuzi toate cele {length} conturi care așteaptă? Cererile se șterg.', { length: pending.length }))) rejectAll.mutate();
         }}
       >
         <ActionIcon name="close" />
-        Refuză toate
+        {t('Refuză toate')}
       </button>
       {rejectAll.error && <ErrorMessage error={rejectAll.error} />}
     </>
@@ -206,31 +204,31 @@ function PendingRow({ account }: { account: Account }) {
         <Person account={account} />
         <td>{formatDateTime(account.createdAt)}</td>
         <td>
-          <span className="tag tag-ok">confirmat</span>
+          <span className="tag tag-ok">{t('confirmat')}</span>
         </td>
         <td>
           <span className="account-actions">
             <button
               type="button"
               className="button button-small"
-              aria-label={`Aprobă ${account.name}`}
+              aria-label={t('Aprobă {name}', { name: account.name })}
               disabled={approve.isPending}
               onClick={() => approve.mutate()}
             >
               <ActionIcon name="check" />
-              Aprobă
+              {t('Aprobă')}
             </button>
             <button
               type="button"
               className="button-quiet button-small"
-              aria-label={`Refuză ${account.name}`}
+              aria-label={t('Refuză {name}', { name: account.name })}
               disabled={reject.isPending}
               onClick={() => {
-                if (window.confirm(`Refuzi contul lui ${account.name}? Cererea se șterge.`)) reject.mutate();
+                if (window.confirm(t('Refuzi contul lui {name}? Cererea se șterge.', { name: account.name }))) reject.mutate();
               }}
             >
               <ActionIcon name="close" />
-              Refuză
+              {t('Refuză')}
             </button>
           </span>
         </td>
@@ -249,10 +247,10 @@ function PendingRow({ account }: { account: Account }) {
 // The kind of an account, as its tag: "administrator", "complet", "demo" or
 // "închis".
 export function accountKind(account: Account): { label: string; className: string } {
-  if (account.role === 'admin') return { label: 'administrator', className: 'tag tag-ok' };
-  if (account.status === 'disabled') return { label: 'închis', className: 'tag tag-muted' };
-  if (account.demo) return { label: 'demo', className: 'tag' };
-  return { label: 'complet', className: 'tag tag-ok' };
+  if (account.role === 'admin') return { label: t('administrator'), className: 'tag tag-ok' };
+  if (account.status === 'disabled') return { label: t('închis'), className: 'tag tag-muted' };
+  if (account.demo) return { label: t('demo'), className: 'tag' };
+  return { label: t('complet'), className: 'tag tag-ok' };
 }
 
 // What an account used: how many times its tests went to the robot for
@@ -260,7 +258,7 @@ export function accountKind(account: Account): { label: string; className: strin
 export function accountUse(account: Account): string {
   const tests = countLabel(account.testsEvaluated, 'test', 'teste');
   if (account.demo && account.role === 'teacher' && account.status === 'active') {
-    return `${tests} · ${Math.min(account.papersGraded, DEMO_PAPER_LIMIT)} din ${DEMO_PAPER_LIMIT} de lucrări`;
+    return t('{tests} · {min} din {DEMO_PAPER_LIMIT} de lucrări', { tests, min: Math.min(account.papersGraded, DEMO_PAPER_LIMIT), DEMO_PAPER_LIMIT });
   }
   return `${tests} · ${countLabel(account.papersGraded, 'lucrare', 'lucrări')}`;
 }
@@ -306,13 +304,13 @@ function AccountRow({ account }: { account: Account }) {
             <button
               type="button"
               className="button-quiet button-small"
-              aria-label={`Detalii pentru ${account.name}`}
+              aria-label={t('Detalii pentru {name}', { name: account.name })}
               aria-expanded={details}
               aria-controls={details ? detailsId : undefined}
               onClick={() => setDetails((open) => !open)}
             >
               <ActionIcon name="info" />
-              Detalii
+              {t('Detalii')}
             </button>
             {account.role === 'teacher' && (
               <AccountMenu
@@ -331,9 +329,9 @@ function AccountRow({ account }: { account: Account }) {
             {password && (
               <div className="warning" role="status">
                 <p>
-                  Parola nouă a lui {account.name}: <code>{password}</code>
+                  {t('Parola nouă a lui')}{' '}{account.name}: <code>{password}</code>
                 </p>
-                <p>Trimite-o profesorului acum: după ce pleci de pe pagină, nu o mai vezi. Profesorul o schimbă din Contul meu.</p>
+                <p>{t('Trimite-o profesorului acum: după ce pleci de pe pagină, nu o mai vezi. Profesorul o schimbă din Contul meu.')}</p>
               </div>
             )}
             {error && <ErrorMessage error={error} />}
@@ -352,14 +350,14 @@ function AccountRow({ account }: { account: Account }) {
 }
 
 const EVENT_LABEL: Record<AccountEventKind, string> = {
-  created: 'Cont creat',
-  email_confirmed: 'Email confirmat',
-  approved: 'Cont aprobat',
-  demo: 'Făcut cont demo',
-  complete: 'Făcut cont complet',
-  password: 'Parolă schimbată',
-  closed: 'Cont închis',
-  reopened: 'Cont redeschis',
+  created: t('Cont creat'),
+  email_confirmed: t('Email confirmat'),
+  approved: t('Cont aprobat'),
+  demo: t('Făcut cont demo'),
+  complete: t('Făcut cont complet'),
+  password: t('Parolă schimbată'),
+  closed: t('Cont închis'),
+  reopened: t('Cont redeschis'),
 };
 
 // "Detalii": what the account used, the robot's work by kind and by test, and
@@ -369,7 +367,7 @@ function AccountDetails({ account }: { account: Account }) {
   const detail = useQuery({ queryKey: ['account', account.id], queryFn: () => api.getAccount(account.id) });
   return (
     <>
-      {detail.isPending && <p>Se încarcă…</p>}
+      {detail.isPending && <p>{t('Se încarcă…')}</p>}
       {detail.error && <ErrorMessage error={detail.error} />}
       {detail.data && <AccountDetailView detail={detail.data} />}
     </>
@@ -390,11 +388,11 @@ const tokenLabel = (tokens: number) => (tokens > 0 ? THOUSANDS.format(tokens) : 
 
 // The rows of the robot's work, in the order of the work a test goes through.
 const ROBOT_KINDS = [
-  { kind: 'grading', label: 'Corectări' },
-  { kind: 'exercise_list', label: 'Liste de exerciții' },
-  { kind: 'analysis', label: 'Analize ale clasei' },
-  { kind: 'barem', label: 'Bareme' },
-  { kind: 'print', label: 'Teste pentru tipărire' },
+  { kind: 'grading', label: t('Corectări') },
+  { kind: 'exercise_list', label: t('Liste de exerciții') },
+  { kind: 'analysis', label: t('Analize ale clasei') },
+  { kind: 'barem', label: t('Bareme') },
+  { kind: 'print', label: t('Teste pentru tipărire') },
 ] as const;
 
 // What the robot did for the account: the work of each kind that worked, the
@@ -403,17 +401,17 @@ const ROBOT_KINDS = [
 function RobotWorkTable({ robot }: { robot: AccountDetail['robot'] }) {
   const done = ROBOT_KINDS.reduce((sum, row) => sum + robot[row.kind].done, 0);
   const failed = ROBOT_KINDS.reduce((sum, row) => sum + robot[row.kind].failed, 0);
-  if (done + failed === 0) return <p>Robotul nu a lucrat încă pentru acest cont.</p>;
+  if (done + failed === 0) return <p>{t('Robotul nu a lucrat încă pentru acest cont.')}</p>;
   return (
     <>
       <div className="table-wrap">
         <table className="account-work">
           <thead>
             <tr>
-              <th scope="col">Operația</th>
-              <th scope="col">Reușite</th>
-              <th scope="col">Eșuate</th>
-              <th scope="col">Tokeni</th>
+              <th scope="col">{t('Operația')}</th>
+              <th scope="col">{t('Reușite')}</th>
+              <th scope="col">{t('Eșuate')}</th>
+              <th scope="col">{t('Tokeni')}</th>
             </tr>
           </thead>
           <tbody>
@@ -430,8 +428,8 @@ function RobotWorkTable({ robot }: { robot: AccountDetail['robot'] }) {
       </div>
       <p className="account-failure">
         {failed === 0
-          ? 'Nicio încercare ratată.'
-          : `Rata eșecurilor: ${Math.round((100 * failed) / (done + failed))}% (${countLabel(failed, 'încercare ratată', 'încercări ratate')} din ${done + failed}).`}
+          ? t('Nicio încercare ratată.')
+          : t('Rata eșecurilor: {round}% ({countLabel} din {v3}).', { round: Math.round((100 * failed) / (done + failed)), countLabel: countLabel(failed, 'încercare ratată', 'încercări ratate'), v3: done + failed })}
       </p>
     </>
   );
@@ -440,18 +438,18 @@ function RobotWorkTable({ robot }: { robot: AccountDetail['robot'] }) {
 // One row per test of the account: what the robot did for it, what it graded,
 // and how many of its points the teacher corrected.
 function TestWorkTable({ tests }: { tests: AccountDetail['tests'] }) {
-  if (tests.length === 0) return <p>Niciun test încă.</p>;
+  if (tests.length === 0) return <p>{t('Niciun test încă.')}</p>;
   return (
     <div className="table-wrap">
       <table className="account-work">
         <thead>
           <tr>
-            <th scope="col">Testul</th>
-            <th scope="col">Clasa</th>
-            <th scope="col">Lucrări corectate</th>
-            <th scope="col">Operații ale robotului</th>
-            <th scope="col">Puncte corectate</th>
-            <th scope="col">Tokeni</th>
+            <th scope="col">{t('Testul')}</th>
+            <th scope="col">{t('Clasa')}</th>
+            <th scope="col">{t('Lucrări corectate')}</th>
+            <th scope="col">{t('Operații ale robotului')}</th>
+            <th scope="col">{t('Puncte corectate')}</th>
+            <th scope="col">{t('Tokeni')}</th>
           </tr>
         </thead>
         <tbody>
@@ -490,51 +488,51 @@ function AccountDetailView({ detail }: { detail: AccountDetail }) {
   return (
     <div className="account-detail">
       <div>
-        <h3>Activitatea contului</h3>
+        <h3>{t('Activitatea contului')}</h3>
         <dl className="account-stats">
-          <Stat label="Teste trimise la corectare" value={countLabel(account.testsEvaluated, 'test', 'teste')} />
-          <Stat label="Lucrări corectate" value={countLabel(account.papersGraded, 'lucrare', 'lucrări')} />
-          <Stat label="Lucrări în lucru acum" value={countLabel(account.papersWaiting, 'lucrare', 'lucrări')} />
-          <Stat label="Bareme generate de robot" value={countLabel(account.baremsGenerated, 'barem', 'bareme')} />
-          <Stat label="Liste de exerciții generate" value={countLabel(account.exerciseListsMade, 'listă', 'liste')} />
-          <Stat label="Analize ale clasei generate" value={countLabel(account.analysesMade, 'analiză', 'analize')} />
-          <Stat label="Teste pregătite pentru tipărire" value={countLabel(account.printsMade, 'test', 'teste')} />
-          <Stat label="Clase" value={countLabel(counts.classes, 'clasă', 'clase')} />
-          <Stat label="Elevi" value={countLabel(counts.students, 'elev', 'elevi')} />
-          <Stat label="Teste create" value={countLabel(counts.tests, 'test', 'teste')} />
-          <Stat label="Teste corectate în ultimele 30 de zile" value={countLabel(activity.testsLast30Days, 'test', 'teste')} />
-          <Stat label="Lucrări corectate în ultimele 30 de zile" value={countLabel(activity.papersLast30Days, 'lucrare', 'lucrări')} />
-          <Stat label="Spațiul lucrărilor" value={activity.r2Bytes > 0 ? formatFileSize(activity.r2Bytes) : 'nimic'} />
-          <Stat label="Ultima intrare" value={account.lastLoginAt ? formatDateTime(account.lastLoginAt) : 'niciodată'} />
+          <Stat label={t('Teste trimise la corectare')} value={countLabel(account.testsEvaluated, 'test', 'teste')} />
+          <Stat label={t('Lucrări corectate')} value={countLabel(account.papersGraded, 'lucrare', 'lucrări')} />
+          <Stat label={t('Lucrări în lucru acum')} value={countLabel(account.papersWaiting, 'lucrare', 'lucrări')} />
+          <Stat label={t('Bareme generate de robot')} value={countLabel(account.baremsGenerated, 'barem', 'bareme')} />
+          <Stat label={t('Liste de exerciții generate')} value={countLabel(account.exerciseListsMade, 'listă', 'liste')} />
+          <Stat label={t('Analize ale clasei generate')} value={countLabel(account.analysesMade, 'analiză', 'analize')} />
+          <Stat label={t('Teste pregătite pentru tipărire')} value={countLabel(account.printsMade, 'test', 'teste')} />
+          <Stat label={t('Clase')} value={countLabel(counts.classes, 'clasă', 'clase')} />
+          <Stat label={t('Elevi')} value={countLabel(counts.students, 'elev', 'elevi')} />
+          <Stat label={t('Teste create')} value={countLabel(counts.tests, 'test', 'teste')} />
+          <Stat label={t('Teste corectate în ultimele 30 de zile')} value={countLabel(activity.testsLast30Days, 'test', 'teste')} />
+          <Stat label={t('Lucrări corectate în ultimele 30 de zile')} value={countLabel(activity.papersLast30Days, 'lucrare', 'lucrări')} />
+          <Stat label={t('Spațiul lucrărilor')} value={activity.r2Bytes > 0 ? formatFileSize(activity.r2Bytes) : t('nimic')} />
+          <Stat label={t('Ultima intrare')} value={account.lastLoginAt ? formatDateTime(account.lastLoginAt) : t('niciodată')} />
         </dl>
         <p className="hint">
-          Baremele, listele de exerciții, analizele și testele pentru tipărire sunt operațiile robotului din afara corectării lucrărilor.
+          {t('Baremele, listele de exerciții, analizele și testele pentru tipărire sunt operațiile robotului din afara corectării lucrărilor.')}
         </p>
       </div>
       <div>
-        <h3>Consumul robotului</h3>
+        <h3>{t('Consumul robotului')}</h3>
         <RobotWorkTable robot={robot} />
       </div>
       <div className="account-detail-wide">
-        <h3>Fiecare test</h3>
+        <h3>{t('Fiecare test')}</h3>
         <TestWorkTable tests={tests} />
       </div>
       <div className="account-detail-wide">
-        <h3>Istoricul contului</h3>
+        <h3>{t('Istoricul contului')}</h3>
         {events.length > 0 ? (
           <ol className="account-history">
             {events.map((event, index) => (
               <li key={`${event.kind}-${event.at}-${index}`}>
                 <span>
                   {EVENT_LABEL[event.kind]}
-                  {event.by && event.by.id !== account.id && <span className="by"> de {event.by.name}</span>}
+                  {event.by && event.by.id !== account.id && <span className="by">{' '}{t('de {name}', { name: event.by.name })}</span>}
                 </span>
                 <time dateTime={event.at}>{formatDateTime(event.at)}</time>
               </li>
             ))}
           </ol>
         ) : (
-          <p>Nicio schimbare înregistrată.</p>
+          <p>{t('Nicio schimbare înregistrată.')}</p>
         )}
       </div>
     </div>
@@ -569,7 +567,7 @@ function AccountMenu({
         ref={button}
         type="button"
         className="class-more-button"
-        aria-label={`Mai multe pentru ${account.name}`}
+        aria-label={t('Mai multe pentru {name}', { name: account.name })}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -586,12 +584,12 @@ function AccountMenu({
           {active ? (
             <button type="button" role="menuitem" className="class-menu-item has-icon" disabled={busy} onClick={run(() => onChange({ demo: !account.demo }))}>
               <ActionIcon name={account.demo ? 'unlock' : 'clock'} />
-              {account.demo ? 'Fă cont complet' : 'Fă cont demo'}
+              {account.demo ? t('Fă cont complet') : t('Fă cont demo')}
             </button>
           ) : (
             <button type="button" role="menuitem" className="class-menu-item has-icon" disabled={busy} onClick={run(() => onChange({ status: 'active' }))}>
               <ActionIcon name="login" />
-              Redeschide contul
+              {t('Redeschide contul')}
             </button>
           )}
           <button
@@ -600,11 +598,11 @@ function AccountMenu({
             className="class-menu-item has-icon"
             disabled={busy}
             onClick={run(() => {
-              if (window.confirm(`Faci o parolă nouă pentru ${account.name}? Parola de acum nu va mai funcționa.`)) onNewPassword();
+              if (window.confirm(t('Faci o parolă nouă pentru {name}? Parola de acum nu va mai funcționa.', { name: account.name }))) onNewPassword();
             })}
           >
             <ActionIcon name="key" />
-            Parolă nouă
+            {t('Parolă nouă')}
           </button>
           {active && (
             <button
@@ -613,11 +611,11 @@ function AccountMenu({
               className="class-menu-item has-icon is-danger"
               disabled={busy}
               onClick={run(() => {
-                if (window.confirm(`Închizi contul lui ${account.name}? Nu va mai putea intra, dar datele rămân.`)) onChange({ status: 'disabled' });
+                if (window.confirm(t('Închizi contul lui {name}? Nu va mai putea intra, dar datele rămân.', { name: account.name }))) onChange({ status: 'disabled' });
               })}
             >
               <ActionIcon name="lock" />
-              Închide contul
+              {t('Închide contul')}
             </button>
           )}
         </div>

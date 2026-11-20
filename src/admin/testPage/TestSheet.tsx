@@ -5,17 +5,18 @@ import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDateTime, pointsLevel, studentCountLabel } from '../../ui/format.ts';
 import { StatusChip } from '../StatusChip.tsx';
 import { subjectLine } from './SubjectForm.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The barem in a few words. Not its points: the API knows them only after the
 // grading starts.
 export function baremState(test: Pick<TestInfo, 'files' | 'barem'>): string {
   const { request, unchecked } = test.barem;
-  if (request === 'requested') return 'se generează';
+  if (request === 'requested') return t('se generează');
   if (test.files.barem === null || unchecked) {
-    if (request === 'failed') return 'nu s-a putut genera';
-    return test.files.barem === null ? 'lipsește' : 'de verificat';
+    if (request === 'failed') return t('nu s-a putut genera');
+    return test.files.barem === null ? t('lipsește') : t('de verificat');
   }
-  return 'activ';
+  return t('activ');
 }
 
 // The students sending their papers now: an upload with files, not sent yet.
@@ -30,7 +31,7 @@ export function uploadingNow(uploads: UploadRow[]): number {
 export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
   const id = useId();
   const sent = (
-    <Tile label="Au trimis" of={test.studentCount} bar>
+    <Tile label={t('Au trimis')} of={test.studentCount} bar>
       {test.submittedCount}
     </Tile>
   );
@@ -38,15 +39,15 @@ export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRo
   if (test.status === 'draft') {
     tiles = (
       <>
-        <Tile label="Elevi">{test.studentCount}</Tile>
-        <Tile label="Baremul">{baremState(test)}</Tile>
+        <Tile label={t('Elevi')}>{test.studentCount}</Tile>
+        <Tile label={t('Baremul')}>{baremState(test)}</Tile>
       </>
     );
   } else if (test.status === 'open') {
     tiles = (
       <>
         {sent}
-        <Tile label="Încarcă acum">{uploadingNow(uploads)}</Tile>
+        <Tile label={t('Încarcă acum')}>{uploadingNow(uploads)}</Tile>
       </>
     );
   } else {
@@ -54,11 +55,11 @@ export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRo
       <>
         {sent}
         {test.averageGrade !== null ? (
-          <Tile label="Media testului" level={pointsLevel(test.averageGrade, 10)}>
+          <Tile label={t('Media testului')} level={pointsLevel(test.averageGrade, 10)}>
             {formatPoints(test.averageGrade)}
           </Tile>
         ) : (
-          <Tile label="Corectate" of={test.submittedCount}>
+          <Tile label={t('Corectate')} of={test.submittedCount}>
             {test.gradedCount}
           </Tile>
         )}
@@ -69,29 +70,29 @@ export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRo
   return (
     <section className="test-sheet" aria-labelledby={id}>
       <div className="sheet-head">
-        <h2 id={id}>Fișa testului</h2>
+        <h2 id={id}>{t('Fișa testului')}</h2>
         <span className="sheet-tags">
           {test.status === 'open' && test.uploadsClosedAt !== null ? (
-            <span className="status status-draft">Încărcare închisă</span>
+            <span className="status status-draft">{t('Încărcare închisă')}</span>
           ) : (
             <StatusChip status={test.status} />
           )}
-          {test.archived && <span className="tag">Arhivat</span>}
+          {test.archived && <span className="tag">{t('Arhivat')}</span>}
         </span>
       </div>
       <dl className="sheet-tiles">{tiles}</dl>
       <dl className="sheet-facts">
-        <dt>Clasa</dt>
+        <dt>{t('Clasa')}</dt>
         <dd>
           {displayClassName(test.className)} · {studentCountLabel(test.studentCount)}
         </dd>
-        <dt>Codul</dt>
+        <dt>{t('Codul')}</dt>
         <dd>{test.code}</dd>
-        <dt>Materia</dt>
+        <dt>{t('Materia')}</dt>
         <dd>{subjectLine(test)}</dd>
         {test.startedAt && (
           <>
-            <dt>Început</dt>
+            <dt>{t('Început')}</dt>
             <dd>{formatDateTime(test.startedAt)}</dd>
           </>
         )}
@@ -112,7 +113,7 @@ function Tile({ label, of, bar, level, children }: { label: string; of?: number;
       <dt>{label}</dt>
       <dd className={level !== undefined ? `points-${level}` : typeof children === 'string' ? 'is-word' : undefined}>
         {children}
-        {of !== undefined && <span className="sheet-of"> din {of}</span>}
+        {of !== undefined && <span className="sheet-of">{' '}{t('din {of}', { of })}</span>}
         {bar && (
           <span className="sheet-bar" aria-hidden="true">
             <span style={{ width: `${share}%` }} />

@@ -6,18 +6,19 @@ import { IconDone } from './icons.tsx';
 import { Panel } from './Panel.tsx';
 import { todoPath, type TodoItem } from './todo.ts';
 import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The line under the cards: the tests of the year in work that need nothing
 // now ("the other" ones only when a card stands above it).
 function othersLine(others: number, alone: boolean): string {
   if (alone) {
     return others === 1
-      ? 'Testul în lucru nu are nevoie de tine acum.'
-      : `Cele ${countLabel(others, 'test', 'teste')} în lucru nu au nevoie de tine acum.`;
+      ? t('Testul în lucru nu are nevoie de tine acum.')
+      : t('Cele {countLabel} în lucru nu au nevoie de tine acum.', { countLabel: countLabel(others, 'test', 'teste') });
   }
   return others === 1
-    ? 'Celălalt test în lucru nu are nevoie de tine acum.'
-    : `Celelalte ${countLabel(others, 'test', 'teste')} în lucru nu au nevoie de tine acum.`;
+    ? t('Celălalt test în lucru nu are nevoie de tine acum.')
+    : t('Celelalte {countLabel} în lucru nu au nevoie de tine acum.', { countLabel: countLabel(others, 'test', 'teste') });
 }
 
 // "Ce ai de făcut" (redesign spec §4): one card per thing that waits on the
@@ -45,32 +46,32 @@ export function TodoPanel({
 }) {
   const ready = !loading && !error;
   return (
-    <Panel id="panel-todo" title="Ce ai de făcut" onClose={onClose}>
+    <Panel id="panel-todo" title={t('Ce ai de făcut')} onClose={onClose}>
       {error ? (
         <div className="panel-body">
           <ErrorMessage error={error} />
         </div>
       ) : loading ? (
-        <p className="panel-body hint">Se încarcă…</p>
+        <p className="panel-body hint">{t('Se încarcă…')}</p>
       ) : items.length === 0 && approvals === 0 ? (
-        <EmptyState icon={<IconDone />} title="Nimic nu te așteaptă acum">
+        <EmptyState icon={<IconDone />} title={t('Nimic nu te așteaptă acum')}>
           {admin
-            ? 'Când un barem, un punct nesigur, niște rezultate sau un cont nou au nevoie de tine, apar aici.'
-            : 'Când un barem, un punct nesigur sau niște rezultate au nevoie de tine, apar aici.'}
+            ? t('Când un barem, un punct nesigur, niște rezultate sau un cont nou au nevoie de tine, apar aici.')
+            : t('Când un barem, un punct nesigur sau niște rezultate au nevoie de tine, apar aici.')}
         </EmptyState>
       ) : (
         <ol className="todo-list">
           {approvals > 0 && (
             <li className="todo-card todo-urgent">
               <p className="todo-test">
-                <span className="tag tag-urgent">Urgent</span>
-                Administrator
+                <span className="tag tag-urgent">{t('Urgent')}</span>
+                {t('Administrator')}
               </p>
-              <h3>{approvals === 1 ? 'Un cont nou așteaptă aprobarea' : `${approvals} conturi noi așteaptă aprobarea`}</h3>
-              <p className="todo-text">Profesorul și-a confirmat emailul. Până aprobi contul, nu se poate conecta.</p>
-              <Link className="button button-small" to="/settings" aria-label="Deschide Setări: conturi de aprobat">
+              <h3>{approvals === 1 ? t('Un cont nou așteaptă aprobarea') : t('{approvals} conturi noi așteaptă aprobarea', { approvals })}</h3>
+              <p className="todo-text">{t('Profesorul și-a confirmat emailul. Până aprobi contul, nu se poate conecta.')}</p>
+              <Link className="button button-small" to="/settings" aria-label={t('Deschide Setări: conturi de aprobat')}>
                 <ActionIcon name="open" />
-                Deschide
+                {t('Deschide')}
               </Link>
             </li>
           )}

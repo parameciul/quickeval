@@ -20,6 +20,7 @@ import { NotFoundPage } from './NotFoundPage.tsx';
 import type { AdminApi } from '../api.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { ActionMenuItem } from '../ActionsMenu.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The state a link passes to the class page (the panel "Clasele tale"):
 // `newClass` opens "Clasă nouă" on arrival, `archived` opens "Schimbă clasa"
@@ -36,7 +37,7 @@ export function ClassPage() {
 const CLASS_TABS = ['note', 'elevi'] as const;
 
 function testCountLabel(count: number): string {
-  return count === 0 ? 'niciun test' : countLabel(count, 'test', 'teste');
+  return count === 0 ? t('niciun test') : countLabel(count, 'test', 'teste');
 }
 
 function ClassDetails({ classId }: { classId: number }) {
@@ -74,7 +75,12 @@ function ClassDetails({ classId }: { classId: number }) {
   const [askArchive, setAskArchive] = useState(false);
 
   const newClass = newClassOpen && <NewClassDialog onClose={() => setNewClassOpen(false)} />;
-  if (detail.isPending) return <p>Se încarcă…{newClass}</p>;
+  if (detail.isPending) return (
+      <p>
+        {t('Se încarcă…')}
+        {newClass}
+      </p>
+    );
   if (detail.error) return <ErrorMessage error={detail.error} />;
 
   const { class: info, students, tests, grades } = detail.data;
@@ -87,7 +93,7 @@ function ClassDetails({ classId }: { classId: number }) {
       {readOnly && (
         <div className="class-archived">
           <p>
-            <b>Clasă arhivată.</b> Notele și testele rămân aici. Nu poți face un test nou și nu poți adăuga elevi.
+            <b>{t('Clasă arhivată.')}</b>{' '}{t('Notele și testele rămân aici. Nu poți face un test nou și nu poți adăuga elevi.')}
           </p>
           <button
             type="button"
@@ -97,7 +103,7 @@ function ClassDetails({ classId }: { classId: number }) {
             onClick={() => archive.mutate(false, { onSuccess: () => heading.current?.focus() })}
           >
             <ActionIcon name="unarchive" />
-            Scoate din arhivă
+            {t('Scoate din arhivă')}
           </button>
         </div>
       )}
@@ -115,10 +121,10 @@ function ClassDetails({ classId }: { classId: number }) {
           <p className="class-head-facts">
             {readOnly && (
               <>
-                <span className="tag">Arhivată</span>{' '}
+                <span className="tag">{t('Arhivată')}</span>{' '}
               </>
             )}
-            {studentCountLabel(students.length)} · {testCountLabel(activeTests)} · anul școlar{' '}
+            {studentCountLabel(students.length)} · {testCountLabel(activeTests)}{' '}{t('· anul școlar')}{' '}
             {formatSchoolYear(info.schoolYear)}
           </p>
         </div>
@@ -126,7 +132,7 @@ function ClassDetails({ classId }: { classId: number }) {
           {!info.archived && (
             <Link className="button" to={`/tests/new?class=${classId}`}>
               <ActionIcon name="add" />
-              Test nou pentru această clasă
+              {t('Test nou pentru această clasă')}
             </Link>
           )}
           <ClassMenu
@@ -142,8 +148,8 @@ function ClassDetails({ classId }: { classId: number }) {
       </div>
       {askArchive && (
         <ArchiveDialog
-          title="Arhivezi clasa?"
-          text="Elevii nu își vor mai putea vedea rezultatele testelor acestei clase. Le poți publica din nou oricând."
+          title={t('Arhivezi clasa?')}
+          text={t('Elevii nu își vor mai putea vedea rezultatele testelor acestei clase. Le poți publica din nou oricând.')}
           onConfirm={() => archive.mutate(true)}
           onClose={() => setAskArchive(false)}
         />
@@ -153,7 +159,7 @@ function ClassDetails({ classId }: { classId: number }) {
       <div
         className="class-tabs"
         role="tablist"
-        aria-label="Ce vezi"
+        aria-label={t('Ce vezi')}
         onKeyDown={(event) => onTabKeyDown(event, CLASS_TABS, tab, setTab, (id) => `class-tab-${id}`)}
       >
         <button
@@ -166,7 +172,7 @@ function ClassDetails({ classId }: { classId: number }) {
           className="class-tab"
           onClick={() => setTab('note')}
         >
-          Note și teste
+          {t('Note și teste')}
         </button>
         <button
           type="button"
@@ -178,7 +184,7 @@ function ClassDetails({ classId }: { classId: number }) {
           className="class-tab"
           onClick={() => setTab('elevi')}
         >
-          Elevi <span className="class-tab-count">{students.length}</span>
+          {t('Elevi')}{' '}<span className="class-tab-count">{students.length}</span>
         </button>
       </div>
 
@@ -316,7 +322,7 @@ function ClassSwitcher({
         {displayClassName(entry.name)}
       </span>
       <span className="class-menu-note">
-        {waiting.has(entry.id) && <span className="flag-dot" role="img" aria-label="te așteaptă"></span>}
+        {waiting.has(entry.id) && <span className="flag-dot" role="img" aria-label={t('te așteaptă')}></span>}
         {studentCountLabel(entry.studentCount)}
       </span>
     </Link>
@@ -331,7 +337,7 @@ function ClassSwitcher({
         aria-controls={open ? 'class-switch-menu' : undefined}
         onClick={() => setOpen(!open)}
       >
-        Schimbă clasa
+        {t('Schimbă clasa')}
         <IconChevron />
       </button>
       {open && (
@@ -340,7 +346,7 @@ function ClassSwitcher({
           {hasArchived && (
             <div className="class-menu-group" role="group" aria-labelledby="class-switch-archived">
               <p ref={archivedGroup} id="class-switch-archived" className="class-menu-group-title">
-                Arhivate
+                {t('Arhivate')}
               </p>
               {archived.map(item)}
             </div>
@@ -355,7 +361,7 @@ function ClassSwitcher({
               }}
             >
               <ActionIcon name="add" />
-              Clasă nouă
+              {t('Clasă nouă')}
             </button>
           </div>
         </div>
@@ -390,8 +396,8 @@ function ClassMenu({
     <ActionMenuItem
       action={
         archived
-          ? { label: 'Scoate din arhivă', hint: 'O aduce înapoi în listele anului.', icon: 'unarchive', busy: archiving }
-          : { label: 'Arhivează clasa', hint: 'O scoate din listele anului. Notele și testele rămân.', icon: 'archive', busy: archiving }
+          ? { label: t('Scoate din arhivă'), hint: t('O aduce înapoi în listele anului.'), icon: 'unarchive', busy: archiving }
+          : { label: t('Arhivează clasa'), hint: t('O scoate din listele anului. Notele și testele rămân.'), icon: 'archive', busy: archiving }
       }
       hintId="class-more-hint-archive"
       onClick={() => {
@@ -408,7 +414,7 @@ function ClassMenu({
         ref={button}
         type="button"
         className="class-more-button"
-        aria-label={`Mai multe pentru ${displayClassName(name)}`}
+        aria-label={t('Mai multe pentru {displayClassName}', { displayClassName: displayClassName(name) })}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? 'class-more-menu' : undefined}
@@ -420,7 +426,7 @@ function ClassMenu({
         <div className="class-menu class-more-menu class-more-actions" id="class-more-menu" role="menu">
           {archived && archiveItem}
           <ActionMenuItem
-            action={{ label: 'Redenumește clasa', hint: 'Schimbă numele clasei. Elevii, notele și testele rămân.', icon: 'edit', busy: false }}
+            action={{ label: t('Redenumește clasa'), hint: t('Schimbă numele clasei. Elevii, notele și testele rămân.'), icon: 'edit', busy: false }}
             hintId="class-more-hint-rename"
             onClick={() => {
               setOpen(false);
@@ -432,8 +438,8 @@ function ClassMenu({
       )}
       {renameOpen && (
         <RenameDialog
-          title="Redenumește clasa"
-          label="Numele clasei"
+          title={t('Redenumește clasa')}
+          label={t('Numele clasei')}
           initial={name}
           maxLength={8}
           save={(next) => api.updateClass(classId, { name: next })}

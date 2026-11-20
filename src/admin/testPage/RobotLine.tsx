@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatDateTime } from '../../ui/format.ts';
+import { t } from '../../i18n/t.ts';
 
 const LATE_MINUTES = 30;
 // An open page shows the same data while the robot is silent, so the line
@@ -9,29 +10,29 @@ const TICK_MS = 30_000;
 // "acum 32 min" for the first hour, then the date and time.
 export function agoText(at: string, now: number): string {
   const minutes = Math.floor((now - Date.parse(at)) / 60_000);
-  if (minutes < 1) return 'acum mai puțin de un minut';
-  return minutes < 60 ? `acum ${minutes} min` : `la ${formatDateTime(at)}`;
+  if (minutes < 1) return t('acum mai puțin de un minut');
+  return minutes < 60 ? `acum ${minutes} min` : t('la {formatDateTime}', { formatDateTime: formatDateTime(at) });
 }
 
 // When the robot last looked for work (spec §9). The robot checks every 10
 // minutes, but GitHub can run the check late or stop it: after 30 minutes
 // without a check, grading may be late.
 export function robotLine(lastCheckAt: string | null, now: number): { text: string; late: boolean } {
-  if (lastCheckAt === null) return { text: 'Robotul nu a verificat încă dacă are lucrări de corectat.', late: true };
+  if (lastCheckAt === null) return { text: t('Robotul nu a verificat încă dacă are lucrări de corectat.'), late: true };
   const minutes = Math.floor((now - Date.parse(lastCheckAt)) / 60_000);
   const text =
     minutes < 1
-      ? 'Robotul a verificat acum mai puțin de un minut.'
+      ? t('Robotul a verificat acum mai puțin de un minut.')
       : minutes < 60
-        ? `Robotul a verificat acum ${minutes} min.`
-        : `Robotul a verificat ultima dată la ${formatDateTime(lastCheckAt)}.`;
+        ? t('Robotul a verificat acum {minutes} min.', { minutes })
+        : t('Robotul a verificat ultima dată la {formatDateTime}.', { formatDateTime: formatDateTime(lastCheckAt) });
   return { text, late: minutes >= LATE_MINUTES };
 }
 
 // `children` and `lateText` show only while the robot's work may be late.
 export function RobotLine({
   lastCheckAt,
-  lateText = 'Corectarea poate întârzia.',
+  lateText = t('Corectarea poate întârzia.'),
   children,
 }: {
   lastCheckAt: string | null;

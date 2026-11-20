@@ -7,6 +7,7 @@ import { GRADE_GROUP_LEVELS, pointsLevel, uploadStatusLabel } from '../../ui/for
 import { CesTag } from '../CesTag.tsx';
 import { CheckMark } from '../submissionPage/GradedResult.tsx';
 import { GradeChip } from '../testPage/GradeChip.tsx';
+import { t } from '../../i18n/t.ts';
 
 const dash = '—';
 const grade = (value: number | null) => (value === null ? dash : formatPoints(value));
@@ -16,10 +17,10 @@ const grade = (value: number | null) => (value === null ? dash : formatPoints(va
 // grade colour, as on the test page's "Raportul clasei" card.
 export function ReportTiles({ stats }: { stats: ClassStats }) {
   const tiles: [string, string, string | undefined][] = [
-    ['Media testului', grade(stats.average), stats.average === null ? undefined : `points-${pointsLevel(stats.average, 10)}`],
-    ['Mediana', grade(stats.median), undefined],
-    ['Cea mai mică notă', grade(stats.min), undefined],
-    ['Cea mai mare notă', grade(stats.max), undefined],
+    [t('Media testului'), grade(stats.average), stats.average === null ? undefined : `points-${pointsLevel(stats.average, 10)}`],
+    [t('Mediana'), grade(stats.median), undefined],
+    [t('Cea mai mică notă'), grade(stats.min), undefined],
+    [t('Cea mai mare notă'), grade(stats.max), undefined],
   ];
   return (
     <dl className="report-tiles">
@@ -30,10 +31,10 @@ export function ReportTiles({ stats }: { stats: ClassStats }) {
         </div>
       ))}
       <div>
-        <dt>Corectate</dt>
+        <dt>{t('Corectate')}</dt>
         <dd>
-          {stats.gradedCount} <small>din {stats.activeCount} elevi</small>{' '}
-          {stats.flaggedCount > 0 && <small className="is-waiting">de verificat {stats.flaggedCount}</small>}
+          {stats.gradedCount} <small>{t('din {activeCount} elevi', { activeCount: stats.activeCount })}</small>{' '}
+          {stats.flaggedCount > 0 && <small className="is-waiting">{t('de verificat {flaggedCount}', { flaggedCount: stats.flaggedCount })}</small>}
         </dd>
       </div>
     </dl>
@@ -47,7 +48,7 @@ export function GradeGroups({ stats }: { stats: ClassStats }) {
   return (
     <section className="class-card report-groups" aria-labelledby="report-groups-title">
       <div className="class-card-head">
-        <h2 id="report-groups-title">Notele pe grupe</h2>
+        <h2 id="report-groups-title">{t('Notele pe grupe')}</h2>
       </div>
       <ul className="report-bars" aria-labelledby="report-groups-title">
         {stats.groups.map((group, index) => (
@@ -95,7 +96,7 @@ export function ResultsTable({
   code,
   table,
   missing,
-  caption = 'Punctajele elevilor pe exerciții',
+  caption = t('Punctajele elevilor pe exerciții'),
   phone = false,
   scrollHint = false,
 }: {
@@ -117,23 +118,23 @@ export function ResultsTable({
   ));
   const totalHead = (
     <th key="total" scope="col" className="num">
-      Total
+      {t('Total')}
     </th>
   );
   const gradeHead = (
     <th key="grade" scope="col" className="grade-col">
-      Nota
+      {t('Nota')}
     </th>
   );
   return (
     <>
-      {phone && scrollHint && scrolls && <p className="hint report-scroll-hint">Glisează tabelul spre stânga pentru punctaje.</p>}
+      {phone && scrollHint && scrolls && <p className="hint report-scroll-hint">{t('Glisează tabelul spre stânga pentru punctaje.')}</p>}
       <div className="table-wrap" ref={wrap}>
         <table className={phone ? 'report-table results-table is-phone' : 'report-table results-table'}>
           <caption className="sr-only">{caption}</caption>
           <thead>
             <tr>
-              <th scope="col">Elev</th>
+              <th scope="col">{t('Elev')}</th>
               {phone ? [gradeHead, ...exerciseHeads, totalHead] : [...exerciseHeads, totalHead, gradeHead]}
             </tr>
           </thead>
@@ -151,7 +152,7 @@ export function ResultsTable({
                 return (
                   <td key={exercise.id} className={item.flagged ? 'num flagged-cell' : 'num'}>
                     <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>{formatPoints(item.points)}</span>
-                    {item.flagged && <span className="sr-only"> (de verificat)</span>}
+                    {item.flagged && <span className="sr-only">{' '}{t('(de verificat)')}</span>}
                   </td>
                 );
               });
@@ -168,10 +169,10 @@ export function ResultsTable({
                       <span className="points-pill">
                         <CheckMark />
                         <span aria-hidden="true">{row.flagCount}</span>
-                        <span className="sr-only">{row.flagCount} de verificat</span>
+                        <span className="sr-only">{t('{flagCount} de verificat', { flagCount: row.flagCount })}</span>
                       </span>
                     ) : (
-                      <span className="points-pill">{row.flagCount} de verificat</span>
+                      <span className="points-pill">{t('{flagCount} de verificat', { flagCount: row.flagCount })}</span>
                     ))}
                 </td>
               );
@@ -192,7 +193,7 @@ export function ResultsTable({
                   {student.ces && <CesTag />}
                 </th>
                 <td colSpan={exercises.length + 2}>
-                  <span className="missing-note">{student.status === 'none' ? 'Nu a trimis lucrarea.' : uploadStatusLabel(student.status)}</span>
+                  <span className="missing-note">{student.status === 'none' ? t('Nu a trimis lucrarea.') : uploadStatusLabel(student.status)}</span>
                 </td>
               </tr>
             ))}
@@ -205,28 +206,28 @@ export function ResultsTable({
 
 // Average points, the share of the maximum (with a bar), and how many students
 // got all, some, and none of the points: of the class table, or of the CES one.
-export function ExerciseStatsTable({ perExercise, caption = 'Statistici pe exerciții' }: { perExercise: ExerciseStats[]; caption?: string }) {
+export function ExerciseStatsTable({ perExercise, caption = t('Statistici pe exerciții') }: { perExercise: ExerciseStats[]; caption?: string }) {
   return (
     <div className="table-wrap">
       <table className="report-table">
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
-            <th scope="col">Exercițiul</th>
+            <th scope="col">{t('Exercițiul')}</th>
             <th scope="col" className="num">
-              Media
+              {t('Media')}
             </th>
             <th scope="col" className="report-share">
-              % din maxim
+              {t('% din maxim')}
             </th>
             <th scope="col" className="num">
-              Tot
+              {t('Tot')}
             </th>
             <th scope="col" className="num">
-              Parțial
+              {t('Parțial')}
             </th>
             <th scope="col" className="num">
-              Nimic
+              {t('Nimic')}
             </th>
           </tr>
         </thead>
@@ -235,7 +236,7 @@ export function ExerciseStatsTable({ perExercise, caption = 'Statistici pe exerc
             <tr key={exercise.exerciseId}>
               <th scope="row">{exercise.label}</th>
               <td className="num">
-                {exercise.averagePoints === null ? dash : `${formatPoints(exercise.averagePoints)} din ${formatPoints(exercise.maxPoints)}`}
+                {exercise.averagePoints === null ? dash : t('{formatPoints} din {formatPoints2}', { formatPoints: formatPoints(exercise.averagePoints), formatPoints2: formatPoints(exercise.maxPoints) })}
               </td>
               <td className="report-share">
                 {exercise.averagePercent === null ? (

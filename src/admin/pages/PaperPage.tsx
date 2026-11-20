@@ -25,6 +25,7 @@ import { heldBackHint } from '../testPage/paperCounts.ts';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
+import { t } from '../../i18n/t.ts';
 
 // While the robot grades the upload, the page asks for news every 10 seconds.
 export function resultRefreshInterval(submission: SubmissionDetail | undefined): number | false {
@@ -73,7 +74,7 @@ function askedSpot(detail: TestDetail, params: URLSearchParams): PaperSpot | nul
 function RedirectLoader({ code }: { code: string }) {
   const detail = useTestDetail(code);
   const [params] = useSearchParams();
-  if (detail.isPending) return <p>Se încarcă…</p>;
+  if (detail.isPending) return <p>{t('Se încarcă…')}</p>;
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
   const spot = askedSpot(detail.data, params) ?? firstSpot(detail.data.uploads);
   if (spot === null) return <Navigate replace to={`/tests/${code}${stageHash('Verificare')}`} />;
@@ -93,7 +94,7 @@ export function TryPaperPage() {
 function TryPaperLoader({ code }: { code: string }) {
   const detail = useTestDetail(code);
   const [params] = useSearchParams();
-  if (detail.isPending) return <p>Se încarcă…</p>;
+  if (detail.isPending) return <p>{t('Se încarcă…')}</p>;
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
   const asked = askedSpot(detail.data, params);
   if (asked === null) {
@@ -101,8 +102,8 @@ function TryPaperLoader({ code }: { code: string }) {
     if (opening !== null) return <Navigate replace to={paperPath(code, 'try', opening, modeOf(params, 'try'))} />;
     return (
       <section className="paper-page">
-        <p className="hint">Nicio lucrare nu este corectată încă.</p>
-        <Link to={`/tests/${code}${stageHash('Verificare')}`}>Înapoi la test</Link>
+        <p className="hint">{t('Nicio lucrare nu este corectată încă.')}</p>
+        <Link to={`/tests/${code}${stageHash('Verificare')}`}>{t('Înapoi la test')}</Link>
       </section>
     );
   }
@@ -111,7 +112,7 @@ function TryPaperLoader({ code }: { code: string }) {
 
 function PaperLoader({ code, place, submissionId }: { code: string; place: PaperPlace; submissionId: number }) {
   const detail = useTestDetail(code);
-  if (detail.isPending) return <p>Se încarcă…</p>;
+  if (detail.isPending) return <p>{t('Se încarcă…')}</p>;
   // The address names a test the teacher does not have.
   if (detail.error instanceof ApiError && detail.error.status === 404) return <NotFoundPage />;
   // A failed first load has nothing to show; a failed refresh keeps the page.
@@ -529,16 +530,16 @@ function Paper({
       {place === 'app' ? (
         <Crumbs
           items={[
-            { label: 'Teste', to: '/' },
+            { label: t('Teste'), to: '/' },
             { label: displayClassName(test.className), to: `/classes/${test.classId}` },
             { label: test.title, to: `/tests/${code}` },
-            { label: submission?.studentName ?? row?.studentName ?? 'Lucrarea' },
+            { label: submission?.studentName ?? row?.studentName ?? t('Lucrarea') },
           ]}
         />
       ) : (
         <div className="review-head">
           <div>
-            <h1>Verificare</h1>
+            <h1>{'Verificare'}</h1>
             <p className="test-sub">
               {test.title}
               {submission && ` · ${submission.studentName}`}
@@ -546,7 +547,7 @@ function Paper({
           </div>
           <Link className="button-quiet" to={`/tests/${code}${stageHash('Verificare')}`}>
             <ActionIcon name="back" />
-            Înapoi la test
+            {t('Înapoi la test')}
           </Link>
         </div>
       )}
@@ -554,13 +555,11 @@ function Paper({
       {paper.isRefetchError && <ErrorMessage error={paper.error} />}
       {place === 'app' && submission !== undefined && <PaperHead submission={submission} actions={actions} />}
       <div className="paper-bar">
-        <div className="paper-switch" role="group" aria-label="Exercițiile arătate">
+        <div className="paper-switch" role="group" aria-label={t('Exercițiile arătate')}>
           <button type="button" aria-pressed={mode === 'all'} onClick={() => go(spot, 'all')}>
-            Toate exercițiile
+            {t('Toate exercițiile')}
           </button>
-          <button type="button" aria-pressed={mode === 'review'} onClick={() => go(spot, 'review')}>
-            Doar de verificat ({queue.length})
-          </button>
+          <button type="button" aria-pressed={mode === 'review'} onClick={() => go(spot, 'review')}>{t('Doar de verificat ({length})', { length: queue.length })}</button>
         </div>
         {/* The keys, between the switch and the moves, only while a decision
             shows and only when the whole line fits there: it never takes a
@@ -569,14 +568,14 @@ function Paper({
           <p className="review-keys hint">
             <span className="review-keys-line">
               <span>
-                <kbd>A</kbd> accept
+                <kbd>{t('A')}</kbd>{' '}{t('accept')}
               </span>
               <span>
-                <kbd>J</kbd> <kbd>K</kbd> punctul următor sau anterior
+                <kbd>{t('J')}</kbd> <kbd>{t('K')}</kbd>{' '}{t('punctul următor sau anterior')}
               </span>
               {pageCount > 1 && !photoFolded && (
                 <span>
-                  <kbd>1</kbd>–<kbd>{Math.min(9, pageCount)}</kbd> pagina
+                  <kbd>1</kbd>–<kbd>{Math.min(9, pageCount)}</kbd>{' '}{t('pagina')}
                 </span>
               )}
             </span>
@@ -586,12 +585,12 @@ function Paper({
             "‹ Elev 2/7 ›" and "Lucrarea", on one row also on a phone. */}
         <div className="review-actions">
           {mode === 'review' && walked.length > 0 && (
-            <span className="move-group" role="group" aria-label="Punctele de verificat">
+            <span className="move-group" role="group" aria-label={t('Punctele de verificat')}>
               <button
                 type="button"
                 className="move-arrow"
-                aria-label="Punctul anterior"
-                title="Punctul anterior (K)"
+                aria-label={t('Punctul anterior')}
+                title={t('Punctul anterior (K)')}
                 disabled={decide.isPending || previousPoint === null}
                 onClick={() => goPoint(previousPoint)}
               >
@@ -599,14 +598,14 @@ function Paper({
               </button>
               {/* On a very small phone only the numbers stay. */}
               <span className="move-label">
-                <span className="move-word">{pointAt >= 0 ? 'Punct ' : 'Puncte: '}</span>
+                <span className="move-word">{pointAt >= 0 ? `${t('Punct')} ` : `${t('Puncte:')} `}</span>
                 {pointAt >= 0 ? `${pointAt + 1}/${walked.length}` : walked.length}
               </span>
               <button
                 type="button"
                 className="move-arrow"
-                aria-label="Următorul punct"
-                title="Următorul punct (J)"
+                aria-label={t('Următorul punct')}
+                title={t('Următorul punct (J)')}
                 disabled={decide.isPending || nextPoint === null}
                 onClick={() => goPoint(nextPoint)}
               >
@@ -615,27 +614,27 @@ function Paper({
             </span>
           )}
           {place === 'app' && students.length > 1 && (
-            <span className="move-group" role="group" aria-label="Elevii">
+            <span className="move-group" role="group" aria-label={t('Elevii')}>
               <button
                 type="button"
                 className="move-arrow"
-                aria-label="Elevul anterior"
-                title="Elevul anterior"
+                aria-label={t('Elevul anterior')}
+                title={t('Elevul anterior')}
                 disabled={!previousStudent}
                 onClick={() => previousStudent && go(studentSpot(previousStudent, mode))}
               >
                 <Chevron back />
               </button>
               <span className="move-label">
-                <span className="move-word">{at >= 0 ? 'Elev ' : 'Elevi: '}</span>
+                <span className="move-word">{at >= 0 ? `${t('Elev')} ` : `${t('Elevi:')} `}</span>
                 {at >= 0 ? `${at + 1}/${students.length}` : students.length}
               </span>
               <button
                 ref={nextStudent && !isLastStudent ? nextStudentButton : undefined}
                 type="button"
                 className="move-arrow"
-                aria-label="Elevul următor"
-                title="Elevul următor"
+                aria-label={t('Elevul următor')}
+                title={t('Elevul următor')}
                 disabled={!nextStudent}
                 onClick={() => nextStudent && go(studentSpot(nextStudent, mode))}
               >
@@ -648,9 +647,9 @@ function Paper({
               ref={photoToggle}
               type="button"
               className="button-quiet icon-button photo-toggle"
-              aria-label="Lucrarea"
+              aria-label={t('Lucrarea')}
               aria-pressed={!photoFolded}
-              title={photoFolded ? 'Arată lucrarea' : 'Ascunde lucrarea'}
+              title={photoFolded ? t('Arată lucrarea') : t('Ascunde lucrarea')}
               onClick={() => onPhotoFold(!photoFolded)}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -664,7 +663,7 @@ function Paper({
       </div>
       {mode === 'review' && queue.length === 0 && (
         <p className="review-done" role="status">
-          Toate punctele sunt verificate. <Link to={`/tests/${code}${stageHash('Rezultate')}`}>Mergi la Rezultate</Link>
+          {t('Toate punctele sunt verificate.')}{' '}<Link to={`/tests/${code}${stageHash('Rezultate')}`}>{t('Mergi la Rezultate')}</Link>
         </p>
       )}
       <div
@@ -685,13 +684,13 @@ function Paper({
         )}
         <div className="paper-main" ref={main}>
           <h2 className="sr-only" ref={exercisesHeading} tabIndex={-1}>
-            Exercițiile
+            {t('Exercițiile')}
           </h2>
           {submission === undefined ? (
             paper.isError ? (
               <ErrorMessage error={paper.error} />
             ) : (
-              <p className="hint paper-loading">Se încarcă lucrarea…</p>
+              <p className="hint paper-loading">{t('Se încarcă lucrarea…')}</p>
             )
           ) : evaluation ? (
             <GradedResult
@@ -723,7 +722,7 @@ function Paper({
             />
           ) : submission.status === 'failed' ? (
             <div className="warning">
-              <p>Corectarea a eșuat. {submission.lastError}</p>
+              <p>{t('Corectarea a eșuat. {lastError}', { lastError: submission.lastError ?? '' })}</p>
               {place === 'app' && (
                 <button
                   type="button"
@@ -732,7 +731,7 @@ function Paper({
                   onClick={() => actions.retry.mutate(submission.startedAt)}
                 >
                   <ActionIcon name="retry" />
-                  Reîncearcă
+                  {t('Reîncearcă')}
                 </button>
               )}
               {actions.retry.error && <ErrorMessage error={actions.retry.error} />}

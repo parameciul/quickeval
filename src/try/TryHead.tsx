@@ -12,6 +12,7 @@ import { formatDate, formatDateTime } from '../ui/format.ts';
 import { paperOf, phaseOf } from './phase.ts';
 import { ShareButton } from './Share.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 // The head of the try's page, the same in every state and view: the try's
 // name (which she may change), when it was sent, until when its link works,
@@ -21,20 +22,20 @@ import { ActionIcon } from '../ui/ActionIcon.tsx';
 export function TryHead({ detail, info, token }: { detail: TestDetail; info: QuickTryInfo; token: string }) {
   const { test } = detail;
   const paper = paperOf(detail);
-  const sent = paper?.submittedAt ? `Trimisă la corectare ${formatDateTime(paper.submittedAt)} · ` : paper?.startedAt ? `Începută ${formatDateTime(paper.startedAt)} · ` : '';
+  const sent = paper?.submittedAt ? t('Trimisă la corectare {formatDateTime} · ', { formatDateTime: formatDateTime(paper.submittedAt) }) : paper?.startedAt ? t('Începută {formatDateTime} · ', { formatDateTime: formatDateTime(paper.startedAt) }) : '';
   return (
     <header className="try-head">
       <div className="try-head-main">
         {test.title !== QUICK_TRY_TITLE && <p className="try-kicker">{QUICK_TRY_TITLE}</p>}
         <TryTitle code={test.code} title={test.title} />
         <p className="try-meta">
-          {sent}Linkul merge până pe {formatDate(info.expiresAt)}
+          {t('{sent}Linkul merge până pe {formatDate}', { sent, formatDate: formatDate(info.expiresAt) })}
         </p>
-        <p className="try-meta">Materia: {test.subject === null ? 'se stabilește la corectare' : subjectLine(test)}</p>
+        <p className="try-meta">{t('Materia:')}{' '}{test.subject === null ? t('se stabilește la corectare') : subjectLine(test)}</p>
         {phaseOf(detail) !== 'prepare' && (
           <div className="try-files">
-            {test.files.test && <FileLink code={test.code} kind="test" label="Testul" name="Descarcă testul" />}
-            {test.files.barem && <FileLink code={test.code} kind="barem" label="Baremul" name="Descarcă baremul" />}
+            {test.files.test && <FileLink code={test.code} kind="test" label={t('Testul')} name={t('Descarcă testul')} />}
+            {test.files.barem && <FileLink code={test.code} kind={'barem'} label={t('Baremul')} name={t('Descarcă baremul')} />}
           </div>
         )}
       </div>
@@ -84,8 +85,8 @@ function TryTitle({ code, title }: { code: string; title: string }) {
           ref={pencil}
           type="button"
           className="try-title-edit"
-          aria-label="Schimbă numele"
-          title="Schimbă numele"
+          aria-label={t('Schimbă numele')}
+          title={t('Schimbă numele')}
           onClick={() => {
             edited.current = true;
             setDraft(title);
@@ -103,9 +104,9 @@ function TryTitle({ code, title }: { code: string; title: string }) {
     rename.mutate(draft);
   };
   return (
-    <form className="try-rename" aria-label="Schimbă numele" onSubmit={save}>
+    <form className="try-rename" aria-label={t('Schimbă numele')} onSubmit={save}>
       <label className="sr-only" htmlFor="try-name">
-        Numele testului
+        {t('Numele testului')}
       </label>
       <input
         id="try-name"
@@ -118,7 +119,7 @@ function TryTitle({ code, title }: { code: string; title: string }) {
       <div className="try-rename-actions">
         <button type="submit" className="button" disabled={rename.isPending}>
           <ActionIcon name="check" />
-          Salvează
+          {t('Salvează')}
         </button>
         <button
           type="button"
@@ -129,7 +130,7 @@ function TryTitle({ code, title }: { code: string; title: string }) {
           }}
         >
           <ActionIcon name="close" />
-          Renunță
+          {t('Renunță')}
         </button>
       </div>
       {rename.error && <ErrorMessage error={rename.error} />}

@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { ActionIcon, type ActionIconName } from '../../ui/ActionIcon.tsx';
 import { stageHash, STATE_WORDS, type Stage, type StageName } from '../stages.ts';
+import { t } from '../../i18n/t.ts';
 
 // The icon of each stage: the landing page's, so the stages look the same in
 // the app.
@@ -18,7 +19,7 @@ export const STAGE_ICONS: Record<StageName, ActionIconName> = {
 // the address without a new step in the history; the chosen one is marked.
 export function StageList({ stages, chosen }: { stages: Stage[]; chosen: StageName }) {
   return (
-    <nav className="stage-list" aria-label="Etapele testului">
+    <nav className="stage-list" aria-label={t('Etapele testului')}>
       <ol>
         {stages.map((stage) => (
           <li key={stage.name} className={`is-${stage.state}`}>

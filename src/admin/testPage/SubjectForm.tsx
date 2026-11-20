@@ -5,12 +5,13 @@ import { SUBJECT_NAMES, SUBJECTS, type Subject } from '../../../shared/subjects.
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The subject in a few words, for Fișa testului.
 export function subjectLine(test: Pick<TestInfo, 'subject'>): string {
   const { subject } = test;
-  if (subject === null) return 'Se stabilește la corectare';
-  if (subject.value === 'alta') return `${subject.name || 'altă materie'} (nu o corectăm)`;
+  if (subject === null) return t('Se stabilește la corectare');
+  if (subject.value === 'alta') return t('{v1} (nu o corectăm)', { v1: subject.name || t('altă materie') });
   return SUBJECT_NAMES[subject.value];
 }
 
@@ -59,7 +60,7 @@ export function SubjectForm({
       }}
     >
       <fieldset className="subject-choices">
-        <legend>Materia testului</legend>
+        <legend>{t('Materia testului')}</legend>
         {SUBJECTS.map((subject) => (
           <label key={subject} htmlFor={`${id}-${subject}`}>
             <input
@@ -74,15 +75,15 @@ export function SubjectForm({
           </label>
         ))}
       </fieldset>
-      {changes && remakes(test) && <p className="hint">Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.</p>}
+      {changes && remakes(test) && <p className="hint">{t('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.')}</p>}
       <span className="row-actions">
         <button className="button button-small" type="submit" disabled={chosen === null || save.isPending}>
           <ActionIcon name="check" />
-          Salvează
+          {t('Salvează')}
         </button>
         <button type="button" className="button-quiet button-small" onClick={onClose}>
           <ActionIcon name="close" />
-          Renunță
+          {t('Renunță')}
         </button>
       </span>
       {save.error && <ErrorMessage error={save.error} />}
@@ -109,12 +110,12 @@ export function SubjectChange({
   onRobot: (robot: RobotStart | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  if (robotReads(test)) return <p className="hint">Poți schimba materia după ce se termină corectarea.</p>;
+  if (robotReads(test)) return <p className="hint">{t('Poți schimba materia după ce se termină corectarea.')}</p>;
   if (open) return <SubjectForm test={test} onDone={onChanged} onRobot={onRobot} onClose={() => setOpen(false)} />;
   return (
     <button type="button" className="button-quiet button-small" onClick={() => setOpen(true)}>
       <ActionIcon name="subject" />
-      {test.subject === null ? 'Alege materia' : 'Schimbă materia'}
+      {test.subject === null ? t('Alege materia') : t('Schimbă materia')}
     </button>
   );
 }

@@ -13,12 +13,13 @@ import { onTabKeyDown } from '../ui/tabKeys.ts';
 import { pageFileUrl, type TryApi } from './api.ts';
 import { paperOf, scoreOf } from './phase.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 type View = 'verificare' | 'elev';
 // Each view's name, and the short one a phone shows.
 const VIEWS: { id: View; label: string; short: string | null }[] = [
   { id: 'verificare', label: 'Verificare', short: null },
-  { id: 'elev', label: 'Rezultatul elevului', short: 'Elev' },
+  { id: 'elev', label: t('Rezultatul elevului'), short: t('Elev') },
 ];
 const VIEW_IDS = VIEWS.map((view) => view.id);
 
@@ -38,7 +39,7 @@ export function Graded({ detail, token, tryApi }: { detail: TestDetail; token: s
   return (
     <>
       <Summary detail={detail} />
-      <div className="try-tabs" role="tablist" aria-label="Lucrarea corectată" onKeyDown={(event) => onTabKeyDown(event, VIEW_IDS, view, setView, (id) => `try-tab-${id}`)}>
+      <div className="try-tabs" role="tablist" aria-label={t('Lucrarea corectată')} onKeyDown={(event) => onTabKeyDown(event, VIEW_IDS, view, setView, (id) => `try-tab-${id}`)}>
         {VIEWS.map(({ id, label, short }) => (
           <button
             key={id}
@@ -89,10 +90,10 @@ function Summary({ detail }: { detail: TestDetail }) {
   const paper = paperOf(detail)!;
   const score = scoreOf(detail);
   return (
-    <section className="try-summary" aria-label="Rezultatul încercării">
+    <section className="try-summary" aria-label={t('Rezultatul încercării')}>
       {score && (
         <div className="try-score">
-          <span className="try-score-label">Nota</span>
+          <span className="try-score-label">{t('Nota')}</span>
           <span className="try-grade">{score.grade}</span>
           <span className="try-score-points">{score.points}</span>
         </div>
@@ -101,18 +102,18 @@ function Summary({ detail }: { detail: TestDetail }) {
         <div className="try-todo">
           <div>
             <p className="try-todo-title">{countLabel(paper.flagCount, 'punct nesigur', 'puncte nesigure')}</p>
-            <p>Robotul nu a fost sigur de ele. Le verifici cu pagina lucrării alături și schimbi punctajul dacă e nevoie.</p>
+            <p>{t('Robotul nu a fost sigur de ele. Le verifici cu pagina lucrării alături și schimbi punctajul dacă e nevoie.')}</p>
           </div>
           <Link className="button" to={reviewPath(detail.test.code)}>
             <ActionIcon name="search" />
-            Verifică {countLabel(paper.flagCount, 'punct', 'puncte')}
+            {t('Verifică')}{' '}{countLabel(paper.flagCount, 'punct', 'puncte')}
           </Link>
         </div>
       ) : (
         <div className="try-todo is-done">
           <div>
-            <p className="try-todo-title">Toate punctele sunt verificate.</p>
-            <p>Rezultatul elevului este gata.</p>
+            <p className="try-todo-title">{t('Toate punctele sunt verificate.')}</p>
+            <p>{t('Rezultatul elevului este gata.')}</p>
           </div>
         </div>
       )}
@@ -128,14 +129,14 @@ function Checking({ code, submissionId, points }: { code: string; submissionId: 
     <p className="try-all">
       <Link className="button-quiet" to={paperPath(code, 'try', { submissionId, key: null }, 'all')}>
         <ActionIcon name="list" />
-        Toate exercițiile
+        {t('Toate exercițiile')}
       </Link>
     </p>
   );
   if (points.length === 0) {
     return (
       <>
-        <p className="try-empty">Nu mai ai puncte de verificat. Rezultatul elevului este gata.</p>
+        <p className="try-empty">{t('Nu mai ai puncte de verificat. Rezultatul elevului este gata.')}</p>
         {all}
       </>
     );
@@ -144,23 +145,23 @@ function Checking({ code, submissionId, points }: { code: string; submissionId: 
     <>
       <ul className="try-points">
         {points.map((point) => {
-          const name = point.kind === 'item' ? point.label : 'Pagini greu de citit';
+          const name = point.kind === 'item' ? point.label : t('Pagini greu de citit');
           return (
             <li key={pointKey(point)} className="try-point">
               <span className="try-point-name">{name}</span>
               {point.kind === 'item' ? (
                 <span className="try-point-score">
-                  {formatPoints(point.points)} din {formatPoints(point.maxPoints)}
+                  {t('{formatPoints} din {formatPoints2}', { formatPoints: formatPoints(point.points), formatPoints2: formatPoints(point.maxPoints) })}
                 </span>
               ) : (
                 <span className="try-point-score">{countLabel(point.pages.length, 'pagină', 'pagini')}</span>
               )}
               <span className="try-point-why">
-                {point.kind === 'item' ? <MathText text={point.reason} /> : `Robotul nu a putut citi: ${point.pages.map(pageLabel).join(', ')}.`}
+                {point.kind === 'item' ? <MathText text={point.reason} /> : t('Robotul nu a putut citi: {join}.', { join: point.pages.map(pageLabel).join(', ') })}
               </span>
-              <Link className="button-quiet" to={reviewPath(code, { submissionId, key: pointKey(point) })} aria-label={`Verifică ${name}`}>
+              <Link className="button-quiet" to={reviewPath(code, { submissionId, key: pointKey(point) })} aria-label={t('Verifică {name}', { name })}>
                 <ActionIcon name="search" />
-                Verifică
+                {t('Verifică')}
               </Link>
             </li>
           );
@@ -174,11 +175,11 @@ function Checking({ code, submissionId, points }: { code: string; submissionId: 
 // Read again each time it opens: a correction of the teacher shows here too.
 function StudentView({ token, tryApi }: { token: string; tryApi: TryApi }) {
   const result = useQuery({ queryKey: ['try', 'result'], queryFn: () => tryApi.result(), staleTime: 0, refetchOnMount: 'always' });
-  if (result.isPending) return <p>Se încarcă…</p>;
+  if (result.isPending) return <p>{t('Se încarcă…')}</p>;
   if (result.data === undefined) return <ErrorMessage error={result.error} />;
   return (
     <div className="try-student" data-testid="student-view">
-      <p className="hint">Așa vede elevul rezultatul, pe linkul lui.</p>
+      <p className="hint">{t('Așa vede elevul rezultatul, pe linkul lui.')}</p>
       <StudentResult result={result.data} fileUrl={(fileId) => pageFileUrl(token, fileId)} />
     </div>
   );

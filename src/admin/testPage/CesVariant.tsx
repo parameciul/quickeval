@@ -9,6 +9,7 @@ import { MoveOnLink } from './MoveOnLink.tsx';
 import { TestFiles } from './TestFiles.tsx';
 import { cesBaremActive, showsCes } from './variant.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // "Varianta CES" in the panel Pregătire (spec: CES variant, CES switch): the
 // adapted test that the CES students of the class get, with its own barem.
@@ -40,31 +41,28 @@ export function CesVariant({
   const expected = ces.classTotalPoints ?? 100;
   const names = uploads.filter((row) => row.ces && row.active).map((row) => row.studentName);
   const onToggle = (on: boolean) => {
-    if (!on && hasFiles && !window.confirm('Oprești testul separat? Fișierele CES se șterg, iar elevii cu CES primesc testul clasei.')) return;
+    if (!on && hasFiles && !window.confirm(t('Oprești testul separat? Fișierele CES se șterg, iar elevii cu CES primesc testul clasei.'))) return;
     toggle.mutate(!on);
   };
 
   return (
     <section className="ces-variant" aria-labelledby="ces-variant-title">
-      <h3 id="ces-variant-title">Varianta CES</h3>
+      <h3 id="ces-variant-title">{t('Varianta CES')}</h3>
       {ces.studentCount > 0 ? (
         <CesSwitch names={names} on={!ces.off} disabled={toggle.isPending || ces.papers > 0} onToggle={onToggle} />
       ) : (
-        <p className="hint">Nu mai e niciun elev cu CES în clasă.</p>
+        <p className="hint">{t('Nu mai e niciun elev cu CES în clasă.')}</p>
       )}
-      {ces.papers > 0 && <p className="hint">Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi oprită. Poți înlocui fișierele ei.</p>}
+      {ces.papers > 0 && <p className="hint">{t('Varianta CES are lucrări trimise la corectare, așa că nu mai poate fi oprită. Poți înlocui fișierele ei.')}</p>}
       {toggle.error && <ErrorMessage error={toggle.error} />}
       {(!ces.off || hasFiles) && <TestFiles test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />}
       {ces.totalPoints !== null && ces.totalPoints !== expected && (
-        <p className="warning">
-          Baremul CES are {formatPoints(ces.totalPoints)} puncte, iar baremul clasei {formatPoints(expected)}. Baremul CES ar trebui să aibă tot atâtea
-          puncte.
-        </p>
+        <p className="warning">{t('Baremul CES are {formatPoints} puncte, iar baremul clasei {formatPoints2}. Baremul CES ar trebui să aibă tot atâtea puncte.', { formatPoints: formatPoints(ces.totalPoints), formatPoints2: formatPoints(expected) })}</p>
       )}
       {ces.studentCount === 0 && hasFiles && ces.papers === 0 && (
         <p>
           <button type="button" className="text-button is-danger" disabled={toggle.isPending} onClick={() => onToggle(false)}>
-            Șterge varianta CES
+            {t('Șterge varianta CES')}
           </button>
         </p>
       )}
@@ -80,18 +78,17 @@ export function CesWaiting({ test }: { test: TestInfo }) {
   if (ces.waiting === 0 || ces.files.test === null || cesBaremActive(test)) return null;
   const why =
     ces.files.barem === null
-      ? 'Încarcă sau generează baremul CES la Pregătire.'
+      ? t('Încarcă sau generează baremul CES la Pregătire.')
       : ces.barem.request === 'requested'
-        ? 'Baremul CES se generează.'
-        : 'Verifică baremul CES generat la Pregătire.';
+        ? t('Baremul CES se generează.')
+        : t('Verifică baremul CES generat la Pregătire.');
   return (
     <div className="warning">
       <p>
-        <strong>{countLabel(ces.waiting, 'lucrare CES așteaptă', 'lucrări CES așteaptă')} baremul CES.</strong> {why} Celelalte lucrări se corectează
-        între timp.
+        <strong>{t('{countLabel} baremul CES.', { countLabel: countLabel(ces.waiting, 'lucrare CES așteaptă', 'lucrări CES așteaptă') })}</strong> {why}{' '}{t('Celelalte lucrări se corectează între timp.')}
       </p>
-      <MoveOnLink className="button-quiet button-small" stage="Pregătire">
-        Mergi la varianta CES
+      <MoveOnLink className="button-quiet button-small" stage={'Pregătire'}>
+        {t('Mergi la varianta CES')}
         <ActionIcon name="arrow" />
       </MoveOnLink>
     </div>

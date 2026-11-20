@@ -8,8 +8,9 @@ import { ResultActions } from './ResultActions.tsx';
 import { StudentResult } from './StudentResult.tsx';
 import type { StudentResultView } from '../../shared/api.ts';
 import { SITE_URL, StudentHeader } from './StudentHeader.tsx';
+import { t } from '../i18n/t.ts';
 
-export const UNKNOWN_RESULT_LINK = 'Link greșit. Cere profesorului linkul nou.';
+export const UNKNOWN_RESULT_LINK = t('Link greșit. Cere profesorului linkul nou.');
 
 // The student's result page at /u/result/<resultToken>: the grade, the
 // mistakes, and the final words. Read-only.
@@ -52,7 +53,7 @@ export function ResultApp({ api, resultToken }: { api: UploadApi; resultToken: s
       <StudentHeader />
       <main className="wrap upload-page result-page">
         <ErrorBoundary>
-          {phase.kind === 'loading' && <p>Se încarcă…</p>}
+          {phase.kind === 'loading' && <p>{t('Se încarcă…')}</p>}
           {phase.kind === 'failed' && (
             <p className="alert" role="alert">
               {phase.message}

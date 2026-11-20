@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { IconClose } from './shell/icons.tsx';
+import { t } from '../i18n/t.ts';
 
 // A dialog over the page: a title, × and its content, on a dimmed backdrop.
 // It takes the focus (its first field, else itself), keeps Tab inside it, and
@@ -71,7 +72,7 @@ export function Modal({
       <div ref={box} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
-          <button type="button" className="panel-close" aria-label="Închide" onClick={onClose}>
+          <button type="button" className="panel-close" aria-label={t('Închide')} onClick={onClose}>
             <IconClose />
           </button>
         </div>

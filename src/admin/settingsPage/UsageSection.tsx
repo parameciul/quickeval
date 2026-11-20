@@ -3,30 +3,31 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import type { UsageCounts, UsagePeriod, UsageSource, UsageStats } from '../../../shared/usage.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { t } from '../../i18n/t.ts';
 
 const SOURCES: { value: UsageSource; label: string }[] = [
-  { value: 'all', label: 'Toate' },
-  { value: 'quick-try', label: 'Teste rapide' },
-  { value: 'teachers', label: 'Profesori' },
+  { value: 'all', label: t('Toate') },
+  { value: 'quick-try', label: t('Teste rapide') },
+  { value: 'teachers', label: t('Profesori') },
 ];
 
 const PERIODS: { value: UsagePeriod; label: string }[] = [
-  { value: '7d', label: 'Ultimele 7 zile' },
-  { value: '30d', label: 'Ultima lună' },
-  { value: '12m', label: 'Ultimul an' },
+  { value: '7d', label: t('Ultimele 7 zile') },
+  { value: '30d', label: t('Ultima lună') },
+  { value: '12m', label: t('Ultimul an') },
 ];
 
 // The columns, in the order of the work a test goes through; tries only for
 // the sources that have Quick Try.
 const COLUMNS: { name: keyof UsageCounts; label: string }[] = [
-  { name: 'papers', label: 'Lucrări' },
-  { name: 'barems', label: 'Bareme' },
-  { name: 'exerciseLists', label: 'Liste' },
-  { name: 'analyses', label: 'Analize' },
-  { name: 'prints', label: 'Tipar' },
-  { name: 'failed', label: 'Eșuate' },
-  { name: 'tokens', label: 'Tokeni' },
-  { name: 'tries', label: 'Încercări' },
+  { name: 'papers', label: t('Lucrări') },
+  { name: 'barems', label: t('Bareme') },
+  { name: 'exerciseLists', label: t('Liste') },
+  { name: 'analyses', label: t('Analize') },
+  { name: 'prints', label: t('Tipar') },
+  { name: 'failed', label: t('Eșuate') },
+  { name: 'tokens', label: t('Tokeni') },
+  { name: 'tries', label: t('Încercări') },
 ];
 
 const NUMBER = new Intl.NumberFormat('ro-RO');
@@ -60,11 +61,11 @@ export function UsageSection() {
   return (
     <section className="class-card" aria-labelledby="usage-title">
       <div className="class-card-head">
-        <h2 id="usage-title">Statistici de utilizare</h2>
+        <h2 id="usage-title">{t('Statistici de utilizare')}</h2>
       </div>
       <form className="usage-form" onSubmit={submit}>
         <fieldset>
-          <legend>Sursa</legend>
+          <legend>{t('Sursa')}</legend>
           {SOURCES.map((option) => (
             <label key={option.value} className="check-label">
               <input type="radio" name="usage-source" value={option.value} checked={source === option.value} onChange={() => setSource(option.value)} />
@@ -73,7 +74,7 @@ export function UsageSection() {
           ))}
         </fieldset>
         <label className="usage-period">
-          Perioada
+          {t('Perioada')}
           <select value={period} onChange={(event) => setPeriod(event.target.value as UsagePeriod)}>
             {PERIODS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -83,10 +84,10 @@ export function UsageSection() {
           </select>
         </label>
         <button type="submit" className="button" aria-disabled={generate.isPending || undefined}>
-          Generează
+          {t('Generează')}
         </button>
       </form>
-      <div aria-live="polite">{generate.isPending && <p className="usage-note">Se generează…</p>}</div>
+      <div aria-live="polite">{generate.isPending && <p className="usage-note">{t('Se generează…')}</p>}</div>
       {generate.error && <ErrorMessage error={generate.error} />}
       {generate.data && !generate.isPending && <UsageResult stats={generate.data} />}
     </section>
@@ -107,7 +108,7 @@ function UsageResult({ stats }: { stats: UsageStats }) {
       <h3 id="usage-result-title" ref={heading} tabIndex={-1}>
         {periodLabel} · {sourceLabel}
       </h3>
-      <dl className="usage-totals" aria-label="Totaluri">
+      <dl className="usage-totals" aria-label={t('Totaluri')}>
         {columns.map((column) => (
           <div key={column.name}>
             <dt>{column.label}</dt>
@@ -119,7 +120,7 @@ function UsageResult({ stats }: { stats: UsageStats }) {
         <table className="usage-table" aria-labelledby="usage-result-title">
           <thead>
             <tr>
-              <th scope="col">{stats.period === '12m' ? 'Luna' : 'Ziua'}</th>
+              <th scope="col">{stats.period === '12m' ? t('Luna') : t('Ziua')}</th>
               {columns.map((column) => (
                 <th key={column.name} scope="col">
                   {column.label}

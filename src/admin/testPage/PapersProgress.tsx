@@ -2,6 +2,7 @@ import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
 import { PAPER_PART_LABEL, paperCounts } from './paperCounts.ts';
 import { cesBaremActive } from './variant.ts';
+import { t } from '../../i18n/t.ts';
 
 // The progress of the papers above the papers table (spec 2026-11-12 §5.2):
 // one bar of the students, each part named in the legend under it. The points
@@ -13,7 +14,7 @@ export function PapersProgress({ test, uploads }: { test: TestInfo; uploads: Upl
   return (
     <div className="papers-progress">
       <h3>
-        Lucrări: {counts.took} din {countLabel(counts.total, 'elev', 'elevi')} {counts.open ? 'au trimis' : 'au participat'}
+        {t('Lucrări:')}{' '}{counts.took}{' '}{t('din')}{' '}{countLabel(counts.total, 'elev', 'elevi')} {counts.open ? t('au trimis') : t('au participat')}
       </h3>
       {counts.total > 0 && (
         <>
@@ -32,7 +33,7 @@ export function PapersProgress({ test, uploads }: { test: TestInfo; uploads: Upl
           </ul>
         </>
       )}
-      {counts.complete && <p className="papers-complete">✓ Corectat complet</p>}
+      {counts.complete && <p className="papers-complete">{t('✓ Corectat complet')}</p>}
     </div>
   );
 }

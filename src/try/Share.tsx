@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 // "Distribuie" (spec §3.4): the try's own link, the only key, through the
 // browser's share sheet where there is one, else copied.
@@ -9,7 +10,7 @@ export function ShareButton({ token }: { token: string }) {
   const share = async () => {
     if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: 'MQGrader · Încercare rapidă', url });
+        await navigator.share({ title: t('MQGrader · Încercare rapidă'), url });
         return;
       } catch (err) {
         // She closed the share sheet: nothing to do.
@@ -27,15 +28,15 @@ export function ShareButton({ token }: { token: string }) {
     <div className="try-share">
       <button type="button" className="button-quiet" onClick={() => void share()}>
         <ActionIcon name="share" />
-        Distribuie
+        {t('Distribuie')}
       </button>
-      {copied === true && <span role="status">Linkul a fost copiat.</span>}
+      {copied === true && <span role="status">{t('Linkul a fost copiat.')}</span>}
       {copied === false && (
         <span role="status">
-          Copiază linkul: <span className="try-share-url">{url}</span>
+          {t('Copiază linkul:')}{' '}<span className="try-share-url">{url}</span>
         </span>
       )}
-      <p className="hint">Oricine are linkul vede încercarea și poate face tot ce faci tu.</p>
+      <p className="hint">{t('Oricine are linkul vede încercarea și poate face tot ce faci tu.')}</p>
     </div>
   );
 }

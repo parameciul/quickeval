@@ -4,6 +4,7 @@ import { normalizeResultCode, RESULT_CODE_LENGTH } from '../../shared/tests.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { messageOf } from '../ui/ApiError.ts';
 import type { UploadApi } from './api.ts';
+import { t } from '../i18n/t.ts';
 
 // The code as the field shows it while the student types: capitals, only
 // letters and digits, a dash after the third. What is not in the codes'
@@ -42,13 +43,13 @@ export function CodeEntry({
     event.preventDefault();
     if (working.current) return;
     if (code === '') {
-      setError('Scrie codul de pe biletul tău.');
+      setError(t('Scrie codul de pe biletul tău.'));
       return;
     }
     // Every text sent costs one of the test's shared tries, so a text that
     // can never be a code is refused here and costs none.
     if (normalizeResultCode(code) === null) {
-      setError('Codul are 6 caractere, fără 0, O, 1, I sau L. Verifică biletul.');
+      setError(t('Codul are 6 caractere, fără 0, O, 1, I sau L. Verifică biletul.'));
       return;
     }
     working.current = true;
@@ -65,9 +66,9 @@ export function CodeEntry({
   }
 
   return (
-    <section className="code-entry" aria-label="Deschide rezultatul cu codul">
+    <section className="code-entry" aria-label={t('Deschide rezultatul cu codul')}>
       <form className="code-form" onSubmit={(event) => void open(event)} noValidate>
-        <label htmlFor={fieldId}>Scrie codul tău</label>
+        <label htmlFor={fieldId}>{t('Scrie codul tău')}</label>
         <input
           id={fieldId}
           type="text"
@@ -77,7 +78,7 @@ export function CodeEntry({
             setCode(typedCode(event.target.value));
             setError(null);
           }}
-          placeholder="ABC-234"
+          placeholder={t('ABC-234')}
           autoCapitalize="characters"
           autoComplete="off"
           autoCorrect="off"
@@ -88,7 +89,7 @@ export function CodeEntry({
         />
         <button type="submit" className="button button-big" disabled={busy}>
           <ActionIcon name="eye" />
-          Vezi rezultatul
+          {t('Vezi rezultatul')}
         </button>
         {error !== null && (
           <p id={errorId} className="alert" role="alert">
@@ -97,12 +98,12 @@ export function CodeEntry({
         )}
       </form>
       <div className="code-where">
-        <p>Nu știi codul?</p>
+        <p>{t('Nu știi codul?')}</p>
         <ul>
-          <li>Caută în poze biletul cu codul QR.</li>
-          <li>Caută în mesaje linkul pe care ți l-ai trimis.</li>
-          <li>Deschide linkul testului pe telefonul cu care ai trimis lucrarea.</li>
-          <li>Dacă nu găsești nimic, cere profesorului codul tău.</li>
+          <li>{t('Caută în poze biletul cu codul QR.')}</li>
+          <li>{t('Caută în mesaje linkul pe care ți l-ai trimis.')}</li>
+          <li>{t('Deschide linkul testului pe telefonul cu care ai trimis lucrarea.')}</li>
+          <li>{t('Dacă nu găsești nimic, cere profesorului codul tău.')}</li>
         </ul>
       </div>
     </section>

@@ -1,4 +1,5 @@
 // An error answer from the API, with its Romanian message. Both apps use it.
+import { t } from '../i18n/t.ts';
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -10,9 +11,9 @@ export class ApiError extends Error {
   }
 }
 
-export const NETWORK_MESSAGE = 'Nu mă pot conecta la server. Verifică internetul și încearcă din nou.';
-export const BAD_RESPONSE_MESSAGE = 'Serverul nu a răspuns corect. Încearcă din nou.';
-export const GENERIC_MESSAGE = 'A apărut o eroare. Încearcă din nou.';
+export const NETWORK_MESSAGE = t('Nu mă pot conecta la server. Verifică internetul și încearcă din nou.');
+export const BAD_RESPONSE_MESSAGE = t('Serverul nu a răspuns corect. Încearcă din nou.');
+export const GENERIC_MESSAGE = t('A apărut o eroare. Încearcă din nou.');
 
 // The Romanian text of a failed request; a generic one for errors that did
 // not come from the API, so the browser's English text never shows.

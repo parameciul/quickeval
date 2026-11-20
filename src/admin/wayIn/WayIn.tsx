@@ -1,10 +1,12 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Link } from 'react-router';
+import { t } from '../../i18n/t.ts';
+import type { StageName } from '../stages.ts';
 
 // One stage of a test, as the landing page (index.html) writes it, word for
 // word: a test checks that the two stay the same.
 export type Stage = {
-  name: string;
+  name: StageName;
   who: 'Tu' | 'Elevii' | 'MQGrader';
   // The sentence's bold start, when it has one.
   lead?: string;
@@ -16,15 +18,15 @@ export type Stage = {
 // (WayIn.test.tsx) checks that the two stay the same. On the landing page the
 // statement is the eyebrow above the heading; the heading itself names what
 // the product is, for the people and the machines that arrive from a search.
-export const PITCH_HEADING = 'Weekendul tău, fără teancul de lucrări.';
-export const PITCH_LINE = 'MQGrader.ro este o platformă web dedicată profesorilor din România, care simplifică corectarea testelor: elevii încarcă pozele lucrărilor direct de pe telefon, iar fiecare lucrare este punctată rapid, conform baremului.';
-export const STAGES_TITLE = 'Un test, în șase etape';
+export const PITCH_HEADING = t('Weekendul tău, fără teancul de lucrări.');
+export const PITCH_LINE = t('MQGrader.ro este o platformă web dedicată profesorilor din România, care simplifică corectarea testelor: elevii încarcă pozele lucrărilor direct de pe telefon, iar fiecare lucrare este punctată rapid, conform baremului.');
+export const STAGES_TITLE = t('Un test, în șase etape');
 
 export const STAGES: Stage[] = [
   {
     name: 'Pregătire',
     who: 'Tu',
-    text: 'Încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.',
+    text: t('Încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.'),
     icon: (
       <>
         <path d="M5 2.75h7l3 3v11.5H5z" />
@@ -35,7 +37,7 @@ export const STAGES: Stage[] = [
   {
     name: 'Tipărire',
     who: 'Tu',
-    text: 'Tipărești testul. Fiecare pagină are un cod QR.',
+    text: t('Tipărești testul. Fiecare pagină are un cod QR.'),
     icon: (
       <>
         <path d="M5.5 7V2.75h9V7M5.5 14H3.5V7h13v7h-2" />
@@ -46,7 +48,7 @@ export const STAGES: Stage[] = [
   {
     name: 'În clasă',
     who: 'Elevii',
-    text: 'Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.',
+    text: t('Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.'),
     icon: (
       <>
         <rect x="5.5" y="2.5" width="9" height="15" rx="2" />
@@ -57,13 +59,13 @@ export const STAGES: Stage[] = [
   {
     name: 'Corectare',
     who: 'MQGrader',
-    text: 'Fiecare lucrare primește punctaj conform baremului, pas cu pas, cu 10 puncte din oficiu.',
+    text: t('Fiecare lucrare primește punctaj conform baremului, pas cu pas, cu 10 puncte din oficiu.'),
     icon: <path d="M4 10.5l3.5 3.5L16 5.5" />,
   },
   {
     name: 'Verificare',
     who: 'Tu',
-    text: 'Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.',
+    text: t('Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.'),
     icon: (
       <>
         <path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10z" />
@@ -74,7 +76,7 @@ export const STAGES: Stage[] = [
   {
     name: 'Rezultate',
     who: 'Tu',
-    text: 'Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.',
+    text: t('Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.'),
     icon: (
       <>
         <path d="M8.5 11.5l3-3" />
@@ -92,9 +94,9 @@ export function WayIn({ children }: { children: ReactNode }) {
   const mine = STAGES.filter((stage) => stage.who === 'Tu').length;
   return (
     <div className="way-in">
-      <section className="way-in-form" aria-label="Contul tău">
+      <section className="way-in-form" aria-label={t('Contul tău')}>
         <div className="way-in-inner">{children}</div>
-        <p className="way-in-foot">Elevii nu au nevoie de cont: trimit lucrarea de pe linkul testului.</p>
+        <p className="way-in-foot">{t('Elevii nu au nevoie de cont: trimit lucrarea de pe linkul testului.')}</p>
       </section>
       <section className="way-in-pitch" aria-labelledby="way-in-pitch">
         <div className="way-in-inner">
@@ -112,7 +114,7 @@ export function WayIn({ children }: { children: ReactNode }) {
                   </span>
                   <div>
                     <h3>
-                      {stage.name} <span className="way-in-who">{stage.who}</span>
+                      {t(stage.name)} <span className="way-in-who">{t(stage.who)}</span>
                     </h3>
                     <p>
                       {stage.lead !== undefined && (
@@ -129,9 +131,9 @@ export function WayIn({ children }: { children: ReactNode }) {
           </div>
           <p className="way-in-legend">
             <span className="way-in-dot is-you" aria-hidden="true"></span>
-            Tu faci {mine} din {STAGES.length} etape, câteva minute fiecare.{' '}
+            {t('Tu faci')}{' '}{mine}{' '}{t('din')}{' '}{STAGES.length}{' '}{t('etape, câteva minute fiecare.')}{' '}
             <span className="way-in-dot" aria-hidden="true"></span>
-            Restul se fac singure.
+            {t('Restul se fac singure.')}
           </p>
         </div>
       </section>
@@ -208,7 +210,7 @@ export function State({
 export function BackHome() {
   return (
     <p className="way-in-alt">
-      <Link to="/">Înapoi la pagina de intrare</Link>
+      <Link to="/">{t('Înapoi la pagina de intrare')}</Link>
     </p>
   );
 }

@@ -47,6 +47,7 @@ import type { Subject } from '../../shared/subjects.ts';
 import type { UsagePeriod, UsageSource, UsageStats } from '../../shared/usage.ts';
 import { studentResultPath } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
+import { t } from '../i18n/t.ts';
 
 export { ApiError };
 
@@ -209,7 +210,7 @@ export function studentResultUrl(resultToken: string): string {
 // /teacher) answered instead of the API. The app reloads the page so it shows.
 export class LoginExpiredError extends Error {
   constructor() {
-    super('Sesiunea a expirat. Reîncarcă pagina ca să intri din nou.');
+    super(t('Sesiunea a expirat. Reîncarcă pagina ca să intri din nou.'));
   }
 }
 

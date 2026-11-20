@@ -31,6 +31,7 @@ import { TestFiles } from './TestFiles.tsx';
 import { PapersProgress } from './PapersProgress.tsx';
 import { UploadsTable } from './UploadsTable.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 export interface PanelProps {
   test: TestInfo;
@@ -51,13 +52,13 @@ export interface PanelProps {
 // Rezultate: there the teacher reads what each student gets once the results
 // are published, in one line like the others.
 const SENTENCES: Record<StageName, string> = {
-  Pregătire: 'Încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.',
-  Tipărire: 'Tipărești testul. Fiecare pagină are un cod QR.',
+  Pregătire: t('Încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.'),
+  Tipărire: t('Tipărești testul. Fiecare pagină are un cod QR.'),
   'În clasă':
-    'Elevii trimit pozele lucrării de pe telefon: scanează codul QR de pe foaia testului sau deschid linkul primit de la tine. Fără cont și fără aplicație.',
-  Corectare: 'Fiecare lucrare primește punctaj după barem, pas cu pas, cu 10 puncte din oficiu.',
-  Verificare: 'Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.',
-  Rezultate: 'Publici rezultatele. Fiecare elev vede pe linkul lui nota, punctele pe exerciții și explicațiile.',
+    t('Elevii trimit pozele lucrării de pe telefon: scanează codul QR de pe foaia testului sau deschid linkul primit de la tine. Fără cont și fără aplicație.'),
+  Corectare: t('Fiecare lucrare primește punctaj după barem, pas cu pas, cu 10 puncte din oficiu.'),
+  Verificare: t('Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.'),
+  Rezultate: t('Publici rezultatele. Fiecare elev vede pe linkul lui nota, punctele pe exerciții și explicațiile.'),
 };
 
 // The panel of one stage of the test page (redesign spec §6): its name, its
@@ -108,19 +109,19 @@ function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) 
         // subject). The students may still upload; the grading does not start.
         <div className="warning">
           <p>
-            <strong>Nu corectăm încă această materie.</strong> {unsupportedMessage(test.subject.name)}
+            <strong>{t('Nu corectăm încă această materie.')}</strong> {unsupportedMessage(test.subject.name)}
           </p>
-          <p>Dacă materia e alta, schimb-o. Dacă ai ales alt test din greșeală, înlocuiește-l mai jos.</p>
+          <p>{t('Dacă materia e alta, schimb-o. Dacă ai ales alt test din greșeală, înlocuiește-l mai jos.')}</p>
           <SubjectChange test={test} onChanged={onChanged} onRobot={onRobot} />
         </div>
       )}
       <PrepareNow test={test} />
-      <StageSection title="Fișierele" meta={filesMeta(test)}>
+      <StageSection title={t('Fișierele')} meta={filesMeta(test)}>
         <TestFiles test={test} onChanged={onChanged} onRobot={onRobot} />
       </StageSection>
       <CesVariant test={test} uploads={uploads} onChanged={onChanged} onRobot={onRobot} />
       {waitsForBarem(test) && (
-        <RobotLine lastCheckAt={robot.lastCheckAt} lateText="Baremul poate întârzia.">
+        <RobotLine lastCheckAt={robot.lastCheckAt} lateText={t('Baremul poate întârzia.')}>
           <StartRobotButton code={test.code} onChanged={onChanged} onRobot={onRobot} />
         </RobotLine>
       )}
@@ -131,7 +132,7 @@ function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) 
 // "1 din 2 gata": the test file and an active barem.
 function filesMeta(test: TestInfo): string {
   const ready = Number(test.files.test !== null) + Number(test.files.barem !== null && !test.barem.unchecked);
-  return ready === 2 ? 'gata' : `${ready} din 2 gata`;
+  return ready === 2 ? t('gata') : t('{ready} din 2 gata', { ready });
 }
 
 // What a test misses: before its first grading, what missingOf names; after
@@ -145,9 +146,9 @@ function missingNow(test: TestInfo): MissingPart[] {
 
 // The sentence under a missing part: the test, the barem, or the CES files.
 function missingSentence(missing: MissingPart[]): string {
-  if (missing.includes('test')) return 'Le încarci mai jos. Din test se face testul cu cod QR pe care îl tipărești.';
-  if (missing.includes('barem')) return 'Fără barem, lucrările trimise așteaptă. Îl încarci mai jos sau primești o propunere pe care o verifici tu.';
-  return 'Le încarci mai jos, la „Varianta CES”. Fără ele, elevii cu CES nu au ce primi și lucrările lor așteaptă.';
+  if (missing.includes('test')) return t('Le încarci mai jos. Din test se face testul cu cod QR pe care îl tipărești.');
+  if (missing.includes('barem')) return t('Fără barem, lucrările trimise așteaptă. Îl încarci mai jos sau primești o propunere pe care o verifici tu.');
+  return t('Le încarci mai jos, la „Varianta CES”. Fără ele, elevii cu CES nu au ce primi și lucrările lor așteaptă.');
 }
 
 // The "Acum" box of Pregătire: what the test still misses, the barem the
@@ -156,51 +157,51 @@ function PrepareNow({ test }: { test: TestInfo }) {
   const before = test.status === 'draft' || test.status === 'open';
   const next = before ? (
     <>
-      Tipărești testul cu cod QR la etapa <MoveOnLink stage="Tipărire">Tipărire</MoveOnLink>.
+      {t('Tipărești testul cu cod QR la etapa')}{' '}<MoveOnLink stage={'Tipărire'}>{'Tipărire'}</MoveOnLink>.
     </>
   ) : undefined;
   const missing = missingNow(test);
   if (test.barem.request === 'requested' && test.files.barem === null) {
     return (
-      <NowBox title="Se generează baremul" next={next}>
-        <p className="now-sub">Durează câteva minute. Îl verifici aici, când e gata.</p>
+      <NowBox title={t('Se generează baremul')} next={next}>
+        <p className="now-sub">{t('Durează câteva minute. Îl verifici aici, când e gata.')}</p>
       </NowBox>
     );
   }
   if (test.files.barem !== null && test.barem.unchecked) {
     return (
-      <NowBox label="Acum · te așteaptă" title="Verifică baremul generat" next={next}>
-        <p className="now-sub">Citește-l mai jos și confirmă-l. Până atunci, corectarea nu pornește.</p>
+      <NowBox label={t('Acum · te așteaptă')} title={t('Verifică baremul generat')} next={next}>
+        <p className="now-sub">{t('Citește-l mai jos și confirmă-l. Până atunci, corectarea nu pornește.')}</p>
       </NowBox>
     );
   }
   if (missing.length > 0) {
     const note = missingNote(missing);
     return (
-      <NowBox label="Acum · te așteaptă" title={note.charAt(0).toUpperCase() + note.slice(1)} next={next}>
+      <NowBox label={t('Acum · te așteaptă')} title={note.charAt(0).toUpperCase() + note.slice(1)} next={next}>
         <p className="now-sub">{missingSentence(missing)}</p>
       </NowBox>
     );
   }
   if ((cesWanted(test) || test.ces.files.test !== null) && test.ces.files.barem !== null && test.ces.barem.unchecked) {
     return (
-      <NowBox label="Acum · te așteaptă" title="Verifică baremul CES generat" next={next}>
-        <p className="now-sub">Îl găsești mai jos, la „Varianta CES”. Până îl confirmi, lucrările CES așteaptă.</p>
+      <NowBox label={t('Acum · te așteaptă')} title={t('Verifică baremul CES generat')} next={next}>
+        <p className="now-sub">{t('Îl găsești mai jos, la „Varianta CES”. Până îl confirmi, lucrările CES așteaptă.')}</p>
       </NowBox>
     );
   }
   if (cesNotReady(test)) {
     return (
-      <NowBox title="Se generează baremul CES" next={next}>
-        <p className="now-sub">Durează câteva minute. Îl verifici mai jos, la „Varianta CES”, când e gata.</p>
+      <NowBox title={t('Se generează baremul CES')} next={next}>
+        <p className="now-sub">{t('Durează câteva minute. Îl verifici mai jos, la „Varianta CES”, când e gata.')}</p>
       </NowBox>
     );
   }
   return (
-    <NowBox title="Testul și baremul sunt gata" done next={next}>
-      {test.status === 'evaluating' && <p className="now-sub">Le poți înlocui după ce se termină corectarea.</p>}
+    <NowBox title={t('Testul și baremul sunt gata')} done next={next}>
+      {test.status === 'evaluating' && <p className="now-sub">{t('Le poți înlocui după ce se termină corectarea.')}</p>}
       {test.status === 'done' && (
-        <p className="now-sub">Dacă înlocuiești baremul, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.</p>
+        <p className="now-sub">{t('Dacă înlocuiești baremul, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.')}</p>
       )}
     </NowBox>
   );
@@ -216,11 +217,11 @@ function anyPrint(test: TestInfo): boolean {
 function PrintNow({ test }: { test: TestInfo }) {
   if (test.status !== 'draft' && test.status !== 'open') {
     return (
-      <NowBox title="Testul s-a dat în clasă" done>
+      <NowBox title={t('Testul s-a dat în clasă')} done>
         <p className="now-sub">
           {anyPrint(test)
-            ? 'Fișierele de tipărit rămân aici, de exemplu pentru un elev care a lipsit.'
-            : 'Testul nu a avut o variantă cu cod QR făcută aici.'}
+            ? t('Fișierele de tipărit rămân aici, de exemplu pentru un elev care a lipsit.')
+            : t('Testul nu a avut o variantă cu cod QR făcută aici.')}
         </p>
       </NowBox>
     );
@@ -228,16 +229,16 @@ function PrintNow({ test }: { test: TestInfo }) {
   const started = test.status === 'open';
   const next = started ? (
     <>
-      Elevii trimit lucrările la etapa <MoveOnLink stage="În clasă">În clasă</MoveOnLink>.
+      {t('Elevii trimit lucrările la etapa')}{' '}<MoveOnLink stage={'În clasă'}>{'În clasă'}</MoveOnLink>.
     </>
   ) : (
     <>
-      În ziua testului, îl începi la etapa <MoveOnLink stage="În clasă">În clasă</MoveOnLink>.
+      {t('În ziua testului, îl începi la etapa')}{' '}<MoveOnLink stage={'În clasă'}>{'În clasă'}</MoveOnLink>.
     </>
   );
   if (test.files.test === null) {
     return (
-      <NowBox label="Acum · te așteaptă" title="Lipsește testul" next={next}>
+      <NowBox label={t('Acum · te așteaptă')} title={t('Lipsește testul')} next={next}>
         <ReadyList rows={[testFileRow(test)]} />
       </NowBox>
     );
@@ -246,31 +247,31 @@ function PrintNow({ test }: { test: TestInfo }) {
   // teacher asks for it, with the button below.
   if (test.uploadToken === null) {
     return (
-      <NowBox label="Acum · te așteaptă" title="Testul cu cod QR nu e pregătit" next={next}>
-        <p className="now-sub">Apasă „Pregătește testul cu cod QR” mai jos.</p>
+      <NowBox label={t('Acum · te așteaptă')} title={t('Testul cu cod QR nu e pregătit')} next={next}>
+        <p className="now-sub">{t('Apasă „Pregătește testul cu cod QR” mai jos.')}</p>
       </NowBox>
     );
   }
   if (test.print.status === 'failed') {
     return (
-      <NowBox label="Acum · te așteaptă" title="Testul cu cod QR nu s-a putut face" next={next}>
-        <p className="now-sub">Încearcă din nou mai jos.</p>
+      <NowBox label={t('Acum · te așteaptă')} title={t('Testul cu cod QR nu s-a putut face')} next={next}>
+        <p className="now-sub">{t('Încearcă din nou mai jos.')}</p>
       </NowBox>
     );
   }
   if (test.print.status !== 'ready') {
     return (
-      <NowBox title="Se pregătește testul cu cod QR" next={next}>
-        <p className="now-sub">Durează un minut sau două.</p>
+      <NowBox title={t('Se pregătește testul cu cod QR')} next={next}>
+        <p className="now-sub">{t('Durează un minut sau două.')}</p>
       </NowBox>
     );
   }
   return (
-    <NowBox title="Testul cu cod QR e gata de tipărit" done next={next}>
+    <NowBox title={t('Testul cu cod QR e gata de tipărit')} done next={next}>
       <p className="now-sub">
         {started
-          ? 'Testul a început. Îl poți tipări din nou, de exemplu pentru un elev care a lipsit.'
-          : 'Tipărește-l din timp, înainte de ziua testului. Fiecare pagină are codul.'}
+          ? t('Testul a început. Îl poți tipări din nou, de exemplu pentru un elev care a lipsit.')
+          : t('Tipărește-l din timp, înainte de ziua testului. Fiecare pagină are codul.')}
       </p>
     </NowBox>
   );
@@ -285,7 +286,7 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
       <>
         <PrintNow test={test} />
         {anyPrint(test) && (
-          <StageSection title="De tipărit">
+          <StageSection title={t('De tipărit')}>
             {test.print.status === 'ready' && <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />}
             {test.ces.files.test !== null && test.ces.print.status === 'ready' && (
               <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
@@ -298,12 +299,12 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
   return (
     <>
       <PrintNow test={test} />
-      <StageSection title="De tipărit">
+      <StageSection title={t('De tipărit')}>
         <PrintTest test={test} onChanged={onChanged} onRobot={onRobot} />
         {test.ces.files.test !== null && <PrintTest test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />}
       </StageSection>
       {waitsForPrint(test) && (
-        <RobotLine lastCheckAt={robot.lastCheckAt} lateText="Testul cu cod QR poate întârzia.">
+        <RobotLine lastCheckAt={robot.lastCheckAt} lateText={t('Testul cu cod QR poate întârzia.')}>
           <StartRobotButton code={test.code} onChanged={onChanged} onRobot={onRobot} />
         </RobotLine>
       )}
@@ -313,13 +314,13 @@ function PrintPanel({ test, robot, onChanged, onRobot }: PanelProps) {
 
 // The numbers of the class: who sent, and who did not yet.
 function sentTitle(test: TestInfo): string {
-  return `${test.submittedCount} din ${countLabel(test.studentCount, 'elev', 'elevi')} ${test.submittedCount === 1 ? 'a trimis' : 'au trimis'} lucrarea`;
+  return t(test.submittedCount === 1 ? '{submittedCount} din {countLabel} a trimis lucrarea' : '{submittedCount} din {countLabel} au trimis lucrarea', { submittedCount: test.submittedCount, countLabel: countLabel(test.studentCount, 'elev', 'elevi') });
 }
 
 function notSent(test: TestInfo): string {
   const left = Math.max(0, test.studentCount - test.submittedCount);
-  if (left === 0) return 'Au trimis toți elevii.';
-  return `${countLabel(left, 'elev nu a', 'elevi nu au')} trimis încă.`;
+  if (left === 0) return t('Au trimis toți elevii.');
+  return t('{countLabel} trimis încă.', { countLabel: countLabel(left, 'elev nu a', 'elevi nu au') });
 }
 
 // În clasă (design A): the "Acum" box says where the test is and what comes
@@ -339,17 +340,17 @@ function ClassPanel(props: PanelProps) {
         <WaysIn test={test} onChanged={onChanged} />
       ) : (
         closed && (
-          <StageSection title="Cum trimit elevii lucrarea">
-            <p className="hint">Încărcarea e închisă: linkurile nu primesc lucrări până o redeschizi. Codul QR de pe foaie rămâne același.</p>
+          <StageSection title={t('Cum trimit elevii lucrarea')}>
+            <p className="hint">{t('Încărcarea e închisă: linkurile nu primesc lucrări până o redeschizi. Codul QR de pe foaie rămâne același.')}</p>
           </StageSection>
         )
       )}
       {test.status === 'open' && <StopTest {...props} />}
       {nothingYet ? (
-        <EmptyState icon={<IconQr />} title="Nicio lucrare trimisă încă">
+        <EmptyState icon={<IconQr />} title={t('Nicio lucrare trimisă încă')}>
           {closed
-            ? 'Încărcarea e închisă. Lucrările apar aici după ce o redeschizi și elevii trimit pozele.'
-            : 'Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.'}
+            ? t('Încărcarea e închisă. Lucrările apar aici după ce o redeschizi și elevii trimit pozele.')
+            : t('Elevii scanează codul QR de pe test și trimit pozele. Lucrările apar aici pe măsură ce vin.')}
         </EmptyState>
       ) : (
         test.status !== 'draft' && <Papers {...props} selectable={false} />
@@ -360,11 +361,11 @@ function ClassPanel(props: PanelProps) {
 
 // The test with the QR code as a row of a stage's list.
 function printRow(test: TestInfo): ReadyRow {
-  if (test.print.status === 'ready') return { state: 'done', what: 'Testul cu cod QR', value: 'gata de tipărit' };
-  if (test.files.test === null) return { state: 'later', what: 'Testul cu cod QR', value: 'după ce încarci testul', stage: 'Tipărire' };
-  if (test.uploadToken === null) return { state: 'wait', what: 'Testul cu cod QR', value: 'nepregătit', stage: 'Tipărire' };
-  if (test.print.status === 'failed') return { state: 'wait', what: 'Testul cu cod QR', value: 'nu s-a putut face', stage: 'Tipărire' };
-  return { state: 'later', what: 'Testul cu cod QR', value: 'se pregătește', stage: 'Tipărire' };
+  if (test.print.status === 'ready') return { state: 'done', what: t('Testul cu cod QR'), value: t('gata de tipărit') };
+  if (test.files.test === null) return { state: 'later', what: t('Testul cu cod QR'), value: t('după ce încarci testul'), stage: 'Tipărire' };
+  if (test.uploadToken === null) return { state: 'wait', what: t('Testul cu cod QR'), value: t('nepregătit'), stage: 'Tipărire' };
+  if (test.print.status === 'failed') return { state: 'wait', what: t('Testul cu cod QR'), value: t('nu s-a putut face'), stage: 'Tipărire' };
+  return { state: 'later', what: t('Testul cu cod QR'), value: t('se pregătește'), stage: 'Tipărire' };
 }
 
 // What the test needs before the teacher starts it in class. It never blocks
@@ -374,7 +375,7 @@ function ClassReady({ test }: { test: TestInfo }) {
   return (
     <>
       <ReadyList rows={rows} />
-      {rows.some((row) => row.state === 'wait') && <p className="now-sub">Poți începe oricum. Ce lipsește adaugi și după, la etapa Pregătire.</p>}
+      {rows.some((row) => row.state === 'wait') && <p className="now-sub">{t('Poți începe oricum. Ce lipsește adaugi și după, la etapa Pregătire.')}</p>}
     </>
   );
 }
@@ -382,7 +383,7 @@ function ClassReady({ test }: { test: TestInfo }) {
 function classNext() {
   return (
     <>
-      Corectarea o pornești la etapa <MoveOnLink stage="Corectare">Corectare</MoveOnLink>, acum sau mai târziu.
+      {t('Corectarea o pornești la etapa')}{' '}<MoveOnLink stage="Corectare">{'Corectare'}</MoveOnLink>{t(', acum sau mai târziu.')}
     </>
   );
 }
@@ -391,13 +392,13 @@ function classNext() {
 // send and what a reopen is for, or only that everyone sent.
 function closedLine(test: TestInfo): string {
   const left = Math.max(0, test.studentCount - test.submittedCount);
-  if (left === 0) return 'Au trimis toți elevii.';
-  const theirs = left === 1 ? 'lucrarea lui' : 'lucrările lor';
-  return `Elevii nu mai pot trimite. ${countLabel(left, 'elev nu a', 'elevi nu au')} trimis. Redeschide dacă mai vrei ${theirs}. Notele date nu se schimbă.`;
+  if (left === 0) return t('Au trimis toți elevii.');
+  const theirs = left === 1 ? t('lucrarea lui') : t('lucrările lor');
+  return t('Elevii nu mai pot trimite. {countLabel} trimis. Redeschide dacă mai vrei {theirs}. Notele date nu se schimbă.', { countLabel: countLabel(left, 'elev nu a', 'elevi nu au'), theirs });
 }
 
 // What a reopen does while the robot still grades.
-const REOPEN_WHILE_GRADING = 'Dacă redeschizi acum, lucrările care nu sunt gata așteaptă din nou, până pornești corectarea pentru toate.';
+const REOPEN_WHILE_GRADING = t('Dacă redeschizi acum, lucrările care nu sunt gata așteaptă din nou, până pornești corectarea pentru toate.');
 
 // The "Acum" box of În clasă, by the state of the test. The test is printed
 // before the day of the test (its QR code is ready from the start) and started
@@ -421,12 +422,12 @@ function ClassNow({ test, onChanged, onRobot }: PanelProps) {
 
   if (test.status === 'draft') {
     return (
-      <NowBox label="Acum" title="Testul nu a început" next="Elevii trimit pozele lucrării. Le vezi aici, pe măsură ce vin.">
-        <p className="now-sub">Elevii nu pot trimite lucrări încă. Începe testul în ziua testului, când împarți foile: atunci primește data.</p>
+      <NowBox label={t('Acum')} title={t('Testul nu a început')} next={t('Elevii trimit pozele lucrării. Le vezi aici, pe măsură ce vin.')}>
+        <p className="now-sub">{t('Elevii nu pot trimite lucrări încă. Începe testul în ziua testului, când împarți foile: atunci primește data.')}</p>
         <div className="now-actions">
           <button type="button" className="button" disabled={start.isPending} onClick={() => start.mutate()}>
             <ActionIcon name="play" />
-            Începe testul
+            {t('Începe testul')}
           </button>
         </div>
         <ClassReady test={test} />
@@ -435,27 +436,27 @@ function ClassNow({ test, onChanged, onRobot }: PanelProps) {
     );
   }
   if (test.status === 'open') {
-    const since = test.startedAt ? `Testul a început pe ${formatDateTime(test.startedAt)}. ` : '';
+    const since = test.startedAt ? t('Testul a început pe {formatDateTime}. ', { formatDateTime: formatDateTime(test.startedAt) }) : '';
     return (
       <NowBox band={<UploadsBand test={test} onChanged={onChanged} />} title={sentTitle(test)} next={classNext()}>
-        <p className="now-sub">{test.uploadsClosedAt !== null ? 'Lucrările așteaptă să pornești corectarea.' : `${since}${notSent(test)}`}</p>
+        <p className="now-sub">{test.uploadsClosedAt !== null ? t('Lucrările așteaptă să pornești corectarea.') : `${since}${notSent(test)}`}</p>
         <ScheduledStart test={test} onChanged={onChanged} />
       </NowBox>
     );
   }
-  const closedAt = test.evaluationStartedAt ? ` pe ${formatDateTime(test.evaluationStartedAt)}` : '';
+  const closedAt = test.evaluationStartedAt ? t(' pe {formatDateTime}', { formatDateTime: formatDateTime(test.evaluationStartedAt) }) : '';
   return (
     <NowBox
-      label={`Acum · încărcarea s-a închis${closedAt}`}
+      label={t('Acum · încărcarea s-a închis{closedAt}', { closedAt })}
       title={sentTitle(test)}
       next={
         test.status === 'done' ? (
           <>
-            Corectarea s-a terminat. Verifici punctele nesigure la etapa <MoveOnLink stage="Verificare">Verificare</MoveOnLink>.
+            {t('Corectarea s-a terminat. Verifici punctele nesigure la etapa')}{' '}<MoveOnLink stage="Verificare">{'Verificare'}</MoveOnLink>.
           </>
         ) : (
           <>
-            Se corectează lucrările la etapa <MoveOnLink stage="Corectare">Corectare</MoveOnLink>: {test.gradedCount} din {test.submittedCount} gata.
+            {t('Se corectează lucrările la etapa')}{' '}<MoveOnLink stage="Corectare">{'Corectare'}</MoveOnLink>: {test.gradedCount}{' '}{t('din')}{' '}{test.submittedCount}{' '}{t('gata.')}
           </>
         )
       }
@@ -464,7 +465,7 @@ function ClassNow({ test, onChanged, onRobot }: PanelProps) {
       <div className="now-actions">
         <button type="button" className="button-quiet" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
           <ActionIcon name="retry" />
-          Redeschide încărcarea
+          {t('Redeschide încărcarea')}
         </button>
         {test.status === 'evaluating' && <p className="hint">{REOPEN_WHILE_GRADING}</p>}
       </div>
@@ -490,19 +491,19 @@ function StopTest({ test, uploads, onChanged, onRobot }: PanelProps) {
     <>
       {canStop && (
         <p className="stop-row">
-          <span className="hint">Ai început testul din greșeală?</span>
+          <span className="hint">{t('Ai început testul din greșeală?')}</span>
           <button
             type="button"
             className="button-quiet button-small"
             disabled={stop.isPending}
             onClick={() => {
-              const schedule = test.evaluationAt ? ' Corectarea programată se anulează.' : '';
-              const question = `Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge.${schedule}`;
+              const schedule = test.evaluationAt ? ` ${t('Corectarea programată se anulează.')}` : '';
+              const question = t('Oprești testul? Elevii nu mai pot încărca lucrările până îl începi din nou, iar data testului se șterge.{schedule}', { schedule });
               if (window.confirm(question)) stop.mutate();
             }}
           >
             <ActionIcon name="stop" />
-            Oprește testul
+            {t('Oprește testul')}
           </button>
         </p>
       )}
@@ -520,10 +521,10 @@ function ScheduledStart({ test, onChanged }: { test: TestInfo; onChanged: () => 
   return (
     <>
       <p className="now-actions">
-        <span>Corectarea pornește automat la {formatDateTime(test.evaluationAt)}.</span>
+        <span>{t('Corectarea pornește automat la {formatDateTime}.', { formatDateTime: formatDateTime(test.evaluationAt) })}</span>
         <button type="button" className="button-quiet button-small" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
           <ActionIcon name="close" />
-          Anulează programarea
+          {t('Anulează programarea')}
         </button>
       </p>
       {cancel.error && <ErrorMessage error={cancel.error} />}
@@ -534,7 +535,7 @@ function ScheduledStart({ test, onChanged }: { test: TestInfo; onChanged: () => 
 function gradingNext() {
   return (
     <>
-      Verifici punctele nesigure la etapa <MoveOnLink stage="Verificare">Verificare</MoveOnLink>.
+      {t('Verifici punctele nesigure la etapa')}{' '}<MoveOnLink stage="Verificare">{'Verificare'}</MoveOnLink>.
     </>
   );
 }
@@ -546,14 +547,14 @@ function GradingPanel(props: PanelProps) {
   if (test.status === 'draft') {
     return (
       <>
-        <NowBox label="Acum · corectarea nu a început" title="Corectarea pornește după ce elevii trimit lucrările" next={gradingNext()}>
+        <NowBox label={t('Acum · corectarea nu a început')} title={t('Corectarea pornește după ce elevii trimit lucrările')} next={gradingNext()}>
           <ReadyList
             rows={[
               testFileRow(test),
               baremRow(test),
               ...cesRows(test),
-              { state: 'later', what: 'Testul început', value: 'nu încă: îl începi în ziua testului', stage: 'În clasă' },
-              { state: 'later', what: 'Lucrări trimise', value: `0 din ${countLabel(test.studentCount, 'elev', 'elevi')}` },
+              { state: 'later', what: t('Testul început'), value: t('nu încă: îl începi în ziua testului'), stage: 'În clasă' },
+              { state: 'later', what: t('Lucrări trimise'), value: t('0 din {countLabel}', { countLabel: countLabel(test.studentCount, 'elev', 'elevi') }) },
             ]}
           />
         </NowBox>
@@ -601,7 +602,7 @@ function GradingPanel(props: PanelProps) {
 function waitingTitle(test: TestInfo, uploads: UploadRow[]): string {
   const waiting = Math.max(0, test.submittedCount - test.gradedCount);
   if (waiting === 0) {
-    return uploads.some((row) => row.status === 'graded') ? 'Toate lucrările trimise sunt corectate' : 'Nicio lucrare trimisă nu așteaptă corectarea';
+    return uploads.some((row) => row.status === 'graded') ? t('Toate lucrările trimise sunt corectate') : t('Nicio lucrare trimisă nu așteaptă corectarea');
   }
   return `${countLabel(waiting, 'lucrare așteaptă', 'lucrări așteaptă')} corectarea`;
 }
@@ -613,8 +614,7 @@ function StillSending({ uploads }: { uploads: UploadRow[] }) {
   if (sending === 0) return null;
   return (
     <p className="now-sub">
-      {sending === 1 ? 'Încă 1 elev își încarcă lucrarea' : `Încă ${countLabel(sending, 'elev', 'elevi')} își încarcă lucrarea`}: o poți corecta și pe ea cât e bifată în
-      tabel.
+      {sending === 1 ? t('Încă 1 elev își încarcă lucrarea') : t('Încă {countLabel} își încarcă lucrarea', { countLabel: countLabel(sending, 'elev', 'elevi') })}{t(': o poți corecta și pe ea cât e bifată în tabel.')}
     </p>
   );
 }
@@ -629,26 +629,26 @@ function GradingNow({ test, uploads, onChanged, onRobot }: PanelProps) {
       await onChanged();
     },
   });
-  const since = test.evaluationStartedAt ? ` · corectarea a pornit pe ${formatDateTime(test.evaluationStartedAt)}` : '';
+  const since = test.evaluationStartedAt ? t(' · corectarea a pornit pe {formatDateTime}', { formatDateTime: formatDateTime(test.evaluationStartedAt) }) : '';
   if (test.status === 'done') {
     return (
-      <NowBox label={`Acum${since}`} title="Corectarea s-a terminat" next={gradingNext()}>
+      <NowBox label={`Acum${since}`} title={t('Corectarea s-a terminat')} next={gradingNext()}>
         <p className="now-sub">{countLabel(test.gradedCount, 'lucrare corectată', 'lucrări corectate')}.</p>
       </NowBox>
     );
   }
   const sent = uploads.filter((row) => row.status === 'graded' || row.status === 'grading' || row.status === 'submitted' || row.status === 'failed').length;
   return (
-    <NowBox label={`Acum${since}`} title={`Se corectează: ${test.gradedCount} din ${countLabel(sent, 'lucrare', 'lucrări')} gata`} next={gradingNext()}>
+    <NowBox label={`Acum${since}`} title={t('Se corectează: {gradedCount} din {countLabel} gata', { gradedCount: test.gradedCount, countLabel: countLabel(sent, 'lucrare', 'lucrări') })} next={gradingNext()}>
       <span className="now-bar" aria-hidden="true">
         <span style={{ width: `${sent === 0 ? 0 : (test.gradedCount / sent) * 100}%` }} />
       </span>
-      <p className="now-sub">Lucrările apar în tabel pe măsură ce sunt gata. Poți închide pagina.</p>
+      <p className="now-sub">{t('Lucrările apar în tabel pe măsură ce sunt gata. Poți închide pagina.')}</p>
       <p className="now-sub">{closedLine(test)}</p>
       <div className="now-actions">
         <button type="button" className="button-quiet button-small" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
           <ActionIcon name="retry" />
-          Redeschide încărcarea
+          {t('Redeschide încărcarea')}
         </button>
         <p className="hint">{REOPEN_WHILE_GRADING}</p>
       </div>
@@ -674,7 +674,7 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
         <div className="results-grid">
           <ReportCard test={test} uploads={uploads} />
           <div className="results-students">
-            <StageSection title="Elevii" meta={count && <span className={count.all ? 'tag tag-ok' : 'tag'}>{count.text}</span>}>
+            <StageSection title={t('Elevii')} meta={count && <span className={count.all ? 'tag tag-ok' : 'tag'}>{count.text}</span>}>
               <ResultLinksTable code={test.code} uploads={uploads} resultsOpen={test.resultsOpen} started={test.status !== 'draft'} onChanged={onChanged} />
             </StageSection>
           </div>
@@ -714,11 +714,11 @@ function PartialEvaluationNotice({ status, uploads }: { status: TestStatus; uplo
     (row) => row.fileCount > 0 && (row.status === 'uploading' || (status === 'done' && row.status === 'submitted')),
   );
   if (pending.length === 0) return null;
-  const what = pending.length === 1 ? '1 lucrare cu fișiere nu a fost corectată' : `${pending.length} lucrări cu fișiere nu au fost corectate`;
+  const what = pending.length === 1 ? t('1 lucrare cu fișiere nu a fost corectată') : t('{length} lucrări cu fișiere nu au fost corectate', { length: pending.length });
   return (
     <div className="warning" role="status">
       <p>
-        <strong>Evaluare parțială.</strong> {what}. Redeschide încărcarea și pornește evaluarea pentru ele.
+        <strong>{t('Evaluare parțială.')}</strong> {what}{t('. Redeschide încărcarea și pornește evaluarea pentru ele.')}
       </p>
     </div>
   );

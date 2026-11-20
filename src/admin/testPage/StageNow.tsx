@@ -8,6 +8,7 @@ import { missingName, missingOf } from '../missing.ts';
 import { cesBaremActive } from './variant.ts';
 import type { StageName } from '../stages.ts';
 import { MoveOnLink } from './MoveOnLink.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The "Acum" box at the top of every stage's panel: what is true now (the
 // title, with a green tick when the stage is done), the actions of the stage
@@ -15,7 +16,7 @@ import { MoveOnLink } from './MoveOnLink.tsx';
 // its top: the uploads of an open test, or the results.
 export function NowBox({
   band,
-  label = 'Acum',
+  label = t('Acum'),
   title,
   done = false,
   next,
@@ -43,7 +44,7 @@ export function NowBox({
       {children}
       {next && (
         <p className="now-next">
-          <strong>Urmează</strong> <span>{next}</span>
+          <strong>{t('Urmează')}</strong> <span>{next}</span>
         </p>
       )}
     </div>
@@ -61,12 +62,12 @@ export interface ReadyRow {
   stage?: StageName;
 }
 
-const READY_WORDS: Record<ReadyRow['state'], string> = { done: 'gata', wait: 'te așteaptă', now: 'în lucru', later: 'urmează' };
+const READY_WORDS: Record<ReadyRow['state'], string> = { done: t('gata'), wait: t('te așteaptă'), now: t('în lucru'), later: t('urmează') };
 const READY_ICONS = { done: 'check', wait: 'dot', now: 'edit', later: 'clock' } as const;
 
 export function ReadyList({ rows }: { rows: ReadyRow[] }) {
   return (
-    <ul className="ready-list" aria-label="Ce așteaptă etapa">
+    <ul className="ready-list" aria-label={t('Ce așteaptă etapa')}>
       {rows.map((row) => (
         <li key={row.what} className={`is-${row.state}`}>
           <span className="ready-dot" aria-hidden="true">
@@ -77,8 +78,7 @@ export function ReadyList({ rows }: { rows: ReadyRow[] }) {
           </span>
           {/* Its name names the row too: a list may have several. */}
           {row.stage && (
-            <MoveOnLink stage={row.stage} className="ready-go" label={`Mergi la ${row.stage}: ${row.what}`}>
-              Mergi la {row.stage}
+            <MoveOnLink stage={row.stage} className="ready-go" label={t('Mergi la {stage}: {what}', { stage: row.stage, what: row.what })}>{t('Mergi la {stage}', { stage: row.stage })}
             </MoveOnLink>
           )}
         </li>
@@ -89,16 +89,16 @@ export function ReadyList({ rows }: { rows: ReadyRow[] }) {
 
 // The barem as a row of that list: gata, lipsește, de verificat, se generează.
 export function baremRow(test: TestInfo): ReadyRow {
-  if (test.files.barem !== null && !test.barem.unchecked) return { state: 'done', what: 'Baremul', value: 'gata' };
-  if (test.barem.request === 'requested') return { state: 'later', what: 'Baremul', value: 'se generează', stage: 'Pregătire' };
-  return { state: 'wait', what: 'Baremul', value: test.files.barem !== null ? 'de verificat' : 'lipsește', stage: 'Pregătire' };
+  if (test.files.barem !== null && !test.barem.unchecked) return { state: 'done', what: t('Baremul'), value: t('gata') };
+  if (test.barem.request === 'requested') return { state: 'later', what: t('Baremul'), value: t('se generează'), stage: 'Pregătire' };
+  return { state: 'wait', what: t('Baremul'), value: test.files.barem !== null ? t('de verificat') : t('lipsește'), stage: 'Pregătire' };
 }
 
 // The test file as a row of that list.
 export function testFileRow(test: TestInfo): ReadyRow {
   return test.files.test !== null
-    ? { state: 'done', what: 'Testul', value: 'încărcat' }
-    : { state: 'wait', what: 'Testul', value: 'lipsește', stage: 'Pregătire' };
+    ? { state: 'done', what: t('Testul'), value: t('încărcat') }
+    : { state: 'wait', what: t('Testul'), value: t('lipsește'), stage: 'Pregătire' };
 }
 
 // The CES test and barem that a draft or open test still misses (missingOf),
@@ -109,10 +109,10 @@ export function cesRows(test: TestInfo): ReadyRow[] {
     .filter((part) => part === 'cesTest' || part === 'cesBarem')
     .map((part) => {
       const name = missingName(part);
-      return { state: 'wait', what: name.charAt(0).toUpperCase() + name.slice(1), value: 'lipsește', stage: 'Pregătire' };
+      return { state: 'wait', what: name.charAt(0).toUpperCase() + name.slice(1), value: t('lipsește'), stage: 'Pregătire' };
     });
   if (cesWanted(test) && test.ces.files.barem !== null && test.ces.barem.unchecked) {
-    rows.push({ state: 'wait', what: 'Baremul CES', value: 'de verificat', stage: 'Pregătire' });
+    rows.push({ state: 'wait', what: t('Baremul CES'), value: t('de verificat'), stage: 'Pregătire' });
   }
   return rows;
 }
@@ -222,20 +222,20 @@ export function UploadsBand({ test, onChanged, grading = false }: { test: TestIn
     <>
       <SwitchBand
         on={!closed}
-        name="Încărcarea lucrărilor"
-        onWord="Deschisă"
-        offWord="Închisă"
+        name={t('Încărcarea lucrărilor')}
+        onWord={t('Deschisă')}
+        offWord={t('Închisă')}
         pending={saving}
         onToggle={() => toggle.mutate(!closed)}
         text={
           closed ? (
             <>
-              <strong>Încărcarea e închisă.</strong> Elevii nu pot trimite. O redeschizi oricând.
+              <strong>{t('Încărcarea e închisă.')}</strong>{' '}{t('Elevii nu pot trimite. O redeschizi oricând.')}
             </>
           ) : (
             <>
-              <strong>Încărcarea e deschisă.</strong> Elevii pot trimite lucrările.
-              {grading && ' Când pornești corectarea, se închide singură.'}
+              <strong>{t('Încărcarea e deschisă.')}</strong>{' '}{t('Elevii pot trimite lucrările.')}
+              {grading && ` ${t('Când pornești corectarea, se închide singură.')}`}
             </>
           )
         }

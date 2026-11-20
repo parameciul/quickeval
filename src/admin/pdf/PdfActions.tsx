@@ -3,6 +3,7 @@ import type { TDocumentDefinitions } from 'pdfmake/interfaces';
 import { renderPdf } from './renderPdf.ts';
 import { saveFile, shareFile } from './share.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 export interface PdfFile {
   // Made when a button is pressed, not with every render of the page.
@@ -32,10 +33,10 @@ export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
       if (action === 'download') {
         saveFile(blob, pdf.fileName);
       } else if ((await shareFile(blob, pdf.fileName, pdf.title)) === 'downloaded') {
-        setMessage('Trimiterea nu merge pe acest dispozitiv. PDF-ul s-a descărcat.');
+        setMessage(t('Trimiterea nu merge pe acest dispozitiv. PDF-ul s-a descărcat.'));
       }
     } catch {
-      setMessage('PDF-ul nu a putut fi făcut. Încearcă din nou.');
+      setMessage(t('PDF-ul nu a putut fi făcut. Încearcă din nou.'));
     } finally {
       setBusy(false);
     }
@@ -45,7 +46,7 @@ export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
     <div className="pdf-actions">
       <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => run('download')}>
         <ActionIcon name="file" />
-        Descarcă PDF
+        {t('Descarcă PDF')}
       </button>
       {csv && (
         <button
@@ -54,14 +55,14 @@ export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
           onClick={() => saveFile(new Blob([csv.build()], { type: 'text/csv;charset=utf-8' }), csv.fileName)}
         >
           <ActionIcon name="file" />
-          Descarcă CSV
+          {t('Descarcă CSV')}
         </button>
       )}
       <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => run('share')}>
         <ActionIcon name="share" />
-        Trimite
+        {t('Trimite')}
       </button>
-      {busy && <span role="status">Se face PDF-ul…</span>}
+      {busy && <span role="status">{t('Se face PDF-ul…')}</span>}
       {message && <p role="status">{message}</p>}
     </div>
   );

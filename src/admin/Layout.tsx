@@ -21,6 +21,7 @@ import { todoList } from './shell/todo.ts';
 import { useDataVersion } from './shell/refresh.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
 import { YearSelect } from './shell/YearSelect.tsx';
+import { t } from '../i18n/t.ts';
 
 // The accounts that wait for approval change with no teacher's version: an
 // administrator's bar reads them every five minutes.
@@ -136,7 +137,7 @@ export function Layout() {
   return (
     <div className={me.data ? 'shell' : 'shell shell-bare'}>
       <header className="topbar" inert={searching}>
-        <a className="brand" href="/" aria-label="MQGrader by Laura Miron">
+        <a className="brand" href="/" aria-label={t('MQGrader by Laura Miron')}>
           <BrandMark />
           <span className="brand-text">
             <span className="brand-name">MQGrader</span>
@@ -157,7 +158,7 @@ export function Layout() {
           <button
             type="button"
             className="search-button"
-            aria-label="Caută"
+            aria-label={t('Caută')}
             aria-expanded={open === 'search'}
             aria-controls={open === 'search' ? 'search-full' : undefined}
             onClick={(event) => {
@@ -174,7 +175,7 @@ export function Layout() {
           <button
             type="button"
             className="menu-button"
-            aria-label="Mai mult"
+            aria-label={t('Mai mult')}
             aria-expanded={open === 'menu'}
             aria-controls={open === 'menu' ? 'phone-menu' : undefined}
             onClick={() => toggle('menu')}
@@ -205,7 +206,7 @@ export function Layout() {
         ) : me.error ? (
           <ErrorMessage error={me.error} />
         ) : !me.data ? (
-          <p>Se încarcă…</p>
+          <p>{t('Se încarcă…')}</p>
         ) : (
           <ErrorBoundary key={location.pathname}>
             <Outlet />

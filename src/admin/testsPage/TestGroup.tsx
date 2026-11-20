@@ -9,6 +9,7 @@ import { stagesOf } from '../stages.ts';
 import { startedLabel } from './greeting.ts';
 import { nextStep } from './nextStep.ts';
 import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // "În lucru" or "Terminate" on the Teste page (redesign spec §5): a table
 // with the test, its stage, its papers and the next step. `first` is the
@@ -36,13 +37,13 @@ export function TestGroup({
         <table className="tests" aria-labelledby={id}>
           <thead>
             <tr>
-              <th scope="col">Test</th>
-              <th scope="col">Etapa</th>
+              <th scope="col">{t('Test')}</th>
+              <th scope="col">{t('Etapa')}</th>
               <th scope="col" className="num">
-                Lucrări
+                {t('Lucrări')}
               </th>
               <th scope="col" className="next-col">
-                Următorul pas
+                {t('Următorul pas')}
               </th>
             </tr>
           </thead>
@@ -105,7 +106,7 @@ function TestRow({
           {test.title}
         </Link>
         {test.archived && ' '}
-        {test.archived && <span className="tag">Arhivat</span>}
+        {test.archived && <span className="tag">{t('Arhivat')}</span>}
         <span className="test-sub">
           {className} · {startedText(test)}
         </span>
@@ -123,13 +124,13 @@ function TestRow({
           </span>
         </div>
       </td>
-      <td className="num" data-label="Lucrări">
-        {test.status === 'draft' ? '—' : `${test.submittedCount} din ${test.studentCount}`}
+      <td className="num" data-label={t('Lucrări')}>
+        {test.status === 'draft' ? '—' : t('{submittedCount} din {studentCount}', { submittedCount: test.submittedCount, studentCount: test.studentCount })}
       </td>
       <td className="next-col">
         <span className="row-actions">
           {step === null ? (
-            <span className="waiting">Nimic de făcut acum</span>
+            <span className="waiting">{t('Nimic de făcut acum')}</span>
           ) : step.kind === 'link' ? (
             <Link className={buttonClass} to={step.to} aria-label={`${step.label}: ${where}`}>
               <ActionIcon name={actionIconFor(step.label)} />
@@ -153,11 +154,11 @@ function TestRow({
               type="button"
               className="button-quiet button-small"
               disabled={results.isPending}
-              aria-label={`Oprește accesul: ${where}`}
+              aria-label={t('Oprește accesul: {where}', { where })}
               onClick={() => results.mutate(false)}
             >
               <ActionIcon name="eye-off" />
-              Oprește accesul
+              {t('Oprește accesul')}
             </button>
           )}
         </span>
@@ -170,6 +171,6 @@ function TestRow({
 // "ciornă" for a test not started; a stopped test keeps its start date but is
 // a draft again.
 export function startedText(test: TestSummary): string {
-  if (test.status === 'draft') return 'ciornă';
-  return test.startedAt ? `început ${startedLabel(test.startedAt, new Date())}` : 'fără dată';
+  if (test.status === 'draft') return t('ciornă');
+  return test.startedAt ? t('început {startedLabel}', { startedLabel: startedLabel(test.startedAt, new Date()) }) : t('fără dată');
 }

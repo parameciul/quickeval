@@ -1,13 +1,12 @@
 import type { RobotStart, UploadStatus } from '../../shared/api.ts';
 import type { Confidence } from '../../shared/schemas.ts';
 import type { TestStatus } from '../../shared/tests.ts';
+import { t, tc, type Key } from '../i18n/t.ts';
 
-// Romanian counts: "1 lucrare", "2 lucrări", "20 de lucrări" (20 or more,
-// and round hundreds, take "de").
-export function countLabel(count: number, one: string, many: string): string {
-  if (count === 1) return `1 ${one}`;
-  const lastTwo = count % 100;
-  return count > 0 && (lastTwo >= 20 || lastTwo === 0) ? `${count} de ${many}` : `${count} ${many}`;
+// A count with its word, in the page's language: "1 lucrare", "2 lucrări",
+// "20 de lucrări"; "1 paper", "20 papers". The words are dictionary keys.
+export function countLabel(count: number, one: Key, many: Key): string {
+  return tc(count, one, many);
 }
 
 // "claude-opus-5-5 · high"; the model alone for a grading with no effort, and
@@ -18,14 +17,14 @@ export function modelCell(model: string | null, effort: string | null): string {
 }
 
 export function studentCountLabel(count: number): string {
-  return count === 0 ? 'niciun elev' : countLabel(count, 'elev', 'elevi');
+  return count === 0 ? t('niciun elev') : countLabel(count, 'elev', 'elevi');
 }
 
 const TEST_STATUS: Record<TestStatus, string> = {
-  draft: 'Ciornă',
-  open: 'Deschis',
-  evaluating: 'Se corectează',
-  done: 'Corectat',
+  draft: t('Ciornă'),
+  open: t('Deschis'),
+  evaluating: t('Se corectează'),
+  done: t('Corectat'),
 };
 
 export function testStatusLabel(status: TestStatus): string {
@@ -33,12 +32,12 @@ export function testStatusLabel(status: TestStatus): string {
 }
 
 const UPLOAD_STATUS: Record<UploadStatus, string> = {
-  none: 'Nu a trimis',
-  uploading: 'Încarcă…',
-  submitted: 'Trimis',
-  grading: 'Se corectează',
-  graded: 'Corectat',
-  failed: 'Eroare',
+  none: t('Nu a trimis'),
+  uploading: t('Încarcă…'),
+  submitted: t('Trimis'),
+  grading: t('Se corectează'),
+  graded: t('Corectat'),
+  failed: t('Eroare'),
 };
 
 export function uploadStatusLabel(status: UploadStatus): string {
@@ -82,8 +81,8 @@ export function formatFileSize(bytes: number): string {
 }
 
 const ROBOT_START: Record<RobotStart, string> = {
-  dispatched: 'Robotul pornește în aproximativ un minut.',
-  next_check: 'Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.',
+  dispatched: t('Robotul pornește în aproximativ un minut.'),
+  next_check: t('Nu am putut porni robotul. Corectarea așteaptă până îl pornește cel care se ocupă de site.'),
 };
 
 // What the teacher reads after she starts grading.
@@ -92,11 +91,11 @@ export function robotStartMessage(robot: RobotStart): string {
 }
 
 const CONFIDENCE: Record<Confidence, string> = {
-  very_high: 'Foarte mare',
-  high: 'Mare',
-  medium: 'Medie',
-  low: 'Mică',
-  very_low: 'Foarte mică',
+  very_high: t('Foarte mare'),
+  high: t('Mare'),
+  medium: t('Medie'),
+  low: t('Mică'),
+  very_low: t('Foarte mică'),
 };
 
 // How sure the robot is of an item's points.

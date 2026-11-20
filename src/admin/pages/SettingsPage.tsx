@@ -11,6 +11,7 @@ import { AccountsSection } from '../settingsPage/AccountsSection.tsx';
 import { UsageSection } from '../settingsPage/UsageSection.tsx';
 import { agoText, RobotLine } from '../testPage/RobotLine.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) => index + 1);
 // A page left open reads the robot's state again this often (the robot checks
@@ -19,10 +20,10 @@ const REFRESH_MS = 60_000;
 
 type Tab = 'accounts' | 'grading' | 'robot' | 'stats';
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'accounts', label: 'Conturi' },
-  { id: 'grading', label: 'Corectarea' },
-  { id: 'robot', label: 'Robotul' },
-  { id: 'stats', label: 'Statistici' },
+  { id: 'accounts', label: t('Conturi') },
+  { id: 'grading', label: t('Corectarea') },
+  { id: 'robot', label: t('Robotul') },
+  { id: 'stats', label: t('Statistici') },
 ];
 const TAB_IDS = TABS.map(({ id }) => id);
 
@@ -56,8 +57,8 @@ export function SettingsPage() {
   if (me.data && !isAdmin) {
     return (
       <section>
-        <h1>Setări</h1>
-        <p>Doar administratorii au acces la Setări.</p>
+        <h1>{t('Setări')}</h1>
+        <p>{t('Doar administratorii au acces la Setări.')}</p>
       </section>
     );
   }
@@ -66,12 +67,12 @@ export function SettingsPage() {
 
   return (
     <section className="settings-page">
-      <h1>Setări</h1>
-      <p className="settings-sub">Doar administratorii văd această pagină.</p>
+      <h1>{t('Setări')}</h1>
+      <p className="settings-sub">{t('Doar administratorii văd această pagină.')}</p>
       <div
         className="class-tabs"
         role="tablist"
-        aria-label="Setări"
+        aria-label={t('Setări')}
         onKeyDown={(event) => onTabKeyDown(event, TAB_IDS, tab, show, (id) => `settings-tab-${id}`)}
       >
         {TABS.map(({ id, label }) => (
@@ -91,14 +92,14 @@ export function SettingsPage() {
               <>
                 {' '}
                 <span className="tag tag-urgent settings-count">
-                  {waiting} <span className="sr-only">așteaptă aprobarea</span>
+                  {waiting} <span className="sr-only">{t('așteaptă aprobarea')}</span>
                 </span>
               </>
             )}
           </button>
         ))}
       </div>
-      {me.isPending && <p>Se încarcă…</p>}
+      {me.isPending && <p>{t('Se încarcă…')}</p>}
       {TABS.map(({ id }) => (
         <div
           key={id}
@@ -112,7 +113,7 @@ export function SettingsPage() {
           {isAdmin && id === 'stats' && <UsageSection />}
           {isAdmin && (id === 'grading' || id === 'robot') && (
             <>
-              {settings.isPending && <p>Se încarcă…</p>}
+              {settings.isPending && <p>{t('Se încarcă…')}</p>}
               {settings.error && <ErrorMessage error={settings.error} />}
               {settings.data && id === 'grading' && <GradingCard settings={settings.data} />}
               {settings.data && id === 'robot' && (
@@ -161,11 +162,11 @@ function GradingCard({ settings }: { settings: Settings }) {
   );
 
   return (
-    <section className="class-card" aria-label="Corectarea">
+    <section className="class-card" aria-label={t('Corectarea')}>
       <div className="settings-row">
         <div>
-          <label htmlFor="parallel">Lucrări corectate deodată</label>
-          <p id="parallel-hint">Mai multe lucrări deodată termină mai repede, dar ajung mai repede la limita planului Claude.</p>
+          <label htmlFor="parallel">{t('Lucrări corectate deodată')}</label>
+          <p id="parallel-hint">{t('Mai multe lucrări deodată termină mai repede, dar ajung mai repede la limita planului Claude.')}</p>
         </div>
         <div className="settings-control">
           <select
@@ -181,14 +182,14 @@ function GradingCard({ settings }: { settings: Settings }) {
               </option>
             ))}
           </select>
-          {parallel.isSuccess && <span role="status">Salvat.</span>}
+          {parallel.isSuccess && <span role="status">{t('Salvat.')}</span>}
         </div>
       </div>
       {parallel.error && <ErrorMessage error={parallel.error} />}
       <div className="settings-row">
         <div>
-          <b id="model-title">Coloana Model</b>
-          <p id="model-hint">Arată în tabelul lucrărilor cu ce model a fost corectată fiecare lucrare.</p>
+          <b id="model-title">{t('Coloana Model')}</b>
+          <p id="model-hint">{t('Arată în tabelul lucrărilor cu ce model a fost corectată fiecare lucrare.')}</p>
         </div>
         <label className="check-label settings-control">
           <input
@@ -198,7 +199,7 @@ function GradingCard({ settings }: { settings: Settings }) {
             aria-busy={model.isPending}
             onChange={(event) => model.mutate(event.target.checked)}
           />
-          Arată coloana Model
+          {t('Arată coloana Model')}
         </label>
       </div>
       {model.error && <ErrorMessage error={model.error} />}
@@ -232,42 +233,42 @@ function RobotKey({ hasKey, madeAt }: { hasKey: boolean; madeAt: string | null }
   return (
     <section className="class-card" aria-labelledby="robot-key-title">
       <div className="class-card-head">
-        <h2 id="robot-key-title">Cheia robotului</h2>
+        <h2 id="robot-key-title">{t('Cheia robotului')}</h2>
       </div>
       <div className="settings-row">
         <div>
-          <b>{hasKey ? 'Robotul are o cheie.' : 'Robotul nu are încă o cheie.'}</b>
-          {hasKey && madeAt && <p>Făcută pe {formatDate(madeAt)}.</p>}
+          <b>{hasKey ? t('Robotul are o cheie.') : t('Robotul nu are încă o cheie.')}</b>
+          {hasKey && madeAt && <p>{t('Făcută pe {formatDate}.', { formatDate: formatDate(madeAt) })}</p>}
         </div>
         <button
           type="button"
           className="button-quiet settings-control"
           disabled={create.isPending}
           onClick={() => {
-            if (!hasKey || window.confirm('Faci o cheie nouă? Cheia de acum nu va mai funcționa.')) create.mutate();
+            if (!hasKey || window.confirm(t('Faci o cheie nouă? Cheia de acum nu va mai funcționa.'))) create.mutate();
           }}
         >
           <ActionIcon name="key" />
-          {hasKey ? 'Fă o cheie nouă' : 'Fă cheia robotului'}
+          {hasKey ? t('Fă o cheie nouă') : t('Fă cheia robotului')}
         </button>
       </div>
       {create.error && <ErrorMessage error={create.error} />}
       {key && (
         <div className="warning settings-key">
           <p>
-            Copiaz-o acum în GitHub, în secretul <code>QUICKEVAL_RUNNER_KEY</code>. După ce pleci de pe pagină, nu o mai vezi.
+            {t('Copiaz-o acum în GitHub, în secretul')}{' '}<code>{t('QUICKEVAL_RUNNER_KEY')}</code>{t('. După ce pleci de pe pagină, nu o mai vezi.')}
           </p>
           <div className="form-row">
             <label className="sr-only" htmlFor="robot-key">
-              Cheia nouă a robotului
+              {t('Cheia nouă a robotului')}
             </label>
             <input id="robot-key" type="text" value={key} readOnly onFocus={(event) => event.target.select()} />
             <button type="button" className="button button-small" onClick={copy}>
               <ActionIcon name="copy" />
-              Copiază cheia
+              {t('Copiază cheia')}
             </button>
-            {copied === 'yes' && <span role="status">Copiat!</span>}
-            {copied === 'failed' && <span role="status">Nu am putut copia. Selectează cheia și copiaz-o de mână.</span>}
+            {copied === 'yes' && <span role="status">{t('Copiat!')}</span>}
+            {copied === 'failed' && <span role="status">{t('Nu am putut copia. Selectează cheia și copiaz-o de mână.')}</span>}
           </div>
         </div>
       )}
@@ -276,12 +277,12 @@ function RobotKey({ hasKey, madeAt }: { hasKey: boolean; madeAt: string | null }
 }
 
 const STOP: Record<RunSummary['stop'], string> = {
-  done: 'A terminat toată munca.',
-  budget: 'S-a oprit după 2 ore. Restul lucrărilor așteaptă până pornește robotul din nou.',
-  usage_limit: 'S-a oprit la limita planului Claude; continuă mai târziu.',
-  lease_lost: 'S-a oprit pentru că a pornit altă rulare.',
-  claude_login: 'S-a oprit pentru că tokenul Claude nu mai merge. Fă un token nou (vezi mai jos).',
-  error: 'S-a oprit din cauza unei erori. Detaliile sunt în rularea de pe GitHub.',
+  done: t('A terminat toată munca.'),
+  budget: t('S-a oprit după 2 ore. Restul lucrărilor așteaptă până pornește robotul din nou.'),
+  usage_limit: t('S-a oprit la limita planului Claude; continuă mai târziu.'),
+  lease_lost: t('S-a oprit pentru că a pornit altă rulare.'),
+  claude_login: t('S-a oprit pentru că tokenul Claude nu mai merge. Fă un token nou (vezi mai jos).'),
+  error: t('S-a oprit din cauza unei erori. Detaliile sunt în rularea de pe GitHub.'),
 };
 
 // "Ultima rulare s-a încheiat la …: 1 listă de exerciții, 25 de lucrări corectate, 0 lucrări eșuate."
@@ -294,7 +295,7 @@ export function lastRunText(robot: RobotStatus): string | null {
     countLabel(summary.failed, 'lucrare eșuată', 'lucrări eșuate'),
   ];
   if (summary.analyses > 0) parts.push(countLabel(summary.analyses, 'analiză de clasă', 'analize de clasă'));
-  return `Ultima rulare s-a încheiat la ${formatDateTime(robot.lastRunFinishedAt)}: ${parts.join(', ')}. ${STOP[summary.stop]}`;
+  return t('Ultima rulare s-a încheiat la {formatDateTime}: {join}. {v3}', { formatDateTime: formatDateTime(robot.lastRunFinishedAt), join: parts.join(', '), v3: STOP[summary.stop] });
 }
 
 function modelLine(label: string, model: string | null, effort: string | null): string | null {
@@ -305,8 +306,8 @@ function modelLine(label: string, model: string | null, effort: string | null): 
 // The model and effort of the latest grading and class analysis.
 export function modelLines(models: RobotSettings): string[] {
   return [
-    modelLine('Ultima corectare', models.gradingModel, models.gradingEffort),
-    modelLine('Ultima analiză a clasei', models.analysisModel, models.analysisEffort),
+    modelLine(t('Ultima corectare'), models.gradingModel, models.gradingEffort),
+    modelLine(t('Ultima analiză a clasei'), models.analysisModel, models.analysisEffort),
   ].filter((text): text is string => text !== null);
 }
 
@@ -317,30 +318,29 @@ function RobotState({ settings }: { settings: Settings }) {
   return (
     <section className="class-card" aria-labelledby="robot-state-title">
       <div className="class-card-head">
-        <h2 id="robot-state-title">Starea robotului</h2>
-        {settings.robot.running ? <span className="tag tag-ok">lucrează acum</span> : <span className="tag">nu lucrează acum</span>}
+        <h2 id="robot-state-title">{t('Starea robotului')}</h2>
+        {settings.robot.running ? <span className="tag tag-ok">{t('lucrează acum')}</span> : <span className="tag">{t('nu lucrează acum')}</span>}
       </div>
       <div className="settings-body">
         <RobotLine lastCheckAt={settings.robot.lastCheckAt} />
         {settings.configuredModel !== null && (
           <p>
-            Setat pentru robot: {settings.configuredModel}
+            {t('Setat pentru robot:')}{' '}{settings.configuredModel}
             {settings.configuredEffort ? `, efort ${settings.configuredEffort}` : ''}
-            {settings.configuredAt ? ` (la ultima verificare, ${agoText(settings.configuredAt, Date.now())})` : ''}
+            {settings.configuredAt ? t(' (la ultima verificare, {agoText})', { agoText: agoText(settings.configuredAt, Date.now()) }) : ''}
           </p>
         )}
-        <p>{lastRun ?? 'Robotul nu a terminat încă nicio rulare.'}</p>
+        <p>{lastRun ?? t('Robotul nu a terminat încă nicio rulare.')}</p>
         <p>
           {settings.lastGradedAt
-            ? `Ultima lucrare corectată: ${formatDateTime(settings.lastGradedAt)}.`
-            : 'Nicio lucrare nu a fost corectată încă.'}
+            ? t('Ultima lucrare corectată: {formatDateTime}.', { formatDateTime: formatDateTime(settings.lastGradedAt) })
+            : t('Nicio lucrare nu a fost corectată încă.')}
         </p>
         {modelLines(settings.lastModels).map((text) => (
           <p key={text}>{text}</p>
         ))}
         <p className="hint">
-          Robotul corectează cu planul Claude prin tokenul din secretul GitHub <code>CLAUDE_CODE_OAUTH_TOKEN</code>. Tokenul ține un an: dacă
-          lucrările nu se mai corectează, fă unul nou.
+          {t('Robotul corectează cu planul Claude prin tokenul din secretul GitHub')}{' '}<code>{t('CLAUDE_CODE_OAUTH_TOKEN')}</code>{t('. Tokenul ține un an: dacă lucrările nu se mai corectează, fă unul nou.')}
         </p>
       </div>
     </section>
