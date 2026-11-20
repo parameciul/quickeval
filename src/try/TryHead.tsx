@@ -50,10 +50,8 @@ export function TryHead({ detail, info, token, tryApi }: { detail: TestDetail; i
 function FileLink({ code, kind, label, name }: { code: string; kind: TestFileKind; label: string; name: string }) {
   const api = useApi();
   return (
-    <a className="try-file" href={testFileUrl(code, kind, undefined, api.base)} target="_blank" rel="noopener" aria-label={name}>
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M10 3v10M5.5 8.5 10 13l4.5-4.5M4 16.5h12" />
-      </svg>
+    <a className="button-quiet" href={testFileUrl(code, kind, undefined, api.base)} target="_blank" rel="noopener" aria-label={name}>
+      <ActionIcon name="download" />
       {label}
     </a>
   );

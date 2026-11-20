@@ -104,8 +104,7 @@ label.try-tile.is-disabled {
   color: var(--text);
 }
 
-.try-title-edit svg,
-.try-file svg {
+.try-title-edit svg {
   width: 1.125rem;
   height: 1.125rem;
 }
@@ -136,29 +135,6 @@ label.try-tile.is-disabled {
 
 .try-files:empty {
   display: none;
-}
-
-.try-file {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  height: 2rem;
-  padding: 0 0.75rem;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  color: var(--text);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.try-file svg {
-  color: var(--ink);
-}
-
-.try-file:hover {
-  border-color: var(--control);
-  background: var(--raised);
 }
 
 /* The grade, and the points to check: orange is hers to do. */
