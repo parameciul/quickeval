@@ -171,6 +171,29 @@ describe("a try's files before the grading", () => {
     expect(api.uploadTestFile).not.toHaveBeenCalled();
   });
 
+  it('waits for an upload before it can start', async () => {
+    const { api } = setup({ files: { test: testFile, barem: baremFile } });
+    const start = await startButton();
+    await waitFor(() => expect(start).toBeEnabled());
+    api.uploadTestFile.mockImplementation(() => new Promise(() => undefined));
+    await userEvent.upload(screen.getByLabelText(/Fișierul testului/), new File(['%PDF-1.7'], 'nou.pdf', { type: PDF_TYPE }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pornește corectarea' })).toBeDisabled());
+  });
+
+  it('names a file input by the words it shows, and asks for a test without answers', async () => {
+    setup({ files: { test: null, barem: baremFile } });
+    expect(await screen.findByLabelText('Alege testul: Fișierul testului')).toBeInTheDocument();
+    expect(screen.getByLabelText('Înlocuiește: Fișierul baremului')).toBeInTheDocument();
+    expect(screen.getByText('Fără răspunsuri. PDF sau Word.')).toBeInTheDocument();
+  });
+
+  it('reads out only the title of the ready line, not each page count', async () => {
+    setup({ files: { test: testFile, barem: baremFile } });
+    const status = await screen.findByRole('status');
+    await waitFor(() => expect(status).toHaveTextContent(/^Gata de corectare$/));
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
+
   it('takes a test file dropped on its tile', async () => {
     const { api } = setup({}, []);
     await startButton();

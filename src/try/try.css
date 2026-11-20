@@ -611,6 +611,11 @@ label.try-tile.is-disabled {
   position: relative;
 }
 
+.try-tile-acts label:has(input:focus-visible) {
+  outline: 3px solid var(--orange-mark);
+  outline-offset: 2px;
+}
+
 .try-tile-acts .try-icon-button {
   padding-inline: 0.5rem;
 }
@@ -649,7 +654,7 @@ label.try-tile.is-disabled {
   font-size: 1.25rem;
 }
 
-.try-paper > .hint {
+.try-paper > h2 + .hint {
   margin: -0.5rem 0 0;
 }
 

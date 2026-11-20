@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { SubmissionFile, TestDetail } from '../../shared/api.ts';
@@ -31,6 +31,8 @@ import { translateMessage } from '../../shared/i18n/messages.ts';
 
 const PAGE_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
 const FILE_ACCEPT = ['.pdf', '.docx', PDF_TYPE, DOCX_TYPE].join(',');
+// Every upload of the page: a file of the test or a page. The start waits for them.
+const UPLOAD_KEY = ['try', 'upload'];
 
 // Before the grading (spec §3.3, states 1 and 2), in the look of the landing
 // page's form that made the try: the test and the barem as two tiles (green
@@ -55,6 +57,7 @@ export function Prepare({ detail, token, tryApi }: { detail: TestDetail; token: 
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['test', test.code] }),
   });
   const left = fileChangesLeft(detail);
+  const uploading = useIsMutating({ mutationKey: UPLOAD_KEY }) > 0;
   useKeepDroppedFiles();
 
   return (
@@ -81,7 +84,7 @@ export function Prepare({ detail, token, tryApi }: { detail: TestDetail; token: 
       <div className="try-go-bar">
         <div className="try-go-line">
           <ReadyLine missing={missing} baremBusy={baremBusy} robotBarem={robotBarem} pageCount={pageCount} />
-          <button type="button" className="try-go" disabled={missing.length > 0 || start.isPending} onClick={() => start.mutate()}>
+          <button type="button" className="try-go" disabled={missing.length > 0 || uploading || start.isPending} onClick={() => start.mutate()}>
             <ActionIcon name="play" />
             {t('Pornește corectarea')}
           </button>
@@ -111,12 +114,13 @@ function ReadyLine({ missing, baremBusy, robotBarem, pageCount }: { missing: str
     text = t('Corectarea îl folosește așa cum este. Înlocuiește-l dacă ceva e greșit.');
   }
   return (
-    <div className={`try-ready ${tone}`} role="status">
+    <div className={`try-ready ${tone}`}>
       <span className="try-ready-mark">
         <ActionIcon name={icon} />
       </span>
       <span className="try-ready-text">
-        <b>{title}</b>
+        {/* Only the title is read out when it changes, not each new page count. */}
+        <b role="status">{title}</b>
         <span>{text}</span>
       </span>
     </div>
@@ -143,6 +147,7 @@ function useUpload(code: string, kind: TestFileKind) {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: UPLOAD_KEY,
     mutationFn: (file: File) => api.uploadTestFile(code, kind, file),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['test', code] }),
   });
@@ -206,7 +211,15 @@ function FilePick({
   };
   const classes = [className, over && 'is-over', disabled && 'is-disabled'].filter(Boolean).join(' ');
   return (
-    <label className={classes} onDragOver={onDragOver} onDragLeave={() => setOver(false)} onDrop={onDrop}>
+    <label
+      className={classes}
+      onDragOver={onDragOver}
+      onDragLeave={(event) => {
+        // Moving over the tile's own words is not leaving it.
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(false);
+      }}
+      onDrop={onDrop}
+    >
       {children}
       <input
         type="file"
@@ -252,8 +265,9 @@ function FileSlot({
   const [problem, setProblem] = useState<string | null>(null);
   const inputName = kind === 'test' ? t('Fișierul testului') : t('Fișierul baremului');
   const disabled = left === 0 || upload.isPending;
-  const pick = (children: ReactNode, className: string) => (
-    <FilePick name={inputName} className={className} disabled={disabled} onPick={(file) => upload.mutate(file)} onProblem={setProblem}>
+  // The input's name starts with the words it shows, for voice control.
+  const pick = (action: string, children: ReactNode, className: string) => (
+    <FilePick name={`${action}: ${inputName}`} className={className} disabled={disabled} onPick={(file) => upload.mutate(file)} onProblem={setProblem}>
       {children}
     </FilePick>
   );
@@ -261,13 +275,14 @@ function FileSlot({
     <div className="try-slot">
       {name === null ? (
         pick(
+          pickText,
           <>
             <span className="try-tile-mark">
               <ActionIcon name="upload" />
             </span>
             <span className="try-tile-text">
               <b>{pickText}</b>
-              <small>{upload.isPending ? t('Se trimite…') : t('PDF sau Word.')}</small>
+              <small>{upload.isPending ? t('Se trimite…') : kind === 'test' ? t('Fără răspunsuri. PDF sau Word.') : t('PDF sau Word.')}</small>
             </span>
           </>,
           'try-tile is-empty',
@@ -288,6 +303,7 @@ function FileSlot({
             {extra}
             {left > 0 &&
               pick(
+                t('Înlocuiește'),
                 <>
                   <ActionIcon name="upload" />
                   {t('Înlocuiește')}
@@ -320,7 +336,7 @@ function BaremSlot({ detail, robotBarem, left }: { detail: TestDetail; robotBare
   if (test.barem.request === 'requested') {
     return (
       <div className="try-slot">
-        <div className="try-tile is-wait" role="status">
+        <div className="try-tile is-wait">
           <span className="try-tile-mark">
             <span className="spinner" aria-hidden="true" />
           </span>
@@ -406,6 +422,7 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
   const [viewing, setViewing] = useState<{ id: number; src: string } | null>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['try', 'pages'] });
   const add = useMutation({
+    mutationKey: UPLOAD_KEY,
     mutationFn: async (files: File[]) => {
       for (const file of files) await tryApi.addPage(file);
     },
