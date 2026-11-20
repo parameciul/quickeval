@@ -238,35 +238,36 @@
       </header>
       <main>
         <section class="hero wrap" aria-labelledby="title">
-          <h1 id="title" class="t-1">Weekendul tău, fără teancul de lucrări.</h1>
-          <div class="hero-under">
+          <div class="hero-grid">
+            <h1 id="title" class="t-1">Weekendul tău, fără teancul de lucrări.</h1>
+            <div class="try-line" data-try hidden>
+              <div class="try-card" data-try-status role="status" hidden>
+                <div class="try-card-top">
+                  <div class="try-card-head">
+                    <p class="try-card-kicker">Încercarea ta</p>
+                    <p class="try-card-title" data-try-title></p>
+                  </div>
+                  <span class="try-chip" data-try-chip></span>
+                </div>
+                <p class="try-card-meta" data-try-meta></p>
+                <p class="try-card-text" data-try-status-text></p>
+                <div class="try-card-bottom">
+                  <p class="try-score" data-try-score hidden><span class="try-grade" data-try-grade></span> <span class="try-points" data-try-points></span></p>
+                  <button class="try-delete" type="button" data-try-delete aria-label="Șterge încercarea" title="Șterge încercarea"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3" /></svg><span class="try-delete-ask" hidden></span></button>
+                  <a class="btn btn-line btn-small" data-try-link href="/">Deschide încercarea</a>
+                </div>
+              </div>
+            </div>
             <p class="lede">Elevii fotografiază lucrarea cu telefonul, la sfârșitul orei. MQGrader o corectează după baremul tău, cu ajutorul inteligenței artificiale. Tu verifici doar punctele nesigure, chiar și de pe telefon, și publici notele.</p>
             <div class="cta">
               <div class="cta-row">
-                <button class="btn btn-go" type="button" data-try-open hidden>Încearcă pe o lucrare, fără cont <span aria-hidden="true">→</span></button>
+                <button class="btn btn-go" type="button" data-try-open>Încearcă pe o lucrare, fără cont <span aria-hidden="true">→</span></button>
                 <a class="btn btn-acc" href="/teacher/#new-account" data-guest>Cere un cont de profesor <span aria-hidden="true">→</span></a>
                 <a class="btn btn-acc" href="/teacher/" data-member hidden>Deschide contul tău <span aria-hidden="true">→</span></a>
               </div>
-              <p class="cta-hint" data-try-hint hidden>Gratuit: trimiți lucrarea unui elev și o primești corectată în câteva minute.</p>
+              <p class="cta-hint" data-try-hint>Gratuit: trimiți lucrarea unui elev și o primești corectată în câteva minute.</p>
+              <p class="cta-hint try-note" data-try-note hidden></p>
               <p class="cta-note">Contul demo este gratuit: un test pentru o clasă întreagă.</p>
-              <div class="try-line" data-try hidden>
-                <p class="try-note" data-try-note hidden></p>
-                <div class="try-card" data-try-status role="status" hidden>
-                  <div class="try-card-top">
-                    <div class="try-card-head">
-                      <p class="try-card-kicker">Încercarea ta</p>
-                      <p class="try-card-title" data-try-title></p>
-                    </div>
-                    <span class="try-chip" data-try-chip></span>
-                  </div>
-                  <p class="try-card-meta" data-try-meta></p>
-                  <p class="try-card-text" data-try-status-text></p>
-                  <div class="try-card-bottom">
-                    <p class="try-score" data-try-score hidden><span class="try-grade" data-try-grade></span> <span class="try-points" data-try-points></span></p>
-                    <a class="btn btn-line btn-small" data-try-link href="/">Deschide încercarea</a>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
@@ -337,7 +338,7 @@
               <p class="lede rise">Trimiți testul, baremul și paginile unui elev. În câteva minute primești lucrarea corectată, cu punctele de verificat și rezultatul pe care l-ar vedea elevul.</p>
             </div>
             <div class="acts rise">
-              <button class="btn btn-go" type="button" data-try-open hidden>Încearcă acum <span aria-hidden="true">→</span></button>
+              <button class="btn btn-go" type="button" data-try-open>Încearcă acum <span aria-hidden="true">→</span></button>
               <small>Gratuit, o lucrare în fiecare zi. Încercarea are un link al ei și se șterge după 7 zile.</small>
             </div>
           </div>
@@ -384,7 +385,7 @@
             <li><b>1</b><span>test corectat pentru o clasă întreagă</span></li>
             <li><b>35</b><span>de lucrări corectate, cu tot cu recorectări</span></li>
             <li><b>∞</b><span>clase și elevi</span></li>
-            <li class="free"><b>1<small>/zi</small></b><span>lucrare corectată gratuit, fără cont</span><button class="btn btn-go btn-small" type="button" data-try-open hidden>Încearcă <span aria-hidden="true">→</span></button></li>
+            <li class="free"><b>1<small>/zi</small></b><span>lucrare corectată gratuit, fără cont</span><button class="btn btn-go btn-small" type="button" data-try-open>Încearcă <span aria-hidden="true">→</span></button></li>
           </ul>
         </section>
 
@@ -424,7 +425,7 @@
         </section>
         <section class="end wrap" aria-labelledby="end-t">
           <h2 id="end-t" class="rise">Următorul test îl corectezi altfel.</h2>
-          <div class="acts rise"><button class="btn btn-go" type="button" data-try-open hidden>Încearcă fără cont <span aria-hidden="true">→</span></button><a class="btn btn-acc" href="/teacher/#new-account" data-guest>Cere un cont de profesor <span aria-hidden="true">→</span></a></div>
+          <div class="acts rise"><button class="btn btn-go" type="button" data-try-open>Încearcă fără cont <span aria-hidden="true">→</span></button><a class="btn btn-acc" href="/teacher/#new-account" data-guest>Cere un cont de profesor <span aria-hidden="true">→</span></a></div>
         </section>
       </main>
       <!--#include site-foot -->

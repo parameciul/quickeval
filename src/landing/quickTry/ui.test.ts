@@ -37,6 +37,7 @@ function fakeLandingApi(availability: Partial<QuickTryAvailability> = {}) {
     listPages: vi.fn(async (_token: string): Promise<SubmissionFile[]> => []),
     start: vi.fn(async () => {}),
     getTest: vi.fn(async () => grading),
+    deleteTry: vi.fn(async (_token: string) => {}),
   } satisfies LandingApi;
 }
 
@@ -149,9 +150,9 @@ describe("the landing page's Quick Try", () => {
     expect(button()).toBeNull();
   });
 
-  it("says when the day's free tries are all used", async () => {
+  it("says when the day's free tries are all used, and turns the buttons off", async () => {
     await mount(fakeLandingApi({ dailyLimitReached: true }));
-    expect(button()).toBeNull();
+    expect(button()).toBeDisabled();
     expect(screen.getByText(/Încercările gratuite de azi s-au terminat/)).toHaveTextContent(
       'Încercările gratuite de azi s-au terminat. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.',
     );
@@ -160,8 +161,11 @@ describe("the landing page's Quick Try", () => {
   it("keeps one try per device per day, and shows today's try with its link", async () => {
     store();
     const { api } = await mount();
-    expect(button()).toBeNull();
+    expect(button()).toBeVisible();
+    expect(button()).toBeDisabled();
+    expect(button()).toHaveAttribute('title', 'Ai făcut încercarea de azi. Mâine poți face alta.');
     expect(screen.getByText('Ai făcut încercarea de azi. Mâine poți face alta.')).toBeVisible();
+    expect(screen.getByText(/^Gratuit: trimiți lucrarea/)).not.toBeVisible();
     expect(api.getTest).toHaveBeenCalledWith(TOKEN, CODE);
     expect(screen.getByRole('status')).toHaveTextContent('Se corectează… Durează câteva minute.');
     expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toHaveAttribute('href', `/try/${TOKEN}`);
@@ -210,7 +214,7 @@ describe("the landing page's Quick Try", () => {
     expect(JSON.parse(localStorage.getItem(STORED_TRY_KEY)!)).toEqual({ token: TOKEN, code: CODE, madeAt: NOW.toISOString() });
     expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toHaveAttribute('href', `/try/${TOKEN}`);
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Se corectează… Durează câteva minute.'));
-    expect(button()).toBeNull();
+    expect(button()).toBeDisabled();
   });
 
   it('names the try after its test file: the form asks for no name', async () => {
@@ -236,8 +240,122 @@ describe("the landing page's Quick Try", () => {
     }
   });
 
-  it('hides every Quick Try button once the day is used', async () => {
+  it('turns every Quick Try button off once the day is used', async () => {
     await mount(fakeLandingApi({ dailyLimitReached: true }));
+    for (const one of tryButtons()) {
+      expect(one).toBeVisible();
+      expect(one).toBeDisabled();
+    }
+  });
+
+  describe('deleting her try', () => {
+    const del = () => document.querySelector<HTMLButtonElement>('[data-try-delete]')!;
+
+    it('asks once more, then deletes the try, forgets its link and shows the button again', async () => {
+      store();
+      const api = fakeLandingApi();
+      await mount(api);
+      expect(button()).toBeDisabled();
+      del().click();
+      expect(del()).toHaveTextContent('Sigur? Șterge definitiv');
+      expect(del()).toHaveAccessibleName('Șterge încercarea');
+      expect(api.deleteTry).not.toHaveBeenCalled();
+      del().click();
+      await waitFor(() => expect(api.deleteTry).toHaveBeenCalledWith(TOKEN));
+      await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+      expect(localStorage.getItem(STORED_TRY_KEY)).toBeNull();
+      expect(button()).toBeEnabled();
+    });
+
+    it('goes back to its label when the second press does not come', async () => {
+      vi.useFakeTimers();
+      try {
+        store();
+        await mount(fakeLandingApi());
+        del().click();
+        expect(del()).toHaveTextContent('Sigur?');
+        vi.advanceTimersByTime(5001);
+        expect(del().textContent).toBe('');
+        expect(del()).not.toHaveClass('is-sure');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('keeps the try and says so when the delete fails', async () => {
+      store();
+      const api = fakeLandingApi();
+      api.deleteTry.mockRejectedValue(new ApiError(500, 'internal', 'A apărut o eroare.'));
+      await mount(api);
+      del().click();
+      del().click();
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Nu am putut șterge încercarea. Încearcă din nou.'));
+      expect(localStorage.getItem(STORED_TRY_KEY)).not.toBeNull();
+      expect(del()).toBeEnabled();
+    });
+
+    it('counts a link that is already gone as deleted', async () => {
+      store();
+      const api = fakeLandingApi();
+      api.deleteTry.mockRejectedValue(new ApiError(404, 'unknown_try', 'Linkul nu este bun.'));
+      await mount(api);
+      del().click();
+      del().click();
+      await waitFor(() => expect(localStorage.getItem(STORED_TRY_KEY)).toBeNull());
+    });
+  });
+
+  it('lets an administrator make another try on the same day', async () => {
+    store();
+    await mount(fakeLandingApi({ admin: true }));
+    expect(button()).toBeEnabled();
+    expect(button()).not.toHaveAttribute('title');
+    expect(document.querySelector('[data-try-note]')).not.toBeVisible();
+    expect(screen.getByText(/^Gratuit: trimiți lucrarea/)).toBeVisible();
+  });
+
+  it("shows the buttons before the API answers, and her try's card before its state is read", async () => {
+    store();
+    const api = fakeLandingApi();
+    api.availability.mockReturnValue(new Promise(() => {}));
+    api.getTest.mockReturnValue(new Promise(() => {}));
+    document.body.innerHTML = new DOMParser().parseFromString(page, 'text/html').body.innerHTML;
+    void initQuickTry(document, { api, storage: localStorage, now: () => NOW, loadTurnstile: fakeTurnstile().load, signal: mounted.signal });
+    // Her try of today turns the buttons off at once: they never jump.
+    expect(button()).toBeVisible();
+    expect(button()).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Se citește încercarea…');
+  });
+
+  it("follows the API's answer at once, without waiting for her try's state", async () => {
+    store('2026-11-09T08:00:00.000Z');
+    const api = fakeLandingApi({ dailyLimitReached: true });
+    api.getTest.mockReturnValue(new Promise(() => {}));
+    document.body.innerHTML = new DOMParser().parseFromString(page, 'text/html').body.innerHTML;
+    void initQuickTry(document, { api, storage: localStorage, now: () => NOW, loadTurnstile: fakeTurnstile().load, signal: mounted.signal });
+    expect(button()).toBeEnabled();
+    await waitFor(() => expect(button()).toBeDisabled());
+    expect(screen.getByText(/Încercările gratuite de azi s-au terminat/)).toBeVisible();
+  });
+
+  it('opens the form before the API answers, and loads the check once it does', async () => {
+    let answer: (value: QuickTryAvailability) => void = () => {};
+    const api = fakeLandingApi();
+    api.availability.mockReturnValue(new Promise((done) => (answer = done)));
+    const turnstile = fakeTurnstile();
+    document.body.innerHTML = new DOMParser().parseFromString(page, 'text/html').body.innerHTML;
+    void initQuickTry(document, { api, storage: localStorage, now: () => NOW, loadTurnstile: turnstile.load, isPhone: () => false, watchPhone: () => {}, signal: mounted.signal });
+    button()!.click();
+    expect(dialog().hasAttribute('open')).toBe(true);
+    expect(turnstile.load).not.toHaveBeenCalled();
+    answer({ dailyLimitReached: false, admin: false, signedIn: false, siteKey: 'site-key' });
+    await waitFor(() => expect(turnstile.load).toHaveBeenCalledWith(document.querySelector('[data-try-turnstile]'), 'site-key'));
+  });
+
+  it('hides every Quick Try button when the API does not answer', async () => {
+    const api = fakeLandingApi();
+    api.availability.mockRejectedValue(new Error('offline'));
+    await mount(api);
     for (const one of tryButtons()) expect(one).not.toBeVisible();
   });
 
@@ -335,7 +453,7 @@ describe("the landing page's Quick Try", () => {
   it('closes the form and hides the try button before it opens the phone page, so Back finds the page as it should be', async () => {
     const atGo: { open: boolean; button: boolean }[] = [];
     const go = vi.fn(() => {
-      atGo.push({ open: dialog().hasAttribute('open'), button: button() !== null });
+      atGo.push({ open: dialog().hasAttribute('open'), button: (button() as HTMLButtonElement | null)?.disabled === false });
     });
     const { api } = await mount(undefined, undefined, { isPhone: () => true, go });
     button()!.click();

@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { userEvent } from '@testing-library/user-event';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import raw from '../../index.html?raw';
+import themeScript from '../../public/theme.js?raw';
 import { SIGNUP_HASH } from '../admin/pages/LoginPage.tsx';
 import { THEME_KEY } from '../ui/theme.ts';
 import { expandPartials } from './partials.ts';
@@ -163,10 +164,14 @@ describe('the landing page', () => {
     expect(shots.filter((img) => img.getAttribute('loading') === 'lazy').length).toBeGreaterThan(shots.length / 2);
   });
 
-  it('keeps every Quick Try button hidden until the page knows a try can be made', () => {
+  it('shows every Quick Try button from the first paint, but only on a page that runs its script', () => {
     const buttons = all('[data-try-open]');
     expect(buttons.map(text)).toEqual(['Încearcă pe o lucrare, fără cont', 'Încearcă acum', 'Încearcă', 'Încearcă fără cont']);
-    for (const button of buttons) expect(button.hasAttribute('hidden')).toBe(true);
+    // Not hidden in the markup: the buttons do not wait for the API's answer.
+    for (const button of buttons) expect(button.hasAttribute('hidden')).toBe(false);
+    // The head script marks a page that runs scripts; without it the stylesheet hides the buttons.
+    expect(themeScript).toContain("setAttribute('data-js', '')");
+    expect(readFileSync(resolve(__dirname, 'landing.css'), 'utf8')).toContain(':root:not([data-js]) [data-try-open], :root:not([data-js]) [data-try-hint] { display: none !important; }');
     // The form names the try after its test file: it asks for no name.
     expect(doc.querySelector('[data-try-form] input[name="title"]')).toBeNull();
     // The content pages send a teacher to the try on this page.
