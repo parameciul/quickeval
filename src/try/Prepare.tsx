@@ -1,15 +1,25 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { SubmissionFile, TestDetail } from '../../shared/api.ts';
 import { PHONE_IDLE_TEXT, PHONE_MEDIA } from '../../shared/quickTry.ts';
-import { fileProblem, MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, type TestFileKind } from '../../shared/files.ts';
+import {
+  DOCX_TYPE,
+  fileProblem,
+  MAX_STUDENT_FILES,
+  PDF_TYPE,
+  STUDENT_FILE_TYPES,
+  STUDENT_WRONG_TYPE,
+  TEACHER_FILE_TYPES,
+  TEACHER_WRONG_TYPE,
+  type TestFileKind,
+} from '../../shared/files.ts';
 import { testFileUrl } from '../admin/api.ts';
 import { useApi } from '../admin/ApiContext.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
 import { FileDrop } from '../admin/newTest/FileDrop.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
-import { formatFileSize } from '../ui/format.ts';
+import { countLabel, formatFileSize } from '../ui/format.ts';
 import { PhotoViewer } from '../upload/PhotoViewer.tsx';
 import { previewPhoto } from '../upload/shrink.ts';
 import { pageFileUrl, type TryApi } from './api.ts';
@@ -20,11 +30,16 @@ import { t } from '../i18n/t.ts';
 import { translateMessage } from '../../shared/i18n/messages.ts';
 
 const PAGE_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
+const FILE_ACCEPT = ['.pdf', '.docx', PDF_TYPE, DOCX_TYPE].join(',');
+// Every upload of the page: a file of the test or a page. The start waits for them.
+const UPLOAD_KEY = ['try', 'upload'];
 
-// Before the grading (spec §3.3, states 1 and 2): the test, the barem (her
-// own, or the robot's, which she downloads and reads), and the student's
-// pages, then "Pornește corectarea". The landing page's form sends these
-// first; here she sends what is missing and may replace a file.
+// Before the grading (spec §3.3, states 1 and 2), in the look of the landing
+// page's form that made the try: the test and the barem as two tiles (green
+// once sent, with a small "Înlocuiește"), the student's pages as previews, and
+// a bar that says whether all is ready, beside "Pornește corectarea". The cap
+// on file changes shows only when it limits her: at the last change, and when
+// none is left.
 export function Prepare({ detail, token, tryApi }: { detail: TestDetail; token: string; tryApi: TryApi }) {
   const queryClient = useQueryClient();
   const { test } = detail;
@@ -42,58 +57,104 @@ export function Prepare({ detail, token, tryApi }: { detail: TestDetail; token: 
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['test', test.code] }),
   });
   const left = fileChangesLeft(detail);
+  const uploading = useIsMutating({ mutationKey: UPLOAD_KEY }) > 0;
+  useKeepDroppedFiles();
 
   return (
     <>
-      <ol className="steps">
-        <li className="step">
-          <div>
-            <h2>{t('Testul')}</h2>
-            <p>{t('Testul așa cum l-ai tipărit, fără răspunsuri. PDF sau Word.')}</p>
-            <TestFile code={test.code} kind="test" name={test.files.test?.name ?? null} disabled={left === 0} />
-          </div>
-        </li>
-        <li className="step">
-          <div>
-            <h2>{t('Baremul')}</h2>
-            <Barem detail={detail} robotBarem={robotBarem} disabled={left === 0} />
-          </div>
-        </li>
-        <li className="step">
-          <div>
-            <h2>{t('Lucrarea elevului')}</h2>
-            <p>{t('Pozele sau PDF-ul lucrării unui elev, în ordinea paginilor. Cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES })}</p>
-            <Pages token={token} tryApi={tryApi} />
-          </div>
-        </li>
-      </ol>
-      <p className="hint">
-        {left === 0
-          ? t('Nu mai poți schimba testul sau baremul în această încercare.')
-          : t('Mai poți încărca testul și baremul de {left} ori în total. Baremul făcut de robot se numără și el o dată.', { left })}
-      </p>
-      <div className="card-actions">
-        <button type="button" className="button" disabled={missing.length > 0 || start.isPending} onClick={() => start.mutate()}>
-          <ActionIcon name="play" />
-          {t('Pornește corectarea')}
-        </button>
+      <div className="try-file-row">
+        <TestSlot detail={detail} left={left} />
+        <BaremSlot detail={detail} robotBarem={robotBarem} left={left} />
       </div>
-      {missing.length > 0 && <p className="hint">{t('Lipsește: {join}.', { join: missing.join(', ') })}</p>}
-      {start.error && <ErrorMessage error={start.error} />}
+      <BaremChoice detail={detail} left={left} />
+      {left === 1 && <p className="hint try-left">{t('Mai poți schimba testul sau baremul o singură dată.')}</p>}
+      {left === 0 && (
+        <p className="hint try-left">
+          <ActionIcon name="lock" />
+          {t('Nu mai poți schimba testul sau baremul în această încercare.')}
+        </p>
+      )}
+      <section className="try-paper" aria-labelledby="try-paper-title">
+        <h2 id="try-paper-title">{t('Lucrarea elevului')}</h2>
+        {pageCount === 0 && (
+          <p className="hint">{t('Pozele sau PDF-ul lucrării unui elev, în ordinea paginilor. Cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES })}</p>
+        )}
+        <Pages token={token} tryApi={tryApi} />
+      </section>
+      <div className="try-go-bar">
+        <div className="try-go-line">
+          <ReadyLine missing={missing} baremBusy={baremBusy} robotBarem={robotBarem} pageCount={pageCount} />
+          <button type="button" className="try-go" disabled={missing.length > 0 || uploading || start.isPending} onClick={() => start.mutate()}>
+            <ActionIcon name="play" />
+            {t('Pornește corectarea')}
+          </button>
+        </div>
+        {start.error && <ErrorMessage error={start.error} />}
+      </div>
     </>
   );
+}
+
+// Whether the try can go to grading, said in words beside the button: what is
+// missing, the robot's barem to read first, or ready.
+function ReadyLine({ missing, baremBusy, robotBarem, pageCount }: { missing: string[]; baremBusy: boolean; robotBarem: boolean; pageCount: number }) {
+  let tone = 'is-ready';
+  let icon: 'check' | 'clock' | 'doc' = 'check';
+  let title = t('Gata de corectare');
+  let text = t('Testul, baremul și {pages} au ajuns. Corectarea durează câteva minute.', { pages: countLabel(pageCount, 'pagină', 'pagini') });
+  if (missing.length > 0) {
+    tone = 'is-wait';
+    icon = 'clock';
+    title = baremBusy ? t('Se așteaptă baremul') : t('Încă nu e gata');
+    text = t('Lipsește: {join}.', { join: missing.join(', ') });
+  } else if (robotBarem) {
+    tone = 'is-read';
+    icon = 'doc';
+    title = t('Citește întâi baremul robotului');
+    text = t('Corectarea îl folosește așa cum este. Înlocuiește-l dacă ceva e greșit.');
+  }
+  return (
+    <div className={`try-ready ${tone}`}>
+      <span className="try-ready-mark">
+        <ActionIcon name={icon} />
+      </span>
+      <span className="try-ready-text">
+        {/* Only the title is read out when it changes, not each new page count. */}
+        <b role="status">{title}</b>
+        <span>{text}</span>
+      </span>
+    </div>
+  );
+}
+
+// While the page shows, a file dropped beside a tile does nothing, so a near
+// miss does not open the file in the tab and lose the page.
+function useKeepDroppedFiles() {
+  useEffect(() => {
+    const keepPage = (event: globalThis.DragEvent) => {
+      if (event.dataTransfer?.types?.includes('Files')) event.preventDefault();
+    };
+    window.addEventListener('dragover', keepPage);
+    window.addEventListener('drop', keepPage);
+    return () => {
+      window.removeEventListener('dragover', keepPage);
+      window.removeEventListener('drop', keepPage);
+    };
+  }, []);
 }
 
 function useUpload(code: string, kind: TestFileKind) {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: UPLOAD_KEY,
     mutationFn: (file: File) => api.uploadTestFile(code, kind, file),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['test', code] }),
   });
 }
 
-// A file of the test: its name opens it, and a new file replaces it.
+// A drop area for a new file of the test, as the barem's problem page asks
+// for one: its name opens the file sent before, and a new file replaces it.
 export function TestFile({ code, kind, name, disabled }: { code: string; kind: TestFileKind; name: string | null; disabled: boolean }) {
   const api = useApi();
   const upload = useUpload(code, kind);
@@ -114,9 +175,210 @@ export function TestFile({ code, kind, name, disabled }: { code: string; kind: T
   );
 }
 
-// The barem: the robot's while it is made, then to download and read; her
-// own file; or the choice of one of the two.
-function Barem({ detail, robotBarem, disabled }: { detail: TestDetail; robotBarem: boolean; disabled: boolean }) {
+// A file picker in a label: a click opens the picker, and a file dragged onto
+// it is taken too. A file that is not PDF or Word, or too big, shows its
+// problem and is not sent.
+function FilePick({
+  name,
+  className,
+  disabled,
+  onPick,
+  onProblem,
+  children,
+}: {
+  name: string;
+  className: string;
+  disabled: boolean;
+  onPick: (file: File) => void;
+  onProblem: (problem: string | null) => void;
+  children: ReactNode;
+}) {
+  const [over, setOver] = useState(false);
+  const take = (file: File | undefined) => {
+    if (!file || disabled) return;
+    const problem = fileProblem(file, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
+    onProblem(problem);
+    if (problem === null) onPick(file);
+  };
+  const onDragOver = (event: DragEvent) => {
+    event.preventDefault();
+    if (!disabled) setOver(true);
+  };
+  const onDrop = (event: DragEvent) => {
+    event.preventDefault();
+    setOver(false);
+    take(event.dataTransfer.files[0]);
+  };
+  const classes = [className, over && 'is-over', disabled && 'is-disabled'].filter(Boolean).join(' ');
+  return (
+    <label
+      className={classes}
+      onDragOver={onDragOver}
+      onDragLeave={(event) => {
+        // Moving over the tile's own words is not leaving it.
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(false);
+      }}
+      onDrop={onDrop}
+    >
+      {children}
+      <input
+        type="file"
+        className="sr-only"
+        accept={FILE_ACCEPT}
+        aria-label={name}
+        disabled={disabled}
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          take(event.target.files?.[0]);
+          // Emptied, so picking the same file again is still a change.
+          event.target.value = '';
+        }}
+      />
+    </label>
+  );
+}
+
+// One of the two files: a tile to pick it while it is missing, then a green
+// tile with its name (which opens it) and a small "Înlocuiește".
+function FileSlot({
+  code,
+  kind,
+  label,
+  pickText,
+  name,
+  left,
+  tone = 'is-done',
+  sub,
+  extra,
+}: {
+  code: string;
+  kind: TestFileKind;
+  label: string;
+  pickText: string;
+  name: string | null;
+  left: number;
+  tone?: 'is-done' | 'is-robot';
+  sub?: string;
+  extra?: ReactNode;
+}) {
+  const api = useApi();
+  const upload = useUpload(code, kind);
+  const [problem, setProblem] = useState<string | null>(null);
+  const inputName = kind === 'test' ? t('Fișierul testului') : t('Fișierul baremului');
+  const disabled = left === 0 || upload.isPending;
+  // The input's name starts with the words it shows, for voice control.
+  const pick = (action: string, children: ReactNode, className: string) => (
+    <FilePick name={`${action}: ${inputName}`} className={className} disabled={disabled} onPick={(file) => upload.mutate(file)} onProblem={setProblem}>
+      {children}
+    </FilePick>
+  );
+  return (
+    <div className="try-slot">
+      {name === null ? (
+        pick(
+          pickText,
+          <>
+            <span className="try-tile-mark">
+              <ActionIcon name="upload" />
+            </span>
+            <span className="try-tile-text">
+              <b>{pickText}</b>
+              <small>{upload.isPending ? t('Se trimite…') : kind === 'test' ? t('Fără răspunsuri. PDF sau Word.') : t('PDF sau Word.')}</small>
+            </span>
+          </>,
+          'try-tile is-empty',
+        )
+      ) : (
+        <div className={`try-tile ${tone}`}>
+          <span className="try-tile-mark">
+            <ActionIcon name={tone === 'is-robot' ? 'generate' : 'check'} />
+          </span>
+          <span className="try-tile-text">
+            <small className="try-tile-kind">{label}</small>
+            <a href={testFileUrl(code, kind, undefined, api.base)} target="_blank" rel="noopener">
+              {name}
+            </a>
+            {(upload.isPending || sub) && <small>{upload.isPending ? t('Se trimite…') : sub}</small>}
+          </span>
+          <span className="try-tile-acts">
+            {extra}
+            {left > 0 &&
+              pick(
+                t('Înlocuiește'),
+                <>
+                  <ActionIcon name="upload" />
+                  {t('Înlocuiește')}
+                </>,
+                'button-quiet button-small',
+              )}
+          </span>
+        </div>
+      )}
+      {problem && (
+        <p className="alert" role="alert">
+          {problem}
+        </p>
+      )}
+      {upload.error && <ErrorMessage error={upload.error} />}
+    </div>
+  );
+}
+
+function TestSlot({ detail, left }: { detail: TestDetail; left: number }) {
+  const { test } = detail;
+  return <FileSlot code={test.code} kind="test" label={t('Testul')} pickText={t('Alege testul')} name={test.files.test?.name ?? null} left={left} />;
+}
+
+// The barem: the robot's while it is made; the robot's to download and read;
+// her own file; or a tile to pick one.
+function BaremSlot({ detail, robotBarem, left }: { detail: TestDetail; robotBarem: boolean; left: number }) {
+  const api = useApi();
+  const { test } = detail;
+  if (test.barem.request === 'requested') {
+    return (
+      <div className="try-slot">
+        <div className="try-tile is-wait">
+          <span className="try-tile-mark">
+            <span className="spinner" aria-hidden="true" />
+          </span>
+          <span className="try-tile-text">
+            <small className="try-tile-kind">{t('Baremul')}</small>
+            <span>{t('Robotul face baremul din test. Durează câteva minute; pagina se actualizează singură.')}</span>
+          </span>
+        </div>
+      </div>
+    );
+  }
+  if (robotBarem) {
+    return (
+      <FileSlot
+        code={test.code}
+        kind="barem"
+        label={t('Baremul')}
+        pickText={t('Alege baremul')}
+        name={t('Baremul făcut de robot')}
+        left={left}
+        tone="is-robot"
+        sub={t('Citește-l înainte să pornești corectarea.')}
+        extra={
+          <a
+            className="button-quiet button-small try-icon-button"
+            href={testFileUrl(test.code, 'barem', undefined, api.base)}
+            target="_blank"
+            rel="noopener"
+            aria-label={t('Descarcă baremul')}
+            title={t('Descarcă baremul')}
+          >
+            <ActionIcon name="download" />
+          </a>
+        }
+      />
+    );
+  }
+  return <FileSlot code={test.code} kind="barem" label={t('Baremul')} pickText={t('Alege baremul')} name={test.files.barem?.name ?? null} left={left} />;
+}
+
+// With no barem yet, the robot can make one from the test.
+function BaremChoice({ detail, left }: { detail: TestDetail; left: number }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const { test } = detail;
@@ -124,52 +386,21 @@ function Barem({ detail, robotBarem, disabled }: { detail: TestDetail; robotBare
     mutationFn: () => api.generateBarem(test.code),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['test', test.code] }),
   });
-  if (test.barem.request === 'requested') {
-    return (
-      <p role="status">{t('Robotul face baremul din test. Durează câteva minute; pagina se actualizează singură.')}</p>
-    );
-  }
-  if (robotBarem) {
-    return (
-      <>
-        <p role="status">
-          <strong>{t('Baremul făcut de robot este gata.')}</strong>{' '}{t('Descarcă-l și citește-l. Corectarea pornește doar când apeși „Pornește corectarea”.')}
-        </p>
-        <p>
-          <a className="button-quiet" href={testFileUrl(test.code, 'barem', undefined, api.base)} target="_blank" rel="noopener">
-            <ActionIcon name="download" />
-            {t('Descarcă baremul')}
-          </a>
-        </p>
-        <p>{t('Dacă vrei, îl înlocuiești cu baremul tău:')}</p>
-        <TestFile code={test.code} kind={'barem'} name={null} disabled={disabled} />
-      </>
-    );
-  }
-  if (test.files.barem !== null) {
-    return (
-      <>
-        <p>{t('Baremul tău. PDF sau Word.')}</p>
-        <TestFile code={test.code} kind={'barem'} name={test.files.barem.name} disabled={disabled} />
-      </>
-    );
-  }
+  if (test.files.barem !== null || test.barem.request === 'requested') return null;
   return (
-    <>
-      <p>{t('Baremul după care se dă punctajul. PDF sau Word.')}</p>
-      <TestFile code={test.code} kind={'barem'} name={null} disabled={disabled} />
-      <p>{t('Nu ai un barem pregătit? Îl generezi automat din test, iar apoi îl citești înainte să pornești corectarea.')}</p>
+    <div className="try-barem-choice">
+      <p className="hint">{t('Nu ai un barem pregătit? Îl generezi automat din test, iar apoi îl citești înainte să pornești corectarea.')}</p>
       <button
         type="button"
-        className="button-quiet"
-        disabled={test.files.test === null || disabled || generate.isPending}
+        className="button-quiet button-small"
+        disabled={test.files.test === null || left === 0 || generate.isPending}
         onClick={() => generate.mutate()}
       >
         <ActionIcon name="generate" />
         {t('Fă baremul din test')}
       </button>
       {generate.error && <ErrorMessage error={generate.error} />}
-    </>
+    </div>
   );
 }
 
@@ -191,6 +422,7 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
   const [viewing, setViewing] = useState<{ id: number; src: string } | null>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['try', 'pages'] });
   const add = useMutation({
+    mutationKey: UPLOAD_KEY,
     mutationFn: async (files: File[]) => {
       for (const file of files) await tryApi.addPage(file);
     },
@@ -207,54 +439,66 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
     setProblem(refused);
     if (refused === null && picked.length > 0) add.mutate(picked);
   };
+  const full = list.length >= MAX_STUDENT_FILES || add.isPending;
 
   return (
     <>
       {list.length > 0 && (
-        <ol className="page-list try-pages" aria-label={t('Paginile lucrării')}>
+        <ol className="try-page-grid" aria-label={t('Paginile lucrării')}>
           {list.map((page, index) => (
-            <li key={page.id} className="page-item">
+            <li key={page.id} className="try-page-card">
               <PagePreview page={page} label={t('Pagina {n}', { n: index + 1 })} token={token} tryApi={tryApi} onView={(src) => setViewing({ id: page.id, src })} />
-              <span className="page-info">
+              <span className="try-page-info">
                 <span className="page-name">{t('Pagina {v1}', { v1: index + 1 })}</span>
                 <span className="hint">{formatFileSize(page.size)}</span>
               </span>
               <button
                 type="button"
-                className="button-quiet button-small"
+                className="try-page-remove"
                 aria-label={t('Șterge pagina {v1}', { v1: index + 1 })}
+                title={t('Șterge pagina {v1}', { v1: index + 1 })}
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(page.id)}
               >
                 <ActionIcon name="trash" />
-                <span className="try-page-remove">{t('Șterge')}</span>
               </button>
             </li>
           ))}
         </ol>
       )}
       <div className="try-page-actions">
-        <label className={list.length >= MAX_STUDENT_FILES || add.isPending ? 'button-quiet is-disabled' : 'button-quiet'}>
-          <ActionIcon name="upload" />
-          {t('Adaugă pagini')}
-          <input
-            type="file"
-            className="sr-only"
-            accept={PAGE_ACCEPT}
-            multiple
-            disabled={list.length >= MAX_STUDENT_FILES || add.isPending}
-            onChange={onPick}
-          />
+        <label className={full ? 'try-tile is-empty is-disabled' : 'try-tile is-empty'}>
+          <span className="try-tile-mark">
+            <ActionIcon name="upload" />
+          </span>
+          <span className="try-tile-text">
+            <b>{t('Adaugă pagini')}</b>
+          </span>
+          <input type="file" className="sr-only" accept={PAGE_ACCEPT} multiple disabled={full} onChange={onPick} />
         </label>
         {onPhone ? (
-          <Link className="button-quiet" to="/phone?here=1">
-            <ActionIcon name="phone" />
-            {t('Fă poze')}
+          <Link className="try-tile is-empty" to="/phone?here=1">
+            <span className="try-tile-mark">
+              <ActionIcon name="phone" />
+            </span>
+            <span className="try-tile-text">
+              <b>{t('Fă poze')}</b>
+            </span>
           </Link>
         ) : (
-          <button type="button" className="button-quiet" aria-expanded={phoneOpen} aria-controls="try-phone-code" onClick={() => setPhoneOpen((open) => !open)}>
-            <ActionIcon name="phone" />
-            {t('Fă poze cu telefonul')}
+          <button
+            type="button"
+            className={phoneOpen ? 'try-tile is-empty is-open' : 'try-tile is-empty'}
+            aria-expanded={phoneOpen}
+            aria-controls="try-phone-code"
+            onClick={() => setPhoneOpen((open) => !open)}
+          >
+            <span className="try-tile-mark">
+              <ActionIcon name="phone" />
+            </span>
+            <span className="try-tile-text">
+              <b>{t('Fă poze cu telefonul')}</b>
+            </span>
           </button>
         )}
       </div>
