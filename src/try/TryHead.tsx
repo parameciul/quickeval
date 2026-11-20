@@ -42,7 +42,7 @@ export function TryHead({ detail, info, token, tryApi }: { detail: TestDetail; i
           </div>
         )}
       </div>
-      <ShareButton token={token} before={<DeleteTry tryApi={tryApi} madeAt={paper?.startedAt ?? paper?.submittedAt ?? new Date().toISOString()} />} />
+      <ShareButton token={token} before={<DeleteTry tryApi={tryApi} token={token} madeAt={paper?.startedAt ?? paper?.submittedAt ?? new Date().toISOString()} />} />
     </header>
   );
 }

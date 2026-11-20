@@ -13,7 +13,7 @@ function setup(tryApi = createFakeTryApi()) {
   const goTo = vi.fn();
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}>
-      <DeleteTry tryApi={tryApi} madeAt={MADE_AT} goTo={goTo} />
+      <DeleteTry tryApi={tryApi} token={TRY_TOKEN} madeAt={MADE_AT} goTo={goTo} />
     </QueryClientProvider>,
   );
   return { tryApi, goTo };
@@ -81,5 +81,45 @@ describe('"Șterge încercarea" on the try page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Șterge definitiv' }));
     await waitFor(() => expect(goTo).toHaveBeenCalledWith('/'));
     expect(localStorage.getItem(STORED_TRY_KEY)).toBeNull();
+  });
+
+  it('leaves the stored try and the day mark alone when the deleted try is not the stored one', async () => {
+    const other = 'zyxwvutsrqpnmkjihgfedcba2345672a';
+    const stored = JSON.stringify({ token: other, code: 'PROBA-26T2', madeAt: new Date().toISOString() });
+    localStorage.setItem(STORED_TRY_KEY, stored);
+    const { goTo } = setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge definitiv' }));
+    await waitFor(() => expect(goTo).toHaveBeenCalledWith('/'));
+    expect(localStorage.getItem(STORED_TRY_KEY)).toBe(stored);
+    expect(localStorage.getItem(DELETED_TRY_KEY)).toBeNull();
+  });
+
+  it('marks nothing on a device that keeps no try (a shared link)', async () => {
+    localStorage.clear();
+    const { goTo } = setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge definitiv' }));
+    await waitFor(() => expect(goTo).toHaveBeenCalledWith('/'));
+    expect(localStorage.getItem(DELETED_TRY_KEY)).toBeNull();
+  });
+
+  it('never replaces a later day mark with an earlier one', async () => {
+    const later = '2026-11-12T07:20:00.000Z';
+    localStorage.setItem(DELETED_TRY_KEY, later);
+    const { goTo } = setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge definitiv' }));
+    await waitFor(() => expect(goTo).toHaveBeenCalledWith('/'));
+    expect(localStorage.getItem(DELETED_TRY_KEY)).toBe(later);
+  });
+
+  it('moves the focus to "Șterge definitiv" when the question opens, and back to "Șterge" after "Renunță"', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge' }));
+    expect(screen.getByRole('button', { name: 'Șterge definitiv' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Șterge definitiv' })).toHaveAccessibleDescription('Sigur? Încercarea, lucrarea și linkul se șterg definitiv.');
+    await userEvent.click(screen.getByRole('button', { name: 'Renunță' }));
+    expect(screen.getByRole('button', { name: 'Șterge' })).toHaveFocus();
   });
 });

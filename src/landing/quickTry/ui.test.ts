@@ -248,6 +248,17 @@ describe("the landing page's Quick Try", () => {
     }
   });
 
+  it('hides the card and turns the button off when another tab deletes the try', async () => {
+    store();
+    await mount(fakeLandingApi());
+    expect(screen.getByRole('status')).toBeVisible();
+    localStorage.removeItem(STORED_TRY_KEY);
+    localStorage.setItem(DELETED_TRY_KEY, NOW.toISOString());
+    window.dispatchEvent(new StorageEvent('storage', { key: STORED_TRY_KEY }));
+    expect(document.querySelector('[data-try-status]')).not.toBeVisible();
+    expect(button()).toBeDisabled();
+  });
+
   it('hides the card and turns the button off when the page is shown again after a delete made on the try page', async () => {
     store();
     await mount(fakeLandingApi());

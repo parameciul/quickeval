@@ -9,7 +9,7 @@ import { openPhoneStep, type PhoneStep } from './phone.ts';
 import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf, type StartAnswer } from './status.ts';
-import { forgetStoredTry, readDeletedAt, readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
+import { DELETED_TRY_KEY, forgetStoredTry, readDeletedAt, readStoredTry, saveStoredTry, STORED_TRY_KEY, type StoredTry } from './storage.ts';
 import { t } from '../../i18n/t.ts';
 import { initAccountLinks, showAccount } from '../account.ts';
 
@@ -413,20 +413,30 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
 
   // Shown again from the browser's cache (Back from the phone page): the try
   // read again, since its pages or its state may have changed meanwhile.
+  const readAgain = (): void => {
+    stored = readStoredTry(deps.storage, deps.now());
+    deletedAt = readDeletedAt(deps.storage);
+    if (stored) void follow(stored);
+    else {
+      // Deleted in another tab or on the try's page: no card, no timer.
+      if (timer) clearTimeout(timer);
+      status.hidden = true;
+      phase = null;
+      refreshButton();
+    }
+  };
   window.addEventListener(
     'pageshow',
     (event) => {
-      if (!(event as PageTransitionEvent).persisted) return;
-      stored = readStoredTry(deps.storage, deps.now());
-      deletedAt = readDeletedAt(deps.storage);
-      if (stored) void follow(stored);
-      else {
-        // Deleted in another tab: no card, no timer.
-        if (timer) clearTimeout(timer);
-        status.hidden = true;
-        phase = null;
-        refreshButton();
-      }
+      if ((event as PageTransitionEvent).persisted) readAgain();
+    },
+    { signal: deps.signal },
+  );
+  // Another tab changed her try (a delete on the try's page, a new try).
+  window.addEventListener(
+    'storage',
+    (event) => {
+      if (event.key === null || event.key === STORED_TRY_KEY || event.key === DELETED_TRY_KEY) readAgain();
     },
     { signal: deps.signal },
   );
