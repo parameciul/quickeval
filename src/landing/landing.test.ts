@@ -90,8 +90,8 @@ describe('the landing page', () => {
     ]);
     // Every card says what the page is about, in one line.
     for (const a of all('#more ul a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
-    // The header's menu names the same four pages.
-    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['/', '/guide/', '/marking-scheme/', '/about/', '/pricing/']);
+    // The header's menu names the same four pages, then the English copy of this one.
+    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['/', '/guide/', '/marking-scheme/', '/about/', '/pricing/', '/en/']);
     // The account picture waits until the app's look settles.
     expect(doc.getElementById('aplicatia')).toBeNull();
   });

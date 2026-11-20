@@ -55,6 +55,12 @@ export default defineConfig({
         markingScheme: page('./marking-scheme/index.html'),
         about: page('./about/index.html'),
         pricing: page('./pricing/index.html'),
+        // Their English copies, at /en/.
+        en: page('./en/index.html'),
+        enGuide: page('./en/guide/index.html'),
+        enMarkingScheme: page('./en/marking-scheme/index.html'),
+        enAbout: page('./en/about/index.html'),
+        enPricing: page('./en/pricing/index.html'),
       },
     },
   },

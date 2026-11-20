@@ -121,7 +121,8 @@ describe('the pages that answer a search', () => {
       .map((a) => a.getAttribute('href') ?? '')
       .filter((href) => href.startsWith('/'))
       .map((href) => href.split('#')[0] ?? '');
-    const known = new Set(['/', ...LINKS, '/teacher/']);
+    // The English copy of each page counts as one of them.
+    const known = new Set(['/', ...LINKS, '/teacher/', '/en/', ...LINKS.map((link) => `/en${link}`)]);
     for (const href of internal) expect(known.has(href) || href.startsWith('/teacher/')).toBe(true);
     // A link into the teacher app with a hash opens the sign-up, by its own name.
     for (const a of all(doc, 'a[href^="/teacher/#"]')) expect(a.getAttribute('href')).toBe(`/teacher/${SIGNUP_HASH}`);

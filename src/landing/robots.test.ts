@@ -3,6 +3,10 @@ import baremRaw from '../../marking-scheme/index.html?raw';
 import despreRaw from '../../about/index.html?raw';
 import ghidRaw from '../../guide/index.html?raw';
 import preturiRaw from '../../pricing/index.html?raw';
+import enBaremRaw from '../../en/marking-scheme/index.html?raw';
+import enDespreRaw from '../../en/about/index.html?raw';
+import enGuideRaw from '../../en/guide/index.html?raw';
+import enPreturiRaw from '../../en/pricing/index.html?raw';
 import llms from '../../public/llms.txt?raw';
 import robots from '../../public/robots.txt?raw';
 import sitemap from '../../public/sitemap.xml?raw';
@@ -72,13 +76,19 @@ describe('sitemap.xml and llms.txt', () => {
       'https://mqgrader.ro/marking-scheme/',
       'https://mqgrader.ro/about/',
       'https://mqgrader.ro/pricing/',
+      // Their English copies.
+      'https://mqgrader.ro/en/',
+      'https://mqgrader.ro/en/guide/',
+      'https://mqgrader.ro/en/marking-scheme/',
+      'https://mqgrader.ro/en/about/',
+      'https://mqgrader.ro/en/pricing/',
     ]);
     // The private apps and a Quick Try's page are never in it.
     for (const url of urls) expect(url).not.toMatch(/\/(teacher|u|try)\//);
   });
 
   it('dates each page in the sitemap as the page dates itself', () => {
-    const pages = [ghidRaw, baremRaw, despreRaw, preturiRaw].map(expandPartials);
+    const pages = [ghidRaw, baremRaw, despreRaw, preturiRaw, enGuideRaw, enBaremRaw, enDespreRaw, enPreturiRaw].map(expandPartials);
     const modDates = new Map<string, string>();
     for (const html of pages) {
       const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -92,10 +102,10 @@ describe('sitemap.xml and llms.txt', () => {
     );
     // The landing page has no date of its own; every other page does.
     for (const [url, lastmod] of entries) {
-      if (url === 'https://mqgrader.ro/') continue;
+      if (url === 'https://mqgrader.ro/' || url === 'https://mqgrader.ro/en/') continue;
       expect(modDates.get(url), url).toBe(lastmod);
     }
-    expect(modDates.size).toBe(4);
+    expect(modDates.size).toBe(8);
   });
 
   it('describe the product and link to mqgrader.ro only', () => {

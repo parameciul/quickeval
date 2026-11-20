@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en" data-twin="/guide/">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <title>How to grade tests by the marking scheme · MQGrader</title>
+    <meta name="description" content="A step-by-step guide to grading a test by the marking scheme, from mathematics to English: what can be automated, where you step in and what the points look like." />
+    <link rel="canonical" href="https://mqgrader.ro/en/guide/" />
+    <link rel="alternate" hreflang="ro" href="https://mqgrader.ro/guide/" />
+    <link rel="alternate" hreflang="en" href="https://mqgrader.ro/en/guide/" />
+    <link rel="alternate" hreflang="x-default" href="https://mqgrader.ro/guide/" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="author" content="Laura Miron" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="MQGrader" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:locale:alternate" content="ro_RO" />
+    <meta property="og:url" content="https://mqgrader.ro/en/guide/" />
+    <meta property="og:title" content="How to grade tests by the marking scheme" />
+    <meta property="og:description" content="A step-by-step guide: points for every step, partial points, reviewing the unsure points and the results." />
+    <meta property="og:image" content="https://mqgrader.ro/en/og-guide.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="MQGrader: how to grade tests by the marking scheme" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How to grade tests by the marking scheme" />
+    <meta name="twitter:description" content="Points for every step, partial points, reviewing the unsure points." />
+    <meta name="twitter:image" content="https://mqgrader.ro/en/og-guide.png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": "https://mqgrader.ro/en/guide/#webpage",
+            "url": "https://mqgrader.ro/en/guide/",
+            "name": "How to grade tests by the marking scheme",
+            "description": "A step-by-step guide to grading a test by the marking scheme, from mathematics to English: what can be automated, where you step in and what the points look like.",
+            "inLanguage": "en",
+            "isPartOf": { "@id": "https://mqgrader.ro/#website" },
+            "about": { "@id": "https://mqgrader.ro/#app" },
+            "breadcrumb": { "@id": "https://mqgrader.ro/en/guide/#breadcrumb" },
+            "author": { "@id": "https://mqgrader.ro/#laura-miron" },
+            "publisher": { "@id": "https://mqgrader.ro/#organization" },
+            "datePublished": "2026-11-20",
+            "dateModified": "2026-11-20",
+            "primaryImageOfPage": {
+              "@type": "ImageObject",
+              "url": "https://mqgrader.ro/en/app-graded-paper.png",
+              "width": 1897,
+              "height": 1066,
+              "caption": "A graded paper in MQGrader: the points, the student's answer and the comment for every exercise, next to the photo of the page."
+            }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://mqgrader.ro/en/guide/#breadcrumb",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "MQGrader", "item": "https://mqgrader.ro/en/" },
+              { "@type": "ListItem", "position": 2, "name": "Grading guide", "item": "https://mqgrader.ro/en/guide/" }
+            ]
+          }
+        ]
+      }
+    </script>
+    <script src="/lang.js"></script>
+    <script src="/theme.js"></script>
+    <script src="https://stats.mqgrader.ro/api/script.js?siteId=b5be2803e8ab" defer></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="/src/landing/landing.css" />
+    <link rel="stylesheet" href="/src/landing/pages.css" />
+    <script type="module" src="/src/landing/pages.ts"></script>
+  </head>
+  <body class="pg pg-guide">
+    <div class="site">
+      <header class="site-top wrap">
+        <div class="bar">
+          <a class="brand" href="/en/" aria-label="MQGrader by Laura Miron">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>
+            <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
+          </a>
+          <nav aria-label="Page">
+            <div class="links nav-links" id="nav-pages" data-nav-links>
+            <a href="/en/">Product</a>
+            <a href="/en/guide/" aria-current="page">Grading guide</a>
+            <a href="/en/marking-scheme/">Marking scheme</a>
+            <a href="/en/about/">About</a>
+            <a href="/en/pricing/">Pricing</a>
+            </div>
+            <button class="icon nav-btn" type="button" data-nav-toggle aria-expanded="false" aria-controls="nav-pages" aria-label="More pages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+            <a class="icon lang-switch" href="/guide/" hreflang="ro" lang="ro" data-lang-switch="ro" aria-label="Română">RO</a>
+            <button class="icon" type="button" data-theme-toggle aria-label="Dark theme"><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg></button>
+            <a class="btn btn-small" href="/teacher/" data-guest>Sign in</a>
+          </nav>
+        </div>
+      </header>
+      <main>
+        <section class="head wrap" aria-labelledby="title">
+          <nav class="crumbs" aria-label="You are here"><a href="/en/">MQGrader</a><span aria-hidden="true">›</span><span>Grading guide</span></nav>
+          <h1 id="title" class="t-1">How to grade tests by the marking scheme</h1>
+          <p class="lede">Grading by the marking scheme means points you can explain: every point given has a reason, and two students with the same solution get the same points. Below you find the stages, in order, what can be automated and where the teacher has to step in.</p>
+          <p class="byline">Written by <a href="/en/about/">Laura Miron</a>, mathematics teacher · updated 20 November 2026</p>
+          <nav class="jump" aria-label="The six stages">
+            <a href="#prepare"><b>1</b><span>Prepare</span><small>You</small></a>
+            <a href="#print"><b>2</b><span>Print</span><small>You</small></a>
+            <a class="st" href="#in-class"><b>3</b><span>In class</span><small>Students</small></a>
+            <a class="mq" href="#grading"><b>4</b><span>Grading</span><small>MQGrader</small></a>
+            <a href="#review"><b>5</b><span>Review</span><small>You</small></a>
+            <a href="#results"><b>6</b><span>Results</span><small>You and the students</small></a>
+          </nav>
+        </section>
+
+        <section class="doc wrap" aria-label="What grading by the marking scheme means">
+          <nav class="toc" aria-labelledby="contents">
+            <h2 id="contents">Contents</h2>
+            <ol>
+              <li><a href="#meaning">What grading by the marking scheme means</a></li>
+              <li><a href="#steps">The six stages of a test, in order</a></li>
+              <li><a href="#time">Where the time goes</a></li>
+              <li><a href="#automated">What can be automated and what cannot</a></li>
+              <li><a href="#habits">Three habits that make grading easier</a></li>
+            </ol>
+          </nav>
+          <div class="prose">
+            <section aria-labelledby="meaning">
+              <h2 id="meaning">What grading by the marking scheme means</h2>
+              <p>The marking scheme splits every exercise into steps, and every step has its own points. You do not look only at the final answer and you do not give “all or nothing”: a student who started right and stopped halfway gets the points for the steps they did.</p>
+              <p>This gives three advantages:</p>
+              <ul class="dots">
+                <li><b>The same points for the same solution</b>, whether you grade it on Monday evening or on Friday morning.</li>
+                <li><b>Partial points you can explain to the student</b>, because every point belongs to a step of the solution, not only to the final grade.</li>
+                <li><b>A grade that is easy to redo</b>: if you change the points of one step, you redo only the total, not the whole grading.</li>
+              </ul>
+              <p>In Romania's national exams (the Evaluarea Națională and the baccalaureate), the marking scheme is published after the exam and has 100 points, 10 of which are given as starting points. A class test does not have to follow this model: you only need a clear marking scheme that you apply the same way to every student.</p>
+            </section>
+          </div>
+        </section>
+
+        <section class="journey wrap" aria-labelledby="steps">
+          <h2 id="steps" class="t-2 rise">The six stages of a test, in order</h2>
+          <p class="lede rise">Every test goes through the same six stages, whether 12 students take it or 34. The order matters, because each stage prepares what the next one needs. The screens are from the app, on a sample class, with made-up names.</p>
+
+          <article class="stage" id="prepare">
+            <div class="rise">
+              <p class="n">1</p><h3>Prepare</h3><div class="whos"><span class="who who-you">You</span></div>
+              <p>You need two files: the test and the marking scheme. Many teachers have the test in a document, and the marking scheme only in their head or on a handwritten sheet. It is worth writing the marking scheme in an easy-to-read form, with one line for each point: with 30 papers, you will read it 30 times.</p>
+              <ul class="do"><li><b>In MQGrader:</b> you upload the test and the marking scheme. No marking scheme ready? You make one from the test automatically, then review and adjust it.</li><li><b>The class:</b> you paste the list of students from the online grade book, only once.</li></ul>
+            </div>
+            <div class="pics rise">
+              <figure><span class="shot-l"><img src="/screens/en/stage-prepare-laptop.webp" width="1440" height="900" alt="The Prepare stage: the test and the marking scheme uploaded" loading="lazy" decoding="async" /></span><figcaption>The test's page, the Prepare stage.</figcaption></figure>
+              <figure class="only-l"><span class="shot-p narrow"><img src="/screens/en/teacher-newclass-phone.webp" width="780" height="1688" alt="New class: the list of students pasted from the grade book" loading="lazy" decoding="async" /></span><figcaption>The new class, on a phone.</figcaption></figure>
+            </div>
+          </article>
+
+          <article class="stage" id="print">
+            <div class="rise">
+              <p class="n">2</p><h3>Print</h3><div class="whos"><span class="who who-you">You</span></div>
+              <p>The test is printed before the lesson, with a QR code on every page. The student scans the code on any page and goes straight to where they send their paper.</p>
+              <ul class="do"><li><b>In MQGrader:</b> you download the PDF to print, with the QR code already on every page.</li></ul>
+            </div>
+            <div class="pics one rise">
+              <figure><span class="shot-l"><img src="/screens/en/stage-print-laptop.webp" width="1440" height="900" alt="The Print stage: the test's PDF, with a QR code on every page" loading="lazy" decoding="async" /></span><figcaption>The Print stage.</figcaption></figure>
+            </div>
+          </article>
+
+          <article class="stage st" id="in-class">
+            <div class="rise">
+              <p class="n">3</p><h3>In class</h3><div class="whos"><span class="who who-st">Students</span></div>
+              <p>Students write the test as usual, then photograph its pages with their phone. They need no account and no app: the QR code on the test (or a link) and the phone's camera are enough. The photos reach you grouped by student, not as a heap of nameless files.</p>
+              <ul class="do"><li><b>On the student's phone:</b> they pick their name, take the photos, press “I sent everything” and get a ticket with a code, for the result.</li></ul>
+            </div>
+            <div class="pics rise">
+              <figure class="only-l"><span class="shot-l"><img src="/screens/en/stage-in-class-laptop.webp" width="1440" height="900" alt="The In class stage: who has sent the paper" loading="lazy" decoding="async" /></span><figcaption>See at once who has sent.</figcaption></figure>
+              <figure><div class="pair-p"><span class="shot-p"><img src="/screens/en/student-pages-phone.webp" width="780" height="1688" alt="The student's phone: three uploaded pages" loading="lazy" decoding="async" /></span><span class="shot-p"><img src="/screens/en/student-ticket-phone.webp" width="780" height="1688" alt="The student's phone: the ticket with the code for the result" loading="lazy" decoding="async" /></span></div><figcaption>The student's phone: the photos, then the ticket.</figcaption></figure>
+            </div>
+          </article>
+
+          <article class="stage mq" id="grading">
+            <div class="rise">
+              <p class="n">4</p><h3>Grading</h3><div class="whos"><span class="who who-you">You start it</span> <span class="who who-mq">MQGrader</span></div>
+              <p>This is where the points are set. Every exercise is split into steps, and every step gets the points from the marking scheme. The mechanical part — reading the photos, finding the step in the marking scheme, adding up the points — can be done without you. The decision cannot.</p>
+              <ul class="do"><li><b>In MQGrader:</b> you press “Close uploads and start grading”. Every paper is scored step by step, with the 10 starting points.</li></ul>
+            </div>
+            <div class="pics rise">
+              <figure><span class="shot-l"><img src="/screens/en/stage-grading-laptop.webp" width="1440" height="900" alt="The Grading stage: the graded papers and the unsure points" loading="lazy" decoding="async" /></span><figcaption>The Grading stage.</figcaption></figure>
+              <figure class="only-l"><span class="shot-p narrow"><img src="/screens/en/teacher-test-phone.webp" width="780" height="1688" alt="The test's page on a phone: the stages and 3 unsure points" loading="lazy" decoding="async" /></span><figcaption>The same test, on a phone.</figcaption></figure>
+            </div>
+          </article>
+
+          <article class="stage" id="review">
+            <div class="rise">
+              <p class="n">5</p><h3>Review</h3><div class="whos"><span class="who who-you">You</span></div>
+              <p>What is left are the debatable points: a solution shorter than the one in the marking scheme, an unusual notation, a dark photo, a step the student did in their head and did not write down. You check these: you accept the proposed points or change them. The decision stays yours.</p>
+              <ul class="do"><li><b>Without the paper sheet:</b> the answer is framed on the photo of the paper, next to the reason. It works from a phone too.</li></ul>
+            </div>
+            <div class="pics rise">
+              <figure class="only-l"><span class="shot-l"><img src="/screens/en/teacher-decide-laptop.webp" width="1680" height="1000" alt="The review on a laptop: exercise II.4, the reason, the Accept 5p button and the photo with the answer framed" loading="lazy" decoding="async" /></span><figcaption>The review on a laptop.</figcaption></figure>
+              <figure><div class="pair-p"><span class="shot-p"><img src="/screens/en/teacher-review-phone.webp" width="780" height="1688" alt="The teacher's phone: the answer framed on the photo of the paper" loading="lazy" decoding="async" /></span><span class="shot-p"><img src="/screens/en/teacher-decide-phone.webp" width="780" height="1688" alt="The teacher's phone: the reason and the Accept 5p button" loading="lazy" decoding="async" /></span></div><figcaption>The same review, on a phone.</figcaption></figure>
+            </div>
+          </article>
+
+          <article class="stage" id="results">
+            <div class="rise">
+              <p class="n">6</p><h3>Results</h3><div class="whos"><span class="who who-you">You publish</span> <span class="who who-st">Students</span></div>
+              <p>At the end, each student sees their result: the points for each exercise, what they solved right and what not, and the grade. The teacher keeps the class report — which exercises went well and which did not — and the grades ready for the grade book.</p>
+              <ul class="do"><li><b>For you:</b> the class report, a PDF for each student and a CSV for the grade book.</li></ul>
+            </div>
+            <div class="pics rise">
+              <figure class="only-l"><span class="shot-l"><img src="/screens/en/teacher-report-analysis-laptop.webp" width="1440" height="900" alt="The class report: the analysis, with what went well and what to go over" loading="lazy" decoding="async" /></span><figcaption>The class report.</figcaption></figure>
+              <figure><div class="pair-p"><span class="shot-p"><img src="/screens/en/student-result-phone.webp" width="780" height="1688" alt="The student's result: the grade 8.4" loading="lazy" decoding="async" /></span><span class="shot-p"><img src="/screens/en/student-result-items-phone.webp" width="780" height="1688" alt="The student's result: the explanation for one exercise" loading="lazy" decoding="async" /></span></div><figcaption>What the student sees, on a phone.</figcaption></figure>
+            </div>
+          </article>
+        </section>
+
+        <section class="doc2 wrap" aria-label="Time, automation and habits">
+          <div class="prose">
+            <section aria-labelledby="time">
+              <h2 id="time">Where the time goes</h2>
+              <p>A test with six exercises, given to a class of 30 students, means 180 solutions to score. If one solution takes you 20 seconds — you read it, find the step in the marking scheme, write the points — you reach one hour for a single class, with no breaks. With three classes, an evening is gone.</p>
+              <div class="math"><div><b>180</b><span>solutions, for a class of 30</span></div><div><b>1 hour</b><span>for one class, at 20 seconds a solution</span></div><div><b>3 hours</b><span>for three classes: an evening</span></div></div>
+              <p class="wide">The time is not lost on the clear cases: a right answer is seen at once, and so is a wrong one. It is lost on the debatable cases — exactly the ones you are tempted to rush, to finish.</p>
+            </section>
+            <section aria-labelledby="automated">
+              <h2 id="automated">What can be automated and what cannot</h2>
+              <p>Reading the photos and proposing the points, step by step, can be automated. MQGrader uses artificial intelligence to read the paper and find, for each exercise, the steps of the marking scheme — partial points included, not only the final result.</p>
+              <p>What cannot be automated is exactly the part that matters most: the decision in a case the marking scheme does not foresee. A student who solved it differently, but correctly, must get the full points, and that is a decision for the teacher, not for a program.</p>
+              <div class="rule"><b>The rule MQGrader is built on</b><p>The sure points grade themselves. The unsure ones wait for you. The proposed points do not reach the student until you have seen them.</p></div>
+              <figure class="shot">
+                <img src="/en/app-graded-paper.png" width="1897" height="1066" alt="A graded paper in a mathematics test: on the left, the class's students with their grades; in the middle, the paper's grade and, for every exercise, the points, the student's answer and the comment; on the right, the photo of the page, with exercise I.1 framed." loading="lazy" decoding="async" />
+                <figcaption>A screen from the app, on sample data with made-up names: for every exercise, the points, the student's answer and the comment, next to the photo of the page.</figcaption>
+              </figure>
+            </section>
+            <section aria-labelledby="habits">
+              <h2 id="habits">Three habits that make grading easier</h2>
+              <ol class="nums">
+                <li><p><b>Confirm the marking scheme before the first paper.</b> If the marking scheme is unclear, you end up grading every paper twice.</p></li>
+                <li><p><b>Ask for the photos in class, at the end of the lesson.</b> A clear photo, with the whole page, is graded the first time. A dark or cut photo comes back to you, for review.</p></li>
+                <li><p><b>Publish the results before the next test.</b> A student who waits a week for their grade learns nothing more from it, and the talk about the old test piles up on the new one.</p></li>
+              </ol>
+            </section>
+          </div>
+        </section>
+
+        <section class="read wrap" aria-labelledby="read-also">
+          <h2 id="read-also" class="t-2 rise">Read also</h2>
+          <ul class="read-on">
+            <li class="rise"><a href="/en/marking-scheme/"><b>The marking scheme: what it is and how to use it</b><span>Where a test's marking scheme comes from, what a good one holds and how to get one in the app.</span></a></li>
+            <li class="rise"><a href="/en/about/"><b>About MQGrader and Laura Miron</b><span>Who builds the platform, why it came about and what it does not do.</span></a></li>
+            <li class="rise"><a href="/en/pricing/"><b>What MQGrader costs</b><span>What a demo account includes and why there is no subscription yet.</span></a></li>
+          </ul>
+        </section>
+        <section class="end wrap" id="guide-cta" aria-labelledby="end-t">
+          <h2 id="end-t" class="rise">Try the stages on a paper.</h2>
+          <p class="rise">With a demo account you grade one test, with at most 35 papers. Or try it first on one paper, with no account.</p>
+          <div class="acts rise"><a class="btn btn-go" href="/en/#try">Try it, no account <span aria-hidden="true">→</span></a><a class="btn btn-acc" href="/teacher/#new-account">Ask for a teacher account <span aria-hidden="true">→</span></a></div>
+        </section>
+      </main>
+      <!--#include site-foot-en -->
+    </div>
+  </body>
+</html>

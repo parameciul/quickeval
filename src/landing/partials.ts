@@ -26,7 +26,25 @@ const SITE_FOOT = `<footer class="site-foot">
         </div>
       </footer>`;
 
-export const PARTIALS: Readonly<Record<string, string>> = { 'site-foot': SITE_FOOT };
+// The same footer on the English pages (/en/…).
+const SITE_FOOT_EN = `<footer class="site-foot">
+        <div class="foot wrap">
+          <a class="brand" href="/en/" aria-label="MQGrader by Laura Miron">
+            ${MARK}
+            <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
+          </a>
+          <nav class="foot-nav" aria-label="Pages">
+            <a href="/en/guide/">Grading guide</a>
+            <a href="/en/marking-scheme/">Marking scheme</a>
+            <a href="/en/about/">About</a>
+            <a href="/en/pricing/">Pricing</a>
+          </nav>
+          <a class="link" href="mailto:contact@mqgrader.ro">contact@mqgrader.ro</a>
+          <span class="note">Grading tests by the marking scheme · Timișoara · 2026</span>
+        </div>
+      </footer>`;
+
+export const PARTIALS: Readonly<Record<string, string>> = { 'site-foot': SITE_FOOT, 'site-foot-en': SITE_FOOT_EN };
 
 const INCLUDE = /<!--#include ([a-z-]+) -->/g;
 

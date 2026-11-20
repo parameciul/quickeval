@@ -497,3 +497,6 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
   .tryd .acts { position: sticky; bottom: 0; margin-left: 0; padding: 8px 0 4px; background: var(--surface); }
   .tryd .acts .btn { flex: 1; }
 }
+
+/* The language link beside the theme button: the code of the other language. */
+.lang-switch { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.02em; text-decoration: none; }
