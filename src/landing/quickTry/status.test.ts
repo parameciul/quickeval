@@ -88,6 +88,12 @@ describe('whether she may make a try now', () => {
     expect(canStart(open, today, 'failed', now)).toBe('yes');
   });
 
+  it("counts a deleted try as today's try, unless it was made on another day", () => {
+    expect(canStart(open, null, null, now, today.madeAt)).toBe('used');
+    expect(canStart(open, null, null, now, '2026-11-09T08:00:00.000Z')).toBe('yes');
+    expect(canStart({ ...open, admin: true }, null, null, now, today.madeAt)).toBe('yes');
+  });
+
   it("says when the platform's tries for today are all used", () => {
     expect(canStart({ ...open, dailyLimitReached: true }, null, null, now)).toBe('full');
   });

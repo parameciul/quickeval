@@ -251,20 +251,53 @@ describe("the landing page's Quick Try", () => {
   describe('deleting her try', () => {
     const del = () => document.querySelector<HTMLButtonElement>('[data-try-delete]')!;
 
-    it('asks once more, then deletes the try, forgets its link and shows the button again', async () => {
+    it('asks once more, then deletes the try and forgets its link', async () => {
       store();
       const api = fakeLandingApi();
       await mount(api);
       expect(button()).toBeDisabled();
       del().click();
       expect(del()).toHaveTextContent('Sigur? Șterge definitiv');
-      expect(del()).toHaveAccessibleName('Șterge încercarea');
       expect(api.deleteTry).not.toHaveBeenCalled();
       del().click();
       await waitFor(() => expect(api.deleteTry).toHaveBeenCalledWith(TOKEN));
       await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
       expect(localStorage.getItem(STORED_TRY_KEY)).toBeNull();
+    });
+
+    it('keeps one try per device per day after a delete, unless the try had failed', async () => {
+      store();
+      await mount(fakeLandingApi());
+      del().click();
+      del().click();
+      await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+      expect(button()).toBeDisabled();
+      expect(screen.getByText('Ai făcut încercarea de azi. Mâine poți face alta.')).toBeVisible();
+      // The next visit of the page, with no try stored.
+      document.body.innerHTML = '';
+      await mount(fakeLandingApi());
+      expect(button()).toBeDisabled();
+    });
+
+    it('lets her try again after deleting a try that failed', async () => {
+      store();
+      const api = fakeLandingApi();
+      api.getTest.mockResolvedValue(tryTest({ files, barem: { request: 'failed', unchecked: false } }));
+      await mount(api);
+      del().click();
+      del().click();
+      await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
       expect(button()).toBeEnabled();
+    });
+
+    it('names the button by its question while it asks, and by its job again after', async () => {
+      store();
+      await mount(fakeLandingApi());
+      const job = del().getAttribute('aria-label');
+      del().click();
+      expect(del()).toHaveAccessibleName('Sigur? Șterge definitiv');
+      del().click();
+      await waitFor(() => expect(del().getAttribute('aria-label')).toBe(job));
     });
 
     it('goes back to its label when the second press does not come', async () => {

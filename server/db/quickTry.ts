@@ -217,6 +217,10 @@ export async function deleteTryRows(db: D1Database, teacherId: number): Promise<
   const list = JSON.stringify([teacherId]);
   await db.batch(
     [
+      // A failed try gave its IP place back through its test rows (GAVE_BACK):
+      // the place is settled now, before those rows go, so deleting the try
+      // does not take it back. The try still counts in the day's total.
+      `UPDATE quick_tries AS q SET ip_hash = '' WHERE q.teacher_id IN (${GUESTS}) AND ${GAVE_BACK}`,
       `DELETE FROM tests WHERE teacher_id IN (${GUESTS})`,
       `DELETE FROM enrollments WHERE class_id IN (SELECT id FROM classes WHERE teacher_id IN (${GUESTS}))`,
       `DELETE FROM students WHERE teacher_id IN (${GUESTS})`,
