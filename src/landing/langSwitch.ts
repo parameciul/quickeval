@@ -2,9 +2,12 @@
 // English copy, "RO" back. It is a plain link, so it works without script;
 // the script saves the choice, so the reader's next visit (and the apps)
 // opens in that language (public/lang.js).
-import { type Lang, saveLang } from '../i18n/lang.ts';
+import { currentLang, type Lang, saveLang, storedLang } from '../i18n/lang.ts';
 
 export function initLangSwitch(root: ParentNode = document): void {
+  // A reader who came straight to an English page (a search, a shared link)
+  // keeps English in the apps it links to: the sign-in, the Quick Try.
+  if (storedLang() === null && currentLang() === 'en') saveLang('en');
   for (const link of root.querySelectorAll<HTMLAnchorElement>('[data-lang-switch]')) {
     link.addEventListener('click', () => {
       const lang = link.dataset.langSwitch;

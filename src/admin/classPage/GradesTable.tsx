@@ -49,7 +49,7 @@ function headNote(test: TestSummary, readOnly: boolean): { text: string; waits: 
   if (test.status === 'done' && test.gradedCount > 0) {
     return { text: `${date} · ${test.resultsOpen ? t('publicat') : t('nepublicat')}`, waits };
   }
-  return { text: `${date} · ${stagesOf(test).current.name.toLowerCase()}`, waits };
+  return { text: `${date} · ${t(stagesOf(test).current.name).toLowerCase()}`, waits };
 }
 
 function TestHeader({ test, readOnly }: { test: TestSummary; readOnly: boolean }) {
