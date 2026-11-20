@@ -13,7 +13,7 @@ import { isQuickTryToken, QUICK_TRY_STUDENT } from '../../shared/quickTry.ts';
 import { optionalTeacher } from '../auth/teacherAuth.ts';
 import { startEvaluationNow } from '../db/lifecycle.ts';
 import { addSubmissionFile, deleteSessionFile, fileSlots, findSessionFile } from '../db/links.ts';
-import { createQuickTry, dailyLimitReached, findQuickTry, guestTeacher, listPaperFiles } from '../db/quickTry.ts';
+import { createQuickTry, dailyLimitReached, deleteTryRows, findQuickTry, guestTeacher, listPaperFiles, tryFileKeys } from '../db/quickTry.ts';
 import { findResultBySubmission } from '../db/results.ts';
 import { confirmBarem, requireTest } from '../db/tests.ts';
 import { robotStarter } from '../dispatch.ts';
@@ -139,6 +139,18 @@ export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const found = c.var.quickTry;
     const answer: QuickTryInfo = { code: found.code, submissionId: found.submissionId, expiresAt: found.expiresAt, expired };
     return c.json(answer);
+  });
+
+  // The visitor deletes her try, also after its days are over: its files and
+  // rows go now. The try keeps counting in the day's limits.
+  routes.delete('/:token', async (c) => {
+    await loadTry(c);
+    const { teacherId } = c.var.quickTry;
+    const keys = await tryFileKeys(c.env.DB, [teacherId]);
+    // R2 first: when it fails the rows stay, so the files are found again.
+    if (keys.length > 0) await c.env.FILES.delete(keys);
+    await deleteTryRows(c.env.DB, teacherId);
+    return c.json({ deleted: true });
   });
 
   routes.use('/:token/*', tryAccess);

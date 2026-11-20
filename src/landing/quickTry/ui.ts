@@ -8,8 +8,8 @@ import type { LandingApi } from './api.ts';
 import { openPhoneStep, type PhoneStep } from './phone.ts';
 import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
-import { canStart, statusOf } from './status.ts';
-import { forgetStoredTry, readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
+import { canStart, statusOf, type StartAnswer } from './status.ts';
+import { forgetStoredTry, readStoredTry, saveStoredTry, usedToday, type StoredTry } from './storage.ts';
 import { t } from '../../i18n/t.ts';
 import { initAccountLinks, showAccount } from '../account.ts';
 
@@ -49,6 +49,9 @@ const onAPhone = () => window.matchMedia?.(PHONE_MEDIA).matches ?? false;
 const FULL_TEXT =
   t('Încercările gratuite de azi s-au terminat. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.');
 const USED_TEXT = t('Ai făcut încercarea de azi. Mâine poți face alta.');
+const SURE_TEXT = t('Sigur? Șterge definitiv');
+const DELETE_FAILED_TEXT = t('Nu am putut șterge încercarea. Încearcă din nou.');
+const SURE_MS = 5000;
 const NO_CHECK_TEXT = t('Verificarea nu s-a putut încărca. Reîncarcă pagina și încearcă din nou.');
 
 const tryPath = (token: string) => `/try/${token}`;
@@ -100,7 +103,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const dialog = root.querySelector<HTMLDialogElement>('[data-try-dialog]');
   const form = root.querySelector<HTMLFormElement>('[data-try-form]');
   if (!box || openButtons.length === 0 || !dialog || !form) return;
-  const note = box.querySelector<HTMLElement>('[data-try-note]')!;
+  const note = root.querySelector<HTMLElement>('[data-try-note]')!;
   const hint = root.querySelector<HTMLElement>('[data-try-hint]');
   const status = box.querySelector<HTMLElement>('[data-try-status]')!;
   const statusTitle = box.querySelector<HTMLElement>('[data-try-title]')!;
@@ -111,6 +114,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const statusGrade = box.querySelector<HTMLElement>('[data-try-grade]')!;
   const statusPoints = box.querySelector<HTMLElement>('[data-try-points]')!;
   const statusLink = box.querySelector<HTMLAnchorElement>('[data-try-link]')!;
+  const deleteButton = box.querySelector<HTMLButtonElement>('[data-try-delete]')!;
+  const deleteAsk = deleteButton.querySelector<HTMLElement>('.try-delete-ask')!;
   const error = form.querySelector<HTMLElement>('[data-try-error]')!;
   const recover = form.querySelector<HTMLElement>('[data-try-recover]')!;
   const recoverLink = form.querySelector<HTMLAnchorElement>('[data-try-recover-link]')!;
@@ -128,6 +133,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const refreshMs = deps.refreshMs ?? 10_000;
 
   let availability: QuickTryAvailability | null = null;
+  // The availability call ended without an answer: no try can be made.
+  let noAnswer = false;
   let stored = readStoredTry(deps.storage, deps.now());
   let phase: TryPhase | null = null;
   let widget: Promise<TurnstileWidget> | null = null;
@@ -140,15 +147,30 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   // On a phone: "Fă poze" and its own camera, in place of the QR code.
   let here = false;
 
-  // The buttons, or the line that says why there are none.
+  // What the buttons may do. Before the API answers, the page guesses from
+  // this device alone (its try of today), so the buttons show at once and
+  // do not jump in late.
+  function answerNow(): StartAnswer {
+    if (availability) return canStart(availability, stored, phase, deps.now());
+    if (noAnswer) return 'off';
+    return usedToday(stored, deps.now()) && phase !== 'failed' ? 'used' : 'yes';
+  }
+
+  // The buttons: open, turned off with the line that says why, or gone when
+  // no try can be made on this site.
   function refreshButton(): void {
-    const answer = availability ? canStart(availability, stored, phase, deps.now()) : 'off';
-    for (const button of openButtons) button.hidden = answer !== 'yes';
+    const answer = answerNow();
+    const why = answer === 'used' ? USED_TEXT : answer === 'full' ? FULL_TEXT : null;
+    for (const button of openButtons) {
+      button.hidden = answer === 'off';
+      button.disabled = why !== null;
+      if (why) button.title = why;
+      else button.removeAttribute('title');
+    }
     if (hint) hint.hidden = answer !== 'yes';
-    note.hidden = true;
-    if (answer === 'used') show(note, USED_TEXT);
-    if (answer === 'full') show(note, FULL_TEXT);
-    box!.hidden = note.hidden && status.hidden;
+    note.hidden = why === null;
+    if (why) note.textContent = why;
+    box!.hidden = status.hidden;
   }
 
   // Reads the stored try and shows where it stands; again and again while the
@@ -169,6 +191,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       statusChip.textContent = line.label;
       statusChip.className = `try-chip is-${line.tone}`;
       statusText.textContent = line.text;
+      status.classList.remove('is-bare');
       statusScore.hidden = score === null;
       statusGrade.textContent = score?.grade ?? '';
       statusPoints.textContent = score?.points ?? '';
@@ -186,10 +209,54 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         statusChip.textContent = '';
         statusChip.className = 'try-chip';
         statusText.textContent = t('Nu am putut citi încercarea acum.');
+        status.classList.add('is-bare');
       }
     }
     refreshButton();
   }
+
+  // "Șterge": the first press asks "Sigur?", the second one (within a few
+  // seconds) deletes the try, its files and its link. The day's limits keep
+  // counting it (the server keeps its row until the 7 days are over).
+  let sureTimer: ReturnType<typeof setTimeout> | null = null;
+  function resetDelete(): void {
+    if (sureTimer) clearTimeout(sureTimer);
+    sureTimer = null;
+    deleteAsk.hidden = true;
+    deleteAsk.textContent = '';
+    deleteButton.classList.remove('is-sure');
+  }
+  deleteButton.addEventListener('click', async () => {
+    const current = stored;
+    if (!current) return;
+    if (!sureTimer) {
+      deleteAsk.textContent = SURE_TEXT;
+      deleteAsk.hidden = false;
+      deleteButton.classList.add('is-sure');
+      sureTimer = setTimeout(resetDelete, SURE_MS);
+      return;
+    }
+    resetDelete();
+    deleteButton.disabled = true;
+    try {
+      await deps.api.deleteTry(current.token);
+    } catch (err) {
+      // A link that is already gone counts as deleted.
+      if (!(err instanceof ApiError && (err.status === 404 || err.status === 410))) {
+        deleteButton.disabled = false;
+        statusText.textContent = DELETE_FAILED_TEXT;
+        status.classList.add('is-bare');
+        return;
+      }
+    }
+    deleteButton.disabled = false;
+    if (timer) clearTimeout(timer);
+    stored = null;
+    phase = null;
+    status.hidden = true;
+    forgetStoredTry(deps.storage);
+    refreshButton();
+  });
 
   function formValues(): TryForm {
     const files = (name: string) => Array.from((form!.elements.namedItem(name) as HTMLInputElement).files ?? []);
@@ -209,18 +276,22 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     show(error, text);
   }
 
+  // The Turnstile check, once the form is open and the API has answered.
+  function loadCheck(): void {
+    if (!dialog!.open || !availability || availability.admin || !availability.siteKey || widget) return;
+    widget = deps.loadTurnstile(turnstileBox, availability.siteKey);
+    widget.catch(() => {
+      widget = null;
+      sayError(NO_CHECK_TEXT);
+    });
+  }
+
   function openForm(): void {
     error.hidden = true;
     recover.hidden = true;
     sendButton.disabled = false;
     openDialog(dialog!);
-    if (availability && !availability.admin && availability.siteKey && !widget) {
-      widget = deps.loadTurnstile(turnstileBox, availability.siteKey);
-      widget.catch(() => {
-        widget = null;
-        sayError(NO_CHECK_TEXT);
-      });
-    }
+    loadCheck();
   }
   for (const button of openButtons) button.addEventListener('click', openForm);
 
@@ -399,12 +470,29 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     { signal: deps.signal },
   );
 
-  const [answer] = await Promise.allSettled([deps.api.availability(), stored ? follow(stored) : Promise.resolve()]);
-  if (answer.status === 'fulfilled') {
-    availability = answer.value;
-    showAccount(root, availability.signedIn);
-  } else {
-    void (deps.checkAccount ?? initAccountLinks)(root);
+  // The card of her try shows at once, before its state is read, so the
+  // hero does not grow under the reader's eyes.
+  if (stored) {
+    show(status);
+    status.classList.add('is-bare');
+    statusText.textContent = t('Se citește încercarea…');
   }
   refreshButton();
+
+  // The buttons follow the API's answer as soon as it comes, without waiting
+  // for her try's state.
+  const answered = deps.api.availability().then(
+    (value) => {
+      availability = value;
+      showAccount(root, value.signedIn);
+      refreshButton();
+      loadCheck();
+    },
+    () => {
+      noAnswer = true;
+      void (deps.checkAccount ?? initAccountLinks)(root);
+      refreshButton();
+    },
+  );
+  await Promise.all([answered, stored ? follow(stored) : Promise.resolve()]);
 }

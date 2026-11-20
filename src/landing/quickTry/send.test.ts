@@ -24,6 +24,7 @@ function fakeLandingApi() {
     start: vi.fn(async () => void calls.push('start')),
     listPages: vi.fn(async () => []),
     getTest: vi.fn(),
+    deleteTry: vi.fn(),
   } satisfies LandingApi;
   return { api, calls };
 }

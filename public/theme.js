@@ -9,6 +9,9 @@
     // Storage can be blocked; the page then stays light.
   }
   document.documentElement.setAttribute('data-theme', theme);
+  // The page runs scripts: the landing page shows its try buttons from the
+  // first paint (src/landing/landing.css), not after the API's answer.
+  document.documentElement.setAttribute('data-js', '');
   // The public pages' header: a teacher who was logged in on the last visit
   // sees the account link at once, not the login first (src/landing/account.ts
   // keeps SIGNED_IN_KEY and corrects it after the API's answer).

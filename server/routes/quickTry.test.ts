@@ -109,6 +109,51 @@ describe('POST /api/try', () => {
   });
 });
 
+describe('DELETE /api/try/:token', () => {
+  const count = async (sql: string, ...bind: unknown[]) => (await api.db.prepare(sql).bind(...bind).first<{ n: number }>())!.n;
+
+  it("deletes the try's test and paper, and its link stops working", async () => {
+    await visitorApi();
+    const made = await create();
+    const hash = await sha256Hex(made.body.token);
+    const teacher = (await api.db.prepare('SELECT teacher_id FROM quick_tries WHERE token_hash = ?').bind(hash).first<{ teacher_id: number }>())!.teacher_id;
+    const res = await api.request('DELETE', `/api/try/${made.body.token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ deleted: true });
+    expect(await count('SELECT COUNT(*) AS n FROM tests WHERE teacher_id = ?', teacher)).toBe(0);
+    expect(await count('SELECT COUNT(*) AS n FROM students WHERE teacher_id = ?', teacher)).toBe(0);
+    expect(await count('SELECT COUNT(*) AS n FROM classes WHERE teacher_id = ?', teacher)).toBe(0);
+    expect((await api.request('GET', `/api/try/${made.body.token}`)).status).toBe(404);
+    expect((await api.request('DELETE', `/api/try/${made.body.token}`)).status).toBe(404);
+  });
+
+  it('keeps counting the deleted try in the limits, so deleting gives no new place', async () => {
+    await visitorApi();
+    for (let i = 0; i < QUICK_TRY_IP_LIMIT; i++) {
+      const made = await create();
+      expect((await api.request('DELETE', `/api/try/${made.body.token}`)).status).toBe(200);
+    }
+    expect((await create()).status).toBe(429);
+  });
+
+  it('deletes only the link’s own try, and nothing for a link that is not one', async () => {
+    await visitorApi();
+    const mine = await create({ turnstileToken: 'ok' }, '203.0.113.5');
+    const other = await create({ turnstileToken: 'ok' }, '203.0.113.6');
+    await api.request('DELETE', `/api/try/${mine.body.token}`);
+    expect((await api.request('GET', `/api/try/${other.body.token}`)).status).toBe(200);
+    expect((await api.request('DELETE', `/api/try/${'a'.repeat(32)}`)).status).toBe(404);
+  });
+
+  it('refuses a cross-site request', async () => {
+    await visitorApi();
+    const made = await create();
+    const res = await api.request('DELETE', `/api/try/${made.body.token}`, undefined, { Origin: 'https://evil.example' });
+    expect(res.status).toBe(403);
+    expect((await api.request('GET', `/api/try/${made.body.token}`)).status).toBe(200);
+  });
+});
+
 describe('verifyTurnstile', () => {
   const env = (secret?: string) => ({ TURNSTILE_SECRET_KEY: secret }) as Parameters<typeof verifyTurnstile>[0];
 

@@ -295,8 +295,14 @@ img { display: block; max-width: 100%; height: auto; }
 /* The landing page. */
   .pg-home .hero { padding-top: 72px; padding-bottom: 64px; }
   .pg-home .hero h1 { max-width: 16ch; }
-  .pg-home .hero-under { display: grid; grid-template-columns: 7fr 5fr; gap: 64px; margin-top: 44px; align-items: start; }
-  .pg-home .hero-under .lede { max-width: 42ch; }
+  /* The title with the visitor's try beside it, then the lede with the
+     buttons: the try sits right above the buttons, so the hero keeps one
+     height whether there is a try or not. */
+  .pg-home .hero-grid { display: grid; grid-template-columns: 7fr 5fr; grid-template-areas: "title try" "lede cta"; column-gap: 64px; row-gap: 44px; align-items: start; }
+  .pg-home .hero-grid h1 { grid-area: title; align-self: end; }
+  .pg-home .hero-grid .try-line { grid-area: try; align-self: end; }
+  .pg-home .hero-grid .lede { grid-area: lede; max-width: 42ch; }
+  .pg-home .hero-grid .cta { grid-area: cta; }
 
   .pg-home .shots { display: grid; grid-template-columns: 6fr 3fr 3fr; gap: 8px; }
   .pg-home .shots figure { background: var(--surface); padding: 28px 24px 0; overflow: hidden; height: 470px; display: flex; flex-direction: column; }
@@ -386,8 +392,13 @@ img { display: block; max-width: 100%; height: auto; }
     .pg-home .laura { grid-template-columns: 1fr; gap: 40px; padding-top: 88px; padding-bottom: 0; }
     .pg-home .hero { padding-top: 32px; padding-bottom: 40px; }
     .pg-home .hero h1 { font-size: 7.4vw; }
-    .pg-home .hero-under, .pg-home .try-top, .pg-home .price, .pg-home .who-made, .pg-home .without .cols, .pg-home .cls, .pg-home .rep { grid-template-columns: 1fr; gap: 32px; }
-    .pg-home .hero-under { margin-top: 28px; gap: 28px; }
+    .pg-home .try-top, .pg-home .price, .pg-home .who-made, .pg-home .without .cols, .pg-home .cls, .pg-home .rep { grid-template-columns: 1fr; gap: 32px; }
+    /* One column: the title, the lede, the try, then the buttons. */
+    .pg-home .hero-grid { display: flex; flex-direction: column; align-items: stretch; gap: 28px; }
+    .pg-home .hero-grid h1, .pg-home .hero-grid .try-line { align-self: start; }
+    .pg-home .hero-grid .lede { order: 1; }
+    .pg-home .hero-grid .try-line { order: 2; }
+    .pg-home .hero-grid .cta { order: 3; }
     .pg-home .shots { grid-template-columns: 1fr 1fr; }
     .pg-home .shots figure:first-child { grid-column: 1 / -1; height: 340px; }
     .pg-home .shots figure { height: 380px; padding: 18px 12px 0; }
@@ -408,17 +419,28 @@ img { display: block; max-width: 100%; height: auto; }
   }
 
 /* The visitor's try, under the hero's buttons (src/landing/quickTry/ui.ts). */
-.try-line { display: grid; gap: 8px; margin-top: 8px; font-size: 16px; }
-.try-note { max-width: 52ch; color: var(--muted); }
-.try-card { display: grid; gap: 10px; max-width: 480px; padding: 18px 20px; border: 1.5px solid var(--border); border-radius: var(--radius-panel); background: var(--surface); }
+.try-line { display: grid; font-size: 16px; }
+.try-note { max-width: 52ch; }
+/* The try buttons and their line are for a page that runs its script
+   (public/theme.js marks it), so a page without it shows no dead button. */
+:root:not([data-js]) [data-try-open], :root:not([data-js]) [data-try-hint] { display: none !important; }
+.try-card { display: grid; gap: 10px; max-width: 480px; padding: 14px 18px; border: 1.5px solid var(--border); border-radius: var(--radius-panel); background: var(--surface); }
 .try-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .try-card-head { min-width: 0; }
 .try-card-kicker { font-size: 14px; font-weight: 600; color: var(--muted); }
 .try-card-title { font-size: 19px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
 .try-card-meta { font-size: 15px; color: var(--muted); }
+/* The tag already says where the try stands: the sentence shows only while
+   the try is read, or when it could not be. */
 .try-card-text { font-size: 16px; }
+.try-card:not(.is-bare) .try-card-text { display: none; }
 .try-card-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .try-card-bottom .btn { margin-left: auto; }
+.try-delete { display: inline-flex; align-items: center; gap: 6px; padding: 8px; margin: -8px; border: 0; border-radius: 8px; background: none; cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; color: var(--muted); }
+.try-delete svg { width: 18px; height: 18px; flex: none; }
+.try-delete:hover, .try-delete:focus-visible { color: var(--text); }
+.try-delete.is-sure { color: var(--danger, #b42318); }
+.try-delete:disabled { opacity: 0.55; cursor: not-allowed; }
 .try-chip { flex: none; display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--active); color: var(--muted); font-size: 14px; font-weight: 600; white-space: nowrap; }
 .try-chip:empty { display: none; }
 .try-chip.is-work { background: var(--blue-tint); color: var(--blue); }
@@ -528,7 +550,7 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
   .read span { font-size: 16px; }
 
   .pg-home .hero { padding-top: 56px; padding-bottom: 56px; }
-  .pg-home .hero-under { margin-top: 32px; }
+  .pg-home .hero-grid { row-gap: 32px; }
   .pg-home .shots figure { height: 420px; }
   .pg-home .shots .shot-p { width: 200px; }
   .pg-home .without .para { font-size: clamp(21px, 1.8vw, 26px); }

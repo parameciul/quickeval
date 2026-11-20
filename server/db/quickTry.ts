@@ -186,7 +186,13 @@ const GUESTS = 'SELECT id FROM teachers WHERE quick_try = 1 AND id IN (SELECT va
 export async function expiredTries(db: D1Database, now: string, limit: number): Promise<{ teacherIds: number[]; keys: string[] }> {
   const found = await db.prepare(EXPIRED).bind(now, limit).all<{ teacher_id: number }>();
   const teacherIds = found.results.map((row) => row.teacher_id);
-  if (teacherIds.length === 0) return { teacherIds, keys: [] };
+  return { teacherIds, keys: await tryFileKeys(db, teacherIds) };
+}
+
+// The R2 keys of the guest teachers' files, read from the rows: one row per test
+// with its six file keys, and one per page.
+export async function tryFileKeys(db: D1Database, teacherIds: number[]): Promise<string[]> {
+  if (teacherIds.length === 0) return [];
   // One row per test with its six file keys, and one per page (D1 allows few
   // parts in a compound SELECT).
   const rows = await db
@@ -199,8 +205,24 @@ export async function expiredTries(db: D1Database, now: string, limit: number): 
     )
     .bind(JSON.stringify(teacherIds))
     .all<Record<string, string | null>>();
-  const keys = rows.results.flatMap((row) => Object.values(row).filter((key): key is string => typeof key === 'string'));
-  return { teacherIds, keys };
+  return rows.results.flatMap((row) => Object.values(row).filter((key): key is string => typeof key === 'string'));
+}
+
+// The visitor deletes her try: its test, paper, class and student go in one
+// batch. The guest teacher and the quick_tries row stay until the 7 days are
+// over, so the try still counts in the day's limits (deleting makes no place
+// for another one), and its link stops working: the link finds its test
+// through a join. The files' keys are read first (`tryFileKeys`).
+export async function deleteTryRows(db: D1Database, teacherId: number): Promise<void> {
+  const list = JSON.stringify([teacherId]);
+  await db.batch(
+    [
+      `DELETE FROM tests WHERE teacher_id IN (${GUESTS})`,
+      `DELETE FROM enrollments WHERE class_id IN (SELECT id FROM classes WHERE teacher_id IN (${GUESTS}))`,
+      `DELETE FROM students WHERE teacher_id IN (${GUESTS})`,
+      `DELETE FROM classes WHERE teacher_id IN (${GUESTS})`,
+    ].map((sql) => db.prepare(sql).bind(list)),
+  );
 }
 
 // Deletes the tries' rows in one batch, in the order the foreign keys need:

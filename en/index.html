@@ -238,35 +238,36 @@
       </header>
       <main>
         <section class="hero wrap" aria-labelledby="title">
-          <h1 id="title" class="t-1">Your weekend, without the pile of papers.</h1>
-          <div class="hero-under">
+          <div class="hero-grid">
+            <h1 id="title" class="t-1">Your weekend, without the pile of papers.</h1>
+            <div class="try-line" data-try hidden>
+              <div class="try-card" data-try-status role="status" hidden>
+                <div class="try-card-top">
+                  <div class="try-card-head">
+                    <p class="try-card-kicker">Your try</p>
+                    <p class="try-card-title" data-try-title></p>
+                  </div>
+                  <span class="try-chip" data-try-chip></span>
+                </div>
+                <p class="try-card-meta" data-try-meta></p>
+                <p class="try-card-text" data-try-status-text></p>
+                <div class="try-card-bottom">
+                  <p class="try-score" data-try-score hidden><span class="try-grade" data-try-grade></span> <span class="try-points" data-try-points></span></p>
+                  <button class="try-delete" type="button" data-try-delete aria-label="Delete the try" title="Delete the try"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3" /></svg><span class="try-delete-ask" hidden></span></button>
+                  <a class="btn btn-line btn-small" data-try-link href="/">Open the try</a>
+                </div>
+              </div>
+            </div>
             <p class="lede">Students photograph their paper with their phone at the end of the lesson. MQGrader grades it by your marking scheme, with the help of artificial intelligence. You only check the unsure points, from your phone too, and publish the grades.</p>
             <div class="cta">
               <div class="cta-row">
-                <button class="btn btn-go" type="button" data-try-open hidden>Try it on a paper, no account <span aria-hidden="true">→</span></button>
+                <button class="btn btn-go" type="button" data-try-open>Try it on a paper, no account <span aria-hidden="true">→</span></button>
                 <a class="btn btn-acc" href="/teacher/#new-account" data-guest>Ask for a teacher account <span aria-hidden="true">→</span></a>
                 <a class="btn btn-acc" href="/teacher/" data-member hidden>Open your account <span aria-hidden="true">→</span></a>
               </div>
-              <p class="cta-hint" data-try-hint hidden>Free: send one student's paper and get it back graded in a few minutes.</p>
+              <p class="cta-hint" data-try-hint>Free: send one student's paper and get it back graded in a few minutes.</p>
+              <p class="cta-hint try-note" data-try-note hidden></p>
               <p class="cta-note">The demo account is free: one test for a whole class.</p>
-              <div class="try-line" data-try hidden>
-                <p class="try-note" data-try-note hidden></p>
-                <div class="try-card" data-try-status role="status" hidden>
-                  <div class="try-card-top">
-                    <div class="try-card-head">
-                      <p class="try-card-kicker">Your try</p>
-                      <p class="try-card-title" data-try-title></p>
-                    </div>
-                    <span class="try-chip" data-try-chip></span>
-                  </div>
-                  <p class="try-card-meta" data-try-meta></p>
-                  <p class="try-card-text" data-try-status-text></p>
-                  <div class="try-card-bottom">
-                    <p class="try-score" data-try-score hidden><span class="try-grade" data-try-grade></span> <span class="try-points" data-try-points></span></p>
-                    <a class="btn btn-line btn-small" data-try-link href="/">Open the try</a>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
@@ -337,7 +338,7 @@
               <p class="lede rise">Send the test, the marking scheme and one student's pages. In a few minutes you get the graded paper, with the points to check and the result the student would see.</p>
             </div>
             <div class="acts rise">
-              <button class="btn btn-go" type="button" data-try-open hidden>Try it now <span aria-hidden="true">→</span></button>
+              <button class="btn btn-go" type="button" data-try-open>Try it now <span aria-hidden="true">→</span></button>
               <small>Free, one paper every day. The try has its own link and is deleted after 7 days.</small>
             </div>
           </div>
@@ -384,7 +385,7 @@
             <li><b>1</b><span>test graded for a whole class</span></li>
             <li><b>35</b><span>papers graded, regrades included</span></li>
             <li><b>∞</b><span>classes and students</span></li>
-            <li class="free"><b>1<small>/day</small></b><span>paper graded for free, no account</span><button class="btn btn-go btn-small" type="button" data-try-open hidden>Try it <span aria-hidden="true">→</span></button></li>
+            <li class="free"><b>1<small>/day</small></b><span>paper graded for free, no account</span><button class="btn btn-go btn-small" type="button" data-try-open>Try it <span aria-hidden="true">→</span></button></li>
           </ul>
         </section>
 
@@ -424,7 +425,7 @@
         </section>
         <section class="end wrap" aria-labelledby="end-t">
           <h2 id="end-t" class="rise">You will grade your next test differently.</h2>
-          <div class="acts rise"><button class="btn btn-go" type="button" data-try-open hidden>Try it, no account <span aria-hidden="true">→</span></button><a class="btn btn-acc" href="/teacher/#new-account" data-guest>Ask for a teacher account <span aria-hidden="true">→</span></a></div>
+          <div class="acts rise"><button class="btn btn-go" type="button" data-try-open>Try it, no account <span aria-hidden="true">→</span></button><a class="btn btn-acc" href="/teacher/#new-account" data-guest>Ask for a teacher account <span aria-hidden="true">→</span></a></div>
         </section>
       </main>
       <!--#include site-foot-en -->
