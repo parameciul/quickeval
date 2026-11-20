@@ -143,7 +143,7 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
       color: MUTED,
     },
     { text: t('Statistici'), style: 'h2' },
-    { text: t('Corectate {gradedCount} din {activeCount} elevi{v3}', { gradedCount: stats.gradedCount, activeCount: stats.activeCount, v3: stats.flaggedCount > 0 ? ` · de verificat ${stats.flaggedCount}` : '' }) },
+    { text: t('Corectate {gradedCount} din {activeCount} elevi{v3}', { gradedCount: stats.gradedCount, activeCount: stats.activeCount, v3: stats.flaggedCount > 0 ? ` · ${t('de verificat {flaggedCount}', { flaggedCount: stats.flaggedCount })}` : '' }) },
     {
       columns: [
         { text: `Media ${grade(stats.average)}`, bold: true },

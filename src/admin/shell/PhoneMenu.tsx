@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import type { Teacher } from '../../../shared/api.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { LangSwitch } from '../../ui/LangButton.tsx';
 import { ThemeSwitch } from '../../ui/ThemeButton.tsx';
 import { demoUsage } from '../account/DemoMeters.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -41,6 +42,7 @@ export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): v
         <YearSelect id="school-year-phone" />
       </div>
       <ThemeSwitch />
+      <LangSwitch />
       <p className="user-who">
         <b>{teacher.name}</b>
         <span>{teacher.email}</span>

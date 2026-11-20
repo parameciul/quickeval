@@ -42,3 +42,14 @@ export function saveLang(lang: Lang): void {
 export function langHeaders(): Record<string, string> {
   return currentLang() === 'en' ? { [LANG_HEADER]: 'en' } : {};
 }
+
+// Saves the choice and loads the page again in that language.
+export function switchLang(lang: Lang): void {
+  saveLang(lang);
+  location.reload();
+}
+
+// A public page's path in the page's language: "/about/" or "/en/about/".
+export function publicPath(path: string): string {
+  return currentLang() === 'en' ? `/en${path}` : path;
+}

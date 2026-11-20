@@ -1,3 +1,4 @@
+import { langHeaders } from '../i18n/lang.ts';
 import type {
   DataVersion,
   Account,
@@ -246,7 +247,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   // A JSON body, or a file sent raw with its type and URI-encoded name.
   // `base` is the client's base, or /api/auth for the login page.
   async function request<T>(method: string, path: string, body?: unknown, file?: File, base = apiBase): Promise<T> {
-    const headers: Record<string, string> = { Accept: 'application/json' };
+    const headers: Record<string, string> = { Accept: 'application/json', ...langHeaders() };
     let payload: BodyInit | undefined;
     if (file) {
       headers['Content-Type'] = uploadTypeOf(file) || 'application/octet-stream';

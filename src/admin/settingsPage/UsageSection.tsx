@@ -3,7 +3,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import type { UsageCounts, UsagePeriod, UsageSource, UsageStats } from '../../../shared/usage.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { t } from '../../i18n/t.ts';
+import { t, locale } from '../../i18n/t.ts';
 
 const SOURCES: { value: UsageSource; label: string }[] = [
   { value: 'all', label: t('Toate') },
@@ -30,9 +30,9 @@ const COLUMNS: { name: keyof UsageCounts; label: string }[] = [
   { name: 'tries', label: t('Încercări') },
 ];
 
-const NUMBER = new Intl.NumberFormat('ro-RO');
-const DAY = new Intl.DateTimeFormat('ro-RO', { timeZone: 'UTC', day: 'numeric', month: 'short' });
-const MONTH = new Intl.DateTimeFormat('ro-RO', { timeZone: 'UTC', month: 'short', year: 'numeric' });
+const NUMBER = new Intl.NumberFormat(locale());
+const DAY = new Intl.DateTimeFormat(locale(), { timeZone: 'UTC', day: 'numeric', month: 'short' });
+const MONTH = new Intl.DateTimeFormat(locale(), { timeZone: 'UTC', month: 'short', year: 'numeric' });
 
 // "18 nov." for a day, "nov. 2026" for a month.
 export function usageKeyLabel(key: string): string {

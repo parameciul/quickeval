@@ -1,11 +1,11 @@
 // The top of the Teste page (redesign spec §5), in Romania's time.
-import { t } from '../../i18n/t.ts';
+import { t, locale } from '../../i18n/t.ts';
 
-const HOUR = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', hour: 'numeric', hourCycle: 'h23' });
-const TODAY = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', weekday: 'long', day: 'numeric', month: 'long' });
+const HOUR = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', hour: 'numeric', hourCycle: 'h23' });
+const TODAY = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', weekday: 'long', day: 'numeric', month: 'long' });
 const DAY_KEY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest' });
-const SHORT_DAY = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', day: 'numeric', month: 'short' });
-const TIME = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit' });
+const SHORT_DAY = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', day: 'numeric', month: 'short' });
+const TIME = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit' });
 
 // "Bună dimineața, Laura." from 5:00, "Bună ziua" from 11:00, "Bună seara"
 // from 18:00; the first word of the teacher's name, or none.

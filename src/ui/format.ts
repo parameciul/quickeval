@@ -1,7 +1,7 @@
 import type { RobotStart, UploadStatus } from '../../shared/api.ts';
 import type { Confidence } from '../../shared/schemas.ts';
 import type { TestStatus } from '../../shared/tests.ts';
-import { t, tc, type Key } from '../i18n/t.ts';
+import { t, tc, type Key, locale } from '../i18n/t.ts';
 
 // A count with its word, in the page's language: "1 lucrare", "2 lucrări",
 // "20 de lucrări"; "1 paper", "20 papers". The words are dictionary keys.
@@ -44,7 +44,7 @@ export function uploadStatusLabel(status: UploadStatus): string {
   return UPLOAD_STATUS[status];
 }
 
-const DATE_TIME = new Intl.DateTimeFormat('ro-RO', {
+const DATE_TIME = new Intl.DateTimeFormat(locale(), {
   timeZone: 'Europe/Bucharest',
   day: 'numeric',
   month: 'short',
@@ -58,21 +58,21 @@ export function formatDateTime(iso: string): string {
   return DATE_TIME.format(new Date(iso));
 }
 
-const DATE = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', day: 'numeric', month: 'long', year: 'numeric' });
+const DATE = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', day: 'numeric', month: 'long', year: 'numeric' });
 
 // A day in Romania's local time: "6 octombrie 2026".
 export function formatDate(iso: string): string {
   return DATE.format(new Date(iso));
 }
 
-const DAY_MONTH = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', day: '2-digit', month: '2-digit' });
+const DAY_MONTH = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', day: '2-digit', month: '2-digit' });
 
 // A day in Romania's local time, short: "06.10".
 export function formatDayMonth(iso: string): string {
   return DAY_MONTH.format(new Date(iso));
 }
 
-const ONE_DECIMAL = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 });
+const ONE_DECIMAL = new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 });
 
 // "820 KB", "1,3 MB".
 export function formatFileSize(bytes: number): string {

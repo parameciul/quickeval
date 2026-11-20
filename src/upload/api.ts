@@ -1,3 +1,4 @@
+import { langHeaders } from '../i18n/lang.ts';
 import type {
   ConfirmAnswer,
   LinkInfo,
@@ -132,7 +133,7 @@ export function createUploadClient(options: UploadClientOptions = {}): UploadApi
   }
 
   async function json<T>(method: string, url: string, secret: string | null, body?: unknown): Promise<T> {
-    const headers: Record<string, string> = { Accept: 'application/json' };
+    const headers: Record<string, string> = { Accept: 'application/json', ...langHeaders() };
     if (secret) headers[SESSION_HEADER] = secret;
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     const res = await send(url, { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });

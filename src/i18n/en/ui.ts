@@ -19,4 +19,5 @@ export const UI = {
   "Foarte mare": "Very high",
   "Mică": "Low",
   "Foarte mică": "Very low",
+  "Limba": "Language",
 } as const satisfies Record<string, string>;

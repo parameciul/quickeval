@@ -14,7 +14,7 @@ export interface Finding {
 }
 
 // The calls whose string arguments are dictionary keys.
-const KEY_CALLS = new Set(['t', 'tc', 'k', 'tl']);
+const KEY_CALLS = new Set(['t', 'tc', 'k', 'tl', 'countLabel']);
 // Calls whose strings are for developers, never shown.
 const DEV_CALLS = new Set(['Error', 'TypeError', 'RangeError', 'warn', 'log', 'error', 'info', 'debug', 'querySelector', 'querySelectorAll', 'closest', 'matches', 'getElementById', 'setAttribute', 'getAttribute', 'removeAttribute', 'hasAttribute', 'toggleAttribute', 'addEventListener', 'removeEventListener', 'createElement', 'createElementNS', 'matchMedia', 'startsWith', 'endsWith', 'includes', 'replace', 'split', 'test', 'getItem', 'setItem', 'removeItem', 'useMediaQuery', 'fetch', 'request', 'get', 'post', 'put', 'patch', 'del', 'json']);
 const TEXT_ATTRIBUTES = new Set(['aria-label', 'title', 'placeholder', 'alt', 'label', 'aria-description', 'aria-roledescription', 'aria-valuetext']);
@@ -28,7 +28,7 @@ const STOPWORDS = /(?<!\p{L})(din|de|la|pe|cu|și|sau|nu|au|ale|este|sunt|pentru
 const IDENTIFIERS = new Set(['Pregătire', 'Tipărire', 'În clasă', 'Corectare', 'Verificare', 'Rezultate']);
 
 // Text that is the same in both languages.
-const SAME = new Set(['MQGrader', 'by Laura Miron', 'Laura Miron', 'RO', 'EN', 'CES', 'PDF', 'CSV', 'QR', 'OK', 'Email', 'Stripe', 'GitHub', 'Claude', 'Turnstile', 'Rybbit', 'mqgrader.ro', 'MQ', 'ID', 'x', 'p', 'pt', 'Matematică cu Laura Miron']);
+const SAME = new Set(['MQGrader', 'by Laura Miron', 'Laura Miron', 'RO', 'EN', 'CES', 'PDF', 'CSV', 'QR', 'OK', 'Email', 'Stripe', 'GitHub', 'Claude', 'Turnstile', 'Rybbit', 'mqgrader.ro', 'MQ', 'ID', 'x', 'p', 'pt', 'Matematică cu Laura Miron', 'English', 'Română']);
 
 function isShown(text: string): boolean {
   const trimmed = text.replace(/\s+/g, ' ').trim();
@@ -62,6 +62,9 @@ function calleeName(node: Node): string | null {
 }
 
 export function scanSource(file: string, source: string): Finding[] {
+  // A file marked `i18n-ignore-file` holds text in one language on purpose:
+  // the robot's Romanian math words, a part with a copy per language.
+  if (source.includes('i18n-ignore-file')) return [];
   const lang = file.endsWith('.tsx') ? 'tsx' : 'ts';
   const { program } = parseSync(`x.${lang}`, source, { lang });
   const lineStarts = [0];
@@ -168,7 +171,7 @@ export function sourceFiles(root: string, dirs: string[]): string[] {
       if (entry.isDirectory()) {
         if (entry.name === 'test' || entry.name === 'en') continue;
         visit(path);
-      } else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
+      } else if (/\.tsx?$/.test(entry.name) && !/(\.test|TestKit)\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
         out.push(path);
       }
     }

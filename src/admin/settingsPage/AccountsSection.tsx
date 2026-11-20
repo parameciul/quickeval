@@ -8,7 +8,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
-import { t } from '../../i18n/t.ts';
+import { t, locale } from '../../i18n/t.ts';
 
 // "Conturi" of Setări (redesign spec §11.8): the administrators approve or
 // refuse new accounts (one by one, or all that wait at once), make a demo
@@ -383,7 +383,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const THOUSANDS = new Intl.NumberFormat('ro-RO');
+const THOUSANDS = new Intl.NumberFormat(locale());
 const tokenLabel = (tokens: number) => (tokens > 0 ? THOUSANDS.format(tokens) : '—');
 
 // The rows of the robot's work, in the order of the work a test goes through.

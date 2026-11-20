@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { matchPath, Outlet, useLocation, useNavigationType } from 'react-router';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
+import { LangButton } from '../ui/LangButton.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
 import { PHONE, useMediaQuery } from '../ui/useMediaQuery.ts';
 import { useApi } from './ApiContext.tsx';
@@ -151,6 +152,7 @@ export function Layout() {
               has only the lockup and the theme. */}
           {me.data?.demo && <DemoButton teacher={me.data} />}
           {me.data && <YearSelect id="school-year" labelClassName="sr-only" />}
+          <LangButton />
           <ThemeButton />
           {me.data && <UserMenu teacher={me.data} />}
         </div>

@@ -11,6 +11,7 @@ import { paperPath } from '../admin/paperPage/paths.ts';
 import { ApiError } from '../ui/ApiError.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
+import { LangButton } from '../ui/LangButton.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
 import type { TryApi } from './api.ts';
 import { PhonePage } from './PhonePage.tsx';
@@ -34,6 +35,7 @@ export function TryRoutes({ token, api, tryApi }: { token: string | null; api: A
           </span>
         </a>
         <div className="topbar-tools">
+          <LangButton />
           <ThemeButton />
         </div>
       </header>

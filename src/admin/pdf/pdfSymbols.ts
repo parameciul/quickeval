@@ -1,3 +1,4 @@
+// i18n-ignore-file: the robot writes Romanian, and these words stand in its text.
 // The font that pdfmake embeds (Roboto) has no glyph for many math symbols, and
 // a missing glyph is dropped from the PDF without a sign. The grading writes
 // Unicode math, so every free text that goes into a PDF passes through
