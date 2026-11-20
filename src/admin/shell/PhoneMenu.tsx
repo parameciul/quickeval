@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import type { Teacher } from '../../../shared/api.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { LangSwitch } from '../../ui/LangButton.tsx';
 import { ThemeSwitch } from '../../ui/ThemeButton.tsx';
 import { demoUsage } from '../account/DemoMeters.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
@@ -10,6 +11,7 @@ import { IconSettings } from './icons.tsx';
 import { useFocusBack } from './useFocusBack.ts';
 import { useLogout } from './useLogout.ts';
 import { YearSelect } from './YearSelect.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The menu under ☰ on a phone (redesign spec §4, round 6 design M2): what the
 // bottom bar and the top bar have no room for, a demo account's papers too.
@@ -29,17 +31,18 @@ export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): v
     return () => document.removeEventListener('mousedown', onPointer);
   }, [onClose]);
   return (
-    <section ref={box} className="phone-menu" id="phone-menu" aria-label="Mai mult">
+    <section ref={box} className="phone-menu" id="phone-menu" aria-label={t('Mai mult')}>
       {teacher.role === 'admin' && (
         <Link className="menu-row menu-link" to="/settings">
           <IconSettings />
-          <span>Setări</span>
+          <span>{t('Setări')}</span>
         </Link>
       )}
       <div className="menu-row">
         <YearSelect id="school-year-phone" />
       </div>
       <ThemeSwitch />
+      <LangSwitch />
       <p className="user-who">
         <b>{teacher.name}</b>
         <span>{teacher.email}</span>
@@ -52,11 +55,11 @@ export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): v
       )}
       <Link className="menu-row menu-link" to="/account">
         <ActionIcon name="person" />
-        Contul meu
+        {t('Contul meu')}
       </Link>
       <button type="button" className="menu-row menu-link menu-quiet" disabled={logout.isPending} onClick={() => logout.mutate()}>
         <ActionIcon name="logout" />
-        Ieși din cont
+        {t('Ieși din cont')}
       </button>
       {logout.error && <ErrorMessage error={logout.error} />}
     </section>

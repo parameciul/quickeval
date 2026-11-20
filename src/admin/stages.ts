@@ -2,6 +2,7 @@ import type { TestSummary } from '../../shared/api.ts';
 import { formatPoints } from '../../shared/scoring.ts';
 import { countLabel } from '../ui/format.ts';
 import { todoOf } from './shell/todo.ts';
+import { t } from '../i18n/t.ts';
 
 export type StageName = 'Pregătire' | 'Tipărire' | 'În clasă' | 'Corectare' | 'Verificare' | 'Rezultate';
 
@@ -12,10 +13,10 @@ export type StageState = 'done' | 'wait' | 'now' | 'later';
 // A stage's state in words: for a screen reader in the list of stages, and on
 // the bar at the foot of the test page.
 export const STATE_WORDS: Record<StageState, string> = {
-  done: 'gata',
-  wait: 'te așteaptă',
-  now: 'în lucru',
-  later: 'urmează',
+  done: t('gata'),
+  wait: t('te așteaptă'),
+  now: t('în lucru'),
+  later: t('urmează'),
 };
 
 export interface Stage {
@@ -72,10 +73,10 @@ export function stagesOf(test: TestSummary): TestStages {
     const wait = waits('Pregătire');
     if (wait !== null) return stage('Pregătire', 'wait', wait);
     if (evaluated || (testFile && baremActive)) return stage('Pregătire', 'done');
-    if (!testFile) return stage('Pregătire', 'now', 'lipsește testul');
-    if (test.barem.request === 'requested') return stage('Pregătire', 'now', 'baremul se generează');
-    if (test.barem.request === 'failed') return stage('Pregătire', 'now', 'baremul nu s-a generat');
-    return stage('Pregătire', 'now', 'lipsește baremul');
+    if (!testFile) return stage('Pregătire', 'now', t('lipsește testul'));
+    if (test.barem.request === 'requested') return stage('Pregătire', 'now', t('baremul se generează'));
+    if (test.barem.request === 'failed') return stage('Pregătire', 'now', t('baremul nu s-a generat'));
+    return stage('Pregătire', 'now', t('lipsește baremul'));
   };
 
   const tiparire = (): Stage => {
@@ -83,21 +84,21 @@ export function stagesOf(test: TestSummary): TestStages {
     if (!testFile) return stage('Tipărire', 'later');
     // No print PDF is made for a draft without its link until the teacher
     // asks for it ("Pregătește testul cu cod QR").
-    if (!uploadLink) return stage('Tipărire', 'now', 'fără cod QR');
-    return print === 'failed' ? stage('Tipărire', 'now', 'nu s-a putut pregăti') : stage('Tipărire', 'now', 'se pregătește');
+    if (!uploadLink) return stage('Tipărire', 'now', t('fără cod QR'));
+    return print === 'failed' ? stage('Tipărire', 'now', t('nu s-a putut pregăti')) : stage('Tipărire', 'now', t('se pregătește'));
   };
 
   const clasa = (): Stage => {
-    if (test.status === 'draft') return stage('În clasă', 'later', 'testul nu a început');
+    if (test.status === 'draft') return stage('În clasă', 'later', t('testul nu a început'));
     if (test.status === 'open') {
-      if (test.uploadsClosedAt !== null) return stage('În clasă', 'now', 'încărcarea închisă');
-      return stage('În clasă', 'now', `${test.submittedCount} din ${test.studentCount} ${test.submittedCount === 1 ? 'a' : 'au'} trimis`);
+      if (test.uploadsClosedAt !== null) return stage('În clasă', 'now', t('încărcarea închisă'));
+      return stage('În clasă', 'now', t(test.submittedCount === 1 ? '{submittedCount} din {studentCount} a trimis' : '{submittedCount} din {studentCount} au trimis', { submittedCount: test.submittedCount, studentCount: test.studentCount }));
     }
     return stage('În clasă', 'done');
   };
 
   const corectare = (): Stage => {
-    if (test.status === 'evaluating') return stage('Corectare', 'now', `${test.gradedCount} din ${test.submittedCount} corectate`);
+    if (test.status === 'evaluating') return stage('Corectare', 'now', t('{gradedCount} din {submittedCount} corectate', { gradedCount: test.gradedCount, submittedCount: test.submittedCount }));
     if (done) return stage('Corectare', 'done');
     // An open test with sent papers not graded yet: they wait for the start.
     const waiting = test.status === 'open' ? test.submittedCount - test.gradedCount : 0;
@@ -118,13 +119,13 @@ export function stagesOf(test: TestSummary): TestStages {
     if (wait !== null) return stage('Rezultate', 'wait', wait);
     const published = test.resultsOpen || (test.gradedCount > 0 && test.publishedCount >= test.gradedCount);
     if (done && published) {
-      const average = test.averageGrade === null ? '' : ` · media testului ${formatPoints(test.averageGrade)}`;
-      return stage('Rezultate', 'done', `publicate${average}`);
+      const average = test.averageGrade === null ? '' : ` · ${t('media testului {grade}', { grade: formatPoints(test.averageGrade) })}`;
+      return stage('Rezultate', 'done', `${t('publicate')}${average}`);
     }
-    if (done && test.gradedCount === 0) return stage('Rezultate', 'later', 'nicio lucrare corectată');
+    if (done && test.gradedCount === 0) return stage('Rezultate', 'later', t('nicio lucrare corectată'));
     // The archive closes the results: closed is the normal end of an archived
     // test (open ones wait, above).
-    if (done && test.archived) return stage('Rezultate', 'done', 'închise · test arhivat');
+    if (done && test.archived) return stage('Rezultate', 'done', t('închise · test arhivat'));
     return stage('Rezultate', 'later');
   };
 

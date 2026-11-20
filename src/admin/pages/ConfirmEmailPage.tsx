@@ -6,6 +6,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { BackHome, State, useStateHeading, WayIn } from '../wayIn/WayIn.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // /confirm-email#<token>: the link from the email of a new account. Shown
 // without a login. It confirms only with the password chosen at the sign-up:
@@ -21,16 +22,16 @@ export function ConfirmEmailPage() {
   return (
     <WayIn>
       {confirm.isSuccess ? (
-        <State heading={heading} icon="done" title="Adresa ta este confirmată">
+        <State heading={heading} icon="done" title={t('Adresa ta este confirmată')}>
           <div role="status">
-            <p>Acum un administrator trebuie să aprobe contul. Vei primi un email după aprobare.</p>
+            <p>{t('Acum un administrator trebuie să aprobe contul. Vei primi un email după aprobare.')}</p>
           </div>
           <BackHome />
         </State>
       ) : (
-        <State heading={heading} title="Confirmă adresa de email">
+        <State heading={heading} title={t('Confirmă adresa de email')}>
           {token === '' ? (
-            <p>Linkul nu este întreg. Deschide-l din nou din email.</p>
+            <p>{t('Linkul nu este întreg. Deschide-l din nou din email.')}</p>
           ) : (
             <form
               className="form-fields"
@@ -39,9 +40,9 @@ export function ConfirmEmailPage() {
                 confirm.mutate();
               }}
             >
-              <p>Ai cerut un cont în MQGrader. Scrie parola aleasă atunci, ca să confirmi că adresa de email este a ta.</p>
+              <p>{t('Ai cerut un cont în MQGrader. Scrie parola aleasă atunci, ca să confirmi că adresa de email este a ta.')}</p>
               <div className="form-field">
-                <label htmlFor="confirm-password">Parola</label>
+                <label htmlFor="confirm-password">{t('Parola')}</label>
                 <input
                   id="confirm-password"
                   type="password"
@@ -54,7 +55,7 @@ export function ConfirmEmailPage() {
               </div>
               <button type="submit" className="button way-in-wide" disabled={confirm.isPending}>
                 <ActionIcon name="check" />
-                {confirm.isPending ? 'Se confirmă…' : 'Confirmă adresa'}
+                {confirm.isPending ? t('Se confirmă…') : t('Confirmă adresa')}
               </button>
               {confirm.error && <ErrorMessage error={confirm.error} />}
             </form>

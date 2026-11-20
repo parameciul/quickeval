@@ -1,3 +1,4 @@
+import { langHeaders } from '../i18n/lang.ts';
 import type {
   DataVersion,
   Account,
@@ -47,6 +48,7 @@ import type { Subject } from '../../shared/subjects.ts';
 import type { UsagePeriod, UsageSource, UsageStats } from '../../shared/usage.ts';
 import { studentResultPath } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
+import { t } from '../i18n/t.ts';
 
 export { ApiError };
 
@@ -209,7 +211,7 @@ export function studentResultUrl(resultToken: string): string {
 // /teacher) answered instead of the API. The app reloads the page so it shows.
 export class LoginExpiredError extends Error {
   constructor() {
-    super('Sesiunea a expirat. Reîncarcă pagina ca să intri din nou.');
+    super(t('Sesiunea a expirat. Reîncarcă pagina ca să intri din nou.'));
   }
 }
 
@@ -245,7 +247,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   // A JSON body, or a file sent raw with its type and URI-encoded name.
   // `base` is the client's base, or /api/auth for the login page.
   async function request<T>(method: string, path: string, body?: unknown, file?: File, base = apiBase): Promise<T> {
-    const headers: Record<string, string> = { Accept: 'application/json' };
+    const headers: Record<string, string> = { Accept: 'application/json', ...langHeaders() };
     let payload: BodyInit | undefined;
     if (file) {
       headers['Content-Type'] = uploadTypeOf(file) || 'application/octet-stream';

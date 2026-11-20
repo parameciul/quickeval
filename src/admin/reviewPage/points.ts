@@ -1,5 +1,6 @@
 import type { ReviewPoint, SubmissionDetail, TestDetail, UploadRow } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
+import { t } from '../../i18n/t.ts';
 
 // The review of the points to check (redesign spec §7): which points wait, in
 // which order, and the address of each.
@@ -93,7 +94,7 @@ export function pointsText(value: number): string {
 
 // "Subiectul I, 3) · 1p din 2p", or "Paginile necitite".
 export function pointName(point: ReviewPoint): string {
-  return point.kind === 'pages' ? 'Paginile necitite' : `${point.label} · ${pointsText(point.points)} din ${pointsText(point.maxPoints)}`;
+  return point.kind === 'pages' ? t('Paginile necitite') : t('{label} · {pointsText} din {pointsText2}', { label: point.label, pointsText: pointsText(point.points), pointsText2: pointsText(point.maxPoints) });
 }
 
 // The test after a decision on one of its points, before the API is read

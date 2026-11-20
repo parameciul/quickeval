@@ -1,3 +1,4 @@
+import { langHeaders } from '../i18n/lang.ts';
 import type { EvaluationStart, QuickTryInfo, StudentResultView, SubmissionFile } from '../../shared/api.ts';
 import { uploadTypeOf } from '../../shared/files.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
@@ -36,7 +37,7 @@ export function pageFileUrl(token: string, fileId: number): string {
 // in X-File-Name). The answer is JSON; a refusal throws its ApiError. The
 // landing page's form uses it too.
 export async function apiRequest<T>(fetchImpl: typeof fetch, url: string, method: string, body?: unknown, file?: File): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json', ...langHeaders() };
   let payload: BodyInit | undefined;
   if (file) {
     headers['Content-Type'] = uploadTypeOf(file) || 'application/octet-stream';

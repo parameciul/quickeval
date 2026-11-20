@@ -9,6 +9,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { printPdf } from './printPdf.ts';
 import { partsOf } from './variant.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // How many copies to print, in a line: the class without its CES students
 // when the test has a CES variant, the CES students for the CES test.
@@ -17,8 +18,8 @@ export function copiesLine(test: TestInfo, variant: TestVariant): string | null 
   const count = variant === 'ces' ? ces : test.studentCount - ces;
   if (count <= 0) return null;
   const copies = countLabel(count, 'copie', 'copii');
-  if (variant === 'ces') return `Tipărește ${copies}, pentru elevii cu CES.`;
-  return ces > 0 ? `Tipărește ${copies}, pentru elevii fără CES.` : `Tipărește ${copies}, câte una pentru fiecare elev.`;
+  if (variant === 'ces') return t('Tipărește {copies}, pentru elevii cu CES.', { copies });
+  return ces > 0 ? t('Tipărește {copies}, pentru elevii fără CES.', { copies }) : t('Tipărește {copies}, câte una pentru fiecare elev.', { copies });
 }
 
 // The test with the QR code in the corner of every page, made by the robot
@@ -58,15 +59,15 @@ export function PrintTest({
     <section className={ready ? 'print-card is-ready' : 'print-card'} aria-labelledby={id}>
       {ready && <PageDrawing />}
       <div className="print-body">
-        <h4 id={id}>{ces ? 'Testul CES cu cod QR' : 'Testul cu cod QR'}</h4>
+        <h4 id={id}>{ces ? t('Testul CES cu cod QR') : t('Testul cu cod QR')}</h4>
         {parts.files.test === null ? (
-          <p className="hint">{ces ? 'Încarcă testul CES ca să primești varianta cu cod QR.' : 'Încarcă testul ca să primești varianta cu cod QR.'}</p>
+          <p className="hint">{ces ? t('Încarcă testul CES ca să primești varianta cu cod QR.') : t('Încarcă testul ca să primești varianta cu cod QR.')}</p>
         ) : test.uploadToken === null ? (
           <>
             <p>
               <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
                 <ActionIcon name="qr" />
-                Pregătește testul cu cod QR
+                {t('Pregătește testul cu cod QR')}
               </button>
             </p>
             {retry.error && <ErrorMessage error={retry.error} />}
@@ -74,37 +75,37 @@ export function PrintTest({
         ) : status === 'none' ? (
           <p role="status" className="busy-line">
             <span className="spinner" aria-hidden="true" />
-            Se pregătește testul cu cod QR…
+            {t('Se pregătește testul cu cod QR…')}
           </p>
         ) : status === 'ready' ? (
           <>
             <p className="hint">
-              {ces ? 'Același cod QR ca pe testul clasei: elevii cu CES încarcă pe același link.' : 'Codul QR apare în colțul fiecărei pagini.'}
+              {ces ? t('Același cod QR ca pe testul clasei: elevii cu CES încarcă pe același link.') : t('Codul QR apare în colțul fiecărei pagini.')}
             </p>
             {copies && <p className="hint">{copies}</p>}
             <div className="card-actions">
               <PrintButton url={printFileUrl(test.code, variant)} main={!ces} />
               <a className="button-quiet" href={printFileUrl(test.code, variant)} download>
                 <ActionIcon name="download" />
-                Descarcă PDF
+                {t('Descarcă PDF')}
               </a>
             </div>
             {test.status === 'draft' && !ces && (
-              <p className="hint">Poți tipări testul de acum. Elevii încarcă lucrările după ce începi testul.</p>
+              <p className="hint">{t('Poți tipări testul de acum. Elevii încarcă lucrările după ce începi testul.')}</p>
             )}
             {fromWord && (
               <p className="hint">
-                PDF-ul a fost făcut din fișierul Word. Verifică-l înainte să-l tipărești. Pentru o copie exactă, încarcă testul ca PDF.
+                {t('PDF-ul a fost făcut din fișierul Word. Verifică-l înainte să-l tipărești. Pentru o copie exactă, încarcă testul ca PDF.')}
               </p>
             )}
           </>
         ) : (
           <>
-            <p>{ces ? 'Nu am putut pregăti testul CES cu cod QR.' : 'Nu am putut pregăti testul cu cod QR.'}</p>
+            <p>{ces ? t('Nu am putut pregăti testul CES cu cod QR.') : t('Nu am putut pregăti testul cu cod QR.')}</p>
             <p>
               <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
                 <ActionIcon name="retry" />
-                Încearcă din nou
+                {t('Încearcă din nou')}
               </button>
             </p>
             {retry.error && <ErrorMessage error={retry.error} />}
@@ -132,11 +133,11 @@ function PrintButton({ url, main }: { url: string; main: boolean }) {
         }}
       >
         <ActionIcon name="print" />
-        {state === 'busy' ? 'Se pregătește…' : 'Tipărește'}
+        {state === 'busy' ? t('Se pregătește…') : t('Tipărește')}
       </button>
       {state === 'failed' && (
         <div className="alert print-error" role="alert">
-          <p className="alert-text">Nu am putut deschide testul pentru tipărit. Încearcă din nou sau descarcă PDF-ul.</p>
+          <p className="alert-text">{t('Nu am putut deschide testul pentru tipărit. Încearcă din nou sau descarcă PDF-ul.')}</p>
         </div>
       )}
     </>

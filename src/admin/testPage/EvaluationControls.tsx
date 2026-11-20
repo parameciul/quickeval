@@ -4,18 +4,19 @@ import { countLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The files the evaluation needs, as steps for the teacher.
 function missingFiles(test: TestInfo): string[] {
   const missing: string[] = [];
-  if (!test.files.test) missing.push('Încarcă testul.');
-  if (!test.files.barem && test.barem.request !== 'requested') missing.push('Încarcă baremul.');
-  if (test.barem.request === 'requested') missing.push('Baremul se generează încă.');
+  if (!test.files.test) missing.push(t('Încarcă testul.'));
+  if (!test.files.barem && test.barem.request !== 'requested') missing.push(t('Încarcă baremul.'));
+  if (test.barem.request === 'requested') missing.push(t('Baremul se generează încă.'));
   else if (test.barem.unchecked) {
     missing.push(
       test.barem.request === 'failed'
-        ? 'Baremul nu s-a putut genera: încearcă din nou sau încarcă un barem.'
-        : 'Verifică baremul generat înainte de evaluare.',
+        ? t('Baremul nu s-a putut genera: încearcă din nou sau încarcă un barem.')
+        : t('Verifică baremul generat înainte de evaluare.'),
     );
   }
   return missing;
@@ -63,7 +64,7 @@ export function EvaluationControls({
 
   const fileSteps = missingFiles(test);
   const hasUploads = uploads.some((row) => row.fileCount > 0);
-  const startSteps = hasUploads ? fileSteps : [...fileSteps, 'Niciun elev nu a încărcat încă fișiere.'];
+  const startSteps = hasUploads ? fileSteps : [...fileSteps, t('Niciun elev nu a încărcat încă fișiere.')];
   const needsSelection = startSteps.length === 0 && selected.length === 0;
   const closed = test.uploadsClosedAt !== null;
   const papers = countLabel(selected.length, 'lucrare', 'lucrări');
@@ -71,18 +72,18 @@ export function EvaluationControls({
   if (allGraded) {
     return (
       <>
-        <p className="now-sub">După ce marchezi testul ca terminat, elevii nu mai pot încărca.</p>
+        <p className="now-sub">{t('După ce marchezi testul ca terminat, elevii nu mai pot încărca.')}</p>
         <div className="now-actions">
           <button
             type="button"
             className="button"
             disabled={finish.isPending}
             onClick={() => {
-              if (window.confirm('Marchezi testul ca terminat? Elevii nu mai pot încărca lucrări, iar notele rămân cum sunt.')) finish.mutate();
+              if (window.confirm(t('Marchezi testul ca terminat? Elevii nu mai pot încărca lucrări, iar notele rămân cum sunt.'))) finish.mutate();
             }}
           >
             <ActionIcon name="check" />
-            Marchează ca terminat
+            {t('Marchează ca terminat')}
           </button>
         </div>
         {finish.error && <ErrorMessage error={finish.error} />}
@@ -90,10 +91,10 @@ export function EvaluationControls({
     );
   }
 
-  const label = closed ? 'Pornește corectarea' : 'Închide încărcarea și pornește corectarea';
+  const label = closed ? t('Pornește corectarea') : t('Închide încărcarea și pornește corectarea');
   const confirmText = closed
-    ? `Pornești corectarea pentru ${papers}? Lucrările neselectate cu fișiere așteaptă o corectare ulterioară.`
-    : `Închizi încărcarea și pornești corectarea pentru ${papers}? Elevii nu mai pot trimite; poți redeschide încărcarea oricând. Lucrările neselectate cu fișiere așteaptă o corectare ulterioară.`;
+    ? t('Pornești corectarea pentru {papers}? Lucrările neselectate cu fișiere așteaptă o corectare ulterioară.', { papers })
+    : t('Închizi încărcarea și pornești corectarea pentru {papers}? Elevii nu mai pot trimite; poți redeschide încărcarea oricând. Lucrările neselectate cu fișiere așteaptă o corectare ulterioară.', { papers });
   return (
     <>
       <div className="now-actions">
@@ -110,10 +111,10 @@ export function EvaluationControls({
         </button>
         <p className="hint">
           {needsSelection
-            ? 'Bifează în tabel cel puțin o lucrare cu fișiere.'
+            ? t('Bifează în tabel cel puțin o lucrare cu fișiere.')
             : startSteps.length > 0
-              ? `Ca să pornești corectarea: ${startSteps.join(' ')}`
-              : `Se corectează ${selected.length === 1 ? '1 lucrare, bifată' : `${papers}, bifate`} în tabel.${closed ? '' : ' Poți redeschide încărcarea oricând, pentru elevii care nu au trimis.'}`}
+              ? t('Ca să pornești corectarea: {join}', { join: startSteps.join(' ') })
+              : t('Se corectează {v1} în tabel.{v2}', { v1: selected.length === 1 ? t('1 lucrare, bifată') : t('{papers}, bifate', { papers }), v2: closed ? '' : ` ${t('Poți redeschide încărcarea oricând, pentru elevii care nu au trimis.')}` })}
         </p>
       </div>
       {start.error && <ErrorMessage error={start.error} />}

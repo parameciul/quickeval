@@ -1,3 +1,4 @@
+import { type MessageLang, pageLang, translateMessage } from './i18n/messages.ts';
 // Quick Try: one free grading without an account (spec
 // docs/superpowers/specs/2026-11-09-quick-try-design.md).
 
@@ -20,13 +21,22 @@ export const QUICK_TRY_CLASS = 'PROBA';
 export const QUICK_TRY_STUDENT = 'Elev';
 export const QUICK_TRY_TITLE = 'Încercare rapidă';
 
+// A name the server stored for a try (its student, class or default title)
+// in the page's language; any other name, the teacher's own, stays as it is.
+export function tryName(name: string, lang: MessageLang = pageLang()): string {
+  return name === QUICK_TRY_STUDENT || name === QUICK_TRY_CLASS || name === QUICK_TRY_TITLE ? translateMessage(name, lang) : name;
+}
+
 // The phone page that sends the student's pages to a try (spec
 // docs/superpowers/specs/2026-11-16-quick-try-phone-photos-design.md).
 // `here`: opened on the phone that sent the form, so the page shows a link to
 // the try. A phone that scanned the code gets no link; that is no lock, since
 // the code holds the try's whole link.
-export function quickTryPhonePath(token: string, here = false): string {
-  return `/try/${token}/phone${here ? '?here=1' : ''}`;
+// On an English page the address carries ?lang=en: the phone that opens it
+// has no saved choice (public/lang.js).
+export function quickTryPhonePath(token: string, here = false, lang: MessageLang = pageLang()): string {
+  const query = [here ? 'here=1' : '', lang === 'en' ? 'lang=en' : ''].filter(Boolean).join('&');
+  return `/try/${token}/phone${query ? `?${query}` : ''}`;
 }
 // A phone in the hand, upright or sideways: it takes the photos itself, with
 // no QR code.

@@ -10,6 +10,7 @@ import { Panel } from './Panel.tsx';
 import { inWork, type TodoItem } from './todo.ts';
 import { classToneStyle } from '../../ui/classTone.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // "Clasele tale" (redesign spec §4): the classes of the school year that are
 // not archived, each with its students and its tests in work; a test that
@@ -42,7 +43,7 @@ export function ClassesPanel({
     <div className="panel-new">
       <Link className="button" to="/classes" state={{ newClass: true }}>
         <ActionIcon name="add" />
-        Clasă nouă
+        {t('Clasă nouă')}
       </Link>
     </div>
   );
@@ -50,26 +51,26 @@ export function ClassesPanel({
   const empty = !classes.error && classes.data !== undefined && active.length === 0;
 
   return (
-    <Panel id="panel-clase" title="Clasele tale" onClose={onClose}>
+    <Panel id="panel-clase" title={t('Clasele tale')} onClose={onClose}>
       {!empty && newClass}
       {classes.error ? (
         <div className="panel-body">
           <ErrorMessage error={classes.error} />
         </div>
       ) : !classes.data ? (
-        <p className="panel-body hint">Se încarcă…</p>
+        <p className="panel-body hint">{t('Se încarcă…')}</p>
       ) : empty ? (
         <EmptyState
           icon={<IconClasses />}
-          title={archived > 0 ? 'Nu ai nicio clasă activă' : 'Încă nu ai nicio clasă'}
+          title={archived > 0 ? t('Nu ai nicio clasă activă') : t('Încă nu ai nicio clasă')}
           action={
             <Link className="button button-small" to="/classes" state={{ newClass: true }}>
               <ActionIcon name="add" />
-              Clasă nouă
+              {t('Clasă nouă')}
             </Link>
           }
         >
-          Adaugă clasa cu numele elevilor, câte unul pe rând.
+          {t('Adaugă clasa cu numele elevilor, câte unul pe rând.')}
         </EmptyState>
       ) : (
         <>
@@ -96,7 +97,7 @@ export function ClassesPanel({
                     <span>{studentCountLabel(item.studentCount)}</span>
                   </span>
                   {!tests.data ? null : work.length === 0 ? (
-                    <span className="class-item-test">Nimic în lucru</span>
+                    <span className="class-item-test">{t('Nimic în lucru')}</span>
                   ) : (
                     work.map((test) => {
                       const waiting = todoOf(test);
@@ -115,9 +116,7 @@ export function ClassesPanel({
       )}
       {archived > 0 && (
         <div className="panel-actions">
-          <Link to="/classes" state={{ archived: true }}>
-            Arhivate ({archived})
-          </Link>
+          <Link to="/classes" state={{ archived: true }}>{t('Arhivate ({archived})', { archived })}</Link>
         </div>
       )}
     </Panel>

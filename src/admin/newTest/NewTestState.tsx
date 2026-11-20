@@ -1,4 +1,5 @@
 import { missingName, type MissingPart } from '../missing.ts';
+import { t } from '../../i18n/t.ts';
 
 // "Starea testului" beside the form of Test nou: what the new test has and
 // what it still misses, so the teacher sees where the form stands. A part that
@@ -20,26 +21,25 @@ export function NewTestState({
 }) {
   const parts: MissingPart[] = wantsCes ? ['test', 'barem', 'cesTest', 'cesBarem'] : ['test', 'barem'];
   const items = [
-    { key: 'class', label: 'Clasa', done: hasClass, todo: 'de ales', doneWord: 'gata', later: false },
-    { key: 'title', label: 'Titlul', done: hasTitle, todo: 'de scris', doneWord: 'gata', later: false },
+    { key: 'class', label: t('Clasa'), done: hasClass, todo: t('de ales'), doneWord: t('gata'), later: false },
+    { key: 'title', label: t('Titlul'), done: hasTitle, todo: t('de scris'), doneWord: t('gata'), later: false },
     ...parts.map((part) => ({
       key: part,
       label: `${missingName(part)[0]?.toUpperCase()}${missingName(part).slice(1)}`,
       done: !missing.includes(part) && !generating.includes(part),
       later: generating.includes(part),
-      todo: 'lipsește',
-      doneWord: 'gata',
+      todo: t('lipsește'),
+      doneWord: t('gata'),
     })),
   ];
   const done = items.filter((item) => item.done).length;
   return (
     <section className="class-card new-test-state" aria-labelledby="new-test-state">
       <div className="class-card-head">
-        <h2 id="new-test-state">Starea testului</h2>
+        <h2 id="new-test-state">{t('Starea testului')}</h2>
       </div>
       <p className="new-test-count">
-        {done} din {items.length} făcute
-      </p>
+        {t('{done} din {length} făcute', { done, length: items.length })}</p>
       <ul>
         {items.map((item) => (
           <li key={item.key} className={item.done ? 'is-done' : item.later ? 'is-later' : 'is-todo'}>
@@ -59,7 +59,7 @@ export function NewTestState({
               )}
             </span>
             <span>{item.label}</span>
-            <span className="state-word">{item.done ? item.doneWord : item.later ? 'se va genera' : item.todo}</span>
+            <span className="state-word">{item.done ? item.doneWord : item.later ? t('se va genera') : item.todo}</span>
           </li>
         ))}
       </ul>

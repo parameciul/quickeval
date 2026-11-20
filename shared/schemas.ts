@@ -1,3 +1,4 @@
+// i18n-ignore-file: the robot reads these schemas; their words stay as the robot needs them.
 import { z } from 'zod';
 import { formatPoints, gradeOf, round2 } from './scoring.ts';
 import { DETECTED_SUBJECTS, type DetectedSubject, MAX_SUBJECT_NAME } from './subjects.ts';

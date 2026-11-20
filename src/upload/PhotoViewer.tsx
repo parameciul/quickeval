@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 // One photo on the whole screen. Escape or the button closes it, and the focus
 // goes back to what opened it.
@@ -25,7 +26,7 @@ export function PhotoViewer({ src, label, onClose }: { src: string; label: strin
       <img src={src} alt={label} />
       <button ref={close} type="button" className="button button-big" onClick={onClose}>
         <ActionIcon name="close" />
-        Închide
+        {t('Închide')}
       </button>
     </div>
   );

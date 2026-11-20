@@ -12,6 +12,7 @@ import { CopyRefused, useCopyLink } from '../CopyLink.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { GradeChip } from './GradeChip.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // A paper the student sent has a result link; a student who did not send one
 // (no upload, or one still on the phone) has none.
@@ -27,7 +28,7 @@ export function linksCount(uploads: UploadRow[], testResultsOpen: boolean): { te
   const links = uploads.filter(hasLink);
   if (links.length === 0) return null;
   const published = links.filter((row) => row.resultsOpen).length;
-  if (published === links.length) return { text: testResultsOpen ? 'toate publicate' : 'toate publicate pe rând', all: true };
+  if (published === links.length) return { text: testResultsOpen ? t('toate publicate') : t('toate publicate pe rând'), all: true };
   return { text: `${countLabel(published, 'publicat', 'publicate')} · ${countLabel(links.length - published, 'nepublicat', 'nepublicate')}`, all: false };
 }
 
@@ -53,18 +54,18 @@ export function ResultLinksTable({
   started?: boolean;
   onChanged: () => Promise<void>;
 }) {
-  if (uploads.length === 0) return <p className="hint">Clasa nu are elevi. Adaugă-i din pagina clasei.</p>;
+  if (uploads.length === 0) return <p className="hint">{t('Clasa nu are elevi. Adaugă-i din pagina clasei.')}</p>;
   return (
     <div className="table-wrap uploads-wrap">
       <table className="uploads result-links">
-        <caption className="sr-only">Linkurile cu rezultatele elevilor</caption>
+        <caption className="sr-only">{t('Linkurile cu rezultatele elevilor')}</caption>
         <thead>
           <tr>
-            <th scope="col">Elev</th>
-            <th scope="col">Nota</th>
-            <th scope="col">Punctaj</th>
-            <th scope="col">Linkul cu rezultatul</th>
-            <th scope="col">Stare</th>
+            <th scope="col">{t('Elev')}</th>
+            <th scope="col">{t('Nota')}</th>
+            <th scope="col">{t('Punctaj')}</th>
+            <th scope="col">{t('Linkul cu rezultatul')}</th>
+            <th scope="col">{t('Stare')}</th>
           </tr>
         </thead>
         <tbody>
@@ -105,19 +106,19 @@ function ResultLinkRow({
       <th scope="row">
         {row.submissionId === null ? row.studentName : <Link to={`/tests/${code}/papers/${row.submissionId}`}>{row.studentName}</Link>}
         {(row.ces || row.variant === 'ces') && <CesTag />}
-        {!row.active && <span className="tag">a plecat</span>}
+        {!row.active && <span className="tag">{t('a plecat')}</span>}
       </th>
-      <td data-label="Nota">
+      <td data-label={t('Nota')}>
         {graded && row.grade !== null ? (
           <>
             <GradeChip grade={row.grade} />
-            {row.flagCount > 0 && <span className="points-pill">{row.flagCount} de verificat</span>}
+            {row.flagCount > 0 && <span className="points-pill">{t('{flagCount} de verificat', { flagCount: row.flagCount })}</span>}
           </>
         ) : (
           '—'
         )}
       </td>
-      <td data-label="Punctaj">{points}</td>
+      <td data-label={t('Punctaj')}>{points}</td>
       <td className="result-link-cell">
         {hasLink(row) ? (
           <span className="result-link-with-code">
@@ -125,7 +126,7 @@ function ResultLinkRow({
                 teacher can read it out to a student who lost the link. */}
             {row.resultCode !== null && (
               <span className="result-code">
-                <span className="sr-only">Codul </span>
+                <span className="sr-only">{t('Codul')}{' '}</span>
                 {formatResultCode(row.resultCode)}
               </span>
             )}
@@ -139,25 +140,25 @@ function ResultLinkRow({
             />
           </span>
         ) : started ? (
-          'Nu a trimis lucrarea.'
+          t('Nu a trimis lucrarea.')
         ) : (
-          'Testul nu a început.'
+          t('Testul nu a început.')
         )}
       </td>
       <td className="result-state-cell">
         {hasLink(row) && (
           <span className="row-actions">
-            {row.resultsOpen ? <span className="tag tag-ok">Publicat</span> : <span className="hint">Nepublicat</span>}
+            {row.resultsOpen ? <span className="tag tag-ok">{t('Publicat')}</span> : <span className="hint">{t('Nepublicat')}</span>}
             {!testResultsOpen && (row.status === 'graded' || row.resultsOpen) && (
               <button
                 type="button"
                 className="button-quiet button-small"
                 disabled={publish.isPending}
-                aria-label={`${row.resultsOpen ? 'Oprește publicarea' : 'Publică'}: ${row.studentName}`}
+                aria-label={`${row.resultsOpen ? t('Oprește publicarea') : t('Publică')}: ${row.studentName}`}
                 onClick={() => publish.mutate({ submissionId: row.submissionId, startedAt: row.startedAt, open: !row.resultsOpen })}
               >
                 <ActionIcon name={row.resultsOpen ? 'eye-off' : 'eye'} />
-                {row.resultsOpen ? 'Oprește publicarea' : 'Publică'}
+                {row.resultsOpen ? t('Oprește publicarea') : t('Publică')}
               </button>
             )}
           </span>
@@ -203,11 +204,11 @@ export function CopyResultLink({
           type="button"
           className="button-quiet button-small"
           disabled={make.isPending}
-          aria-label={named ? `Fă linkul: ${studentName}` : undefined}
+          aria-label={named ? t('Fă linkul: {studentName}', { studentName }) : undefined}
           onClick={() => make.mutate()}
         >
           <ActionIcon name="link" />
-          Fă linkul
+          {t('Fă linkul')}
         </button>
         {make.error && <ErrorMessage error={make.error} />}
       </span>
@@ -219,23 +220,23 @@ export function CopyResultLink({
       <button
         type="button"
         className="button-quiet button-small"
-        aria-label={named && !copied ? `Copiază linkul: ${studentName}` : undefined}
+        aria-label={named && !copied ? t('Copiază linkul: {studentName}', { studentName }) : undefined}
         onClick={() => copy(url)}
       >
         <ActionIcon name={copied ? 'check' : 'copy'} />
-        {copied ? 'Copiat!' : 'Copiază linkul'}
+        {copied ? 'Copiat!' : t('Copiază linkul')}
       </button>
       <a
         className="button-quiet button-small"
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={named ? `Deschide rezultatul: ${studentName}` : undefined}
+        aria-label={named ? t('Deschide rezultatul: {studentName}', { studentName }) : undefined}
       >
         <ActionIcon name="open" />
-        Deschide
+        {t('Deschide')}
       </a>
-      {refused && <CopyRefused field={field} url={url} label={`Linkul cu rezultatul elevului ${studentName}`} />}
+      {refused && <CopyRefused field={field} url={url} label={t('Linkul cu rezultatul elevului {studentName}', { studentName })} />}
     </span>
   );
 }

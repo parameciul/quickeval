@@ -9,6 +9,7 @@ import { stagesOf } from '../stages.ts';
 import { archivedPublished, todoOf } from '../shell/todo.ts';
 import { nextStep, type NextStep } from '../testsPage/nextStep.ts';
 import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // "Testele clasei", beside the grades table (spec §9): the newest test first,
 // each with its date, the papers sent, its stage (orange when it waits on the
@@ -48,13 +49,13 @@ export function ClassTests({
   return (
     <aside className="class-card class-tests" aria-labelledby="class-tests-title">
       <div className="class-card-head">
-        <h2 id="class-tests-title">Testele clasei</h2>
+        <h2 id="class-tests-title">{t('Testele clasei')}</h2>
         <span>
-          {activeCount} în {formatSchoolYear(schoolYear)}
+          {t('{activeCount} în {formatSchoolYear}', { activeCount, formatSchoolYear: formatSchoolYear(schoolYear) })}
         </span>
       </div>
       {shown.length === 0 ? (
-        <p className="class-tests-empty hint">Clasa nu are încă teste.</p>
+        <p className="class-tests-empty hint">{t('Clasa nu are încă teste.')}</p>
       ) : (
         <ol className="class-test-list">
           {shown.map((test) => {
@@ -63,7 +64,7 @@ export function ClassTests({
             const step: NextStep = live
               ? nextStep(test, current)
               : test.gradedCount > 0
-                ? { kind: 'link', label: 'Raportul clasei', to: `/tests/${test.code}/report` }
+                ? { kind: 'link', label: t('Raportul clasei'), to: `/tests/${test.code}/report` }
                 : null;
             const waits = live && todoOf(test) !== null;
             return (
@@ -74,14 +75,14 @@ export function ClassTests({
                   </Link>
                   <span>
                     <span className="class-test-date">
-                      {test.startedAt === null ? 'ciornă' : formatDayMonth(test.startedAt)}
+                      {test.startedAt === null ? t('ciornă') : formatDayMonth(test.startedAt)}
                     </span>
                     {' · '}
-                    {test.status === 'draft' ? 'nepornit' : `${test.submittedCount} din ${test.studentCount} trimise`}
-                    {test.archived && ' · arhivat'}
+                    {test.status === 'draft' ? t('nepornit') : t('{submittedCount} din {studentCount} trimise', { submittedCount: test.submittedCount, studentCount: test.studentCount })}
+                    {test.archived && ` · ${t('arhivat')}`}
                   </span>
                   <span className={waits ? 'class-test-stage is-waiting' : 'class-test-stage'}>
-                    {current.name}
+                    {t(current.name)}
                     {current.note !== '' && ` · ${current.note}`}
                   </span>
                 </div>
@@ -119,9 +120,7 @@ export function ClassTests({
             className="text-button"
             aria-pressed={showArchived}
             onClick={() => onShowArchived(!showArchived)}
-          >
-            Arată și testele arhivate ({archivedCount})
-          </button>
+          >{t('Arată și testele arhivate ({archivedCount})', { archivedCount })}</button>
         </div>
       )}
     </aside>

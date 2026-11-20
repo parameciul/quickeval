@@ -1,6 +1,7 @@
 import { demoPapersLeft, DEMO_PAPER_LIMIT } from '../../../shared/accounts.ts';
 import type { Teacher } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
+import { t } from '../../i18n/t.ts';
 
 // What a demo account has used: its one test, and its papers. A paper on its
 // way to the robot counts as used. `testsEvaluated` counts every start, regrade
@@ -15,9 +16,9 @@ export function demoUsage(teacher: Teacher): DemoUsage {
 // The line under the meters (redesign spec §11.5).
 export function demoLine(usage: DemoUsage): string {
   if (usage.papersLeft === 0) {
-    return `Ai folosit toate cele ${countLabel(DEMO_PAPER_LIMIT, 'lucrare', 'lucrări')} ale contului demo. Cere unui administrator un cont complet.`;
+    return t('Ai folosit toate cele {countLabel} ale contului demo. Cere unui administrator un cont complet.', { countLabel: countLabel(DEMO_PAPER_LIMIT, 'lucrare', 'lucrări') });
   }
-  return `Mai ai ${countLabel(usage.papersLeft, 'lucrare', 'lucrări')}, pentru testul tău. Fiecare lucrare corectată se numără, și o recorectare.`;
+  return t('Mai ai {countLabel}, pentru testul tău. Fiecare lucrare corectată se numără, și o recorectare.', { countLabel: countLabel(usage.papersLeft, 'lucrare', 'lucrări') });
 }
 
 // "Teste corectate 1 din 1" and "Lucrări corectate 20 din 35", each with its
@@ -26,8 +27,8 @@ export function demoLine(usage: DemoUsage): string {
 export function DemoMeters({ usage }: { usage: DemoUsage }) {
   return (
     <div className="demo-meters">
-      <Meter label="Teste corectate" used={usage.testUsed ? 1 : 0} of={1} />
-      <Meter label="Lucrări corectate" used={usage.papersUsed} of={DEMO_PAPER_LIMIT} full={usage.papersLeft === 0} />
+      <Meter label={t('Teste corectate')} used={usage.testUsed ? 1 : 0} of={1} />
+      <Meter label={t('Lucrări corectate')} used={usage.papersUsed} of={DEMO_PAPER_LIMIT} full={usage.papersLeft === 0} />
     </div>
   );
 }
@@ -38,7 +39,7 @@ function Meter({ label, used, of, full = false }: { label: string; used: number;
       <div className="demo-meter-line">
         <span>{label}</span>
         <b>
-          {used} din {of}
+          {t('{used} din {of}', { used, of })}
         </b>
       </div>
       <div className="demo-meter-bar" aria-hidden="true">

@@ -9,12 +9,13 @@ import { startedText } from '../testsPage/TestGroup.tsx';
 import { CesTag } from '../CesTag.tsx';
 import { Highlight } from './Highlight.tsx';
 import { useSearch } from './useSearch.ts';
+import { t } from '../../i18n/t.ts';
 
 // How many of each group the list under the box shows; the results page
 // shows them all.
 export const SHOWN_PER_GROUP = 5;
 
-export const SEARCH_LABEL = 'Caută elevi, clase și teste';
+export const SEARCH_LABEL = t('Caută elevi, clase și teste');
 
 interface Option {
   to: string;
@@ -35,7 +36,7 @@ export function resultsPath(text: string): string {
 function groupsOf(results: SearchResults, text: string): Group[] {
   const groups: Group[] = [
     {
-      title: 'Elevi',
+      title: t('Elevi'),
       options: results.students.slice(0, SHOWN_PER_GROUP).map((student) => ({
         to: `/students/${student.id}`,
         name: (
@@ -48,23 +49,23 @@ function groupsOf(results: SearchResults, text: string): Group[] {
       })),
     },
     {
-      title: 'Clase',
+      title: t('Clase'),
       options: results.classes.slice(0, SHOWN_PER_GROUP).map((cls) => ({
         to: `/classes/${cls.id}`,
         name: (
           <>
-            Clasa <Highlight text={cls.name} query={text} />
+            {t('Clasa')}{' '}<Highlight text={cls.name} query={text} />
           </>
         ),
-        meta: cls.archived ? `${studentCountLabel(cls.studentCount)} · arhivată` : studentCountLabel(cls.studentCount),
+        meta: cls.archived ? t('{studentCountLabel} · arhivată', { studentCountLabel: studentCountLabel(cls.studentCount) }) : studentCountLabel(cls.studentCount),
       })),
     },
     {
-      title: 'Teste',
+      title: t('Teste'),
       options: results.tests.slice(0, SHOWN_PER_GROUP).map((test) => ({
         to: `/tests/${test.code}`,
         name: <Highlight text={test.title} query={text} />,
-        meta: `${displayClassName(test.className)} · ${test.archived ? 'arhivat' : startedText(test)}`,
+        meta: `${displayClassName(test.className)} · ${test.archived ? t('arhivat') : startedText(test)}`,
       })),
     },
   ];
@@ -90,7 +91,7 @@ export function SearchBox({ id, always = false }: { id: string; always?: boolean
   // comes, does not say so.
   const answered = search.data !== undefined;
   const empty = answered && !search.isPlaceholderData && groups.length === 0;
-  const all: Option = { to: resultsPath(text), name: `Toate rezultatele pentru „${text.trim()}”` };
+  const all: Option = { to: resultsPath(text), name: t('Toate rezultatele pentru „{trim}”', { trim: text.trim() }) };
   const options: Option[] = ready && answered && !empty ? [...groups.flatMap((group) => group.options), all] : [];
   const listed = shown && options.length > 0;
   // A new answer forgets the chosen line: it may be gone or another one.
@@ -192,10 +193,10 @@ export function SearchBox({ id, always = false }: { id: string; always?: boolean
       {shown && (answered || search.error) && (
         <div className="search-pop">
           <p className="search-none" role="status">
-            {empty ? 'Nimic găsit în acest an școlar.' : search.error && !answered ? 'Căutarea nu a mers. Încearcă din nou.' : null}
+            {empty ? t('Nimic găsit în acest an școlar.') : search.error && !answered ? t('Căutarea nu a mers. Încearcă din nou.') : null}
           </p>
           {listed && (
-            <div id={listId} role="listbox" aria-label={`Rezultate pentru „${text.trim()}”`}>
+            <div id={listId} role="listbox" aria-label={t('Rezultate pentru „{trim}”', { trim: text.trim() })}>
               {groups.map((group) => (
                 <div key={group.title} role="group" aria-labelledby={`${id}-${group.title}`} className="search-group">
                   <div id={`${id}-${group.title}`} role="presentation" className="search-group-title">

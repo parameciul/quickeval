@@ -18,6 +18,7 @@ import { waitsForBarem, waitsForPrint } from '../testPage/StartRobotButton.tsx';
 import { TestMenu } from '../testPage/TestMenu.tsx';
 import { TestSheet } from '../testPage/TestSheet.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
+import { t } from '../../i18n/t.ts';
 
 export function TestPage() {
   const code = normalizeTestCode(useParams().code ?? '');
@@ -32,7 +33,7 @@ function TestDetails({ code }: { code: string }) {
     queryFn: () => api.getTest(code),
   });
 
-  if (detail.isPending) return <p>Se încarcă…</p>;
+  if (detail.isPending) return <p>{t('Se încarcă…')}</p>;
   // A failed first load has nothing to show. A failed refresh keeps the page,
   // and an open QR view with it, and says why above it.
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
@@ -90,12 +91,12 @@ function TestView({ code, detail, fresh, refreshError }: { code: string; detail:
 
   return (
     <section className="test-page">
-      <Crumbs items={[{ label: 'Teste', to: '/' }, { label: displayClassName(test.className), to: `/classes/${test.classId}` }, { label: test.title }]} />
+      <Crumbs items={[{ label: t('Teste'), to: '/' }, { label: displayClassName(test.className), to: `/classes/${test.classId}` }, { label: test.title }]} />
       <div className="test-head">
         <div className="test-title">
           <h1>{test.title}</h1>
           <p className="test-sub">
-            {studentCountLabel(test.studentCount)} · {test.startedAt ? `început ${formatDateTime(test.startedAt)}` : 'ciornă'}
+            {studentCountLabel(test.studentCount)} · {test.startedAt ? t('început {formatDateTime}', { formatDateTime: formatDateTime(test.startedAt) }) : t('ciornă')}
           </p>
         </div>
         <TestMenu test={test} uploads={uploads} onChanged={refresh} onRobot={onRobot} />

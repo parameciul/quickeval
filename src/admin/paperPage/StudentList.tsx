@@ -6,6 +6,7 @@ import { countLabel, uploadStatusLabel } from '../../ui/format.ts';
 import { CesTag } from '../CesTag.tsx';
 import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
 import { listedPapers, type PaperMode } from './paths.ts';
+import { t } from '../../i18n/t.ts';
 
 // "Elevii" (spec 2026-11-12 §4.3): every student with a paper, the open one
 // marked, each with the grade, or the points to check in orange, or the state.
@@ -36,17 +37,17 @@ export function StudentList({
   const groups =
     mode === 'review'
       ? [
-          { title: 'Cu puncte de verificat', rows: withPoints },
-          { title: 'Celelalte lucrări', rows: papers.slice(withPoints.length) },
+          { title: t('Cu puncte de verificat'), rows: withPoints },
+          { title: t('Celelalte lucrări'), rows: papers.slice(withPoints.length) },
         ]
       : [{ title: null, rows: papers }];
   return (
-    <nav className={folded ? 'paper-students is-folded' : 'paper-students'} aria-label="Elevii">
+    <nav className={folded ? 'paper-students is-folded' : 'paper-students'} aria-label={t('Elevii')}>
       <div className="paper-students-head">
-        {!folded && <h2>Elevii</h2>}
+        {!folded && <h2>{t('Elevii')}</h2>}
         <button type="button" className="button-quiet button-small" aria-expanded={!folded} onClick={() => onFold(!folded)}>
-          {folded ? <span aria-hidden="true">»</span> : 'Ascunde'}
-          {folded && <span className="sr-only">Arată elevii</span>}
+          {folded ? <span aria-hidden="true">»</span> : t('Ascunde')}
+          {folded && <span className="sr-only">{t('Arată elevii')}</span>}
         </button>
       </div>
       {!folded &&
@@ -96,10 +97,10 @@ function StudentState({ row, testStatus }: { row: UploadRow; testStatus: TestSta
   if (row.status === 'graded' && row.grade !== null) {
     return (
       <span className="paper-student-grade">
-        <span className="sr-only">nota</span> {formatPoints(row.grade)}
+        <span className="sr-only">{t('nota')}</span> {formatPoints(row.grade)}
       </span>
     );
   }
-  const state = heldBack(row.status, row.fileCount, testStatus) ? PAPER_PART_LABEL.waiting : row.status === 'failed' ? 'Eșuat' : uploadStatusLabel(row.status);
+  const state = heldBack(row.status, row.fileCount, testStatus) ? PAPER_PART_LABEL.waiting : row.status === 'failed' ? t('Eșuat') : uploadStatusLabel(row.status);
   return <span className="hint">{state.toLowerCase()}</span>;
 }

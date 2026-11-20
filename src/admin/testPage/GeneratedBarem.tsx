@@ -6,6 +6,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { partsOf } from './variant.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The generated barem's controls on the barem row, next to the file button:
 // "Generează baremul" (or "Încearcă din nou" after a failure), the waiting
@@ -53,12 +54,12 @@ export function useGeneratedBarem({
   const hasTest = parts.files.test !== null;
 
   const onGenerate = () => {
-    const cancelled = !ces && test.evaluationAt ? ' Programarea evaluării se anulează.' : '';
+    const cancelled = !ces && test.evaluationAt ? ` ${t('Programarea evaluării se anulează.')}` : '';
     const question =
       parts.files.barem !== null
-        ? `Înlocuiești ${ces ? 'baremul CES' : 'baremul'} existent cu unul generat? Baremul de acum rămâne până vine cel nou.${cancelled}`
+        ? t('Înlocuiești {v1} existent cu unul generat? Baremul de acum rămâne până vine cel nou.{cancelled}', { v1: ces ? t('baremul CES') : t('baremul'), cancelled })
         : cancelled
-          ? `Generezi baremul?${cancelled}`
+          ? t('Generezi baremul?{cancelled}', { cancelled })
           : null;
     if (question !== null && !window.confirm(question)) return;
     generate.mutate();
@@ -68,34 +69,34 @@ export function useGeneratedBarem({
     <>
       <button type="button" className="button-quiet button-small" disabled={!hasTest || waiting || generate.isPending} onClick={onGenerate}>
         <ActionIcon name={failed ? 'retry' : 'generate'} />
-        {failed ? 'Încearcă din nou' : ces ? 'Generează baremul CES' : 'Generează baremul'}
+        {failed ? t('Încearcă din nou') : ces ? t('Generează baremul CES') : t('Generează baremul')}
       </button>
       {unchecked && request === 'none' && (
         <button type="button" className="button button-small" disabled={confirm.isPending} onClick={() => confirm.mutate()}>
           <ActionIcon name="check" />
-          {ces ? 'Am verificat baremul CES' : 'Am verificat baremul'}
+          {ces ? t('Am verificat baremul CES') : t('Am verificat baremul')}
         </button>
       )}
     </>
   );
   const status = (
     <>
-      {!hasTest && <p className="hint">{ces ? 'Încarcă întâi testul CES.' : 'Încarcă întâi testul.'}</p>}
+      {!hasTest && <p className="hint">{ces ? t('Încarcă întâi testul CES.') : t('Încarcă întâi testul.')}</p>}
       {waiting && (
         <p role="status">
           {!ces
-            ? 'Se generează baremul… Durează câteva minute.'
+            ? t('Se generează baremul… Durează câteva minute.')
             : test.barem.request === 'requested'
-              ? 'Baremul CES se generează după baremul clasei. Durează câteva minute.'
-              : 'Se generează baremul CES… Durează câteva minute.'}
+              ? t('Baremul CES se generează după baremul clasei. Durează câteva minute.')
+              : t('Se generează baremul CES… Durează câteva minute.')}
         </p>
       )}
-      {failed && <p className="alert">{ces ? 'Nu am putut genera baremul CES.' : 'Nu am putut genera baremul.'}</p>}
+      {failed && <p className="alert">{ces ? 'Nu am putut genera baremul CES.' : t('Nu am putut genera baremul.')}</p>}
       {unchecked && request === 'none' && (
         <p className="warning">
           {ces
-            ? 'Barem CES generat automat, doar pentru notare. Verifică-l și corectează-l în Word dacă e nevoie.'
-            : 'Barem generat automat. Verifică-l și corectează-l în Word dacă e nevoie.'}
+            ? t('Barem CES generat automat, doar pentru notare. Verifică-l și corectează-l în Word dacă e nevoie.')
+            : t('Barem generat automat. Verifică-l și corectează-l în Word dacă e nevoie.')}
         </p>
       )}
       {generate.error && <ErrorMessage error={generate.error} />}

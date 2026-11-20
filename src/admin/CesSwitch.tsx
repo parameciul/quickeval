@@ -1,4 +1,5 @@
 import { CesTag } from './CesTag.tsx';
+import { t } from '../i18n/t.ts';
 
 // "Test separat pentru elevii cu CES" (spec: CES switch): on Test nou and in
 // the CES block of the test page. On: the CES students get their own test,
@@ -19,16 +20,16 @@ export function CesSwitch({
     <div className="ces-switch">
       <p className="ces-switch-who">
         <strong>
-          {names.length === 1 ? 'Clasa are 1 elev cu CES' : `Clasa are ${names.length} elevi cu CES`}
+          {names.length === 1 ? t('Clasa are 1 elev cu CES') : t('Clasa are {length} elevi cu CES', { length: names.length })}
           <CesTag />
         </strong>
         {names.length > 0 && <span className="hint">{names.join(', ')}</span>}
       </p>
       <button type="button" role="switch" aria-checked={on} className="ces-switch-button" disabled={disabled} onClick={() => onToggle(!on)}>
         <span className="switch" aria-hidden="true" />
-        <span>Test separat pentru elevii cu CES</span>
+        <span>{t('Test separat pentru elevii cu CES')}</span>
       </button>
-      <p className="hint">Pornit: elevii cu CES primesc testul lor, corectat cu baremul lor. Oprit: primesc testul clasei.</p>
+      <p className="hint">{t('Pornit: elevii cu CES primesc testul lor, corectat cu baremul lor. Oprit: primesc testul clasei.')}</p>
     </div>
   );
 }

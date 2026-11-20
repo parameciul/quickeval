@@ -1,6 +1,7 @@
 import { demoPapersLeft } from '../../../shared/accounts.ts';
 import type { Teacher, UploadRow, UploadStatus } from '../../../shared/api.ts';
 import type { TestStatus } from '../../../shared/tests.ts';
+import { t } from '../../i18n/t.ts';
 
 // The parts of the papers bar, in the order they are drawn.
 export type PaperPart = 'graded' | 'grading' | 'waiting' | 'failed' | 'uploading' | 'notYet' | 'absent';
@@ -8,13 +9,13 @@ export type PaperPart = 'graded' | 'grading' | 'waiting' | 'failed' | 'uploading
 export const PAPER_PARTS: readonly PaperPart[] = ['graded', 'grading', 'waiting', 'failed', 'uploading', 'notYet', 'absent'];
 
 export const PAPER_PART_LABEL: Record<PaperPart, string> = {
-  graded: 'Corectate',
-  grading: 'Se corectează',
-  waiting: 'Așteaptă corectarea',
-  failed: 'Eșuate',
-  uploading: 'Încarcă acum',
-  notYet: 'Încă nu au trimis',
-  absent: 'Nu au participat',
+  graded: t('Corectate'),
+  grading: t('Se corectează'),
+  waiting: t('Așteaptă corectarea'),
+  failed: t('Eșuate'),
+  uploading: t('Încarcă acum'),
+  notYet: t('Încă nu au trimis'),
+  absent: t('Nu au participat'),
 };
 
 export interface PaperCounts {
@@ -49,10 +50,10 @@ export function heldBack(status: UploadStatus, fileCount: number, testStatus: Te
   return status === 'uploading' && fileCount > 0 && (testStatus === 'evaluating' || testStatus === 'done');
 }
 
-export const HELD_BACK_HINT = 'Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.';
+export const HELD_BACK_HINT = t('Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.');
 
 const HELD_BACK_DEMO_HINT =
-  'Lucrarea nu a fost trimisă la corectare: contul demo nu mai are lucrări de corectat. Cere unui administrator un cont complet.';
+  t('Lucrarea nu a fost trimisă la corectare: contul demo nu mai are lucrări de corectat. Cere unui administrator un cont complet.');
 
 // Why a held-back paper waits, for the account at hand: a demo account with no
 // paper left cannot send it, so reopening the uploads would not help.

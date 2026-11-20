@@ -7,6 +7,7 @@ import { formatDate, uploadStatusLabel } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
 import { pdfRuns } from './pdfMath.ts';
 import { pdfText } from './pdfSymbols.ts';
+import { t } from '../../i18n/t.ts';
 
 // The class PDF (spec §14.2): landscape, with the table of results, the
 // statistics, and the analysis. A test can have 60 exercises, which no page
@@ -18,7 +19,7 @@ const FLAGGED = '#fff0a0';
 const MUTED = '#586070';
 
 export function classPdfFileName(report: ClassReport): string {
-  return pdfFileName(report.test.code, 'raport');
+  return pdfFileName(report.test.code, t('raport'));
 }
 
 const dash = '—';
@@ -36,8 +37,8 @@ const headerCell = (text: string) => ({ text, bold: true, fontSize: 8, color: MU
 // The last block also holds the total and the grade.
 function resultsTable(table: ReportTable, exerciseIds: string[], last: boolean): Content {
   const exercises = table.exercises.filter((exercise) => exerciseIds.includes(exercise.id));
-  const header: TableCell[] = [headerCell('Elev'), ...exercises.map((exercise) => ({ ...headerCell(exercise.id), alignment: 'center' as const }))];
-  if (last) header.push(headerCell('Total'), headerCell('Nota'));
+  const header: TableCell[] = [headerCell(t('Elev')), ...exercises.map((exercise) => ({ ...headerCell(exercise.id), alignment: 'center' as const }))];
+  if (last) header.push(headerCell(t('Total')), headerCell(t('Nota')));
   const body: TableCell[][] = table.rows.map((row) => {
     const cells: TableCell[] = [{ text: row.studentName, fontSize: 9 }];
     for (const exercise of exercises) {
@@ -80,10 +81,10 @@ function exerciseTable(perExercise: ExerciseStats[]): Content {
       dontBreakRows: true,
       widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
       body: [
-        ['Exercițiul', 'Media', '% din maxim', 'Tot', 'Parțial', 'Nimic'].map(headerCell),
+        [t('Exercițiul'), t('Media'), t('% din maxim'), t('Tot'), t('Parțial'), t('Nimic')].map(headerCell),
         ...perExercise.map((exercise): TableCell[] => [
           { text: `${exercise.exerciseId} · ${exercise.label}`, fontSize: 9 },
-          { text: exercise.averagePoints === null ? dash : `${formatPoints(exercise.averagePoints)} din ${formatPoints(exercise.maxPoints)}`, fontSize: 9 },
+          { text: exercise.averagePoints === null ? dash : t('{formatPoints} din {formatPoints2}', { formatPoints: formatPoints(exercise.averagePoints), formatPoints2: formatPoints(exercise.maxPoints) }), fontSize: 9 },
           { text: exercise.averagePercent === null ? dash : `${exercise.averagePercent}%`, fontSize: 9 },
           { text: String(exercise.full), fontSize: 9 },
           { text: String(exercise.partial), fontSize: 9 },
@@ -134,53 +135,53 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
   const { content: analysis, stale } = report.analysis;
 
   const content: Content[] = [
-    { text: `Raportul clasei · ${report.test.code}`, style: 'h1' },
+    { text: t('Raportul clasei · {code}', { code: report.test.code }), style: 'h1' },
     {
       text: [report.test.title, displayClassName(report.test.className), report.test.startedAt ? formatDate(report.test.startedAt) : '']
         .filter((part) => part !== '')
         .join(' · '),
       color: MUTED,
     },
-    { text: 'Statistici', style: 'h2' },
-    { text: `Corectate ${stats.gradedCount} din ${stats.activeCount} elevi${stats.flaggedCount > 0 ? ` · de verificat ${stats.flaggedCount}` : ''}` },
+    { text: t('Statistici'), style: 'h2' },
+    { text: t('Corectate {gradedCount} din {activeCount} elevi{v3}', { gradedCount: stats.gradedCount, activeCount: stats.activeCount, v3: stats.flaggedCount > 0 ? ` · ${t('de verificat {flaggedCount}', { flaggedCount: stats.flaggedCount })}` : '' }) },
     {
       columns: [
-        { text: `Media ${grade(stats.average)}`, bold: true },
-        { text: `Mediana ${grade(stats.median)}`, bold: true },
-        { text: `Cea mai mică notă ${grade(stats.min)}`, bold: true },
-        { text: `Cea mai mare notă ${grade(stats.max)}`, bold: true },
+        { text: t('Media {grade}', { grade: grade(stats.average) }), bold: true },
+        { text: t('Mediana {grade}', { grade: grade(stats.median) }), bold: true },
+        { text: t('Cea mai mică notă {grade}', { grade: grade(stats.min) }), bold: true },
+        { text: t('Cea mai mare notă {grade}', { grade: grade(stats.max) }), bold: true },
       ],
       margin: [0, 4, 0, 4],
     },
     { text: stats.groups.map((group) => `${group.label}: ${group.count}`).join('   ·   '), color: MUTED },
-    { text: 'Rezultatele elevilor', style: 'h2' },
+    { text: t('Rezultatele elevilor'), style: 'h2' },
     ...resultsBlocks(classTable!),
-    ...(cesTable ? [{ text: 'Varianta CES', style: 'h3' } as Content, ...resultsBlocks(cesTable)] : []),
-    ...(anyFlagged ? [{ text: 'Fundalul galben marchează punctajele încă în verificare.', color: MUTED, fontSize: 9 } as Content] : []),
-    { text: 'Pe exerciții', style: 'h2' },
+    ...(cesTable ? [{ text: t('Varianta CES'), style: 'h3' } as Content, ...resultsBlocks(cesTable)] : []),
+    ...(anyFlagged ? [{ text: t('Fundalul galben marchează punctajele încă în verificare.'), color: MUTED, fontSize: 9 } as Content] : []),
+    { text: t('Pe exerciții'), style: 'h2' },
     exerciseTable(stats.perExercise),
-    ...(stats.cesPerExercise ? [{ text: 'Varianta CES', style: 'h3' } as Content, exerciseTable(stats.cesPerExercise)] : []),
+    ...(stats.cesPerExercise ? [{ text: t('Varianta CES'), style: 'h3' } as Content, exerciseTable(stats.cesPerExercise)] : []),
   ];
   if (report.missing.length > 0) {
     content.push(
-      { text: 'Fără rezultat', style: 'h2' },
+      { text: t('Fără rezultat'), style: 'h2' },
       { ul: report.missing.map((student) => `${student.studentName} · ${uploadStatusLabel(student.status)}`) },
     );
   }
   if (analysis) {
-    content.push({ text: 'Analiza clasei', style: 'h2' });
-    if (stale) content.push({ text: 'Analiza poate fi depășită: notele s-au schimbat după ce a fost scrisă.', italics: true, color: MUTED });
+    content.push({ text: t('Analiza clasei'), style: 'h2' });
+    if (stale) content.push({ text: t('Analiza poate fi depășită: notele s-au schimbat după ce a fost scrisă.'), italics: true, color: MUTED });
     content.push(
       { text: pdfRuns(analysis.overview) },
-      ...list('Ce a mers bine', analysis.strengths),
-      ...list('Ce a mers mai greu', analysis.weaknesses),
-      ...list('Greșeli frecvente', analysis.commonMistakes),
-      ...list('Ce exersați în continuare', analysis.recommendations),
+      ...list(t('Ce a mers bine'), analysis.strengths),
+      ...list(t('Ce a mers mai greu'), analysis.weaknesses),
+      ...list(t('Greșeli frecvente'), analysis.commonMistakes),
+      ...list(t('Ce exersați în continuare'), analysis.recommendations),
     );
   }
 
   return {
-    info: { title: `Raportul clasei · ${report.test.code}` },
+    info: { title: t('Raportul clasei · {code}', { code: report.test.code }) },
     pageSize: 'A4',
     pageOrientation: 'landscape',
     pageMargins: [36, 40, 36, 40],
@@ -190,7 +191,7 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
       h2: { fontSize: 13, bold: true, margin: [0, 12, 0, 4] },
       h3: { fontSize: 11, bold: true, margin: [0, 6, 0, 2] },
     },
-    footer: (page, pages) => ({ text: `Pagina ${page} din ${pages}`, alignment: 'right', margin: [36, 0, 36, 0], color: MUTED, fontSize: 8 }),
+    footer: (page, pages) => ({ text: t('Pagina {page} din {pages}', { page, pages }), alignment: 'right', margin: [36, 0, 36, 0], color: MUTED, fontSize: 8 }),
     content,
   };
 }

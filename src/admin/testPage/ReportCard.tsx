@@ -11,6 +11,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { saveFile } from '../pdf/share.ts';
 import { IconDownload } from '../shell/icons.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // "Raportul clasei" in the panel Rezultate (spec 2026-11-14): the class's
 // average and its grades by group, from the rows the page already has (no
@@ -22,8 +23,8 @@ export function ReportCard({ test, uploads }: { test: TestInfo; uploads: UploadR
   if (test.gradedCount === 0) {
     return (
       <section className="report-card" aria-labelledby={titleId}>
-        <h3 id={titleId}>Raportul clasei</h3>
-        <p className="hint">Raportul clasei și CSV-ul apar după prima corectare.</p>
+        <h3 id={titleId}>{t('Raportul clasei')}</h3>
+        <p className="hint">{t('Raportul clasei și CSV-ul apar după prima corectare.')}</p>
       </section>
     );
   }
@@ -35,17 +36,17 @@ export function ReportCard({ test, uploads }: { test: TestInfo; uploads: UploadR
   const gradedActive = active.filter((row) => row.status === 'graded').length;
   return (
     <section className="report-card" aria-labelledby={titleId}>
-      <h3 id={titleId}>Raportul clasei</h3>
+      <h3 id={titleId}>{t('Raportul clasei')}</h3>
       <p className="report-card-average">
         {test.averageGrade !== null && (
           <span className={`report-card-grade points-${pointsLevel(test.averageGrade, 10)}`}>{formatPoints(test.averageGrade)}</span>
         )}
         <span className="hint">
-          {test.averageGrade !== null && 'media testului · '}
-          {gradedActive} din {countLabel(active.length, 'elev corectat', 'elevi corectați')}
+          {test.averageGrade !== null && `${t('media testului')} · `}
+          {gradedActive}{' '}{t('din')}{' '}{countLabel(active.length, 'elev corectat', 'elevi corectați')}
         </span>
       </p>
-      <ul className="report-card-groups" aria-label="Notele pe grupe">
+      <ul className="report-card-groups" aria-label={t('Notele pe grupe')}>
         {groups.map((group, index) => (
           <li key={group.label}>
             <span>{group.label}</span>
@@ -58,7 +59,7 @@ export function ReportCard({ test, uploads }: { test: TestInfo; uploads: UploadR
       </ul>
       <Link className="button" to={`/tests/${test.code}/report`}>
         <ActionIcon name="report" />
-        Deschide raportul
+        {t('Deschide raportul')}
       </Link>
       <CsvButton code={test.code} />
     </section>
@@ -71,14 +72,14 @@ function CsvButton({ code }: { code: string }) {
   const csv = useMutation({
     mutationFn: async () => {
       const report = await queryClient.fetchQuery({ queryKey: ['report', code], queryFn: () => api.getReport(code) });
-      saveFile(new Blob([classCsv(report, uploadStatusLabel)], { type: 'text/csv;charset=utf-8' }), `${report.test.code}-raport.csv`);
+      saveFile(new Blob([classCsv(report, uploadStatusLabel)], { type: 'text/csv;charset=utf-8' }), `${report.test.code}-${t('raport')}.csv`);
     },
   });
   return (
     <>
       <button type="button" className="text-button is-quiet csv-button" disabled={csv.isPending} onClick={() => csv.mutate()}>
         <IconDownload />
-        CSV pentru catalog
+        {t('CSV pentru catalog')}
       </button>
       {csv.error && <ErrorMessage error={csv.error} />}
     </>

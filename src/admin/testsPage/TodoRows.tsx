@@ -2,12 +2,13 @@ import { Link } from 'react-router';
 import { displayClassName } from '../../../shared/classes.ts';
 import { todoPath, type TodoItem } from '../shell/todo.ts';
 import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // "Ce ai de făcut" in place on the Teste page (redesign spec §5): one row per
 // thing that waits, with one button to its test; the first is the filled one.
 export function TodoRows({ id, items, hidden }: { id: string; items: TodoItem[]; hidden: boolean }) {
   return (
-    <section id={id} className="todo-inline" aria-label="Ce ai de făcut" hidden={hidden}>
+    <section id={id} className="todo-inline" aria-label={t('Ce ai de făcut')} hidden={hidden}>
       <ol className="todo-rows">
         {items.map((item, index) => {
           const where = `${item.testTitle}, ${displayClassName(item.className)}`;
@@ -15,7 +16,7 @@ export function TodoRows({ id, items, hidden }: { id: string; items: TodoItem[];
             <li key={item.code}>
               <div className="what">
                 <b>
-                  <span className="tag tag-wait">{item.stage}</span> {item.task}
+                  <span className="tag tag-wait">{t(item.stage)}</span> {item.task}
                 </b>
                 <span>
                   {item.testTitle} · {displayClassName(item.className)}

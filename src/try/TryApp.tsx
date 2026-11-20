@@ -11,11 +11,13 @@ import { paperPath } from '../admin/paperPage/paths.ts';
 import { ApiError } from '../ui/ApiError.ts';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
+import { LangButton } from '../ui/LangButton.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
 import type { TryApi } from './api.ts';
 import { PhonePage } from './PhonePage.tsx';
 import { TryHome } from './TryHome.tsx';
 import { BadLink, Expired, isExpired } from './TryNotice.tsx';
+import { t } from '../i18n/t.ts';
 
 // A Quick Try's page at /try/<token>: the try's states, and the teacher app's
 // own paper page at /tests/<code>/review (its links to /tests/<code> come
@@ -25,7 +27,7 @@ export function TryRoutes({ token, api, tryApi }: { token: string | null; api: A
   return (
     <ApiProvider api={api}>
       <header className="topbar try-topbar">
-        <a className="brand" href="/" aria-label="MQGrader by Laura Miron">
+        <a className="brand" href="/" aria-label={t('MQGrader by Laura Miron')}>
           <BrandMark />
           <span className="brand-text">
             <span className="brand-name">MQGrader</span>
@@ -33,6 +35,7 @@ export function TryRoutes({ token, api, tryApi }: { token: string | null; api: A
           </span>
         </a>
         <div className="topbar-tools">
+          <LangButton />
           <ThemeButton />
         </div>
       </header>
@@ -50,7 +53,7 @@ function TryLoader({ token, tryApi }: { token: string; tryApi: TryApi }) {
   // becomes its English one before a page reads it.
   const english = englishAddress(location);
   if (english) return <Navigate replace to={english} state={location.state} />;
-  if (info.isPending) return <p>Se încarcă…</p>;
+  if (info.isPending) return <p>{t('Se încarcă…')}</p>;
   if (isExpired(info.error)) return <Expired />;
   if (info.data === undefined) {
     if (info.error instanceof ApiError && info.error.code === 'unknown_try') return <BadLink />;

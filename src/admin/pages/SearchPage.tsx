@@ -13,8 +13,9 @@ import { Highlight } from '../search/Highlight.tsx';
 import { useSearch } from '../search/useSearch.ts';
 import { stagesOf } from '../stages.ts';
 import { startedText } from '../testsPage/TestGroup.tsx';
+import { t } from '../../i18n/t.ts';
 
-const GROUPS = { students: 'Elevi', classes: 'Clase', tests: 'Teste' } as const;
+const GROUPS = { students: t('Elevi'), classes: t('Clase'), tests: t('Teste') } as const;
 type GroupName = keyof typeof GROUPS;
 
 function countsOf(results: SearchResults): Record<GroupName, number> {
@@ -34,8 +35,8 @@ export function SearchPage() {
   if (!isSearchable(text)) {
     return (
       <section className="search-results">
-        <h1>Caută</h1>
-        <p className="hint">Scrie cel puțin două litere în caseta de căutare.</p>
+        <h1>{t('Caută')}</h1>
+        <p className="hint">{t('Scrie cel puțin două litere în caseta de căutare.')}</p>
       </section>
     );
   }
@@ -57,18 +58,18 @@ export function SearchPage() {
 
   return (
     <section className="search-results">
-      <h1>Rezultate pentru „{text}”</h1>
+      <h1>{t('Rezultate pentru „{text}”', { text })}</h1>
       {search.error && <ErrorMessage error={search.error} />}
-      {!results && !search.error && <p>Se încarcă…</p>}
+      {!results && !search.error && <p>{t('Se încarcă…')}</p>}
       {results && counts && (
         <>
           <p className="hint">
-            {total === 0 ? 'Niciun rezultat' : countLabel(total, 'rezultat', 'rezultate')} în anul școlar {formatSchoolYear(year)}. Diacriticele nu contează.
+            {total === 0 ? t('Niciun rezultat') : countLabel(total, 'rezultat', 'rezultate')}{' '}{t('în anul școlar')}{' '}{formatSchoolYear(year)}{t('. Diacriticele nu contează.')}
           </p>
           {total > 0 && (
-            <div className="chips" role="group" aria-label="Arată">
+            <div className="chips" role="group" aria-label={t('Arată')}>
               <button type="button" className="chip" aria-pressed={show === null} onClick={() => choose(null)}>
-                Toate <span className="chip-count">{total}</span>
+                {t('Toate')}{' '}<span className="chip-count">{total}</span>
               </button>
               {(Object.keys(GROUPS) as GroupName[]).map((name) => (
                 <button key={name} type="button" className="chip" aria-pressed={show === name} disabled={counts[name] === 0} onClick={() => choose(name)}>
@@ -78,7 +79,7 @@ export function SearchPage() {
             </div>
           )}
           {shows('students') && (
-            <ResultsCard title="Elevi" count={counts.students}>
+            <ResultsCard title={t('Elevi')} count={counts.students}>
               {results.students.map((student) => (
                 <tr key={student.id}>
                   <th scope="row">
@@ -89,29 +90,29 @@ export function SearchPage() {
                   </th>
                   <td>{student.classes.map((cls) => displayClassName(cls.name)).join(', ')}</td>
                   <td className={student.lastGrade === null ? 'num is-muted' : 'num'}>
-                    {student.lastGrade === null ? 'nicio notă încă' : `ultima notă ${formatPoints(student.lastGrade)}`}
+                    {student.lastGrade === null ? t('nicio notă încă') : t('ultima notă {formatPoints}', { formatPoints: formatPoints(student.lastGrade) })}
                   </td>
                 </tr>
               ))}
             </ResultsCard>
           )}
           {shows('classes') && (
-            <ResultsCard title="Clase" count={counts.classes}>
+            <ResultsCard title={t('Clase')} count={counts.classes}>
               {results.classes.map((cls) => (
                 <tr key={cls.id}>
                   <th scope="row">
                     <Link to={`/classes/${cls.id}`}>
-                      Clasa <Highlight text={cls.name} query={text} />
+                      {t('Clasa')}{' '}<Highlight text={cls.name} query={text} />
                     </Link>
                   </th>
                   <td>{studentCountLabel(cls.studentCount)}</td>
-                  <td className="num is-muted">{cls.archived ? 'arhivată' : ''}</td>
+                  <td className="num is-muted">{cls.archived ? t('arhivată') : ''}</td>
                 </tr>
               ))}
             </ResultsCard>
           )}
           {shows('tests') && (
-            <ResultsCard title="Teste" count={counts.tests}>
+            <ResultsCard title={t('Teste')} count={counts.tests}>
               {results.tests.map((test) => {
                 const { current } = stagesOf(test);
                 return (
@@ -122,10 +123,10 @@ export function SearchPage() {
                       </Link>
                     </th>
                     <td>
-                      {displayClassName(test.className)} · {test.archived ? 'arhivat' : startedText(test)}
+                      {displayClassName(test.className)} · {test.archived ? t('arhivat') : startedText(test)}
                     </td>
                     <td className="num">
-                      <b>{current.name}</b>
+                      <b>{t(current.name)}</b>
                       {current.note && ` · ${current.note}`}
                     </td>
                   </tr>
@@ -133,7 +134,7 @@ export function SearchPage() {
               })}
             </ResultsCard>
           )}
-          <p className="hint">Cauți în alt an școlar? Alege anul școlar, apoi caută din nou.</p>
+          <p className="hint">{t('Cauți în alt an școlar? Alege anul școlar, apoi caută din nou.')}</p>
         </>
       )}
     </section>

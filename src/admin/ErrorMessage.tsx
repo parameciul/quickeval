@@ -1,11 +1,12 @@
 import { ApiError, LoginExpiredError } from './api.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 // The Romanian text for a failed request. Only the API client's own errors
 // carry Romanian text; any other error gets a generic message instead of the
 // browser's English one.
 export function errorText(error: unknown): string {
-  return error instanceof ApiError || error instanceof LoginExpiredError ? error.message : 'A apărut o eroare. Încearcă din nou.';
+  return error instanceof ApiError || error instanceof LoginExpiredError ? error.message : t('A apărut o eroare. Încearcă din nou.');
 }
 
 // The API's answer when the login cookie is missing or has expired.
@@ -22,7 +23,7 @@ export function ErrorMessage({ error }: { error: unknown }) {
       {(error instanceof LoginExpiredError || isLoginRequired(error)) && (
         <button type="button" className="button-quiet button-small" onClick={() => window.location.reload()}>
           <ActionIcon name="retry" />
-          {isLoginRequired(error) ? 'Intră din nou' : 'Reîncarcă pagina'}
+          {isLoginRequired(error) ? t('Intră din nou') : t('Reîncarcă pagina')}
         </button>
       )}
     </div>

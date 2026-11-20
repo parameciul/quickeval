@@ -1,16 +1,17 @@
 // The top of the Teste page (redesign spec §5), in Romania's time.
+import { t, locale } from '../../i18n/t.ts';
 
-const HOUR = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', hour: 'numeric', hourCycle: 'h23' });
-const TODAY = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', weekday: 'long', day: 'numeric', month: 'long' });
+const HOUR = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', hour: 'numeric', hourCycle: 'h23' });
+const TODAY = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', weekday: 'long', day: 'numeric', month: 'long' });
 const DAY_KEY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest' });
-const SHORT_DAY = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', day: 'numeric', month: 'short' });
-const TIME = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit' });
+const SHORT_DAY = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', day: 'numeric', month: 'short' });
+const TIME = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit' });
 
 // "Bună dimineața, Laura." from 5:00, "Bună ziua" from 11:00, "Bună seara"
 // from 18:00; the first word of the teacher's name, or none.
 export function greeting(now: Date, name: string): string {
   const hour = Number(HOUR.format(now));
-  const words = hour >= 5 && hour < 11 ? 'Bună dimineața' : hour >= 11 && hour < 18 ? 'Bună ziua' : 'Bună seara';
+  const words = hour >= 5 && hour < 11 ? t('Bună dimineața') : hour >= 11 && hour < 18 ? t('Bună ziua') : t('Bună seara');
   const first = name.trim().split(/\s+/)[0];
   return first ? `${words}, ${first}.` : `${words}.`;
 }
@@ -18,7 +19,7 @@ export function greeting(now: Date, name: string): string {
 // "Bun venit, Maria." for a new teacher: the first word of the name, or none.
 export function welcome(name: string): string {
   const first = name.trim().split(/\s+/)[0];
-  return first ? `Bun venit, ${first}.` : 'Bun venit.';
+  return first ? t('Bun venit, {first}.', { first }) : t('Bun venit.');
 }
 
 // "Miercuri, 4 noiembrie".
@@ -30,5 +31,5 @@ export function todayLine(now: Date): string {
 // When a test started, short: "azi, 09:10" or "28 oct.".
 export function startedLabel(iso: string, now: Date): string {
   const started = new Date(iso);
-  return DAY_KEY.format(started) === DAY_KEY.format(now) ? `azi, ${TIME.format(started)}` : SHORT_DAY.format(started);
+  return DAY_KEY.format(started) === DAY_KEY.format(now) ? t('azi, {time}', { time: TIME.format(started) }) : SHORT_DAY.format(started);
 }

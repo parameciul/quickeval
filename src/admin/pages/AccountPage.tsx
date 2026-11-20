@@ -9,11 +9,12 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { initials } from '../shell/initials.ts';
 import { useLogout } from '../shell/useLogout.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The tag of the account: its kind, or the administrator.
 export function accountTag(teacher: Teacher): string {
-  if (teacher.role === 'admin') return 'Administrator';
-  return teacher.demo ? 'Cont demo' : 'Cont complet';
+  if (teacher.role === 'admin') return t('Administrator');
+  return teacher.demo ? t('Cont demo') : t('Cont complet');
 }
 
 // /account (redesign spec §11.5): one column of three cards: who is logged in and
@@ -26,14 +27,14 @@ export function AccountPage() {
 
   return (
     <section className="account-page">
-      <h1>Contul meu</h1>
+      <h1>{t('Contul meu')}</h1>
       {me.data && <AccountCard teacher={me.data} />}
       <PasswordCard />
-      <section className="class-card account-out" aria-label="Ieșire">
-        <span>Ieși din cont pe acest dispozitiv.</span>
+      <section className="class-card account-out" aria-label={t('Ieșire')}>
+        <span>{t('Ieși din cont pe acest dispozitiv.')}</span>
         <button type="button" className="button-quiet" disabled={logout.isPending} onClick={() => logout.mutate()}>
           <ActionIcon name="logout" />
-          Ieși din cont
+          {t('Ieși din cont')}
         </button>
         {logout.error && <ErrorMessage error={logout.error} />}
       </section>
@@ -47,7 +48,7 @@ function AccountCard({ teacher }: { teacher: Teacher }) {
   return (
     <section className="class-card" aria-labelledby="account-card">
       <div className="class-card-head">
-        <h2 id="account-card">Contul tău</h2>
+        <h2 id="account-card">{t('Contul tău')}</h2>
         <span className={demo ? 'tag' : 'tag tag-ok'}>{accountTag(teacher)}</span>
       </div>
       <div className="account-body">
@@ -68,14 +69,14 @@ function AccountCard({ teacher }: { teacher: Teacher }) {
         ) : (
           <>
             <dl className="account-counts">
-              <dt>Teste corectate</dt>
+              <dt>{t('Teste corectate')}</dt>
               <dd>{teacher.testsEvaluated}</dd>
-              <dt>Lucrări corectate</dt>
+              <dt>{t('Lucrări corectate')}</dt>
               <dd>{teacher.papersGraded}</dd>
             </dl>
             {teacher.role === 'admin' && (
               <p className="account-line is-muted">
-                Conturile și robotul sunt în <Link to="/settings">Setări</Link>.
+                {t('Conturile și robotul sunt în')}{' '}<Link to="/settings">{t('Setări')}</Link>.
               </p>
             )}
           </>
@@ -100,7 +101,7 @@ function PasswordCard() {
   return (
     <section className="class-card" aria-labelledby="password-card">
       <div className="class-card-head">
-        <h2 id="password-card">Parola</h2>
+        <h2 id="password-card">{t('Parola')}</h2>
       </div>
       <form
         className="account-body form-fields"
@@ -110,7 +111,7 @@ function PasswordCard() {
         }}
       >
         <div className="form-field">
-          <label htmlFor="current-password">Parola de acum</label>
+          <label htmlFor="current-password">{t('Parola de acum')}</label>
           <input
             id="current-password"
             type="password"
@@ -123,7 +124,7 @@ function PasswordCard() {
         </div>
         <div className="form-field">
           <label htmlFor="new-password">
-            Parola nouă <span className="form-hint">(cel puțin {MIN_PASSWORD_LENGTH} caractere)</span>
+            {t('Parola nouă')}{' '}<span className="form-hint">{t('(cel puțin {MIN_PASSWORD_LENGTH} caractere)', { MIN_PASSWORD_LENGTH })}</span>
           </label>
           <input
             id="new-password"
@@ -139,10 +140,10 @@ function PasswordCard() {
         <span>
           <button className="button-quiet" type="submit" disabled={change.isPending}>
             <ActionIcon name="key" />
-            Schimbă parola
+            {t('Schimbă parola')}
           </button>
         </span>
-        {change.isSuccess && <p role="status">Parola a fost schimbată. Pe alte dispozitive intri din nou cu parola nouă.</p>}
+        {change.isSuccess && <p role="status">{t('Parola a fost schimbată. Pe alte dispozitive intri din nou cu parola nouă.')}</p>}
         {change.error && <ErrorMessage error={change.error} />}
       </form>
     </section>

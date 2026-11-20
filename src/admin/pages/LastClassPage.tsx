@@ -10,6 +10,7 @@ import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { NewClassDialog } from '../classPage/ClassDialogs.tsx';
 import type { ClassLinkState } from './ClassPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The key that remembers which class the teacher opened last, so /classes reopens it.
 const LAST_CLASS_KEY = 'quickeval:lastClass';
@@ -39,28 +40,28 @@ export function LastClassPage() {
   }, [classes.data, navigate, linkState]);
 
   if (classes.error) return <ErrorMessage error={classes.error} />;
-  if (!classes.data) return <p>Se încarcă…</p>;
+  if (!classes.data) return <p>{t('Se încarcă…')}</p>;
   if (classes.data.some((item) => !item.archived)) return null;
   const archived = classes.data.filter((item) => item.archived);
   return (
     <div className="class-card">
       <EmptyState
         icon={<IconClasses />}
-        title={archived.length === 0 ? 'Încă nu ai nicio clasă' : 'Nu ai nicio clasă activă'}
+        title={archived.length === 0 ? t('Încă nu ai nicio clasă') : t('Nu ai nicio clasă activă')}
         level={1}
         action={
           <button type="button" className="button button-small" onClick={() => setNewClassOpen(true)}>
             <ActionIcon name="add" />
-            Clasă nouă
+            {t('Clasă nouă')}
           </button>
         }
       >
-        Adaugă clasa cu numele elevilor, câte unul pe rând.
+        {t('Adaugă clasa cu numele elevilor, câte unul pe rând.')}
       </EmptyState>
       {archived.length > 0 && (
         <p className="class-card-foot class-empty-archived">
           <span>
-            Arhivate:{' '}
+            {t('Arhivate:')}{' '}
             {archived.map((item, index) => (
               <span key={item.id}>
                 {index > 0 && ', '}

@@ -1,5 +1,6 @@
 import { Modal } from './Modal.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 // What a test's or a class's archive would close: the result pages students
 // can open now (for all, or for some students).
@@ -18,7 +19,7 @@ export function ArchiveDialog({ title, text, onConfirm, onClose }: { title: stri
         <div className="modal-actions">
           <button type="button" className="button-quiet" onClick={onClose}>
             <ActionIcon name="close" />
-            Renunță
+            {t('Renunță')}
           </button>
           <button
             type="button"
@@ -29,7 +30,7 @@ export function ArchiveDialog({ title, text, onConfirm, onClose }: { title: stri
             }}
           >
             <ActionIcon name="archive" />
-            Arhivează
+            {t('Arhivează')}
           </button>
         </div>
       </div>

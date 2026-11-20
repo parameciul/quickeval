@@ -25,12 +25,13 @@ import { UploadScreen } from './UploadScreen.tsx';
 import { ResultTicket } from './ResultTicket.tsx';
 import { StudentHeader } from './StudentHeader.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
-export const UNKNOWN_LINK = 'Link greșit. Cere profesorului linkul nou.';
+export const UNKNOWN_LINK = t('Link greșit. Cere profesorului linkul nou.');
 
 // What the student does with the ticket: one line, under every "sent" title.
 export const SAVE_TICKET_LINE =
-  'Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează și publică lucrarea.';
+  t('Salvează biletul de mai jos sau trimite-ți linkul. Cu ele îți vezi rezultatul după ce profesorul corectează și publică lucrarea.');
 
 type Phase =
   | { kind: 'loading' }
@@ -209,8 +210,8 @@ export function UploadApp({
       <StudentHeader />
       <main className="wrap upload-page">
         <ErrorBoundary>
-          {phase.kind === 'loading' && <p>Se încarcă…</p>}
-          {phase.kind === 'opening' && <p>Se deschide rezultatul…</p>}
+          {phase.kind === 'loading' && <p>{t('Se încarcă…')}</p>}
+          {phase.kind === 'opening' && <p>{t('Se deschide rezultatul…')}</p>}
           {phase.kind === 'failed' && (
             <p className="alert" role="alert">
               {phase.message}
@@ -220,12 +221,12 @@ export function UploadApp({
           {phase.kind === 'notStarted' && (
             <>
               <p className="alert" role="alert">
-                Testul nu a început încă.
+                {t('Testul nu a început încă.')}
               </p>
-              <p className="hint">Poți încărca lucrarea după ce îl începe profesorul.</p>
+              <p className="hint">{t('Poți încărca lucrarea după ce îl începe profesorul.')}</p>
               <button type="button" className="button button-big" onClick={() => load(null)}>
                 <ActionIcon name="retry" />
-                Verifică din nou
+                {t('Verifică din nou')}
               </button>
             </>
           )}
@@ -250,14 +251,14 @@ export function UploadApp({
                   its name is free for the right student; one with files keeps
                   its secret and stays locked. */}
               <p className="hint">
-                Nu ești {phase.session.studentName}?{' '}
+                {t('Nu ești')}{' '}{phase.session.studentName}?{' '}
                 <button
                   type="button"
                   className="button-quiet button-small"
                   onClick={() => void leaveName(token, phase.info, phase.session)}
                 >
                   <ActionIcon name="edit" />
-                  Alege alt nume
+                  {t('Alege alt nume')}
                 </button>
               </p>
               <UploadScreen
@@ -275,8 +276,8 @@ export function UploadApp({
           {phase.kind === 'sent' && token && (
             <>
               <section className="sent">
-                <h2>Gata! Lucrarea ta a fost trimisă.</h2>
-                <p>{phase.fileCount === 1 ? 'Ai trimis un fișier.' : `Ai trimis ${phase.fileCount} fișiere.`}</p>
+                <h2>{t('Gata! Lucrarea ta a fost trimisă.')}</h2>
+                <p>{phase.fileCount === 1 ? t('Ai trimis un fișier.') : t('Ai trimis {fileCount} fișiere.', { fileCount: phase.fileCount })}</p>
                 <p>{SAVE_TICKET_LINE}</p>
               </section>
               <ResultTicket
@@ -287,10 +288,10 @@ export function UploadApp({
               />
               {phase.info.multi && (
                 <>
-                  <p className="hint">Poți trimite acum lucrarea altui elev, cu același link.</p>
+                  <p className="hint">{t('Poți trimite acum lucrarea altui elev, cu același link.')}</p>
                   <button type="button" className="button-quiet button-big" onClick={() => load(null)}>
                     <ActionIcon name="add-person" />
-                    Trimite pentru alt elev
+                    {t('Trimite pentru alt elev')}
                   </button>
                 </>
               )}
@@ -360,10 +361,10 @@ function ClosedScreen({
       return (
         <div className="notice" role="status">
           {links.length > 0 ? (
-            <p>Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.</p>
+            <p>{t('Testul a fost arhivat și rezultatele nu mai sunt disponibile. Dacă ai nevoie de rezultat, întreabă profesorul.')}</p>
           ) : (
             <p>
-              <strong>Testul a fost arhivat.</strong> Dacă ai nevoie de ceva, întreabă profesorul.
+              <strong>{t('Testul a fost arhivat.')}</strong>{' '}{t('Dacă ai nevoie de ceva, întreabă profesorul.')}
             </p>
           )}
         </div>
@@ -376,9 +377,9 @@ function ClosedScreen({
       return (
         <div className="notice" role="status">
           <p>
-            <strong>Încărcarea s-a închis.</strong>
+            <strong>{t('Încărcarea s-a închis.')}</strong>
           </p>
-          <p>Dacă nu ai trimis lucrarea, spune-i profesorului.</p>
+          <p>{t('Dacă nu ai trimis lucrarea, spune-i profesorului.')}</p>
         </div>
       );
     }
@@ -396,7 +397,7 @@ function ClosedScreen({
   // opens the right result.
   return (
     <>
-      <p className="notice-ok">Rezultatele au fost publicate.</p>
+      <p className="notice-ok">{t('Rezultatele au fost publicate.')}</p>
       <CodeEntry api={api} token={uploadToken} onOpened={opened} />
     </>
   );
@@ -408,8 +409,8 @@ function ClosedScreen({
 function SentNotice({ count, waiting = false }: { count: number; waiting?: boolean }) {
   return (
     <section className="sent" role="status">
-      <h2>{count === 1 ? 'Lucrarea ta a fost trimisă.' : 'Lucrările au fost trimise de pe acest telefon.'}</h2>
-      {waiting && <p>Rezultatul tău nu a fost publicat încă.</p>}
+      <h2>{count === 1 ? t('Lucrarea ta a fost trimisă.') : t('Lucrările au fost trimise de pe acest telefon.')}</h2>
+      {waiting && <p>{t('Rezultatul tău nu a fost publicat încă.')}</p>}
       <p>{SAVE_TICKET_LINE}</p>
     </section>
   );
@@ -424,7 +425,7 @@ function LockedScreen({ uploadToken, info }: { uploadToken: string; info: LinkIn
       <SentNotice count={Math.max(links.length, 1)} />
       {links.length > 0 && <Tickets links={links} info={info} />}
       <p className="hint">
-        Cu acest link nu mai poți trimite altă lucrare. Pentru alt elev, cere profesorului linkul pentru mai multe încărcări.
+        {t('Cu acest link nu mai poți trimite altă lucrare. Pentru alt elev, cere profesorului linkul pentru mai multe încărcări.')}
       </p>
     </>
   );
@@ -457,7 +458,7 @@ function KeptResultLinks({ uploadToken, info, heading = false }: { uploadToken: 
   return (
     <>
       {heading && (
-        <h2>{links.length === 1 ? 'Biletul lucrării trimise de pe acest telefon' : 'Biletele lucrărilor trimise de pe acest telefon'}</h2>
+        <h2>{links.length === 1 ? t('Biletul lucrării trimise de pe acest telefon') : t('Biletele lucrărilor trimise de pe acest telefon')}</h2>
       )}
       <Tickets links={links} info={info} />
     </>

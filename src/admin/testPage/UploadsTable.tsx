@@ -11,6 +11,8 @@ import { GradeChip } from './GradeChip.tsx';
 import { heldBackHint, PAPER_PART_LABEL } from './paperCounts.ts';
 import { canSelect, selectableIds } from './selection.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
+import { translateMessage } from '../../../shared/i18n/messages.ts';
 
 // Who uploaded what: one row per student of the class, with the grade once
 // the robot graded it, next to the name, in its colour, as in the table of
@@ -50,14 +52,14 @@ export function UploadsTable({
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
 }) {
-  if (uploads.length === 0) return <p className="hint">Clasa nu are elevi. Adaugă-i din pagina clasei.</p>;
+  if (uploads.length === 0) return <p className="hint">{t('Clasa nu are elevi. Adaugă-i din pagina clasei.')}</p>;
   const eligibleIds = selectable ? selectableIds(uploads) : [];
   const allChecked = eligibleIds.length > 0 && eligibleIds.every((id) => selected.includes(id));
   const someChecked = eligibleIds.some((id) => selected.includes(id));
   return (
     <div className="table-wrap uploads-wrap">
       <table className={`uploads${selectable ? ' is-selectable' : ''}`}>
-        <caption className="sr-only">Încărcările elevilor</caption>
+        <caption className="sr-only">{t('Încărcările elevilor')}</caption>
         <thead>
           <tr>
             {selectable && (
@@ -72,18 +74,18 @@ export function UploadsTable({
                     disabled={eligibleIds.length === 0}
                     onChange={(event) => onSelect(event.target.checked ? eligibleIds : [])}
                   />
-                  <span className="sr-only select-all-text">Selectează toate lucrările cu fișiere</span>
+                  <span className="sr-only select-all-text">{t('Selectează toate lucrările cu fișiere')}</span>
                 </label>
               </th>
             )}
-            <th scope="col">Elev</th>
-            <th scope="col">Nota</th>
-            <th scope="col">Stare</th>
-            <th scope="col">Fișiere</th>
-            <th scope="col">Ora</th>
-            <th scope="col">De verificat</th>
+            <th scope="col">{t('Elev')}</th>
+            <th scope="col">{t('Nota')}</th>
+            <th scope="col">{t('Stare')}</th>
+            <th scope="col">{t('Fișiere')}</th>
+            <th scope="col">{t('Ora')}</th>
+            <th scope="col">{t('De verificat')}</th>
             <th scope="col">
-              <span className="sr-only">Acțiuni</span>
+              <span className="sr-only">{t('Acțiuni')}</span>
             </th>
           </tr>
         </thead>
@@ -127,18 +129,18 @@ function stateOf(row: UploadRow, uploadsClosed: boolean, uploadsPaused: boolean,
     if (uploadsClosed) {
       return row.fileCount > 0
         ? { label: PAPER_PART_LABEL.waiting, hint: heldBackText }
-        : { label: 'Nu a participat', hint: null };
+        : { label: t('Nu a participat'), hint: null };
     }
     return row.fileCount > 0
       ? {
-          label: 'Deschis, cu fișiere',
+          label: t('Deschis, cu fișiere'),
           hint: uploadsPaused
-            ? 'Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”, iar încărcarea e închisă. Lucrarea se corectează cât e bifată; elevul o poate termina după ce redeschizi încărcarea.'
-            : 'Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”. Numele rămâne blocat până termină sau până îl deblochezi.',
+            ? t('Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”, iar încărcarea e închisă. Lucrarea se corectează cât e bifată; elevul o poate termina după ce redeschizi încărcarea.')
+            : t('Elevul a adăugat poze, dar nu a apăsat „Am trimis tot”. Numele rămâne blocat până termină sau până îl deblochezi.'),
         }
-      : { label: 'Deschis, fără fișiere', hint: 'Elevul a ales numele, dar nu a adăugat nimic. Dacă a ales numele greșit, deblochează-l.' };
+      : { label: t('Deschis, fără fișiere'), hint: t('Elevul a ales numele, dar nu a adăugat nimic. Dacă a ales numele greșit, deblochează-l.') };
   }
-  if (row.status === 'none' && uploadsClosed) return { label: 'Nu a participat', hint: null };
+  if (row.status === 'none' && uploadsClosed) return { label: t('Nu a participat'), hint: null };
   return { label: uploadStatusLabel(row.status), hint: null };
 }
 
@@ -199,7 +201,7 @@ function UploadTableRow({
           {row.submissionId !== null && canSelect(row) ? (
             <input
               type="checkbox"
-              aria-label={`Selectează lucrarea elevului ${row.studentName}`}
+              aria-label={t('Selectează lucrarea elevului {studentName}', { studentName: row.studentName })}
               checked={checked}
               onChange={(event) => onToggle(row.submissionId!, event.target.checked)}
             />
@@ -209,23 +211,23 @@ function UploadTableRow({
       <th scope="row">
         {row.studentName}
         {(row.ces || row.variant === 'ces') && <CesTag />}
-        {!row.active && <span className="tag">a plecat</span>}
+        {!row.active && <span className="tag">{t('a plecat')}</span>}
       </th>
-      <td data-label="Nota">{row.grade === null ? '—' : <GradeChip grade={row.grade} />}</td>
-      <td data-label="Stare">
+      <td data-label={t('Nota')}>{row.grade === null ? '—' : <GradeChip grade={row.grade} />}</td>
+      <td data-label={t('Stare')}>
         {state.label}
         {state.hint !== null && <p className="hint">{state.hint}</p>}
-        {row.autoSubmitted && row.status !== 'graded' && <span className="tag">Fără confirmare</span>}
-        {row.resultsOpen && <span className="tag">Publicat</span>}
-        {row.status === 'failed' && row.lastError && <p className="hint">{row.lastError}</p>}
+        {row.autoSubmitted && row.status !== 'graded' && <span className="tag">{t('Fără confirmare')}</span>}
+        {row.resultsOpen && <span className="tag">{t('Publicat')}</span>}
+        {row.status === 'failed' && row.lastError && <p className="hint">{translateMessage(row.lastError)}</p>}
       </td>
-      <td data-label="Fișiere">{row.fileCount}</td>
-      <td data-label="Ora">{time ? formatDateTime(time) : '—'}</td>
-      <td data-label="De verificat">{row.flagCount > 0 ? <span className="points-pill">{row.flagCount} de verificat</span> : '—'}</td>
+      <td data-label={t('Fișiere')}>{row.fileCount}</td>
+      <td data-label={t('Ora')}>{time ? formatDateTime(time) : '—'}</td>
+      <td data-label={t('De verificat')}>{row.flagCount > 0 ? <span className="points-pill">{t('{flagCount} de verificat', { flagCount: row.flagCount })}</span> : '—'}</td>
       <td className="actions-cell">
         {submissionId !== null && startedAt !== null && (
           <span className="row-actions">
-            <Link to={`/tests/${code}/papers/${submissionId}`}>Vezi lucrarea</Link>
+            <Link to={`/tests/${code}/papers/${submissionId}`}>{t('Vezi lucrarea')}</Link>
             {row.status === 'failed' && (
               <button
                 type="button"
@@ -234,7 +236,7 @@ function UploadTableRow({
                 onClick={() => retry.mutate({ submissionId, startedAt })}
               >
                 <ActionIcon name="retry" />
-                Reîncearcă
+                {t('Reîncearcă')}
               </button>
             )}
             {row.status === 'uploading' && (
@@ -245,28 +247,28 @@ function UploadTableRow({
                 onClick={() => {
                   const message =
                     row.fileCount > 0
-                      ? `Ștergi cele ${row.fileCount} fișiere ale elevului ${row.studentName} și deblochezi numele? Elevul poate începe de la capăt.`
-                      : `Deblochezi numele ${row.studentName}? Elevul poate alege din nou numele. Nu se pierde nimic.`;
+                      ? t('Ștergi cele {fileCount} fișiere ale elevului {studentName} și deblochezi numele? Elevul poate începe de la capăt.', { fileCount: row.fileCount, studentName: row.studentName })
+                      : t('Deblochezi numele {studentName}? Elevul poate alege din nou numele. Nu se pierde nimic.', { studentName: row.studentName });
                   if (window.confirm(message)) reset.mutate({ submissionId, startedAt });
                 }}
               >
                 <ActionIcon name="unlock" />
-                {row.fileCount > 0 ? 'Șterge și deblochează' : 'Deblochează'}
+                {row.fileCount > 0 ? t('Șterge și deblochează') : t('Deblochează')}
               </button>
             )}
             {row.status !== 'uploading' && (
               <RowMenu
                 studentName={row.studentName}
                 menuId={`upload-menu-${submissionId}`}
-                note={showModel && row.model ? `Model: ${modelCell(row.model, row.effort)}` : undefined}
+                note={showModel && row.model ? `Model: ${modelCell(row.model, row.effort)}` : undefined} // i18n-ignore: "Model" in both languages
                 items={[
                   ...(gradedAt !== null
                     ? [
                         {
-                          label: 'Recorectează',
+                          label: t('Recorectează'),
                           busy: regrade.isPending,
                           onChoose: () => {
-                            if (window.confirm(`Recorectezi lucrarea elevului ${row.studentName}? Corecturile tale se pierd.`)) {
+                            if (window.confirm(t('Recorectezi lucrarea elevului {studentName}? Corecturile tale se pierd.', { studentName: row.studentName }))) {
                               regrade.mutate({ submissionId, gradedAt });
                             }
                           },
@@ -274,11 +276,11 @@ function UploadTableRow({
                       ]
                     : []),
                   {
-                    label: 'Resetează',
+                    label: t('Resetează'),
                     danger: true,
                     busy: reset.isPending,
                     onChoose: () => {
-                      if (window.confirm(`Ștergi încărcarea elevului ${row.studentName}? Elevul o poate lua de la capăt.`)) {
+                      if (window.confirm(t('Ștergi încărcarea elevului {studentName}? Elevul o poate lua de la capăt.', { studentName: row.studentName }))) {
                         reset.mutate({ submissionId, startedAt });
                       }
                     },
@@ -346,7 +348,7 @@ function RowMenu({ studentName, menuId, note, items }: { studentName: string; me
         ref={button}
         type="button"
         className="class-more-button row-more-button"
-        aria-label={`Mai multe pentru ${studentName}`}
+        aria-label={t('Mai multe pentru {studentName}', { studentName })}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}

@@ -6,6 +6,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { BackHome, State, useStateHeading, WayIn } from '../wayIn/WayIn.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // /new-password#<token>: the link from the "Am uitat parola" email. Shown
 // without a login. The token is after "#", so it never reaches a server log.
@@ -25,16 +26,16 @@ export function NewPasswordPage() {
   return (
     <WayIn>
       {reset.isSuccess ? (
-        <State heading={heading} icon="done" title="Parolă nouă">
+        <State heading={heading} icon="done" title={t('Parolă nouă')}>
           <div role="status">
-            <p>Gata: parola a fost schimbată. Poți intra în cont cu ea.</p>
+            <p>{t('Gata: parola a fost schimbată. Poți intra în cont cu ea.')}</p>
           </div>
           <BackHome />
         </State>
       ) : (
-        <State heading={heading} title="Parolă nouă">
+        <State heading={heading} title={t('Parolă nouă')}>
           {token === '' ? (
-            <p>Linkul nu este întreg. Deschide-l din nou din email.</p>
+            <p>{t('Linkul nu este întreg. Deschide-l din nou din email.')}</p>
           ) : (
             <form
               className="form-fields"
@@ -45,7 +46,7 @@ export function NewPasswordPage() {
             >
               <div className="form-field">
                 <label htmlFor="new-password">
-                  Parola nouă <span className="form-hint">(cel puțin {MIN_PASSWORD_LENGTH} caractere)</span>
+                  {t('Parola nouă')}{' '}<span className="form-hint">{t('(cel puțin {MIN_PASSWORD_LENGTH} caractere)', { MIN_PASSWORD_LENGTH })}</span>
                 </label>
                 <input
                   id="new-password"
@@ -60,7 +61,7 @@ export function NewPasswordPage() {
               </div>
               <button type="submit" className="button way-in-wide" disabled={reset.isPending}>
                 <ActionIcon name="check" />
-                {reset.isPending ? 'Se salvează…' : 'Salvează parola'}
+                {reset.isPending ? t('Se salvează…') : t('Salvează parola')}
               </button>
               {reset.error && <ErrorMessage error={reset.error} />}
             </form>

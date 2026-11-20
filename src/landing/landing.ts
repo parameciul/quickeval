@@ -4,6 +4,7 @@ import { createLandingApi } from './quickTry/api.ts';
 import { loadTurnstile } from './quickTry/turnstile.ts';
 import { initQuickTry } from './quickTry/ui.ts';
 import { initReveal } from './reveal.ts';
+import { initLangSwitch } from './langSwitch.ts';
 import { initSiteMenu } from './siteMenu.ts';
 import { initThemeButton } from './themeButton.ts';
 
@@ -19,4 +20,5 @@ function deviceStorage(): Storage {
 initReveal();
 initThemeButton();
 initSiteMenu();
+initLangSwitch();
 void initQuickTry(document, { api: createLandingApi(), storage: deviceStorage(), now: () => new Date(), loadTurnstile });

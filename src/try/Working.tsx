@@ -6,13 +6,14 @@ import { MathText } from '../ui/MathText.tsx';
 import { fileChangesLeft } from './phase.ts';
 import { TestFile } from './Prepare.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 // The paper went to grading (spec §3.3, state 3).
 export function Grading() {
   return (
     <div className="try-state" role="status">
-      <h2>Lucrarea se corectează</h2>
-      <p>Robotul pornește în cam un minut, apoi face lista exercițiilor și corectează lucrarea. Durează câteva minute; pagina se actualizează singură.</p>
+      <h2>{t('Lucrarea se corectează')}</h2>
+      <p>{t('Robotul pornește în cam un minut, apoi face lista exercițiilor și corectează lucrarea. Durează câteva minute; pagina se actualizează singură.')}</p>
     </div>
   );
 }
@@ -30,17 +31,17 @@ export function BaremProblem({ detail }: { detail: TestDetail }) {
   return (
     <div className="warning">
       <p>
-        <strong>Baremul are o problemă.</strong> {test.exerciseList.message && <MathText text={test.exerciseList.message} />}
+        <strong>{t('Baremul are o problemă.')}</strong> {test.exerciseList.message && <MathText text={test.exerciseList.message} />}
       </p>
-      <p>Corectează cu baremul așa cum este, sau încarcă alt barem.</p>
+      <p>{t('Corectează cu baremul așa cum este, sau încarcă alt barem.')}</p>
       <div className="card-actions">
         <button type="button" className="button" disabled={accept.isPending} onClick={() => accept.mutate()}>
           <ActionIcon name="check" />
-          Folosește oricum
+          {t('Folosește oricum')}
         </button>
       </div>
       {accept.error && <ErrorMessage error={accept.error} />}
-      <TestFile code={test.code} kind="barem" name={null} disabled={fileChangesLeft(detail) === 0} />
+      <TestFile code={test.code} kind={'barem'} name={null} disabled={fileChangesLeft(detail) === 0} />
     </div>
   );
 }
@@ -52,23 +53,23 @@ export function Failed({ detail }: { detail: TestDetail }) {
   // A subject the robot does not grade ends the try with the list's message.
   const what =
     test.subject?.value === 'alta'
-      ? 'Nu corectăm încă materia acestui test.'
+      ? t('Nu corectăm încă materia acestui test.')
       : test.barem.request === 'failed'
-        ? 'Robotul nu a putut face baremul din test.'
+        ? t('Robotul nu a putut face baremul din test.')
         : test.exerciseList.status === 'failed'
-          ? 'Robotul nu a putut citi testul și baremul.'
-          : 'Robotul nu a putut corecta lucrarea.';
+          ? t('Robotul nu a putut citi testul și baremul.')
+          : t('Robotul nu a putut corecta lucrarea.');
   const detailText = test.exerciseList.status === 'failed' ? test.exerciseList.message : null;
   return (
     <div className="try-state">
-      <h2>Încercarea nu a reușit</h2>
+      <h2>{t('Încercarea nu a reușit')}</h2>
       <p>
         <strong>{what}</strong> {detailText && <MathText text={detailText} />}
       </p>
-      <p>Încercarea aceasta nu se numără în limita ta de azi. Poți face o încercare nouă de pe pagina principală.</p>
+      <p>{t('Încercarea aceasta nu se numără în limita ta de azi. Poți face o încercare nouă de pe pagina principală.')}</p>
       <a className="button" href="/">
         <ActionIcon name="add" />
-        Fă o încercare nouă
+        {t('Fă o încercare nouă')}
       </a>
     </div>
   );

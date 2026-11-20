@@ -3,6 +3,7 @@ import type { ActiveSession, UploadApi } from './api.ts';
 import { PagesUploader, type PagesApi } from './PagesUploader.tsx';
 import { forgetSecret } from './session.ts';
 import { shrinkPhoto } from './shrink.ts';
+import { t } from '../i18n/t.ts';
 
 // The student's upload screen: the shared pages uploader, with the student's
 // name and "Am trimis tot", which confirms the upload after a question.
@@ -31,7 +32,7 @@ export function UploadScreen({
   );
 
   const confirm = async () => {
-    if (!window.confirm('Ești sigur? După confirmare nu mai poți schimba nimic.')) return;
+    if (!window.confirm(t('Ești sigur? După confirmare nu mai poți schimba nimic.'))) return;
     const { fileCount, resultToken, resultCode } = await api.confirm(token, session.secret);
     forgetSecret(token, session.studentId);
     onSent(fileCount, resultToken, resultCode);
@@ -42,8 +43,8 @@ export function UploadScreen({
       pages={pages}
       files={session.files}
       heading={<h2>{session.studentName}</h2>}
-      listTitle="Paginile tale"
-      finishLabel="Am trimis tot"
+      listTitle={t('Paginile tale')}
+      finishLabel={t('Am trimis tot')}
       onFinish={confirm}
       onLost={onLost}
       shrink={shrink}

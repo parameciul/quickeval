@@ -12,6 +12,7 @@ import { archivedPublished, todoOf } from '../shell/todo.ts';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { GradeChip } from '../testPage/GradeChip.tsx';
+import { t } from '../../i18n/t.ts';
 
 function gradeKey(studentId: number, testCode: string): string {
   return `${studentId}|${testCode}`;
@@ -24,11 +25,11 @@ export function NoStudents({ name, readOnly, action }: { name: string; readOnly:
   return (
     <EmptyState
       icon={<IconClasses />}
-      title={readOnly ? `${display} nu are elevi` : `${display} nu are încă elevi`}
+      title={readOnly ? t('{display} nu are elevi', { display }) : t('{display} nu are încă elevi', { display })}
       level={2}
       action={readOnly ? undefined : action}
     >
-      {readOnly ? 'Clasa e arhivată: nu i se mai adaugă elevi.' : 'Lipește lista din catalog, câte un elev pe rând.'}
+      {readOnly ? t('Clasa e arhivată: nu i se mai adaugă elevi.') : t('Lipește lista din catalog, câte un elev pe rând.')}
     </EmptyState>
   );
 }
@@ -42,13 +43,13 @@ export function orderedStudents(students: StudentRow[]): StudentRow[] {
 // in orange when it waits on the teacher (in an archived class, only an
 // archived test with open results).
 function headNote(test: TestSummary, readOnly: boolean): { text: string; waits: boolean } {
-  const date = test.startedAt === null ? 'ciornă' : formatDayMonth(test.startedAt);
+  const date = test.startedAt === null ? t('ciornă') : formatDayMonth(test.startedAt);
   const waits = (!readOnly || archivedPublished(test)) && todoOf(test) !== null;
-  if (test.flagCount > 0) return { text: `${date} · de verificat`, waits };
+  if (test.flagCount > 0) return { text: t('{date} · de verificat', { date }), waits };
   if (test.status === 'done' && test.gradedCount > 0) {
-    return { text: `${date} · ${test.resultsOpen ? 'publicat' : 'nepublicat'}`, waits };
+    return { text: `${date} · ${test.resultsOpen ? t('publicat') : t('nepublicat')}`, waits };
   }
-  return { text: `${date} · ${stagesOf(test).current.name.toLowerCase()}`, waits };
+  return { text: `${date} · ${t(stagesOf(test).current.name).toLowerCase()}`, waits };
 }
 
 function TestHeader({ test, readOnly }: { test: TestSummary; readOnly: boolean }) {
@@ -59,7 +60,7 @@ function TestHeader({ test, readOnly }: { test: TestSummary; readOnly: boolean }
         {test.title}
       </Link>
       <span className={note.waits ? 'grade-head-note is-waiting' : 'grade-head-note'}>{note.text}</span>
-      {test.archived && <span className="grade-head-note">arhivat</span>}
+      {test.archived && <span className="grade-head-note">{t('arhivat')}</span>}
     </th>
   );
 }
@@ -70,7 +71,7 @@ function TestHeader({ test, readOnly }: { test: TestSummary; readOnly: boolean }
 export function GradeCell({ grade }: { grade: ClassGrade | undefined }) {
   if (!grade) {
     return (
-      <td className="grade-none" title="Nu a trimis lucrarea">
+      <td className="grade-none" title={t('Nu a trimis lucrarea')}>
         —
       </td>
     );
@@ -133,7 +134,7 @@ export function GradesTable({
     const add = (
       <button type="button" className="button button-small" onClick={onShowStudents}>
         <ActionIcon name="add-person" />
-        Adaugă elevi
+        {t('Adaugă elevi')}
       </button>
     );
     return (
@@ -146,13 +147,13 @@ export function GradesTable({
     const newTest = (
       <Link className="button button-small" to={`/tests/new?class=${classId}`}>
         <ActionIcon name="add" />
-        Test nou pentru această clasă
+        {t('Test nou pentru această clasă')}
       </Link>
     );
     return (
       <div className="class-card">
-        <EmptyState icon={<IconTests />} title={`Niciun test pentru ${displayClassName(name)}`} level={2} action={readOnly ? undefined : newTest}>
-          {readOnly ? 'Clasa e arhivată: nu i se mai fac teste.' : 'Testele clasei și notele lor apar aici.'}
+        <EmptyState icon={<IconTests />} title={t('Niciun test pentru {displayClassName}', { displayClassName: displayClassName(name) })} level={2} action={readOnly ? undefined : newTest}>
+          {readOnly ? t('Clasa e arhivată: nu i se mai fac teste.') : t('Testele clasei și notele lor apar aici.')}
         </EmptyState>
       </div>
     );
@@ -160,7 +161,7 @@ export function GradesTable({
   if (shown.length === 0) {
     return (
       <div className="class-card class-empty">
-        <p>Toate testele clasei sunt arhivate. Apasă „Arată și testele arhivate”.</p>
+        <p>{t('Toate testele clasei sunt arhivate. Apasă „Arată și testele arhivate”.')}</p>
       </div>
     );
   }
@@ -170,10 +171,10 @@ export function GradesTable({
     <div className="class-card class-grades">
       <div className="table-wrap">
         <table className="grades-table">
-          <caption className="sr-only">Notele elevilor la teste</caption>
+          <caption className="sr-only">{t('Notele elevilor la teste')}</caption>
           <thead>
             <tr>
-              <th scope="col">Elev</th>
+              <th scope="col">{t('Elev')}</th>
               {shown.map((test) => (
                 <TestHeader key={test.code} test={test} readOnly={readOnly} />
               ))}
@@ -195,7 +196,7 @@ export function GradesTable({
                   {!student.active && (
                     <>
                       {' '}
-                      <span className="tag">a plecat</span>
+                      <span className="tag">{t('a plecat')}</span>
                     </>
                   )}
                 </th>
@@ -207,7 +208,7 @@ export function GradesTable({
           </tbody>
           <tfoot>
             <tr>
-              <th scope="row">Media</th>
+              <th scope="row">{t('Media')}</th>
               {shown.map((test) => {
                 const average = testAverage(grades, test.code);
                 return <td key={test.code}>{average === null ? '—' : <GradeChip grade={average} average />}</td>;
@@ -218,7 +219,7 @@ export function GradesTable({
       </div>
       <p className="class-card-foot">
         <span className="flag-dot" aria-hidden="true"></span>
-        Nota se poate schimba după verificare. „—”: elevul nu a trimis lucrarea.
+        {t('Nota se poate schimba după verificare. „—”: elevul nu a trimis lucrarea.')}
       </p>
     </div>
   );

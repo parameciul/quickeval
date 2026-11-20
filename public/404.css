@@ -82,3 +82,9 @@ h1 { margin: 0; font-size: clamp(32px, 5vw, 48px); line-height: 1.05; letter-spa
 .link:hover { text-decoration: underline; }
 
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* The page holds both languages; public/lang.js sets <html lang> from the reader's choice. */
+html:not([lang="en"]) .en,
+html[lang="en"] .ro {
+  display: none;
+}

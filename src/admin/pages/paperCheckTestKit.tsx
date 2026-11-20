@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 import type { SubmissionDetail, UploadRow } from '../../../shared/api.ts';
 import type { AnswerArea } from '../../../shared/schemas.ts';
 import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission, fakeTest, fakeUpload, reviewPointsOf } from '../../test/fakeApi.ts';
+import { t } from '../../i18n/t.ts';
 
 // The points to check on the paper page (spec 2026-11-12 §4): the old address
 // of the review opens the page with only the points to check.
@@ -31,9 +32,9 @@ export function papers(): SubmissionDetail[] {
             points: 1,
             maxPoints: 2,
             studentAnswer: 'x = 3',
-            comment: 'Verifică semnul.',
+            comment: t('Verifică semnul.'),
             needsReview: true,
-            reviewReason: 'Scrisul nu se citește.',
+            reviewReason: t('Scrisul nu se citește.'),
             page: 3,
           }),
         ],
@@ -46,7 +47,7 @@ export function papers(): SubmissionDetail[] {
       studentName: 'Ion Popa',
       files: [photo(141, 'i1.jpg')],
       evaluation: fakeEvaluation([
-        fakeItem({ id: 41, exerciseId: 'I.3', label: 'Subiectul I, ex. 3', points: 3, maxPoints: 5, needsReview: true, reviewReason: 'Răspunsul e tăiat.' }),
+        fakeItem({ id: 41, exerciseId: 'I.3', label: 'Subiectul I, ex. 3', points: 3, maxPoints: 5, needsReview: true, reviewReason: t('Răspunsul e tăiat.') }),
       ]),
     }),
     fakeSubmission({
@@ -147,7 +148,7 @@ export function framed(areas: AnswerArea[] = [LOW, TOP]): SubmissionDetail[] {
   const ion = list[1]!;
   ion.files = [photo(141, 'i1.jpg'), photo(142, 'i2.jpg')];
   ion.evaluation = fakeEvaluation([
-    fakeItem({ id: 41, exerciseId: 'I.3', label: 'Subiectul I, ex. 3', points: 3, maxPoints: 5, needsReview: true, reviewReason: 'Răspunsul e tăiat.', areas }),
+    fakeItem({ id: 41, exerciseId: 'I.3', label: 'Subiectul I, ex. 3', points: 3, maxPoints: 5, needsReview: true, reviewReason: t('Răspunsul e tăiat.'), areas }),
     fakeItem({ id: 42, exerciseId: 'II.4', label: 'Subiectul II, ex. 4', points: 1, maxPoints: 2, needsReview: true, reviewReason: 'Neclar.', areas: [OTHER] }),
   ]);
   return list;

@@ -6,6 +6,7 @@ import { countLabel } from '../../ui/format.ts';
 import type { MenuAction } from '../ActionsMenu.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { t } from '../../i18n/t.ts';
 
 // "Recorectează tot" (spec §8.5), an item of the test's "Acțiuni" menu: the
 // robot grades again every graded upload and every upload whose grading
@@ -47,22 +48,20 @@ export function useRegradeAll({
   const action: MenuAction | null =
     count > 0
       ? {
-          label: 'Recorectează tot',
-          hint: `Robotul corectează din nou ${what}. Punctajele schimbate de tine se pierd.`,
+          label: t('Recorectează tot'),
+          hint: t('Robotul corectează din nou {what}. Punctajele schimbate de tine se pierd.', { what }),
           icon: 'retry',
           busy: regrade.isPending,
           onChoose: () => {
-            if (window.confirm(`Recorectezi ${what}? Punctajele și comentariile schimbate de tine se pierd.`)) regrade.mutate();
+            if (window.confirm(t('Recorectezi {what}? Punctajele și comentariile schimbate de tine se pierd.', { what }))) regrade.mutate();
           },
         }
       : null;
   const notes = (
     <>
-      {waits && <p role="status">Lucrările se corectează din nou după ce pornești corectarea.</p>}
+      {waits && <p role="status">{t('Lucrările se corectează din nou după ce pornești corectarea.')}</p>}
       {partly && (
-        <p role="status">
-          Limita contului demo: se corectează din nou {partly.sent} din cele {partly.asked} lucrări. Celelalte își păstrează rezultatele.
-        </p>
+        <p role="status">{t('Limita contului demo: se corectează din nou {sent} din cele {asked} lucrări. Celelalte își păstrează rezultatele.', { sent: partly.sent, asked: partly.asked })}</p>
       )}
       {regrade.error && <ErrorMessage error={regrade.error} />}
     </>

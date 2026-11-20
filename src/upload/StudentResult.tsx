@@ -4,6 +4,7 @@ import { formatPoints } from '../../shared/scoring.ts';
 import { FilesBeside } from '../ui/FilesBeside.tsx';
 import { formatFileSize, pointsLevel } from '../ui/format.ts';
 import { MathText } from '../ui/MathText.tsx';
+import { t } from '../i18n/t.ts';
 
 // One student's result page: the files first (hidden until asked for), then
 // the grade, the points and comments per exercise, and the final words.
@@ -25,27 +26,27 @@ export function StudentResult({ result, fileUrl, actions }: { result: StudentRes
         {evaluation ? (
           <>
             <div className="result-grade">
-              <h2>Rezultatul tău</h2>
+              <h2>{t('Rezultatul tău')}</h2>
               <p className="grade-line">
-                Nota <strong className={`points points-${pointsLevel(evaluation.grade, 10)}`}>{formatPoints(evaluation.grade)}</strong> ·{' '}
-                {formatPoints(evaluation.total)} puncte din {formatPoints(evaluation.maxTotal)}
-                {evaluation.officePoints > 0 && `, cu ${formatPoints(evaluation.officePoints)} din oficiu`}
+                {t('Nota')}{' '}<strong className={`points points-${pointsLevel(evaluation.grade, 10)}`}>{formatPoints(evaluation.grade)}</strong> ·{' '}
+                {formatPoints(evaluation.total)}{' '}{t('puncte din')}{' '}{formatPoints(evaluation.maxTotal)}
+                {evaluation.officePoints > 0 && t(', cu {formatPoints} din oficiu', { formatPoints: formatPoints(evaluation.officePoints) })}
               </p>
             </div>
             <div className="result-columns">
               <div className="result-main">
                 <div className="table-wrap">
                   <table className="items">
-                    <caption className="sr-only">Punctajele pe exerciții</caption>
+                    <caption className="sr-only">{t('Punctajele pe exerciții')}</caption>
                     <thead>
                       <tr>
-                        <th scope="col" title="Exercițiul">
-                          <span className="sr-only">Exercițiul</span>
+                        <th scope="col" title={t('Exercițiul')}>
+                          <span className="sr-only">{t('Exercițiul')}</span>
                           <span aria-hidden="true">#</span>
                         </th>
-                        <th scope="col">Puncte</th>
-                        <th scope="col">Răspunsul tău</th>
-                        <th scope="col">Comentariu</th>
+                        <th scope="col">{t('Puncte')}</th>
+                        <th scope="col">{t('Răspunsul tău')}</th>
+                        <th scope="col">{t('Comentariu')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -54,15 +55,15 @@ export function StudentResult({ result, fileUrl, actions }: { result: StudentRes
                           <th scope="row" title={item.label}>
                             {item.exerciseId} <span className="sr-only">{item.label}</span>
                           </th>
-                          <td data-label="Puncte">
+                          <td data-label={t('Puncte')}>
                             <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
-                              {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
+                              {t('{formatPoints} din {formatPoints2}', { formatPoints: formatPoints(item.points), formatPoints2: formatPoints(item.maxPoints) })}
                             </span>
                           </td>
-                          <td data-label="Răspunsul tău">
+                          <td data-label={t('Răspunsul tău')}>
                             <MathText text={item.studentAnswer} />
                           </td>
-                          <td data-label="Comentariu">
+                          <td data-label={t('Comentariu')}>
                             <MathText text={item.comment} />
                           </td>
                         </tr>
@@ -72,15 +73,15 @@ export function StudentResult({ result, fileUrl, actions }: { result: StudentRes
                 </div>
               </div>
               <div className="result-side">
-                <section aria-label="Rezumat">
-                  <h3>Rezumat</h3>
+                <section aria-label={t('Rezumat')}>
+                  <h3>{t('Rezumat')}</h3>
                   <p>
                     <MathText text={evaluation.summary} />
                   </p>
                 </section>
                 {evaluation.strengths.length > 0 && (
-                  <section aria-label="Ce ai lucrat bine">
-                    <h3>Ce ai lucrat bine</h3>
+                  <section aria-label={t('Ce ai lucrat bine')}>
+                    <h3>{t('Ce ai lucrat bine')}</h3>
                     <ul>
                       {evaluation.strengths.map((text, index) => (
                         <li key={index}>
@@ -91,8 +92,8 @@ export function StudentResult({ result, fileUrl, actions }: { result: StudentRes
                   </section>
                 )}
                 {evaluation.recommendations.length > 0 && (
-                  <section aria-label="Recomandări">
-                    <h3>Recomandări</h3>
+                  <section aria-label={t('Recomandări')}>
+                    <h3>{t('Recomandări')}</h3>
                     <ul>
                       {evaluation.recommendations.map((text, index) => (
                         <li key={index}>
@@ -106,7 +107,7 @@ export function StudentResult({ result, fileUrl, actions }: { result: StudentRes
             </div>
           </>
         ) : (
-          <p role="status">Rezultatul tău nu este gata încă. Apare aici după ce profesorul corectează lucrarea și publică rezultatele. Păstrează biletul.</p>
+          <p role="status">{t('Rezultatul tău nu este gata încă. Apare aici după ce profesorul corectează lucrarea și publică rezultatele. Păstrează biletul.')}</p>
         )}
       </FilesBeside>
     </section>
@@ -114,17 +115,17 @@ export function StudentResult({ result, fileUrl, actions }: { result: StudentRes
 }
 
 function ResultFiles({ result, fileUrl }: { result: StudentResultView; fileUrl: (fileId: number) => string }) {
-  if (result.files.length === 0) return <p className="hint">Nu ai încă niciun fișier aici.</p>;
+  if (result.files.length === 0) return <p className="hint">{t('Nu ai încă niciun fișier aici.')}</p>;
   return (
     <ol className="page-files">
       {result.files.map((file, index) => {
         const url = fileUrl(file.id);
-        const caption = `Pagina ${index + 1}: ${file.name} · ${formatFileSize(file.size)}`;
+        const caption = t('Pagina {n}: {name} · {size}', { n: index + 1, name: file.name, size: formatFileSize(file.size) });
         if (file.contentType.startsWith('image/')) {
           return (
             <li key={file.id}>
               <a href={url} target="_blank" rel="noopener">
-                <img src={url} alt={`Pagina ${index + 1}`} loading="lazy" />
+                <img src={url} alt={t('Pagina {n}', { n: index + 1 })} loading="lazy" />
               </a>
               <p className="hint">{caption}</p>
             </li>
@@ -132,9 +133,9 @@ function ResultFiles({ result, fileUrl }: { result: StudentResultView; fileUrl: 
         }
         return (
           <li key={file.id}>
-            <iframe className="pdf-frame" src={url} title={`Pagina ${index + 1}`} loading="lazy" />
+            <iframe className="pdf-frame" src={url} title={t('Pagina {n}', { n: index + 1 })} loading="lazy" />
             <a href={url} target="_blank" rel="noopener">
-              Deschide PDF-ul
+              {t('Deschide PDF-ul')}
             </a>
             <p className="hint">{caption}</p>
           </li>

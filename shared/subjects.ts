@@ -1,6 +1,7 @@
 // The subjects MQGrader grades (spec: any subject). The robot finds a test's
 // subject once, with its exercise list or its generated barem; `alta` is a
 // subject it does not grade, kept with its Romanian name for the message.
+import { translateMessage } from './i18n/messages.ts';
 
 export const SUBJECTS = ['matematica', 'fizica', 'chimie', 'biologie', 'stiinte', 'romana', 'engleza'] as const;
 
@@ -38,7 +39,12 @@ export const SUPPORTED_SUBJECTS_TEXT = 'matematică, fizică, chimie, biologie, 
 // What the teacher reads when the robot found a subject it does not grade.
 export function unsupportedMessage(name: string): string {
   const found = name.trim() ? `Testul pare să fie de ${name.trim()}.` : 'Testul nu pare să fie de o materie pe care o corectăm.';
-  return `${found} MQGrader corectează acum: ${SUPPORTED_SUBJECTS_TEXT}.`;
+  return translateMessage(`${found} MQGrader corectează acum: ${SUPPORTED_SUBJECTS_TEXT}.`);
+}
+
+// A subject's name in the page's language.
+export function subjectName(subject: Subject): string {
+  return translateMessage(SUBJECT_NAMES[subject]);
 }
 
 export function isDetectedSubject(value: unknown): value is DetectedSubject {

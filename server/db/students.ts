@@ -82,9 +82,9 @@ async function refusedAdd(db: D1Database, teacherId: number, classId: number, na
   const taken = new Set(rows.map((row) => studentNameKey(row.full_name)));
   const clashes = names.filter((name) => taken.has(studentNameKey(name)));
   if (clashes.length === 0) return new ApiError(409, 'busy', 'Altcineva a adăugat elevi în același timp. Încearcă din nou.');
-  const quoted = clashes.slice(0, 3).map((name) => `„${name}”`);
+  const quoted = clashes.slice(0, 3).map((name) => `„${name}”`); // i18n-ignore: a name in quotes
   if (clashes.length === 1) return new ApiError(409, 'student_exists', `Elevul ${quoted[0]} este deja în clasă.`);
-  const rest = clashes.length > 3 ? ` și încă ${clashes.length - 3}` : '';
+  const rest = clashes.length > 3 ? ` și încă ${clashes.length - 3}` : ''; // i18n-ignore: translated with the whole message
   return new ApiError(409, 'student_exists', `Elevii ${quoted.join(', ')}${rest} sunt deja în clasă.`);
 }
 
