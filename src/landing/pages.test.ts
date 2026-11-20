@@ -273,6 +273,11 @@ describe('the pages that answer a search', () => {
     expect(headers).toMatch(/^\/assets\/\*\n {2}Cache-Control: public, max-age=31536000, immutable$/m);
   });
 
+  it('makes the browser ask for the head scripts again, so a deploy reaches it at once', () => {
+    expect(headers).toMatch(/^\/theme\.js\n {2}Cache-Control: public, max-age=0, must-revalidate$/m);
+    expect(headers).toMatch(/^\/lang\.js\n {2}Cache-Control: public, max-age=0, must-revalidate$/m);
+  });
+
   it('writes the barem page questions twice, in the same words', () => {
     const doc = parse(barem);
     const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));

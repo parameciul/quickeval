@@ -33,6 +33,15 @@ https://quickeval.pages.dev/*
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# The head scripts keep their names (every page names them before it paints),
+# so the browser asks each time whether they changed; an unchanged one costs a
+# 304. Without a rule the browser keeps an old copy for hours after a deploy.
+/theme.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/lang.js
+  Cache-Control: public, max-age=0, must-revalidate
+
 /robots.txt
   Cache-Control: public, max-age=3600
 
