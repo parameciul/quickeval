@@ -36,7 +36,7 @@ const UPLOAD_KEY = ['try', 'upload'];
 
 // Before the grading (spec §3.3, states 1 and 2), in the look of the landing
 // page's form that made the try: the test and the barem as two tiles (green
-// once sent, with a small "Înlocuiește"), the student's pages as previews, and
+// once sent, with "Schimbă" on the right), the student's pages as previews, and
 // a bar that says whether all is ready, beside "Pornește corectarea". The cap
 // on file changes shows only when it limits her: at the last change, and when
 // none is left.
@@ -111,7 +111,7 @@ function ReadyLine({ missing, baremBusy, robotBarem, pageCount }: { missing: str
     tone = 'is-read';
     icon = 'doc';
     title = t('Citește întâi baremul robotului');
-    text = t('Corectarea îl folosește așa cum este. Înlocuiește-l dacă ceva e greșit.');
+    text = t('Corectarea îl folosește așa cum este. Schimbă-l dacă ceva e greșit.');
   }
   return (
     <div className={`try-ready ${tone}`}>
@@ -238,7 +238,7 @@ function FilePick({
 }
 
 // One of the two files: a tile to pick it while it is missing, then a green
-// tile with its name (which opens it) and a small "Înlocuiește".
+// tile with its name (which opens it) and "Schimbă", as on the landing form.
 function FileSlot({
   code,
   kind,
@@ -303,12 +303,9 @@ function FileSlot({
             {extra}
             {left > 0 &&
               pick(
-                t('Înlocuiește'),
-                <>
-                  <ActionIcon name="upload" />
-                  {t('Înlocuiește')}
-                </>,
-                'button-quiet button-small',
+                t('Schimbă'),
+                <>{t('Schimbă')}</>,
+                'try-change',
               )}
           </span>
         </div>
