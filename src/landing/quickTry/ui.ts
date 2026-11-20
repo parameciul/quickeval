@@ -159,14 +159,13 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     return canStart({ dailyLimitReached: false, admin: false, signedIn: false, siteKey: 'guess' }, stored, phase, deps.now(), deletedAt);
   }
 
-  // The buttons: open, turned off with the line that says why, or gone when
-  // no try can be made on this site.
+  // The buttons never go: open, or turned off (with the line that says why,
+  // when there is one).
   function refreshButton(): void {
     const answer = answerNow();
     const why = answer === 'used' ? USED_TEXT : answer === 'full' ? FULL_TEXT : null;
     for (const button of openButtons) {
-      button.hidden = answer === 'off';
-      button.disabled = why !== null;
+      button.disabled = answer !== 'yes';
       if (why) button.title = why;
       else button.removeAttribute('title');
     }

@@ -145,9 +145,10 @@ describe("the landing page's Quick Try", () => {
     expect(document.querySelector('[data-try-score]')).not.toBeVisible();
   });
 
-  it('shows no button while the Turnstile key is not set', async () => {
+  it('turns the button off while the Turnstile key is not set', async () => {
     await mount(fakeLandingApi({ siteKey: null }));
-    expect(button()).toBeNull();
+    expect(button()).toBeVisible();
+    expect(button()).toBeDisabled();
   });
 
   it("says when the day's free tries are all used, and turns the buttons off", async () => {
@@ -385,11 +386,14 @@ describe("the landing page's Quick Try", () => {
     await waitFor(() => expect(turnstile.load).toHaveBeenCalledWith(document.querySelector('[data-try-turnstile]'), 'site-key'));
   });
 
-  it('hides every Quick Try button when the API does not answer', async () => {
+  it('turns every Quick Try button off when the API does not answer', async () => {
     const api = fakeLandingApi();
     api.availability.mockRejectedValue(new Error('offline'));
     await mount(api);
-    for (const one of tryButtons()) expect(one).not.toBeVisible();
+    for (const one of tryButtons()) {
+      expect(one).toBeVisible();
+      expect(one).toBeDisabled();
+    }
   });
 
   it('keeps the barem one choice: her file, or the one made from the test', async () => {
@@ -788,12 +792,12 @@ describe("the landing page's Quick Try", () => {
     expect(checkAccount).not.toHaveBeenCalled();
   });
 
-  it('shows no button when the page cannot ask the server, and still follows her try', async () => {
+  it('turns the button off when the page cannot ask the server, and still follows her try', async () => {
     store('2026-11-09T08:00:00.000Z');
     const api = fakeLandingApi();
     api.availability.mockRejectedValue(new ApiError(0, 'network', 'Nu mă pot conecta la server.'));
     await mount(api);
-    expect(button()).toBeNull();
+    expect(button()).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Se corectează… Durează câteva minute.');
     expect(screen.getByRole('link', { name: 'Deschide încercarea' })).toHaveAttribute('href', `/try/${TOKEN}`);
   });
