@@ -23,6 +23,7 @@ import { useDataVersion } from './shell/refresh.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
 import { YearSelect } from './shell/YearSelect.tsx';
 import { t } from '../i18n/t.ts';
+import { rememberSignedIn } from '../landing/account.ts';
 
 // The accounts that wait for approval change with no teacher's version: an
 // administrator's bar reads them every five minutes.
@@ -45,6 +46,13 @@ export function Layout() {
   const onClasses = location.pathname.startsWith('/classes');
   const { year } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
+  // The public pages then show the account link from their first paint.
+  const signedIn = Boolean(me.data);
+  const loginNeeded = isLoginRequired(me.error);
+  useEffect(() => {
+    if (signedIn) rememberSignedIn(true);
+    else if (loginNeeded) rememberSignedIn(false);
+  }, [signedIn, loginNeeded]);
   // The tests of the year: "De făcut" and the panel of the classes read them.
   // They are read again after every change (below), and when the version
   // the shell asks every minute changed (`useDataVersion`).

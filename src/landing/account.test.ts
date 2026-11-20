@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { initAccountLinks, showAccount } from './account.ts';
+import themeScript from '../../public/theme.js?raw';
+import { readFileSync } from 'node:fs';
+import { followOtherTabs, initAccountLinks, rememberSignedIn, showAccount, SIGNED_IN_KEY } from './account.ts';
+
+const landingCss = readFileSync('src/landing/landing.css', 'utf8');
 
 const HEADER = `
   <nav>
@@ -15,6 +19,38 @@ const answer = (body: unknown, status = 200) =>
 
 beforeEach(() => {
   document.body.innerHTML = HEADER;
+  localStorage.clear();
+  document.documentElement.removeAttribute('data-signed-in');
+});
+
+describe('the answer kept for the next page', () => {
+  it('marks the page and keeps the answer while a teacher is logged in', () => {
+    showAccount(document, true);
+    expect(document.documentElement.hasAttribute('data-signed-in')).toBe(true);
+    expect(localStorage.getItem(SIGNED_IN_KEY)).toBe('1');
+  });
+
+  it('forgets it once the teacher is logged out', () => {
+    showAccount(document, true);
+    showAccount(document, false);
+    expect(document.documentElement.hasAttribute('data-signed-in')).toBe(false);
+    expect(localStorage.getItem(SIGNED_IN_KEY)).toBeNull();
+  });
+
+  it('is read by the head script, with the same key, before the page paints', () => {
+    rememberSignedIn(true);
+    new Function(themeScript)();
+    expect(document.documentElement.hasAttribute('data-signed-in')).toBe(true);
+    document.documentElement.removeAttribute('data-signed-in');
+    rememberSignedIn(false);
+    new Function(themeScript)();
+    expect(document.documentElement.hasAttribute('data-signed-in')).toBe(false);
+  });
+
+  it('shows the account link and hides the login from the first paint', () => {
+    expect(landingCss).toMatch(/:root\[data-signed-in\] \[data-guest\] \{ display: none !important; \}/);
+    expect(landingCss).toMatch(/:root\[data-signed-in\] \[data-member\]\[hidden\] \{ display: inline-flex !important; \}/);
+  });
 });
 
 describe('showAccount', () => {
@@ -55,5 +91,40 @@ describe('initAccountLinks', () => {
     await initAccountLinks(document, vi.fn(async () => new Response('not json', { status: 200 })));
     expect(guest().hidden).toBe(false);
     expect(member().hidden).toBe(true);
+  });
+});
+
+describe('followOtherTabs', () => {
+  const otherTab = (key: string | null, value: string | null) => {
+    if (value === null) localStorage.removeItem(SIGNED_IN_KEY);
+    else localStorage.setItem(SIGNED_IN_KEY, value);
+    window.dispatchEvent(new StorageEvent('storage', { key }));
+  };
+
+  it('shows the login at once when the teacher logs out in another tab', () => {
+    const target = new EventTarget() as Window;
+    followOtherTabs(document, target);
+    showAccount(document, true);
+    localStorage.removeItem(SIGNED_IN_KEY);
+    target.dispatchEvent(new StorageEvent('storage', { key: SIGNED_IN_KEY }));
+    expect(guest().hidden).toBe(false);
+    expect(member().hidden).toBe(true);
+    expect(document.documentElement.hasAttribute('data-signed-in')).toBe(false);
+  });
+
+  it('shows the account link when the teacher logs in in another tab, and when storage is cleared again the login', () => {
+    followOtherTabs(document, window);
+    otherTab(SIGNED_IN_KEY, '1');
+    expect(member().hidden).toBe(false);
+    expect(guest().hidden).toBe(true);
+    otherTab(null, null);
+    expect(guest().hidden).toBe(false);
+  });
+
+  it('pays no attention to other keys', () => {
+    followOtherTabs(document, window);
+    localStorage.setItem(SIGNED_IN_KEY, '1');
+    window.dispatchEvent(new StorageEvent('storage', { key: 'quickeval.theme' }));
+    expect(guest().hidden).toBe(false);
   });
 });

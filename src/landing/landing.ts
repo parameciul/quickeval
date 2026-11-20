@@ -1,5 +1,6 @@
 // The landing page's script: the entrances, the theme button, the header's
 // menu and the Quick Try form.
+import { followOtherTabs } from './account.ts';
 import { createLandingApi } from './quickTry/api.ts';
 import { loadTurnstile } from './quickTry/turnstile.ts';
 import { initQuickTry } from './quickTry/ui.ts';
@@ -21,4 +22,5 @@ initReveal();
 initThemeButton();
 initSiteMenu();
 initLangSwitch();
+followOtherTabs();
 void initQuickTry(document, { api: createLandingApi(), storage: deviceStorage(), now: () => new Date(), loadTurnstile });

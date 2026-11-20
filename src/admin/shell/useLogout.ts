@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { rememberSignedIn } from '../../landing/account.ts';
 import { useApi } from '../ApiContext.tsx';
 
 // The page load after the logout. An object, so a test can spy on it: jsdom
@@ -10,6 +11,9 @@ export function useLogout() {
   const api = useApi();
   return useMutation({
     mutationFn: () => api.logout(),
-    onSuccess: () => logoutTab.leave('/teacher/'),
+    onSuccess: () => {
+      rememberSignedIn(false);
+      logoutTab.leave('/teacher/');
+    },
   });
 }
