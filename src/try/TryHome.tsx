@@ -26,7 +26,7 @@ export function TryHome({ info, token, tryApi }: { info: QuickTryInfo; token: st
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
   const phase = phaseOf(detail.data);
   return (
-    <section className="try-home">
+    <section className={phase === 'prepare' ? 'try-home is-prepare' : 'try-home'}>
       <TryHead detail={detail.data} info={info} token={token} />
       {phase === 'prepare' && <Prepare detail={detail.data} token={token} tryApi={tryApi} />}
       {phase === 'grading' && <Grading />}

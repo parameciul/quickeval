@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PHONE_IDLE_MS, PHONE_IDLE_TEXT, PHONE_REFRESH_MS } from '../../shared/quickTry.ts';
@@ -55,7 +55,8 @@ describe("a try's files before the grading", () => {
   it("starts with the robot's barem the page showed, after she downloads it", async () => {
     const { tryApi } = setup({ files: { test: testFile, barem: baremFile }, barem: { request: 'none', unchecked: true }, filesVersion: 2 });
     expect(await screen.findByRole('link', { name: 'Descarcă baremul' })).toHaveAttribute('href', `/api/try/${TRY_TOKEN}/tests/${TRY_CODE}/files/marking-scheme`);
-    expect(screen.getByText(/Corectarea pornește doar când apeși/)).toBeInTheDocument();
+    expect(await screen.findByText('Citește întâi baremul robotului')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Baremul făcut de robot' })).toBeInTheDocument();
     await userEvent.click(await startButton());
     expect(tryApi.start).toHaveBeenCalledWith(2);
   });
@@ -122,16 +123,61 @@ describe("a try's files before the grading", () => {
     expect(await screen.findByRole('link', { name: 'Deschide pagina 1' })).toHaveAttribute('href', `/api/try/${TRY_TOKEN}/paper/${page.id}`);
   });
 
-  it('counts the file changes left, and stops them at the limit', async () => {
-    setup({ files: { test: testFile, barem: baremFile }, filesVersion: 4 });
-    expect(await screen.findByText(/Mai poți încărca testul și baremul de 2 ori în total/)).toBeInTheDocument();
+  it('says nothing of the cap on file changes while more than one is left', async () => {
+    const { api } = setup({ files: { test: testFile, barem: baremFile }, filesVersion: 4 });
+    await startButton();
+    expect(screen.queryByText(/Mai poți/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nu mai poți schimba/)).not.toBeInTheDocument();
+    const file = new File(['%PDF-1.7'], 'nou.pdf', { type: PDF_TYPE });
+    await userEvent.upload(screen.getByLabelText(/Fișierul testului/), file);
+    await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledWith(TRY_CODE, 'test', file));
+  });
+
+  it('names the last file change', async () => {
+    setup({ files: { test: testFile, barem: baremFile }, filesVersion: 5 });
+    expect(await screen.findByText('Mai poți schimba testul sau baremul o singură dată.')).toBeInTheDocument();
+    expect(screen.getAllByText('Înlocuiește')).toHaveLength(2);
   });
 
   it('takes no new test or barem once the six changes are used', async () => {
     setup({ files: { test: testFile, barem: baremFile }, filesVersion: 6 });
     expect(await screen.findByText('Nu mai poți schimba testul sau baremul în această încercare.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Fișierul testului/)).toBeDisabled();
-    expect(screen.getByLabelText(/Fișierul baremului/)).toBeDisabled();
+    expect(screen.queryByLabelText(/Fișierul testului/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Fișierul baremului/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Înlocuiește')).not.toBeInTheDocument();
+    // The files still open.
+    expect(screen.getByRole('link', { name: 'test.pdf' })).toBeInTheDocument();
+  });
+
+  it('says the try is ready to grade, with its pages counted', async () => {
+    setup({ files: { test: testFile, barem: baremFile } }, [page, { ...page, id: 32, position: 2 }]);
+    expect(await screen.findByText('Gata de corectare')).toBeInTheDocument();
+    expect(screen.getByText('Testul, baremul și 2 pagini au ajuns. Corectarea durează câteva minute.')).toBeInTheDocument();
+    expect(await startButton()).toBeEnabled();
+  });
+
+  it('waits for the barem while the robot makes it', async () => {
+    setup({ files: { test: testFile, barem: null }, barem: { request: 'requested', unchecked: false } });
+    expect(await screen.findByText('Se așteaptă baremul')).toBeInTheDocument();
+    expect(await screen.findByText('Lipsește: baremul.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fă baremul din test' })).not.toBeInTheDocument();
+  });
+
+  it('refuses a test file that is not PDF or Word, and sends nothing', async () => {
+    const { api } = setup({}, []);
+    await startButton();
+    await userEvent.upload(screen.getByLabelText(/Fișierul testului/), new File(['x'], 'test.txt', { type: 'text/plain' }), { applyAccept: false });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(api.uploadTestFile).not.toHaveBeenCalled();
+  });
+
+  it('takes a test file dropped on its tile', async () => {
+    const { api } = setup({}, []);
+    await startButton();
+    const file = new File(['%PDF-1.7'], 'test.pdf', { type: PDF_TYPE });
+    const tile = screen.getByText('Alege testul').closest('label')!;
+    fireEvent.drop(tile, { dataTransfer: { files: [file], types: ['Files'] } });
+    await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledWith(TRY_CODE, 'test', file));
   });
 
   it("never shows the students' link, nor a QR code until the phone's is asked for", async () => {

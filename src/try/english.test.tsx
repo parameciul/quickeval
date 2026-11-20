@@ -90,6 +90,15 @@ describe('a Quick Try in English', () => {
     expectNoGradingWords();
   });
 
+  it('shows the files, the pages and the ready line in English, with no Romanian', async () => {
+    renderTry('/', createFakeApi({ classes: [], students: {}, tests: [tryTest({ files })] }), createFakeTryApi({ pages: [structuredClone(photo)] }));
+    expect(await screen.findByText('Ready to grade')).toBeInTheDocument();
+    expect(screen.getByText('The test, the marking scheme and 1 page are in. The grading takes a few minutes.')).toBeInTheDocument();
+    expect(screen.getAllByText('Replace')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Start grading' })).toBeEnabled();
+    expect(romanianIn()).toEqual([]);
+  });
+
   it("keeps a teacher's own name for the try as it is", async () => {
     renderTry('/phone', createFakeApi({ classes: [], students: {}, tests: [tryTest({ title: 'Fractions 6B' })] }), createFakeTryApi());
     expect(await screen.findByText('Fractions 6B')).toBeInTheDocument();
