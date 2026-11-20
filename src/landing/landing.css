@@ -504,3 +504,162 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
 
 /* The language link beside the theme button: the code of the other language. */
 .lang-switch { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.02em; text-decoration: none; }
+
+/* Laptop and desktop sizes. Wide screens are often short and read up close, so
+   above the phone layout the page stops growing at 1280px, the large type
+   follows the shorter side of the screen, and the text steps down one size.
+   Phones and tablets (900px and less) keep the sizes above. */
+@media (min-width: 901px) {
+  .wrap {
+    padding-left: max(var(--m), env(safe-area-inset-left, 0px), calc((100% - 1280px) / 2));
+    padding-right: max(var(--m), env(safe-area-inset-right, 0px), calc((100% - 1280px) / 2));
+  }
+  body { font-size: 17px; }
+  .t-1, .end h2 { font-size: clamp(40px, min(4.4vw, 8vh), 68px); }
+  .t-2 { font-size: clamp(34px, min(3.4vw, 6.4vh), 52px); }
+  .t-3, .clock h3 { font-size: clamp(21px, 1.6vw, 26px); }
+  .lede, .end > p { font-size: clamp(18px, 1.3vw, 21px); }
+  .clock time { font-size: clamp(40px, min(3.6vw, 7vh), 60px); }
+  .clock h3 + p, .qa p { font-size: 17px; }
+  .qa h3 { font-size: clamp(22px, 1.9vw, 30px); }
+  .prose h2 { font-size: clamp(28px, 2.6vw, 40px); }
+  .prose p, .prose li, .rule p { font-size: 18px; }
+  .read b { font-size: 20px; }
+  .read span { font-size: 16px; }
+
+  .pg-home .hero { padding-top: 56px; padding-bottom: 56px; }
+  .pg-home .hero-under { margin-top: 32px; }
+  .pg-home .shots figure { height: 420px; }
+  .pg-home .shots .shot-p { width: 200px; }
+  .pg-home .without .para { font-size: clamp(21px, 1.8vw, 26px); }
+  .pg-home .without .after { font-size: 18px; }
+  .pg-home .with b { font-size: 19px; }
+  .pg-home .with span { font-size: 16px; }
+  .pg-home .try-steps li { height: 500px; }
+  .pg-home .try-steps b { font-size: 20px; }
+  .pg-home .try-steps p { font-size: 16px; }
+  .pg-home .try-steps .shot-p { width: 200px; }
+  .pg-home .cls > div > p, .pg-home .rep > div > p { font-size: 18px; }
+  .pg-home .facts li { font-size: 17px; }
+  .pg-home .price .big { font-size: clamp(96px, min(9vw, 17vh), 150px); }
+  .pg-home .price p { font-size: clamp(18px, 1.4vw, 22px); }
+  .pg-home .price li b { font-size: 30px; }
+  .pg-home .who-made blockquote { font-size: clamp(24px, 2.2vw, 34px); }
+  .pg-home .who-made p { font-size: 18px; }
+  .pg-home .laura h2 { font-size: clamp(26px, 2.2vw, 34px); }
+  .pg-home .laura .l-lede { font-size: clamp(18px, 1.3vw, 21px); }
+  .pg-home .laura .l-body { font-size: 17px; }
+}
+
+/* Laptops read the text one step smaller still: every font size above at 90%,
+   from 901px up. Phones keep the sizes above. */
+@media (min-width: 901px) {
+  body { font-size: calc(18px * 0.9); }
+  .t-1 { font-size: calc(clamp(36px, 5.6vw, 96px) * 0.9); }
+  .t-2 { font-size: calc(clamp(34px, 4.4vw, 72px) * 0.9); }
+  .t-3 { font-size: calc(clamp(22px, 2vw, 30px) * 0.9); }
+  .lede { font-size: calc(clamp(19px, 1.6vw, 24px) * 0.9); }
+  .brand .words b { font-size: calc(18px * 0.9); }
+  .brand .words span { font-size: calc(13px * 0.9); }
+  .links { font-size: calc(16px * 0.9); }
+  .btn { font-size: calc(17px * 0.9); }
+  .btn-small { font-size: calc(15px * 0.9); }
+  .cap { font-size: calc(16px * 0.9); }
+  .who { font-size: calc(15px * 0.9); }
+  .clock time { font-size: calc(clamp(44px, 5vw, 84px) * 0.9); }
+  .clock time small { font-size: calc(17px * 0.9); }
+  .clock h3 { font-size: calc(clamp(22px, 2vw, 30px) * 0.9); }
+  .clock h3 + p { font-size: calc(18px * 0.9); }
+  .qa h3 { font-size: calc(clamp(24px, 2.4vw, 36px) * 0.9); }
+  .qa p { font-size: calc(18px * 0.9); }
+  .end h2 { font-size: calc(clamp(36px, 5.6vw, 96px) * 0.9); }
+  .end > p { font-size: calc(clamp(19px, 1.6vw, 24px) * 0.9); }
+  .foot { font-size: calc(16px * 0.9); }
+  .crumbs { font-size: calc(16px * 0.9); }
+  .byline { font-size: calc(16px * 0.9); }
+  .toc { font-size: calc(16px * 0.9); }
+  .toc h2 { font-size: calc(15px * 0.9); }
+  .prose h2 { font-size: calc(clamp(30px, 3.2vw, 48px) * 0.9); }
+  .prose p, .prose li { font-size: calc(19px * 0.9); }
+  .prose .shot figcaption { font-size: calc(16px * 0.9); }
+  .nums li::before { font-size: calc(30px * 0.9); }
+  .rule b { font-size: calc(clamp(22px, 2vw, 28px) * 0.9); }
+  .rule p { font-size: calc(19px * 0.9); }
+  .read b { font-size: calc(22px * 0.9); }
+  .read span { font-size: calc(17px * 0.9); }
+  .pg-home .shots figcaption { font-size: calc(17px * 0.9); }
+  .pg-home .without .para { font-size: calc(clamp(22px, 2.2vw, 30px) * 0.9); }
+  .pg-home .without .after { font-size: calc(19px * 0.9); }
+  .pg-home .with b { font-size: calc(21px * 0.9); }
+  .pg-home .with span { font-size: calc(17px * 0.9); }
+  .pg-home .try-top small { font-size: calc(16px * 0.9); }
+  .pg-home .try-steps b { font-size: calc(22px * 0.9); }
+  .pg-home .try-steps p { font-size: calc(17px * 0.9); }
+  .pg-home .cls > div > p, .pg-home .rep > div > p { font-size: calc(20px * 0.9); }
+  .pg-home .facts li { font-size: calc(18px * 0.9); }
+  .pg-home .price .big { font-size: calc(clamp(96px, 14vw, 220px) * 0.9); }
+  .pg-home .price p { font-size: calc(clamp(20px, 1.8vw, 26px) * 0.9); }
+  .pg-home .price li b { font-size: calc(36px * 0.9); }
+  .pg-home .price li b small { font-size: calc(18px * 0.9); }
+  .pg-home .price li.free .link { font-size: calc(17px * 0.9); }
+  .pg-home .who-made blockquote { font-size: calc(clamp(26px, 2.8vw, 42px) * 0.9); }
+  .pg-home .who-made p { font-size: calc(20px * 0.9); }
+  .pg-home .laura h2 { font-size: calc(clamp(28px, 2.6vw, 40px) * 0.9); }
+  .pg-home .laura .l-lede { font-size: calc(clamp(19px, 1.6vw, 24px) * 0.9); }
+  .pg-home .laura .l-body { font-size: calc(18px * 0.9); }
+  .pg-home #benefits h2 { font-size: calc(clamp(22px, 2vw, 30px) * 0.9); }
+  .pg-home .benefits h3 { font-size: calc(19px * 0.9); }
+  .pg-home .benefits p { font-size: calc(16px * 0.9); }
+  .pg-home .cta-row .btn { font-size: calc(16px * 0.9); }
+  .pg-home .cta-hint, .pg-home .cta-note { font-size: calc(16px * 0.9); }
+  .try-line { font-size: calc(16px * 0.9); }
+  .try-card-kicker { font-size: calc(14px * 0.9); }
+  .try-card-title { font-size: calc(19px * 0.9); }
+  .try-card-meta { font-size: calc(15px * 0.9); }
+  .try-card-text { font-size: calc(16px * 0.9); }
+  .try-chip { font-size: calc(14px * 0.9); }
+  .try-grade { font-size: calc(32px * 0.9); }
+  .tryd h2 { font-size: calc(clamp(26px, 2.6vw, 32px) * 0.9); }
+  .tryd-sub { font-size: calc(17px * 0.9); }
+  .step-t { font-size: calc(17px * 0.9); }
+  .num { font-size: calc(14px * 0.9); }
+  .tile-text b { font-size: calc(16px * 0.9); }
+  .tile-text small { font-size: calc(14px * 0.9); }
+  .tile-go { font-size: calc(15px * 0.9); }
+  .step-note { font-size: calc(15px * 0.9); }
+  .try-recover, .try-progress { font-size: calc(16px * 0.9); }
+  .try-qr-link { font-size: calc(14px * 0.9); }
+  .try-phone-note { font-size: calc(14px * 0.9); }
+  .try-phone-count { font-size: calc(17px * 0.9); }
+  .try-phone-list li { font-size: calc(16px * 0.9); }
+  .try-phone-size { font-size: calc(14px * 0.9); }
+  .try-phone-wait { font-size: calc(15px * 0.9); }
+  body { font-size: calc(17px * 0.9); }
+  .t-1, .end h2 { font-size: calc(clamp(40px, min(4.4vw, 8vh), 68px) * 0.9); }
+  .t-2 { font-size: calc(clamp(34px, min(3.4vw, 6.4vh), 52px) * 0.9); }
+  .t-3, .clock h3 { font-size: calc(clamp(21px, 1.6vw, 26px) * 0.9); }
+  .lede, .end > p { font-size: calc(clamp(18px, 1.3vw, 21px) * 0.9); }
+  .clock time { font-size: calc(clamp(40px, min(3.6vw, 7vh), 60px) * 0.9); }
+  .clock h3 + p, .qa p { font-size: calc(17px * 0.9); }
+  .qa h3 { font-size: calc(clamp(22px, 1.9vw, 30px) * 0.9); }
+  .prose h2 { font-size: calc(clamp(28px, 2.6vw, 40px) * 0.9); }
+  .prose p, .prose li, .rule p { font-size: calc(18px * 0.9); }
+  .read b { font-size: calc(20px * 0.9); }
+  .read span { font-size: calc(16px * 0.9); }
+  .pg-home .without .para { font-size: calc(clamp(21px, 1.8vw, 26px) * 0.9); }
+  .pg-home .without .after { font-size: calc(18px * 0.9); }
+  .pg-home .with b { font-size: calc(19px * 0.9); }
+  .pg-home .with span { font-size: calc(16px * 0.9); }
+  .pg-home .try-steps b { font-size: calc(20px * 0.9); }
+  .pg-home .try-steps p { font-size: calc(16px * 0.9); }
+  .pg-home .cls > div > p, .pg-home .rep > div > p { font-size: calc(18px * 0.9); }
+  .pg-home .facts li { font-size: calc(17px * 0.9); }
+  .pg-home .price .big { font-size: calc(clamp(96px, min(9vw, 17vh), 150px) * 0.9); }
+  .pg-home .price p { font-size: calc(clamp(18px, 1.4vw, 22px) * 0.9); }
+  .pg-home .price li b { font-size: calc(30px * 0.9); }
+  .pg-home .who-made blockquote { font-size: calc(clamp(24px, 2.2vw, 34px) * 0.9); }
+  .pg-home .who-made p { font-size: calc(18px * 0.9); }
+  .pg-home .laura h2 { font-size: calc(clamp(26px, 2.2vw, 34px) * 0.9); }
+  .pg-home .laura .l-lede { font-size: calc(clamp(18px, 1.3vw, 21px) * 0.9); }
+  .pg-home .laura .l-body { font-size: calc(17px * 0.9); }
+}
