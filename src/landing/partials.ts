@@ -1,3 +1,4 @@
+// i18n-ignore-file: the footer has a copy per language, checked by src/landing/pages.test.ts.
 // Parts of the public pages that are the same on every page. A page names one
 // with a comment, `<!--#include site-foot -->`, and Vite puts the part in its
 // place (the `publicPagePartials` plugin in vite.config.ts), in dev and in the

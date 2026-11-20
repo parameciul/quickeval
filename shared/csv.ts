@@ -1,6 +1,7 @@
 import type { ClassReport, ReportRow, UploadStatus } from './api.ts';
 import { round2 } from './scoring.ts';
 import { reportTables } from './stats.ts';
+import { translateMessage } from './i18n/messages.ts';
 
 // The class report as a CSV file for Romanian Excel (spec §14.2): UTF-8 with a
 // byte order mark, ";" between cells, a decimal comma, and lines that end with
@@ -30,7 +31,7 @@ export function csvText(text: string): string {
 
 // The header and the rows of one table of exercises.
 function tableLines(exercises: ClassReport['exercises'], rows: ReportRow[]): string[] {
-  const header = ['Elev', ...exercises.map((exercise) => exercise.id), 'Total', 'Nota', 'Observații'].map(csvText);
+  const header = [translateMessage('Elev'), ...exercises.map((exercise) => exercise.id), translateMessage('Total'), translateMessage('Nota'), translateMessage('Observații')].map(csvText);
   const lines = [header.join(SEPARATOR)];
   for (const row of rows) {
     const cells = [
@@ -41,7 +42,7 @@ function tableLines(exercises: ClassReport['exercises'], rows: ReportRow[]): str
       }),
       csvNumber(row.total),
       csvNumber(row.grade),
-      row.flagCount > 0 ? csvText(`de verificat ${row.flagCount}`) : '',
+      row.flagCount > 0 ? csvText(translateMessage(`de verificat ${row.flagCount}`)) : '',
     ];
     lines.push(cells.join(SEPARATOR));
   }

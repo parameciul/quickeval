@@ -1,11 +1,14 @@
 // An error answer from the API, with its Romanian message. Both apps use it.
 import { t } from '../i18n/t.ts';
+import { translateMessage } from '../../shared/i18n/messages.ts';
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
 
   constructor(status: number, code: string, message: string) {
-    super(message);
+    // A message of the shared code, checked in the page, in the page's
+    // language; the API's own answers come translated already.
+    super(translateMessage(message));
     this.status = status;
     this.code = code;
   }

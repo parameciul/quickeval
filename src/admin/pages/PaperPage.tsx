@@ -26,6 +26,7 @@ import { NotFoundPage } from './NotFoundPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { t } from '../../i18n/t.ts';
+import { translateMessage } from '../../../shared/i18n/messages.ts';
 
 // While the robot grades the upload, the page asks for news every 10 seconds.
 export function resultRefreshInterval(submission: SubmissionDetail | undefined): number | false {
@@ -722,7 +723,7 @@ function Paper({
             />
           ) : submission.status === 'failed' ? (
             <div className="warning">
-              <p>{t('Corectarea a eșuat. {lastError}', { lastError: submission.lastError ?? '' })}</p>
+              <p>{t('Corectarea a eșuat. {lastError}', { lastError: translateMessage(submission.lastError ?? '') })}</p>
               {place === 'app' && (
                 <button
                   type="button"

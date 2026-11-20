@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useId, useState, type FormEvent } from 'react';
 import type { RobotStart, TestInfo } from '../../../shared/api.ts';
-import { SUBJECT_NAMES, SUBJECTS, type Subject } from '../../../shared/subjects.ts';
+import { subjectName, SUBJECTS, type Subject } from '../../../shared/subjects.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
@@ -12,7 +12,7 @@ export function subjectLine(test: Pick<TestInfo, 'subject'>): string {
   const { subject } = test;
   if (subject === null) return t('Se stabilește la corectare');
   if (subject.value === 'alta') return t('{v1} (nu o corectăm)', { v1: subject.name || t('altă materie') });
-  return SUBJECT_NAMES[subject.value];
+  return subjectName(subject.value);
 }
 
 // A new subject after the exercise list exists makes the list again and
@@ -71,7 +71,7 @@ export function SubjectForm({
               checked={chosen === subject}
               onChange={() => setChosen(subject)}
             />
-            {SUBJECT_NAMES[subject]}
+            {subjectName(subject)}
           </label>
         ))}
       </fieldset>

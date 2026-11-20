@@ -1,3 +1,4 @@
+import { localEmail } from '../i18n.ts';
 import { Hono } from 'hono';
 import { changePasswordBody, rejectAccountsBody, shownAccountBody, updateAccountBody } from '../../shared/api.ts';
 import { adminOnly } from '../auth/teacherAuth.ts';
@@ -90,7 +91,7 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (!approved) throw new ApiError(409, 'not_pending', 'Contul nu mai așteaptă aprobarea.');
     inBackground(
       c,
-      sendEmail(c.env, {
+      sendEmail(c.env, localEmail(c, {
         to: [approved.email],
         subject: 'MQGrader: contul tău a fost aprobat',
         text: [
@@ -99,7 +100,7 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
           'Contul tău MQGrader a fost aprobat. Intră cu emailul și parola alese:',
           `${new URL(c.req.url).origin}/teacher/`,
         ].join('\n'),
-      }),
+      })),
     );
     return c.json({ approved: true });
   });
@@ -155,7 +156,7 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (!changed) throw notFound();
     inBackground(
       c,
-      sendEmail(c.env, {
+      sendEmail(c.env, localEmail(c, {
         to: [changed.email],
         subject: 'MQGrader: parola ta a fost schimbată',
         text: [
@@ -164,7 +165,7 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
           `Un administrator MQGrader (${c.var.teacher.name}) ți-a făcut o parolă nouă. Ți-o trimite el.`,
           'Dacă nu ai cerut asta, scrie-i unui administrator.',
         ].join('\n'),
-      }),
+      })),
     );
     return c.json({ password }, 201);
   });

@@ -111,10 +111,15 @@ export function scanSource(file: string, source: string): Finding[] {
       case 'NewExpression': {
         const name = calleeName(node);
         if (name && (KEY_CALLS.has(name) || DEV_CALLS.has(name))) {
-          // Keys need no check; nested calls in the parameters still do.
+          // Their own strings are keys or for developers; everything else
+          // in the arguments (parameters, callbacks) is still checked.
           for (const arg of (node.arguments as Node[]) ?? []) {
-            if (arg.type === 'ObjectExpression') walk(arg, [...parents, node]);
+            if (arg.type === 'Literal' || arg.type === 'TemplateLiteral') continue;
+            // t(one ? 'key' : 'other key', ...): both are keys.
+            if (arg.type === 'ConditionalExpression' && KEY_CALLS.has(name)) walk(arg.test as Node, [...parents, node]);
+            else walk(arg, [...parents, node]);
           }
+          walk(node.callee as Node, [...parents, node]);
           return;
         }
         break;
