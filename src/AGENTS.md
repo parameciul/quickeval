@@ -1,6 +1,8 @@
 # src/AGENTS.md
 
-The two browser apps. The root `AGENTS.md` holds the project-wide rules.
+The two browser apps. The root `AGENTS.md` holds the project-wide rules, among them the one that every change updates both languages.
+
+- `i18n/`: the page's language (`lang.ts`: `currentLang()` reads `<html lang>`, `switchLang()` saves the choice and loads the page again, `langHeaders()` for the API, `publicPath()` for a link to a public page) and its text (`t.ts`: `t()`, `tc()`, `k()`, `locale()`; `en/`: the English of every key). `ui/LangButton.tsx` is the RO/EN button beside the theme button, and the phone menu's row. A test of an English page imports `src/test/english.ts` first.
 
 ## Structure
 

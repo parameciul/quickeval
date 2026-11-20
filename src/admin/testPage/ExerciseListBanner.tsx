@@ -7,6 +7,8 @@ import { MoveOnLink } from './MoveOnLink.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
 import { partsOf } from './variant.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
+import { translateMessage } from '../../../shared/i18n/messages.ts';
 
 // The robot reads the test and the barem first and makes a list of the
 // exercises (spec §9). Shown only when that list needs the teacher: its
@@ -42,17 +44,17 @@ export function ExerciseListBanner({
     return (
       <div className="warning">
         <p>
-          <strong>{ces ? 'Baremul CES are o problemă.' : 'Baremul are o problemă.'}</strong> {message}
+          <strong>{ces ? t('Baremul CES are o problemă.') : t('Baremul are o problemă.')}</strong> {translateMessage(message ?? '')}
         </p>
-        <p>{ces ? 'Înlocuiește baremul CES la Pregătire, sau corectează cu el așa cum este.' : 'Înlocuiește baremul la Pregătire, sau corectează cu baremul așa cum este.'}</p>
+        <p>{ces ? t('Înlocuiește baremul CES la Pregătire, sau corectează cu el așa cum este.') : t('Înlocuiește baremul la Pregătire, sau corectează cu baremul așa cum este.')}</p>
         <span className="row-actions">
           <button type="button" className="button-quiet button-small" disabled={accept.isPending} onClick={() => accept.mutate()}>
             <ActionIcon name="check" />
-            Folosește oricum
+            {t('Folosește oricum')}
           </button>
-          <MoveOnLink className="button-quiet button-small" stage="Pregătire">
+          <MoveOnLink className="button-quiet button-small" stage={'Pregătire'}>
             <ActionIcon name="upload" />
-            {ces ? 'Înlocuiește baremul CES' : 'Înlocuiește baremul'}
+            {ces ? t('Înlocuiește baremul CES') : t('Înlocuiește baremul')}
           </MoveOnLink>
         </span>
         {accept.error && <ErrorMessage error={accept.error} />}
@@ -63,14 +65,14 @@ export function ExerciseListBanner({
     return (
       <div className="warning">
         <p>
-          <strong>Nu corectăm încă această materie.</strong> {message}
+          <strong>{t('Nu corectăm încă această materie.')}</strong> {translateMessage(message ?? '')}
         </p>
-        <p>Dacă materia e alta, schimb-o. Dacă ai încărcat alt test din greșeală, înlocuiește testul la Pregătire: lucrările se corectează apoi cu testul nou.</p>
+        <p>{t('Dacă materia e alta, schimb-o. Dacă ai încărcat alt test din greșeală, înlocuiește testul la Pregătire: lucrările se corectează apoi cu testul nou.')}</p>
         <span className="row-actions">
           <SubjectChange test={test} onChanged={onChanged} onRobot={onRobot} />
-          <MoveOnLink className="button-quiet button-small" stage="Pregătire">
+          <MoveOnLink className="button-quiet button-small" stage={'Pregătire'}>
             <ActionIcon name="upload" />
-            Înlocuiește testul
+            {t('Înlocuiește testul')}
           </MoveOnLink>
         </span>
       </div>
@@ -80,11 +82,11 @@ export function ExerciseListBanner({
     return (
       <div className="warning">
         <p>
-          <strong>{ces ? 'Robotul nu a putut citi testul CES și baremul CES.' : 'Robotul nu a putut citi testul și baremul.'}</strong> {message}
+          <strong>{ces ? t('Robotul nu a putut citi testul CES și baremul CES.') : t('Robotul nu a putut citi testul și baremul.')}</strong> {translateMessage(message ?? '')}
         </p>
         <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
           <ActionIcon name="retry" />
-          Încearcă din nou
+          {t('Încearcă din nou')}
         </button>
         {retry.error && <ErrorMessage error={retry.error} />}
       </div>

@@ -1,4 +1,5 @@
 import type { TestInfo, UploadRow } from '../../../shared/api.ts';
+import { t } from '../../i18n/t.ts';
 
 // The class analysis on the test page (spec §9): the robot writes it after the
 // grading, so a test can wait in "Se corectează" with every upload graded. The
@@ -11,15 +12,15 @@ export function AnalysisState({ test, uploads }: { test: TestInfo; uploads: Uplo
   return (
     <>
       {waiting && test.gradedCount > 0 && (
-        <p role="status">Lucrările sunt corectate. Robotul scrie acum analiza clasei.</p>
+        <p role="status">{t('Lucrările sunt corectate. Robotul scrie acum analiza clasei.')}</p>
       )}
       {retrying && test.gradedCount > 0 && (
-        <p role="status">Ultima încercare a eșuat. Robotul va încerca din nou la următoarea rulare.</p>
+        <p role="status">{t('Ultima încercare a eșuat. Robotul va încerca din nou la următoarea rulare.')}</p>
       )}
       {status === 'failed' && test.gradedCount > 0 && (
         <div className="warning">
           <p>
-            <strong>Robotul nu a putut scrie analiza clasei.</strong> O poți cere din nou în raportul clasei.
+            <strong>{t('Robotul nu a putut scrie analiza clasei.')}</strong>{' '}{t('O poți cere din nou în raportul clasei.')}
           </p>
         </div>
       )}

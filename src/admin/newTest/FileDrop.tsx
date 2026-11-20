@@ -1,5 +1,6 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import { DOCX_TYPE, fileProblem, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE } from '../../../shared/files.ts';
+import { t } from '../../i18n/t.ts';
 
 const ACCEPT = ['.pdf', '.docx', PDF_TYPE, DOCX_TYPE].join(',');
 
@@ -88,7 +89,7 @@ export function FileDrop({
         </svg>
         <span>
           <span className="sr-only">{name}: </span>
-          <b>{chosen ? 'Alege alt fișier' : 'Alege fișierul'}</b> sau trage-l aici
+          <b>{chosen ? t('Alege alt fișier') : t('Alege fișierul')}</b>{' '}{t('sau trage-l aici')}
         </span>
         {chosen && <span className="file-drop-name">{chosen}</span>}
       </label>

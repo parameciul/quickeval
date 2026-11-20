@@ -16,6 +16,7 @@ import { ResultCell } from '../classPage/ClassStudents.tsx';
 import { GradeCell } from '../classPage/GradesTable.tsx';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The state a link to the student page passes: the class the teacher came
 // from, for "←".
@@ -44,7 +45,7 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
   const renameButton = useRef<HTMLButtonElement>(null);
   const history = useQuery({ queryKey: ['student', studentId], queryFn: () => api.getStudentHistory(studentId) });
 
-  if (history.isPending) return <p>Se încarcă…</p>;
+  if (history.isPending) return <p>{t('Se încarcă…')}</p>;
   if (history.error) return <ErrorMessage error={history.error} />;
   const { student, classes } = history.data;
   const back = backClass(classes, fromClass);
@@ -58,7 +59,7 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
     <section className="history-page">
       <Crumbs
         items={[
-          { label: 'Clase', to: '/classes' },
+          { label: t('Clase'), to: '/classes' },
           ...(back ? [{ label: displayClassName(back.name), to: `/classes/${back.id}` }] : []),
           { label: student.fullName },
         ]}
@@ -71,8 +72,8 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
           </h1>
           {now && (
             <p className="lead-line">
-              <ClassLink cls={now} /> în {formatSchoolYear(now.schoolYear)}
-              {before.length > 0 && ' · înainte în '}
+              <ClassLink cls={now} />{' '}{t('în')}{' '}{formatSchoolYear(now.schoolYear)}
+              {before.length > 0 && ` ${t('· înainte în')} `}
               {before.map((cls, index) => (
                 <span key={cls.id}>
                   {index > 0 && ', '}
@@ -84,20 +85,20 @@ function StudentHistoryView({ studentId }: { studentId: number }) {
         </div>
         <button ref={renameButton} type="button" className="button-quiet" onClick={() => setRenameOpen(true)}>
           <ActionIcon name="edit" />
-          Redenumește
+          {t('Redenumește')}
         </button>
       </div>
 
       {classes.length === 0 ? (
-        <p className="hint">Elevul nu este în nicio clasă.</p>
+        <p className="hint">{t('Elevul nu este în nicio clasă.')}</p>
       ) : (
         classes.map((cls) => <YearCard key={cls.id} cls={cls} history={history.data} />)
       )}
 
       {renameOpen && (
         <RenameDialog
-          title={`Redenumește ${student.fullName}`}
-          label="Numele elevului"
+          title={t('Redenumește {fullName}', { fullName: student.fullName })}
+          label={t('Numele elevului')}
           initial={student.fullName}
           maxLength={80}
           save={(next) => api.renameStudent(student.id, next)}
@@ -117,7 +118,7 @@ function ClassLink({ cls }: { cls: StudentClass }) {
       {!cls.active && (
         <>
           {' '}
-          <span className="tag">a plecat</span>
+          <span className="tag">{t('a plecat')}</span>
         </>
       )}
     </>
@@ -138,24 +139,24 @@ function YearCard({ cls, history }: { cls: StudentClass; history: StudentHistory
         <h2 id={titleId}>{title}</h2>
       </div>
       {tests.length === 0 ? (
-        <p className="hint history-empty">Niciun test început în această clasă.</p>
+        <p className="hint history-empty">{t('Niciun test început în această clasă.')}</p>
       ) : (
         <>
           <div className="table-wrap">
             <table className="student-results history-table">
-              <caption className="sr-only">Testele din {title}</caption>
+              <caption className="sr-only">{t('Testele din {title}', { title })}</caption>
               <thead>
                 <tr>
-                  <th scope="col">Test</th>
+                  <th scope="col">{t('Test')}</th>
                   <th scope="col" className="num">
-                    Punctaj
+                    {t('Punctaj')}
                   </th>
                   <th scope="col" className="num">
-                    Nota
+                    {t('Nota')}
                   </th>
-                  <th scope="col">Rezultatul</th>
+                  <th scope="col">{t('Rezultatul')}</th>
                   <th scope="col">
-                    <span className="sr-only">Lucrarea</span>
+                    <span className="sr-only">{t('Lucrarea')}</span>
                   </th>
                 </tr>
               </thead>
@@ -180,7 +181,7 @@ function YearCard({ cls, history }: { cls: StudentClass; history: StudentHistory
                       </td>
                       <td className="student-paper">
                         {grade !== undefined && (
-                          <Link to={`/tests/${test.code}/papers/${grade.submissionId}`}>Lucrarea</Link>
+                          <Link to={`/tests/${test.code}/papers/${grade.submissionId}`}>{t('Lucrarea')}</Link>
                         )}
                       </td>
                     </tr>
@@ -191,8 +192,7 @@ function YearCard({ cls, history }: { cls: StudentClass; history: StudentHistory
           </div>
           <p className="class-card-foot">
             <span>
-              <span className="flag-dot" aria-hidden="true"></span> Nota se poate schimba după verificare. „—”: elevul nu
-              a trimis lucrarea.
+              <span className="flag-dot" aria-hidden="true"></span>{' '}{t('Nota se poate schimba după verificare. „—”: elevul nu a trimis lucrarea.')}
             </span>
           </p>
         </>

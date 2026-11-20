@@ -16,6 +16,7 @@ import { NoStudents, orderedStudents } from './GradesTable.tsx';
 import type { StudentLinkState } from '../pages/StudentPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { GradeChip } from '../testPage/GradeChip.tsx';
+import { t } from '../../i18n/t.ts';
 
 // "Elevi" tab of the class page (spec §9): the students on the left (search,
 // an orange dot for points to check, "Adaugă elevi"), one student on the
@@ -67,7 +68,7 @@ export function ClassStudents({
     const add = (
       <button type="button" className="button button-small" onClick={() => setAddOpen(true)}>
         <ActionIcon name="add-person" />
-        Adaugă elevi
+        {t('Adaugă elevi')}
       </button>
     );
     return (
@@ -82,7 +83,7 @@ export function ClassStudents({
     <div className="class-card student-split">
       <div className="student-list">
         <label htmlFor="student-search" className="sr-only">
-          Caută un elev
+          {t('Caută un elev')}
         </label>
         <input
           id="student-search"
@@ -90,12 +91,12 @@ export function ClassStudents({
           className="student-search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Caută un elev"
+          placeholder={t('Caută un elev')}
         />
         {visible.length === 0 ? (
-          <p className="hint student-list-empty">Nu s-a găsit niciun elev.</p>
+          <p className="hint student-list-empty">{t('Nu s-a găsit niciun elev.')}</p>
         ) : (
-          <ul aria-label="Elevii clasei">
+          <ul aria-label={t('Elevii clasei')}>
             {visible.map((student) => (
               <li key={student.id}>
                 <button
@@ -106,7 +107,7 @@ export function ClassStudents({
                 >
                   <span>{student.fullName}</span>
                   {student.ces && <CesTag />}
-                  {waits(student.id) && <span className="flag-dot" role="img" aria-label="puncte de verificat"></span>}
+                  {waits(student.id) && <span className="flag-dot" role="img" aria-label={t('puncte de verificat')}></span>}
                 </button>
               </li>
             ))}
@@ -115,7 +116,7 @@ export function ClassStudents({
         {!readOnly && (
           <button type="button" className="text-button student-add" onClick={() => setAddOpen(true)}>
             <ActionIcon name="add-person" />
-            Adaugă elevi
+            {t('Adaugă elevi')}
           </button>
         )}
         {addDialog}
@@ -142,12 +143,12 @@ export function ClassStudents({
 // The result of one paper for the student: published, not yet (with the link
 // to copy), after the check, or no paper. The student page shows it too.
 export function ResultCell({ grade, studentName }: { grade: ClassGrade | undefined; studentName: string }) {
-  if (grade === undefined) return <span className="hint">Nu a trimis lucrarea.</span>;
+  if (grade === undefined) return <span className="hint">{t('Nu a trimis lucrarea.')}</span>;
   if (grade.status !== 'graded') return <span className="hint">{uploadStatusLabel(grade.status)}</span>;
-  if (!grade.resultsOpen && grade.flagCount > 0) return <span className="hint">După verificare</span>;
+  if (!grade.resultsOpen && grade.flagCount > 0) return <span className="hint">{t('După verificare')}</span>;
   return (
     <>
-      {grade.resultsOpen ? <span className="tag tag-ok">Publicat</span> : <span className="hint">Nepublicat</span>}
+      {grade.resultsOpen ? <span className="tag tag-ok">{t('Publicat')}</span> : <span className="hint">{t('Nepublicat')}</span>}
       {grade.startedAt !== null && (
         <CopyResultLink
           key={grade.submissionId}
@@ -208,7 +209,7 @@ function StudentDetail({
     },
   });
   const askRemove = () => {
-    if (window.confirm(`Ștergi elevul ${student.fullName} din clasă? Lucrările neterminate sau eșuate ale elevului se șterg și ele.`)) {
+    if (window.confirm(t('Ștergi elevul {fullName} din clasă? Lucrările neterminate sau eșuate ale elevului se șterg și ele.', { fullName: student.fullName }))) {
       remove.mutate();
     }
   };
@@ -228,24 +229,24 @@ function StudentDetail({
             {!student.active && (
               <>
                 {' '}
-                <span className="tag">a plecat din clasă</span>
+                <span className="tag">{t('a plecat din clasă')}</span>
               </>
             )}
           </h2>
           <p>
-            {displayClassName(className)} · {countLabel(papers, 'lucrare', 'lucrări')} în {formatSchoolYear(schoolYear)}
+            {t('{displayClassName} · {countLabel} în {formatSchoolYear}', { displayClassName: displayClassName(className), countLabel: countLabel(papers, 'lucrare', 'lucrări'), formatSchoolYear: formatSchoolYear(schoolYear) })}
           </p>
-          {student.ces && <p className="hint">Primește varianta CES a testelor care au una.</p>}
+          {student.ces && <p className="hint">{t('Primește varianta CES a testelor care au una.')}</p>}
         </div>
         {!readOnly && (
           <div className="student-detail-actions">
             <button type="button" className="text-button is-quiet" onClick={() => setRenameOpen(true)}>
               <ActionIcon name="edit" />
-              Redenumește
+              {t('Redenumește')}
             </button>
             <button type="button" className="text-button is-quiet" disabled={ces.isPending} onClick={() => ces.mutate()}>
               <ActionIcon name={student.ces ? 'ces-off' : 'ces'} />
-              {student.ces ? 'Scoate marcajul CES' : 'Marchează CES'}
+              {student.ces ? t('Scoate marcajul CES') : t('Marchează CES')}
             </button>
             <button
               type="button"
@@ -254,12 +255,12 @@ function StudentDetail({
               onClick={() => toggle.mutate()}
             >
               <ActionIcon name={student.active ? 'leave' : 'back-in'} />
-              {student.active ? 'A plecat din clasă' : 'Revine în clasă'}
+              {student.active ? t('A plecat din clasă') : t('Revine în clasă')}
             </button>
             {student.canDelete && (
               <button type="button" className="text-button is-danger" disabled={remove.isPending} onClick={askRemove}>
                 <ActionIcon name="trash" />
-                Șterge
+                {t('Șterge')}
               </button>
             )}
           </div>
@@ -269,23 +270,23 @@ function StudentDetail({
       {ces.error && <ErrorMessage error={ces.error} />}
       {remove.error && <ErrorMessage error={remove.error} />}
       {tests.length === 0 ? (
-        <p className="hint student-detail-empty">Clasa nu are încă teste.</p>
+        <p className="hint student-detail-empty">{t('Clasa nu are încă teste.')}</p>
       ) : (
         <div className="table-wrap">
           <table className="student-results">
-            <caption className="sr-only">Testele lui {student.fullName}</caption>
+            <caption className="sr-only">{t('Testele lui {fullName}', { fullName: student.fullName })}</caption>
             <thead>
               <tr>
-                <th scope="col">Test</th>
+                <th scope="col">{t('Test')}</th>
                 <th scope="col" className="num hide-phone">
-                  Punctaj
+                  {t('Punctaj')}
                 </th>
                 <th scope="col" className="num">
-                  Nota
+                  {t('Nota')}
                 </th>
-                <th scope="col">Rezultatul elevului</th>
+                <th scope="col">{t('Rezultatul elevului')}</th>
                 <th scope="col">
-                  <span className="sr-only">Lucrarea</span>
+                  <span className="sr-only">{t('Lucrarea')}</span>
                 </th>
               </tr>
             </thead>
@@ -297,7 +298,7 @@ function StudentDetail({
                   <tr key={test.code}>
                     <th scope="row">
                       <Link to={`/tests/${test.code}`}>{test.title}</Link>
-                      <span>{test.startedAt === null ? 'ciornă' : formatDayMonth(test.startedAt)}</span>
+                      <span>{test.startedAt === null ? t('ciornă') : formatDayMonth(test.startedAt)}</span>
                     </th>
                     <td className="num hide-phone">
                       {graded && grade.total !== null && grade.maxTotal !== null
@@ -323,7 +324,7 @@ function StudentDetail({
                     </td>
                     <td className="student-paper">
                       {grade !== undefined && (
-                        <Link to={`/tests/${test.code}/papers/${grade.submissionId}`}>Lucrarea</Link>
+                        <Link to={`/tests/${test.code}/papers/${grade.submissionId}`}>{t('Lucrarea')}</Link>
                       )}
                     </td>
                   </tr>
@@ -334,15 +335,15 @@ function StudentDetail({
         </div>
       )}
       <p className="class-card-foot">
-        <span>Elevul vede rezultatul pe linkul lui, după ce îl publici.</span>
+        <span>{t('Elevul vede rezultatul pe linkul lui, după ce îl publici.')}</span>
         <Link to={`/students/${student.id}`} state={{ fromClass: classId } satisfies StudentLinkState}>
-          Toate notele elevului, din toate clasele
+          {t('Toate notele elevului, din toate clasele')}
         </Link>
       </p>
       {renameOpen && (
         <RenameDialog
-          title={`Redenumește ${student.fullName}`}
-          label="Numele elevului"
+          title={t('Redenumește {fullName}', { fullName: student.fullName })}
+          label={t('Numele elevului')}
           initial={student.fullName}
           maxLength={80}
           save={(next) => api.renameStudent(student.id, next)}

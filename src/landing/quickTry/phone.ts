@@ -7,6 +7,8 @@ import type { LandingApi } from './api.ts';
 import type { drawQr } from './qr.ts';
 import type { StoredTry } from './storage.ts';
 import { watchPages } from './watch.ts';
+import { t } from '../../i18n/t.ts';
+import { translateMessage } from '../../../shared/i18n/messages.ts';
 
 export interface PhoneStep {
   // Stops the reads and puts the form back for the next time.
@@ -65,7 +67,7 @@ export function openPhoneStep(
   start.hidden = options.robotBarem;
   $('barem').hidden = !options.robotBarem;
   $('hint').hidden = options.robotBarem;
-  $('idle-text').textContent = PHONE_IDLE_TEXT;
+  $('idle-text').textContent = translateMessage(PHONE_IDLE_TEXT);
 
   form.hidden = true;
   block.hidden = false;
@@ -89,7 +91,7 @@ export function openPhoneStep(
       ...pages.map((page, index) => {
         const item = document.createElement('li');
         const name = document.createElement('span');
-        name.textContent = `Pagina ${index + 1}`;
+        name.textContent = t('Pagina {n}', { n: index + 1 });
         const size = document.createElement('span');
         size.className = 'try-phone-size';
         size.textContent = formatFileSize(page.size);
@@ -140,7 +142,7 @@ export function openPhoneStep(
     files.value = '';
     if (picked.length === 0 || sendingFiles || starting) return;
     error.hidden = true;
-    if (pageCount + picked.length > MAX_STUDENT_FILES) return sayError(`Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`);
+    if (pageCount + picked.length > MAX_STUDENT_FILES) return sayError(t('Poți trimite cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES }));
     for (const file of picked) {
       const problem = fileProblem(file, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE);
       if (problem) return sayError(`${file.name}: ${problem}`);
@@ -151,7 +153,7 @@ export function openPhoneStep(
     const problems: string[] = [];
     try {
       for (const [index, file] of picked.entries()) {
-        progress.textContent = `Se trimit paginile: ${index + 1} din ${picked.length}…`;
+        progress.textContent = t('Se trimit paginile: {v1} din {length}…', { v1: index + 1, length: picked.length });
         progress.hidden = false;
         try {
           await deps.api.addPage(stored.token, file);

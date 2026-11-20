@@ -7,6 +7,7 @@ import { paymentWebhookRoutes } from './routes/payments.ts';
 import { quickTryRoutes } from './routes/quickTry.ts';
 import { runnerRoutes } from './routes/runner.ts';
 import { uploadRoutes } from './routes/upload.ts';
+import { localMessage } from './i18n.ts';
 
 // The whole API. functions/api/[[route]].ts serves it on Cloudflare Pages.
 export function createApp(options: AppOptions = {}): Hono<AppEnv> {
@@ -30,11 +31,11 @@ export function createApp(options: AppOptions = {}): Hono<AppEnv> {
   app.route('/payments', paymentWebhookRoutes());
   app.route('/try', quickTryRoutes(options));
 
-  app.notFound((c) => c.json({ error: 'not_found', message: 'Nu am găsit ce cauți.' }, 404));
+  app.notFound((c) => c.json({ error: 'not_found', message: localMessage(c, 'Nu am găsit ce cauți.') }, 404));
   app.onError((err, c) => {
-    if (err instanceof ApiError) return c.json({ error: err.code, message: err.message }, err.status);
+    if (err instanceof ApiError) return c.json({ error: err.code, message: localMessage(c, err.message) }, err.status);
     console.error('API error:', err instanceof Error ? err.message : String(err));
-    return c.json({ error: 'internal', message: 'A apărut o eroare. Încearcă din nou.' }, 500);
+    return c.json({ error: 'internal', message: localMessage(c, 'A apărut o eroare. Încearcă din nou.') }, 500);
   });
   return app;
 }

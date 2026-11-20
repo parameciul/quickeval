@@ -1,5 +1,6 @@
 import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { PAPER_PHOTO_ID } from '../reviewPage/ReviewPhoto.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The paper's share of the room the exercises and the paper have together:
 // the teacher's own width, kept in this browser. None is today's start width
@@ -171,11 +172,11 @@ export function PhotoSplit({
       className={dragging ? 'photo-split is-dragging' : 'photo-split'}
       role="separator"
       aria-orientation="vertical"
-      aria-label="Lățimea lucrării"
+      aria-label={t('Lățimea lucrării')}
       aria-valuemin={Math.round(range.min * 100)}
       aria-valuemax={Math.round(range.max * 100)}
       aria-valuenow={percent}
-      aria-valuetext={`Lucrarea ia ${percent}% din loc`}
+      aria-valuetext={t('Lucrarea ia {percent}% din loc', { percent })}
       aria-controls={PAPER_PHOTO_ID}
       aria-describedby="photo-split-keys"
       tabIndex={0}
@@ -227,13 +228,12 @@ export function PhotoSplit({
     >
       <span className="photo-split-grip" aria-hidden="true" />
       <span className="photo-split-tip" aria-hidden="true">
-        Trage ca să schimbi lățimea · dublu clic: lățimea de început
+        {t('Trage ca să schimbi lățimea · dublu clic: lățimea de început')}
       </span>
       {/* What the keys do, for the keyboard and screen readers: the tip
           above shows only under the pointer. */}
       <span className="sr-only" id="photo-split-keys">
-        Săgeata stânga lărgește lucrarea, săgeata dreapta o îngustează, cu Shift mai mult. Home: cea mai îngustă. End: cea mai lată. Dublu clic: lățimea de
-        început.
+        {t('Săgeata stânga lărgește lucrarea, săgeata dreapta o îngustează, cu Shift mai mult. Home: cea mai îngustă. End: cea mai lată. Dublu clic: lățimea de început.')}
       </span>
     </div>
   );

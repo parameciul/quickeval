@@ -1,3 +1,4 @@
+import { translateMessage } from './i18n/messages.ts';
 const CLASS_NAME = /^[A-Z0-9]{1,8}$/;
 
 // "6e2", " 6 E2 " and "6E2" all become "6E2". Returns null when the result is
@@ -8,7 +9,7 @@ export function normalizeClassName(raw: string): string | null {
 }
 
 export function displayClassName(name: string): string {
-  return `Clasa ${name}`;
+  return translateMessage(`Clasa ${name}`);
 }
 
 // Sorts "6E2" before "11R1": numbers inside names compare as numbers.

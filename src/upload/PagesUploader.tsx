@@ -16,9 +16,11 @@ import { formatFileSize } from '../ui/format.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { PhotoViewer } from './PhotoViewer.tsx';
 import { jpegName, shrinkPhoto } from './shrink.ts';
+import { t } from '../i18n/t.ts';
+import { translateMessage } from '../../shared/i18n/messages.ts';
 
 const PICK_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
-const TOO_MANY = `Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`;
+const TOO_MANY = t('Poți trimite cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES });
 
 // Where the pages go: a student's upload, or a Quick Try's paper.
 export interface PagesApi {
@@ -169,7 +171,7 @@ export function PagesUploader({
           if (stopped.current) return;
           if (blob !== original) fileName = jpegName(name);
           else if (blob.type !== uploadTypeOf(original)) blob = new Blob([blob], { type: uploadTypeOf(original) });
-          const problem = blob.size === 0 ? EMPTY_FILE : blob.size > MAX_FILE_BYTES ? FILE_TOO_BIG : null;
+          const problem = blob.size === 0 ? translateMessage(EMPTY_FILE) : blob.size > MAX_FILE_BYTES ? translateMessage(FILE_TOO_BIG) : null;
           if (problem) {
             sources.current.delete(key);
             update(key, { state: 'failed', error: problem, canRetry: false });
@@ -274,28 +276,28 @@ export function PagesUploader({
       {heading}
 
       <details className="tips" open={items.length === 0}>
-        <summary>Cum faci poze bune</summary>
+        <summary>{t('Cum faci poze bune')}</summary>
         <ul>
-          <li>Fă pozele la lumină bună, fără umbre pe foaie.</li>
-          <li>Prinde toată pagina în poză.</li>
-          <li>O singură pagină pe fiecare poză.</li>
-          <li>Pune paginile în ordine: prima pagină prima.</li>
+          <li>{t('Fă pozele la lumină bună, fără umbre pe foaie.')}</li>
+          <li>{t('Prinde toată pagina în poză.')}</li>
+          <li>{t('O singură pagină pe fiecare poză.')}</li>
+          <li>{t('Pune paginile în ordine: prima pagină prima.')}</li>
         </ul>
       </details>
 
       <div className="big-actions">
         <label className="button button-big pick-button">
           <ActionIcon name="camera" />
-          Fă o poză
+          {t('Fă o poză')}
           <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={addFiles} />
         </label>
         <label className="button-quiet button-big pick-button">
           <ActionIcon name="upload" />
-          Alege fișiere
+          {t('Alege fișiere')}
           <input type="file" accept={PICK_ACCEPT} multiple className="sr-only" onChange={addFiles} />
         </label>
       </div>
-      <p className="hint">Poze JPG, PNG sau PDF, cel mult {MAX_STUDENT_FILES} de fișiere.</p>
+      <p className="hint">{t('Poze JPG, PNG sau PDF, cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES })}</p>
 
       {notice && (
         <p className="alert" role="alert">
@@ -307,31 +309,31 @@ export function PagesUploader({
         {listTitle} ({items.length})
       </h3>
       {items.length === 0 ? (
-        <p className="hint">Nu ai adăugat încă nicio pagină.</p>
+        <p className="hint">{t('Nu ai adăugat încă nicio pagină.')}</p>
       ) : (
         <ol className="page-list">
           {items.map((item, index) => (
             <li key={item.key} className={`page-item is-${item.state}`}>
               {item.preview ? (
-                <button type="button" className="thumb" onClick={() => setViewingKey(item.key)} aria-label={`Vezi pagina ${index + 1}`}>
-                  <img src={item.preview} alt={`Pagina ${index + 1}`} />
+                <button type="button" className="thumb" onClick={() => setViewingKey(item.key)} aria-label={t('Vezi pagina {n}', { n: index + 1 })}>
+                  <img src={item.preview} alt={t('Pagina {n}', { n: index + 1 })} />
                 </button>
               ) : (
                 <span className="thumb thumb-file" aria-hidden="true">
-                  {item.contentType === PDF_TYPE ? 'PDF' : item.contentType === JPEG_TYPE ? 'JPG' : 'Poză'}
+                  {item.contentType === PDF_TYPE ? 'PDF' : item.contentType === JPEG_TYPE ? 'JPG' : t('Poză')}
                 </span>
               )}
               <span className="page-info">
                 <span className="page-name">{item.name}</span>
                 <span className="hint">{formatFileSize(item.size)}</span>
-                {item.state === 'waiting' && <span>Așteaptă…</span>}
+                {item.state === 'waiting' && <span>{t('Așteaptă…')}</span>}
                 {item.state === 'sending' && (
                   <span>
-                    Se încarcă… {Math.round(item.progress * 100)}%
-                    <progress max={1} value={item.progress} aria-label={`Se încarcă ${item.name}`} />
+                    {t('Se încarcă…')}{' '}{Math.round(item.progress * 100)}%
+                    <progress max={1} value={item.progress} aria-label={t('Se încarcă {name}', { name: item.name })} />
                   </span>
                 )}
-                {item.state === 'sent' && <span className="page-ok">Încărcat</span>}
+                {item.state === 'sent' && <span className="page-ok">{t('Încărcat')}</span>}
                 {item.state === 'failed' && <span className="page-error">{item.error}</span>}
               </span>
               <span className="page-actions">
@@ -345,13 +347,13 @@ export function PagesUploader({
                     }}
                   >
                     <ActionIcon name="retry" />
-                    Încearcă din nou
+                    {t('Încearcă din nou')}
                   </button>
                 )}
                 {item.state !== 'sending' && item.state !== 'waiting' && (
-                  <button type="button" className="button-quiet button-small" onClick={() => remove(item)} aria-label={`Șterge pagina ${index + 1}`}>
+                  <button type="button" className="button-quiet button-small" onClick={() => remove(item)} aria-label={t('Șterge pagina {v1}', { v1: index + 1 })}>
                     <ActionIcon name="trash" />
-                    Șterge
+                    {t('Șterge')}
                   </button>
                 )}
               </span>
@@ -361,15 +363,15 @@ export function PagesUploader({
       )}
 
       <div className="send-all">
-        {hasFailed && <p className="hint">Încearcă din nou sau șterge paginile cu eroare.</p>}
-        {!hasFailed && items.length > 0 && !allSent && <p className="hint">Așteaptă să se încarce toate paginile.</p>}
+        {hasFailed && <p className="hint">{t('Încearcă din nou sau șterge paginile cu eroare.')}</p>}
+        {!hasFailed && items.length > 0 && !allSent && <p className="hint">{t('Așteaptă să se încarce toate paginile.')}</p>}
         <button type="button" className="button button-big" disabled={!allSent || finishing} onClick={finish}>
           <ActionIcon name="send" />
           {finishLabel}
         </button>
       </div>
 
-      {viewing?.preview && <PhotoViewer src={viewing.preview} label={`Pagina ${viewingIndex + 1}`} onClose={() => setViewingKey(null)} />}
+      {viewing?.preview && <PhotoViewer src={viewing.preview} label={t('Pagina {n}', { n: viewingIndex + 1 })} onClose={() => setViewingKey(null)} />}
     </section>
   );
 }

@@ -10,6 +10,8 @@ import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf } from './status.ts';
 import { forgetStoredTry, readStoredTry, saveStoredTry, type StoredTry } from './storage.ts';
+import { t } from '../../i18n/t.ts';
+import { initAccountLinks, showAccount } from '../account.ts';
 
 // The Turnstile check in the form: its answer once the visitor passed it,
 // and a new check (an answer is good for one send).
@@ -38,25 +40,19 @@ export interface QuickTryDeps {
   watchPhone?: (onChange: () => void) => void;
   // Ends the page's own listeners (tests mount the page again and again).
   signal?: AbortSignal;
+  // Asks whether a teacher is logged in, when the availability gave no answer.
+  checkAccount?: (root: ParentNode) => Promise<void>;
 }
 
 const onAPhone = () => window.matchMedia?.(PHONE_MEDIA).matches ?? false;
 
 const FULL_TEXT =
-  'Încercările gratuite de azi s-au terminat. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.';
-const USED_TEXT = 'Ai făcut încercarea de azi. Mâine poți face alta.';
-const NO_CHECK_TEXT = 'Verificarea nu s-a putut încărca. Reîncarcă pagina și încearcă din nou.';
+  t('Încercările gratuite de azi s-au terminat. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.');
+const USED_TEXT = t('Ai făcut încercarea de azi. Mâine poți face alta.');
+const NO_CHECK_TEXT = t('Verificarea nu s-a putut încărca. Reîncarcă pagina și încearcă din nou.');
 
 const tryPath = (token: string) => `/try/${token}`;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-// A logged-in teacher sees the link to the account where a visitor sees the
-// login and the new-account link. The page is served signed out, so a crawler
-// and a browser without the API's answer keep the login.
-export function showAccount(root: ParentNode, signedIn: boolean): void {
-  for (const el of root.querySelectorAll<HTMLElement>('[data-guest]')) el.hidden = signedIn;
-  for (const el of root.querySelectorAll<HTMLElement>('[data-member]')) el.hidden = !signedIn;
-}
 
 function openDialog(dialog: HTMLDialogElement): void {
   if (typeof dialog.showModal === 'function') dialog.showModal();
@@ -86,12 +82,12 @@ function showPick(input: HTMLInputElement, chosen: File[]): void {
   if (chosen.length === 0) {
     name.textContent = row.dataset.empty ?? '';
     hint.textContent = row.dataset.hint ?? '';
-    action.textContent = input.multiple ? 'Alege fișierele' : 'Alege fișierul';
+    action.textContent = input.multiple ? t('Alege fișierele') : t('Alege fișierul');
     return;
   }
   name.textContent = input.multiple ? countLabel(chosen.length, 'pagină', 'pagini') : chosen[0]!.name;
   hint.textContent = input.multiple ? chosen.map((file) => file.name).join(', ') : formatFileSize(chosen[0]!.size);
-  action.textContent = 'Schimbă';
+  action.textContent = t('Schimbă');
 }
 
 // The landing page's Quick Try (spec §3.1, §3.2): its buttons (the hero's,
@@ -161,7 +157,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     if (timer) clearTimeout(timer);
     statusLink.href = tryPath(current.token);
     const expires = new Date(Date.parse(current.madeAt) + QUICK_TRY_DAYS * DAY_MS).toISOString();
-    statusMeta.textContent = `Trimisă ${formatDateTime(current.madeAt)} · Linkul merge până pe ${formatDate(expires)}`;
+    statusMeta.textContent = t('Trimisă {formatDateTime} · Linkul merge până pe {formatDate}', { formatDateTime: formatDateTime(current.madeAt), formatDate: formatDate(expires) });
     try {
       const detail = await deps.api.getTest(current.token, current.code);
       if (stored !== current) return;
@@ -189,7 +185,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
         show(status);
         statusChip.textContent = '';
         statusChip.className = 'try-chip';
-        statusText.textContent = 'Nu am putut citi încercarea acum.';
+        statusText.textContent = t('Nu am putut citi încercarea acum.');
       }
     }
     refreshButton();
@@ -251,8 +247,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     pagesInput.value = '';
     const row = pagesInput.closest<HTMLElement>('[data-try-pick]')!;
     row.classList.add('is-chosen', 'is-phone');
-    row.querySelector<HTMLElement>('[data-try-pick-name]')!.textContent = here ? 'Faci pozele cu acest telefon' : 'Faci pozele cu telefonul';
-    row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = here ? 'Camera se deschide după ce apeși Trimite' : 'Codul QR apare după ce apeși Trimite';
+    row.querySelector<HTMLElement>('[data-try-pick-name]')!.textContent = here ? t('Faci pozele cu acest telefon') : t('Faci pozele cu telefonul');
+    row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = here ? t('Camera se deschide după ce apeși Trimite') : t('Codul QR apare după ce apeși Trimite');
   }
 
   // The pages row's phone button, for this device. The markup keeps it hidden
@@ -260,7 +256,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   function applyDevice(): void {
     here = (deps.isPhone ?? onAPhone)();
     phonePick.classList.toggle('is-here', here);
-    phonePick.querySelector<HTMLElement>('[data-try-phone-pick-text]')!.textContent = here ? 'Fă poze' : 'Cu telefonul';
+    phonePick.querySelector<HTMLElement>('[data-try-phone-pick-text]')!.textContent = here ? t('Fă poze') : t('Cu telefonul');
     if (byPhone) choosePhone(true);
     else phonePick.hidden = false;
   }
@@ -321,7 +317,7 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       check = widget ? await widget.catch(() => null) : null;
       if (!check) return sayError(NO_CHECK_TEXT);
       answer = check.token();
-      if (!answer) return sayError('Așteaptă să se termine verificarea de mai jos, apoi trimite din nou.');
+      if (!answer) return sayError(t('Așteaptă să se termine verificarea de mai jos, apoi trimite din nou.'));
     }
     sending = true;
     sendButton.disabled = true;
@@ -407,6 +403,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   if (answer.status === 'fulfilled') {
     availability = answer.value;
     showAccount(root, availability.signedIn);
+  } else {
+    void (deps.checkAccount ?? initAccountLinks)(root);
   }
   refreshButton();
 }

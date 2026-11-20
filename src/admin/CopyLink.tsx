@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type RefObject } from 'react';
+import { t } from '../i18n/t.ts';
 
 // Copies a link. When the browser refuses, `refused` turns on and the field
 // of `CopyRefused` gets the focus with the link selected, to copy by hand.
@@ -29,7 +30,7 @@ export function CopyRefused({ field, url, label }: { field: RefObject<HTMLInputE
   return (
     <span className="result-share-box">
       <span className="hint" id={hintId}>
-        Nu am putut copia linkul. Copiază-l de aici.
+        {t('Nu am putut copia linkul. Copiază-l de aici.')}
       </span>
       <input
         ref={field}

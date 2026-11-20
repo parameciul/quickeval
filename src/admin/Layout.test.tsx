@@ -186,7 +186,15 @@ describe('the shell', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ieși din cont' }));
     expect(api.logout).toHaveBeenCalled();
     await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/teacher/'));
+    expect(localStorage.getItem('quickeval.signedIn')).toBeNull();
     vi.restoreAllMocks();
+  });
+
+  it('tells the public pages that a teacher is logged in, so they show the account link first', async () => {
+    localStorage.removeItem('quickeval.signedIn');
+    renderAdmin('/', withClasses());
+    await screen.findByRole('button', { name: /contul tău/ });
+    expect(localStorage.getItem('quickeval.signedIn')).toBe('1');
   });
 
   it('closes the account menu on Esc and on a click outside it', async () => {

@@ -1,5 +1,6 @@
 import type { ClassReport, ReportRow } from './api.ts';
 import type { TestVariant } from './files.ts';
+import { type MessageLang, pageLang } from './i18n/messages.ts';
 import { round2, toCents } from './scoring.ts';
 
 // The statistics of the class report (spec §14.2): pure functions of the
@@ -113,10 +114,11 @@ function exerciseStats(table: Pick<ReportTable, 'exercises' | 'rows'>): Exercise
 
 // How many grades fall in each group of GRADE_GROUPS, in its order: the class
 // report's "Notele pe grupe", and the bars of "Raportul clasei" in Rezultate.
-export function gradeGroups(grades: readonly number[]): { label: string; count: number }[] {
+// The labels have a decimal point in English: "5-6.99".
+export function gradeGroups(grades: readonly number[], lang: MessageLang = pageLang()): { label: string; count: number }[] {
   return GRADE_GROUPS.map((group, index) => {
     const until = GRADE_GROUPS[index + 1]?.from ?? Infinity;
-    return { label: group.label, count: grades.filter((grade) => grade >= group.from && grade < until).length };
+    return { label: lang === 'en' ? group.label.replace(',', '.') : group.label, count: grades.filter((grade) => grade >= group.from && grade < until).length };
   });
 }
 

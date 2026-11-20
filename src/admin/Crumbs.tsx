@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { t } from '../i18n/t.ts';
 
 export interface Crumb {
   label: string;
@@ -10,7 +11,7 @@ export interface Crumb {
 // the last a link. It replaces the old "← Toate testele" and the class tag.
 export function Crumbs({ items }: { items: Crumb[] }) {
   return (
-    <nav className="crumbs" aria-label="Unde ești">
+    <nav className="crumbs" aria-label={t('Unde ești')}>
       <ol>
         {items.map((item, index) => (
           <li key={`${index}:${item.label}`}>

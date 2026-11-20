@@ -176,7 +176,7 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const object = test.ces.print.status === 'ready' && test.ces.print.key ? await c.env.FILES.get(test.ces.print.key) : null;
     if (!object) throw notFound();
-    return fileResponse(object, `${test.summary.code}-CES-cu-cod-qr.pdf`, PDF_TYPE);
+    return fileResponse(object, `${test.summary.code}-CES-cu-cod-qr.pdf`, PDF_TYPE); // i18n-ignore: a file name
   });
 
   routes.post('/:code/sen/print/retry', async (c) => {

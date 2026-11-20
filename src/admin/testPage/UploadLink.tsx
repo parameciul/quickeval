@@ -2,6 +2,7 @@ import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState } from 'react';
 import { saveFile } from '../pdf/share.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The address students open: https://<host>/u/<token>.
 export function uploadLink(token: string): string {
@@ -42,9 +43,9 @@ export function QrDownload({ url, fileName }: { url: string; fileName: string })
         }}
       >
         <ActionIcon name="download" />
-        Descarcă codul QR
+        {t('Descarcă codul QR')}
       </button>
-      {failed && <span role="status">Nu am putut descărca codul QR.</span>}
+      {failed && <span role="status">{t('Nu am putut descărca codul QR.')}</span>}
     </>
   );
 }
@@ -66,12 +67,12 @@ export function QrOverlay({ url, onClose }: { url: string; onClose: () => void }
   }, [onClose]);
 
   return (
-    <div className="qr-overlay" role="dialog" aria-modal="true" aria-label="Codul QR pentru elevi">
-      <QRCodeSVG value={url} size={1024} marginSize={4} title="Codul QR al linkului" className="qr-big" />
+    <div className="qr-overlay" role="dialog" aria-modal="true" aria-label={t('Codul QR pentru elevi')}>
+      <QRCodeSVG value={url} size={1024} marginSize={4} title={t('Codul QR al linkului')} className="qr-big" />
       <p className="qr-url">{url}</p>
       <button ref={close} type="button" className="button" onClick={onClose}>
         <ActionIcon name="close" />
-        Închide
+        {t('Închide')}
       </button>
     </div>
   );

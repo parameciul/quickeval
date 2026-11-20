@@ -9,6 +9,7 @@ import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { publishedHow, TICKET_HOW, TICKET_HOW_NO_CODE, TICKET_TITLE } from './ResultTicket.tsx';
 import { useSaveTicket } from './SaveTicket.tsx';
 import { shareLink } from './shareLink.ts';
+import { t } from '../i18n/t.ts';
 
 type ShareState = 'idle' | 'copied' | 'manual';
 
@@ -75,36 +76,36 @@ export function ResultActions({ result, url }: { result: StudentResultView; url:
       <div className="result-actions-row">
         <button type="button" className="button-quiet button-small" onClick={() => void sendLink()}>
           <ActionIcon name="share" />
-          Trimite linkul
+          {t('Trimite linkul')}
         </button>
         {save.button}
         {pdfInput && (
           <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => void downloadPdf()}>
             <ActionIcon name="file" />
-            Descarcă PDF
+            {t('Descarcă PDF')}
           </button>
         )}
       </div>
       {share === 'copied' && (
         <p role="status" className="hint">
-          Linkul a fost copiat.
+          {t('Linkul a fost copiat.')}
         </p>
       )}
       {share === 'manual' && (
         <div role="status">
-          <p className="hint">Copiază linkul de aici:</p>
+          <p className="hint">{t('Copiază linkul de aici:')}</p>
           <p className="result-link-url">{url}</p>
         </div>
       )}
       {save.note}
       {busy && (
         <p role="status" className="hint">
-          Se face PDF-ul…
+          {t('Se face PDF-ul…')}
         </p>
       )}
       {pdfFailed && (
         <p role="alert" className="alert">
-          Nu am putut face PDF-ul. Încearcă din nou.
+          {t('Nu am putut face PDF-ul. Încearcă din nou.')}
         </p>
       )}
     </div>

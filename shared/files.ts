@@ -1,5 +1,6 @@
 // File rules shared by the API, the teacher app, and the student app: types,
 // limits, and the R2 keys of a test's "cloud folder" (spec §7.2).
+import { translateMessage } from './i18n/messages.ts';
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 export const MAX_STUDENT_FILES = 20;
@@ -86,9 +87,10 @@ export function fileProblem(
   allowedTypes: readonly string[],
   wrongTypeMessage: string,
 ): string | null {
-  if (!allowedTypes.includes(uploadTypeOf(file))) return wrongTypeMessage;
-  if (file.size === 0) return EMPTY_FILE;
-  if (file.size > MAX_FILE_BYTES) return FILE_TOO_BIG;
+  // In the page's language when a page checks the file; Romanian on the server.
+  if (!allowedTypes.includes(uploadTypeOf(file))) return translateMessage(wrongTypeMessage);
+  if (file.size === 0) return translateMessage(EMPTY_FILE);
+  if (file.size > MAX_FILE_BYTES) return translateMessage(FILE_TOO_BIG);
   return null;
 }
 

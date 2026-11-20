@@ -29,8 +29,11 @@ export function isValidCorrection(points: number, maxPoints: number): boolean {
 }
 
 const POINTS = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 });
+const POINTS_EN = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 2 });
 
-// Romanian numbers in messages: "9,5", "10".
+// Numbers in the page's language: Romanian "9,5", English "9.5". The server
+// has no page and writes Romanian.
 export function formatPoints(value: number): string {
-  return POINTS.format(value);
+  const english = typeof document !== 'undefined' && document.documentElement.lang.toLowerCase().startsWith('en');
+  return (english ? POINTS_EN : POINTS).format(value);
 }

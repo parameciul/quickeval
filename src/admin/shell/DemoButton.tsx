@@ -4,10 +4,11 @@ import type { Teacher } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
 import { DemoMeters, demoLine, demoUsage, type DemoUsage } from '../account/DemoMeters.tsx';
 import { useSmallMenu } from './useSmallMenu.ts';
+import { t } from '../../i18n/t.ts';
 
 // "Demo · 15 lucrări rămase".
 export function demoButtonText(usage: DemoUsage): string {
-  return `Demo · ${countLabel(usage.papersLeft, 'lucrare rămasă', 'lucrări rămase')}`;
+  return `Demo · ${countLabel(usage.papersLeft, 'lucrare rămasă', 'lucrări rămase')}`; // i18n-ignore: "Demo" in both languages
 }
 
 // The demo account's button in the top bar (redesign spec §11.6): a small
@@ -33,9 +34,9 @@ export function DemoButton({ teacher }: { teacher: Teacher }) {
         {demoButtonText(usage)}
       </button>
       {open && (
-        <section className="demo-menu" id="demo-menu" aria-label="Cont demo">
+        <section className="demo-menu" id="demo-menu" aria-label={t('Cont demo')}>
           <DemoSummary usage={usage} />
-          <Link to="/account">Contul meu</Link>
+          <Link to="/account">{t('Contul meu')}</Link>
         </section>
       )}
     </div>
@@ -47,7 +48,7 @@ export function DemoButton({ teacher }: { teacher: Teacher }) {
 export function DemoSummary({ usage }: { usage: DemoUsage }) {
   return (
     <>
-      <p className="demo-title">Cont demo</p>
+      <p className="demo-title">{t('Cont demo')}</p>
       <DemoMeters usage={usage} />
       <p className={usage.papersLeft === 0 ? 'demo-line' : 'demo-line is-muted'}>{demoLine(usage)}</p>
     </>

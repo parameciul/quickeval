@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ro">
+<html lang="ro" data-twin="/en/marking-scheme/">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -7,11 +7,15 @@
     <title>Baremul de corectare: ce este · MQGrader</title>
     <meta name="description" content="Ce este baremul de corectare, de unde vine la un test de clasă, cum arată un barem bun și cum obții unul în MQGrader, confirmat de tine." />
     <link rel="canonical" href="https://mqgrader.ro/marking-scheme/" />
+    <link rel="alternate" hreflang="ro" href="https://mqgrader.ro/marking-scheme/" />
+    <link rel="alternate" hreflang="en" href="https://mqgrader.ro/en/marking-scheme/" />
+    <link rel="alternate" hreflang="x-default" href="https://mqgrader.ro/marking-scheme/" />
     <meta name="theme-color" content="#ffffff" />
     <meta name="author" content="Laura Miron" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="MQGrader" />
     <meta property="og:locale" content="ro_RO" />
+    <meta property="og:locale:alternate" content="en_GB" />
     <meta property="og:url" content="https://mqgrader.ro/marking-scheme/" />
     <meta property="og:title" content="Baremul de corectare: ce este" />
     <meta property="og:description" content="De unde vine baremul unui test, cum arată unul bun și cum obții unul în MQGrader." />
@@ -127,6 +131,7 @@
         ]
       }
     </script>
+    <script src="/lang.js"></script>
     <script src="/theme.js"></script>
     <script src="https://stats.mqgrader.ro/api/script.js?siteId=b5be2803e8ab" defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -153,8 +158,10 @@
             <a href="/pricing/">Cât costă</a>
             </div>
             <button class="icon nav-btn" type="button" data-nav-toggle aria-expanded="false" aria-controls="nav-pages" aria-label="Mai multe pagini"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+            <a class="icon lang-switch" href="/en/marking-scheme/" hreflang="en" lang="en" data-lang-switch="en" aria-label="English">EN</a>
             <button class="icon" type="button" data-theme-toggle aria-label="Temă întunecată"><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg></button>
             <a class="btn btn-small" href="/teacher/" data-guest>Intră în cont</a>
+            <a class="btn btn-small" href="/teacher/" data-member hidden>Contul tău</a>
           </nav>
         </div>
       </header>

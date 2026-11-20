@@ -9,6 +9,7 @@ import {
 import { cleanTitle, MAX_TITLE_LENGTH } from '../../../shared/tests.ts';
 import type { LandingApi } from './api.ts';
 import type { StoredTry } from './storage.ts';
+import { t } from '../../i18n/t.ts';
 
 // What the form holds (spec §3.2): the try's name, the test, her barem or
 // the robot's, and the student's pages.
@@ -29,18 +30,18 @@ export interface TryForm {
 // are checked like the app's: the test and barem like a teacher's, the
 // pages like a student's.
 export function formProblem(form: TryForm): string | null {
-  if (!form.test) return 'Alege fișierul testului.';
+  if (!form.test) return t('Alege fișierul testului.');
   const test = fileProblem(form.test, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
-  if (test) return `Testul: ${test}`;
+  if (test) return t('Testul: {test}', { test });
   if (form.barem) {
     const barem = fileProblem(form.barem, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
-    if (barem) return `Baremul: ${barem}`;
+    if (barem) return t('Baremul: {barem}', { barem });
   } else if (!form.robotBarem) {
-    return 'Alege fișierul baremului sau cere ca baremul să fie făcut din test.';
+    return t('Alege fișierul baremului sau cere ca baremul să fie făcut din test.');
   }
   if (form.byPhone) return null;
-  if (form.pages.length === 0) return 'Alege pozele sau PDF-ul lucrării.';
-  if (form.pages.length > MAX_STUDENT_FILES) return `Poți trimite cel mult ${MAX_STUDENT_FILES} de fișiere.`;
+  if (form.pages.length === 0) return t('Alege pozele sau PDF-ul lucrării.');
+  if (form.pages.length > MAX_STUDENT_FILES) return t('Poți trimite cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES });
   for (const page of form.pages) {
     const problem = fileProblem(page, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE);
     if (problem) return `${page.name}: ${problem}`;
@@ -76,27 +77,27 @@ export async function sendTry(
   events: SendEvents,
   now: () => Date = () => new Date(),
 ): Promise<StoredTry> {
-  events.onProgress('Se pregătește încercarea…');
+  events.onProgress(t('Se pregătește încercarea…'));
   const { token, code } = await api.create(turnstileToken, tryTitle(form));
   const stored: StoredTry = { token, code, madeAt: now().toISOString() };
   events.onCreated(stored);
-  events.onProgress('Se trimite testul…');
+  events.onProgress(t('Se trimite testul…'));
   await api.uploadTestFile(token, code, 'test', form.test!);
   if (form.barem) {
-    events.onProgress('Se trimite baremul…');
+    events.onProgress(t('Se trimite baremul…'));
     await api.uploadTestFile(token, code, 'barem', form.barem);
   } else {
-    events.onProgress('Se cere baremul…');
+    events.onProgress(t('Se cere baremul…'));
     await api.generateBarem(token, code);
   }
   // With the phone, the QR window takes the pages and starts the grading.
   if (form.byPhone) return stored;
   for (const [index, page] of form.pages.entries()) {
-    events.onProgress(`Se trimit paginile lucrării: ${index + 1} din ${form.pages.length}…`);
+    events.onProgress(t('Se trimit paginile lucrării: {v1} din {length}…', { v1: index + 1, length: form.pages.length }));
     await api.addPage(token, page);
   }
   if (form.barem) {
-    events.onProgress('Se pornește corectarea…');
+    events.onProgress(t('Se pornește corectarea…'));
     await api.start(token);
   }
   return stored;

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { boxInPane, type PageBox, type ZoomView } from './zoom.ts';
+import { t } from '../../i18n/t.ts';
 
 // Room above a border, as a share of the pane, for its label to sit outside it.
 const LABEL_ROOM = 0.08;
@@ -26,7 +27,7 @@ export function AnswerFrame({ view, box, label, parts }: { view: ZoomView; box: 
       <span className={below ? 'answer-frame-label is-below' : 'answer-frame-label'}>
         {label}
         {parts !== undefined && (
-          <span className="answer-parts" role="group" aria-label="Părțile răspunsului" onPointerDown={stop} onPointerUp={stop} onClick={stop}>
+          <span className="answer-parts" role="group" aria-label={t('Părțile răspunsului')} onPointerDown={stop} onPointerUp={stop} onClick={stop}>
             {parts}
           </span>
         )}

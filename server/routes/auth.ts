@@ -1,5 +1,7 @@
+import { localEmail } from '../i18n.ts';
 import { Hono } from 'hono';
-import { confirmEmailBody, forgotPasswordBody, loginBody, resetPasswordBody, signupBody } from '../../shared/api.ts';
+import { confirmEmailBody, forgotPasswordBody, loginBody, resetPasswordBody, signupBody, type AuthSession } from '../../shared/api.ts';
+import { optionalTeacher } from '../auth/teacherAuth.ts';
 import { clearSessionCookie, deviceToken, SESSION_DAYS, sessionToken, setDeviceCookie, setSessionCookie } from '../auth/session.ts';
 import {
   adminEmails,
@@ -83,7 +85,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
       const confirmUrl = `${new URL(c.req.url).origin}/teacher/confirm-email#${confirmToken}`;
       inBackground(
         c,
-        sendEmail(c.env, {
+        sendEmail(c.env, localEmail(c, {
           to: [body.email],
           subject: 'MQGrader: confirmă adresa de email',
           text: [
@@ -95,7 +97,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
             `Linkul merge ${CONFIRM_HOURS} de ore. După confirmare, un administrator aprobă contul.`,
             'Dacă nu ai cerut tu contul, ignoră acest email.',
           ].join('\n'),
-        }),
+        })),
       );
     }
     return c.json({ status: 'pending' }, 201);
@@ -126,7 +128,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
     inBackground(
       c,
       adminEmails(c.env.DB).then((to) =>
-        sendEmail(c.env, {
+        sendEmail(c.env, localEmail(c, {
           to,
           subject: 'MQGrader: cont nou de aprobat',
           text: [
@@ -137,7 +139,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
             '',
             `Aprobă sau refuză contul pe pagina Setări: ${settingsUrl}`,
           ].join('\n'),
-        }),
+        })),
       ),
     );
     return c.json({ confirmed: true });
@@ -216,7 +218,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
       const url = `${new URL(c.req.url).origin}/teacher/new-password#${token}`;
       inBackground(
         c,
-        sendEmail(c.env, {
+        sendEmail(c.env, localEmail(c, {
           to: [body.email],
           subject: 'MQGrader: parolă nouă',
           text: [
@@ -228,7 +230,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
             `Linkul merge ${RESET_HOURS} oră și o singură dată.`,
             'Dacă nu ai cerut tu, ignoră acest email: parola ta rămâne cea veche.',
           ].join('\n'),
-        }),
+        })),
       );
     }
     return c.json({ status: 'sent' });
@@ -246,7 +248,7 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (!changed) throw badLink();
     inBackground(
       c,
-      sendEmail(c.env, {
+      sendEmail(c.env, localEmail(c, {
         to: [changed.email],
         subject: 'MQGrader: parola a fost schimbată',
         text: [
@@ -255,9 +257,17 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
           'Parola contului tău MQGrader tocmai a fost schimbată cu linkul din email.',
           'Dacă nu ai făcut tu asta, scrie imediat unui administrator.',
         ].join('\n'),
-      }),
+      })),
     );
     return c.json({ reset: true });
+  });
+
+  // Whether a teacher is logged in on this browser: the public pages' header
+  // shows the account link instead of the login. No cookie costs no query.
+  routes.get('/session', async (c) => {
+    const answer: AuthSession = { signedIn: (await optionalTeacher(c)) !== null };
+    c.header('Cache-Control', 'no-store');
+    return c.json(answer);
   });
 
   routes.post('/logout', async (c) => {

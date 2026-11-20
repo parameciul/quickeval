@@ -50,6 +50,10 @@ describe('gradeGroups', () => {
     ]);
   });
 
+  it('writes the groups with a decimal point in English', () => {
+    expect(gradeGroups([5], 'en').map((group) => group.label)).toEqual(['1-4.99', '5-6.99', '7-8.99', '9-10']);
+  });
+
   it('has every group, empty, without grades', () => {
     expect(gradeGroups([]).map((group) => group.count)).toEqual([0, 0, 0, 0]);
   });

@@ -2,9 +2,10 @@ import type { TestSummary } from '../../../shared/api.ts';
 import { countLabel } from '../../ui/format.ts';
 import { missingNames, missingNote, missingOf } from '../missing.ts';
 import { reviewPath } from '../reviewPage/points.ts';
+import { t } from '../../i18n/t.ts';
 
 // The task of a test that misses a part (missingOf).
-export const MISSING_TASK = 'Adaugă ce lipsește';
+export const MISSING_TASK = t('Adaugă ce lipsește');
 
 export type TodoStage = 'Pregătire' | 'Verificare' | 'Rezultate';
 
@@ -51,10 +52,10 @@ export function todoOf(test: TestSummary): TodoItem | null {
     return {
       ...item,
       stage: 'Rezultate',
-      task: 'Rezultate publicate pe un test arhivat',
-      text: 'Elevii își văd rezultatele. Oprește accesul sau scoate testul din arhivă.',
-      action: 'Deschide',
-      short: 'publicate · test arhivat',
+      task: t('Rezultate publicate pe un test arhivat'),
+      text: t('Elevii își văd rezultatele. Oprește accesul sau scoate testul din arhivă.'),
+      action: t('Deschide'),
+      short: t('publicate · test arhivat'),
     };
   }
   const preparing = (test.status === 'draft' || test.status === 'open') && test.barem.unchecked;
@@ -62,20 +63,20 @@ export function todoOf(test: TestSummary): TodoItem | null {
     return {
       ...item,
       stage: 'Pregătire',
-      task: 'Verifică baremul generat',
-      text: 'Până îl confirmi, baremul nu se folosește la corectare.',
-      action: 'Deschide',
-      short: 'baremul de verificat',
+      task: t('Verifică baremul generat'),
+      text: t('Până îl confirmi, baremul nu se folosește la corectare.'),
+      action: t('Deschide'),
+      short: t('baremul de verificat'),
     };
   }
   if (preparing && test.barem.request === 'failed') {
     return {
       ...item,
       stage: 'Pregătire',
-      task: 'Generează din nou baremul',
-      text: 'Baremul nu s-a putut genera din nou. Fără el, testul nu se poate corecta.',
-      action: 'Deschide',
-      short: 'baremul nu s-a generat',
+      task: t('Generează din nou baremul'),
+      text: t('Baremul nu s-a putut genera din nou. Fără el, testul nu se poate corecta.'),
+      action: t('Deschide'),
+      short: t('baremul nu s-a generat'),
     };
   }
   const ces = test.status !== 'done' && test.cesBarem !== null && test.cesBarem.unchecked ? test.cesBarem : null;
@@ -83,30 +84,30 @@ export function todoOf(test: TestSummary): TodoItem | null {
     return {
       ...item,
       stage: 'Pregătire',
-      task: 'Verifică baremul CES generat',
-      text: 'Până îl confirmi, lucrările CES nu se corectează.',
-      action: 'Deschide',
-      short: 'baremul CES de verificat',
+      task: t('Verifică baremul CES generat'),
+      text: t('Până îl confirmi, lucrările CES nu se corectează.'),
+      action: t('Deschide'),
+      short: t('baremul CES de verificat'),
     };
   }
   if (ces && ces.request === 'failed') {
     return {
       ...item,
       stage: 'Pregătire',
-      task: 'Generează din nou baremul CES',
-      text: 'Baremul CES nu s-a putut genera din nou. Fără el, lucrările CES nu se corectează.',
-      action: 'Deschide',
-      short: 'baremul CES nu s-a generat',
+      task: t('Generează din nou baremul CES'),
+      text: t('Baremul CES nu s-a putut genera din nou. Fără el, lucrările CES nu se corectează.'),
+      action: t('Deschide'),
+      short: t('baremul CES nu s-a generat'),
     };
   }
   if (test.status === 'evaluating' && test.cesBarem?.missing) {
     return {
       ...item,
       stage: 'Pregătire',
-      task: 'Încarcă baremul CES',
-      text: 'Lucrările CES așteaptă baremul CES. Celelalte lucrări se corectează între timp.',
-      action: 'Deschide',
-      short: 'baremul CES lipsește',
+      task: t('Încarcă baremul CES'),
+      text: t('Lucrările CES așteaptă baremul CES. Celelalte lucrări se corectează între timp.'),
+      action: t('Deschide'),
+      short: t('baremul CES lipsește'),
     };
   }
   const missing = missingOf(test);
@@ -115,8 +116,8 @@ export function todoOf(test: TestSummary): TodoItem | null {
       ...item,
       stage: 'Pregătire',
       task: MISSING_TASK,
-      text: `${missing.length === 1 ? 'Lipsește' : 'Lipsesc'}: ${missingNames(missing)}.`,
-      action: 'Deschide',
+      text: `${missing.length === 1 ? t('Lipsește') : t('Lipsesc')}: ${missingNames(missing)}.`,
+      action: t('Deschide'),
       short: missingNote(missing),
     };
   }
@@ -124,9 +125,9 @@ export function todoOf(test: TestSummary): TodoItem | null {
     return {
       ...item,
       stage: 'Verificare',
-      task: `Decide ${countLabel(test.flagCount, 'punct nesigur', 'puncte nesigure')}`,
-      text: `${countLabel(test.gradedCount, 'lucrare corectată', 'lucrări corectate')}. Punctele nesigure te așteaptă pe tine.`,
-      action: 'Începe',
+      task: t('Decide {countLabel}', { countLabel: countLabel(test.flagCount, 'punct nesigur', 'puncte nesigure') }),
+      text: t('{countLabel}. Punctele nesigure te așteaptă pe tine.', { countLabel: countLabel(test.gradedCount, 'lucrare corectată', 'lucrări corectate') }),
+      action: t('Începe'),
       short: countLabel(test.flagCount, 'punct nesigur', 'puncte nesigure'),
     };
   }
@@ -134,11 +135,11 @@ export function todoOf(test: TestSummary): TodoItem | null {
     return {
       ...item,
       stage: 'Rezultate',
-      task: 'Publică rezultatele',
-      text: `${countLabel(test.gradedCount, 'lucrare verificată', 'lucrări verificate')}. Fiecare elev primește linkul lui după ce publici.`,
-      action: 'Deschide',
+      task: t('Publică rezultatele'),
+      text: t('{countLabel}. Fiecare elev primește linkul lui după ce publici.', { countLabel: countLabel(test.gradedCount, 'lucrare verificată', 'lucrări verificate') }),
+      action: t('Deschide'),
       // Published one by one for some students: say for how many.
-      short: test.publishedCount > 0 ? `publicate pentru ${countLabel(test.publishedCount, 'elev', 'elevi')}` : 'nepublicate',
+      short: test.publishedCount > 0 ? t('publicate pentru {countLabel}', { countLabel: countLabel(test.publishedCount, 'elev', 'elevi') }) : t('nepublicate'),
     };
   }
   return null;

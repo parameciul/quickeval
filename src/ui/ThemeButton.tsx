@@ -1,12 +1,13 @@
 import { otherTheme } from './theme.ts';
 import { useTheme } from './useTheme.ts';
+import { t } from '../i18n/t.ts';
 
 // Shows a moon in light mode and a sun in dark mode: the icon offers the other theme.
 export function ThemeButton() {
   const { theme, toggle } = useTheme();
   const next = otherTheme(theme);
   return (
-    <button type="button" className="theme-btn" aria-label={next === 'dark' ? 'Temă întunecată' : 'Temă luminoasă'} onClick={toggle}>
+    <button type="button" className="theme-btn" aria-label={next === 'dark' ? t('Temă întunecată') : t('Temă luminoasă')} onClick={toggle}>
       {next === 'dark' ? (
         <svg className="theme-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path
@@ -35,7 +36,7 @@ export function ThemeSwitch() {
   const { theme, toggle } = useTheme();
   return (
     <button type="button" role="switch" aria-checked={theme === 'dark'} className="menu-row" onClick={toggle}>
-      <span>Temă întunecată</span>
+      <span>{t('Temă întunecată')}</span>
       <span className="switch" aria-hidden="true" />
     </button>
   );

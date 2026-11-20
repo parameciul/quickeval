@@ -5,6 +5,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { initials } from './initials.ts';
 import { useLogout } from './useLogout.ts';
 import { useSmallMenu } from './useSmallMenu.ts';
+import { t } from '../../i18n/t.ts';
 
 // The teacher's initials in the top bar open a small menu: who is logged in,
 // "Contul meu" and "Ieși din cont".
@@ -18,7 +19,7 @@ export function UserMenu({ teacher }: { teacher: Teacher }) {
         ref={button}
         type="button"
         className="user-button"
-        aria-label={`${initials(teacher.name)}, contul tău: ${teacher.name}`}
+        aria-label={t('{initials}, contul tău: {name}', { initials: initials(teacher.name), name: teacher.name })}
         aria-expanded={open}
         aria-controls={open ? 'user-menu' : undefined}
         onClick={toggle}
@@ -33,11 +34,11 @@ export function UserMenu({ teacher }: { teacher: Teacher }) {
           </p>
           <Link to="/account">
             <ActionIcon name="person" />
-            Contul meu
+            {t('Contul meu')}
           </Link>
           <button type="button" disabled={logout.isPending} onClick={() => logout.mutate()}>
             <ActionIcon name="logout" />
-            Ieși din cont
+            {t('Ieși din cont')}
           </button>
           {logout.error && <ErrorMessage error={logout.error} />}
         </div>

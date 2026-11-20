@@ -2,10 +2,11 @@
 // public/theme.js has already painted the theme; the button keeps its name in
 // step and saves the reader's choice, the same way the app's ThemeButton does.
 import { currentTheme, otherTheme, saveTheme, storedTheme, type Theme } from '../ui/theme.ts';
+import { t } from '../i18n/t.ts';
 
 // The button names the theme it switches to.
 export function themeLabel(theme: Theme): string {
-  return otherTheme(theme) === 'dark' ? 'Temă întunecată' : 'Temă luminoasă';
+  return otherTheme(theme) === 'dark' ? t('Temă întunecată') : t('Temă luminoasă');
 }
 
 export function initThemeButton(root: ParentNode = document): void {

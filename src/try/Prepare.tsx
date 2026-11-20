@@ -16,6 +16,8 @@ import { pageFileUrl, type TryApi } from './api.ts';
 import { fileChangesLeft } from './phase.ts';
 import { PhoneCode } from './PhoneCode.tsx';
 import { usePagesWatch } from './usePagesWatch.ts';
+import { t } from '../i18n/t.ts';
+import { translateMessage } from '../../shared/i18n/messages.ts';
 
 const PAGE_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
 
@@ -31,9 +33,9 @@ export function Prepare({ detail, token, tryApi }: { detail: TestDetail; token: 
   const robotBarem = test.barem.unchecked && test.files.barem !== null;
   const baremBusy = test.barem.request === 'requested';
   const missing = [
-    test.files.test === null && 'testul',
-    (test.files.barem === null || baremBusy) && 'baremul',
-    pageCount === 0 && 'paginile lucrării',
+    test.files.test === null && t('testul'),
+    (test.files.barem === null || baremBusy) && t('baremul'),
+    pageCount === 0 && t('paginile lucrării'),
   ].filter((part) => part !== false);
   const start = useMutation({
     mutationFn: () => tryApi.start(robotBarem ? test.filesVersion : undefined),
@@ -46,37 +48,37 @@ export function Prepare({ detail, token, tryApi }: { detail: TestDetail; token: 
       <ol className="steps">
         <li className="step">
           <div>
-            <h2>Testul</h2>
-            <p>Testul așa cum l-ai tipărit, fără răspunsuri. PDF sau Word.</p>
+            <h2>{t('Testul')}</h2>
+            <p>{t('Testul așa cum l-ai tipărit, fără răspunsuri. PDF sau Word.')}</p>
             <TestFile code={test.code} kind="test" name={test.files.test?.name ?? null} disabled={left === 0} />
           </div>
         </li>
         <li className="step">
           <div>
-            <h2>Baremul</h2>
+            <h2>{t('Baremul')}</h2>
             <Barem detail={detail} robotBarem={robotBarem} disabled={left === 0} />
           </div>
         </li>
         <li className="step">
           <div>
-            <h2>Lucrarea elevului</h2>
-            <p>Pozele sau PDF-ul lucrării unui elev, în ordinea paginilor. Cel mult {MAX_STUDENT_FILES} de fișiere.</p>
+            <h2>{t('Lucrarea elevului')}</h2>
+            <p>{t('Pozele sau PDF-ul lucrării unui elev, în ordinea paginilor. Cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES })}</p>
             <Pages token={token} tryApi={tryApi} />
           </div>
         </li>
       </ol>
       <p className="hint">
         {left === 0
-          ? 'Nu mai poți schimba testul sau baremul în această încercare.'
-          : `Mai poți încărca testul și baremul de ${left} ori în total. Baremul făcut de robot se numără și el o dată.`}
+          ? t('Nu mai poți schimba testul sau baremul în această încercare.')
+          : t('Mai poți încărca testul și baremul de {left} ori în total. Baremul făcut de robot se numără și el o dată.', { left })}
       </p>
       <div className="card-actions">
         <button type="button" className="button" disabled={missing.length > 0 || start.isPending} onClick={() => start.mutate()}>
           <ActionIcon name="play" />
-          Pornește corectarea
+          {t('Pornește corectarea')}
         </button>
       </div>
-      {missing.length > 0 && <p className="hint">Lipsește: {missing.join(', ')}.</p>}
+      {missing.length > 0 && <p className="hint">{t('Lipsește: {join}.', { join: missing.join(', ') })}</p>}
       {start.error && <ErrorMessage error={start.error} />}
     </>
   );
@@ -95,7 +97,7 @@ function useUpload(code: string, kind: TestFileKind) {
 export function TestFile({ code, kind, name, disabled }: { code: string; kind: TestFileKind; name: string | null; disabled: boolean }) {
   const api = useApi();
   const upload = useUpload(code, kind);
-  const label = kind === 'test' ? 'Fișierul testului' : 'Fișierul baremului';
+  const label = kind === 'test' ? t('Fișierul testului') : t('Fișierul baremului');
   return (
     <>
       {name !== null && (
@@ -106,7 +108,7 @@ export function TestFile({ code, kind, name, disabled }: { code: string; kind: T
         </p>
       )}
       <FileDrop id={`try-${kind}`} name={label} disabled={disabled || upload.isPending} onPick={(file) => file && upload.mutate(file)} />
-      {upload.isPending && <p className="hint">Se trimite…</p>}
+      {upload.isPending && <p className="hint">{t('Se trimite…')}</p>}
       {upload.error && <ErrorMessage error={upload.error} />}
     </>
   );
@@ -124,39 +126,39 @@ function Barem({ detail, robotBarem, disabled }: { detail: TestDetail; robotBare
   });
   if (test.barem.request === 'requested') {
     return (
-      <p role="status">Robotul face baremul din test. Durează câteva minute; pagina se actualizează singură.</p>
+      <p role="status">{t('Robotul face baremul din test. Durează câteva minute; pagina se actualizează singură.')}</p>
     );
   }
   if (robotBarem) {
     return (
       <>
         <p role="status">
-          <strong>Baremul făcut de robot este gata.</strong> Descarcă-l și citește-l. Corectarea pornește doar când apeși „Pornește corectarea”.
+          <strong>{t('Baremul făcut de robot este gata.')}</strong>{' '}{t('Descarcă-l și citește-l. Corectarea pornește doar când apeși „Pornește corectarea”.')}
         </p>
         <p>
           <a className="button-quiet" href={testFileUrl(test.code, 'barem', undefined, api.base)} target="_blank" rel="noopener">
             <ActionIcon name="download" />
-            Descarcă baremul
+            {t('Descarcă baremul')}
           </a>
         </p>
-        <p>Dacă vrei, îl înlocuiești cu baremul tău:</p>
-        <TestFile code={test.code} kind="barem" name={null} disabled={disabled} />
+        <p>{t('Dacă vrei, îl înlocuiești cu baremul tău:')}</p>
+        <TestFile code={test.code} kind={'barem'} name={null} disabled={disabled} />
       </>
     );
   }
   if (test.files.barem !== null) {
     return (
       <>
-        <p>Baremul tău. PDF sau Word.</p>
-        <TestFile code={test.code} kind="barem" name={test.files.barem.name} disabled={disabled} />
+        <p>{t('Baremul tău. PDF sau Word.')}</p>
+        <TestFile code={test.code} kind={'barem'} name={test.files.barem.name} disabled={disabled} />
       </>
     );
   }
   return (
     <>
-      <p>Baremul după care se dă punctajul. PDF sau Word.</p>
-      <TestFile code={test.code} kind="barem" name={null} disabled={disabled} />
-      <p>Nu ai un barem pregătit? Îl generezi automat din test, iar apoi îl citești înainte să pornești corectarea.</p>
+      <p>{t('Baremul după care se dă punctajul. PDF sau Word.')}</p>
+      <TestFile code={test.code} kind={'barem'} name={null} disabled={disabled} />
+      <p>{t('Nu ai un barem pregătit? Îl generezi automat din test, iar apoi îl citești înainte să pornești corectarea.')}</p>
       <button
         type="button"
         className="button-quiet"
@@ -164,7 +166,7 @@ function Barem({ detail, robotBarem, disabled }: { detail: TestDetail; robotBare
         onClick={() => generate.mutate()}
       >
         <ActionIcon name="generate" />
-        Fă baremul din test
+        {t('Fă baremul din test')}
       </button>
       {generate.error && <ErrorMessage error={generate.error} />}
     </>
@@ -209,23 +211,23 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
   return (
     <>
       {list.length > 0 && (
-        <ol className="page-list try-pages" aria-label="Paginile lucrării">
+        <ol className="page-list try-pages" aria-label={t('Paginile lucrării')}>
           {list.map((page, index) => (
             <li key={page.id} className="page-item">
-              <PagePreview page={page} label={`Pagina ${index + 1}`} token={token} tryApi={tryApi} onView={(src) => setViewing({ id: page.id, src })} />
+              <PagePreview page={page} label={t('Pagina {n}', { n: index + 1 })} token={token} tryApi={tryApi} onView={(src) => setViewing({ id: page.id, src })} />
               <span className="page-info">
-                <span className="page-name">Pagina {index + 1}</span>
+                <span className="page-name">{t('Pagina {v1}', { v1: index + 1 })}</span>
                 <span className="hint">{formatFileSize(page.size)}</span>
               </span>
               <button
                 type="button"
                 className="button-quiet button-small"
-                aria-label={`Șterge pagina ${index + 1}`}
+                aria-label={t('Șterge pagina {v1}', { v1: index + 1 })}
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(page.id)}
               >
                 <ActionIcon name="trash" />
-                <span className="try-page-remove">Șterge</span>
+                <span className="try-page-remove">{t('Șterge')}</span>
               </button>
             </li>
           ))}
@@ -234,7 +236,7 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
       <div className="try-page-actions">
         <label className={list.length >= MAX_STUDENT_FILES || add.isPending ? 'button-quiet is-disabled' : 'button-quiet'}>
           <ActionIcon name="upload" />
-          Adaugă pagini
+          {t('Adaugă pagini')}
           <input
             type="file"
             className="sr-only"
@@ -247,21 +249,21 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
         {onPhone ? (
           <Link className="button-quiet" to="/phone?here=1">
             <ActionIcon name="phone" />
-            Fă poze
+            {t('Fă poze')}
           </Link>
         ) : (
           <button type="button" className="button-quiet" aria-expanded={phoneOpen} aria-controls="try-phone-code" onClick={() => setPhoneOpen((open) => !open)}>
             <ActionIcon name="phone" />
-            Fă poze cu telefonul
+            {t('Fă poze cu telefonul')}
           </button>
         )}
       </div>
-      {viewing && viewedIndex >= 0 && <PhotoViewer src={viewing.src} label={`Pagina ${viewedIndex + 1}`} onClose={() => setViewing(null)} />}
+      {viewing && viewedIndex >= 0 && <PhotoViewer src={viewing.src} label={t('Pagina {n}', { n: viewedIndex + 1 })} onClose={() => setViewing(null)} />}
       {phoneOpen && <PhoneCode id="try-phone-code" token={token} />}
       <div aria-live="polite">
         {watch.idle && (
           <p className="hint">
-            {PHONE_IDLE_TEXT}{' '}
+            {translateMessage(PHONE_IDLE_TEXT)}{' '}
             <button
               type="button"
               className="link-button"
@@ -270,12 +272,12 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
                 void pages.refetch();
               }}
             >
-              Verifică din nou
+              {t('Verifică din nou')}
             </button>
           </p>
         )}
       </div>
-      {add.isPending && <p className="hint">Se trimit paginile…</p>}
+      {add.isPending && <p className="hint">{t('Se trimit paginile…')}</p>}
       {problem && (
         <p className="alert" role="alert">
           {problem}
@@ -328,20 +330,20 @@ function PagePreview({
   }, [blob.data]);
   if (blob.isError) {
     return (
-      <a className="thumb thumb-file" href={pageFileUrl(token, page.id)} target="_blank" rel="noreferrer" aria-label={`Deschide ${label.toLowerCase()}`}>
-        Poză
+      <a className="thumb thumb-file" href={pageFileUrl(token, page.id)} target="_blank" rel="noreferrer" aria-label={t('Deschide {label}', { label: label.toLowerCase() })}>
+        {t('Poză')}
       </a>
     );
   }
   if (!urls) {
     return (
       <span className="thumb thumb-file" aria-hidden="true">
-        {photo ? 'Poză' : 'PDF'}
+        {photo ? t('Poză') : 'PDF'}
       </span>
     );
   }
   return (
-    <button type="button" className="thumb" onClick={() => onView(urls.full)} aria-label={`Vezi ${label.toLowerCase()}`}>
+    <button type="button" className="thumb" onClick={() => onView(urls.full)} aria-label={t('Vezi {label}', { label: label.toLowerCase() })}>
       <img src={urls.small} alt={label} />
     </button>
   );

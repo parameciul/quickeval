@@ -9951,3 +9951,10 @@ td.student-paper a:hover {
     animation-duration: 3s;
   }
 }
+
+/* The language button: the code of the other language, beside the theme. */
+.lang-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}

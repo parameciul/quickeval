@@ -7,6 +7,7 @@ import { resultPageUrl } from './resultLinks.ts';
 import type { TicketHow } from './ticketImage.ts';
 import { useSaveTicket } from './SaveTicket.tsx';
 import { shareLink } from './shareLink.ts';
+import { t } from '../i18n/t.ts';
 
 // The test a ticket is for, as the student knows it.
 export interface TicketTest {
@@ -16,7 +17,7 @@ export interface TicketTest {
 }
 
 // What the ticket is: the student's own link to the result.
-export const TICKET_TITLE = 'Biletul tău pentru rezultat';
+export const TICKET_TITLE = t('Biletul tău pentru rezultat');
 // How the student finds the result later, on their own phone: written on the
 // saved picture only, never on the page. A phone opens
 // the link of a QR code in a picture of its gallery on a long press; the
@@ -25,21 +26,21 @@ export const TICKET_TITLE = 'Biletul tău pentru rezultat';
 // another phone, where someone else would see the result.
 // The picture first says what it is for, since it is found later in the
 // gallery, long after the test.
-const TICKET_LEAD = 'Cu acest bilet îți vezi rezultatul la acest test.';
-const TICKET_NOTE = 'Rezultatul apare doar după ce profesorul corectează și publică lucrările.';
+const TICKET_LEAD = t('Cu acest bilet îți vezi rezultatul la acest test.');
+const TICKET_NOTE = t('Rezultatul apare doar după ce profesorul corectează și publică lucrările.');
 export const TICKET_HOW: TicketHow = {
   lead: TICKET_LEAD,
   note: TICKET_NOTE,
-  intro: 'Ca să vezi rezultatul, alege una dintre variante:',
+  intro: t('Ca să vezi rezultatul, alege una dintre variante:'),
   steps: [
-    'Pe telefon, ține apăsat pe codul QR și deschide linkul.',
-    'Deschide linkul de trimitere a lucrării (codul QR de pe test) și introdu codul tău.',
+    t('Pe telefon, ține apăsat pe codul QR și deschide linkul.'),
+    t('Deschide linkul de trimitere a lucrării (codul QR de pe test) și introdu codul tău.'),
   ],
 };
 export const TICKET_HOW_NO_CODE: TicketHow = {
   lead: TICKET_LEAD,
   note: TICKET_NOTE,
-  intro: 'Ca să vezi rezultatul, pe telefon ține apăsat pe codul QR și deschide linkul.',
+  intro: t('Ca să vezi rezultatul, pe telefon ține apăsat pe codul QR și deschide linkul.'),
   steps: [],
 };
 
@@ -96,7 +97,7 @@ export function ResultTicket({
     const sent = await shareLink({
       url,
       title: `${studentName} · ${test.title}`,
-      ...(code ? { text: `Codul meu: ${code}` } : {}),
+      ...(code ? { text: t('Codul meu: {code}', { code }) } : {}),
     });
     if (sent === 'copied') setShare('copied');
     if (sent === 'manual') {
@@ -115,7 +116,7 @@ export function ResultTicket({
   }
 
   return (
-    <section className="ticket-box" aria-label={studentName ? `Biletul pentru rezultat: ${studentName}` : 'Biletul pentru rezultat'}>
+    <section className="ticket-box" aria-label={studentName ? t('Biletul pentru rezultat: {studentName}', { studentName }) : t('Biletul pentru rezultat')}>
       <div className="ticket">
         <p className="ticket-top">
           <span>{TICKET_TITLE}</span>
@@ -130,11 +131,11 @@ export function ResultTicket({
               from a screenshot. A link too, so a tap or a long press on the
               page opens the result, as the ticket says. */}
           <a className="ticket-qr" href={url}>
-            <QRCodeSVG value={url} size={176} marginSize={0} level="M" title="Codul QR al rezultatului" />
+            <QRCodeSVG value={url} size={176} marginSize={0} level="M" title={t('Codul QR al rezultatului')} />
           </a>
           {code && (
             <p className="ticket-code">
-              <span>Codul tău</span>
+              <span>{t('Codul tău')}</span>
               <strong>{code}</strong>
             </p>
           )}
@@ -147,24 +148,24 @@ export function ResultTicket({
         {save.button}
         <button type="button" className="button-quiet button-big" onClick={() => void send()}>
           <ActionIcon name="send" />
-          Trimite-mi linkul
+          {t('Trimite-mi linkul')}
         </button>
       </div>
       {save.note}
       {share === 'copied' && (
         <p role="status" className="hint">
-          Linkul a fost copiat.
+          {t('Linkul a fost copiat.')}
         </p>
       )}
       {share === 'manual' && (
         <p role="status" className="hint">
-          Copiază linkul de aici:
+          {t('Copiază linkul de aici:')}
         </p>
       )}
       <p className="ticket-links">
-        <a href={url}>Vezi rezultatul</a>
+        <a href={url}>{t('Vezi rezultatul')}</a>
         <button type="button" className="link-button" aria-expanded={linkShown} onClick={() => setLinkShown((shown) => !shown)}>
-          {linkShown ? 'Ascunde linkul' : 'Arată linkul întreg'}
+          {linkShown ? t('Ascunde linkul') : t('Arată linkul întreg')}
         </button>
       </p>
       {linkShown && (
@@ -175,7 +176,7 @@ export function ResultTicket({
           <p>
             <button type="button" className="button-quiet button-small" onClick={() => void copy()}>
               <ActionIcon name={copied ? 'check' : 'copy'} />
-              {copied ? 'Copiat!' : 'Copiază linkul'}
+              {copied ? 'Copiat!' : t('Copiază linkul')}
             </button>
           </p>
         </>

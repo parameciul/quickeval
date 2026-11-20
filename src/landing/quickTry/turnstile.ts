@@ -1,4 +1,5 @@
 import type { TurnstileWidget } from './ui.ts';
+import { currentLang } from '../../i18n/lang.ts';
 
 // Cloudflare Turnstile's script, drawn where the page asks (render=explicit).
 // The page's security policy allows this one script and its frame.
@@ -37,6 +38,6 @@ function script(root: Document): Promise<TurnstileApi> {
 // Loads the script once, then draws the check in `container`, in Romanian.
 export async function loadTurnstile(container: HTMLElement, siteKey: string): Promise<TurnstileWidget> {
   const api = await script(container.ownerDocument);
-  const id = api.render(container, { sitekey: siteKey, language: 'ro' });
+  const id = api.render(container, { sitekey: siteKey, language: currentLang() });
   return { token: () => api.getResponse(id) || undefined, reset: () => api.reset(id) };
 }

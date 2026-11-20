@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { matchPath, Outlet, useLocation, useNavigationType } from 'react-router';
 import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
+import { LangButton } from '../ui/LangButton.tsx';
 import { ThemeButton } from '../ui/ThemeButton.tsx';
 import { PHONE, useMediaQuery } from '../ui/useMediaQuery.ts';
 import { useApi } from './ApiContext.tsx';
@@ -21,6 +22,8 @@ import { todoList } from './shell/todo.ts';
 import { useDataVersion } from './shell/refresh.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
 import { YearSelect } from './shell/YearSelect.tsx';
+import { t } from '../i18n/t.ts';
+import { rememberSignedIn } from '../landing/account.ts';
 
 // The accounts that wait for approval change with no teacher's version: an
 // administrator's bar reads them every five minutes.
@@ -43,6 +46,13 @@ export function Layout() {
   const onClasses = location.pathname.startsWith('/classes');
   const { year } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
+  // The public pages then show the account link from their first paint.
+  const signedIn = Boolean(me.data);
+  const loginNeeded = isLoginRequired(me.error);
+  useEffect(() => {
+    if (signedIn) rememberSignedIn(true);
+    else if (loginNeeded) rememberSignedIn(false);
+  }, [signedIn, loginNeeded]);
   // The tests of the year: "De făcut" and the panel of the classes read them.
   // They are read again after every change (below), and when the version
   // the shell asks every minute changed (`useDataVersion`).
@@ -136,7 +146,7 @@ export function Layout() {
   return (
     <div className={me.data ? 'shell' : 'shell shell-bare'}>
       <header className="topbar" inert={searching}>
-        <a className="brand" href="/" aria-label="MQGrader by Laura Miron">
+        <a className="brand" href="/" aria-label={t('MQGrader by Laura Miron')}>
           <BrandMark />
           <span className="brand-text">
             <span className="brand-name">MQGrader</span>
@@ -150,6 +160,7 @@ export function Layout() {
               has only the lockup and the theme. */}
           {me.data?.demo && <DemoButton teacher={me.data} />}
           {me.data && <YearSelect id="school-year" labelClassName="sr-only" />}
+          <LangButton />
           <ThemeButton />
           {me.data && <UserMenu teacher={me.data} />}
         </div>
@@ -157,7 +168,7 @@ export function Layout() {
           <button
             type="button"
             className="search-button"
-            aria-label="Caută"
+            aria-label={t('Caută')}
             aria-expanded={open === 'search'}
             aria-controls={open === 'search' ? 'search-full' : undefined}
             onClick={(event) => {
@@ -174,7 +185,7 @@ export function Layout() {
           <button
             type="button"
             className="menu-button"
-            aria-label="Mai mult"
+            aria-label={t('Mai mult')}
             aria-expanded={open === 'menu'}
             aria-controls={open === 'menu' ? 'phone-menu' : undefined}
             onClick={() => toggle('menu')}
@@ -205,7 +216,7 @@ export function Layout() {
         ) : me.error ? (
           <ErrorMessage error={me.error} />
         ) : !me.data ? (
-          <p>Se încarcă…</p>
+          <p>{t('Se încarcă…')}</p>
         ) : (
           <ErrorBoundary key={location.pathname}>
             <Outlet />

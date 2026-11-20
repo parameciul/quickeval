@@ -691,6 +691,28 @@ describe('sessions', () => {
   });
 });
 
+describe('GET /api/auth/session', () => {
+  it('says signed out without a cookie, and is never cached', async () => {
+    const res = await api.request('GET', '/api/auth/session');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ signedIn: false });
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('says signed out for a made-up cookie', async () => {
+    const res = await api.request('GET', '/api/auth/session', undefined, { Cookie: 'qe_session=made-up' });
+    expect(res.body).toEqual({ signedIn: false });
+  });
+
+  it('says signed in after the login, and signed out after the logout', async () => {
+    await setPasswordOf('profesor@example.com', 'parola-buna');
+    const cookie = cookieOf(await login('profesor@example.com', 'parola-buna'));
+    expect((await api.request('GET', '/api/auth/session', undefined, { Cookie: cookie })).body).toEqual({ signedIn: true });
+    await api.request('POST', '/api/auth/logout', undefined, { Cookie: cookie });
+    expect((await api.request('GET', '/api/auth/session', undefined, { Cookie: cookie })).body).toEqual({ signedIn: false });
+  });
+});
+
 describe('POST /api/admin/account/password', () => {
   it('changes the password, keeps this login, and ends the others', async () => {
     await setPasswordOf('profesor@example.com', 'parola-veche');

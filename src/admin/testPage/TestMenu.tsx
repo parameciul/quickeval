@@ -11,13 +11,14 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { Modal } from '../Modal.tsx';
 import { useRegradeAll } from './regradeAll.tsx';
 import { remakes, robotReads, SubjectForm } from './SubjectForm.tsx';
+import { t } from '../../i18n/t.ts';
 
 // What "Schimbă materia" does, in the words under it.
 function subjectHint(test: TestInfo): string {
-  if (robotReads(test)) return 'Poți schimba materia după ce se termină corectarea.';
-  if (test.subject === null) return 'Altfel, materia se stabilește la corectare, din test.';
-  if (remakes(test)) return 'Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.';
-  return 'Robotul corectează testul după materia aleasă.';
+  if (robotReads(test)) return t('Poți schimba materia după ce se termină corectarea.');
+  if (test.subject === null) return t('Altfel, materia se stabilește la corectare, din test.');
+  if (remakes(test)) return t('Lista de exerciții se face din nou, iar lucrările corectate se corectează din nou.');
+  return t('Robotul corectează testul după materia aleasă.');
 }
 
 // "Acțiuni" of the test page (spec 2026-11-15 §1): the actions that work in
@@ -52,54 +53,54 @@ export function TestMenu({
   });
   // A printed test keeps its QR code: after a delete, the code leads nowhere.
   const printed = test.print.status === 'ready';
-  const subjectLabel = test.subject === null ? 'Alege materia' : 'Schimbă materia';
+  const subjectLabel = test.subject === null ? t('Alege materia') : t('Schimbă materia');
   const regrade = useRegradeAll({ code: test.code, testStatus: test.status, uploads, onChanged, onRobot });
 
   const actions: MenuAction[] = [
-    { label: 'Redenumește testul', hint: 'Schimbi titlul testului.', icon: 'edit', busy: false, onChoose: () => setDialog('rename') },
+    { label: t('Redenumește testul'), hint: t('Schimbi titlul testului.'), icon: 'edit', busy: false, onChoose: () => setDialog('rename') },
     { label: subjectLabel, hint: subjectHint(test), icon: 'subject', busy: robotReads(test), onChoose: () => setDialog('subject') },
   ];
   if (regrade.action) actions.push(regrade.action);
   if (test.archived) {
     actions.push({
-      label: 'Scoate din arhivă',
-      hint: 'Testul apare din nou în lista clasei și în Teste.',
+      label: t('Scoate din arhivă'),
+      hint: t('Testul apare din nou în lista clasei și în Teste.'),
       icon: 'unarchive',
       busy: archive.isPending,
       onChoose: () => archive.mutate(false),
     });
   } else if (test.status === 'done') {
     actions.push({
-      label: 'Arhivează testul',
-      hint: 'Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.',
+      label: t('Arhivează testul'),
+      hint: t('Testul nu mai apare în lista clasei și în Teste. Îl găsești cu „Arată și testele arhivate”.'),
       icon: 'archive',
       busy: archive.isPending,
       onChoose: () => (hasOpenResults(test) ? setDialog('archive') : archive.mutate(true)),
     });
   }
   actions.push({
-    label: 'Șterge testul',
-    hint: `Se șterg și toate lucrările încărcate de elevi.${printed ? ' Codurile QR de pe testele tipărite nu mai funcționează.' : ''}`,
+    label: t('Șterge testul'),
+    hint: t('Se șterg și toate lucrările încărcate de elevi.{v1}', { v1: printed ? ` ${t('Codurile QR de pe testele tipărite nu mai funcționează.')}` : '' }),
     icon: 'trash',
     danger: true,
     busy: remove.isPending,
     onChoose: () => {
-      const qr = printed ? ' Codurile QR de pe testele tipărite nu vor mai funcționa.' : '';
-      if (window.confirm(`Ștergi testul ${test.code}? Se șterg și toate lucrările încărcate.${qr}`)) remove.mutate();
+      const qr = printed ? ` ${t('Codurile QR de pe testele tipărite nu vor mai funcționa.')}` : '';
+      if (window.confirm(t('Ștergi testul {code}? Se șterg și toate lucrările încărcate.{qr}', { code: test.code, qr }))) remove.mutate();
     },
   });
 
   const close = () => setDialog(null);
   return (
     <div className="test-menu">
-      <ActionsMenu label="Acțiuni" menuId="test-actions-menu" actions={actions} />
+      <ActionsMenu label={t('Acțiuni')} menuId="test-actions-menu" actions={actions} />
       {regrade.notes}
       {archive.error && <ErrorMessage error={archive.error} />}
       {remove.error && <ErrorMessage error={remove.error} />}
       {dialog === 'rename' && (
         <RenameDialog
-          title="Redenumește testul"
-          label="Titlu nou"
+          title={t('Redenumește testul')}
+          label={t('Titlu nou')}
           initial={test.title}
           maxLength={MAX_TITLE_LENGTH}
           save={(title) => api.renameTest(test.code, title)}
@@ -116,8 +117,8 @@ export function TestMenu({
       )}
       {dialog === 'archive' && (
         <ArchiveDialog
-          title="Arhivezi testul?"
-          text="Elevii nu își vor mai putea vedea rezultatele. Le poți publica din nou oricând."
+          title={t('Arhivezi testul?')}
+          text={t('Elevii nu își vor mai putea vedea rezultatele. Le poți publica din nou oricând.')}
           onConfirm={() => archive.mutate(true)}
           onClose={close}
         />

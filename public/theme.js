@@ -9,4 +9,12 @@
     // Storage can be blocked; the page then stays light.
   }
   document.documentElement.setAttribute('data-theme', theme);
+  // The public pages' header: a teacher who was logged in on the last visit
+  // sees the account link at once, not the login first (src/landing/account.ts
+  // keeps SIGNED_IN_KEY and corrects it after the API's answer).
+  try {
+    if (localStorage.getItem('quickeval.signedIn') === '1') document.documentElement.setAttribute('data-signed-in', '');
+  } catch (e) {
+    // Storage can be blocked; the page then shows the login first.
+  }
 })();

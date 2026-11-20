@@ -2,6 +2,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { QR_SIZE, renderTicket, saveTicket, savesThroughShare, ticketFileName, type TicketPicture } from './ticketImage.ts';
+import { t } from '../i18n/t.ts';
 
 // How long "Biletul a fost salvat." stays on screen.
 const SAVED_MS = 4000;
@@ -182,18 +183,18 @@ export function useSaveTicket({
       {round !== doneRound && <QRCodeCanvas ref={qr} value={url} size={qrSize} marginSize={0} level="M" hidden aria-hidden="true" />}
       <button type="button" className={className} disabled={state === 'busy'} onClick={() => void save()}>
         <ActionIcon name={state === 'saved' ? 'check' : 'download'} />
-        Salvează biletul
+        {t('Salvează biletul')}
       </button>
     </>
   );
   const note =
     state === 'saved' ? (
       <p role="status" className="hint">
-        Biletul a fost salvat. Îl găsești lângă pozele tale sau în descărcări.
+        {t('Biletul a fost salvat. Îl găsești lângă pozele tale sau în descărcări.')}
       </p>
     ) : state === 'failed' ? (
       <p role="alert" className="alert">
-        Nu am putut salva biletul. Fă o poză ecranului.
+        {t('Nu am putut salva biletul. Fă o poză ecranului.')}
       </p>
     ) : null;
   return { button, note };

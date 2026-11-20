@@ -10,6 +10,8 @@ import { PagesUploader, type PagesApi } from '../upload/PagesUploader.tsx';
 import type { TryApi } from './api.ts';
 import { phaseOf } from './phase.ts';
 import { Expired, isExpired } from './TryNotice.tsx';
+import { t } from '../i18n/t.ts';
+import { tryName } from '../../shared/quickTry.ts';
 
 // The phone page of a try (/try/<token>/phone): the student's pages, sent
 // like a student sends them, with no result and no link to the try's page.
@@ -56,30 +58,30 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
     };
   }, [tryApi, queryClient, info.code]);
 
-  if (detail.isPending || pages.isPending) return <p>Se încarcă…</p>;
+  if (detail.isPending || pages.isPending) return <p>{t('Se încarcă…')}</p>;
   if (isExpired(detail.error)) return <Expired />;
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
   if (pages.data === undefined) return <ErrorMessage error={pages.error} />;
-  const title = detail.data.test.title;
+  const title = tryName(detail.data.test.title);
 
   const phase = phaseOf(detail.data);
   if (phase !== 'prepare') {
     return (
       <section className="phone-page">
-        <h1>Lucrarea elevului</h1>
+        <h1>{t('Lucrarea elevului')}</h1>
         <p className="phone-title">{title}</p>
         {refused && <p className="hint">{refused}</p>}
         <p className="alert">
           {phase === 'failed'
-            ? `Încercarea nu a mers. Continuă ${here ? 'pe pagina încercării' : 'pe calculator'}.`
-            : 'Lucrarea a fost trimisă. Nu mai poți schimba paginile.'}
+            ? t('Încercarea nu a mers. Continuă {v1}.', { v1: here ? t('pe pagina încercării') : t('pe calculator') })
+            : t('Lucrarea a fost trimisă. Nu mai poți schimba paginile.')}
         </p>
         {here && (
           <Link className="button button-big" to="/">
-            Deschide încercarea
+            {t('Deschide încercarea')}
           </Link>
         )}
-        <h3>Paginile ({pages.data.length})</h3>
+        <h3>{t('Paginile ({length})', { length: pages.data.length })}</h3>
         <ol className="page-list">
           {pages.data.map((page) => (
             <li key={page.id} className="page-item is-sent">
@@ -100,16 +102,16 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
         <span className="phone-tick" aria-hidden="true">
           ✓
         </span>
-        <h1>Paginile au ajuns</h1>
+        <h1>{t('Paginile au ajuns')}</h1>
         <p>
-          {countLabel(done, 'pagină', 'pagini')} {done === 1 ? 'este' : 'sunt'} {here ? 'la încercare' : 'pe calculator'}.
+          {countLabel(done, 'pagină', 'pagini')} {done === 1 ? t('este') : t('sunt')} {here ? t('la încercare') : t('pe calculator')}.
         </p>
         {here ? (
           <Link className="button button-big" to="/">
-            Deschide încercarea
+            {t('Deschide încercarea')}
           </Link>
         ) : (
-          <p>Continuă acolo.</p>
+          <p>{t('Continuă acolo.')}</p>
         )}
         <button
           type="button"
@@ -120,7 +122,7 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
             setDone(null);
           }}
         >
-          Mai adaugă pagini
+          {t('Mai adaugă pagini')}
         </button>
       </section>
     );
@@ -134,12 +136,12 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
         files={pages.data}
         heading={
           <>
-            <h1>Lucrarea elevului</h1>
+            <h1>{t('Lucrarea elevului')}</h1>
             <p className="phone-title">{title}</p>
           </>
         }
-        listTitle="Paginile"
-        finishLabel="Am terminat"
+        listTitle={t('Paginile')}
+        finishLabel={t('Am terminat')}
         onFinish={(count) => setDone(count)}
       />
     </div>

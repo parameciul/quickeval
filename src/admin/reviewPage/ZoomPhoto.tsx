@@ -2,6 +2,7 @@ import { type CSSProperties, type PointerEvent, type ReactNode, useEffect, useRe
 import { useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { isReviewKey } from './keys.ts';
 import { isZoomed, layerTransform, MAX_SCALE, panBy, pinchScale, WHOLE_PAGE, zoomAround, zoomInAt, zoomOutAt, type ZoomView } from './zoom.ts';
+import { t } from '../../i18n/t.ts';
 
 // A page of the paper that zooms inside the middle pane: a left click zooms in
 // one step on the point clicked, a right click zooms out as much, a drag moves
@@ -152,7 +153,7 @@ export function ZoomPhoto({
       ref={pane}
       className={zoomed ? 'zoom-pane is-zoomed' : 'zoom-pane'}
       style={style}
-      title={zoomed ? 'Trage pentru a muta; clic dreapta pentru micșorare' : undefined}
+      title={zoomed ? t('Trage pentru a muta; clic dreapta pentru micșorare') : undefined}
       data-testid="zoom-pane"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -178,7 +179,7 @@ export function ZoomPhoto({
       {/* What a click does, before the page is zoomed: at the bottom on the
           left, away from the zoom's own buttons. It takes no press. */}
       {!zoomed && (
-        <p className="zoom-hint">{touch ? 'Atinge: mărește · ciupește: micșorează' : 'Clic stânga: mărește · clic dreapta: micșorează'}</p>
+        <p className="zoom-hint">{touch ? t('Atinge: mărește · ciupește: micșorează') : t('Clic stânga: mărește · clic dreapta: micșorează')}</p>
       )}
       {children}
       {/* The buttons float over the page, in reach of a thumb on a phone: a
@@ -186,7 +187,7 @@ export function ZoomPhoto({
       <span
         className="zoom-controls is-left"
         role="group"
-        aria-label="Vederea paginii"
+        aria-label={t('Vederea paginii')}
         onPointerDown={(event) => event.stopPropagation()}
         onPointerUp={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
@@ -195,8 +196,8 @@ export function ZoomPhoto({
         <button
           type="button"
           className="button-quiet button-small icon-button"
-          aria-label="Toată pagina"
-          title="Toată pagina"
+          aria-label={t('Toată pagina')}
+          title={t('Toată pagina')}
           disabled={!zoomed}
           onClick={() => onView(WHOLE_PAGE)}
         >
@@ -215,7 +216,7 @@ export function ZoomPhoto({
       <span
         className="zoom-controls"
         role="group"
-        aria-label="Mărirea paginii"
+        aria-label={t('Mărirea paginii')}
         onPointerDown={(event) => event.stopPropagation()}
         onPointerUp={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
@@ -223,7 +224,7 @@ export function ZoomPhoto({
         <button
           type="button"
           className="button-quiet button-small"
-          aria-label="Micșorează"
+          aria-label={t('Micșorează')}
           disabled={!zoomed}
           onClick={() => onView(zoomOutAt(view, 0.5, 0.5))}
         >
@@ -235,7 +236,7 @@ export function ZoomPhoto({
         <button
           type="button"
           className="button-quiet button-small"
-          aria-label="Mărește"
+          aria-label={t('Mărește')}
           disabled={view.scale >= MAX_SCALE}
           onClick={() => onView(zoomInAt(view, 0.5, 0.5))}
         >

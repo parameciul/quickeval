@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { isStripeCheckoutUrl, paymentReturnOf } from '../../shared/payments.ts';
 import { GENERIC_MESSAGE, messageOf } from './ApiError.ts';
 import { ActionIcon } from './ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 // The pay button of any paid feature, in both apps. `startCheckout` asks the
 // API for the Stripe payment page (useApi().startCheckout in the teacher app,
@@ -45,7 +46,7 @@ export function PayButton({
     <>
       <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => void pay()}>
         <ActionIcon name="pay" />
-        {busy ? 'Se deschide plata…' : label}
+        {busy ? t('Se deschide plata…') : label}
       </button>
       {error !== null && (
         <div className="alert" role="alert">
@@ -63,7 +64,7 @@ export function PaymentReturnNotice({ search = window.location.search }: { searc
   if (outcome === null) return null;
   return (
     <p className="alert-text" role="status">
-      {outcome === 'success' ? 'Plata se verifică. Funcția se deschide după confirmare.' : 'Plata a fost anulată. Nu ai plătit nimic.'}
+      {outcome === 'success' ? t('Plata se verifică. Funcția se deschide după confirmare.') : t('Plata a fost anulată. Nu ai plătit nimic.')}
     </p>
   );
 }

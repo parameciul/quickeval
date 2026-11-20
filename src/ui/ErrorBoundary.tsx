@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ActionIcon } from './ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -27,10 +28,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (!this.state.failed) return this.props.children;
     return (
       <div className="alert" role="alert">
-        <p className="alert-text">Pagina nu s-a putut afișa. Reîncarcă pagina și încearcă din nou.</p>
+        <p className="alert-text">{t('Pagina nu s-a putut afișa. Reîncarcă pagina și încearcă din nou.')}</p>
         <button type="button" className="button-quiet button-small" onClick={() => window.location.reload()}>
           <ActionIcon name="retry" />
-          Reîncarcă pagina
+          {t('Reîncarcă pagina')}
         </button>
       </div>
     );

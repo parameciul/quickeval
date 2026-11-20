@@ -11,6 +11,7 @@ import { TestFileInput } from '../TestFileInput.tsx';
 import { useGeneratedBarem } from './GeneratedBarem.tsx';
 import { partsOf } from './variant.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The part of the missing list (missingOf) that each file is.
 const PART: Record<TestVariant, Record<TestFileKind, MissingPart>> = {
@@ -21,12 +22,12 @@ const PART: Record<TestVariant, Record<TestFileKind, MissingPart>> = {
 // `drop` names the drop area of a missing file to a screen reader, as on Test nou.
 const NAMES: Record<TestVariant, Record<TestFileKind, { title: string; drop: string; replace: string }>> = {
   class: {
-    test: { title: 'Testul', drop: 'Fișierul testului', replace: 'Înlocuiește testul' },
-    barem: { title: 'Baremul', drop: 'Fișierul baremului', replace: 'Înlocuiește baremul' },
+    test: { title: t('Testul'), drop: t('Fișierul testului'), replace: t('Înlocuiește testul') },
+    barem: { title: t('Baremul'), drop: t('Fișierul baremului'), replace: t('Înlocuiește baremul') },
   },
   ces: {
-    test: { title: 'Testul CES', drop: 'Fișierul testului CES', replace: 'Înlocuiește testul CES' },
-    barem: { title: 'Baremul CES', drop: 'Fișierul baremului CES', replace: 'Înlocuiește baremul CES' },
+    test: { title: t('Testul CES'), drop: t('Fișierul testului CES'), replace: t('Înlocuiește testul CES') },
+    barem: { title: t('Baremul CES'), drop: t('Fișierul baremului CES'), replace: t('Înlocuiește baremul CES') },
   },
 };
 
@@ -59,7 +60,7 @@ export function TestFiles({
   const canGenerate = test.status === 'draft' || test.status === 'open' || (variant === 'ces' && test.status === 'evaluating');
   return (
     <>
-      {locked && <p className="hint">Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.</p>}
+      {locked && <p className="hint">{t('Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.')}</p>}
       <ul className="file-list">
         <TestFileRow
           code={test.code}
@@ -74,7 +75,7 @@ export function TestFiles({
         <TestFileRow
           code={test.code}
           variant={variant}
-          kind="barem"
+          kind={'barem'}
           file={parts.files.barem}
           missing={missing.includes(PART[variant].barem)}
           unchecked={parts.barem.unchecked}
@@ -142,12 +143,12 @@ function TestFileRow({
             <a href={testFileUrl(code, kind, variant)} target="_blank" rel="noopener">
               {file.name}
             </a>{' '}
-            {unchecked ? <span className="tag tag-wait">de verificat</span> : <span className="tag tag-ok">gata</span>}
+            {unchecked ? <span className="tag tag-wait">{t('de verificat')}</span> : <span className="tag tag-ok">{t('gata')}</span>}
           </>
         ) : missing ? (
-          <span className="tag tag-wait">lipsește</span>
+          <span className="tag tag-wait">{t('lipsește')}</span>
         ) : (
-          <span className="hint">lipsește</span>
+          <span className="hint">{t('lipsește')}</span>
         )}
       </p>
       {file ? (
@@ -158,7 +159,7 @@ function TestFileRow({
           disabled={locked || upload.isPending}
           actions={actions}
           confirm={
-            kind === 'barem' ? (picked) => window.confirm(`Înlocuiești ${variant === 'ces' ? 'baremul CES' : 'baremul'} existent cu ${picked.name}?`) : undefined
+            kind === 'barem' ? (picked) => window.confirm(t('Înlocuiești {v1} existent cu {name}?', { v1: variant === 'ces' ? t('baremul CES') : t('baremul'), name: picked.name })) : undefined
           }
           onPick={(picked) => {
             if (picked) upload.mutate(picked);
@@ -178,7 +179,7 @@ function TestFileRow({
           {actions && <div className="file-field">{actions}</div>}
         </>
       )}
-      {upload.isPending && <p role="status">Se încarcă…</p>}
+      {upload.isPending && <p role="status">{t('Se încarcă…')}</p>}
       {upload.error && <ErrorMessage error={upload.error} />}
       {status}
       {kind === 'barem' && (
@@ -240,11 +241,11 @@ function BaremNotesEditor({
         save.mutate(text);
       }}
     >
-      <label htmlFor={id}>{ces ? 'Indicații suplimentare pentru corectarea CES' : 'Indicații suplimentare pentru corectare'}</label>
+      <label htmlFor={id}>{ces ? t('Indicații suplimentare pentru corectarea CES') : t('Indicații suplimentare pentru corectare')}</label>
       <p className="hint" id={`${id}-help`}>
         {ces
-          ? 'Se adaugă la baremul CES. Robotul le folosește când dă punctele și când generează baremul.'
-          : 'Se adaugă la barem. Robotul le folosește când dă punctele, ca să corecteze cum vrei tu.'}
+          ? t('Se adaugă la baremul CES. Robotul le folosește când dă punctele și când generează baremul.')
+          : t('Se adaugă la barem. Robotul le folosește când dă punctele, ca să corecteze cum vrei tu.')}
       </p>
       <textarea
         id={id}
@@ -259,8 +260,8 @@ function BaremNotesEditor({
         aria-describedby={`${id}-help`}
         placeholder={
           ces
-            ? 'De exemplu: acceptă rezultatul fără justificare la exercițiul 1.'
-            : 'De exemplu: la exercițiul 2 acceptă și metoda cu proporții. La 3b, fără unitatea de măsură scade 1 punct.'
+            ? t('De exemplu: acceptă rezultatul fără justificare la exercițiul 1.')
+            : t('De exemplu: la exercițiul 2 acceptă și metoda cu proporții. La 3b, fără unitatea de măsură scade 1 punct.')
         }
       />
       <div className="barem-notes-foot">
@@ -268,17 +269,17 @@ function BaremNotesEditor({
           <span className="row-actions">
             <button className="button button-small" type="submit" disabled={save.isPending || locked}>
               <ActionIcon name="check" />
-              Salvează indicațiile
+              {t('Salvează indicațiile')}
             </button>
             <button type="button" className="button-quiet button-small" disabled={save.isPending} onClick={() => setText(notes)}>
               <ActionIcon name="close" />
-              Renunță
+              {t('Renunță')}
             </button>
           </span>
         ) : (
           saved && (
             <span className="barem-notes-saved" role="status">
-              Salvate
+              {t('Salvate')}
             </span>
           )
         )}

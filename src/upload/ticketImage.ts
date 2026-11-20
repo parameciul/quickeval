@@ -1,4 +1,5 @@
 import { saveFile, shareFile, type ShareResult } from '../admin/pdf/share.ts';
+import { t } from '../i18n/t.ts';
 
 // The result ticket as a picture for the phone's gallery: what the ticket on
 // the page shows, drawn on a canvas in the browser. Always light, whatever
@@ -63,7 +64,7 @@ export function ticketFileName(testCode: string, studentName: string): string {
         .replace(/^-+|-+$/g, ''),
     )
     .filter((part) => part !== '');
-  return `${['bilet', ...clean].join('-')}.png`;
+  return `${[t('bilet'), ...clean].join('-')}.png`;
 }
 
 // Breaks a text into lines no wider than `width`, at most `maxLines`; what
@@ -81,8 +82,8 @@ export function wrapLines(measure: (text: string) => number, text: string, width
     if (lines.length === maxLines - 1) {
       // The last line allowed: cut words until "…" fits.
       let cut = line;
-      while (cut.includes(' ') && measure(`${cut}…`) > width) cut = cut.slice(0, cut.lastIndexOf(' '));
-      lines.push(`${cut}…`);
+      while (cut.includes(' ') && measure(t('{cut}…', { cut })) > width) cut = cut.slice(0, cut.lastIndexOf(' '));
+      lines.push(t('{cut}…', { cut }));
       return lines;
     }
     lines.push(line);
@@ -161,7 +162,7 @@ export function drawTicket(context: CanvasRenderingContext2D, picture: TicketPic
     context.textAlign = 'left';
     context.fillStyle = MUTED;
     context.font = font(400, 34);
-    context.fillText('Codul tău', MARGIN + 40, 1238);
+    context.fillText(t('Codul tău'), MARGIN + 40, 1238);
     context.textAlign = 'right';
     context.fillStyle = INK;
     context.font = font(700, 92);

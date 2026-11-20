@@ -7,12 +7,13 @@ import { MathText } from '../../ui/MathText.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 const SECTIONS: { key: keyof Omit<ClassAnalysis, 'overview'>; title: string }[] = [
-  { key: 'strengths', title: 'Ce a mers bine' },
-  { key: 'weaknesses', title: 'Ce a mers mai greu' },
-  { key: 'commonMistakes', title: 'Greșeli frecvente' },
-  { key: 'recommendations', title: 'Ce exersați în continuare' },
+  { key: 'strengths', title: t('Ce a mers bine') },
+  { key: 'weaknesses', title: t('Ce a mers mai greu') },
+  { key: 'commonMistakes', title: t('Greșeli frecvente') },
+  { key: 'recommendations', title: t('Ce exersați în continuare') },
 ];
 
 // The analysis of the class (spec §11.3, §14.2): written by the robot after the
@@ -48,38 +49,38 @@ export function AnalysisSection({ code, report }: { code: string; report: ClassR
   return (
     <section id="analysis" className="report-part class-card" aria-labelledby="analysis-title">
       <div className="class-card-head">
-        <h2 id="analysis-title">Analiza clasei</h2>
-        {status === 'ready' && content && !stale && button('Regenerează')}
+        <h2 id="analysis-title">{t('Analiza clasei')}</h2>
+        {status === 'ready' && content && !stale && button(t('Regenerează'))}
       </div>
       <div className="report-analysis">
-        {status === 'requested' && canAsk && !retrying && <p role="status">Robotul scrie analiza clasei. Pagina se reînnoiește singură.</p>}
+        {status === 'requested' && canAsk && !retrying && <p role="status">{t('Robotul scrie analiza clasei. Pagina se reînnoiește singură.')}</p>}
         {retrying && canAsk && (
           <div className="warning" role="status">
-            <p>Ultima încercare a eșuat. Robotul va încerca din nou la următoarea rulare.</p>
-            {button('Regenerează')}
+            <p>{t('Ultima încercare a eșuat. Robotul va încerca din nou la următoarea rulare.')}</p>
+            {button(t('Regenerează'))}
           </div>
         )}
-        {status === 'requested' && !canAsk && <p className="hint">Analiza se scrie după ce testul este corectat din nou.</p>}
+        {status === 'requested' && !canAsk && <p className="hint">{t('Analiza se scrie după ce testul este corectat din nou.')}</p>}
         {status === 'none' && (
           <>
-            <p className="hint">Analiza clasei nu a fost făcută încă.</p>
-            {button('Fă analiza clasei')}
+            <p className="hint">{t('Analiza clasei nu a fost făcută încă.')}</p>
+            {button(t('Fă analiza clasei'))}
           </>
         )}
         {status === 'failed' && (
           <div className="warning">
             <p>
-              <strong>Robotul nu a putut scrie analiza clasei.</strong>
+              <strong>{t('Robotul nu a putut scrie analiza clasei.')}</strong>
             </p>
-            {button('Regenerează')}
+            {button(t('Regenerează'))}
           </div>
         )}
         {status === 'ready' && content && (
           <>
             {stale && (
               <div className="warning" role="status">
-                <p>Analiza poate fi depășită: notele s-au schimbat după ce a fost scrisă.</p>
-                {button('Regenerează')}
+                <p>{t('Analiza poate fi depășită: notele s-au schimbat după ce a fost scrisă.')}</p>
+                {button(t('Regenerează'))}
               </div>
             )}
             <p>

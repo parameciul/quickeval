@@ -9,6 +9,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { CARDS, useMediaQuery } from '../../ui/useMediaQuery.ts';
+import { t } from '../../i18n/t.ts';
 
 type Saved = (submission: SubmissionDetail) => Promise<void>;
 type Correct = (itemId: number, change: ItemChange) => Promise<SubmissionDetail>;
@@ -134,40 +135,40 @@ export function GradedResult({
     <div className="graded-result">
       <div className="grade-strip">
         <p className="grade-line">
-          Nota{' '}
+          {t('Nota')}{' '}
           <strong className={`points points-${pointsLevel(evaluation.grade, 10)}`}>{formatPoints(evaluation.grade)}</strong> ·{' '}
-          {formatPoints(evaluation.total)} puncte din {formatPoints(evaluation.maxTotal)}
-          {evaluation.officePoints > 0 && `, cu ${formatPoints(evaluation.officePoints)} din oficiu`}
+          {formatPoints(evaluation.total)}{' '}{t('puncte din')}{' '}{formatPoints(evaluation.maxTotal)}
+          {evaluation.officePoints > 0 && t(', cu {formatPoints} din oficiu', { formatPoints: formatPoints(evaluation.officePoints) })}
         </p>
         {evaluation.flagCount > 0 ? (
-          <span className="tag tag-wait">De verificat: {evaluation.flagCount}</span>
+          <span className="tag tag-wait">{t('De verificat: {flagCount}', { flagCount: evaluation.flagCount })}</span>
         ) : (
-          <span className="tag tag-ok">Nimic de verificat</span>
+          <span className="tag tag-ok">{t('Nimic de verificat')}</span>
         )}
       </div>
       <UnreadablePages submissionId={submissionId} evaluation={evaluation} onSaved={onSaved} check={check} />
 
       {shown.length === 0 ? (
-        <p className="hint">Niciun exercițiu de verificat în această lucrare.</p>
+        <p className="hint">{t('Niciun exercițiu de verificat în această lucrare.')}</p>
       ) : (
       <div className="table-wrap">
         <table className="items">
-          <caption className="sr-only">Punctajele pe exerciții</caption>
+          <caption className="sr-only">{t('Punctajele pe exerciții')}</caption>
           <thead>
             <tr>
-                  <th scope="col" title="Exercițiul">
-                    <span className="sr-only">Exercițiul</span>
+                  <th scope="col" title={t('Exercițiul')}>
+                    <span className="sr-only">{t('Exercițiul')}</span>
                     <span aria-hidden="true">#</span>
                   </th>
-              <th scope="col">Puncte</th>
-              <th scope="col">Răspunsul elevului</th>
-              <th scope="col">Comentariu</th>
-                  <th scope="col" className="conf-col" title="Siguranța robotului">
-                    <span className="sr-only">Siguranța robotului</span>
+              <th scope="col">{t('Puncte')}</th>
+              <th scope="col">{t('Răspunsul elevului')}</th>
+              <th scope="col">{t('Comentariu')}</th>
+                  <th scope="col" className="conf-col" title={t('Siguranța robotului')}>
+                    <span className="sr-only">{t('Siguranța robotului')}</span>
                     <RobotMark />
                   </th>
               <th scope="col">
-                <span className="sr-only">Acțiuni</span>
+                <span className="sr-only">{t('Acțiuni')}</span>
               </th>
             </tr>
           </thead>
@@ -222,7 +223,7 @@ function UnreadablePages({
   });
   if (evaluation.unreadable.length === 0) return null;
   const pages = evaluation.unreadable.map(pageLabel).join(', ');
-  if (evaluation.pagesReviewed) return check?.onlyToCheck ? null : <p className="hint">Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.</p>;
+  if (evaluation.pagesReviewed) return check?.onlyToCheck ? null : <p className="hint">{t('Robotul nu a putut citi: {pages}. Ai verificat aceste pagini.', { pages })}</p>;
   if (check) {
     // The open pages' decision says why itself.
     const open = check.openKey === 'pages';
@@ -230,13 +231,13 @@ function UnreadablePages({
     return (
       <div className={open ? 'pages-check is-open' : decision !== null ? 'pages-check is-kept' : 'pages-check'}>
         <p>
-          <span className="points-pill">Pagini necitite</span> {pages}
+          <span className="points-pill">{t('Pagini necitite')}</span> {pages}
           {!open && (
             <button
               type="button"
               className="button-quiet button-small icon-button verifica-btn"
-              aria-label="Verifică paginile necitite"
-              title="Verifică"
+              aria-label={t('Verifică paginile necitite')}
+              title={t('Verifică')}
               onClick={() => check.onOpen('pages', 'byRow')}
             >
               <CheckMark />
@@ -244,7 +245,7 @@ function UnreadablePages({
           )}
         </p>
         {open && check.photo && (
-          <div className="inline-photo" role="group" aria-label="Lucrarea, la paginile necitite">
+          <div className="inline-photo" role="group" aria-label={t('Lucrarea, la paginile necitite')}>
             {check.photo}
           </div>
         )}
@@ -254,10 +255,10 @@ function UnreadablePages({
   }
   return (
     <div className="warning">
-      <p>Robotul nu a putut citi: {pages}. Verifică pozele și punctajele exercițiilor de pe ele.</p>
+      <p>{t('Robotul nu a putut citi: {pages}. Verifică pozele și punctajele exercițiilor de pe ele.', { pages })}</p>
       <button type="button" className="button-quiet button-small" disabled={review.isPending} onClick={() => review.mutate()}>
         <ActionIcon name="check" />
-        Am verificat paginile
+        {t('Am verificat paginile')}
       </button>
       {review.error && <ErrorMessage error={review.error} />}
     </div>
@@ -273,8 +274,8 @@ export function ConfidenceBars({ confidence }: { confidence: Confidence }) {
     <span
       className={`conf-bars conf-${level}`}
       role="img"
-      aria-label={`Siguranța robotului: ${label}, ${level} din 5`}
-      title={`${label} (${level} din 5)`}
+      aria-label={t('Siguranța robotului: {label}, {level} din 5', { label, level })}
+      title={t('{label} ({level} din 5)', { label, level })}
     >
       {[1, 2, 3, 4, 5].map((step) => (
         <span key={step} aria-hidden="true" className={step <= level ? 'conf-bar is-on' : 'conf-bar'} />
@@ -316,7 +317,7 @@ function ItemRows({
       {shown && !photoInRow && (
         <tr className="item-photo">
           <td colSpan={6}>
-            <div className="inline-photo" role="group" aria-label={`Lucrarea, la ${item.exerciseId}`}>
+            <div className="inline-photo" role="group" aria-label={t('Lucrarea, la {exerciseId}', { exerciseId: item.exerciseId })}>
               {photo}
             </div>
           </td>
@@ -397,7 +398,7 @@ function ItemRow({
     const changed = points !== formatPoints(item.points);
     const value = changed ? parsePoints(points) : item.points;
     if (value === null || (changed && !isValidCorrection(value, item.maxPoints))) {
-      setProblem(`Punctajul este între 0 și ${formatPoints(item.maxPoints)}, din 0,05 în 0,05.`);
+      setProblem(t('Punctajul este între 0 și {formatPoints}, din 0,05 în 0,05.', { formatPoints: formatPoints(item.maxPoints) }));
       return;
     }
     setProblem(null);
@@ -423,12 +424,10 @@ function ItemRow({
         {item.exerciseId} <span className="sr-only">{item.label}</span>
         {checked && <ReviewCheck />}
       </th>
-      <td data-label="Puncte">
+      <td data-label={t('Puncte')}>
         {editing ? (
           <>
-            <label className="sr-only" htmlFor={`${id}-points`}>
-              Puncte pentru {item.label} (din {formatPoints(item.maxPoints)})
-            </label>
+            <label className="sr-only" htmlFor={`${id}-points`}>{t('Puncte pentru {label} (din {formatPoints})', { label: item.label, formatPoints: formatPoints(item.maxPoints) })}</label>
             <input
               id={`${id}-points`}
               type="text"
@@ -448,24 +447,24 @@ function ItemRow({
           <>
             {calm && toCheck ? (
               <span className="points-pill">
-                {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
+                {t('{formatPoints} din {formatPoints2}', { formatPoints: formatPoints(item.points), formatPoints2: formatPoints(item.maxPoints) })}
               </span>
             ) : (
               <span className={`points points-${pointsLevel(item.points, item.maxPoints)}`}>
-                {formatPoints(item.points)} din {formatPoints(item.maxPoints)}
+                {t('{formatPoints} din {formatPoints2}', { formatPoints: formatPoints(item.points), formatPoints2: formatPoints(item.maxPoints) })}
               </span>
             )}
             {item.points !== item.aiPoints && <RobotPoints points={item.aiPoints} />}
           </>
         )}
       </td>
-      <td data-label="Răspunsul elevului">
+      <td data-label={t('Răspunsul elevului')}>
         {editing ? (
           <>
             {/* The robot may have read the paper wrong: the student's result
                 shows this text, so the teacher can put it right. */}
             <label className="sr-only" htmlFor={`${id}-answer`}>
-              Răspunsul elevului
+              {t('Răspunsul elevului')}
             </label>
             <textarea
               id={`${id}-answer`}
@@ -480,11 +479,11 @@ function ItemRow({
           <MathText text={item.studentAnswer} />
         )}
       </td>
-      <td data-label="Comentariu">
+      <td data-label={t('Comentariu')}>
         {editing ? (
           <>
             <label className="sr-only" htmlFor={`${id}-comment`}>
-              Comentariul pentru elev
+              {t('Comentariul pentru elev')}
             </label>
             <textarea
               id={`${id}-comment`}
@@ -497,7 +496,7 @@ function ItemRow({
             {toCheck && !calm && (
               <div className="review-note">
                 <p className="review-reason">
-                  De verificat: <MathText text={item.reviewReason} />
+                  {t('De verificat:')}{' '}<MathText text={item.reviewReason} />
                 </p>
               </div>
             )}
@@ -510,19 +509,19 @@ function ItemRow({
             {toCheck && !calm && (
               <div className="review-note">
                 <p className="review-reason">
-                  De verificat: <MathText text={item.reviewReason} />
+                  {t('De verificat:')}{' '}<MathText text={item.reviewReason} />
                 </p>
                 <button
                   type="button"
                   className="button-quiet button-small verificat-btn"
-                  aria-label={`Verificat ${item.label}`}
+                  aria-label={t('Verificat {label}', { label: item.label })}
                   disabled={check.isPending}
                   onClick={() => check.mutate()}
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  Verificat
+                  {t('Verificat')}
                 </button>
                 {check.error && <ErrorMessage error={check.error} />}
               </div>
@@ -530,7 +529,7 @@ function ItemRow({
           </>
         )}
       </td>
-      <td className="conf-col" data-label="Siguranța robotului">
+      <td className="conf-col" data-label={t('Siguranța robotului')}>
         <ConfidenceBars confidence={item.confidence} />
       </td>
       <td className={editing ? undefined : 'item-check'}>
@@ -540,8 +539,8 @@ function ItemRow({
               type="button"
               className="button button-small icon-button"
               disabled={save.isPending}
-              aria-label="Salvează"
-              title="Salvează"
+              aria-label={t('Salvează')}
+              title={t('Salvează')}
               onClick={saveEditing}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -553,8 +552,8 @@ function ItemRow({
             <button
               type="button"
               className="button-quiet button-small icon-button"
-              aria-label="Renunță"
-              title="Renunță"
+              aria-label={t('Renunță')}
+              title={t('Renunță')}
               onClick={cancelEditing}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -568,8 +567,8 @@ function ItemRow({
               <button
                 type="button"
                 className="button-quiet button-small icon-button verifica-btn"
-                aria-label={`Verifică ${item.label}`}
-                title="Verifică"
+                aria-label={t('Verifică {label}', { label: item.label })}
+                title={t('Verifică')}
                 onClick={() => onOpen('byRow')}
               >
                 <CheckMark />
@@ -579,9 +578,9 @@ function ItemRow({
               <button
                 type="button"
                 className="button-quiet button-small icon-button"
-                aria-label={`Arată pe lucrare ${item.label}`}
+                aria-label={t('Arată pe lucrare {label}', { label: item.label })}
                 aria-pressed={open}
-                title="Arată pe lucrare"
+                title={t('Arată pe lucrare')}
                 onClick={() => onOpen('toPaper')}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -593,9 +592,9 @@ function ItemRow({
             <button
               type="button"
               className="button-quiet button-small icon-button"
-              aria-label={`Modifică ${item.label}`}
+              aria-label={t('Modifică {label}', { label: item.label })}
               aria-expanded={editing}
-              title="Modifică"
+              title={t('Modifică')}
               onClick={startEditing}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -615,7 +614,7 @@ function ItemRow({
       </td>
       {photo !== null && (
         <td className="inline-photo-cell">
-          <div className="inline-photo" role="group" aria-label={`Lucrarea, la ${item.exerciseId}`}>
+          <div className="inline-photo" role="group" aria-label={t('Lucrarea, la {exerciseId}', { exerciseId: item.exerciseId })}>
             {photo}
           </div>
         </td>
@@ -643,7 +642,7 @@ export function CheckMark() {
 // say what the picture means for screen readers, and the title says it for
 // a sighted teacher on hover.
 function RobotPoints({ points }: { points: number }) {
-  const meaning = 'Punctajul robotului înainte de corectura ta';
+  const meaning = t('Punctajul robotului înainte de corectura ta');
   return (
     <span className="hint item-note ai-points" title={meaning}>
       <span className="sr-only">{`${meaning}: `}</span>
@@ -682,11 +681,11 @@ function RobotMark() {
 // comment. The sr-only word keeps the state readable by screen readers.
 function ReviewCheck() {
   return (
-    <span className="review-check" title="Verificat">
+    <span className="review-check" title={t('Verificat')}>
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="sr-only">Verificat</span>
+      <span className="sr-only">{t('Verificat')}</span>
     </span>
   );
 }
@@ -702,16 +701,16 @@ function FeedbackSections({ submissionId, evaluation, onSaved }: { submissionId:
         evaluation={evaluation}
         onSaved={onSaved}
         field="strengths"
-        title="Ce a lucrat bine"
-        emptyHint="Nimic notat încă."
+        title={t('Ce a lucrat bine')}
+        emptyHint={t('Nimic notat încă.')}
       />
       <ListSection
         submissionId={submissionId}
         evaluation={evaluation}
         onSaved={onSaved}
         field="recommendations"
-        title="Recomandări"
-        emptyHint="Nicio recomandare încă."
+        title={t('Recomandări')}
+        emptyHint={t('Nicio recomandare încă.')}
       />
     </div>
   );
@@ -740,7 +739,7 @@ function SummarySection({ submissionId, evaluation, onSaved }: { submissionId: n
   const saveNow = () => {
     const summary = value.trim();
     if (summary === '') {
-      setProblem('Scrie rezumatul.');
+      setProblem(t('Scrie rezumatul.'));
       return;
     }
     if (summary === evaluation.summary) {
@@ -752,20 +751,20 @@ function SummarySection({ submissionId, evaluation, onSaved }: { submissionId: n
   };
 
   return (
-    <section className="feedback-card" aria-label="Rezumat">
+    <section className="feedback-card" aria-label={t('Rezumat')}>
       <div className="feedback-head">
-        <h3>Rezumat</h3>
+        <h3>{t('Rezumat')}</h3>
         {!editing && (
-          <button type="button" className="button-quiet button-small" aria-label="Modifică rezumatul" onClick={start}>
+          <button type="button" className="button-quiet button-small" aria-label={t('Modifică rezumatul')} onClick={start}>
             <ActionIcon name="edit" />
-            Modifică
+            {t('Modifică')}
           </button>
         )}
       </div>
       {editing ? (
         <div className="feedback-edit">
           <label className="sr-only" htmlFor={`summary-${submissionId}`}>
-            Rezumatul pentru elev
+            {t('Rezumatul pentru elev')}
           </label>
           <textarea
             id={`summary-${submissionId}`}
@@ -782,11 +781,11 @@ function SummarySection({ submissionId, evaluation, onSaved }: { submissionId: n
           <div className="form-row">
             <button type="button" className="button button-small" disabled={save.isPending} onClick={saveNow}>
               <ActionIcon name="check" />
-              Salvează
+              {t('Salvează')}
             </button>
             <button type="button" className="button-quiet button-small" onClick={() => setEditing(false)}>
               <ActionIcon name="close" />
-              Renunță
+              {t('Renunță')}
             </button>
           </div>
           {save.error && <ErrorMessage error={save.error} />}
@@ -841,11 +840,11 @@ function ListSection({
       .map((line) => line.trim())
       .filter((line) => line !== '');
     if (list.some((line) => Array.from(line).length > TEXT_LIMITS.listEntry)) {
-      setProblem(`Fiecare punct are cel mult ${TEXT_LIMITS.listEntry} de caractere.`);
+      setProblem(t('Fiecare punct are cel mult {listEntry} de caractere.', { listEntry: TEXT_LIMITS.listEntry }));
       return;
     }
     if (list.length > 5) {
-      setProblem('Scrie cel mult 5 puncte, câte unul pe rând.');
+      setProblem(t('Scrie cel mult 5 puncte, câte unul pe rând.'));
       return;
     }
     if (list.join('\n') === current.join('\n')) {
@@ -861,25 +860,24 @@ function ListSection({
       <div className="feedback-head">
         <h3>{title}</h3>
         {!editing && (
-          <button type="button" className="button-quiet button-small" aria-label={`Modifică ${title.toLowerCase()}`} onClick={start}>
+          <button type="button" className="button-quiet button-small" aria-label={t('Modifică {toLowerCase}', { toLowerCase: title.toLowerCase() })} onClick={start}>
             <ActionIcon name="edit" />
-            Modifică
+            {t('Modifică')}
           </button>
         )}
       </div>
       {editing ? (
         <div className="feedback-edit">
           <label className="sr-only" htmlFor={`${field}-${submissionId}`}>
-            {title}, câte unul pe rând
-          </label>
+            {t('{title}, câte unul pe rând', { title })}</label>
           <textarea
             id={`${field}-${submissionId}`}
             rows={Math.max(2, Math.min(6, current.length + 1))}
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            placeholder="Câte unul pe rând"
+            placeholder={t('Câte unul pe rând')}
           />
-          <p className="hint">Câte unul pe rând, cel mult 5.</p>
+          <p className="hint">{t('Câte unul pe rând, cel mult 5.')}</p>
           {problem && (
             <p className="alert" role="alert">
               {problem}
@@ -888,11 +886,11 @@ function ListSection({
           <div className="form-row">
             <button type="button" className="button button-small" disabled={save.isPending} onClick={saveNow}>
               <ActionIcon name="check" />
-              Salvează
+              {t('Salvează')}
             </button>
             <button type="button" className="button-quiet button-small" onClick={() => setEditing(false)}>
               <ActionIcon name="close" />
-              Renunță
+              {t('Renunță')}
             </button>
           </div>
           {save.error && <ErrorMessage error={save.error} />}

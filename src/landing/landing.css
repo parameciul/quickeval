@@ -75,6 +75,10 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+/* A teacher logged in on the last visit (public/theme.js): the account link
+   from the first paint, until the API's answer sets the links. */
+:root[data-signed-in] [data-guest] { display: none !important; }
+:root[data-signed-in] [data-member][hidden] { display: inline-flex !important; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body { margin: 0; background: var(--ground); color: var(--text); font: 400 18px/1.55 var(--font); }
 h1, h2, h3, p, ol, ul, figure, blockquote, dl, dd { margin: 0; }
@@ -497,6 +501,9 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
   .tryd .acts { position: sticky; bottom: 0; margin-left: 0; padding: 8px 0 4px; background: var(--surface); }
   .tryd .acts .btn { flex: 1; }
 }
+
+/* The language link beside the theme button: the code of the other language. */
+.lang-switch { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.02em; text-decoration: none; }
 
 /* Laptop and desktop sizes. Wide screens are often short and read up close, so
    above the phone layout the page stops growing at 1280px, the large type

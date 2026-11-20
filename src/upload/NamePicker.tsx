@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { LinkStudent } from '../../shared/api.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
+import { t } from '../i18n/t.ts';
 
 // The class list. A tap on a name asks "Ești tu?" first, because the upload
 // then belongs to that name on this phone. Names that already sent their
@@ -20,7 +21,7 @@ export function NamePicker({
   if (chosen) {
     return (
       <section className="confirm-name">
-        <h2>Ești {chosen.name}?</h2>
+        <h2>{t('Ești {name}?', { name: chosen.name })}</h2>
         <div className="big-actions">
           <button
             type="button"
@@ -34,11 +35,11 @@ export function NamePicker({
             }}
           >
             <ActionIcon name="check" />
-            Da, încep
+            {t('Da, încep')}
           </button>
           <button type="button" className="button-quiet button-big" disabled={busy} onClick={() => setChosen(null)}>
             <ActionIcon name="close" />
-            Nu, aleg alt nume
+            {t('Nu, aleg alt nume')}
           </button>
         </div>
       </section>
@@ -47,14 +48,14 @@ export function NamePicker({
 
   return (
     <section>
-      <h2>Alege-ți numele</h2>
+      <h2>{t('Alege-ți numele')}</h2>
       {message && (
         <p className="alert" role="alert">
           {message}
         </p>
       )}
       {students.length === 0 ? (
-        <p className="hint">Lista clasei este goală. Spune-i profesorului.</p>
+        <p className="hint">{t('Lista clasei este goală. Spune-i profesorului.')}</p>
       ) : (
         <ul className="name-list">
           {students.map((student) => (
@@ -63,7 +64,7 @@ export function NamePicker({
                 type="button"
                 className="name-button"
                 disabled={student.state === 'done'}
-                aria-label={student.state === 'done' ? `${student.name}, a trimis` : undefined}
+                aria-label={student.state === 'done' ? t('{name}, a trimis', { name: student.name }) : undefined}
                 onClick={() => setChosen(student)}
               >
                 {student.name}

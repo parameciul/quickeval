@@ -92,6 +92,16 @@ describe('the pages that answer a search', () => {
     }
   });
 
+  it('has the login and the hidden account link in the header, like the landing page', () => {
+    for (const html of [landing, ...PAGES.map((p) => p.html)]) {
+      const nav = parse(html).querySelector('.site-top nav')!;
+      const guest = all(nav as unknown as Document, '[data-guest]');
+      const member = all(nav as unknown as Document, '[data-member]');
+      expect(guest.map((a) => [text(a), a.getAttribute('href'), a.hasAttribute('hidden')])).toEqual([['Intră în cont', '/teacher/', false]]);
+      expect(member.map((a) => [text(a), a.getAttribute('href'), a.hasAttribute('hidden')])).toEqual([['Contul tău', '/teacher/', true]]);
+    }
+  });
+
   it('keeps the header menu one tap away on a phone, the page marked', () => {
     for (const page of PAGES) {
       const doc = parse(page.html);
@@ -121,7 +131,8 @@ describe('the pages that answer a search', () => {
       .map((a) => a.getAttribute('href') ?? '')
       .filter((href) => href.startsWith('/'))
       .map((href) => href.split('#')[0] ?? '');
-    const known = new Set(['/', ...LINKS, '/teacher/']);
+    // The English copy of each page counts as one of them.
+    const known = new Set(['/', ...LINKS, '/teacher/', '/en/', ...LINKS.map((link) => `/en${link}`)]);
     for (const href of internal) expect(known.has(href) || href.startsWith('/teacher/')).toBe(true);
     // A link into the teacher app with a hash opens the sign-up, by its own name.
     for (const a of all(doc, 'a[href^="/teacher/#"]')) expect(a.getAttribute('href')).toBe(`/teacher/${SIGNUP_HASH}`);

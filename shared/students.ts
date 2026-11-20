@@ -26,8 +26,8 @@ export function parseStudentNames(text: string): string[] {
 // languages (É, Ö, Ü, Č, Ł, ...), each of which has a one-letter lowercase.
 const FOREIGN_CAPITALS = 'ÁÀÄÅÃÇČĆÉÈÊËÍÌÏÓÒÔÖÕŐŠÚÙÛÜŰÝŽŁÑ';
 const NAME_KEY_FOLDS: readonly (readonly [string, string])[] = [
-  ['Ă', 'ă'], ['Â', 'â'], ['Î', 'î'], ['Ș', 'ș'], ['Ț', 'ț'],
-  ['Ş', 'ș'], ['ş', 'ș'], ['Ţ', 'ț'], ['ţ', 'ț'],
+  ['Ă', 'ă'], ['Â', 'â'], ['Î', 'î'], ['Ș', 'ș'], ['Ț', 'ț'], // i18n-ignore: letters
+  ['Ş', 'ș'], ['ş', 'ș'], ['Ţ', 'ț'], ['ţ', 'ț'], // i18n-ignore: letters
   ...Array.from(FOREIGN_CAPITALS, (letter): readonly [string, string] => [letter, letter.toLowerCase()]),
 ];
 

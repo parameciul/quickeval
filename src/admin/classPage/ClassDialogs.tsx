@@ -10,6 +10,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { Modal } from '../Modal.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // The names of the paste that the class already has (a student who left counts)
 // or that the paste holds twice, each named once as typed. The server stays the
@@ -43,19 +44,13 @@ function useNamesField(students: StudentRow[]) {
   const warnings = (
     <>
       {tooMany && (
-        <p className="alert" role="alert">
-          Adaugă cel mult {MAX_NAMES_PER_REQUEST} de nume odată.
-        </p>
+        <p className="alert" role="alert">{t('Adaugă cel mult {MAX_NAMES_PER_REQUEST} de nume odată.', { MAX_NAMES_PER_REQUEST })}</p>
       )}
       {inClass.length > 0 && (
-        <p className="alert" role="alert">
-          Sunt deja în clasă: {inClass.join(', ')}.
-        </p>
+        <p className="alert" role="alert">{t('Sunt deja în clasă: {join}.', { join: inClass.join(', ') })}</p>
       )}
       {twice.length > 0 && (
-        <p className="alert" role="alert">
-          Apar de două ori: {twice.join(', ')}.
-        </p>
+        <p className="alert" role="alert">{t('Apar de două ori: {join}.', { join: twice.join(', ') })}</p>
       )}
     </>
   );
@@ -95,7 +90,7 @@ export function NewClassDialog({ onClose, onCreated }: { onClose(): void; onCrea
     },
   });
   return (
-    <Modal title="Clasă nouă" onClose={onClose}>
+    <Modal title={t('Clasă nouă')} onClose={onClose}>
       <form
         className="modal-body"
         onSubmit={(event: FormEvent) => {
@@ -104,20 +99,20 @@ export function NewClassDialog({ onClose, onCreated }: { onClose(): void; onCrea
         }}
       >
         <div className="modal-field">
-          <label htmlFor="new-class-name">Numele clasei</label>
+          <label htmlFor="new-class-name">{t('Numele clasei')}</label>
           <input
             id="new-class-name"
             type="text"
             value={name}
             onChange={(event) => setName(event.target.value)}
             maxLength={8}
-            placeholder="de exemplu 6E2"
+            placeholder={t('de exemplu 6E2')}
             required
             disabled={createdId !== null}
           />
         </div>
         <div className="modal-field">
-          <label htmlFor="new-class-students">Elevii, câte unul pe rând</label>
+          <label htmlFor="new-class-students">{t('Elevii, câte unul pe rând')}</label>
           <textarea
             id="new-class-students"
             rows={7}
@@ -125,13 +120,13 @@ export function NewClassDialog({ onClose, onCreated }: { onClose(): void; onCrea
             onChange={(event) => field.setText(event.target.value)}
             placeholder={'Popescu Ana\nIonescu Mihai'}
           />
-          <span className="hint">Poți lipi lista din catalog. Poți adăuga elevi și mai târziu.</span>
+          <span className="hint">{t('Poți lipi lista din catalog. Poți adăuga elevi și mai târziu.')}</span>
         </div>
         {field.warnings}
         {create.error && <ErrorMessage error={create.error} />}
         <button type="submit" className="button modal-submit" disabled={field.blocked || create.isPending}>
           <ActionIcon name="add" />
-          Adaugă clasa
+          {t('Adaugă clasa')}
         </button>
       </form>
     </Modal>
@@ -162,7 +157,7 @@ export function AddStudentsDialog({
     },
   });
   return (
-    <Modal title={`Adaugă elevi în ${displayClassName(className)}`} onClose={onClose}>
+    <Modal title={t('Adaugă elevi în {displayClassName}', { displayClassName: displayClassName(className) })} onClose={onClose}>
       <form
         className="modal-body"
         onSubmit={(event: FormEvent) => {
@@ -171,7 +166,7 @@ export function AddStudentsDialog({
         }}
       >
         <div className="modal-field">
-          <label htmlFor="add-students-names">Numele elevilor, câte unul pe rând</label>
+          <label htmlFor="add-students-names">{t('Numele elevilor, câte unul pe rând')}</label>
           <textarea
             id="add-students-names"
             rows={7}
@@ -179,7 +174,7 @@ export function AddStudentsDialog({
             onChange={(event) => field.setText(event.target.value)}
             placeholder={'Popescu Ana\nIonescu Mihai'}
           />
-          <span className="hint">Poți lipi lista din catalog.</span>
+          <span className="hint">{t('Poți lipi lista din catalog.')}</span>
         </div>
         {field.warnings}
         {add.error && <ErrorMessage error={add.error} />}
@@ -189,7 +184,7 @@ export function AddStudentsDialog({
           disabled={field.names.length === 0 || field.blocked || add.isPending}
         >
           <ActionIcon name="add-person" />
-          {field.names.length > 0 ? `Adaugă ${studentCountLabel(field.names.length)}` : 'Adaugă elevii'}
+          {field.names.length > 0 ? t('Adaugă {studentCountLabel}', { studentCountLabel: studentCountLabel(field.names.length) }) : t('Adaugă elevii')}
         </button>
       </form>
     </Modal>
@@ -247,7 +242,7 @@ export function RenameDialog({
         {rename.error && <ErrorMessage error={rename.error} />}
         <button type="submit" className="button modal-submit" disabled={rename.isPending}>
           <ActionIcon name="check" />
-          Salvează
+          {t('Salvează')}
         </button>
       </form>
     </Modal>

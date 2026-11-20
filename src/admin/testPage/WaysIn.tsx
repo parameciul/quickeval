@@ -8,6 +8,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { Modal } from '../Modal.tsx';
 import { StageSection } from './StageNow.tsx';
 import { QrOverlay, uploadLink } from './UploadLink.tsx';
+import { t } from '../../i18n/t.ts';
 
 export type Copied = 'yes' | 'made' | 'failed' | null;
 
@@ -46,9 +47,9 @@ export async function copyLink(make: () => string | Promise<string>): Promise<vo
 }
 
 export function CopiedNote({ copied }: { copied: Copied }) {
-  if (copied === 'yes') return <span role="status">Copiat!</span>;
-  if (copied === 'made') return <span role="status">Linkul tău a fost creat și copiat.</span>;
-  if (copied === 'failed') return <span role="status">Nu am putut copia. Arată codul QR: linkul e sub el.</span>;
+  if (copied === 'yes') return <span role="status">{t('Copiat!')}</span>;
+  if (copied === 'made') return <span role="status">{t('Linkul tău a fost creat și copiat.')}</span>;
+  if (copied === 'failed') return <span role="status">{t('Nu am putut copia. Arată codul QR: linkul e sub el.')}</span>;
   return null;
 }
 
@@ -77,7 +78,7 @@ export function QrWindow({
     <Modal title={title} onClose={onClose} returnFocus={returnFocus}>
       <div className="modal-body qr-window">
         <p className="hint">{hint}</p>
-        <QRCodeSVG value={url} size={288} marginSize={4} title="Codul QR al linkului" className="qr-window-code" />
+        <QRCodeSVG value={url} size={288} marginSize={4} title={t('Codul QR al linkului')} className="qr-window-code" />
         <p className="qr-window-url">{url}</p>
         <div className="qr-window-actions">
           <button
@@ -86,12 +87,12 @@ export function QrWindow({
             onClick={() => copyLink(() => url).then(() => setCopied('yes'), () => setCopied('failed'))}
           >
             <ActionIcon name="copy" />
-            Copiază linkul
+            {t('Copiază linkul')}
           </button>
           {fullScreen && (
             <button type="button" className="button-quiet button-small" onClick={fullScreen}>
               <ActionIcon name="expand" />
-              Pe tot ecranul
+              {t('Pe tot ecranul')}
             </button>
           )}
           {extra}
@@ -187,16 +188,16 @@ export function WaysIn({ test, onChanged }: { test: TestInfo; onChanged: () => P
   };
 
   return (
-    <StageSection title={draft ? 'Cum vor trimite elevii lucrarea' : 'Cum trimit elevii lucrarea'}>
+    <StageSection title={draft ? t('Cum vor trimite elevii lucrarea') : t('Cum trimit elevii lucrarea')}>
       <ul className="ways">
-        <Way icon="print" title="Scanează codul QR de pe foaia testului" text="Codul e pe fiecare pagină tipărită. E calea obișnuită." />
+        <Way icon="print" title={t('Scanează codul QR de pe foaia testului')} text={t('Codul e pe fiecare pagină tipărită. E calea obișnuită.')} />
         <Way
           icon="link"
-          title="Sau deschid linkul testului, primit de la tine"
+          title={t('Sau deschid linkul testului, primit de la tine')}
           text={
             draft
-              ? 'Pentru un elev fără foaie. Linkul merge după ce începi testul.'
-              : 'Pentru un elev fără foaie: trimite-i linkul sau arată codul pe tablă sau pe proiector.'
+              ? t('Pentru un elev fără foaie. Linkul merge după ce începi testul.')
+              : t('Pentru un elev fără foaie: trimite-i linkul sau arată codul pe tablă sau pe proiector.')
           }
         >
           <button
@@ -205,11 +206,11 @@ export function WaysIn({ test, onChanged }: { test: TestInfo; onChanged: () => P
             onClick={() => copyLink(() => url).then(() => setStudentsCopied('yes'), () => setStudentsCopied('failed'))}
           >
             <ActionIcon name="copy" />
-            Copiază linkul
+            {t('Copiază linkul')}
           </button>
           <button ref={studentsQr} type="button" className="button-quiet button-small" onClick={() => setShown('students')}>
             <ActionIcon name="qr" />
-            Arată codul QR
+            {t('Arată codul QR')}
           </button>
           <CopiedNote copied={studentsCopied} />
         </Way>
@@ -218,18 +219,18 @@ export function WaysIn({ test, onChanged }: { test: TestInfo; onChanged: () => P
             icon="phone"
             title={
               <>
-                Tu încarci lucrările mai multor elevi <span className="ways-tag">doar pentru tine</span>
+                {t('Tu încarci lucrările mai multor elevi')}{' '}<span className="ways-tag">{t('doar pentru tine')}</span>
               </>
             }
-            text="De pe telefonul tău, pe rând, pentru elevii fără telefon. Nu da acest link elevilor."
+            text={t('De pe telefonul tău, pe rând, pentru elevii fără telefon. Nu da acest link elevilor.')}
           >
             <button type="button" className="button-quiet button-small" onClick={() => void copyTeacher()}>
               <ActionIcon name="copy" />
-              Copiază linkul tău
+              {t('Copiază linkul tău')}
             </button>
             <button ref={teacherQr} type="button" className="button-quiet button-small" onClick={() => void showTeacherQr()}>
               <ActionIcon name="qr" />
-              Arată codul QR
+              {t('Arată codul QR')}
             </button>
             <CopiedNote copied={teacherCopied} />
           </Way>
@@ -238,8 +239,8 @@ export function WaysIn({ test, onChanged }: { test: TestInfo; onChanged: () => P
       {error !== null && <ErrorMessage error={error} />}
       {shown === 'students' && (
         <QrWindow
-          title="Linkul testului pentru elevi"
-          hint="Elevul scanează codul cu camera telefonului și trimite pozele."
+          title={t('Linkul testului pentru elevi')}
+          hint={t('Elevul scanează codul cu camera telefonului și trimite pozele.')}
           url={url}
           returnFocus={studentsQr}
           fullScreen={() => {
@@ -251,8 +252,8 @@ export function WaysIn({ test, onChanged }: { test: TestInfo; onChanged: () => P
       )}
       {shown === 'teacher' && teacherUrl !== null && (
         <QrWindow
-          title="Linkul tău pentru mai multe lucrări"
-          hint="Scanează-l cu telefonul tău. Încarci pe rând lucrările elevilor fără telefon. Nu-l arăta clasei."
+          title={t('Linkul tău pentru mai multe lucrări')}
+          hint={t('Scanează-l cu telefonul tău. Încarci pe rând lucrările elevilor fără telefon. Nu-l arăta clasei.')}
           url={teacherUrl}
           returnFocus={teacherQr}
           onClose={() => setShown(null)}

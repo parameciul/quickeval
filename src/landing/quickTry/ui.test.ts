@@ -49,6 +49,7 @@ interface PhoneDeps {
   isPhone?: () => boolean;
   go?: (path: string) => void;
   watchPhone?: (onChange: () => void) => void;
+  checkAccount?: (root: ParentNode) => Promise<void>;
 }
 
 async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone: PhoneDeps = {}) {
@@ -64,6 +65,7 @@ async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone:
     isPhone: phone.isPhone ?? (() => false),
     go: phone.go,
     watchPhone: phone.watchPhone ?? (() => {}),
+    checkAccount: phone.checkAccount ?? (async () => {}),
     signal: mounted.signal,
   });
   return { api, turnstile };
@@ -622,6 +624,17 @@ describe("the landing page's Quick Try", () => {
     await mount(api);
     expect(screen.getAllByRole('link', { name: 'Intră în cont' })).toHaveLength(1);
     expect(screen.queryByRole('link', { name: 'Contul tău' })).toBeNull();
+  });
+
+  it('asks the sign-in alone when the availability fails, and not when it answers', async () => {
+    const failing = fakeLandingApi();
+    failing.availability.mockRejectedValue(new ApiError(0, 'network', 'Nu mă pot conecta la server.'));
+    const checkAccount = vi.fn(async () => {});
+    await mount(failing, fakeTurnstile(), { checkAccount });
+    expect(checkAccount).toHaveBeenCalledWith(document);
+    checkAccount.mockClear();
+    await mount(fakeLandingApi({ signedIn: true }), fakeTurnstile(), { checkAccount });
+    expect(checkAccount).not.toHaveBeenCalled();
   });
 
   it('shows no button when the page cannot ask the server, and still follows her try', async () => {

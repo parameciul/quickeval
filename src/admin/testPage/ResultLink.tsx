@@ -3,6 +3,7 @@ import { studentResultUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
 
 // One student's result link, with copy and WhatsApp share. When the upload
 // has no link yet (an older upload), the first opening makes it.
@@ -47,7 +48,7 @@ export function ResultLink({
   };
 
   const url = token ? studentResultUrl(token) : null;
-  const whatsapp = url ? `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul ${testCode}: ${url}`)}` : null;
+  const whatsapp = url ? `https://wa.me/?text=${encodeURIComponent(t('Rezultatul la testul {testCode}: {url}', { testCode, url }))}` : null;
   const copy = async () => {
     if (!url) return;
     try {
@@ -62,30 +63,30 @@ export function ResultLink({
     <span className="result-share">
       <button type="button" className="button-quiet button-small" aria-expanded={open} disabled={busy} onClick={show}>
         <ActionIcon name="link" />
-        Link rezultat
+        {t('Link rezultat')}
       </button>
       {open && (
         <span className="result-share-box">
           {url ? (
             <>
-              <input type="text" readOnly value={url} aria-label={`Linkul cu rezultatul elevului ${studentName}`} />
+              <input type="text" readOnly value={url} aria-label={t('Linkul cu rezultatul elevului {studentName}', { studentName })} />
               <a className="button-quiet button-small" href={url} target="_blank" rel="noopener noreferrer">
                 <ActionIcon name="open" />
-                Deschide
+                {t('Deschide')}
               </a>
               <button type="button" className="button-quiet button-small" onClick={copy}>
                 <ActionIcon name={copied ? 'check' : 'copy'} />
-                {copied ? 'Copiat!' : 'Copiază'}
+                {copied ? 'Copiat!' : t('Copiază')}
               </button>
               {whatsapp && (
                 <a className="button-quiet button-small" href={whatsapp} target="_blank" rel="noopener">
                   <ActionIcon name="share" />
-                  WhatsApp
+                  {t('WhatsApp')}
                 </a>
               )}
             </>
           ) : (
-            <span className="hint">{busy ? 'Se pregătește…' : 'Linkul nu este gata.'}</span>
+            <span className="hint">{busy ? t('Se pregătește…') : t('Linkul nu este gata.')}</span>
           )}
           {error !== null && error !== undefined && <ErrorMessage error={error} />}
         </span>

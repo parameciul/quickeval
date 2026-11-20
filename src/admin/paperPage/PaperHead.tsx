@@ -11,6 +11,8 @@ import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentP
 import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
 import { ResultLink } from '../testPage/ResultLink.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { t } from '../../i18n/t.ts';
+import { tryName } from '../../../shared/quickTry.ts';
 
 // Recorectează, Resetează and Reîncearcă of the paper page, and the news after
 // the first and the last. The test page and the test list count grades and
@@ -42,7 +44,7 @@ export function usePaperActions(code: string, submissionId: number) {
   const regrade = useMutation({
     mutationFn: (gradedAt: string) => api.regradeSubmission(submissionId, gradedAt),
     onSuccess: (answer) =>
-      gradeAgain(answer.robot ? robotStartMessage(answer.robot) : 'Lucrarea se corectează din nou după ce pornești evaluarea.'),
+      gradeAgain(answer.robot ? robotStartMessage(answer.robot) : t('Lucrarea se corectează din nou după ce pornești evaluarea.')),
   });
   const retry = useMutation({
     mutationFn: (startedAt: string) => api.retrySubmission(submissionId, startedAt),
@@ -67,23 +69,23 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
   const paperActions: MenuAction[] = [];
   if (gradedAt !== null) {
     paperActions.push({
-      label: 'Recorectează',
-      hint: 'Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.',
+      label: t('Recorectează'),
+      hint: t('Robotul corectează lucrarea din nou. Punctajele și comentariile schimbate de tine se pierd.'),
       icon: 'retry',
       busy: regrade.isPending,
       onChoose: () => {
-        if (window.confirm(`Recorectezi lucrarea elevului ${submission.studentName}? Corecturile tale se pierd.`)) regrade.mutate(gradedAt);
+        if (window.confirm(t('Recorectezi lucrarea elevului {studentName}? Corecturile tale se pierd.', { studentName: submission.studentName }))) regrade.mutate(gradedAt);
       },
     });
   }
   paperActions.push({
-    label: 'Resetează',
-    hint: 'Se șterg fișierele, iar elevul poate lua încărcarea de la capăt, și de pe alt telefon.',
+    label: t('Resetează'),
+    hint: t('Se șterg fișierele, iar elevul poate lua încărcarea de la capăt, și de pe alt telefon.'),
     icon: 'trash',
     danger: true,
     busy: reset.isPending,
     onChoose: () => {
-      if (window.confirm(`Ștergi încărcarea elevului ${submission.studentName}? Elevul o poate lua de la capăt.`)) reset.mutate(submission.startedAt);
+      if (window.confirm(t('Ștergi încărcarea elevului {studentName}? Elevul o poate lua de la capăt.', { studentName: submission.studentName }))) reset.mutate(submission.startedAt);
     },
   });
 
@@ -91,23 +93,23 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
     <>
       <header className="submission-head">
         <div className="submission-title">
-          <h1>{submission.studentName}</h1>
+          <h1>{tryName(submission.studentName)}</h1>
           <p className="submission-sub">
             <span>
-              {submission.testCode} · {submission.testTitle} ·{' '}
+              {submission.testCode} · {tryName(submission.testTitle)} ·{' '}
               {heldBack(submission.status, submission.files.length, submission.testStatus) ? PAPER_PART_LABEL.waiting : uploadStatusLabel(submission.status)}
             </span>
-            {submission.autoSubmitted && submission.status !== 'graded' && <span className="tag">Fără confirmare</span>}
+            {submission.autoSubmitted && submission.status !== 'graded' && <span className="tag">{t('Fără confirmare')}</span>}
           </p>
           <p className="hint">
-            Început {formatDateTime(submission.startedAt)}
-            {submission.submittedAt && ` · trimis ${formatDateTime(submission.submittedAt)}`}
+            {t('Început')}{' '}{formatDateTime(submission.startedAt)}
+            {submission.submittedAt && t(' · trimis {formatDateTime}', { formatDateTime: formatDateTime(submission.submittedAt) })}
           </p>
         </div>
         <div className="submission-tools">
           <Link className="button-quiet button-small" to={`/students/${submission.studentId}`}>
             <ActionIcon name="report" />
-            Toate notele elevului
+            {t('Toate notele elevului')}
           </Link>
           {pdfInput && (
             <PdfActions
@@ -118,7 +120,7 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
               }}
             />
           )}
-          <ActionsMenu label="Alte acțiuni" menuId="paper-actions-menu" actions={paperActions} />
+          <ActionsMenu label={t('Alte acțiuni')} menuId="paper-actions-menu" actions={paperActions} />
         </div>
       </header>
       {regrade.error && <ErrorMessage error={regrade.error} />}
@@ -127,9 +129,9 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
           uploads table: while uploading there is nothing to share yet. */}
       {submission.status !== 'uploading' && (
         <div className="result-link-row">
-          <span className="result-link-label">Linkul cu rezultatul elevului</span>
+          <span className="result-link-label">{t('Linkul cu rezultatul elevului')}</span>
           <span className={submission.resultsOpen ? 'tag tag-ok' : 'tag'}>
-            {submission.resultsOpen ? 'Rezultatele sunt publicate.' : 'Rezultatele nu sunt publicate încă.'}
+            {submission.resultsOpen ? t('Rezultatele sunt publicate.') : t('Rezultatele nu sunt publicate încă.')}
           </span>
           <ResultLink
             submissionId={submission.id}
