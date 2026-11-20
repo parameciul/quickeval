@@ -1,6 +1,7 @@
 import { localEmail } from '../i18n.ts';
 import { Hono } from 'hono';
-import { confirmEmailBody, forgotPasswordBody, loginBody, resetPasswordBody, signupBody } from '../../shared/api.ts';
+import { confirmEmailBody, forgotPasswordBody, loginBody, resetPasswordBody, signupBody, type AuthSession } from '../../shared/api.ts';
+import { optionalTeacher } from '../auth/teacherAuth.ts';
 import { clearSessionCookie, deviceToken, SESSION_DAYS, sessionToken, setDeviceCookie, setSessionCookie } from '../auth/session.ts';
 import {
   adminEmails,
@@ -259,6 +260,14 @@ export function authRoutes(options: AppOptions = {}): Hono<AppEnv> {
       })),
     );
     return c.json({ reset: true });
+  });
+
+  // Whether a teacher is logged in on this browser: the public pages' header
+  // shows the account link instead of the login. No cookie costs no query.
+  routes.get('/session', async (c) => {
+    const answer: AuthSession = { signedIn: (await optionalTeacher(c)) !== null };
+    c.header('Cache-Control', 'no-store');
+    return c.json(answer);
   });
 
   routes.post('/logout', async (c) => {
