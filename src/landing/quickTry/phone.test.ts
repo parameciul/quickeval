@@ -32,7 +32,6 @@ function fakeApi(pages: SubmissionFile[] = []) {
     listPages: vi.fn(async (_token: string) => structuredClone(pages)),
     start: vi.fn(async (_token: string) => {}),
     getTest: vi.fn(),
-    deleteTry: vi.fn(),
   } satisfies LandingApi;
 }
 

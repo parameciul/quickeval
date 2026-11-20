@@ -392,6 +392,7 @@ img { display: block; max-width: 100%; height: auto; }
   .pg-home .cta-hint, .pg-home .cta-note { position: relative; padding-left: 22px; font-size: 15px; line-height: 1.4; color: var(--muted); }
   .pg-home .cta-hint::before, .pg-home .cta-note::before { content: ""; position: absolute; left: 2px; top: 0.42em; width: 10px; height: 5px; border-left: 2px solid var(--orange-mark, currentColor); border-bottom: 2px solid var(--orange-mark, currentColor); transform: rotate(-45deg); }
   /* Why the try button is off: the one note that is not a tip. */
+  .pg-home .cta-note::before { border-color: var(--text); }
   .pg-home .cta-hint.try-note { padding-left: 0; color: var(--text); font-weight: 500; }
   .pg-home .cta-hint.try-note::before { content: none; }
   .pg-home .center { margin-left: auto; margin-right: auto; }
@@ -441,19 +442,14 @@ img { display: block; max-width: 100%; height: auto; }
    the try is read, or when it could not be. */
 .try-card-text { font-size: 16px; }
 .try-card:not(.is-bare) .try-card-text { display: none; }
-.try-card-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.try-card-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 12px; }
 .try-card-bottom .btn { margin-left: auto; }
-.try-delete { display: inline-flex; align-items: center; gap: 6px; padding: 8px; margin: -8px; border: 0; border-radius: 8px; background: none; cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; color: var(--muted); }
-.try-delete svg { width: 18px; height: 18px; flex: none; }
-.try-delete:hover, .try-delete:focus-visible { color: var(--text); }
-.try-delete.is-sure { color: var(--danger, #b42318); }
-.try-delete:disabled { opacity: 0.55; cursor: not-allowed; }
 .try-chip { flex: none; display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--active); color: var(--muted); font-size: 14px; font-weight: 600; white-space: nowrap; }
 .try-chip:empty { display: none; }
 .try-chip.is-work { background: var(--blue-tint); color: var(--blue); }
 .try-chip.is-you { background: var(--orange-tint); color: var(--orange); }
 .try-chip.is-ok { background: var(--ok-bg); color: var(--ok-fg); }
-.try-score { display: flex; align-items: baseline; gap: 8px; }
+.try-score { display: flex; align-items: center; gap: 8px; }
 .try-grade { font-size: 32px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--blue); }
 .try-points { color: var(--muted); }
 

@@ -27,7 +27,7 @@ export function TryHome({ info, token, tryApi }: { info: QuickTryInfo; token: st
   const phase = phaseOf(detail.data);
   return (
     <section className={phase === 'prepare' ? 'try-home is-prepare' : 'try-home'}>
-      <TryHead detail={detail.data} info={info} token={token} />
+      <TryHead detail={detail.data} info={info} token={token} tryApi={tryApi} />
       {phase === 'prepare' && <Prepare detail={detail.data} token={token} tryApi={tryApi} />}
       {phase === 'grading' && <Grading />}
       {phase === 'problem' && <BaremProblem detail={detail.data} />}

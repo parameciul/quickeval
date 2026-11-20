@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { t } from '../i18n/t.ts';
 
 // "Distribuie" (spec §3.4): the try's own link, the only key, through the
 // browser's share sheet where there is one, else copied.
-export function ShareButton({ token }: { token: string }) {
+export function ShareButton({ token, before }: { token: string; before?: ReactNode }) {
   const [copied, setCopied] = useState<boolean | null>(null);
   const url = `${window.location.origin}/try/${token}`;
   const share = async () => {
@@ -26,10 +26,13 @@ export function ShareButton({ token }: { token: string }) {
   };
   return (
     <div className="try-share">
-      <button type="button" className="button-quiet" onClick={() => void share()}>
-        <ActionIcon name="share" />
-        {t('Distribuie')}
-      </button>
+      <div className="try-share-row">
+        {before}
+        <button type="button" className="button-quiet" onClick={() => void share()}>
+          <ActionIcon name="share" />
+          {t('Distribuie')}
+        </button>
+      </div>
       {copied === true && <span role="status">{t('Linkul a fost copiat.')}</span>}
       {copied === false && (
         <span role="status">

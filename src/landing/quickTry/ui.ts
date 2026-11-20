@@ -9,7 +9,7 @@ import { openPhoneStep, type PhoneStep } from './phone.ts';
 import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf, type StartAnswer } from './status.ts';
-import { forgetStoredTry, readDeletedAt, readStoredTry, saveDeletedAt, saveStoredTry, type StoredTry } from './storage.ts';
+import { DELETED_TRY_KEY, forgetStoredTry, readDeletedAt, readStoredTry, saveStoredTry, STORED_TRY_KEY, type StoredTry } from './storage.ts';
 import { t } from '../../i18n/t.ts';
 import { initAccountLinks, showAccount } from '../account.ts';
 
@@ -49,9 +49,6 @@ const onAPhone = () => window.matchMedia?.(PHONE_MEDIA).matches ?? false;
 const FULL_TEXT =
   t('Încercările gratuite de azi s-au terminat. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.');
 const USED_TEXT = t('Ai făcut încercarea de azi. Mâine poți face alta.');
-const SURE_TEXT = t('Sigur? Șterge definitiv');
-const DELETE_FAILED_TEXT = t('Nu am putut șterge încercarea. Încearcă din nou.');
-const SURE_MS = 5000;
 const OFF_TEXT = t('Încercarea gratuită nu este disponibilă acum. Reîncarcă pagina mai târziu.');
 const NO_CHECK_TEXT = t('Verificarea nu s-a putut încărca. Reîncarcă pagina și încearcă din nou.');
 
@@ -115,9 +112,6 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   const statusGrade = box.querySelector<HTMLElement>('[data-try-grade]')!;
   const statusPoints = box.querySelector<HTMLElement>('[data-try-points]')!;
   const statusLink = box.querySelector<HTMLAnchorElement>('[data-try-link]')!;
-  const deleteButton = box.querySelector<HTMLButtonElement>('[data-try-delete]')!;
-  const deleteAsk = deleteButton.querySelector<HTMLElement>('.try-delete-ask')!;
-  const deleteName = deleteButton.getAttribute('aria-label') ?? '';
   const error = form.querySelector<HTMLElement>('[data-try-error]')!;
   const recover = form.querySelector<HTMLElement>('[data-try-recover]')!;
   const recoverLink = form.querySelector<HTMLAnchorElement>('[data-try-recover-link]')!;
@@ -217,58 +211,6 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     }
     refreshButton();
   }
-
-  // "Șterge": the first press asks "Sigur?", the second one (within a few
-  // seconds) deletes the try, its files and its link. The day's limits keep
-  // counting it (the server keeps its row until the 7 days are over).
-  let sureTimer: ReturnType<typeof setTimeout> | null = null;
-  function resetDelete(): void {
-    if (sureTimer) clearTimeout(sureTimer);
-    sureTimer = null;
-    deleteAsk.hidden = true;
-    deleteAsk.textContent = '';
-    deleteButton.setAttribute('aria-label', deleteName);
-    deleteButton.classList.remove('is-sure');
-  }
-  deleteButton.addEventListener('click', async () => {
-    const current = stored;
-    if (!current) return;
-    if (!sureTimer) {
-      deleteAsk.textContent = SURE_TEXT;
-      deleteAsk.hidden = false;
-      deleteButton.setAttribute('aria-label', SURE_TEXT);
-      deleteButton.classList.add('is-sure');
-      sureTimer = setTimeout(resetDelete, SURE_MS);
-      return;
-    }
-    resetDelete();
-    deleteButton.disabled = true;
-    // Whether the try still counts for today: the server says (a failed try
-    // gave its place back); a link already gone is guessed from what the page saw.
-    let counted = phase !== 'failed';
-    try {
-      counted = (await deps.api.deleteTry(current.token)).counted;
-    } catch (err) {
-      if (!(err instanceof ApiError && (err.status === 404 || err.status === 410))) {
-        deleteButton.disabled = false;
-        statusText.textContent = DELETE_FAILED_TEXT;
-        status.classList.add('is-bare');
-        return;
-      }
-    }
-    deleteButton.disabled = false;
-    if (timer) clearTimeout(timer);
-    // An administrator is never limited, so her device keeps no mark.
-    if (counted && !availability?.admin) {
-      deletedAt = current.madeAt;
-      saveDeletedAt(deps.storage, current.madeAt);
-    }
-    stored = null;
-    phase = null;
-    status.hidden = true;
-    forgetStoredTry(deps.storage);
-    refreshButton();
-  });
 
   function formValues(): TryForm {
     const files = (name: string) => Array.from((form!.elements.namedItem(name) as HTMLInputElement).files ?? []);
@@ -471,20 +413,30 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
 
   // Shown again from the browser's cache (Back from the phone page): the try
   // read again, since its pages or its state may have changed meanwhile.
+  const readAgain = (): void => {
+    stored = readStoredTry(deps.storage, deps.now());
+    deletedAt = readDeletedAt(deps.storage);
+    if (stored) void follow(stored);
+    else {
+      // Deleted in another tab or on the try's page: no card, no timer.
+      if (timer) clearTimeout(timer);
+      status.hidden = true;
+      phase = null;
+      refreshButton();
+    }
+  };
   window.addEventListener(
     'pageshow',
     (event) => {
-      if (!(event as PageTransitionEvent).persisted) return;
-      stored = readStoredTry(deps.storage, deps.now());
-      deletedAt = readDeletedAt(deps.storage);
-      if (stored) void follow(stored);
-      else {
-        // Deleted in another tab: no card, no timer.
-        if (timer) clearTimeout(timer);
-        status.hidden = true;
-        phase = null;
-        refreshButton();
-      }
+      if ((event as PageTransitionEvent).persisted) readAgain();
+    },
+    { signal: deps.signal },
+  );
+  // Another tab changed her try (a delete on the try's page, a new try).
+  window.addEventListener(
+    'storage',
+    (event) => {
+      if (event.key === null || event.key === STORED_TRY_KEY || event.key === DELETED_TRY_KEY) readAgain();
     },
     { signal: deps.signal },
   );

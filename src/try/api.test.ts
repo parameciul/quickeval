@@ -21,6 +21,7 @@ describe('createTryClient', () => {
     await api.start(3);
     await api.start();
     await api.result();
+    expect(await api.deleteTry()).toEqual({ counted: true });
     expect(fetchImpl.mock.calls.map(([url, init]) => `${init!.method} ${String(url)}`)).toEqual([
       `GET /api/try/${TOKEN}`,
       `GET /api/try/${TOKEN}/paper`,
@@ -28,6 +29,7 @@ describe('createTryClient', () => {
       `POST /api/try/${TOKEN}/start`,
       `POST /api/try/${TOKEN}/start`,
       `GET /api/try/${TOKEN}/result`,
+      `DELETE /api/try/${TOKEN}`,
     ]);
     expect(fetchImpl.mock.calls[3]![1]!.body).toBe(JSON.stringify({ filesVersion: 3 }));
     expect(fetchImpl.mock.calls[4]![1]!.body).toBe(JSON.stringify({}));
