@@ -260,7 +260,7 @@ function UploadTableRow({
               <RowMenu
                 studentName={row.studentName}
                 menuId={`upload-menu-${submissionId}`}
-                note={showModel && row.model ? `Model: ${modelCell(row.model, row.effort)}` : undefined}
+                note={showModel && row.model ? `Model: ${modelCell(row.model, row.effort)}` : undefined} // i18n-ignore: "Model" in both languages
                 items={[
                   ...(gradedAt !== null
                     ? [

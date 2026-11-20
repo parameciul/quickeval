@@ -9,6 +9,7 @@ import { AnswerFrame } from './AnswerFrame.tsx';
 import { WHOLE_PAGE, type ZoomView } from './zoom.ts';
 import { ZoomPhoto } from './ZoomPhoto.tsx';
 import { t } from '../../i18n/t.ts';
+import { tryName } from '../../../shared/quickTry.ts';
 
 // The answer to check: `key` names it (the paper and the item), `label` is the
 // exercise ("II.1"), `areas` are the ones the review can draw (drawnAreas).
@@ -155,7 +156,7 @@ export function ReviewPhoto({
     );
   }
   const url = submissionFileUrl(submission.id, file.id, base);
-  const caption = `${submission.studentName} · ${index + 1}/${files.length}`;
+  const caption = `${tryName(submission.studentName)} · ${index + 1}/${files.length}`;
   const photo = file.contentType.startsWith('image/');
   const parts = framed?.areas.length ?? 0;
   const partLabel = (number: number) => (parts > 1 ? t('{label} · partea {v2} din {parts}', { label: framed!.label, v2: number + 1, parts }) : framed!.label);

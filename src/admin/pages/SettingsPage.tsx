@@ -300,7 +300,7 @@ export function lastRunText(robot: RobotStatus): string | null {
 
 function modelLine(label: string, model: string | null, effort: string | null): string | null {
   if (!model) return null;
-  return effort ? `${label}: ${model}, efort ${effort}` : `${label}: ${model}`;
+  return effort ? t('{label}: {model}, efort {effort}', { label, model, effort }) : `${label}: ${model}`;
 }
 
 // The model and effort of the latest grading and class analysis.
@@ -326,7 +326,7 @@ function RobotState({ settings }: { settings: Settings }) {
         {settings.configuredModel !== null && (
           <p>
             {t('Setat pentru robot:')}{' '}{settings.configuredModel}
-            {settings.configuredEffort ? `, efort ${settings.configuredEffort}` : ''}
+            {settings.configuredEffort ? t(', efort {effort}', { effort: settings.configuredEffort }) : ''}
             {settings.configuredAt ? t(' (la ultima verificare, {agoText})', { agoText: agoText(settings.configuredAt, Date.now()) }) : ''}
           </p>
         )}

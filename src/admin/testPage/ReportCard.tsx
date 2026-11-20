@@ -72,7 +72,7 @@ function CsvButton({ code }: { code: string }) {
   const csv = useMutation({
     mutationFn: async () => {
       const report = await queryClient.fetchQuery({ queryKey: ['report', code], queryFn: () => api.getReport(code) });
-      saveFile(new Blob([classCsv(report, uploadStatusLabel)], { type: 'text/csv;charset=utf-8' }), `${report.test.code}-raport.csv`);
+      saveFile(new Blob([classCsv(report, uploadStatusLabel)], { type: 'text/csv;charset=utf-8' }), `${report.test.code}-${t('raport')}.csv`);
     },
   });
   return (

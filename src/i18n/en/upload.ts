@@ -81,4 +81,5 @@ export const UPLOAD = {
   "Paginile tale": "Your pages",
   "Am trimis tot": "I sent everything",
   "{cut}…": "{cut}…",
+  "Codul meu: {code}": "My code: {code}",
 } as const satisfies Record<string, string>;

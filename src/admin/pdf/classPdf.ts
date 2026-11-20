@@ -19,7 +19,7 @@ const FLAGGED = '#fff0a0';
 const MUTED = '#586070';
 
 export function classPdfFileName(report: ClassReport): string {
-  return pdfFileName(report.test.code, 'raport');
+  return pdfFileName(report.test.code, t('raport'));
 }
 
 const dash = '—';
@@ -135,7 +135,7 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
   const { content: analysis, stale } = report.analysis;
 
   const content: Content[] = [
-    { text: `Raportul clasei · ${report.test.code}`, style: 'h1' },
+    { text: t('Raportul clasei · {code}', { code: report.test.code }), style: 'h1' },
     {
       text: [report.test.title, displayClassName(report.test.className), report.test.startedAt ? formatDate(report.test.startedAt) : '']
         .filter((part) => part !== '')
@@ -146,8 +146,8 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
     { text: t('Corectate {gradedCount} din {activeCount} elevi{v3}', { gradedCount: stats.gradedCount, activeCount: stats.activeCount, v3: stats.flaggedCount > 0 ? ` · ${t('de verificat {flaggedCount}', { flaggedCount: stats.flaggedCount })}` : '' }) },
     {
       columns: [
-        { text: `Media ${grade(stats.average)}`, bold: true },
-        { text: `Mediana ${grade(stats.median)}`, bold: true },
+        { text: t('Media {grade}', { grade: grade(stats.average) }), bold: true },
+        { text: t('Mediana {grade}', { grade: grade(stats.median) }), bold: true },
         { text: t('Cea mai mică notă {grade}', { grade: grade(stats.min) }), bold: true },
         { text: t('Cea mai mare notă {grade}', { grade: grade(stats.max) }), bold: true },
       ],
@@ -181,7 +181,7 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
   }
 
   return {
-    info: { title: `Raportul clasei · ${report.test.code}` },
+    info: { title: t('Raportul clasei · {code}', { code: report.test.code }) },
     pageSize: 'A4',
     pageOrientation: 'landscape',
     pageMargins: [36, 40, 36, 40],

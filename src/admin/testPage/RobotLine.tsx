@@ -11,7 +11,7 @@ const TICK_MS = 30_000;
 export function agoText(at: string, now: number): string {
   const minutes = Math.floor((now - Date.parse(at)) / 60_000);
   if (minutes < 1) return t('acum mai puțin de un minut');
-  return minutes < 60 ? `acum ${minutes} min` : t('la {formatDateTime}', { formatDateTime: formatDateTime(at) });
+  return minutes < 60 ? t('acum {minutes} min', { minutes }) : t('la {formatDateTime}', { formatDateTime: formatDateTime(at) });
 }
 
 // When the robot last looked for work (spec §9). The robot checks every 10

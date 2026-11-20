@@ -6,6 +6,7 @@ import { pdfFileName } from './fileName.ts';
 import { pdfRuns } from './pdfMath.ts';
 import { pdfText } from './pdfSymbols.ts';
 import { t } from '../../i18n/t.ts';
+import { tryName } from '../../../shared/quickTry.ts';
 
 // The student's PDF (spec §14.1): test code and title, the student's name,
 // the date, the grade, the table of exercises, the summary, what went well,
@@ -46,8 +47,8 @@ export function studentPdfInput(submission: SubmissionDetail): StudentPdfInput |
   if (!evaluation || submission.status !== 'graded') return null;
   return {
     testCode: submission.testCode,
-    testTitle: submission.testTitle,
-    studentName: submission.studentName,
+    testTitle: tryName(submission.testTitle),
+    studentName: tryName(submission.studentName),
     date: submission.submittedAt ?? submission.startedAt,
     grade: evaluation.grade,
     total: evaluation.total,
@@ -75,8 +76,8 @@ export function studentPdfInputFromResult(view: StudentResultView): StudentPdfIn
   if (!evaluation) return null;
   return {
     testCode: view.testCode,
-    testTitle: view.testTitle,
-    studentName: view.studentName,
+    testTitle: tryName(view.testTitle),
+    studentName: tryName(view.studentName),
     date: view.submittedAt,
     grade: evaluation.grade,
     total: evaluation.total,
@@ -156,7 +157,7 @@ export function studentPdf(source: StudentPdfInput): TDocumentDefinitions {
         text: [input.testTitle, ' · ', input.testCode, input.date ? ` · ${formatDate(input.date)}` : ''].join(''),
         style: 'muted',
       },
-      { text: `Nota ${formatPoints(input.grade)}`, fontSize: 16, bold: true, margin: [0, 10, 0, 0] },
+      { text: t('Nota {grade}', { grade: formatPoints(input.grade) }), fontSize: 16, bold: true, margin: [0, 10, 0, 0] },
       { text: t('{formatPoints} puncte din {formatPoints2}{officeText}', { formatPoints: formatPoints(input.total), formatPoints2: formatPoints(input.maxTotal), officeText }), margin: [0, 0, 0, 4] },
       ...(pending
         ? [{ text: t('Unele puncte sunt încă în verificare, deci nota se poate schimba.'), italics: true, margin: [0, 0, 0, 4] } as Content]

@@ -59,7 +59,7 @@ export function useGeneratedBarem({
       parts.files.barem !== null
         ? t('Înlocuiești {v1} existent cu unul generat? Baremul de acum rămâne până vine cel nou.{cancelled}', { v1: ces ? t('baremul CES') : t('baremul'), cancelled })
         : cancelled
-          ? `Generezi baremul?${cancelled}`
+          ? t('Generezi baremul?{cancelled}', { cancelled })
           : null;
     if (question !== null && !window.confirm(question)) return;
     generate.mutate();

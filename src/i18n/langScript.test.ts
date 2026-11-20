@@ -12,7 +12,8 @@ function run(options: { lang?: string; twin?: string; titleEn?: string; saved?: 
     setAttribute: (name: string, value: string) => attributes.set(name, value),
   };
   const page = { documentElement: html, title: 'MQGrader · Profesor' };
-  const location = { search: options.search ?? '', hash: options.hash ?? '', replace: vi.fn() };
+  const location = { pathname: '/try/abc/phone', search: options.search ?? '', hash: options.hash ?? '', replace: vi.fn() };
+  const history = { state: null, replaceState: vi.fn() };
   const stored = new Map<string, string>();
   if (options.saved) stored.set('quickeval.lang', options.saved);
   const localStorage = {
@@ -25,8 +26,8 @@ function run(options: { lang?: string; twin?: string; titleEn?: string; saved?: 
       stored.set(key, value);
     },
   };
-  new Function('document', 'location', 'localStorage', script)(page, location, localStorage);
-  return { lang: attributes.get('lang'), title: page.title, replace: location.replace, saved: stored.get('quickeval.lang') ?? null };
+  new Function('document', 'location', 'localStorage', 'history', script)(page, location, localStorage, history);
+  return { lang: attributes.get('lang'), title: page.title, replace: location.replace, saved: stored.get('quickeval.lang') ?? null, replaceState: history.replaceState };
 }
 
 describe('public/lang.js', () => {
@@ -59,6 +60,14 @@ describe('public/lang.js', () => {
     expect(page.lang).toBe('en');
     expect(page.saved).toBe('en');
     expect(run({ saved: 'en', search: '?lang=ro' }).lang).toBe('ro');
+  });
+
+  // RO reloads the same address: a ?lang=en left in it would win again.
+  it('takes ?lang= out of the address, keeping the rest', () => {
+    expect(run({ search: '?here=1&lang=en', hash: '#x' }).replaceState).toHaveBeenCalledWith(null, '', '/try/abc/phone?here=1#x');
+    expect(run({ search: '?lang=en' }).replaceState).toHaveBeenCalledWith(null, '', '/try/abc/phone');
+    expect(run({ search: '?here=1' }).replaceState).not.toHaveBeenCalled();
+    expect(run({ twin: '/en/guide/', search: '?a=1&lang=en' }).replace).toHaveBeenCalledWith('/en/guide/?a=1');
   });
 
   it('ignores an unknown choice and blocked storage', () => {

@@ -231,7 +231,7 @@ export function CopyResultLink({
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={named ? `Deschide rezultatul: ${studentName}` : undefined}
+        aria-label={named ? t('Deschide rezultatul: {studentName}', { studentName }) : undefined}
       >
         <ActionIcon name="open" />
         {t('Deschide')}

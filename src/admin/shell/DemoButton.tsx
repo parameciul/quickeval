@@ -8,7 +8,7 @@ import { t } from '../../i18n/t.ts';
 
 // "Demo · 15 lucrări rămase".
 export function demoButtonText(usage: DemoUsage): string {
-  return `Demo · ${countLabel(usage.papersLeft, 'lucrare rămasă', 'lucrări rămase')}`;
+  return `Demo · ${countLabel(usage.papersLeft, 'lucrare rămasă', 'lucrări rămase')}`; // i18n-ignore: "Demo" in both languages
 }
 
 // The demo account's button in the top bar (redesign spec §11.6): a small

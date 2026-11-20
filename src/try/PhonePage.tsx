@@ -11,6 +11,7 @@ import type { TryApi } from './api.ts';
 import { phaseOf } from './phase.ts';
 import { Expired, isExpired } from './TryNotice.tsx';
 import { t } from '../i18n/t.ts';
+import { tryName } from '../../shared/quickTry.ts';
 
 // The phone page of a try (/try/<token>/phone): the student's pages, sent
 // like a student sends them, with no result and no link to the try's page.
@@ -61,7 +62,7 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
   if (isExpired(detail.error)) return <Expired />;
   if (detail.data === undefined) return <ErrorMessage error={detail.error} />;
   if (pages.data === undefined) return <ErrorMessage error={pages.error} />;
-  const title = detail.data.test.title;
+  const title = tryName(detail.data.test.title);
 
   const phase = phaseOf(detail.data);
   if (phase !== 'prepare') {

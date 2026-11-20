@@ -97,7 +97,7 @@ export function ResultTicket({
     const sent = await shareLink({
       url,
       title: `${studentName} · ${test.title}`,
-      ...(code ? { text: `Codul meu: ${code}` } : {}),
+      ...(code ? { text: t('Codul meu: {code}', { code }) } : {}),
     });
     if (sent === 'copied') setShare('copied');
     if (sent === 'manual') {

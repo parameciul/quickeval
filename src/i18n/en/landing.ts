@@ -40,4 +40,6 @@ export const LANDING = {
   "Fă poze": "Take photos",
   "Cu telefonul": "With the phone",
   "Așteaptă să se termine verificarea de mai jos, apoi trimite din nou.": "Wait for the check below to finish, then send again.",
+  "Testul: {test}": "The test: {test}",
+  "Baremul: {barem}": "The marking scheme: {barem}",
 } as const satisfies Record<string, string>;

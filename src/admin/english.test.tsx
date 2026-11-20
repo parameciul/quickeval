@@ -2,7 +2,7 @@ import '../test/english.ts';
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { StudentRow } from '../../shared/api.ts';
-import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission, fakeTest, fakeUpload } from '../test/fakeApi.ts';
+import { createFakeApi, fakeEvaluation, fakeItem, fakeSubmission, fakeTeacher, fakeTest, fakeUpload } from '../test/fakeApi.ts';
 import { renderAdmin } from '../test/renderAdmin.tsx';
 
 // The teacher app in English, on English sample data: no Romanian may show,
@@ -10,7 +10,7 @@ import { renderAdmin } from '../test/renderAdmin.tsx';
 // (scripts/i18n/scan.test.ts) cannot see a stage name or a stored word that
 // reaches the page through a variable; this test does.
 
-const ROMANIAN = /[ăâîșțĂÂÎȘȚ]|\b(și|sau|din|pentru|lucrar\w*|lucrări\w*|elev\w*|testul|teste|barem\w*|Pregătire|Tipărire|Corectare|Verificare|Rezultate|publicat\w*|trimis\w*|gata|clasa|clase|nota|puncte|verific\w*|Acum|nimic|Pagina)\b/;
+const ROMANIAN = /[ăâîșțĂÂÎȘȚ]|\b(și|sau|din|pentru|lucrar\w*|lucrări\w*|elev\w*|testul|teste|barem\w*|Pregătire|Tipărire|Corectare|Verificare|Rezultate|publicat\w*|trimis\w*|gata|clasa|clase|nota|puncte|verific\w*|acum|azi|nimic|pagina|bun venit|media|mediana|vedea|început|ciornă)\b/i;
 
 function pageText(): string {
   const labels = [...document.body.querySelectorAll('[aria-label], [title], [placeholder], [alt]')].flatMap((element) =>
@@ -35,7 +35,8 @@ const graded = (i: number) =>
   fakeUpload({ studentId: 10 + i, studentName: NAMES[i]!, submissionId: 100 + i, status: 'graded', fileCount: 2, grade: 7 + i / 2, total: 60, maxTotal: 90, flagCount: i === 0 ? 1 : 0, resultsOpen: true, submittedAt: '2026-11-09T08:54:00.000Z' });
 const tests = [
   fakeTest({ code: '7E2-26T1', title: 'Fractions', status: 'draft', classId: 1, className: '7E2' }, students.map((s) => fakeUpload({ studentId: s.id, studentName: s.fullName }))),
-  fakeTest({ code: '7E2-26T2', title: 'Square roots', status: 'done', classId: 1, className: '7E2', startedAt: '2026-11-09T08:53:00.000Z', resultsOpen: true, files: { test: { name: 'roots.pdf', type: 'application/pdf' }, barem: { name: 'scheme.pdf', type: 'application/pdf' } }, print: { status: 'ready', fromWord: false } }, [0, 1, 2, 3].map(graded)),
+  // Started today: the Teste page says "today, 09:10".
+  fakeTest({ code: '7E2-26T2', title: 'Square roots', status: 'done', classId: 1, className: '7E2', startedAt: new Date().toISOString(), resultsOpen: true, files: { test: { name: 'roots.pdf', type: 'application/pdf' }, barem: { name: 'scheme.pdf', type: 'application/pdf' } }, print: { status: 'ready', fromWord: false } }, [0, 1, 2, 3].map(graded)),
 ];
 const submissions = [0, 1, 2, 3].map((i) =>
   fakeSubmission({ id: 100 + i, testCode: '7E2-26T2', testTitle: 'Square roots', studentId: 10 + i, studentName: NAMES[i]!, startedAt: '2026-11-09T08:53:00.000Z', submittedAt: '2026-11-09T08:54:00.000Z', resultsOpen: true, evaluation: fakeEvaluation(items.map((item) => ({ ...item })), { maxTotal: 90, officePoints: 10, summary: 'Good work.' }) }),
@@ -65,6 +66,13 @@ describe('the teacher app in English', () => {
     renderAdmin(path, api());
     await screen.findByRole('heading', { level: 1, name: new RegExp(heading) });
     // Let the page's other reads arrive.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(romanianIn(pageText())).toEqual([]);
+  });
+
+  it('welcomes a new teacher by name in English', async () => {
+    renderAdmin('/', createFakeApi({ me: fakeTeacher({ name: 'Emma Clark', testsEvaluated: 0 }), classes: [], students: {}, tests: [] }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Welcome, Emma.' })).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(romanianIn(pageText())).toEqual([]);
   });

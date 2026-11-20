@@ -18,6 +18,15 @@ describe('the language link of the public pages', () => {
     expect(localStorage.getItem(LANG_KEY)).toBe('en');
   });
 
+  // A middle click opens it in a new tab: that tab must not go back.
+  it('saves the language when the link opens in a new tab', () => {
+    document.body.innerHTML = '<a href="/en/" data-lang-switch="en">EN</a>';
+    localStorage.setItem(LANG_KEY, 'ro');
+    initLangSwitch();
+    document.querySelector('a')!.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }));
+    expect(localStorage.getItem(LANG_KEY)).toBe('en');
+  });
+
   it('keeps English for a reader who came straight to an English page', () => {
     document.documentElement.lang = 'en';
     initLangSwitch();

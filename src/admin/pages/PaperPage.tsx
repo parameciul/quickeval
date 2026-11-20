@@ -27,6 +27,7 @@ import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { t } from '../../i18n/t.ts';
 import { translateMessage } from '../../../shared/i18n/messages.ts';
+import { tryName } from '../../../shared/quickTry.ts';
 
 // While the robot grades the upload, the page asks for news every 10 seconds.
 export function resultRefreshInterval(submission: SubmissionDetail | undefined): number | false {
@@ -542,8 +543,8 @@ function Paper({
           <div>
             <h1>{t('Verificare')}</h1>
             <p className="test-sub">
-              {test.title}
-              {submission && ` · ${submission.studentName}`}
+              {tryName(test.title)}
+              {submission && ` · ${tryName(submission.studentName)}`}
             </p>
           </div>
           <Link className="button-quiet" to={`/tests/${code}${stageHash('Verificare')}`}>

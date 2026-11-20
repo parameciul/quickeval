@@ -9,9 +9,13 @@ export function initLangSwitch(root: ParentNode = document): void {
   // keeps English in the apps it links to: the sign-in, the Quick Try.
   if (storedLang() === null && currentLang() === 'en') saveLang('en');
   for (const link of root.querySelectorAll<HTMLAnchorElement>('[data-lang-switch]')) {
-    link.addEventListener('click', () => {
+    // A click, or a middle click that opens it in a new tab: otherwise the
+    // new tab would go back to the saved language.
+    const save = () => {
       const lang = link.dataset.langSwitch;
       if (lang === 'en' || lang === 'ro') saveLang(lang as Lang);
-    });
+    };
+    link.addEventListener('click', save);
+    link.addEventListener('auxclick', save);
   }
 }

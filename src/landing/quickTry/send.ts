@@ -32,10 +32,10 @@ export interface TryForm {
 export function formProblem(form: TryForm): string | null {
   if (!form.test) return t('Alege fișierul testului.');
   const test = fileProblem(form.test, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
-  if (test) return `Testul: ${test}`;
+  if (test) return t('Testul: {test}', { test });
   if (form.barem) {
     const barem = fileProblem(form.barem, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
-    if (barem) return `Baremul: ${barem}`;
+    if (barem) return t('Baremul: {barem}', { barem });
   } else if (!form.robotBarem) {
     return t('Alege fișierul baremului sau cere ca baremul să fie făcut din test.');
   }

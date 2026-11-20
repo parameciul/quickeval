@@ -14,6 +14,7 @@ import { pageFileUrl, type TryApi } from './api.ts';
 import { paperOf, scoreOf } from './phase.ts';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { t } from '../i18n/t.ts';
+import { tryName } from '../../shared/quickTry.ts';
 
 type View = 'verificare' | 'elev';
 // Each view's name, and the short one a phone shows.
@@ -180,7 +181,7 @@ function StudentView({ token, tryApi }: { token: string; tryApi: TryApi }) {
   return (
     <div className="try-student" data-testid="student-view">
       <p className="hint">{t('Așa vede elevul rezultatul, pe linkul lui.')}</p>
-      <StudentResult result={result.data} fileUrl={(fileId) => pageFileUrl(token, fileId)} />
+      <StudentResult result={{ ...result.data, studentName: tryName(result.data.studentName), className: tryName(result.data.className), testTitle: tryName(result.data.testTitle) }} fileUrl={(fileId) => pageFileUrl(token, fileId)} />
     </div>
   );
 }

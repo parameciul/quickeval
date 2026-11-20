@@ -111,8 +111,8 @@ function ReportView({ code }: { code: string }) {
         </div>
         {graded && (
           <PdfActions
-            pdf={{ build: () => classPdf(report), fileName: classPdfFileName(report), title: `Raportul clasei · ${report.test.code}` }}
-            csv={{ build: () => classCsv(report, uploadStatusLabel), fileName: `${report.test.code}-raport.csv` }}
+            pdf={{ build: () => classPdf(report), fileName: classPdfFileName(report), title: t('Raportul clasei · {code}', { code: report.test.code }) }}
+            csv={{ build: () => classCsv(report, uploadStatusLabel), fileName: `${report.test.code}-${t('raport')}.csv` }}
           />
         )}
       </div>

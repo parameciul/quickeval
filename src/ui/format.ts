@@ -74,10 +74,10 @@ export function formatDayMonth(iso: string): string {
 
 const ONE_DECIMAL = new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 });
 
-// "820 KB", "1,3 MB".
+// "820 KB", "1,3 MB" (the units are the same in both languages).
 export function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${ONE_DECIMAL.format(bytes / (1024 * 1024))} MB`;
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`; // i18n-ignore
+  return `${ONE_DECIMAL.format(bytes / (1024 * 1024))} MB`; // i18n-ignore
 }
 
 const ROBOT_START: Record<RobotStart, string> = {

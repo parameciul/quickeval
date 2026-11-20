@@ -604,7 +604,7 @@ function waitingTitle(test: TestInfo, uploads: UploadRow[]): string {
   if (waiting === 0) {
     return uploads.some((row) => row.status === 'graded') ? t('Toate lucrările trimise sunt corectate') : t('Nicio lucrare trimisă nu așteaptă corectarea');
   }
-  return `${countLabel(waiting, 'lucrare așteaptă', 'lucrări așteaptă')} corectarea`;
+  return t('{countLabel} corectarea', { countLabel: countLabel(waiting, 'lucrare așteaptă', 'lucrări așteaptă') });
 }
 
 // The papers a student is still sending, with files: they can be graded too

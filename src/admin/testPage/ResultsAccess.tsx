@@ -108,7 +108,7 @@ export function ResultsAccess({ test, onChanged }: { test: TestInfo; onChanged: 
           noneGraded
             ? t('Nicio lucrare nu e corectată acum')
             : open || some
-              ? `${countLabel(readers, 'elev își poate', 'elevi își pot')} vedea rezultatul`
+              ? t('{countLabel} vedea rezultatul', { countLabel: countLabel(readers, 'elev își poate', 'elevi își pot') })
               : t('{countLabel} de publicat', { countLabel: countLabel(test.gradedCount, 'rezultat gata', 'rezultate gata') })
         }
       >

@@ -12,6 +12,7 @@ import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
 import { ResultLink } from '../testPage/ResultLink.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { t } from '../../i18n/t.ts';
+import { tryName } from '../../../shared/quickTry.ts';
 
 // Recorectează, Resetează and Reîncearcă of the paper page, and the news after
 // the first and the last. The test page and the test list count grades and
@@ -92,10 +93,10 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
     <>
       <header className="submission-head">
         <div className="submission-title">
-          <h1>{submission.studentName}</h1>
+          <h1>{tryName(submission.studentName)}</h1>
           <p className="submission-sub">
             <span>
-              {submission.testCode} · {submission.testTitle} ·{' '}
+              {submission.testCode} · {tryName(submission.testTitle)} ·{' '}
               {heldBack(submission.status, submission.files.length, submission.testStatus) ? PAPER_PART_LABEL.waiting : uploadStatusLabel(submission.status)}
             </span>
             {submission.autoSubmitted && submission.status !== 'graded' && <span className="tag">{t('Fără confirmare')}</span>}

@@ -32,6 +32,31 @@ describe('the text of the pages', () => {
     expect(found.map((finding) => finding.text)).toEqual(['Pagina {}', 'Pagina {}']);
   });
 
+  it('finds any text joined from words and values, with no Romanian letter or common word', () => {
+    const found = scanSource(
+      'x.tsx',
+      [
+        'const a = { text: `Nota ${grade}` };',
+        'const b = minutes < 60 ? `acum ${minutes} min` : at;',
+        'const c = `${count} vedea rezultatul`;',
+        'const d = <b>{`Bun venit, ${first}.`}</b>;',
+      ].join('\n'),
+    );
+    expect(found.map((finding) => finding.text)).toEqual(['Nota {}', 'acum {} min', '{} vedea rezultatul', 'Bun venit, {}.']);
+  });
+
+  it('leaves code built from words and values alone', () => {
+    const code = [
+      'const a = <i className={`points points-${level}`} id={`${id}-hint ${x}`} />;',
+      'const key = `qe.result.${token}.${id}`;',
+      'const style = { gridTemplateColumns: `${share}fr 1fr` };',
+      'const css = `translate(${x}%, ${y}%) scale(${z})`;',
+      'const url = `/api/try/${token}/paper`;',
+      'const t1 = t(`Nota ${grade}`);',
+    ].join('\n');
+    expect(scanSource('x.tsx', code)).toEqual([]);
+  });
+
   it('skips lines and files marked i18n-ignore, and the stage names', () => {
     expect(scanSource('x.ts', "const a = 'Trimite lucrarea'; // i18n-ignore")).toEqual([]);
     expect(scanSource('x.ts', "// i18n-ignore-file\nconst a = 'Trimite lucrarea';")).toEqual([]);

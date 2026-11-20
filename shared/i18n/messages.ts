@@ -244,6 +244,7 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   // Quick Try.
   'Încercare': 'Try',
   'Încercare rapidă': 'Quick Try',
+  'PROBA': 'TRIAL',
   'Linkul nu este bun. Verifică dacă l-ai copiat întreg.': 'The link is not right. Check that you copied all of it.',
   'Linkul nu este întreg.': 'The link is not complete.',
   'Încercarea a expirat. Poți face o încercare nouă de pe pagina principală.': 'The try has expired. You can make a new try from the home page.',
@@ -311,8 +312,7 @@ function englishNumber(value: string): string {
 // dictionary does not know stays Romanian.
 export function translateMessage(text: string, lang: MessageLang = pageLang()): string {
   if (lang === 'ro' || text === '') return text;
-  const exact = MESSAGES_EN[text];
-  if (exact !== undefined) return exact;
+  if (Object.hasOwn(MESSAGES_EN, text)) return MESSAGES_EN[text]!;
   for (const { regex, english, translated } of compiled()) {
     const match = regex.exec(text);
     if (!match) continue;

@@ -19,7 +19,7 @@ export function greeting(now: Date, name: string): string {
 // "Bun venit, Maria." for a new teacher: the first word of the name, or none.
 export function welcome(name: string): string {
   const first = name.trim().split(/\s+/)[0];
-  return first ? `Bun venit, ${first}.` : t('Bun venit.');
+  return first ? t('Bun venit, {first}.', { first }) : t('Bun venit.');
 }
 
 // "Miercuri, 4 noiembrie".
@@ -31,5 +31,5 @@ export function todayLine(now: Date): string {
 // When a test started, short: "azi, 09:10" or "28 oct.".
 export function startedLabel(iso: string, now: Date): string {
   const started = new Date(iso);
-  return DAY_KEY.format(started) === DAY_KEY.format(now) ? `azi, ${TIME.format(started)}` : SHORT_DAY.format(started);
+  return DAY_KEY.format(started) === DAY_KEY.format(now) ? t('azi, {time}', { time: TIME.format(started) }) : SHORT_DAY.format(started);
 }

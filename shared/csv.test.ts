@@ -49,6 +49,15 @@ describe('classCsv', () => {
     );
   });
 
+  it('made on an English page, is for English Excel: "," and a decimal point, English headers', () => {
+    const named = report({ rows: [{ ...report().rows[0]!, studentName: 'BAKER, NOAH', flagCount: 1 }] });
+    expect(classCsv(named, () => 'Did not send', 'en')).toBe(
+      '﻿Student,I.1,II.1,Total,Grade,Notes\r\n' + '"BAKER, NOAH",4.5,1.75,7.25,7.25,1 to check\r\n' + 'Stan Eva,,,,,Did not send\r\n',
+    );
+    expect(csvNumber(7.25, 'en')).toBe('7.25');
+    expect(csvText('a;b', 'en')).toBe('a;b');
+  });
+
   it('marks the students that have an item to check', () => {
     const base = report();
     const flagged = report({ rows: [{ ...base.rows[0]!, flagCount: 2 }], missing: [] });

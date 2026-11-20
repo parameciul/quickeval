@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { QuickTryInfo, TestDetail } from '../../shared/api.ts';
 import type { TestFileKind } from '../../shared/files.ts';
 import { translateMessage } from '../../shared/i18n/messages.ts';
-import { QUICK_TRY_TITLE } from '../../shared/quickTry.ts';
+import { QUICK_TRY_TITLE, tryName } from '../../shared/quickTry.ts';
 import { MAX_TITLE_LENGTH } from '../../shared/tests.ts';
 import { testFileUrl } from '../admin/api.ts';
 import { useApi } from '../admin/ApiContext.tsx';
@@ -82,7 +82,7 @@ function TryTitle({ code, title }: { code: string; title: string }) {
     return (
       <div className="try-title">
         {/* The default name is the app's own text; a name the teacher gave stays as it is. */}
-        <h1>{title === QUICK_TRY_TITLE ? translateMessage(title) : title}</h1>
+        <h1>{tryName(title)}</h1>
         <button
           ref={pencil}
           type="button"
@@ -91,7 +91,7 @@ function TryTitle({ code, title }: { code: string; title: string }) {
           title={t('Schimbă numele')}
           onClick={() => {
             edited.current = true;
-            setDraft(title);
+            setDraft(tryName(title));
           }}
         >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">

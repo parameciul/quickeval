@@ -52,6 +52,31 @@ function wordsOf(node: Node): string | null {
   return /\p{L}{2,}/u.test(raw) ? raw : null;
 }
 
+// Attributes and properties whose value is code, never text: a class name,
+// an id, a key.
+const CODE_NAMES = new Set(['className', 'id', 'key', 'htmlFor', 'aria-controls', 'aria-labelledby', 'aria-describedby', 'aria-activedescendant', 'aria-owns', 'name', 'style', 'gridTemplateColumns', 'font', 'download']);
+// A word that stands apart in the fixed text of a template literal, next to
+// a space or punctuation (not inside a-class-name, a.key, a/path, 12px).
+const LOOSE_WORD = /(?:^|[\s,;!?·—–])\p{L}{2,}(?=$|[\s,;!?·—–]|[.:](?:\s|$))/u;
+
+// A template literal that joins words and values, `Nota ${grade}`: text a
+// page may show, unless it stands where code goes (a class name, an id, a key).
+function joinsWords(raw: string, parents: Node[]): boolean {
+  if (!raw.includes('{}') || !raw.replaceAll('{}', '').includes(' ') || !LOOSE_WORD.test(raw.replaceAll('{}', '0'))) return false;
+  if (/^\s*(https?:|mailto:|\/|\.\/|#|\[|--)/.test(raw)) return false;
+  const parent = parents[parents.length - 1];
+  const holder = parent?.type === 'JSXExpressionContainer' ? parents[parents.length - 2] : parent;
+  if (holder?.type === 'JSXAttribute') {
+    const nameNode = holder.name as Node;
+    if (nameNode.type === 'JSXIdentifier' && CODE_NAMES.has(nameNode.name as string)) return false;
+  }
+  if (holder?.type === 'Property') {
+    const key = holder.key as Node;
+    if (key.type === 'Identifier' && CODE_NAMES.has(key.name as string)) return false;
+  }
+  return true;
+}
+
 function isNode(value: unknown): value is Node {
   return typeof value === 'object' && value !== null && typeof (value as Node).type === 'string';
 }
@@ -95,8 +120,11 @@ export function scanSource(file: string, source: string): Finding[] {
     }
   });
 
+  // The pages' own code: the server and the shared code join words with SQL
+  // and keys too, and their messages are checked against shared/i18n/messages.ts.
+  const pages = !file.startsWith('server/') && !file.startsWith('shared/') && !file.startsWith('functions/');
   const findings: Finding[] = [];
-  const report = (node: Node, text: string) => {
+  const report =(node: Node, text: string) => {
     const line = lineOf(node.start);
     if (!ignored.has(line)) findings.push({ file, line, text: text.replace(/\s+/g, ' ').trim() });
   };
@@ -173,7 +201,7 @@ export function scanSource(file: string, source: string): Finding[] {
         const raw = ((node.quasis as Node[]) ?? []).map((q) => ((q.value as { cooked: string | null }).cooked ?? '')).join('{}');
         // A value stands between words: `Acum${since}` reads as two words.
         const spaced = raw.replaceAll('{}', ' ');
-        if (looksLikeText(raw) || (ROMANIAN.test(raw) && LETTER.test(raw)) || (spaced.trim() !== '' && STOPWORDS.test(spaced))) report(node, raw);
+        if (looksLikeText(raw) || (ROMANIAN.test(raw) && LETTER.test(raw)) || (spaced.trim() !== '' && STOPWORDS.test(spaced)) || (pages && joinsWords(raw, parents))) report(node, raw);
         for (const expression of (node.expressions as Node[]) ?? []) walk(expression, [...parents, node]);
         return;
       }
