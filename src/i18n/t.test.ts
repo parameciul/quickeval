@@ -10,6 +10,14 @@ afterEach(() => {
 });
 
 describe('the English dictionary', () => {
+  // A text that starts or ends with a space is joined to another; its
+  // English keeps that space, or two words run together.
+  it('keeps the spaces at the ends of each Romanian text', () => {
+    const edges = (text: string) => [text.match(/^\s*/)![0], text.match(/\s*$/)![0]];
+    const wrong = Object.entries(EN).filter(([romanian, english]) => edges(romanian).join('|') !== edges(english).join('|'));
+    expect(wrong).toEqual([]);
+  });
+
   it('keeps every value of its Romanian text', () => {
     const wrong = Object.entries(EN).filter(([romanian, english]) => names(romanian).join() !== names(english).join());
     expect(wrong).toEqual([]);

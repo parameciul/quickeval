@@ -17,6 +17,7 @@ import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { PhotoViewer } from './PhotoViewer.tsx';
 import { jpegName, shrinkPhoto } from './shrink.ts';
 import { t } from '../i18n/t.ts';
+import { translateMessage } from '../../shared/i18n/messages.ts';
 
 const PICK_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
 const TOO_MANY = t('Poți trimite cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES });
@@ -170,7 +171,7 @@ export function PagesUploader({
           if (stopped.current) return;
           if (blob !== original) fileName = jpegName(name);
           else if (blob.type !== uploadTypeOf(original)) blob = new Blob([blob], { type: uploadTypeOf(original) });
-          const problem = blob.size === 0 ? EMPTY_FILE : blob.size > MAX_FILE_BYTES ? FILE_TOO_BIG : null;
+          const problem = blob.size === 0 ? translateMessage(EMPTY_FILE) : blob.size > MAX_FILE_BYTES ? translateMessage(FILE_TOO_BIG) : null;
           if (problem) {
             sources.current.delete(key);
             update(key, { state: 'failed', error: problem, canRetry: false });

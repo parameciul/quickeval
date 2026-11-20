@@ -3,8 +3,10 @@
 // write in Romanian. The code keeps its Romanian text; the API translates a
 // message on its way out when the page asked for English (the X-MQ-Lang
 // header), and the pages translate the shared code's text and the stored
-// messages they show. A "{}" stands for any text: a number, a name, a list;
-// what it stands for is translated too when the dictionary has it.
+// messages they show. A "{}" stands for a value kept as it is: a number, a
+// name, a title (a teacher named "Nota" stays "Nota"). A "{*}" stands for a
+// value that is itself a message, a subject or a list, translated too when
+// the dictionary has it.
 // scripts/i18n/messages.test.ts fails on a Romanian message of server/ or
 // shared/ that has no English here.
 
@@ -88,7 +90,7 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   'Clasa {}': 'Class {}',
   'Alege clasa.': 'Choose the class.',
   'Numele clasei are 1-8 litere și cifre, de exemplu 6E2.': 'The class name has 1-8 letters and digits, for example 6E2.',
-  '{} există deja în anul școlar {}.': '{} already exists in the school year {}.',
+  '{*} există deja în anul școlar {}.': '{*} already exists in the school year {}.',
   'Clasa este arhivată. Scoate-o din arhivă ca să adaugi elevi.': 'The class is archived. Take it out of the archive to add students.',
   'Clasa este arhivată. Scoate-o din arhivă ca să faci un test nou.': 'The class is archived. Take it out of the archive to make a new test.',
   'Numele elevului lipsește.': "The student's name is missing.",
@@ -100,7 +102,7 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   'Adaugă cel mult {} de nume odată.': 'Add at most {} names at once.',
   'Altcineva a adăugat elevi în același timp. Încearcă din nou.': 'Someone else added students at the same time. Try again.',
   'Elevul {} este deja în clasă.': 'The student {} is already in the class.',
-  'Elevii {} sunt deja în clasă.': 'The students {} are already in the class.',
+  'Elevii {*} sunt deja în clasă.': 'The students {*} are already in the class.',
   '{} și încă {}': '{} and {} more',
   'Există deja un elev cu numele „{}” în clasa {}.': 'There is already a student named “{}” in the class {}.',
   'Există deja un elev cu numele „{}” în clasă.': 'There is already a student named “{}” in the class.',
@@ -206,9 +208,9 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   'Limba română': 'Romanian',
   'Limba engleză': 'English',
   'matematică, fizică, chimie, biologie, științe, limba română și limba engleză': 'mathematics, physics, chemistry, biology, science, Romanian and English',
-  'Testul pare să fie de {}.': 'The test seems to be {}.',
+  'Testul pare să fie de {*}.': 'The test seems to be {*}.',
   'Testul nu pare să fie de o materie pe care o corectăm.': 'The test does not seem to be of a subject we grade.',
-  '{} MQGrader corectează acum: {}.': '{} MQGrader grades now: {}.',
+  '{*} MQGrader corectează acum: {*}.': '{*} MQGrader grades now: {*}.',
 
   // The robot.
   'Cheia robotului lipsește sau este greșită.': "The robot's key is missing or wrong.",
@@ -273,7 +275,12 @@ export function pageLang(): MessageLang {
 interface Pattern {
   regex: RegExp;
   english: string;
+  // For each value, in order: true when it is translated too ("{*}").
+  translated: boolean[];
 }
+
+// A value's place in a message: "{}" or "{*}".
+export const SLOT = /\{\*?\}/g;
 
 let patterns: Pattern[] | null = null;
 
@@ -281,27 +288,37 @@ function compiled(): Pattern[] {
   if (patterns) return patterns;
   const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   patterns = Object.entries(MESSAGES_EN)
-    .filter(([romanian]) => romanian.includes('{}'))
+    .filter(([romanian]) => romanian.match(SLOT) !== null)
     // The pattern with the most fixed text first: it is the most precise.
-    .sort(([a], [b]) => b.replaceAll('{}', '').length - a.replaceAll('{}', '').length)
-    .map(([romanian, english]) => ({ regex: new RegExp(`^${romanian.split('{}').map(escape).join('([\\s\\S]*?)')}$`), english }));
+    .sort(([a], [b]) => b.replace(SLOT, '').length - a.replace(SLOT, '').length)
+    .map(([romanian, english]) => ({
+      regex: new RegExp(`^${romanian.split(SLOT).map(escape).join('([\\s\\S]*?)')}$`),
+      english,
+      translated: (romanian.match(SLOT) ?? []).map((slot) => slot === '{*}'),
+    }));
   return patterns;
 }
 
+// "7,5" is "7.5" in English; any other value stays as it is.
+function englishNumber(value: string): string {
+  return /^-?\d+,\d+$/.test(value) ? value.replace(',', '.') : value;
+}
+
 // A message in the language asked for: the Romanian unchanged, else its
-// English, with every "{}" filled by what it stood for (itself translated
-// when the dictionary has it). A message the dictionary does not know stays
-// Romanian.
+// English, with every "{}" filled by what it stood for, as it was (a number
+// with a decimal comma gets a decimal point), and every "{*}" by what it
+// stood for, translated when the dictionary has it. A message the
+// dictionary does not know stays Romanian.
 export function translateMessage(text: string, lang: MessageLang = pageLang()): string {
   if (lang === 'ro' || text === '') return text;
   const exact = MESSAGES_EN[text];
   if (exact !== undefined) return exact;
-  for (const { regex, english } of compiled()) {
+  for (const { regex, english, translated } of compiled()) {
     const match = regex.exec(text);
     if (!match) continue;
-    const parts = match.slice(1).map((part) => translateMessage(part, lang));
+    const parts = match.slice(1).map((part, i) => (translated[i] ? translateMessage(part, lang) : englishNumber(part)));
     let index = 0;
-    return english.replace(/\{\}/g, () => parts[index++] ?? '');
+    return english.replace(SLOT, () => parts[index++] ?? '');
   }
   return text;
 }

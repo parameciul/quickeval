@@ -12,6 +12,7 @@ import { heldBackHint, PAPER_PART_LABEL } from './paperCounts.ts';
 import { canSelect, selectableIds } from './selection.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { t } from '../../i18n/t.ts';
+import { translateMessage } from '../../../shared/i18n/messages.ts';
 
 // Who uploaded what: one row per student of the class, with the grade once
 // the robot graded it, next to the name, in its colour, as in the table of
@@ -218,7 +219,7 @@ function UploadTableRow({
         {state.hint !== null && <p className="hint">{state.hint}</p>}
         {row.autoSubmitted && row.status !== 'graded' && <span className="tag">{t('Fără confirmare')}</span>}
         {row.resultsOpen && <span className="tag">{t('Publicat')}</span>}
-        {row.status === 'failed' && row.lastError && <p className="hint">{row.lastError}</p>}
+        {row.status === 'failed' && row.lastError && <p className="hint">{translateMessage(row.lastError)}</p>}
       </td>
       <td data-label={t('Fișiere')}>{row.fileCount}</td>
       <td data-label={t('Ora')}>{time ? formatDateTime(time) : '—'}</td>

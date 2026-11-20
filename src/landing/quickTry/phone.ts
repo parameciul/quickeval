@@ -8,6 +8,7 @@ import type { drawQr } from './qr.ts';
 import type { StoredTry } from './storage.ts';
 import { watchPages } from './watch.ts';
 import { t } from '../../i18n/t.ts';
+import { translateMessage } from '../../../shared/i18n/messages.ts';
 
 export interface PhoneStep {
   // Stops the reads and puts the form back for the next time.
@@ -66,7 +67,7 @@ export function openPhoneStep(
   start.hidden = options.robotBarem;
   $('barem').hidden = !options.robotBarem;
   $('hint').hidden = options.robotBarem;
-  $('idle-text').textContent = PHONE_IDLE_TEXT;
+  $('idle-text').textContent = translateMessage(PHONE_IDLE_TEXT);
 
   form.hidden = true;
   block.hidden = false;

@@ -17,6 +17,7 @@ import { fileChangesLeft } from './phase.ts';
 import { PhoneCode } from './PhoneCode.tsx';
 import { usePagesWatch } from './usePagesWatch.ts';
 import { t } from '../i18n/t.ts';
+import { translateMessage } from '../../shared/i18n/messages.ts';
 
 const PAGE_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
 
@@ -262,7 +263,7 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
       <div aria-live="polite">
         {watch.idle && (
           <p className="hint">
-            {PHONE_IDLE_TEXT}{' '}
+            {translateMessage(PHONE_IDLE_TEXT)}{' '}
             <button
               type="button"
               className="link-button"

@@ -44,7 +44,7 @@ const api = () =>
   createFakeApi({ classes: [{ id: 1, name: '7E2', schoolYear: 2026, archived: false, studentCount: students.length }], students: { 1: students }, tests: structuredClone(tests), submissions: structuredClone(submissions), histories: [] });
 
 const PAGES: [string, string][] = [
-  ['/', 'Good'],
+  ['/', 'Good|Hello'],
   ['/tests/7E2-26T1#prepare', 'Fractions'],
   ['/tests/7E2-26T1#in-class', 'Fractions'],
   ['/tests/7E2-26T2#prepare', 'Square roots'],

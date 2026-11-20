@@ -8,6 +8,7 @@ import { SubjectChange } from './SubjectForm.tsx';
 import { partsOf } from './variant.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { t } from '../../i18n/t.ts';
+import { translateMessage } from '../../../shared/i18n/messages.ts';
 
 // The robot reads the test and the barem first and makes a list of the
 // exercises (spec §9). Shown only when that list needs the teacher: its
@@ -43,7 +44,7 @@ export function ExerciseListBanner({
     return (
       <div className="warning">
         <p>
-          <strong>{ces ? t('Baremul CES are o problemă.') : t('Baremul are o problemă.')}</strong> {message}
+          <strong>{ces ? t('Baremul CES are o problemă.') : t('Baremul are o problemă.')}</strong> {translateMessage(message ?? '')}
         </p>
         <p>{ces ? t('Înlocuiește baremul CES la Pregătire, sau corectează cu el așa cum este.') : t('Înlocuiește baremul la Pregătire, sau corectează cu baremul așa cum este.')}</p>
         <span className="row-actions">
@@ -64,7 +65,7 @@ export function ExerciseListBanner({
     return (
       <div className="warning">
         <p>
-          <strong>{t('Nu corectăm încă această materie.')}</strong> {message}
+          <strong>{t('Nu corectăm încă această materie.')}</strong> {translateMessage(message ?? '')}
         </p>
         <p>{t('Dacă materia e alta, schimb-o. Dacă ai încărcat alt test din greșeală, înlocuiește testul la Pregătire: lucrările se corectează apoi cu testul nou.')}</p>
         <span className="row-actions">
@@ -81,7 +82,7 @@ export function ExerciseListBanner({
     return (
       <div className="warning">
         <p>
-          <strong>{ces ? t('Robotul nu a putut citi testul CES și baremul CES.') : t('Robotul nu a putut citi testul și baremul.')}</strong> {message}
+          <strong>{ces ? t('Robotul nu a putut citi testul CES și baremul CES.') : t('Robotul nu a putut citi testul și baremul.')}</strong> {translateMessage(message ?? '')}
         </p>
         <button type="button" className="button-quiet button-small" disabled={retry.isPending} onClick={() => retry.mutate()}>
           <ActionIcon name="retry" />
