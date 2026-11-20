@@ -136,7 +136,7 @@ describe("a try's files before the grading", () => {
   it('names the last file change', async () => {
     setup({ files: { test: testFile, barem: baremFile }, filesVersion: 5 });
     expect(await screen.findByText('Mai poți schimba testul sau baremul o singură dată.')).toBeInTheDocument();
-    expect(screen.getAllByText('Înlocuiește')).toHaveLength(2);
+    expect(screen.getAllByText('Schimbă')).toHaveLength(2);
   });
 
   it('takes no new test or barem once the six changes are used', async () => {
@@ -144,7 +144,7 @@ describe("a try's files before the grading", () => {
     expect(await screen.findByText('Nu mai poți schimba testul sau baremul în această încercare.')).toBeInTheDocument();
     expect(screen.queryByLabelText(/Fișierul testului/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Fișierul baremului/)).not.toBeInTheDocument();
-    expect(screen.queryByText('Înlocuiește')).not.toBeInTheDocument();
+    expect(screen.queryByText('Schimbă')).not.toBeInTheDocument();
     // The files still open.
     expect(screen.getByRole('link', { name: 'test.pdf' })).toBeInTheDocument();
   });
@@ -183,7 +183,7 @@ describe("a try's files before the grading", () => {
   it('names a file input by the words it shows, and asks for a test without answers', async () => {
     setup({ files: { test: null, barem: baremFile } });
     expect(await screen.findByLabelText('Alege testul: Fișierul testului')).toBeInTheDocument();
-    expect(screen.getByLabelText('Înlocuiește: Fișierul baremului')).toBeInTheDocument();
+    expect(screen.getByLabelText('Schimbă: Fișierul baremului')).toBeInTheDocument();
     expect(screen.getByText('Fără răspunsuri. PDF sau Word.')).toBeInTheDocument();
   });
 

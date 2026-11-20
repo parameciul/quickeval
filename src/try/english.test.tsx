@@ -94,7 +94,7 @@ describe('a Quick Try in English', () => {
     renderTry('/', createFakeApi({ classes: [], students: {}, tests: [tryTest({ files })] }), createFakeTryApi({ pages: [structuredClone(photo)] }));
     expect(await screen.findByText('Ready to grade')).toBeInTheDocument();
     expect(screen.getByText('The test, the marking scheme and 1 page are in. The grading takes a few minutes.')).toBeInTheDocument();
-    expect(screen.getAllByText('Replace')).toHaveLength(2);
+    expect(screen.getAllByText('Change')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Start grading' })).toBeEnabled();
     expect(romanianIn()).toEqual([]);
   });
