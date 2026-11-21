@@ -83,7 +83,7 @@ describe('a graded try', () => {
     const frame = await screen.findByTestId('answer-frame');
     expect(within(frame).getByText('I.1')).toBeInTheDocument();
     // No automatic zoom: the page stays whole until the teacher zooms it herself.
-    expect(screen.getByRole('button', { name: 'Toată pagina' })).toBeDisabled();
+    expect(screen.getByText('100%')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Arată chenarul' })).toHaveAttribute('aria-pressed', 'true');
   });
 

@@ -9,22 +9,28 @@ import { t } from '../../i18n/t.ts';
 // the zoomed page, and the two buttons over the page take the same step. The
 // wheel is left to the page, which scrolls with it; only a trackpad pinch (a
 // wheel with ctrlKey) zooms, around the pointer, and two fingers pinch on a
-// touch screen. Esc and "Toată pagina" (off while the page is whole) show the
-// whole page again. The view belongs to the caller. `children` are drawn over
-// the page (the border of an answer), in the pane's own coordinates. Two
-// floating bars sit over the page: the view of the page on the top left (the
-// caller's `tools`, then "Toată pagina"), the zoom alone on the top right.
+// touch screen. Esc, or "Micșorează" down to 100%, shows the whole page again.
+// The view belongs to the caller. `children` are drawn over the page (the
+// border of an answer), in the pane's own coordinates. Two groups of buttons:
+// the view of the page (the caller's `tools`, none when it gives none) and
+// the zoom. With a mouse they float over the page's top corners, close to the
+// edges, the view on the left and the zoom on the right. On a touch screen the
+// buttons are a finger's size and would cover a third of a phone's page, so
+// they stand in a bar above the page instead, and the page is left whole.
 //
-// While the page is whole, a line over its bottom says what a click does,
-// worded for the pointer at hand: a phone has no right button, so there a tap
-// and two fingers do the work. Once the page is zoomed the line goes, so the
-// handwriting is left alone; the title says what a drag and a right click do.
+// While the page is whole, a line says what a click does, worded for the
+// pointer at hand: a phone has no right button, so there a tap and two fingers
+// do the work. With a mouse it sits over the page's bottom left; on a touch
+// screen it is a line under the page, beside the caller's `foot` (the parts of
+// an answer). Once the page is zoomed the line goes, so the handwriting is
+// left alone; the title says what a drag and a right click do.
 export function ZoomPhoto({
   src,
   alt,
   view,
   onView,
   tools,
+  foot,
   children,
 }: {
   src: string;
@@ -32,6 +38,8 @@ export function ZoomPhoto({
   view: ZoomView;
   onView: (view: ZoomView) => void;
   tools?: ReactNode;
+  // Drawn in the line under the page on a touch screen.
+  foot?: ReactNode;
   children?: ReactNode;
 }) {
   const pane = useRef<HTMLDivElement>(null);
@@ -148,7 +156,37 @@ export function ZoomPhoto({
   };
 
   const style = { '--page-ratio': ratio } as CSSProperties;
-  return (
+  // A press on a button over the page is never a press on the page under it.
+  const stop = (event: { stopPropagation: () => void }) => event.stopPropagation();
+  const viewGroup =
+    tools === undefined ? null : (
+      <span className="zoom-controls is-left" role="group" aria-label={t('Vederea paginii')} onPointerDown={stop} onPointerUp={stop} onClick={stop}>
+        {tools}
+      </span>
+    );
+  const zoomGroup = (
+    <span className="zoom-controls" role="group" aria-label={t('Mărirea paginii')} onPointerDown={stop} onPointerUp={stop} onClick={stop}>
+      <button type="button" className="button-quiet button-small" aria-label={t('Micșorează')} disabled={!zoomed} onClick={() => onView(zoomOutAt(view, 0.5, 0.5))}>
+        −
+      </button>
+      <span className="zoom-level" aria-hidden="true">
+        {Math.round(view.scale * 100)}%
+      </span>
+      <button
+        type="button"
+        className="button-quiet button-small"
+        aria-label={t('Mărește')}
+        disabled={view.scale >= MAX_SCALE}
+        onClick={() => onView(zoomInAt(view, 0.5, 0.5))}
+      >
+        +
+      </button>
+    </span>
+  );
+  const hint = zoomed ? null : (
+    <p className="zoom-hint">{touch ? t('Atinge: mărește · ciupește: micșorează') : t('Clic stânga: mărește · clic dreapta: micșorează')}</p>
+  );
+  const pagePane = (
     <div
       ref={pane}
       className={zoomed ? 'zoom-pane is-zoomed' : 'zoom-pane'}
@@ -176,73 +214,32 @@ export function ZoomPhoto({
           }}
         />
       </div>
-      {/* What a click does, before the page is zoomed: at the bottom on the
-          left, away from the zoom's own buttons. It takes no press. */}
-      {!zoomed && (
-        <p className="zoom-hint">{touch ? t('Atinge: mărește · ciupește: micșorează') : t('Clic stânga: mărește · clic dreapta: micșorează')}</p>
-      )}
+      {!touch && hint}
       {children}
-      {/* The buttons float over the page, in reach of a thumb on a phone: a
-          press on one is never a press on the page under it. */}
-      <span
-        className="zoom-controls is-left"
-        role="group"
-        aria-label={t('Vederea paginii')}
-        onPointerDown={(event) => event.stopPropagation()}
-        onPointerUp={(event) => event.stopPropagation()}
-        onClick={(event) => event.stopPropagation()}
-      >
-        {tools}
-        <button
-          type="button"
-          className="button-quiet button-small icon-button"
-          aria-label={t('Toată pagina')}
-          title={t('Toată pagina')}
-          disabled={!zoomed}
-          onClick={() => onView(WHOLE_PAGE)}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path
-              d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      </span>
-      <span
-        className="zoom-controls"
-        role="group"
-        aria-label={t('Mărirea paginii')}
-        onPointerDown={(event) => event.stopPropagation()}
-        onPointerUp={(event) => event.stopPropagation()}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          className="button-quiet button-small"
-          aria-label={t('Micșorează')}
-          disabled={!zoomed}
-          onClick={() => onView(zoomOutAt(view, 0.5, 0.5))}
-        >
-          −
-        </button>
-        <span className="zoom-level" aria-hidden="true">
-          {Math.round(view.scale * 100)}%
-        </span>
-        <button
-          type="button"
-          className="button-quiet button-small"
-          aria-label={t('Mărește')}
-          disabled={view.scale >= MAX_SCALE}
-          onClick={() => onView(zoomInAt(view, 0.5, 0.5))}
-        >
-          +
-        </button>
-      </span>
+      {!touch && viewGroup}
+      {!touch && zoomGroup}
+    </div>
+  );
+  // A touch screen puts the buttons above the page and the hint and the
+  // caller's foot under it, so a finger-sized control never covers the
+  // handwriting. The pane keeps its place in the tree in both layouts (a
+  // missing bar is an empty slot), so a screen that switches between a finger
+  // and a mouse keeps the same pane, with its wheel listener and its zoom.
+  return (
+    <div className={touch ? 'zoom-photo is-touch' : 'zoom-photo'}>
+      {touch && (
+        <div className="zoom-bar">
+          {viewGroup}
+          {zoomGroup}
+        </div>
+      )}
+      {pagePane}
+      {touch && (hint !== null || foot !== undefined) && (
+        <div className="zoom-foot">
+          {hint}
+          {foot}
+        </div>
+      )}
     </div>
   );
 }

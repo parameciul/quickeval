@@ -3603,6 +3603,15 @@ table.tests .row-actions {
   width: min(100%, calc((100vh - var(--top, 0px) - 1.5rem - 9rem) * var(--page-ratio)));
 }
 
+/* On a touch screen the bar above the page (2.375rem with its gap) and the
+   line under it (up to 2.25rem, with the parts' arrows) also need room, so
+   the page and its controls still fit the screen together. */
+@media (pointer: coarse) {
+  .review-photo .zoom-pane {
+    width: min(100%, calc((100vh - var(--top, 0px) - 1.5rem - 13.75rem) * var(--page-ratio)));
+  }
+}
+
 /* The bar between the exercises and the paper: only on a wide screen, where
    the three columns stand side by side (below). */
 .photo-split {
@@ -3997,12 +4006,12 @@ table.items tr.item-decision > td {
    pinch, and these stay in reach of a thumb on a phone. */
 .zoom-controls {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0.25rem;
+  right: 0.25rem;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.375rem;
+  gap: 0.125rem;
+  padding: 0.125rem 0.25rem;
   border: 1px solid var(--rule);
   border-radius: 999px;
   background: var(--sheet);
@@ -4010,10 +4019,10 @@ table.items tr.item-decision > td {
 }
 
 .zoom-controls .button-small {
-  width: 2rem;
-  min-height: 2rem;
+  width: 1.5625rem;
+  min-height: 1.5625rem;
   padding: 0;
-  font-size: 1rem;
+  font-size: 0.8125rem;
   line-height: 1;
 }
 
@@ -4023,11 +4032,11 @@ table.items tr.item-decision > td {
   justify-content: center;
 }
 
-/* The view of the page ("Arată chenarul", "Toată pagina") floats on the top
-   left; the zoom stays alone on the top right. */
+/* The view of the page ("Arată chenarul") floats on the top left; the zoom
+   stays alone on the top right. */
 .zoom-controls.is-left {
   right: auto;
-  left: 0.5rem;
+  left: 0.25rem;
 }
 
 /* "Arată chenarul" over the photo: a dashed frame, orange while the border
@@ -4043,9 +4052,9 @@ table.items tr.item-decision > td {
 }
 
 .zoom-level {
-  min-width: 2.75rem;
+  min-width: 2rem;
   color: var(--text);
-  font-size: 0.8125rem;
+  font-size: 0.625rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -4057,36 +4066,36 @@ table.items tr.item-decision > td {
 .zoom-hint {
   position: absolute;
   z-index: 1;
-  bottom: 0.5rem;
-  left: 0.5rem;
-  max-width: calc(100% - 1rem);
+  bottom: 0.25rem;
+  left: 0.25rem;
+  max-width: calc(100% - 0.5rem);
   margin: 0;
-  padding: 0.25rem 0.5rem;
+  padding: 0.125rem 0.375rem;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--sheet);
   box-shadow: var(--float);
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.3;
   pointer-events: none;
 }
 
 @media (pointer: coarse) {
   .zoom-controls {
-    gap: 0.375rem;
-    padding: 0.375rem 0.5rem;
+    gap: 0.25rem;
+    padding: 0.25rem 0.375rem;
   }
 
   .zoom-controls .button-small {
-    width: 2.75rem;
-    min-height: 2.75rem;
-    font-size: 1.25rem;
+    width: 2rem;
+    min-height: 2rem;
+    font-size: 0.9375rem;
   }
 
   .zoom-hint {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
   }
 }
 
@@ -4164,27 +4173,68 @@ table.items tr.item-decision > td {
   }
 
   .answer-parts .button-small {
-    width: 2.75rem;
-    min-height: 2.75rem;
-    font-size: 1.25rem;
+    width: 2rem;
+    min-height: 2rem;
+    font-size: 0.9375rem;
   }
 }
 
-/* On a phone the controls cannot sit beside the label (the pane is narrow and
-   the label may end near its edge): they float in the pane's bottom corner,
-   in reach of a thumb, and stay there while the page is zoomed. */
-.answer-parts.is-floating {
-  top: auto;
-  right: 0.5rem;
-  bottom: 0.5rem;
-  left: auto;
+/* On a touch screen the buttons are a finger's size: over a phone's page they
+   would hide a third of the handwriting. They stand around the page instead:
+   the view and the zoom in a bar above it, the hint and the parts of an answer
+   in a line under it. Nothing floats, so nothing has a shadow. */
+.zoom-photo {
+  width: 100%;
+}
+
+.zoom-bar,
+.zoom-foot {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  margin: 0;
-  padding: 0.25rem 0.375rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--sheet);
-  box-shadow: var(--float);
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.zoom-bar {
+  margin-bottom: 0.375rem;
+}
+
+/* Only as tall as its content: the hint alone is one short line close to the
+   page; the parts' arrows make it taller only when they are there. */
+.zoom-foot {
+  margin-top: 0.25rem;
+}
+
+/* With no view buttons (no answer area), the zoom still keeps to the right. */
+.zoom-bar .zoom-controls:not(.is-left) {
+  margin-left: auto;
+}
+
+.zoom-bar .zoom-controls {
+  position: static;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.zoom-foot .zoom-hint {
+  position: static;
+  flex: 1 1 12rem;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/* The parts of an answer, under the page on a touch screen: the count and
+   its two arrows, at the line's right end, in reach of a thumb. */
+.answer-parts.is-below-page {
+  position: static;
+  align-items: center;
+  margin: 0 0 0 auto;
   transform: none;
 }
 
