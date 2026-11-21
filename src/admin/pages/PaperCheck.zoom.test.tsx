@@ -314,6 +314,21 @@ describe('the border of the answer to check', () => {
     expect(within(foot as HTMLElement).getByText(/^Atinge/)).not.toHaveClass('is-hidden');
   });
 
+  it('starts again at the first part when the border is shown again', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    await userEvent.click(screen.getByRole('button', { name: 'Partea următoare' }));
+    expect(screen.getByText('Ion Popa · 2/2')).toBeInTheDocument();
+    // The border off, another page by hand, the border on: the arrows name
+    // the part on the page shown, the first one.
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina 1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(within(frame()).getByText('I.3 · partea 1 din 2')).toBeInTheDocument();
+    expect(within(frame()).getByRole('button', { name: 'Partea anterioară' })).toBeDisabled();
+    expect(within(frame()).getByRole('button', { name: 'Partea următoare' })).toBeEnabled();
+  });
+
   it('keeps the zoom when the border is turned off and on', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
     await screen.findByText('Ion Popa · 1/2');

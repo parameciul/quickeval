@@ -263,6 +263,41 @@ describe('the paper taller than its box', () => {
     restore();
   });
 
+  it('ignores the first size the browser reports, and places the page again only for a new size', async () => {
+    // A ResizeObserver as a browser has it: every report carries the sizes.
+    type Report = (entries: { target: Element; contentRect: { width: number; height: number } }[]) => void;
+    const watchers: Report[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: Report) {
+          watchers.push(callback);
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const restore = tallPhotoBox();
+    renderAdmin(ION_I3, apiWith(framed()));
+    expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
+    const box = document.querySelector('.review-photo')!;
+    await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
+    const report = (height: number) =>
+      act(() => {
+        for (const watcher of watchers) watcher([{ target: box, contentRect: { width: 500, height } }]);
+      });
+    // She scrolls; the browser then reports the size the watch started with.
+    box.scrollTop = 0;
+    report(1000);
+    expect(box.scrollTop).toBe(0);
+    // The same size again changes nothing; a new size places the page again.
+    report(1000);
+    expect(box.scrollTop).toBe(0);
+    report(1200);
+    expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500);
+    restore();
+  });
+
   it('goes back to the top of a page that holds none of the answer', async () => {
     const restore = tallPhotoBox();
     renderAdmin(ION_I3, apiWith(framed([TOP])));

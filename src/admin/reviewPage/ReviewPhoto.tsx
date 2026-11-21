@@ -67,6 +67,13 @@ export function ReviewPhoto({
   // and the place of the page in its box.
   const focusKey = `answer:${focus?.key ?? ''}`;
   const [part, setPart] = useState<{ key: string; index: number } | null>(null);
+  // The border shown again starts at the first part: the page shown may have
+  // changed while it was off, and the arrows must name the part on it.
+  const [shownFrames, setShownFrames] = useState(frames);
+  if (shownFrames !== frames) {
+    setShownFrames(frames);
+    if (part !== null) setPart(null);
+  }
   const partIndex = part !== null && part.key === focusKey ? Math.min(part.index, (framed?.areas.length ?? 1) - 1) : 0;
 
   // The zoom of the page shown. A page opens whole, also when it holds the
@@ -104,6 +111,10 @@ export function ReviewPhoto({
   const box = useRef<HTMLElement>(null);
   const pageNumber = index + 1;
   const placed = useRef<{ focusKey: string; fileKey: string } | null>(null);
+  // The watch below lives on between renders: it reads the answer, its
+  // border and its part from here, never as they were when it started.
+  const latest = useRef({ framed, focus, partIndex, pageNumber });
+  latest.current = { framed, focus, partIndex, pageNumber };
   useLayoutEffect(() => {
     const element = box.current;
     if (!element) return;
@@ -111,6 +122,7 @@ export function ReviewPhoto({
     placed.current = { focusKey, fileKey };
     const place = (reveal: boolean) => {
       if (element.scrollHeight <= element.clientHeight) return;
+      const { framed, focus, partIndex, pageNumber } = latest.current;
       const pane = element.querySelector<HTMLElement>('.zoom-pane');
       const stepped = framed?.areas[partIndex];
       const area = stepped?.page === pageNumber ? stepped : focus?.areas.find((other) => other.page === pageNumber);
