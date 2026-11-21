@@ -13,8 +13,10 @@ describe('the zoom of a page', () => {
     await screen.findByText('Ion Popa · 1/1');
     const photo = sizedPane();
     expect(layer().style.transform).toBe(WHOLE);
-    // "Toată pagina" waits over the page, off while the page is whole.
-    expect(screen.getByRole('button', { name: 'Toată pagina' })).toBeDisabled();
+    // No "Toată pagina" button: Esc or the zoom's − bring the whole page back,
+    // and with no answer area there is no view group at all.
+    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Vederea paginii' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Pagina 1 a lucrării/ })).not.toBeInTheDocument();
 
     clickAt(photo, 200, 200);
@@ -51,7 +53,7 @@ describe('the zoom of a page', () => {
     expect(screen.getByText('Clic stânga: mărește · clic dreapta: micșorează')).toBeInTheDocument();
   });
 
-  it('moves the zoomed page with a drag, and shows the whole page with "Toată pagina"', async () => {
+  it('moves the zoomed page with a drag, and shows the whole page with Esc', async () => {
     renderAdmin(`${PAGE}?paper=14&item=41`, apiWith());
     await screen.findByText('Ion Popa · 1/1');
     const photo = sizedPane();
@@ -61,9 +63,9 @@ describe('the zoom of a page', () => {
     fireEvent.pointerUp(photo, { pointerId: 1, button: 0, clientX: 240, clientY: 200 });
     expect(layer().style.transform).toBe('translate(-2.5%, -12.5%) scale(1.25)');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Toată pagina' }));
+    await userEvent.keyboard('{Escape}');
     expect(layer().style.transform).toBe(WHOLE);
-    expect(screen.getByRole('button', { name: 'Toată pagina' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Micșorează' })).toBeDisabled();
   });
 
   it('takes the same step with the buttons over the page, which stop at the ends', async () => {
@@ -181,7 +183,7 @@ describe('the zoom of a page', () => {
     await userEvent.keyboard('3');
     expect(screen.queryByTestId('zoom-pane')).not.toBeInTheDocument();
     expect(screen.getByTitle('Pagina 3 a lucrării')).toHaveAttribute('src', submissionFileUrl(11, 103));
-    expect(screen.queryByRole('button', { name: 'Toată pagina' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mărește' })).not.toBeInTheDocument();
   });
 });
 
@@ -196,11 +198,11 @@ describe('the border of the answer to check', () => {
     expect(within(frame()).getByRole('button', { name: 'Partea anterioară' })).toBeDisabled();
     expect(within(frame()).getByRole('button', { name: 'Partea următoare' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Arată chenarul' })).toHaveAttribute('aria-pressed', 'true');
-    // The switch floats over the photo's top left with "Toată pagina"; the
+    // The switch floats alone over the photo's top left; the
     // zoom stays alone on the top right.
     const view = screen.getByRole('group', { name: 'Vederea paginii' });
     expect(view).toContainElement(screen.getByRole('button', { name: 'Arată chenarul' }));
-    expect(view).toContainElement(screen.getByRole('button', { name: 'Toată pagina' }));
+    expect(within(view).getAllByRole('button')).toHaveLength(1);
     expect(within(screen.getByRole('group', { name: 'Mărirea paginii' })).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
       'Micșorează',
       'Mărește',
@@ -224,19 +226,53 @@ describe('the border of the answer to check', () => {
     expect(layer().style.transform).toBe(WHOLE);
   });
 
-  it('floats the part controls inside the pane on a phone, where a finger reaches them', async () => {
+  it('puts the part controls in the line under the page on a phone, where a finger reaches them', async () => {
     onPhone();
     renderAdmin(ION_I3, apiWith(framed()));
     await screen.findByText('Ion Popa · 1/2');
     const pane = screen.getByTestId('zoom-pane');
-    expect(within(pane).getByRole('button', { name: 'Partea următoare' })).toBeInTheDocument();
-    expect(within(pane).getByText('1 din 2')).toBeInTheDocument();
-    // Not beside the label, where the pane's edge would cut them off.
+    const parts = screen.getByRole('group', { name: 'Părțile răspunsului' });
+    // Not over the handwriting, and not beside the label, where the pane's
+    // edge would cut them off.
+    expect(pane).not.toContainElement(parts);
+    expect(pane.nextElementSibling).toHaveClass('zoom-foot');
+    expect(pane.nextElementSibling).toContainElement(parts);
+    expect(within(parts).getByText('1 din 2')).toBeInTheDocument();
     expect(within(frame()).queryByRole('button', { name: 'Partea următoare' })).not.toBeInTheDocument();
-    await userEvent.click(within(pane).getByRole('button', { name: 'Partea următoare' }));
+    await userEvent.click(within(parts).getByRole('button', { name: 'Partea următoare' }));
     expect(screen.getByText('Ion Popa · 2/2')).toBeInTheDocument();
-    expect(within(pane).getByText('2 din 2')).toBeInTheDocument();
-    expect(within(pane).getByRole('button', { name: 'Partea următoare' })).toBeDisabled();
+    const after = screen.getByRole('group', { name: 'Părțile răspunsului' });
+    expect(within(after).getByText('2 din 2')).toBeInTheDocument();
+    expect(within(after).getByRole('button', { name: 'Partea următoare' })).toBeDisabled();
+  });
+
+  it('puts the view and the zoom in a bar above the page on a phone, and the hint under it', async () => {
+    onPhone();
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    const pane = screen.getByTestId('zoom-pane');
+    const bar = pane.previousElementSibling!;
+    expect(bar).toHaveClass('zoom-bar');
+    expect(bar).toContainElement(screen.getByRole('group', { name: 'Vederea paginii' }));
+    expect(bar).toContainElement(screen.getByRole('group', { name: 'Mărirea paginii' }));
+    expect(within(pane).queryByRole('button')).not.toBeInTheDocument();
+    const hint = screen.getByText('Atinge: mărește · ciupește: micșorează');
+    expect(pane).not.toContainElement(hint);
+    expect(pane.nextElementSibling).toContainElement(hint);
+    // The bar's buttons still work, and the hint goes once the page is zoomed.
+    await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
+    expect(layer().style.transform).not.toBe(WHOLE);
+    expect(screen.queryByText(/^Atinge/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Micșorează' }));
+    expect(layer().style.transform).toBe(WHOLE);
+  });
+
+  it('leaves the line under the page out on a phone when it has nothing to say', async () => {
+    onPhone();
+    renderAdmin(`${PAGE}?paper=14&item=41`, apiWith());
+    await screen.findByText('Ion Popa · 1/1');
+    await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
+    expect(document.querySelector('.zoom-foot')).toBeNull();
   });
 
   it('draws the border on a page picked by hand, on the whole page', async () => {

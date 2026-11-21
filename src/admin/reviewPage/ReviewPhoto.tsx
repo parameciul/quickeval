@@ -24,8 +24,8 @@ export interface ReviewFocus {
 
 // The middle pane of the review: one page of the paper at a time, with the
 // page switch ("2/3" beside the student's name, then a button per page). A
-// photo zooms inside the pane (ZoomPhoto): "Toată pagina" and Esc show the
-// whole page again, and a right click takes one step out. "Arată chenarul" is
+// photo zooms inside the pane (ZoomPhoto): Esc shows the whole page again,
+// and a right click or "Micșorează" takes one step out. "Arată chenarul" is
 // a toggle in the same floating bar over the photo, an orange dashed frame,
 // shown while the open answer has an area. A PDF shows in a frame. While
 // "Arată chenarul" is on, the answer to check opens on
@@ -52,8 +52,8 @@ export function ReviewPhoto({
 }) {
   const { base } = useApi();
   // A finger cannot hit the label's small controls, and the label may end near
-  // the pane's edge on a narrow screen: on a phone the controls float inside
-  // the pane instead (below).
+  // the pane's edge on a narrow screen: on a phone the controls stand in the
+  // line under the page instead (below), never over the handwriting.
   const touch = useMediaQuery('(pointer: coarse)');
   const files = submission.files;
   const index = Math.min(Math.max(page, 0), Math.max(files.length - 1, 0));
@@ -161,9 +161,7 @@ export function ReviewPhoto({
   const parts = framed?.areas.length ?? 0;
   const partLabel = (number: number) => (parts > 1 ? t('{label} · partea {v2} din {parts}', { label: framed!.label, v2: number + 1, parts }) : framed!.label);
   // The controls of an answer in more parts: beside its label on a computer,
-  // floating in the pane's corner on a phone. A press on one never reaches the
-  // page under it, which would zoom there.
-  const stop = (event: { stopPropagation: () => void }) => event.stopPropagation();
+  // in the line under the page on a phone.
   const partButtons =
     parts > 1 ? (
       <>
@@ -181,9 +179,9 @@ export function ReviewPhoto({
         </button>
       </>
     ) : undefined;
-  const floatingParts =
+  const footParts =
     touch && partButtons !== undefined ? (
-      <span className="answer-parts is-floating" role="group" aria-label={t('Părțile răspunsului')} onPointerDown={stop} onPointerUp={stop} onClick={stop}>
+      <span className="answer-parts is-below-page" role="group" aria-label={t('Părțile răspunsului')}>
         <span className="answer-parts-count">
           {t('{v1} din {parts}', { v1: partIndex + 1, parts })}
         </span>
@@ -228,6 +226,7 @@ export function ReviewPhoto({
           alt={t('Pagina {v1} a lucrării', { v1: index + 1 })}
           view={view}
           onView={setView}
+          foot={footParts}
           tools={
             focus !== null && focus.areas.length > 0 ? (
               <button
@@ -256,7 +255,6 @@ export function ReviewPhoto({
               />
             ) : null,
           )}
-          {floatingParts}
         </ZoomPhoto>
       ) : (
         <>

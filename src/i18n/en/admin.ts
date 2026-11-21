@@ -284,7 +284,6 @@ export const ADMIN = {
   "Atinge: mărește · ciupește: micșorează": "Tap: zoom in · pinch: zoom out",
   "Clic stânga: mărește · clic dreapta: micșorează": "Left-click: zoom in · right-click: zoom out",
   "Vederea paginii": "Page view",
-  "Toată pagina": "Whole page",
   "Mărirea paginii": "Page zoom",
   "Micșorează": "Zoom out",
   "Mărește": "Zoom in",
