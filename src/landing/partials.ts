@@ -16,8 +16,8 @@ const SITE_FOOT = `<footer class="site-foot">
             <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
           </a>
           <nav class="foot-nav" aria-label="Pagini">
-            <a href="/guide/">Ghidul corectării</a>
-            <a href="/marking-scheme/">Baremul</a>
+            <a href="/guide/">Ghidul aplicației</a>
+            <a href="/grading/">Corectarea</a>
             <a href="/about/">Despre</a>
             <a href="/pricing/">Cât costă</a>
           </nav>
@@ -34,8 +34,8 @@ const SITE_FOOT_EN = `<footer class="site-foot">
             <span class="words"><b>MQGrader</b><span>by Laura Miron</span></span>
           </a>
           <nav class="foot-nav" aria-label="Pages">
-            <a href="/en/guide/">Grading guide</a>
-            <a href="/en/marking-scheme/">Marking scheme</a>
+            <a href="/en/guide/">App guide</a>
+            <a href="/en/grading/">Grading</a>
             <a href="/en/about/">About</a>
             <a href="/en/pricing/">Pricing</a>
           </nav>

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import baremRaw from '../../marking-scheme/index.html?raw';
+import baremRaw from '../../grading/index.html?raw';
 import despreRaw from '../../about/index.html?raw';
 import ghidRaw from '../../guide/index.html?raw';
 import preturiRaw from '../../pricing/index.html?raw';
-import enBaremRaw from '../../en/marking-scheme/index.html?raw';
+import enBaremRaw from '../../en/grading/index.html?raw';
 import enDespreRaw from '../../en/about/index.html?raw';
 import enGuideRaw from '../../en/guide/index.html?raw';
 import enPreturiRaw from '../../en/pricing/index.html?raw';
@@ -73,13 +73,13 @@ describe('sitemap.xml and llms.txt', () => {
     expect(urls).toEqual([
       'https://mqgrader.ro/',
       'https://mqgrader.ro/guide/',
-      'https://mqgrader.ro/marking-scheme/',
+      'https://mqgrader.ro/grading/',
       'https://mqgrader.ro/about/',
       'https://mqgrader.ro/pricing/',
       // Their English copies.
       'https://mqgrader.ro/en/',
       'https://mqgrader.ro/en/guide/',
-      'https://mqgrader.ro/en/marking-scheme/',
+      'https://mqgrader.ro/en/grading/',
       'https://mqgrader.ro/en/about/',
       'https://mqgrader.ro/en/pricing/',
     ]);

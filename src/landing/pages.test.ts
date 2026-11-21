@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import baremRaw from '../../marking-scheme/index.html?raw';
+import baremRaw from '../../grading/index.html?raw';
 import despreRaw from '../../about/index.html?raw';
 import ghidRaw from '../../guide/index.html?raw';
 import landingRaw from '../../index.html?raw';
@@ -31,13 +31,13 @@ const [ghid, barem, despre, preturi, landing] = [...RAW, landingRaw].map(expandP
 type Page = { path: string; url: string; image: string; html: string; name: string };
 
 const PAGES: Page[] = [
-  { path: '/guide/', url: 'https://mqgrader.ro/guide/', image: 'https://mqgrader.ro/og-guide.png', html: ghid, name: 'Ghidul corectării' },
-  { path: '/marking-scheme/', url: 'https://mqgrader.ro/marking-scheme/', image: 'https://mqgrader.ro/og-marking-scheme.png', html: barem, name: 'Baremul' },
+  { path: '/guide/', url: 'https://mqgrader.ro/guide/', image: 'https://mqgrader.ro/og-guide.png', html: ghid, name: 'Ghidul aplicației' },
+  { path: '/grading/', url: 'https://mqgrader.ro/grading/', image: 'https://mqgrader.ro/og-grading.png', html: barem, name: 'Corectarea' },
   { path: '/about/', url: 'https://mqgrader.ro/about/', image: 'https://mqgrader.ro/og-about.png', html: despre, name: 'Despre' },
   { path: '/pricing/', url: 'https://mqgrader.ro/pricing/', image: 'https://mqgrader.ro/og-pricing.png', html: preturi, name: 'Cât costă' },
 ];
 
-const LINKS = ['/guide/', '/marking-scheme/', '/about/', '/pricing/'];
+const LINKS = ['/guide/', '/grading/', '/about/', '/pricing/'];
 
 const STATS_SCRIPT = 'https://stats.mqgrader.ro/api/script.js?siteId=b5be2803e8ab';
 
@@ -144,8 +144,8 @@ describe('the pages that answer a search', () => {
   it('keeps the anchors that links from elsewhere name', () => {
     const ids: [string, string[]][] = [
       [landing, ['how', 'ready', 'benefits', 'faq', 'more', 'contact']],
-      [ghid, ['meaning', 'steps', 'time', 'automated', 'habits', 'read-also', 'guide-cta']],
-      [barem, ['what-it-is', 'origin', 'good-scheme', 'in-mqgrader', 'faq', 'read-also', 'marking-scheme-cta']],
+      [ghid, ['steps', 'prepare', 'print', 'in-class', 'grading', 'review', 'results', 'read-also', 'guide-cta']],
+      [barem, ['time', 'process', 'review', 'automated', 'barem', 'faq', 'read-also', 'grading-cta']],
       [despre, ['who', 'why', 'what-it-does', 'what-it-does-not', 'now', 'contact', 'read-also', 'about-cta']],
       [preturi, ['demo', 'complete', 'why-no-price', 'account', 'read-also', 'pricing-cta']],
     ];
@@ -165,11 +165,20 @@ describe('the pages that answer a search', () => {
     expect(trail.map((e) => e.name)).toEqual(crumbs);
   });
 
-  it.each(PAGES)('$path says who wrote it and when, and the date is the one in the data', ({ html, url }) => {
+  // The guide and the grading page were rewritten on 21 November 2026.
+  const UPDATED: Record<string, [string, string]> = {
+    '/guide/': ['21 noiembrie 2026', '2026-11-21'],
+    '/grading/': ['21 noiembrie 2026', '2026-11-21'],
+    '/about/': ['17 noiembrie 2026', '2026-11-17'],
+    '/pricing/': ['17 noiembrie 2026', '2026-11-17'],
+  };
+
+  it.each(PAGES)('$path says who wrote it and when, and the date is the one in the data', ({ html, url, path }) => {
+    const [shown, iso] = UPDATED[path]!;
     const doc = parse(html);
     const byline = text(doc.querySelector('.byline'));
     expect(byline).toContain('Laura Miron');
-    expect(byline).toContain('17 noiembrie 2026');
+    expect(byline).toContain(shown);
     const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
     const nodes: {
       '@type': string;
@@ -182,7 +191,7 @@ describe('the pages that answer a search', () => {
     const page = nodes.find((n) => n['@type'] === 'WebPage')!;
     expect(page.url).toBe(url);
     expect(page.datePublished).toBe('2026-11-10');
-    expect(page.dateModified).toBe('2026-11-17');
+    expect(page.dateModified).toBe(iso);
     expect(page.publisher?.['@id']).toBe('https://mqgrader.ro/#organization');
     expect(page.author?.['@id']).toBe('https://mqgrader.ro/#laura-miron');
   });
@@ -348,20 +357,56 @@ describe('the pages that answer a search', () => {
     for (const html of [ghid, despre]) expect(html).toContain('un test, cu cel mult 35 de lucrări');
   });
 
-  it("gives advice in the guide that fits MQGrader's way of grading", () => {
-    const doc = parse(ghid);
-    const habits = Array.from(doc.querySelectorAll('#habits + ol > li b')).map(text);
-    expect(habits).toEqual([
-      'Confirmă baremul înainte de prima lucrare.',
-      'Cere pozele în clasă, la sfârșitul orei.',
-      'Publică rezultatele înainte de următorul test.',
-    ]);
+  it("gives advice on the grading page that fits MQGrader's way of grading", () => {
+    const doc = parse(barem);
+    // The advice to publish before the next test is one of the questions now.
+    expect(doc.getElementById('habits')).toBeNull();
+    const publish = all(doc, '.qa li').find((li) => text(li.querySelector('h3')) === 'Când e bine să public rezultatele?');
+    expect(text(publish?.querySelector('p') ?? null)).toMatch(/^Cât mai repede, înainte de următorul test\./);
     // Grading one exercise across the whole class is how a teacher grades by hand.
-    expect(ghid).not.toContain('Corectează exercițiul, nu lucrarea');
+    expect(barem).not.toContain('Corectează exercițiul, nu lucrarea');
   });
 
-  it('shows the review screen in the guide, with the same picture in the data', () => {
-    const doc = parse(ghid);
+  it('keeps the guide about using the app, and the grading advice on the grading page', () => {
+    const guide = parse(ghid);
+    // The six stages, in order, and no long sections beside them.
+    expect(all(guide, '.stage').map((s) => s.id)).toEqual(['prepare', 'print', 'in-class', 'grading', 'review', 'results']);
+    expect(guide.querySelector('nav.toc')).toBeNull();
+    for (const id of ['time', 'process', 'automated', 'habits']) expect(guide.getElementById(id), id).toBeNull();
+    expect(text(guide.querySelector('h1'))).toBe('Cum folosești MQGrader, pas cu pas');
+    // The grading page is about the grading itself; the barem is one short part of it.
+    const grading = parse(barem);
+    expect(text(grading.querySelector('h1'))).toBe('Cum corectezi testele cu MQGrader');
+    expect(all(grading, '.prose h2').map((h) => h.id)).toEqual(['time', 'process', 'review', 'automated', 'barem']);
+    expect(all(grading, '.qa h3').map(text)).toEqual([
+      'Cine stabilește punctajul final?',
+      'Ce se întâmplă dacă un elev rezolvă altfel decât în barem?',
+      'Ce se întâmplă dacă o poză nu se poate citi?',
+      'Ce materii poate corecta MQGrader?',
+      'Pot încărca un barem scris de mine?',
+      'Când e bine să public rezultatele?',
+    ]);
+    // The example in the head is a graded exercise whose points add up.
+    const earned = all(grading, '.sheet li b').map((b) => Number(text(b).split('/')[0]));
+    expect(earned.reduce((sum, n) => sum + n, 0)).toBe(11);
+    expect(text(grading.querySelector('.sheet .tot'))).toContain('11 / 15p');
+  });
+
+  it('counts the grading time the same way in the text and in the boxes', () => {
+    const doc = parse(barem);
+    const boxes = all(doc, '#time ~ .math b').map(text);
+    expect(boxes).toEqual(['270', '3 h 45 min', '11 h 15 min']);
+    // Nine exercises for 30 students, at 50 seconds each: 13 500 s, and three classes three times that.
+    expect(270 * 50).toBe(3 * 3600 + 45 * 60);
+    expect(3 * 270 * 50).toBe(11 * 3600 + 15 * 60);
+    const line = text(doc.querySelector('#time ~ p'));
+    expect(line).toContain('nouă exerciții');
+    expect(line).toContain('50 de secunde');
+    expect(line).toContain('3 ore și 45 de minute');
+  });
+
+  it('shows the review screen on the grading page, with the same picture in the data', () => {
+    const doc = parse(barem);
     const figure = doc.querySelector('.prose .shot');
     const img = figure?.querySelector('img');
     expect(img?.getAttribute('src')).toBe('/app-graded-paper-v2.png');
@@ -392,7 +437,7 @@ describe('the product text names no single subject', () => {
   it.each([
     ['index.html', landing],
     ['/guide/', ghid],
-    ['/marking-scheme/', barem],
+    ['/grading/', barem],
     ['/about/', despre],
     ['/pricing/', preturi],
     ['llms.txt', llms],

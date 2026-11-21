@@ -223,8 +223,8 @@
           <nav aria-label="Pagina">
             <div class="links nav-links" id="nav-pages" data-nav-links>
             <a href="/" aria-current="page">Produs</a>
-            <a href="/guide/">Ghidul corectării</a>
-            <a href="/marking-scheme/">Baremul</a>
+            <a href="/guide/">Ghidul aplicației</a>
+            <a href="/grading/">Corectarea</a>
             <a href="/about/">Despre</a>
             <a href="/pricing/">Cât costă</a>
             </div>
@@ -308,7 +308,7 @@
             <li class="rise"><time>11:45 <small>ultimele minute ale orei</small></time><div><h3>Elevii fotografiază lucrarea.</h3><p>Scanează codul QR de pe test, își aleg numele și trimit pozele. Fără cont și fără aplicație. Fiecare primește un bilet cu un cod, pentru rezultat.</p><div class="whos"><span class="who who-st">Elevii</span></div></div><div class="pic pair-p"><span class="shot-p"><img src="/screens/student-pages-phone.webp" width="780" height="1688" alt="Telefonul elevului: trei pagini încărcate" loading="lazy" decoding="async" /></span><span class="shot-p"><img src="/screens/student-ticket-phone.webp" width="780" height="1688" alt="Telefonul elevului: lucrarea a fost trimisă, biletul cu codul K7M-92P" loading="lazy" decoding="async" /></span></div></li>
             <li class="rise"><time>11:55 <small>după oră</small></time><div><h3>Pornești corectarea.</h3><p>Un singur buton: „Închide încărcarea și pornește corectarea”. Fiecare lucrare primește punctaj pas cu pas, după barem, cu puncte parțiale. Primești o notificare să verifici doar ce nu e sigur.</p><div class="whos"><span class="who who-you">Tu</span> <span class="who who-mq">MQGrader</span></div></div><div class="pic"><span class="shot-l crop-m"><img src="/screens/stage-grading-laptop.webp" width="1440" height="900" alt="Etapa Corectare: lucrările corectate" loading="lazy" decoding="async" /></span></div></li>
             <li class="rise"><time>15:30 <small>de unde ești</small></time><div><h3>Verifici punctele nesigure.</h3><p>De pe laptop sau de pe telefon. Răspunsul este încadrat pe poza lucrării, lângă motiv. Accepți sau alegi alt punctaj, fără să cauți foaia.</p><div class="whos"><span class="who who-you">Tu</span></div></div><div class="pic pair-p"><span class="shot-p"><img src="/screens/teacher-review-phone.webp" width="780" height="1688" alt="Telefonul profesorului: răspunsul încadrat pe poza lucrării" loading="lazy" decoding="async" /></span><span class="shot-p"><img src="/screens/teacher-decide-phone.webp" width="780" height="1688" alt="Telefonul profesorului: butonul Accept 5p" loading="lazy" decoding="async" /></span></div></li>
-            <li class="rise"><time>16:00 <small>aceeași zi</small></time><div><h3>Publici. Elevii își văd rezultatul.</h3><p>MQGrader pregătește raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog. Tu apeși un singur buton: „Publică rezultatele”. Fiecare elev își vede nota, cu explicații pe fiecare exercițiu.</p><div class="whos"><span class="who who-mq">MQGrader</span> <span class="who who-you">Tu</span> <span class="who who-st">Elevii</span></div></div><div class="pic pair-p"><span class="shot-p"><img src="/screens/student-result-phone.webp" width="780" height="1688" alt="Pagina de rezultat a elevului: nota 8,4" loading="lazy" decoding="async" /></span><span class="shot-p"><img src="/screens/student-result-items-phone.webp" width="780" height="1688" alt="Pagina de rezultat: explicația pentru un exercițiu" loading="lazy" decoding="async" /></span></div></li>
+            <li class="rise"><time>16:00 <small>aceeași zi</small></time><div><h3>Publici. Elevii își văd rezultatul.</h3><p>MQGrader pregătește raportul clasei, un link și un PDF de răspuns pentru fiecare elev. Tu apeși un singur buton: „Publică rezultatele”. Fiecare elev își vede nota, cu explicații și punctaj pentru fiecare exercițiu.</p><div class="whos"><span class="who who-mq">MQGrader</span> <span class="who who-you">Tu</span> <span class="who who-st">Elevii</span></div></div><div class="pic pair-p"><span class="shot-p"><img src="/screens/student-result-phone.webp" width="780" height="1688" alt="Pagina de rezultat a elevului: nota 8,4" loading="lazy" decoding="async" /></span><span class="shot-p"><img src="/screens/student-result-items-phone.webp" width="780" height="1688" alt="Pagina de rezultat: explicația pentru un exercițiu" loading="lazy" decoding="async" /></span></div></li>
           </ol>
         </section>
 
@@ -325,7 +325,7 @@
                 <li class="rise"><b>Verificare și de pe telefon</b><span>Punctul nesigur este încadrat pe poza lucrării, lângă motiv.</span></li>
                 <li class="rise"><b>Explicații pentru fiecare elev</b><span>Pe fiecare exercițiu: ce a fost bine, ce a fost greșit și de ce.</span></li>
                 <li class="rise"><b>Raportul clasei</b><span>Media, notele pe grupe, ce a mers bine și ce reiei.</span></li>
-                <li class="rise"><b>Teste pentru elevii CES</b><span>O variantă adaptată, cu barem propriu, pe care elevul CES o primește singur.</span></li>
+                <li class="rise"><b>Teste pentru elevii cu CES</b><span>O variantă adaptată, cu barem propriu, pe care elevul cu CES o primește singur.</span></li>
                 <li class="rise"><b>Istoricul fiecărei clase</b><span>Toate testele și notele clasei, într-un singur loc.</span></li>
               </ul>
             </div>
@@ -375,21 +375,6 @@
           <figure class="rise"><span class="shot-l only-l"><img src="/screens/teacher-report-analysis-laptop.webp" width="1440" height="900" alt="Raportul clasei 9B: analiza clasei, cu ce a mers bine și ce se reia" loading="lazy" decoding="async" /></span><span class="shot-p only-p center"><img src="/screens/teacher-report-phone.webp" width="780" height="1688" alt="Raportul clasei pe telefon" loading="lazy" decoding="async" /></span></figure>
         </section>
 
-        <section class="price wrap" id="pricing" aria-labelledby="price-t">
-          <div>
-            <h2 id="price-t" class="sr-only">Cât costă</h2>
-            <p class="big rise">0<small>lei</small></p>
-            <p class="rise">Contul demo îți dă toată aplicația, cu două limite. Prețul contului complet nu este încă stabilit. Nicio plată nu pornește fără acordul tău.</p>
-            <div class="acts rise"><a class="btn btn-acc" href="/teacher/#new-account" data-guest>Cere un cont de profesor <span aria-hidden="true">→</span></a><a class="btn btn-line" href="/pricing/">Cât costă, pe larg</a></div>
-          </div>
-          <ul class="rise">
-            <li><b>1</b><span>test corectat pentru o clasă întreagă</span></li>
-            <li><b>35</b><span>de lucrări corectate, cu tot cu recorectări</span></li>
-            <li><b>∞</b><span>clase și elevi</span></li>
-            <li class="free"><b>1<small>/zi</small></b><span>lucrare corectată gratuit, fără cont</span><button class="btn btn-go btn-small" type="button" data-try-open>Încearcă <span aria-hidden="true">→</span></button></li>
-          </ul>
-        </section>
-
         <section class="faq wrap" id="faq" aria-labelledby="faq-t">
           <h2 id="faq-t" class="t-2 rise">Întrebări de profesor.</h2>
           <ul class="qa">
@@ -418,8 +403,8 @@
         <section class="read wrap" id="more" aria-labelledby="read-also">
           <h2 id="read-also" class="t-2 rise">Mai multe despre corectare.</h2>
           <ul>
-            <li class="rise"><a href="/guide/"><b>Cum corectezi testele după barem</b><span>Cele șase etape, cu ecranele aplicației, pe laptop și pe telefon.</span></a></li>
-            <li class="rise"><a href="/marking-scheme/"><b>Baremul de corectare</b><span>Ce este, ce conține unul bun și cum îl generezi din test.</span></a></li>
+            <li class="rise"><a href="/guide/"><b>Cum folosești MQGrader, pas cu pas</b><span>Cele șase etape, cu ecranele aplicației, pe laptop și pe telefon.</span></a></li>
+            <li class="rise"><a href="/grading/"><b>Cum corectezi testele cu MQGrader</b><span>Cum corectează MQGrader o lucrare, cum verifici punctele nesigure și ce decizi tu.</span></a></li>
             <li class="rise"><a href="/about/"><b>Despre MQGrader</b><span>Cine îl construiește, ce face și ce nu face.</span></a></li>
             <li class="rise"><a href="/pricing/"><b>Cât costă</b><span>Ce include un cont demo și ce se întâmplă până apare un abonament.</span></a></li>
           </ul>

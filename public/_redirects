@@ -4,15 +4,24 @@
 /ghid /guide/ 301
 /ghid/* /guide/:splat 301
 /og-ghid.png /og-guide.png 301
-/barem /marking-scheme/ 301
-/barem/* /marking-scheme/:splat 301
-/og-barem.png /og-marking-scheme.png 301
+/barem /grading/ 301
+/barem/* /grading/:splat 301
+/og-barem.png /og-grading.png 301
 /despre /about/ 301
 /despre/* /about/:splat 301
 /og-despre.png /og-about.png 301
 /preturi /pricing/ 301
 /preturi/* /pricing/:splat 301
 /og-preturi.png /og-pricing.png 301
+
+# The marking scheme page became the grading page on 2026-11-21. Keep these
+# 301s, in both languages, for the same reason.
+/marking-scheme /grading/ 301
+/marking-scheme/* /grading/:splat 301
+/og-marking-scheme.png /og-grading.png 301
+/en/marking-scheme /en/grading/ 301
+/en/marking-scheme/* /en/grading/:splat 301
+/en/og-marking-scheme.png /en/og-grading.png 301
 
 # The guide's picture gets a new name each time the picture changes, so no
 # cache keeps the old one: every old name leads to the current picture.
