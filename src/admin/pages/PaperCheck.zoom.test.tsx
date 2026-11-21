@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { submissionFileUrl } from '../api.ts';
@@ -131,6 +131,37 @@ describe('the zoom of a page', () => {
     // A trackpad pinch comes as a wheel with Ctrl, and the photo takes it.
     expect(fireEvent.wheel(photo, { deltaY: -20, ctrlKey: true, clientX: 200, clientY: 200 })).toBe(false);
     expect(layer().style.transform).toMatch(/^translate\(-11\.\d+%, -11\.\d+%\) scale\(1\.22\d*\)$/);
+  });
+
+  it('keeps the same pane, and its trackpad pinch, when the screen switches between a finger and a mouse', async () => {
+    // A 2-in-1 laptop: its keyboard and trackpad come off and back on.
+    let coarse = false;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return query === '(pointer: coarse)' && coarse;
+      },
+      media: query,
+      addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    }));
+    const flip = (on: boolean) =>
+      act(() => {
+        coarse = on;
+        listeners.forEach((listener) => listener());
+      });
+    renderAdmin(`${PAGE}?paper=14&item=41`, apiWith());
+    await screen.findByText('Ion Popa · 1/1');
+    const first = pane();
+    flip(true);
+    expect(document.querySelector('.zoom-bar')).not.toBeNull();
+    expect(pane()).toBe(first);
+    flip(false);
+    expect(document.querySelector('.zoom-bar')).toBeNull();
+    expect(pane()).toBe(first);
+    const photo = sizedPane();
+    expect(fireEvent.wheel(photo, { deltaY: -20, ctrlKey: true, clientX: 200, clientY: 200 })).toBe(false);
+    expect(layer().style.transform).not.toBe(WHOLE);
   });
 
   it('pinches with two fingers on a touch screen, and a pinch is never a click', async () => {

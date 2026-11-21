@@ -3603,6 +3603,15 @@ table.tests .row-actions {
   width: min(100%, calc((100vh - var(--top, 0px) - 1.5rem - 9rem) * var(--page-ratio)));
 }
 
+/* On a touch screen the bar above the page (2.375rem with its gap) and the
+   line under it (up to 2.25rem, with the parts' arrows) also need room, so
+   the page and its controls still fit the screen together. */
+@media (pointer: coarse) {
+  .review-photo .zoom-pane {
+    width: min(100%, calc((100vh - var(--top, 0px) - 1.5rem - 13.75rem) * var(--page-ratio)));
+  }
+}
+
 /* The bar between the exercises and the paper: only on a wide screen, where
    the three columns stand side by side (below). */
 .photo-split {

@@ -220,17 +220,21 @@ export function ZoomPhoto({
       {!touch && zoomGroup}
     </div>
   );
-  if (!touch) return pagePane;
-  // A touch screen: the buttons above the page, the hint and the caller's
-  // foot under it, so a finger-sized control never covers the handwriting.
+  // A touch screen puts the buttons above the page and the hint and the
+  // caller's foot under it, so a finger-sized control never covers the
+  // handwriting. The pane keeps its place in the tree in both layouts (a
+  // missing bar is an empty slot), so a screen that switches between a finger
+  // and a mouse keeps the same pane, with its wheel listener and its zoom.
   return (
-    <div className="zoom-photo is-touch">
-      <div className="zoom-bar">
-        {viewGroup}
-        {zoomGroup}
-      </div>
+    <div className={touch ? 'zoom-photo is-touch' : 'zoom-photo'}>
+      {touch && (
+        <div className="zoom-bar">
+          {viewGroup}
+          {zoomGroup}
+        </div>
+      )}
       {pagePane}
-      {(hint !== null || foot !== undefined) && (
+      {touch && (hint !== null || foot !== undefined) && (
         <div className="zoom-foot">
           {hint}
           {foot}
