@@ -227,6 +227,42 @@ describe('the paper taller than its box', () => {
     restore();
   });
 
+  it('leaves the box where it is when the border is turned off and on', async () => {
+    const restore = tallPhotoBox();
+    renderAdmin(ION_I3, apiWith(framed()));
+    expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
+    const box = document.querySelector('.review-photo')!;
+    await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
+    // She scrolls the page in its box, then hides and shows the border.
+    box.scrollTop = 300;
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(box.scrollTop).toBe(300);
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(box.scrollTop).toBe(300);
+    restore();
+  });
+
+  it('steps to a part on the same page without moving the box while the part is in sight', async () => {
+    const restore = tallPhotoBox();
+    const first = { page: 1, x0: 0.1, y0: 0.3, x1: 0.9, y1: 0.4 };
+    const inSight = { page: 1, x0: 0.1, y0: 0.5, x1: 0.9, y1: 0.6 };
+    const below = { page: 1, x0: 0.1, y0: 0.9, x1: 0.9, y1: 0.95 };
+    renderAdmin(ION_I3, apiWith(framed([first, inSight, below])));
+    expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
+    const box = document.querySelector('.review-photo')!;
+    // The first part in the middle: the box shows 125–1125 of the page's 100–1600.
+    await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
+    // The second part (850–1000) is already in sight: the box stays.
+    await userEvent.click(screen.getByRole('button', { name: 'Partea următoare' }));
+    expect(screen.getByText('I.3 · partea 2 din 3')).toBeInTheDocument();
+    expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500);
+    // The third (1450–1525) is below the box: it comes to the middle.
+    await userEvent.click(screen.getByRole('button', { name: 'Partea următoare' }));
+    expect(screen.getByText('I.3 · partea 3 din 3')).toBeInTheDocument();
+    expect(box.scrollTop).toBeCloseTo(100 + 0.925 * 1500 - 500);
+    restore();
+  });
+
   it('goes back to the top of a page that holds none of the answer', async () => {
     const restore = tallPhotoBox();
     renderAdmin(ION_I3, apiWith(framed([TOP])));
