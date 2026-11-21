@@ -3729,10 +3729,12 @@ table.tests .row-actions {
 
   /* With the teacher's own width, the page fills the paper's column, so a
      wider column shows a bigger page; a page taller than the screen scrolls
-     inside its box. */
+     inside its box. Its scrollbar always has its room: a scrollbar that came
+     and went would make the page narrower and wider, and move it. */
   .paper-panes.has-photo-width .review-photo {
     max-height: calc(100vh - var(--top, 0px) - 1.5rem);
     overflow-y: auto;
+    scrollbar-gutter: stable;
   }
 
   .paper-panes.has-photo-width .review-photo .zoom-pane {
@@ -4204,6 +4206,18 @@ table.items tr.item-decision > td {
    page; the parts' arrows make it taller only when they are there. */
 .zoom-foot {
   margin-top: 0.25rem;
+}
+
+/* A quick second tap on a button would zoom the whole web page: the bar and
+   the line take taps as taps, as the page itself does. */
+.zoom-bar,
+.zoom-foot {
+  touch-action: manipulation;
+}
+
+/* The hint of a zoomed page keeps its room, so nothing under it moves. */
+.zoom-foot .zoom-hint.is-hidden {
+  visibility: hidden;
 }
 
 /* With no view buttons (no answer area), the zoom still keeps to the right. */

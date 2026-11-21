@@ -23,7 +23,9 @@ import { t } from '../../i18n/t.ts';
 // do the work. With a mouse it sits over the page's bottom left; on a touch
 // screen it is a line under the page, beside the caller's `foot` (the parts of
 // an answer). Once the page is zoomed the line goes, so the handwriting is
-// left alone; the title says what a drag and a right click do.
+// left alone; the title says what a drag and a right click do. On a touch
+// screen the line only turns invisible and keeps its room: the page under it
+// never moves when the zoom changes.
 export function ZoomPhoto({
   src,
   alt,
@@ -183,9 +185,8 @@ export function ZoomPhoto({
       </button>
     </span>
   );
-  const hint = zoomed ? null : (
-    <p className="zoom-hint">{touch ? t('Atinge: mărește · ciupește: micșorează') : t('Clic stânga: mărește · clic dreapta: micșorează')}</p>
-  );
+  const hintText = touch ? t('Atinge: mărește · ciupește: micșorează') : t('Clic stânga: mărește · clic dreapta: micșorează');
+  const hint = zoomed ? null : <p className="zoom-hint">{hintText}</p>;
   const pagePane = (
     <div
       ref={pane}
@@ -234,9 +235,15 @@ export function ZoomPhoto({
         </div>
       )}
       {pagePane}
-      {touch && (hint !== null || foot !== undefined) && (
+      {touch && (
         <div className="zoom-foot">
-          {hint}
+          {zoomed ? (
+            <p className="zoom-hint is-hidden" aria-hidden="true">
+              {hintText}
+            </p>
+          ) : (
+            hint
+          )}
           {foot}
         </div>
       )}
