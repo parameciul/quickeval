@@ -61,10 +61,19 @@ export function ReviewPhoto({
 
   // The answer framed now: none while the switch is off or it has no area.
   const framed = frames && focus !== null && focus.areas.length > 0 ? focus : null;
-  // Every answer has its own key, framed or not, so a zoom never follows the
-  // teacher to the next answer.
-  const focusKey = framed ? `framed:${framed.key}` : `plain:${focus?.key ?? ''}`;
+  // Every answer has its own key, so a zoom never follows the teacher to the
+  // next answer. The key names the answer alone, not whether its border
+  // shows: "Arată chenarul" only draws or hides the border, and keeps the zoom
+  // and the place of the page in its box.
+  const focusKey = `answer:${focus?.key ?? ''}`;
   const [part, setPart] = useState<{ key: string; index: number } | null>(null);
+  // The border shown again starts at the first part: the page shown may have
+  // changed while it was off, and the arrows must name the part on it.
+  const [shownFrames, setShownFrames] = useState(frames);
+  if (shownFrames !== frames) {
+    setShownFrames(frames);
+    if (part !== null) setPart(null);
+  }
   const partIndex = part !== null && part.key === focusKey ? Math.min(part.index, (framed?.areas.length ?? 1) - 1) : 0;
 
   // The zoom of the page shown. A page opens whole, also when it holds the
@@ -92,18 +101,28 @@ export function ReviewPhoto({
   };
 
   // With a width of the teacher's own the page can be taller than its box,
-  // which then scrolls (brand.css). Another answer, part or page brings the
-  // answer on the page shown to the middle of the box (the part being
-  // stepped through, else the answer's first area there), or the top of the
-  // page when it has none; again once the photo has loaded and has its
-  // shape, and whenever the box or the page changes size.
+  // which then scrolls (brand.css). Another answer or page brings the answer
+  // on the page shown to the middle of the box (the part being stepped
+  // through, else the answer's first area there), or the top of the page when
+  // it has none; again once the photo has loaded and has its shape, and
+  // whenever the box or the page changes size. A step to another part on the
+  // same page leaves the box where it is while the part is already in sight,
+  // so the arrows never move a page the teacher can read.
   const box = useRef<HTMLElement>(null);
   const pageNumber = index + 1;
+  const placed = useRef<{ focusKey: string; fileKey: string } | null>(null);
+  // The watch below lives on between renders: it reads the answer, its
+  // border and its part from here, never as they were when it started.
+  const latest = useRef({ framed, focus, partIndex, pageNumber });
+  latest.current = { framed, focus, partIndex, pageNumber };
   useLayoutEffect(() => {
     const element = box.current;
     if (!element) return;
-    const place = () => {
+    const samePage = placed.current !== null && placed.current.focusKey === focusKey && placed.current.fileKey === fileKey;
+    placed.current = { focusKey, fileKey };
+    const place = (reveal: boolean) => {
       if (element.scrollHeight <= element.clientHeight) return;
+      const { framed, focus, partIndex, pageNumber } = latest.current;
       const pane = element.querySelector<HTMLElement>('.zoom-pane');
       const stepped = framed?.areas[partIndex];
       const area = stepped?.page === pageNumber ? stepped : focus?.areas.find((other) => other.page === pageNumber);
@@ -113,22 +132,38 @@ export function ReviewPhoto({
       }
       const paneBox = pane.getBoundingClientRect();
       const paneTop = paneBox.top - element.getBoundingClientRect().top + element.scrollTop;
-      const middle = paneTop + ((area.y0 + area.y1) / 2) * paneBox.height;
-      element.scrollTop = Math.max(0, middle - element.clientHeight / 2);
+      const top = paneTop + area.y0 * paneBox.height;
+      const bottom = paneTop + area.y1 * paneBox.height;
+      if (reveal && top >= element.scrollTop && bottom <= element.scrollTop + element.clientHeight) return;
+      element.scrollTop = Math.max(0, (top + bottom) / 2 - element.clientHeight / 2);
     };
-    place();
+    place(samePage);
     // Again when the box or the page in it changes size: the photo has loaded,
     // the teacher dragged the paper wider (the box may only now be taller than
     // the screen), or the window changed. A zoom moves the page inside the
     // pane and leaves the pane's size, so it never moves the box.
     const pane = element.querySelector('.zoom-pane');
-    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(() => place()) : null;
+    // The browser reports every size once as the watch starts: only a size
+    // that really changed places the page again, so a step to another part
+    // does not bring it to the middle after all.
+    const sizes = new Map<Element, string>();
+    const resized = (entries?: ResizeObserverEntry[]) =>
+      !entries ||
+      entries
+        .map((entry) => {
+          const size = `${entry.contentRect.width}x${entry.contentRect.height}`;
+          const before = sizes.get(entry.target);
+          sizes.set(entry.target, size);
+          return before !== undefined && before !== size;
+        })
+        .some(Boolean);
+    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver((entries) => resized(entries) && place(false)) : null;
     if (watch) {
       watch.observe(element);
       if (pane) watch.observe(pane);
     }
     const image = element.querySelector('.zoom-pane img');
-    const onLoad = () => requestAnimationFrame(place);
+    const onLoad = () => requestAnimationFrame(() => place(false));
     const waits = image instanceof HTMLImageElement && !image.complete;
     if (waits) image.addEventListener('load', onLoad, { once: true });
     return () => {
@@ -136,7 +171,7 @@ export function ReviewPhoto({
       if (waits) image.removeEventListener('load', onLoad);
     };
     // Only the answer, its part, the page and a new size move the box: not
-    // every render.
+    // every render, and not the border shown or hidden.
   }, [focusKey, fileKey, partIndex]);
 
   const hide = onHide ? (

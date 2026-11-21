@@ -290,20 +290,58 @@ describe('the border of the answer to check', () => {
     const hint = screen.getByText('Atinge: mărește · ciupește: micșorează');
     expect(pane).not.toContainElement(hint);
     expect(pane.nextElementSibling).toContainElement(hint);
-    // The bar's buttons still work, and the hint goes once the page is zoomed.
+    // The bar's buttons still work, and the hint turns invisible once the
+    // page is zoomed, keeping its room so nothing under it moves.
     await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
     expect(layer().style.transform).not.toBe(WHOLE);
-    expect(screen.queryByText(/^Atinge/)).not.toBeInTheDocument();
+    expect(screen.getByText(/^Atinge/)).toHaveClass('is-hidden');
+    expect(screen.getByText(/^Atinge/)).toHaveAttribute('aria-hidden', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Micșorează' }));
     expect(layer().style.transform).toBe(WHOLE);
   });
 
-  it('leaves the line under the page out on a phone when it has nothing to say', async () => {
+  it('keeps the line under the page on a phone while zoomed, so the page under it never moves', async () => {
     onPhone();
     renderAdmin(`${PAGE}?paper=14&item=41`, apiWith());
     await screen.findByText('Ion Popa · 1/1');
+    const foot = document.querySelector('.zoom-foot');
+    expect(foot).not.toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
-    expect(document.querySelector('.zoom-foot')).toBeNull();
+    // The same line, its hint invisible: the zoom adds and removes nothing.
+    expect(document.querySelector('.zoom-foot')).toBe(foot);
+    expect(within(foot as HTMLElement).getByText(/^Atinge/)).toHaveClass('is-hidden');
+    await userEvent.click(screen.getByRole('button', { name: 'Micșorează' }));
+    expect(within(foot as HTMLElement).getByText(/^Atinge/)).not.toHaveClass('is-hidden');
+  });
+
+  it('starts again at the first part when the border is shown again', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    await userEvent.click(screen.getByRole('button', { name: 'Partea următoare' }));
+    expect(screen.getByText('Ion Popa · 2/2')).toBeInTheDocument();
+    // The border off, another page by hand, the border on: the arrows name
+    // the part on the page shown, the first one.
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina 1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(within(frame()).getByText('I.3 · partea 1 din 2')).toBeInTheDocument();
+    expect(within(frame()).getByRole('button', { name: 'Partea anterioară' })).toBeDisabled();
+    expect(within(frame()).getByRole('button', { name: 'Partea următoare' })).toBeEnabled();
+  });
+
+  it('keeps the zoom when the border is turned off and on', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    clickAt(sizedPane(), 200, 200);
+    const zoomed = layer().style.transform;
+    expect(zoomed).not.toBe(WHOLE);
+    // The switch only draws or hides the border: the page stays as zoomed.
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(screen.queryByTestId('answer-frame')).not.toBeInTheDocument();
+    expect(layer().style.transform).toBe(zoomed);
+    await userEvent.click(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(screen.getByTestId('answer-frame')).toBeInTheDocument();
+    expect(layer().style.transform).toBe(zoomed);
   });
 
   it('draws the border on a page picked by hand, on the whole page', async () => {
