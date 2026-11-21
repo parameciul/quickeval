@@ -92,6 +92,17 @@ describe('the English copies of the public pages', () => {
     }
   });
 
+  it.each(TWINS)('$enUrl shows the trail its structured data claims', ({ en }) => {
+    const doc = parse(en);
+    const crumbs = all(doc, '.crumbs a, .crumbs span:not([aria-hidden])').map((el) => (el.textContent ?? '').trim());
+    // The landing page has no trail.
+    if (crumbs.length === 0) return;
+    const ld = JSON.parse(doc.querySelector('script[type="application/ld+json"]')?.textContent ?? '{}');
+    const nodes: { '@type': string; itemListElement?: { name: string }[] }[] = ld['@graph'];
+    const trail = nodes.find((n) => n['@type'] === 'BreadcrumbList')!.itemListElement!;
+    expect(trail.map((e) => e.name)).toEqual(crumbs);
+  });
+
   it.each(TWINS)('$enUrl has no Romanian text left', ({ en }) => {
     // Names stay: the school, the city, Laura Miron's site, the national exams.
     const text = visibleText(parse(en))

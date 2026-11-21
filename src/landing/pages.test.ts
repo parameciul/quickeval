@@ -165,12 +165,12 @@ describe('the pages that answer a search', () => {
     expect(trail.map((e) => e.name)).toEqual(crumbs);
   });
 
-  // The guide and the grading page were rewritten on 21 November 2026.
+  // The guide, the grading page and the pricing page changed on 21 November 2026.
   const UPDATED: Record<string, [string, string]> = {
     '/guide/': ['21 noiembrie 2026', '2026-11-21'],
     '/grading/': ['21 noiembrie 2026', '2026-11-21'],
     '/about/': ['17 noiembrie 2026', '2026-11-17'],
-    '/pricing/': ['17 noiembrie 2026', '2026-11-17'],
+    '/pricing/': ['21 noiembrie 2026', '2026-11-21'],
   };
 
   it.each(PAGES)('$path says who wrote it and when, and the date is the one in the data', ({ html, url, path }) => {
@@ -396,9 +396,7 @@ describe('the pages that answer a search', () => {
     const doc = parse(barem);
     const boxes = all(doc, '#time ~ .math b').map(text);
     expect(boxes).toEqual(['270', '3 h 45 min', '11 h 15 min']);
-    // Nine exercises for 30 students, at 50 seconds each: 13 500 s, and three classes three times that.
-    expect(270 * 50).toBe(3 * 3600 + 45 * 60);
-    expect(3 * 270 * 50).toBe(11 * 3600 + 15 * 60);
+    // Nine exercises for 30 students, at 50 seconds each: 3 h 45 min, and three classes three times that.
     const line = text(doc.querySelector('#time ~ p'));
     expect(line).toContain('nouă exerciții');
     expect(line).toContain('50 de secunde');

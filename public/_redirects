@@ -23,7 +23,7 @@
 /en/marking-scheme/* /en/grading/:splat 301
 /en/og-marking-scheme.png /en/og-grading.png 301
 
-# The guide's picture gets a new name each time the picture changes, so no
+# The graded-paper picture (on the grading page) gets a new name each time the picture changes, so no
 # cache keeps the old one: every old name leads to the current picture.
 /app-verificare.png /app-graded-paper-v2.png 301
 /app-graded-paper.png /app-graded-paper-v2.png 301
