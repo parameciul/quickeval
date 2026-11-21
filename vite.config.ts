@@ -52,13 +52,13 @@ export default defineConfig({
         // The pages that answer a search: the guide, the barem, the author
         // and the prices. Static HTML, like the landing page.
         guide: page('./guide/index.html'),
-        markingScheme: page('./marking-scheme/index.html'),
+        grading: page('./grading/index.html'),
         about: page('./about/index.html'),
         pricing: page('./pricing/index.html'),
         // Their English copies, at /en/.
         en: page('./en/index.html'),
         enGuide: page('./en/guide/index.html'),
-        enMarkingScheme: page('./en/marking-scheme/index.html'),
+        enGrading: page('./en/grading/index.html'),
         enAbout: page('./en/about/index.html'),
         enPricing: page('./en/pricing/index.html'),
       },

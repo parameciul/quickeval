@@ -72,7 +72,7 @@ async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone:
 }
 
 const button = () => screen.queryByRole('button', { name: 'Încearcă pe o lucrare, fără cont' });
-// Every Quick Try button of the page: the hero's, the try section's, the price row's, the end band's.
+// Every Quick Try button of the page: the hero's, the try section's, the end band's.
 const tryButtons = () => Array.from(document.querySelectorAll<HTMLButtonElement>('[data-try-open]'));
 const dialog = () => document.querySelector<HTMLDialogElement>('[data-try-dialog]')!;
 
@@ -230,7 +230,7 @@ describe("the landing page's Quick Try", () => {
 
   it('shows and hides every Quick Try button of the page together, and each one opens the form', async () => {
     await mount();
-    expect(tryButtons()).toHaveLength(4);
+    expect(tryButtons()).toHaveLength(3);
     for (const one of tryButtons()) {
       expect(one).toBeVisible();
       one.click();
@@ -692,7 +692,7 @@ describe("the landing page's Quick Try", () => {
   it('shows a visitor the login and the new-account link, not the account', async () => {
     await mount();
     expect(screen.getAllByRole('link', { name: 'Intră în cont' })).toHaveLength(1);
-    expect(screen.getAllByRole('link', { name: 'Cere un cont de profesor' }).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByRole('link', { name: 'Cere un cont de profesor' }).length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByRole('link', { name: 'Contul tău' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Deschide contul tău' })).toBeNull();
   });

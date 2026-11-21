@@ -92,7 +92,7 @@ function showPick(input: HTMLInputElement, chosen: File[]): void {
 }
 
 // The landing page's Quick Try (spec §3.1, §3.2): its buttons (the hero's,
-// the try section's, the price row's and the end band's), the form in a
+// the try section's and the end band's), the form in a
 // window over the page, and the status line of the visitor's try with its
 // link. The page has no React: this works on the page's own elements.
 export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<void> {

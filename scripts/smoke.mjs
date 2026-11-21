@@ -55,7 +55,7 @@ for (const path of [
   '/app-teste.png',
   '/app-graded-paper-v2.png',
   '/og-guide.png',
-  '/og-marking-scheme.png',
+  '/og-grading.png',
   '/og-about.png',
   '/og-pricing.png',
   '/logo.png',
@@ -72,7 +72,7 @@ check('pictures are cached for a day', (picture.headers.get('cache-control') ?? 
 // to search engines, each with the address the sitemap lists.
 const SHARE = {
   '/guide/': 'og-guide.png',
-  '/marking-scheme/': 'og-marking-scheme.png',
+  '/grading/': 'og-grading.png',
   '/about/': 'og-about.png',
   '/pricing/': 'og-pricing.png',
 };
@@ -81,12 +81,12 @@ for (const [path, card] of Object.entries(SHARE)) {
   check(`content page ${path}`, content.res.status === 200, String(content.res.status));
   check(`content page ${path} may be indexed`, !(content.res.headers.get('x-robots-tag') ?? '').includes('noindex'));
   check(`content page ${path} points at itself`, content.text.includes(`<link rel="canonical" href="https://mqgrader.ro${path}"`));
-  check(`content page ${path} links the others`, ['/guide/', '/marking-scheme/', '/about/', '/pricing/'].every((link) => content.text.includes(`href="${link}"`)));
+  check(`content page ${path} links the others`, ['/guide/', '/grading/', '/about/', '/pricing/'].every((link) => content.text.includes(`href="${link}"`)));
   check(`content page ${path} has its own share card`, content.text.includes(`property="og:image" content="https://mqgrader.ro/${card}"`));
-  check(`content page ${path} says who wrote it and when`, content.text.includes('class="byline"') && content.text.includes('actualizat 10 noiembrie 2026'));
+  check(`content page ${path} says who wrote it and when`, content.text.includes('class="byline"') && /actualizat \d+ noiembrie 2026/.test(content.text));
 }
-const guide = await page('/guide/');
-check('the guide shows a graded paper', guide.text.includes('src="/app-graded-paper-v2.png"') && guide.text.includes('width="1897"'));
+const gradingPage = await page('/grading/');
+check('the grading page shows a graded paper', gradingPage.text.includes('src="/app-graded-paper-v2.png"') && gradingPage.text.includes('width="1897"'));
 // public/404.html is what keeps Pages from answering like a single-page app.
 const missingPage = await page('/pagina-care-nu-exista');
 check('a missing page answers 404', missingPage.res.status === 404, String(missingPage.res.status));

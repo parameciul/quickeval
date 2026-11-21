@@ -3,7 +3,7 @@
 MQGrader counts visits with a self-hosted [Rybbit](https://rybbit.com/docs/self-hosting): no cookies, no third party.
 
 - Dashboard: https://stats.mqgrader.ro (sign-up is off; the first account is the administrator).
-- The five public pages load the script (`index.html`, `guide/`, `marking-scheme/`, `about/`, `pricing/`), in their `<head>`, after `theme.js`.
+- The five public pages load the script (`index.html`, `guide/`, `grading/`, `about/`, `pricing/`), in their `<head>`, after `theme.js`.
 - The student pages (`u/index.html`) and the Quick Try pages (`try/index.html`) load it too. Their addresses hold tokens, so:
   - `data-mask-patterns` sends a pattern in place of each path with a token: `/u/*` (the test link), `/u/result/*` and `/u/rezultat/*` (the result link), `/try/*` and `/try/*/phone`. The first pattern that matches wins, and a catch-all at the end (`/u/**`, `/try/**`) covers any other path.
   - `<meta name="referrer" content="no-referrer">`: the next page never learns the address with the token.

@@ -1,12 +1,12 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import baremRaw from '../../marking-scheme/index.html?raw';
+import baremRaw from '../../grading/index.html?raw';
 import despreRaw from '../../about/index.html?raw';
 import ghidRaw from '../../guide/index.html?raw';
 import landingRaw from '../../index.html?raw';
 import preturiRaw from '../../pricing/index.html?raw';
-import enBaremRaw from '../../en/marking-scheme/index.html?raw';
+import enBaremRaw from '../../en/grading/index.html?raw';
 import enDespreRaw from '../../en/about/index.html?raw';
 import enGuideRaw from '../../en/guide/index.html?raw';
 import enLandingRaw from '../../en/index.html?raw';
@@ -31,7 +31,7 @@ type Twin = { ro: string; en: string; roUrl: string; enUrl: string };
 const TWINS: Twin[] = [
   { ro: landingRaw, en: enLandingRaw, roUrl: '/', enUrl: '/en/' },
   { ro: ghidRaw, en: enGuideRaw, roUrl: '/guide/', enUrl: '/en/guide/' },
-  { ro: baremRaw, en: enBaremRaw, roUrl: '/marking-scheme/', enUrl: '/en/marking-scheme/' },
+  { ro: baremRaw, en: enBaremRaw, roUrl: '/grading/', enUrl: '/en/grading/' },
   { ro: despreRaw, en: enDespreRaw, roUrl: '/about/', enUrl: '/en/about/' },
   { ro: preturiRaw, en: enPreturiRaw, roUrl: '/pricing/', enUrl: '/en/pricing/' },
 ];
@@ -90,6 +90,17 @@ describe('the English copies of the public pages', () => {
       if (a11yLangSwitch(doc, href) || href.startsWith('/teacher/') || href === '/') continue;
       expect(href, href).toMatch(/^\/en\//);
     }
+  });
+
+  it.each(TWINS)('$enUrl shows the trail its structured data claims', ({ en }) => {
+    const doc = parse(en);
+    const crumbs = all(doc, '.crumbs a, .crumbs span:not([aria-hidden])').map((el) => (el.textContent ?? '').trim());
+    // The landing page has no trail.
+    if (crumbs.length === 0) return;
+    const ld = JSON.parse(doc.querySelector('script[type="application/ld+json"]')?.textContent ?? '{}');
+    const nodes: { '@type': string; itemListElement?: { name: string }[] }[] = ld['@graph'];
+    const trail = nodes.find((n) => n['@type'] === 'BreadcrumbList')!.itemListElement!;
+    expect(trail.map((e) => e.name)).toEqual(crumbs);
   });
 
   it.each(TWINS)('$enUrl has no Romanian text left', ({ en }) => {

@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
-    <title>Cum corectezi testele după barem · MQGrader</title>
-    <meta name="description" content="Ghid pas cu pas pentru corectarea unui test după barem, de la matematică la limba engleză: ce se poate automatiza, unde intervii tu și cum arată punctajul." />
+    <title>Cum folosești MQGrader, pas cu pas · MQGrader</title>
+    <meta name="description" content="Ghid pas cu pas pentru MQGrader: cum pregătești testul și baremul, cum trimit elevii pozele, cum verifici punctajul și cum publici rezultatele." />
     <link rel="canonical" href="https://mqgrader.ro/guide/" />
     <link rel="alternate" hreflang="ro" href="https://mqgrader.ro/guide/" />
     <link rel="alternate" hreflang="en" href="https://mqgrader.ro/en/guide/" />
@@ -17,15 +17,15 @@
     <meta property="og:locale" content="ro_RO" />
     <meta property="og:locale:alternate" content="en_GB" />
     <meta property="og:url" content="https://mqgrader.ro/guide/" />
-    <meta property="og:title" content="Cum corectezi testele după barem" />
-    <meta property="og:description" content="Ghid pas cu pas: punctajul pe fiecare pas, punctele parțiale, verificarea punctelor nesigure și rezultatele." />
+    <meta property="og:title" content="Cum folosești MQGrader, pas cu pas" />
+    <meta property="og:description" content="Cele șase etape ale unui test în MQGrader: pregătire, tipărire, în clasă, corectare, verificare și rezultate." />
     <meta property="og:image" content="https://mqgrader.ro/og-guide.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="MQGrader: cum corectezi testele după barem" />
+    <meta property="og:image:alt" content="MQGrader: cum folosești aplicația, pas cu pas" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Cum corectezi testele după barem" />
-    <meta name="twitter:description" content="Punctajul pe fiecare pas, punctele parțiale, verificarea punctelor nesigure." />
+    <meta name="twitter:title" content="Cum folosești MQGrader, pas cu pas" />
+    <meta name="twitter:description" content="Cele șase etape ale unui test în MQGrader, de la barem la rezultatele elevilor." />
     <meta name="twitter:image" content="https://mqgrader.ro/og-guide.png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script type="application/ld+json">
@@ -36,8 +36,8 @@
             "@type": "WebPage",
             "@id": "https://mqgrader.ro/guide/#webpage",
             "url": "https://mqgrader.ro/guide/",
-            "name": "Cum corectezi testele după barem",
-            "description": "Ghid pas cu pas pentru corectarea unui test după barem, de la matematică la limba engleză: ce se poate automatiza, unde intervii tu și cum arată punctajul.",
+            "name": "Cum folosești MQGrader, pas cu pas",
+            "description": "Ghid pas cu pas pentru MQGrader: cum pregătești testul și baremul, cum trimit elevii pozele, cum verifici punctajul și cum publici rezultatele.",
             "inLanguage": "ro",
             "isPartOf": { "@id": "https://mqgrader.ro/#website" },
             "about": { "@id": "https://mqgrader.ro/#app" },
@@ -45,13 +45,13 @@
             "author": { "@id": "https://mqgrader.ro/#laura-miron" },
             "publisher": { "@id": "https://mqgrader.ro/#organization" },
             "datePublished": "2026-11-10",
-            "dateModified": "2026-11-17",
+            "dateModified": "2026-11-21",
             "primaryImageOfPage": {
               "@type": "ImageObject",
-              "url": "https://mqgrader.ro/app-graded-paper-v2.png",
-              "width": 1897,
-              "height": 1066,
-              "caption": "O lucrare corectată în MQGrader: punctajul, răspunsul elevului și comentariul la fiecare exercițiu, lângă poza paginii."
+              "url": "https://mqgrader.ro/screens/stage-prepare-laptop.webp",
+              "width": 1440,
+              "height": 900,
+              "caption": "Pagina unui test în MQGrader, la etapa Pregătire: testul și baremul încărcate."
             }
           },
           {
@@ -59,7 +59,7 @@
             "@id": "https://mqgrader.ro/guide/#breadcrumb",
             "itemListElement": [
               { "@type": "ListItem", "position": 1, "name": "MQGrader", "item": "https://mqgrader.ro/" },
-              { "@type": "ListItem", "position": 2, "name": "Ghidul corectării", "item": "https://mqgrader.ro/guide/" }
+              { "@type": "ListItem", "position": 2, "name": "Ghidul aplicației", "item": "https://mqgrader.ro/guide/" }
             ]
           }
         ]
@@ -86,8 +86,8 @@
           <nav aria-label="Pagina">
             <div class="links nav-links" id="nav-pages" data-nav-links>
             <a href="/">Produs</a>
-            <a href="/guide/" aria-current="page">Ghidul corectării</a>
-            <a href="/marking-scheme/">Baremul</a>
+            <a href="/guide/" aria-current="page">Ghidul aplicației</a>
+            <a href="/grading/">Corectarea</a>
             <a href="/about/">Despre</a>
             <a href="/pricing/">Cât costă</a>
             </div>
@@ -101,10 +101,10 @@
       </header>
       <main>
         <section class="head wrap" aria-labelledby="title">
-          <nav class="crumbs" aria-label="Unde ești"><a href="/">MQGrader</a><span aria-hidden="true">›</span><span>Ghidul corectării</span></nav>
-          <h1 id="title" class="t-1">Cum corectezi testele după barem</h1>
-          <p class="lede">Corectarea după barem înseamnă un punctaj pe care îl poți explica: fiecare punct acordat are un motiv, iar doi elevi cu aceeași rezolvare primesc același punctaj. Mai jos găsești etapele, în ordine, ce se poate automatiza și unde trebuie să intervină profesorul.</p>
-          <p class="byline">Scris de <a href="/about/">Laura Miron</a>, profesoară de matematică · actualizat 17 noiembrie 2026</p>
+          <nav class="crumbs" aria-label="Unde ești"><a href="/">MQGrader</a><span aria-hidden="true">›</span><span>Ghidul aplicației</span></nav>
+          <h1 id="title" class="t-1">Cum folosești MQGrader, pas cu pas</h1>
+          <p class="lede">Un test trece prin șase etape, de la fișierele de pe calculatorul tău până la nota pe care o vede elevul. Mai jos găsești fiecare etapă, în ordine: ce faci tu, ce fac elevii și ce face MQGrader.</p>
+          <p class="byline">Scris de <a href="/about/">Laura Miron</a>, profesoară de matematică · actualizat 21 noiembrie 2026</p>
           <nav class="jump" aria-label="Cele șase etape">
             <a href="#prepare"><b>1</b><span>Pregătire</span><small>Tu</small></a>
             <a href="#print"><b>2</b><span>Tipărire</span><small>Tu</small></a>
@@ -115,41 +115,15 @@
           </nav>
         </section>
 
-        <section class="doc wrap" aria-label="Ce înseamnă să corectezi după barem">
-          <nav class="toc" aria-labelledby="contents">
-            <h2 id="contents">Cuprins</h2>
-            <ol>
-              <li><a href="#meaning">Ce înseamnă să corectezi după barem</a></li>
-              <li><a href="#steps">Cele șase etape ale unui test, în ordine</a></li>
-              <li><a href="#time">Unde se duce timpul</a></li>
-              <li><a href="#automated">Ce se poate automatiza și ce nu</a></li>
-              <li><a href="#habits">Trei obiceiuri care fac corectura mai ușoară</a></li>
-            </ol>
-          </nav>
-          <div class="prose">
-            <section aria-labelledby="meaning">
-              <h2 id="meaning">Ce înseamnă să corectezi după barem</h2>
-              <p>Baremul împarte fiecare exercițiu în pași, iar fiecare pas are punctajul lui. Nu te uiți doar la răspunsul final și nu dai „totul sau nimic”: un elev care a pornit corect și s-a oprit la jumătate primește punctele pentru pașii pe care i-a făcut.</p>
-              <p>De aici vin trei avantaje:</p>
-              <ul class="dots">
-                <li><b>Același punctaj pentru aceeași rezolvare</b>, indiferent dacă o corectezi luni seara sau vineri dimineața.</li>
-                <li><b>Puncte parțiale pe care le poți explica elevului</b>, pentru că fiecare punct ține de un pas din rezolvare, nu doar de nota finală.</li>
-                <li><b>O notă ușor de refăcut</b>: dacă schimbi punctajul unui pas, refaci doar totalul, nu toată corectarea.</li>
-              </ul>
-              <p>La Evaluarea Națională și la bacalaureat, baremul se publică după probă și are 100 de puncte, dintre care 10 se acordă din oficiu. La un test de clasă nu ești obligat să urmezi acest model: ai nevoie doar de un barem clar, pe care să îl aplici la fel pentru toți elevii.</p>
-            </section>
-          </div>
-        </section>
-
         <section class="journey wrap" aria-labelledby="steps">
           <h2 id="steps" class="t-2 rise">Cele șase etape ale unui test, în ordine</h2>
-          <p class="lede rise">Orice test trece prin aceleași șase etape, fie că îl dau 12 elevi, fie 34. Ordinea contează, pentru că fiecare etapă pregătește ce îi trebuie următoarei. Ecranele sunt din aplicație, pe o clasă de exemplu, cu nume inventate.</p>
+          <p class="lede rise">Orice test trece prin aceleași șase etape, fie că îl dau 12 elevi, fie 34. Ordinea contează, pentru că fiecare etapă pregătește ce îi trebuie următoarei. Imaginile prezentate sunt capturi din aplicația reală.</p>
 
           <article class="stage" id="prepare">
             <div class="rise">
               <p class="n">1</p><h3>Pregătire</h3><div class="whos"><span class="who who-you">Tu</span></div>
-              <p>Ai nevoie de două fișiere: testul și baremul. Mulți profesori au testul într-un document, iar baremul doar în minte sau pe o foaie scrisă de mână. Merită să scrii baremul într-o formă ușor de citit, cu un rând pentru fiecare punct: la 30 de lucrări, îl vei citi de 30 de ori.</p>
-              <ul class="do"><li><b>În MQGrader:</b> încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.</li><li><b>Clasa:</b> lipești lista elevilor din catalogul online, o singură dată.</li></ul>
+              <p>Ai nevoie de două fișiere: testul și baremul. Mulți profesori au testul într-un document, iar baremul doar în minte sau pe o foaie scrisă de mână.</p>
+              <ul class="do"><li><b>În MQGrader:</b> încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.</li><li><b>Scrise de mână?</b> Merge și așa: testul și baremul pot fi poze ale unor foi scrise de mână, puse într-un PDF sau într-un document Word.</li></ul>
             </div>
             <div class="pics rise">
               <figure><span class="shot-l"><img src="/screens/stage-prepare-laptop.webp" width="1440" height="900" alt="Etapa Pregătire: testul și baremul încărcate" loading="lazy" decoding="async" /></span><figcaption>Pagina testului, etapa Pregătire.</figcaption></figure>
@@ -161,7 +135,7 @@
             <div class="rise">
               <p class="n">2</p><h3>Tipărire</h3><div class="whos"><span class="who who-you">Tu</span></div>
               <p>Testul se tipărește înainte de oră, cu un cod QR pe fiecare pagină. Elevul scanează codul de pe oricare pagină și ajunge direct acolo unde își trimite lucrarea.</p>
-              <ul class="do"><li><b>În MQGrader:</b> descarci PDF-ul de tipărit, cu codul QR pus deja pe fiecare pagină.</li></ul>
+              <ul class="do"><li><b>În MQGrader:</b> descarci PDF-ul de tipărit, cu codul QR pus deja pe fiecare pagină.</li><li><b>Ai tipărit testul fără cod?</b> Dacă lucrările sunt tipărite din varianta testului fără cod QR, le arăți elevilor codul QR al testului sau le dai linkul lui, din aplicație. Așa își pot încărca pozele.</li></ul>
             </div>
             <div class="pics one rise">
               <figure><span class="shot-l"><img src="/screens/stage-print-laptop.webp" width="1440" height="900" alt="Etapa Tipărire: PDF-ul testului, cu cod QR pe fiecare pagină" loading="lazy" decoding="async" /></span><figcaption>Etapa Tipărire.</figcaption></figure>
@@ -183,8 +157,8 @@
           <article class="stage mq" id="grading">
             <div class="rise">
               <p class="n">4</p><h3>Corectare</h3><div class="whos"><span class="who who-you">Tu pornești</span> <span class="who who-mq">MQGrader</span></div>
-              <p>Aici se stabilește punctajul. Fiecare exercițiu se împarte în pași, iar fiecare pas primește punctele din barem. Partea mecanică — citirea pozelor, găsirea pasului în barem, adunarea punctelor — se poate face fără tine. Decizia, nu.</p>
-              <ul class="do"><li><b>În MQGrader:</b> apeși „Închide încărcarea și pornește corectarea”. Fiecare lucrare primește punctaj pas cu pas, cu 10 puncte din oficiu.</li></ul>
+              <p>Aici se stabilește punctajul. Fiecare exercițiu se împarte în pași, iar fiecare pas primește punctele din barem. Citirea pozelor, identificarea fiecărui exercițiu, găsirea pasului în barem, adunarea punctelor — se pot face fără tine. Decizia, nu.</p>
+              <ul class="do"><li><b>În MQGrader:</b> apeși „Închide încărcarea și pornește corectarea”. Fiecare lucrare primește punctaj pas cu pas, conform baremului.</li><li><b>Pe lucrări reale:</b> identificarea exercițiilor se face corect chiar dacă rezolvările conțin tăieturi, sunt împărțite pe mai multe pagini sau exercițiile nu sunt rezolvate în ordine.</li></ul>
             </div>
             <div class="pics rise">
               <figure><span class="shot-l"><img src="/screens/stage-grading-laptop.webp" width="1440" height="900" alt="Etapa Corectare: lucrările corectate și punctele nesigure" loading="lazy" decoding="async" /></span><figcaption>Etapa Corectare.</figcaption></figure>
@@ -207,8 +181,8 @@
           <article class="stage" id="results">
             <div class="rise">
               <p class="n">6</p><h3>Rezultate</h3><div class="whos"><span class="who who-you">Tu publici</span> <span class="who who-st">Elevii</span></div>
-              <p>La final, fiecare elev își vede rezultatul: punctele pe fiecare exercițiu, ce a rezolvat corect și ce nu, și nota. Profesorul rămâne cu raportul clasei — care exerciții au mers bine și care nu — și cu notele pregătite pentru catalog.</p>
-              <ul class="do"><li><b>Pentru tine:</b> raportul clasei, un PDF pentru fiecare elev și un CSV pentru catalog.</li></ul>
+              <p>La final, fiecare elev își vede rezultatul: nota, punctele pe fiecare exercițiu, ce a rezolvat corect și ce nu, ce a lucrat bine și recomandări pentru ce urmează. Profesorul rămâne cu raportul clasei — care exerciții au mers bine și care nu — și cu notele pregătite pentru catalog.</p>
+              <ul class="do"><li><b>Pentru elev:</b> nota și punctajul pe fiecare exercițiu, cu explicații, ce a lucrat bine și recomandări.</li><li><b>Pentru tine:</b> raportul clasei, detaliat pe puncte, cu recomandări și statistici — în aplicație și ca PDF.</li></ul>
             </div>
             <div class="pics rise">
               <figure class="only-l"><span class="shot-l"><img src="/screens/teacher-report-analysis-laptop.webp" width="1440" height="900" alt="Raportul clasei: analiza, cu ce a mers bine și ce se reia" loading="lazy" decoding="async" /></span><figcaption>Raportul clasei.</figcaption></figure>
@@ -217,39 +191,10 @@
           </article>
         </section>
 
-        <section class="doc2 wrap" aria-label="Timpul, automatizarea și obiceiurile">
-          <div class="prose">
-            <section aria-labelledby="time">
-              <h2 id="time">Unde se duce timpul</h2>
-              <p>Un test cu șase exerciții, dat la o clasă de 30 de elevi, înseamnă 180 de rezolvări de punctat. Dacă o rezolvare îți ia 20 de secunde — o citești, cauți pasul în barem, scrii punctajul — ajungi la o oră pentru o singură clasă, fără pauze. La trei clase, s-a dus o seară.</p>
-              <div class="math"><div><b>180</b><span>de rezolvări, la o clasă de 30</span></div><div><b>1 oră</b><span>pentru o clasă, la 20 de secunde pe rezolvare</span></div><div><b>3 ore</b><span>pentru trei clase: o seară</span></div></div>
-              <p class="wide">Timpul nu se pierde pe cazurile clare: un răspuns corect se vede din prima, la fel și unul greșit. Se pierde pe cazurile discutabile — exact cele la care ești tentat să te grăbești, ca să termini.</p>
-            </section>
-            <section aria-labelledby="automated">
-              <h2 id="automated">Ce se poate automatiza și ce nu</h2>
-              <p>Citirea pozelor și propunerea punctajului, pas cu pas, se pot automatiza. MQGrader folosește inteligență artificială ca să citească lucrarea și să găsească, la fiecare exercițiu, pașii din barem — cu tot cu punctele parțiale, nu doar rezultatul final.</p>
-              <p>Ce nu se poate automatiza este tocmai partea care contează cel mai mult: decizia într-un caz pe care baremul nu îl prevede. Un elev care a rezolvat altfel, dar corect, trebuie să primească punctajul întreg, iar aceasta este o decizie a profesorului, nu a unui program.</p>
-              <div class="rule"><b>Regula după care e construit MQGrader</b><p>Punctele sigure se corectează singure. Cele nesigure te așteaptă pe tine. Punctajul propus nu ajunge la elev până când nu l-ai văzut tu.</p></div>
-              <figure class="shot">
-                <img src="/app-graded-paper-v2.png" width="1897" height="1066" alt="O lucrare corectată într-un test de matematică: în stânga, elevii clasei cu notele lor; la mijloc, nota lucrării și, la fiecare exercițiu, punctajul, răspunsul elevului și comentariul; în dreapta, poza paginii, cu exercițiul I.1.a încadrat." loading="lazy" decoding="async" />
-                <figcaption>Captură din aplicație, cu o lucrare reală și cu numele elevilor schimbate: la fiecare exercițiu, punctajul, răspunsul elevului și comentariul, lângă poza paginii.</figcaption>
-              </figure>
-            </section>
-            <section aria-labelledby="habits">
-              <h2 id="habits">Trei obiceiuri care fac corectura mai ușoară</h2>
-              <ol class="nums">
-                <li><p><b>Confirmă baremul înainte de prima lucrare.</b> Dacă baremul e neclar, ajungi să corectezi toate lucrările de două ori.</p></li>
-                <li><p><b>Cere pozele în clasă, la sfârșitul orei.</b> O poză clară, cu toată pagina, se corectează din prima. O poză întunecată sau tăiată se întoarce la tine, la verificare.</p></li>
-                <li><p><b>Publică rezultatele înainte de următorul test.</b> Un elev care își așteaptă nota o săptămână nu mai învață nimic din ea, iar discuțiile despre testul vechi se adună peste cel nou.</p></li>
-              </ol>
-            </section>
-          </div>
-        </section>
-
         <section class="read wrap" aria-labelledby="read-also">
           <h2 id="read-also" class="t-2 rise">Citește și</h2>
           <ul class="read-on">
-            <li class="rise"><a href="/marking-scheme/"><b>Baremul de corectare: ce este și cum îl folosești</b><span>De unde vine baremul unui test, ce conține unul bun și cum îl obții în aplicație.</span></a></li>
+            <li class="rise"><a href="/grading/"><b>Cum corectezi testele cu MQGrader</b><span>Cum corectează MQGrader o lucrare, cum verifici punctele nesigure și ce decizi tu.</span></a></li>
             <li class="rise"><a href="/about/"><b>Despre MQGrader și Laura Miron</b><span>Cine construiește platforma, de ce a apărut și ce nu face.</span></a></li>
             <li class="rise"><a href="/pricing/"><b>Cât costă MQGrader</b><span>Ce include un cont demo și de ce nu există încă un abonament.</span></a></li>
           </ul>

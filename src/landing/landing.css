@@ -1,5 +1,5 @@
 /* The public pages: the landing page (index.html) and the four content pages
-   (/guide/, /marking-scheme/, /about/, /pricing/), in design C, "the day of a
+   (/guide/, /grading/, /about/, /pricing/), in design C, "the day of a
    test". One face, Schibsted Grotesk; flat colours; pill buttons and 14px
    panels as in the app. Orange is the Quick Try, dark navy the teacher
    account. Light is the default: dark only when the theme button saved it
@@ -352,18 +352,6 @@ img { display: block; max-width: 100%; height: auto; }
   .pg-home .rep .facts { margin-top: 40px; }
   .pg-home .rep .facts li { background: var(--ground); }
 
-  .pg-home .price { padding-top: 160px; padding-bottom: 160px; display: grid; grid-template-columns: 7fr 5fr; gap: 64px; align-items: end; }
-  .pg-home .price .big { font-size: clamp(96px, 14vw, 220px); font-weight: 800; letter-spacing: -0.06em; line-height: .85; }
-  .pg-home .price .big small { font-size: .28em; letter-spacing: -0.02em; margin-left: .1em; }
-  .pg-home .price p { margin-top: 32px; font-size: clamp(20px, 1.8vw, 26px); line-height: 1.4; max-width: 36ch; }
-  .pg-home .price ul { display: grid; gap: 4px; }
-  .pg-home .price li { display: grid; grid-template-columns: 96px 1fr; gap: 16px; align-items: baseline; padding: 18px 20px; background: var(--surface); }
-  .pg-home .price li b { font-size: 36px; letter-spacing: -0.03em; font-weight: 800; }
-  .pg-home .price li b small { font-size: 18px; letter-spacing: 0; font-weight: 700; color: var(--muted); }
-  .pg-home .price li.free { grid-template-columns: 96px 1fr auto; align-items: center; margin-top: 12px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--orange); }
-  .pg-home .price li.free b { color: var(--orange); }
-  .pg-home .price li.free .link { display: block; margin-top: 4px; padding: 0; border: 0; background: none; font: 700 17px var(--font); color: var(--blue); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-  .pg-home .price .acts { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
 
   .pg-home .faq { background: var(--surface); padding-top: 160px; padding-bottom: 160px; }
   .pg-home .faq .qa { margin-top: 56px; }
@@ -400,7 +388,7 @@ img { display: block; max-width: 100%; height: auto; }
     .pg-home .laura { grid-template-columns: 1fr; gap: 40px; padding-top: 88px; padding-bottom: 0; }
     .pg-home .hero { padding-top: 32px; padding-bottom: 40px; }
     .pg-home .hero h1 { font-size: 7.4vw; }
-    .pg-home .try-top, .pg-home .price, .pg-home .who-made, .pg-home .without .cols, .pg-home .cls, .pg-home .rep { grid-template-columns: 1fr; gap: 32px; }
+    .pg-home .try-top, .pg-home .who-made, .pg-home .without .cols, .pg-home .cls, .pg-home .rep { grid-template-columns: 1fr; gap: 32px; }
     /* One column: the title, the lede, the try, then the buttons. */
     .pg-home .hero-grid { display: flex; flex-direction: column; align-items: stretch; gap: 28px; }
     .pg-home .hero-grid h1, .pg-home .hero-grid .try-line { align-self: start; }
@@ -414,7 +402,7 @@ img { display: block; max-width: 100%; height: auto; }
     .pg-home .shots .shot-p { width: 100%; padding: 5px; border-radius: 22px; }
     .pg-home .shots .shot-p img { border-radius: 18px; }
     .pg-home .shots .shot-l img { width: 210%; margin-left: -62%; margin-top: -30%; }
-    .pg-home .day, .pg-home .cls, .pg-home .rep, .pg-home .price, .pg-home .faq, .pg-home .without, .pg-home .try, .pg-home .who-made { padding-top: 88px; padding-bottom: 88px; }
+    .pg-home .day, .pg-home .cls, .pg-home .rep, .pg-home .faq, .pg-home .without, .pg-home .try, .pg-home .who-made { padding-top: 88px; padding-bottom: 88px; }
     .pg-home .try-steps { grid-template-columns: 1fr 1fr; margin-top: 48px; }
     .pg-home .try-steps li { height: auto; padding: 20px 12px 0; }
     .pg-home .try-steps li:first-child { grid-column: 1 / -1; height: 380px; }
@@ -422,8 +410,6 @@ img { display: block; max-width: 100%; height: auto; }
     .pg-home .try-steps .shot-p { width: 100%; padding: 5px; border-radius: 22px; }
     .pg-home .try-steps .shot-p img { border-radius: 18px; }
     .pg-home .try-steps b { font-size: 19px; }
-    .pg-home .price li { grid-template-columns: 72px 1fr; }
-    .pg-home .price li.free { grid-template-columns: 72px 1fr auto; }
   }
 
 /* The visitor's try, under the hero's buttons (src/landing/quickTry/ui.ts). */
@@ -566,9 +552,6 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
   .pg-home .try-steps .shot-p { width: 200px; }
   .pg-home .cls > div > p, .pg-home .rep > div > p { font-size: 18px; }
   .pg-home .facts li { font-size: 17px; }
-  .pg-home .price .big { font-size: clamp(96px, min(9vw, 17vh), 150px); }
-  .pg-home .price p { font-size: clamp(18px, 1.4vw, 22px); }
-  .pg-home .price li b { font-size: 30px; }
   .pg-home .who-made blockquote { font-size: clamp(24px, 2.2vw, 34px); }
   .pg-home .who-made p { font-size: 18px; }
   .pg-home .laura h2 { font-size: clamp(26px, 2.2vw, 34px); }
@@ -622,11 +605,6 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
   .pg-home .try-steps p { font-size: calc(17px * 0.9); }
   .pg-home .cls > div > p, .pg-home .rep > div > p { font-size: calc(20px * 0.9); }
   .pg-home .facts li { font-size: calc(18px * 0.9); }
-  .pg-home .price .big { font-size: calc(clamp(96px, 14vw, 220px) * 0.9); }
-  .pg-home .price p { font-size: calc(clamp(20px, 1.8vw, 26px) * 0.9); }
-  .pg-home .price li b { font-size: calc(36px * 0.9); }
-  .pg-home .price li b small { font-size: calc(18px * 0.9); }
-  .pg-home .price li.free .link { font-size: calc(17px * 0.9); }
   .pg-home .who-made blockquote { font-size: calc(clamp(26px, 2.8vw, 42px) * 0.9); }
   .pg-home .who-made p { font-size: calc(20px * 0.9); }
   .pg-home .laura h2 { font-size: calc(clamp(28px, 2.6vw, 40px) * 0.9); }
@@ -679,9 +657,6 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
   .pg-home .try-steps p { font-size: calc(16px * 0.9); }
   .pg-home .cls > div > p, .pg-home .rep > div > p { font-size: calc(18px * 0.9); }
   .pg-home .facts li { font-size: calc(17px * 0.9); }
-  .pg-home .price .big { font-size: calc(clamp(96px, min(9vw, 17vh), 150px) * 0.9); }
-  .pg-home .price p { font-size: calc(clamp(18px, 1.4vw, 22px) * 0.9); }
-  .pg-home .price li b { font-size: calc(30px * 0.9); }
   .pg-home .who-made blockquote { font-size: calc(clamp(24px, 2.2vw, 34px) * 0.9); }
   .pg-home .who-made p { font-size: calc(18px * 0.9); }
   .pg-home .laura h2 { font-size: calc(clamp(26px, 2.2vw, 34px) * 0.9); }

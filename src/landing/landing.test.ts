@@ -65,7 +65,7 @@ describe('the landing page', () => {
     expect(links.filter(([name]) => name === 'Intră în cont')).toEqual([['Intră în cont', '/teacher/']]);
     // Every way to an account, in the hero and in the bands, opens the sign-up.
     const signUps = links.filter(([name]) => name === 'Cere un cont de profesor');
-    expect(signUps.length).toBeGreaterThanOrEqual(3);
+    expect(signUps.length).toBeGreaterThanOrEqual(2);
     for (const link of signUps) expect(link).toEqual(['Cere un cont de profesor', `/teacher/${SIGNUP_HASH}`]);
     // One colour per action: the account is dark, the Quick Try orange.
     for (const a of all('a.btn')) if (text(a) === 'Cere un cont de profesor') expect(a.classList.contains('btn-acc')).toBe(true);
@@ -84,15 +84,15 @@ describe('the landing page', () => {
   it('sends readers from its own text to the pages that answer a search', () => {
     const more = all('#more ul a').map((a) => [text(a.querySelector('b')), a.getAttribute('href')]);
     expect(more).toEqual([
-      ['Cum corectezi testele după barem', '/guide/'],
-      ['Baremul de corectare', '/marking-scheme/'],
+      ['Cum folosești MQGrader, pas cu pas', '/guide/'],
+      ['Cum corectezi testele cu MQGrader', '/grading/'],
       ['Despre MQGrader', '/about/'],
       ['Cât costă', '/pricing/'],
     ]);
     // Every card says what the page is about, in one line.
     for (const a of all('#more ul a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
     // The header's menu names the same four pages, then the English copy of this one.
-    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['/', '/guide/', '/marking-scheme/', '/about/', '/pricing/', '/en/']);
+    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['/', '/guide/', '/grading/', '/about/', '/pricing/', '/en/']);
     // The account picture waits until the app's look settles.
     expect(doc.getElementById('aplicatia')).toBeNull();
   });
@@ -166,7 +166,9 @@ describe('the landing page', () => {
 
   it('shows every Quick Try button from the first paint, but only on a page that runs its script', () => {
     const buttons = all('[data-try-open]');
-    expect(buttons.map(text)).toEqual(['Încearcă pe o lucrare, fără cont', 'Încearcă acum', 'Încearcă', 'Încearcă fără cont']);
+    expect(buttons.map(text)).toEqual(['Încearcă pe o lucrare, fără cont', 'Încearcă acum', 'Încearcă fără cont']);
+    // The landing page has no price section: the prices are on /pricing/.
+    expect(doc.getElementById('pricing')).toBeNull();
     // Not hidden in the markup: the buttons do not wait for the API's answer.
     for (const button of buttons) expect(button.hasAttribute('hidden')).toBe(false);
     // The head script marks a page that runs scripts; without it the stylesheet hides the buttons.

@@ -1,4 +1,4 @@
-// The content pages' script (/guide/, /marking-scheme/, /about/, /pricing/):
+// The content pages' script (/guide/, /grading/, /about/, /pricing/):
 // the entrances, the theme button and the header's menu. The Quick Try form
 // lives on the landing page alone, so its code stays out of these pages.
 import { followOtherTabs, initAccountLinks } from './account.ts';

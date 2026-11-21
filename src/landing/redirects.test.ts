@@ -18,7 +18,8 @@ function firstRule(path: string): string[] | undefined {
 
 const MOVED = [
   ['ghid', 'guide'],
-  ['barem', 'marking-scheme'],
+  ['barem', 'grading'],
+  ['marking-scheme', 'grading'],
   ['despre', 'about'],
   ['preturi', 'pricing'],
 ] as const;
@@ -32,6 +33,13 @@ describe('the old Romanian addresses of the public pages', () => {
 
   it.each(MOVED)('sends the old share card og-%s.png to og-%s.png', (old, now) => {
     expect(firstRule(`/og-${old}.png`)).toEqual([`/og-${old}.png`, `/og-${now}.png`, '301']);
+  });
+
+  it('sends the English marking scheme page and its share card to the English grading page', () => {
+    expect(firstRule('/en/marking-scheme')).toEqual(['/en/marking-scheme', '/en/grading/', '301']);
+    expect(firstRule('/en/marking-scheme/')).toEqual(['/en/marking-scheme/*', '/en/grading/:splat', '301']);
+    expect(firstRule('/en/og-marking-scheme.png')).toEqual(['/en/og-marking-scheme.png', '/en/og-grading.png', '301']);
+    expect(firstRule('/en/grading/')).toBeUndefined();
   });
 
   it("sends the guide's old picture names to the current picture", () => {
