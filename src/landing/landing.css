@@ -133,6 +133,18 @@ img { display: block; max-width: 100%; height: auto; }
   .bar .btn-small { margin-left: 6px; padding: 0 12px; font-size: 15px; white-space: nowrap; }
 }
 @media (max-width: 380px) { .bar .brand .words span { display: none; } }
+/* A narrow phone (and a phone with larger text): the lockup, the three icons
+   and the account button fit the screen's width, so the page never scrolls
+   sideways. */
+@media (max-width: 440px) {
+  .bar { gap: 6px; }
+  .bar .brand { gap: 8px; }
+  .bar .mark { width: 26px; height: 26px; }
+  .bar .brand .words b { font-size: 16px; }
+  .bar .brand .words span { font-size: 12px; }
+  .bar .icon { width: 36px; }
+  .bar .btn-small { margin-left: 4px; padding: 0 9px; font-size: 14px; }
+}
 
 /* Buttons: pills, one fill each. Orange is the Quick Try, dark navy the
    account, an outline is a plain link to more. Each keeps its own colour on

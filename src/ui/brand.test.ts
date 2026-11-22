@@ -152,6 +152,33 @@ describe('brand.css', () => {
     expect(css.slice(narrow, css.indexOf('\n}\n', narrow))).toContain('.stage-bar-wait {\n    display: none;');
   });
 
+  it('puts the bar on the left on a phone turned sideways, and keeps the bottom bar on a phone held upright', () => {
+    const head = '@media (max-width: 56.25rem) and (orientation: landscape) {';
+    const start = css.indexOf(head);
+    expect(start).toBeGreaterThan(css.indexOf('  .rail {\n    position: fixed;'));
+    const block = css.slice(start, css.indexOf('\n}\n', start));
+    // No bottom bar: the page, the panels and the test page's bar reach the screen's foot.
+    expect(block).toContain('  .shell:not(.shell-bare) {\n    --bottom: 0px;');
+    expect(block).toContain('grid-template-columns: var(--side) minmax(0, 1fr);');
+    expect(block).toContain('--side: calc(var(--bar) + env(safe-area-inset-left, 0px));');
+    expect(block).toContain('  html:has(.stage-bar) {\n    scroll-padding-bottom: 4.25rem;');
+    // The bar is a column under the top bar, the camera's side included, and scrolls on a very short screen.
+    const rail = block.slice(block.indexOf('  .shell:not(.shell-bare) .rail {'));
+    expect(rail).toContain('top: var(--top);');
+    expect(rail).toContain('bottom: 0;');
+    expect(rail).toContain('flex-direction: column;');
+    expect(rail).toContain('width: var(--side);');
+    expect(rail).toContain('overflow-y: auto;');
+    expect(rail).toContain('border-right: 1px solid var(--rule);');
+    // The page sits beside it, and a panel opens beside it, as on a laptop.
+    expect(block).toContain('  .shell:not(.shell-bare) > .page {\n    grid-column: 2;');
+    expect(block).toContain('  .shell:not(.shell-bare) .panel {\n    left: var(--side);\n    width: 24rem;');
+    // The login screen, with no bar, keeps its one column.
+    expect(block).not.toContain('.shell-bare {');
+    // A phone held upright keeps the bar at the bottom.
+    expect(css).toContain('  .rail {\n    position: fixed;\n    top: auto;\n    right: 0;\n    bottom: 0;\n    left: 0;');
+  });
+
   it('puts the bar at the foot of a short page, and gives it the room of a button', () => {
     expect(value(declarations('.shell > .page:has(.stage-bar)'), 'display')).toBe('flex');
     expect(value(declarations('.test-page:has(.stage-bar)'), 'flex')).toBe('1');

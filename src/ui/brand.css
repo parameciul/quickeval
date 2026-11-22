@@ -1212,6 +1212,70 @@ table.search-table {
   }
 }
 
+/* A phone turned sideways (or a low, narrow window): the screen is wide and
+   short, so the bar goes back to the left, as on a laptop, and the page keeps
+   the screen's whole height. The rest stays the phone's: ☰, the search over
+   the whole screen, the page's phone layout. The bar takes the camera's side
+   (the safe area) too, so no icon sits under the camera. */
+@media (max-width: 56.25rem) and (orientation: landscape) {
+  html:has(.stage-bar) {
+    scroll-padding-bottom: 4.25rem;
+  }
+
+  .shell:not(.shell-bare) {
+    --bottom: 0px;
+    --side: calc(var(--bar) + env(safe-area-inset-left, 0px));
+    grid-template-columns: var(--side) minmax(0, 1fr);
+  }
+
+  .shell:not(.shell-bare) .topbar .brand-mark {
+    padding-inline: calc(env(safe-area-inset-left, 0px) + (var(--bar) - 1.75rem) / 2) calc((var(--bar) - 1.75rem) / 2);
+  }
+
+  /* Four items fit a phone's height; a very short window scrolls the bar. */
+  .shell:not(.shell-bare) .rail {
+    top: var(--top);
+    right: auto;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    width: var(--side);
+    height: auto;
+    overflow-y: auto;
+    padding: 0.375rem 0.375rem calc(0.375rem + env(safe-area-inset-bottom, 0px)) calc(0.375rem + env(safe-area-inset-left, 0px));
+    border-top: 0;
+    border-right: 1px solid var(--rule);
+  }
+
+  .shell:not(.shell-bare) .rail-new,
+  .shell:not(.shell-bare) .rail-item {
+    flex: none;
+    padding: 0.375rem 0.125rem;
+    border-radius: var(--radius);
+  }
+
+  .shell:not(.shell-bare) .rail-item[aria-current="page"],
+  .shell:not(.shell-bare) .rail-item[aria-expanded="true"] {
+    background: var(--active);
+    color: var(--text);
+  }
+
+  .shell:not(.shell-bare) > .page {
+    grid-column: 2;
+    padding-left: 1rem;
+  }
+
+  /* A side panel beside the bar, as on a laptop. */
+  .shell:not(.shell-bare) .panel {
+    left: var(--side);
+    width: 24rem;
+    max-width: calc(100vw - var(--side));
+    border-right: 1px solid var(--rule);
+    box-shadow: var(--float);
+  }
+}
+
 @media not (max-width: 56.25rem) {
   .phone-menu {
     display: none;
@@ -3354,6 +3418,15 @@ table.tests .row-actions {
     bottom: var(--bottom);
     margin: auto calc(-1 * max(1rem, env(safe-area-inset-right, 0px))) -1.5rem calc(-1 * max(1rem, env(safe-area-inset-left, 0px)));
     padding-inline: max(1rem, env(safe-area-inset-left, 0px)) max(1rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* A phone turned sideways has the bar on the left, which takes the camera's
+   side: the page's left room is 1rem, and the bar reaches the bar's edge. */
+@media (max-width: 56.25rem) and (orientation: landscape) {
+  .shell:not(.shell-bare) .stage-bar {
+    margin-left: -1rem;
+    padding-left: 1rem;
   }
 }
 
