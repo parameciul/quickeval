@@ -1216,8 +1216,9 @@ table.search-table {
    short, so the bar goes back to the left, as on a laptop, and the page keeps
    the screen's whole height. The rest stays the phone's: ☰, the search over
    the whole screen, the page's phone layout. The bar takes the camera's side
-   (the safe area) too, so no icon sits under the camera. */
-@media (max-width: 56.25rem) and (orientation: landscape) {
+   (the safe area) too, so no icon sits under the camera. The 540px floor keeps
+   an upright phone whose keyboard shortens the window on the bottom bar. */
+@media (min-width: 33.75rem) and (max-width: 56.25rem) and (orientation: landscape) {
   html:has(.stage-bar) {
     scroll-padding-bottom: 4.25rem;
   }
@@ -1253,6 +1254,11 @@ table.search-table {
     flex: none;
     padding: 0.375rem 0.125rem;
     border-radius: var(--radius);
+  }
+
+  .shell:not(.shell-bare) .rail-item:hover {
+    background: var(--raised);
+    color: var(--text);
   }
 
   .shell:not(.shell-bare) .rail-item[aria-current="page"],
@@ -3423,7 +3429,7 @@ table.tests .row-actions {
 
 /* A phone turned sideways has the bar on the left, which takes the camera's
    side: the page's left room is 1rem, and the bar reaches the bar's edge. */
-@media (max-width: 56.25rem) and (orientation: landscape) {
+@media (min-width: 33.75rem) and (max-width: 56.25rem) and (orientation: landscape) {
   .shell:not(.shell-bare) .stage-bar {
     margin-left: -1rem;
     padding-left: 1rem;

@@ -190,7 +190,7 @@ describe('the landing page', () => {
     expect(block).toContain('.bar .brand .words b { font-size: 16px; }');
     // The icons keep a 44px height to tap; only their width shrinks.
     expect(block).toContain('.bar .icon { width: 36px; }');
-    expect(block).not.toContain('height: 3');
+    expect(block).not.toMatch(/\.icon \{[^}]*height/);
     expect(block).toContain('.bar .btn-small { margin-left: 4px; padding: 0 9px; font-size: 14px; }');
     // Every page's header has the same parts the block sizes: the lockup, three icons, the two account buttons.
     const bar = doc.querySelector('.bar nav');
