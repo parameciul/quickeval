@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
@@ -189,6 +189,70 @@ describe('the paper over the whole screen', () => {
     (document.activeElement as HTMLElement).blur();
     await userEvent.tab();
     expect(box()).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it('stays over the whole screen when a phone turned sideways moves the paper beside the exercises', async () => {
+    // A big phone: under 900px wide upright, over it sideways.
+    let upright = true;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return query === '(pointer: coarse)' || (query === '(max-width: 56.25rem)' && upright);
+      },
+      media: query,
+      addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    }));
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    expect(box().closest('.inline-photo')).not.toBeNull();
+    await userEvent.click(fullButton());
+    const before = box();
+    act(() => {
+      upright = false;
+      listeners.forEach((listener) => listener());
+    });
+    // Another box, beside the exercises, and still over the whole screen.
+    expect(box()).not.toBe(before);
+    expect(box().closest('.inline-photo')).toBeNull();
+    expect(box()).toHaveClass('is-full');
+    expect(document.documentElement).toHaveClass('has-full-paper');
+    expect(fullButton()).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(box()).not.toHaveClass('is-full');
+    expect(document.documentElement).not.toHaveClass('has-full-paper');
+  });
+
+  it('closes when the page turns to a PDF, whose own viewer would keep Esc', async () => {
+    renderAdmin(`${PAGE}?paper=11&item=pages`, apiWith());
+    await screen.findByText('Ana Pop · 2/3');
+    await userEvent.click(fullButton());
+    await userEvent.keyboard('3');
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
+    expect(box()).not.toHaveClass('is-full');
+    expect(document.documentElement).not.toHaveClass('has-full-paper');
+    // Back on a photo, it stays closed.
+    await userEvent.keyboard('1');
+    expect(box()).not.toHaveClass('is-full');
+  });
+
+  it('leaves Ctrl+A and the other shortcuts with a modifier to the browser', async () => {
+    renderAdmin(`${PAGE}?paper=11&item=pages`, apiWith());
+    await screen.findByText('Ana Pop · 2/3');
+    await userEvent.click(fullButton());
+    expect(fireEvent.keyDown(document.body, { key: 'a', ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(document.body, { key: 'k', metaKey: true })).toBe(true);
+    expect(fireEvent.keyDown(document.body, { key: 'a' })).toBe(false);
+  });
+
+  it('brings Shift+Tab from outside the box to its last control', async () => {
+    renderAdmin(`${PAGE}?paper=11&item=pages`, apiWith());
+    await screen.findByText('Ana Pop · 2/3');
+    await userEvent.click(fullButton());
+    const own = [...box().querySelectorAll<HTMLElement>('button:not([disabled])')];
+    (document.activeElement as HTMLElement).blur();
+    await userEvent.tab({ shift: true });
+    expect(own[own.length - 1]).toHaveFocus();
   });
 
   it('has no button on a PDF page, which has no zoom', async () => {

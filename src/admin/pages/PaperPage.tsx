@@ -269,6 +269,9 @@ function Paper({
   // until the open row changes.
   const viewKey = `${submissionId}:${key ?? ''}`;
   const [pageChoice, setPageChoice] = useState<{ view: string; page: number } | null>(null);
+  // The paper over the whole screen: kept here, because turning a phone moves
+  // the paper between the open row and the column beside it (a new box).
+  const [paperFull, setPaperFull] = useState(false);
   const pageCount = submission?.files.length ?? 0;
   const firstArea = frames ? focus?.areas[0] : undefined;
   const firstPage =
@@ -524,6 +527,8 @@ function Paper({
       frames={frames}
       onFrames={onFrames}
       onHide={() => onPhotoFold(true, true)}
+      full={paperFull}
+      onFull={setPaperFull}
     />
   ) : null;
 

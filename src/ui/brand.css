@@ -3623,6 +3623,14 @@ table.tests .row-actions {
     max-height: calc(100vh - var(--top, 0px) - 1.5rem);
     overflow-y: auto;
   }
+
+  /* Where the page may be kept at 20rem, the box's scrollbar keeps its room:
+     one that came and went would narrow and widen the page, and move it. */
+  @media (max-height: 45rem) {
+    .review-photo {
+      scrollbar-gutter: stable;
+    }
+  }
 }
 
 /* The bar between the exercises and the paper: only on a wide screen, where
@@ -4304,6 +4312,7 @@ table.items tr.item-decision > td {
     max(0.75rem, env(safe-area-inset-left));
   border: 0;
   border-radius: 0;
+  scrollbar-gutter: auto;
 }
 
 :root .review-photo.is-full .review-photo-top {

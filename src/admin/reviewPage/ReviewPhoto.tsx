@@ -45,7 +45,10 @@ export interface ReviewFocus {
 // keeps its place meanwhile, so the page under it never moves. Over the whole
 // screen A, J and K do nothing, and Tab goes round its own controls: the
 // decision and the other points are hidden under it. The page keys 1–9 still
-// work.
+// work. Whether it is open belongs to the caller (`full`): a phone turned
+// sideways moves the paper from the open row to the column beside it, a new
+// box, which opens over the whole screen again. A PDF page closes it: Esc
+// typed in the PDF's own viewer never reaches the page.
 export function ReviewPhoto({
   submission,
   page,
@@ -54,6 +57,8 @@ export function ReviewPhoto({
   frames,
   onFrames,
   onHide,
+  full,
+  onFull,
 }: {
   submission: SubmissionDetail;
   page: number;
@@ -63,20 +68,25 @@ export function ReviewPhoto({
   onFrames: (on: boolean) => void;
   // Folds the pane to a strip, for more room for the exercises.
   onHide?: () => void;
+  // The box is over the whole screen; `onFull` opens and closes it.
+  full: boolean;
+  onFull: (on: boolean) => void;
 }) {
   const { base } = useApi();
   // A finger cannot hit the label's small controls, and the label may end near
   // the pane's edge on a narrow screen: on a phone the controls stand in the
   // line under the page instead (below), never over the handwriting.
   const touch = useMediaQuery('(pointer: coarse)');
-  // The box over the whole screen, and the height it left in the page.
-  const [full, setFull] = useState<{ height: number } | null>(null);
-  const isFull = full !== null;
-  // The controls under the page, not beside the border's label.
-  const below = touch || isFull;
   const files = submission.files;
   const index = Math.min(Math.max(page, 0), Math.max(files.length - 1, 0));
   const file = files[index];
+  const photo = file?.contentType.startsWith('image/') ?? false;
+  // Over the whole screen only a photo, and the height the box left in the
+  // page (none for a box that opened over the whole screen).
+  const isFull = full && photo;
+  const [spacer, setSpacer] = useState(0);
+  // The controls under the page, not beside the border's label.
+  const below = touch || isFull;
 
   // The answer framed now: none while the switch is off or it has no area.
   const framed = frames && focus !== null && focus.areas.length > 0 ? focus : null;
@@ -131,21 +141,29 @@ export function ReviewPhoto({
   // The focus goes to "Pe tot ecranul" each time the whole screen opens or
   // closes: with a mouse the button moves between the page and the bar above
   // it (a new element), and the × that closed it goes away.
-  const refocus = useRef(false);
+  // A box that opens over the whole screen (the paper moved) takes it too.
+  const refocus = useRef(isFull);
   const closeFull = () => {
     refocus.current = true;
-    setFull(null);
+    onFull(false);
   };
   const showFull = (on: boolean) => {
     if (!on) return closeFull();
     refocus.current = true;
-    setFull({ height: box.current?.getBoundingClientRect().height ?? 0 });
+    setSpacer(box.current?.getBoundingClientRect().height ?? 0);
+    onFull(true);
   };
+  const latestClose = useRef(closeFull);
+  latestClose.current = closeFull;
   useLayoutEffect(() => {
     if (!refocus.current) return;
     refocus.current = false;
     box.current?.querySelector<HTMLElement>('.full-toggle')?.focus({ preventScroll: true });
   }, [isFull]);
+  // A PDF page closes the whole screen (above): the caller learns it.
+  useEffect(() => {
+    if (full && file && !photo) onFull(false);
+  }, [full, file, photo, onFull]);
   // Over the whole screen Esc brings the box back, before anything else takes
   // it (capture, and marked taken), so the zoom stays as it is. The page under
   // it does not scroll meanwhile.
@@ -160,7 +178,7 @@ export function ReviewPhoto({
         const last = own[own.length - 1];
         if (!first || !last) return;
         const inside = event.target instanceof Node && box.current!.contains(event.target);
-        const next = !inside ? first : event.shiftKey && event.target === first ? last : !event.shiftKey && event.target === last ? first : null;
+        const next = !inside ? (event.shiftKey ? last : first) : event.shiftKey && event.target === first ? last : !event.shiftKey && event.target === last ? first : null;
         if (next === null) return;
         event.preventDefault();
         next.focus({ preventScroll: true });
@@ -170,9 +188,8 @@ export function ReviewPhoto({
       const pressed = event.key.toLowerCase();
       if (event.key === 'Escape') {
         event.preventDefault();
-        refocus.current = true;
-        setFull(null);
-      } else if (pressed === 'a' || pressed === 'j' || pressed === 'k') {
+        latestClose.current();
+      } else if ((pressed === 'a' || pressed === 'j' || pressed === 'k') && !event.ctrlKey && !event.metaKey && !event.altKey) {
         // Marked taken: the review's keys leave it alone.
         event.preventDefault();
       }
@@ -283,7 +300,6 @@ export function ReviewPhoto({
   }
   const url = submissionFileUrl(submission.id, file.id, base);
   const caption = `${tryName(submission.studentName)} · ${index + 1}/${files.length}`;
-  const photo = file.contentType.startsWith('image/');
   const parts = framed?.areas.length ?? 0;
   const partLabel = (number: number) => (parts > 1 ? t('{label} · partea {v2} din {parts}', { label: framed!.label, v2: number + 1, parts }) : framed!.label);
   // The controls of an answer in more parts: beside its label on a computer,
@@ -317,7 +333,7 @@ export function ReviewPhoto({
   return (
     <>
       {/* The box's place in the page while it is over the whole screen. */}
-      {full && <div className="review-photo-spacer" style={{ height: full.height }} aria-hidden="true" />}
+      {isFull && <div className="review-photo-spacer" style={{ height: spacer }} aria-hidden="true" />}
       <figure className={isFull ? 'review-photo is-full' : 'review-photo'} id={PAPER_PHOTO_ID} ref={box}>
         <div className="review-photo-top">
           <div className="review-photo-name">
