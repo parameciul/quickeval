@@ -237,6 +237,7 @@ describe('the border of the answer to check', () => {
     expect(within(screen.getByRole('group', { name: 'Mărirea paginii' })).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
       'Micșorează',
       'Mărește',
+      'Pe tot ecranul',
     ]);
   });
 
@@ -266,8 +267,8 @@ describe('the border of the answer to check', () => {
     // Not over the handwriting, and not beside the label, where the pane's
     // edge would cut them off.
     expect(pane).not.toContainElement(parts);
-    expect(pane.nextElementSibling).toHaveClass('zoom-foot');
-    expect(pane.nextElementSibling).toContainElement(parts);
+    expect(pane.parentElement!.nextElementSibling).toHaveClass('zoom-foot');
+    expect(pane.parentElement!.nextElementSibling).toContainElement(parts);
     expect(within(parts).getByText('1 din 2')).toBeInTheDocument();
     expect(within(frame()).queryByRole('button', { name: 'Partea următoare' })).not.toBeInTheDocument();
     await userEvent.click(within(parts).getByRole('button', { name: 'Partea următoare' }));
@@ -282,14 +283,14 @@ describe('the border of the answer to check', () => {
     renderAdmin(ION_I3, apiWith(framed()));
     await screen.findByText('Ion Popa · 1/2');
     const pane = screen.getByTestId('zoom-pane');
-    const bar = pane.previousElementSibling!;
+    const bar = pane.parentElement!.previousElementSibling!;
     expect(bar).toHaveClass('zoom-bar');
     expect(bar).toContainElement(screen.getByRole('group', { name: 'Vederea paginii' }));
     expect(bar).toContainElement(screen.getByRole('group', { name: 'Mărirea paginii' }));
     expect(within(pane).queryByRole('button')).not.toBeInTheDocument();
     const hint = screen.getByText('Atinge: mărește · ciupește: micșorează');
     expect(pane).not.toContainElement(hint);
-    expect(pane.nextElementSibling).toContainElement(hint);
+    expect(pane.parentElement!.nextElementSibling).toContainElement(hint);
     // The bar's buttons still work, and the hint turns invisible once the
     // page is zoomed, keeping its room so nothing under it moves.
     await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
