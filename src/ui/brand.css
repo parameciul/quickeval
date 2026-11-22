@@ -3598,9 +3598,12 @@ table.tests .row-actions {
 }
 
 /* The page fits the screen's height too, so its bottom never hides below the
-   screen: 9rem is the room of the box's caption, page buttons and padding. */
+   screen: 9rem is the room of the box's caption, page buttons and padding.
+   On a short screen (a big phone turned sideways, a low window) that would
+   leave a stamp-sized page: the page keeps at least 20rem (or the column's
+   width), and the box, no taller than the screen, scrolls (below). */
 .review-photo .zoom-pane {
-  width: min(100%, calc((100vh - var(--top, 0px) - 1.5rem - 9rem) * var(--page-ratio)));
+  width: min(100%, max(20rem, calc((100vh - var(--top, 0px) - 1.5rem - 9rem) * var(--page-ratio))));
 }
 
 /* On a touch screen the bar above the page (2.375rem with its gap) and the
@@ -3608,7 +3611,25 @@ table.tests .row-actions {
    the page and its controls still fit the screen together. */
 @media (pointer: coarse) {
   .review-photo .zoom-pane {
-    width: min(100%, calc((100vh - var(--top, 0px) - 1.5rem - 13.75rem) * var(--page-ratio)));
+    width: min(100%, max(20rem, calc((100vh - var(--top, 0px) - 1.5rem - 13.75rem) * var(--page-ratio))));
+  }
+}
+
+/* Beside the exercises the box stays on screen, so it is never taller than
+   the screen: a page kept at 20rem on a short screen scrolls inside it, and
+   the answer comes to its middle (ReviewPhoto). */
+@media not (max-width: 56.25rem) {
+  .review-photo {
+    max-height: calc(100vh - var(--top, 0px) - 1.5rem);
+    overflow-y: auto;
+  }
+
+  /* Where the page may be kept at 20rem, the box's scrollbar keeps its room:
+     one that came and went would narrow and widen the page, and move it. */
+  @media (max-height: 45rem) {
+    .review-photo {
+      scrollbar-gutter: stable;
+    }
   }
 }
 
@@ -4264,6 +4285,88 @@ table.items tr.item-decision > td {
   height: 70vh;
 }
 
+/* The paper over the whole screen ("Pe tot ecranul"): its name and page
+   buttons at the top, the zoom's bar under them and the hint (with the parts'
+   arrows) at the bottom stay in sight; the page between them is as wide as
+   the screen (up to 72rem, for a wide monitor) and scrolls on its own. The
+   page under it keeps still: a spacer holds the paper's place, and the page
+   does not scroll meanwhile. :root lifts these over the column's own rules
+   (its height and the zoom pane's width). */
+.review-photo-spacer {
+  grid-area: photo;
+}
+
+:root.has-full-paper {
+  overflow: hidden;
+}
+
+:root .review-photo.is-full {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  max-height: none;
+  overflow: hidden;
+  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom))
+    max(0.75rem, env(safe-area-inset-left));
+  border: 0;
+  border-radius: 0;
+  scrollbar-gutter: auto;
+}
+
+:root .review-photo.is-full .review-photo-top {
+  flex: none;
+  margin-bottom: 0.5rem;
+}
+
+:root .review-photo.is-full .zoom-photo {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+:root .review-photo.is-full .zoom-bar,
+:root .review-photo.is-full .zoom-foot {
+  flex: none;
+}
+
+:root .review-photo.is-full .zoom-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+:root .review-photo.is-full .zoom-pane {
+  width: min(100%, 72rem);
+}
+
+/* A phone turned sideways is short: the file's name and size give their line
+   to the page. */
+@media (max-height: 30rem) {
+  :root .review-photo.is-full .review-photo-name .hint {
+    display: none;
+  }
+}
+
+:root .review-photo.is-full .pdf-frame {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+.zoom-controls .full-toggle {
+  color: var(--muted);
+}
+
+.zoom-controls .full-toggle[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--ink-tint);
+  color: var(--ink);
+}
+
 .point-decision h2 {
   margin: 0;
   font-size: 1rem;
@@ -4391,6 +4494,14 @@ table.items tr.item-decision > td {
 
   .review-photo {
     position: static;
+  }
+
+  /* The paper is not held on screen here: it is in the open row or at the
+     end of the page, which scrolls. So the page takes the whole width, also
+     on a phone turned sideways, where fitting it to the screen's short
+     height would leave a stamp-sized page. */
+  .review-photo .zoom-pane {
+    width: 100%;
   }
 
   /* The moves fit one row under the switch, also on a 320px phone with

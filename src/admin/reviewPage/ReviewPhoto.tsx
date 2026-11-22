@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import type { AnswerArea } from '../../../shared/schemas.ts';
 import { formatFileSize } from '../../ui/format.ts';
@@ -6,6 +6,7 @@ import { useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { submissionFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { AnswerFrame } from './AnswerFrame.tsx';
+import { isReviewKey } from './keys.ts';
 import { WHOLE_PAGE, type ZoomView } from './zoom.ts';
 import { ZoomPhoto } from './ZoomPhoto.tsx';
 import { t } from '../../i18n/t.ts';
@@ -15,6 +16,9 @@ import { tryName } from '../../../shared/quickTry.ts';
 // exercise ("II.1"), `areas` are the ones the review can draw (drawnAreas).
 // The paper's box, named by the bar that sets its width (PhotoSplit).
 export const PAPER_PHOTO_ID = 'paper-photo';
+
+// What Tab reaches inside the box over the whole screen.
+const FOCUSABLE = 'button:not([disabled]), a[href], iframe, [tabindex]:not([tabindex="-1"])';
 
 export interface ReviewFocus {
   key: string;
@@ -32,6 +36,19 @@ export interface ReviewFocus {
 // its page with an orange border around its first area, on the whole page: the
 // page never zooms by itself. An answer in more parts steps through them with
 // the arrows beside the border's label, each part opening on its page, whole.
+//
+// "Pe tot ecranul" shows the same box over the whole screen (`is-full`): the
+// page as wide as the screen allows, scrolling under the name, the page
+// buttons and the zoom, which stay in sight. The box stays the same element,
+// so the zoom, the border and its part go with it. Esc, the button again or
+// the × in place of "Ascunde lucrarea" bring it back; a spacer of its height
+// keeps its place meanwhile, so the page under it never moves. Over the whole
+// screen A, J and K do nothing, and Tab goes round its own controls: the
+// decision and the other points are hidden under it. The page keys 1–9 still
+// work. Whether it is open belongs to the caller (`full`): a phone turned
+// sideways moves the paper from the open row to the column beside it, a new
+// box, which opens over the whole screen again. A PDF page closes it: Esc
+// typed in the PDF's own viewer never reaches the page.
 export function ReviewPhoto({
   submission,
   page,
@@ -40,6 +57,8 @@ export function ReviewPhoto({
   frames,
   onFrames,
   onHide,
+  full,
+  onFull,
 }: {
   submission: SubmissionDetail;
   page: number;
@@ -49,6 +68,9 @@ export function ReviewPhoto({
   onFrames: (on: boolean) => void;
   // Folds the pane to a strip, for more room for the exercises.
   onHide?: () => void;
+  // The box is over the whole screen; `onFull` opens and closes it.
+  full: boolean;
+  onFull: (on: boolean) => void;
 }) {
   const { base } = useApi();
   // A finger cannot hit the label's small controls, and the label may end near
@@ -58,6 +80,13 @@ export function ReviewPhoto({
   const files = submission.files;
   const index = Math.min(Math.max(page, 0), Math.max(files.length - 1, 0));
   const file = files[index];
+  const photo = file?.contentType.startsWith('image/') ?? false;
+  // Over the whole screen only a photo, and the height the box left in the
+  // page (none for a box that opened over the whole screen).
+  const isFull = full && photo;
+  const [spacer, setSpacer] = useState(0);
+  // The controls under the page, not beside the border's label.
+  const below = touch || isFull;
 
   // The answer framed now: none while the switch is off or it has no area.
   const framed = frames && focus !== null && focus.areas.length > 0 ? focus : null;
@@ -109,17 +138,84 @@ export function ReviewPhoto({
   // same page leaves the box where it is while the part is already in sight,
   // so the arrows never move a page the teacher can read.
   const box = useRef<HTMLElement>(null);
+  // The focus goes to "Pe tot ecranul" each time the whole screen opens or
+  // closes: with a mouse the button moves between the page and the bar above
+  // it (a new element), and the × that closed it goes away.
+  // A box that opens over the whole screen (the paper moved) takes it too.
+  const refocus = useRef(isFull);
+  const closeFull = () => {
+    refocus.current = true;
+    onFull(false);
+  };
+  const showFull = (on: boolean) => {
+    if (!on) return closeFull();
+    refocus.current = true;
+    setSpacer(box.current?.getBoundingClientRect().height ?? 0);
+    onFull(true);
+  };
+  const latestClose = useRef(closeFull);
+  latestClose.current = closeFull;
+  useLayoutEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    box.current?.querySelector<HTMLElement>('.full-toggle')?.focus({ preventScroll: true });
+  }, [isFull]);
+  // A PDF page closes the whole screen (above): the caller learns it.
+  useEffect(() => {
+    if (full && file && !photo) onFull(false);
+  }, [full, file, photo, onFull]);
+  // Over the whole screen Esc brings the box back, before anything else takes
+  // it (capture, and marked taken), so the zoom stays as it is. The page under
+  // it does not scroll meanwhile.
+  useEffect(() => {
+    if (!isFull) return;
+    const onKey = (event: KeyboardEvent) => {
+      // Tab goes round the box's own controls: the buttons under it are out
+      // of sight, and Enter on one ("Accept") would act unseen.
+      if (event.key === 'Tab' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        const own = box.current ? [...box.current.querySelectorAll<HTMLElement>(FOCUSABLE)] : [];
+        const first = own[0];
+        const last = own[own.length - 1];
+        if (!first || !last) return;
+        const inside = event.target instanceof Node && box.current!.contains(event.target);
+        const next = !inside ? (event.shiftKey ? last : first) : event.shiftKey && event.target === first ? last : !event.shiftKey && event.target === last ? first : null;
+        if (next === null) return;
+        event.preventDefault();
+        next.focus({ preventScroll: true });
+        return;
+      }
+      if (!isReviewKey(event)) return;
+      const pressed = event.key.toLowerCase();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        latestClose.current();
+      } else if ((pressed === 'a' || pressed === 'j' || pressed === 'k') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        // Marked taken: the review's keys leave it alone.
+        event.preventDefault();
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    const root = document.documentElement;
+    root.classList.add('has-full-paper');
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      root.classList.remove('has-full-paper');
+    };
+  }, [isFull]);
   const pageNumber = index + 1;
-  const placed = useRef<{ focusKey: string; fileKey: string } | null>(null);
+  const placed = useRef<{ focusKey: string; fileKey: string; full: boolean } | null>(null);
   // The watch below lives on between renders: it reads the answer, its
   // border and its part from here, never as they were when it started.
   const latest = useRef({ framed, focus, partIndex, pageNumber });
   latest.current = { framed, focus, partIndex, pageNumber };
   useLayoutEffect(() => {
-    const element = box.current;
+    // Over the whole screen the page scrolls in its own box, under the bars.
+    const element = isFull ? box.current?.querySelector<HTMLElement>('.zoom-scroll') : box.current;
     if (!element) return;
-    const samePage = placed.current !== null && placed.current.focusKey === focusKey && placed.current.fileKey === fileKey;
-    placed.current = { focusKey, fileKey };
+    // The whole screen opened or closed is a new box: the answer comes to its
+    // middle.
+    const samePage = placed.current !== null && placed.current.focusKey === focusKey && placed.current.fileKey === fileKey && placed.current.full === isFull;
+    placed.current = { focusKey, fileKey, full: isFull };
     const place = (reveal: boolean) => {
       if (element.scrollHeight <= element.clientHeight) return;
       const { framed, focus, partIndex, pageNumber } = latest.current;
@@ -170,11 +266,23 @@ export function ReviewPhoto({
       watch?.disconnect();
       if (waits) image.removeEventListener('load', onLoad);
     };
-    // Only the answer, its part, the page and a new size move the box: not
-    // every render, and not the border shown or hidden.
-  }, [focusKey, fileKey, partIndex]);
+    // Only the answer, its part, the page, the whole screen and a new size
+    // move the box: not every render, and not the border shown or hidden.
+  }, [focusKey, fileKey, partIndex, isFull]);
 
-  const hide = onHide ? (
+  const hide = isFull ? (
+    <button
+      type="button"
+      className="button-quiet button-small icon-button photo-hide"
+      aria-label={t('Ieși din ecranul complet')}
+      title={t('Ieși din ecranul complet (Esc)')}
+      onClick={closeFull}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
+    </button>
+  ) : onHide ? (
     <button type="button" className="button-quiet button-small icon-button photo-hide" aria-label={t('Ascunde lucrarea')} title={t('Ascunde lucrarea')} onClick={onHide}>
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
@@ -192,7 +300,6 @@ export function ReviewPhoto({
   }
   const url = submissionFileUrl(submission.id, file.id, base);
   const caption = `${tryName(submission.studentName)} · ${index + 1}/${files.length}`;
-  const photo = file.contentType.startsWith('image/');
   const parts = framed?.areas.length ?? 0;
   const partLabel = (number: number) => (parts > 1 ? t('{label} · partea {v2} din {parts}', { label: framed!.label, v2: number + 1, parts }) : framed!.label);
   // The controls of an answer in more parts: beside its label on a computer,
@@ -215,7 +322,7 @@ export function ReviewPhoto({
       </>
     ) : undefined;
   const footParts =
-    touch && partButtons !== undefined ? (
+    below && partButtons !== undefined ? (
       <span className="answer-parts is-below-page" role="group" aria-label={t('Părțile răspunsului')}>
         <span className="answer-parts-count">
           {t('{v1} din {parts}', { v1: partIndex + 1, parts })}
@@ -224,81 +331,87 @@ export function ReviewPhoto({
       </span>
     ) : undefined;
   return (
-    <figure className="review-photo" id={PAPER_PHOTO_ID} ref={box}>
-      <div className="review-photo-top">
-        <div className="review-photo-name">
-          <figcaption>{caption}</figcaption>
-          {/* The page's own file, as the student sent it. */}
-          {file && (
-            <span className="hint">
-              {file.name} · {formatFileSize(file.size)}
-            </span>
-          )}
+    <>
+      {/* The box's place in the page while it is over the whole screen. */}
+      {isFull && <div className="review-photo-spacer" style={{ height: spacer }} aria-hidden="true" />}
+      <figure className={isFull ? 'review-photo is-full' : 'review-photo'} id={PAPER_PHOTO_ID} ref={box}>
+        <div className="review-photo-top">
+          <div className="review-photo-name">
+            <figcaption>{caption}</figcaption>
+            {/* The page's own file, as the student sent it. */}
+            {file && (
+              <span className="hint">
+                {file.name} · {formatFileSize(file.size)}
+              </span>
+            )}
+          </div>
+          <div className="review-photo-actions">
+            {files.length > 1 && (
+              <span className="page-switch" role="group" aria-label={t('Paginile lucrării')}>
+                {files.map((other, number) => (
+                  <button
+                    key={other.id}
+                    type="button"
+                    className="page-switch-button"
+                    aria-label={t('Pagina {n}', { n: number + 1 })}
+                    aria-current={number === index ? 'true' : undefined}
+                    onClick={() => onPage(number)}
+                  >
+                    {number + 1}
+                  </button>
+                ))}
+              </span>
+            )}
+            {hide}
+          </div>
         </div>
-        <div className="review-photo-actions">
-          {files.length > 1 && (
-            <span className="page-switch" role="group" aria-label={t('Paginile lucrării')}>
-              {files.map((other, number) => (
+        {photo ? (
+          <ZoomPhoto
+            src={url}
+            alt={t('Pagina {v1} a lucrării', { v1: index + 1 })}
+            view={view}
+            onView={setView}
+            foot={footParts}
+            full={isFull}
+            onFull={showFull}
+            tools={
+              focus !== null && focus.areas.length > 0 ? (
                 <button
-                  key={other.id}
                   type="button"
-                  className="page-switch-button"
-                  aria-label={t('Pagina {n}', { n: number + 1 })}
-                  aria-current={number === index ? 'true' : undefined}
-                  onClick={() => onPage(number)}
+                  className="button-quiet button-small icon-button frame-toggle"
+                  aria-label={t('Arată chenarul')}
+                  aria-pressed={frames}
+                  title={frames ? t('Ascunde chenarul răspunsului') : t('Arată chenarul răspunsului')}
+                  onClick={() => onFrames(!frames)}
                 >
-                  {number + 1}
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 2.4" />
+                  </svg>
                 </button>
-              ))}
-            </span>
-          )}
-          {hide}
-        </div>
-      </div>
-      {photo ? (
-        <ZoomPhoto
-          src={url}
-          alt={t('Pagina {v1} a lucrării', { v1: index + 1 })}
-          view={view}
-          onView={setView}
-          foot={footParts}
-          tools={
-            focus !== null && focus.areas.length > 0 ? (
-              <button
-                type="button"
-                className="button-quiet button-small icon-button frame-toggle"
-                aria-label={t('Arată chenarul')}
-                aria-pressed={frames}
-                title={frames ? t('Ascunde chenarul răspunsului') : t('Arată chenarul răspunsului')}
-                onClick={() => onFrames(!frames)}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 2.4" />
-                </svg>
-              </button>
-            ) : undefined
-          }
-        >
-          {framed?.areas.map((area, number) =>
-            area.page === index + 1 ? (
-              <AnswerFrame
-                key={number}
-                view={view}
-                box={area}
-                label={partLabel(number)}
-                parts={!touch && number === partIndex ? partButtons : undefined}
-              />
-            ) : null,
-          )}
-        </ZoomPhoto>
-      ) : (
-        <>
-          <iframe className="pdf-frame" src={url} title={t('Pagina {v1} a lucrării', { v1: index + 1 })} />
-          <a href={url} target="_blank" rel="noopener">
-            {t('Deschide PDF-ul')}
-          </a>
-        </>
-      )}
-    </figure>
+              ) : undefined
+            }
+          >
+            {framed?.areas.map((area, number) =>
+              area.page === index + 1 ? (
+                <AnswerFrame
+                  key={number}
+                  view={view}
+                  box={area}
+                  label={partLabel(number)}
+                  parts={!below && number === partIndex ? partButtons : undefined}
+                />
+              ) : null,
+            )}
+          </ZoomPhoto>
+        ) : (
+          <>
+            <iframe className="pdf-frame" src={url} title={t('Pagina {v1} a lucrării', { v1: index + 1 })} />
+            <a href={url} target="_blank" rel="noopener">
+              {t('Deschide PDF-ul')}
+            </a>
+          </>
+        )}
+      </figure>
+    </>
   );
 }

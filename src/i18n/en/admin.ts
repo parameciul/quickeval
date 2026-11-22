@@ -569,6 +569,8 @@ export const ADMIN = {
   "Elevul următor": "Next student",
   "Arată lucrarea": "Show the paper",
   "Ascunde lucrarea": "Hide the paper",
+  "Ieși din ecranul complet": "Exit full screen",
+  "Ieși din ecranul complet (Esc)": "Exit full screen (Esc)",
   "Toate punctele sunt verificate.": "All points are checked.",
   "Mergi la Rezultate": "Go to Results",
   "Exercițiile": "Exercises",

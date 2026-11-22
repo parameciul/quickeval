@@ -26,6 +26,12 @@ import { t } from '../../i18n/t.ts';
 // left alone; the title says what a drag and a right click do. On a touch
 // screen the line only turns invisible and keeps its room: the page under it
 // never moves when the zoom changes.
+//
+// "Pe tot ecranul" (after the zoom's +, when the caller gives `onFull`) asks
+// the caller to show the page over the whole screen. There the buttons stand
+// in the bar above the page and the hint in the line under it, also with a
+// mouse: the page fills the screen's width and scrolls inside `.zoom-scroll`,
+// and buttons over its top corners would scroll away with it.
 export function ZoomPhoto({
   src,
   alt,
@@ -33,6 +39,8 @@ export function ZoomPhoto({
   onView,
   tools,
   foot,
+  full = false,
+  onFull,
   children,
 }: {
   src: string;
@@ -42,11 +50,16 @@ export function ZoomPhoto({
   tools?: ReactNode;
   // Drawn in the line under the page on a touch screen.
   foot?: ReactNode;
+  // The page is over the whole screen; `onFull` turns it on and off.
+  full?: boolean;
+  onFull?: (on: boolean) => void;
   children?: ReactNode;
 }) {
   const pane = useRef<HTMLDivElement>(null);
   // A finger cannot right-click, and cannot read a tooltip.
   const touch = useMediaQuery('(pointer: coarse)');
+  // The buttons above the page and the line under it, not over the page.
+  const bars = touch || full;
   // Width / height of the photo: the pane takes its shape. A phone page until it
   // loads, also when another page comes in its place.
   const [loaded, setLoaded] = useState<{ src: string; ratio: number } | null>(null);
@@ -183,6 +196,27 @@ export function ZoomPhoto({
       >
         +
       </button>
+      {onFull && (
+        <button
+          type="button"
+          className="button-quiet button-small icon-button full-toggle"
+          aria-label={t('Pe tot ecranul')}
+          aria-pressed={full}
+          title={full ? t('Ieși din ecranul complet (Esc)') : t('Pe tot ecranul')}
+          onClick={() => onFull(!full)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d={full ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
     </span>
   );
   const hintText = touch ? t('Atinge: mărește · ciupește: micșorează') : t('Clic stânga: mărește · clic dreapta: micșorează');
@@ -215,27 +249,29 @@ export function ZoomPhoto({
           }}
         />
       </div>
-      {!touch && hint}
+      {!bars && hint}
       {children}
-      {!touch && viewGroup}
-      {!touch && zoomGroup}
+      {!bars && viewGroup}
+      {!bars && zoomGroup}
     </div>
   );
   // A touch screen puts the buttons above the page and the hint and the
   // caller's foot under it, so a finger-sized control never covers the
-  // handwriting. The pane keeps its place in the tree in both layouts (a
-  // missing bar is an empty slot), so a screen that switches between a finger
-  // and a mouse keeps the same pane, with its wheel listener and its zoom.
+  // handwriting; so does the whole screen. The pane keeps its place in the
+  // tree in every layout (a missing bar is an empty slot, and `.zoom-scroll`
+  // is always there), so a screen that switches between a finger and a mouse,
+  // or a page shown over the whole screen, keeps the same pane, with its
+  // wheel listener and its zoom.
   return (
-    <div className={touch ? 'zoom-photo is-touch' : 'zoom-photo'}>
-      {touch && (
+    <div className={['zoom-photo', touch && 'is-touch', full && 'is-full'].filter(Boolean).join(' ')}>
+      {bars && (
         <div className="zoom-bar">
           {viewGroup}
           {zoomGroup}
         </div>
       )}
-      {pagePane}
-      {touch && (
+      <div className="zoom-scroll">{pagePane}</div>
+      {bars && (
         <div className="zoom-foot">
           {zoomed ? (
             <p className="zoom-hint is-hidden" aria-hidden="true">
