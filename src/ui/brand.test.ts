@@ -152,6 +152,41 @@ describe('brand.css', () => {
     expect(css.slice(narrow, css.indexOf('\n}\n', narrow))).toContain('.stage-bar-wait {\n    display: none;');
   });
 
+  it('puts the bar on the left on a phone turned sideways, and keeps the bottom bar on a phone held upright', () => {
+    const head = '@media (min-width: 33.75rem) and (max-width: 56.25rem) and (orientation: landscape) {';
+    const start = css.indexOf(head);
+    expect(start).toBeGreaterThan(css.indexOf('  .rail {\n    position: fixed;'));
+    const block = css.slice(start, css.indexOf('\n}\n', start));
+    // No bottom bar: the page, the panels and the test page's bar reach the screen's foot.
+    expect(block).toContain('  .shell:not(.shell-bare) {\n    --bottom: 0px;');
+    expect(block).toContain('grid-template-columns: var(--side) minmax(0, 1fr);');
+    expect(block).toContain('--side: calc(var(--bar) + env(safe-area-inset-left, 0px));');
+    expect(block).toContain('  html:has(.stage-bar) {\n    scroll-padding-bottom: 4.25rem;');
+    // The bar is a column under the top bar, the camera's side included, and scrolls on a very short screen.
+    const rail = block.slice(block.indexOf('  .shell:not(.shell-bare) .rail {'));
+    expect(rail).toContain('top: var(--top);');
+    expect(rail).toContain('bottom: 0;');
+    expect(rail).toContain('flex-direction: column;');
+    expect(rail).toContain('width: var(--side);');
+    expect(rail).toContain('overflow-y: auto;');
+    expect(rail).toContain('border-right: 1px solid var(--rule);');
+    // The page sits beside it, and a panel opens beside it, as on a laptop.
+    expect(block).toContain('  .shell:not(.shell-bare) > .page {\n    grid-column: 2;');
+    expect(block).toContain('  .shell:not(.shell-bare) .panel {\n    left: var(--side);\n    width: 24rem;');
+    // A mouse in a narrow window sees the item it points at.
+    expect(block).toContain('  .shell:not(.shell-bare) .rail-item:hover {\n    background: var(--raised);');
+    // Every rule is the teacher shell's, so the login screen (no bar) keeps its one column.
+    const selectors = block.slice(block.indexOf('{') + 1).match(/^ {2}[^ \n/][^{]*\{/gm) ?? [];
+    expect(selectors.length).toBeGreaterThan(5);
+    for (const selector of selectors) if (!selector.startsWith('  html:')) expect(selector).toContain('.shell:not(.shell-bare)');
+    // The test page's bar starts at the page's 1rem left room, beside the bar.
+    const stage = css.indexOf(head, start + head.length);
+    expect(stage).toBeGreaterThan(css.indexOf('  .stage-bar {\n    bottom: var(--bottom);'));
+    expect(css.slice(stage, css.indexOf('\n}\n', stage))).toContain('  .shell:not(.shell-bare) .stage-bar {\n    margin-left: -1rem;\n    padding-left: 1rem;');
+    // A phone held upright keeps the bar at the bottom.
+    expect(css).toContain('  .rail {\n    position: fixed;\n    top: auto;\n    right: 0;\n    bottom: 0;\n    left: 0;');
+  });
+
   it('puts the bar at the foot of a short page, and gives it the room of a button', () => {
     expect(value(declarations('.shell > .page:has(.stage-bar)'), 'display')).toBe('flex');
     expect(value(declarations('.test-page:has(.stage-bar)'), 'flex')).toBe('1');

@@ -180,6 +180,24 @@ describe('the landing page', () => {
     expect(doc.getElementById('try')).not.toBeNull();
   });
 
+  it('fits the header to a narrow phone, so the page never scrolls sideways', () => {
+    const css = readFileSync(resolve(__dirname, 'landing.css'), 'utf8');
+    const start = css.indexOf('@media (max-width: 440px) {');
+    expect(start).toBeGreaterThan(css.indexOf('.bar .btn-small { margin-left: 6px;'));
+    const block = css.slice(start, css.indexOf('\n}\n', start));
+    expect(block).toContain('.bar { gap: 6px; }');
+    expect(block).toContain('.bar .mark { width: 26px; height: 26px; }');
+    expect(block).toContain('.bar .brand .words b { font-size: 16px; }');
+    // The icons keep a 44px height to tap; only their width shrinks.
+    expect(block).toContain('.bar .icon { width: 36px; }');
+    expect(block).not.toMatch(/\.icon \{[^}]*height/);
+    expect(block).toContain('.bar .btn-small { margin-left: 4px; padding: 0 9px; font-size: 14px; }');
+    // Every page's header has the same parts the block sizes: the lockup, three icons, the two account buttons.
+    const bar = doc.querySelector('.bar nav');
+    expect(bar?.querySelectorAll(':scope > .icon').length).toBe(3);
+    expect(bar?.querySelectorAll(':scope > .btn-small').length).toBe(2);
+  });
+
   it('has no inline script or style, which the security policy blocks', () => {
     const code = all('script').filter((s) => s.getAttribute('type') !== 'application/ld+json');
     expect(code.every((s) => s.getAttribute('src') && !text(s))).toBe(true);
