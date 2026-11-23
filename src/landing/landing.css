@@ -41,7 +41,7 @@
   --radius-panel: 14px;
   --lift: 0 6px 16px rgb(12 21 36 / 0.16);
   /* The type scale of the five public pages: every text takes one of these
-     sizes. The phone's sizes are here; a laptop's are at the end. */
+     sizes (the header, the buttons and the language link keep their own). The phone's sizes are here; a laptop's are at the end. */
   --fs-display: clamp(30px, 7.6vw, 44px);
   --fs-h2: clamp(28px, 6.4vw, 36px);
   --fs-title: 20px;
@@ -447,7 +447,7 @@ img { display: block; max-width: 100%; height: auto; }
   }
 
 /* The visitor's try, under the hero's buttons (src/landing/quickTry/ui.ts). */
-.try-line { display: grid; font-size: 16px; }
+.try-line { display: grid; font-size: var(--fs-body); }
 .try-note { max-width: 52ch; }
 /* The try buttons and their line are for a page that runs its script
    (public/theme.js marks it), so a page without it shows no dead button. */
@@ -455,22 +455,22 @@ img { display: block; max-width: 100%; height: auto; }
 .try-card { display: grid; gap: 10px; max-width: 480px; padding: 14px 18px; border: 1.5px solid var(--border); border-radius: var(--radius-panel); background: var(--surface); }
 .try-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .try-card-head { min-width: 0; }
-.try-card-kicker { font-size: 14px; font-weight: 600; color: var(--muted); }
-.try-card-title { font-size: 19px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
-.try-card-meta { font-size: 15px; color: var(--muted); }
+.try-card-kicker { font-size: var(--fs-small); font-weight: 600; color: var(--muted); }
+.try-card-title { font-size: var(--fs-body); font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.try-card-meta { font-size: var(--fs-small); color: var(--muted); }
 /* The tag already says where the try stands: the sentence shows only while
    the try is read, or when it could not be. */
-.try-card-text { font-size: 16px; }
+.try-card-text { font-size: var(--fs-body); }
 .try-card:not(.is-bare) .try-card-text { display: none; }
 .try-card-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 12px; }
 .try-card-bottom .btn { margin-left: auto; }
-.try-chip { flex: none; display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--active); color: var(--muted); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.try-chip { flex: none; display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--active); color: var(--muted); font-size: var(--fs-small); font-weight: 600; white-space: nowrap; }
 .try-chip:empty { display: none; }
 .try-chip.is-work { background: var(--blue-tint); color: var(--blue); }
 .try-chip.is-you { background: var(--orange-tint); color: var(--orange); }
 .try-chip.is-ok { background: var(--ok-bg); color: var(--ok-fg); }
 .try-score { display: flex; align-items: center; gap: 8px; }
-.try-grade { font-size: 32px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--blue); }
+.try-grade { font-size: var(--fs-num); font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--blue); }
 .try-points { color: var(--muted); }
 
 /* The Quick Try form: three steps, each a title and its tiles. One control
@@ -479,13 +479,13 @@ img { display: block; max-width: 100%; height: auto; }
 .tryd::backdrop { background: rgb(12 21 36 / 0.55); }
 .try-form, .try-phone { display: grid; gap: 22px; padding: 28px 32px; }
 .tryd-head { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
-.tryd h2 { font-size: clamp(26px, 2.6vw, 32px); line-height: 1.1; letter-spacing: -0.025em; font-weight: 800; }
+.tryd h2 { font-size: var(--fs-h2); line-height: 1.1; letter-spacing: -0.025em; font-weight: 800; }
 .tryd h2:focus { outline: none; }
-.tryd-sub { margin-top: 6px; font-size: 17px; color: var(--muted); }
+.tryd-sub { margin-top: 6px; font-size: var(--fs-body); color: var(--muted); }
 .tryd-x { flex: none; margin: -6px -10px 0 0; }
 .step { display: grid; gap: 10px; }
-.step-t { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; }
-.num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--blue-tint); color: var(--blue); font-size: 14px; font-weight: 700; }
+.step-t { display: flex; align-items: center; gap: 10px; font-size: var(--fs-body); font-weight: 700; }
+.num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--blue-tint); color: var(--blue); font-size: var(--fs-small); font-weight: 700; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .tile { position: relative; display: grid; grid-template-columns: 22px 1fr auto; align-items: center; column-gap: 12px; min-height: 64px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: border-color 0.18s ease, background-color 0.18s ease; }
 .tile:hover { border-color: var(--blue); background: var(--blue-tint); }
@@ -494,9 +494,9 @@ img { display: block; max-width: 100%; height: auto; }
 .tile-ic { display: grid; place-items: center; color: var(--blue); }
 .tile-ic svg { width: 22px; height: 22px; }
 .tile-text { min-width: 0; }
-.tile-text b { display: block; font-size: 16px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
-.tile-text small { display: block; font-size: 14px; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere; }
-.tile-go { font-size: 15px; font-weight: 600; color: var(--blue); }
+.tile-text b { display: block; font-size: var(--fs-body); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.tile-text small { display: block; font-size: var(--fs-small); line-height: 1.35; color: var(--muted); overflow-wrap: anywhere; }
+.tile-go { font-size: var(--fs-small); font-weight: 600; color: var(--blue); }
 .ic-done, .ic-phone { display: none; }
 [data-try-pick]:not(.is-chosen) .tile-go { display: none; }
 label.tile.is-chosen .ic-file, .step.is-chosen > .tiles > label.tile .ic-file { display: none; }
@@ -509,9 +509,9 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
 .tile-choice:has(input:checked)::after { content: ""; position: absolute; top: 10px; right: 10px; width: 12px; height: 12px; border-radius: 50%; background: var(--blue); }
 .tile-phone .sub-cam, .tile-phone.is-here .sub-qr { display: none; }
 .tile-phone.is-here .sub-cam { display: block; }
-.step-note { font-size: 15px; color: var(--muted); }
+.step-note { font-size: var(--fs-small); color: var(--muted); }
 .try-error { color: var(--bad-fg); font-weight: 600; }
-.try-recover, .try-progress { font-size: 16px; }
+.try-recover, .try-progress { font-size: var(--fs-body); }
 .send { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding-top: 18px; box-shadow: inset 0 1px 0 var(--border); }
 .try-turnstile:empty { display: none; }
 .tryd .acts { display: flex; gap: 10px; margin-left: auto; }
@@ -519,15 +519,15 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
 .try-phone-body { display: grid; grid-template-columns: 196px 1fr; gap: 24px; align-items: start; }
 .try-phone-code { display: grid; gap: 8px; }
 .try-qr { display: block; width: 196px; height: 196px; padding: 10px; border: 1.5px solid var(--border); border-radius: 10px; background: #ffffff; }
-.try-qr-link { padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; overflow-wrap: anywhere; }
-.try-phone-note { font-size: 14px; color: var(--muted); }
+.try-qr-link { padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: var(--fs-small); overflow-wrap: anywhere; }
+.try-phone-note { font-size: var(--fs-small); color: var(--muted); }
 .try-phone-pages { display: grid; gap: 8px; min-width: 0; }
-.try-phone-count { display: flex; align-items: center; gap: 10px; font-size: 17px; }
+.try-phone-count { display: flex; align-items: center; gap: 10px; font-size: var(--fs-body); }
 .try-phone-list { display: grid; gap: 8px; }
-.try-phone-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 16px; }
-.try-phone-size { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.try-phone-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: var(--fs-body); }
+.try-phone-size { font-size: var(--fs-small); color: var(--muted); white-space: nowrap; }
 .try-phone-live { display: grid; gap: 8px; }
-.try-phone-wait { font-size: 15px; color: var(--muted); }
+.try-phone-wait { font-size: var(--fs-small); color: var(--muted); }
 .try-phone-again { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--text); cursor: pointer; }
 .try-phone-actions { flex-wrap: wrap; align-items: center; margin-left: 0; padding-top: 18px; box-shadow: inset 0 1px 0 var(--border); }
 .try-phone-files { position: relative; margin-right: auto; cursor: pointer; }
@@ -577,6 +577,11 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
   .pg-home .cta-row .btn { font-size: 15px; }
   .pg-home .hero { padding-top: 56px; padding-bottom: 56px; }
   .pg-home .hero-grid { row-gap: 32px; }
+  /* A laptop picture beside phones: the row takes the phones' height and
+     the screenshot fills its box from the top left, so no strip of the box
+     shows under it when the phones are the taller cards. */
+  .pg-home .shots .shot-l, .pg-home .try-steps .shot-l { position: relative; min-height: 280px; }
+  .pg-home .shots .shot-l img, .pg-home .try-steps .shot-l img { position: absolute; top: 8px; left: 8px; height: calc(100% - 8px); object-fit: cover; object-position: left top; }
 }
 
 /* A laptop screenshot on a phone: one region of the screen, cut to the same
