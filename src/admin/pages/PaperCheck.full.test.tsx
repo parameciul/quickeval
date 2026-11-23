@@ -13,7 +13,7 @@ const box = () => document.querySelector<HTMLElement>('figure.review-photo')!;
 const fullButton = () => screen.getByRole('button', { name: 'Pe tot ecranul' });
 
 describe('the paper over the whole screen', () => {
-  it('opens with "Pe tot ecranul" and closes with the button again, the × or Esc', async () => {
+  it('opens with "Pe tot ecranul" and closes with the ×', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
     await screen.findByText('Ion Popa · 1/2');
     expect(box()).not.toHaveClass('is-full');
@@ -31,7 +31,11 @@ describe('the paper over the whole screen', () => {
     expect(document.documentElement).not.toHaveClass('has-full-paper');
     // The focus is not lost on the × that went away.
     expect(fullButton()).toHaveFocus();
+  });
 
+  it('closes with the button again, or with Esc', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
     await userEvent.click(fullButton());
     await userEvent.click(fullButton());
     expect(box()).not.toHaveClass('is-full');
@@ -328,10 +332,29 @@ describe('the paper over the whole screen', () => {
     expect(bar).toContainElement(screen.getByRole('button', { name: 'Mărește' }));
     expect(bar).toContainElement(screen.getByRole('button', { name: 'Arată chenarul' }));
     expect(head).not.toContainElement(screen.getByRole('button', { name: 'Mărește' }));
-    // The header keeps the name, the × and the pages.
-    expect(head).toContainElement(screen.getByRole('button', { name: 'Ieși din ecranul complet' }));
+    // The header keeps the name and the pages; the × is in the middle of the
+    // bar, between the view and the zoom, away from the page buttons.
     expect(head).toContainElement(screen.getByRole('group', { name: 'Paginile lucrării' }));
+    const close = screen.getByRole('button', { name: 'Ieși din ecranul complet' });
+    expect([...bar.children]).toEqual([screen.getByRole('group', { name: 'Vederea paginii' }), close, screen.getByRole('group', { name: 'Mărirea paginii' })]);
+    await userEvent.click(close);
+    expect(box()).not.toHaveClass('is-full');
     expect(fullButton()).toHaveFocus();
+  });
+
+  it('has only the × and the zoom in the phone bar of a page with no answer on it', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 40rem)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    renderAdmin(`${PAGE}?paper=14&item=41`, apiWith());
+    await screen.findByText('Ion Popa · 1/1');
+    await userEvent.click(fullButton());
+    const bar = box().querySelector<HTMLElement>('.zoom-bar')!;
+    expect(screen.queryByRole('button', { name: 'Arată chenarul' })).not.toBeInTheDocument();
+    expect([...bar.children]).toEqual([screen.getByRole('button', { name: 'Ieși din ecranul complet' }), screen.getByRole('group', { name: 'Mărirea paginii' })]);
   });
 
   it('moves the focus to the other arrow when one reaches the last or the first page', async () => {
@@ -445,5 +468,55 @@ describe('the header of the paper beside the exercises', () => {
     expect(document.querySelector('.zoom-bar')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
     expect(layer().style.transform).not.toBe(WHOLE);
+  });
+});
+
+describe("the room on the right of the paper's page", () => {
+  it("gives the page's box the width of its scrollbar, which brand.css takes from the padding on its right", async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('zoom-scroll') ? 500 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('zoom-scroll') ? 485 : 0;
+    });
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    expect(document.querySelector<HTMLElement>('.zoom-scroll')!.style.getPropertyValue('--scrollbar')).toBe('15px');
+  });
+
+  it('measures it again when the scrollbar comes or goes', async () => {
+    const watchers = new Set<() => void>();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        report: () => void;
+        constructor(report: () => void) {
+          this.report = report;
+        }
+        observe() {
+          watchers.add(this.report);
+        }
+        disconnect() {
+          watchers.delete(this.report);
+        }
+      },
+    );
+    let bar = 0;
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('zoom-scroll') ? 500 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('zoom-scroll') ? 500 - bar : 0;
+    });
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    const scroller = document.querySelector<HTMLElement>('.zoom-scroll')!;
+    expect(scroller.style.getPropertyValue('--scrollbar')).toBe('0px');
+    bar = 15;
+    act(() => [...watchers].forEach((watch) => watch()));
+    expect(scroller.style.getPropertyValue('--scrollbar')).toBe('15px');
+    bar = 0;
+    act(() => [...watchers].forEach((watch) => watch()));
+    expect(scroller.style.getPropertyValue('--scrollbar')).toBe('0px');
   });
 });

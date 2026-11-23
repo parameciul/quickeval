@@ -183,13 +183,13 @@ describe('the paper taller than its box', () => {
     const restore = tallPhotoBox();
     renderAdmin(ION_I3, apiWith(framed()));
     expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
-    const box = document.querySelector('.review-photo')!;
+    const box = document.querySelector('.zoom-scroll')!;
     // The first part (page 1, 30%–40%): its middle, 100 + 0,35 × 1500, in the middle of the box.
     await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
     await userEvent.click(screen.getByRole('button', { name: 'Partea următoare' }));
     expect(await screen.findByText('Ion Popa · 2/2')).toBeInTheDocument();
     // The second part (page 2, 50%–80%).
-    await waitFor(() => expect(document.querySelector('.review-photo')!.scrollTop).toBeCloseTo(100 + 0.65 * 1500 - 500));
+    await waitFor(() => expect(document.querySelector('.zoom-scroll')!.scrollTop).toBeCloseTo(100 + 0.65 * 1500 - 500));
     restore();
   });
 
@@ -212,7 +212,7 @@ describe('the paper taller than its box', () => {
     const restore = tallPhotoBox();
     renderAdmin(ION_I3, apiWith(framed()));
     expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
-    const box = document.querySelector('.review-photo')!;
+    const box = document.querySelector('.zoom-scroll')!;
     await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
     expect(watched).toContain(box);
     expect(watched).toContain(screen.getByTestId('zoom-pane'));
@@ -231,7 +231,7 @@ describe('the paper taller than its box', () => {
     const restore = tallPhotoBox();
     renderAdmin(ION_I3, apiWith(framed()));
     expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
-    const box = document.querySelector('.review-photo')!;
+    const box = document.querySelector('.zoom-scroll')!;
     await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
     // She scrolls the page in its box, then hides and shows the border.
     box.scrollTop = 300;
@@ -249,7 +249,7 @@ describe('the paper taller than its box', () => {
     const below = { page: 1, x0: 0.1, y0: 0.9, x1: 0.9, y1: 0.95 };
     renderAdmin(ION_I3, apiWith(framed([first, inSight, below])));
     expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
-    const box = document.querySelector('.review-photo')!;
+    const box = document.querySelector('.zoom-scroll')!;
     // The first part in the middle: the box shows 125–1125 of the page's 100–1600.
     await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
     // The second part (850–1000) is already in sight: the box stays.
@@ -280,7 +280,7 @@ describe('the paper taller than its box', () => {
     const restore = tallPhotoBox();
     renderAdmin(ION_I3, apiWith(framed()));
     expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
-    const box = document.querySelector('.review-photo')!;
+    const box = document.querySelector('.zoom-scroll')!;
     await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
     const report = (height: number) =>
       act(() => {
@@ -302,11 +302,11 @@ describe('the paper taller than its box', () => {
     const restore = tallPhotoBox();
     renderAdmin(ION_I3, apiWith(framed([TOP])));
     expect(await screen.findByText('Ion Popa · 1/2')).toBeInTheDocument();
-    const box = document.querySelector('.review-photo')!;
+    const box = document.querySelector('.zoom-scroll')!;
     await waitFor(() => expect(box.scrollTop).toBeCloseTo(100 + 0.35 * 1500 - 500));
     await userEvent.click(screen.getByRole('button', { name: 'Pagina 2' }));
     expect(await screen.findByText('Ion Popa · 2/2')).toBeInTheDocument();
-    expect(document.querySelector('.review-photo')!.scrollTop).toBe(0);
+    expect(document.querySelector('.zoom-scroll')!.scrollTop).toBe(0);
     restore();
   });
 });

@@ -3704,7 +3704,8 @@ table.tests .row-actions {
    screen: 9rem is the room of the box's caption, page buttons and padding.
    On a short screen (a big phone turned sideways, a low window) that would
    leave a stamp-sized page: the page keeps at least 20rem (or the column's
-   width), and the box, no taller than the screen, scrolls (below). */
+   width), and the page, in a box no taller than the screen, scrolls in it
+   (below). */
 .review-photo .zoom-pane {
   width: min(100%, max(20rem, calc((100vh - var(--top, 0px) - 1.5rem - 9rem) * var(--page-ratio))));
 }
@@ -3720,19 +3721,48 @@ table.tests .row-actions {
 
 /* Beside the exercises the box stays on screen, so it is never taller than
    the screen: a page kept at 20rem on a short screen scrolls inside it, and
-   the answer comes to its middle (ReviewPhoto). */
+   the answer comes to its middle (ReviewPhoto). Only the page scrolls, in
+   `.zoom-scroll`, under the header: its scrollbar starts under the header's
+   line. The page's box reaches the box's right edge and keeps on its right
+   the room of the box's padding less its scrollbar (--scrollbar, measured by
+   ReviewPhoto): the same room as on the left, whether a scrollbar shows or
+   not, and the page keeps its width when one comes or goes. */
 @media not (max-width: 56.25rem) {
   .review-photo {
+    display: flex;
+    flex-direction: column;
     max-height: calc(100vh - var(--top, 0px) - 1.5rem);
     overflow-y: auto;
   }
 
-  /* Where the page may be kept at 20rem, the box's scrollbar keeps its room:
-     one that came and went would narrow and widen the page, and move it. */
-  @media (max-height: 45rem) {
-    .review-photo {
-      scrollbar-gutter: stable;
-    }
+  .review-photo:not(.is-full) > .zoom-photo {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .review-photo:not(.is-full) .zoom-bar,
+  .review-photo:not(.is-full) .zoom-foot {
+    flex: none;
+  }
+
+  .review-photo:not(.is-full) .zoom-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-right: -1rem;
+    padding-right: max(0px, calc(1rem - var(--scrollbar, 0px)));
+    overflow-y: auto;
+  }
+
+  /* A PDF page keeps its height (the box scrolls on a short window), and its
+     link is only as wide as its words. */
+  .review-photo:not(.is-full) > .pdf-frame {
+    flex: none;
+  }
+
+  .review-photo:not(.is-full) > .pdf-frame + a {
+    align-self: flex-start;
   }
 }
 
@@ -3853,14 +3883,8 @@ table.tests .row-actions {
 
   /* With the teacher's own width, the page fills the paper's column, so a
      wider column shows a bigger page; a page taller than the screen scrolls
-     inside its box. Its scrollbar always has its room: a scrollbar that came
-     and went would make the page narrower and wider, and move it. */
-  .paper-panes.has-photo-width .review-photo {
-    max-height: calc(100vh - var(--top, 0px) - 1.5rem);
-    overflow-y: auto;
-    scrollbar-gutter: stable;
-  }
-
+     inside its box (above: the room of its scrollbar comes from the padding
+     on its right, so the page keeps its width when one comes or goes). */
   .paper-panes.has-photo-width .review-photo .zoom-pane {
     width: 100%;
   }
@@ -4145,8 +4169,9 @@ table.items tr.item-decision > td {
   font-size: 0.75rem;
 }
 
-/* Beside the exercises the box scrolls on its own: its header stays at its
-   top, over the page, and the page starts right under its line. */
+/* Beside the exercises the page starts right under the header's line. The
+   page scrolls in its own box under the header (below); the header is sticky
+   only for a PDF page on a very short window, where the box itself scrolls. */
 @media not (max-width: 56.25rem) {
   .review-photo {
     padding-top: 0;
@@ -4605,30 +4630,45 @@ table.items tr.item-decision > td {
   }
 }
 
-/* A phone: the name on the first line, the × in the middle of the next and
-   the page buttons at its end; the view and the zoom in a bar of their own
-   under the header's line (ReviewPhoto, the same width). */
+/* A phone: the name, and the page buttons after it or on the next lines;
+   under the header's line, a bar with the view on the left, the × in the
+   middle and the zoom on the right (ReviewPhoto, the same width). */
 @media (max-width: 40rem) {
   :root .review-photo.is-full .review-photo-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
     gap: 0.5rem 0.75rem;
     padding: 0.5rem 0.75rem;
   }
 
-  :root .review-photo.is-full .review-photo-start {
-    grid-column: 1 / -1;
+  :root .review-photo.is-full .review-photo-actions {
+    margin-left: auto;
   }
 
-  :root .review-photo.is-full .photo-hide {
+  /* The two sides take at least their buttons' width: on the smallest
+     phones the × moves a little off the middle rather than the zoom running
+     off the screen. */
+  :root .review-photo.is-full .zoom-bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.375rem 0.75rem;
+  }
+
+  :root .review-photo.is-full .zoom-bar .zoom-controls.is-left {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  :root .review-photo.is-full .zoom-bar .photo-hide {
     grid-column: 2;
   }
 
-  :root .review-photo.is-full .review-photo-actions {
+  :root .review-photo.is-full .zoom-bar .zoom-controls:not(.is-left) {
     grid-column: 3;
-  }
-
-  :root .review-photo.is-full .zoom-bar {
-    margin: 0;
-    padding: 0.375rem 0.75rem;
+    justify-self: end;
   }
 }
 
