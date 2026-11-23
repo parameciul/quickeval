@@ -157,22 +157,9 @@
           <div>
             <nav class="crumbs" aria-label="You are here"><a href="/en/">MQGrader</a><span aria-hidden="true">›</span><span>Grading</span></nav>
             <h1 id="title" class="t-1">How to grade tests with MQGrader</h1>
-            <p class="lede">Grading a test means whole hours of reading papers, looking up steps in the marking scheme and adding up points. MQGrader does the mechanical part: it reads the photos, finds every solution and proposes the points step by step, by your marking scheme. You check only what is unsure and decide the final grade.</p>
+            <p class="lede">Grading a test means whole hours of reading papers, looking up steps in the marking scheme and adding up points. MQGrader does the repetitive part: it reads the photos, finds every solution and proposes the points step by step, by your marking scheme. You check only what is unsure and decide the final grade.</p>
             <p class="byline">Written by <a href="/en/about/">Laura Miron</a>, mathematics teacher · updated 21 November 2026</p>
           </div>
-          <figure class="sheet" aria-label="Example: one exercise graded step by step">
-            <h2>Exercise II.2 · proposed points</h2>
-            <p>Solve in ℝ the equation |x − 1| + |x + 2| = 7.</p>
-            <ol>
-              <li><span>The zeros of the absolute values: x = 1 and x = −2</span><b>2 / 2p</b></li>
-              <li><span>Case x ≤ −2: x = −4, valid</span><b>4 / 4p</b></li>
-              <li><span>Case −2 &lt; x &lt; 1: missing from the paper</span><b>0 / 4p</b></li>
-              <li><span>Case x ≥ 1: x = 3, valid</span><b>4 / 4p</b></li>
-              <li><span>The set of solutions S = {−4; 3}</span><b>1 / 1p</b></li>
-            </ol>
-            <p class="tot"><span>Exercise points</span><span>11 / 15p</span></p>
-            <p class="alt">You found both solutions. You skipped the case −2 &lt; x &lt; 1: with absolute values, check every interval between the zeros.</p>
-          </figure>
         </section>
 
         <section class="doc wrap" aria-label="Grading, in detail">
@@ -198,7 +185,7 @@
               <h2 id="process">How MQGrader grades a paper</h2>
               <p>From the photos a student sends to the proposed points, every paper goes through the same steps:</p>
               <ol class="nums">
-                <li><p><b>It reads the photos.</b> Handwriting in Romanian, with diacritics, symbols and notation, from photos taken with a phone, even with crossings-out or corrections on the sheet.</p></li>
+                <li><p><b>It reads the photos.</b> It understands handwriting in Romanian or English, with diacritics, symbols and notation, from photos taken with a phone, even with crossings-out or corrections on the sheet.</p></li>
                 <li><p><b>It finds every exercise.</b> Also when a solution runs on to another page, has crossings-out or the exercises are not solved in order.</p></li>
                 <li><p><b>It scores step by step, by the marking scheme.</b> Every step done gets its points, not only the final result. A mistake early in an exercise is not penalized again in the correct steps after it, in the same exercise. It works for open tasks too: short answers, solutions in steps, essays.</p></li>
                 <li><p><b>It flags what is unsure.</b> Hard-to-read writing, a cut photo, a method the marking scheme does not foresee: the point comes to you, with the reason.</p></li>
