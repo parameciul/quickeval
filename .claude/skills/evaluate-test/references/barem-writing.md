@@ -35,6 +35,7 @@ These rules come from a real barem of the teacher (see `barem-example.md`). The 
 - Give the real values, not only "calculează": a student's work is compared with them.
 - One step is one line. Do not break the line inside a step.
 - Math is inline TeX between single `$`: `$\sigma\tau = \begin{pmatrix} 1 & 2 \\ 2 & 1 \end{pmatrix}$`. Never `$$`, never a Unicode shortcut for a formula; the reports are made from the TeX.
+- Write every angle with its sign, `\sphericalangle`: `$\sphericalangle AOB = 38^{\circ}$`, `$\sphericalangle AOD = \sphericalangle AOC + \sphericalangle COD$`. Never a bare `$AOB$` for an angle.
 
 ## Alternatives
 

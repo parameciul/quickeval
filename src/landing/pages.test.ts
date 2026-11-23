@@ -482,13 +482,15 @@ describe('the pages that answer a search', () => {
   });
 });
 
-// The landing page's questions, on a page of their own: the header's
-// "Întrebări". One list, the shared part, so the two never drift apart.
+// The landing page's questions and the grading page's, on a page of their own:
+// the header's "Întrebări". Shared parts, so the copies never drift apart.
 describe('the questions page', () => {
   const qa = (doc: Document) => all(doc, '.qa li').map((li) => [text(li.querySelector('h3')), text(li.querySelector('p'))]);
   const doc = parse(questions);
   const enDoc = parse(expandPartials(enQuestions));
   const enLandingDoc = parse(expandPartials(enLanding));
+  const gradingDoc = parse(barem);
+  const enGradingDoc = parse(expandPartials(enGrading));
 
   it('has one heading, its own address, its own trail and its own date', () => {
     expect(doc.documentElement.getAttribute('lang')).toBe('ro');
@@ -515,12 +517,36 @@ describe('the questions page', () => {
     expect(all(enDoc, '.site-top .nav-links a[aria-current="page"]').map(text)).toEqual(['Questions']);
   });
 
-  it("shows the landing page's questions, word for word, in both languages", () => {
-    expect(qa(doc).length).toBeGreaterThanOrEqual(9);
-    expect(qa(doc)).toEqual(qa(landingDoc));
-    expect(qa(enDoc)).toEqual(qa(enLandingDoc));
-    for (const raw of [landingRaw, questionsRaw]) expect(raw.match(/<!--#include faq-list -->/g)).toHaveLength(1);
-    for (const raw of [enLanding, enQuestions]) expect(raw.match(/<!--#include faq-list-en -->/g)).toHaveLength(1);
+  it("shows the landing page's and the grading page's questions, word for word, each once, in both languages", () => {
+    const byQuestion = (list: string[][]) => [...list].sort(([a], [b]) => a!.localeCompare(b!));
+    expect(qa(gradingDoc)).toHaveLength(6);
+    expect(byQuestion(qa(doc))).toEqual(byQuestion([...qa(landingDoc), ...qa(gradingDoc)]));
+    expect(byQuestion(qa(enDoc))).toEqual(byQuestion([...qa(enLandingDoc), ...qa(enGradingDoc)]));
+    expect(landingRaw.match(/<!--#include faq-list -->/g)).toHaveLength(1);
+    expect(enLanding.match(/<!--#include faq-list-en -->/g)).toHaveLength(1);
+    expect(questionsRaw.match(/<!--#include questions-list -->/g)).toHaveLength(1);
+    expect(enQuestions.match(/<!--#include questions-list-en -->/g)).toHaveLength(1);
+  });
+
+  it('orders the questions by the stages of a test, and ends with the teacher account', () => {
+    const list = qa(doc).map(([q]) => q);
+    const at = (question: string) => {
+      expect(list).toContain(question);
+      return list.indexOf(question);
+    };
+    expect(at('Ce este MQGrader?')).toBe(0);
+    expect(at('Ce fac dacă nu am un barem pregătit?')).toBeLessThan(at('Au elevii nevoie de cont sau de aplicație?'));
+    expect(at('Pot încărca un barem scris de mine?')).toBe(at('Ce fac dacă nu am un barem pregătit?') + 1);
+    expect(at('Ce se întâmplă dacă un elev nu are telefon sau nu apucă să trimită pozele?')).toBe(at('Au elevii nevoie de cont sau de aplicație?') + 1);
+    expect(at('Au elevii nevoie de cont sau de aplicație?')).toBeLessThan(at('Ce se întâmplă dacă o poză nu se poate citi?'));
+    expect(at('Ce se întâmplă dacă o poză nu se poate citi?')).toBeLessThan(at('Cine stabilește punctajul final?'));
+    expect(at('Pot schimba eu punctajul?')).toBe(at('Cine stabilește punctajul final?') + 1);
+    expect(at('Cine stabilește punctajul final?')).toBeLessThan(at('Când e bine să public rezultatele?'));
+    expect(list.at(-1)).toBe('Cum obțin un cont de profesor?');
+    expect(qa(enDoc).at(-1)?.[0]).toBe('How do I get a teacher account?');
+    // The English list keeps the Romanian order, question by question.
+    const enOf = new Map([...qa(landingDoc), ...qa(gradingDoc)].map(([q], i) => [q, [...qa(enLandingDoc), ...qa(enGradingDoc)][i]![0]]));
+    expect(qa(enDoc).map(([q]) => q)).toEqual(list.map((q) => enOf.get(q)));
   });
 
   it('answers what happens when a student has no phone, right after the question about accounts', () => {
