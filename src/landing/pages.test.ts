@@ -35,6 +35,8 @@ const [ghid, barem, despre, preturi, landing] = [...RAW, landingRaw].map(expandP
   string,
 ];
 
+const questions = expandPartials(questionsRaw);
+
 type Page = { path: string; url: string; image: string; html: string; name: string };
 
 const PAGES: Page[] = [
@@ -42,6 +44,8 @@ const PAGES: Page[] = [
   { path: '/grading/', url: 'https://mqgrader.ro/grading/', image: 'https://mqgrader.ro/og-grading.png', html: barem, name: 'Corectarea' },
   { path: '/about/', url: 'https://mqgrader.ro/about/', image: 'https://mqgrader.ro/og-about.png', html: despre, name: 'Despre' },
   { path: '/pricing/', url: 'https://mqgrader.ro/pricing/', image: 'https://mqgrader.ro/og-pricing.png', html: preturi, name: 'Cât costă' },
+  // The questions page shares the landing page's card.
+  { path: '/questions/', url: 'https://mqgrader.ro/questions/', image: 'https://mqgrader.ro/og-image.png', html: questions, name: 'Întrebări' },
 ];
 
 const LINKS = ['/guide/', '/grading/', '/about/', '/pricing/'];
@@ -49,7 +53,9 @@ const LINKS = ['/guide/', '/grading/', '/about/', '/pricing/'];
 // The header's menu: the landing page, the four pages, and the questions
 // between the grading page and the page about the author.
 const NAV = ['/', '/guide/', '/grading/', '/questions/', '/about/', '/pricing/'];
-const questions = expandPartials(questionsRaw);
+
+// The footer names the same pages, without the landing page (its lockup links there).
+const FOOT = NAV.slice(1);
 
 const STATS_SCRIPT = 'https://stats.mqgrader.ro/api/script.js?siteId=b5be2803e8ab';
 
@@ -96,11 +102,11 @@ describe('the pages that answer a search', () => {
     for (const page of PAGES) expect(lockup(page.html)).toEqual(expected);
   });
 
-  it('offers the same four links on every page, and from the landing page too', () => {
+  it('offers the same footer links on every page, and from the landing page too', () => {
     for (const html of [landing, ...PAGES.map((p) => p.html)]) {
       const doc = parse(html);
       const nav = all(doc, '.foot-nav a').map((a) => a.getAttribute('href'));
-      expect(nav).toEqual(LINKS);
+      expect(nav).toEqual(FOOT);
     }
   });
 
@@ -205,6 +211,7 @@ describe('the pages that answer a search', () => {
     '/grading/': ['21 noiembrie 2026', '2026-11-21'],
     '/about/': ['17 noiembrie 2026', '2026-11-17'],
     '/pricing/': ['21 noiembrie 2026', '2026-11-21'],
+    '/questions/': ['23 noiembrie 2026', '2026-11-23'],
   };
 
   it.each(PAGES)('$path says who wrote it and when, and the date is the one in the data', ({ html, url, path }) => {
@@ -224,7 +231,7 @@ describe('the pages that answer a search', () => {
     }[] = ld['@graph'];
     const page = nodes.find((n) => n['@type'] === 'WebPage')!;
     expect(page.url).toBe(url);
-    expect(page.datePublished).toBe('2026-11-10');
+    expect(page.datePublished).toBe(path === '/questions/' ? '2026-11-23' : '2026-11-10');
     expect(page.dateModified).toBe(iso);
     expect(page.publisher?.['@id']).toBe('https://mqgrader.ro/#organization');
     expect(page.author?.['@id']).toBe('https://mqgrader.ro/#laura-miron');
@@ -526,6 +533,35 @@ describe('the questions page', () => {
     expect(answer).toContain('mai târziu');
     const en = qa(enLandingDoc).map(([q]) => q);
     expect(en[en.indexOf('Do students need an account or an app?') + 1]).toBe('What if a student has no phone or no time to send the photos?');
+  });
+
+  it('gives the English copy its own address, card, trail and date', () => {
+    expect(enDoc.documentElement.getAttribute('lang')).toBe('en');
+    expect(all(enDoc, 'h1').map(text)).toEqual(['Questions about MQGrader']);
+    expect(enDoc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://mqgrader.ro/en/questions/');
+    expect(enDoc.querySelector('meta[property="og:url"]')?.getAttribute('content')).toBe('https://mqgrader.ro/en/questions/');
+    expect(enDoc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe('https://mqgrader.ro/en/og-image.png');
+    expect(enDoc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')).toBe('https://mqgrader.ro/en/og-image.png');
+    const crumbs = all(enDoc, '.crumbs a, .crumbs span:not([aria-hidden])').map(text);
+    expect(crumbs).toEqual(['MQGrader', 'Questions']);
+    const ld = JSON.parse(text(enDoc.querySelector('script[type="application/ld+json"]')));
+    const nodes: { '@type': string; url?: string; dateModified?: string; itemListElement?: { name: string; item: string }[] }[] = ld['@graph'];
+    expect(nodes[0]).toMatchObject({ url: 'https://mqgrader.ro/en/questions/', dateModified: '2026-11-23' });
+    expect(nodes[1]!.itemListElement!.map((e) => [e.name, e.item])).toEqual([
+      ['MQGrader', 'https://mqgrader.ro/en/'],
+      ['Questions', 'https://mqgrader.ro/en/questions/'],
+    ]);
+    expect(text(enDoc.querySelector('.byline'))).toContain('23 November 2026');
+    expect(all(enDoc, '.foot-nav a').map((a) => a.getAttribute('href'))).toEqual(FOOT.map((href) => `/en${href}`));
+  });
+
+  it('names the trail by its own addresses', () => {
+    const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
+    const trail: { name: string; item: string }[] = ld['@graph'][1].itemListElement;
+    expect(trail.map((e) => [e.name, e.item])).toEqual([
+      ['MQGrader', 'https://mqgrader.ro/'],
+      ['Întrebări', 'https://mqgrader.ro/questions/'],
+    ]);
   });
 
   it('leaves the FAQ data to the landing page, so the questions are marked up once', () => {

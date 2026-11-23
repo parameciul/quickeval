@@ -103,6 +103,11 @@
   .pg-questions .head .lede { margin-top: 32px; max-width: 52ch; }
   .pg-questions .faq { padding-top: 96px; padding-bottom: 104px; background: var(--surface); }
   .pg-questions .faq .qa { margin-top: 48px; }
+  .pg-questions .faq-more { margin-top: 40px; max-width: 60ch; font-size: var(--fs-lede); }
+  .pg-questions .faq-more a { font-weight: 600; }
+  /* Four pages to read next: one row of four, two rows of two on a tablet. */
+  @media (min-width: 901px) { .pg-questions .read ul { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 901px) and (max-width: 1100px) { .pg-questions .read ul { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 900px) {
     .pg-questions .head { padding-bottom: 48px; }
     .pg-questions .faq { padding-top: 72px; padding-bottom: 88px; }

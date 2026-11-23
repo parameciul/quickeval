@@ -19,7 +19,7 @@ MQGrader (also written MQ Grader) is a web app that helps teachers in Romania gr
 - Folosește inteligență artificială (AI) pentru a citi pozele lucrărilor și a propune punctajul; profesorul verifică punctele nesigure și decide punctajul final. / Uses AI to read the photos and propose scores; the teacher has the final say.
 - Public țintă: profesori de gimnaziu și liceu, în limba română. Materii: matematică, fizică, chimie, biologie, științe, limba română și limba engleză.
 - Elevii nu au nevoie de cont sau aplicație: scanează codul QR de pe test și trimit pozele.
-- Un elev fără telefon, sau unul care nu apucă să trimită pozele: profesorul îi încarcă lucrarea cu linkul lui pentru mai multe lucrări, și mai târziu, cât timp încărcarea e deschisă.
+- Un elev fără telefon, sau unul care nu apucă să trimită pozele: profesorul îi încarcă lucrarea cu linkul lui pentru mai multe lucrări, chiar și mai târziu, cât timp încărcarea este deschisă.
 - Punctajul urmează baremul; dacă profesorul nu are un barem pregătit, îl generează automat din test, iar apoi îl poate revizui și ajusta.
 - Rezultate: link pentru fiecare elev (cu nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări), raportul clasei, PDF pentru fiecare elev, CSV pentru catalog.
 - Conturile noi se creează pe bază de cerere.

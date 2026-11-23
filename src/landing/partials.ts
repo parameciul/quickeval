@@ -7,7 +7,7 @@
 const MARK =
   '<svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="none" stroke-width="7"><path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="var(--mk-a)" /><path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="var(--mk-a)" /><path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="var(--mk-b)" /></g></svg>';
 
-// The footer: the lockup, the four content pages, the contact address and the
+// The footer: the lockup, the content pages, the contact address and the
 // line under them. It sits on the colour of the page's end band, right above it.
 const SITE_FOOT = `<footer class="site-foot">
         <div class="foot wrap">
@@ -18,6 +18,7 @@ const SITE_FOOT = `<footer class="site-foot">
           <nav class="foot-nav" aria-label="Pagini">
             <a href="/guide/">Ghidul aplicației</a>
             <a href="/grading/">Corectarea</a>
+            <a href="/questions/">Întrebări</a>
             <a href="/about/">Despre</a>
             <a href="/pricing/">Cât costă</a>
           </nav>
@@ -36,6 +37,7 @@ const SITE_FOOT_EN = `<footer class="site-foot">
           <nav class="foot-nav" aria-label="Pages">
             <a href="/en/guide/">App guide</a>
             <a href="/en/grading/">Grading</a>
+            <a href="/en/questions/">Questions</a>
             <a href="/en/about/">About</a>
             <a href="/en/pricing/">Pricing</a>
           </nav>
@@ -63,7 +65,7 @@ const FAQ_LIST_EN = `<ul class="qa">
   <li class="rise"><h3>What is MQGrader?</h3><p>A web platform for teachers. It grades tests in mathematics, physics, chemistry, biology, science, Romanian and English. Students send photos of their papers from their phones, and every paper is scored step by step, by the marking scheme.</p></li>
   <li class="rise"><h3>Does it use artificial intelligence (AI)?</h3><p>Yes. AI reads the photos of the papers and proposes the points step by step, by your marking scheme. AI does not decide alone: the unsure points wait for your review, and the final grade is yours.</p></li>
   <li class="rise"><h3>Do students need an account or an app?</h3><p>No. They scan the QR code on the test and send the photos from their phone. No account, no app, no email.</p></li>
-  <li class="rise"><h3>What if a student has no phone or no time to send the photos?</h3><p>You upload their paper yourself, with your link for several papers: one phone sends the papers of several students. If there is not enough time in class, you collect the sheets and upload them later yourself.</p></li>
+  <li class="rise"><h3>What if a student has no phone or no time to send the photos?</h3><p>You upload their paper yourself, with your link for several papers: from one phone you can send the papers of several students. If there is not enough time in class, you collect the sheets and upload them later yourself.</p></li>
   <li class="rise"><h3>Can I change the points myself?</h3><p>Yes, at any time. You accept or change the points of any exercise, above all in debatable or creative cases.</p></li>
   <li class="rise"><h3>What if I have no marking scheme ready?</h3><p>You make the marking scheme from the test automatically, and then you can review and adjust it. Nothing is graded by a marking scheme you have not confirmed.</p></li>
   <li class="rise"><h3>Does it work from a phone?</h3><p>Yes. Students send from their phones, and you can check the unsure points and publish the grades from your phone too.</p></li>
