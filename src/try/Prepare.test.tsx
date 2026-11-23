@@ -290,9 +290,14 @@ describe("the phone's code on a try's page", () => {
     const { tryApi } = setup();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     await user.click(await phoneButton());
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(PHONE_IDLE_MS);
+    // The 15 minutes go in one synchronous step: the async advance waits a
+    // real macrotask after each of the 300 reads every 3 s, which takes
+    // seconds when the whole suite runs. The reads that pile up meanwhile
+    // join the one in flight; usePagesWatch.test.ts checks the timing itself.
+    act(() => {
+      vi.advanceTimersByTime(PHONE_IDLE_MS);
     });
+    await act(async () => {});
     const again = await screen.findByRole('button', { name: 'Verifică din nou' });
     expect(again.parentElement).toHaveTextContent(PHONE_IDLE_TEXT);
     expect(again.parentElement!.parentElement).toHaveAttribute('aria-live', 'polite');
