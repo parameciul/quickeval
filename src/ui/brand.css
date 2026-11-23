@@ -4053,6 +4053,120 @@ table.items tr.item-decision > td {
   margin-bottom: 0.75rem;
 }
 
+/* Without the room in the header, the view and the zoom float over the
+   page's top corners, hung from the header: they stay there while the page
+   scrolls under it. Only the buttons take a press; the rest of the page
+   under them is the page's. */
+.review-photo-top {
+  position: relative;
+}
+
+.review-photo-float {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  left: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.review-photo-float .zoom-controls {
+  pointer-events: auto;
+}
+
+.review-photo-start {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* "Arată chenarul" and the zoom in the header: on its one line, the name
+   giving way (cut short) before anything wraps. Nothing floats there, so
+   nothing has a border or a shadow; the buttons are the page buttons' size. */
+.review-photo-top.has-tools {
+  flex-wrap: nowrap;
+  gap: 0.75rem;
+}
+
+.review-photo-top.has-tools .review-photo-start {
+  flex: 1 1 auto;
+}
+
+.review-photo-top.has-tools .review-photo-name {
+  min-width: 0;
+  overflow-wrap: normal;
+}
+
+.review-photo-top.has-tools .review-photo-name > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-photo-top.has-tools .review-photo-actions,
+.review-photo-top.has-tools .page-switch {
+  flex: none;
+  flex-wrap: nowrap;
+}
+
+.review-photo-top.has-tools .review-photo-actions {
+  gap: 0.75rem;
+}
+
+.review-photo-start .zoom-controls,
+.review-photo-actions .zoom-controls {
+  position: static;
+  flex: none;
+  gap: 0.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.review-photo-start .zoom-controls .button-small,
+.review-photo-actions .zoom-controls .button-small {
+  width: 2rem;
+  min-height: 2rem;
+  font-size: 0.9375rem;
+}
+
+.review-photo-actions .zoom-level {
+  min-width: 2.5rem;
+  font-size: 0.75rem;
+}
+
+/* Beside the exercises the box scrolls on its own: its header stays at its
+   top, over the page, and the page starts right under its line. */
+@media not (max-width: 56.25rem) {
+  .review-photo {
+    padding-top: 0;
+  }
+
+  .review-photo-top {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin: 0 -1rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--sheet);
+  }
+
+  .review-photo-top.is-end {
+    margin-bottom: 0.75rem;
+    border-bottom: 0;
+  }
+
+  .review-photo-float {
+    top: 100%;
+    right: 1rem;
+    left: 1rem;
+  }
+}
+
 .review-photo figcaption {
   font-weight: 600;
 }
@@ -4411,16 +4525,145 @@ table.items tr.item-decision > td {
   flex-direction: column;
   max-height: none;
   overflow: hidden;
-  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom))
-    max(0.75rem, env(safe-area-inset-left));
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   border: 0;
   border-radius: 0;
   scrollbar-gutter: auto;
 }
 
+/* One header over the whole width: the name and "Arată chenarul" on the
+   left, the × alone in the middle column (so it sits in the very middle,
+   whatever the two sides hold), the zoom and the page buttons on the right. */
 :root .review-photo.is-full .review-photo-top {
+  position: static;
+  display: grid;
   flex: none;
-  margin-bottom: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--sheet);
+}
+
+:root .review-photo.is-full .review-photo-actions {
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+:root .review-photo.is-full .photo-hide {
+  width: 2.5rem;
+  min-height: 2.5rem;
+  border-color: var(--text);
+  color: var(--text);
+}
+
+/* A wide screen has the room: bigger buttons. */
+@media (min-width: 80rem) {
+  :root .review-photo.is-full .zoom-controls .button-small {
+    width: 2.5rem;
+    min-height: 2.5rem;
+    font-size: 1.125rem;
+  }
+
+  :root .review-photo.is-full .zoom-level {
+    min-width: 3rem;
+    font-size: 0.875rem;
+  }
+
+  :root .review-photo.is-full .page-switch-button {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+  }
+
+  :root .review-photo.is-full .photo-hide {
+    width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+/* A phone: the name on the first line, the × in the middle of the next and
+   the page buttons at its end; the view and the zoom in a bar of their own
+   under the header's line (ReviewPhoto, the same width). */
+@media (max-width: 40rem) {
+  :root .review-photo.is-full .review-photo-top {
+    gap: 0.5rem 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  :root .review-photo.is-full .review-photo-start {
+    grid-column: 1 / -1;
+  }
+
+  :root .review-photo.is-full .photo-hide {
+    grid-column: 2;
+  }
+
+  :root .review-photo.is-full .review-photo-actions {
+    grid-column: 3;
+  }
+
+  :root .review-photo.is-full .zoom-bar {
+    margin: 0;
+    padding: 0.375rem 0.75rem;
+  }
+}
+
+/* The hint's line under the page, the width of the screen, its words in the
+   middle. */
+:root .review-photo.is-full .zoom-foot {
+  margin: 0;
+  padding: 0.5rem 1rem 0.625rem;
+  border-top: 1px solid var(--rule);
+}
+
+:root .review-photo.is-full .zoom-foot .zoom-hint {
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* The previous and the next page, beside the page in the screen's margin;
+   over the page's edges when the page takes the whole width. They float, so
+   they have a shadow. */
+.page-step {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  width: 3.25rem;
+  min-height: 3.25rem;
+  padding: 0;
+  background: var(--sheet);
+  box-shadow: var(--float);
+  transform: translateY(-50%);
+}
+
+.page-step svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.page-step.is-prev {
+  left: max(1rem, calc((100% - 72rem) / 2 - 4.5rem));
+}
+
+.page-step.is-next {
+  right: max(1rem, calc((100% - 72rem) / 2 - 4.5rem));
+}
+
+@media (max-width: 40rem) {
+  .page-step {
+    width: 2.5rem;
+    min-height: 2.5rem;
+  }
+
+  .page-step.is-prev {
+    left: 0.5rem;
+  }
+
+  .page-step.is-next {
+    right: 0.5rem;
+  }
 }
 
 :root .review-photo.is-full .zoom-photo {

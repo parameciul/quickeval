@@ -69,20 +69,34 @@ describe('the paper over the whole screen', () => {
     expect(layer().style.transform).not.toBe(WHOLE);
   });
 
-  it('puts the buttons above the page and the hint under it, also with a mouse', async () => {
+  it('puts the buttons in the header, the × in its middle, and the hint under the page, also with a mouse', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
     await screen.findByText('Ion Popa · 1/2');
     const pane = screen.getByTestId('zoom-pane');
-    // With a mouse the buttons float over the page.
-    expect(within(pane).getByRole('button', { name: 'Mărește' })).toBeInTheDocument();
+    // With a mouse, in a box with no measured room, the buttons float over the
+    // page, hung from the header, not inside the page that scrolls.
+    const float = box().querySelector<HTMLElement>('.review-photo-float')!;
+    expect(float).toContainElement(screen.getByRole('button', { name: 'Mărește' }));
+    expect(pane).not.toContainElement(screen.getByRole('button', { name: 'Mărește' }));
     await userEvent.click(fullButton());
     const scroller = pane.parentElement!;
     expect(scroller).toHaveClass('zoom-scroll');
     expect(within(pane).queryByRole('button')).not.toBeInTheDocument();
-    const bar = scroller.previousElementSibling!;
-    expect(bar).toHaveClass('zoom-bar');
-    expect(bar).toContainElement(screen.getByRole('button', { name: 'Arată chenarul' }));
-    expect(bar).toContainElement(fullButton());
+    expect(document.querySelector('.zoom-bar')).toBeNull();
+    // One header: the name and the view on the left, the × in the middle,
+    // the zoom and the pages on the right.
+    const head = box().querySelector<HTMLElement>('.review-photo-top')!;
+    const [start, middle, end] = [...head.children] as HTMLElement[];
+    expect(start).toContainElement(screen.getByText('Ion Popa · 1/2'));
+    expect(start).toContainElement(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(middle).toBe(screen.getByRole('button', { name: 'Ieși din ecranul complet' }));
+    expect(end).toContainElement(fullButton());
+    expect(end).toContainElement(screen.getByRole('group', { name: 'Paginile lucrării' }));
+    // Its buttons work there.
+    await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
+    expect(layer().style.transform).not.toBe(WHOLE);
+    await userEvent.click(screen.getByRole('button', { name: 'Micșorează' }));
+    expect(layer().style.transform).toBe(WHOLE);
     // The hint is the mouse's, and the parts' arrows stand under the page,
     // where they stay in sight while the page scrolls.
     const foot = scroller.nextElementSibling!;
@@ -255,10 +269,125 @@ describe('the paper over the whole screen', () => {
     expect(own[own.length - 1]).toHaveFocus();
   });
 
+  it('turns the pages with the arrows beside the page and with ← and →', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    // Not beside the exercises: only over the whole screen.
+    expect(screen.queryByRole('button', { name: 'Pagina următoare' })).not.toBeInTheDocument();
+    await userEvent.click(fullButton());
+    const previous = screen.getByRole('button', { name: 'Pagina anterioară' });
+    const next = screen.getByRole('button', { name: 'Pagina următoare' });
+    // Out of the page: a click on one never zooms it.
+    expect(screen.getByTestId('zoom-pane')).not.toContainElement(next);
+    expect(previous).toBeDisabled();
+    await userEvent.click(next);
+    expect(screen.getByText('Ion Popa · 2/2')).toBeInTheDocument();
+    expect(layer().style.transform).toBe(WHOLE);
+    expect(screen.getByRole('button', { name: 'Pagina următoare' })).toBeDisabled();
+    expect(box()).toHaveClass('is-full');
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(screen.getByText('Ion Popa · 1/2')).toBeInTheDocument();
+    // Past the first page, nothing.
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(screen.getByText('Ion Popa · 1/2')).toBeInTheDocument();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByText('Ion Popa · 2/2')).toBeInTheDocument();
+    expect(box()).toHaveClass('is-full');
+  });
+
+  it('has no page arrows for a paper of one page', async () => {
+    renderAdmin(`${PAGE}?paper=14&item=41`, apiWith());
+    await screen.findByText('Ion Popa · 1/1');
+    await userEvent.click(fullButton());
+    expect(screen.queryByRole('button', { name: 'Pagina următoare' })).not.toBeInTheDocument();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByText('Ion Popa · 1/1')).toBeInTheDocument();
+  });
+
+  it('closes when the arrow turns to a PDF page', async () => {
+    renderAdmin(`${PAGE}?paper=11&item=pages`, apiWith());
+    await screen.findByText('Ana Pop · 2/3');
+    await userEvent.click(fullButton());
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina următoare' }));
+    expect(screen.getByText('Ana Pop · 3/3')).toBeInTheDocument();
+    expect(box()).not.toHaveClass('is-full');
+  });
+
+  it('puts the view and the zoom in a bar under the header on a phone', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 40rem)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    await userEvent.click(fullButton());
+    const head = box().querySelector<HTMLElement>('.review-photo-top')!;
+    const bar = box().querySelector<HTMLElement>('.zoom-bar')!;
+    expect(bar).toContainElement(screen.getByRole('button', { name: 'Mărește' }));
+    expect(bar).toContainElement(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(head).not.toContainElement(screen.getByRole('button', { name: 'Mărește' }));
+    // The header keeps the name, the × and the pages.
+    expect(head).toContainElement(screen.getByRole('button', { name: 'Ieși din ecranul complet' }));
+    expect(head).toContainElement(screen.getByRole('group', { name: 'Paginile lucrării' }));
+    expect(fullButton()).toHaveFocus();
+  });
+
   it('has no button on a PDF page, which has no zoom', async () => {
     renderAdmin(`${PAGE}?paper=11&item=pages`, apiWith());
     await screen.findByText('Ana Pop · 2/3');
     await userEvent.keyboard('3');
     expect(screen.queryByRole('button', { name: 'Pe tot ecranul' })).not.toBeInTheDocument();
+  });
+});
+
+describe('the header of the paper beside the exercises', () => {
+  // The box laid out `rem` wide (jsdom lays out nothing).
+  const boxWide = (rem: number) => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('review-photo') ? rem * 16 : 0;
+    });
+  };
+
+  it('holds the view and the zoom when its one line has the room', async () => {
+    boxWide(60);
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    const head = box().querySelector<HTMLElement>('.review-photo-top')!;
+    expect(head).toHaveClass('has-tools');
+    expect(head).toContainElement(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(head).toContainElement(screen.getByRole('button', { name: 'Mărește' }));
+    expect(head).toContainElement(fullButton());
+    expect(within(screen.getByTestId('zoom-pane')).queryByRole('group', { name: 'Mărirea paginii' })).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('zoom-pane')).queryByRole('group', { name: 'Vederea paginii' })).not.toBeInTheDocument();
+    // The hint still floats over the whole page, with a mouse.
+    expect(screen.getByTestId('zoom-pane')).toContainElement(screen.getByText('Clic stânga: mărește · clic dreapta: micșorează'));
+    await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
+    expect(layer().style.transform).not.toBe(WHOLE);
+  });
+
+  it('leaves them over the page when it is too narrow, never on a second line', async () => {
+    boxWide(30);
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    const head = box().querySelector<HTMLElement>('.review-photo-top')!;
+    expect(head).not.toHaveClass('has-tools');
+    // Over the page's corners, hung from the header (which stays at the top of
+    // the box), so they never scroll away with the page.
+    const float = head.querySelector<HTMLElement>('.review-photo-float')!;
+    expect(float).toContainElement(screen.getByRole('button', { name: 'Mărește' }));
+    expect(float).toContainElement(screen.getByRole('button', { name: 'Arată chenarul' }));
+    expect(screen.getByTestId('zoom-pane')).not.toContainElement(screen.getByRole('button', { name: 'Mărește' }));
+    expect(document.querySelector('.zoom-bar')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
+    expect(layer().style.transform).not.toBe(WHOLE);
   });
 });

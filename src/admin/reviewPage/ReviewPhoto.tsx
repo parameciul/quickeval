@@ -8,7 +8,7 @@ import { useApi } from '../ApiContext.tsx';
 import { AnswerFrame } from './AnswerFrame.tsx';
 import { isReviewKey } from './keys.ts';
 import { WHOLE_PAGE, type ZoomView } from './zoom.ts';
-import { ZoomPhoto } from './ZoomPhoto.tsx';
+import { ViewGroup, ZoomGroup, ZoomPhoto } from './ZoomPhoto.tsx';
 import { t } from '../../i18n/t.ts';
 import { tryName } from '../../../shared/quickTry.ts';
 
@@ -19,6 +19,18 @@ export const PAPER_PHOTO_ID = 'paper-photo';
 
 // What Tab reaches inside the box over the whole screen.
 const FOCUSABLE = 'button:not([disabled]), a[href], iframe, [tabindex]:not([tabindex="-1"])';
+
+// The width, in rem, that the box's header needs to hold the view and the zoom
+// buttons on its one line, beside the name (kept at 9rem at least), the page
+// buttons and the ×. A narrower box keeps them over the page, so its header
+// never grows a second line.
+export function headWidth({ view, pages, hide }: { view: boolean; pages: number; hide: boolean }): number {
+  const padding = 2;
+  const name = 9;
+  const zoom = 9.75;
+  const gap = 0.75;
+  return padding + name + gap + zoom + (view ? 2 + gap : 0) + (pages > 1 ? pages * 2.25 + gap : 0) + (hide ? 2 + gap : 0);
+}
 
 export interface ReviewFocus {
   key: string;
@@ -37,9 +49,18 @@ export interface ReviewFocus {
 // page never zooms by itself. An answer in more parts steps through them with
 // the arrows beside the border's label, each part opening on its page, whole.
 //
+// The box's header (the name, the page buttons, the ×) stays at the top of
+// the box while the page scrolls in it. It also holds "Arată chenarul" and the
+// zoom when its one line has the room for them (`headWidth`); else they float
+// over the page's top corners, hung from the header, so they stay in sight too
+// (on a touch screen they stand in the bar above the page instead).
+//
 // "Pe tot ecranul" shows the same box over the whole screen (`is-full`): the
-// page as wide as the screen allows, scrolling under the name, the page
-// buttons and the zoom, which stay in sight. The box stays the same element,
+// page as wide as the screen allows, scrolling between the header and the
+// hint's line under it. The header holds the name and "Arată chenarul" on
+// the left, the × in the middle, the zoom and the page buttons on the right.
+// Two arrows beside the page (and ← and →) turn to the previous and the next
+// page; past the first or the last page they do nothing. The box stays the same element,
 // so the zoom, the border and its part go with it. Esc, the button again or
 // the × in place of "Ascunde lucrarea" bring it back; a spacer of its height
 // keeps its place meanwhile, so the page under it never moves. Over the whole
@@ -77,6 +98,9 @@ export function ReviewPhoto({
   // the pane's edge on a narrow screen: on a phone the controls stand in the
   // line under the page instead (below), never over the handwriting.
   const touch = useMediaQuery('(pointer: coarse)');
+  // A phone's width: over the whole screen the header takes two lines and the
+  // view and the zoom a bar of their own (brand.css, the same width).
+  const narrow = useMediaQuery('(max-width: 40rem)');
   const files = submission.files;
   const index = Math.min(Math.max(page, 0), Math.max(files.length - 1, 0));
   const file = files[index];
@@ -155,6 +179,29 @@ export function ReviewPhoto({
   };
   const latestClose = useRef(closeFull);
   latestClose.current = closeFull;
+  // The page before or after this one; none past the first or the last.
+  const step = (delta: number) => {
+    const next = index + delta;
+    if (next >= 0 && next < files.length) onPage(next);
+  };
+  const latestStep = useRef(step);
+  latestStep.current = step;
+  // The box's width in rem: whether its header holds the zoom's buttons.
+  // Unknown (0) where nothing is laid out: the buttons stay over the page.
+  const [boxWidth, setBoxWidth] = useState(0);
+  const hasFile = file !== undefined;
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!element || typeof ResizeObserver !== 'function') return;
+    const measure = () => {
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      setBoxWidth(element.clientWidth / rem);
+    };
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(element);
+    return () => watch.disconnect();
+  }, [hasFile]);
   useLayoutEffect(() => {
     if (!refocus.current) return;
     refocus.current = false;
@@ -186,9 +233,14 @@ export function ReviewPhoto({
       }
       if (!isReviewKey(event)) return;
       const pressed = event.key.toLowerCase();
+      const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       if (event.key === 'Escape') {
         event.preventDefault();
         latestClose.current();
+      } else if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && plain) {
+        // ← and → turn the pages, like the arrows beside the page.
+        event.preventDefault();
+        latestStep.current(event.key === 'ArrowLeft' ? -1 : 1);
       } else if ((pressed === 'a' || pressed === 'j' || pressed === 'k') && !event.ctrlKey && !event.metaKey && !event.altKey) {
         // Marked taken: the review's keys leave it alone.
         event.preventDefault();
@@ -330,22 +382,58 @@ export function ReviewPhoto({
         {partButtons}
       </span>
     ) : undefined;
+  const tools =
+    focus !== null && focus.areas.length > 0 ? (
+      <button
+        type="button"
+        className="button-quiet button-small icon-button frame-toggle"
+        aria-label={t('Arată chenarul')}
+        aria-pressed={frames}
+        title={frames ? t('Ascunde chenarul răspunsului') : t('Arată chenarul răspunsului')}
+        onClick={() => onFrames(!frames)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 2.4" />
+        </svg>
+      </button>
+    ) : undefined;
+  // Where the view and the zoom stand. Over the whole screen: in the header,
+  // or on a phone in the bar between the header and the page. Beside the
+  // exercises: in the header when its one line has the room; else in the bar
+  // above the page on a touch screen, and with a mouse over the page's top
+  // corners, hung from the header so they stay in sight while the page
+  // scrolls under it.
+  const roomy = boxWidth >= headWidth({ view: tools !== undefined, pages: files.length, hide: hide !== null });
+  const place = !photo ? null : isFull ? (narrow ? 'bar' : 'head') : roomy ? 'head' : touch ? 'bar' : 'float';
+  const inHead = place === 'head';
+  const groups = (
+    <>
+      <ViewGroup tools={tools} />
+      <ZoomGroup view={view} onView={setView} full={isFull} onFull={showFull} />
+    </>
+  );
   return (
     <>
       {/* The box's place in the page while it is over the whole screen. */}
       {isFull && <div className="review-photo-spacer" style={{ height: spacer }} aria-hidden="true" />}
       <figure className={isFull ? 'review-photo is-full' : 'review-photo'} id={PAPER_PHOTO_ID} ref={box}>
-        <div className="review-photo-top">
-          <div className="review-photo-name">
-            <figcaption>{caption}</figcaption>
-            {/* The page's own file, as the student sent it. */}
-            {file && (
-              <span className="hint">
-                {file.name} · {formatFileSize(file.size)}
-              </span>
-            )}
+        <div className={inHead ? 'review-photo-top has-tools' : 'review-photo-top'}>
+          <div className="review-photo-start">
+            <div className="review-photo-name">
+              <figcaption>{caption}</figcaption>
+              {/* The page's own file, as the student sent it. */}
+              {file && (
+                <span className="hint">
+                  {file.name} · {formatFileSize(file.size)}
+                </span>
+              )}
+            </div>
+            {inHead && <ViewGroup tools={tools} />}
           </div>
+          {/* Over the whole screen the × is in the middle of the header. */}
+          {isFull && hide}
           <div className="review-photo-actions">
+            {inHead && <ZoomGroup view={view} onView={setView} full={isFull} onFull={showFull} />}
             {files.length > 1 && (
               <span className="page-switch" role="group" aria-label={t('Paginile lucrării')}>
                 {files.map((other, number) => (
@@ -362,8 +450,9 @@ export function ReviewPhoto({
                 ))}
               </span>
             )}
-            {hide}
+            {!isFull && hide}
           </div>
+          {place === 'float' && <div className="review-photo-float">{groups}</div>}
         </div>
         {photo ? (
           <ZoomPhoto
@@ -374,22 +463,8 @@ export function ReviewPhoto({
             foot={footParts}
             full={isFull}
             onFull={showFull}
-            tools={
-              focus !== null && focus.areas.length > 0 ? (
-                <button
-                  type="button"
-                  className="button-quiet button-small icon-button frame-toggle"
-                  aria-label={t('Arată chenarul')}
-                  aria-pressed={frames}
-                  title={frames ? t('Ascunde chenarul răspunsului') : t('Arată chenarul răspunsului')}
-                  onClick={() => onFrames(!frames)}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 2.4" />
-                  </svg>
-                </button>
-              ) : undefined
-            }
+            buttons={place === 'bar'}
+            tools={tools}
           >
             {framed?.areas.map((area, number) =>
               area.page === index + 1 ? (
@@ -409,6 +484,36 @@ export function ReviewPhoto({
             <a href={url} target="_blank" rel="noopener">
               {t('Deschide PDF-ul')}
             </a>
+          </>
+        )}
+        {/* Over the whole screen, the previous and the next page beside it,
+            out of the page, so a click on one never zooms it. */}
+        {isFull && files.length > 1 && (
+          <>
+            <button
+              type="button"
+              className="button-quiet icon-button page-step is-prev"
+              aria-label={t('Pagina anterioară')}
+              title={t('Pagina anterioară (←)')}
+              disabled={index === 0}
+              onClick={() => step(-1)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="button-quiet icon-button page-step is-next"
+              aria-label={t('Pagina următoare')}
+              title={t('Pagina următoare (→)')}
+              disabled={index === files.length - 1}
+              onClick={() => step(1)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           </>
         )}
       </figure>
