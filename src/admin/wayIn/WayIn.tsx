@@ -12,7 +12,7 @@ const WHO_CLASS: Record<Who, string> = { Tu: 'is-you', Elevii: 'is-st', MQGrader
 export type Stage = {
   name: StageName;
   // Who does it, in the landing page's order (its day of a test, where
-  // Monday holds both Pregătire and Tipărire).
+  // Monday holds Pregătire; Tipărire is the teacher's alone).
   who: Who[];
   // The sentence's bold start, when it has one.
   lead?: string;
@@ -42,7 +42,7 @@ export const STAGES: Stage[] = [
   },
   {
     name: 'Tipărire',
-    who: ['Tu', 'MQGrader'],
+    who: ['Tu'],
     text: t('Tipărești testul. Fiecare pagină are un cod QR.'),
     icon: (
       <>
@@ -82,7 +82,7 @@ export const STAGES: Stage[] = [
   {
     name: 'Rezultate',
     who: ['MQGrader', 'Tu', 'Elevii'],
-    text: t('Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.'),
+    text: t('Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, detaliat pe puncte, cu recomandări și statistici — în aplicație și ca PDF.'),
     icon: (
       <>
         <path d="M8.5 11.5l3-3" />

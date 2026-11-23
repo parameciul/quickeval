@@ -12,12 +12,12 @@ describe('the way in', () => {
   });
 
   it("names who does each stage as the landing page's day does", () => {
-    // The day has five rows: Monday holds Pregătire and Tipărire, each other
-    // row one stage.
+    // The day has five rows: Monday is Pregătire, each other row one stage.
+    // Tipărire, between them, is the teacher's alone.
     const doc = new DOMParser().parseFromString(landing, 'text/html');
     const rows = [...doc.querySelectorAll('.clock .whos')].map((w) => [...w.querySelectorAll('.who')].map((s) => s.textContent));
     expect(rows).toHaveLength(5);
-    expect(STAGES.map((stage) => stage.who)).toEqual([rows[0], rows[0], rows[1], rows[2], rows[3], rows[4]]);
+    expect(STAGES.map((stage) => stage.who)).toEqual([rows[0], ['Tu'], rows[1], rows[2], rows[3], rows[4]]);
   });
 
   it('shows the form, the six stages and the legend, the teacher\'s stages marked', () => {
@@ -30,7 +30,7 @@ describe('the way in', () => {
     const items = within(pitch).getAllByRole('listitem');
     expect(items.map((item) => within(item).getByRole('heading').textContent)).toEqual([
       'Pregătire Tu MQGrader',
-      'Tipărire Tu MQGrader',
+      'Tipărire Tu',
       'În clasă Elevii',
       'Corectare Tu MQGrader',
       'Verificare Tu',

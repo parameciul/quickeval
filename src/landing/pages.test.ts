@@ -416,19 +416,19 @@ describe('the pages that answer a search', () => {
   });
 
   it("names who does each of the guide's six stages as the landing page's day does", () => {
-    // The landing page's day has five rows: Monday holds Pregătire and
-    // Tipărire, each other row one stage.
+    // The landing page's day has five rows: Monday is Pregătire, each other
+    // row one stage. Tipărire, between them, is the teacher's alone.
     const rows = all(parse(landing), '.clock .whos').map((w) => [...w.querySelectorAll('.who')].map(text));
     expect(rows).toHaveLength(5);
-    const byStage = [rows[0], rows[0], rows[1], rows[2], rows[3], rows[4]];
+    const byStage = [rows[0], ['Tu'], rows[1], rows[2], rows[3], rows[4]];
     const guide = parse(ghid);
     expect(all(guide, '.stage .whos').map((w) => [...w.querySelectorAll('.who')].map(text))).toEqual(byStage);
-    expect(all(guide, '.jump small').map(text)).toEqual(byStage.map((who) => who?.join(', ')));
+    expect(all(guide, '.jump small').map((w) => [...w.querySelectorAll('.who')].map(text))).toEqual(byStage);
     const en = parse(expandPartials(enGuide));
     const enRows = all(parse(expandPartials(enLanding)), '.clock .whos').map((w) => [...w.querySelectorAll('.who')].map(text));
-    const enByStage = [enRows[0], enRows[0], enRows[1], enRows[2], enRows[3], enRows[4]];
+    const enByStage = [enRows[0], ['You'], enRows[1], enRows[2], enRows[3], enRows[4]];
     expect(all(en, '.stage .whos').map((w) => [...w.querySelectorAll('.who')].map(text))).toEqual(enByStage);
-    expect(all(en, '.jump small').map(text)).toEqual(enByStage.map((who) => who?.join(', ')));
+    expect(all(en, '.jump small').map((w) => [...w.querySelectorAll('.who')].map(text))).toEqual(enByStage);
   });
 
   it('counts the grading time the same way in the text and in the boxes', () => {
