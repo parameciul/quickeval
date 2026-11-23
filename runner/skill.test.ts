@@ -22,6 +22,15 @@ describe('the grading skill', () => {
     expect(skill).toContain('`references/grading-rules.md`');
   });
 
+  it('writes every angle with its sign, in the grading texts and in a generated barem', () => {
+    const angles = rules.split('\n').find((line) => line.includes('angle sign ∢'));
+    expect(angles).toBeDefined();
+    expect(angles).toContain('∢AOD = ∢AOC + ∢COD');
+    for (const field of ['answer', 'scoringNotes', 'studentAnswer', 'comment', 'reviewReason']) expect(angles).toContain(`\`${field}\``);
+    const writing = readFileSync(path.join(SKILL_DIR, 'references', 'barem-writing.md'), 'utf8');
+    expect(writing).toContain('$\\sphericalangle AOB = 38^{\\circ}$');
+  });
+
   it('names every file of the work folder', () => {
     for (const file of ['test/test.pdf', 'test/test.md', 'test/media/', 'barem/barem.pdf', 'barem/barem.md', 'barem/media/', 'barem/notes.md', 'exercises.json', 'student/', 'page-01.jpg', 'class-results.json']) {
       expect(skill).toContain(`\`${file}\``);
