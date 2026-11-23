@@ -1,13 +1,19 @@
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { Fragment, useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Link } from 'react-router';
 import { t } from '../../i18n/t.ts';
 import type { StageName } from '../stages.ts';
 
 // One stage of a test, as the landing page (index.html) writes it, word for
 // word: a test checks that the two stay the same.
+export type Who = 'Tu' | 'Elevii' | 'MQGrader';
+
+const WHO_CLASS: Record<Who, string> = { Tu: 'is-you', Elevii: 'is-st', MQGrader: 'is-mq' };
+
 export type Stage = {
   name: StageName;
-  who: 'Tu' | 'Elevii' | 'MQGrader';
+  // Who does it, in the landing page's order (its day of a test, where
+  // Monday holds both Pregătire and Tipărire).
+  who: Who[];
   // The sentence's bold start, when it has one.
   lead?: string;
   text: string;
@@ -25,7 +31,7 @@ export const STAGES_TITLE = t('Un test, în șase etape');
 export const STAGES: Stage[] = [
   {
     name: 'Pregătire',
-    who: 'Tu',
+    who: ['Tu', 'MQGrader'],
     text: t('Încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.'),
     icon: (
       <>
@@ -36,7 +42,7 @@ export const STAGES: Stage[] = [
   },
   {
     name: 'Tipărire',
-    who: 'Tu',
+    who: ['Tu', 'MQGrader'],
     text: t('Tipărești testul. Fiecare pagină are un cod QR.'),
     icon: (
       <>
@@ -47,7 +53,7 @@ export const STAGES: Stage[] = [
   },
   {
     name: 'În clasă',
-    who: 'Elevii',
+    who: ['Elevii'],
     text: t('Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.'),
     icon: (
       <>
@@ -58,13 +64,13 @@ export const STAGES: Stage[] = [
   },
   {
     name: 'Corectare',
-    who: 'MQGrader',
+    who: ['Tu', 'MQGrader'],
     text: t('Fiecare lucrare primește punctaj conform baremului, pas cu pas, cu 10 puncte din oficiu.'),
     icon: <path d="M4 10.5l3.5 3.5L16 5.5" />,
   },
   {
     name: 'Verificare',
-    who: 'Tu',
+    who: ['Tu'],
     text: t('Punctele nesigure te așteaptă pe tine. Accepți sau schimbi punctajul.'),
     icon: (
       <>
@@ -75,7 +81,7 @@ export const STAGES: Stage[] = [
   },
   {
     name: 'Rezultate',
-    who: 'Tu',
+    who: ['MQGrader', 'Tu', 'Elevii'],
     text: t('Fiecare elev primește un link cu rezultatul lui: nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări. Raportul clasei, un PDF pentru fiecare elev și CSV pentru catalog.'),
     icon: (
       <>
@@ -91,7 +97,6 @@ export const STAGES: Stage[] = [
 // it. On a phone the form comes first. The login, the new account, the email
 // confirmation and the new password all use it.
 export function WayIn({ children }: { children: ReactNode }) {
-  const mine = STAGES.filter((stage) => stage.who === 'Tu').length;
   return (
     <div className="way-in">
       <section className="way-in-form" aria-label={t('Contul tău')}>
@@ -106,7 +111,7 @@ export function WayIn({ children }: { children: ReactNode }) {
             <p className="way-in-flow-title">{STAGES_TITLE}</p>
             <ol>
               {STAGES.map((stage) => (
-                <li key={stage.name} className={stage.who === 'Tu' ? 'is-you' : undefined}>
+                <li key={stage.name} className={stage.who.includes('Tu') ? 'is-you' : undefined}>
                   <span className="way-in-node">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true" focusable="false">
                       {stage.icon}
@@ -114,7 +119,13 @@ export function WayIn({ children }: { children: ReactNode }) {
                   </span>
                   <div>
                     <h3>
-                      {t(stage.name)} <span className="way-in-who">{t(stage.who)}</span>
+                      {t(stage.name)}
+                      {stage.who.map((who) => (
+                        <Fragment key={who}>
+                          {' '}
+                          <span className={`way-in-who ${WHO_CLASS[who]}`}>{t(who)}</span>
+                        </Fragment>
+                      ))}
                     </h3>
                     <p>
                       {stage.lead !== undefined && (
@@ -131,9 +142,9 @@ export function WayIn({ children }: { children: ReactNode }) {
           </div>
           <p className="way-in-legend">
             <span className="way-in-dot is-you" aria-hidden="true"></span>
-            {t('Tu faci')}{' '}{mine}{' '}{t('din')}{' '}{STAGES.length}{' '}{t('etape, câteva minute fiecare.')}{' '}
+            {t('Tu: câteva minute la fiecare etapă.')}{' '}
             <span className="way-in-dot" aria-hidden="true"></span>
-            {t('Restul se fac singure.')}
+            {t('Restul îl fac elevii și MQGrader.')}
           </p>
         </div>
       </section>

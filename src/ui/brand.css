@@ -7631,10 +7631,18 @@ a.ticket-qr {
   line-height: 1.5;
 }
 
+/* Each stage names who does it, coloured as on the landing page: the
+   teacher orange, the students blue (the default), MQGrader dark. A stage
+   the teacher takes part in has an orange dot. */
 .way-in-flow li.is-you .way-in-node,
-.way-in-flow li.is-you .way-in-who {
+.way-in-who.is-you {
   background: var(--marker);
   color: var(--orange);
+}
+
+.way-in-who.is-mq {
+  background: var(--text);
+  color: var(--sheet);
 }
 
 .way-in-flow p {

@@ -7,9 +7,9 @@
   .pg-guide .jump { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 56px; }
   .pg-guide .jump a { display: block; padding: 18px 16px 20px; background: var(--surface); text-decoration: none; transition: background-color .15s; }
   .pg-guide .jump a:hover { background: var(--blue-tint); }
-  .pg-guide .jump b { display: block; font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--orange); }
-  .pg-guide .jump span { display: block; margin-top: 8px; font-size: 17px; font-weight: 700; }
-  .pg-guide .jump small { display: block; font-size: 14px; color: var(--muted); }
+  .pg-guide .jump b { display: block; font-size: var(--fs-num); font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--orange); }
+  .pg-guide .jump span { display: block; margin-top: 8px; font-weight: 700; }
+  .pg-guide .jump small { display: block; font-size: var(--fs-small); color: var(--muted); }
   .pg-guide .jump .st b { color: var(--blue); }
   .pg-guide .jump .mq b { color: var(--text); }
 
@@ -18,19 +18,19 @@
   .pg-guide .journey > p { margin-top: 24px; max-width: 46ch; }
   .pg-guide .stage { display: grid; grid-template-columns: 4fr 8fr; gap: 56px; padding: 64px 0; align-items: start; scroll-margin-top: 16px; }
   .pg-guide .stage + .stage { box-shadow: inset 0 8px 0 var(--surface); }
-  .pg-guide .stage .n { font-size: clamp(64px, 7vw, 120px); font-weight: 800; letter-spacing: -0.05em; line-height: .85; color: var(--orange); }
+  .pg-guide .stage .n { font-size: var(--fs-num-xl); font-weight: 800; letter-spacing: -0.05em; line-height: .85; color: var(--orange); }
   .pg-guide .stage.st .n { color: var(--blue); }
   .pg-guide .stage.mq .n { color: var(--text); }
-  .pg-guide .stage h3 { margin-top: 18px; font-size: clamp(28px, 2.6vw, 40px); letter-spacing: -0.03em; line-height: 1.05; }
+  .pg-guide .stage h3 { margin-top: 18px; font-size: var(--fs-h2); letter-spacing: -0.03em; line-height: 1.05; }
   .pg-guide .stage .whos { margin-top: 14px; }
-  .pg-guide .stage p { margin-top: 18px; font-size: 19px; }
+  .pg-guide .stage p { margin-top: 18px; }
   .pg-guide .stage .do { margin-top: 20px; display: grid; gap: 4px; }
-  .pg-guide .stage .do li { padding: 12px 16px; background: var(--surface); font-size: 17px; }
+  .pg-guide .stage .do li { padding: 12px 16px; background: var(--surface); }
   .pg-guide .stage .do b { color: var(--orange); }
   .pg-guide .pics { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
   .pg-guide .pics .pair-p .shot-p { width: 200px; }
   .pg-guide .pics.one { grid-template-columns: 1fr; }
-  .pg-guide .pics figcaption { margin-top: 10px; font-size: 15px; color: var(--muted); }
+  .pg-guide .pics figcaption { margin-top: 10px; font-size: var(--fs-small); color: var(--muted); }
 
   @media (max-width: 1100px) { .pg-guide .jump { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 900px) {
@@ -43,38 +43,30 @@
   }
 
 /* /grading/ */
-  .pg-grading .head { padding-bottom: 96px; display: grid; grid-template-columns: 7fr 5fr; gap: 64px; align-items: end; }
-  .pg-grading .head h1 { margin-top: 28px; }
-  .pg-grading .head .lede { margin-top: 32px; max-width: 44ch; }
-  .pg-grading .sheet { background: #fbfaf5; color: #0c1524; padding: 28px 28px 32px; font-family: Georgia, "Times New Roman", serif; box-shadow: 0 1px 0 #e3dfd3; }
-  .pg-grading .sheet h2 { font: 700 15px/1.3 Georgia, serif; letter-spacing: .02em; text-transform: uppercase; }
-  .pg-grading .sheet p { margin-top: 6px; font-size: 15px; color: #4a566a; }
-  .pg-grading .sheet ol { margin-top: 18px; }
-  .pg-grading .sheet li { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 10px 0; font-size: 16px; line-height: 1.35; box-shadow: inset 0 -1px 0 #e3dfd3; }
-  .pg-grading .sheet li b { font-family: var(--font); font-weight: 800; color: var(--orange); white-space: nowrap; }
-  .pg-grading .sheet .tot { display: flex; justify-content: space-between; margin-top: 14px; font: 700 16px var(--font); }
-  .pg-grading .sheet .alt { margin-top: 14px; padding: 10px 12px; background: #fdeee3; font-size: 15px; }
+  .pg-grading .head { padding-bottom: 72px; }
+  .pg-grading .head h1 { margin-top: 28px; max-width: 20ch; }
+  .pg-grading .head .lede { margin-top: 32px; max-width: 52ch; }
   .pg-grading .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 32px; }
   .pg-grading .two div { padding: 28px 24px 30px; }
   .pg-grading .two div:first-child { background: var(--ground); }
   .pg-grading .two div:last-child { background: var(--band); color: var(--on-band); }
-  .pg-grading .two b { display: block; font-size: 24px; letter-spacing: -0.02em; line-height: 1.15; }
-  .pg-grading .two p { margin-top: 12px; font-size: 18px; }
+  .pg-grading .two b { display: block; font-size: var(--fs-title); letter-spacing: -0.02em; line-height: 1.15; }
+  .pg-grading .two p { margin-top: 12px; }
   .pg-grading .two div:last-child p { color: var(--on-band-muted); }
-  .pg-grading .two i { display: block; font-style: normal; font-size: 40px; font-weight: 800; line-height: 1; margin-bottom: 14px; color: var(--orange); }
+  .pg-grading .two i { display: block; font-style: normal; font-size: var(--fs-num); font-weight: 800; line-height: 1; margin-bottom: 14px; color: var(--orange); }
   .pg-grading .shot-wide { margin-top: 32px; }
   .pg-grading .doc2 { display: grid; grid-template-columns: 3fr 9fr; gap: 64px; padding-top: 140px; padding-bottom: 140px; background: var(--surface); }
   .pg-grading .doc2 .prose { grid-column: 2; }
   .pg-grading .math { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 32px; }
   .pg-grading .math div { padding: 24px 20px; background: var(--ground); }
-  .pg-grading .math b { display: block; font-size: clamp(40px, 4vw, 64px); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
-  .pg-grading .math span { display: block; margin-top: 8px; font-size: 16px; color: var(--muted); }
+  .pg-grading .math b { display: block; font-size: var(--fs-h2); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  .pg-grading .math span { display: block; margin-top: 8px; font-size: var(--fs-small); color: var(--muted); }
   .pg-grading .wide { margin-top: 40px; }
   .pg-grading .faq { padding-top: 140px; padding-bottom: 140px; }
   .pg-grading .faq .qa { margin-top: 48px; }
   .pg-grading .faq .qa > div + div { box-shadow: inset 0 6px 0 var(--surface); }
   @media (max-width: 900px) {
-    .pg-grading .head { grid-template-columns: 1fr; gap: 40px; padding-bottom: 56px; }
+    .pg-grading .head { padding-bottom: 48px; }
     .pg-grading .two { grid-template-columns: 1fr; }
     .pg-grading .doc2 { grid-template-columns: 1fr; gap: 0; padding-top: 88px; padding-bottom: 88px; }
     .pg-grading .doc2 .prose { grid-column: 1; }
@@ -85,16 +77,16 @@
 /* /about/ */
   .pg-about .head { padding-bottom: 96px; }
   .pg-about .head h1 { margin-top: 28px; max-width: 14ch; }
-  .pg-about .head .big { margin-top: 40px; font-size: clamp(24px, 2.6vw, 40px); line-height: 1.25; letter-spacing: -0.02em; font-weight: 600; max-width: 34ch; }
+  .pg-about .head .big { margin-top: 32px; font-size: var(--fs-lede); line-height: 1.5; max-width: 52ch; }
   .pg-about .card { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 64px; }
   .pg-about .card div { padding: 22px 22px 26px; background: var(--surface); }
-  .pg-about .card dt { font-size: 15px; font-weight: 700; color: var(--orange); }
-  .pg-about .card dd { margin-top: 6px; font-size: 19px; line-height: 1.4; }
+  .pg-about .card dt { font-size: var(--fs-small); font-weight: 700; color: var(--orange); }
+  .pg-about .card dd { margin-top: 6px; line-height: 1.45; }
   .pg-about .card a { font-weight: 600; }
   .pg-about .does { background: var(--band); color: var(--on-band); padding-top: 140px; padding-bottom: 140px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
   .pg-about .does ul { margin-top: 40px; display: grid; gap: 4px; }
-  .pg-about .does li { padding: 20px 22px; background: var(--band-2); font-size: 19px; line-height: 1.45; }
-  .pg-about .does li b { display: block; font-size: 21px; margin-bottom: 4px; }
+  .pg-about .does li { padding: 20px 22px; background: var(--band-2); line-height: 1.5; }
+  .pg-about .does li b { display: block; font-size: var(--fs-title); margin-bottom: 4px; }
   .pg-about .does .not li b { color: var(--orange-mark); }
   .pg-about .does .not li { color: var(--on-band-muted); }
   .pg-about .does .not li b { color: var(--on-band); }
@@ -110,38 +102,37 @@
   .pg-pricing .head .lede { margin-top: 32px; max-width: 42ch; }
   .pg-pricing .zero { font-size: clamp(120px, 18vw, 280px); font-weight: 800; letter-spacing: -0.07em; line-height: .8; text-align: right; }
   .pg-pricing .zero small { font-size: .26em; letter-spacing: -0.02em; margin-left: .08em; }
-  .pg-pricing .zero span { display: block; margin-top: 18px; font-size: 18px; letter-spacing: 0; font-weight: 600; color: var(--muted); }
+  .pg-pricing .zero span { display: block; margin-top: 18px; font-size: var(--fs-body); letter-spacing: 0; font-weight: 600; color: var(--muted); }
   .pg-pricing .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 0; padding-bottom: 140px; }
   .pg-pricing .plan { padding: 40px 36px 44px; background: var(--surface); }
   .pg-pricing .plan.full { background: var(--band); color: var(--on-band); }
-  .pg-pricing .plan h2 { font-size: clamp(28px, 2.6vw, 40px); letter-spacing: -0.03em; line-height: 1.05; }
-  .pg-pricing .plan .tag { display: inline-block; margin-top: 12px; padding: 3px 10px; font-size: 15px; font-weight: 700; background: var(--ok-bg); color: var(--ok-fg); }
+  .pg-pricing .plan h2 { font-size: var(--fs-h2); letter-spacing: -0.03em; line-height: 1.05; }
+  .pg-pricing .plan .tag { display: inline-block; margin-top: 12px; padding: 3px 10px; font-size: var(--fs-small); font-weight: 700; background: var(--ok-bg); color: var(--ok-fg); }
   .pg-pricing .plan.full .tag { background: var(--band-2); color: var(--on-band-muted); }
-  .pg-pricing .plan > p { margin-top: 20px; font-size: 19px; }
+  .pg-pricing .plan > p { margin-top: 20px; }
   .pg-pricing .plan.full > p { color: var(--on-band-muted); }
   .pg-pricing .plan dl { margin-top: 28px; display: grid; gap: 4px; }
   .pg-pricing .plan dl div { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: baseline; padding: 16px 18px; background: var(--ground); }
   .pg-pricing .plan.full dl div { background: var(--band-2); }
-  .pg-pricing .plan dt { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-  .pg-pricing .plan dd { font-size: 17px; }
-  .pg-pricing .plan dd b { display: block; font-size: 18px; }
+  .pg-pricing .plan dt { font-size: var(--fs-num); font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .pg-pricing .plan dd b { display: block; }
   .pg-pricing .plan .acts { margin-top: 28px; }
   .pg-pricing .free { padding-bottom: 0; }
   .pg-pricing .free-in { display: grid; grid-template-columns: auto 1fr auto; gap: 40px; align-items: center; padding: 36px 40px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--orange); border-radius: 14px; }
   .pg-pricing .free-n { color: var(--orange); }
-  .pg-pricing .free-n { font-size: 96px; font-weight: 800; letter-spacing: -0.05em; line-height: .9; }
-  .pg-pricing .free-n small { font-size: 26px; letter-spacing: 0; color: var(--muted); }
-  .pg-pricing .free h2 { font-size: clamp(24px, 2.2vw, 32px); letter-spacing: -0.02em; line-height: 1.15; max-width: 26ch; }
-  .pg-pricing .free p:not(.free-n) { margin-top: 10px; font-size: 18px; max-width: 52ch; }
+  .pg-pricing .free-n { font-size: var(--fs-num-xl); font-weight: 800; letter-spacing: -0.05em; line-height: .9; }
+  .pg-pricing .free-n small { font-size: var(--fs-title); letter-spacing: 0; color: var(--muted); }
+  .pg-pricing .free h2 { font-size: var(--fs-title); letter-spacing: -0.02em; line-height: 1.15; max-width: 26ch; }
+  .pg-pricing .free p:not(.free-n) { margin-top: 10px; max-width: 52ch; }
   .pg-pricing .steps { padding-top: 140px; padding-bottom: 140px; background: var(--surface); }
   .pg-pricing .steps ol { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 56px; counter-reset: s; }
-  .pg-pricing .steps li { counter-increment: s; padding: 28px 22px 30px; background: var(--ground); font-size: 18px; }
-  .pg-pricing .steps li::before { content: counter(s); display: block; font-size: 56px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--orange); margin-bottom: 18px; }
-  .pg-pricing .steps li b { display: block; font-size: 20px; letter-spacing: -0.01em; margin-bottom: 6px; }
-  .pg-pricing .steps > p { margin-top: 32px; font-size: 19px; max-width: 52ch; }
+  .pg-pricing .steps li { counter-increment: s; padding: 28px 22px 30px; background: var(--ground); }
+  .pg-pricing .steps li::before { content: counter(s); display: block; font-size: var(--fs-num); font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--orange); margin-bottom: 18px; }
+  .pg-pricing .steps li b { display: block; font-size: var(--fs-title); letter-spacing: -0.01em; margin-bottom: 6px; }
+  .pg-pricing .steps > p { margin-top: 32px; font-size: var(--fs-lede); max-width: 52ch; }
   .pg-pricing .why { padding-top: 140px; padding-bottom: 140px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
-  .pg-pricing .why h2 { font-size: clamp(30px, 3.4vw, 54px); }
-  .pg-pricing .why p { margin-top: 24px; font-size: 20px; max-width: 40ch; }
+  .pg-pricing .why h2 { font-size: var(--fs-h2); }
+  .pg-pricing .why p { margin-top: 24px; font-size: var(--fs-lede); max-width: 44ch; }
   .pg-pricing .why .rule { margin-top: 0; }
   @media (max-width: 900px) {
     .pg-pricing .head { grid-template-columns: 1fr; gap: 32px; padding-bottom: 56px; }
@@ -151,94 +142,12 @@
     .pg-pricing .plan dl div { grid-template-columns: 72px 1fr; }
     .pg-pricing .steps, .pg-pricing .why { padding-top: 88px; padding-bottom: 88px; }
     .pg-pricing .free-in { grid-template-columns: 1fr; gap: 16px; padding: 28px 18px; }
-    .pg-pricing .free-n { font-size: 72px; }
     .pg-pricing .steps ol { grid-template-columns: 1fr; }
     .pg-pricing .why { grid-template-columns: 1fr; gap: 40px; }
   }
 
-/* Laptop and desktop sizes for the content pages (see the same block in
-   landing.css). */
+/* The pricing page's zero is its picture: on a laptop it follows the shorter
+   side of the screen. */
 @media (min-width: 901px) {
-  .pg-guide .jump b { font-size: 30px; }
-  .pg-guide .jump span { font-size: 16px; }
-  .pg-guide .stage .n { font-size: clamp(56px, min(5vw, 10vh), 88px); }
-  .pg-guide .stage h3 { font-size: clamp(26px, 2.2vw, 34px); }
-  .pg-guide .stage p { font-size: 18px; }
-  .pg-guide .stage .do li { font-size: 16px; }
-  .pg-grading .math b { font-size: clamp(36px, 3.2vw, 52px); }
-  .pg-grading .two b { font-size: 22px; }
-  .pg-grading .two p { font-size: 17px; }
-  .pg-grading .two i { font-size: 34px; }
-  .pg-about .head .big { font-size: clamp(22px, 2vw, 32px); }
   .pg-pricing .zero { font-size: clamp(120px, min(12vw, 24vh), 200px); }
-  .pg-pricing .plan h2 { font-size: clamp(26px, 2.2vw, 34px); }
-  .pg-pricing .plan dt { font-size: 30px; }
-  .pg-pricing .free-n { font-size: 80px; }
-  .pg-pricing .free h2 { font-size: clamp(22px, 1.9vw, 28px); }
-  .pg-pricing .steps li::before { font-size: 44px; }
-  .pg-pricing .why h2 { font-size: clamp(28px, 2.8vw, 44px); }
-}
-
-/* Laptops read the text one step smaller still: every font size above at 90%,
-   from 901px up. Phones keep the sizes above. */
-@media (min-width: 901px) {
-  .pg-guide .jump b { font-size: calc(34px * 0.9); }
-  .pg-guide .jump span { font-size: calc(17px * 0.9); }
-  .pg-guide .jump small { font-size: calc(14px * 0.9); }
-  .pg-guide .stage .n { font-size: calc(clamp(64px, 7vw, 120px) * 0.9); }
-  .pg-guide .stage h3 { font-size: calc(clamp(28px, 2.6vw, 40px) * 0.9); }
-  .pg-guide .stage p { font-size: calc(19px * 0.9); }
-  .pg-guide .stage .do li { font-size: calc(17px * 0.9); }
-  .pg-guide .pics figcaption { font-size: calc(15px * 0.9); }
-  .pg-grading .math b { font-size: calc(clamp(40px, 4vw, 64px) * 0.9); }
-  .pg-grading .math span { font-size: calc(16px * 0.9); }
-  .pg-grading .sheet h2 { font-size: calc(15px * 0.9); }
-  .pg-grading .sheet p { font-size: calc(15px * 0.9); }
-  .pg-grading .sheet li { font-size: calc(16px * 0.9); }
-  .pg-grading .sheet .tot { font-size: calc(16px * 0.9); }
-  .pg-grading .sheet .alt { font-size: calc(15px * 0.9); }
-  .pg-grading .two b { font-size: calc(24px * 0.9); }
-  .pg-grading .two p { font-size: calc(18px * 0.9); }
-  .pg-grading .two i { font-size: calc(40px * 0.9); }
-  .pg-about .head .big { font-size: calc(clamp(24px, 2.6vw, 40px) * 0.9); }
-  .pg-about .card dt { font-size: calc(15px * 0.9); }
-  .pg-about .card dd { font-size: calc(19px * 0.9); }
-  .pg-about .does li { font-size: calc(19px * 0.9); }
-  .pg-about .does li b { font-size: calc(21px * 0.9); }
-  .pg-pricing .zero { font-size: calc(clamp(120px, 18vw, 280px) * 0.9); }
-  .pg-pricing .zero span { font-size: calc(18px * 0.9); }
-  .pg-pricing .plan h2 { font-size: calc(clamp(28px, 2.6vw, 40px) * 0.9); }
-  .pg-pricing .plan .tag { font-size: calc(15px * 0.9); }
-  .pg-pricing .plan > p { font-size: calc(19px * 0.9); }
-  .pg-pricing .plan dt { font-size: calc(36px * 0.9); }
-  .pg-pricing .plan dd { font-size: calc(17px * 0.9); }
-  .pg-pricing .plan dd b { font-size: calc(18px * 0.9); }
-  .pg-pricing .free-n { font-size: calc(96px * 0.9); }
-  .pg-pricing .free-n small { font-size: calc(26px * 0.9); }
-  .pg-pricing .free h2 { font-size: calc(clamp(24px, 2.2vw, 32px) * 0.9); }
-  .pg-pricing .free p:not(.free-n) { font-size: calc(18px * 0.9); }
-  .pg-pricing .steps li { font-size: calc(18px * 0.9); }
-  .pg-pricing .steps li::before { font-size: calc(56px * 0.9); }
-  .pg-pricing .steps li b { font-size: calc(20px * 0.9); }
-  .pg-pricing .steps > p { font-size: calc(19px * 0.9); }
-  .pg-pricing .why h2 { font-size: calc(clamp(30px, 3.4vw, 54px) * 0.9); }
-  .pg-pricing .why p { font-size: calc(20px * 0.9); }
-  .pg-guide .jump b { font-size: calc(30px * 0.9); }
-  .pg-guide .jump span { font-size: calc(16px * 0.9); }
-  .pg-guide .stage .n { font-size: calc(clamp(56px, min(5vw, 10vh), 88px) * 0.9); }
-  .pg-guide .stage h3 { font-size: calc(clamp(26px, 2.2vw, 34px) * 0.9); }
-  .pg-guide .stage p { font-size: calc(18px * 0.9); }
-  .pg-guide .stage .do li { font-size: calc(16px * 0.9); }
-  .pg-grading .math b { font-size: calc(clamp(36px, 3.2vw, 52px) * 0.9); }
-  .pg-grading .two b { font-size: calc(22px * 0.9); }
-  .pg-grading .two p { font-size: calc(17px * 0.9); }
-  .pg-grading .two i { font-size: calc(34px * 0.9); }
-  .pg-about .head .big { font-size: calc(clamp(22px, 2vw, 32px) * 0.9); }
-  .pg-pricing .zero { font-size: calc(clamp(120px, min(12vw, 24vh), 200px) * 0.9); }
-  .pg-pricing .plan h2 { font-size: calc(clamp(26px, 2.2vw, 34px) * 0.9); }
-  .pg-pricing .plan dt { font-size: calc(30px * 0.9); }
-  .pg-pricing .free-n { font-size: calc(80px * 0.9); }
-  .pg-pricing .free h2 { font-size: calc(clamp(22px, 1.9vw, 28px) * 0.9); }
-  .pg-pricing .steps li::before { font-size: calc(44px * 0.9); }
-  .pg-pricing .why h2 { font-size: calc(clamp(28px, 2.8vw, 44px) * 0.9); }
 }

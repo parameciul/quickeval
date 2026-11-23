@@ -411,10 +411,24 @@ describe('the pages that answer a search', () => {
       'Pot încărca un barem scris de mine?',
       'Când e bine să public rezultatele?',
     ]);
-    // The example in the head is a graded exercise whose points add up.
-    const earned = all(grading, '.sheet li b').map((b) => Number(text(b).split('/')[0]));
-    expect(earned.reduce((sum, n) => sum + n, 0)).toBe(11);
-    expect(text(grading.querySelector('.sheet .tot'))).toContain('11 / 15p');
+    // Its head shows only app screens below it: no drawn example of a graded exercise.
+    expect(grading.querySelector('.head figure')).toBeNull();
+  });
+
+  it("names who does each of the guide's six stages as the landing page's day does", () => {
+    // The landing page's day has five rows: Monday holds Pregătire and
+    // Tipărire, each other row one stage.
+    const rows = all(parse(landing), '.clock .whos').map((w) => [...w.querySelectorAll('.who')].map(text));
+    expect(rows).toHaveLength(5);
+    const byStage = [rows[0], rows[0], rows[1], rows[2], rows[3], rows[4]];
+    const guide = parse(ghid);
+    expect(all(guide, '.stage .whos').map((w) => [...w.querySelectorAll('.who')].map(text))).toEqual(byStage);
+    expect(all(guide, '.jump small').map(text)).toEqual(byStage.map((who) => who?.join(', ')));
+    const en = parse(expandPartials(enGuide));
+    const enRows = all(parse(expandPartials(enLanding)), '.clock .whos').map((w) => [...w.querySelectorAll('.who')].map(text));
+    const enByStage = [enRows[0], enRows[0], enRows[1], enRows[2], enRows[3], enRows[4]];
+    expect(all(en, '.stage .whos').map((w) => [...w.querySelectorAll('.who')].map(text))).toEqual(enByStage);
+    expect(all(en, '.jump small').map(text)).toEqual(enByStage.map((who) => who?.join(', ')));
   });
 
   it('counts the grading time the same way in the text and in the boxes', () => {
