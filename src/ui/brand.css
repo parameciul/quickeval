@@ -4075,6 +4075,13 @@ table.items tr.item-decision > td {
   pointer-events: auto;
 }
 
+/* A quick second tap on a button would zoom the whole web page, as in the
+   bar above the page. */
+.review-photo-top,
+.page-step {
+  touch-action: manipulation;
+}
+
 .review-photo-start {
   display: flex;
   align-items: center;
@@ -4145,6 +4152,10 @@ table.items tr.item-decision > td {
     padding-top: 0;
   }
 
+  .review-photo.is-empty {
+    padding-top: 1rem;
+  }
+
   .review-photo-top {
     position: sticky;
     top: 0;
@@ -4155,8 +4166,9 @@ table.items tr.item-decision > td {
     background: var(--sheet);
   }
 
-  .review-photo-top.is-end {
-    margin-bottom: 0.75rem;
+  .review-photo.is-empty .review-photo-top.is-end {
+    margin: 0 0 0.75rem;
+    padding: 0;
     border-bottom: 0;
   }
 
@@ -4550,6 +4562,16 @@ table.items tr.item-decision > td {
 :root .review-photo.is-full .review-photo-actions {
   justify-content: flex-end;
   gap: 1rem;
+  min-width: 0;
+}
+
+/* Many pages: their buttons wrap onto more lines of the header, never over
+   the × in the middle. */
+:root .review-photo.is-full .review-photo-top.has-tools .page-switch {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 :root .review-photo.is-full .photo-hide {

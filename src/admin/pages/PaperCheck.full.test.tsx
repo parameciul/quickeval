@@ -334,6 +334,62 @@ describe('the paper over the whole screen', () => {
     expect(fullButton()).toHaveFocus();
   });
 
+  it('moves the focus to the other arrow when one reaches the last or the first page', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    await userEvent.click(fullButton());
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina următoare' }));
+    expect(screen.getByText('Ion Popa · 2/2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pagina anterioară' })).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina anterioară' }));
+    expect(screen.getByRole('button', { name: 'Pagina următoare' })).toHaveFocus();
+  });
+
+  it("gives the focus to the page's button when an arrow turns to a PDF page", async () => {
+    renderAdmin(`${PAGE}?paper=11&item=pages`, apiWith());
+    await screen.findByText('Ana Pop · 2/3');
+    await userEvent.click(fullButton());
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina următoare' }));
+    expect(box()).not.toHaveClass('is-full');
+    expect(screen.getByRole('button', { name: 'Pagina 3' })).toHaveFocus();
+  });
+
+  it('keeps the focus on its button when it closes into a box whose buttons float', async () => {
+    // A box 30rem wide beside the exercises, the screen 90rem over the whole
+    // screen; the browser reports each size after the render.
+    const watchers = new Set<() => void>();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        report: () => void;
+        constructor(report: () => void) {
+          this.report = report;
+        }
+        observe() {
+          watchers.add(this.report);
+        }
+        disconnect() {
+          watchers.delete(this.report);
+        }
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('review-photo') ? (this.classList.contains('is-full') ? 90 : 30) * 16 : 0;
+    });
+    const report = () => act(() => [...watchers].forEach((watch) => watch()));
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    report();
+    expect(box().querySelector('.review-photo-float')).toContainElement(fullButton());
+    await userEvent.click(fullButton());
+    report();
+    await userEvent.keyboard('{Escape}');
+    report();
+    expect(box()).not.toHaveClass('is-full');
+    expect(box().querySelector('.review-photo-float')).toContainElement(fullButton());
+    expect(fullButton()).toHaveFocus();
+  });
+
   it('has no button on a PDF page, which has no zoom', async () => {
     renderAdmin(`${PAGE}?paper=11&item=pages`, apiWith());
     await screen.findByText('Ana Pop · 2/3');

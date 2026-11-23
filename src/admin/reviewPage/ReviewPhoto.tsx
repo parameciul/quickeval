@@ -32,6 +32,17 @@ export function headWidth({ view, pages, hide }: { view: boolean; pages: number;
   return padding + name + gap + zoom + (view ? 2 + gap : 0) + (pages > 1 ? pages * 2.25 + gap : 0) + (hide ? 2 + gap : 0);
 }
 
+// A trackpad pinch (a wheel with ctrlKey) over the buttons that float over
+// the page is not the browser's zoom of the whole web page.
+function holdPinch(element: HTMLElement | null) {
+  if (!element) return;
+  const onWheel = (event: WheelEvent) => {
+    if (event.ctrlKey) event.preventDefault();
+  };
+  element.addEventListener('wheel', onWheel, { passive: false });
+  return () => element.removeEventListener('wheel', onWheel);
+}
+
 export interface ReviewFocus {
   key: string;
   label: string;
@@ -194,6 +205,9 @@ export function ReviewPhoto({
     const element = box.current;
     if (!element || typeof ResizeObserver !== 'function') return;
     const measure = () => {
+      // Over the whole screen the box is the screen: its width says nothing
+      // of the box beside the exercises, which closing it brings back.
+      if (element.classList.contains('is-full')) return;
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       setBoxWidth(element.clientWidth / rem);
     };
@@ -202,11 +216,30 @@ export function ReviewPhoto({
     watch.observe(element);
     return () => watch.disconnect();
   }, [hasFile]);
+  // A PDF page closes the whole screen too (below), and the button or arrow
+  // that turned to it goes away: the focus goes to the page's own button.
+  const wasFull = useRef(isFull);
   useLayoutEffect(() => {
-    if (!refocus.current) return;
+    const closedByPage = wasFull.current && !isFull;
+    wasFull.current = isFull;
+    if (!refocus.current && !closedByPage) return;
     refocus.current = false;
-    box.current?.querySelector<HTMLElement>('.full-toggle')?.focus({ preventScroll: true });
+    const own = box.current?.querySelector<HTMLElement>('.full-toggle') ?? box.current?.querySelector<HTMLElement>('.page-switch-button[aria-current="true"]');
+    own?.focus({ preventScroll: true });
   }, [isFull]);
+  // An arrow that turned to the first or the last page is off now: the focus
+  // goes to the other one, so it is not lost.
+  const arrowFocus = useRef<'is-prev' | 'is-next' | null>(null);
+  useLayoutEffect(() => {
+    const other = arrowFocus.current;
+    arrowFocus.current = null;
+    if (other) box.current?.querySelector<HTMLElement>(`.page-step.${other}`)?.focus({ preventScroll: true });
+  }, [index]);
+  const stepArrow = (delta: number) => {
+    const next = index + delta;
+    if (next === 0 || next === files.length - 1) arrowFocus.current = delta < 0 ? 'is-next' : 'is-prev';
+    step(delta);
+  };
   // A PDF page closes the whole screen (above): the caller learns it.
   useEffect(() => {
     if (full && file && !photo) onFull(false);
@@ -344,7 +377,7 @@ export function ReviewPhoto({
 
   if (!file) {
     return (
-      <div className="review-photo" id={PAPER_PHOTO_ID}>
+      <div className="review-photo is-empty" id={PAPER_PHOTO_ID}>
         {hide && <div className="review-photo-top is-end">{hide}</div>}
         <p className="hint">{t('Elevul nu a încărcat niciun fișier.')}</p>
       </div>
@@ -452,7 +485,11 @@ export function ReviewPhoto({
             )}
             {!isFull && hide}
           </div>
-          {place === 'float' && <div className="review-photo-float">{groups}</div>}
+          {place === 'float' && (
+            <div className="review-photo-float" ref={holdPinch}>
+              {groups}
+            </div>
+          )}
         </div>
         {photo ? (
           <ZoomPhoto
@@ -496,7 +533,7 @@ export function ReviewPhoto({
               aria-label={t('Pagina anterioară')}
               title={t('Pagina anterioară (←)')}
               disabled={index === 0}
-              onClick={() => step(-1)}
+              onClick={() => stepArrow(-1)}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -508,7 +545,7 @@ export function ReviewPhoto({
               aria-label={t('Pagina următoare')}
               title={t('Pagina următoare (→)')}
               disabled={index === files.length - 1}
-              onClick={() => step(1)}
+              onClick={() => stepArrow(1)}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
