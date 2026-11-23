@@ -1,4 +1,5 @@
 import { currentLang, otherLang, switchLang } from '../i18n/lang.ts';
+import { ActionIcon } from './ActionIcon.tsx';
 import { t } from '../i18n/t.ts';
 
 // The language names, each in its own language: the same on every page.
@@ -20,7 +21,10 @@ export function LangSwitch() {
   const next = otherLang(currentLang());
   return (
     <button type="button" className="menu-row" onClick={() => switchLang(next)}>
-      <span>{t('Limba')}</span>
+      <span className="menu-label">
+        <ActionIcon name="globe" />
+        {t('Limba')}
+      </span>
       <span lang={next}>{NAMES[next]}</span>
     </button>
   );

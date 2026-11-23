@@ -279,6 +279,23 @@ describe('the phone menu', () => {
     expect(within(more).getByText('profesor@example.com')).toBeInTheDocument();
     expect(within(more).getByRole('link', { name: 'Contul meu' })).toHaveAttribute('href', '/account');
     expect(within(more).getByRole('button', { name: 'Ieși din cont' })).toBeInTheDocument();
+    // Every row has its icon, hidden from screen readers; the names stay the words.
+    const rows = [
+      within(more).getByRole('link', { name: 'Setări' }),
+      within(more).getByText('Anul școlar'),
+      within(more).getByRole('switch', { name: 'Temă întunecată' }),
+      within(more).getByRole('button', { name: /^Limba/ }),
+      within(more).getByRole('link', { name: 'Contul meu' }),
+      within(more).getByRole('button', { name: 'Ieși din cont' }),
+    ];
+    for (const row of rows) {
+      const icon = row.querySelector('svg');
+      expect(icon, row.textContent ?? '').not.toBeNull();
+      expect(icon).toHaveAttribute('aria-hidden', 'true');
+    }
+    // Only the teacher's name is bold.
+    expect(more.querySelectorAll('b, strong')).toHaveLength(1);
+    expect(more.querySelector('b')).toHaveTextContent('Laura Miron');
 
     await userEvent.click(within(more).getByRole('switch', { name: 'Temă întunecată' }));
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
@@ -295,6 +312,14 @@ describe('the phone menu', () => {
     expect(within(more).getByText('Cont demo')).toBeInTheDocument();
     expect(within(more).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('20 din 35');
     expect(more).toHaveTextContent('Mai ai 15 lucrări, pentru testul tău.');
+    // Two groups, side by side on a phone turned sideways: the settings, then
+    // the account with the demo papers.
+    expect(more.children).toHaveLength(2);
+    const [settings, account] = Array.from(more.querySelectorAll<HTMLElement>(':scope > .phone-menu-group'));
+    expect(within(settings!).getByRole('switch', { name: 'Temă întunecată' })).toBeInTheDocument();
+    expect(within(account!).getByText('Cont demo')).toBeInTheDocument();
+    expect(within(account!).getByRole('link', { name: 'Contul meu' })).toBeInTheDocument();
+    expect(within(account!).getByRole('button', { name: 'Ieși din cont' })).toBeInTheDocument();
     cleanup();
 
     renderAdmin('/', withClasses());

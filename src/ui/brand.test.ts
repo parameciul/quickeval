@@ -173,6 +173,15 @@ describe('brand.css', () => {
     // The page sits beside it, and a panel opens beside it, as on a laptop.
     expect(block).toContain('  .shell:not(.shell-bare) > .page {\n    grid-column: 2;');
     expect(block).toContain('  .shell:not(.shell-bare) .panel {\n    left: var(--side);\n    width: 24rem;');
+    // ☰ opens its menu beside the bar, never under it: its two groups side by
+    // side, in a grid (columns would push what does not fit off the screen's
+    // side), scrolling down when still too tall, with no second camera room.
+    const menu = block.slice(block.indexOf('  .shell:not(.shell-bare) .phone-menu {'));
+    expect(menu).toContain('left: var(--side);\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(menu).toContain('align-items: start;');
+    expect(menu).toContain('max-height: calc(100dvh - var(--top));');
+    expect(menu).toContain('padding-left: 1rem;');
+    expect(block).not.toMatch(/columns: 2/);
     // A mouse in a narrow window sees the item it points at.
     expect(block).toContain('  .shell:not(.shell-bare) .rail-item:hover {\n    background: var(--raised);');
     // Every rule is the teacher shell's, so the login screen (no bar) keeps its one column.
@@ -228,6 +237,15 @@ describe('brand.css', () => {
 
   it('keeps the phone menu inside the screen a phone shows now', () => {
     expect(declarations('.phone-menu')).toContain('max-height: calc(100dvh - var(--top) - var(--bottom))');
+  });
+
+  it('draws the phone menu in rows of 44px with plain words, an icon before each', () => {
+    expect(value(declarations('.menu-row'), 'min-height')).toBe('2.75rem');
+    for (const head of ['.menu-row', '.menu-row label', '.menu-link', '.menu-quiet']) expect(value(declarations(head), 'font-weight'), head).toBe('400');
+    expect(declarations('.menu-label')).toEqual(['align-items: center', 'display: inline-flex', 'gap: 0.75rem']);
+    expect(css).toContain('.menu-link svg,\n.menu-label svg {\n  width: 1.375rem;');
+    // "Cont demo" of a demo account is plain in the menu too; only the name is bold.
+    expect(value(declarations('.phone-demo .demo-title'), 'font-weight')).toBe('400');
   });
 
   it('keeps the small buttons of the student pages big enough for a finger', () => {

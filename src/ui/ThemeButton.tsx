@@ -1,3 +1,4 @@
+import { ActionIcon } from './ActionIcon.tsx';
 import { otherTheme } from './theme.ts';
 import { useTheme } from './useTheme.ts';
 import { t } from '../i18n/t.ts';
@@ -36,7 +37,10 @@ export function ThemeSwitch() {
   const { theme, toggle } = useTheme();
   return (
     <button type="button" role="switch" aria-checked={theme === 'dark'} className="menu-row" onClick={toggle}>
-      <span>{t('Temă întunecată')}</span>
+      <span className="menu-label">
+        <ActionIcon name="moon" />
+        {t('Temă întunecată')}
+      </span>
       <span className="switch" aria-hidden="true" />
     </button>
   );
