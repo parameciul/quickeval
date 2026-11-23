@@ -211,14 +211,19 @@ describe('the landing page', () => {
     expect(block).toContain('.nav-ico { display: block; width: 22px; height: 22px;');
     expect(block).not.toMatch(/font-weight: [5-9]00/);
     // The page the reader is on: a line under its name, not a bar at its side.
-    expect(block).toContain('.links a[aria-current="page"] span { text-decoration: underline 3px var(--orange-mark);');
+    // In long properties: Safari drops a shorthand that holds the thickness.
+    expect(block).toContain('.links a[aria-current="page"] span { text-decoration-line: underline; text-decoration-thickness: 3px; text-decoration-color: var(--orange-mark);');
+    expect(block).not.toMatch(/text-decoration: underline \d/);
     expect(block).not.toContain('inset 4px 0 0');
     // The icons stay out of the header of a wide screen.
     expect(css.indexOf('.nav-ico { display: none; }')).toBeLessThan(start);
-    // A phone turned sideways: the five pages in three columns.
-    const side = css.indexOf('@media (max-width: 900px) and (max-height: 500px) {');
+    // A phone turned sideways: the five pages in three columns, a long name
+    // wrapping in its own; an upright phone with its keyboard open keeps the list.
+    const side = css.indexOf('@media (min-width: 540px) and (max-width: 900px) and (max-height: 500px) {');
     expect(side).toBeGreaterThan(start);
-    expect(css.slice(side, css.indexOf('\n}\n', side))).toContain('.links.is-open { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));');
+    const sideBlock = css.slice(side, css.indexOf('\n}\n', side));
+    expect(sideBlock).toContain('.links.is-open { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));');
+    expect(sideBlock).toContain('white-space: normal;');
   });
 
   it('has no inline script or style, which the security policy blocks', () => {

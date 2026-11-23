@@ -312,6 +312,14 @@ describe('the phone menu', () => {
     expect(within(more).getByText('Cont demo')).toBeInTheDocument();
     expect(within(more).getByText('Lucrări corectate').nextElementSibling).toHaveTextContent('20 din 35');
     expect(more).toHaveTextContent('Mai ai 15 lucrări, pentru testul tău.');
+    // Two groups, side by side on a phone turned sideways: the settings, then
+    // the account with the demo papers.
+    expect(more.children).toHaveLength(2);
+    const [settings, account] = Array.from(more.querySelectorAll<HTMLElement>(':scope > .phone-menu-group'));
+    expect(within(settings!).getByRole('switch', { name: 'Temă întunecată' })).toBeInTheDocument();
+    expect(within(account!).getByText('Cont demo')).toBeInTheDocument();
+    expect(within(account!).getByRole('link', { name: 'Contul meu' })).toBeInTheDocument();
+    expect(within(account!).getByRole('button', { name: 'Ieși din cont' })).toBeInTheDocument();
     cleanup();
 
     renderAdmin('/', withClasses());

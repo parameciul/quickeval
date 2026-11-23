@@ -1290,18 +1290,19 @@ table.search-table {
     box-shadow: var(--float);
   }
 
-  /* The ☰ menu beside the bar, never under it, in two columns: the whole
-     menu fits the short screen. */
+  /* The ☰ menu beside the bar, never under it: the settings and the account
+     side by side, so the whole menu fits the short screen. A menu still taller
+     than the screen scrolls down. Its left room is the page's: the bar
+     already takes the camera's side. */
   .shell:not(.shell-bare) .phone-menu {
     left: var(--side);
-    columns: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 1.5rem;
+    align-items: start;
     max-height: calc(100vh - var(--top));
     max-height: calc(100dvh - var(--top));
-  }
-
-  .shell:not(.shell-bare) .phone-menu > * {
-    break-inside: avoid;
+    padding-left: 1rem;
   }
 }
 
@@ -8337,6 +8338,11 @@ a.ticket-qr {
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-top: 1px solid var(--rule);
+}
+
+/* The phone menu's words are plain: "Cont demo" too. */
+.phone-demo .demo-title {
+  font-weight: 400;
 }
 
 /* The two meters of a demo account: its one test and its papers; the papers'

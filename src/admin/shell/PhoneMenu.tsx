@@ -30,38 +30,44 @@ export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): v
     document.addEventListener('mousedown', onPointer);
     return () => document.removeEventListener('mousedown', onPointer);
   }, [onClose]);
+  // Two groups, the settings and the account: on a phone turned sideways they
+  // stand side by side.
   return (
     <section ref={box} className="phone-menu" id="phone-menu" aria-label={t('Mai mult')}>
-      {teacher.role === 'admin' && (
-        <Link className="menu-row menu-link" to="/settings">
-          <IconSettings />
-          <span>{t('Setări')}</span>
-        </Link>
-      )}
-      <div className="menu-row">
-        <YearSelect id="school-year-phone" labelClassName="menu-label" icon={<ActionIcon name="calendar" />} />
-      </div>
-      <ThemeSwitch />
-      <LangSwitch />
-      <p className="user-who">
-        <b>{teacher.name}</b>
-        <span>{teacher.email}</span>
-      </p>
-      {/* A demo account's papers: the demo button of the top bar, on a phone. */}
-      {teacher.demo && (
-        <div className="phone-demo">
-          <DemoSummary usage={demoUsage(teacher)} />
+      <div className="phone-menu-group">
+        {teacher.role === 'admin' && (
+          <Link className="menu-row menu-link" to="/settings">
+            <IconSettings />
+            <span>{t('Setări')}</span>
+          </Link>
+        )}
+        <div className="menu-row">
+          <YearSelect id="school-year-phone" labelClassName="menu-label" icon={<ActionIcon name="calendar" />} />
         </div>
-      )}
-      <Link className="menu-row menu-link" to="/account">
-        <ActionIcon name="person" />
-        {t('Contul meu')}
-      </Link>
-      <button type="button" className="menu-row menu-link menu-quiet" disabled={logout.isPending} onClick={() => logout.mutate()}>
-        <ActionIcon name="logout" />
-        {t('Ieși din cont')}
-      </button>
-      {logout.error && <ErrorMessage error={logout.error} />}
+        <ThemeSwitch />
+        <LangSwitch />
+      </div>
+      <div className="phone-menu-group">
+        <p className="user-who">
+          <b>{teacher.name}</b>
+          <span>{teacher.email}</span>
+        </p>
+        {/* A demo account's papers: the demo button of the top bar, on a phone. */}
+        {teacher.demo && (
+          <div className="phone-demo">
+            <DemoSummary usage={demoUsage(teacher)} />
+          </div>
+        )}
+        <Link className="menu-row menu-link" to="/account">
+          <ActionIcon name="person" />
+          {t('Contul meu')}
+        </Link>
+        <button type="button" className="menu-row menu-link menu-quiet" disabled={logout.isPending} onClick={() => logout.mutate()}>
+          <ActionIcon name="logout" />
+          {t('Ieși din cont')}
+        </button>
+        {logout.error && <ErrorMessage error={logout.error} />}
+      </div>
     </section>
   );
 }
