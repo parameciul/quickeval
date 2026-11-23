@@ -279,6 +279,23 @@ describe('the phone menu', () => {
     expect(within(more).getByText('profesor@example.com')).toBeInTheDocument();
     expect(within(more).getByRole('link', { name: 'Contul meu' })).toHaveAttribute('href', '/account');
     expect(within(more).getByRole('button', { name: 'Ieși din cont' })).toBeInTheDocument();
+    // Every row has its icon, hidden from screen readers; the names stay the words.
+    const rows = [
+      within(more).getByRole('link', { name: 'Setări' }),
+      within(more).getByText('Anul școlar'),
+      within(more).getByRole('switch', { name: 'Temă întunecată' }),
+      within(more).getByRole('button', { name: /^Limba/ }),
+      within(more).getByRole('link', { name: 'Contul meu' }),
+      within(more).getByRole('button', { name: 'Ieși din cont' }),
+    ];
+    for (const row of rows) {
+      const icon = row.querySelector('svg');
+      expect(icon, row.textContent ?? '').not.toBeNull();
+      expect(icon).toHaveAttribute('aria-hidden', 'true');
+    }
+    // Only the teacher's name is bold.
+    expect(more.querySelectorAll('b, strong')).toHaveLength(1);
+    expect(more.querySelector('b')).toHaveTextContent('Laura Miron');
 
     await userEvent.click(within(more).getByRole('switch', { name: 'Temă întunecată' }));
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');

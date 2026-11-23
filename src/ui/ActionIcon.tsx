@@ -63,6 +63,13 @@ const PATHS = {
       <circle cx="10" cy="11" r="3" />
     </>
   ),
+  // The school year, in the phone menu.
+  calendar: (
+    <>
+      <rect x="3.5" y="4.5" width="13" height="12" rx="1.5" />
+      <path d="M3.5 8.5h13M7 3v3M13 3v3" />
+    </>
+  ),
   check: <path d="M4 10.5l4 4 8-9" />,
   clock: (
     <>
@@ -84,6 +91,15 @@ const PATHS = {
   // The QR code on the whole screen.
   expand: <path d="M7.5 3.5h-4v4M12.5 3.5h4v4M7.5 16.5h-4v-4M12.5 16.5h4v-4" />,
   doc: <path d="M5 2.75h7l3 3v11.5H5zM8 9h4.5M8 12h4.5" />,
+  // The language, in the phone menu.
+  globe: (
+    <>
+      <circle cx="10" cy="10" r="6.75" />
+      <path d="M3.25 10h13.5M10 3.25c1.9 1.9 2.75 4.2 2.75 6.75S11.9 14.85 10 16.75C8.1 14.85 7.25 12.55 7.25 10S8.1 5.15 10 3.25z" />
+    </>
+  ),
+  // The dark theme, in the phone menu.
+  moon: <path d="M16.5 12A6.5 6.5 0 0 1 8 3.5a6.5 6.5 0 1 0 8.5 8.5z" />,
   phone: (
     <>
       <rect x="5.5" y="2.5" width="9" height="15" rx="2" />

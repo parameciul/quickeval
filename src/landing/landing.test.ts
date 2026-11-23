@@ -198,6 +198,29 @@ describe('the landing page', () => {
     expect(bar?.querySelectorAll(':scope > .btn-small').length).toBe(2);
   });
 
+  it('gives a phone a low header and a short menu, the page marked by a line under its name', () => {
+    const css = readFileSync(resolve(__dirname, 'landing.css'), 'utf8');
+    const start = css.indexOf('@media (max-width: 900px) {\n  .bar { min-height: 60px; }');
+    expect(start).toBeGreaterThan(0);
+    const block = css.slice(start, css.indexOf('\n}\n', start));
+    // The menu opens right under the 60px header and scrolls when the screen is shorter.
+    expect(block).toContain('top: 60px;');
+    expect(block).toContain('max-height: calc(100dvh - 60px); overflow-y: auto;');
+    // Rows of 44px, the words plain, each after its icon.
+    expect(block).toContain('.links a { display: flex; align-items: center; gap: 14px; padding: 11px 0; border-radius: 0; font-size: 17px; font-weight: 400; }');
+    expect(block).toContain('.nav-ico { display: block; width: 22px; height: 22px;');
+    expect(block).not.toMatch(/font-weight: [5-9]00/);
+    // The page the reader is on: a line under its name, not a bar at its side.
+    expect(block).toContain('.links a[aria-current="page"] span { text-decoration: underline 3px var(--orange-mark);');
+    expect(block).not.toContain('inset 4px 0 0');
+    // The icons stay out of the header of a wide screen.
+    expect(css.indexOf('.nav-ico { display: none; }')).toBeLessThan(start);
+    // A phone turned sideways: the five pages in three columns.
+    const side = css.indexOf('@media (max-width: 900px) and (max-height: 500px) {');
+    expect(side).toBeGreaterThan(start);
+    expect(css.slice(side, css.indexOf('\n}\n', side))).toContain('.links.is-open { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));');
+  });
+
   it('has no inline script or style, which the security policy blocks', () => {
     const code = all('script').filter((s) => s.getAttribute('type') !== 'application/ld+json');
     expect(code.every((s) => s.getAttribute('src') && !text(s))).toBe(true);

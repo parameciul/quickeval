@@ -39,7 +39,7 @@ export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): v
         </Link>
       )}
       <div className="menu-row">
-        <YearSelect id="school-year-phone" />
+        <YearSelect id="school-year-phone" labelClassName="menu-label" icon={<ActionIcon name="calendar" />} />
       </div>
       <ThemeSwitch />
       <LangSwitch />

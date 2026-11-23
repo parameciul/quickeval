@@ -4,6 +4,11 @@ import despreRaw from '../../about/index.html?raw';
 import ghidRaw from '../../guide/index.html?raw';
 import landingRaw from '../../index.html?raw';
 import preturiRaw from '../../pricing/index.html?raw';
+import enLanding from '../../en/index.html?raw';
+import enGuide from '../../en/guide/index.html?raw';
+import enGrading from '../../en/grading/index.html?raw';
+import enAbout from '../../en/about/index.html?raw';
+import enPricing from '../../en/pricing/index.html?raw';
 import llms from '../../public/llms.txt?raw';
 import teacherRaw from '../../teacher/index.html?raw';
 import tryRaw from '../../try/index.html?raw';
@@ -121,6 +126,26 @@ describe('the pages that answer a search', () => {
     // The landing page's header names the same pages, "Produs" marked.
     expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(['/', ...LINKS]);
     expect(all(landingDoc, '.site-top .nav-links a[aria-current="page"]').map((a) => a.textContent)).toEqual(['Produs']);
+  });
+
+  it('gives every page of the header menu its own icon, in both languages', () => {
+    const docs = [landing, ...PAGES.map((p) => p.html), enLanding, enGuide, enGrading, enAbout, enPricing].map((html) => parse(expandPartials(html)));
+    const drawings = (doc: Document) =>
+      all(doc, '.site-top .nav-links a').map((a) => {
+        // An icon the screen reader skips, then the page's name in a span.
+        const icon = a.firstElementChild;
+        expect(icon?.tagName.toLowerCase()).toBe('svg');
+        expect(icon?.getAttribute('class')).toBe('nav-ico');
+        expect(icon?.getAttribute('aria-hidden')).toBe('true');
+        expect(a.lastElementChild?.tagName.toLowerCase()).toBe('span');
+        expect(a.children).toHaveLength(2);
+        expect(text(a)).toBe(text(a.lastElementChild));
+        return icon!.innerHTML;
+      });
+    const first = drawings(docs[0]!);
+    expect(new Set(first).size).toBe(5);
+    // Each page has the same icon on every page, Romanian or English.
+    for (const doc of docs) expect(drawings(doc)).toEqual(first);
   });
 
   it.each(PAGES)('$path leads only to pages and files that exist', ({ html }) => {

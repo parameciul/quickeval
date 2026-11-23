@@ -882,33 +882,42 @@ table.search-table {
   justify-content: space-between;
   gap: 0.75rem;
   width: 100%;
-  min-height: 3.25rem;
+  min-height: 2.75rem;
   padding: 0 0.25rem;
   border: 0;
   border-bottom: 1px solid var(--line);
   background: none;
   color: var(--text);
   font: inherit;
-  font-weight: 500;
+  font-weight: 400;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
 }
 
+/* The menu's words are plain; only the teacher's name is bold. */
 .menu-row label {
-  font-weight: 500;
+  font-weight: 400;
+}
+
+/* A row's icon and its words, with the control at the far end. */
+.menu-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .menu-link {
   justify-content: flex-start;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .menu-link:hover {
   color: var(--text);
 }
 
-.menu-link svg {
+.menu-link svg,
+.menu-label svg {
   width: 1.375rem;
   height: 1.375rem;
   color: var(--muted);
@@ -917,7 +926,7 @@ table.search-table {
 .menu-quiet {
   border-bottom: 0;
   color: var(--muted);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* The switch of "Temă întunecată". */
@@ -961,7 +970,7 @@ table.search-table {
 
 .phone-menu .user-who {
   margin: 0;
-  padding: 1rem 0.25rem 0.25rem;
+  padding: 0.625rem 0.25rem 0.25rem;
   border-bottom: 0;
 }
 
@@ -1279,6 +1288,20 @@ table.search-table {
     max-width: calc(100vw - var(--side));
     border-right: 1px solid var(--rule);
     box-shadow: var(--float);
+  }
+
+  /* The ☰ menu beside the bar, never under it, in two columns: the whole
+     menu fits the short screen. */
+  .shell:not(.shell-bare) .phone-menu {
+    left: var(--side);
+    columns: 2;
+    column-gap: 1.5rem;
+    max-height: calc(100vh - var(--top));
+    max-height: calc(100dvh - var(--top));
+  }
+
+  .shell:not(.shell-bare) .phone-menu > * {
+    break-inside: avoid;
   }
 }
 
