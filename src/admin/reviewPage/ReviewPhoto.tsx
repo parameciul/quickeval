@@ -61,7 +61,7 @@ export interface ReviewFocus {
 // the arrows beside the border's label, each part opening on its page, whole.
 //
 // The box's header (the name, the page buttons, the ×) stays at the top of
-// the box while the page scrolls in it. It also holds "Arată chenarul" and the
+// the box while the page scrolls under it, in its own box (`.zoom-scroll`). It also holds "Arată chenarul" and the
 // zoom when its one line has the room for them (`headWidth`); else they float
 // over the page's top corners, hung from the header, so they stay in sight too
 // (on a touch screen they stand in the bar above the page instead).
@@ -69,7 +69,9 @@ export interface ReviewFocus {
 // "Pe tot ecranul" shows the same box over the whole screen (`is-full`): the
 // page as wide as the screen allows, scrolling between the header and the
 // hint's line under it. The header holds the name and "Arată chenarul" on
-// the left, the × in the middle, the zoom and the page buttons on the right.
+// the left, the × in the middle, the zoom and the page buttons on the right;
+// on a phone, the name and the page buttons, and a bar under it the view,
+// the × in its middle and the zoom.
 // Two arrows beside the page (and ← and →) turn to the previous and the next
 // page; past the first or the last page they do nothing. The box stays the same element,
 // so the zoom, the border and its part go with it. Esc, the button again or
@@ -109,8 +111,8 @@ export function ReviewPhoto({
   // the pane's edge on a narrow screen: on a phone the controls stand in the
   // line under the page instead (below), never over the handwriting.
   const touch = useMediaQuery('(pointer: coarse)');
-  // A phone's width: over the whole screen the header takes two lines and the
-  // view and the zoom a bar of their own (brand.css, the same width).
+  // A phone's width: over the whole screen the view, the × and the zoom
+  // take a bar of their own under the header (brand.css, the same width).
   const narrow = useMediaQuery('(max-width: 40rem)');
   const files = submission.files;
   const index = Math.min(Math.max(page, 0), Math.max(files.length - 1, 0));
@@ -227,6 +229,15 @@ export function ReviewPhoto({
     const own = box.current?.querySelector<HTMLElement>('.full-toggle') ?? box.current?.querySelector<HTMLElement>('.page-switch-button[aria-current="true"]');
     own?.focus({ preventScroll: true });
   }, [isFull]);
+  // A phone turned over the whole screen moves the × between the bar and the
+  // header (a new element): a focus left on it goes to the new one.
+  const wasNarrow = useRef(narrow);
+  useLayoutEffect(() => {
+    const turned = wasNarrow.current !== narrow;
+    wasNarrow.current = narrow;
+    if (!turned || !isFull || (document.activeElement !== null && document.activeElement !== document.body)) return;
+    box.current?.querySelector<HTMLElement>('.photo-hide')?.focus({ preventScroll: true });
+  }, [narrow, isFull]);
   // An arrow that turned to the first or the last page is off now: the focus
   // goes to the other one, so it is not lost.
   const arrowFocus = useRef<'is-prev' | 'is-next' | null>(null);
@@ -240,6 +251,19 @@ export function ReviewPhoto({
     if (next === 0 || next === files.length - 1) arrowFocus.current = delta < 0 ? 'is-next' : 'is-prev';
     step(delta);
   };
+  // The page's box keeps the same room on its right as the box's padding on
+  // its left, its scrollbar included: brand.css takes the scrollbar's width
+  // (none while the page fits, or an overlay scrollbar) from the padding.
+  useLayoutEffect(() => {
+    const scroller = box.current?.querySelector<HTMLElement>('.zoom-scroll');
+    if (!scroller) return;
+    const gutter = () => scroller.style.setProperty('--scrollbar', `${Math.max(0, scroller.offsetWidth - scroller.clientWidth)}px`);
+    gutter();
+    if (typeof ResizeObserver !== 'function') return;
+    const watch = new ResizeObserver(gutter);
+    watch.observe(scroller);
+    return () => watch.disconnect();
+  }, [photo]);
   // A PDF page closes the whole screen (above): the caller learns it.
   useEffect(() => {
     if (full && file && !photo) onFull(false);
@@ -294,8 +318,9 @@ export function ReviewPhoto({
   const latest = useRef({ framed, focus, partIndex, pageNumber });
   latest.current = { framed, focus, partIndex, pageNumber };
   useLayoutEffect(() => {
-    // Over the whole screen the page scrolls in its own box, under the bars.
-    const element = isFull ? box.current?.querySelector<HTMLElement>('.zoom-scroll') : box.current;
+    // The page scrolls in its own box under the header, over the whole
+    // screen and beside the exercises alike.
+    const element = box.current?.querySelector<HTMLElement>('.zoom-scroll');
     if (!element) return;
     // The whole screen opened or closed is a new box: the answer comes to its
     // middle.
@@ -463,8 +488,10 @@ export function ReviewPhoto({
             </div>
             {inHead && <ViewGroup tools={tools} />}
           </div>
-          {/* Over the whole screen the × is in the middle of the header. */}
-          {isFull && hide}
+          {/* Over the whole screen the × is in the middle of the header; on a
+              phone, in the middle of the bar of the view and the zoom, away
+              from the page buttons, which may be many. */}
+          {isFull && !narrow && hide}
           <div className="review-photo-actions">
             {inHead && <ZoomGroup view={view} onView={setView} full={isFull} onFull={showFull} />}
             {files.length > 1 && (
@@ -501,6 +528,7 @@ export function ReviewPhoto({
             full={isFull}
             onFull={showFull}
             buttons={place === 'bar'}
+            barMiddle={isFull && narrow ? hide : undefined}
             tools={tools}
           >
             {framed?.areas.map((area, number) =>

@@ -43,6 +43,7 @@ export function ZoomPhoto({
   full = false,
   onFull,
   buttons = true,
+  barMiddle,
   children,
 }: {
   src: string;
@@ -58,6 +59,8 @@ export function ZoomPhoto({
   // False when the caller draws the two groups itself (`ViewGroup`,
   // `ZoomGroup`), in its own header: then none stands over or above the page.
   buttons?: boolean;
+  // Drawn in the middle of the bar above the page, between the two groups.
+  barMiddle?: ReactNode;
   children?: ReactNode;
 }) {
   const pane = useRef<HTMLDivElement>(null);
@@ -226,6 +229,7 @@ export function ZoomPhoto({
       {bars && buttons && (
         <div className="zoom-bar">
           {viewGroup}
+          {barMiddle}
           {zoomGroup}
         </div>
       )}

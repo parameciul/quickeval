@@ -195,7 +195,7 @@ export function stubScroll() {
 export function tallPhotoBox() {
   const scrolled = new WeakMap<Element, number>();
   const own = (element: Element, name: 'scrollHeight' | 'clientHeight') =>
-    element.classList.contains('review-photo') ? (name === 'scrollHeight' ? 2000 : 1000) : 0;
+    element.classList.contains('zoom-scroll') ? (name === 'scrollHeight' ? 2000 : 1000) : 0;
   const restore = [
     vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
       return own(this, 'scrollHeight');
@@ -210,7 +210,7 @@ export function tallPhotoBox() {
       scrolled.set(this, value);
     }),
     vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
-      const scroll = this.closest('.review-photo') ? (scrolled.get(this.closest('.review-photo')!) ?? 0) : 0;
+      const scroll = this.closest('.zoom-scroll') ? (scrolled.get(this.closest('.zoom-scroll')!) ?? 0) : 0;
       const pane = this.classList.contains('zoom-pane');
       const top = pane ? 100 - scroll : 0;
       const height = pane ? 1500 : 0;
