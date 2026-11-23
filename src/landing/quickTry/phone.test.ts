@@ -18,6 +18,7 @@ afterEach(() => {
   step?.close();
   step = null;
   document.body.innerHTML = '';
+  vi.useRealTimers();
 });
 
 function fakeApi(pages: SubmissionFile[] = []) {
@@ -237,15 +238,21 @@ describe('the QR window after a send with the phone', () => {
     expect(block.querySelector('[data-try-phone-idle]')!.parentElement).toHaveAttribute('aria-live', 'polite');
   });
 
+  // On the fake clock: a real 5 ms tick and a real 30 ms wait come late, or
+  // not in order, while the whole suite runs.
   it('shows "Verifică din nou" once idle and reads again on it', async () => {
+    vi.useFakeTimers();
     const { api, view } = open({ idleMs: 20 });
-    const again = await view.findByRole('button', { name: 'Verifică din nou' });
+    expect(view.queryByRole('button', { name: 'Verifică din nou' })).toBeNull();
+    await vi.advanceTimersByTimeAsync(25);
+    const again = view.getByRole('button', { name: 'Verifică din nou' });
     expect(again.parentElement).toHaveTextContent(PHONE_IDLE_TEXT);
     const reads = api.listPages.mock.calls.length;
-    await new Promise((done) => setTimeout(done, 30));
+    await vi.advanceTimersByTimeAsync(30);
     expect(api.listPages).toHaveBeenCalledTimes(reads);
     again.click();
-    await waitFor(() => expect(api.listPages.mock.calls.length).toBeGreaterThan(reads));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.listPages.mock.calls.length).toBeGreaterThan(reads);
     expect(view.queryByRole('button', { name: 'Verifică din nou' })).toBeNull();
   });
 });
