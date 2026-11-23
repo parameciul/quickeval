@@ -9,6 +9,8 @@ import enGuide from '../../en/guide/index.html?raw';
 import enGrading from '../../en/grading/index.html?raw';
 import enAbout from '../../en/about/index.html?raw';
 import enPricing from '../../en/pricing/index.html?raw';
+import questionsRaw from '../../questions/index.html?raw';
+import enQuestions from '../../en/questions/index.html?raw';
 import llms from '../../public/llms.txt?raw';
 import teacherRaw from '../../teacher/index.html?raw';
 import tryRaw from '../../try/index.html?raw';
@@ -43,6 +45,11 @@ const PAGES: Page[] = [
 ];
 
 const LINKS = ['/guide/', '/grading/', '/about/', '/pricing/'];
+
+// The header's menu: the landing page, the four pages, and the questions
+// between the grading page and the page about the author.
+const NAV = ['/', '/guide/', '/grading/', '/questions/', '/about/', '/pricing/'];
+const questions = expandPartials(questionsRaw);
 
 const STATS_SCRIPT = 'https://stats.mqgrader.ro/api/script.js?siteId=b5be2803e8ab';
 
@@ -113,7 +120,7 @@ describe('the pages that answer a search', () => {
       const links = all(doc, '.site-top .nav-links a');
       // "Produs" first: the landing page, one tap away from every page.
       expect(links.map((a) => [a.textContent, a.getAttribute('href')])[0]).toEqual(['Produs', '/']);
-      expect(links.map((a) => a.getAttribute('href'))).toEqual(['/', ...LINKS]);
+      expect(links.map((a) => a.getAttribute('href'))).toEqual(NAV);
       expect(links.filter((a) => a.getAttribute('aria-current') === 'page').map((a) => a.getAttribute('href'))).toEqual([
         page.path,
       ]);
@@ -124,12 +131,14 @@ describe('the pages that answer a search', () => {
       expect(button?.getAttribute('aria-label')).toBe('Mai multe pagini');
     }
     // The landing page's header names the same pages, "Produs" marked.
-    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(['/', ...LINKS]);
+    expect(all(landingDoc, '.site-top .nav-links a').map((a) => a.getAttribute('href'))).toEqual(NAV);
     expect(all(landingDoc, '.site-top .nav-links a[aria-current="page"]').map((a) => a.textContent)).toEqual(['Produs']);
   });
 
   it('gives every page of the header menu its own icon, in both languages', () => {
-    const docs = [landing, ...PAGES.map((p) => p.html), enLanding, enGuide, enGrading, enAbout, enPricing].map((html) => parse(expandPartials(html)));
+    const docs = [landing, ...PAGES.map((p) => p.html), questions, enLanding, enGuide, enGrading, enQuestions, enAbout, enPricing].map((html) =>
+      parse(expandPartials(html)),
+    );
     const drawings = (doc: Document) =>
       all(doc, '.site-top .nav-links a').map((a) => {
         // An icon the screen reader skips, then the page's name in a span.
@@ -143,7 +152,7 @@ describe('the pages that answer a search', () => {
         return icon!.innerHTML;
       });
     const first = drawings(docs[0]!);
-    expect(new Set(first).size).toBe(5);
+    expect(new Set(first).size).toBe(6);
     // Each page has the same icon on every page, Romanian or English.
     for (const doc of docs) expect(drawings(doc)).toEqual(first);
   });
@@ -157,7 +166,7 @@ describe('the pages that answer a search', () => {
       .filter((href) => href.startsWith('/'))
       .map((href) => href.split('#')[0] ?? '');
     // The English copy of each page counts as one of them.
-    const known = new Set(['/', ...LINKS, '/teacher/', '/en/', ...LINKS.map((link) => `/en${link}`)]);
+    const known = new Set(['/', ...NAV, '/teacher/', '/en/', ...NAV.map((link) => `/en${link}`)]);
     for (const href of internal) expect(known.has(href) || href.startsWith('/teacher/')).toBe(true);
     // A link into the teacher app with a hash opens the sign-up, by its own name.
     for (const a of all(doc, 'a[href^="/teacher/#"]')) expect(a.getAttribute('href')).toBe(`/teacher/${SIGNUP_HASH}`);
@@ -190,9 +199,9 @@ describe('the pages that answer a search', () => {
     expect(trail.map((e) => e.name)).toEqual(crumbs);
   });
 
-  // The guide, the grading page and the pricing page changed on 21 November 2026.
+  // The grading page and the pricing page changed on 21 November 2026, the guide on 23 November.
   const UPDATED: Record<string, [string, string]> = {
-    '/guide/': ['21 noiembrie 2026', '2026-11-21'],
+    '/guide/': ['23 noiembrie 2026', '2026-11-23'],
     '/grading/': ['21 noiembrie 2026', '2026-11-21'],
     '/about/': ['17 noiembrie 2026', '2026-11-17'],
     '/pricing/': ['21 noiembrie 2026', '2026-11-21'],
@@ -466,6 +475,76 @@ describe('the pages that answer a search', () => {
   });
 });
 
+// The landing page's questions, on a page of their own: the header's
+// "Întrebări". One list, the shared part, so the two never drift apart.
+describe('the questions page', () => {
+  const qa = (doc: Document) => all(doc, '.qa li').map((li) => [text(li.querySelector('h3')), text(li.querySelector('p'))]);
+  const doc = parse(questions);
+  const enDoc = parse(expandPartials(enQuestions));
+  const enLandingDoc = parse(expandPartials(enLanding));
+
+  it('has one heading, its own address, its own trail and its own date', () => {
+    expect(doc.documentElement.getAttribute('lang')).toBe('ro');
+    expect(all(doc, 'h1').map(text)).toEqual(['Întrebări despre MQGrader']);
+    expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://mqgrader.ro/questions/');
+    expect(doc.querySelector('meta[property="og:url"]')?.getAttribute('content')).toBe('https://mqgrader.ro/questions/');
+    expect(doc.querySelector('meta[name="robots"]')?.getAttribute('content')).toMatch(/^index\b/);
+    expect(doc.title.length).toBeLessThanOrEqual(65);
+    const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') ?? '';
+    expect(description.length).toBeGreaterThanOrEqual(70);
+    expect(description.length).toBeLessThanOrEqual(165);
+    expect(all(doc, '.crumbs a, .crumbs span:not([aria-hidden])').map(text)).toEqual(['MQGrader', 'Întrebări']);
+    const ld = JSON.parse(text(doc.querySelector('script[type="application/ld+json"]')));
+    const nodes: { '@type': string; url?: string; dateModified?: string }[] = ld['@graph'];
+    expect(nodes.map((n) => n['@type'])).toEqual(['WebPage', 'BreadcrumbList']);
+    expect(nodes[0]).toMatchObject({ url: 'https://mqgrader.ro/questions/', dateModified: '2026-11-23' });
+    expect(text(doc.querySelector('.byline'))).toContain('23 noiembrie 2026');
+  });
+
+  it('marks itself in the header menu, in both languages', () => {
+    const links = all(doc, '.site-top .nav-links a');
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(NAV);
+    expect(links.filter((a) => a.getAttribute('aria-current') === 'page').map(text)).toEqual(['Întrebări']);
+    expect(all(enDoc, '.site-top .nav-links a[aria-current="page"]').map(text)).toEqual(['Questions']);
+  });
+
+  it("shows the landing page's questions, word for word, in both languages", () => {
+    expect(qa(doc).length).toBeGreaterThanOrEqual(9);
+    expect(qa(doc)).toEqual(qa(landingDoc));
+    expect(qa(enDoc)).toEqual(qa(enLandingDoc));
+    for (const raw of [landingRaw, questionsRaw]) expect(raw.match(/<!--#include faq-list -->/g)).toHaveLength(1);
+    for (const raw of [enLanding, enQuestions]) expect(raw.match(/<!--#include faq-list-en -->/g)).toHaveLength(1);
+  });
+
+  it('answers what happens when a student has no phone, right after the question about accounts', () => {
+    const list = qa(landingDoc);
+    const at = list.findIndex(([q]) => q === 'Au elevii nevoie de cont sau de aplicație?');
+    expect(at).toBeGreaterThanOrEqual(0);
+    const [question, answer] = list[at + 1]!;
+    expect(question).toBe('Ce se întâmplă dacă un elev nu are telefon sau nu apucă să trimită pozele?');
+    expect(answer).toContain('linkul tău pentru mai multe lucrări');
+    expect(answer).toContain('mai târziu');
+    const en = qa(enLandingDoc).map(([q]) => q);
+    expect(en[en.indexOf('Do students need an account or an app?') + 1]).toBe('What if a student has no phone or no time to send the photos?');
+  });
+
+  it('leaves the FAQ data to the landing page, so the questions are marked up once', () => {
+    expect(questions).not.toContain('FAQPage');
+    expect(enQuestions).not.toContain('FAQPage');
+    expect(landing).toContain('FAQPage');
+  });
+
+  it('ends by sending the reader to the four content pages, and takes the shared footer', () => {
+    expect(text(doc.querySelector('#read-also'))).toBe('Citește și');
+    expect(all(doc, '.read-on a').map((a) => a.getAttribute('href'))).toEqual(LINKS);
+    expect(questionsRaw.match(/<!--#include site-foot -->/g)).toHaveLength(1);
+    expect(all(doc, '[style], style')).toEqual([]);
+    expect(all(doc, 'script[type="module"]').map((s) => s.getAttribute('src'))).toEqual(['/src/landing/pages.ts']);
+    expect(all(doc, `script[src="${STATS_SCRIPT}"]`)).toHaveLength(1);
+    expect(llms).toContain('https://mqgrader.ro/questions/');
+  });
+});
+
 // Spec "any subject": MQGrader grades seven subjects, so no product text says
 // it is for math teachers or math tests only. Facts about Laura Miron (a math
 // teacher) and the math examples stay.
@@ -477,6 +556,7 @@ describe('the product text names no single subject', () => {
     ['/grading/', barem],
     ['/about/', despre],
     ['/pricing/', preturi],
+    ['/questions/', questions],
     ['llms.txt', llms],
     ['the footer', PARTIALS['site-foot']!],
     ['PITCH_LINE', PITCH_LINE],

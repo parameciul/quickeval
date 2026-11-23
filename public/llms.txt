@@ -9,6 +9,7 @@ MQGrader (also written MQ Grader) is a web app that helps teachers in Romania gr
 - [Prezentare și cum funcționează](https://mqgrader.ro/): cele șase etape ale unui test (pregătire, tipărire, în clasă, corectare, verificare, rezultate), beneficii și întrebări frecvente.
 - [Ghidul aplicației](https://mqgrader.ro/guide/): cum se folosește MQGrader, pas cu pas: cele șase etape ale unui test, de la barem la rezultatele elevilor.
 - [Corectarea](https://mqgrader.ro/grading/): cum se corectează testele după barem cu MQGrader: unde se duce timpul, cum e punctată fiecare lucrare, cum verifică profesorul punctele nesigure și ce decide el.
+- [Întrebări](https://mqgrader.ro/questions/): întrebările profesorilor despre MQGrader, cu răspunsuri scurte: elevii fără cont, elevii fără telefon, punctajul, baremul, telefonul și contul.
 - [Despre](https://mqgrader.ro/about/): cine construiește MQGrader, de ce a apărut, ce face și ce nu face.
 - [Cât costă](https://mqgrader.ro/pricing/): ce include un cont demo și un cont complet; nu există încă un abonament cu plată.
 - [Intră în cont](https://mqgrader.ro/teacher/): autentificarea profesorilor și cererea unui cont nou.
@@ -18,6 +19,7 @@ MQGrader (also written MQ Grader) is a web app that helps teachers in Romania gr
 - Folosește inteligență artificială (AI) pentru a citi pozele lucrărilor și a propune punctajul; profesorul verifică punctele nesigure și decide punctajul final. / Uses AI to read the photos and propose scores; the teacher has the final say.
 - Public țintă: profesori de gimnaziu și liceu, în limba română. Materii: matematică, fizică, chimie, biologie, științe, limba română și limba engleză.
 - Elevii nu au nevoie de cont sau aplicație: scanează codul QR de pe test și trimit pozele.
+- Un elev fără telefon, sau unul care nu apucă să trimită pozele: profesorul îi încarcă lucrarea cu linkul lui pentru mai multe lucrări, și mai târziu, cât timp încărcarea e deschisă.
 - Punctajul urmează baremul; dacă profesorul nu are un barem pregătit, îl generează automat din test, iar apoi îl poate revizui și ajusta.
 - Rezultate: link pentru fiecare elev (cu nota, punctele pe fiecare exercițiu, explicații detaliate pentru fiecare problemă rezolvată corect sau greșit și o sinteză finală cu ce merge bine și recomandări), raportul clasei, PDF pentru fiecare elev, CSV pentru catalog.
 - Conturile noi se creează pe bază de cerere.

@@ -53,7 +53,7 @@ export const STAGES: Stage[] = [
   },
   {
     name: 'În clasă',
-    who: ['Elevii'],
+    who: ['Elevii', 'Tu'],
     text: t('Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.'),
     icon: (
       <>

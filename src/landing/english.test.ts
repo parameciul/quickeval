@@ -6,11 +6,13 @@ import despreRaw from '../../about/index.html?raw';
 import ghidRaw from '../../guide/index.html?raw';
 import landingRaw from '../../index.html?raw';
 import preturiRaw from '../../pricing/index.html?raw';
+import questionsRaw from '../../questions/index.html?raw';
 import enBaremRaw from '../../en/grading/index.html?raw';
 import enDespreRaw from '../../en/about/index.html?raw';
 import enGuideRaw from '../../en/guide/index.html?raw';
 import enLandingRaw from '../../en/index.html?raw';
 import enPreturiRaw from '../../en/pricing/index.html?raw';
+import enQuestionsRaw from '../../en/questions/index.html?raw';
 import { expandPartials } from './partials.ts';
 
 // The English copy of every public page (/en/…): the same page, in English.
@@ -32,6 +34,7 @@ const TWINS: Twin[] = [
   { ro: landingRaw, en: enLandingRaw, roUrl: '/', enUrl: '/en/' },
   { ro: ghidRaw, en: enGuideRaw, roUrl: '/guide/', enUrl: '/en/guide/' },
   { ro: baremRaw, en: enBaremRaw, roUrl: '/grading/', enUrl: '/en/grading/' },
+  { ro: questionsRaw, en: enQuestionsRaw, roUrl: '/questions/', enUrl: '/en/questions/' },
   { ro: despreRaw, en: enDespreRaw, roUrl: '/about/', enUrl: '/en/about/' },
   { ro: preturiRaw, en: enPreturiRaw, roUrl: '/pricing/', enUrl: '/en/pricing/' },
 ];
