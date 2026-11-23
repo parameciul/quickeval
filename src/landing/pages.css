@@ -12,7 +12,9 @@
   .pg-guide .jump small { display: block; font-size: var(--fs-small); color: var(--muted); }
   /* Who does the stage: the same coloured labels as the stages below. */
   .pg-guide .jump small.whos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
-  .pg-guide .jump small.whos .who { padding: 2px 8px; }
+  .pg-guide .jump small.whos .who { margin-top: 0; padding: 2px 8px; }
+  /* The tile turns blue under the pointer: the students' blue label keeps its shape on white. */
+  .pg-guide .jump a:hover .who-st { background: var(--surface); }
   .pg-guide .jump .st b { color: var(--blue); }
   .pg-guide .jump .mq b { color: var(--text); }
 
