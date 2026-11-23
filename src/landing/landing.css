@@ -33,6 +33,7 @@
   --on-end: #ffffff;
   --frame: #0c1524;
   --stone: #e8e6e1;
+  --shot-line: #b9c2cf;
   --mk-a: var(--blue);
   --mk-b: var(--orange-mark);
   --font: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
@@ -79,6 +80,7 @@
   --on-end: #eef1f5;
   --frame: #000000;
   --stone: #1c1a17;
+  --shot-line: #3a4250;
   --lift: 0 6px 16px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
@@ -200,9 +202,11 @@ img { display: block; max-width: 100%; height: auto; }
 .link { font-weight: 600; text-underline-offset: 4px; }
 .link:hover { color: var(--blue); }
 
-/* Real app screenshots: a laptop screen on a tone step, a phone in a plain dark frame. */
-.shot-l { display: block; padding: 10px; border-radius: var(--radius-panel); background: var(--sunk); }
-.shot-l img { width: 100%; border-radius: 6px; }
+/* Real app screenshots: a laptop screen in a 1px grey line with square
+   corners, kept on every side also when the picture is cut; a phone in a
+   plain dark frame. */
+.shot-l { display: block; border: 1px solid var(--shot-line); background: var(--surface); }
+.shot-l img { width: 100%; }
 .shot-p { display: block; width: 280px; max-width: 100%; padding: 8px; border-radius: 36px; background: var(--frame); }
 .shot-p img { width: 100%; border-radius: 29px; }
 .shot-p.narrow { width: 200px; }
@@ -292,7 +296,7 @@ img { display: block; max-width: 100%; height: auto; }
 .prose p + p, .prose p + ul, .prose ul + p, .prose p + ol, .prose ol + p { margin-top: 18px; }
 .prose p, .prose li { font-size: var(--fs-body); line-height: 1.6; }
 .prose .shot { margin-top: 40px; }
-.prose .shot img { width: 100%; border-radius: var(--radius-panel); background: var(--sunk); }
+.prose .shot img { width: 100%; border: 1px solid var(--shot-line); background: var(--surface); }
 .prose .shot figcaption { margin-top: 12px; font-size: var(--fs-small); color: var(--muted); }
 .dots li { position: relative; padding-left: 28px; }
 .dots li + li { margin-top: 12px; }
@@ -342,14 +346,14 @@ img { display: block; max-width: 100%; height: auto; }
   /* The three pictures under the hero. Each card is as tall as its picture
      needs, so a phone shows whole, down to its last button. */
   .pg-home .shots { display: grid; grid-template-columns: 6fr 3fr 3fr; gap: 8px; }
-  .pg-home .shots figure { background: var(--surface); padding: 28px 24px 24px; overflow: hidden; display: flex; flex-direction: column; }
+  .pg-home .shots figure { background: var(--surface); padding: 22px 16px 16px; overflow: hidden; display: flex; flex-direction: column; }
   .pg-home .shots figure:nth-child(2) { background: var(--blue); color: var(--on-blue); }
   .pg-home .shots figure:nth-child(3) { background: var(--orange); color: #fff; }
   :root[data-theme="dark"] .pg-home .shots figure:nth-child(3) { color: #1a0d03; }
-  .pg-home .shots figcaption { font-weight: 600; margin-bottom: 20px; }
+  .pg-home .shots figcaption { font-weight: 600; margin-bottom: 14px; }
   .pg-home .shots .shot-p { width: 200px; margin: 0 auto; }
-  .pg-home .shots .shot-l { flex: 1; padding: 8px 8px 0; overflow: hidden; }
-  .pg-home .shots .shot-l img { width: 125%; max-width: none; margin-left: -22%; border-radius: 6px 6px 0 0; }
+  .pg-home .shots .shot-l { flex: 1; overflow: hidden; }
+  .pg-home .shots .shot-l img { width: 125%; max-width: none; margin-left: -22%; }
 
   .pg-home .day { padding-top: 160px; padding-bottom: 120px; }
   .pg-home .day .clock { margin-top: 64px; }
@@ -370,12 +374,12 @@ img { display: block; max-width: 100%; height: auto; }
   .pg-home .try-top .acts { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
   .pg-home .try-top small { font-size: var(--fs-small); color: var(--muted); }
   .pg-home .try-steps { display: grid; grid-template-columns: 6fr 3fr 3fr; gap: 8px; margin-top: 72px; }
-  .pg-home .try-steps li { background: var(--surface); padding: 28px 24px 24px; display: flex; flex-direction: column; overflow: hidden; }
+  .pg-home .try-steps li { background: var(--surface); padding: 22px 16px 16px; display: flex; flex-direction: column; overflow: hidden; }
   .pg-home .try-steps b { font-size: var(--fs-title); letter-spacing: -0.015em; line-height: 1.2; }
   .pg-home .try-steps b i { font-style: normal; color: var(--orange); margin-right: 8px; }
-  .pg-home .try-steps p { margin: 6px 0 22px; color: var(--muted); }
-  .pg-home .try-steps .shot-l { flex: 1; padding: 8px 8px 0; overflow: hidden; }
-  .pg-home .try-steps .shot-l img { width: 140%; max-width: none; border-radius: 6px 6px 0 0; }
+  .pg-home .try-steps p { margin: 6px 0 14px; color: var(--muted); }
+  .pg-home .try-steps .shot-l { flex: 1; overflow: hidden; }
+  .pg-home .try-steps .shot-l img { width: 140%; max-width: none; }
   .pg-home .try-steps .shot-p { width: 200px; margin: 0 auto; }
 
   .pg-home .cls, .pg-home .rep { padding-top: 160px; padding-bottom: 160px; display: grid; grid-template-columns: 5fr 7fr; gap: 64px; align-items: center; }
@@ -581,18 +585,18 @@ label.tile.is-chosen, .step.is-chosen > .tiles > label.tile { border-color: var(
      the screenshot fills its box from the top left, so no strip of the box
      shows under it when the phones are the taller cards. */
   .pg-home .shots .shot-l, .pg-home .try-steps .shot-l { position: relative; min-height: 280px; }
-  .pg-home .shots .shot-l img, .pg-home .try-steps .shot-l img { position: absolute; top: 8px; left: 8px; height: calc(100% - 8px); object-fit: cover; object-position: left top; }
+  .pg-home .shots .shot-l img, .pg-home .try-steps .shot-l img { position: absolute; top: 0; left: 0; height: 100%; object-fit: cover; object-position: left top; }
 }
 
 /* A laptop screenshot on a phone: one region of the screen, cut to the same
    place at every width. The box keeps the region's shape (aspect-ratio on
-   the content box, the frame drawn as a border so nothing shows in it); the
+   the content box, inside the 1px line); the
    picture is enlarged by 1/w and moved up and left by the region's corner.
    A % margin is measured on the box's width, so the top offset is
    y0 · (H/W) / w. Each picture names its own region. */
 @media (max-width: 900px) {
-  .pg .shot-l.crop { box-sizing: content-box; padding: 0; border: 8px solid var(--sunk); overflow: hidden; }
-  .pg .shot-l.crop img { max-width: none; border-radius: 0; }
+  .pg .shot-l.crop { box-sizing: content-box; overflow: hidden; }
+  .pg .shot-l.crop img { max-width: none; }
   /* stage-prepare-laptop, 1440×900: the panel Pregătire, its Acum box and the files. */
   .pg .shot-l.crop-prepare { aspect-ratio: 950 / 477; }
   .pg .shot-l.crop-prepare img { width: 151.52%; margin-left: -46.21%; margin-top: -19.89%; }

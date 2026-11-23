@@ -106,12 +106,12 @@
           <p class="lede">Un test trece prin șase etape, de la fișierele de pe calculatorul tău până la nota pe care o vede elevul. Mai jos găsești fiecare etapă, în ordine: ce faci tu, ce fac elevii și ce face MQGrader.</p>
           <p class="byline">Scris de <a href="/about/">Laura Miron</a>, profesoară de matematică · actualizat 21 noiembrie 2026</p>
           <nav class="jump" aria-label="Cele șase etape">
-            <a href="#prepare"><b>1</b><span>Pregătire</span><small>Tu, MQGrader</small></a>
-            <a href="#print"><b>2</b><span>Tipărire</span><small>Tu, MQGrader</small></a>
-            <a class="st" href="#in-class"><b>3</b><span>În clasă</span><small>Elevii</small></a>
-            <a class="mq" href="#grading"><b>4</b><span>Corectare</span><small>Tu, MQGrader</small></a>
-            <a href="#review"><b>5</b><span>Verificare</span><small>Tu</small></a>
-            <a href="#results"><b>6</b><span>Rezultate</span><small>MQGrader, Tu, Elevii</small></a>
+            <a href="#prepare"><b>1</b><span>Pregătire</span><small class="whos"><span class="who who-you">Tu</span> <span class="who who-mq">MQGrader</span></small></a>
+            <a href="#print"><b>2</b><span>Tipărire</span><small class="whos"><span class="who who-you">Tu</span></small></a>
+            <a class="st" href="#in-class"><b>3</b><span>În clasă</span><small class="whos"><span class="who who-st">Elevii</span></small></a>
+            <a class="mq" href="#grading"><b>4</b><span>Corectare</span><small class="whos"><span class="who who-you">Tu</span> <span class="who who-mq">MQGrader</span></small></a>
+            <a href="#review"><b>5</b><span>Verificare</span><small class="whos"><span class="who who-you">Tu</span></small></a>
+            <a href="#results"><b>6</b><span>Rezultate</span><small class="whos"><span class="who who-mq">MQGrader</span> <span class="who who-you">Tu</span> <span class="who who-st">Elevii</span></small></a>
           </nav>
         </section>
 
@@ -122,18 +122,18 @@
           <article class="stage" id="prepare">
             <div class="rise">
               <p class="n">1</p><h3>Pregătire</h3><div class="whos"><span class="who who-you">Tu</span> <span class="who who-mq">MQGrader</span></div>
-              <p>Ai nevoie de două fișiere: testul și baremul. Mulți profesori au testul într-un document, iar baremul doar în minte sau pe o foaie scrisă de mână.</p>
-              <ul class="do"><li><b>În MQGrader:</b> încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.</li><li><b>Scrise de mână?</b> Merge și așa: testul și baremul pot fi poze ale unor foi scrise de mână, puse într-un PDF sau într-un document Word.</li></ul>
+              <p>Ai nevoie de clasa cu elevii ei și de două fișiere: testul și baremul. Mulți profesori au testul într-un document, iar baremul doar în minte sau pe o foaie scrisă de mână.</p>
+              <ul class="do"><li><b>Întâi, clasa:</b> dacă nu ai creat încă clasa, o creezi și adaugi elevii, copiind lista din catalog. O faci o singură dată pentru fiecare clasă.</li><li><b>În MQGrader:</b> încarci testul și baremul. Nu ai un barem pregătit? Generezi automat baremul din test, iar apoi îl poți revizui și ajusta.</li><li><b>Scrise de mână?</b> Merge și așa: testul și baremul pot fi poze ale unor foi scrise de mână, puse într-un PDF sau într-un document Word.</li></ul>
             </div>
-            <div class="pics rise">
+            <div class="pics pics-class rise">
+              <figure><span class="shot-p narrow"><img src="/screens/teacher-newclass-phone.webp" width="780" height="1688" alt="Clasă nouă: lista elevilor lipită din catalog" loading="lazy" decoding="async" /></span><figcaption>Clasa nouă, pe telefon.</figcaption></figure>
               <figure><span class="shot-l"><img src="/screens/stage-prepare-laptop.webp" width="1440" height="900" alt="Etapa Pregătire: testul și baremul încărcate" loading="lazy" decoding="async" /></span><figcaption>Pagina testului, etapa Pregătire.</figcaption></figure>
-              <figure class="only-l"><span class="shot-p narrow"><img src="/screens/teacher-newclass-phone.webp" width="780" height="1688" alt="Clasă nouă: lista elevilor lipită din catalog" loading="lazy" decoding="async" /></span><figcaption>Clasa nouă, pe telefon.</figcaption></figure>
             </div>
           </article>
 
           <article class="stage" id="print">
             <div class="rise">
-              <p class="n">2</p><h3>Tipărire</h3><div class="whos"><span class="who who-you">Tu</span> <span class="who who-mq">MQGrader</span></div>
+              <p class="n">2</p><h3>Tipărire</h3><div class="whos"><span class="who who-you">Tu</span></div>
               <p>Testul se tipărește înainte de oră, cu un cod QR pe fiecare pagină. Elevul scanează codul de pe oricare pagină și ajunge direct acolo unde își trimite lucrarea.</p>
               <ul class="do"><li><b>În MQGrader:</b> descarci PDF-ul de tipărit, cu codul QR pus deja pe fiecare pagină.</li><li><b>Ai tipărit testul fără cod?</b> Dacă lucrările sunt tipărite din varianta testului fără cod QR, le arăți elevilor codul QR al testului sau le dai linkul lui, din aplicație. Așa își pot încărca pozele.</li></ul>
             </div>
