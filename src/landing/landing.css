@@ -113,6 +113,8 @@ img { display: block; max-width: 100%; height: auto; }
 
 /* The header: the lockup, the four pages, the theme, the account. */
 .site-top { position: relative; z-index: 5; background: var(--ground); }
+/* A 1px grey line sets the header apart from the page. */
+.site-top { box-shadow: inset 0 -1px 0 var(--border); }
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 80px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
 .mark { display: block; width: 30px; height: 30px; flex: none; }
@@ -125,6 +127,11 @@ img { display: block; max-width: 100%; height: auto; }
 @media (min-width: 901px) and (max-width: 1100px) {
   .links { gap: 2px; margin-right: 4px; font-size: 15px; }
   .links a { padding: 6px 8px; }
+}
+/* Just above the phone menu, the six pages need every pixel. */
+@media (min-width: 901px) and (max-width: 960px) {
+  .links { margin-right: 0; }
+  .links a { padding: 6px 5px; }
 }
 .links a[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--orange-mark); }
 .icon { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; }
@@ -238,6 +245,7 @@ img { display: block; max-width: 100%; height: auto; }
 .clock time small { display: block; margin-top: 12px; font-size: var(--fs-small); font-weight: 600; letter-spacing: 0; line-height: 1.3; color: var(--muted); }
 .clock h3 { font-size: var(--fs-title); line-height: 1.15; letter-spacing: -0.02em; }
 .clock h3 + p { margin-top: 10px; }
+.clock p + p { margin-top: 8px; }
 .clock .whos { margin-top: 14px; }
 @media (max-width: 900px) {
   .clock > li { grid-template-columns: 1fr; gap: 16px; padding: 36px 0; }
@@ -250,7 +258,7 @@ img { display: block; max-width: 100%; height: auto; }
 @media (max-width: 900px) { .qa > li { grid-template-columns: 1fr; gap: 10px; padding: 24px 0; } }
 
 /* The end band of each page, then the shared footer on the same colour. */
-.end { padding-top: 140px; padding-bottom: 0; background: var(--end); color: var(--on-end); }
+.end { padding-top: 104px; padding-bottom: 0; background: var(--end); color: var(--on-end); }
 .end h2 { max-width: 20ch; font-size: var(--fs-display); line-height: 1.03; letter-spacing: -0.045em; font-weight: 800; }
 .end > p { margin-top: 24px; max-width: 44ch; font-size: var(--fs-lede); }
 .end .acts { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
@@ -281,7 +289,7 @@ img { display: block; max-width: 100%; height: auto; }
 .crumbs a { font-weight: 600; text-decoration: none; color: var(--text); }
 .byline { margin-top: 28px; font-size: var(--fs-small); color: var(--muted); }
 .byline a { font-weight: 600; color: var(--text); }
-.doc { display: grid; grid-template-columns: 3fr 9fr; gap: 64px; padding-top: 96px; padding-bottom: 140px; align-items: start; background: var(--surface); }
+.doc { display: grid; grid-template-columns: 3fr 9fr; gap: 64px; padding-top: 96px; padding-bottom: 104px; align-items: start; background: var(--surface); }
 .toc { position: sticky; top: 24px; font-size: var(--fs-small); }
 .toc h2 { margin-bottom: 12px; font-size: var(--fs-small); font-weight: 700; letter-spacing: 0; }
 .toc ol { counter-reset: t; }
@@ -290,7 +298,7 @@ img { display: block; max-width: 100%; height: auto; }
 .toc a::before { content: counter(t); font-weight: 700; color: var(--orange); }
 .toc a:hover { color: var(--blue); }
 .prose { max-width: 760px; }
-.prose > section + section, .prose > h2:not(:first-child) { margin-top: 96px; }
+.prose > section + section, .prose > h2:not(:first-child) { margin-top: 72px; }
 .prose h2 { font-size: var(--fs-h2); line-height: 1.05; letter-spacing: -0.03em; font-weight: 800; scroll-margin-top: 24px; }
 .prose h2 + p, .prose h2 + ul, .prose h2 + ol { margin-top: 24px; }
 .prose p + p, .prose p + ul, .prose ul + p, .prose p + ol, .prose ol + p { margin-top: 18px; }
@@ -307,7 +315,7 @@ img { display: block; max-width: 100%; height: auto; }
 .rule { margin-top: 40px; padding: 32px; border-radius: var(--radius-panel); background: var(--band); color: var(--on-band); }
 .rule b { display: block; font-size: var(--fs-title); line-height: 1.2; letter-spacing: -0.02em; }
 .rule p { margin-top: 12px; font-size: var(--fs-body); color: var(--on-band-muted); }
-.read { padding-top: 120px; padding-bottom: 140px; }
+.read { padding-top: 96px; padding-bottom: 104px; }
 .read ul { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 48px; }
 .read a { display: block; height: 100%; padding: 28px 24px 32px; border-radius: var(--radius-panel); background: var(--surface); text-decoration: none; transition: background-color 0.18s ease, box-shadow 0.18s ease; }
 .read a:hover { background: var(--blue-tint); box-shadow: inset 0 0 0 2px var(--blue); }
@@ -355,11 +363,11 @@ img { display: block; max-width: 100%; height: auto; }
   .pg-home .shots .shot-l { flex: 1; overflow: hidden; }
   .pg-home .shots .shot-l img { width: 125%; max-width: none; margin-left: -22%; }
 
-  .pg-home .day { padding-top: 160px; padding-bottom: 120px; }
+  .pg-home .day { padding-top: 112px; padding-bottom: 88px; }
   .pg-home .day .clock { margin-top: 64px; }
   .pg-home .h2-wide { max-width: 20ch; }
 
-  .pg-home .without { background: var(--band); color: var(--on-band); padding-top: 160px; padding-bottom: 160px; }
+  .pg-home .without { background: var(--band); color: var(--on-band); padding-top: 112px; padding-bottom: 112px; }
   .pg-home .without .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
   .pg-home .without .para { margin-top: 48px; font-size: var(--fs-title); line-height: 1.5; letter-spacing: -0.01em; max-width: 34ch; font-weight: 500; }
   .pg-home .without .para s { text-decoration-thickness: 3px; text-decoration-color: var(--orange-mark); }
@@ -369,7 +377,7 @@ img { display: block; max-width: 100%; height: auto; }
   .pg-home .with b { display: block; font-size: var(--fs-title); letter-spacing: -0.01em; }
   .pg-home .with span { display: block; margin-top: 4px; color: var(--on-band-muted); }
 
-  .pg-home .try { padding-top: 160px; padding-bottom: 160px; background: var(--stone); }
+  .pg-home .try { padding-top: 112px; padding-bottom: 112px; background: var(--stone); }
   .pg-home .try-top { display: grid; grid-template-columns: 7fr 5fr; gap: 64px; align-items: end; }
   .pg-home .try-top .acts { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
   .pg-home .try-top small { font-size: var(--fs-small); color: var(--muted); }
@@ -382,7 +390,7 @@ img { display: block; max-width: 100%; height: auto; }
   .pg-home .try-steps .shot-l img { width: 140%; max-width: none; }
   .pg-home .try-steps .shot-p { width: 200px; margin: 0 auto; }
 
-  .pg-home .cls, .pg-home .rep { padding-top: 160px; padding-bottom: 160px; display: grid; grid-template-columns: 5fr 7fr; gap: 64px; align-items: center; }
+  .pg-home .cls, .pg-home .rep { padding-top: 112px; padding-bottom: 112px; display: grid; grid-template-columns: 5fr 7fr; gap: 64px; align-items: center; }
   .pg-home .rep { background: var(--surface); }
   .pg-home .cls > div > p, .pg-home .rep > div > p { margin-top: 24px; font-size: var(--fs-lede); max-width: 38ch; }
   .pg-home .cls figure { display: grid; place-items: center; }
@@ -394,15 +402,18 @@ img { display: block; max-width: 100%; height: auto; }
   .pg-home .rep .facts li { background: var(--ground); }
 
 
-  .pg-home .faq { background: var(--surface); padding-top: 160px; padding-bottom: 160px; }
+  /* White and grey take turns down the page: the class report (white), the
+     questions (grey), who made it (white), the other pages (grey). */
+  .pg-home .faq { padding-top: 112px; padding-bottom: 112px; }
+  .pg-home .faq .qa > li + li { box-shadow: inset 0 6px 0 var(--surface); }
   .pg-home .faq .qa { margin-top: 56px; }
 
-  .pg-home .who-made { padding-top: 140px; padding-bottom: 140px; display: grid; grid-template-columns: 5fr 7fr; gap: 64px; align-items: start; }
+  .pg-home .who-made { background: var(--surface); padding-top: 104px; padding-bottom: 104px; display: grid; grid-template-columns: 5fr 7fr; gap: 64px; align-items: start; }
   .pg-home .who-made blockquote { font-size: var(--fs-h2); line-height: 1.1; letter-spacing: -0.03em; font-weight: 800; }
   .pg-home .who-made p { max-width: 46ch; }
   .pg-home .who-made p + p { margin-top: 18px; }
 
-  .pg-home .laura { padding-top: 140px; padding-bottom: 40px; display: grid; grid-template-columns: 7fr 5fr; gap: 64px; align-items: start; }
+  .pg-home .laura { padding-top: 104px; padding-bottom: 40px; display: grid; grid-template-columns: 7fr 5fr; gap: 64px; align-items: start; }
   .pg-home .laura h2 { font-size: var(--fs-h2); line-height: 1.05; letter-spacing: -0.035em; font-weight: 800; }
   .pg-home .laura .l-lede { margin-top: 28px; font-size: var(--fs-lede); line-height: 1.5; max-width: 48ch; }
   .pg-home .laura .ink { margin-top: 28px; display: grid; gap: 14px; max-width: 56ch; }

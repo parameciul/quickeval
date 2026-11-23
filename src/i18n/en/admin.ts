@@ -65,6 +65,7 @@ export const ADMIN = {
   "Fă un test": "Make a test",
   "Tipărește-l cu cod QR": "Print it with a QR code",
   "Elevii scanează codul și trimit pozele lucrării. Fără cont și fără aplicație.": "Students scan the code and send photos of their paper. No account and no app.",
+  "Elevii scanează codul și trimit pozele, fără cont și fără aplicație. Fără telefon? Le încarci tu.": "Students scan the code and send the photos, with no account and no app. No phone? You upload them yourself.",
   "Etapa": "Stage",
   "Următorul pas": "Next step",
   "Nimic de făcut acum": "Nothing to do now",

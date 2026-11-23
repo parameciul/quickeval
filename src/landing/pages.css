@@ -1,4 +1,4 @@
-/* The four content pages (/guide/, /grading/, /about/, /pricing/): their own
+/* The content pages (/guide/, /grading/, /questions/, /about/, /pricing/): their own
    parts, after landing.css. Each is scoped by its body class. */
 /* /guide/ */
   .pg-guide .head { padding-bottom: 72px; }
@@ -12,17 +12,21 @@
   .pg-guide .jump small { display: block; font-size: var(--fs-small); color: var(--muted); }
   /* Who does the stage: the same coloured labels as the stages below. */
   .pg-guide .jump small.whos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
-  .pg-guide .jump small.whos .who { margin-top: 0; padding: 2px 8px; }
+  /* Smaller than the stage's name, which is what the tile is about. */
+  .pg-guide .jump small.whos .who { margin-top: 0; padding: 1px 7px; font-size: 13px; font-weight: 600; }
   /* The tile turns blue under the pointer: the students' blue label keeps its shape on white. */
   .pg-guide .jump a:hover .who-st { background: var(--surface); }
   .pg-guide .jump .st b { color: var(--blue); }
   .pg-guide .jump .mq b { color: var(--text); }
 
-  .pg-guide .journey { padding-top: 140px; padding-bottom: 140px; background: var(--ground); }
+  .pg-guide .journey { padding-top: 104px; padding-bottom: 72px; background: var(--ground); }
   .pg-guide .journey > h2 { max-width: 18ch; }
   .pg-guide .journey > p { margin-top: 24px; max-width: 46ch; }
-  .pg-guide .stage { display: grid; grid-template-columns: 4fr 8fr; gap: 56px; padding: 64px 0; align-items: start; scroll-margin-top: 16px; }
+  /* The text takes a third of the width beside a 56px gap, and 10px more; the
+     gap is 39px and the pictures take the rest. */
+  .pg-guide .stage { display: grid; grid-template-columns: calc((100% - 56px) / 3 + 10px) 1fr; gap: 39px; padding: 64px 0; align-items: start; scroll-margin-top: 16px; }
   .pg-guide .stage + .stage { box-shadow: inset 0 8px 0 var(--surface); }
+  .pg-guide .stage:last-child { padding-bottom: 0; }
   .pg-guide .stage .n { font-size: var(--fs-num-xl); font-weight: 800; letter-spacing: -0.05em; line-height: .85; color: var(--orange); }
   .pg-guide .stage.st .n { color: var(--blue); }
   .pg-guide .stage.mq .n { color: var(--text); }
@@ -37,13 +41,22 @@
   .pg-guide .pics.one { grid-template-columns: 1fr; }
   /* Pregătire: the class (once per class) comes before the test's page. */
   .pg-guide .pics.pics-class { grid-template-columns: auto 1fr; }
+  /* În clasă: its text is the longest, so the laptop runs across the column
+     and the two phones stand under it, with their caption beside them. */
+  @media (min-width: 901px) {
+    .pg-guide #in-class .pics { grid-template-columns: 1fr; gap: 28px; }
+    .pg-guide #in-class .pics .pair-p .shot-p { width: 175px; }
+    /* The phones' caption stands beside them, at their foot. */
+    .pg-guide #in-class .pics figure:has(.pair-p) { display: flex; align-items: flex-end; gap: 20px; }
+    .pg-guide #in-class .pics figure:has(.pair-p) figcaption { margin-top: 0; max-width: 24ch; }
+  }
   .pg-guide .pics figcaption { margin-top: 10px; font-size: var(--fs-small); color: var(--muted); }
 
   @media (max-width: 1100px) { .pg-guide .jump { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 900px) {
     .pg-guide .head { padding-bottom: 48px; }
     .pg-guide .jump { grid-template-columns: 1fr 1fr; margin-top: 40px; }
-    .pg-guide .journey { padding-top: 88px; padding-bottom: 88px; }
+    .pg-guide .journey { padding-top: 88px; padding-bottom: 48px; }
     .pg-guide .stage { grid-template-columns: 1fr; gap: 28px; padding: 48px 0; }
     .pg-guide .pics, .pg-guide .pics.pics-class { grid-template-columns: 1fr; }
     .pg-guide .pics .pair-p .shot-p { width: calc(50% - 6px); }
@@ -62,23 +75,42 @@
   .pg-grading .two div:last-child p { color: var(--on-band-muted); }
   .pg-grading .two i { display: block; font-style: normal; font-size: var(--fs-num); font-weight: 800; line-height: 1; margin-bottom: 14px; color: var(--orange); }
   .pg-grading .shot-wide { margin-top: 32px; }
-  .pg-grading .doc2 { display: grid; grid-template-columns: 3fr 9fr; gap: 64px; padding-top: 140px; padding-bottom: 140px; background: var(--surface); }
+  /* The two white sections are one article: they meet at the gap between its
+     parts, not at two section paddings. */
+  .pg-grading .doc { padding-bottom: 0; }
+  .pg-grading .doc2 { display: grid; grid-template-columns: 3fr 9fr; gap: 64px; padding-top: 72px; padding-bottom: 104px; background: var(--surface); }
   .pg-grading .doc2 .prose { grid-column: 2; }
   .pg-grading .math { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 32px; }
   .pg-grading .math div { padding: 24px 20px; background: var(--ground); }
   .pg-grading .math b { display: block; font-size: var(--fs-h2); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
   .pg-grading .math span { display: block; margin-top: 8px; font-size: var(--fs-small); color: var(--muted); }
   .pg-grading .wide { margin-top: 40px; }
-  .pg-grading .faq { padding-top: 140px; padding-bottom: 140px; }
+  .pg-grading .faq { padding-top: 104px; padding-bottom: 104px; }
   .pg-grading .faq .qa { margin-top: 48px; }
   .pg-grading .faq .qa > div + div { box-shadow: inset 0 6px 0 var(--surface); }
   @media (max-width: 900px) {
     .pg-grading .head { padding-bottom: 48px; }
     .pg-grading .two { grid-template-columns: 1fr; }
-    .pg-grading .doc2 { grid-template-columns: 1fr; gap: 0; padding-top: 88px; padding-bottom: 88px; }
+    .pg-grading .doc2 { grid-template-columns: 1fr; gap: 0; padding-top: 72px; padding-bottom: 88px; }
     .pg-grading .doc2 .prose { grid-column: 1; }
     .pg-grading .math { grid-template-columns: 1fr; }
     .pg-grading .faq { padding-top: 88px; padding-bottom: 88px; }
+  }
+
+/* /questions/: the landing page's questions, on a page of their own. */
+  .pg-questions .head { padding-bottom: 72px; }
+  .pg-questions .head h1 { margin-top: 28px; max-width: 16ch; }
+  .pg-questions .head .lede { margin-top: 32px; max-width: 52ch; }
+  .pg-questions .faq { padding-top: 96px; padding-bottom: 104px; background: var(--surface); }
+  .pg-questions .faq .qa { margin-top: 48px; }
+  .pg-questions .faq-more { margin-top: 40px; max-width: 60ch; font-size: var(--fs-lede); }
+  .pg-questions .faq-more a { font-weight: 600; }
+  /* Four pages to read next: one row of four, two rows of two on a tablet. */
+  @media (min-width: 901px) { .pg-questions .read ul { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 901px) and (max-width: 1100px) { .pg-questions .read ul { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 900px) {
+    .pg-questions .head { padding-bottom: 48px; }
+    .pg-questions .faq { padding-top: 72px; padding-bottom: 88px; }
   }
 
 /* /about/ */
@@ -90,7 +122,7 @@
   .pg-about .card dt { font-size: var(--fs-small); font-weight: 700; color: var(--orange); }
   .pg-about .card dd { margin-top: 6px; line-height: 1.45; }
   .pg-about .card a { font-weight: 600; }
-  .pg-about .does { background: var(--band); color: var(--on-band); padding-top: 140px; padding-bottom: 140px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
+  .pg-about .does { background: var(--band); color: var(--on-band); padding-top: 104px; padding-bottom: 104px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
   .pg-about .does ul { margin-top: 40px; display: grid; gap: 4px; }
   .pg-about .does li { padding: 20px 22px; background: var(--band-2); line-height: 1.5; }
   .pg-about .does li b { display: block; font-size: var(--fs-title); margin-bottom: 4px; }
@@ -110,7 +142,7 @@
   .pg-pricing .zero { font-size: clamp(120px, 18vw, 280px); font-weight: 800; letter-spacing: -0.07em; line-height: .8; text-align: right; }
   .pg-pricing .zero small { font-size: .26em; letter-spacing: -0.02em; margin-left: .08em; }
   .pg-pricing .zero span { display: block; margin-top: 18px; font-size: var(--fs-body); letter-spacing: 0; font-weight: 600; color: var(--muted); }
-  .pg-pricing .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 0; padding-bottom: 140px; }
+  .pg-pricing .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 0; padding-bottom: 104px; }
   .pg-pricing .plan { padding: 40px 36px 44px; background: var(--surface); }
   .pg-pricing .plan.full { background: var(--band); color: var(--on-band); }
   .pg-pricing .plan h2 { font-size: var(--fs-h2); letter-spacing: -0.03em; line-height: 1.05; }
@@ -131,13 +163,13 @@
   .pg-pricing .free-n small { font-size: var(--fs-title); letter-spacing: 0; color: var(--muted); }
   .pg-pricing .free h2 { font-size: var(--fs-title); letter-spacing: -0.02em; line-height: 1.15; max-width: 26ch; }
   .pg-pricing .free p:not(.free-n) { margin-top: 10px; max-width: 52ch; }
-  .pg-pricing .steps { padding-top: 140px; padding-bottom: 140px; background: var(--surface); }
+  .pg-pricing .steps { padding-top: 104px; padding-bottom: 104px; background: var(--surface); }
   .pg-pricing .steps ol { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 56px; counter-reset: s; }
   .pg-pricing .steps li { counter-increment: s; padding: 28px 22px 30px; background: var(--ground); }
   .pg-pricing .steps li::before { content: counter(s); display: block; font-size: var(--fs-num); font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--orange); margin-bottom: 18px; }
   .pg-pricing .steps li b { display: block; font-size: var(--fs-title); letter-spacing: -0.01em; margin-bottom: 6px; }
   .pg-pricing .steps > p { margin-top: 32px; font-size: var(--fs-lede); max-width: 52ch; }
-  .pg-pricing .why { padding-top: 140px; padding-bottom: 140px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
+  .pg-pricing .why { padding-top: 104px; padding-bottom: 104px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
   .pg-pricing .why h2 { font-size: var(--fs-h2); }
   .pg-pricing .why p { margin-top: 24px; font-size: var(--fs-lede); max-width: 44ch; }
   .pg-pricing .why .rule { margin-top: 0; }

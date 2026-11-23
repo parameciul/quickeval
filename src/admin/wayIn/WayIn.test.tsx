@@ -31,12 +31,12 @@ describe('the way in', () => {
     expect(items.map((item) => within(item).getByRole('heading').textContent)).toEqual([
       'Pregătire Tu MQGrader',
       'Tipărire Tu',
-      'În clasă Elevii',
+      'În clasă Elevii Tu',
       'Corectare Tu MQGrader',
       'Verificare Tu',
       'Rezultate MQGrader Tu Elevii',
     ]);
-    expect(items.filter((item) => item.classList.contains('is-you'))).toHaveLength(5);
+    expect(items.filter((item) => item.classList.contains('is-you'))).toHaveLength(6);
     expect(pitch).toHaveTextContent('Tu: câteva minute la fiecare etapă. Restul îl fac elevii și MQGrader.');
     expect(within(screen.getByRole('region', { name: 'Contul tău' })).getByRole('heading', { level: 1 })).toHaveTextContent('Intră în cont');
   });

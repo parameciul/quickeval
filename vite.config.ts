@@ -53,12 +53,15 @@ export default defineConfig({
         // and the prices. Static HTML, like the landing page.
         guide: page('./guide/index.html'),
         grading: page('./grading/index.html'),
+        // The landing page's questions, on a page of their own.
+        questions: page('./questions/index.html'),
         about: page('./about/index.html'),
         pricing: page('./pricing/index.html'),
         // Their English copies, at /en/.
         en: page('./en/index.html'),
         enGuide: page('./en/guide/index.html'),
         enGrading: page('./en/grading/index.html'),
+        enQuestions: page('./en/questions/index.html'),
         enAbout: page('./en/about/index.html'),
         enPricing: page('./en/pricing/index.html'),
       },

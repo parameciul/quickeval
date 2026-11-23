@@ -35,7 +35,7 @@ describe('the landing page', () => {
     const steps = all('#how .clock > li');
     expect(steps.map((li) => [text(li.querySelector('time')), text(li.querySelector('h3')), text(li.querySelector('.whos'))])).toEqual([
       ['Luni cu o zi înainte', 'Încarci testul și baremul.', 'Tu MQGrader'],
-      ['11:45 ultimele minute ale orei', 'Elevii fotografiază lucrarea.', 'Elevii'],
+      ['11:45 ultimele minute ale orei', 'Elevii fotografiază lucrarea.', 'Elevii Tu'],
       ['11:55 după oră', 'Pornești corectarea.', 'Tu MQGrader'],
       ['15:30 de unde ești', 'Verifici punctele nesigure.', 'Tu'],
       ['16:00 aceeași zi', 'Publici. Elevii își văd rezultatul.', 'MQGrader Tu Elevii'],
@@ -91,8 +91,8 @@ describe('the landing page', () => {
     ]);
     // Every card says what the page is about, in one line.
     for (const a of all('#more ul a')) expect((text(a.querySelector('span')) ?? '').length).toBeGreaterThan(40);
-    // The header's menu names the same four pages, then the English copy of this one.
-    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['/', '/guide/', '/grading/', '/about/', '/pricing/', '/en/']);
+    // The header's menu names the same four pages and the questions, then the English copy of this one.
+    expect(all('.site-top nav a:not(.btn)').map((a) => a.getAttribute('href'))).toEqual(['/', '/guide/', '/grading/', '/questions/', '/about/', '/pricing/', '/en/']);
     // The account picture waits until the app's look settles.
     expect(doc.getElementById('aplicatia')).toBeNull();
   });
