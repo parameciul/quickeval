@@ -82,11 +82,11 @@ export function rowsOf(submissions: SubmissionDetail[]): UploadRow[] {
   return rows.sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
 
-export function apiWith(submissions = papers()) {
+export function apiWith(submissions = papers(), rows = rowsOf(submissions)) {
   return createFakeApi({
     classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 4 }],
     students: {},
-    tests: [fakeTest({ status: 'done', startedAt: '2026-10-06T07:00:00.000Z' }, rowsOf(submissions))],
+    tests: [fakeTest({ status: 'done', startedAt: '2026-10-06T07:00:00.000Z' }, rows)],
     submissions,
   });
 }

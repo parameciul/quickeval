@@ -27,14 +27,17 @@ describe('the points to check on the paper page', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Ana Pop' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Doar de verificat (3)' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Toate exercițiile' })).toHaveAttribute('aria-pressed', 'false');
+    // Only the students with points to check; one line says where the others are.
     const list = students();
-    expect(within(list).getByRole('heading', { name: 'Cu puncte de verificat 2' })).toBeInTheDocument();
     expect(within(list).getByRole('link', { name: 'Ana Pop 2 puncte de verificat' })).toHaveAttribute('aria-current', 'true');
     expect(within(list).getByRole('link', { name: 'Ion Popa 1 punct de verificat' })).toHaveAttribute('href', paperAt(14, '41'));
-    expect(within(list).getByRole('heading', { name: 'Celelalte lucrări 2' })).toBeInTheDocument();
-    expect(within(list).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('href', paperAt(13));
-    expect(within(list).getByRole('link', { name: 'Dan Marin 1 pagină' })).toHaveAttribute('href', paperAt(12));
+    expect(within(list).getAllByRole('link', { name: /puncte? de verificat/ })).toHaveLength(2);
+    expect(within(list).queryByRole('link', { name: /Eva Stan/ })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('link', { name: /Dan Marin/ })).not.toBeInTheDocument();
+    expect(within(list).getByText(/Celelalte 2 lucrări sunt în/)).toBeInTheDocument();
+    expect(within(list).getByRole('link', { name: 'Toate exercițiile' })).toHaveAttribute('href', paperAt(11, null, 'all'));
     expect(within(list).queryByText(/Mara Ilie/)).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Elevii' })).toHaveTextContent('Elev 1/2');
   });
 
   it('opens on the pages Ana could not read, on the first of them, and the next point opens after them', async () => {
@@ -292,9 +295,10 @@ describe('the points to check on the paper page', () => {
     const api = apiWith();
     renderAdmin(paperAt(13, null, 'all'), api, <LocationProbe />);
     expect(await screen.findByRole('heading', { level: 1, name: 'Eva Stan' })).toBeInTheDocument();
-    // Ion is after Eva, Dan before her.
+    // The graded papers come first: Ion is after Eva, Ana before her.
     await waitFor(() => expect(readsOf(api, 14)).toBe(1));
-    expect(readsOf(api, 12)).toBe(1);
+    expect(readsOf(api, 11)).toBe(1);
+    expect(readsOf(api, 12)).toBe(0);
     await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
     await expectLocation(at(14, null, 'all'));
     // The paper is there at once: no moment with no paper.
