@@ -86,6 +86,12 @@ describe('a graded try', () => {
     expect(await screen.findByRole('img', { name: /Pagina 1/ })).toHaveAttribute('src', `/api/try/${TRY_TOKEN}/submissions/${TRY_SUBMISSION}/files/61`);
     await userEvent.click(await screen.findByRole('button', { name: 'Accept 3p' }));
     await waitFor(() => expect(api.correctItem).toHaveBeenCalledWith(TRY_SUBMISSION, 71, expect.objectContaining({ reviewed: true })));
+    // Its last point checked, the try's paper shows all its exercises, with
+    // the line that every point is checked.
+    expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Toate exercițiile' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Doar de verificat (0)' })).toBeDisabled();
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(`?paper=${TRY_SUBMISSION}&item=71&view=all`));
     await userEvent.click(screen.getByRole('link', { name: 'Înapoi la test' }));
     expect(await screen.findByRole('heading', { name: 'Încercare rapidă', level: 1 })).toBeInTheDocument();
   });

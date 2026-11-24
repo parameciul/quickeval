@@ -269,14 +269,61 @@ describe('the points to check on the paper page', () => {
     expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Punctul anterior' })).toBeDisabled();
     expect(screen.getByRole('group', { name: 'Punctele de verificat' })).toHaveTextContent('Punct 1/1');
+    // Ion is the only student listed, beside the paper: his moves stay in the
+    // bar, so the switch does not jump, with both arrows off.
+    expect(students()).toBeInTheDocument();
+    const moves = screen.getByRole('group', { name: 'Elevii' });
+    expect(moves).toHaveTextContent('Elev 1/1');
+    expect(within(moves).getByRole('button', { name: 'Elevul anterior' })).toBeDisabled();
+    expect(within(moves).getByRole('button', { name: 'Elevul următor' })).toBeDisabled();
 
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Rezultate' })).toHaveAttribute('href', '/tests/6E2-26T1#results');
-    await expectLocation(at(14));
+    // With nothing left to check, the page moves to all the exercises of the
+    // same paper, the decided row still open, and "Doar de verificat" is off.
+    await expectLocation(at(14, '41', 'all'));
     expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Doar de verificat (0)' })).toBeInTheDocument();
-    expect(within(students()).queryByRole('heading', { name: /Cu puncte de verificat/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Toate exercițiile' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Doar de verificat (0)' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Doar de verificat (0)' })).toHaveAttribute('aria-pressed', 'false');
+    // Every student is listed again, and the arrows lead to them.
+    expect(within(students()).getByRole('link', { name: /Eva Stan/ })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Elevii' })).toHaveTextContent('Elev 3/4');
+    const next = within(screen.getByRole('group', { name: 'Elevii' })).getByRole('button', { name: 'Elevul următor' });
+    expect(next).toBeEnabled();
+    // As after a student's last point: the focus waits on "Elevul următor".
+    await waitFor(() => expect(next).toHaveFocus());
+    // The line goes once the teacher moves on.
+    await userEvent.click(within(students()).getByRole('link', { name: /Eva Stan/ }));
+    await expectLocation(at(13, null, 'all'));
+    expect(screen.queryByText(/Toate punctele sunt verificate\./)).not.toBeInTheDocument();
+  });
+
+  it('says so too when the last point is checked with all the exercises', async () => {
+    const [ana, ion, eva] = papers();
+    ana!.evaluation = fakeEvaluation([fakeItem({ id: 31, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 4.5 })]);
+    renderAdmin(paperAt(14, '41', 'all'), apiWith([ana!, ion!, eva!]), <LocationProbe />);
+    const panel = await screen.findByRole('region', { name: 'Decizia' });
+    expect(screen.queryByText(/Toate punctele sunt verificate\./)).not.toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
+    expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
+    await expectLocation(at(14, '41', 'all'));
+    expect(screen.getByRole('button', { name: 'Doar de verificat (0)' })).toBeDisabled();
+  });
+
+  it('opens an address of only the points to check as all the exercises when none is left', async () => {
+    const [ana, ion, eva] = papers();
+    ana!.evaluation = fakeEvaluation([fakeItem({ id: 31, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 4.5 })]);
+    ion!.evaluation = fakeEvaluation([fakeItem({ id: 41, exerciseId: 'I.3', label: 'Subiectul I, ex. 3', points: 3, maxPoints: 5 })]);
+    renderAdmin(paperAt(14), apiWith([ana!, ion!, eva!]), <LocationProbe />);
+    expect(await screen.findByRole('row', { name: /Subiectul I, ex\. 3/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Toate exercițiile' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Doar de verificat (0)' })).toBeDisabled();
+    expect(screen.queryByText('Niciun exercițiu de verificat în această lucrare.')).not.toBeInTheDocument();
+    // The address asked for the points to check: the page says why there are none.
+    expect(screen.getByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
+    expect(within(students()).getByRole('link', { name: /Eva Stan/ })).toBeInTheDocument();
   });
 
   it('reads the paper again when it was graded again in the meantime', async () => {

@@ -3518,6 +3518,14 @@ table.tests .row-actions {
   border-left: 1px solid var(--control);
 }
 
+/* Only the words fade: the global fade of a disabled button would fade the
+   line between the two buttons too. */
+.paper-switch button:disabled {
+  opacity: 1;
+  color: var(--muted);
+  cursor: default;
+}
+
 .paper-switch button[aria-pressed="true"] {
   background: var(--ink);
   color: var(--on-ink);

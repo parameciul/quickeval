@@ -417,7 +417,10 @@ describe('De făcut', () => {
     const start = within(cards[1]!).getByRole('link', { name: 'Începe: Ecuații, 6E2' });
     expect(start).toHaveAttribute('href', '/tests/6E2-26T2/review');
     await userEvent.click(start);
-    await expectLocation('/tests/6E2-26T2/review');
+    // The review's address sends a test whose list holds no paper with points
+    // on to its Verificare at once: wait for where it ends, not for the
+    // address on the way, which a fast answer replaces before a check sees it.
+    await expectLocation('/tests/6E2-26T2#review');
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 

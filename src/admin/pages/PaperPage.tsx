@@ -152,6 +152,11 @@ function keepsRowOf(state: unknown): boolean {
   return (state as { paperKeep?: unknown } | null)?.paperKeep === true;
 }
 
+// The decision that went before checked the last point of the test.
+function allCheckedOf(state: unknown): boolean {
+  return (state as { paperAllChecked?: unknown } | null)?.paperAllChecked === true;
+}
+
 function focusTargetOf(state: unknown): FocusTarget | null {
   const target = (state as { paperFocus?: unknown } | null)?.paperFocus;
   return target === 'point' || target === 'student' ? target : null;
@@ -202,17 +207,25 @@ function Paper({
   // Before any paper of the test is graded there is no point to check: the
   // switch to them does not show, and the page shows all the papers.
   const anyGraded = uploads.some((other) => other.status === 'graded');
-  const mode = anyGraded ? modeOf(params, place) : 'all';
+  const askedMode = anyGraded ? modeOf(params, place) : 'all';
+  const queue = pointQueue(uploads);
+  // With no point left to check, "Doar de verificat" would show nothing: the
+  // page shows all the exercises, whatever the address asks.
+  const mode: PaperMode = askedMode === 'review' && queue.length === 0 ? 'all' : askedMode;
   const key = params.get('item');
   const spot: PaperSpot = { submissionId, key };
   const row = uploads.find((other) => other.submissionId === submissionId);
-  const queue = pointQueue(uploads);
   const walked = walkedPoints(uploads, mode, submissionId);
-  // The spot and the view on the screen now, for a decision that comes back
-  // later.
-  const shown = useRef({ spot, mode });
+  // "Toate punctele sunt verificate": right after the last point of the test
+  // is decided, or when the address asked for the points to check and none is
+  // left. A move of the teacher's own takes it away.
+  const allChecked = anyGraded && queue.length === 0 && (askedMode === 'review' || allCheckedOf(location.state));
+  // The spot and the view the address names now, for a decision that comes
+  // back later (the view of the address: the cached test loses the decided
+  // point before the decision's own callback runs).
+  const shown = useRef({ spot, mode: askedMode });
   useEffect(() => {
-    shown.current = { spot, mode };
+    shown.current = { spot, mode: askedMode };
   });
 
   const paper = useQuery({
@@ -377,9 +390,10 @@ function Paper({
   });
 
   const pathOf = (target: PaperSpot, toMode: PaperMode = mode) => paperPath(code, place, target, toMode);
-  const go = (target: PaperSpot | null, toMode: PaperMode = mode, focus: FocusTarget | null = null) => {
+  const go = (target: PaperSpot | null, toMode: PaperMode = mode, focus: FocusTarget | null = null, lastChecked = false) => {
     if (target === null) return;
-    navigate(pathOf(target, toMode), { replace: true, state: focus === null ? null : { paperFocus: focus } });
+    const state = focus === null && !lastChecked ? null : { ...(focus !== null && { paperFocus: focus }), ...(lastChecked && { paperAllChecked: true }) };
+    navigate(pathOf(target, toMode), { replace: true, state });
   };
   const goPoint = (entry: QueuedPoint | null) => go(entry && { submissionId: entry.submissionId, key: pointKey(entry.point) });
 
@@ -427,12 +441,20 @@ function Paper({
   // While only the points to check show, the next point opens, also on the
   // next student; with all the exercises, the next point of this student, and
   // when none is left the row stays open and "Elevul următor" takes the focus.
+  // After the last point of the test (the only way out of the points to
+  // check with no next point), the page shows all the exercises of this
+  // paper, the row still open, and says that every point is checked.
   const onDecide = (change: ItemChange) => {
     if (!submission || decisionView === null || decide.isPending || deciding.current) return;
     deciding.current = true;
     const from = spot;
     const fromMode = mode;
+    // The view the address names, as `shown` keeps it: the page's own view
+    // can differ when the list is older than the paper.
+    const fromAsked = askedMode;
     const next = stepPoint(walked, spot, 1);
+    // The decided point is in the queue: it was the last one.
+    const lastOfTest = queue.length === 1;
     const point = row?.reviewPoints.find((other) => pointKey(other) === key) ?? null;
     decide.mutate(
       { submission, view: decisionView, point, change },
@@ -441,11 +463,11 @@ function Paper({
         // the same view: not after she opened another paper or switched the
         // view, and not after she left the page (this call's own callbacks do
         // not run once the page is gone).
-        onSuccess: (changed) => {
+        onSuccess: () => {
           const now = shown.current;
-          if (now.spot.submissionId !== from.submissionId || now.spot.key !== from.key || now.mode !== fromMode) return;
+          if (now.spot.submissionId !== from.submissionId || now.spot.key !== from.key || now.mode !== fromAsked) return;
           if (next) go({ submissionId: next.submissionId, key: pointKey(next.point) }, fromMode, 'point');
-          else if (fromMode === 'review') go({ submissionId: changed.id, key: null });
+          else if (lastOfTest) go(from, 'all', 'student', true);
           else go(from, fromMode, 'student');
         },
       },
@@ -657,7 +679,9 @@ function Paper({
       {paper.isRefetchError && <ErrorMessage error={paper.error} />}
       {place === 'app' && submission !== undefined && <PaperHead submission={submission} actions={actions} />}
       <div className="paper-bar">
-        {place === 'app' && (students.length > 1 || !listBeside) && (
+        {/* Always there, so the switch after it never moves: with only the
+            open paper listed (no point left to check), both arrows are off. */}
+        {place === 'app' && (
           <StudentMove
             view={studentsView}
             previous={previousStudent}
@@ -674,7 +698,10 @@ function Paper({
             <button type="button" aria-pressed={mode === 'all'} onClick={() => go(spot, 'all')}>
               {t('Toate exercițiile')}
             </button>
-            <button type="button" aria-pressed={mode === 'review'} onClick={() => go(reviewSpot(uploads, spot), 'review')}>{t('Doar de verificat ({length})', { length: queue.length })}</button>
+            {/* Off with no point left: it would show nothing. */}
+            <button type="button" aria-pressed={mode === 'review'} disabled={queue.length === 0} onClick={() => go(reviewSpot(uploads, spot), 'review')}>
+              {t('Doar de verificat ({length})', { length: queue.length })}
+            </button>
           </div>
         )}
         {/* The keys, between the switch and the moves, only while a decision
@@ -750,7 +777,7 @@ function Paper({
           )}
         </div>
       </div>
-      {anyGraded && mode === 'review' && queue.length === 0 && (
+      {allChecked && (
         <p className="review-done" role="status">
           {t('Toate punctele sunt verificate.')}{' '}<Link to={`/tests/${code}${stageHash('Rezultate')}`}>{t('Mergi la Rezultate')}</Link>
         </p>
