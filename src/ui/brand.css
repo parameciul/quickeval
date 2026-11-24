@@ -3518,6 +3518,11 @@ table.tests .row-actions {
   border-left: 1px solid var(--control);
 }
 
+.paper-switch button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
 .paper-switch button[aria-pressed="true"] {
   background: var(--ink);
   color: var(--on-ink);
