@@ -4,6 +4,10 @@ import { useCallback, useSyncExternalStore } from 'react';
 // one column.
 export const PHONE = '(max-width: 56.25rem)';
 
+// Below this width brand.css has no room for the list of students beside the
+// exercises and the paper (the paper page).
+export const NARROW = '(max-width: 75rem)';
+
 // Below this width brand.css draws the exercises table as one card per
 // exercise.
 export const CARDS = '(max-width: 48rem)';

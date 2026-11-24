@@ -95,7 +95,18 @@ async function chooseAction(name: string) {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
+
+// A phone: the pages of a paper with no result stand by themselves there.
+function onPhone() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(max-width: 56.25rem)' || query === '(max-width: 75rem)',
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
 
 describe('the paper page', () => {
   it('shows the path, the student, the upload state, and the times', async () => {
@@ -171,7 +182,38 @@ describe('the paper page', () => {
     expect(screen.getByText('Exercițiile apar aici când termină.')).toBeInTheDocument();
   });
 
-  it('shows every page of a paper not graded yet at once, with its number, kind and size', async () => {
+  it('shows every page of a paper not graded yet at once, with its number, kind and size, and the paper beside them', async () => {
+    renderAdmin(page, apiWith());
+    const pages = await screen.findByRole('region', { name: 'Paginile lucrării' });
+    const tiles = within(pages).getAllByRole('listitem');
+    expect(tiles.map((tile) => tile.querySelector('.paper-page-caption')?.textContent)).toEqual(['Pagina 1poză · 820 KB', 'Pagina 2PDF · 1,5 MB']);
+    expect(tiles[0]!.querySelector('img')).toHaveAttribute('src', '/api/admin/submissions/5/files/21');
+    // The paper beside them, as beside a graded paper's exercises, on page 1.
+    expect(await screen.findByText('Pop Ion · 1/2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arată pagina 1' })).toHaveAttribute('aria-pressed', 'true');
+    // A page of the list shows there, the PDF too.
+    await userEvent.click(screen.getByRole('button', { name: 'Arată pagina 2' }));
+    expect(screen.getByText('Pop Ion · 2/2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arată pagina 2' })).toHaveAttribute('aria-pressed', 'true');
+    // The same button as for a graded paper hides it, and a page shows it again.
+    const toggle = screen.getByRole('button', { name: 'Lucrarea' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(toggle);
+    expect(screen.queryByText('Pop Ion · 2/2')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Arată pagina 1' }));
+    expect(screen.getByText('Pop Ion · 1/2')).toBeInTheDocument();
+  });
+
+  it('keeps the paper button, unusable, while a student has sent no page yet', async () => {
+    renderAdmin(page, apiWith({ ...submission, status: 'uploading', submittedAt: null, files: [] }));
+    expect(await screen.findByText('Elevul nu a încărcat niciun fișier.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'false');
+    expect(document.querySelector('.review-photo')).toBeNull();
+  });
+
+  it('shows the pages of a paper not graded yet by themselves on a phone', async () => {
+    onPhone();
     renderAdmin(page, apiWith());
     const pages = await screen.findByRole('region', { name: 'Paginile lucrării' });
     const tiles = within(pages).getAllByRole('listitem');
@@ -186,6 +228,7 @@ describe('the paper page', () => {
   });
 
   it('opens a page of a paper not graded yet over the whole screen, and gives the focus back to it', async () => {
+    onPhone();
     renderAdmin(page, apiWith());
     const tile = await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' });
     await userEvent.click(tile);
@@ -197,7 +240,30 @@ describe('the paper page', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Pagina 1, pe tot ecranul' })).toHaveFocus());
   });
 
+  it('keeps a page over the whole screen when a phone turns past the phone width', async () => {
+    let narrow = true;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return narrow && (query === '(max-width: 56.25rem)' || query === '(max-width: 75rem)');
+      },
+      media: query,
+      addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    }));
+    renderAdmin(page, apiWith());
+    await userEvent.click(await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' }));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
+    narrow = false;
+    act(() => listeners.forEach((listener) => listener()));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
+    narrow = true;
+    act(() => listeners.forEach((listener) => listener()));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
+  });
+
   it('closes the whole screen on a PDF page, with the focus on its tile', async () => {
+    onPhone();
     renderAdmin(page, apiWith());
     await userEvent.click(await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' }));
     expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
@@ -208,6 +274,7 @@ describe('the paper page', () => {
   });
 
   it('turns the pages with 1–9 only while a page is over the whole screen', async () => {
+    onPhone();
     const photos = [
       { id: 21, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 1 },
       { id: 23, name: 'IMG_0002.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 2 },
@@ -222,6 +289,7 @@ describe('the paper page', () => {
   });
 
   it('closes the whole screen when the paper gets its result meanwhile, and the result does not open over it', async () => {
+    onPhone();
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     const api = apiWith({ ...submission, testStatus: 'evaluating' });
     renderAdmin(page, api);
@@ -234,7 +302,7 @@ describe('the paper page', () => {
     });
     expect(await screen.findByText(/Nota/)).toBeInTheDocument();
     expect(document.querySelector('.review-photo.is-full')).toBeNull();
-    // The graded paper shows beside the exercises, as it opens.
+    // The graded paper shows with the exercises, as it opens.
     expect(screen.getByText('Pop Ion · 1/2')).toBeInTheDocument();
   });
 
@@ -243,13 +311,13 @@ describe('the paper page', () => {
     expect(await screen.findByText('Lucrarea nu e corectată încă')).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Exercițiile arătate' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Toate punctele sunt verificate/)).not.toBeInTheDocument();
-    expect(screen.queryByText('Celelalte lucrări')).not.toBeInTheDocument();
+    expect(screen.queryByText(/lucrări sunt în/)).not.toBeInTheDocument();
   });
 
   it('counts the pages of a sent paper in the students', async () => {
     renderAdmin(page, apiWith());
     const students = await screen.findByRole('navigation', { name: 'Elevii' });
-    expect(within(students).getByText('2 pagini')).toBeInTheDocument();
+    expect(within(students).getByText('Trimisă, necorectată · 2 pagini')).toBeInTheDocument();
   });
 
   it('goes to the next student from under the pages', async () => {
@@ -296,7 +364,7 @@ describe('the paper page', () => {
     expect(screen.getByText('Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Corectare' })).toHaveAttribute('href', '/tests/6E2-26T1#grading');
     expect(screen.getByText(/6E2-26T1 · Fracții · Așteaptă corectarea/)).toBeInTheDocument();
-    expect(within(screen.getByRole('navigation', { name: 'Elevii' })).getByText('așteaptă corectarea')).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Elevii' })).getByText('Așteaptă corectarea · 2 pagini')).toBeInTheDocument();
     expect(screen.queryByText('Elevul încă trimite lucrarea')).not.toBeInTheDocument();
   });
 
@@ -309,10 +377,10 @@ describe('the paper page', () => {
     expect(screen.queryByRole('link', { name: 'Mergi la Corectare' })).not.toBeInTheDocument();
   });
 
-  it('names a failed paper "eșuat" in the students', async () => {
+  it('says in the students that the grading of a paper failed', async () => {
     renderAdmin(page, apiWith({ ...submission, testStatus: 'evaluating', status: 'failed', lastError: 'Robotul nu a putut citi lucrarea.' }));
     const students = await screen.findByRole('navigation', { name: 'Elevii' });
-    expect(within(students).getByText('eșuat')).toBeInTheDocument();
+    expect(within(students).getByText('Corectarea a eșuat')).toBeInTheDocument();
   });
 
   it('asks for news every 10 seconds only while the robot grades the upload', () => {
@@ -594,7 +662,9 @@ describe('the paper page', () => {
     await chooseAction('Recorectează');
     expect(await screen.findByText('Lucrarea așteaptă robotul')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Paginile lucrării' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Lucrarea' })).not.toBeInTheDocument();
+    // Not checked any more, the paper shows beside its pages, as the saved choice says.
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Pop Ion · 1/2')).toBeInTheDocument();
   });
 
   it('keeps the result when the teacher does not confirm the regrade', async () => {
@@ -616,8 +686,8 @@ describe('the paper page', () => {
   it('shows why grading failed and retries it', async () => {
     const api = apiWith({ ...submission, testStatus: 'done', status: 'failed', lastError: 'Robotul nu a terminat la timp.' });
     renderAdmin(page, api);
-    expect(await screen.findByText('Corectarea a eșuat')).toBeInTheDocument();
-    expect(screen.getByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
+    expect(await screen.findByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
+    expect(screen.getAllByText('Corectarea a eșuat')).toHaveLength(2);
     await userEvent.click(screen.getByRole('button', { name: 'Reîncearcă' }));
     expect(api.retrySubmission).toHaveBeenCalledWith(5, '2026-10-06T07:20:00.000Z');
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul.');

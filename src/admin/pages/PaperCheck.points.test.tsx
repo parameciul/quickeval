@@ -3,21 +3,24 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { submissionFileUrl } from '../api.ts';
 import { CLOSE_DELAY } from '../submissionPage/GradedResult.tsx';
+import { fakeUpload } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
-import { apiWith, paperAt, at, students, decision, pause, row } from './paperCheckTestKit.tsx';
+import { apiWith, paperAt, at, students, decision, pause, papers, row, rowsOf } from './paperCheckTestKit.tsx';
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the points to check on the paper page', () => {
   it('shows a paper with no point to check with all its exercises, its grade and its page', async () => {
     renderAdmin(paperAt(13, null, 'all'), apiWith());
-    expect(await screen.findByText(/^Nota/)).toHaveTextContent('Nota 5 · 5 puncte din 10, cu 1 din oficiu');
-    expect(within(row('Subiectul I, ex. 1')).getByText('4 din 4,5')).toBeInTheDocument();
+    // (The list of students says "Nota 5" too.)
+    expect(within(await screen.findByRole('row', { name: /Subiectul I, ex\. 1/ })).getByText('4 din 4,5')).toBeInTheDocument();
+    const grade = screen.getAllByText(/^Nota/).find((element) => !students().contains(element));
+    expect(grade).toHaveTextContent('Nota 5 · 5 puncte din 10, cu 1 din oficiu');
     expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
     // A checked paper opens with its photo hidden.
     await userEvent.click(screen.getByRole('button', { name: 'Lucrarea' }));
     expect(screen.getByTitle('Pagina 1 a lucrării')).toHaveAttribute('src', submissionFileUrl(13, 131));
-    expect(within(students()).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('aria-current', 'true');
+    expect(within(students()).getByRole('link', { name: 'Eva Stan Nota 5' })).toHaveAttribute('aria-current', 'true');
   });
 
   it('says so when only the points to check show and the paper has none', async () => {
@@ -48,8 +51,9 @@ describe('the points to check on the paper page', () => {
     renderAdmin(paperAt(11, null, 'all'), apiWith(), <LocationProbe />);
     expect(await screen.findByRole('row', { name: /Subiectul I, ex\. 1/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ce a lucrat bine' })).toBeInTheDocument();
+    // It opens on the paper's first point.
     await userEvent.click(screen.getByRole('button', { name: 'Doar de verificat (3)' }));
-    await expectLocation(at(11));
+    await expectLocation(at(11, 'pages'));
     expect(screen.queryByRole('row', { name: /Subiectul I, ex\. 1/ })).not.toBeInTheDocument();
     expect(screen.getByRole('row', { name: /Subiectul II, ex\. 1/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Ce a lucrat bine' })).not.toBeInTheDocument();
@@ -75,7 +79,9 @@ describe('the points to check on the paper page', () => {
   });
 
   it('puts the focus on the exercises after the last point of the last student, in all the exercises', async () => {
-    renderAdmin(paperAt(14, '41', 'all'), apiWith(), <LocationProbe />);
+    // Without Dan's paper, which waits for the grading, Ion is the last of the list.
+    const all = papers();
+    renderAdmin(paperAt(14, '41', 'all'), apiWith(all, rowsOf(all).filter((other) => other.submissionId !== 12)), <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Exercițiile' })).toHaveFocus());
@@ -102,35 +108,102 @@ describe('the points to check on the paper page', () => {
     await screen.findByText('Ana Pop · 1/3');
     const students = screen.getByRole('group', { name: 'Elevii' });
     expect(students).toHaveTextContent('Elev 1/4');
-    // Before the first student comes the last.
+    // The graded papers first (Ana, Eva, Ion), then Dan's, sent and not
+    // graded yet. Before the first student comes the last.
     await userEvent.click(screen.getByRole('button', { name: 'Elevul anterior' }));
-    await expectLocation(at(14, null, 'all'));
+    await expectLocation(at(12, null, 'all'));
     expect(screen.getByRole('group', { name: 'Elevii' })).toHaveTextContent('Elev 4/4');
     // After the last comes the first.
     await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
     await expectLocation(at(11, null, 'all'));
     await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
-    await expectLocation(at(12, null, 'all'));
+    await expectLocation(at(13, null, 'all'));
     expect(screen.getByRole('group', { name: 'Elevii' })).toHaveTextContent('Elev 2/4');
     await userEvent.click(screen.getByRole('button', { name: 'Elevul anterior' }));
     await expectLocation(at(11, null, 'all'));
-    // With only the points to check, the students with points come first and
-    // each opens on its first point.
+    // With only the points to check, only the students with points, each
+    // on its first point.
     await userEvent.click(screen.getByRole('button', { name: 'Doar de verificat (3)' }));
     await userEvent.click(screen.getByRole('button', { name: 'Elevul următor' }));
     await expectLocation(at(14, '41'));
   });
 
-  it('folds the students and keeps the choice in this browser', async () => {
+  it('hides the list beside the paper, opens it from "Elev", and keeps the choice in this browser', async () => {
     const first = renderAdmin(paperAt(11), apiWith());
-    await userEvent.click(await within(await screen.findByRole('navigation', { name: 'Elevii' })).findByRole('button', { name: 'Ascunde' }));
-    expect(within(students()).queryByRole('link')).not.toBeInTheDocument();
+    await userEvent.click(await within(await screen.findByRole('navigation', { name: 'Elevii' })).findByRole('button', { name: 'Ascunde lista' }));
+    // The column is gone; the focus goes to "Elev 1/2", which opens the list now.
+    expect(screen.queryByRole('navigation', { name: 'Elevii' })).not.toBeInTheDocument();
+    const menuButton = screen.getByRole('button', { name: 'Elev 1/2' });
+    await waitFor(() => expect(menuButton).toHaveFocus());
+    expect(menuButton).toHaveAttribute('aria-expanded', 'false');
     expect(localStorage.getItem('quickeval:paperStudentsFolded')).toBe('on');
     first.unmount();
-    renderAdmin(paperAt(11), apiWith());
-    await userEvent.click(await within(await screen.findByRole('navigation', { name: 'Elevii' })).findByRole('button', { name: 'Arată elevii' }));
-    expect(within(students()).getByRole('link', { name: 'Ana Pop 2 puncte de verificat' })).toBeInTheDocument();
+
+    renderAdmin(paperAt(11), apiWith(), <LocationProbe />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Elev 1/2' }));
+    const menu = screen.getByRole('navigation', { name: 'Elevii' });
+    expect(within(menu).getByRole('link', { name: 'Ana Pop 2 puncte de verificat' })).toHaveAttribute('aria-current', 'true');
+    // A key typed in the open list is not for the review.
+    await userEvent.keyboard('j');
+    await expectLocation(at(11));
+    // A student opens and the list closes.
+    await userEvent.click(within(menu).getByRole('link', { name: 'Ion Popa 1 punct de verificat' }));
+    await expectLocation(at(14, '41'));
+    expect(screen.queryByRole('navigation', { name: 'Elevii' })).not.toBeInTheDocument();
+    // "Arată lista lângă lucrare" puts the column back, and the focus in it.
+    await userEvent.click(screen.getByRole('button', { name: 'Elev 2/2' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Arată lista lângă lucrare' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ascunde lista' })).toHaveFocus());
+    expect(within(students()).getByRole('link', { name: 'Ion Popa 1 punct de verificat' })).toHaveAttribute('aria-current', 'true');
     expect(localStorage.getItem('quickeval:paperStudentsFolded')).toBe('off');
+  });
+
+  it('lists in the students where each paper is, and the students who sent nothing at the end', async () => {
+    renderAdmin(paperAt(13, null, 'all'), apiWith());
+    const list = await screen.findByRole('navigation', { name: 'Elevii' });
+    expect(within(list).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Ana Pop 2 puncte de verificat',
+      'Eva Stan Nota 5',
+      'Ion Popa 1 punct de verificat',
+      'Dan Marin Trimisă, necorectată · 1 pagină',
+    ]);
+    expect(within(list).getByText('Nu au participat: Mara Ilie.')).toBeInTheDocument();
+  });
+
+  it('counts the other papers in words, also past 20', async () => {
+    const all = papers();
+    const more = Array.from({ length: 20 }, (_, i) =>
+      fakeUpload({ studentId: 100 + i, studentName: `Zamfir ${i}`, submissionId: 900 + i, status: 'graded', grade: 8, fileCount: 1 }),
+    );
+    renderAdmin(paperAt(11), apiWith(all, [...rowsOf(all), ...more]));
+    const list = await screen.findByRole('navigation', { name: 'Elevii' });
+    expect(within(list).getByText(/^Celelalte 22 de lucrări sunt în/)).toBeInTheDocument();
+  });
+
+  it('opens "Doar de verificat" on the first point of the test from a paper with none', async () => {
+    renderAdmin(paperAt(13, null, 'all'), apiWith(), <LocationProbe />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Doar de verificat (3)' }));
+    await expectLocation(at(11, 'pages'));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ana Pop' })).toBeInTheDocument();
+  });
+
+  it('opens the list from "Elev" on a narrower screen, with no column to put back', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 75rem)',
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    renderAdmin(paperAt(13, null, 'all'), apiWith(), <LocationProbe />);
+    await screen.findByRole('heading', { level: 1, name: 'Eva Stan' });
+    expect(screen.queryByRole('navigation', { name: 'Elevii' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Elev 2/4' }));
+    const menu = screen.getByRole('navigation', { name: 'Elevii' });
+    expect(within(menu).getByRole('link', { name: 'Eva Stan Nota 5' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.queryByRole('button', { name: 'Arată lista lângă lucrare' })).not.toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('navigation', { name: 'Elevii' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Elev 2/4' })).toHaveFocus();
   });
 
   it('closes the open row on a second click, on the row or on its "Arată pe lucrare"', async () => {
