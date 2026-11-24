@@ -105,7 +105,7 @@ function StudentState({ row, testStatus }: { row: UploadRow; testStatus: TestSta
   const held = heldBack(row.status, row.fileCount, testStatus);
   // A sent paper not graded yet: how many pages it has, which the teacher
   // looks over before the grading.
-  if (row.status === 'submitted' && !held) return <span className="hint">{countLabel(row.fileCount, 'pagină', 'pagini')}</span>;
+  if (row.status === 'submitted' && !held) return <span className="hint paper-student-pages">{countLabel(row.fileCount, 'pagină', 'pagini')}</span>;
   const state = held ? PAPER_PART_LABEL.waiting : row.status === 'failed' ? t('Eșuat') : uploadStatusLabel(row.status);
   return <span className="hint">{state.toLowerCase()}</span>;
 }

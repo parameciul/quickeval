@@ -4115,8 +4115,9 @@ table.tests .row-actions {
   overflow-wrap: anywhere;
 }
 
-/* The state or "3 pagini" stays on one line: the name wraps instead. */
-.paper-student-list a > .hint {
+/* "3 pagini" stays on one line: the name wraps instead. A longer state
+   ("așteaptă corectarea") wraps, so the name keeps its room. */
+.paper-student-pages {
   flex: none;
   white-space: nowrap;
 }

@@ -147,7 +147,7 @@ export function PaperPages({
                     </span>
                   </button>
                 ) : (
-                  <a className="paper-page-tile is-pdf" href={url} target="_blank" rel="noopener" aria-label={t('Pagina {n}, PDF', { n: index + 1 })}>
+                  <a className="paper-page-tile is-pdf" data-page={index} href={url} target="_blank" rel="noopener" aria-label={t('Pagina {n}, PDF', { n: index + 1 })}>
                     <span aria-hidden="true">PDF</span>
                     <span className="paper-page-number" aria-hidden="true">
                       {index + 1}

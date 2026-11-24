@@ -587,6 +587,8 @@ export const ADMIN = {
   "Mergi la Corectare": "Go to Grading",
   "{took} din {students} au trimis.": "{took} of {students} have sent.",
   "{took} din {students} au participat.": "{took} of {students} took part.",
+  "1 din {students} a trimis.": "1 of {students} has sent.",
+  "1 din {students} a participat.": "1 of {students} took part.",
   "în ordinea trimisă de elev": "in the order the student sent them",
   "poză": "photo",
   "Pagina {n}, pe tot ecranul": "Page {n}, full screen",

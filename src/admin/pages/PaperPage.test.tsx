@@ -141,7 +141,7 @@ describe('the paper page', () => {
     renderAdmin(page, apiWith());
     expect(await screen.findByText('Lucrarea nu e corectată încă')).toBeInTheDocument();
     // How many students sent, counted as the test page's papers bar counts them.
-    expect(screen.getByText('Corectarea pornește pentru toată clasa, din etapa Corectare. 1 din 1 elev au trimis.')).toBeInTheDocument();
+    expect(screen.getByText('Corectarea pornește pentru toată clasa, din etapa Corectare. 1 din 1 elev a trimis.')).toBeInTheDocument();
     // One compact row: not the stages' "Acum" box.
     expect(screen.queryByText('Acum')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mergi la Corectare' })).toHaveAttribute('href', '/tests/6E2-26T1#grading');
@@ -191,6 +191,47 @@ describe('the paper page', () => {
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('img', { name: 'Pagina 1 a lucrării' })).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Pagina 1, pe tot ecranul' })).toHaveFocus());
+  });
+
+  it('closes the whole screen on a PDF page, with the focus on its tile', async () => {
+    renderAdmin(page, apiWith());
+    await userEvent.click(await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' }));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
+    // Page 2 is a PDF: it opens from its own tile, never in the viewer.
+    await userEvent.keyboard('{ArrowRight}');
+    expect(document.querySelector('.review-photo')).toBeNull();
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Pagina 2, PDF' })).toHaveFocus());
+  });
+
+  it('turns the pages with 1–9 only while a page is over the whole screen', async () => {
+    const photos = [
+      { id: 21, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 1 },
+      { id: 23, name: 'IMG_0002.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 2 },
+    ];
+    renderAdmin(page, apiWith({ ...submission, files: photos }));
+    await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' });
+    await userEvent.keyboard('2');
+    expect(document.querySelector('.review-photo')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina 1, pe tot ecranul' }));
+    await userEvent.keyboard('2');
+    expect(screen.getByRole('img', { name: 'Pagina 2 a lucrării' }).closest('figure')).toHaveClass('is-full');
+  });
+
+  it('closes the whole screen when the paper gets its result meanwhile, and the result does not open over it', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const api = apiWith({ ...submission, testStatus: 'evaluating' });
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' }));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
+    // The robot graded the paper; the page asks for news every 10 seconds.
+    api.getSubmission.mockResolvedValue(structuredClone(graded));
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(await screen.findByText(/Nota/)).toBeInTheDocument();
+    expect(document.querySelector('.review-photo.is-full')).toBeNull();
+    // The graded paper shows beside the exercises, as it opens.
+    expect(screen.getByText('Pop Ion · 1/2')).toBeInTheDocument();
   });
 
   it('shows neither the switch, nor that all points are checked, before any paper of the test is graded', async () => {

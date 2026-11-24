@@ -472,7 +472,7 @@ function Paper({
       if (pressed === 'a' && decisionView !== null) main.current?.querySelector<HTMLButtonElement>('.decision-slot.is-current [data-confirm]')?.click();
       else if (pressed === 'j') goPoint(stepPoint(walked, spot, 1));
       else if (pressed === 'k') goPoint(stepPoint(walked, spot, -1));
-      else if (/^[1-9]$/.test(pressed) && (pagesView ? paperFull : !photoFolded) && submission && Number(pressed) <= submission.files.length) setPageChoice({ view: viewKey, page: Number(pressed) - 1 });
+      else if (/^[1-9]$/.test(pressed) && (pagesView ? tileFull : !photoFolded) && submission && Number(pressed) <= submission.files.length) setPageChoice({ view: viewKey, page: Number(pressed) - 1 });
       else return;
       event.preventDefault();
     };
@@ -504,15 +504,27 @@ function Paper({
     if (rowWithPhoto) main.current?.querySelector('table.items tr.is-open, .pages-check.is-open')?.scrollIntoView?.({ block: 'start' });
   }, [rowWithPhoto, key, loaded]);
 
-  // The pages of a paper with no result: a photo over the whole screen, and
-  // the focus back on its page once it closes.
-  const tileReturn = useRef<number | null>(null);
+  // The pages of a paper with no result: a photo over the whole screen, a
+  // state of its own (not `paperFull`, the graded paper's), and the focus back
+  // on the page shown once it closes. It closes by itself when the paper gets
+  // its result meanwhile (no pages to go back to), and on a PDF page, which
+  // opens from its own tile in a tab.
+  const [tileFull, setTileFull] = useState(false);
+  const [tileFocus, setTileFocus] = useState<number | null>(null);
+  const shownIsPhoto = submission?.files[shownPage]?.contentType.startsWith('image/') ?? false;
+  // The graded paper's whole screen, left open when it is graded again,
+  // does not open by itself once the new result is back.
+  if (paperFull && pagesView) setPaperFull(false);
+  if (tileFull && !pagesView) setTileFull(false);
+  else if (tileFull && !shownIsPhoto) {
+    setTileFull(false);
+    setTileFocus(shownPage);
+  }
   useEffect(() => {
-    if (paperFull || tileReturn.current === null) return;
-    const page = tileReturn.current;
-    tileReturn.current = null;
-    main.current?.querySelector<HTMLElement>(`.paper-page-tile[data-page="${page}"]`)?.focus({ preventScroll: true });
-  }, [paperFull]);
+    if (tileFull || tileFocus === null) return;
+    setTileFocus(null);
+    main.current?.querySelector<HTMLElement>(`.paper-page-tile[data-page="${tileFocus}"]`)?.focus({ preventScroll: true });
+  }, [tileFull, tileFocus]);
 
   // The address names a paper of another test.
   if (submission !== undefined && submission.testCode !== code) return <NotFoundPage />;
@@ -550,10 +562,10 @@ function Paper({
   ) : null;
   const openPage = (index: number) => {
     setPageChoice({ view: viewKey, page: index });
-    setPaperFull(true);
+    setTileFull(true);
   };
   const fullPages =
-    pagesView && paperFull && submission ? (
+    pagesView && tileFull && shownIsPhoto && submission ? (
       <ReviewPhoto
         submission={submission}
         page={shownPage}
@@ -563,8 +575,8 @@ function Paper({
         onFrames={() => undefined}
         full
         onFull={(on) => {
-          if (!on) tileReturn.current = shownPage;
-          setPaperFull(on);
+          if (!on) setTileFocus(shownPage);
+          setTileFull(on);
         }}
       />
     ) : null;
@@ -825,7 +837,9 @@ function Paper({
 function sentLine(test: TestDetail['test'], uploads: TestDetail['uploads']): string {
   const counts = paperCounts(test.status, test.studentCount, uploads, { hasTest: test.ces.files.test !== null, baremActive: cesBaremActive(test) });
   const students = countLabel(counts.total, 'elev', 'elevi');
-  return counts.open ? t('{took} din {students} au trimis.', { took: counts.took, students }) : t('{took} din {students} au participat.', { took: counts.took, students });
+  const took = counts.took;
+  if (took === 1) return counts.open ? t('1 din {students} a trimis.', { students }) : t('1 din {students} a participat.', { students });
+  return counts.open ? t('{took} din {students} au trimis.', { took, students }) : t('{took} din {students} au participat.', { took, students });
 }
 
 // The arrow of a move: back (‹) or on (›).
