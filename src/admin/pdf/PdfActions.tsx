@@ -18,10 +18,10 @@ export interface CsvFile {
   fileName: string;
 }
 
-// "Descarcă PDF" and "Trimite" for a PDF, and "Descarcă CSV" when the page has
-// one (spec §14). The PDF is made when a button is pressed: its code loads
-// then, not with the page.
-export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
+// Makes a PDF when it is asked for, and saves it or hands it to the share
+// sheet. `busy` while it is made; `message` says what went wrong, or that the
+// PDF was saved because this device cannot send it.
+export function usePdfFile(pdf: PdfFile) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -41,6 +41,14 @@ export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
       setBusy(false);
     }
   };
+  return { busy, message, run };
+}
+
+// "Descarcă PDF" and "Trimite PDF-ul" for a PDF, and "Descarcă CSV" when the
+// page has one (spec §14). The PDF is made when a button is pressed: its code
+// loads then, not with the page.
+export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
+  const { busy, message, run } = usePdfFile(pdf);
 
   return (
     <div className="pdf-actions">
@@ -60,7 +68,7 @@ export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
       )}
       <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => run('share')}>
         <ActionIcon name="share" />
-        {t('Trimite')}
+        {t('Trimite PDF-ul')}
       </button>
       {busy && <span role="status">{t('Se face PDF-ul…')}</span>}
       {message && <p role="status">{message}</p>}

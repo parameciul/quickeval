@@ -8,7 +8,7 @@ import { studentPdf, studentPdfFileName, studentPdfInputFromResult } from '../ad
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { publishedHow, TICKET_HOW, TICKET_HOW_NO_CODE, TICKET_TITLE } from './ResultTicket.tsx';
 import { useSaveTicket } from './SaveTicket.tsx';
-import { shareLink } from './shareLink.ts';
+import { shareLink } from '../ui/shareLink.ts';
 import { t } from '../i18n/t.ts';
 
 type ShareState = 'idle' | 'copied' | 'manual';

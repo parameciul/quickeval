@@ -7,9 +7,10 @@ export function isTyping(target: EventTarget | null): boolean {
 }
 
 // What opens over the page from the bars (a panel, the phone menu, the account
-// menu) and the button of one while it is open: a key there is not for the
-// review. A closed panel's button, where the focus goes back, is.
-export const BAR_BOXES = '.panel, .phone-menu, .user-menu, [aria-expanded="true"]';
+// menu), the small menus of the page's head ("Alte acțiuni", "Rezultatul
+// elevului") and the button of one while it is open: a key there is not for
+// the review. A closed panel's button, where the focus goes back, is.
+export const BAR_BOXES = '.panel, .phone-menu, .user-menu, .class-menu, [aria-expanded="true"]';
 
 // A key that the review may take: not typed, not in what opened from the bars.
 export function isReviewKey(event: KeyboardEvent): boolean {

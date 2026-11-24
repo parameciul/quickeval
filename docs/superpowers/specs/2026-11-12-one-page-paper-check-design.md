@@ -74,6 +74,7 @@ Above the columns:
 - The path: "Teste › Clasa 7E2 › <test title> › <student>", each but the last a link (§5.1).
 - The student's head (from today's paper's page): the name, the grade and the total ("75 din 100, cu 10 din oficiu"), the state ("Corectat", "Se corectează", …), "Fără confirmare" when it applies, the start and send times. On the right: "Toate notele elevului", the student's PDF (graded only), and "Alte acțiuni" (Recorectează, Resetează), as today.
 - The result link row ("Linkul cu rezultatul elevului", published or not, the link), as today, but on one line under the head.
+  - Changed 2026-11-24: no row under the head. Once the paper is graded, one button "Rezultatul elevului" in the head shows "Nepublicat" or "Publicat" and opens a panel with the link (copy, send, open) and the student's PDF (download, send); the page no longer moves between a graded paper and one that is not.
 - The switch: "Toate exercițiile" / "Doar de verificat (N)", N the points to check in the whole test. And "Elevul anterior" / "Elevul următor".
 
 Three columns under them:

@@ -140,6 +140,14 @@ const PATHS = {
   list: <path d="M7.5 5.5h9M7.5 10h9M7.5 14.5h9M3.75 5.5h.01M3.75 10h.01M3.75 14.5h.01" />,
   login: <path d="M12 3.5h4v13h-4M3.5 10H12M8.5 6.5 12 10l-3.5 3.5" />,
   logout: <path d="M8 3.5H4v13h4M8.5 10h8M13.5 6.5 17 10l-3.5 3.5" />,
+  // Three dots: a menu of more actions, where its words do not fit (a phone).
+  more: (
+    <>
+      <circle cx="4.5" cy="10" r="1" fill="currentColor" />
+      <circle cx="10" cy="10" r="1" fill="currentColor" />
+      <circle cx="15.5" cy="10" r="1" fill="currentColor" />
+    </>
+  ),
   open: <path d="M11 3.5h5.5V9M16.5 3.5l-7 7M14 12v4.5H3.5V6H8" />,
   pay: (
     <>

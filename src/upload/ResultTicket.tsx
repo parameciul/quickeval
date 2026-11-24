@@ -6,7 +6,7 @@ import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { resultPageUrl } from './resultLinks.ts';
 import type { TicketHow } from './ticketImage.ts';
 import { useSaveTicket } from './SaveTicket.tsx';
-import { shareLink } from './shareLink.ts';
+import { shareLink } from '../ui/shareLink.ts';
 import { t } from '../i18n/t.ts';
 
 // The test a ticket is for, as the student knows it.

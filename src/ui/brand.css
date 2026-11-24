@@ -6205,10 +6205,9 @@ table.uploads .row-actions {
   }
 }
 
-/* A student's result page (the teacher's): the head with the name and the
-   test on the left and what the teacher takes away on the right, then a
-   strip with the student's result link, then the result. On a phone the
-   head stacks. */
+/* The paper page's head: the name, the test and the times on the left (the
+   times end with the link to all the student's grades), "Rezultatul
+   elevului" and "Alte acțiuni" on the right. On a phone the head stacks. */
 .submission-head {
   display: flex;
   flex-wrap: wrap;
@@ -6242,31 +6241,8 @@ table.uploads .row-actions {
   gap: 0.5rem;
 }
 
-/* The PDF buttons wrap with the link, as one row of buttons. */
-.submission-tools .pdf-actions {
-  display: contents;
-}
-
-/* The student's result link: a strip of its own, the link's button on the
-   right; the opened link wraps under it on a narrow screen. */
-.result-link-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
-  margin: 0 0 1rem;
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-panel);
-  background: var(--sheet);
-}
-
-.result-link-label {
-  font-weight: 600;
-}
-
-.result-link-row .result-share {
-  margin-left: auto;
+.submission-grades-link {
+  white-space: nowrap;
 }
 
 /* The short code of a result link, beside "Copiază linkul" in Rezultate. */
@@ -7044,6 +7020,51 @@ table.items tr.edit-row > td {
   line-height: 1.35;
 }
 
+/* A menu button that shows only ⋯ on a phone ("Alte acțiuni" of the paper
+   page): its words stay its name. */
+.paper-actions-wide {
+  display: contents;
+}
+
+.paper-actions-dots {
+  display: none;
+}
+
+/* "Rezultatul elevului": the button carries whether the result is published;
+   its panel holds the state, then the link's and the PDF's actions in two
+   groups, drawn like the items of "Alte acțiuni". */
+.result-menu-button .tag {
+  margin-left: 0.125rem;
+}
+
+.class-menu.result-panel {
+  width: 22rem;
+}
+
+.result-panel-state {
+  margin: 0 0 0.25rem;
+  padding: 0.5rem 0.7rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.result-panel-group {
+  margin: 0.5rem 0.7rem 0.125rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.result-panel .paper-action {
+  text-decoration: none;
+}
+
+.result-panel .result-share-box,
+.result-panel-note {
+  margin: 0.25rem 0.7rem 0.375rem;
+  font-size: 0.875rem;
+}
+
 /* On a phone the menu hangs from the whole row of buttons, as wide as it,
    so it stays on the screen wherever the button wraps to. */
 @media (max-width: 40rem) {
@@ -7061,6 +7082,32 @@ table.items tr.edit-row > td {
     left: 0;
     width: auto;
     max-width: none;
+  }
+
+  /* One row: "Rezultatul elevului" takes the room, ⋯ keeps its own. */
+  .submission-tools {
+    flex-wrap: nowrap;
+  }
+
+  .result-menu {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .result-menu-button {
+    width: 100%;
+  }
+
+  .result-menu-button .tag {
+    margin-left: auto;
+  }
+
+  .paper-actions-wide {
+    display: none;
+  }
+
+  .paper-actions-dots {
+    display: contents;
   }
 }
 

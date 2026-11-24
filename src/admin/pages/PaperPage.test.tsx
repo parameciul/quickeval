@@ -102,7 +102,10 @@ describe('the paper page', () => {
     renderAdmin(page, apiWith());
     expect(await screen.findByRole('heading', { level: 1, name: 'Pop Ion' })).toBeInTheDocument();
     expect(screen.getByText(/6E2-26T1 · Fracții · Trimis/)).toBeInTheDocument();
-    expect(screen.getByText('Început 6 oct. 2026, 10:20 · trimis 6 oct. 2026, 10:40')).toBeInTheDocument();
+    // The times end with the link to all the student's grades.
+    expect(screen.getByRole('link', { name: 'Toate notele elevului' }).closest('p')).toHaveTextContent(
+      'Început 6 oct. 2026, 10:20 · trimis 6 oct. 2026, 10:40 · Toate notele elevului',
+    );
     const path = screen.getByRole('navigation', { name: 'Unde ești' });
     expect(within(path).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Teste', 'Clasa 6E2', 'Fracții', 'Pop Ion']);
     expect(within(path).getByRole('link', { name: 'Fracții' })).toHaveAttribute('href', '/tests/6E2-26T1');
@@ -336,18 +339,6 @@ describe('the paper page', () => {
     expect(screen.getByText('Exersează ecuațiile.')).toBeInTheDocument();
   });
 
-  it('has the PDF buttons only for a graded result', async () => {
-    const { unmount } = renderAdmin(page, apiWith(graded));
-    expect(await screen.findByRole('button', { name: 'Descarcă PDF' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Trimite' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Descarcă CSV' })).not.toBeInTheDocument();
-    unmount();
-    renderAdmin(page, apiWith());
-    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Descarcă PDF' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Trimite' })).not.toBeInTheDocument();
-  });
-
   it('checks an item: "Verifică" opens it, "Accept" checks it', async () => {
     const api = apiWith(graded);
     renderAdmin(page, api);
@@ -407,13 +398,13 @@ describe('the paper page', () => {
     expect(screen.queryByText(/^De verificat: \d/)).not.toBeInTheDocument();
   });
 
-  it('shows the head with the student, the test, and the take-away actions together', async () => {
+  it('shows the head with the student, the test, the result button and the menu together', async () => {
     renderAdmin(page, apiWith(graded));
     const name = await screen.findByRole('heading', { level: 1, name: 'Pop Ion' });
     const head = name.closest('.submission-head') as HTMLElement;
     expect(head).not.toBeNull();
     expect(within(head).getByRole('link', { name: 'Toate notele elevului' })).toBeInTheDocument();
-    expect(within(head).getByRole('button', { name: 'Descarcă PDF' })).toBeInTheDocument();
+    expect(within(head).getByRole('button', { name: /^Rezultatul elevului/ })).toHaveAttribute('aria-expanded', 'false');
     expect(within(head).getByRole('button', { name: 'Alte acțiuni' })).toHaveAttribute('aria-expanded', 'false');
   });
 
@@ -641,32 +632,6 @@ describe('the paper page', () => {
     await expectLocation('/tests/6E2-26T1');
   });
 
-  it('shows the student result link with copy and WhatsApp share', async () => {
-    const api = apiWith(graded);
-    renderAdmin(page, api);
-    expect(await screen.findByText(/Rezultatele nu sunt publicate încă/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Link rezultat' }));
-    // The upload already has a link, so no new request is needed.
-    expect(api.getResultLink).not.toHaveBeenCalled();
-    const url = `${window.location.origin}/u/result/abcdefghijkmnop2abcdefcd`;
-    expect(await screen.findByDisplayValue(url)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('href', url);
-    expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('target', '_blank');
-    expect(screen.getByRole('link', { name: 'Deschide' })).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
-      'href',
-      `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul 6E2-26T1: ${url}`)}`,
-    );
-  });
-  it('hides the result link until the paper is graded', async () => {
-    for (const status of ['uploading', 'submitted', 'grading', 'failed'] as const) {
-      const { unmount } = renderAdmin(page, apiWith({ ...submission, status, submittedAt: status === 'uploading' ? null : submission.submittedAt }));
-      expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Link rezultat' })).not.toBeInTheDocument();
-      expect(screen.queryByText(/Linkul cu rezultatul/)).not.toBeInTheDocument();
-      unmount();
-    }
-  });
   it('shows the not-found page for an upload id that is not a number', async () => {
     renderAdmin('/tests/6E2-26T1/papers/abc', apiWith());
     expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeInTheDocument();

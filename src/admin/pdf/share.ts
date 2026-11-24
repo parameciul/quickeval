@@ -1,4 +1,4 @@
-// Gives a file to the teacher: "Descarcă" saves it; "Trimite" opens the share
+// Gives a file to the teacher: "Descarcă" saves it; "Trimite PDF-ul" opens the share
 // sheet of the phone (Web Share API) with the file, and saves it when sharing
 // is not possible (spec §14.1). The share sheet needs a fresh tap of the
 // user, which a slow PDF can use up: then the file is saved too, and the
@@ -33,4 +33,17 @@ export async function shareFile(blob: Blob, fileName: string, title: string): Pr
   }
   saveFile(blob, fileName);
   return 'downloaded';
+}
+
+// Whether this device can hand a PDF to its share sheet (a phone, a tablet,
+// some computers). Where it cannot, "Trimite PDF-ul" would only save the file,
+// which "Descarcă PDF" already does.
+export function canShareFiles(): boolean {
+  const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+  if (typeof nav.share !== 'function' || typeof nav.canShare !== 'function') return false;
+  try {
+    return nav.canShare({ files: [new File([''], 'test.pdf', { type: 'application/pdf' })] });
+  } catch {
+    return false;
+  }
 }
