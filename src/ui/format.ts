@@ -44,6 +44,12 @@ export function uploadStatusLabel(status: UploadStatus): string {
   return UPLOAD_STATUS[status];
 }
 
+// Why an active student has no result in the class report: the page and the
+// class PDF say it in the student's row.
+export function missingNote(status: UploadStatus): string {
+  return status === 'none' ? t('Nu a trimis lucrarea.') : uploadStatusLabel(status);
+}
+
 const DATE_TIME = new Intl.DateTimeFormat(locale(), {
   timeZone: 'Europe/Bucharest',
   day: 'numeric',

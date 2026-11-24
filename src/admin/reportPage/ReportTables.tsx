@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import type { ClassReport } from '../../../shared/api.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import type { ExerciseStats, ClassStats, ReportTable } from '../../../shared/stats.ts';
-import { GRADE_GROUP_LEVELS, pointsLevel, uploadStatusLabel } from '../../ui/format.ts';
+import { GRADE_GROUP_LEVELS, missingNote, pointsLevel } from '../../ui/format.ts';
 import { CesTag } from '../CesTag.tsx';
 import { CheckMark } from '../submissionPage/GradedResult.tsx';
 import { GradeChip } from '../testPage/GradeChip.tsx';
@@ -193,7 +193,7 @@ export function ResultsTable({
                   {student.ces && <CesTag />}
                 </th>
                 <td colSpan={exercises.length + 2}>
-                  <span className="missing-note">{student.status === 'none' ? t('Nu a trimis lucrarea.') : uploadStatusLabel(student.status)}</span>
+                  <span className="missing-note">{missingNote(student.status)}</span>
                 </td>
               </tr>
             ))}

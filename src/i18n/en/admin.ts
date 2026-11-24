@@ -137,7 +137,6 @@ export const ADMIN = {
   "Cea mai mică notă {grade}": "Lowest grade {grade}",
   "Cea mai mare notă {grade}": "Highest grade {grade}",
   "Fundalul galben marchează punctajele încă în verificare.": "A yellow background marks points still under review.",
-  "Fără rezultat": "No result",
   "Analiza poate fi depășită: notele s-au schimbat după ce a fost scrisă.": "The analysis may be out of date: the grades changed after it was written.",
   "Ce a mers bine": "What went well",
   "Ce a mers mai greu": "What was harder",
