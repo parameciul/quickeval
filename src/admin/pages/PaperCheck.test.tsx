@@ -33,7 +33,7 @@ describe('the points to check on the paper page', () => {
     expect(within(list).getByRole('link', { name: 'Ion Popa 1 punct de verificat' })).toHaveAttribute('href', paperAt(14, '41'));
     expect(within(list).getByRole('heading', { name: 'Celelalte lucrări 2' })).toBeInTheDocument();
     expect(within(list).getByRole('link', { name: 'Eva Stan nota 5' })).toHaveAttribute('href', paperAt(13));
-    expect(within(list).getByRole('link', { name: 'Dan Marin trimis' })).toHaveAttribute('href', paperAt(12));
+    expect(within(list).getByRole('link', { name: 'Dan Marin 1 pagină' })).toHaveAttribute('href', paperAt(12));
     expect(within(list).queryByText(/Mara Ilie/)).not.toBeInTheDocument();
   });
 
