@@ -99,14 +99,6 @@ export function IconClock() {
   );
 }
 
-export function IconDownload() {
-  return (
-    <svg {...LINE}>
-      <path d="M10 3v9.5M6 8.5l4 4 4-4M4 16.5h12" />
-    </svg>
-  );
-}
-
 export function IconSearch() {
   return (
     <svg {...LINE} strokeWidth={1.7}>

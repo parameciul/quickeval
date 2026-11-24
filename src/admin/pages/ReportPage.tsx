@@ -7,8 +7,7 @@ import { normalizeTestCode } from '../../../shared/tests.ts';
 import { useApi } from '../ApiContext.tsx';
 import { Crumbs } from '../Crumbs.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { classCsv } from '../../../shared/csv.ts';
-import { countLabel, formatDate, uploadStatusLabel } from '../../ui/format.ts';
+import { countLabel, formatDate } from '../../ui/format.ts';
 import { PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { classPdf, classPdfFileName } from '../pdf/classPdf.ts';
 import { PdfActions } from '../pdf/PdfActions.tsx';
@@ -112,7 +111,6 @@ function ReportView({ code }: { code: string }) {
         {graded && (
           <PdfActions
             pdf={{ build: () => classPdf(report), fileName: classPdfFileName(report), title: t('Raportul clasei · {code}', { code: report.test.code }) }}
-            csv={{ build: () => classCsv(report, uploadStatusLabel), fileName: `${report.test.code}-${t('raport')}.csv` }}
           />
         )}
       </div>

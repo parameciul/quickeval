@@ -3124,8 +3124,7 @@ table.tests .row-actions {
 }
 
 /* "Raportul clasei": the average in its grade colour, the grades by group in
-   the same colours, the one button to the report, and the CSV as a quiet
-   text button. */
+   the same colours, and the one button to the report. */
 .report-card {
   display: grid;
   gap: 0.75rem;
@@ -3213,19 +3212,6 @@ table.tests .row-actions {
 
 .report-card .button {
   width: 100%;
-}
-
-.text-button.csv-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  justify-self: start;
-  font-weight: 500;
-}
-
-.csv-button svg {
-  width: 1rem;
-  height: 1rem;
 }
 
 /* The labels of Verificare, under its "Acum" box: one per student with

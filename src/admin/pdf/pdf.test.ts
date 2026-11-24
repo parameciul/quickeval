@@ -1,9 +1,10 @@
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
+import type { ContentTable, CustomTableLayout, TDocumentDefinitions } from 'pdfmake/interfaces';
 import type { ClassReport, StudentResultView, SubmissionDetail } from '../../../shared/api.ts';
 import { expectNoGradingWords } from '../../test/gradingWords.ts';
 import { fakeItem } from '../../test/fakeApi.ts';
-import { BLOCK, classPdf, classPdfFileName } from './classPdf.ts';
+import { classPdf, classPdfFileName, COLUMN_PADDING, PAGE_WIDTH, tableWidth } from './classPdf.ts';
 import { pdfFileName } from './fileName.ts';
 import { pdfRuns } from './pdfMath.ts';
 import { PDF_SYMBOLS, pdfText } from './pdfSymbols.ts';
@@ -189,6 +190,40 @@ function report(exerciseCount: number): ClassReport {
   };
 }
 
+// The results tables of a class PDF: the ones whose header starts with "Elev".
+type ResultsTable = { table: { body: { text: string }[][]; widths: number[]; keepWithHeaderRows?: number; dontBreakRows?: boolean }; layout: unknown };
+function resultsTables(definition: TDocumentDefinitions): ResultsTable[] {
+  return (definition.content as Partial<ResultsTable>[]).filter((node): node is ResultsTable => node.table?.body[0]?.[0]?.text === 'Elev');
+}
+const headerTexts = (table: ResultsTable) => table.table.body[0]!.map((cell) => cell.text);
+
+// A class like a real one: long names with diacritics, points with a comma,
+// totals out of 100.
+function realClass(ids: string[], students: number): ClassReport {
+  const names = ['Balia Davide', 'Bursașiu Teodor Andrei', 'Gheorghiță Rais-Bogdan-Jahjah', 'Vrînceanu-Tomici Tudor-Iosif', 'Ștefănescu Țicu-Ioana', 'Stojanović Teodor'];
+  const exercises = ids.map((id) => ({ id, label: `Exercițiul ${id}`, maxPoints: 10 }));
+  return {
+    test: { code: '6E2-26T2', title: 'Unghiuri', classId: 1, className: '6E2', status: 'done', startedAt: '2026-11-06T07:15:00.000Z' },
+    exercises,
+    cesExercises: null,
+    rows: Array.from({ length: students }, (_, index) => ({
+      submissionId: 100 + index,
+      studentId: 200 + index,
+      studentName: `${names[index % names.length]!} ${index}`.toUpperCase(),
+      active: true,
+      total: 42.5,
+      maxTotal: 100,
+      grade: 4.25,
+      flagCount: 0,
+      ces: false,
+      variant: 'class' as const,
+      items: exercises.map((exercise, item) => ({ exerciseId: exercise.id, points: item % 3 === 0 ? 3.5 : 10, maxPoints: 10, flagged: false })),
+    })),
+    missing: [],
+    analysis: { status: 'none', stale: false, attempts: 0, content: null },
+  };
+}
+
 const gradedView: StudentResultView = {
   resultCode: 'K7M92P',
   testCode: '6E2-26T1',
@@ -263,21 +298,90 @@ describe('classPdf', () => {
     expect(classPdfFileName(report(5))).toBe('6E2-26T1-raport.pdf');
   });
 
-  it('splits 60 exercises in blocks that repeat the student, with the total in the last one', () => {
-    const definition = classPdf(report(60));
-    const tables = (definition.content as { table?: { body: unknown[][]; widths: unknown[] } }[]).filter(
-      (node) => node.table && node.table.body[0]![0] && (node.table.body[0]![0] as { text: string }).text === 'Elev',
-    );
-    expect(tables).toHaveLength(Math.ceil(60 / BLOCK));
+  it('splits 60 exercises in as few blocks as fit, of equal size, each with the student, the total in the last one', () => {
+    const tables = resultsTables(classPdf(report(60)));
+    expect(tables.length).toBeGreaterThan(1);
+    const sizes = tables.map((table, index) => table.table.body[0]!.length - 1 - (index === tables.length - 1 ? 2 : 0));
+    expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(60);
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
     for (const table of tables) {
-      // The student, the exercises of the block, and the last block's total and grade.
-      expect(table.table!.body[0]!.length).toBeLessThanOrEqual(BLOCK + 3);
-      expect(table.table!.body).toHaveLength(3);
+      expect(table.table.body).toHaveLength(3);
+      expect(tableWidth(table.table.widths)).toBeLessThanOrEqual(PAGE_WIDTH);
     }
-    const last = tables.at(-1)!.table!.body[0]!.map((cell) => (cell as { text: string }).text);
-    expect(last.slice(-2)).toEqual(['Total', 'Nota']);
-    const first = tables[0]!.table!.body[0]!.map((cell) => (cell as { text: string }).text);
-    expect(first).not.toContain('Total');
+    expect(headerTexts(tables.at(-1)!).slice(-2)).toEqual(['Total', 'Nota']);
+    expect(headerTexts(tables[0]!)).not.toContain('Total');
+  });
+
+  it('keeps a class of 29 students and 13 exercises in one table that fits the page, with the total and the grade', () => {
+    const ids = ['I.1.a', 'I.1.b', 'I.2.a', 'I.2.b', 'I.3.a', 'I.3.b', 'II.1.a', 'II.1.b', 'II.2.a', 'II.2.b', 'II.2.c', 'II.3.a', 'II.3.b'];
+    const tables = resultsTables(classPdf(realClass(ids, 29)));
+    expect(tables).toHaveLength(1);
+    expect(headerTexts(tables[0]!)).toEqual(['Elev', ...ids, 'Total', 'Nota']);
+    expect(tables[0]!.table.body).toHaveLength(30);
+    expect(tableWidth(tables[0]!.table.widths)).toBeLessThanOrEqual(PAGE_WIDTH);
+  });
+
+  it('keeps 18 exercises in one table, with columns only as wide as their texts', () => {
+    const ids = ['I.1', 'I.2', 'I.3', 'I.4', 'I.5', 'I.6', 'II.1', 'II.2', 'II.3', 'II.4', 'III.1.a', 'III.1.b', 'III.2.a', 'III.2.b', 'III.3.a', 'III.3.b', 'III.4.a', 'III.4.b'];
+    const [table, ...rest] = resultsTables(classPdf(realClass(ids, 20)));
+    expect(rest).toEqual([]);
+    expect(tableWidth(table!.table.widths)).toBeLessThanOrEqual(PAGE_WIDTH);
+    const widths = table!.table.widths;
+    // "I.1" over "3,5" is about 15 pt, "III.4.b" about 25 pt: no column of points is 30 pt wide.
+    expect(Math.max(...widths.slice(1, -2))).toBeLessThan(30);
+    expect(widths[1]!).toBeLessThan(widths.at(-3)!);
+  });
+
+  it('fits the CES table across the page too, in its own blocks', () => {
+    const base = realClass(['I.1', 'I.2'], 3);
+    const cesExercises = Array.from({ length: 40 }, (_, index) => ({ id: `C${index + 1}`, label: `Exercițiul CES ${index + 1}`, maxPoints: 5 }));
+    const ces = {
+      ...base.rows[0]!,
+      submissionId: 99,
+      studentName: 'Vrînceanu-Tomici Tudor-Iosif',
+      variant: 'ces' as const,
+      ces: true,
+      items: cesExercises.map((exercise) => ({ exerciseId: exercise.id, points: 2.5, maxPoints: 5, flagged: false })),
+    };
+    const tables = resultsTables(classPdf({ ...base, cesExercises, rows: [...base.rows, ces] }));
+    expect(tables[0]!.table.body).toHaveLength(4);
+    const cesTables = tables.slice(1);
+    expect(cesTables.length).toBeGreaterThan(1);
+    for (const table of cesTables) expect(tableWidth(table.table.widths)).toBeLessThanOrEqual(PAGE_WIDTH);
+  });
+
+  it('keeps the header with the first students on a page, and leaves little space between the columns', () => {
+    const [table] = resultsTables(classPdf(realClass(['I.1', 'I.2'], 29)));
+    expect(table!.table.keepWithHeaderRows).toBe(5);
+    expect(table!.table.dontBreakRows).toBe(true);
+    const layout = table!.layout as CustomTableLayout;
+    const node = { table: table!.table } as unknown as ContentTable;
+    expect(layout.paddingLeft!(0, node)).toBe(0);
+    expect(layout.paddingLeft!(1, node)).toBe(COLUMN_PADDING);
+    expect(layout.paddingRight!(0, node)).toBe(COLUMN_PADDING);
+    expect(layout.paddingRight!(table!.table.widths.length - 1, node)).toBe(0);
+    const [small] = resultsTables(classPdf(realClass(['I.1'], 2)));
+    expect(small!.table.keepWithHeaderRows).toBe(2);
+  });
+
+  it('gives a long exercise id a column of at most 60 pt, where it wraps', () => {
+    const [table] = resultsTables(classPdf(realClass(['Subiectul III, exercițiul 4, punctul b'], 2)));
+    expect(table!.table.widths[1]).toBe(60);
+  });
+
+  it('makes one table of Elev, Total and Nota for a test with no exercises and no graded paper', () => {
+    const empty = { ...realClass([], 0) };
+    const tables = resultsTables(classPdf(empty));
+    expect(tables).toHaveLength(1);
+    expect(headerTexts(tables[0]!)).toEqual(['Elev', 'Total', 'Nota']);
+    expect(tables[0]!.table.keepWithHeaderRows).toBe(0);
+  });
+
+  it('gives a long name a column of at most 180 pt, where it wraps', () => {
+    const base = realClass(['I.1'], 1);
+    const long = { ...base, rows: [{ ...base.rows[0]!, studentName: 'Gheorghiță Rais-Bogdan-Jahjah Alexandru-Constantin Popescu-Ionescu' }] };
+    const [table] = resultsTables(classPdf(long));
+    expect(table!.table.widths[0]).toBe(180);
   });
 
   it('marks the item to check with a background, and no other cell', () => {

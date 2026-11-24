@@ -1,4 +1,4 @@
-import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { Content, CustomTableLayout, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import type { ClassReport } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
@@ -7,16 +7,31 @@ import { formatDate, uploadStatusLabel } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
 import { pdfRuns } from './pdfMath.ts';
 import { pdfText } from './pdfSymbols.ts';
+import { pdfTextWidth } from './pdfWidth.ts';
 import { t } from '../../i18n/t.ts';
 
 // The class PDF (spec §14.2): landscape, with the table of results, the
-// statistics, and the analysis. A test can have 60 exercises, which no page
-// holds in one table: the exercises go in blocks of at most `BLOCK` columns,
-// and every block repeats the student's name.
+// statistics, and the analysis. Each column of the results is as wide as its
+// widest text. When all the exercises, the total and the grade fit across the
+// page, the results are one table. A test can have 60 exercises, which no
+// page holds in one table: then the exercises go in as few blocks as fit, of
+// equal size, every block repeats the student's name, and the last one holds
+// the total and the grade.
 
-export const BLOCK = 12;
 const FLAGGED = '#fff0a0';
 const MUTED = '#586070';
+
+// A4 landscape (841.89 pt) without the page margins.
+export const PAGE_WIDTH = 841.89 - 2 * 36;
+// The space on each side of a column, except on the outer sides of the table.
+export const COLUMN_PADDING = 4;
+// A longer name or exercise id wraps on two lines.
+const NAME_MAX = 180;
+const EXERCISE_MAX = 60;
+// The header and at least this many students start on the same page.
+const KEEP_WITH_HEADER = 5;
+const HEADER_SIZE = 8;
+const CELL_SIZE = 9;
 
 export function classPdfFileName(report: ClassReport): string {
   return pdfFileName(report.test.code, t('raport'));
@@ -25,52 +40,99 @@ export function classPdfFileName(report: ClassReport): string {
 const dash = '—';
 const grade = (value: number | null) => (value === null ? dash : formatPoints(value));
 
-function chunks<T>(items: T[], size: number): T[][] {
+const headerCell = (text: string) => ({ text, bold: true, fontSize: HEADER_SIZE, color: MUTED });
+
+// The lines of pdfmake's "lightHorizontalLines", with less space between the
+// columns: its 16 pt gap made the columns of points much wider than "3,5".
+const resultsLayout: CustomTableLayout = {
+  hLineWidth: (index, node) => (index === 0 || index === node.table.body.length ? 0 : index === node.table.headerRows ? 2 : 1),
+  vLineWidth: () => 0,
+  hLineColor: (index) => (index === 1 ? 'black' : '#aaa'),
+  paddingLeft: (index) => (index === 0 ? 0 : COLUMN_PADDING),
+  paddingRight: (index, node) => (index === (node.table.widths as unknown[]).length - 1 ? 0 : COLUMN_PADDING),
+};
+
+// The width of a column that holds these texts (the header in bold at its
+// size, the cells at theirs), with one point to spare.
+function columnWidth(header: string, cells: string[], max = Infinity): number {
+  const widest = Math.max(pdfTextWidth(header, HEADER_SIZE), ...cells.map((cell) => pdfTextWidth(cell, CELL_SIZE)));
+  return Math.min(max, Math.ceil(widest) + 1);
+}
+
+// The width a table takes on the page: its columns and the space between them.
+export const tableWidth = (widths: number[]) => widths.reduce((sum, width) => sum + width, 0) + 2 * COLUMN_PADDING * Math.max(0, widths.length - 1);
+
+const totalText = (row: ReportTable['rows'][number]) => `${formatPoints(row.total)} / ${formatPoints(row.maxTotal)}`;
+
+// `items` in `count` blocks in order, the first ones one item longer when
+// they do not divide evenly.
+function evenBlocks<T>(items: T[], count: number): T[][] {
   const out: T[][] = [];
-  for (let index = 0; index < items.length; index += size) out.push(items.slice(index, index + size));
+  let start = 0;
+  for (let index = 0; index < count; index++) {
+    const size = Math.floor(items.length / count) + (index < items.length % count ? 1 : 0);
+    out.push(items.slice(start, start + size));
+    start += size;
+  }
   return out;
 }
 
-const headerCell = (text: string) => ({ text, bold: true, fontSize: 8, color: MUTED });
-
 // One block of a results table: the students and a part of the exercises.
 // The last block also holds the total and the grade.
-function resultsTable(table: ReportTable, exerciseIds: string[], last: boolean): Content {
-  const exercises = table.exercises.filter((exercise) => exerciseIds.includes(exercise.id));
+function resultsTable(table: ReportTable, exercises: ReportTable['exercises'], nameWidth: number, widths: Map<string, number>, tail: number[] | null): Content {
   const header: TableCell[] = [headerCell(t('Elev')), ...exercises.map((exercise) => ({ ...headerCell(exercise.id), alignment: 'center' as const }))];
-  if (last) header.push(headerCell(t('Total')), headerCell(t('Nota')));
+  if (tail) header.push(headerCell(t('Total')), headerCell(t('Nota')));
   const body: TableCell[][] = table.rows.map((row) => {
-    const cells: TableCell[] = [{ text: row.studentName, fontSize: 9 }];
+    const cells: TableCell[] = [{ text: row.studentName, fontSize: CELL_SIZE }];
     for (const exercise of exercises) {
       const item = row.items.find((candidate) => candidate.exerciseId === exercise.id);
       cells.push(
         item
-          ? { text: formatPoints(item.points), alignment: 'center', fontSize: 9, fillColor: item.flagged ? FLAGGED : undefined }
-          : { text: dash, alignment: 'center', fontSize: 9 },
+          ? { text: formatPoints(item.points), alignment: 'center', fontSize: CELL_SIZE, fillColor: item.flagged ? FLAGGED : undefined }
+          : { text: dash, alignment: 'center', fontSize: CELL_SIZE },
       );
     }
-    if (last) {
-      cells.push({ text: `${formatPoints(row.total)} / ${formatPoints(row.maxTotal)}`, fontSize: 9 }, { text: formatPoints(row.grade), bold: true, fontSize: 9 });
+    if (tail) {
+      cells.push({ text: totalText(row), fontSize: CELL_SIZE }, { text: formatPoints(row.grade), bold: true, fontSize: CELL_SIZE });
     }
     return cells;
   });
-  const widths: (string | number)[] = [130, ...exercises.map(() => 36)];
-  if (last) widths.push(60, 36);
   return {
-    table: { headerRows: 1, dontBreakRows: true, widths, body: [header, ...body] },
-    layout: 'lightHorizontalLines',
+    table: {
+      headerRows: 1,
+      keepWithHeaderRows: Math.min(KEEP_WITH_HEADER, table.rows.length),
+      dontBreakRows: true,
+      widths: [nameWidth, ...exercises.map((exercise) => widths.get(exercise.id)!), ...(tail ?? [])],
+      body: [header, ...body],
+    },
+    layout: resultsLayout,
     margin: [0, 0, 0, 10],
   };
 }
 
-// A results table in blocks of at most BLOCK exercises.
+// A results table in as few blocks as fit across the page.
 function resultsBlocks(table: ReportTable): Content[] {
-  const blocks = chunks(
-    table.exercises.map((exercise) => exercise.id),
-    BLOCK,
-  );
-  if (blocks.length === 0) return [resultsTable(table, [], true)];
-  return blocks.map((ids, index) => resultsTable(table, ids, index === blocks.length - 1));
+  const nameWidth = columnWidth(t('Elev'), table.rows.map((row) => row.studentName), NAME_MAX);
+  const widths = new Map<string, number>();
+  for (const exercise of table.exercises) {
+    const cells = table.rows.map((row) => {
+      const item = row.items.find((candidate) => candidate.exerciseId === exercise.id);
+      return item ? formatPoints(item.points) : dash;
+    });
+    widths.set(exercise.id, columnWidth(exercise.id, cells, EXERCISE_MAX));
+  }
+  const tail = [columnWidth(t('Total'), table.rows.map(totalText)), columnWidth(t('Nota'), table.rows.map((row) => formatPoints(row.grade)))];
+  const fits = (block: ReportTable['exercises'], last: boolean) =>
+    tableWidth([nameWidth, ...block.map((exercise) => widths.get(exercise.id)!), ...(last ? tail : [])]) <= PAGE_WIDTH;
+
+  // The fewest blocks that fit. One exercise per block always fits: the
+  // name and an exercise column are at most 180 and 60 pt.
+  let blocks: ReportTable['exercises'][] = [table.exercises];
+  for (let count = 1; count <= table.exercises.length; count++) {
+    blocks = evenBlocks(table.exercises, count);
+    if (blocks.every((block, index) => fits(block, index === count - 1))) break;
+  }
+  return blocks.map((block, index) => resultsTable(table, block, nameWidth, widths, index === blocks.length - 1 ? tail : null));
 }
 
 // The statistics of each exercise of one table.
