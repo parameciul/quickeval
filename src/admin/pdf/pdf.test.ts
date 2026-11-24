@@ -1,10 +1,10 @@
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
-import type { ContentTable, CustomTableLayout, TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { ContentTable, CustomTableLayout, Node, NodeQueries, TDocumentDefinitions } from 'pdfmake/interfaces';
 import type { ClassReport, StudentResultView, SubmissionDetail } from '../../../shared/api.ts';
 import { expectNoGradingWords } from '../../test/gradingWords.ts';
 import { fakeItem } from '../../test/fakeApi.ts';
-import { classPdf, classPdfFileName, COLUMN_PADDING, PAGE_WIDTH, tableWidth } from './classPdf.ts';
+import { classPdf, classPdfFileName, COLUMN_PADDING, drawnWidth, headingBreak, PAGE_WIDTH, stretchedPadding, tableWidth } from './classPdf.ts';
 import { pdfFileName } from './fileName.ts';
 import { pdfRuns } from './pdfMath.ts';
 import { PDF_SYMBOLS, pdfText } from './pdfSymbols.ts';
@@ -191,11 +191,13 @@ function report(exerciseCount: number): ClassReport {
 }
 
 // The results tables of a class PDF: the ones whose header starts with "Elev".
-type ResultsTable = { table: { body: { text: string }[][]; widths: number[]; keepWithHeaderRows?: number; dontBreakRows?: boolean }; layout: unknown };
+type ResultsTable = { table: { body: { text: string; colSpan?: number }[][]; widths: number[]; keepWithHeaderRows?: number; dontBreakRows?: boolean }; layout: unknown };
 function resultsTables(definition: TDocumentDefinitions): ResultsTable[] {
   return (definition.content as Partial<ResultsTable>[]).filter((node): node is ResultsTable => node.table?.body[0]?.[0]?.text === 'Elev');
 }
 const headerTexts = (table: ResultsTable) => table.table.body[0]!.map((cell) => cell.text);
+// The space on each side of an inner column of a results table, from its layout.
+const paddingOf = (table: ResultsTable) => (table.layout as CustomTableLayout).paddingLeft!(1, { table: table.table } as unknown as ContentTable) as number;
 
 // A class like a real one: long names with diacritics, points with a comma,
 // totals out of 100.
@@ -284,14 +286,14 @@ describe('classPdf with CES papers', () => {
 });
 
 describe('classPdf', () => {
-  it('is landscape, with the statistics, the table, the missing students, and the analysis', () => {
+  it('is landscape, with the statistics, the table and the analysis, and no list of the students with no result', () => {
     const definition = classPdf(report(5));
     expect(definition.pageOrientation).toBe('landscape');
     const text = textsOf(definition.content).join('\n');
     expect(text).toContain('Raportul clasei · 6E2-26T1');
     expect(text).toContain('Corectate 2 din 3 elevi · de verificat 1');
     expect(text).toContain('Media 7,5');
-    expect(text).toContain('Stan Eva · Nu a trimis');
+    expect(text).not.toContain('Fără rezultat');
     expect(text).toContain('Analiza poate fi depășită');
     expect(text).toContain('Clasa a lucrat bine.');
     expect(text).toContain('Fundalul galben');
@@ -305,8 +307,9 @@ describe('classPdf', () => {
     expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(60);
     expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
     for (const table of tables) {
-      expect(table.table.body).toHaveLength(3);
+      expect(table.table.body).toHaveLength(4);
       expect(tableWidth(table.table.widths)).toBeLessThanOrEqual(PAGE_WIDTH);
+      expect(drawnWidth(table.table.widths, paddingOf(table))).toBeCloseTo(PAGE_WIDTH, 6);
     }
     expect(headerTexts(tables.at(-1)!).slice(-2)).toEqual(['Total', 'Nota']);
     expect(headerTexts(tables[0]!)).not.toContain('Total');
@@ -350,15 +353,17 @@ describe('classPdf', () => {
     for (const table of cesTables) expect(tableWidth(table.table.widths)).toBeLessThanOrEqual(PAGE_WIDTH);
   });
 
-  it('keeps the header with the first students on a page, and leaves little space between the columns', () => {
+  it('keeps the header with the first students on a page, and spreads the room left between the columns', () => {
     const [table] = resultsTables(classPdf(realClass(['I.1', 'I.2'], 29)));
     expect(table!.table.keepWithHeaderRows).toBe(5);
     expect(table!.table.dontBreakRows).toBe(true);
     const layout = table!.layout as CustomTableLayout;
     const node = { table: table!.table } as unknown as ContentTable;
+    const padding = stretchedPadding(table!.table.widths);
+    expect(padding).toBeGreaterThan(COLUMN_PADDING);
     expect(layout.paddingLeft!(0, node)).toBe(0);
-    expect(layout.paddingLeft!(1, node)).toBe(COLUMN_PADDING);
-    expect(layout.paddingRight!(0, node)).toBe(COLUMN_PADDING);
+    expect(layout.paddingLeft!(1, node)).toBe(padding);
+    expect(layout.paddingRight!(0, node)).toBe(padding);
     expect(layout.paddingRight!(table!.table.widths.length - 1, node)).toBe(0);
     const [small] = resultsTables(classPdf(realClass(['I.1'], 2)));
     expect(small!.table.keepWithHeaderRows).toBe(2);
@@ -399,6 +404,161 @@ describe('classPdf', () => {
     expect(missing).toEqual([]);
     const blob = await renderPdf(definition);
     expect(new TextDecoder().decode(new Uint8Array(await blob.arrayBuffer()).slice(0, 5))).toBe('%PDF-');
+  });
+
+  it('lists the students with no result as rows of the class table, after the graded ones, in every block', () => {
+    const base = report(60);
+    const missing = [
+      { studentId: 12, studentName: 'Stan Eva', status: 'none' as const, ces: false },
+      { studentId: 13, studentName: 'Vrînceanu-Tomici Tudor-Iosif Alexandru', status: 'failed' as const, ces: true },
+    ];
+    const tables = resultsTables(classPdf({ ...base, missing }));
+    expect(tables.length).toBeGreaterThan(1);
+    for (const table of tables) {
+      const rows = table.table.body.slice(1);
+      expect(rows.map((row) => row[0]!.text)).toEqual(['Ștefănescu Țicu', 'Avram Dan', 'Stan Eva', 'Vrînceanu-Tomici Tudor-Iosif Alexandru']);
+      const columns = table.table.widths.length;
+      for (const [row, note] of [[rows[2]!, 'Nu a trimis lucrarea.'], [rows[3]!, 'Eroare']] as const) {
+        expect(row).toHaveLength(columns);
+        expect(row[1]).toMatchObject({ text: note, colSpan: columns - 1 });
+        expect(row.slice(2).every((cell) => Object.keys(cell).length === 0)).toBe(true);
+      }
+      expect(table.table.keepWithHeaderRows).toBe(4);
+    }
+    // The longest name is a missing student's: the name column fits it.
+    expect(tables[0]!.table.widths[0]).toBeGreaterThan(resultsTables(classPdf({ ...base, missing: [] }))[0]!.table.widths[0]!);
+    expect(textsOf(classPdf({ ...base, missing }).content).join('\n')).not.toContain('Stan Eva · ');
+  });
+
+  it('lists the students with no result in the class table only, not in the CES one', () => {
+    const base = report(2);
+    const ces = { ...base.rows[1]!, submissionId: 7, studentName: 'Bursașiu Teodor', variant: 'ces' as const, ces: true, items: [{ exerciseId: 'C1', points: 8, maxPoints: 9, flagged: false }] };
+    const tables = resultsTables(classPdf({ ...base, cesExercises: [{ id: 'C1', label: 'Exercițiul CES', maxPoints: 9 }], rows: [...base.rows, ces] }));
+    expect(tables).toHaveLength(2);
+    expect(tables[0]!.table.body.map((row) => row[0]!.text)).toContain('Stan Eva');
+    expect(tables[1]!.table.body.map((row) => row[0]!.text)).toEqual(['Elev', 'Bursașiu Teodor']);
+  });
+
+  it('fills the page width with every results table, wide or narrow, without changing its columns', () => {
+    const eighteen = ['I.1', 'I.2', 'I.3', 'I.4', 'I.5', 'I.6', 'II.1', 'II.2', 'II.3', 'II.4', 'III.1.a', 'III.1.b', 'III.2.a', 'III.2.b', 'III.3.a', 'III.3.b', 'III.4.a', 'III.4.b'];
+    for (const definition of [classPdf(realClass(eighteen, 18)), classPdf(realClass(['I.1', 'I.2'], 3)), classPdf(report(60)), classPdf(realClass([], 0))]) {
+      for (const table of resultsTables(definition)) {
+        expect(paddingOf(table)).toBeGreaterThanOrEqual(COLUMN_PADDING);
+        expect(drawnWidth(table.table.widths, paddingOf(table))).toBeCloseTo(PAGE_WIDTH, 6);
+      }
+    }
+    // The columns stay as wide as their texts: the room goes between them.
+    const [table] = resultsTables(classPdf(realClass(eighteen, 18)));
+    expect(Math.max(...table!.table.widths.slice(1, -2))).toBeLessThan(30);
+  });
+
+  it('keeps the space between the columns at its least when the columns already fill the page', () => {
+    expect(stretchedPadding([PAGE_WIDTH - 2 * COLUMN_PADDING - 10, 10])).toBe(COLUMN_PADDING);
+    expect(stretchedPadding([PAGE_WIDTH])).toBe(COLUMN_PADDING);
+    expect(stretchedPadding([100, 100])).toBeCloseTo((PAGE_WIDTH - 200) / 2, 6);
+  });
+
+  it('keeps the header of the exercises table with its first rows', () => {
+    type TableNode = { table?: { body: { text: string }[][]; keepWithHeaderRows?: number } };
+    const exercisesTable = (exerciseCount: number) => (classPdf(report(exerciseCount)).content as TableNode[]).find((node) => node.table?.body[0]?.[0]?.text === 'Exercițiul')!;
+    expect(exercisesTable(8).table!.keepWithHeaderRows).toBe(5);
+    expect(exercisesTable(2).table!.keepWithHeaderRows).toBe(2);
+  });
+
+  describe('the headings', () => {
+    const INNER = 515.28;
+    // A node of pdfmake's `pageBreakBefore`, its top `below` pt over the bottom of the page.
+    const node = (id: string | undefined, below: number) => {
+      const verticalRatio = 1 - below / INNER;
+      const startPosition = { pageNumber: 1, pageOrientation: 'landscape', pageInnerHeight: INNER, pageInnerWidth: PAGE_WIDTH, left: 36, top: 40 + INNER * verticalRatio, verticalRatio, horizontalRatio: 0 };
+      return { text: 'x', id, startPosition, pageNumbers: [1], pages: 2, stack: false } as unknown as Node;
+    };
+    const queries = { getFollowingNodesOnPage: () => [], getNodesOnNextPage: () => [], getPreviousNodesOnPage: () => [] } as NodeQueries;
+    const headingsOf = (definition: TDocumentDefinitions) =>
+      (definition.content as { text?: unknown; style?: string; id?: string }[]).filter((part) => part.style === 'h2' || part.style === 'h3');
+    // The least room under its top with which a heading stays on its page.
+    function roomOf(definition: TDocumentDefinitions, id: string): number {
+      let low = 0;
+      let high = INNER;
+      while (high - low > 0.01) {
+        const middle = (low + high) / 2;
+        if (definition.pageBreakBefore!(node(id, middle), queries)) low = middle;
+        else high = middle;
+      }
+      return high;
+    }
+
+    it('gives every heading of a part an id of its own', () => {
+      const base = report(2);
+      const ces = { ...base.rows[1]!, submissionId: 7, variant: 'ces' as const, ces: true, items: [{ exerciseId: 'C1', points: 8, maxPoints: 9, flagged: false }] };
+      const headings = headingsOf(classPdf({ ...base, cesExercises: [{ id: 'C1', label: 'Exercițiul CES', maxPoints: 9 }], rows: [...base.rows, ces] }));
+      expect(headings.map((part) => part.text)).toEqual([
+        'Statistici',
+        'Rezultatele elevilor',
+        'Varianta CES',
+        'Pe exerciții',
+        'Varianta CES',
+        'Analiza clasei',
+        'Ce a mers bine',
+        'Greșeli frecvente',
+        'Ce exersați în continuare',
+      ]);
+      expect(new Set(headings.map((part) => part.id)).size).toBe(headings.length);
+    });
+
+    it('moves a heading to the next page when its table header and first five rows do not fit under it', () => {
+      const definition = classPdf(realClass(['I.1', 'I.2'], 29));
+      const [, results, exercises] = headingsOf(definition);
+      // An h2 (19.2 pt), 8 pt to spare, a header row (15.4 pt) and five rows of 15.5 pt.
+      expect(roomOf(definition, results!.id!)).toBeCloseTo(19.23 + 8 + 15.38 + 5 * 15.55, 1);
+      // The exercises table has only two rows.
+      expect(roomOf(definition, exercises!.id!)).toBeCloseTo(19.23 + 8 + 15.38 + 2 * 15.55, 1);
+    });
+
+    it('counts a name that wraps as more lines', () => {
+      const base = realClass(['I.1'], 6);
+      const long = { ...base, rows: base.rows.map((row) => ({ ...row, studentName: 'Gheorghiță Rais-Bogdan-Jahjah Alexandru-Constantin Popescu-Ionescu' })) };
+      const short = classPdf(base);
+      const wrapped = classPdf(long);
+      expect(roomOf(wrapped, headingsOf(wrapped)[1]!.id!)).toBeGreaterThan(roomOf(short, headingsOf(short)[1]!.id!) + 5 * 10);
+    });
+
+    it('keeps three lines of text with a heading, and the next heading too when the text is shorter', () => {
+      const base = report(2);
+      const shortOverview = classPdf({ ...base, analysis: { ...base.analysis, stale: false, content: { ...base.analysis.content!, overview: 'Bine.' } } });
+      const headings = headingsOf(shortOverview);
+      const analysis = headings.find((part) => part.text === 'Analiza clasei')!;
+      const strengths = headings.find((part) => part.text === 'Ce a mers bine')!;
+      // "Ce a mers bine" holds one line: it needs only that line, and 2 pt to spare.
+      expect(roomOf(shortOverview, strengths.id!)).toBeCloseTo(11 * 1.171875 + 2 + 10 * 1.171875 + 2, 1);
+      // One line of overview: the analysis's heading needs it, the 6 pt above "Ce a mers bine" and its room.
+      expect(roomOf(shortOverview, analysis.id!)).toBeCloseTo(13 * 1.171875 + 4 + 2 + 10 * 1.171875 + 6 + roomOf(shortOverview, strengths.id!), 1);
+      const longOverview = classPdf({ ...base, analysis: { ...base.analysis, stale: false, content: { ...base.analysis.content!, overview: 'Clasa a lucrat bine. '.repeat(60) } } });
+      const longAnalysis = headingsOf(longOverview).find((part) => part.text === 'Analiza clasei')!;
+      expect(roomOf(longOverview, longAnalysis.id!)).toBeCloseTo(13 * 1.171875 + 4 + 2 + 3 * 10 * 1.171875, 1);
+    });
+
+    it('keeps a heading at the top of its page, which would else leave a blank page', () => {
+      const definition = classPdf(report(2));
+      const [statistics] = headingsOf(definition);
+      expect(definition.pageBreakBefore!(node(statistics!.id, INNER - 12), queries)).toBe(false);
+      expect(definition.pageBreakBefore!(node(statistics!.id, 10), queries)).toBe(true);
+    });
+
+    it('never moves what is not a heading', () => {
+      const definition = classPdf(report(2));
+      expect(definition.pageBreakBefore!(node(undefined, 1), queries)).toBe(false);
+      expect(headingBreak(node('other', 1), undefined)).toBe(false);
+    });
+  });
+
+  it('leaves no space under the last list, which would start a blank page at the foot of a page', () => {
+    const lists = (classPdf(report(2)).content as { ul?: unknown; margin?: number[] }[]).filter((part) => part.ul);
+    expect(lists.map((part) => part.margin)).toEqual([
+      [0, 0, 0, 4],
+      [0, 0, 0, 4],
+      [0, 0, 0, 0],
+    ]);
   });
 
   it('prints no analysis section when the report carries no analysis content', () => {

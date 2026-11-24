@@ -774,7 +774,7 @@ Checks done by code, not by Claude:
 
 ### 14.2 Class report (`/admin/teste/:code/raport`)
 
-- Table (the page): Elev, Nota, Total, then one column per exercise. One row per graded student. Flagged cells are marked. The class PDF and the CSV keep their own order (exercises, Total, Nota). Students who did not upload are listed below the table.
+- Table (the page): Elev, Nota, Total, then one column per exercise. One row per graded student. Flagged cells are marked. The class PDF and the CSV keep their own order (exercises, Total, Nota). Students who did not upload are rows at the end of the table that say why (the class PDF too).
 - Statistics (`shared/stats.ts`, pure functions):
   - graded count / active students;
   - average, median, minimum, and maximum grade;
@@ -793,7 +793,7 @@ Checks done by code, not by Claude:
 
 pdfmake gets a font with full Romanian letters (ă â î ș ț, comma-below forms U+0219 and U+021B). The Roboto that pdfmake carries holds all of them, and the cedilla forms ş ţ (U+015F, U+0163) that old texts and barems use, so no font file is added. A test reads the font's character map and checks that every character of both PDFs has a glyph, and a test makes a real PDF with these letters.
 
-The PDFs are made in the browser, in a chunk that loads only when a PDF is asked for (pdfmake and its font: about 1.8 MB, 0.8 MB compressed): the app itself does not grow. The student's PDF is made from a narrow input (`StudentPdfInput`) that has no confidence and no review reason, so they cannot reach it. The class PDF puts the exercises in blocks of 12 columns, each block repeating the student's name, because no page holds 60 columns.
+The PDFs are made in the browser, in a chunk that loads only when a PDF is asked for (pdfmake and its font: about 1.8 MB, 0.8 MB compressed): the app itself does not grow. The student's PDF is made from a narrow input (`StudentPdfInput`) that has no confidence and no review reason, so they cannot reach it. The class PDF puts the exercises in as few blocks of equal size as fit across the page, each block repeating the student's name and filling the page's width, because no page holds 60 columns.
 
 ## 15. Security and privacy
 

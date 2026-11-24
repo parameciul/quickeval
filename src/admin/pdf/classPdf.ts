@@ -1,9 +1,9 @@
-import type { Content, CustomTableLayout, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { Content, CustomTableLayout, Node, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import type { ClassReport } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { classStats, type ExerciseStats, reportTables, type ReportTable } from '../../../shared/stats.ts';
-import { formatDate, uploadStatusLabel } from '../../ui/format.ts';
+import { formatDate, missingNote } from '../../ui/format.ts';
 import { pdfFileName } from './fileName.ts';
 import { pdfRuns } from './pdfMath.ts';
 import { pdfText } from './pdfSymbols.ts';
@@ -16,7 +16,12 @@ import { t } from '../../i18n/t.ts';
 // page, the results are one table. A test can have 60 exercises, which no
 // page holds in one table: then the exercises go in as few blocks as fit, of
 // equal size, every block repeats the student's name, and the last one holds
-// the total and the grade.
+// the total and the grade. Every block fills the page's width: the room left
+// goes, in equal parts, into the space between its columns. An active student
+// with no result has a row in the class table that says why, as on the page.
+// A heading never ends a page, nor starts a part with less than three lines
+// under it, and a table starts on a page with its header and at least its
+// first rows (`keepWithHeaderRows`).
 
 const FLAGGED = '#fff0a0';
 const MUTED = '#586070';
@@ -42,15 +47,32 @@ const grade = (value: number | null) => (value === null ? dash : formatPoints(va
 
 const headerCell = (text: string) => ({ text, bold: true, fontSize: HEADER_SIZE, color: MUTED });
 
-// The lines of pdfmake's "lightHorizontalLines", with less space between the
-// columns: its 16 pt gap made the columns of points much wider than "3,5".
-const resultsLayout: CustomTableLayout = {
-  hLineWidth: (index, node) => (index === 0 || index === node.table.body.length ? 0 : index === node.table.headerRows ? 2 : 1),
-  vLineWidth: () => 0,
-  hLineColor: (index) => (index === 1 ? 'black' : '#aaa'),
-  paddingLeft: (index) => (index === 0 ? 0 : COLUMN_PADDING),
-  paddingRight: (index, node) => (index === (node.table.widths as unknown[]).length - 1 ? 0 : COLUMN_PADDING),
-};
+// The lines of pdfmake's "lightHorizontalLines", with `padding` on each side
+// of a column, except on the outer sides of the table. Its own 16 pt gap made
+// the columns of points much wider than "3,5"; the table chooses its blocks
+// with COLUMN_PADDING, then spreads the room left on the page.
+function resultsLayout(padding: number): CustomTableLayout {
+  return {
+    hLineWidth: (index, node) => (index === 0 || index === node.table.body.length ? 0 : index === node.table.headerRows ? 2 : 1),
+    vLineWidth: () => 0,
+    hLineColor: (index) => (index === 1 ? 'black' : '#aaa'),
+    paddingLeft: (index) => (index === 0 ? 0 : padding),
+    paddingRight: (index, node) => (index === (node.table.widths as unknown[]).length - 1 ? 0 : padding),
+  };
+}
+
+// The space on each side of a column that makes columns of these widths fill
+// the page; COLUMN_PADDING when they already do, or with only one column.
+export function stretchedPadding(widths: number[]): number {
+  const gaps = 2 * (widths.length - 1);
+  if (gaps === 0) return COLUMN_PADDING;
+  return Math.max(COLUMN_PADDING, COLUMN_PADDING + (PAGE_WIDTH - tableWidth(widths)) / gaps);
+}
+
+// The width a table takes on the page with `padding` on each side of its
+// inner columns.
+export const drawnWidth = (widths: number[], padding: number) =>
+  widths.reduce((sum, width) => sum + width, 0) + 2 * padding * Math.max(0, widths.length - 1);
 
 // The width of a column that holds these texts (the header in bold at its
 // size, the cells at theirs), with one point to spare.
@@ -59,8 +81,45 @@ function columnWidth(header: string, cells: string[], max = Infinity): number {
   return Math.min(max, Math.ceil(widest) + 1);
 }
 
-// The width a table takes on the page: its columns and the space between them.
-export const tableWidth = (widths: number[]) => widths.reduce((sum, width) => sum + width, 0) + 2 * COLUMN_PADDING * Math.max(0, widths.length - 1);
+// The width a table needs on the page: its columns and the least space
+// between them.
+export const tableWidth = (widths: number[]) => drawnWidth(widths, COLUMN_PADDING);
+
+// Heights on the page, to keep a heading with what follows it. pdfmake gives
+// a line of Roboto 1.171875 times its size ((1900 + 500) / 2048). A table row
+// has 2 pt above and under its text and a line of 1 pt (2 pt under the
+// header). A heading's height counts its line and its margin under it. These
+// match the measures of a PDF rendered by pdfmake 0.3.11: measure them again
+// after an upgrade of pdfmake.
+const LINE = 1.171875;
+const lineHeight = (size: number) => size * LINE;
+const H2_HEIGHT = lineHeight(13) + 4;
+const H3_HEIGHT = lineHeight(11) + 2;
+const TEXT_LINE = lineHeight(10);
+const headerRowHeight = (lines: number) => lines * lineHeight(HEADER_SIZE) + 6;
+const rowHeight = (lines: number) => lines * lineHeight(CELL_SIZE) + 5;
+// To spare, under a table's start and under lines of text: an estimate too
+// small leaves a heading alone again, one too large only some white space.
+const TABLE_SLACK = 8;
+const TEXT_SLACK = 2;
+
+// The lines `text` takes in `width`, on the safe side: a text that wraps
+// breaks between words, so it can take a line more than its width says.
+export function linesOf(text: string, fontSize: number, width: number): number {
+  const textWidth = pdfTextWidth(text, fontSize);
+  return textWidth <= width ? 1 : Math.ceil(textWidth / width) + 1;
+}
+
+// The fewest lines `text` can take in `width`. Its width is measured on the
+// wide side (`pdfWidth.ts`), so a twentieth of it is taken off.
+export function fewestLinesOf(text: string, fontSize: number, width: number): number {
+  return Math.max(1, Math.ceil((pdfTextWidth(text, fontSize) * 0.95) / width));
+}
+
+// The height of a table's header and of its first `KEEP_WITH_HEADER` rows,
+// which pdfmake keeps together.
+const tableStart = (headerLines: number, rowLines: number[]) =>
+  TABLE_SLACK + headerRowHeight(headerLines) + rowLines.slice(0, KEEP_WITH_HEADER).reduce((sum, lines) => sum + rowHeight(lines), 0);
 
 const totalText = (row: ReportTable['rows'][number]) => `${formatPoints(row.total)} / ${formatPoints(row.maxTotal)}`;
 
@@ -78,10 +137,24 @@ function evenBlocks<T>(items: T[], count: number): T[][] {
 }
 
 // One block of a results table: the students and a part of the exercises.
-// The last block also holds the total and the grade.
-function resultsTable(table: ReportTable, exercises: ReportTable['exercises'], nameWidth: number, widths: Map<string, number>, tail: number[] | null): Content {
+// The last block also holds the total and the grade. The students with no
+// result come last, each with why across the block's other columns.
+function resultsTable(
+  table: ReportTable,
+  missing: ClassReport['missing'],
+  exercises: ReportTable['exercises'],
+  nameWidth: number,
+  widths: Map<string, number>,
+  tail: number[] | null,
+): { block: Content; start: number } {
   const header: TableCell[] = [headerCell(t('Elev')), ...exercises.map((exercise) => ({ ...headerCell(exercise.id), alignment: 'center' as const }))];
   if (tail) header.push(headerCell(t('Total')), headerCell(t('Nota')));
+  const span = header.length - 1;
+  const missingRows: TableCell[][] = missing.map((student) => [
+    { text: student.studentName, fontSize: CELL_SIZE, color: MUTED },
+    { text: missingNote(student.status), fontSize: CELL_SIZE, color: MUTED, colSpan: span },
+    ...Array.from({ length: span - 1 }, (): TableCell => ({})),
+  ]);
   const body: TableCell[][] = table.rows.map((row) => {
     const cells: TableCell[] = [{ text: row.studentName, fontSize: CELL_SIZE }];
     for (const exercise of exercises) {
@@ -97,22 +170,35 @@ function resultsTable(table: ReportTable, exercises: ReportTable['exercises'], n
     }
     return cells;
   });
-  return {
+  body.push(...missingRows);
+  const columns = [nameWidth, ...exercises.map((exercise) => widths.get(exercise.id)!), ...(tail ?? [])];
+  const padding = stretchedPadding(columns);
+  const headerLines = Math.max(1, ...exercises.map((exercise) => linesOf(exercise.id, HEADER_SIZE, widths.get(exercise.id)!)));
+  const spanWidth = drawnWidth(columns.slice(1), padding);
+  const rowLines = [
+    ...table.rows.map((row) => linesOf(row.studentName, CELL_SIZE, nameWidth)),
+    ...missing.map((student) => Math.max(linesOf(student.studentName, CELL_SIZE, nameWidth), linesOf(missingNote(student.status), CELL_SIZE, spanWidth))),
+  ];
+  const block: Content = {
     table: {
       headerRows: 1,
-      keepWithHeaderRows: Math.min(KEEP_WITH_HEADER, table.rows.length),
+      keepWithHeaderRows: Math.min(KEEP_WITH_HEADER, body.length),
       dontBreakRows: true,
-      widths: [nameWidth, ...exercises.map((exercise) => widths.get(exercise.id)!), ...(tail ?? [])],
+      widths: columns,
       body: [header, ...body],
     },
-    layout: resultsLayout,
+    layout: resultsLayout(padding),
     margin: [0, 0, 0, 10],
   };
+  return { block, start: tableStart(headerLines, rowLines) };
 }
 
-// A results table in as few blocks as fit across the page.
-function resultsBlocks(table: ReportTable): Content[] {
-  const nameWidth = columnWidth(t('Elev'), table.rows.map((row) => row.studentName), NAME_MAX);
+// A results table in as few blocks as fit across the page, `missing` the
+// students with no result (none for the CES table), and the height of the
+// first block's start.
+function resultsBlocks(table: ReportTable, missing: ClassReport['missing'] = []): { blocks: Content[]; start: number } {
+  const names = [...table.rows.map((row) => row.studentName), ...missing.map((student) => student.studentName)];
+  const nameWidth = columnWidth(t('Elev'), names, NAME_MAX);
   const widths = new Map<string, number>();
   for (const exercise of table.exercises) {
     const cells = table.rows.map((row) => {
@@ -132,20 +218,31 @@ function resultsBlocks(table: ReportTable): Content[] {
     blocks = evenBlocks(table.exercises, count);
     if (blocks.every((block, index) => fits(block, index === count - 1))) break;
   }
-  return blocks.map((block, index) => resultsTable(table, block, nameWidth, widths, index === blocks.length - 1 ? tail : null));
+  const tables = blocks.map((block, index) => resultsTable(table, missing, block, nameWidth, widths, index === blocks.length - 1 ? tail : null));
+  return { blocks: tables.map((part) => part.block), start: tables[0]!.start };
 }
+
+// The width of the exercise's column of the statistics, at least: the page
+// without the five columns of numbers and the space between them.
+const EXERCISE_LABEL_WIDTH = PAGE_WIDTH - 320;
+const exerciseLabel = (exercise: ExerciseStats) => `${exercise.exerciseId} · ${exercise.label}`;
+
+// The height of the exercises table's start.
+const exerciseTableStart = (perExercise: ExerciseStats[]) =>
+  tableStart(1, perExercise.map((exercise) => linesOf(exerciseLabel(exercise), CELL_SIZE, EXERCISE_LABEL_WIDTH)));
 
 // The statistics of each exercise of one table.
 function exerciseTable(perExercise: ExerciseStats[]): Content {
   return {
     table: {
       headerRows: 1,
+      keepWithHeaderRows: Math.min(KEEP_WITH_HEADER, perExercise.length),
       dontBreakRows: true,
       widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
       body: [
         [t('Exercițiul'), t('Media'), t('% din maxim'), t('Tot'), t('Parțial'), t('Nimic')].map(headerCell),
         ...perExercise.map((exercise): TableCell[] => [
-          { text: `${exercise.exerciseId} · ${exercise.label}`, fontSize: 9 },
+          { text: exerciseLabel(exercise), fontSize: 9 },
           { text: exercise.averagePoints === null ? dash : t('{formatPoints} din {formatPoints2}', { formatPoints: formatPoints(exercise.averagePoints), formatPoints2: formatPoints(exercise.maxPoints) }), fontSize: 9 },
           { text: exercise.averagePercent === null ? dash : `${exercise.averagePercent}%`, fontSize: 9 },
           { text: String(exercise.full), fontSize: 9 },
@@ -158,8 +255,55 @@ function exerciseTable(perExercise: ExerciseStats[]): Content {
   };
 }
 
-const list = (title: string, entries: string[]): Content[] =>
-  entries.length === 0 ? [] : [{ text: title, style: 'h3' }, { ul: entries.map((entry) => ({ text: pdfRuns(entry) })), margin: [0, 0, 0, 4] }];
+// A heading never ends a page, nor starts a part with too little under it:
+// pdfmake's `pageBreakBefore` moves it to the next page when the room left
+// under its top is less than `room`, its height and the start of what
+// follows (`headingRooms`). pdfmake asks once per heading, in order, so the
+// room of a heading followed by a short text counts the next heading's room
+// too. A heading at the top of its page stays: moving it would leave a blank
+// page. The heights of the content after a heading are no use here: pdfmake
+// lays out a table's rows apart, and gives them the wrong page.
+export function headingBreak(node: Node, room: number | undefined): boolean {
+  if (room === undefined) return false;
+  const { pageInnerHeight, verticalRatio } = node.startPosition;
+  const above = pageInnerHeight * verticalRatio;
+  if (above < AT_TOP) return false;
+  return pageInnerHeight - above < room;
+}
+
+// A heading this close to the top of the page is at its top: its margin
+// above it is at most 12 pt (an h2's).
+const AT_TOP = 12 + 1;
+// The lines of text that must follow a heading on its page.
+const MIN_LINES = 3;
+
+// The headings of one document and the room each needs, by its `id`.
+function headingRooms() {
+  const rooms = new Map<string, number>();
+  const heading = (style: 'h2' | 'h3', text: string, after: number): Content => {
+    const id = `heading-${rooms.size + 1}`;
+    rooms.set(id, (style === 'h2' ? H2_HEIGHT : H3_HEIGHT) + after);
+    return { text, style, id };
+  };
+  return { heading, roomOf: (id: string | undefined) => (id === undefined ? undefined : rooms.get(id)) };
+}
+
+// The lines of some paragraphs of text: the fewest they can take and the most.
+type Lines = { least: number; most: number };
+const linesOfAll = (texts: string[], width: number): Lines => ({
+  least: texts.reduce((sum, text) => sum + fewestLinesOf(text, 10, width), 0),
+  most: texts.reduce((sum, text) => sum + linesOf(text, 10, width), 0),
+});
+
+// The height of three lines of text, or, when the text can be shorter, of
+// all of it and then `next`, the room of the heading after it.
+const textStart = ({ least, most }: Lines, next = 0) =>
+  TEXT_SLACK + (least >= MIN_LINES ? MIN_LINES * TEXT_LINE : Math.min(most, MIN_LINES) * TEXT_LINE + next);
+
+// A list's text width: the page without its bullet.
+const LIST_WIDTH = PAGE_WIDTH - 20;
+// The margin above an h3.
+const H3_MARGIN = 6;
 
 // The one place where the free texts of the report become PDF text: the
 // symbols that the font lacks are written as words here (pdfSymbols.ts).
@@ -196,6 +340,10 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
   const anyFlagged = report.rows.some((row) => row.items.some((item) => item.flagged));
   const { content: analysis, stale } = report.analysis;
 
+  const { heading, roomOf } = headingRooms();
+  const results = resultsBlocks(classTable!, report.missing);
+  const ces = cesTable && resultsBlocks(cesTable);
+
   const content: Content[] = [
     { text: t('Raportul clasei · {code}', { code: report.test.code }), style: 'h1' },
     {
@@ -204,7 +352,7 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
         .join(' · '),
       color: MUTED,
     },
-    { text: t('Statistici'), style: 'h2' },
+    heading('h2', t('Statistici'), TEXT_SLACK + MIN_LINES * TEXT_LINE),
     { text: t('Corectate {gradedCount} din {activeCount} elevi{v3}', { gradedCount: stats.gradedCount, activeCount: stats.activeCount, v3: stats.flaggedCount > 0 ? ` · ${t('de verificat {flaggedCount}', { flaggedCount: stats.flaggedCount })}` : '' }) },
     {
       columns: [
@@ -216,30 +364,37 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
       margin: [0, 4, 0, 4],
     },
     { text: stats.groups.map((group) => `${group.label}: ${group.count}`).join('   ·   '), color: MUTED },
-    { text: t('Rezultatele elevilor'), style: 'h2' },
-    ...resultsBlocks(classTable!),
-    ...(cesTable ? [{ text: t('Varianta CES'), style: 'h3' } as Content, ...resultsBlocks(cesTable)] : []),
+    heading('h2', t('Rezultatele elevilor'), results.start),
+    ...results.blocks,
+    ...(ces ? [heading('h3', t('Varianta CES'), ces.start), ...ces.blocks] : []),
     ...(anyFlagged ? [{ text: t('Fundalul galben marchează punctajele încă în verificare.'), color: MUTED, fontSize: 9 } as Content] : []),
-    { text: t('Pe exerciții'), style: 'h2' },
+    heading('h2', t('Pe exerciții'), exerciseTableStart(stats.perExercise)),
     exerciseTable(stats.perExercise),
-    ...(stats.cesPerExercise ? [{ text: t('Varianta CES'), style: 'h3' } as Content, exerciseTable(stats.cesPerExercise)] : []),
+    ...(stats.cesPerExercise ? [heading('h3', t('Varianta CES'), exerciseTableStart(stats.cesPerExercise)), exerciseTable(stats.cesPerExercise)] : []),
   ];
-  if (report.missing.length > 0) {
-    content.push(
-      { text: t('Fără rezultat'), style: 'h2' },
-      { ul: report.missing.map((student) => `${student.studentName} · ${uploadStatusLabel(student.status)}`) },
-    );
-  }
   if (analysis) {
-    content.push({ text: t('Analiza clasei'), style: 'h2' });
-    if (stale) content.push({ text: t('Analiza poate fi depășită: notele s-au schimbat după ce a fost scrisă.'), italics: true, color: MUTED });
-    content.push(
-      { text: pdfRuns(analysis.overview) },
-      ...list(t('Ce a mers bine'), analysis.strengths),
-      ...list(t('Ce a mers mai greu'), analysis.weaknesses),
-      ...list(t('Greșeli frecvente'), analysis.commonMistakes),
-      ...list(t('Ce exersați în continuare'), analysis.recommendations),
-    );
+    const staleNote = t('Analiza poate fi depășită: notele s-au schimbat după ce a fost scrisă.');
+    const lists = (
+      [
+        [t('Ce a mers bine'), analysis.strengths],
+        [t('Ce a mers mai greu'), analysis.weaknesses],
+        [t('Greșeli frecvente'), analysis.commonMistakes],
+        [t('Ce exersați în continuare'), analysis.recommendations],
+      ] as const
+    ).filter(([, entries]) => entries.length > 0);
+    // The analysis's heading stays with its first list's heading when the
+    // overview is shorter than three lines.
+    const intro = linesOfAll(stale ? [staleNote, analysis.overview] : [analysis.overview], PAGE_WIDTH);
+    const firstList = lists[0] ? H3_MARGIN + H3_HEIGHT + textStart(linesOfAll([...lists[0][1]], LIST_WIDTH)) : 0;
+    content.push(heading('h2', t('Analiza clasei'), textStart(intro, firstList)));
+    if (stale) content.push({ text: staleNote, italics: true, color: MUTED });
+    content.push({ text: pdfRuns(analysis.overview) });
+    // No space under the last list: at the foot of a page, pdfmake would
+    // start a blank page for it.
+    lists.forEach(([title, entries], index) => {
+      const margin: [number, number, number, number] = [0, 0, 0, index === lists.length - 1 ? 0 : 4];
+      content.push(heading('h3', title, textStart(linesOfAll([...entries], LIST_WIDTH))), { ul: entries.map((entry) => ({ text: pdfRuns(entry) })), margin });
+    });
   }
 
   return {
@@ -253,6 +408,7 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
       h2: { fontSize: 13, bold: true, margin: [0, 12, 0, 4] },
       h3: { fontSize: 11, bold: true, margin: [0, 6, 0, 2] },
     },
+    pageBreakBefore: (node) => headingBreak(node, roomOf(node.id)),
     footer: (page, pages) => ({ text: t('Pagina {page} din {pages}', { page, pages }), alignment: 'right', margin: [36, 0, 36, 0], color: MUTED, fontSize: 8 }),
     content,
   };
