@@ -424,7 +424,6 @@ describe('the pages that answer a search', () => {
       'Ce se întâmplă dacă un elev rezolvă altfel decât în barem?',
       'Ce se întâmplă dacă o poză nu se poate citi?',
       'Ce materii poate corecta MQGrader?',
-      'Pot încărca un barem scris de mine?',
       'Când e bine să public rezultatele?',
     ]);
     // Its head shows only app screens below it: no drawn example of a graded exercise.
@@ -519,7 +518,7 @@ describe('the questions page', () => {
 
   it("shows the landing page's and the grading page's questions, word for word, each once, in both languages", () => {
     const byQuestion = (list: string[][]) => [...list].sort(([a], [b]) => a!.localeCompare(b!));
-    expect(qa(gradingDoc)).toHaveLength(6);
+    expect(qa(gradingDoc)).toHaveLength(5);
     expect(byQuestion(qa(doc))).toEqual(byQuestion([...qa(landingDoc), ...qa(gradingDoc)]));
     expect(byQuestion(qa(enDoc))).toEqual(byQuestion([...qa(enLandingDoc), ...qa(enGradingDoc)]));
     expect(landingRaw.match(/<!--#include faq-list -->/g)).toHaveLength(1);
@@ -536,7 +535,6 @@ describe('the questions page', () => {
     };
     expect(at('Ce este MQGrader?')).toBe(0);
     expect(at('Ce fac dacă nu am un barem pregătit?')).toBeLessThan(at('Au elevii nevoie de cont sau de aplicație?'));
-    expect(at('Pot încărca un barem scris de mine?')).toBe(at('Ce fac dacă nu am un barem pregătit?') + 1);
     expect(at('Ce se întâmplă dacă un elev nu are telefon sau nu apucă să trimită pozele?')).toBe(at('Au elevii nevoie de cont sau de aplicație?') + 1);
     expect(at('Au elevii nevoie de cont sau de aplicație?')).toBeLessThan(at('Ce se întâmplă dacă o poză nu se poate citi?'));
     expect(at('Ce se întâmplă dacă o poză nu se poate citi?')).toBeLessThan(at('Cine stabilește punctajul final?'));
@@ -555,7 +553,7 @@ describe('the questions page', () => {
     expect(at).toBeGreaterThanOrEqual(0);
     const [question, answer] = list[at + 1]!;
     expect(question).toBe('Ce se întâmplă dacă un elev nu are telefon sau nu apucă să trimită pozele?');
-    expect(answer).toContain('linkul tău pentru mai multe lucrări');
+    expect(answer).toContain('nu au telefon');
     expect(answer).toContain('mai târziu');
     const en = qa(enLandingDoc).map(([q]) => q);
     expect(en[en.indexOf('Do students need an account or an app?') + 1]).toBe('What if a student has no phone or no time to send the photos?');
