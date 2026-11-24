@@ -269,6 +269,13 @@ describe('the points to check on the paper page', () => {
     expect(screen.getByRole('button', { name: 'Următorul punct' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Punctul anterior' })).toBeDisabled();
     expect(screen.getByRole('group', { name: 'Punctele de verificat' })).toHaveTextContent('Punct 1/1');
+    // Ion is the only student listed, beside the paper: his moves stay in the
+    // bar, so the switch does not jump, with both arrows off.
+    expect(students()).toBeInTheDocument();
+    const moves = screen.getByRole('group', { name: 'Elevii' });
+    expect(moves).toHaveTextContent('Elev 1/1');
+    expect(within(moves).getByRole('button', { name: 'Elevul anterior' })).toBeDisabled();
+    expect(within(moves).getByRole('button', { name: 'Elevul următor' })).toBeDisabled();
 
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 3p' }));
     expect(await screen.findByText(/Toate punctele sunt verificate\./)).toBeInTheDocument();
@@ -283,7 +290,10 @@ describe('the points to check on the paper page', () => {
     // Every student is listed again, and the arrows lead to them.
     expect(within(students()).getByRole('link', { name: /Eva Stan/ })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Elevii' })).toHaveTextContent('Elev 3/4');
-    expect(within(screen.getByRole('group', { name: 'Elevii' })).getByRole('button', { name: 'Elevul următor' })).toBeEnabled();
+    const next = within(screen.getByRole('group', { name: 'Elevii' })).getByRole('button', { name: 'Elevul următor' });
+    expect(next).toBeEnabled();
+    // As after a student's last point: the focus waits on "Elevul următor".
+    await waitFor(() => expect(next).toHaveFocus());
     // The line goes once the teacher moves on.
     await userEvent.click(within(students()).getByRole('link', { name: /Eva Stan/ }));
     await expectLocation(at(13, null, 'all'));

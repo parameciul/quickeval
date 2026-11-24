@@ -441,13 +441,17 @@ function Paper({
   // While only the points to check show, the next point opens, also on the
   // next student; with all the exercises, the next point of this student, and
   // when none is left the row stays open and "Elevul următor" takes the focus.
-  // After the last point of the test, the page shows all the exercises of
-  // this paper, the row still open, and says that every point is checked.
+  // After the last point of the test (the only way out of the points to
+  // check with no next point), the page shows all the exercises of this
+  // paper, the row still open, and says that every point is checked.
   const onDecide = (change: ItemChange) => {
     if (!submission || decisionView === null || decide.isPending || deciding.current) return;
     deciding.current = true;
     const from = spot;
     const fromMode = mode;
+    // The view the address names, as `shown` keeps it: the page's own view
+    // can differ when the list is older than the paper.
+    const fromAsked = askedMode;
     const next = stepPoint(walked, spot, 1);
     // The decided point is in the queue: it was the last one.
     const lastOfTest = queue.length === 1;
@@ -459,12 +463,11 @@ function Paper({
         // the same view: not after she opened another paper or switched the
         // view, and not after she left the page (this call's own callbacks do
         // not run once the page is gone).
-        onSuccess: (changed) => {
+        onSuccess: () => {
           const now = shown.current;
-          if (now.spot.submissionId !== from.submissionId || now.spot.key !== from.key || now.mode !== fromMode) return;
+          if (now.spot.submissionId !== from.submissionId || now.spot.key !== from.key || now.mode !== fromAsked) return;
           if (next) go({ submissionId: next.submissionId, key: pointKey(next.point) }, fromMode, 'point');
           else if (lastOfTest) go(from, 'all', 'student', true);
-          else if (fromMode === 'review') go({ submissionId: changed.id, key: null });
           else go(from, fromMode, 'student');
         },
       },
