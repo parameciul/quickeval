@@ -10,10 +10,10 @@ import { useApi } from '../ApiContext.tsx';
 import { Crumbs } from '../Crumbs.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { PaperHead, usePaperActions } from '../paperPage/PaperHead.tsx';
-import { listedPapers, modeOf, paperPath, studentSpot, walkedPoints, type PaperMode, type PaperPlace, type PaperSpot } from '../paperPage/paths.ts';
+import { listedPapers, modeOf, paperPath, reviewSpot, studentSpot, walkedPoints, type PaperMode, type PaperPlace, type PaperSpot } from '../paperPage/paths.ts';
 import { PointDecision, type DecisionView } from '../paperPage/PointDecision.tsx';
 import { PaperNow, PaperPages } from '../paperPage/PaperPages.tsx';
-import { StudentList } from '../paperPage/StudentList.tsx';
+import { StudentList, StudentMove, type StudentsView } from '../paperPage/StudentList.tsx';
 import { drawnAreas, saveFrames, savedFrames } from '../reviewPage/areas.ts';
 import { isReviewKey } from '../reviewPage/keys.ts';
 import { firstSpot, isSpotOf, pageIndex, pointKey, pointQueue, stepPoint, withoutPoint, type QueuedPoint } from '../reviewPage/points.ts';
@@ -27,7 +27,7 @@ import { cesBaremActive } from '../testPage/variant.ts';
 import { countLabel } from '../../ui/format.ts';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
-import { PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
+import { NARROW, PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { t } from '../../i18n/t.ts';
 import { tryName } from '../../../shared/quickTry.ts';
 
@@ -157,8 +157,8 @@ function focusTargetOf(state: unknown): FocusTarget | null {
   return target === 'point' || target === 'student' ? target : null;
 }
 
-// "Elevii" and the paper, folded or not: the teacher's choice, kept in this
-// browser.
+// "Elevii" beside the paper, and the paper, hidden or not: the teacher's
+// choice, kept in this browser.
 const FOLD_KEY = 'quickeval:paperStudentsFolded';
 const PHOTO_FOLD_KEY = 'quickeval:paperPhotoFolded';
 
@@ -222,8 +222,10 @@ function Paper({
   });
   const submission = paper.data;
   const evaluation = submission?.status === 'graded' ? (submission.evaluation ?? null) : null;
-  // A paper with no result now: its pages take the middle of the page, all at
-  // once, and a photo opens over the whole screen from there; no paper beside.
+  // A paper with no result now: its pages in the middle of the page, all at
+  // once. On a wide screen the paper stands beside them, as beside a graded
+  // paper's exercises, with the same button to hide it; on a phone a photo
+  // opens over the whole screen from there.
   const pagesView = submission !== undefined && evaluation === null;
 
   // The list has another grading of the paper than the one read (it was graded
@@ -292,11 +294,26 @@ function Paper({
           : 0;
   const shownPage = pageChoice?.view === viewKey ? pageChoice.page : firstPage;
 
+  // The list of students stands beside the exercises on a wide screen, until
+  // the teacher hides it; then, and on a narrower screen, it opens from
+  // "‹ Elev 2/7 ›". Its hide button gives the focus to that button, and
+  // "Arată lista lângă lucrare" gives it back to the hide button.
   const [folded, setFolded] = useState(() => savedFold(FOLD_KEY));
+  const wide = !useMediaQuery(NARROW);
+  const listBeside = place === 'app' && wide && !folded;
+  const hideListButton = useRef<HTMLButtonElement>(null);
+  const studentMenuButton = useRef<HTMLButtonElement>(null);
+  const foldMoved = useRef(false);
   const onFold = (on: boolean) => {
+    foldMoved.current = true;
     setFolded(on);
     saveFold(FOLD_KEY, on);
   };
+  useEffect(() => {
+    if (!foldMoved.current) return;
+    foldMoved.current = false;
+    (folded ? studentMenuButton : hideListButton).current?.focus({ preventScroll: true });
+  }, [folded]);
 
   // The paper hides, for more room for the exercises (after the checks the
   // teacher may not need it): its × hides it, and "Lucrarea" in the bar
@@ -325,6 +342,9 @@ function Paper({
   const panes = useRef<HTMLDivElement>(null);
   const [photoShare, setPhotoShare] = useState(savedPhotoShare);
   const phone = useMediaQuery(PHONE);
+  // The pages of a paper with no result, on a phone: by themselves, no paper
+  // beside (it would only show them again under them).
+  const pagesBySelf = pagesView && phone;
   // Graded again ("Recorectează"), the paper is no longer checked: it shows
   // as the saved choice says, and its toggles are saved again.
   const graded = row?.status === 'graded';
@@ -437,11 +457,20 @@ function Paper({
 
   // The students go round: after the last comes the first, before the first
   // the last.
-  const students = listedPapers(uploads, mode);
+  const students = listedPapers(uploads, mode, test.status, submissionId);
   const at = students.findIndex((other) => other.submissionId === submissionId);
   const round = students.length > 1;
   const previousStudent = round ? students[at > 0 ? at - 1 : students.length - 1] : undefined;
   const nextStudent = round ? students[(at + 1) % students.length] : undefined;
+  const studentsView: StudentsView = {
+    uploads,
+    students,
+    testStatus: test.status,
+    mode,
+    current: submissionId,
+    pathOf: (other) => pathOf(studentSpot(other, mode)),
+    allPath: pathOf({ submissionId, key: null }, 'all'),
+  };
   // After a decision on the last student, the focus goes to the exercises,
   // not to an arrow that leads back to the first.
   const isLastStudent = at === students.length - 1;
@@ -473,7 +502,7 @@ function Paper({
       if (pressed === 'a' && decisionView !== null) main.current?.querySelector<HTMLButtonElement>('.decision-slot.is-current [data-confirm]')?.click();
       else if (pressed === 'j') goPoint(stepPoint(walked, spot, 1));
       else if (pressed === 'k') goPoint(stepPoint(walked, spot, -1));
-      else if (/^[1-9]$/.test(pressed) && (pagesView ? tileFull : !photoFolded) && submission && Number(pressed) <= submission.files.length) setPageChoice({ view: viewKey, page: Number(pressed) - 1 });
+      else if (/^[1-9]$/.test(pressed) && (pagesBySelf ? tileFull : !photoFolded) && submission && Number(pressed) <= submission.files.length) setPageChoice({ view: viewKey, page: Number(pressed) - 1 });
       else return;
       event.preventDefault();
     };
@@ -513,10 +542,22 @@ function Paper({
   const [tileFull, setTileFull] = useState(false);
   const [tileFocus, setTileFocus] = useState<number | null>(null);
   const shownIsPhoto = submission?.files[shownPage]?.contentType.startsWith('image/') ?? false;
-  // The graded paper's whole screen, left open when it is graded again,
-  // does not open by itself once the new result is back.
-  if (paperFull && pagesView) setPaperFull(false);
-  if (tileFull && !pagesView) setTileFull(false);
+  // A phone turned across the phone width moves an open whole screen between
+  // the pages' own and the paper's beside them. On a phone, a graded paper's
+  // whole screen, left open when it is graded again, closes (and does not
+  // open by itself once the new result is back).
+  const pagesBefore = useRef(pagesView);
+  useEffect(() => {
+    pagesBefore.current = pagesView;
+  });
+  if (paperFull && pagesBySelf) {
+    setPaperFull(false);
+    if (pagesBefore.current && shownIsPhoto) setTileFull(true);
+  }
+  if (tileFull && !pagesBySelf) {
+    setTileFull(false);
+    if (pagesView) setPaperFull(true);
+  }
   else if (tileFull && !shownIsPhoto) {
     setTileFull(false);
     setTileFocus(shownPage);
@@ -546,7 +587,8 @@ function Paper({
     );
   };
   const showsDecision = decisionView !== null && evaluation !== null;
-  const showsPhoto = submission !== undefined && !photoFolded && !pagesView;
+  // (A paper with no result and no page yet has nothing to show beside.)
+  const showsPhoto = submission !== undefined && !photoFolded && !pagesBySelf && (!pagesView || submission.files.length > 0);
   const splitShown = showsPhoto && !photoInRow;
   const photo = showsPhoto ? (
     <ReviewPhoto
@@ -561,12 +603,15 @@ function Paper({
       onFull={setPaperFull}
     />
   ) : null;
+  // A page of the pages: shown beside them (the paper shows if it was
+  // hidden), or, on a phone, over the whole screen.
   const openPage = (index: number) => {
     setPageChoice({ view: viewKey, page: index });
-    setTileFull(true);
+    if (pagesBySelf) setTileFull(true);
+    else if (photoFolded) onPhotoFold(false);
   };
   const fullPages =
-    pagesView && tileFull && shownIsPhoto && submission ? (
+    pagesBySelf && tileFull && shownIsPhoto && submission ? (
       <ReviewPhoto
         submission={submission}
         page={shownPage}
@@ -612,12 +657,24 @@ function Paper({
       {paper.isRefetchError && <ErrorMessage error={paper.error} />}
       {place === 'app' && submission !== undefined && <PaperHead submission={submission} actions={actions} />}
       <div className="paper-bar">
+        {place === 'app' && (students.length > 1 || !listBeside) && (
+          <StudentMove
+            view={studentsView}
+            previous={previousStudent}
+            next={nextStudent}
+            onGo={(other) => go(studentSpot(other, mode))}
+            menu={!listBeside}
+            onShowList={wide ? () => onFold(false) : null}
+            nextButton={nextStudent && !isLastStudent ? nextStudentButton : null}
+            menuButton={studentMenuButton}
+          />
+        )}
         {anyGraded && (
           <div className="paper-switch" role="group" aria-label={t('Exercițiile arătate')}>
             <button type="button" aria-pressed={mode === 'all'} onClick={() => go(spot, 'all')}>
               {t('Toate exercițiile')}
             </button>
-            <button type="button" aria-pressed={mode === 'review'} onClick={() => go(spot, 'review')}>{t('Doar de verificat ({length})', { length: queue.length })}</button>
+            <button type="button" aria-pressed={mode === 'review'} onClick={() => go(reviewSpot(uploads, spot), 'review')}>{t('Doar de verificat ({length})', { length: queue.length })}</button>
           </div>
         )}
         {/* The keys, between the switch and the moves, only while a decision
@@ -672,42 +729,15 @@ function Paper({
               </button>
             </span>
           )}
-          {place === 'app' && students.length > 1 && (
-            <span className="move-group" role="group" aria-label={t('Elevii')}>
-              <button
-                type="button"
-                className="move-arrow"
-                aria-label={t('Elevul anterior')}
-                title={t('Elevul anterior')}
-                disabled={!previousStudent}
-                onClick={() => previousStudent && go(studentSpot(previousStudent, mode))}
-              >
-                <Chevron back />
-              </button>
-              <span className="move-label">
-                <span className="move-word">{at >= 0 ? `${t('Elev')} ` : `${t('Elevi:')} `}</span>
-                {at >= 0 ? `${at + 1}/${students.length}` : students.length}
-              </span>
-              <button
-                ref={nextStudent && !isLastStudent ? nextStudentButton : undefined}
-                type="button"
-                className="move-arrow"
-                aria-label={t('Elevul următor')}
-                title={t('Elevul următor')}
-                disabled={!nextStudent}
-                onClick={() => nextStudent && go(studentSpot(nextStudent, mode))}
-              >
-                <Chevron />
-              </button>
-            </span>
-          )}
-          {submission !== undefined && !pagesView && (
+          {submission !== undefined && !pagesBySelf && (
             <button
               ref={photoToggle}
               type="button"
               className="button-quiet icon-button photo-toggle"
               aria-label={t('Lucrarea')}
-              aria-pressed={!photoFolded}
+              aria-pressed={showsPhoto}
+              // A paper with no page yet has nothing to show.
+              disabled={pagesView && submission.files.length === 0}
               title={photoFolded ? t('Arată lucrarea') : t('Ascunde lucrarea')}
               onClick={() => onPhotoFold(!photoFolded)}
             >
@@ -729,8 +759,9 @@ function Paper({
         ref={panes}
         className={[
           'paper-panes',
-          place === 'try' ? 'is-single' : folded ? 'is-folded' : '',
-          photoFolded || pagesView ? 'is-photo-folded' : '',
+          listBeside ? '' : 'is-single',
+          // While the paper loads, its column keeps its place.
+          (submission === undefined ? photoFolded : !showsPhoto) ? 'is-photo-folded' : '',
           splitShown ? 'has-split' : '',
           splitShown && photoShare !== null ? 'has-photo-width' : '',
         ]
@@ -738,9 +769,7 @@ function Paper({
           .join(' ')}
         style={splitShown ? shareStyle(photoShare) : undefined}
       >
-        {place === 'app' && (
-          <StudentList uploads={uploads} testStatus={test.status} mode={mode} current={submissionId} folded={folded} onFold={onFold} pathOf={(other) => pathOf(studentSpot(other, mode))} />
-        )}
+        {listBeside && <StudentList view={studentsView} onHide={() => onFold(true)} hideButton={hideListButton} />}
         <div className="paper-main" ref={main}>
           <h2 className="sr-only" ref={exercisesHeading} tabIndex={-1}>
             {t('Exercițiile')}
@@ -811,6 +840,7 @@ function Paper({
               <PaperPages
                 submission={submission}
                 onOpen={openPage}
+                shown={pagesBySelf ? null : showsPhoto ? shownPage : -1}
                 next={
                   place === 'app' && nextStudent ? (
                     <button

@@ -3546,10 +3546,6 @@ table.tests .row-actions {
   align-items: start;
 }
 
-.paper-panes.is-folded {
-  grid-template-columns: 2.75rem minmax(0, 3fr) minmax(0, 2fr);
-}
-
 .paper-panes.is-single {
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   grid-template-areas: "main photo";
@@ -3559,10 +3555,6 @@ table.tests .row-actions {
 .paper-panes.is-photo-folded {
   grid-template-columns: 13rem minmax(0, 1fr);
   grid-template-areas: "students main";
-}
-
-.paper-panes.is-folded.is-photo-folded {
-  grid-template-columns: 2.75rem minmax(0, 1fr);
 }
 
 .paper-panes.is-single.is-photo-folded {
@@ -3651,21 +3643,12 @@ table.tests .row-actions {
   padding: 0.75rem 0.5rem;
 }
 
-.paper-students.is-folded {
-  padding: 0.5rem 0.25rem;
-}
-
 .paper-students-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
   margin: 0 0.5rem 0.5rem;
-}
-
-.paper-students.is-folded .paper-students-head {
-  justify-content: center;
-  margin: 0;
 }
 
 .paper-students-head h2 {
@@ -3826,6 +3809,27 @@ table.tests .row-actions {
   cursor: pointer;
 }
 
+/* Beside the paper: smaller pages, which choose the page it shows; the
+   shown one is outlined. */
+.paper-panes:not(.is-photo-folded) .paper-pages-grid {
+  grid-template-columns: repeat(auto-fill, 9.5rem);
+  gap: 1rem;
+}
+
+.paper-page-tile.is-beside {
+  cursor: pointer;
+}
+
+.paper-panes:not(.is-photo-folded) .paper-page-caption {
+  flex-direction: column;
+  gap: 0;
+}
+
+.paper-page-tile.is-beside[aria-pressed="true"] {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 .paper-page-tile img {
   display: block;
   width: 100%;
@@ -3966,10 +3970,6 @@ table.tests .row-actions {
     column-gap: 0;
   }
 
-  .paper-panes.has-split.is-folded {
-    grid-template-columns: 2.75rem 1rem minmax(28rem, var(--main-share, 3fr)) 1.25rem minmax(20rem, var(--photo-share, 2fr));
-  }
-
   .paper-panes.has-split.is-single {
     grid-template-columns: minmax(28rem, var(--main-share, 3fr)) 1.25rem minmax(20rem, var(--photo-share, 2fr));
     grid-template-areas: "main split photo";
@@ -4091,10 +4091,8 @@ table.tests .row-actions {
 }
 
 .paper-student-list a {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.375rem 0.5rem;
+  display: block;
+  padding: 0.4375rem 0.5rem;
   border-radius: var(--radius);
   color: var(--text);
   font-size: 0.875rem;
@@ -4107,29 +4105,122 @@ table.tests .row-actions {
 
 .paper-student-list a[aria-current="true"] {
   background: var(--active);
-  font-weight: 700;
 }
 
 .paper-student-name {
-  min-width: 0;
+  display: block;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
-/* "3 pagini" stays on one line: the name wraps instead. A longer state
-   ("așteaptă corectarea") wraps, so the name keeps its room. */
-.paper-student-pages {
-  flex: none;
-  white-space: nowrap;
-}
-
-.paper-student-flags {
-  color: var(--orange);
+.paper-student-list a[aria-current="true"] .paper-student-name {
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
-.paper-student-grade {
-  font-variant-numeric: tabular-nums;
+/* Under the name, where the paper is, in words: the points to check in
+   orange, a sent paper not graded yet in blue, the rest muted. */
+.paper-student-state {
+  display: block;
+  margin-top: 0.0625rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.paper-student-state.is-flags {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+.paper-student-state.is-sent {
+  color: var(--ink);
+}
+
+/* The line after the rows: the students who sent nothing, or where the
+   other papers are. */
+.paper-students-note {
+  margin: 0.625rem 0.5rem 0.125rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.paper-students-hide {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+}
+
+/* "‹ Elev 2/7 ›" at the left end of the bar; while the list is not beside
+   the paper its middle opens the list under it, where the column stood. */
+.paper-bar {
+  justify-content: flex-start;
+}
+
+.paper-bar .review-actions {
+  margin-left: auto;
+}
+
+/* The group lets its list out of its box; its ends keep their round
+   corners on hover. */
+.move-group.student-move {
+  overflow: visible;
+}
+
+.student-move > .move-arrow:first-child {
+  border-radius: 7px 0 0 7px;
+}
+
+.student-move > .move-arrow:last-child {
+  border-radius: 0 7px 7px 0;
+}
+
+.student-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.student-menu-button {
+  gap: 0.375rem;
+  border-top: 0;
+  border-bottom: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.student-menu-button:hover,
+.student-menu-button[aria-expanded="true"] {
+  background: var(--ink-tint);
+}
+
+.student-menu-chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.student-menu-button[aria-expanded="true"] .student-menu-chevron {
+  transform: rotate(180deg);
+}
+
+.class-menu.student-menu-list {
+  left: -2.5rem;
+  width: 20rem;
+  max-width: calc(100vw - 2rem);
+  max-height: 70vh;
+  padding: 0.5rem;
+}
+
+.student-menu-pin {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--rule);
+  border-radius: 0 0 6px 6px;
+  color: var(--ink);
+}
+
+.student-menu-pin > .action-icon {
+  grid-row: auto;
+  color: var(--ink);
 }
 
 /* A row of the exercises opens with a click: the open row is marked blue, and
@@ -5060,16 +5151,14 @@ table.items tr.item-decision > td {
 }
 
 @media (max-width: 75rem) {
-  .paper-panes,
-  .paper-panes.is-folded {
+  .paper-panes {
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     grid-template-areas:
       "main photo"
       "students photo";
   }
 
-  .paper-panes.is-photo-folded,
-  .paper-panes.is-folded.is-photo-folded {
+  .paper-panes.is-photo-folded {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "main"
@@ -5108,10 +5197,8 @@ table.items tr.item-decision > td {
 
 @media (max-width: 56.25rem) {
   .paper-panes,
-  .paper-panes.is-folded,
   .paper-panes.is-single,
   .paper-panes.is-photo-folded,
-  .paper-panes.is-folded.is-photo-folded,
   .paper-panes.is-single.is-photo-folded {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
@@ -5149,6 +5236,39 @@ table.items tr.item-decision > td {
 
   .review-keys {
     display: none;
+  }
+}
+
+/* On a phone: the switch on the first row, then "‹ Elev 2/7 ›" and the
+   other moves on one row; the list hangs from the whole bar, as wide as it. */
+@media (max-width: 56.25rem) {
+  .paper-bar {
+    position: relative;
+  }
+
+  .paper-bar .student-move {
+    order: 1;
+  }
+
+  .paper-bar .review-actions {
+    order: 2;
+    margin-left: 0;
+  }
+
+  .student-menu {
+    position: static;
+  }
+
+  .class-menu.student-menu-list {
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
+  }
+
+  .student-menu-list .paper-student-list a {
+    padding: 0.625rem 0.5rem;
+    font-size: 1rem;
   }
 }
 

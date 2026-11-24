@@ -129,16 +129,20 @@ export function PaperNow({
   );
 }
 
-// Every page of the paper at once, in the order the student sent them: a
-// photo opens over the whole screen (`onOpen`, the paper's own viewer), a PDF
-// in a tab of its own. Under them, the next student.
+// Every page of the paper at once, in the order the student sent them. Beside
+// the paper (`shown`, a wide screen) a page shows there; on a phone a photo
+// opens over the whole screen (`onOpen`, the paper's own viewer) and a PDF in
+// a tab of its own. Under them, the next student.
 export function PaperPages({
   submission,
   onOpen,
+  shown,
   next,
 }: {
   submission: SubmissionDetail;
   onOpen: (page: number) => void;
+  // The page the paper beside shows, or null with no paper beside.
+  shown: number | null;
   next: ReactNode;
 }) {
   const { base } = useApi();
@@ -162,7 +166,21 @@ export function PaperPages({
             const kind = photo ? t('poză') : 'PDF'; // i18n-ignore
             return (
               <li key={file.id}>
-                {photo ? (
+                {shown !== null ? (
+                  <button
+                    type="button"
+                    className={photo ? 'paper-page-tile is-beside' : 'paper-page-tile is-pdf is-beside'}
+                    data-page={index}
+                    aria-label={t('Arată pagina {n}', { n: index + 1 })}
+                    aria-pressed={shown === index}
+                    onClick={() => onOpen(index)}
+                  >
+                    {photo ? <img src={url} alt="" loading="lazy" /> : <span aria-hidden="true">PDF</span>}
+                    <span className="paper-page-number" aria-hidden="true">
+                      {index + 1}
+                    </span>
+                  </button>
+                ) : photo ? (
                   <button type="button" className="paper-page-tile" data-page={index} aria-label={t('Pagina {n}, pe tot ecranul', { n: index + 1 })} onClick={() => onOpen(index)}>
                     <img src={url} alt="" loading="lazy" />
                     <span className="paper-page-number" aria-hidden="true">

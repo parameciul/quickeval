@@ -148,7 +148,7 @@ describe('the points to check on the paper page', () => {
     await userEvent.keyboard('j');
     await expectLocation(at(11, '32'));
     expect(scroll).not.toHaveBeenCalled();
-    await userEvent.click(within(students()).getByRole('link', { name: 'Eva Stan nota 5' }));
+    await userEvent.click(within(students()).getByRole('link', { name: 'Ion Popa 1 punct de verificat' }));
     expect(scroll).toHaveBeenCalledWith(0, 0);
     scroll.mockRestore();
   });
@@ -228,11 +228,11 @@ describe('the points to check on the paper page', () => {
     renderAdmin(paperAt(11, '32'), api, <LocationProbe />);
     const panel = await screen.findByRole('region', { name: 'Decizia' });
     await userEvent.click(within(panel).getByRole('button', { name: 'Accept 1p' }));
-    await userEvent.click(within(students()).getByRole('link', { name: 'Eva Stan nota 5' }));
-    await expectLocation(at(13));
+    await userEvent.click(within(students()).getByRole('link', { name: 'Ion Popa 1 punct de verificat' }));
+    await expectLocation(at(14, '41'));
     await held.done();
     expect(within(students()).getByRole('link', { name: 'Ana Pop 1 punct de verificat' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(at(13));
+    expect(screen.getByTestId('location')).toHaveTextContent(at(14, '41'));
   });
 
   it('stays in the view the teacher switched to while a decision saved', async () => {

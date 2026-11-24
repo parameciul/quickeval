@@ -149,6 +149,8 @@ const PATHS = {
     </>
   ),
   open: <path d="M11 3.5h5.5V9M16.5 3.5l-7 7M14 12v4.5H3.5V6H8" />,
+  // A side panel: folds the list of students beside the paper, or shows it.
+  panel: <path d="M4.5 4h11A1.5 1.5 0 0 1 17 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-9A1.5 1.5 0 0 1 4.5 4zM8 4v12" />,
   pay: (
     <>
       <rect x="2.75" y="4.75" width="14.5" height="10.5" rx="1.5" />
