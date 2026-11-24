@@ -58,7 +58,7 @@ type PaperActions = ReturnType<typeof usePaperActions>;
 // The head of the paper page (from the paper's page before it): the student,
 // the test and the state, and the times; on the right what the
 // teacher takes away (all the student's grades, the PDF) and "Alte acțiuni";
-// under it the student's result link, once the upload is sent.
+// under it the student's result link, once the paper is graded.
 export function PaperHead({ submission, actions }: { submission: SubmissionDetail; actions: PaperActions }) {
   const { regrade, reset } = actions;
   // The student's PDF, only for a graded result.
@@ -125,9 +125,9 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
       </header>
       {regrade.error && <ErrorMessage error={regrade.error} />}
       {reset.error && <ErrorMessage error={reset.error} />}
-      {/* The result link only once the student sent the upload, like the
-          uploads table: while uploading there is nothing to share yet. */}
-      {submission.status !== 'uploading' && (
+      {/* The result link only once the paper is graded: before, the teacher
+          looks over its pages, and there is no result to share yet. */}
+      {submission.status === 'graded' && (
         <div className="result-link-row">
           <span className="result-link-label">{t('Linkul cu rezultatul elevului')}</span>
           <span className={submission.resultsOpen ? 'tag tag-ok' : 'tag'}>

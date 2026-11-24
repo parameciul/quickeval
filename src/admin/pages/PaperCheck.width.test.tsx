@@ -320,8 +320,8 @@ describe('the points to check on the paper page', () => {
     });
     renderAdmin(`${PAGE}?paper=11&item=32`, api, <LocationProbe />);
     expect(await screen.findByRole('heading', { level: 1, name: 'Ana Pop' })).toBeInTheDocument();
-    expect(await screen.findByText('Robotul corectează acum lucrarea.')).toBeInTheDocument();
-    expect(screen.getByText('Ana Pop · 1/3')).toBeInTheDocument();
+    expect(await screen.findByText('Robotul corectează acum lucrarea')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Paginile lucrării' })).getAllByRole('listitem')).toHaveLength(3);
     expect(screen.queryByRole('region', { name: 'Decizia' })).not.toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(at(11, '32'));
   });

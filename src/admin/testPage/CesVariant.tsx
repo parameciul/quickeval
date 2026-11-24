@@ -73,15 +73,17 @@ export function CesVariant({
 // In the panel Corectare: the CES papers wait while the CES barem is not active
 // (missing, generating, or not checked yet). The class papers are graded
 // meanwhile, and the class analysis waits for the CES papers.
+// Why the CES barem is not active yet: none, being made, or not checked.
+export function cesBaremWhy(test: TestInfo): string {
+  const { ces } = test;
+  if (ces.files.barem === null) return t('Încarcă sau generează baremul CES la Pregătire.');
+  return ces.barem.request === 'requested' ? t('Baremul CES se generează.') : t('Verifică baremul CES generat la Pregătire.');
+}
+
 export function CesWaiting({ test }: { test: TestInfo }) {
   const { ces } = test;
   if (ces.waiting === 0 || ces.files.test === null || cesBaremActive(test)) return null;
-  const why =
-    ces.files.barem === null
-      ? t('Încarcă sau generează baremul CES la Pregătire.')
-      : ces.barem.request === 'requested'
-        ? t('Baremul CES se generează.')
-        : t('Verifică baremul CES generat la Pregătire.');
+  const why = cesBaremWhy(test);
   return (
     <div className="warning">
       <p>

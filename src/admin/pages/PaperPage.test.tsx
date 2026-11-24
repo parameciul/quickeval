@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { ApiError } from '../api.ts';
-import { createFakeApi, fakeEvaluation, fakeItem, fakeTeacher, fakeTest, fakeUpload, reviewPointsOf } from '../../test/fakeApi.ts';
+import { PDF_TYPE } from '../../../shared/files.ts';
+import { createFakeApi, fakeEvaluation, fakeItem, fakeTeacher, fakeTest, fakeUpload, noCesVariant, reviewPointsOf } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { resultRefreshInterval } from './PaperPage.tsx';
 
@@ -109,8 +110,8 @@ describe('the paper page', () => {
     expect(screen.getByRole('link', { name: 'Toate notele elevului' })).toHaveAttribute('href', '/students/10');
   });
 
-  it('shows the paper beside the exercises, one page at a time with its file, and a PDF in a frame with a link', async () => {
-    renderAdmin(page, apiWith());
+  it('shows a graded paper beside the exercises, one page at a time with its file, and a PDF in a frame with a link', async () => {
+    renderAdmin(page, apiWith(graded));
     expect(await screen.findByText('Pop Ion · 1/2')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' })).toHaveAttribute('src', '/api/admin/submissions/5/files/21');
     // Each page names its file, as the student sent it.
@@ -127,29 +128,173 @@ describe('the paper page', () => {
       { id: 21, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 1 },
       { id: 23, name: 'IMG_0003.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 3 },
     ];
-    renderAdmin(page, apiWith({ ...submission, files }));
+    renderAdmin(page, apiWith({ ...graded, files }));
     await userEvent.click(await screen.findByRole('button', { name: 'Pagina 2' }));
     expect(screen.getByRole('img', { name: 'Pagina 2 a lucrării' })).toHaveAttribute('src', '/api/admin/submissions/5/files/23');
   });
 
-  it('says where an upload without a result is', async () => {
+  it('says where an upload without a result is, in the box above its pages', async () => {
     const { unmount } = renderAdmin(page, apiWith({ ...submission, status: 'uploading', submittedAt: null, files: [] }));
-    expect(await screen.findByText('Elevul nu a încărcat niciun fișier.')).toBeInTheDocument();
-    expect(screen.getByText('Elevul nu a trimis încă lucrarea.')).toBeInTheDocument();
+    expect(await screen.findByText('Elevul încă trimite lucrarea')).toBeInTheDocument();
+    expect(screen.getByText('Nicio pagină până acum.')).toBeInTheDocument();
+    expect(screen.getByText('Elevul nu a încărcat niciun fișier.')).toBeInTheDocument();
     unmount();
     renderAdmin(page, apiWith());
-    expect(await screen.findByText('Lucrarea se corectează după ce pornești evaluarea.')).toBeInTheDocument();
+    expect(await screen.findByText('Lucrarea nu e corectată încă')).toBeInTheDocument();
+    // How many students sent, counted as the test page's papers bar counts them.
+    expect(screen.getByText('Corectarea pornește pentru toată clasa, din etapa Corectare. 1 din 1 elev a trimis.')).toBeInTheDocument();
+    // One compact row: not the stages' "Acum" box.
+    expect(screen.queryByText('Acum')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la Corectare' })).toHaveAttribute('href', '/tests/6E2-26T1#grading');
     await userEvent.click(screen.getByRole('button', { name: 'Alte acțiuni' }));
     expect(screen.queryByRole('menuitem', { name: 'Recorectează' })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Resetează' })).toBeInTheDocument();
   });
 
+  it('counts the pages a student sent so far', async () => {
+    renderAdmin(page, apiWith({ ...submission, status: 'uploading', submittedAt: null }));
+    expect(await screen.findByText('Elevul încă trimite lucrarea')).toBeInTheDocument();
+    expect(screen.getByText('2 pagini până acum.')).toBeInTheDocument();
+  });
+
+  it('says the paper waits for the robot, or is graded now, without a button', async () => {
+    const { unmount } = renderAdmin(page, apiWith({ ...submission, testStatus: 'evaluating' }));
+    expect(await screen.findByText('Lucrarea așteaptă robotul')).toBeInTheDocument();
+    expect(screen.getByText('Pagina se actualizează singură.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Mergi la Corectare' })).not.toBeInTheDocument();
+    unmount();
+    renderAdmin(page, apiWith({ ...submission, testStatus: 'evaluating', status: 'grading' }));
+    expect(await screen.findByText('Robotul corectează acum lucrarea')).toBeInTheDocument();
+    expect(screen.getByText('Exercițiile apar aici când termină.')).toBeInTheDocument();
+  });
+
+  it('shows every page of a paper not graded yet at once, with its number, kind and size', async () => {
+    renderAdmin(page, apiWith());
+    const pages = await screen.findByRole('region', { name: 'Paginile lucrării' });
+    const tiles = within(pages).getAllByRole('listitem');
+    expect(tiles.map((tile) => tile.querySelector('.paper-page-caption')?.textContent)).toEqual(['Pagina 1poză · 820 KB', 'Pagina 2PDF · 1,5 MB']);
+    expect(tiles[0]!.querySelector('img')).toHaveAttribute('src', '/api/admin/submissions/5/files/21');
+    // A PDF opens in its own tab: the whole screen shows photos only.
+    expect(within(tiles[1]!).getByRole('link', { name: 'Pagina 2, PDF' })).toHaveAttribute('href', '/api/admin/submissions/5/files/22');
+    expect(within(tiles[1]!).getByRole('link', { name: 'Pagina 2, PDF' })).toHaveAttribute('target', '_blank');
+    // No paper beside them, and no button to show it.
+    expect(screen.queryByText('Pop Ion · 1/2')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Lucrarea' })).not.toBeInTheDocument();
+  });
+
+  it('opens a page of a paper not graded yet over the whole screen, and gives the focus back to it', async () => {
+    renderAdmin(page, apiWith());
+    const tile = await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' });
+    await userEvent.click(tile);
+    const photo = screen.getByRole('img', { name: 'Pagina 1 a lucrării' });
+    expect(photo).toHaveAttribute('src', '/api/admin/submissions/5/files/21');
+    expect(photo.closest('figure')).toHaveClass('is-full');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('img', { name: 'Pagina 1 a lucrării' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pagina 1, pe tot ecranul' })).toHaveFocus());
+  });
+
+  it('closes the whole screen on a PDF page, with the focus on its tile', async () => {
+    renderAdmin(page, apiWith());
+    await userEvent.click(await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' }));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
+    // Page 2 is a PDF: it opens from its own tile, never in the viewer.
+    await userEvent.keyboard('{ArrowRight}');
+    expect(document.querySelector('.review-photo')).toBeNull();
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Pagina 2, PDF' })).toHaveFocus());
+  });
+
+  it('turns the pages with 1–9 only while a page is over the whole screen', async () => {
+    const photos = [
+      { id: 21, name: 'IMG_0001.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 1 },
+      { id: 23, name: 'IMG_0002.jpg', contentType: 'image/jpeg', size: 820 * 1024, position: 2 },
+    ];
+    renderAdmin(page, apiWith({ ...submission, files: photos }));
+    await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' });
+    await userEvent.keyboard('2');
+    expect(document.querySelector('.review-photo')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina 1, pe tot ecranul' }));
+    await userEvent.keyboard('2');
+    expect(screen.getByRole('img', { name: 'Pagina 2 a lucrării' }).closest('figure')).toHaveClass('is-full');
+  });
+
+  it('closes the whole screen when the paper gets its result meanwhile, and the result does not open over it', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const api = apiWith({ ...submission, testStatus: 'evaluating' });
+    renderAdmin(page, api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' }));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
+    // The robot graded the paper; the page asks for news every 10 seconds.
+    api.getSubmission.mockResolvedValue(structuredClone(graded));
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(await screen.findByText(/Nota/)).toBeInTheDocument();
+    expect(document.querySelector('.review-photo.is-full')).toBeNull();
+    // The graded paper shows beside the exercises, as it opens.
+    expect(screen.getByText('Pop Ion · 1/2')).toBeInTheDocument();
+  });
+
+  it('shows neither the switch, nor that all points are checked, before any paper of the test is graded', async () => {
+    renderAdmin(`${page}?view=review`, apiWith());
+    expect(await screen.findByText('Lucrarea nu e corectată încă')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Exercițiile arătate' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Toate punctele sunt verificate/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Celelalte lucrări')).not.toBeInTheDocument();
+  });
+
+  it('counts the pages of a sent paper in the students', async () => {
+    renderAdmin(page, apiWith());
+    const students = await screen.findByRole('navigation', { name: 'Elevii' });
+    expect(within(students).getByText('2 pagini')).toBeInTheDocument();
+  });
+
+  it('goes to the next student from under the pages', async () => {
+    const other: SubmissionDetail = { ...submission, id: 6, studentId: 11, studentName: 'Radu Ana' };
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 2 }],
+      students: {},
+      tests: [
+        fakeTest({ status: 'open' }, [
+          fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 }),
+          fakeUpload({ studentId: 11, studentName: 'Radu Ana', submissionId: 6, status: 'submitted', fileCount: 2 }),
+        ]),
+      ],
+      submissions: [structuredClone(submission), other],
+    });
+    renderAdmin(page, api, <LocationProbe />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Elevul următor: Radu Ana' }));
+    await expectLocation('/tests/6E2-26T1/papers/6');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Radu Ana' })).toBeInTheDocument();
+  });
+
+  it('says that a CES paper waits for its barem, with the way to the CES variant', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 1 }],
+      students: {},
+      tests: [
+        fakeTest({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: { test: { name: 'Test CES.pdf', type: PDF_TYPE }, barem: null }, waiting: 1 }) }, [
+          fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2, ces: true }),
+        ]),
+      ],
+      submissions: [structuredClone({ ...submission, testStatus: 'evaluating' as const })],
+    });
+    renderAdmin(page, api);
+    expect(await screen.findByText('Lucrarea așteaptă baremul CES')).toBeInTheDocument();
+    expect(screen.getByText('Încarcă sau generează baremul CES la Pregătire.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la varianta CES' })).toHaveAttribute('href', '/tests/6E2-26T1#prepare');
+    // The robot does not grade it until then.
+    expect(screen.queryByText('Lucrarea așteaptă robotul')).not.toBeInTheDocument();
+  });
+
   it('says that a paper held back from grading waits for the teacher, once the uploads are closed', async () => {
     renderAdmin(page, apiWith({ ...submission, testStatus: 'evaluating', status: 'uploading', submittedAt: null }));
-    expect(await screen.findByText('Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.')).toBeInTheDocument();
+    expect(await screen.findByText('Lucrarea nu a intrat la corectare')).toBeInTheDocument();
+    expect(screen.getByText('Lucrarea nu a fost trimisă la corectare. Redeschide încărcarea și pornește evaluarea pentru ea.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la Corectare' })).toHaveAttribute('href', '/tests/6E2-26T1#grading');
     expect(screen.getByText(/6E2-26T1 · Fracții · Așteaptă corectarea/)).toBeInTheDocument();
     expect(within(screen.getByRole('navigation', { name: 'Elevii' })).getByText('așteaptă corectarea')).toBeInTheDocument();
-    expect(screen.queryByText('Elevul nu a trimis încă lucrarea.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Elevul încă trimite lucrarea')).not.toBeInTheDocument();
   });
 
   it('tells a demo account with no paper left why a held-back paper waits, on the paper page', async () => {
@@ -157,6 +302,8 @@ describe('the paper page', () => {
     api.me.mockResolvedValue(fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 35 }));
     renderAdmin(page, api);
     expect(await screen.findByText('Lucrarea nu a fost trimisă la corectare: contul demo nu mai are lucrări de corectat. Cere unui administrator un cont complet.')).toBeInTheDocument();
+    // Reopening the uploads would not send it: no way to Corectare.
+    expect(screen.queryByRole('link', { name: 'Mergi la Corectare' })).not.toBeInTheDocument();
   });
 
   it('names a failed paper "eșuat" in the students', async () => {
@@ -426,7 +573,7 @@ describe('the paper page', () => {
     expect(confirm).toHaveBeenCalledWith('Recorectezi lucrarea elevului Pop Ion? Corecturile tale se pierd.');
     expect(api.regradeSubmission).toHaveBeenCalledWith(5, GRADED_AT);
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul.');
-    expect(await screen.findByText('Lucrarea așteaptă robotul.')).toBeInTheDocument();
+    expect(await screen.findByText('Lucrarea așteaptă robotul')).toBeInTheDocument();
     expect(screen.queryByText(/Nota/)).not.toBeInTheDocument();
   });
 
@@ -446,7 +593,7 @@ describe('the paper page', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('shows the photo again when a checked paper is graded again', async () => {
+  it('shows the pages of a checked paper while it is graded again', async () => {
     // Graded, with no point to check: the paper opens with its photo hidden.
     const checked: SubmissionDetail = { ...graded, evaluation: fakeEvaluation([fakeItem({ id: 31, exerciseId: 'I.1', label: 'Subiectul I, ex. 1', points: 4.5 })]) };
     const api = apiWith(checked);
@@ -454,8 +601,9 @@ describe('the paper page', () => {
     renderAdmin(page, api);
     expect(await screen.findByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'false');
     await chooseAction('Recorectează');
-    expect(await screen.findByText('Lucrarea așteaptă robotul.')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'true'));
+    expect(await screen.findByText('Lucrarea așteaptă robotul')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Paginile lucrării' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Lucrarea' })).not.toBeInTheDocument();
   });
 
   it('keeps the result when the teacher does not confirm the regrade', async () => {
@@ -477,7 +625,8 @@ describe('the paper page', () => {
   it('shows why grading failed and retries it', async () => {
     const api = apiWith({ ...submission, testStatus: 'done', status: 'failed', lastError: 'Robotul nu a terminat la timp.' });
     renderAdmin(page, api);
-    expect(await screen.findByText('Corectarea a eșuat. Robotul nu a terminat la timp.')).toBeInTheDocument();
+    expect(await screen.findByText('Corectarea a eșuat')).toBeInTheDocument();
+    expect(screen.getByText('Robotul nu a terminat la timp.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Reîncearcă' }));
     expect(api.retrySubmission).toHaveBeenCalledWith(5, '2026-10-06T07:20:00.000Z');
     expect(await screen.findByRole('status')).toHaveTextContent('Nu am putut porni robotul.');
@@ -509,11 +658,14 @@ describe('the paper page', () => {
       `https://wa.me/?text=${encodeURIComponent(`Rezultatul la testul 6E2-26T1: ${url}`)}`,
     );
   });
-  it('hides the result link while the upload is still on the phone', async () => {
-    renderAdmin(page, apiWith({ ...submission, status: 'uploading', submittedAt: null }));
-    expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Link rezultat' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Linkul cu rezultatul/)).not.toBeInTheDocument();
+  it('hides the result link until the paper is graded', async () => {
+    for (const status of ['uploading', 'submitted', 'grading', 'failed'] as const) {
+      const { unmount } = renderAdmin(page, apiWith({ ...submission, status, submittedAt: status === 'uploading' ? null : submission.submittedAt }));
+      expect(await screen.findByRole('heading', { name: 'Pop Ion' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Link rezultat' })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Linkul cu rezultatul/)).not.toBeInTheDocument();
+      unmount();
+    }
   });
   it('shows the not-found page for an upload id that is not a number', async () => {
     renderAdmin('/tests/6E2-26T1/papers/abc', apiWith());

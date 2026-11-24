@@ -12,6 +12,7 @@ import { ErrorMessage } from '../ErrorMessage.tsx';
 import { PaperHead, usePaperActions } from '../paperPage/PaperHead.tsx';
 import { listedPapers, modeOf, paperPath, studentSpot, walkedPoints, type PaperMode, type PaperPlace, type PaperSpot } from '../paperPage/paths.ts';
 import { PointDecision, type DecisionView } from '../paperPage/PointDecision.tsx';
+import { PaperNow, PaperPages } from '../paperPage/PaperPages.tsx';
 import { StudentList } from '../paperPage/StudentList.tsx';
 import { drawnAreas, saveFrames, savedFrames } from '../reviewPage/areas.ts';
 import { isReviewKey } from '../reviewPage/keys.ts';
@@ -20,13 +21,14 @@ import { type ReviewFocus, ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
 import { PhotoSplit, savedPhotoShare, shareStyle } from '../paperPage/PhotoSplit.tsx';
 import { stageHash } from '../stages.ts';
 import { GradedResult } from '../submissionPage/GradedResult.tsx';
-import { waitingText } from '../submissionPage/waitingText.ts';
-import { heldBackHint } from '../testPage/paperCounts.ts';
+import { cesWaitsBarem, heldBackHint, paperCounts } from '../testPage/paperCounts.ts';
+import { cesBaremWhy } from '../testPage/CesVariant.tsx';
+import { cesBaremActive } from '../testPage/variant.ts';
+import { countLabel } from '../../ui/format.ts';
 import { NotFoundPage } from './NotFoundPage.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { t } from '../../i18n/t.ts';
-import { translateMessage } from '../../../shared/i18n/messages.ts';
 import { tryName } from '../../../shared/quickTry.ts';
 
 // While the robot grades the upload, the page asks for news every 10 seconds.
@@ -196,10 +198,13 @@ function Paper({
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
-  const mode = modeOf(params, place);
+  const { test, uploads } = detail;
+  // Before any paper of the test is graded there is no point to check: the
+  // switch to them does not show, and the page shows all the papers.
+  const anyGraded = uploads.some((other) => other.status === 'graded');
+  const mode = anyGraded ? modeOf(params, place) : 'all';
   const key = params.get('item');
   const spot: PaperSpot = { submissionId, key };
-  const { test, uploads } = detail;
   const row = uploads.find((other) => other.submissionId === submissionId);
   const queue = pointQueue(uploads);
   const walked = walkedPoints(uploads, mode, submissionId);
@@ -217,6 +222,9 @@ function Paper({
   });
   const submission = paper.data;
   const evaluation = submission?.status === 'graded' ? (submission.evaluation ?? null) : null;
+  // A paper with no result now: its pages take the middle of the page, all at
+  // once, and a photo opens over the whole screen from there; no paper beside.
+  const pagesView = submission !== undefined && evaluation === null;
 
   // The list has another grading of the paper than the one read (it was graded
   // again; the list is read every 10 s while the robot works): read the paper
@@ -465,7 +473,7 @@ function Paper({
       if (pressed === 'a' && decisionView !== null) main.current?.querySelector<HTMLButtonElement>('.decision-slot.is-current [data-confirm]')?.click();
       else if (pressed === 'j') goPoint(stepPoint(walked, spot, 1));
       else if (pressed === 'k') goPoint(stepPoint(walked, spot, -1));
-      else if (/^[1-9]$/.test(pressed) && !photoFolded && submission && Number(pressed) <= submission.files.length) setPageChoice({ view: viewKey, page: Number(pressed) - 1 });
+      else if (/^[1-9]$/.test(pressed) && (pagesView ? tileFull : !photoFolded) && submission && Number(pressed) <= submission.files.length) setPageChoice({ view: viewKey, page: Number(pressed) - 1 });
       else return;
       event.preventDefault();
     };
@@ -497,6 +505,28 @@ function Paper({
     if (rowWithPhoto) main.current?.querySelector('table.items tr.is-open, .pages-check.is-open')?.scrollIntoView?.({ block: 'start' });
   }, [rowWithPhoto, key, loaded]);
 
+  // The pages of a paper with no result: a photo over the whole screen, a
+  // state of its own (not `paperFull`, the graded paper's), and the focus back
+  // on the page shown once it closes. It closes by itself when the paper gets
+  // its result meanwhile (no pages to go back to), and on a PDF page, which
+  // opens from its own tile in a tab.
+  const [tileFull, setTileFull] = useState(false);
+  const [tileFocus, setTileFocus] = useState<number | null>(null);
+  const shownIsPhoto = submission?.files[shownPage]?.contentType.startsWith('image/') ?? false;
+  // The graded paper's whole screen, left open when it is graded again,
+  // does not open by itself once the new result is back.
+  if (paperFull && pagesView) setPaperFull(false);
+  if (tileFull && !pagesView) setTileFull(false);
+  else if (tileFull && !shownIsPhoto) {
+    setTileFull(false);
+    setTileFocus(shownPage);
+  }
+  useEffect(() => {
+    if (tileFull || tileFocus === null) return;
+    setTileFocus(null);
+    main.current?.querySelector<HTMLElement>(`.paper-page-tile[data-page="${tileFocus}"]`)?.focus({ preventScroll: true });
+  }, [tileFull, tileFocus]);
+
   // The address names a paper of another test.
   if (submission !== undefined && submission.testCode !== code) return <NotFoundPage />;
 
@@ -516,7 +546,7 @@ function Paper({
     );
   };
   const showsDecision = decisionView !== null && evaluation !== null;
-  const showsPhoto = submission !== undefined && !photoFolded;
+  const showsPhoto = submission !== undefined && !photoFolded && !pagesView;
   const splitShown = showsPhoto && !photoInRow;
   const photo = showsPhoto ? (
     <ReviewPhoto
@@ -531,6 +561,26 @@ function Paper({
       onFull={setPaperFull}
     />
   ) : null;
+  const openPage = (index: number) => {
+    setPageChoice({ view: viewKey, page: index });
+    setTileFull(true);
+  };
+  const fullPages =
+    pagesView && tileFull && shownIsPhoto && submission ? (
+      <ReviewPhoto
+        submission={submission}
+        page={shownPage}
+        onPage={(index) => setPageChoice({ view: viewKey, page: index })}
+        focus={null}
+        frames={false}
+        onFrames={() => undefined}
+        full
+        onFull={(on) => {
+          if (!on) setTileFocus(shownPage);
+          setTileFull(on);
+        }}
+      />
+    ) : null;
 
   return (
     <section className={place === 'try' ? 'paper-page is-try' : 'paper-page'}>
@@ -562,12 +612,14 @@ function Paper({
       {paper.isRefetchError && <ErrorMessage error={paper.error} />}
       {place === 'app' && submission !== undefined && <PaperHead submission={submission} actions={actions} />}
       <div className="paper-bar">
-        <div className="paper-switch" role="group" aria-label={t('Exercițiile arătate')}>
-          <button type="button" aria-pressed={mode === 'all'} onClick={() => go(spot, 'all')}>
-            {t('Toate exercițiile')}
-          </button>
-          <button type="button" aria-pressed={mode === 'review'} onClick={() => go(spot, 'review')}>{t('Doar de verificat ({length})', { length: queue.length })}</button>
-        </div>
+        {anyGraded && (
+          <div className="paper-switch" role="group" aria-label={t('Exercițiile arătate')}>
+            <button type="button" aria-pressed={mode === 'all'} onClick={() => go(spot, 'all')}>
+              {t('Toate exercițiile')}
+            </button>
+            <button type="button" aria-pressed={mode === 'review'} onClick={() => go(spot, 'review')}>{t('Doar de verificat ({length})', { length: queue.length })}</button>
+          </div>
+        )}
         {/* The keys, between the switch and the moves, only while a decision
             shows and only when the whole line fits there: it never takes a
             line of its own. */}
@@ -649,7 +701,7 @@ function Paper({
               </button>
             </span>
           )}
-          {submission !== undefined && (
+          {submission !== undefined && !pagesView && (
             <button
               ref={photoToggle}
               type="button"
@@ -668,7 +720,7 @@ function Paper({
           )}
         </div>
       </div>
-      {mode === 'review' && queue.length === 0 && (
+      {anyGraded && mode === 'review' && queue.length === 0 && (
         <p className="review-done" role="status">
           {t('Toate punctele sunt verificate.')}{' '}<Link to={`/tests/${code}${stageHash('Rezultate')}`}>{t('Mergi la Rezultate')}</Link>
         </p>
@@ -678,7 +730,7 @@ function Paper({
         className={[
           'paper-panes',
           place === 'try' ? 'is-single' : folded ? 'is-folded' : '',
-          photoFolded ? 'is-photo-folded' : '',
+          photoFolded || pagesView ? 'is-photo-folded' : '',
           splitShown ? 'has-split' : '',
           splitShown && photoShare !== null ? 'has-photo-width' : '',
         ]
@@ -727,31 +779,73 @@ function Paper({
                 photo: photoInRow ? photo : null,
               }}
             />
-          ) : submission.status === 'failed' ? (
-            <div className="warning">
-              <p>{t('Corectarea a eșuat. {lastError}', { lastError: translateMessage(submission.lastError ?? '') })}</p>
-              {place === 'app' && (
-                <button
-                  type="button"
-                  className="button-quiet button-small"
-                  disabled={actions.retry.isPending}
-                  onClick={() => actions.retry.mutate(submission.startedAt)}
-                >
-                  <ActionIcon name="retry" />
-                  {t('Reîncearcă')}
-                </button>
-              )}
-              {actions.retry.error && <ErrorMessage error={actions.retry.error} />}
-            </div>
           ) : (
-            <p className="hint">{waitingText(submission, heldBackHint(me.data))}</p>
+            <>
+              <PaperNow
+                submission={submission}
+                heldBackText={heldBackHint(me.data)}
+                corectare={place === 'app' ? `/tests/${code}${stageHash('Corectare')}` : null}
+                sent={place === 'app' ? sentLine(test, uploads) : null}
+                ces={
+                  place === 'app' && row && cesWaitsBarem(row, test.status, { hasTest: test.ces.files.test !== null, baremActive: cesBaremActive(test) })
+                    ? { why: cesBaremWhy(test), to: `/tests/${code}${stageHash('Pregătire')}` }
+                    : null
+                }
+                retry={
+                  place === 'app' && submission.status === 'failed' ? (
+                    <div className="now-actions">
+                      <button
+                        type="button"
+                        className="button-quiet"
+                        disabled={actions.retry.isPending}
+                        onClick={() => actions.retry.mutate(submission.startedAt)}
+                      >
+                        <ActionIcon name="retry" />
+                        {t('Reîncearcă')}
+                      </button>
+                      {actions.retry.error && <ErrorMessage error={actions.retry.error} />}
+                    </div>
+                  ) : null
+                }
+              />
+              <PaperPages
+                submission={submission}
+                onOpen={openPage}
+                next={
+                  place === 'app' && nextStudent ? (
+                    <button
+                      type="button"
+                      className="button-quiet"
+                      onClick={() => {
+                        go(studentSpot(nextStudent, mode));
+                        window.scrollTo(0, 0);
+                      }}
+                    >
+                      {t('Elevul următor: {name}', { name: nextStudent.studentName })}
+                      <ActionIcon name="arrow" />
+                    </button>
+                  ) : null
+                }
+              />
+            </>
           )}
         </div>
         {splitShown && <PhotoSplit panes={panes} share={photoShare} onShare={setPhotoShare} />}
         {!photoInRow && photo}
       </div>
+      {fullPages}
     </section>
   );
+}
+
+// "7 din 8 elevi au trimis.": how many students sent (or, once the uploads
+// are closed, took part), counted as the test page's papers bar counts them.
+function sentLine(test: TestDetail['test'], uploads: TestDetail['uploads']): string {
+  const counts = paperCounts(test.status, test.studentCount, uploads, { hasTest: test.ces.files.test !== null, baremActive: cesBaremActive(test) });
+  const students = countLabel(counts.total, 'elev', 'elevi');
+  const took = counts.took;
+  if (took === 1) return counts.open ? t('1 din {students} a trimis.', { students }) : t('1 din {students} a participat.', { students });
+  return counts.open ? t('{took} din {students} au trimis.', { took, students }) : t('{took} din {students} au participat.', { took, students });
 }
 
 // The arrow of a move: back (‹) or on (›).

@@ -9,7 +9,8 @@ import { listedPapers, type PaperMode } from './paths.ts';
 import { t } from '../../i18n/t.ts';
 
 // "Elevii" (spec 2026-11-12 §4.3): every student with a paper, the open one
-// marked, each with the grade, or the points to check in orange, or the state.
+// marked, each with the grade, or the points to check in orange, or the
+// pages of a sent paper not graded yet, or the state.
 // While only the points to check show: the papers with points first, then the
 // others. It folds to a thin strip with one button. The links replace the
 // address, so Back leaves the page. A name opens another student's paper at
@@ -101,6 +102,10 @@ function StudentState({ row, testStatus }: { row: UploadRow; testStatus: TestSta
       </span>
     );
   }
-  const state = heldBack(row.status, row.fileCount, testStatus) ? PAPER_PART_LABEL.waiting : row.status === 'failed' ? t('Eșuat') : uploadStatusLabel(row.status);
+  const held = heldBack(row.status, row.fileCount, testStatus);
+  // A sent paper not graded yet: how many pages it has, which the teacher
+  // looks over before the grading.
+  if (row.status === 'submitted' && !held) return <span className="hint paper-student-pages">{countLabel(row.fileCount, 'pagină', 'pagini')}</span>;
+  const state = held ? PAPER_PART_LABEL.waiting : row.status === 'failed' ? t('Eșuat') : uploadStatusLabel(row.status);
   return <span className="hint">{state.toLowerCase()}</span>;
 }
