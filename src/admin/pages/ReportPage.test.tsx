@@ -271,10 +271,10 @@ describe('ReportPage', () => {
     expect(screen.queryByText(/claude-/)).not.toBeInTheDocument();
   });
 
-  it('has the buttons for the PDF, the CSV, and sharing, only when something is graded', async () => {
+  it('has the buttons for the PDF and sharing, and none for a CSV, only when something is graded', async () => {
     renderAdmin('/tests/6E2-26T1/report', apiWith());
     expect(await screen.findByRole('button', { name: 'Descarcă PDF' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Descarcă CSV' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /CSV/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trimite PDF-ul' })).toBeInTheDocument();
   });
 
@@ -282,7 +282,6 @@ describe('ReportPage', () => {
     renderAdmin('/tests/6E2-26T1/report', apiWith(report({ rows: [] })));
     expect(await screen.findByText('Nicio lucrare nu este corectată încă', { exact: false })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Descarcă PDF' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Descarcă CSV' })).not.toBeInTheDocument();
   });
 
   it('shows the grade groups and the statistics of each exercise', async () => {

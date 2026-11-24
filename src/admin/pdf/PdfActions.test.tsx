@@ -67,19 +67,4 @@ describe('PdfActions', () => {
     finish(blob);
     expect(await screen.findByRole('button', { name: 'Trimite PDF-ul' })).toBeEnabled();
   });
-
-  it('saves the CSV without making a PDF, as UTF-8 text', async () => {
-    render(<PdfActions pdf={pdf} csv={{ build: () => '﻿Elev;Nota\r\n', fileName: 'raport.csv' }} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Descarcă CSV' }));
-    expect(renderPdf).not.toHaveBeenCalled();
-    const [file, name] = saveFile.mock.calls[0]!;
-    expect(name).toBe('raport.csv');
-    expect((file as Blob).type).toBe('text/csv;charset=utf-8');
-    expect(await (file as Blob).text()).toBe('Elev;Nota\r\n');
-  });
-
-  it('has no CSV button without a CSV', () => {
-    render(<PdfActions pdf={pdf} />);
-    expect(screen.queryByRole('button', { name: 'Descarcă CSV' })).not.toBeInTheDocument();
-  });
 });

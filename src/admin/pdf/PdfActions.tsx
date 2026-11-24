@@ -13,11 +13,6 @@ export interface PdfFile {
   title: string;
 }
 
-export interface CsvFile {
-  build: () => string;
-  fileName: string;
-}
-
 // Makes a PDF when it is asked for, and saves it or hands it to the share
 // sheet. `busy` while it is made; `message` says what went wrong, or that the
 // PDF was saved because this device cannot send it.
@@ -44,10 +39,9 @@ export function usePdfFile(pdf: PdfFile) {
   return { busy, message, run };
 }
 
-// "Descarcă PDF" and "Trimite PDF-ul" for a PDF, and "Descarcă CSV" when the
-// page has one (spec §14). The PDF is made when a button is pressed: its code
-// loads then, not with the page.
-export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
+// "Descarcă PDF" and "Trimite PDF-ul" for a PDF (spec §14). The PDF is made
+// when a button is pressed: its code loads then, not with the page.
+export function PdfActions({ pdf }: { pdf: PdfFile }) {
   const { busy, message, run } = usePdfFile(pdf);
 
   return (
@@ -56,16 +50,6 @@ export function PdfActions({ pdf, csv }: { pdf: PdfFile; csv?: CsvFile }) {
         <ActionIcon name="file" />
         {t('Descarcă PDF')}
       </button>
-      {csv && (
-        <button
-          type="button"
-          className="button-quiet button-small"
-          onClick={() => saveFile(new Blob([csv.build()], { type: 'text/csv;charset=utf-8' }), csv.fileName)}
-        >
-          <ActionIcon name="file" />
-          {t('Descarcă CSV')}
-        </button>
-      )}
       <button type="button" className="button-quiet button-small" disabled={busy} onClick={() => run('share')}>
         <ActionIcon name="share" />
         {t('Trimite PDF-ul')}

@@ -2,8 +2,6 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ClassReport, TestInfo, UploadRow } from '../../../shared/api.ts';
-import { classCsv } from '../../../shared/csv.ts';
-import { uploadStatusLabel } from '../../ui/format.ts';
 import { createFakeApi, FAKE_MULTI_TOKEN, FAKE_STARTED_AT, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { ApiError } from '../api.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
@@ -59,7 +57,7 @@ describe('the panel Rezultate', () => {
     ]);
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Linkurile cu rezultatele elevilor' })).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Raportul clasei' })).getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Raportul clasei' })).getByText('Raportul clasei apare după prima corectare.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('link', { name: 'Mergi la În clasă: Testul început' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'În clasă' })).toHaveFocus();
     expect(screen.queryByRole('heading', { name: 'Pentru tine' })).not.toBeInTheDocument();
@@ -87,7 +85,7 @@ describe('the panel Rezultate', () => {
     expect(within(row('Stan Eva')).getByText('Nu a trimis lucrarea.')).toBeInTheDocument();
     expect(within(row('Marin Dan')).getByText('Nu a trimis lucrarea.')).toBeInTheDocument();
     expect(screen.getByText('0 publicate · 1 nepublicat')).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Raportul clasei' })).getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Raportul clasei' })).getByText('Raportul clasei apare după prima corectare.')).toBeInTheDocument();
   });
 
   it('shows the points and the grade of a graded paper, and dashes for a paper not graded yet', async () => {
@@ -269,7 +267,7 @@ describe('the panel Rezultate', () => {
     );
   });
 
-  it('shows "Raportul clasei" once a paper is graded: the average in its colour, the grades by group, the report, and the CSV', async () => {
+  it('shows "Raportul clasei" once a paper is graded: the average in its colour, the grades by group, and the report, with no CSV', async () => {
     const rows = [...graded(), fakeUpload({ studentId: 13, studentName: 'Vlad Ana', active: false, submissionId: 7, status: 'graded', fileCount: 1, grade: 4 })];
     renderAdmin(PAGE, apiWith({ status: 'done' }, rows));
     const card = await screen.findByRole('region', { name: 'Raportul clasei' });
@@ -284,7 +282,7 @@ describe('the panel Rezultate', () => {
     expect(open).toHaveAttribute('href', '/tests/6E2-26T1/report');
     expect(open).toHaveClass('button');
     expect(open).toHaveTextContent(/^Deschide raportul$/);
-    expect(within(card).getByRole('button', { name: 'CSV pentru catalog' })).toHaveClass('text-button', 'is-quiet');
+    expect(within(card).queryByRole('button', { name: /CSV/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Pentru tine' })).not.toBeInTheDocument();
     expect(screen.queryByText(/^PDF-ul cu rezultatul unui elev/)).not.toBeInTheDocument();
   });
@@ -293,51 +291,12 @@ describe('the panel Rezultate', () => {
     const rows = [fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2 })];
     renderAdmin(PAGE, apiWith({ status: 'evaluating', resultsOpen: true }, rows));
     const card = await screen.findByRole('region', { name: 'Raportul clasei' });
-    expect(within(card).getByText('Raportul clasei și CSV-ul apar după prima corectare.')).toBeInTheDocument();
+    expect(within(card).getByText('Raportul clasei apare după prima corectare.')).toBeInTheDocument();
     expect(within(card).queryByRole('link')).not.toBeInTheDocument();
     expect(within(card).queryByRole('button')).not.toBeInTheDocument();
     const table = screen.getByRole('table', { name: 'Linkurile cu rezultatele elevilor' });
     expect(table.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
     expect(screen.getByRole('heading', { level: 3, name: 'Elevii' })).toBeInTheDocument();
-  });
-
-  it('downloads the CSV of the class report', async () => {
-    const report: ClassReport = {
-      test: { code: '6E2-26T1', title: 'Fracții', classId: 1, className: '6E2', status: 'done', startedAt: '2026-10-06T07:15:00.000Z' },
-      cesExercises: null,
-      exercises: [{ id: 'I.1', label: 'Subiectul I, exercițiul 1', maxPoints: 4.5 }],
-      rows: [
-        {
-          submissionId: 5,
-          studentId: 10,
-          studentName: 'Pop Ion',
-          active: true,
-          total: 9,
-          maxTotal: 10,
-          grade: 9,
-          flagCount: 0, ces: false, variant: 'class',
-          items: [{ exerciseId: 'I.1', points: 4.5, maxPoints: 4.5, flagged: false }],
-        },
-      ],
-      missing: [{ studentId: 12, studentName: 'Marin Dan', status: 'none', ces: false }],
-      analysis: { status: 'none', stale: false, attempts: 0, content: null },
-    };
-    const api = apiWith({ status: 'done' }, graded(), { '6E2-26T1': report });
-    renderAdmin(PAGE, api);
-    await userEvent.click(await screen.findByRole('button', { name: 'CSV pentru catalog' }));
-    await vi.waitFor(() => expect(saveFile).toHaveBeenCalledTimes(1));
-    expect(api.getReport).toHaveBeenCalledWith('6E2-26T1');
-    const [blob, fileName] = saveFile.mock.calls[0]!;
-    expect(fileName).toBe('6E2-26T1-raport.csv');
-    // The BOM stays: Excel reads the diacritics by it.
-    expect(new TextDecoder('utf-8', { ignoreBOM: true }).decode(await blob.arrayBuffer())).toBe(classCsv(report, uploadStatusLabel));
-  });
-
-  it('says why the CSV could not be made', async () => {
-    renderAdmin(PAGE, apiWith({ status: 'done' }, graded()));
-    await userEvent.click(await screen.findByRole('button', { name: 'CSV pentru catalog' }));
-    expect(await screen.findByText('Nu am găsit ce cauți.')).toBeInTheDocument();
-    expect(saveFile).not.toHaveBeenCalled();
   });
 });
 
