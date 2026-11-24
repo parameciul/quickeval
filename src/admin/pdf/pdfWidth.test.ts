@@ -33,7 +33,7 @@ describe('pdfTextWidth', () => {
   });
 
   it('takes a wide width for a character it does not know', () => {
-    expect(pdfTextWidth('中', 10)).toBe(10);
+    expect(pdfTextWidth('中', 10)).toBe(12);
     expect(pdfTextWidth('', 10)).toBe(0);
   });
 });

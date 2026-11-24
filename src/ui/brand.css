@@ -3124,8 +3124,7 @@ table.tests .row-actions {
 }
 
 /* "Raportul clasei": the average in its grade colour, the grades by group in
-   the same colours, the one button to the report, and the CSV as a quiet
-   text button. */
+   the same colours, and the one button to the report. */
 .report-card {
   display: grid;
   gap: 0.75rem;

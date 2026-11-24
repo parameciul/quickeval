@@ -125,14 +125,12 @@ function resultsBlocks(table: ReportTable): Content[] {
   const fits = (block: ReportTable['exercises'], last: boolean) =>
     tableWidth([nameWidth, ...block.map((exercise) => widths.get(exercise.id)!), ...(last ? tail : [])]) <= PAGE_WIDTH;
 
-  const count = table.exercises.length;
-  let blocks = evenBlocks(table.exercises, Math.max(1, count));
-  for (let size = 1; size <= count; size++) {
-    const candidate = evenBlocks(table.exercises, size);
-    if (candidate.every((block, index) => fits(block, index === size - 1))) {
-      blocks = candidate;
-      break;
-    }
+  // The fewest blocks that fit. One exercise per block always fits: the
+  // name and an exercise column are at most 180 and 60 pt.
+  let blocks: ReportTable['exercises'][] = [table.exercises];
+  for (let count = 1; count <= table.exercises.length; count++) {
+    blocks = evenBlocks(table.exercises, count);
+    if (blocks.every((block, index) => fits(block, index === count - 1))) break;
   }
   return blocks.map((block, index) => resultsTable(table, block, nameWidth, widths, index === blocks.length - 1 ? tail : null));
 }

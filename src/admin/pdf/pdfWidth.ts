@@ -18,9 +18,10 @@ const ROMANIAN: Record<string, number> = { î: 262 };
 // Another letter with a mark can be wider than its base letter: ǐ is 189
 // wider than i, the most of them.
 const MARK = 190;
-// A character outside ASCII and with no ASCII base letter: as wide as the
-// font size, wider than any Latin letter, so the estimate stays on the safe side.
-const WIDE = 1000;
+// A character outside ASCII and with no ASCII base letter: 1.2 times the
+// font size, wider than any glyph of the font that a name or an exercise id
+// would hold (the widest, Ѹ, is 1.18), so the estimate stays on the safe side.
+const WIDE = 1200;
 
 const ROMANIAN_MARKED = 'ăâîșțĂÂÎȘȚşţŞŢ'; // i18n-ignore
 

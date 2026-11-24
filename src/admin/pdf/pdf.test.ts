@@ -364,6 +364,19 @@ describe('classPdf', () => {
     expect(small!.table.keepWithHeaderRows).toBe(2);
   });
 
+  it('gives a long exercise id a column of at most 60 pt, where it wraps', () => {
+    const [table] = resultsTables(classPdf(realClass(['Subiectul III, exercițiul 4, punctul b'], 2)));
+    expect(table!.table.widths[1]).toBe(60);
+  });
+
+  it('makes one table of Elev, Total and Nota for a test with no exercises and no graded paper', () => {
+    const empty = { ...realClass([], 0) };
+    const tables = resultsTables(classPdf(empty));
+    expect(tables).toHaveLength(1);
+    expect(headerTexts(tables[0]!)).toEqual(['Elev', 'Total', 'Nota']);
+    expect(tables[0]!.table.keepWithHeaderRows).toBe(0);
+  });
+
   it('gives a long name a column of at most 180 pt, where it wraps', () => {
     const base = realClass(['I.1'], 1);
     const long = { ...base, rows: [{ ...base.rows[0]!, studentName: 'Gheorghiță Rais-Bogdan-Jahjah Alexandru-Constantin Popescu-Ionescu' }] };
