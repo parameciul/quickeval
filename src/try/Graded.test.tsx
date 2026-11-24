@@ -64,6 +64,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('a try paper not graded yet', () => {
+  it('says that its grading starts on the try page, with no way to the class grading', async () => {
+    const paper = fakeSubmission({ id: TRY_SUBMISSION, testCode: TRY_CODE, testTitle: QUICK_TRY_TITLE, studentName: QUICK_TRY_STUDENT, testStatus: 'open', status: 'submitted', files: [photo] });
+    const test = tryTest({ status: 'open', files }, { status: 'submitted', fileCount: 1 });
+    const api = createFakeApi({ classes: [], students: {}, tests: [test], submissions: [paper] });
+    renderTry(`/tests/${TRY_CODE}/review?paper=${TRY_SUBMISSION}`, api, createFakeTryApi({ result: structuredClone(studentResult) }), <LocationProbe />);
+    expect(await screen.findByText('Lucrarea nu e corectată încă')).toBeInTheDocument();
+    expect(screen.getByText('Corectarea pornește din pagina încercării.')).toBeInTheDocument();
+    expect(screen.queryByText(/toată clasa/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Mergi la Corectare' })).not.toBeInTheDocument();
+  });
+});
+
 describe('a graded try', () => {
   it('opens on the points to check, and the review of the app checks them', async () => {
     const { api } = setup();

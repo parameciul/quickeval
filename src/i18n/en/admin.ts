@@ -585,6 +585,8 @@ export const ADMIN = {
   "Lucrarea nu e corectată încă": "The paper is not graded yet",
   "Corectarea pornește pentru toată clasa, din etapa Corectare.": "Grading starts for the whole class, from the Grading stage.",
   "Mergi la Corectare": "Go to Grading",
+  "Lucrarea așteaptă baremul CES": "The paper waits for the SEN marking scheme",
+  "Corectarea pornește din pagina încercării.": "Grading starts from the try's page.",
   "{took} din {students} au trimis.": "{took} of {students} have sent.",
   "{took} din {students} au participat.": "{took} of {students} took part.",
   "1 din {students} a trimis.": "1 of {students} has sent.",

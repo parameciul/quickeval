@@ -72,10 +72,8 @@ function partOf(row: UploadRow, status: TestStatus, open: boolean, ces: CesBar):
       return 'graded';
     case 'grading':
       return 'grading';
-    case 'submitted': {
-      const cesPaper = row.variant === 'ces' || (row.variant === null && row.ces && ces.hasTest);
-      return status === 'evaluating' && !(cesPaper && !ces.baremActive) ? 'grading' : 'waiting';
-    }
+    case 'submitted':
+      return status === 'evaluating' && !cesWaitsBarem(row, status, ces) ? 'grading' : 'waiting';
     case 'failed':
       return 'failed';
     case 'uploading':
@@ -83,6 +81,13 @@ function partOf(row: UploadRow, status: TestStatus, open: boolean, ces: CesBar):
     case 'none':
       return open ? 'notYet' : 'absent';
   }
+}
+
+// A sent CES paper of an evaluating test that waits for the CES barem: the
+// robot grades it only once that barem is active.
+export function cesWaitsBarem(row: UploadRow, status: TestStatus, ces: CesBar): boolean {
+  const cesPaper = row.variant === 'ces' || (row.variant === null && row.ces && ces.hasTest);
+  return row.status === 'submitted' && status === 'evaluating' && cesPaper && !ces.baremActive;
 }
 
 // The papers bar of the test page (spec 2026-11-12 §5.2), from the uploads

@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { ApiError } from '../api.ts';
-import { createFakeApi, fakeEvaluation, fakeItem, fakeTeacher, fakeTest, fakeUpload, reviewPointsOf } from '../../test/fakeApi.ts';
+import { PDF_TYPE } from '../../../shared/files.ts';
+import { createFakeApi, fakeEvaluation, fakeItem, fakeTeacher, fakeTest, fakeUpload, noCesVariant, reviewPointsOf } from '../../test/fakeApi.ts';
 import { expectLocation, LocationProbe, renderAdmin } from '../../test/renderAdmin.tsx';
 import { resultRefreshInterval } from './PaperPage.tsx';
 
@@ -265,6 +266,25 @@ describe('the paper page', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Elevul următor: Radu Ana' }));
     await expectLocation('/tests/6E2-26T1/papers/6');
     expect(await screen.findByRole('heading', { level: 1, name: 'Radu Ana' })).toBeInTheDocument();
+  });
+
+  it('says that a CES paper waits for its barem, with the way to the CES variant', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 1 }],
+      students: {},
+      tests: [
+        fakeTest({ status: 'evaluating', ces: noCesVariant({ studentCount: 1, files: { test: { name: 'Test CES.pdf', type: PDF_TYPE }, barem: null }, waiting: 1 }) }, [
+          fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'submitted', fileCount: 2, ces: true }),
+        ]),
+      ],
+      submissions: [structuredClone({ ...submission, testStatus: 'evaluating' as const })],
+    });
+    renderAdmin(page, api);
+    expect(await screen.findByText('Lucrarea așteaptă baremul CES')).toBeInTheDocument();
+    expect(screen.getByText('Încarcă sau generează baremul CES la Pregătire.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mergi la varianta CES' })).toHaveAttribute('href', '/tests/6E2-26T1#prepare');
+    // The robot does not grade it until then.
+    expect(screen.queryByText('Lucrarea așteaptă robotul')).not.toBeInTheDocument();
   });
 
   it('says that a paper held back from grading waits for the teacher, once the uploads are closed', async () => {

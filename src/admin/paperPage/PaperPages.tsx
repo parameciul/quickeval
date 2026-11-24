@@ -38,19 +38,23 @@ function NowRow({ icon, tone = 'plain', title, line, action }: { icon: NowIconNa
 // Where an upload without a result is, and the one thing to do about it.
 // `heldBackText` says why a held-back paper waits (`heldBackHint` of the
 // account); `corectare` is the address of the test's Corectare, none on a
-// Quick Try's page; `sent` says how many students sent, for a paper that
-// waits for the grading to start; `retry` is "Reîncearcă" of a failed paper.
+// Quick Try's page, whose grading starts on the try's own page; `sent` says
+// how many students sent, for a paper that waits for the grading to start;
+// `ces` says why a CES paper waits for its barem and where to see to it;
+// `retry` is "Reîncearcă" of a failed paper.
 export function PaperNow({
   submission,
   heldBackText,
   corectare,
   sent,
+  ces,
   retry,
 }: {
   submission: SubmissionDetail;
   heldBackText: string;
   corectare: string | null;
   sent: string | null;
+  ces: { why: string; to: string } | null;
   retry: ReactNode;
 }) {
   const toCorectare = (main: boolean) =>
@@ -88,8 +92,27 @@ export function PaperNow({
   if (submission.status === 'grading') {
     return <NowRow icon="generate" tone="robot" title={t('Robotul corectează acum lucrarea')} line={t('Exercițiile apar aici când termină.')} />;
   }
+  if (ces !== null) {
+    return (
+      <NowRow
+        icon="info"
+        tone="wait"
+        title={t('Lucrarea așteaptă baremul CES')}
+        line={ces.why}
+        action={
+          <Link className="button-quiet" to={ces.to}>
+            {t('Mergi la varianta CES')}
+            <ActionIcon name="arrow" />
+          </Link>
+        }
+      />
+    );
+  }
   if (submission.testStatus === 'evaluating') {
     return <NowRow icon="clock" tone="robot" title={t('Lucrarea așteaptă robotul')} line={t('Pagina se actualizează singură.')} />;
+  }
+  if (corectare === null) {
+    return <NowRow icon="clock" title={t('Lucrarea nu e corectată încă')} line={t('Corectarea pornește din pagina încercării.')} />;
   }
   return (
     <NowRow

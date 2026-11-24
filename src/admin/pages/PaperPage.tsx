@@ -21,7 +21,8 @@ import { type ReviewFocus, ReviewPhoto } from '../reviewPage/ReviewPhoto.tsx';
 import { PhotoSplit, savedPhotoShare, shareStyle } from '../paperPage/PhotoSplit.tsx';
 import { stageHash } from '../stages.ts';
 import { GradedResult } from '../submissionPage/GradedResult.tsx';
-import { heldBackHint, paperCounts } from '../testPage/paperCounts.ts';
+import { cesWaitsBarem, heldBackHint, paperCounts } from '../testPage/paperCounts.ts';
+import { cesBaremWhy } from '../testPage/CesVariant.tsx';
 import { cesBaremActive } from '../testPage/variant.ts';
 import { countLabel } from '../../ui/format.ts';
 import { NotFoundPage } from './NotFoundPage.tsx';
@@ -785,6 +786,11 @@ function Paper({
                 heldBackText={heldBackHint(me.data)}
                 corectare={place === 'app' ? `/tests/${code}${stageHash('Corectare')}` : null}
                 sent={place === 'app' ? sentLine(test, uploads) : null}
+                ces={
+                  place === 'app' && row && cesWaitsBarem(row, test.status, { hasTest: test.ces.files.test !== null, baremActive: cesBaremActive(test) })
+                    ? { why: cesBaremWhy(test), to: `/tests/${code}${stageHash('Pregătire')}` }
+                    : null
+                }
                 retry={
                   place === 'app' && submission.status === 'failed' ? (
                     <div className="now-actions">
