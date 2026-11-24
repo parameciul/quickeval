@@ -275,7 +275,7 @@ describe('ReportPage', () => {
     renderAdmin('/tests/6E2-26T1/report', apiWith());
     expect(await screen.findByRole('button', { name: 'Descarcă PDF' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Descarcă CSV' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Trimite' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trimite PDF-ul' })).toBeInTheDocument();
   });
 
   it('has no buttons for a class with nothing graded', async () => {

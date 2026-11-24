@@ -34,7 +34,7 @@ describe('PdfActions', () => {
   it('shares the PDF, and says nothing when it was shared', async () => {
     shareFile.mockResolvedValue('shared');
     render(<PdfActions pdf={pdf} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Trimite' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite PDF-ul' }));
     expect(shareFile).toHaveBeenCalledWith(blob, 'raport.pdf', 'Raportul clasei');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
@@ -42,7 +42,7 @@ describe('PdfActions', () => {
   it('says that the PDF was downloaded when sharing is not possible', async () => {
     shareFile.mockResolvedValue('downloaded');
     render(<PdfActions pdf={pdf} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Trimite' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite PDF-ul' }));
     expect(await screen.findByText('Trimiterea nu merge pe acest dispozitiv. PDF-ul s-a descărcat.')).toBeInTheDocument();
   });
 
@@ -63,9 +63,9 @@ describe('PdfActions', () => {
     render(<PdfActions pdf={pdf} />);
     await userEvent.click(screen.getByRole('button', { name: 'Descarcă PDF' }));
     expect(screen.getByText('Se face PDF-ul…')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Trimite' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Trimite PDF-ul' })).toBeDisabled();
     finish(blob);
-    expect(await screen.findByRole('button', { name: 'Trimite' })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: 'Trimite PDF-ul' })).toBeEnabled();
   });
 
   it('saves the CSV without making a PDF, as UTF-8 text', async () => {

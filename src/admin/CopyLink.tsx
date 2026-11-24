@@ -20,7 +20,12 @@ export function useCopyLink() {
       setRefused(true);
     }
   };
-  return { copied, refused, copy, field };
+  // Back to the start, when what showed the result of a copy closes.
+  const reset = () => {
+    setCopied(false);
+    setRefused(false);
+  };
+  return { copied, refused, copy, reset, field };
 }
 
 // The link in a field, after a refused copy; the line above it says why the

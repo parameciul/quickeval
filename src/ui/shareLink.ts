@@ -1,6 +1,6 @@
-// Sends a result link where the student will find it again: the phone's share
-// sheet (their own chat, a message to a parent), else the clipboard, else the
-// page shows the link to copy by hand.
+// Sends a result link: the phone's share sheet (a chat, a message to a
+// parent), else the clipboard, else the page shows the link to copy by hand.
+// The student app and the teacher's paper page use it.
 export type LinkShare = 'shared' | 'cancelled' | 'copied' | 'manual';
 
 export async function shareLink(data: { url: string; title: string; text?: string }): Promise<LinkShare> {
@@ -9,7 +9,7 @@ export async function shareLink(data: { url: string; title: string; text?: strin
       await navigator.share(data);
       return 'shared';
     } catch (err) {
-      // The student closed the share sheet: nothing more to do.
+      // The share sheet was closed: nothing more to do.
       if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled';
     }
   }

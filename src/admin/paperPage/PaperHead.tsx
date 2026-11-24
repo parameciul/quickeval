@@ -6,11 +6,9 @@ import { formatDateTime, robotStartMessage, uploadStatusLabel } from '../../ui/f
 import { useApi } from '../ApiContext.tsx';
 import { ActionsMenu, type MenuAction } from '../ActionsMenu.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
-import { PdfActions } from '../pdf/PdfActions.tsx';
 import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentPdf.ts';
 import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
-import { ResultLink } from '../testPage/ResultLink.tsx';
-import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { ResultMenu } from './ResultMenu.tsx';
 import { t } from '../../i18n/t.ts';
 import { tryName } from '../../../shared/quickTry.ts';
 
@@ -55,10 +53,12 @@ export function usePaperActions(code: string, submissionId: number) {
 
 type PaperActions = ReturnType<typeof usePaperActions>;
 
-// The head of the paper page (from the paper's page before it): the student,
-// the test and the state, and the times; on the right what the
-// teacher takes away (all the student's grades, the PDF) and "Alte acțiuni";
-// under it the student's result link, once the paper is graded.
+// The head of the paper page: the student, the test and the state, the times
+// and a link to all the student's grades; on the right, once the paper is
+// graded, "Rezultatul elevului" (the result link and the PDF, with whether the
+// result is published), and "Alte acțiuni" (⋯ on a phone). Nothing under the
+// head depends on the paper's state, so the page does not move between a
+// graded paper and one that is not.
 export function PaperHead({ submission, actions }: { submission: SubmissionDetail; actions: PaperActions }) {
   const { regrade, reset } = actions;
   // The student's PDF, only for a graded result.
@@ -104,15 +104,16 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
           <p className="hint">
             {t('Început')}{' '}{formatDateTime(submission.startedAt)}
             {submission.submittedAt && t(' · trimis {formatDateTime}', { formatDateTime: formatDateTime(submission.submittedAt) })}
+            {' · '}
+            <Link className="submission-grades-link" to={`/students/${submission.studentId}`}>
+              {t('Toate notele elevului')}
+            </Link>
           </p>
         </div>
         <div className="submission-tools">
-          <Link className="button-quiet button-small" to={`/students/${submission.studentId}`}>
-            <ActionIcon name="report" />
-            {t('Toate notele elevului')}
-          </Link>
           {pdfInput && (
-            <PdfActions
+            <ResultMenu
+              submission={submission}
               pdf={{
                 build: () => studentPdf(pdfInput),
                 fileName: studentPdfFileName(pdfInput),
@@ -120,28 +121,11 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
               }}
             />
           )}
-          <ActionsMenu label={t('Alte acțiuni')} menuId="paper-actions-menu" actions={paperActions} />
+          <ActionsMenu label={t('Alte acțiuni')} menuId="paper-actions-menu" actions={paperActions} compact />
         </div>
       </header>
       {regrade.error && <ErrorMessage error={regrade.error} />}
       {reset.error && <ErrorMessage error={reset.error} />}
-      {/* The result link only once the paper is graded: before, the teacher
-          looks over its pages, and there is no result to share yet. */}
-      {submission.status === 'graded' && (
-        <div className="result-link-row">
-          <span className="result-link-label">{t('Linkul cu rezultatul elevului')}</span>
-          <span className={submission.resultsOpen ? 'tag tag-ok' : 'tag'}>
-            {submission.resultsOpen ? t('Rezultatele sunt publicate.') : t('Rezultatele nu sunt publicate încă.')}
-          </span>
-          <ResultLink
-            submissionId={submission.id}
-            startedAt={submission.startedAt}
-            resultToken={submission.resultToken}
-            testCode={submission.testCode}
-            studentName={submission.studentName}
-          />
-        </div>
-      )}
       {/* The news after Recorectează or Reîncearcă holds only until the result is back. */}
       {actions.notice !== null && (submission.status === 'submitted' || submission.status === 'grading') && <p role="status">{actions.notice}</p>}
     </>
