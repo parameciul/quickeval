@@ -286,7 +286,7 @@ describe('classPdf with CES papers', () => {
 });
 
 describe('classPdf', () => {
-  it('is landscape, with the statistics, the table, the missing students, and the analysis', () => {
+  it('is landscape, with the statistics, the table and the analysis, and no list of the students with no result', () => {
     const definition = classPdf(report(5));
     expect(definition.pageOrientation).toBe('landscape');
     const text = textsOf(definition.content).join('\n');
@@ -459,8 +459,8 @@ describe('classPdf', () => {
   });
 
   it('keeps the header of the exercises table with its first rows', () => {
-    type Node = { table?: { body: { text: string }[][]; keepWithHeaderRows?: number } };
-    const exercisesTable = (exerciseCount: number) => (classPdf(report(exerciseCount)).content as Node[]).find((node) => node.table?.body[0]?.[0]?.text === 'Exercițiul')!;
+    type TableNode = { table?: { body: { text: string }[][]; keepWithHeaderRows?: number } };
+    const exercisesTable = (exerciseCount: number) => (classPdf(report(exerciseCount)).content as TableNode[]).find((node) => node.table?.body[0]?.[0]?.text === 'Exercițiul')!;
     expect(exercisesTable(8).table!.keepWithHeaderRows).toBe(5);
     expect(exercisesTable(2).table!.keepWithHeaderRows).toBe(2);
   });
@@ -529,13 +529,13 @@ describe('classPdf', () => {
       const headings = headingsOf(shortOverview);
       const analysis = headings.find((part) => part.text === 'Analiza clasei')!;
       const strengths = headings.find((part) => part.text === 'Ce a mers bine')!;
-      // "Ce a mers bine" holds one line: it needs only that line.
-      expect(roomOf(shortOverview, strengths.id!)).toBeCloseTo(11 * 1.171875 + 2 + 10 * 1.171875, 1);
+      // "Ce a mers bine" holds one line: it needs only that line, and 2 pt to spare.
+      expect(roomOf(shortOverview, strengths.id!)).toBeCloseTo(11 * 1.171875 + 2 + 10 * 1.171875 + 2, 1);
       // One line of overview: the analysis's heading needs it, the 6 pt above "Ce a mers bine" and its room.
-      expect(roomOf(shortOverview, analysis.id!)).toBeCloseTo(13 * 1.171875 + 4 + 10 * 1.171875 + 6 + roomOf(shortOverview, strengths.id!), 1);
+      expect(roomOf(shortOverview, analysis.id!)).toBeCloseTo(13 * 1.171875 + 4 + 2 + 10 * 1.171875 + 6 + roomOf(shortOverview, strengths.id!), 1);
       const longOverview = classPdf({ ...base, analysis: { ...base.analysis, stale: false, content: { ...base.analysis.content!, overview: 'Clasa a lucrat bine. '.repeat(60) } } });
       const longAnalysis = headingsOf(longOverview).find((part) => part.text === 'Analiza clasei')!;
-      expect(roomOf(longOverview, longAnalysis.id!)).toBeCloseTo(13 * 1.171875 + 4 + 3 * 10 * 1.171875, 1);
+      expect(roomOf(longOverview, longAnalysis.id!)).toBeCloseTo(13 * 1.171875 + 4 + 2 + 3 * 10 * 1.171875, 1);
     });
 
     it('keeps a heading at the top of its page, which would else leave a blank page', () => {

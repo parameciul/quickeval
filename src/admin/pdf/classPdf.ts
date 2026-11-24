@@ -89,7 +89,8 @@ export const tableWidth = (widths: number[]) => drawnWidth(widths, COLUMN_PADDIN
 // a line of Roboto 1.171875 times its size ((1900 + 500) / 2048). A table row
 // has 2 pt above and under its text and a line of 1 pt (2 pt under the
 // header). A heading's height counts its line and its margin under it. These
-// match the measures of a rendered PDF.
+// match the measures of a PDF rendered by pdfmake 0.3.11: measure them again
+// after an upgrade of pdfmake.
 const LINE = 1.171875;
 const lineHeight = (size: number) => size * LINE;
 const H2_HEIGHT = lineHeight(13) + 4;
@@ -97,9 +98,10 @@ const H3_HEIGHT = lineHeight(11) + 2;
 const TEXT_LINE = lineHeight(10);
 const headerRowHeight = (lines: number) => lines * lineHeight(HEADER_SIZE) + 6;
 const rowHeight = (lines: number) => lines * lineHeight(CELL_SIZE) + 5;
-// The 2 pt above a table's first row, and a little to spare: an estimate too
+// To spare, under a table's start and under lines of text: an estimate too
 // small leaves a heading alone again, one too large only some white space.
 const TABLE_SLACK = 8;
+const TEXT_SLACK = 2;
 
 // The lines `text` takes in `width`, on the safe side: a text that wraps
 // breaks between words, so it can take a line more than its width says.
@@ -269,9 +271,9 @@ export function headingBreak(node: Node, room: number | undefined): boolean {
   return pageInnerHeight - above < room;
 }
 
-// A heading this close to the top of the page is at its top (an h2's margin
-// above it is 12 pt).
-const AT_TOP = 20;
+// A heading this close to the top of the page is at its top: its margin
+// above it is at most 12 pt (an h2's).
+const AT_TOP = 12 + 1;
 // The lines of text that must follow a heading on its page.
 const MIN_LINES = 3;
 
@@ -295,7 +297,8 @@ const linesOfAll = (texts: string[], width: number): Lines => ({
 
 // The height of three lines of text, or, when the text can be shorter, of
 // all of it and then `next`, the room of the heading after it.
-const textStart = ({ least, most }: Lines, next = 0) => (least >= MIN_LINES ? MIN_LINES * TEXT_LINE : Math.min(most, MIN_LINES) * TEXT_LINE + next);
+const textStart = ({ least, most }: Lines, next = 0) =>
+  TEXT_SLACK + (least >= MIN_LINES ? MIN_LINES * TEXT_LINE : Math.min(most, MIN_LINES) * TEXT_LINE + next);
 
 // A list's text width: the page without its bullet.
 const LIST_WIDTH = PAGE_WIDTH - 20;
@@ -349,7 +352,7 @@ export function classPdf(source: ClassReport): TDocumentDefinitions {
         .join(' · '),
       color: MUTED,
     },
-    heading('h2', t('Statistici'), MIN_LINES * TEXT_LINE),
+    heading('h2', t('Statistici'), TEXT_SLACK + MIN_LINES * TEXT_LINE),
     { text: t('Corectate {gradedCount} din {activeCount} elevi{v3}', { gradedCount: stats.gradedCount, activeCount: stats.activeCount, v3: stats.flaggedCount > 0 ? ` · ${t('de verificat {flaggedCount}', { flaggedCount: stats.flaggedCount })}` : '' }) },
     {
       columns: [
