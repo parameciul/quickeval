@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Link } from 'react-router';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { studentResultUrl } from '../api.ts';
@@ -26,21 +26,31 @@ export function ResultMenu({ submission, pdf }: { submission: SubmissionDetail; 
   const [made, setMade] = useState<string | null>(null);
   const token = submission.resultToken ?? made;
   const url = token === null ? null : studentResultUrl(token);
-  const { copied, refused, copy, field } = useCopyLink();
+  const { copied, refused, copy, reset, field } = useCopyLink();
+  // A closed panel opens again fresh: no "Copiat!", no field of a refused copy.
+  useEffect(() => {
+    if (!open) reset();
+  }, [open]);
+  // "Copiază linkul" takes the place of "Fă linkul": the focus goes there.
+  const copyItem = useRef<HTMLButtonElement>(null);
   const [linkShares] = useState(() => typeof navigator.share === 'function');
   const [pdfShares] = useState(canShareFiles);
   const file = usePdfFile(pdf);
   // A paper sent before the links were made with the upload has none yet.
   const make = useMutation({
     mutationFn: () => api.getResultLink(submission.id, submission.startedAt),
-    onSuccess: setMade,
+    onSuccess: (made) => {
+      setMade(made);
+      setTimeout(() => copyItem.current?.focus());
+    },
   });
   const published = submission.resultsOpen;
 
   const sendLink = async (link: string) => {
     const sent = await shareLink({ url: link, title: `${submission.testCode} · ${submission.studentName}` });
-    // No share sheet and no clipboard: the field shows the link to copy by hand.
-    if (sent === 'manual') await copy(link);
+    // The share sheet failed and the link went to the clipboard: "Copiat!"
+    // says so; with no clipboard either, the field shows it to copy by hand.
+    if (sent === 'copied' || sent === 'manual') await copy(link);
   };
 
   return (
@@ -54,7 +64,7 @@ export function ResultMenu({ submission, pdf }: { submission: SubmissionDetail; 
         onClick={toggle}
       >
         <ActionIcon name="link" />
-        <span className="result-menu-label">{t('Rezultatul elevului')}</span>
+        {t('Rezultatul elevului')}
         <span className={published ? 'tag tag-ok' : 'tag'}>{published ? t('Publicat') : t('Nepublicat')}</span>
         <Chevron />
       </button>
@@ -83,6 +93,7 @@ export function ResultMenu({ submission, pdf }: { submission: SubmissionDetail; 
           ) : (
             <>
               <PanelItem
+                buttonRef={copyItem}
                 icon={copied ? 'check' : 'copy'}
                 label={copied ? t('Copiat!') : t('Copiază linkul')}
                 hint={t('Îl lipești într-un email sau într-un mesaj.')}
@@ -122,8 +133,10 @@ export function ResultMenu({ submission, pdf }: { submission: SubmissionDetail; 
 }
 
 // One line of the panel: the icon of its verb, its name, and under it what it
-// does (its accessible description; the name is the label alone). A button, a link inside the app (`to`) or
-// a link that opens in a new tab (`href`).
+// does (its accessible description; the name is the label alone). A button,
+// a link inside the app (`to`) or a link that opens in a new tab (`href`).
+// While its work runs a button is `aria-disabled` and ignores clicks: a
+// disabled button would drop the focus out of the panel.
 function PanelItem({
   icon,
   label,
@@ -132,6 +145,7 @@ function PanelItem({
   onClick,
   to,
   href,
+  buttonRef,
 }: {
   icon: ActionIconName;
   label: string;
@@ -140,6 +154,7 @@ function PanelItem({
   onClick?: () => void;
   to?: string;
   href?: string;
+  buttonRef?: Ref<HTMLButtonElement>;
 }) {
   const hintId = useId();
   const inside: ReactNode = (
@@ -166,7 +181,15 @@ function PanelItem({
     );
   }
   return (
-    <button type="button" className="paper-action" disabled={busy} aria-label={label} aria-describedby={hintId} onClick={onClick}>
+    <button
+      ref={buttonRef}
+      type="button"
+      className="paper-action"
+      aria-disabled={busy || undefined}
+      aria-label={label}
+      aria-describedby={hintId}
+      onClick={busy ? undefined : onClick}
+    >
       {inside}
     </button>
   );

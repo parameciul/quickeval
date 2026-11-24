@@ -141,7 +141,49 @@ describe('the result button of the paper page', () => {
     expect(within(panel).queryByRole('button', { name: 'Copiază linkul' })).not.toBeInTheDocument();
     await user.click(within(panel).getByRole('button', { name: 'Fă linkul' }));
     expect(api.getResultLink).toHaveBeenCalledWith(5, '2026-10-06T07:20:00.000Z');
-    expect(await within(panel).findByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
+    // The focus stays in the panel, on the button that took the place of "Fă linkul".
+    await vi.waitFor(() => expect(within(panel).getByRole('button', { name: 'Copiază linkul' })).toHaveFocus());
+  });
+
+  it('opens again fresh after a copy', async () => {
+    const user = userEvent.setup();
+    renderAdmin(page, apiWith());
+    const button = await screen.findByRole('button', { name: /^Rezultatul elevului/ });
+    await user.click(button);
+    await user.click(within(screen.getByRole('group', { name: 'Rezultatul elevului' })).getByRole('button', { name: 'Copiază linkul' }));
+    expect(screen.getByRole('button', { name: 'Copiat!' })).toBeInTheDocument();
+    await user.click(button);
+    await user.click(button);
+    expect(within(screen.getByRole('group', { name: 'Rezultatul elevului' })).getByRole('button', { name: 'Copiază linkul' })).toBeInTheDocument();
+  });
+
+  it('says "Copiat!" when the share sheet fails and the link goes to the clipboard', async () => {
+    const user = userEvent.setup();
+    shareSheet(vi.fn(async () => Promise.reject(new DOMException('no', 'NotAllowedError'))));
+    renderAdmin(page, apiWith());
+    await user.click(await screen.findByRole('button', { name: /^Rezultatul elevului/ }));
+    const panel = screen.getByRole('group', { name: 'Rezultatul elevului' });
+    await user.click(within(panel).getByRole('button', { name: 'Trimite linkul' }));
+    expect(await navigator.clipboard.readText()).toBe(url());
+    expect(within(panel).getByRole('button', { name: 'Copiat!' })).toBeInTheDocument();
+  });
+
+  it('keeps the focus on the PDF button while the PDF is made', async () => {
+    let done: (value: Blob) => void = () => undefined;
+    renderPdf.mockReturnValue(new Promise<Blob>((resolve) => (done = resolve)));
+    renderAdmin(page, apiWith());
+    const panel = await openPanel();
+    const download = within(panel).getByRole('button', { name: 'Descarcă PDF' });
+    await userEvent.click(download);
+    expect(download).toHaveAttribute('aria-disabled', 'true');
+    expect(download).toHaveFocus();
+    expect(within(panel).getByText('Se face PDF-ul…')).toBeInTheDocument();
+    // A second click while it is made does nothing.
+    await userEvent.click(download);
+    expect(renderPdf).toHaveBeenCalledTimes(1);
+    done(blob);
+    await vi.waitFor(() => expect(saveFile).toHaveBeenCalledTimes(1));
+    expect(download).not.toHaveAttribute('aria-disabled');
   });
 
   it('has no sends where the device has no share sheet', async () => {

@@ -7030,6 +7030,17 @@ table.items tr.edit-row > td {
   display: none;
 }
 
+/* Its icons sit in the two spans, so the padding of a small button that
+   starts with an icon is set here. */
+.paper-actions-compact {
+  padding-left: 0.6rem;
+}
+
+.paper-action[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.6;
+}
+
 /* "Rezultatul elevului": the button carries whether the result is published;
    its panel holds the state, then the link's and the PDF's actions in two
    groups, drawn like the items of "Alte acțiuni". */
@@ -7108,6 +7119,11 @@ table.items tr.edit-row > td {
 
   .paper-actions-dots {
     display: contents;
+  }
+
+  /* Only ⋯: as wide as it is tall. */
+  .paper-actions-compact {
+    padding-inline: 0.6rem;
   }
 }
 

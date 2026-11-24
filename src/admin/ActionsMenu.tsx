@@ -23,7 +23,7 @@ export function ActionsMenu({ label, menuId, actions, compact = false }: { label
       <button
         ref={button}
         type="button"
-        className={compact ? 'button-quiet button-small is-compact' : 'button-quiet button-small'}
+        className={compact ? 'button-quiet button-small paper-actions-compact' : 'button-quiet button-small'}
         aria-label={compact ? label : undefined}
         aria-haspopup="menu"
         aria-expanded={open}

@@ -111,7 +111,8 @@ describe('a graded try', () => {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
     }
     expect(screen.queryByRole('link', { name: 'Toate notele elevului' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Linkul cu rezultatul elevului')).not.toBeInTheDocument();
+    // No result link and no PDF of the teacher's head on a try.
+    expect(screen.queryByRole('button', { name: /^Rezultatul elevului/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Toate exercițiile' }));
     expect(screen.getByTestId('location')).toHaveTextContent(`/tests/PROBA-26T1/review?paper=${TRY_SUBMISSION}&item=71&view=all`);
     expect(await screen.findByRole('heading', { name: 'Ce a lucrat bine' })).toBeInTheDocument();
