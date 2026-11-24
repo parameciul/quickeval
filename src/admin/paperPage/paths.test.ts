@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fakeUpload } from '../../test/fakeApi.ts';
 import { pointKey } from '../reviewPage/points.ts';
-import { listedPapers, papersMissing, reviewSpot } from './paths.ts';
+import { absentPaper, listedPapers, papersMissing, reviewSpot } from './paths.ts';
 
 // A class in every state, in the class's order (by name).
 const rows = [
@@ -23,6 +23,15 @@ describe('the students of the paper page', () => {
 
   it('puts a paper held back once the uploads closed with the ones that wait, not with the ones sending', () => {
     expect(ids(listedPapers(rows, 'all', 'evaluating'))).toEqual([11, 13, 17, 12, 14, 15]);
+  });
+
+  it('puts last a paper begun with no page once the uploads closed: the student did not take part', () => {
+    const begun = fakeUpload({ studentId: 9, studentName: 'Ada Bucur', submissionId: 19, status: 'uploading' });
+    expect(ids(listedPapers([begun, ...rows], 'all', 'done'))).toEqual([11, 13, 17, 12, 14, 15, 19]);
+    expect(absentPaper(begun, 'done')).toBe(true);
+    // While the uploads are open, the student may still send.
+    expect(ids(listedPapers([begun, ...rows], 'all', 'open'))).toEqual([11, 13, 17, 12, 15, 19, 14]);
+    expect(absentPaper(begun, 'open')).toBe(false);
   });
 
   it('lists only the papers with points to check, and keeps the open paper in its place', () => {

@@ -9,7 +9,7 @@ import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { CesTag } from '../CesTag.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
-import { papersMissing, type PaperMode } from './paths.ts';
+import { absentPaper, papersMissing, type PaperMode } from './paths.ts';
 import { t } from '../../i18n/t.ts';
 
 type ListedRow = UploadRow & { submissionId: number };
@@ -113,6 +113,7 @@ function StudentState({ row, testStatus }: { row: UploadRow; testStatus: TestSta
   if (row.status === 'submitted') return <span className="paper-student-state is-sent">{`${t('Trimisă, necorectată')} · ${pages}`}</span>;
   if (row.status === 'grading') return <span className="paper-student-state">{t('Se corectează')}</span>;
   if (row.status === 'failed') return <span className="paper-student-state">{t('Corectarea a eșuat')}</span>;
+  if (absentPaper(row, testStatus)) return <span className="paper-student-state">{t('Nu a participat')}</span>;
   return <span className="paper-student-state">{t('Încă trimite…')}</span>;
 }
 
@@ -148,7 +149,7 @@ export function StudentMove({
     </>
   );
   return (
-    <span className="move-group student-move" role="group" aria-label={t('Elevii')}>
+    <div className="move-group student-move" role="group" aria-label={t('Elevii')}>
       <button
         type="button"
         className="move-arrow"
@@ -169,25 +170,24 @@ export function StudentMove({
       <button ref={nextButton} type="button" className="move-arrow" aria-label={t('Elevul următor')} title={t('Elevul următor')} disabled={!next} onClick={() => next && onGo(next)}>
         <MoveChevron />
       </button>
-    </span>
+    </div>
   );
 }
 
 function StudentMenu({ view, onShowList, button, children }: { view: StudentsView; onShowList: (() => void) | null; button: Ref<HTMLButtonElement>; children: ReactNode }) {
   const listId = useId();
-  const { open, toggle, box, button: ownButton } = useSmallMenu<HTMLSpanElement>();
+  const { open, toggle, box, button: ownButton } = useSmallMenu<HTMLDivElement>();
   const setButton = (node: HTMLButtonElement | null) => {
     ownButton.current = node;
     if (typeof button === 'function') button(node);
     else if (button) (button as { current: HTMLButtonElement | null }).current = node;
   };
   return (
-    <span className="student-menu" ref={box}>
+    <div className="student-menu" ref={box}>
       <button
         ref={setButton}
         type="button"
         className="move-label student-menu-button"
-        aria-haspopup="true"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
         title={t('Elevii')}
@@ -207,7 +207,7 @@ function StudentMenu({ view, onShowList, button, children }: { view: StudentsVie
           )}
         </nav>
       )}
-    </span>
+    </div>
   );
 }
 

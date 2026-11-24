@@ -40,11 +40,19 @@ export function paperPath(code: string, place: PaperPlace, spot: PaperSpot, mode
   return search ? `${base}?${search}` : base;
 }
 
+// A paper begun with no page, once the uploads closed: the student did not
+// take part.
+export function absentPaper(row: UploadRow, testStatus: TestStatus): boolean {
+  return row.status === 'uploading' && row.fileCount === 0 && (testStatus === 'evaluating' || testStatus === 'done');
+}
+
 // Where a paper is, for the order of the students: graded, then sent and
 // not graded yet (waiting, being graded, failed, or held back once the
-// uploads closed), then still being sent.
+// uploads closed), then still being sent, then begun with no page by a
+// student who did not take part.
 function stageOf(row: UploadRow, testStatus: TestStatus): number {
   if (row.status === 'graded') return 0;
+  if (absentPaper(row, testStatus)) return 3;
   if (row.status === 'uploading' && !heldBack(row.status, row.fileCount, testStatus)) return 2;
   return 1;
 }
@@ -65,7 +73,7 @@ export function listedPapers(
     const withPoints = new Set(papersToCheck(uploads).map((row) => row.submissionId));
     return papers.filter((row) => withPoints.has(row.submissionId) || row.submissionId === current);
   }
-  return [0, 1, 2].flatMap((stage) => papers.filter((row) => stageOf(row, testStatus) === stage));
+  return [0, 1, 2, 3].flatMap((stage) => papers.filter((row) => stageOf(row, testStatus) === stage));
 }
 
 // The students who sent nothing: no paper, still in the class.

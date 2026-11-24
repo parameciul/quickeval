@@ -542,10 +542,22 @@ function Paper({
   const [tileFull, setTileFull] = useState(false);
   const [tileFocus, setTileFocus] = useState<number | null>(null);
   const shownIsPhoto = submission?.files[shownPage]?.contentType.startsWith('image/') ?? false;
-  // On a phone, the graded paper's whole screen, left open when it is graded
-  // again, does not open by itself once the new result is back.
-  if (paperFull && pagesBySelf) setPaperFull(false);
-  if (tileFull && !pagesBySelf) setTileFull(false);
+  // A phone turned across the phone width moves an open whole screen between
+  // the pages' own and the paper's beside them. On a phone, a graded paper's
+  // whole screen, left open when it is graded again, closes (and does not
+  // open by itself once the new result is back).
+  const pagesBefore = useRef(pagesView);
+  useEffect(() => {
+    pagesBefore.current = pagesView;
+  });
+  if (paperFull && pagesBySelf) {
+    setPaperFull(false);
+    if (pagesBefore.current && shownIsPhoto) setTileFull(true);
+  }
+  if (tileFull && !pagesBySelf) {
+    setTileFull(false);
+    if (pagesView) setPaperFull(true);
+  }
   else if (tileFull && !shownIsPhoto) {
     setTileFull(false);
     setTileFocus(shownPage);
@@ -723,7 +735,7 @@ function Paper({
               type="button"
               className="button-quiet icon-button photo-toggle"
               aria-label={t('Lucrarea')}
-              aria-pressed={!photoFolded}
+              aria-pressed={showsPhoto}
               // A paper with no page yet has nothing to show.
               disabled={pagesView && submission.files.length === 0}
               title={photoFolded ? t('Arată lucrarea') : t('Ascunde lucrarea')}
@@ -748,7 +760,8 @@ function Paper({
         className={[
           'paper-panes',
           listBeside ? '' : 'is-single',
-          showsPhoto ? '' : 'is-photo-folded',
+          // While the paper loads, its column keeps its place.
+          (submission === undefined ? photoFolded : !showsPhoto) ? 'is-photo-folded' : '',
           splitShown ? 'has-split' : '',
           splitShown && photoShare !== null ? 'has-photo-width' : '',
         ]

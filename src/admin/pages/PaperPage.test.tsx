@@ -208,6 +208,7 @@ describe('the paper page', () => {
     renderAdmin(page, apiWith({ ...submission, status: 'uploading', submittedAt: null, files: [] }));
     expect(await screen.findByText('Elevul nu a încărcat niciun fișier.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lucrarea' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Lucrarea' })).toHaveAttribute('aria-pressed', 'false');
     expect(document.querySelector('.review-photo')).toBeNull();
   });
 
@@ -237,6 +238,28 @@ describe('the paper page', () => {
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('img', { name: 'Pagina 1 a lucrării' })).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Pagina 1, pe tot ecranul' })).toHaveFocus());
+  });
+
+  it('keeps a page over the whole screen when a phone turns past the phone width', async () => {
+    let narrow = true;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return narrow && (query === '(max-width: 56.25rem)' || query === '(max-width: 75rem)');
+      },
+      media: query,
+      addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    }));
+    renderAdmin(page, apiWith());
+    await userEvent.click(await screen.findByRole('button', { name: 'Pagina 1, pe tot ecranul' }));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
+    narrow = false;
+    act(() => listeners.forEach((listener) => listener()));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
+    narrow = true;
+    act(() => listeners.forEach((listener) => listener()));
+    expect(screen.getByRole('img', { name: 'Pagina 1 a lucrării' }).closest('figure')).toHaveClass('is-full');
   });
 
   it('closes the whole screen on a PDF page, with the focus on its tile', async () => {
