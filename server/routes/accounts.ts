@@ -20,6 +20,7 @@ import {
   takePasswordCheck,
   updateAccount,
 } from '../db/accounts.ts';
+import { listAccountViews } from '../db/impersonations.ts';
 import { emailSender } from '../email.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { startViewHandler } from './impersonation.ts';
@@ -75,14 +76,15 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.get('/:id', async (c) => {
     const account = await findAccount(c.env.DB, parseId(c.req.param('id')));
     if (!account) throw notFound();
-    const [events, counts, activity, robot, tests] = await Promise.all([
+    const [events, counts, activity, robot, tests, views] = await Promise.all([
       listAccountEvents(c.env.DB, account.id),
       countAccountWork(c.env.DB, account.id),
       accountActivity(c.env.DB, account.id, nowIso()),
       countRobotWork(c.env.DB, account.id),
       listAccountTests(c.env.DB, account.id),
+      listAccountViews(c.env.DB, account.id),
     ]);
-    return c.json({ account, events, counts, activity, robot, tests });
+    return c.json({ account, events, counts, activity, robot, tests, views });
   });
 
   // The teacher hears about it by email when emails are set up.

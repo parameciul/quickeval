@@ -283,6 +283,22 @@ describe('POST /api/admin/accounts/:id/password', () => {
 });
 
 describe('GET /api/admin/accounts/:id', () => {
+  it("lists the administrators' views", async () => {
+    const id = await signup();
+    await api.db.prepare("UPDATE teachers SET name = 'Laura Miron' WHERE id = ?").bind(api.teacherId).run();
+    await api.db
+      .prepare(
+        `INSERT INTO impersonations (token_hash, session_hash, admin_id, teacher_id, mode, started_at, expires_at, ended_at, end_reason)
+         VALUES ('t', 's', ?, ?, 'view', '2026-11-25T10:00:00.000Z', '2026-11-25T11:00:00.000Z', '2026-11-25T10:20:00.000Z', 'exit')`,
+      )
+      .bind(api.teacherId, id)
+      .run();
+    const res = await api.request('GET', `/api/admin/accounts/${id}`);
+    expect(res.body.views).toEqual([
+      { admin: { id: api.teacherId, name: 'Laura Miron' }, startedAt: '2026-11-25T10:00:00.000Z', endedAt: '2026-11-25T10:20:00.000Z', endReason: 'exit' },
+    ]);
+  });
+
   it('shows one account, its history and what it made', async () => {
     const id = await signup();
     const res = await api.request('GET', `/api/admin/accounts/${id}`);

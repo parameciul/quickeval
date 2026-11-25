@@ -236,6 +236,7 @@ describe('the accounts on Setări', () => {
             barem: { done: 4, failed: 0, tokens: 9_000 },
             print: { done: 3, failed: 0, tokens: 0 },
           },
+          views: [],
           tests: [
             {
               code: '6E2-26T1',
@@ -303,6 +304,7 @@ describe('the accounts on Setări', () => {
             barem: { done: 4, failed: 0, tokens: 9_000 },
             print: { done: 3, failed: 0, tokens: 0 },
           },
+          views: [],
           tests: [
             {
               code: '6E2-26T1',
@@ -476,6 +478,41 @@ describe('"Indicații la corectare" on Setări', () => {
   it('shows what the box does in its own words, also where the column heading is hidden', async () => {
     renderAdmin('/settings', withAccounts());
     expect((await box('Bogdan')).closest('label')).toHaveTextContent('Arată indicațiile');
+  });
+});
+
+describe('"Vizualizări de administrator" on Detalii', () => {
+  const views = [
+    { admin: { id: 1, name: 'Laura Miron' }, startedAt: '2026-11-25T10:00:00.000Z', endedAt: '2026-11-25T10:20:00.000Z', endReason: 'exit' as const },
+    { admin: null, startedAt: '2026-11-25T12:00:00.000Z', endedAt: null, endReason: null },
+  ];
+  const open = async (detailViews: typeof views) => {
+    const account = fakeAccount({ id: 3, name: 'Bogdan', email: 'bogdan@example.com', role: 'teacher' });
+    const base = await createFakeApi({ classes: [], students: {}, accounts: [structuredClone(account)] }).getAccount(3);
+    renderAdmin(
+      '/settings',
+      createFakeApi({ classes: [], students: {}, accounts: [structuredClone(laura), structuredClone(account)], accountDetails: { 3: { ...base, views: detailViews } } }),
+    );
+    const all = await card('Toate conturile');
+    await userEvent.click(within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' }));
+  };
+
+  it("shows the administrators' views", async () => {
+    await open(views);
+    const heading = await screen.findByRole('heading', { name: 'Vizualizări de administrator' });
+    const table = heading.closest('div')!.querySelector('table')!;
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent('Laura Miron');
+    expect(rows[0]).toHaveTextContent('25 nov. 2026, 12:00');
+    expect(rows[0]).toHaveTextContent('Ieșit');
+    expect(rows[1]).toHaveTextContent('—');
+    expect(rows[1]).toHaveTextContent('în curs');
+  });
+
+  it('shows no views part when there are none', async () => {
+    await open([]);
+    await screen.findByRole('heading', { name: 'Istoricul contului' });
+    expect(screen.queryByRole('heading', { name: 'Vizualizări de administrator' })).not.toBeInTheDocument();
   });
 });
 

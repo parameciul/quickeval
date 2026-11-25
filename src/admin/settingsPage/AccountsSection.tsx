@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { AccountEventKind } from '../../../shared/accounts.ts';
-import type { Account, AccountDetail, RefusedAccount, Teacher } from '../../../shared/api.ts';
+import type { Account, AccountDetail, AccountView, RefusedAccount, Teacher } from '../../../shared/api.ts';
 import { DEMO_PAPER_LIMIT } from '../../../shared/accounts.ts';
 import { countLabel, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
@@ -540,8 +540,43 @@ function TestWorkTable({ tests }: { tests: AccountDetail['tests'] }) {
   );
 }
 
+const VIEW_END_LABEL: Record<NonNullable<AccountView['endReason']>, () => string> = {
+  exit: () => t('Ieșit'),
+  expired: () => t('Timpul s-a terminat'),
+  replaced: () => t('Înlocuit de altă vizualizare'),
+  session_gone: () => t('Intrarea s-a încheiat'),
+};
+
+// The times an administrator looked at the account, newest first.
+function ViewsTable({ views }: { views: AccountView[] }) {
+  return (
+    <div className="table-wrap">
+      <table className="account-work">
+        <thead>
+          <tr>
+            <th scope="col">{t('Administrator')}</th>
+            <th scope="col">{t('Început')}</th>
+            <th scope="col">{t('Sfârșit')}</th>
+            <th scope="col">{t('Cum s-a încheiat')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {views.map((view, index) => (
+            <tr key={`${view.startedAt}-${index}`}>
+              <th scope="row">{view.admin?.name ?? '—'}</th>
+              <td>{formatDateTime(view.startedAt)}</td>
+              <td>{view.endedAt ? formatDateTime(view.endedAt) : '—'}</td>
+              <td>{view.endReason ? VIEW_END_LABEL[view.endReason]() : t('în curs')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function AccountDetailView({ detail }: { detail: AccountDetail }) {
-  const { account, events, counts, activity, robot, tests } = detail;
+  const { account, events, counts, activity, robot, tests, views } = detail;
   return (
     <div className="account-detail">
       <div>
@@ -592,6 +627,12 @@ function AccountDetailView({ detail }: { detail: AccountDetail }) {
           <p>{t('Nicio schimbare înregistrată.')}</p>
         )}
       </div>
+      {views.length > 0 && (
+        <div className="account-detail-wide">
+          <h3>{t('Vizualizări de administrator')}</h3>
+          <ViewsTable views={views} />
+        </div>
+      )}
     </div>
   );
 }

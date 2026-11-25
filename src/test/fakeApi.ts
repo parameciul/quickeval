@@ -502,6 +502,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
           print: { done: 0, failed: 0, tokens: 0 },
         },
         tests: [],
+        views: [],
       };
     }),
     listRefusedAccounts: vi.fn(async () => structuredClone(data.refusedAccounts ?? [])),

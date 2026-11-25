@@ -557,6 +557,7 @@ export interface AccountDetail {
   activity: AccountActivity;
   robot: RobotWorkTotals;
   tests: AccountTestWork[];
+  views: AccountView[];
 }
 
 // A password made by an administrator, shown this once.
