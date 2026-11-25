@@ -11,3 +11,4 @@ docs/design-proposals/
 .taste-skill/
 .vitest/
 .vitest-times.json
+.playwright-mcp/
