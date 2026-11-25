@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BAREM_GENERATIONS_PER_DAY } from '../../shared/accounts.ts';
 import { PDF_TYPE, TEST_FILE_PATHS, type TestFileKind } from '../../shared/files.ts';
-import { addTestFiles, makeClass, makeTest, otherTeacherTest, startTest } from '../test/fixtures.ts';
+import { bucharestDay } from '../../shared/quickTry.ts';
+import { addSubmission, addTestFiles, makeClass, makeTest, otherTeacherTest, startTest } from '../test/fixtures.ts';
 import { startTestApi, type TestApi } from '../test/testApi.ts';
 
 let api: TestApi;
 let dispatchRobot: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
 let code: string;
+let studentId: number;
 
 const pdf = (text: string) => new TextEncoder().encode(`%PDF-1.7 ${text}`);
 const row = () =>
@@ -39,6 +42,7 @@ beforeEach(async () => {
   dispatchRobot = vi.fn(async () => true);
   api = await startTestApi({ app: { dispatchRobot } });
   const cls = await makeClass(api, '6E2', ['Pop Ion']);
+  studentId = cls.studentIds[0]!;
   code = await makeTest(api, cls.id);
 });
 
@@ -74,14 +78,59 @@ describe('POST /marking-scheme/generate', () => {
     expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
-  it.each(['evaluating', 'done'])('refuses in %s', async (status) => {
+  it('refuses while the robot grades with the barem', async () => {
     await startTest(api, code);
-    await addTestFiles(api, code, ['test']);
-    await setTest('status = ?', status);
+    await addTestFiles(api, code, ['test', 'barem']);
+    // A paper waits, so the test stays in evaluation.
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await setTest("status = 'evaluating', exercise_list_status = 'ready'");
     const res = await generate();
     expect(res.status).toBe(409);
-    expect(res.body).toEqual({ error: 'not_editable', message: 'Baremul se poate genera doar înainte de evaluare.' });
+    expect(res.body).toEqual({ error: 'evaluating', message: 'Testul se corectează acum. Poți genera baremul după ce se termină corectarea.' });
     expect((await row())!.barem_request).toBe('none');
+  });
+
+  // The barem can be generated whenever its file can be replaced.
+  it.each([
+    ['done', "status = 'done', exercise_list_status = 'ready'"],
+    ['evaluating with a list problem', "status = 'evaluating', exercise_list_status = 'problem'"],
+    ['evaluating with a failed list', "status = 'evaluating', exercise_list_status = 'failed'"],
+  ])('allows a test that is %s', async (_, state) => {
+    await startTest(api, code);
+    await addTestFiles(api, code, ['test', 'barem']);
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await setTest(state);
+    const res = await generate();
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ barem: { request: 'requested', unchecked: false }, robot: 'dispatched' });
+    expect((await row())!.barem_request).toBe('requested');
+  });
+
+  // The robot waits for a barem made during the evaluation, so she must be
+  // able to make it again or replace it, or the papers would wait for ever.
+  it.each([
+    ['unchecked', "barem_unchecked = 1, barem_request = 'none'"],
+    ['unchecked after a failed new generation', "barem_unchecked = 1, barem_request = 'failed'"],
+  ])('allows a test in evaluation whose barem is %s', async (_, state) => {
+    await startTest(api, code);
+    await addTestFiles(api, code, ['test', 'barem']);
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await setTest(`status = 'evaluating', exercise_list_status = 'none', ${state}`);
+    expect((await generate()).status).toBe(200);
+    await setTest("barem_request = 'requested'");
+    const upload = await putTestFile('barem.pdf', 'baremul meu', 'barem');
+    expect(upload.status).toBe(200);
+    expect(await upload.json()).toMatchObject({ robot: 'dispatched' });
+    expect(await row()).toMatchObject({ status: 'evaluating', barem_unchecked: 0, barem_request: 'none' });
+  });
+
+  it('refuses a second request while one is being made', async () => {
+    await addTestFiles(api, code, ['test']);
+    await setTest("barem_request = 'requested', barem_request_attempts = 2");
+    const res = await generate();
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'barem_requested', message: 'Baremul se generează deja.' });
+    expect((await row())!.barem_request_attempts).toBe(2);
   });
 
   it('refuses a test of another teacher and leaves it unchanged', async () => {
@@ -101,8 +150,19 @@ describe('POST /marking-scheme/checked', () => {
     await setTest('barem_unchecked = 1');
     const res = await checked((await row())!.files_version);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ barem: { request: 'none', unchecked: false } });
+    expect(res.body).toEqual({ barem: { request: 'none', unchecked: false }, robot: null });
     expect((await row())!.barem_unchecked).toBe(0);
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
+  it('starts the robot when the papers of a test in evaluation waited for the barem', async () => {
+    await startTest(api, code);
+    await addTestFiles(api, code, ['test', 'barem']);
+    await addSubmission(api, code, studentId, { status: 'submitted', files: 1 });
+    await setTest("status = 'evaluating', barem_unchecked = 1");
+    const res = await checked((await row())!.files_version);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ barem: { request: 'none', unchecked: false }, robot: 'dispatched' });
   });
 
   it('refuses a confirm with an old filesVersion', async () => {
@@ -172,10 +232,68 @@ describe('file uploads and the generated barem', () => {
     expect(await api.db.prepare('SELECT print_status FROM tests WHERE code = ?').bind(code).first()).toEqual({ print_status: 'none' });
   });
 
-  it('a new test file does not ask for a barem once the test is done', async () => {
+  it('a new test file asks for a new barem in a done test too', async () => {
     await startTest(api, code);
     await setTest("barem_unchecked = 1, status = 'done'");
-    await putTestFile('test2.pdf', 'enunț nou');
+    const res = await putTestFile('test2.pdf', 'enunț nou');
+    expect(await res.json()).toMatchObject({ robot: 'dispatched' });
+    expect(await row()).toMatchObject({ barem_request: 'requested', barem_unchecked: 1 });
+  });
+});
+
+describe('the day limit of generated barems', () => {
+  const today = () => bucharestDay(new Date());
+  const madeToday = (barems: number, failed = 0) =>
+    api.db
+      .prepare('INSERT INTO usage_days (day, quick_try, teacher_id, barems, failed) VALUES (?, 0, ?, ?, ?)')
+      .bind(today(), api.teacherId, barems, failed)
+      .run();
+  const asTeacher = () => api.db.prepare("UPDATE teachers SET role = 'teacher' WHERE id = ?").bind(api.teacherId).run();
+  const secondTest = async () => {
+    const other = await makeTest(api, (await makeClass(api, '7A', ['Ana'])).id);
+    await addTestFiles(api, other, ['test']);
+    return other;
+  };
+
+  beforeEach(async () => {
+    await asTeacher();
+    await addTestFiles(api, code, ['test']);
+  });
+
+  it('counts the barems made today and the requests that wait, class and CES', async () => {
+    await madeToday(BAREM_GENERATIONS_PER_DAY - 2);
+    const other = await secondTest();
+    await api.db.prepare("UPDATE tests SET ces_barem_request = 'requested' WHERE code = ?").bind(other).run();
+    // One left: this request takes it. Then the two that wait fill the day.
+    expect((await generate()).status).toBe(200);
+    const res = await generate(other);
+    expect(res.status).toBe(429);
+    expect(res.body).toEqual({
+      error: 'barem_limit',
+      message: `Poți genera cel mult ${BAREM_GENERATIONS_PER_DAY} bareme pe zi, cu tot cu cele care se generează acum. Poți genera din nou mâine sau poți încărca baremul tău.`,
+    });
+    expect((await otherRow(other))!.barem_request).toBe('none');
+  });
+
+  it('does not count the failed jobs, nor the barems of another day', async () => {
+    await madeToday(BAREM_GENERATIONS_PER_DAY - 1, 20);
+    await api.db
+      .prepare("INSERT INTO usage_days (day, quick_try, teacher_id, barems) VALUES ('2020-01-01', 0, ?, 50)")
+      .bind(api.teacherId)
+      .run();
+    expect((await generate()).status).toBe(200);
+  });
+
+  it('has no limit for an administrator', async () => {
+    await api.db.prepare("UPDATE teachers SET role = 'admin' WHERE id = ?").bind(api.teacherId).run();
+    await madeToday(BAREM_GENERATIONS_PER_DAY * 3);
+    expect((await generate()).status).toBe(200);
+  });
+
+  it('keeps a new test file from asking for a barem past the limit', async () => {
+    await madeToday(BAREM_GENERATIONS_PER_DAY);
+    await setTest('barem_unchecked = 1');
+    expect((await putTestFile('test2.pdf', 'enunț nou')).status).toBe(200);
     expect(await row()).toMatchObject({ barem_request: 'none', barem_unchecked: 1 });
   });
 });

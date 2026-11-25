@@ -32,6 +32,12 @@ export const MAX_ROBOT_TOKENS = 10_000_000;
 // one more.
 export const DEMO_PAPER_LIMIT = 35;
 
+// An account may have this many barems generated in one Bucharest day, the
+// class and the CES ones together: the ones made that day and the ones that
+// wait for the robot now. Administrators and Quick Try have no such limit (a
+// try has its own: one generation).
+export const BAREM_GENERATIONS_PER_DAY = 10;
+
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 200;
 export const MAX_TEACHER_NAME_LENGTH = 80;

@@ -34,12 +34,12 @@ const NAMES: Record<TestVariant, Record<TestFileKind, { title: string; drop: str
 // The test and the barem (the panel Pregătire of the test page): open them,
 // upload them, or replace them. A missing file has the drop area of Test nou;
 // a file that is there has the button that replaces it. Not while the robot grades with them; while
-// their exercise list has a problem or failed, the robot uses neither, and the
-// teacher may fix them. A new barem during evaluation starts the robot, which
-// makes the exercise list again. With `variant` "ces": the CES variant's own
-// test and barem, which may change during the evaluation (the API refuses
-// only while the robot grades a CES paper), and whose barem can be generated
-// until the test is done. The barem's notes show only to an account whose
+// their exercise list has a problem or failed, or the barem is not settled, the
+// robot uses neither, and the teacher may fix them. A new barem during evaluation starts the robot, which
+// makes the exercise list again. The barem can be generated whenever its file
+// can be replaced. With `variant` "ces": the CES variant's own test and barem,
+// which may change during the evaluation (the API refuses only while the robot
+// grades a CES paper). The barem's notes show only to an account whose
 // `showBaremNotes` is on (an administrator chooses it on Setări).
 export function TestFiles({
   test,
@@ -55,13 +55,16 @@ export function TestFiles({
   const parts = partsOf(test, variant);
   const missing = missingOf(test);
   const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
-  const locked = variant === 'class' && test.status === 'evaluating' && !listBlocked;
+  // A barem being generated, or generated and not checked, holds the robot
+  // back: she can then check it, replace it or generate it again.
+  const baremSettled = !test.barem.unchecked && test.barem.request !== 'requested';
+  const locked = variant === 'class' && test.status === 'evaluating' && !listBlocked && baremSettled;
   const generated = useGeneratedBarem({ test, variant, onChanged, onRobot });
   const api = useApi();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   const showNotes = me.data?.showBaremNotes === true;
-  // Before the uploads close (and, for the CES barem, until the test is done): the barem can be generated.
-  const canGenerate = test.status === 'draft' || test.status === 'open' || (variant === 'ces' && test.status === 'evaluating');
+  // Whenever the barem's file can be replaced, the barem can be generated too.
+  const canGenerate = !locked;
   return (
     <>
       {locked && <p className="hint">{t('Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.')}</p>}

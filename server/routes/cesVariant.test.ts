@@ -243,11 +243,20 @@ describe('POST /sen/marking-scheme/generate and /sen/marking-scheme/checked', ()
     expect((await api.request('POST', `/api/admin/tests/${code}/marking-scheme/generate`)).status).toBe(409);
   });
 
-  it('refuses a CES barem once the test is done', async () => {
-    await addCesFiles(api, code, ['test']);
+  it('generates a CES barem in a done test too, as its file can be replaced then', async () => {
+    await addCesFiles(api, code, ['test', 'barem']);
     await setTest("status = 'done'");
     const res = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/generate`);
-    expect(res.body.error).toBe('not_editable');
+    expect(res.status).toBe(200);
+    expect(res.body.barem).toEqual({ request: 'requested', unchecked: false });
+  });
+
+  it('refuses a second CES request while one is being made', async () => {
+    await addCesFiles(api, code, ['test']);
+    expect((await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/generate`)).status).toBe(200);
+    const again = await api.request('POST', `/api/admin/tests/${code}/sen/marking-scheme/generate`);
+    expect(again.status).toBe(409);
+    expect(again.body.error).toBe('barem_requested');
   });
 
   it('confirms the CES barem as the page showed it, and starts the robot during the evaluation', async () => {

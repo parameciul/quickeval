@@ -33,17 +33,22 @@ export function staleBefore(now: string): string {
 }
 
 // Work the robot can take now, as SQL conditions.
-// A test in evaluation that waits for its exercise list.
-export const NEEDS_EXERCISE_LIST = `t.status = 'evaluating' AND t.exercise_list_status = 'none'
+// The class barem is settled: not being generated, and not generated and
+// waiting for the teacher's check. A barem may be generated in any status, and
+// a regrade or a retry sends a done test back to evaluation with no start, so
+// the robot itself waits for it.
+const CLASS_BAREM_SETTLED = "t.barem_unchecked = 0 AND t.barem_request <> 'requested'";
+// A test in evaluation that waits for its exercise list, with a settled barem.
+export const NEEDS_EXERCISE_LIST = `t.status = 'evaluating' AND t.exercise_list_status = 'none' AND ${CLASS_BAREM_SETTLED}
   AND EXISTS (SELECT 1 FROM submissions s WHERE s.test_id = t.id AND s.status = 'submitted')`;
 // An upload (alias `s`) of test `t` that can be graded: the test is in
-// evaluation with a usable exercise list of the paper's variant. A CES paper
-// also needs an active CES barem: until then it waits, sent, and the class
-// papers are graded meanwhile.
+// evaluation with a usable exercise list of the paper's variant, and its
+// barem settled (a CES paper: an active CES barem); until then it waits, sent.
+// A CES paper waits for the CES barem while the class papers are graded.
 function gradableSql(s: string): string {
   return `${s}.status = 'submitted' AND t.status = 'evaluating' AND CASE ${paperVariantSql(s, 't')}
     WHEN 'ces' THEN (${baremActiveSql('ces')} AND t.ces_exercise_list_status IN ('ready', 'accepted'))
-    ELSE t.exercise_list_status IN ('ready', 'accepted') END`;
+    ELSE (${CLASS_BAREM_SETTLED} AND t.exercise_list_status IN ('ready', 'accepted')) END`;
 }
 export const GRADABLE = gradableSql('s');
 // A test whose class analysis was asked for, with nothing left to grade and at
@@ -57,8 +62,8 @@ export const NEEDS_ANALYSIS = `t.status = 'evaluating' AND t.quick_try = 0 AND t
 // that day. Keep it a flat condition on the alias t: the print writes rewrite
 // t. to tests.
 export const NEEDS_PRINT = needsPrintSql('class');
-// A draft or open test with a test file whose barem the teacher asked the robot
-// to generate. Keep it a flat condition on the alias t.
+// A test with a test file whose barem the teacher asked the robot to
+// generate. Keep it a flat condition on the alias t.
 export const NEEDS_BAREM = needsBaremSql('class');
 
 // The CES variant's print PDF and generated barem, as NEEDS_PRINT and NEEDS_BAREM.

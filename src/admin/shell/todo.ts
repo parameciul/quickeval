@@ -58,7 +58,9 @@ export function todoOf(test: TestSummary): TodoItem | null {
       short: t('publicate · test arhivat'),
     };
   }
-  const preparing = (test.status === 'draft' || test.status === 'open') && test.barem.unchecked;
+  // A generated barem waits for its check in any status: it can be made
+  // whenever the barem's file can be replaced.
+  const preparing = test.barem.unchecked;
   if (preparing && test.barem.request === 'none') {
     return {
       ...item,
@@ -79,7 +81,7 @@ export function todoOf(test: TestSummary): TodoItem | null {
       short: t('baremul nu s-a generat'),
     };
   }
-  const ces = test.status !== 'done' && test.cesBarem !== null && test.cesBarem.unchecked ? test.cesBarem : null;
+  const ces = test.cesBarem !== null && test.cesBarem.unchecked ? test.cesBarem : null;
   if (ces && ces.request === 'none') {
     return {
       ...item,

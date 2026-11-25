@@ -157,6 +157,20 @@ describe('POST /api/runner/check', () => {
     }
   });
 
+  // A barem may be generated after the uploads closed: a regrade then sends a
+  // done test back to evaluation with no start, so the robot itself waits.
+  it('gives no list and no grading while the barem is generated or waits for its check', async () => {
+    await addSubmission(api, code, studentIds[0]!, { status: 'submitted', files: 1 });
+    for (const state of ["barem_request = 'requested'", "barem_unchecked = 1, barem_request = 'none'"]) {
+      for (const list of ['none', 'ready']) {
+        await setTest(`status = 'evaluating', exercise_list_status = ?, barem_request = 'none', barem_unchecked = 0, ${state}`, list);
+        expect((await robot('POST', '/check')).body, `${state}, list ${list}`).toMatchObject({ exerciseLists: 0, pendingGrading: 0 });
+      }
+    }
+    await setTest('barem_unchecked = 0');
+    expect((await robot('POST', '/check')).body).toMatchObject({ hasWork: true, pendingGrading: 1 });
+  });
+
   it('starts a scheduled evaluation whose time has come', async () => {
     const id = await addSubmission(api, code, studentIds[0]!, { files: 1 });
     await setTest('evaluation_at = ?', PAST);
@@ -341,8 +355,16 @@ describe('generated barem jobs in /check and /tasks', () => {
     expect((await robot('POST', '/check')).body).toMatchObject({ hasWork: true, barems: 1 });
   });
 
-  it('lists no job for evaluating, done, no test file, or a failed request', async () => {
-    for (const sql of ["status = 'evaluating'", "status = 'done'", "status = 'open', test_file_key = NULL", "test_file_key = 'fixture/t.pdf', barem_request = 'failed'"]) {
+  it('lists a test in evaluation or done too: a barem may be asked for in any status', async () => {
+    const id = await testIdOf(api, code);
+    for (const status of ['evaluating', 'done']) {
+      await setTest('status = ?', status);
+      expect((await robot('GET', '/tasks')).body.barems, status).toEqual([id]);
+    }
+  });
+
+  it('lists no job for no test file, or a failed request', async () => {
+    for (const sql of ["status = 'open', test_file_key = NULL", "test_file_key = 'fixture/t.pdf', barem_request = 'failed'"]) {
       await setTest(sql);
       expect((await robot('GET', '/tasks')).body.barems, sql).toEqual([]);
       expect((await robot('POST', '/check')).body.barems, sql).toBe(0);

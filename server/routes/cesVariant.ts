@@ -19,6 +19,7 @@ import {
   needsBarem,
   needsPrint,
   removeCesVariant,
+  baremDayLimitReached,
   requestBarem,
   requireTest,
   retryPrint,
@@ -30,7 +31,7 @@ import {
 } from '../db/tests.ts';
 import type { robotStarter } from '../dispatch.ts';
 import type { AppEnv } from '../env.ts';
-import { ApiError, notFound } from '../errors.ts';
+import { ApiError, baremDayLimit, notFound } from '../errors.ts';
 import { nowIso, parseTestCode, readJson } from '../http.ts';
 import { newUploadToken } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
@@ -151,10 +152,14 @@ export function cesVariantRoutes(routes: Hono<AppEnv>, startRobot: ReturnType<ty
   routes.post('/:code/sen/marking-scheme/generate', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     refuseWhileCesGrading(test);
-    if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, nowIso(), 'ces'))) {
-      refuseWhileCesGrading(await requireTest(c.env.DB, c.var.teacher.id, test.summary.code));
-      if (!test.ces.files.test) throw new ApiError(409, 'missing_test_file', 'Încarcă testul CES înainte să generezi baremul CES.');
-      throw new ApiError(409, 'not_editable', 'Baremul CES nu se mai poate genera după ce s-a terminat corectarea.');
+    const now = nowIso();
+    if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, now, 'ces'))) {
+      const current = await requireTest(c.env.DB, c.var.teacher.id, test.summary.code);
+      refuseWhileCesGrading(current);
+      if (!current.ces.files.test) throw new ApiError(409, 'missing_test_file', 'Încarcă testul CES înainte să generezi baremul CES.');
+      if (current.ces.barem.request === 'requested') throw new ApiError(409, 'barem_requested', 'Baremul CES se generează deja.');
+      if (await baremDayLimitReached(c.env.DB, c.var.teacher.id, test.id, now)) throw baremDayLimit();
+      throw new ApiError(409, 'busy', 'Testul s-a schimbat între timp. Încearcă din nou.');
     }
     const barem = { request: 'requested', unchecked: test.ces.barem.unchecked } as const;
     return c.json({ barem, robot: await startRobot(c.env) } satisfies BaremGenerateAnswer);

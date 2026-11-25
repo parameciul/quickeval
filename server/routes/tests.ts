@@ -61,11 +61,13 @@ import {
   renameTest,
   reopenTest,
   requestBarem,
+  baremDayLimitReached,
   requireTest,
   retryPrint,
   saveBaremNotes,
   saveTestFile,
   setTestArchived,
+  type TestRecord,
   startTest,
   setUploadsClosed,
   stopTest,
@@ -74,7 +76,7 @@ import {
 import { robotStarter } from '../dispatch.ts';
 import { cesVariantRoutes } from './cesVariant.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
-import { ApiError, demoLimit, isUniqueViolation, notFound } from '../errors.ts';
+import { ApiError, baremDayLimit, demoLimit, isUniqueViolation, notFound } from '../errors.ts';
 import { nowIso, parseSchoolYear, parseTestCode, readJson } from '../http.ts';
 import { newUploadToken } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
@@ -86,6 +88,18 @@ function parseFileKind(raw: string | undefined): TestFileKind {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Whether the robot grades with the class test and barem now, so the teacher
+// may not change them: in evaluation, unless the exercise list has a problem or
+// failed (also for a subject that is not graded), or the barem is not settled
+// (being generated, or generated and not checked: the robot waits for it, and
+// the teacher must be able to check, replace or generate it again). The rule
+// of mayGenerateBaremSql in db/variant.ts.
+function robotUsesClassFiles(test: TestRecord): boolean {
+  const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
+  const baremSettled = !test.barem.unchecked && test.barem.request !== 'requested';
+  return test.summary.status === 'evaluating' && !listBlocked && baremSettled;
+}
 
 // Why an evaluation could not start or be scheduled. Read after the write
 // changed nothing, so it describes the test as it is now.
@@ -170,8 +184,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.put('/:code/marking-scheme-notes', async (c) => {
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
-    const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
-    if (test.summary.status === 'evaluating' && !listBlocked) {
+    if (robotUsesClassFiles(test)) {
       throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba comentariile după ce se termină corectarea.');
     }
     const body = await readJson(c, baremNotesBody);
@@ -304,17 +317,26 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     return c.json({ print: { status: 'none', fromWord: test.print.fromWord }, robot: await startRobot(c.env) } satisfies PrintRetryAnswer);
   });
 
-  // "Generează baremul": the robot writes the barem from the test file.
+  // "Generează baremul": the robot writes the barem from the test file,
+  // whenever the teacher may replace the barem file.
   routes.post('/:code/marking-scheme/generate', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
-    if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, nowIso()))) {
+    const now = nowIso();
+    if (!(await requestBarem(c.env.DB, c.var.teacher.id, test.id, now))) {
       if (!test.files.test) throw new ApiError(409, 'missing_test_file', 'Încarcă testul înainte să generezi baremul.');
       // The try's own rule (requestBarem's SQL): no request before and no barem.
       const generationUsed = test.barem.request !== 'none' || test.barem.unchecked || test.files.barem !== null;
       if (generationUsed && (await isQuickTryTest(c.env.DB, test.id))) {
         throw new ApiError(409, 'quick_try_barem', 'Într-o încercare rapidă, baremul se generează o singură dată și doar dacă nu ai încărcat unul.');
       }
-      throw new ApiError(409, 'not_editable', 'Baremul se poate genera doar înainte de evaluare.');
+      // Read after the write changed nothing, so it describes the test as it is now.
+      const current = await requireTest(c.env.DB, c.var.teacher.id, test.summary.code);
+      if (current.barem.request === 'requested') throw new ApiError(409, 'barem_requested', 'Baremul se generează deja.');
+      if (robotUsesClassFiles(current)) {
+        throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți genera baremul după ce se termină corectarea.');
+      }
+      if (await baremDayLimitReached(c.env.DB, c.var.teacher.id, test.id, now)) throw baremDayLimit();
+      throw new ApiError(409, 'busy', 'Testul s-a schimbat între timp. Încearcă din nou.');
     }
     const barem = { request: 'requested', unchecked: test.barem.unchecked } as const;
     return c.json({ barem, robot: await startRobot(c.env) } satisfies BaremGenerateAnswer);
@@ -324,10 +346,11 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.post('/:code/marking-scheme/checked', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
     const body = await readJson(c, baremCheckedBody);
-    if (!(await confirmBarem(c.env.DB, c.var.teacher.id, test.id, body.filesVersion, nowIso()))) {
-      throw new ApiError(409, 'stale', 'Baremul s-a schimbat. Reîncarcă pagina.');
-    }
-    return c.json({ barem: { request: test.barem.request, unchecked: false } } satisfies BaremCheckedAnswer);
+    const status = await confirmBarem(c.env.DB, c.var.teacher.id, test.id, body.filesVersion, nowIso());
+    if (status === null) throw new ApiError(409, 'stale', 'Baremul s-a schimbat. Reîncarcă pagina.');
+    // In evaluation, the papers that waited for the checked barem go to the robot now.
+    const robot = status === 'evaluating' ? await startRobot(c.env) : null;
+    return c.json({ barem: { request: test.barem.request, unchecked: false }, robot } satisfies BaremCheckedAnswer);
   });
 
   // Archives a finished test: it leaves the class table and the test list.
@@ -481,11 +504,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const kind = parseFileKind(c.req.param('kind'));
     const teacherId = c.var.teacher.id;
     const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
-    // While the robot grades, it reads both files. It reads neither while the
-    // exercise list has a problem or failed (also for a subject that is not
-    // graded): the teacher may then fix the barem or the test.
-    const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
-    if (test.summary.status === 'evaluating' && !listBlocked) {
+    if (robotUsesClassFiles(test)) {
       throw new ApiError(409, 'evaluating', 'Testul se corectează acum. Poți schimba fișierul după ce se termină corectarea.');
     }
     // A file key has no random part, so a refused upload with the stored
