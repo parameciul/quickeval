@@ -35,8 +35,31 @@ export const subjectAnswerSchema = z.object({
   subjectName: z.string().describe('For "alta", the Romanian name of the subject in lower case, for example "istorie". An empty string otherwise.'),
 });
 
+// The rânduri of a test (Rândul 1, Rândul 2, …), in the answer of the mode
+// "exercise-list". Each student writes one rând, and all of them share one
+// exercise list, so they need the same items with the same points. The robot
+// reports what the barem gives each rând, and code compares them
+// (versionsProblem). It is not part of the stored list.
+export const versionsAnswerSchema = z.object({
+  versions: z
+    .array(
+      z.object({
+        title: z.string().describe('The rând as the test names it, for example "Rândul 1".'),
+        exercises: z
+          .array(
+            z.object({
+              id: z.string().describe('The id of the item in `exercises` that this item of the rând is.'),
+              maxPoints: z.number().describe("The item's points in this rând's barem."),
+            }),
+          )
+          .describe("Every item that this rând's barem scores on its own, in barem order."),
+      }),
+    )
+    .describe('One entry per rând when the test has two or more; [] when it has one.'),
+});
+
 // What Claude answers in the mode "exercise-list".
-export const exerciseListAnswerSchema = exerciseListSchema.extend(subjectAnswerSchema.shape);
+export const exerciseListAnswerSchema = exerciseListSchema.extend(subjectAnswerSchema.shape).extend(versionsAnswerSchema.shape);
 
 export interface FoundSubject {
   value: DetectedSubject;
@@ -247,12 +270,60 @@ export function checkExerciseList(raw: unknown): Checked<CheckedExerciseList> {
     notes: cutText(input.notes, TEXT_LIMITS.notes),
   };
   const subject = subjectOf(raw);
+  // Rânduri that differ come first: an item that only one rând has also
+  // breaks the sums, and the sums alone would send the teacher looking for a
+  // mistake in the barem.
+  const versions = versionsProblem(raw);
+  if (versions) {
+    const message = `Rândurile testului nu au aceleași exerciții și punctaje: ${versions}. Lucrările unui rând pot primi punctaje greșite.`;
+    return { ok: true, value: { list, status: 'problem', message, subject } };
+  }
   const sum = round2(list.exercises.reduce((total, exercise) => total + exercise.maxPoints, list.officePoints));
   if (sum !== list.totalPoints) {
     const message = `Punctajele din barem dau ${formatPoints(sum)}, dar totalul este ${formatPoints(list.totalPoints)}.`;
     return { ok: true, value: { list, status: 'problem', message, subject } };
   }
   return { ok: true, value: { list, status: 'ready', message: null, subject } };
+}
+
+// The items of one rând, by id, or the first thing wrong with them: an item
+// named twice. Ids are trimmed and cut as the list's are; an empty one is
+// left out.
+function versionItems(title: string, version: z.infer<typeof versionsAnswerSchema>['versions'][number]): Map<string, number> | string {
+  const items = new Map<string, number>();
+  for (const exercise of version.exercises) {
+    const id = cutText(exercise.id.trim(), MAX_EXERCISE_ID);
+    if (id === '') continue;
+    if (items.has(id)) return `${title} are de două ori exercițiul ${id}`;
+    items.set(id, round2(exercise.maxPoints));
+  }
+  return items;
+}
+
+// The first difference between a rând and the first rând, or null when every
+// rând has the same items with the same points. An answer with no rânduri, or
+// with one, has nothing to compare (an older robot sends none).
+export function versionsProblem(raw: unknown): string | null {
+  const parsed = versionsAnswerSchema.safeParse(raw);
+  if (!parsed.success || parsed.data.versions.length < 2) return null;
+  const titled = parsed.data.versions.map((version, index) => {
+    const title = cutText(version.title.trim(), TEXT_LIMITS.label) || `Rândul ${index + 1}`;
+    return { title, items: versionItems(title, version) };
+  });
+  const first = titled[0]!;
+  if (typeof first.items === 'string') return first.items;
+  for (const { title, items } of titled.slice(1)) {
+    if (typeof items === 'string') return items;
+    for (const [id, maxPoints] of first.items) {
+      const given = items.get(id);
+      if (given === undefined) return `${title} nu are exercițiul ${id}`;
+      if (given !== maxPoints) return `la ${id}, ${title} are ${formatPoints(given)}p, iar ${first.title} are ${formatPoints(maxPoints)}p`;
+    }
+    for (const id of items.keys()) {
+      if (!first.items.has(id)) return `${title} are în plus exercițiul ${id}`;
+    }
+  }
+  return null;
 }
 
 // Checks the class analysis: it needs an overview, and the lists are cut to

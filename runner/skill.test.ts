@@ -1,7 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { answerAreaSchema, classAnalysisSchema, exerciseListSchema, generatedBaremSchema, gradingResultSchema, subjectAnswerSchema } from '../shared/schemas.ts';
+import {
+  answerAreaSchema,
+  classAnalysisSchema,
+  exerciseListSchema,
+  generatedBaremSchema,
+  gradingResultSchema,
+  subjectAnswerSchema,
+  versionsAnswerSchema,
+} from '../shared/schemas.ts';
 import { SUBJECTS } from '../shared/subjects.ts';
 import { SKILL_DIR } from './workdir.ts';
 
@@ -41,6 +49,8 @@ describe('the grading skill', () => {
     const fields = [
       ...Object.keys(exerciseListSchema.shape),
       ...Object.keys(exerciseListSchema.shape.exercises.element.shape),
+      ...Object.keys(versionsAnswerSchema.shape),
+      ...Object.keys(versionsAnswerSchema.shape.versions.element.shape),
       ...Object.keys(gradingResultSchema.shape),
       ...Object.keys(gradingResultSchema.shape.items.element.shape),
       ...Object.keys(answerAreaSchema.shape),
@@ -62,6 +72,13 @@ describe('the grading skill', () => {
   it('asks for comments without LaTeX, and never for a student name', () => {
     expect(rules).toContain('Never use LaTeX');
     expect(rules).toContain("Never write the student's name");
+  });
+
+  it('tells Claude to share one list among the rânduri, report each rând as it is, and grade by the rând the student wrote', () => {
+    expect(skill).toContain('List each item of the first rând once, in `exercises`, with an `id` and a `label` that do not name a rând');
+    expect(skill).toContain('Do not make the rânduri match: the platform compares them and tells the teacher.');
+    expect(skill).toContain("Grade every exercise by that rând's statements and that rând's barem");
+    expect(skill).toContain('set `needsReview` to true on every exercise');
   });
 
   it('tells Claude what the CES variant changes in each mode', () => {

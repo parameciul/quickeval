@@ -7,6 +7,7 @@ import { fileChangesLeft } from './phase.ts';
 import { TestFile } from './Prepare.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { t } from '../i18n/t.ts';
+import { translateMessage } from '../../shared/i18n/messages.ts';
 
 // The paper went to grading (spec §3.3, state 3).
 export function Grading() {
@@ -31,7 +32,7 @@ export function BaremProblem({ detail }: { detail: TestDetail }) {
   return (
     <div className="warning">
       <p>
-        <strong>{t('Baremul are o problemă.')}</strong> {test.exerciseList.message && <MathText text={test.exerciseList.message} />}
+        <strong>{t('Baremul are o problemă.')}</strong> {test.exerciseList.message && <MathText text={translateMessage(test.exerciseList.message)} />}
       </p>
       <p>{t('Corectează cu baremul așa cum este, sau încarcă alt barem.')}</p>
       <div className="card-actions">
@@ -64,7 +65,7 @@ export function Failed({ detail }: { detail: TestDetail }) {
     <div className="try-state">
       <h2>{t('Încercarea nu a reușit')}</h2>
       <p>
-        <strong>{what}</strong> {detailText && <MathText text={detailText} />}
+        <strong>{what}</strong> {detailText && <MathText text={translateMessage(detailText)} />}
       </p>
       <p>{t('Încercarea aceasta nu se numără în limita ta de azi. Poți face o încercare nouă de pe pagina principală.')}</p>
       <a className="button" href="/">

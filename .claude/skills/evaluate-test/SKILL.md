@@ -59,6 +59,9 @@ When `ces.md` is in the folder, the test and the barem are the CES variant's: an
   - `scoringNotes`: the partial points that the barem gives, as plain text ("3x = 15: 0,5p; x = 5: 0,5p"); "" if none.
   - `topic`: a short Romanian topic, for example "Fracții echivalente".
 - `notes`: in Romanian, what is unclear in the barem or does not add up. When everything is clear, `notes` is "": do not write that all is well.
+- `versions`: the rânduri of the test, as the barem scores them; `[]` when the test has one rând. Each entry: `title` (the rând as the test names it, for example "Rândul 1") and `exercises`, every item that this rând's barem scores on its own, each with the `id` of its item in `exercises` and its `maxPoints` in this rând's barem.
+
+When the test has two or more rânduri (Rândul 1, Rândul 2, …; a test may call them "Varianta A" and "Varianta B" or "Grupa 1" and "Grupa 2"), each student writes one of them, and all of them share one list. Parts of one test ("Subiectul I", "Partea a II-a", "Nivelul I") are not rânduri. List each item of the first rând once, in `exercises`, with an `id` and a `label` that do not name a rând ("I.1", "Nivelul I, exercițiul 1"): the item with the same subiect (or level), number and letter is the same item in every rând. Take its `maxPoints` from the first rând. In `answer`, write the final answer of each rând, short and named: "Rândul 1: 8; Rândul 2: 5"; do the same in `scoringNotes` only when they differ. Then write `versions` from each rând's own barem: copy its items and its points as they are, even when they differ from the first rând. An item that only one rând has goes in that rând's `versions` entry only, never in `exercises`. Do not make the rânduri match: the platform compares them and tells the teacher.
 
 Do not fix the barem. When its points do not add up to the total, write the points as the barem gives them, and say so in `notes`.
 
@@ -88,6 +91,8 @@ Read `exercises.json`, the test, the barem, and every page in `student/`. Then g
 - `recommendations`: 1 to 5 short Romanian phrases: what the student should practice.
 
 Do not add up the points, and do not give a grade: the platform does that.
+
+When the test has two or more rânduri (Rândul 1, Rândul 2, …), the student wrote one of them. Find which one before you grade: the heading of the pages often names it; otherwise compare the numbers in the student's work with the statements of each rând. Grade every exercise by that rând's statements and that rând's barem, and compare the student's answers with that rând's answers (the `answer` of an exercise names each rând's). When you cannot tell which rând the student wrote, grade by the rând that fits the work best, and set `needsReview` to true on every exercise, with the `reviewReason` "Nu am putut stabili ce rând a scris elevul; am corectat după <rândul ales>."
 
 When `ces.md` is in the folder, the student has special educational needs and wrote the CES variant of the test: the test, the barem and `exercises.json` are the CES variant's. Grade by its barem, which often has blanks to fill in and guided steps. A blank filled in correctly earns the points of its step, with no other justification. Do not take points off for spelling, for hard-to-read writing, or for digits or signs swapped while copying, when the next calculations show that the student worked with the correct value. When you cannot read an answer at all, set `needsReview` to true and say so in `reviewReason`: the teacher reads it. Never write "CES", "adaptat", "variantă", or any word about special needs in a text the student sees (`comment`, `summary`, `strengths`, `recommendations`): the student's result looks like everyone else's.
 
