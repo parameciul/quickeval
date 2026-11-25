@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE } from '../../shared/files.ts';
+import { viewTab } from './shell/viewing.ts';
 import { ApiError, createApiClient, LoginExpiredError, printFileUrl, reloadForLogin, studentResultUrl, submissionFileUrl, testFileUrl } from './api.ts';
 
 // The time the upload on the page started.
@@ -24,6 +25,22 @@ describe('createApiClient and the view of an account', () => {
     const fetchImpl = vi.fn(async () => jsonResponse(409, { error: 'class_exists', message: 'Există.' }));
     await createApiClient({ fetchImpl, onViewEnded }).listClasses(2026).catch(() => {});
     expect(onViewEnded).not.toHaveBeenCalled();
+  });
+
+  it('leaves the page alone on a Quick Try client by default', async () => {
+    const assign = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    const fetchImpl = vi.fn(async () => jsonResponse(409, { error: 'impersonation_ended', message: 'x' }));
+    await createApiClient({ fetchImpl, base: '/api/try/abc' }).listClasses(2026).catch(() => {});
+    expect(assign).not.toHaveBeenCalled();
+    assign.mockRestore();
+  });
+
+  it('goes to Setări on an admin client by default', async () => {
+    const assign = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    const fetchImpl = vi.fn(async () => jsonResponse(409, { error: 'impersonation_ended', message: 'x' }));
+    await createApiClient({ fetchImpl }).listClasses(2026).catch(() => {});
+    expect(assign).toHaveBeenCalledWith('/teacher/settings');
+    assign.mockRestore();
   });
 
   it('me returns the viewing', async () => {

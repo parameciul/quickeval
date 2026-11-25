@@ -260,7 +260,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
   const onLoginExpired = options.onLoginExpired ?? reloadForLogin;
   const apiBase = options.base ?? ADMIN_BASE;
-  const onViewEnded = options.onViewEnded ?? (() => goToSettings(true));
+  const onViewEnded = options.onViewEnded ?? (apiBase === ADMIN_BASE ? () => goToSettings(true) : () => undefined);
 
   // A JSON body, or a file sent raw with its type and URI-encoded name.
   // `base` is the client's base, or /api/auth for the login page.

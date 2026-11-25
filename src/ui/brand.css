@@ -392,13 +392,22 @@ h2 {
   line-height: 1.25;
 }
 
+/* One line, cut with an ellipsis: the bar keeps the height --view gives it. */
 .viewing-bar p {
   margin: 0;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewing-bar button:focus-visible {
+  outline-color: var(--on-ink);
 }
 
 .viewing-bar button {
   flex: none;
+  white-space: nowrap;
   min-height: 1.75rem;
   padding: 0 0.75rem;
   border: 1px solid currentColor;

@@ -33,6 +33,10 @@ describe('try.css', () => {
     expect(phone).toBeGreaterThanOrEqual(0);
     expect(css.slice(phone, css.indexOf('}', phone))).toContain('--top: 56px');
     expect(block('.try-page')).not.toContain('--top');
+    // The bar's height and offset come from --topbar and --view, which the shell defines.
+    expect(bar).toContain('--topbar: 60px');
+    expect(bar).toContain('--view: 0px');
+    expect(css.slice(phone, css.indexOf('}', phone))).toContain('--topbar: 56px');
   });
 
   it('sticks the shown files under the tabs', () => {
