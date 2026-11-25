@@ -11,6 +11,7 @@ import { AccountsSection } from '../settingsPage/AccountsSection.tsx';
 import { UsageSection } from '../settingsPage/UsageSection.tsx';
 import { agoText, RobotLine } from '../testPage/RobotLine.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { takeEndedName } from '../shell/viewing.ts';
 import { t } from '../../i18n/t.ts';
 
 const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) => index + 1);
@@ -42,6 +43,8 @@ export function SettingsPage() {
   const api = useApi();
   const [params, setParams] = useSearchParams();
   const tab = tabOf(params.get('tab'));
+  // Read once: the key is gone after it, so the notice shows for this visit only.
+  const [endedName] = useState(takeEndedName);
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   const isAdmin = me.data?.role === 'admin';
   const settings = useQuery({
@@ -58,6 +61,7 @@ export function SettingsPage() {
     return (
       <section>
         <h1>{t('Setări')}</h1>
+        {endedName !== null && <p role="status">{t('Vizualizarea contului lui {name} s-a încheiat.', { name: endedName })}</p>}
         <p>{t('Doar administratorii au acces la Setări.')}</p>
       </section>
     );
@@ -68,6 +72,7 @@ export function SettingsPage() {
   return (
     <section className="settings-page">
       <h1>{t('Setări')}</h1>
+      {endedName !== null && <p role="status">{t('Vizualizarea contului lui {name} s-a încheiat.', { name: endedName })}</p>}
       <p className="settings-sub">{t('Doar administratorii văd această pagină.')}</p>
       <div
         className="class-tabs"

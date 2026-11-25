@@ -1,4 +1,5 @@
 import { act, cleanup, screen, within } from '@testing-library/react';
+import { believedViewHeader } from './shell/viewing.ts';
 import userEvent from '@testing-library/user-event';
 import { useNavigate } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -801,5 +802,48 @@ describe('the panels before the tests of the year arrive', () => {
     const classes = screen.getByRole('complementary', { name: 'Clasele tale' });
     expect(await within(classes).findByText('Serverul nu răspunde acum.')).toBeInTheDocument();
     expect(within(classes).getByRole('link', { name: /^6E2/ })).toHaveTextContent(/^6E21 elev$/);
+  });
+});
+
+describe("the view of a teacher's account in the shell", () => {
+  const VIEW = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view' as const, expiresAt: '2099-11-25T12:32:00.000Z' };
+  const viewed = () =>
+    createFakeApi({ classes: [], students: {}, me: fakeTeacher({ id: 3, name: 'Ana Pop', email: 'ana@example.com', role: 'teacher' }), viewing: VIEW });
+
+  it('shows the bar and hides Ieși din cont in the account menu', async () => {
+    renderAdmin('/', viewed());
+    expect(await screen.findByText('Vezi contul lui Ana Pop · doar citire · până la 14:32')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /contul tău/ }));
+    const userMenu = document.getElementById('user-menu')!;
+    expect(within(userMenu).getByRole('link', { name: 'Contul meu' })).toBeInTheDocument();
+    expect(within(userMenu).queryByRole('button', { name: 'Ieși din cont' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Setări' })).not.toBeInTheDocument();
+  });
+
+  it('hides Ieși din cont in the phone menu', async () => {
+    onPhone();
+    renderAdmin('/', viewed());
+    expect(await screen.findByText(/Vezi contul lui Ana Pop/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Mai mult' }));
+    const more = screen.getByRole('region', { name: 'Mai mult' });
+    expect(within(more).getByRole('link', { name: 'Contul meu' })).toBeInTheDocument();
+    expect(within(more).queryByRole('button', { name: 'Ieși din cont' })).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it('tells the client which view the tab shows', async () => {
+    renderAdmin('/', viewed());
+    await screen.findByText(/Vezi contul lui Ana Pop/);
+    expect(believedViewHeader()).toBe('1');
+    cleanup();
+    renderAdmin('/', withClasses());
+    await screen.findByRole('button', { name: /contul tău/ });
+    expect(believedViewHeader()).toBe('none');
+  });
+
+  it('has no bar without a view', async () => {
+    renderAdmin('/', withClasses());
+    await screen.findByRole('button', { name: /contul tău/ });
+    expect(screen.queryByText(/doar citire/)).not.toBeInTheDocument();
   });
 });

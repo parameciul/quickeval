@@ -64,6 +64,13 @@ export function formatDateTime(iso: string): string {
   return DATE_TIME.format(new Date(iso));
 }
 
+const TIME = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' });
+
+// The time of day in Romania's local time: "14:32".
+export function formatTime(iso: string): string {
+  return TIME.format(new Date(iso));
+}
+
 const DATE = new Intl.DateTimeFormat(locale(), { timeZone: 'Europe/Bucharest', day: 'numeric', month: 'long', year: 'numeric' });
 
 // A day in Romania's local time: "6 octombrie 2026".

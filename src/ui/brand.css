@@ -351,11 +351,76 @@ h2 {
 
 .shell {
   --bar: 80px;
-  --top: 60px;
+  --topbar: 60px;
+  /* The height of the bar of an administrator's view (zero without one);
+     --top is everything over the page, where the panels and the bar start. */
+  --view: 0px;
+  --top: calc(var(--topbar) + var(--view));
   display: grid;
   flex: 1;
   grid-template-columns: var(--bar) minmax(0, 1fr);
-  grid-template-rows: var(--top) auto;
+  grid-template-rows: var(--topbar) auto;
+}
+
+.shell-viewing {
+  --view: 2.5rem;
+  grid-template-rows: var(--view) var(--topbar) auto;
+}
+
+.shell.shell-viewing > .rail,
+.shell.shell-viewing > .page {
+  grid-row: 3;
+}
+
+/* An administrator's view of a teacher's account: the accent field, over the
+   top bar, always in sight. */
+.viewing-bar {
+  position: sticky;
+  top: 0;
+  z-index: 31;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  height: var(--view);
+  padding-inline: 1rem;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* One line, cut with an ellipsis: the bar keeps the height --view gives it. */
+.viewing-bar p {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewing-bar button:focus-visible {
+  outline-color: var(--on-ink);
+}
+
+.viewing-bar button {
+  flex: none;
+  white-space: nowrap;
+  min-height: 1.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.viewing-bar button:hover {
+  background: var(--on-ink);
+  color: var(--ink);
 }
 
 .shell-bare {
@@ -364,13 +429,13 @@ h2 {
 
 .topbar {
   position: sticky;
-  top: 0;
+  top: var(--view);
   z-index: 30;
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 1rem;
-  height: var(--top);
+  height: var(--topbar);
   padding-right: 1.5rem;
   border-bottom: 1px solid var(--rule);
   background: var(--sheet);
@@ -1130,9 +1195,19 @@ table.search-table {
    Teste, Clase and De făcut; the panels cover the screen between the two. */
 @media (max-width: 56.25rem) {
   .shell {
-    --top: 56px;
+    --topbar: 56px;
     --bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shell-viewing {
+    --view: 3.25rem;
+  }
+
+  .viewing-bar {
+    gap: 0.625rem;
+    padding-inline: max(1rem, env(safe-area-inset-left, 0px)) max(1rem, env(safe-area-inset-right, 0px));
+    font-size: 0.8125rem;
   }
 
   .topbar {
@@ -8794,6 +8869,14 @@ a.ticket-qr {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* The administrators' views: dates and words, so every column is on the left. */
+.account-work.account-views th,
+.account-work.account-views td,
+.account-work.account-views thead th:not(:first-child) {
+  text-align: left;
+  font-variant-numeric: normal;
 }
 
 .account-work .account-person {

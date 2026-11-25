@@ -32,6 +32,7 @@ import type {
   StudentRow,
   SubmissionDetail,
   Teacher,
+  Viewing,
   TestDetail,
   TestFileAnswer,
   TestInfo,
@@ -63,6 +64,8 @@ export interface FakeData {
   reports?: Record<string, ClassReport>;
   // The logged-in teacher; an administrator when missing.
   me?: Teacher;
+  // The administrator's view of that teacher's account; none when missing.
+  viewing?: Viewing | null;
   // The accounts on Setări; the logged-in teacher alone when missing.
   accounts?: Account[];
   // "Detalii" of the accounts, by id; a made-up history when missing.
@@ -464,7 +467,12 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
 
   const api = {
     base: '/api/admin',
-    me: vi.fn(async () => structuredClone(me)),
+    me: vi.fn(async () => ({ ...structuredClone(me), viewing: structuredClone(data.viewing ?? null) })),
+    startView: vi.fn(async (accountId: number, _password: string) => {
+      const target = accounts.find((account) => account.id === accountId);
+      return { id: 1, teacher: { id: accountId, name: target?.name ?? '' }, mode: 'view' as const, expiresAt: '2099-11-25T12:32:00.000Z' };
+    }),
+    endView: vi.fn(async () => {}),
     // Like the server's number: it changes with the tests and their uploads.
     dataVersion: vi.fn(async () => JSON.stringify({ tests, submissions })),
     login: vi.fn(async (_email: string, _password: string) => structuredClone(me)),
@@ -502,6 +510,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
           print: { done: 0, failed: 0, tokens: 0 },
         },
         tests: [],
+        views: [],
       };
     }),
     listRefusedAccounts: vi.fn(async () => structuredClone(data.refusedAccounts ?? [])),

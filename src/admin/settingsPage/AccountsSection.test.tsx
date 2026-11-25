@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api.ts';
 import { createFakeApi, FAKE_TEMPORARY_PASSWORD, fakeAccount } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
+import { viewTab } from '../shell/viewing.ts';
 import { accountKind, accountUse } from './AccountsSection.tsx';
 
 const laura = fakeAccount();
@@ -33,7 +34,7 @@ describe('the accounts on Setări', () => {
     renderAdmin('/settings', withAccounts());
     await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Bogdan' }));
     const items = screen.getAllByRole('menuitem');
-    expect(items.map((item) => item.textContent)).toEqual(['Fă cont complet', 'Parolă nouă', 'Închide contul']);
+    expect(items.map((item) => item.textContent)).toEqual(['Fă cont complet', 'Parolă nouă', 'Închide contul', 'Vezi ca Bogdan']);
     for (const item of items) expect(item.querySelector('svg.action-icon'), item.textContent).not.toBeNull();
   });
 
@@ -236,6 +237,7 @@ describe('the accounts on Setări', () => {
             barem: { done: 4, failed: 0, tokens: 9_000 },
             print: { done: 3, failed: 0, tokens: 0 },
           },
+          views: [],
           tests: [
             {
               code: '6E2-26T1',
@@ -303,6 +305,7 @@ describe('the accounts on Setări', () => {
             barem: { done: 4, failed: 0, tokens: 9_000 },
             print: { done: 3, failed: 0, tokens: 0 },
           },
+          views: [],
           tests: [
             {
               code: '6E2-26T1',
@@ -479,6 +482,42 @@ describe('"Indicații la corectare" on Setări', () => {
   });
 });
 
+describe('"Vizualizări de administrator" on Detalii', () => {
+  const views = [
+    { admin: { id: 1, name: 'Laura Miron' }, startedAt: '2026-11-25T10:00:00.000Z', endedAt: '2026-11-25T10:20:00.000Z', endReason: 'exit' as const },
+    { admin: null, startedAt: '2026-11-25T12:00:00.000Z', endedAt: null, endReason: null },
+  ];
+  const open = async (detailViews: typeof views) => {
+    const account = fakeAccount({ id: 3, name: 'Bogdan', email: 'bogdan@example.com', role: 'teacher' });
+    const base = await createFakeApi({ classes: [], students: {}, accounts: [structuredClone(account)] }).getAccount(3);
+    renderAdmin(
+      '/settings',
+      createFakeApi({ classes: [], students: {}, accounts: [structuredClone(laura), structuredClone(account)], accountDetails: { 3: { ...base, views: detailViews } } }),
+    );
+    const all = await card('Toate conturile');
+    await userEvent.click(within(row(all, 'Bogdan')).getByRole('button', { name: 'Detalii pentru Bogdan' }));
+  };
+
+  it("shows the administrators' views", async () => {
+    await open(views);
+    const heading = await screen.findByRole('heading', { name: 'Vizualizări de administrator' });
+    const table = heading.closest('div')!.querySelector('table')!;
+    expect(table).toHaveClass('account-work', 'account-views');
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent('Laura Miron');
+    expect(rows[0]).toHaveTextContent('25 nov. 2026, 12:00');
+    expect(rows[0]).toHaveTextContent('Ieșit');
+    expect(rows[1]).toHaveTextContent('—');
+    expect(rows[1]).toHaveTextContent('în curs');
+  });
+
+  it('shows no views part when there are none', async () => {
+    await open([]);
+    await screen.findByRole('heading', { name: 'Istoricul contului' });
+    expect(screen.queryByRole('heading', { name: 'Vizualizări de administrator' })).not.toBeInTheDocument();
+  });
+});
+
 describe('accountKind and accountUse', () => {
   it.each([
     [fakeAccount({ role: 'teacher', testsEvaluated: 1, papersGraded: 1 }), 'complet', '1 test · 1 lucrare'],
@@ -491,5 +530,83 @@ describe('accountKind and accountUse', () => {
   ])('describes %j', (account, kind, use) => {
     expect(accountKind(account).label).toBe(kind);
     expect(accountUse(account)).toBe(use);
+  });
+});
+
+describe('Vezi ca on Setări', () => {
+  const activeAna = fakeAccount({ id: 2, name: 'Ana Pop', email: 'ana@example.com', role: 'teacher', status: 'active' });
+  const closed = fakeAccount({ id: 5, name: 'Costin', email: 'costin@example.com', role: 'teacher', status: 'disabled' });
+  const api = () => createFakeApi({ classes: [], students: {}, accounts: [structuredClone(laura), structuredClone(activeAna), structuredClone(closed)] });
+
+  afterEach(() => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+  });
+
+  it('puts Vezi ca {name} in the menu of an active teacher only', async () => {
+    renderAdmin('/settings', api());
+    await userEvent.click(await screen.findByRole('button', { name: 'Mai multe pentru Ana Pop' }));
+    expect(screen.getByRole('menuitem', { name: 'Vezi ca Ana Pop' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(screen.getByRole('button', { name: 'Mai multe pentru Costin' }));
+    expect(screen.queryByRole('menuitem', { name: /Vezi ca/ })).not.toBeInTheDocument();
+  });
+
+  it('asks the password and opens the account', async () => {
+    const fake = api();
+    const leave = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    window.localStorage.setItem('quickeval:lastClass', '7');
+    renderAdmin('/settings', fake);
+    await pick('Ana Pop', 'Vezi ca Ana Pop');
+    const dialog = await screen.findByRole('dialog', { name: 'Vezi contul lui Ana Pop' });
+    expect(within(dialog).getByText('Ca să vezi contul lui Ana Pop, scrie parola ta.')).toBeInTheDocument();
+    const field = within(dialog).getByLabelText('Parola ta');
+    expect(field).toHaveAttribute('type', 'password');
+    expect(field).toHaveAttribute('autocomplete', 'current-password');
+    await userEvent.type(field, 'parola');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Vezi contul' }));
+    await vi.waitFor(() => expect(leave).toHaveBeenCalledWith('/teacher/'));
+    expect(fake.startView).toHaveBeenCalledWith(2, 'parola');
+    expect(window.sessionStorage.getItem('quickeval.viewing')).toBe('Ana Pop');
+    expect(window.localStorage.getItem('quickeval:lastClass')).toBeNull();
+  });
+
+  it('shows the message of the API for a wrong password and keeps the dialog open', async () => {
+    const fake = api();
+    const leave = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    fake.startView.mockRejectedValueOnce(new ApiError(400, 'wrong_password', 'Parola nu e bună.'));
+    renderAdmin('/settings', fake);
+    await pick('Ana Pop', 'Vezi ca Ana Pop');
+    const dialog = await screen.findByRole('dialog', { name: 'Vezi contul lui Ana Pop' });
+    await userEvent.type(within(dialog).getByLabelText('Parola ta'), 'gresit');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Vezi contul' }));
+    expect(await within(dialog).findByText('Parola nu e bună.')).toBeInTheDocument();
+    expect(leave).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem('quickeval.viewing')).toBeNull();
+  });
+
+  it('cannot be closed while the start is pending', async () => {
+    const fake = api();
+    const leave = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    let finish: () => void = () => {};
+    fake.startView.mockReturnValueOnce(new Promise<never>((resolve) => { finish = () => resolve(undefined as never); }));
+    renderAdmin('/settings', fake);
+    await pick('Ana Pop', 'Vezi ca Ana Pop');
+    const dialog = await screen.findByRole('dialog', { name: 'Vezi contul lui Ana Pop' });
+    await userEvent.type(within(dialog).getByLabelText('Parola ta'), 'parola');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Vezi contul' }));
+    expect(within(dialog).getByRole('button', { name: 'Renunță' })).toBeDisabled();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.getByRole('dialog', { name: 'Vezi contul lui Ana Pop' })).toBeInTheDocument();
+    finish();
+    await vi.waitFor(() => expect(leave).toHaveBeenCalledWith('/teacher/'));
+  });
+
+  it('closes the dialog with Renunță', async () => {
+    renderAdmin('/settings', api());
+    await pick('Ana Pop', 'Vezi ca Ana Pop');
+    const dialog = await screen.findByRole('dialog', { name: 'Vezi contul lui Ana Pop' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Renunță' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

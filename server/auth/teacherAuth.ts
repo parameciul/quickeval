@@ -1,11 +1,12 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Teacher } from '../../shared/api.ts';
 import { findActiveTeacherByEmail, findTeacherBySession } from '../db/accounts.ts';
+import { closeDeadView, findView } from '../db/impersonations.ts';
 import type { AppEnv } from '../env.ts';
 import { ApiError } from '../errors.ts';
 import { nowIso } from '../http.ts';
 import { sha256Hex } from '../secrets.ts';
-import { sessionToken } from './session.ts';
+import { clearViewCookie, sessionToken, viewToken } from './session.ts';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 
@@ -38,7 +39,48 @@ export async function optionalTeacher(c: Context<AppEnv>): Promise<Teacher | nul
 // Puts the logged-in teacher in c.var.teacher, or refuses the request.
 export function teacherAuth(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
-    c.set('teacher', await loggedInTeacher(c));
+    const real = await loggedInTeacher(c);
+    c.set('viewing', null);
+    const view = viewToken(c);
+    // The page's claim of the view it shows (X-MQ-View: its id, or "none"). A
+    // tab that still shows a view the cookie no longer carries must not be
+    // served as the administrator under it. No header, "none" or anything else
+    // that is not an id: no claim.
+    const claimed = /^[1-9][0-9]{0,9}$/.test(c.req.header('X-MQ-View') ?? '') ? Number(c.req.header('X-MQ-View')) : null;
+    const ended = () => new ApiError(409, 'impersonation_ended', 'Vizualizarea contului s-a încheiat.');
+    if (!view) {
+      if (claimed !== null) throw ended();
+      c.set('teacher', real);
+      await next();
+      return;
+    }
+    // Only an administrator can be viewing. A cookie left in a browser where
+    // someone else logged in since is dropped, and the request goes on as that
+    // person.
+    if (real.role !== 'admin') {
+      const owner = await closeDeadView(c.env.DB, await sha256Hex(view), nowIso());
+      clearViewCookie(c);
+      // The administrator's own view, left open when they stopped being one.
+      if (owner === real.id || claimed !== null) throw ended();
+      c.set('teacher', real);
+      await next();
+      return;
+    }
+    // A view belongs to the administrator's own login session, so the
+    // development login (no session cookie) never has one.
+    const session = sessionToken(c);
+    const tokenHash = await sha256Hex(view);
+    const now = nowIso();
+    const found = session ? await findView(c.env.DB, tokenHash, await sha256Hex(session), now) : null;
+    if (!found || found.adminId !== real.id) {
+      await closeDeadView(c.env.DB, tokenHash, now);
+      clearViewCookie(c);
+      throw ended();
+    }
+    // A live view, but not the one this tab shows; the cookie stays.
+    if (claimed !== null && claimed !== found.viewing.id) throw ended();
+    c.set('teacher', found.teacher);
+    c.set('viewing', { viewing: found.viewing, adminId: found.adminId, tokenHash });
     await next();
   };
 }

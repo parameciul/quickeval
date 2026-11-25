@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useApi } from '../ApiContext.tsx';
+import { goToSettings, isLeaving, viewPartOf } from './viewing.ts';
 
 // How the teacher pages learn what the robot, the students and a scheduled
 // start changed. D1 bills every row read and a page can stay open for hours,
@@ -10,7 +11,16 @@ import { useApi } from '../ApiContext.tsx';
 // also starts the scheduled tests on the server (promoteDue).
 export const VERSION_CHECK_MS = 60_000;
 
-export function useDataVersion(enabled: boolean): void {
+// `reload` leaves the page for a new load: a change of the view part of the
+// version (a view of a teacher's account began or changed, here or in another
+// tab) changes whose data every page shows. `leave` is for a view that ended:
+// the administrator goes to Setări, where the end is told, and never stays
+// under the teacher's pages.
+export function useDataVersion(
+  enabled: boolean,
+  reload: () => void = () => window.location.reload(),
+  leave: () => void = () => goToSettings(true),
+): void {
   const api = useApi();
   const queryClient = useQueryClient();
   const version = useQuery({
@@ -22,6 +32,11 @@ export function useDataVersion(enabled: boolean): void {
     refetchOnWindowFocus: true,
   });
   const seen = useRef<string | undefined>(undefined);
+  // A new function each render must not run the effect below again.
+  const reloadRef = useRef(reload);
+  reloadRef.current = reload;
+  const leaveRef = useRef(leave);
+  leaveRef.current = leave;
   // The teacher's own save changes the version too, and the page that saved
   // already reads its data again. So after a save the app asks the version at
   // once and takes it as seen, instead of reading the page a second time at
@@ -44,6 +59,15 @@ export function useDataVersion(enabled: boolean): void {
   useEffect(() => {
     const current = version.data;
     if (current === undefined) return;
+    // First: a save right before a view change must still reload.
+    if (seen.current !== undefined && viewPartOf(seen.current) !== viewPartOf(current)) {
+      seen.current = current;
+      adopt.current = false;
+      if (isLeaving()) return;
+      const ended = viewPartOf(current) === '';
+      (ended ? leaveRef : reloadRef).current();
+      return;
+    }
     if (adopt.current) {
       adopt.current = false;
     } else if (seen.current !== undefined && seen.current !== current) {

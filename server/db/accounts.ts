@@ -55,7 +55,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const daysBefore = (now: string, days: number) => new Date(Date.parse(now) - days * DAY_MS).toISOString();
 const msBefore = (now: string, ms: number) => new Date(Date.parse(now) - ms).toISOString();
 
-interface TeacherRow {
+export interface TeacherRow {
   id: number;
   email: string;
   name: string;
@@ -80,7 +80,7 @@ interface AccountRow extends TeacherRow {
 
 // `show_barem_notes` null follows the role: the notes' section shows to
 // administrators and not to teachers until an administrator says otherwise.
-const TEACHER_COLUMNS = `t.id, t.email, t.name, t.role, t.demo, t.tests_evaluated, t.papers_graded, ${papersWaitingSql('t.id')} AS papers_waiting,
+export const TEACHER_COLUMNS = `t.id, t.email, t.name, t.role, t.demo, t.tests_evaluated, t.papers_graded, ${papersWaitingSql('t.id')} AS papers_waiting,
   COALESCE(t.show_barem_notes, t.role = 'admin') AS show_barem_notes`;
 
 // The columns of an account, beside the teacher's: the history of its state
@@ -88,7 +88,7 @@ const TEACHER_COLUMNS = `t.id, t.email, t.name, t.role, t.demo, t.tests_evaluate
 const ACCOUNT_COLUMNS = `${TEACHER_COLUMNS}, t.status, t.created_at, t.approved_at, t.last_login_at,
   t.barems_generated, t.exercise_lists_made, t.analyses_made, t.prints_made`;
 
-function toTeacher(row: TeacherRow): Teacher {
+export function toTeacher(row: TeacherRow): Teacher {
   return {
     id: row.id,
     email: row.email,

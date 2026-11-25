@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { AccountEventKind } from '../../../shared/accounts.ts';
-import type { Account, AccountDetail, RefusedAccount, Teacher } from '../../../shared/api.ts';
+import type { Account, AccountDetail, AccountView, RefusedAccount, Teacher } from '../../../shared/api.ts';
 import { DEMO_PAPER_LIMIT } from '../../../shared/accounts.ts';
 import { countLabel, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { ViewAsDialog } from './ViewAsDialog.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { t, locale } from '../../i18n/t.ts';
@@ -540,8 +541,43 @@ function TestWorkTable({ tests }: { tests: AccountDetail['tests'] }) {
   );
 }
 
+const VIEW_END_LABEL: Record<NonNullable<AccountView['endReason']>, () => string> = {
+  exit: () => t('Ieșit'),
+  expired: () => t('Timpul s-a terminat'),
+  replaced: () => t('Înlocuit de altă vizualizare'),
+  session_gone: () => t('Intrarea s-a încheiat'),
+};
+
+// The times an administrator looked at the account, newest first.
+function ViewsTable({ views }: { views: AccountView[] }) {
+  return (
+    <div className="table-wrap">
+      <table className="account-work account-views">
+        <thead>
+          <tr>
+            <th scope="col">{t('Administrator')}</th>
+            <th scope="col">{t('Început')}</th>
+            <th scope="col">{t('Sfârșit')}</th>
+            <th scope="col">{t('Cum s-a încheiat')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {views.map((view, index) => (
+            <tr key={`${view.startedAt}-${index}`}>
+              <th scope="row">{view.admin?.name ?? '—'}</th>
+              <td>{formatDateTime(view.startedAt)}</td>
+              <td>{view.endedAt ? formatDateTime(view.endedAt) : '—'}</td>
+              <td>{view.endReason ? VIEW_END_LABEL[view.endReason]() : t('în curs')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function AccountDetailView({ detail }: { detail: AccountDetail }) {
-  const { account, events, counts, activity, robot, tests } = detail;
+  const { account, events, counts, activity, robot, tests, views } = detail;
   return (
     <div className="account-detail">
       <div>
@@ -592,6 +628,12 @@ function AccountDetailView({ detail }: { detail: AccountDetail }) {
           <p>{t('Nicio schimbare înregistrată.')}</p>
         )}
       </div>
+      {views.length > 0 && (
+        <div className="account-detail-wide">
+          <h3>{t('Vizualizări de administrator')}</h3>
+          <ViewsTable views={views} />
+        </div>
+      )}
     </div>
   );
 }
@@ -617,6 +659,7 @@ function AccountMenu({
     action();
   };
   const active = account.status === 'active';
+  const [viewing, setViewing] = useState(false);
 
   return (
     <div className="class-more account-more" ref={box}>
@@ -675,8 +718,15 @@ function AccountMenu({
               {t('Închide contul')}
             </button>
           )}
+          {active && (
+            <button type="button" role="menuitem" className="class-menu-item has-icon" disabled={busy} onClick={run(() => setViewing(true))}>
+              <ActionIcon name="eye" />
+              {t('Vezi ca {name}', { name: account.name })}
+            </button>
+          )}
         </div>
       )}
+      {viewing && <ViewAsDialog account={account} onClose={() => setViewing(false)} returnFocus={button} />}
     </div>
   );
 }

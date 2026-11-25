@@ -222,7 +222,7 @@ describe('TestPage evaluation', () => {
 
   it('hides the indications from a teacher by default, and keeps the barem row', async () => {
     const api = evaluationApi({ baremNotes: 'La 2, și proporții.' });
-    api.me.mockResolvedValue(fakeTeacher({ role: 'teacher' }));
+    api.me.mockResolvedValue({ ...fakeTeacher({ role: 'teacher' }), viewing: null });
     renderAdmin(`${PAGE}#prepare`, api);
     expect(await screen.findByLabelText('Înlocuiește baremul')).toBeInTheDocument();
     expect(screen.queryByLabelText('Indicații suplimentare pentru corectare')).not.toBeInTheDocument();
@@ -231,13 +231,13 @@ describe('TestPage evaluation', () => {
 
   it('shows the indications to a teacher an administrator chose, and hides them from an administrator who chose not to see them', async () => {
     const teacherApi = evaluationApi({});
-    teacherApi.me.mockResolvedValue(fakeTeacher({ role: 'teacher', showBaremNotes: true }));
+    teacherApi.me.mockResolvedValue({ ...fakeTeacher({ role: 'teacher', showBaremNotes: true }), viewing: null });
     const shown = renderAdmin(`${PAGE}#prepare`, teacherApi);
     expect(await screen.findByLabelText('Indicații suplimentare pentru corectare')).toBeEnabled();
     shown.unmount();
 
     const adminApi = evaluationApi({});
-    adminApi.me.mockResolvedValue(fakeTeacher({ showBaremNotes: false }));
+    adminApi.me.mockResolvedValue({ ...fakeTeacher({ showBaremNotes: false }), viewing: null });
     renderAdmin(`${PAGE}#prepare`, adminApi);
     expect(await screen.findByLabelText('Înlocuiește baremul')).toBeInTheDocument();
     expect(screen.queryByLabelText('Indicații suplimentare pentru corectare')).not.toBeInTheDocument();

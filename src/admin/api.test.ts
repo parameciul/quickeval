@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE } from '../../shared/files.ts';
+import { setBelievedView, viewTab } from './shell/viewing.ts';
 import { ApiError, createApiClient, LoginExpiredError, printFileUrl, reloadForLogin, studentResultUrl, submissionFileUrl, testFileUrl } from './api.ts';
 
 // The time the upload on the page started.
@@ -8,6 +9,99 @@ const STARTED = '2026-10-06T07:15:00.000Z';
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
+
+describe('the claim of the shown view (X-MQ-View)', () => {
+  type Fetch = (url: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  const headerOf = (fetchImpl: { mock: { calls: Parameters<Fetch>[] } }, call = 0) =>
+    new Headers(fetchImpl.mock.calls[call]![1]!.headers).get('X-MQ-View');
+
+  it('is sent after the shell told it, and not before', async () => {
+    const fetchImpl = vi.fn<Fetch>(async () => jsonResponse(200, { classes: [] }));
+    const api = createApiClient({ fetchImpl });
+    await api.listClasses(2026);
+    expect(headerOf(fetchImpl)).toBeNull();
+    setBelievedView(7);
+    await api.listClasses(2026);
+    expect(headerOf(fetchImpl, 1)).toBe('7');
+    setBelievedView('none');
+    await api.listClasses(2026);
+    expect(headerOf(fetchImpl, 2)).toBe('none');
+  });
+
+  it('is not sent by a Quick Try client', async () => {
+    setBelievedView(7);
+    const fetchImpl = vi.fn<Fetch>(async () => jsonResponse(200, { classes: [] }));
+    await createApiClient({ fetchImpl, base: '/api/try/abc' }).listClasses(2026);
+    expect(headerOf(fetchImpl)).toBeNull();
+  });
+
+  it('is sent with a file too, and a 409 there ends the view', async () => {
+    setBelievedView(7);
+    const onViewEnded = vi.fn();
+    const fetchImpl = vi.fn<Fetch>(async () => new Response(new Blob(['x'])));
+    const api = createApiClient({ fetchImpl, onViewEnded });
+    await api.submissionFile(1, 2);
+    expect(headerOf(fetchImpl)).toBe('7');
+    fetchImpl.mockResolvedValueOnce(jsonResponse(409, { error: 'impersonation_ended', message: 'x' }));
+    await expect(api.submissionFile(1, 2)).rejects.toBeInstanceOf(ApiError);
+    expect(onViewEnded).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createApiClient and the view of an account', () => {
+  it('calls onViewEnded on 409 impersonation_ended and still throws', async () => {
+    const onViewEnded = vi.fn();
+    const fetchImpl = vi.fn(async () => jsonResponse(409, { error: 'impersonation_ended', message: 'Vizualizarea s-a încheiat.' }));
+    const api = createApiClient({ fetchImpl, onViewEnded });
+    const error = await api.listClasses(2026).catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(onViewEnded).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onViewEnded on another 409', async () => {
+    const onViewEnded = vi.fn();
+    const fetchImpl = vi.fn(async () => jsonResponse(409, { error: 'class_exists', message: 'Există.' }));
+    await createApiClient({ fetchImpl, onViewEnded }).listClasses(2026).catch(() => {});
+    expect(onViewEnded).not.toHaveBeenCalled();
+  });
+
+  it('leaves the page alone on a Quick Try client by default', async () => {
+    const assign = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    const fetchImpl = vi.fn(async () => jsonResponse(409, { error: 'impersonation_ended', message: 'x' }));
+    await createApiClient({ fetchImpl, base: '/api/try/abc' }).listClasses(2026).catch(() => {});
+    expect(assign).not.toHaveBeenCalled();
+    assign.mockRestore();
+  });
+
+  it('goes to Setări on an admin client by default', async () => {
+    const assign = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    const fetchImpl = vi.fn(async () => jsonResponse(409, { error: 'impersonation_ended', message: 'x' }));
+    await createApiClient({ fetchImpl }).listClasses(2026).catch(() => {});
+    expect(assign).toHaveBeenCalledWith('/teacher/settings');
+    assign.mockRestore();
+  });
+
+  it('me returns the viewing', async () => {
+    const viewing = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view', expiresAt: '2099-11-25T12:32:00.000Z' };
+    const teacher = { id: 3, email: 'ana@example.com', name: 'Ana Pop', role: 'teacher' };
+    const fetchImpl = vi.fn(async () => jsonResponse(200, { teacher, viewing }));
+    const me = await createApiClient({ fetchImpl }).me();
+    expect(me).toEqual({ ...teacher, viewing });
+  });
+
+  it('starts and ends a view', async () => {
+    const viewing = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view', expiresAt: '2099-11-25T12:32:00.000Z' };
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === 'DELETE' ? jsonResponse(200, { ended: true }) : jsonResponse(201, { viewing }),
+    );
+    const api = createApiClient({ fetchImpl });
+    expect(await api.startView(3, 'parola')).toEqual(viewing);
+    expect(fetchImpl.mock.calls[0]![0]).toBe('/api/admin/accounts/3/impersonation');
+    expect(fetchImpl.mock.calls[0]![1]!.body).toBe(JSON.stringify({ mode: 'view', password: 'parola' }));
+    await api.endView();
+    expect(fetchImpl.mock.calls[1]![0]).toBe('/api/admin/impersonation');
+  });
+});
 
 describe('createApiClient', () => {
   it('asks for the classes of a school year and returns them', async () => {

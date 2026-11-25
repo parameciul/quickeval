@@ -12,12 +12,15 @@ html {
 .try-topbar {
   --bar: 80px;
   --top: 60px;
+  --topbar: 60px;
+  --view: 0px;
   position: static;
 }
 
 @media (max-width: 56.25rem) {
   .try-topbar {
     --top: 56px;
+    --topbar: 56px;
   }
 }
 

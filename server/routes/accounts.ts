@@ -20,8 +20,10 @@ import {
   takePasswordCheck,
   updateAccount,
 } from '../db/accounts.ts';
+import { listAccountViews } from '../db/impersonations.ts';
 import { emailSender } from '../email.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
+import { startViewHandler } from './impersonation.ts';
 import { ApiError, notFound } from '../errors.ts';
 import { inBackground, nowIso, parseId, readJson } from '../http.ts';
 import { hashPassword, verifyPassword } from '../passwords.ts';
@@ -74,14 +76,15 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
   routes.get('/:id', async (c) => {
     const account = await findAccount(c.env.DB, parseId(c.req.param('id')));
     if (!account) throw notFound();
-    const [events, counts, activity, robot, tests] = await Promise.all([
+    const [events, counts, activity, robot, tests, views] = await Promise.all([
       listAccountEvents(c.env.DB, account.id),
       countAccountWork(c.env.DB, account.id),
       accountActivity(c.env.DB, account.id, nowIso()),
       countRobotWork(c.env.DB, account.id),
       listAccountTests(c.env.DB, account.id),
+      listAccountViews(c.env.DB, account.id, nowIso()),
     ]);
-    return c.json({ account, events, counts, activity, robot, tests });
+    return c.json({ account, events, counts, activity, robot, tests, views });
   });
 
   // The teacher hears about it by email when emails are set up.
@@ -149,6 +152,9 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (!(await setShowBaremNotes(c.env.DB, id, show))) throw notFound();
     return c.json({ accounts: await listAccounts(c.env.DB) });
   });
+
+  // An administrator starts a view of this account (routes/impersonation.ts).
+  routes.post('/:id/impersonation', startViewHandler);
 
   // A new password for a teacher who forgot theirs, shown this once. The
   // teacher's logins end, and the teacher gets an email, so a password changed

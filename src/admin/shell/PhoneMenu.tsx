@@ -18,7 +18,7 @@ import { t } from '../../i18n/t.ts';
 // It drops from the top bar and comes right after ☰ for the keyboard (the
 // Layout draws it there); a tap outside it or on ☰ again closes it, and so do
 // Esc and a new page (the Layout).
-export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): void }) {
+export function PhoneMenu({ teacher, viewing, onClose }: { teacher: Teacher; viewing: boolean; onClose(): void }) {
   const box = useRef<HTMLElement>(null);
   const logout = useLogout();
   useFocusBack(box);
@@ -62,10 +62,12 @@ export function PhoneMenu({ teacher, onClose }: { teacher: Teacher; onClose(): v
           <ActionIcon name="person" />
           {t('Contul meu')}
         </Link>
-        <button type="button" className="menu-row menu-link menu-quiet" disabled={logout.isPending} onClick={() => logout.mutate()}>
-          <ActionIcon name="logout" />
-          {t('Ieși din cont')}
-        </button>
+        {!viewing && (
+          <button type="button" className="menu-row menu-link menu-quiet" disabled={logout.isPending} onClick={() => logout.mutate()}>
+            <ActionIcon name="logout" />
+            {t('Ieși din cont')}
+          </button>
+        )}
         {logout.error && <ErrorMessage error={logout.error} />}
       </div>
     </section>
