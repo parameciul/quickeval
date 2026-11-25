@@ -31,4 +31,5 @@ export const UI = {
   "Se pregătesc pozele…": "Preparing the photos…",
   "{name}, din {pictures}": "{name}, from {pictures}",
   "PDF, Word sau poze": "PDF, Word or photos",
+  "Pozele fac un PDF de peste 25 MB. Alege mai puține poze.": "The photos make a PDF over 25 MB. Choose fewer photos.",
 } as const satisfies Record<string, string>;

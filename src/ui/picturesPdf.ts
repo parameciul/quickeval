@@ -1,4 +1,4 @@
-import { EMPTY_FILE, FILE_TOO_BIG, fileProblem, JPEG_TYPE, MAX_FILE_BYTES, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, uploadTypeOf } from '../../shared/files.ts';
+import { EMPTY_FILE, fileProblem, JPEG_TYPE, MAX_FILE_BYTES, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, uploadTypeOf } from '../../shared/files.ts';
 import { translateMessage } from '../../shared/i18n/messages.ts';
 import { t, tc } from '../i18n/t.ts';
 import { jpegsToPdf, type PdfPage } from './jpegPdf.ts';
@@ -91,7 +91,7 @@ export async function picturesToPdf(pictures: readonly File[], name: string, too
     }
   }
   const pdf = jpegsToPdf(pages);
-  if (pdf.length > MAX_FILE_BYTES) return { problem: translateMessage(FILE_TOO_BIG) };
+  if (pdf.length > MAX_FILE_BYTES) return { problem: t('Pozele fac un PDF de peste 25 MB. Alege mai puține poze.') };
   return { file: new File([pdf as Uint8Array<ArrayBuffer>], name, { type: PDF_TYPE }) };
 }
 

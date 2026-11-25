@@ -181,6 +181,21 @@ describe('FileDrop', () => {
       expect(onPick).toHaveBeenLastCalledWith(null);
     });
 
+    it('tells its page while the photos are being prepared, and when it is gone', async () => {
+      const onBusy = vi.fn();
+      const { makePdf, end } = pending();
+      const { container, unmount } = render(<FileDrop id="drop" name="Fișierul testului" onPick={() => {}} makePdf={makePdf} onBusy={onBusy} />);
+      expect(onBusy).toHaveBeenLastCalledWith(false);
+      fireEvent.drop(container.querySelector('.file-drop')!, { dataTransfer: { files: [photo('IMG_1.jpg')] } });
+      expect(onBusy).toHaveBeenLastCalledWith(true);
+      await end(0, { file: built('IMG_1.pdf') });
+      expect(onBusy).toHaveBeenLastCalledWith(false);
+      fireEvent.drop(container.querySelector('.file-drop')!, { dataTransfer: { files: [photo('IMG_2.jpg')] } });
+      expect(onBusy).toHaveBeenLastCalledWith(true);
+      unmount();
+      expect(onBusy).toHaveBeenLastCalledWith(false);
+    });
+
     it('drops the PDF of photos that ends after the drop area is gone', async () => {
       const onPick = vi.fn();
       const { makePdf, end } = pending();

@@ -9,9 +9,9 @@ export type PickOutcome = { file: File; pictures: number } | { problem: string }
 
 // Takes the files a teacher picked or dropped for the test or the barem. One
 // PDF or Word file ends at once, as before; photos end when their PDF is made,
-// with `busy` true meanwhile. A pick made while photos are being prepared
-// wins: the older one's PDF is dropped, and so is one that ends after the
-// picker is gone. `confirm` gets the name of the file that would be sent.
+// with `busy` true meanwhile (the pickers are off then). A PDF that ends after
+// a newer pick, or after the picker is gone, is dropped. `confirm` gets the
+// name of the file that would be sent.
 export function useTeacherPick(makePdf: MakePdf = picturesToPdf) {
   const [busy, setBusy] = useState(false);
   const round = useRef(0);

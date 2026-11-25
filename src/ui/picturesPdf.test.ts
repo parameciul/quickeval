@@ -118,7 +118,8 @@ describe('jpegsToPdf', () => {
     const body = latin1(bytes);
     const xref = Number(/startxref\n(\d+)\n/.exec(body)![1]);
     expect(body.slice(xref, xref + 4)).toBe('xref');
-    const rows = body.slice(xref).split('\n').slice(2, 2 + 7);
+    const rows = body.slice(xref).split('\n').slice(2, 2 + 9);
+    expect(rows).toHaveLength(9);
     expect(rows[0]).toBe('0000000000 65535 f ');
     rows.slice(1).forEach((row, index) => {
       const offset = Number(row.slice(0, 10));
@@ -188,6 +189,6 @@ describe('picturesToPdf', () => {
   it('refuses photos whose PDF would be over 25 MB', async () => {
     const half = Math.ceil(MAX_FILE_BYTES / 2);
     const { fake } = tools(undefined, () => new Blob([jpegBytes(half)]));
-    expect(await picturesToPdf([photo('a.jpg'), photo('b.jpg')], 'a.pdf', fake)).toEqual({ problem: 'Fișierul are peste 25 MB.' });
+    expect(await picturesToPdf([photo('a.jpg'), photo('b.jpg')], 'a.pdf', fake)).toEqual({ problem: 'Pozele fac un PDF de peste 25 MB. Alege mai puține poze.' });
   });
 });

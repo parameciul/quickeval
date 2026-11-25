@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { t, tc } from '../../i18n/t.ts';
 import { TEACHER_PICK_ACCEPT, type MakePdf } from '../../ui/picturesPdf.ts';
 import { useTeacherPick } from '../../ui/useTeacherPick.ts';
@@ -9,7 +9,8 @@ import { useTeacherPick } from '../../ui/useTeacherPick.ts';
 // file goes through the check of `TestFileInput` (one PDF or Word file, or
 // photos of the pages, made into one PDF; at most 25 MB): one that cannot be
 // sent shows its problem and is not passed on, and the file picked before it is
-// dropped too. While photos are made into a PDF the area is off. `name` says
+// dropped too. While photos are made into a PDF the area is off, and `onBusy`
+// tells the page, whose form must not send without them. `name` says
 // to a screen reader which file this is ("Fișierul testului"). While the area
 // is shown, a file
 // dropped beside it does nothing, so a near miss does not open the file in the
@@ -20,12 +21,15 @@ export function FileDrop({
   onPick,
   disabled = false,
   makePdf,
+  onBusy,
 }: {
   id: string;
   name: string;
   onPick: (file: File | null) => void;
   disabled?: boolean;
   makePdf?: MakePdf;
+  // Told when photos start and stop being made into a PDF, so a form can wait.
+  onBusy?: (busy: boolean) => void;
 }) {
   const [problem, setProblem] = useState<string | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -33,6 +37,13 @@ export function FileDrop({
   const problemId = `${id}-problem`;
   const { take: takeFiles, busy } = useTeacherPick(makePdf);
   const off = disabled || busy;
+  const tellBusy = useRef(onBusy);
+  tellBusy.current = onBusy;
+  useEffect(() => {
+    tellBusy.current?.(busy);
+  }, [busy]);
+  // A page that goes on waiting for a drop area that is gone would wait for ever.
+  useEffect(() => () => tellBusy.current?.(false), []);
 
   useEffect(() => {
     const keepPage = (event: globalThis.DragEvent) => {

@@ -1,6 +1,6 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE, PDF_TYPE } from '../../../shared/files.ts';
 import { ApiError } from '../api.ts';
 import { createFakeApi } from '../../test/fakeApi.ts';
@@ -198,6 +198,32 @@ describe('NewTestPage', () => {
     await user.click(screen.getByRole('button', { name: 'Creează testul' }));
     await expectLocation('/tests/6E2-26T1');
     expect(api.uploadTestFile).not.toHaveBeenCalled();
+  });
+
+  it('waits for photos to become a PDF before the test can be made', async () => {
+    // The browser's photo tools: the first photo takes as long as the test says.
+    let decoded: (photo: { width: number; height: number; close: () => void }) => void = () => undefined;
+    vi.stubGlobal('createImageBitmap', vi.fn(() => new Promise((resolve) => (decoded = resolve))));
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ fillRect: () => undefined, drawImage: () => undefined } as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((done) => done(new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], { type: 'image/jpeg' })));
+    try {
+      const api = classes();
+      renderAdmin('/tests/new', api, <LocationProbe />);
+      await fillClassAndTitle();
+      await userEvent.upload(testField(), [new File([new Uint8Array([0xff, 0xd8, 0xff])], 'IMG_1.jpg', { type: 'image/jpeg' })]);
+      expect(screen.getByText('Se pregătesc pozele…')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Creează testul' })).toBeDisabled();
+      await act(async () => decoded({ width: 800, height: 600, close: () => undefined }));
+      expect(await screen.findByText('IMG_1.pdf, din 1 poză')).toBeInTheDocument();
+      const create = screen.getByRole('button', { name: 'Creează testul' });
+      expect(create).toBeEnabled();
+      await userEvent.click(create);
+      await expectLocation('/tests/6E2-26T1');
+      expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'test', expect.objectContaining({ name: 'IMG_1.pdf', type: PDF_TYPE }));
+    } finally {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    }
   });
 
   it('opens the new test with a notice when a file fails to upload', async () => {
