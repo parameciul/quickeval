@@ -65,7 +65,12 @@ describe('baremMarkdown', () => {
     expect(md).toContain('| Obține $\\vert x\\vert  = 2$ și $\\vert y\\vert$. | **5p** |');
     expect(md.startsWith('**BAREM DE EVALUARE ȘI DE NOTARE**\n\n**Test de evaluare – Permutări**\n\n')).toBe(true);
     expect(md).toContain('**Precizări privind evaluarea**\n\n• Se acordă 10 puncte din oficiu.\n\n• Orice altă');
-    expect(md).toContain('**RÂNDUL I**\n\n| **SUBIECTUL I**');
+    expect(md).toContain(`**RÂNDUL I**\n\n| | |\n${SEPARATOR}\n| **SUBIECTUL I**`);
+  });
+
+  it('puts the section title in the first body row, under an empty header', () => {
+    const md = baremMarkdown(sample);
+    expect(md).toContain(`| | |\n${SEPARATOR}\n| **SUBIECTUL II** (60 de puncte) | |\n| 2\\. Totul. | **60p** |`);
   });
 
   it('puts the label before the first step only', () => {
@@ -138,5 +143,22 @@ describe.skipIf(!hasPandoc)('makeBaremDocx with the real pandoc', () => {
     expect(xml).not.toContain('w:numPr');
     expect(xml.match(/<w:tbl>/g)?.length).toBe(2);
     expect(xml).not.toContain('$');
+  });
+
+  it('writes no header row, so Word does not repeat the title row on a new page', async () => {
+    const xml = await documentXml(await makeBaremDocx(sample, tmp), tmp);
+    expect(xml).not.toContain('w:tblHeader');
+    expect(xml).toContain('SUBIECTUL II');
+    // The 90/10 columns stay: 100 and 9 dashes.
+    expect(xml).toMatch(/<w:gridCol w:w="(\d+)" \/>\s*<w:gridCol w:w="(\d+)" \/>/);
+    const [, wide, narrow] = xml.match(/<w:gridCol w:w="(\d+)" \/>\s*<w:gridCol w:w="(\d+)" \/>/)!;
+    expect(Number(wide) / Number(narrow)).toBeGreaterThan(8);
+  });
+
+  it('keeps one row per step plus the title row in each table', async () => {
+    const xml = await documentXml(await makeBaremDocx(sample, tmp), tmp);
+    const steps = sample.parts.flatMap((p) => p.sections.flatMap((s) => s.items.flatMap((i) => i.steps))).length;
+    const sections = sample.parts.flatMap((p) => p.sections).length;
+    expect(xml.match(/<w:tr>/g)?.length).toBe(steps + sections);
   });
 });

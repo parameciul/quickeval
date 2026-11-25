@@ -15,6 +15,7 @@ const REFERENCE_DOC = path.resolve(import.meta.dirname, 'barem-reference.docx');
 
 // The dash counts make pandoc give the two columns 90% and 10% of the page.
 const SEPARATOR = `|${'-'.repeat(100)}|${'-'.repeat(9)}:|`;
+const EMPTY_HEADER = '| | |';
 
 const MARKDOWN_SPECIAL = /[\\*_#<>[\]`|]/g;
 
@@ -64,7 +65,10 @@ export function baremMarkdown(barem: GeneratedBarem): string {
   for (const part of barem.parts) {
     if (part.title.trim() !== '') blocks.push(`**${escapeCell(part.title)}**`);
     for (const section of part.sections) {
-      const rows = [`| **${escapeCell(section.title)}** (${pointsText(section.points)}) | |`, SEPARATOR];
+      // The empty header makes pandoc write a table with no header row. Word
+      // repeats a header row at the top of every page a table runs onto, so a
+      // title row with its points there would look like the points twice.
+      const rows = [EMPTY_HEADER, SEPARATOR, `| **${escapeCell(section.title)}** (${pointsText(section.points)}) | |`];
       for (const item of section.items) {
         item.steps.forEach((step, i) => {
           const text = i === 0 ? `${item.label} ${step.text}` : step.text;
