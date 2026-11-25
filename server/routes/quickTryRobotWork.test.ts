@@ -50,7 +50,7 @@ describe('the barem generation of a try', () => {
     await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE quick_try = 1").run();
     const res = await generate();
     expect(res.status).toBe(409);
-    expect(res.body.error).toBe('not_editable');
+    expect(res.body.error).toBe('evaluating');
   });
 
   it('is refused once the try has its own barem', async () => {

@@ -12,7 +12,8 @@ import type {
   UploadStatus,
 } from '../../shared/api.ts';
 import { DOCX_TYPE, type TestFileKind, type TestVariant } from '../../shared/files.ts';
-import { QUICK_TRY_FILE_CHANGES } from '../../shared/quickTry.ts';
+import { BAREM_GENERATIONS_PER_DAY } from '../../shared/accounts.ts';
+import { bucharestDay, QUICK_TRY_FILE_CHANGES } from '../../shared/quickTry.ts';
 import { averageGrade } from '../../shared/stats.ts';
 import { compareStudentNames } from '../../shared/students.ts';
 import type { DetectedSubject, SubjectInfo } from '../../shared/subjects.ts';
@@ -21,7 +22,7 @@ import { ApiError, isUniqueViolation, notFound } from '../errors.ts';
 import { newUploadToken } from '../secrets.ts';
 import { checkedCountSql, flagCountSql } from './evaluations.ts';
 import { onlyTestSql } from './lifecycle.ts';
-import { baremStatuses, columns, needsBaremSql, needsPrintSql, noCesGradingSql, paperVariantSql } from './variant.ts';
+import { columns, mayGenerateBaremSql, needsBaremSql, needsPrintSql, noCesGradingSql, paperVariantSql } from './variant.ts';
 
 export interface StoredFile {
   key: string;
@@ -765,7 +766,12 @@ export async function saveTestFile(
   variant: TestVariant = 'class',
 ): Promise<{ status: TestStatus; clearedPrintKey: string | null; replacedKey: string | null; readAgain: boolean } | null> {
   const c = columns(variant);
-  const statuses = baremStatuses(variant);
+  // A generated barem that waits for its check is made again from the new
+  // test file, within the day's generations. Past them it is the old test's
+  // barem: its request fails, so it cannot be confirmed, and the page offers to
+  // generate it again (which says why it cannot today) or to upload one.
+  const stale = `${c('barem_unchecked')} = 1 AND ${mayGenerateBaremSql(variant)}`;
+  const askAgain = `${stale} AND (${c('barem_request')} = 'requested' OR ${BAREM_DAY_LEFT})`;
   // A CES file turns the CES switch on.
   const on = variant === 'ces' ? 'ces_off = 0, ' : '';
   // A new class test file is read again for its subject, unless the teacher set it.
@@ -775,8 +781,8 @@ export async function saveTestFile(
       ? `UPDATE tests SET ${on}${subject}${c('test_file_key')} = ?, ${c('test_file_name')} = ?, ${c('test_file_type')} = ?, updated_at = ?,
            ${c('files_version')} = ${c('files_version')} + 1,
            ${c('print_status')} = 'none', ${c('print_attempts')} = 0, ${c('print_file_key')} = NULL, upload_token = COALESCE(upload_token, ?),
-           ${c('barem_request')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 'requested' ELSE ${c('barem_request')} END,
-           ${c('barem_request_attempts')} = CASE WHEN ${c('barem_unchecked')} = 1 AND status IN (${statuses}) THEN 0 ELSE ${c('barem_request_attempts')} END
+           ${c('barem_request')} = CASE WHEN ${askAgain} THEN 'requested' WHEN ${stale} THEN 'failed' ELSE ${c('barem_request')} END,
+           ${c('barem_request_attempts')} = CASE WHEN ${askAgain} THEN 0 ELSE ${c('barem_request_attempts')} END
          WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)} AND ${QUICK_TRY_FILES_LEFT}
          RETURNING status, exercise_list_status AS list_status`
       : `UPDATE tests SET ${on}${c('barem_file_key')} = ?, ${c('barem_file_name')} = ?, ${c('barem_file_type')} = ?, updated_at = ?,
@@ -800,7 +806,7 @@ export async function saveTestFile(
       )
       .bind(testId, teacherId),
     kind === 'test'
-      ? db.prepare(sql).bind(file.key, file.name, file.type, now, uploadToken, testId, teacherId)
+      ? db.prepare(sql).bind(file.key, file.name, file.type, now, uploadToken, ...dayOf(now, 2), testId, teacherId)
       : db.prepare(sql).bind(file.key, file.name, file.type, now, testId, teacherId),
   ]);
   const status = written?.results[0]?.status;
@@ -862,26 +868,58 @@ export async function needsBarem(db: D1Database, testId: number, variant: TestVa
   return row !== null;
 }
 
+// The account of the test (table `tests`) may have one more barem generated
+// today (BAREM_GENERATIONS_PER_DAY): the barems the robot made today (its
+// usage_days row) and the requests that wait now, class and CES, are fewer.
+// An administrator and a Quick Try have no such limit. One bound value: the
+// Bucharest day (`dayOf`).
+const BAREM_DAY_LEFT = `(tests.quick_try = 1
+  OR EXISTS (SELECT 1 FROM teachers bt WHERE bt.id = tests.teacher_id AND bt.role = 'admin')
+  OR COALESCE((SELECT bd.barems FROM usage_days bd WHERE bd.day = ? AND bd.quick_try = 0 AND bd.teacher_id = tests.teacher_id), 0)
+    + (SELECT COUNT(*) FROM tests br WHERE br.teacher_id = tests.teacher_id AND br.barem_request = 'requested')
+    + (SELECT COUNT(*) FROM tests br WHERE br.teacher_id = tests.teacher_id AND br.ces_barem_request = 'requested')
+    < ${BAREM_GENERATIONS_PER_DAY})`;
+
+// The Bucharest day of `now`, once for each BAREM_DAY_LEFT of a statement.
+function dayOf(now: string, times = 1): string[] {
+  return Array.from({ length: times }, () => bucharestDay(new Date(now)));
+}
+
 // "Generează baremul": the robot is asked to write the barem of the variant
-// from its test file. For the class barem a scheduled evaluation is cleared,
-// because the barem must be checked first; the CES barem holds back only the
-// CES papers, so the schedule stays. False when the test is gone, is not the
-// teacher's, is past the statuses of baremStatuses, or has no test file of the
-// variant. A Quick Try test asks here only when it has no barem and never
-// asked before; a new test file can still ask again while a generated barem
-// waits for its check, within the try's QUICK_TRY_FILE_CHANGES.
+// from its test file, whenever the teacher may replace the barem's file
+// (mayGenerateBaremSql), within the account's generations of the day
+// (BAREM_DAY_LEFT), and not while one is already being made. For the class
+// barem a scheduled evaluation is cleared, because the barem must be checked
+// first; the CES barem holds back only the CES papers, so the schedule stays.
+// False when the test is gone, is not the teacher's, has no test file of the
+// variant, or a rule above refuses it. A Quick Try test asks here only when it
+// has no barem and never asked before; a new test file can still ask again
+// while a generated barem waits for its check, within the try's
+// QUICK_TRY_FILE_CHANGES.
 export async function requestBarem(db: D1Database, teacherId: number, testId: number, now: string, variant: TestVariant = 'class'): Promise<boolean> {
   const c = columns(variant);
   const row = await db
     .prepare(
       `UPDATE tests SET ${c('barem_request')} = 'requested', ${c('barem_request_attempts')} = 0,
          ${variant === 'class' ? 'evaluation_at = NULL,' : ''} updated_at = ?
-       WHERE id = ? AND teacher_id = ? AND status IN (${baremStatuses(variant)}) AND ${c('test_file_key')} IS NOT NULL ${noCesGradingSql(variant)}
+       WHERE id = ? AND teacher_id = ? AND ${mayGenerateBaremSql(variant)} AND ${c('test_file_key')} IS NOT NULL ${noCesGradingSql(variant)}
+         AND ${c('barem_request')} <> 'requested' AND ${BAREM_DAY_LEFT}
          AND (quick_try = 0 OR (barem_request = 'none' AND barem_unchecked = 0 AND barem_file_key IS NULL))
        RETURNING id`,
     )
-    .bind(now, testId, teacherId)
+    .bind(now, testId, teacherId, ...dayOf(now))
     .first<{ id: number }>();
+  return row !== null;
+}
+
+// Whether the day's limit of generated barems is what keeps the teacher's test
+// from asking for one now (BAREM_DAY_LEFT): read after a refused request, so
+// the route can say why.
+export async function baremDayLimitReached(db: D1Database, teacherId: number, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT 1 AS found FROM tests WHERE id = ? AND teacher_id = ? AND NOT ${BAREM_DAY_LEFT}`)
+    .bind(testId, teacherId, ...dayOf(now))
+    .first();
   return row !== null;
 }
 

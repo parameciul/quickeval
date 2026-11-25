@@ -13,7 +13,8 @@ import { t } from '../../i18n/t.ts';
 // line, and, for a generated barem nobody checked yet, the warning and "Am
 // verificat baremul" (not while a new one is made or its making failed: the
 // barem is then the old test's). Replacing a barem asks first, and so does
-// clearing a scheduled evaluation; the old barem stays until the new one arrives. The buttons go on the file button's line, the status
+// clearing a scheduled evaluation; the old barem stays until the new one arrives. After the
+// uploads closed, the question also says what the papers do with the new barem. The buttons go on the file button's line, the status
 // lines and errors below the row. With `variant` "ces": the CES barem, written
 // for grading only; it cancels no schedule, and once checked during the
 // evaluation, the CES papers that waited for it go to the robot.
@@ -54,7 +55,16 @@ export function useGeneratedBarem({
   const hasTest = parts.files.test !== null;
 
   const onGenerate = () => {
-    const cancelled = !ces && test.evaluationAt ? ` ${t('Programarea evaluării se anulează.')}` : '';
+    const schedule = !ces && test.evaluationAt ? ` ${t('Programarea evaluării se anulează.')}` : '';
+    // A graded test keeps its results until she grades again; in evaluation
+    // the class papers wait for the new barem (the CES ones always do).
+    const after =
+      test.status === 'done'
+        ? ` ${t('După ce îl verifici, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.')}`
+        : test.status === 'evaluating' && !ces
+          ? ` ${t('Lucrările așteaptă până verifici baremul nou.')}`
+          : '';
+    const cancelled = schedule + after;
     const question =
       parts.files.barem !== null
         ? t('Înlocuiești {v1} existent cu unul generat? Baremul de acum rămâne până vine cel nou.{cancelled}', { v1: ces ? t('baremul CES') : t('baremul'), cancelled })

@@ -28,12 +28,20 @@ export function columns(variant: TestVariant): (column: VariantColumn) => string
   return (column) => (variant === 'ces' ? `ces_${column}` : column);
 }
 
-// The test statuses in which the robot may generate a barem. A class barem
-// only before the evaluation (an unchecked barem must not change one that is
-// grading); a CES barem also during it: the CES papers wait for it, and the
-// class papers are graded meanwhile.
-export function baremStatuses(variant: TestVariant): string {
-  return variant === 'ces' ? "'draft', 'open', 'evaluating'" : "'draft', 'open'";
+// When the teacher may ask for a generated barem of the variant: whenever she
+// may replace its file, a condition on the `tests` row being written. The class
+// barem not while the robot grades with it: in evaluation, unless its exercise
+// list has a problem or failed, or its barem is not settled (being generated,
+// or generated and not checked: the robot waits for it, so the teacher must be
+// able to check it, replace it or generate it again); the CES
+// barem not while a CES paper is in grading (noCesGradingSql, beside it). A
+// barem being made or waiting for its check is never graded with, in any
+// status: BAREM_ACTIVE keeps the starts out, and the robot's NEEDS_EXERCISE_LIST
+// and GRADABLE wait for it (a regrade or a retry starts from done).
+export function mayGenerateBaremSql(variant: TestVariant): string {
+  return variant === 'ces'
+    ? '1'
+    : "NOT (status = 'evaluating' AND exercise_list_status NOT IN ('problem', 'failed') AND barem_unchecked = 0 AND barem_request <> 'requested')";
 }
 
 // The CES files, comments and barem stay as they are while the robot grades a
@@ -54,13 +62,14 @@ export function needsPrintSql(variant: TestVariant, t = 't'): string {
 }
 
 // A test (alias `t`) with a test file of the variant whose barem the teacher
-// asked the robot to generate. A flat condition, like needsPrintSql. The CES
-// barem waits while the class barem is being generated: it is written with the
-// class barem beside it, and reuses its exercise ids.
+// asked the robot to generate, in any status (the request has the rules). A
+// flat condition, like needsPrintSql. The CES barem waits while the class
+// barem is being generated: it is written with the class barem beside it, and
+// reuses its exercise ids.
 export function needsBaremSql(variant: TestVariant, t = 't'): string {
   const c = columns(variant);
   const afterClass = variant === 'ces' ? ` AND ${t}.barem_request <> 'requested'` : '';
-  return `${t}.status IN (${baremStatuses(variant)}) AND ${t}.${c('test_file_key')} IS NOT NULL AND ${t}.${c('barem_request')} = 'requested'${afterClass}`;
+  return `${t}.${c('test_file_key')} IS NOT NULL AND ${t}.${c('barem_request')} = 'requested'${afterClass}`;
 }
 
 // The barem of the variant can be graded against: it exists, the teacher

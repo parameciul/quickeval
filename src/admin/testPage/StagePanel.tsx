@@ -14,7 +14,7 @@ import { AnalysisState } from './AnalysisState.tsx';
 import { EvaluationControls } from './EvaluationControls.tsx';
 import { missingNote, missingOf, type MissingPart } from '../missing.ts';
 import { CesVariant, CesWaiting } from './CesVariant.tsx';
-import { ExerciseListBanner } from './ExerciseListBanner.tsx';
+import { BaremWaiting, ExerciseListBanner } from './ExerciseListBanner.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
 import { clearPrint } from './printPdf.ts';
 import { PrintTest } from './PrintTest.tsx';
@@ -161,7 +161,8 @@ function PrepareNow({ test }: { test: TestInfo }) {
     </>
   ) : undefined;
   const missing = missingNow(test);
-  if (test.barem.request === 'requested' && test.files.barem === null) {
+  // Also a new barem over one that is there, made after the uploads closed.
+  if (test.barem.request === 'requested' && (test.files.barem === null || test.status === 'evaluating' || test.status === 'done')) {
     return (
       <NowBox title={t('Se generează baremul')} next={next}>
         <p className="now-sub">{t('Durează câteva minute. Îl verifici aici, când e gata.')}</p>
@@ -201,7 +202,7 @@ function PrepareNow({ test }: { test: TestInfo }) {
     <NowBox title={t('Testul și baremul sunt gata')} done next={next}>
       {test.status === 'evaluating' && <p className="now-sub">{t('Le poți înlocui după ce se termină corectarea.')}</p>}
       {test.status === 'done' && (
-        <p className="now-sub">{t('Dacă înlocuiești baremul, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.')}</p>
+        <p className="now-sub">{t('Dacă înlocuiești sau generezi din nou baremul, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.')}</p>
       )}
     </NowBox>
   );
@@ -566,6 +567,7 @@ function GradingPanel(props: PanelProps) {
     <>
       <ExerciseListBanner test={test} onChanged={onChanged} onRobot={onRobot} />
       <ExerciseListBanner test={test} variant="ces" onChanged={onChanged} onRobot={onRobot} />
+      <BaremWaiting test={test} />
       <CesWaiting test={test} />
       {test.status === 'open' ? (
         <NowBox band={<UploadsBand test={test} onChanged={onChanged} grading />} title={waitingTitle(test, uploads)} next={gradingNext()}>

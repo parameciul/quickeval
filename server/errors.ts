@@ -1,5 +1,5 @@
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
-import { DEMO_PAPER_LIMIT } from '../shared/accounts.ts';
+import { BAREM_GENERATIONS_PER_DAY, DEMO_PAPER_LIMIT } from '../shared/accounts.ts';
 
 // An error the API reports to the browser as { error, message } with this status.
 // The message is Romanian text the teacher or student can read.
@@ -37,6 +37,16 @@ export function demoLimit(): ApiError {
     403,
     'demo_limit',
     `Contul demo poate corecta un singur test, cu cel mult ${DEMO_PAPER_LIMIT} lucrări în total, cu tot cu recorectări. Cere unui administrator să-ți facă un cont complet.`,
+  );
+}
+
+// The account had all the barems it may have generated today, the ones still
+// being made included.
+export function baremDayLimit(): ApiError {
+  return new ApiError(
+    429,
+    'barem_limit',
+    `Poți genera cel mult ${BAREM_GENERATIONS_PER_DAY} bareme pe zi, cu tot cu cele care se generează acum. Poți genera din nou mâine sau poți încărca baremul tău.`,
   );
 }
 

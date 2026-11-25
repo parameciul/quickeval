@@ -273,7 +273,7 @@ describe('the boxes in the states the first review found', () => {
   it('says how to grade again after a test is done, not to wait for the grading', async () => {
     renderAdmin(`${PAGE}#prepare`, apiWith({ status: 'done', startedAt: '2026-10-06T07:15:00.000Z', files: { test: TEST_FILE, barem: BAREM_FILE }, print: READY }));
     expect(await title('Testul și baremul sunt gata')).toHaveClass('is-done');
-    expect(screen.getByText('Dacă înlocuiești baremul, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.')).toBeInTheDocument();
+    expect(screen.getByText('Dacă înlocuiești sau generezi din nou baremul, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.')).toBeInTheDocument();
     expect(screen.queryByText(/după ce se termină corectarea/)).not.toBeInTheDocument();
   });
 

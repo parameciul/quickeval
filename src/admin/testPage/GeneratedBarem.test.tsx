@@ -64,14 +64,72 @@ describe('GeneratedBarem', () => {
     expect(screen.getByText('Încarcă întâi testul.')).toBeInTheDocument();
   });
 
-  it('is hidden in evaluation and done', async () => {
-    const { unmount } = renderAdmin('/tests/6E2-26T1#prepare', apiWith({ status: 'evaluating' }));
+  it('is hidden while the robot grades with the barem', async () => {
+    renderAdmin('/tests/6E2-26T1#prepare', apiWith({ status: 'evaluating', files: { test: TEST_FILE, barem: BAREM_FILE } }));
     await screen.findByText('Baremul:');
     expect(screen.queryByRole('button', { name: 'Generează baremul' })).not.toBeInTheDocument();
+  });
+
+  it('generates again in a done test, and says to grade again after the check', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const api = apiWith({ status: 'done', files: { test: TEST_FILE, barem: BAREM_FILE } });
+    renderAdmin('/tests/6E2-26T1#prepare', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Generează baremul' }));
+    expect(confirm).toHaveBeenCalledWith(`${REPLACE} După ce îl verifici, corectezi din nou lucrările cu „Recorectează tot”, din „Acțiuni”.`);
+    expect(api.generateBarem).toHaveBeenCalledWith('6E2-26T1', 'class');
+  });
+
+  it('generates again while the exercise list has a problem, and says the papers wait', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const api = apiWith({
+      status: 'evaluating',
+      files: { test: TEST_FILE, barem: BAREM_FILE },
+      exerciseList: { status: 'problem', message: 'Punctele nu se adună la 100.' },
+    });
+    renderAdmin('/tests/6E2-26T1#prepare', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Generează baremul' }));
+    expect(confirm).toHaveBeenCalledWith(`${REPLACE} Lucrările așteaptă până verifici baremul nou.`);
+    expect(api.generateBarem).toHaveBeenCalled();
+  });
+
+  it('tells in Corectare that the papers wait for the new barem', async () => {
+    const files = { test: TEST_FILE, barem: BAREM_FILE };
+    const { unmount } = renderAdmin('/tests/6E2-26T1#grading', apiWith({ status: 'evaluating', files, barem: { request: 'requested', unchecked: false } }));
+    expect(await screen.findByText('Lucrările așteaptă baremul nou.')).toBeInTheDocument();
+    expect(screen.getByText(/Se generează acum\. După ce îl verifici la Pregătire, corectarea continuă\./)).toBeInTheDocument();
     unmount();
-    renderAdmin('/tests/6E2-26T1#prepare', apiWith({ status: 'done' }));
-    await screen.findByText('Baremul:');
-    expect(screen.queryByRole('button', { name: 'Generează baremul' })).not.toBeInTheDocument();
+    renderAdmin('/tests/6E2-26T1#grading', apiWith({ status: 'evaluating', files, barem: { request: 'none', unchecked: true } }));
+    expect(await screen.findByText(/Verifică-l la Pregătire și confirmă-l\./)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Mergi la Pregătire/ })).toBeInTheDocument();
+  });
+
+  // The robot waits for a barem made during the evaluation: the row must stay
+  // open, or the papers would wait for ever.
+  it('lets her check, replace or make again a barem that arrived during the evaluation', async () => {
+    renderAdmin(
+      '/tests/6E2-26T1#prepare',
+      apiWith({ status: 'evaluating', files: { test: TEST_FILE, barem: BAREM_FILE }, barem: { request: 'none', unchecked: true } }),
+    );
+    expect(await screen.findByRole('button', { name: 'Am verificat baremul' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Generează baremul' })).toBeEnabled();
+    expect(screen.getByLabelText('Înlocuiește baremul')).toBeEnabled();
+    expect(screen.queryByText('Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.')).not.toBeInTheDocument();
+  });
+
+  it('tells in Corectare and Pregătire how a new barem made after the grading stands', async () => {
+    const files = { test: TEST_FILE, barem: BAREM_FILE };
+    const { unmount } = renderAdmin('/tests/6E2-26T1#grading', apiWith({ status: 'evaluating', files, barem: { request: 'failed', unchecked: true } }));
+    expect(await screen.findByText(/Nu s-a putut genera\. La Pregătire îl generezi din nou sau încarci baremul tău\./)).toBeInTheDocument();
+    unmount();
+    // A new barem over a checked one: Pregătire says it is being made.
+    renderAdmin('/tests/6E2-26T1#prepare', apiWith({ status: 'done', files, barem: { request: 'requested', unchecked: false } }));
+    expect(await screen.findByText('Se generează baremul')).toBeInTheDocument();
+  });
+
+  it('says nothing in Corectare for a checked barem', async () => {
+    renderAdmin('/tests/6E2-26T1#grading', apiWith({ status: 'evaluating', files: { test: TEST_FILE, barem: BAREM_FILE } }));
+    await screen.findByRole('heading', { name: 'Corectare' });
+    expect(screen.queryByText('Lucrările așteaptă baremul nou.')).not.toBeInTheDocument();
   });
 
   it('shows the waiting line while generating', async () => {

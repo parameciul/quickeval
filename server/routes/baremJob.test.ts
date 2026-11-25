@@ -96,7 +96,13 @@ describe('GET /tests/:id/barem-job', () => {
     expect(file.status).toBe(200);
     expect(new TextDecoder().decode(await file.arrayBuffer())).toBe('%PDF-1.7 enunț');
 
-    const states = ["barem_request = 'none'", "barem_request = 'failed'", "status = 'evaluating'", 'test_file_key = NULL'];
+    // A barem may be asked for in any status, so the job shows in any status.
+    for (const status of ['evaluating', 'done']) {
+      await setTest(`status = '${status}'`);
+      expect((await robot('GET', jobPath())).status, status).toBe(200);
+    }
+    await setTest("status = 'open'");
+    const states = ["barem_request = 'none'", "barem_request = 'failed'", 'test_file_key = NULL'];
     for (const state of states) {
       await setTest(state);
       expect((await robot('GET', jobPath())).status, state).toBe(404);
