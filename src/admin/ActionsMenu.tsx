@@ -1,10 +1,12 @@
+import { Fragment } from 'react';
 import { ActionIcon, type ActionIconName } from '../ui/ActionIcon.tsx';
 import { useSmallMenu } from './shell/useSmallMenu.ts';
 
 // One item of an actions menu: its name, the icon of its verb, the words under
 // it that say what it does (its accessible description), red when it deletes,
 // and off while its work runs or while it cannot be chosen now.
-export type MenuAction = { label: string; hint: string; icon: ActionIconName; danger?: boolean; busy: boolean; onChoose: () => void };
+// `apart`: a line under it, between it and the items that undo work.
+export type MenuAction = { label: string; hint: string; icon: ActionIconName; danger?: boolean; apart?: boolean; busy: boolean; onChoose: () => void };
 
 // A menu of actions at the top of a page ("Alte acțiuni" of the paper page,
 // "Acțiuni" of the test page): each item shows what it does before it is
@@ -52,7 +54,10 @@ export function ActionsMenu({ label, menuId, actions, compact = false }: { label
       {open && (
         <div className="class-menu paper-actions-menu" id={menuId} role="menu" aria-label={label}>
           {actions.map((action, index) => (
-            <ActionMenuItem key={action.label} action={action} hintId={`${menuId}-hint-${index}`} onClick={run(action)} />
+            <Fragment key={action.label}>
+              <ActionMenuItem action={action} hintId={`${menuId}-hint-${index}`} onClick={run(action)} />
+              {action.apart && <div className="paper-action-divider" role="separator" />}
+            </Fragment>
           ))}
         </div>
       )}

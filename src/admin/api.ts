@@ -156,6 +156,9 @@ export interface AdminApi {
   // "Recorectează tot": graded and failed uploads wait for the robot again.
   regradeTest(code: string): Promise<RegradeAnswer>;
   getSubmission(submissionId: number): Promise<SubmissionDetail>;
+  // One page of a paper as the student sent it (a photo or a PDF), for the
+  // teacher to download or copy.
+  submissionFile(submissionId: number, fileId: number): Promise<Blob>;
   // The teacher's link to one student's result page, for sharing.
   getResultLink(submissionId: number, startedAt: string): Promise<string>;
   // The actions on an upload name the upload the page shows by the time it
@@ -281,6 +284,23 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     return readAnswer<T>(res);
   }
 
+  // A file of the API, as it is: its bytes, or the API's error.
+  async function file(path: string): Promise<Blob> {
+    let res: Response;
+    try {
+      res = await fetchImpl(`${apiBase}${path}`, { method: 'GET', headers: langHeaders(), credentials: 'same-origin', redirect: 'manual' });
+    } catch {
+      throw new ApiError(0, 'network', NETWORK_MESSAGE);
+    }
+    const isJson = (res.headers.get('Content-Type') ?? '').includes('application/json');
+    if (res.type === 'opaqueredirect' || ((res.status === 401 || res.status === 403) && !isJson)) {
+      onLoginExpired();
+      throw new LoginExpiredError();
+    }
+    if (!res.ok) return readAnswer<never>(res);
+    return res.blob();
+  }
+
   const test = (code: string) => `/tests/${encodeURIComponent(code)}`;
 
   return {
@@ -388,6 +408,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     regradeTest: (code) => request<RegradeAnswer>('POST', `${test(code)}/regrade`),
     getSubmission: async (submissionId) =>
       (await request<{ submission: SubmissionDetail }>('GET', `/submissions/${submissionId}`)).submission,
+    submissionFile: (submissionId, fileId) => file(`/submissions/${submissionId}/files/${fileId}`),
     getResultLink: async (submissionId, startedAt) =>
       (await request<ResultLinkAnswer>('GET', `/submissions/${submissionId}/result-link?startedAt=${encodeURIComponent(startedAt)}`)).resultToken,
     resetSubmission: async (submissionId, startedAt) => {

@@ -2,12 +2,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { SubmissionDetail } from '../../../shared/api.ts';
-import { formatDateTime, robotStartMessage, uploadStatusLabel } from '../../ui/format.ts';
+import { formatDateTime, formatFileSize, robotStartMessage, uploadStatusLabel } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ActionsMenu, type MenuAction } from '../ActionsMenu.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { studentPdf, studentPdfFileName, studentPdfInput } from '../pdf/studentPdf.ts';
 import { heldBack, PAPER_PART_LABEL } from '../testPage/paperCounts.ts';
+import { FilesNoteLine } from './PageDownload.tsx';
+import { totalSize, usePaperFiles } from './paperFiles.ts';
 import { ResultMenu } from './ResultMenu.tsx';
 import { t } from '../../i18n/t.ts';
 import { tryName } from '../../../shared/quickTry.ts';
@@ -66,7 +68,28 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
   // Recorectează names the grading the page shows.
   const gradedAt = submission.status === 'graded' ? (submission.evaluation?.gradedAt ?? null) : null;
 
-  const paperActions: MenuAction[] = [];
+  // The pages, in every state of the paper: those sent so far while the
+  // student still sends, and none to take before the first page.
+  const pages = usePaperFiles(submission);
+  const count = submission.files.length;
+  const size = formatFileSize(totalSize(submission));
+  const paperActions: MenuAction[] = [
+    {
+      label: count === 0 ? t('Descarcă paginile') : t('Descarcă paginile ({count})', { count }),
+      hint:
+        count === 0
+          ? t('Elevul nu a trimis nicio pagină încă.')
+          : count === 1
+            ? t('Pagina, așa cum a trimis-o elevul · {size}', { size })
+            : submission.status === 'uploading'
+              ? t('Paginile trimise până acum, într-o arhivă ZIP · {size}', { size })
+              : t('Toate paginile, într-o arhivă ZIP · {size}', { size }),
+      icon: 'download',
+      apart: true,
+      busy: count === 0 || pages.note?.kind === 'busy',
+      onChoose: () => void pages.saveAll(),
+    },
+  ];
   if (gradedAt !== null) {
     paperActions.push({
       label: t('Recorectează'),
@@ -124,6 +147,7 @@ export function PaperHead({ submission, actions }: { submission: SubmissionDetai
           <ActionsMenu label={t('Alte acțiuni')} menuId="paper-actions-menu" actions={paperActions} compact />
         </div>
       </header>
+      <FilesNoteLine note={pages.note} className="paper-files-note" />
       {regrade.error && <ErrorMessage error={regrade.error} />}
       {reset.error && <ErrorMessage error={reset.error} />}
       {/* The news after Recorectează or Reîncearcă holds only until the result is back. */}

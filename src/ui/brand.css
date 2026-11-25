@@ -10966,3 +10966,114 @@ td.student-paper a:hover {
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+
+/* The paper's pages to save or copy: the download button in the paper's
+   head, its menu (from the bottom of the screen on a phone), "Descarcă
+   toate" over the pages, and "Descarcă paginile" of "Alte acțiuni". */
+.page-download {
+  position: relative;
+  display: inline-flex;
+}
+
+.class-menu.page-download-menu {
+  right: 0;
+  left: auto;
+  width: max-content;
+  min-width: 11rem;
+}
+
+/* One short line per item, its icon beside the word. */
+.paper-action.is-short {
+  align-items: center;
+}
+
+.paper-action.is-short > .action-icon {
+  grid-row: auto;
+  margin-top: 0;
+}
+
+.page-download-backdrop {
+  display: none;
+}
+
+.paper-action-divider {
+  height: 1px;
+  margin: 0.25rem 0.4rem;
+  background: var(--rule);
+}
+
+/* The line of what a choice did: a small dark label under its button. */
+.page-download-note {
+  position: absolute;
+  top: calc(100% + 0.375rem);
+  right: 0;
+  z-index: 41;
+  width: max-content;
+  max-width: 18rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--sheet);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  box-shadow: var(--float);
+}
+
+.page-download-note.is-failed {
+  background: var(--red);
+  color: #fff;
+}
+
+.paper-files-note {
+  display: block;
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.paper-files-note.is-failed {
+  color: var(--red);
+}
+
+.paper-pages-download {
+  position: relative;
+  margin-left: auto;
+}
+
+@media (max-width: 40rem) {
+  /* A sheet from the bottom of the screen, over a dimmed page: a tap on the
+     page closes it. */
+  .class-menu.page-download-menu {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 95;
+    width: auto;
+    max-width: none;
+    max-height: 80vh;
+    padding: 0.5rem 0.5rem calc(1.25rem + env(safe-area-inset-bottom));
+    border-radius: 14px 14px 0 0;
+  }
+
+  .page-download-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 94;
+    background: rgb(10 20 40 / 0.45);
+  }
+
+  .page-download-menu .paper-action {
+    padding: 0.8rem 0.7rem;
+  }
+
+  .page-download-menu .paper-action-label {
+    font-size: 1rem;
+  }
+
+  .paper-pages-head {
+    flex-wrap: wrap;
+  }
+}
