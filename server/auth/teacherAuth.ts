@@ -51,8 +51,10 @@ export function teacherAuth(): MiddlewareHandler<AppEnv> {
     // someone else logged in since is dropped, and the request goes on as that
     // person.
     if (real.role !== 'admin') {
-      await closeDeadView(c.env.DB, await sha256Hex(view), nowIso());
+      const owner = await closeDeadView(c.env.DB, await sha256Hex(view), nowIso());
       clearViewCookie(c);
+      // The administrator's own view, left open when they stopped being one.
+      if (owner === real.id) throw new ApiError(409, 'impersonation_ended', 'Vizualizarea contului s-a încheiat.');
       c.set('teacher', real);
       await next();
       return;

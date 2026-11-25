@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { beginExit, forgetAccountState, goToSettings, isLeaving, rememberViewedName, takeEndedName, viewPartOf, viewTab } from './viewing.ts';
+import { beginExit, reloadOnRestore, forgetAccountState, goToSettings, isLeaving, rememberViewedName, takeEndedName, viewPartOf, viewTab } from './viewing.ts';
 
 afterEach(() => {
   sessionStorage.clear();
@@ -66,5 +66,25 @@ describe('leaving', () => {
     goToSettings(true);
     expect(leave).toHaveBeenCalledTimes(1);
     expect(takeEndedName()).toBeNull();
+  });
+});
+
+describe('reloadOnRestore', () => {
+  const show = (persisted: boolean) => {
+    const event = new Event('pageshow') as PageTransitionEvent;
+    Object.defineProperty(event, 'persisted', { value: persisted });
+    window.dispatchEvent(event);
+  };
+
+  it('loads the page again when the browser restores it from its cache, and only then', () => {
+    const reload = vi.spyOn(viewTab, 'reload').mockImplementation(() => {});
+    const stop = reloadOnRestore();
+    show(false);
+    expect(reload).not.toHaveBeenCalled();
+    show(true);
+    expect(reload).toHaveBeenCalledTimes(1);
+    stop();
+    show(true);
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });

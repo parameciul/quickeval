@@ -107,16 +107,18 @@ export async function endView(db: D1Database, tokenHash: string, now: string): P
 }
 
 // A view found dead: 'expired' once its time passed, 'session_gone' otherwise.
-export async function closeDeadView(db: D1Database, tokenHash: string, now: string): Promise<void> {
-  await db
+export async function closeDeadView(db: D1Database, tokenHash: string, now: string): Promise<number | null> {
+  const row = await db
     .prepare(
       `UPDATE impersonations
        SET ended_at = CASE WHEN expires_at <= ? THEN expires_at ELSE ? END,
            end_reason = CASE WHEN expires_at <= ? THEN 'expired' ELSE 'session_gone' END
-       WHERE token_hash = ? AND ended_at IS NULL`,
+       WHERE token_hash = ? AND ended_at IS NULL
+       RETURNING admin_id`,
     )
     .bind(now, now, now, tokenHash)
-    .run();
+    .first<{ admin_id: number | null }>();
+  return row?.admin_id ?? null;
 }
 
 interface ViewRow {

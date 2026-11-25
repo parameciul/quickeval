@@ -30,6 +30,7 @@ export function resetLeavingForTests(): void {
 // does not let a test replace window.location.
 export const viewTab = {
   assign: (path: string) => window.location.assign(path),
+  reload: () => window.location.reload(),
   leave: (path: string) => {
     leaving = true;
     viewTab.assign(path);
@@ -96,4 +97,15 @@ export function goToSettings(ended: boolean = true): void {
   }
   forgetAccountState();
   viewTab.leave('/teacher/settings');
+}
+
+// A page the browser restores from its back/forward cache keeps this module's
+// state (a tab that was leaving still thinks so) and its stale data, so it
+// loads again. Returns the way to stop.
+export function reloadOnRestore(): () => void {
+  const onShow = (event: PageTransitionEvent) => {
+    if (event.persisted) viewTab.reload();
+  };
+  window.addEventListener('pageshow', onShow);
+  return () => window.removeEventListener('pageshow', onShow);
 }

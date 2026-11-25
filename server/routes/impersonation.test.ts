@@ -188,9 +188,8 @@ describe('ending a view', () => {
     const view = cookieOf(await start(session), 'qe_view');
     await api.db.prepare("UPDATE teachers SET role = 'teacher' WHERE id = ?").bind(api.teacherId).run();
     const res = await api.request('GET', '/api/admin/me', undefined, cookies(session, view));
-    expect(res.status).toBe(200);
-    expect(res.body.teacher.id).toBe(api.teacherId);
-    expect(res.body.viewing).toBeNull();
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('impersonation_ended');
     expect(res.headers.getSetCookie().some((cookie) => cookie.startsWith('qe_view='))).toBe(true);
   });
 

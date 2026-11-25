@@ -142,7 +142,8 @@ describe('findView', () => {
 describe('closeDeadView', () => {
   it('writes expired after the time, session_gone otherwise, and keeps an ended row as it was', async () => {
     await startView(db, view(), NOW);
-    await closeDeadView(db, TOKEN, LATER);
+    expect(await closeDeadView(db, TOKEN, LATER)).toBe(api.teacherId);
+    expect(await closeDeadView(db, TOKEN, LATER)).toBeNull();
     expect(await row()).toMatchObject({ ended_at: LATER, end_reason: 'session_gone' });
 
     await startView(db, view({ tokenHash: 'b', sessionHash: 'sb' }), NOW);
