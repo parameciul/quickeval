@@ -427,20 +427,20 @@
         </div>
         <div class="step">
           <h3 class="step-t"><span class="num" aria-hidden="true">1</span><span id="try-test-label">Testul</span></h3>
-          <label class="tile" data-try-pick data-empty="Alege testul" data-hint="PDF sau Word. Încercarea primește numele fișierului.">
-            <input class="try-pick-input" type="file" name="test" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-labelledby="try-test-label try-test-name" />
+          <label class="tile" data-try-pick data-empty="Alege testul" data-hint="PDF, Word sau poze. Încercarea primește numele fișierului.">
+            <input class="try-pick-input" type="file" name="test" multiple accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" aria-labelledby="try-test-label try-test-name" />
             <span class="tile-ic"><svg class="ic-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13V4M6.5 7.5L10 4l3.5 3.5" /><path d="M3.5 13v3.25h13V13" /></svg><svg class="ic-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
-            <span class="tile-text"><b id="try-test-name" data-try-pick-name>Alege testul</b><small data-try-pick-hint>PDF sau Word. Încercarea primește numele fișierului.</small></span>
+            <span class="tile-text"><b id="try-test-name" data-try-pick-name>Alege testul</b><small data-try-pick-hint>PDF, Word sau poze. Încercarea primește numele fișierului.</small></span>
             <span class="tile-go" aria-hidden="true" data-try-pick-action>Alege fișierul</span>
           </label>
         </div>
         <div class="step">
           <h3 class="step-t"><span class="num" aria-hidden="true">2</span><span id="try-barem-label">Baremul</span></h3>
           <div class="tiles">
-            <label class="tile" data-try-pick data-empty="Încarc baremul" data-hint="PDF sau Word">
-              <input class="try-pick-input" type="file" name="barem" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-labelledby="try-barem-label try-barem-name" />
+            <label class="tile" data-try-pick data-empty="Încarc baremul" data-hint="PDF, Word sau poze">
+              <input class="try-pick-input" type="file" name="barem" multiple accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" aria-labelledby="try-barem-label try-barem-name" />
               <span class="tile-ic"><svg class="ic-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13V4M6.5 7.5L10 4l3.5 3.5" /><path d="M3.5 13v3.25h13V13" /></svg><svg class="ic-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
-              <span class="tile-text"><b id="try-barem-name" data-try-pick-name>Încarc baremul</b><small data-try-pick-hint>PDF sau Word</small></span>
+              <span class="tile-text"><b id="try-barem-name" data-try-pick-name>Încarc baremul</b><small data-try-pick-hint>PDF, Word sau poze</small></span>
               <span class="tile-go" aria-hidden="true" data-try-pick-action>Alege fișierul</span>
             </label>
             <label class="tile tile-choice">
