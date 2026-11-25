@@ -1014,6 +1014,12 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       return structuredClone(report);
     }),
     getSubmission: vi.fn(async (submissionId: number) => structuredClone(findSubmission(submissionId))),
+    // A page's bytes: its name, with its type.
+    submissionFile: vi.fn(async (submissionId: number, fileId: number) => {
+      const page = findSubmission(submissionId).files.find((one) => one.id === fileId);
+      if (!page) throw notFound();
+      return new Blob([page.name], { type: page.contentType });
+    }),
     getResultLink: vi.fn(async (submissionId: number, startedAt: string) => {
       requireShown(submissionId, startedAt);
       const found = submissions.find((s) => s.id === submissionId);

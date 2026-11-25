@@ -4,6 +4,7 @@ import type { AnswerArea } from '../../../shared/schemas.ts';
 import { formatFileSize } from '../../ui/format.ts';
 import { useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { submissionFileUrl } from '../api.ts';
+import { PageDownload } from '../paperPage/PageDownload.tsx';
 import { useApi } from '../ApiContext.tsx';
 import { AnswerFrame } from './AnswerFrame.tsx';
 import { isReviewKey } from './keys.ts';
@@ -21,15 +22,16 @@ export const PAPER_PHOTO_ID = 'paper-photo';
 const FOCUSABLE = 'button:not([disabled]), a[href], iframe, [tabindex]:not([tabindex="-1"])';
 
 // The width, in rem, that the box's header needs to hold the view and the zoom
-// buttons on its one line, beside the name (kept at 9rem at least), the page
-// buttons and the ×. A narrower box keeps them over the page, so its header
+// buttons on its one line, beside the name (kept at 9rem at least), the
+// download button, the page buttons and the ×. A narrower box keeps them over the page, so its header
 // never grows a second line.
 export function headWidth({ view, pages, hide }: { view: boolean; pages: number; hide: boolean }): number {
   const padding = 2;
   const name = 9;
   const zoom = 9.75;
   const gap = 0.75;
-  return padding + name + gap + zoom + (view ? 2 + gap : 0) + (pages > 1 ? pages * 2.25 + gap : 0) + (hide ? 2 + gap : 0);
+  const download = 2 + gap;
+  return padding + name + gap + zoom + download + (view ? 2 + gap : 0) + (pages > 1 ? pages * 2.25 + gap : 0) + (hide ? 2 + gap : 0);
 }
 
 // A trackpad pinch (a wheel with ctrlKey) over the buttons that float over
@@ -289,6 +291,10 @@ export function ReviewPhoto({
         return;
       }
       if (!isReviewKey(event)) return;
+      // A small menu open in the box (the download button's) takes Esc and
+      // the arrows first, also when a click left the focus on the page
+      // (Safari does not focus a clicked button).
+      if (box.current?.querySelector('[aria-expanded="true"]')) return;
       const pressed = event.key.toLowerCase();
       const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       if (event.key === 'Escape') {
@@ -494,6 +500,7 @@ export function ReviewPhoto({
           {isFull && !narrow && hide}
           <div className="review-photo-actions">
             {inHead && <ZoomGroup view={view} onView={setView} full={isFull} onFull={showFull} />}
+            <PageDownload submission={submission} page={index} />
             {files.length > 1 && (
               <span className="page-switch" role="group" aria-label={t('Paginile lucrării')}>
                 {files.map((other, number) => (
