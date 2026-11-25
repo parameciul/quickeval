@@ -8871,6 +8871,13 @@ a.ticket-qr {
   white-space: nowrap;
 }
 
+/* The administrators' views: dates and words, so every column is on the left. */
+.account-work.account-views th,
+.account-work.account-views td,
+.account-work.account-views thead th:not(:first-child) {
+  text-align: left;
+}
+
 .account-work .account-person {
   font-size: 0.875rem;
 }

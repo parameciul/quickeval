@@ -502,6 +502,7 @@ describe('"Vizualizări de administrator" on Detalii', () => {
     await open(views);
     const heading = await screen.findByRole('heading', { name: 'Vizualizări de administrator' });
     const table = heading.closest('div')!.querySelector('table')!;
+    expect(table).toHaveClass('account-work', 'account-views');
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows[0]).toHaveTextContent('Laura Miron');
     expect(rows[0]).toHaveTextContent('25 nov. 2026, 12:00');

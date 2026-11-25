@@ -552,7 +552,7 @@ const VIEW_END_LABEL: Record<NonNullable<AccountView['endReason']>, () => string
 function ViewsTable({ views }: { views: AccountView[] }) {
   return (
     <div className="table-wrap">
-      <table className="account-work">
+      <table className="account-work account-views">
         <thead>
           <tr>
             <th scope="col">{t('Administrator')}</th>
