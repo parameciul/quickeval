@@ -8876,6 +8876,7 @@ a.ticket-qr {
 .account-work.account-views td,
 .account-work.account-views thead th:not(:first-child) {
   text-align: left;
+  font-variant-numeric: normal;
 }
 
 .account-work .account-person {
