@@ -80,7 +80,7 @@ app's own bar:
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│ Vezi contul lui Ana Pop · doar citire · până la 14:32  [Ieși] │
+│ Vezi contul lui Ana Pop · doar citire · până la 14:32 [Ieși din vizualizare] │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -90,11 +90,11 @@ app's own bar:
   changes something gets the API's refusal, shown like any other error:
   "Doar citire: nu poți schimba nimic în contul altui profesor."
 - "Ieși din cont" in the user menu and the phone menu is hidden while viewing,
-  so "Ieși" on the bar is the one way out.
+  so "Ieși din vizualizare" (English "Exit") on the bar is the one way out.
 
 ### How the administrator exits
 
-1. **"Ieși" on the bar** (the normal way): `DELETE /api/admin/impersonation`,
+1. **"Ieși din vizualizare" on the bar** (English "Exit"; the key "Ieși" already means "Sign out") (the normal way): `DELETE /api/admin/impersonation`,
    then a full navigation to `/teacher/settings`, as the administrator.
 2. **The time runs out** (1 hour after the start): the next request answers
    409 `impersonation_ended` and clears the view cookie; the page does a full
