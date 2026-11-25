@@ -102,7 +102,10 @@ app's own bar:
    {name} s-a încheiat."
 3. **The administrator's login ends** (logout from another tab, a password
    change, the account closed or no longer an administrator): the view is
-   bound to that login, so it ends with it, with the same 409.
+   bound to that login, so it ends with it, with the same 409. When the
+   login itself is gone (logout, a password change from another device), that
+   tab first gets the usual 401 and the login form; the next login in that
+   browser then gets the 409 and the notice.
 4. **The teacher's account closes** (or stops being a plain teacher) during
    the view: the same 409.
 
@@ -126,8 +129,14 @@ name, mode, `expiresAt`) comes back in the shell's existing data:
   expiresAt } | null`. The bar reads it.
 - `GET /api/admin/version` (polled every minute) includes the view's id in its
   version string. A tab whose version changes because a view started or ended
-  in another tab does a full reload instead of a normal refresh, so no tab
-  mixes the two accounts' data.
+  in another tab does a full reload instead of a normal refresh (or goes to
+  Setări when its view ended), so no tab mixes the two accounts' data.
+- Each tab also sends the view it shows in an `X-MQ-View: <id>|none` header
+  (none before its first `/me`). A request that names a view which is no
+  longer this request's live view answers 409 `impersonation_ended` at once,
+  so a tab never waits for the next version check to learn that its view
+  ended in another tab. Plain links and images cannot send it: a missing
+  header claims nothing.
 
 Both exist today (`server/routes/admin.ts`, `server/db/version.ts`, which
 already returns a string); only their answers grow. A full reload on a version
