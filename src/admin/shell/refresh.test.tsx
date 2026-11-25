@@ -6,6 +6,7 @@ import { createFakeApi, fakeTest } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import { ApiProvider } from '../ApiContext.tsx';
 import { useDataVersion, VERSION_CHECK_MS } from './refresh.ts';
+import * as viewing from './viewing.ts';
 
 const apiWithOneTest = () =>
   createFakeApi({
@@ -161,6 +162,23 @@ describe('useDataVersion and the view part', () => {
     });
     await waitFor(() => expect(leave).toHaveBeenCalledTimes(1));
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('does neither while the tab is already leaving', async () => {
+    const api = apiWithOneTest();
+    api.dataVersion.mockResolvedValue('3||');
+    const { reload, leave, queryClient } = setup(api);
+    await waitFor(() => expect(queryClient.getQueryData(['version'])).toBeDefined());
+    await act(async () => {});
+    vi.spyOn(viewing.viewTab, 'leave').mockImplementation(() => {});
+    viewing.goToSettings(false);
+    api.dataVersion.mockResolvedValue('3|||v7');
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['version'] });
+    });
+    await act(async () => {});
+    expect(reload).not.toHaveBeenCalled();
+    expect(leave).not.toHaveBeenCalled();
   });
 
   it('reloads when a view changes to another view', async () => {

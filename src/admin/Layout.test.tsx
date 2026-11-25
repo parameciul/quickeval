@@ -805,7 +805,7 @@ describe('the panels before the tests of the year arrive', () => {
 });
 
 describe("the view of a teacher's account in the shell", () => {
-  const VIEW = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view' as const, expiresAt: '2026-11-25T12:32:00.000Z' };
+  const VIEW = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view' as const, expiresAt: '2099-11-25T12:32:00.000Z' };
   const viewed = () =>
     createFakeApi({ classes: [], students: {}, me: fakeTeacher({ id: 3, name: 'Ana Pop', email: 'ana@example.com', role: 'teacher' }), viewing: VIEW });
 

@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useApi } from '../ApiContext.tsx';
-import { goToSettings, viewPartOf } from './viewing.ts';
+import { goToSettings, isLeaving, viewPartOf } from './viewing.ts';
 
 // How the teacher pages learn what the robot, the students and a scheduled
 // start changed. D1 bills every row read and a page can stay open for hours,
@@ -63,6 +63,7 @@ export function useDataVersion(
     if (seen.current !== undefined && viewPartOf(seen.current) !== viewPartOf(current)) {
       seen.current = current;
       adopt.current = false;
+      if (isLeaving()) return;
       const ended = viewPartOf(current) === '';
       (ended ? leaveRef : reloadRef).current();
       return;

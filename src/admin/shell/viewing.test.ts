@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { forgetAccountState, goToSettings, rememberViewedName, takeEndedName, viewPartOf, viewTab } from './viewing.ts';
+import { beginExit, forgetAccountState, goToSettings, isLeaving, rememberViewedName, takeEndedName, viewPartOf, viewTab } from './viewing.ts';
 
 afterEach(() => {
   sessionStorage.clear();
@@ -37,6 +37,34 @@ describe('the account state', () => {
     vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
     rememberViewedName('Ana Pop');
     goToSettings(false);
+    expect(takeEndedName()).toBeNull();
+  });
+});
+
+describe('leaving', () => {
+  it('goes to Setări once; a second call does nothing', () => {
+    const leave = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    rememberViewedName('Ana Pop');
+    goToSettings(true);
+    goToSettings(true);
+    expect(leave).toHaveBeenCalledTimes(1);
+    expect(isLeaving()).toBe(true);
+  });
+
+  it('is marked by viewTab.leave itself', () => {
+    const assign = vi.spyOn(viewTab, 'assign').mockImplementation(() => {});
+    expect(isLeaving()).toBe(false);
+    viewTab.leave('/teacher/');
+    expect(assign).toHaveBeenCalledWith('/teacher/');
+    expect(isLeaving()).toBe(true);
+  });
+
+  it('takes an end that lands during a deliberate exit as no notice', () => {
+    const leave = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    rememberViewedName('Ana Pop');
+    beginExit();
+    goToSettings(true);
+    expect(leave).toHaveBeenCalledTimes(1);
     expect(takeEndedName()).toBeNull();
   });
 });

@@ -147,7 +147,7 @@ describe('closeDeadView', () => {
 
     await startView(db, view({ tokenHash: 'b', sessionHash: 'sb' }), NOW);
     await closeDeadView(db, 'b', AFTER_HOUR);
-    expect(await row('b')).toMatchObject({ ended_at: AFTER_HOUR, end_reason: 'expired' });
+    expect(await row('b')).toMatchObject({ ended_at: '2026-11-25T11:00:00.000Z', end_reason: 'expired' });
 
     await startView(db, view({ tokenHash: 'c', sessionHash: 'sc' }), NOW);
     await endView(db, 'c', LATER);

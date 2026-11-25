@@ -163,6 +163,18 @@ describe('ending a view', () => {
     expect((await viewRows()).results[0]!.end_reason).toBe('expired');
   });
 
+  it('clears a stale view cookie for a teacher and carries on as that teacher', async () => {
+    const view = cookieOf(await start(session), 'qe_view');
+    const ana = await loginAs('ana@example.com');
+    const res = await api.request('GET', '/api/admin/me', undefined, cookies(ana, view));
+    expect(res.status).toBe(200);
+    expect(res.body.teacher.id).toBe(anaId);
+    expect(res.body.viewing).toBeNull();
+    const cleared = res.headers.getSetCookie().find((cookie) => cookie.startsWith('qe_view='))!;
+    expect(cleared).toMatch(/^qe_view=;|Max-Age=0|Expires=/);
+    expect((await viewRows()).results[0]!.end_reason).toBe('session_gone');
+  });
+
   it("ends with the administrator's login", async () => {
     const view = cookieOf(await start(session), 'qe_view');
     await api.request('POST', '/api/auth/logout', undefined, cookies(session));
@@ -176,8 +188,10 @@ describe('ending a view', () => {
     const view = cookieOf(await start(session), 'qe_view');
     await api.db.prepare("UPDATE teachers SET role = 'teacher' WHERE id = ?").bind(api.teacherId).run();
     const res = await api.request('GET', '/api/admin/me', undefined, cookies(session, view));
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe('impersonation_ended');
+    expect(res.status).toBe(200);
+    expect(res.body.teacher.id).toBe(api.teacherId);
+    expect(res.body.viewing).toBeNull();
+    expect(res.headers.getSetCookie().some((cookie) => cookie.startsWith('qe_view='))).toBe(true);
   });
 
   it("ends when the teacher's account closes", async () => {

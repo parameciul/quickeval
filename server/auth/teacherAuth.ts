@@ -47,6 +47,16 @@ export function teacherAuth(): MiddlewareHandler<AppEnv> {
       await next();
       return;
     }
+    // Only an administrator can be viewing. A cookie left in a browser where
+    // someone else logged in since is dropped, and the request goes on as that
+    // person.
+    if (real.role !== 'admin') {
+      await closeDeadView(c.env.DB, await sha256Hex(view), nowIso());
+      clearViewCookie(c);
+      c.set('teacher', real);
+      await next();
+      return;
+    }
     // A view belongs to the administrator's own login session, so the
     // development login (no session cookie) never has one.
     const session = sessionToken(c);

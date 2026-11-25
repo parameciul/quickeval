@@ -111,10 +111,11 @@ export async function closeDeadView(db: D1Database, tokenHash: string, now: stri
   await db
     .prepare(
       `UPDATE impersonations
-       SET ended_at = ?, end_reason = CASE WHEN expires_at <= ? THEN 'expired' ELSE 'session_gone' END
+       SET ended_at = CASE WHEN expires_at <= ? THEN expires_at ELSE ? END,
+           end_reason = CASE WHEN expires_at <= ? THEN 'expired' ELSE 'session_gone' END
        WHERE token_hash = ? AND ended_at IS NULL`,
     )
-    .bind(now, now, tokenHash)
+    .bind(now, now, now, tokenHash)
     .run();
 }
 

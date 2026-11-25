@@ -5,9 +5,36 @@ const VIEWING_KEY = 'quickeval.viewing';
 const ENDED_KEY = 'quickeval.viewEnded';
 const LAST_CLASS_KEY = 'quickeval:lastClass';
 
+// Once the tab starts leaving (a page load is on its way), nothing else may
+// start another one: the version check must not reload under it, and a second
+// goToSettings must not replace it. `exiting`: the administrator chose to exit,
+// so an end that lands meanwhile is no news for them.
+let leaving = false;
+let exiting = false;
+
+export function isLeaving(): boolean {
+  return leaving;
+}
+
+// The administrator pressed "Ieși din vizualizare".
+export function beginExit(): void {
+  exiting = true;
+}
+
+export function resetLeavingForTests(): void {
+  leaving = false;
+  exiting = false;
+}
+
 // The page load that leaves the view. An object, so a test can spy on it: jsdom
 // does not let a test replace window.location.
-export const viewTab = { leave: (path: string) => window.location.assign(path) };
+export const viewTab = {
+  assign: (path: string) => window.location.assign(path),
+  leave: (path: string) => {
+    leaving = true;
+    viewTab.assign(path);
+  },
+};
 
 // The view part of a data version ("3|||v12"): the fourth part between the
 // bars, empty when no view is on.
@@ -57,6 +84,9 @@ export function takeEndedName(): string | null {
 // Leaves the teacher's pages for Setări, where the administrator's own account
 // shows again. `ended`: the view ended on its own, so Setări says so.
 export function goToSettings(ended: boolean = true): void {
+  if (leaving) return;
+  leaving = true;
+  if (exiting) ended = false;
   try {
     const name = store()?.getItem(VIEWING_KEY) ?? null;
     store()?.removeItem(VIEWING_KEY);

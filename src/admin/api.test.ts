@@ -44,7 +44,7 @@ describe('createApiClient and the view of an account', () => {
   });
 
   it('me returns the viewing', async () => {
-    const viewing = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view', expiresAt: '2026-11-25T12:32:00.000Z' };
+    const viewing = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view', expiresAt: '2099-11-25T12:32:00.000Z' };
     const teacher = { id: 3, email: 'ana@example.com', name: 'Ana Pop', role: 'teacher' };
     const fetchImpl = vi.fn(async () => jsonResponse(200, { teacher, viewing }));
     const me = await createApiClient({ fetchImpl }).me();
@@ -52,7 +52,7 @@ describe('createApiClient and the view of an account', () => {
   });
 
   it('starts and ends a view', async () => {
-    const viewing = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view', expiresAt: '2026-11-25T12:32:00.000Z' };
+    const viewing = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view', expiresAt: '2099-11-25T12:32:00.000Z' };
     const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) =>
       init?.method === 'DELETE' ? jsonResponse(200, { ended: true }) : jsonResponse(201, { viewing }),
     );

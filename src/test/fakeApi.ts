@@ -470,7 +470,7 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     me: vi.fn(async () => ({ ...structuredClone(me), viewing: structuredClone(data.viewing ?? null) })),
     startView: vi.fn(async (accountId: number, _password: string) => {
       const target = accounts.find((account) => account.id === accountId);
-      return { id: 1, teacher: { id: accountId, name: target?.name ?? '' }, mode: 'view' as const, expiresAt: '2026-11-25T12:32:00.000Z' };
+      return { id: 1, teacher: { id: accountId, name: target?.name ?? '' }, mode: 'view' as const, expiresAt: '2099-11-25T12:32:00.000Z' };
     }),
     endView: vi.fn(async () => {}),
     // Like the server's number: it changes with the tests and their uploads.
