@@ -558,7 +558,7 @@ describe('the panel Clasele tale', () => {
     expect(links.map((link) => link.getAttribute('href'))).toEqual(['/classes/1', '/classes/2']);
     // The open test misses its files: it waits on the teacher.
     expect(links[0]).toHaveTextContent(/^6E21 lucru te așteaptă1 elev · 1 test în lucru$/);
-    expect(links[1]).toHaveTextContent(/^6E3La ziniciun elev · niciun test în lucru$/);
+    expect(links[1]).toHaveTextContent(/^6E3La ziniciun elev$/);
     expect(within(panel).getByRole('link', { name: 'Clasă nouă' })).toHaveAttribute('href', '/classes');
     expect(before(within(panel).getByRole('link', { name: 'Clasă nouă' }), list)).toBe(true);
     expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toHaveAttribute('href', '/classes');
@@ -663,6 +663,20 @@ describe('the panel Clasele tale', () => {
     // The tests are no longer listed one by one.
     expect(first).not.toHaveTextContent('Logaritmi');
     expect(within(list).getByRole('link', { name: /^6E3/ })).toHaveTextContent(/^6E31 lucru te așteaptăniciun elev · 2 teste în lucru$/);
+  });
+
+  it('leaves a count of 0 out of the line, so it never says "nothing in work" beside what waits', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
+      students: {},
+      tests: [fakeTest({ code: '6E2-26T1', title: 'Fracții', status: 'done', gradedCount: 20, resultsOpen: true, archived: true })],
+    });
+    renderAdmin('/', api);
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const list = within(screen.getByRole('complementary', { name: 'Clasele tale' })).getByRole('navigation');
+    // The archived test with open results waits ("De făcut" lists it), but it is not in work.
+    expect(await within(list).findByText('1 lucru te așteaptă')).toBeInTheDocument();
+    expect(within(list).getByRole('link', { name: /^6E2/ })).toHaveTextContent(/^6E21 lucru te așteaptăniciun elev$/);
   });
 
   it('says "La zi" in grey when nothing of the class waits', async () => {

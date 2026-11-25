@@ -39,6 +39,15 @@ describe('classSummary', () => {
     expect(classSummary([fakeSummary({ status: 'open' })], 1).average).toBeNull();
   });
 
+  it('leaves out the average of a test still grading, or with points to check', () => {
+    const tests = [
+      fakeSummary({ code: '6E2-26T1', ...done, averageGrade: 8 }),
+      fakeSummary({ code: '6E2-26T2', status: 'evaluating', gradedCount: 1, averageGrade: 4 }),
+      fakeSummary({ code: '6E2-26T3', ...done, flagCount: 2, averageGrade: 5 }),
+    ];
+    expect(classSummary(tests, 1).average).toBe(8);
+  });
+
   it('leaves an archived test out of the work and the points', () => {
     const tests = [fakeSummary({ ...done, resultsOpen: false, archived: true, flagCount: 2 })];
     expect(classSummary(tests, 1)).toMatchObject({ waits: 0, inWork: 0, points: 0 });

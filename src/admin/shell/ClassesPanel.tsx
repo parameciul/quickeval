@@ -102,25 +102,29 @@ export function ClassesPanel({
                         <span className="tag">{t('La zi')}</span>
                       ))}
                   </span>
-                  {/* Each part stays whole; the line breaks only between them. */}
+                  {/* Each part stays whole with its "·", so the line breaks only
+                      before a "·", never after one. A count of 0 is left out:
+                      the tag already says whether something waits. */}
                   <span className="class-item-line">
                     <span>{studentCountLabel(item.studentCount)}</span>
-                    {sums && (
+                    {sums && sums.inWork > 0 && (
                       <>
-                        {' · '}
-                        <span>{sums.inWork > 0 ? t('{countLabel} în lucru', { countLabel: countLabel(sums.inWork, 'test', 'teste') }) : t('niciun test în lucru')}</span>
-                        {sums.points > 0 && (
-                          <>
-                            {' · '}
-                            <span className="is-waiting">{countLabel(sums.points, 'punct de verificat', 'puncte de verificat')}</span>
-                          </>
-                        )}
-                        {sums.average !== null && (
-                          <>
-                            {' · '}
-                            <span>{t('media la teste {grade}', { grade: formatPoints(sums.average) })}</span>
-                          </>
-                        )}
+                        {' '}
+                        <span>· {t('{countLabel} în lucru', { countLabel: countLabel(sums.inWork, 'test', 'teste') })}</span>
+                      </>
+                    )}
+                    {sums && sums.points > 0 && (
+                      <>
+                        {' '}
+                        <span>
+                          · <span className="is-waiting">{countLabel(sums.points, 'punct de verificat', 'puncte de verificat')}</span>
+                        </span>
+                      </>
+                    )}
+                    {sums && sums.average !== null && (
+                      <>
+                        {' '}
+                        <span>· {t('media la teste {grade}', { grade: formatPoints(sums.average) })}</span>
                       </>
                     )}
                   </span>

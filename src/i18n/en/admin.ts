@@ -86,7 +86,6 @@ export const ADMIN = {
   "Clasele tale": "Your classes",
   "La zi": "Up to date",
   "{countLabel} în lucru": "{countLabel} in progress",
-  "niciun test în lucru": "no tests in progress",
   "media la teste {grade}": "average across tests {grade}",
   "Arhivate ({archived})": "Archived ({archived})",
   "lucrare rămasă": "paper left",
