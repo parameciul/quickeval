@@ -7,6 +7,8 @@ import { countLabel, formatFileSize } from '../../ui/format.ts';
 import { submissionFileUrl } from '../api.ts';
 import { useApi } from '../ApiContext.tsx';
 import { HELD_BACK_HINT, heldBack } from '../testPage/paperCounts.ts';
+import { FilesNoteLine } from './PageDownload.tsx';
+import { usePaperFiles } from './paperFiles.ts';
 import { t } from '../../i18n/t.ts';
 
 // The paper page of an upload with no result now (sending, sent, held back,
@@ -155,6 +157,7 @@ export function PaperPages({
           {files.length}
         </span>
         <span className="hint paper-pages-order">{t('în ordinea trimisă de elev')}</span>
+        {files.length > 0 && <PagesDownload submission={submission} />}
       </div>
       {files.length === 0 ? (
         <p className="hint">{t('Elevul nu a încărcat niciun fișier.')}</p>
@@ -208,5 +211,21 @@ export function PaperPages({
       )}
       {next && <div className="paper-pages-foot">{next}</div>}
     </section>
+  );
+}
+
+// "Descarcă toate" in the head of the pages: every page in one ZIP (one page
+// by itself), with the line of what it did under it.
+function PagesDownload({ submission }: { submission: SubmissionDetail }) {
+  const pages = usePaperFiles(submission);
+  const one = submission.files.length === 1;
+  return (
+    <span className="paper-pages-download">
+      <button type="button" className="button-quiet button-small" disabled={pages.note?.kind === 'busy'} onClick={() => void pages.saveAll()}>
+        <ActionIcon name="download" />
+        {one ? t('Descarcă pagina') : t('Descarcă toate')}
+      </button>
+      <FilesNoteLine note={pages.note} className="page-download-note" />
+    </span>
   );
 }
