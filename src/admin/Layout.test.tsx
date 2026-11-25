@@ -545,7 +545,7 @@ describe('De făcut', () => {
 });
 
 describe('the panel Clasele tale', () => {
-  it('opens from Clase with the classes of the year and their tests in work', async () => {
+  it('opens from Clase with the classes of the year and their numbers', async () => {
     renderAdmin('/', withClasses());
     const clase = within(await menu()).getByRole('button', { name: 'Clase' });
     await userEvent.click(clase);
@@ -556,9 +556,9 @@ describe('the panel Clasele tale', () => {
     expect(list).not.toHaveAttribute('aria-label');
     const links = within(list).getAllByRole('link');
     expect(links.map((link) => link.getAttribute('href'))).toEqual(['/classes/1', '/classes/2']);
-    // The open test misses its files: they wait on the teacher.
-    expect(links[0]).toHaveTextContent('6E21 elevEcuații · Pregătire · lipsesc testul și baremul');
-    expect(links[1]).toHaveTextContent('Nimic în lucru');
+    // The open test misses its files: it waits on the teacher.
+    expect(links[0]).toHaveTextContent(/^6E21 lucru te așteaptă1 elev · 1 test în lucru$/);
+    expect(links[1]).toHaveTextContent(/^6E3La ziniciun elev$/);
     expect(within(panel).getByRole('link', { name: 'Clasă nouă' })).toHaveAttribute('href', '/classes');
     expect(before(within(panel).getByRole('link', { name: 'Clasă nouă' }), list)).toBe(true);
     expect(within(panel).getByRole('link', { name: 'Arhivate (1)' })).toHaveAttribute('href', '/classes');
@@ -648,18 +648,45 @@ describe('the panel Clasele tale', () => {
     expect(within(bar).getByRole('button', { name: 'Clase' })).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('says what waits in a test, in orange', async () => {
-    renderAdmin('/', withTodo());
+  it('sums up each class: what waits in orange, the tests in work, the points and the average', async () => {
+    const api = withTodo();
+    api.listTests.mockResolvedValue((await api.listTests(2026)).map((test) => (test.code === '6E2-26T1' ? { ...test, averageGrade: 7.85 } : test)));
+    renderAdmin('/', api);
     const bar = await menu();
     await within(bar).findByRole('button', { name: /^De făcut: / });
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
     const list = within(screen.getByRole('complementary', { name: 'Clasele tale' })).getByRole('navigation');
     const first = within(list).getByRole('link', { name: /^6E2/ });
-    expect(Array.from(first.querySelectorAll('.class-item-test')).map((line) => [line.textContent, line.className])).toEqual([
-      ['Logaritmi · Rezultate · nepublicate', 'class-item-test is-waiting'],
-      ['Ecuații · Verificare · 3 puncte nesigure', 'class-item-test is-waiting'],
-    ]);
-    expect(within(list).getByRole('link', { name: /^6E3/ })).toHaveTextContent('Inducție · Pregătire · baremul de verificatMulțimi · Deschis');
+    expect(first).toHaveTextContent(/^6E22 lucruri te așteaptăniciun elev · 2 teste în lucru · 3 puncte de verificat · media la teste 7,85$/);
+    expect(first.querySelector('.tag')).toHaveClass('tag-wait');
+    expect(first.querySelector('.is-waiting')).toHaveTextContent(/^3 puncte de verificat$/);
+    // The tests are no longer listed one by one.
+    expect(first).not.toHaveTextContent('Logaritmi');
+    expect(within(list).getByRole('link', { name: /^6E3/ })).toHaveTextContent(/^6E31 lucru te așteaptăniciun elev · 2 teste în lucru$/);
+  });
+
+  it('leaves a count of 0 out of the line, so it never says "nothing in work" beside what waits', async () => {
+    const api = createFakeApi({
+      classes: [{ id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 }],
+      students: {},
+      tests: [fakeTest({ code: '6E2-26T1', title: 'Fracții', status: 'done', gradedCount: 20, resultsOpen: true, archived: true })],
+    });
+    renderAdmin('/', api);
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const list = within(screen.getByRole('complementary', { name: 'Clasele tale' })).getByRole('navigation');
+    // The archived test with open results waits ("De făcut" lists it), but it is not in work.
+    expect(await within(list).findByText('1 lucru te așteaptă')).toBeInTheDocument();
+    expect(within(list).getByRole('link', { name: /^6E2/ })).toHaveTextContent(/^6E21 lucru te așteaptăniciun elev$/);
+  });
+
+  it('says "La zi" in grey when nothing of the class waits', async () => {
+    renderAdmin('/', withClasses({ files }));
+    await userEvent.click(within(await menu()).getByRole('button', { name: 'Clase' }));
+    const list = within(screen.getByRole('complementary', { name: 'Clasele tale' })).getByRole('navigation');
+    const first = await within(list).findByRole('link', { name: /^6E2/ });
+    await within(first).findByText('La zi');
+    expect(within(first).getByText('La zi')).not.toHaveClass('tag-wait');
+    expect(first).toHaveTextContent(/^6E2La zi1 elev · 1 test în lucru$/);
   });
 
   it('draws each class with a dot in its own colour before its name', async () => {
@@ -758,7 +785,7 @@ describe('the panels before the tests of the year arrive', () => {
     expect(within(todo).queryByRole('heading', { name: 'Nimic nu te așteaptă acum' })).not.toBeInTheDocument();
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
     const classes = screen.getByRole('complementary', { name: 'Clasele tale' });
-    expect(await within(classes).findByRole('link', { name: /^6E2/ })).not.toHaveTextContent('Nimic în lucru');
+    expect(await within(classes).findByRole('link', { name: /^6E2/ })).toHaveTextContent(/^6E21 elev$/);
   });
 
   it('show why the list could not be read', async () => {
@@ -773,6 +800,6 @@ describe('the panels before the tests of the year arrive', () => {
     await userEvent.click(within(bar).getByRole('button', { name: 'Clase' }));
     const classes = screen.getByRole('complementary', { name: 'Clasele tale' });
     expect(await within(classes).findByText('Serverul nu răspunde acum.')).toBeInTheDocument();
-    expect(within(classes).getByRole('link', { name: /^6E2/ })).not.toHaveTextContent('Nimic în lucru');
+    expect(within(classes).getByRole('link', { name: /^6E2/ })).toHaveTextContent(/^6E21 elev$/);
   });
 });

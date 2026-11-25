@@ -201,7 +201,7 @@ export function Layout() {
       {/* The panels come right after the bar that opens them, for the keyboard
           and screen readers. */}
       {me.data && open === 'clase' && (
-        <ClassesPanel year={year} todo={todo} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
+        <ClassesPanel year={year} currentClassId={classOfPath(location.pathname)} onClose={() => setPanel(null)} />
       )}
       {me.data && open === 'todo' && (
         <TodoPanel items={todo} admin={admin} approvals={approvals} others={others} loading={!tests.data && !tests.error} error={tests.data ? null : tests.error} onClose={() => setPanel(null)} />

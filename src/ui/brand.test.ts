@@ -203,9 +203,9 @@ describe('brand.css', () => {
     expect(value(declarations('.stage-bar'), 'min-height')).toBe('3.25rem');
   });
 
-  it('draws what waits in a class of Clasele tale in orange, not bold, after a dot in the class colour', () => {
-    expect(declarations('.class-item-test.is-waiting')).toContain('color: var(--orange)');
-    expect(value(declarations('.class-item-test.is-waiting'), 'font-weight')).toBeUndefined();
+  it('draws the points to check of a class of Clasele tale in orange, not bold, after a dot in the class colour', () => {
+    expect(declarations('.class-item-line .is-waiting')).toContain('color: var(--orange)');
+    expect(value(declarations('.class-item-line .is-waiting'), 'font-weight')).toBeUndefined();
     expect(value(declarations('.class-dot'), 'background')).toBe('hsl(var(--tone-hue) 60% 52%)');
   });
 

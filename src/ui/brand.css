@@ -1083,10 +1083,14 @@ table.search-table {
 
 .class-item-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.125rem;
+}
+
+.class-item-head .tag {
+  flex: none;
 }
 
 .class-item-head > span:first-child {
@@ -1110,10 +1114,15 @@ table.search-table {
   background: hsl(var(--tone-hue) 60% 52%);
 }
 
-.class-item-head > span + span,
-.class-item-test {
+/* One grey line under the name: the students, the tests in work, the points
+   to check (orange) and the average. */
+.class-item-line {
   font-size: 0.8125rem;
   color: var(--muted);
+}
+
+.class-item-line > span {
+  white-space: nowrap;
 }
 
 /* The phone (redesign spec §4, round 6 design M2): the top bar holds the
@@ -1312,7 +1321,7 @@ table.search-table {
   }
 }
 
-.class-item-test.is-waiting {
+.class-item-line .is-waiting {
   color: var(--orange);
 }
 
@@ -2952,8 +2961,10 @@ table.tests .row-actions {
   gap: 0.875rem;
 }
 
+/* `.modal-body` makes the window a flex column, so the code centres itself
+   with `align-self`; `justify-self` is for the grid it was once. */
 .qr-window-code {
-  justify-self: center;
+  align-self: center;
   width: min(18rem, 100%);
   height: auto;
   background: #ffffff;
