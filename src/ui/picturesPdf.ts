@@ -96,3 +96,4 @@ export async function picturesToPdf(pictures: readonly File[], name: string, too
 }
 
 export type MakePdf = (pictures: readonly File[], name: string) => Promise<PicturesResult>;
+

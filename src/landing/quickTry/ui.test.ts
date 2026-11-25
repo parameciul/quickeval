@@ -9,6 +9,7 @@ import { ApiError } from '../../ui/ApiError.ts';
 import type { LandingApi } from './api.ts';
 import { PHONE_MEDIA } from '../../../shared/quickTry.ts';
 import { DELETED_TRY_KEY, STORED_TRY_KEY } from './storage.ts';
+import type { MakePdf } from '../../ui/picturesPdf.ts';
 import { initQuickTry, type TurnstileWidget } from './ui.ts';
 
 const TOKEN = 'abcdefghijkmnopqrstuvwxyz2345672';
@@ -52,7 +53,7 @@ interface PhoneDeps {
   checkAccount?: (root: ParentNode) => Promise<void>;
 }
 
-async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone: PhoneDeps = {}) {
+async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone: PhoneDeps = {}, makePdf?: MakePdf) {
   document.body.innerHTML = new DOMParser().parseFromString(page, 'text/html').body.innerHTML;
   await initQuickTry(document, {
     api,
@@ -67,6 +68,7 @@ async function mount(api = fakeLandingApi(), turnstile = fakeTurnstile(), phone:
     watchPhone: phone.watchPhone ?? (() => {}),
     checkAccount: phone.checkAccount ?? (async () => {}),
     signal: mounted.signal,
+    makePdf,
   });
   return { api, turnstile };
 }
@@ -602,6 +604,75 @@ describe("the landing page's Quick Try", () => {
     await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
     expect(api.generateBarem).toHaveBeenCalledWith(TOKEN, CODE);
     expect(api.start).not.toHaveBeenCalled();
+  });
+
+  describe('photos of the test and the barem', () => {
+    // A fake PDF maker: one PDF named as asked, or a problem for a photo named "bad".
+    const makePdf = vi.fn<MakePdf>(async (pictures, name) =>
+      pictures.some((one) => one.name.startsWith('bad')) ? { problem: 'Nu am putut citi poza bad.jpg. Alege o poză JPG, PNG sau WebP.' } : { file: new File(['%PDF-1.4'], name, { type: PDF_TYPE }) },
+    );
+    const row = (label: RegExp) => within(dialog()).getByLabelText(label).closest<HTMLElement>('[data-try-pick]')!;
+
+    it('lets the test and the barem be photos', async () => {
+      await mount(undefined, undefined, undefined, makePdf);
+      for (const label of [/^Testul/, /^Baremul/]) {
+        const input = within(dialog()).getByLabelText(label) as HTMLInputElement;
+        expect(input.multiple).toBe(true);
+        expect(input.accept).toContain('image/jpeg');
+      }
+      expect(row(/^Testul/)).toHaveTextContent('PDF, Word sau poze. Încercarea primește numele fișierului.');
+      expect(row(/^Baremul/)).toHaveTextContent('PDF, Word sau poze');
+    });
+
+    it('shows the photos picked in their row', async () => {
+      await mount(undefined, undefined, undefined, makePdf);
+      button()!.click();
+      pick(/^Testul/, photo('IMG_1.jpg'), photo('IMG_2.jpg'));
+      expect(row(/^Testul/)).toHaveTextContent('2 poze');
+      expect(row(/^Testul/)).toHaveTextContent('IMG_1.jpg, IMG_2.jpg');
+      expect(row(/^Testul/)).toHaveTextContent('Schimbă');
+      pick(/^Baremul/, photo('barem.jpg'));
+      expect(row(/^Baremul/)).toHaveTextContent('barem.jpg');
+      expect(row(/^Baremul/)).not.toHaveTextContent('1 poză');
+    });
+
+    it('sends each as one PDF, named after its first photo, and the try after the test', async () => {
+      const { api } = await mount(undefined, undefined, undefined, makePdf);
+      button()!.click();
+      await waitFor(() => expect(document.querySelector('[data-try-turnstile]')).not.toBeNull());
+      pick(/^Testul/, photo('Test 2.jpg'), photo('Test 1.jpg'));
+      pick(/^Baremul/, photo('barem.png'));
+      pick(/^Lucrarea elevului/, photo('p1.jpg'));
+      send();
+      await waitFor(() => expect(api.start).toHaveBeenCalledWith(TOKEN));
+      expect(makePdf).toHaveBeenCalledWith([expect.objectContaining({ name: 'Test 1.jpg' }), expect.objectContaining({ name: 'Test 2.jpg' })], 'Test 1.pdf');
+      expect(api.create).toHaveBeenCalledWith('turnstile-ok', 'Test 1');
+      expect(api.uploadTestFile).toHaveBeenCalledWith(TOKEN, CODE, 'test', expect.objectContaining({ name: 'Test 1.pdf', type: PDF_TYPE }));
+      expect(api.uploadTestFile).toHaveBeenCalledWith(TOKEN, CODE, 'barem', expect.objectContaining({ name: 'barem.pdf', type: PDF_TYPE }));
+    });
+
+    it('says which photo it could not read, and sends nothing', async () => {
+      const { api } = await mount(undefined, undefined, undefined, makePdf);
+      button()!.click();
+      pick(/^Testul/, pdf('test.pdf'));
+      pick(/^Baremul/, photo('bad.jpg'));
+      pick(/^Lucrarea elevului/, photo('p1.jpg'));
+      send();
+      expect(await within(dialog()).findByRole('alert')).toHaveTextContent('Baremul: Nu am putut citi poza bad.jpg. Alege o poză JPG, PNG sau WebP.');
+      expect(api.create).not.toHaveBeenCalled();
+      expect(within(dialog()).getByRole('button', { name: 'Trimite' })).toBeEnabled();
+    });
+
+    it('refuses a PDF picked with photos at once, before reading any photo', async () => {
+      const { api } = await mount(undefined, undefined, undefined, makePdf);
+      makePdf.mockClear();
+      button()!.click();
+      pick(/^Testul/, pdf('test.pdf'), photo('IMG_1.jpg'));
+      send();
+      expect(within(dialog()).getByRole('alert')).toHaveTextContent('Testul: Alege un singur fișier PDF sau Word, ori numai poze.');
+      expect(makePdf).not.toHaveBeenCalled();
+      expect(api.create).not.toHaveBeenCalled();
+    });
   });
 
   it('says what is missing, and sends nothing', async () => {
