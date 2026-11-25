@@ -1,4 +1,5 @@
 import type { TestSummary } from '../../../shared/api.ts';
+import { round2 } from '../../../shared/scoring.ts';
 import { inWork, todoOf } from './todo.ts';
 
 // The numbers of one class in "Clasele tale", from the tests of the year:
@@ -25,6 +26,6 @@ export function classSummary(tests: TestSummary[], classId: number): ClassSummar
     waits: own.filter((test) => todoOf(test) !== null).length,
     inWork: own.filter(inWork).length,
     points: own.filter((test) => !test.archived).reduce((sum, test) => sum + test.flagCount, 0),
-    average: averages.length === 0 ? null : Math.round((averages.reduce((sum, grade) => sum + grade, 0) / averages.length) * 100) / 100,
+    average: averages.length === 0 ? null : round2(averages.reduce((sum, grade) => sum + grade, 0) / averages.length),
   };
 }

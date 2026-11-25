@@ -35,6 +35,12 @@ describe('classSummary', () => {
     expect(classSummary(tests, 1).average).toBe(7.57);
   });
 
+  it('rounds a mean that falls on a half up, as the grades do', () => {
+    // 8.005 is stored as 8.00499…; a plain Math.round would give 8.
+    const tests = [fakeSummary({ code: '6E2-26T1', ...done, averageGrade: 8 }), fakeSummary({ code: '6E2-26T2', ...done, averageGrade: 8.01 })];
+    expect(classSummary(tests, 1).average).toBe(8.01);
+  });
+
   it('has no average before a test is graded', () => {
     expect(classSummary([fakeSummary({ status: 'open' })], 1).average).toBeNull();
   });

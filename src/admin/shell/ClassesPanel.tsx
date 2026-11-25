@@ -16,7 +16,8 @@ import { t } from '../../i18n/t.ts';
 // not archived, each as a few numbers, not a list of its tests: an orange tag
 // with how many of its tests wait on the teacher ("2 lucruri te așteaptă"), or
 // a grey "La zi", then one grey line: the students, the tests in work, the
-// points to check (orange) and the average of its graded tests (`classSummary`).
+// points to check (orange) and the average of its finished tests
+// (`classSummary`); a count of 0 is left out.
 // The class of the page is marked. Until the tests of the year arrive a class
 // shows only its students (or the panel says why the tests could not be
 // read), never "La zi". "Clasă nouă" is first, above the
