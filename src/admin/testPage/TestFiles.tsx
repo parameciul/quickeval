@@ -159,7 +159,7 @@ function TestFileRow({
           disabled={locked || upload.isPending}
           actions={actions}
           confirm={
-            kind === 'barem' ? (picked) => window.confirm(t('Înlocuiești {v1} existent cu {name}?', { v1: variant === 'ces' ? t('baremul CES') : t('baremul'), name: picked.name })) : undefined
+            kind === 'barem' ? (picked) => window.confirm(t('Înlocuiești {v1} existent cu {name}?', { v1: variant === 'ces' ? t('baremul CES') : t('baremul'), name: picked })) : undefined
           }
           onPick={(picked) => {
             if (picked) upload.mutate(picked);

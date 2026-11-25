@@ -187,14 +187,14 @@ describe('NewTestPage', () => {
     expect(api.createClass).toHaveBeenCalledWith({ name: '8A', schoolYear: 2026 });
   });
 
-  it('refuses a file that is not PDF or Word before sending anything', async () => {
+  it('refuses a file that is not PDF, Word or a photo before sending anything', async () => {
     const api = classes();
     renderAdmin('/tests/new', api, <LocationProbe />);
     const user = userEvent.setup({ applyAccept: false });
     await user.selectOptions(await screen.findByLabelText('Clasa'), '1');
     await user.type(screen.getByLabelText('Titlul testului'), 'Fracții');
     await user.upload(testField(), new File(['x'], 'notes.txt', { type: 'text/plain' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Încarcă un fișier PDF sau Word (.docx).');
+    expect(screen.getByRole('alert')).toHaveTextContent('Încarcă un fișier PDF sau Word (.docx), ori poze JPG, PNG sau WebP.');
     await user.click(screen.getByRole('button', { name: 'Creează testul' }));
     await expectLocation('/tests/6E2-26T1');
     expect(api.uploadTestFile).not.toHaveBeenCalled();

@@ -33,7 +33,7 @@ export const TRY = {
   "Citește întâi baremul robotului": "Read the robot's marking scheme first",
   "Corectarea îl folosește așa cum este. Schimbă-l dacă ceva e greșit.": "The grading uses it as it is. Change it if something is wrong.",
   "Alege testul": "Choose the test",
-  "Fără răspunsuri. PDF sau Word.": "Without the answers. PDF or Word.",
+  "Fără răspunsuri. PDF, Word sau poze.": "Without the answers. PDF, Word or photos.",
   "Alege baremul": "Choose the marking scheme",
   "Baremul făcut de robot": "The marking scheme made by the robot",
   "Citește-l înainte să pornești corectarea.": "Read it before you start the grading.",

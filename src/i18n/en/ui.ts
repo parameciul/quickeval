@@ -22,4 +22,13 @@ export const UI = {
   "Limba": "Language",
   "Pagina {n}": "Page {n}",
   "Pagina {n}: {name} · {size}": "Page {n}: {name} · {size}",
+  "Alege un singur fișier PDF sau Word, ori numai poze.": "Choose one PDF or Word file, or only photos.",
+  "Încarcă un fișier PDF sau Word (.docx), ori poze JPG, PNG sau WebP.": "Upload a PDF or Word (.docx) file, or JPG, PNG or WebP photos.",
+  "Alege cel mult {pictures}.": "Choose at most {pictures}.",
+  "poză": "photo",
+  "poze": "photos",
+  "Nu am putut citi poza {name}. Alege o poză JPG, PNG sau WebP.": "I could not read the photo {name}. Choose a JPG, PNG or WebP photo.",
+  "Se pregătesc pozele…": "Preparing the photos…",
+  "{name}, din {pictures}": "{name}, from {pictures}",
+  "PDF, Word sau poze": "PDF, Word or photos",
 } as const satisfies Record<string, string>;

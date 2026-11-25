@@ -40,6 +40,12 @@ html {
 }
 
 label.button-quiet.is-disabled,
+/* "Se pregătesc pozele…" in the tile's right column, while photos become a PDF. */
+.try-tile-busy {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
 label.try-tile.is-disabled {
   opacity: 0.55;
   pointer-events: none;

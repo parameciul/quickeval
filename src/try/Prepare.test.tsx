@@ -184,7 +184,7 @@ describe("a try's files before the grading", () => {
     setup({ files: { test: null, barem: baremFile } });
     expect(await screen.findByLabelText('Alege testul: Fișierul testului')).toBeInTheDocument();
     expect(screen.getByLabelText('Schimbă: Fișierul baremului')).toBeInTheDocument();
-    expect(screen.getByText('Fără răspunsuri. PDF sau Word.')).toBeInTheDocument();
+    expect(screen.getByText('Fără răspunsuri. PDF, Word sau poze.')).toBeInTheDocument();
   });
 
   it('reads out only the title of the ready line, not each page count', async () => {

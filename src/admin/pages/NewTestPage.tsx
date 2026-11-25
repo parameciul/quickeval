@@ -236,7 +236,7 @@ export function NewTestPage() {
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
                     <h2>{t('Testul')}</h2>
-                    <p>{t('Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.')}</p>
+                    <p>{t('Fișierul pe care îl tipărești. PDF, Word sau poze. Poți să-l adaugi și mai târziu.')}</p>
                     <div className="file-frame">
                       <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} />
                     </div>
@@ -264,7 +264,7 @@ export function NewTestPage() {
                     <fieldset className="choices">
                       <legend className="sr-only">{t('Baremul')}</legend>
                       <div className="choice-card">
-                        {choice('upload', t('Încarc baremul acum'), t('PDF sau Word.'))}
+                        {choice('upload', t('Încarc baremul acum'), t('PDF, Word sau poze.'))}
                         {/* Kept while another choice is made, so the file comes back with it. */}
                         <div className="choice-drop" hidden={barem !== 'upload'}>
                           <FileDrop id="new-barem-file" name={t('Fișierul baremului')} onPick={setBaremFile} />
@@ -289,7 +289,7 @@ export function NewTestPage() {
                       <fieldset className="choices">
                         <legend className="sr-only">{t('Baremul CES')}</legend>
                         <div className="choice-card">
-                          {cesChoice('upload', t('Încarc baremul CES acum'), t('PDF sau Word.'))}
+                          {cesChoice('upload', t('Încarc baremul CES acum'), t('PDF, Word sau poze.'))}
                           <div className="choice-drop" hidden={cesBarem !== 'upload'}>
                             <FileDrop id="new-ces-barem-file" name={t('Fișierul baremului CES')} onPick={setCesBaremFile} />
                           </div>

@@ -1,16 +1,17 @@
 import { useEffect, useState, type DragEvent } from 'react';
-import { DOCX_TYPE, fileProblem, PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE } from '../../../shared/files.ts';
-import { t } from '../../i18n/t.ts';
-
-const ACCEPT = ['.pdf', '.docx', PDF_TYPE, DOCX_TYPE].join(',');
+import { t, tc } from '../../i18n/t.ts';
+import { TEACHER_PICK_ACCEPT, type MakePdf } from '../../ui/picturesPdf.ts';
+import { useTeacherPick } from '../../ui/useTeacherPick.ts';
 
 // A drop area for the test or the barem of "Test nou" (redesign spec §11.7),
 // and for a missing file in Pregătire:
 // a click opens the file picker, and a file dragged onto it is taken too. A
-// file goes through the check of `TestFileInput` (PDF or Word, at most
-// 25 MB): one that cannot be sent shows its problem and is not passed on, and
-// the file picked before it is dropped too. `name` says to a screen reader
-// which file this is ("Fișierul testului"). While the area is shown, a file
+// file goes through the check of `TestFileInput` (one PDF or Word file, or
+// photos of the pages, made into one PDF; at most 25 MB): one that cannot be
+// sent shows its problem and is not passed on, and the file picked before it is
+// dropped too. While photos are made into a PDF the area is off. `name` says
+// to a screen reader which file this is ("Fișierul testului"). While the area
+// is shown, a file
 // dropped beside it does nothing, so a near miss does not open the file in the
 // tab and lose the form.
 export function FileDrop({
@@ -18,16 +19,20 @@ export function FileDrop({
   name,
   onPick,
   disabled = false,
+  makePdf,
 }: {
   id: string;
   name: string;
   onPick: (file: File | null) => void;
   disabled?: boolean;
+  makePdf?: MakePdf;
 }) {
   const [problem, setProblem] = useState<string | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
   const [over, setOver] = useState(false);
   const problemId = `${id}-problem`;
+  const { take: takeFiles, busy } = useTeacherPick(makePdf);
+  const off = disabled || busy;
 
   useEffect(() => {
     const keepPage = (event: globalThis.DragEvent) => {
@@ -41,23 +46,26 @@ export function FileDrop({
     };
   }, []);
 
-  const take = (picked: File | null) => {
-    const found = picked ? fileProblem(picked, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE) : null;
-    const file = found ? null : picked;
-    setProblem(found);
-    setChosen(file ? file.name : null);
-    onPick(file);
+  const take = (picked: readonly File[]) => {
+    setProblem(null);
+    takeFiles(picked, (outcome) => {
+      const found = 'problem' in outcome ? outcome.problem : null;
+      const file = 'file' in outcome ? outcome.file : null;
+      setProblem(found);
+      setChosen(file ? chosenName(file, 'pictures' in outcome ? outcome.pictures : 0) : null);
+      onPick(file);
+    });
   };
   const onDragOver = (event: DragEvent) => {
     event.preventDefault();
-    if (!disabled) setOver(true);
+    if (!off) setOver(true);
   };
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
     setOver(false);
     // A dragged text or link carries no file: the file chosen before stays.
-    const dropped = event.dataTransfer.files[0];
-    if (!disabled && dropped) take(dropped);
+    const dropped = [...event.dataTransfer.files];
+    if (!off && dropped.length > 0) take(dropped);
   };
 
   return (
@@ -66,11 +74,12 @@ export function FileDrop({
         id={id}
         type="file"
         className="sr-only"
-        accept={ACCEPT}
-        disabled={disabled}
+        accept={TEACHER_PICK_ACCEPT}
+        multiple
+        disabled={off}
         aria-describedby={problem ? problemId : undefined}
         onChange={(event) => {
-          take(event.target.files?.[0] ?? null);
+          take([...(event.target.files ?? [])]);
           // Emptied, so picking the same file again (after a refused drop) is
           // still a change.
           event.target.value = '';
@@ -91,8 +100,14 @@ export function FileDrop({
           <span className="sr-only">{name}: </span>
           <b>{chosen ? t('Alege alt fișier') : t('Alege fișierul')}</b>{' '}{t('sau trage-l aici')}
         </span>
+        <span className="file-drop-types">{t('PDF, Word sau poze')}</span>
         {chosen && <span className="file-drop-name">{chosen}</span>}
       </label>
+      {busy && (
+        <p className="hint" role="status">
+          {t('Se pregătesc pozele…')}
+        </p>
+      )}
       {problem && (
         <p className="alert" role="alert" id={problemId}>
           {problem}
@@ -100,4 +115,9 @@ export function FileDrop({
       )}
     </div>
   );
+}
+
+// The name shown for the picked file: photos say how many they were.
+export function chosenName(file: File, pictures: number): string {
+  return pictures > 0 ? t('{name}, din {pictures}', { name: file.name, pictures: tc(pictures, 'poză', 'poze') }) : file.name;
 }
