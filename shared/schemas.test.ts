@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { translateMessage } from './i18n/messages.ts';
 import {
   CHECK_THIS,
   checkClassAnalysis,
@@ -18,6 +19,7 @@ import {
   MAX_AREAS,
   OUT_OF_RANGE,
   subjectOf,
+  versionsProblem,
 } from './schemas.ts';
 
 function exercise(id: string, maxPoints: number) {
@@ -511,5 +513,66 @@ describe('the generated barem of a language test', () => {
     });
     expect(checkGeneratedBarem(barem(60)).ok).toBe(true);
     expect(checkGeneratedBarem(barem(61))).toEqual({ ok: false, reason: 'needs 1 to 60 items in a section' });
+  });
+});
+
+describe('the rânduri of a test in the exercise list', () => {
+  const version = (title: string, items: [string, number][]) => ({ title, exercises: items.map(([id, maxPoints]) => ({ id, maxPoints })) });
+  const same = (title: string) => version(title, [['I.1', 4], ['I.2', 2.5], ['II.1', 2.5]]);
+  const check = (versions: unknown) => {
+    const checked = checkExerciseList({ ...LIST, versions });
+    if (!checked.ok) throw new Error(checked.reason);
+    return checked.value;
+  };
+
+  it('accepts rânduri with the same items and points, and keeps them out of the stored list', () => {
+    const checked = check([same('Rândul 1'), same('Rândul 2')]);
+    expect(checked).toEqual({ list: LIST, status: 'ready', message: null, subject: null });
+    expect(versionsProblem({ versions: [same('Rândul 1'), version('Rândul 2', [['II.1', 2.5], ['I.2', 2.5], [' I.1 ', 4.001]])] }, LIST)).toBeNull();
+  });
+
+  it('has nothing to compare with no rânduri, one rând, or an older answer without them', () => {
+    expect(check([]).status).toBe('ready');
+    expect(check([version('Rândul 1', [['I.1', 9]])]).status).toBe('ready');
+    expect(checkExerciseList(LIST)).toMatchObject({ ok: true, value: { status: 'ready' } });
+    expect(check('not a list').status).toBe('ready');
+  });
+
+  it('marks a rând with other points as a problem and names the item', () => {
+    const checked = check([same('Rândul 1'), version('Rândul 2', [['I.1', 3], ['I.2', 3.5], ['II.1', 2.5]])]);
+    expect(checked.status).toBe('problem');
+    expect(checked.message).toBe(
+      'Rândurile testului nu au aceleași exerciții și punctaje: la I.1, Rândul 2 are 3p, nu 4p. Lucrările unui rând pot primi punctaje greșite.',
+    );
+  });
+
+  it('marks a rând with a missing or an extra item as a problem', () => {
+    expect(check([same('Rândul 1'), version('Rândul 2', [['I.1', 4], ['I.2', 2.5]])]).message).toContain('Rândul 2 nu are exercițiul II.1');
+    expect(check([same('Rândul 1'), version('Rândul 2', [['I.1', 4], ['I.2', 2.5], ['II.1', 2.5], ['II.2', 1]])]).message).toContain(
+      'Rândul 2 are în plus exercițiul II.2',
+    );
+  });
+
+  it('names a rând with no title by its place', () => {
+    expect(check([same('Rândul 1'), version(' ', [['I.1', 4]])]).message).toContain('Rândul 2 nu are exercițiul I.2');
+  });
+
+  it('keeps the points problem first: the sums say more', () => {
+    const checked = checkExerciseList({ ...LIST, totalPoints: 12, versions: [same('Rândul 1'), version('Rândul 2', [['I.1', 1]])] });
+    expect(checked.ok && checked.value.message).toBe('Punctajele din barem dau 10, dar totalul este 12.');
+  });
+
+  it('asks Claude for the rânduri in the answer', () => {
+    const json = claudeJsonSchema(exerciseListAnswerSchema) as { required: string[] };
+    expect(json.required).toContain('versions');
+  });
+
+  it('has the English of both problems', () => {
+    const message = check([same('Rândul 1'), version('Rândul 2', [['I.1', 4.5], ['I.2', 2.5], ['II.1', 2.5]])]).message!;
+    expect(translateMessage(message, 'en')).toBe(
+      'The versions of the test do not have the same exercises and points: at I.1, Rândul 2 has 4.5p, not 4p. The papers of one version can get wrong points.',
+    );
+    expect(translateMessage(check([same('Rândul 1'), version('Rândul 2', [['I.1', 4]])]).message!, 'en')).toContain('Rândul 2 has no exercise I.2');
+    expect(translateMessage('Punctajele din barem dau 9,5, dar totalul este 10.', 'en')).toBe('The points in the marking scheme add up to 9.5, but the total is 10.');
   });
 });

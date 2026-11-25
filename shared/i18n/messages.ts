@@ -213,6 +213,14 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   'Testul nu pare să fie de o materie pe care o corectăm.': 'The test does not seem to be of a subject we grade.',
   '{*} MQGrader corectează acum: {*}.': '{*} MQGrader grades now: {*}.',
 
+  // The problems of an exercise list (shared/schemas.ts checkExerciseList).
+  'Punctajele din barem dau {}, dar totalul este {}.': 'The points in the marking scheme add up to {}, but the total is {}.',
+  'Rândurile testului nu au aceleași exerciții și punctaje: {*}. Lucrările unui rând pot primi punctaje greșite.':
+    'The versions of the test do not have the same exercises and points: {*}. The papers of one version can get wrong points.',
+  '{} nu are exercițiul {}': '{} has no exercise {}',
+  '{} are în plus exercițiul {}': '{} has an extra exercise {}',
+  'la {}, {} are {}p, nu {}p': 'at {}, {} has {}p, not {}p',
+
   // The robot.
   'Cheia robotului lipsește sau este greșită.': "The robot's key is missing or wrong.",
   'Id-ul rulării nu este valid.': 'The run id is not valid.',

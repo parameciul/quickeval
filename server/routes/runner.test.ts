@@ -453,6 +453,27 @@ describe('POST /api/runner/tests/:id/exercise-list', () => {
     expect((await robot('POST', '/check')).body.pendingGrading).toBe(0);
   });
 
+  it('compares the rânduri that the robot reports, and saves rânduri that differ as a problem', async () => {
+    const versions = (secondPoints: number) => [
+      { title: 'Rândul 1', exercises: [{ id: 'I.1', maxPoints: 4.5 }, { id: 'II.1', maxPoints: 4.5 }] },
+      { title: 'Rândul 2', exercises: [{ id: 'I.1', maxPoints: secondPoints }, { id: 'II.1', maxPoints: 4.5 }] },
+    ];
+    const differ = await saveList({ ok: true, exerciseList: { ...LIST, versions: versions(3) } });
+    expect(differ.body.exerciseList).toEqual({
+      status: 'problem',
+      message: 'Rândurile testului nu au aceleași exerciții și punctaje: la I.1, Rândul 2 are 3p, nu 4,5p. Lucrările unui rând pot primi punctaje greșite.',
+    });
+    // The stored list stays the shared list, without the rânduri.
+    expect(JSON.parse((await listRow())!.exercise_list_json!)).toEqual(LIST);
+    expect((await robot('POST', '/check')).body.pendingGrading).toBe(0);
+  });
+
+  it('saves rânduri with the same items and points as ready', async () => {
+    const same = { title: 'Rândul', exercises: [{ id: 'I.1', maxPoints: 4.5 }, { id: 'II.1', maxPoints: 4.5 }] };
+    const res = await saveList({ ok: true, exerciseList: { ...LIST, versions: [same, { ...same, title: 'Rândul 2' }] } });
+    expect(res.body).toEqual({ exerciseList: { status: 'ready', message: null } });
+  });
+
   it('refuses a list made from files that the teacher replaced after the robot read the test', async () => {
     const read = await robot('GET', `/tests/${testId}`);
     expect(read.body.test.filesVersion).toBe(0);

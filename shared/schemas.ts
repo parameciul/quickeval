@@ -35,8 +35,31 @@ export const subjectAnswerSchema = z.object({
   subjectName: z.string().describe('For "alta", the Romanian name of the subject in lower case, for example "istorie". An empty string otherwise.'),
 });
 
+// The rânduri of a test (Rândul 1, Rândul 2, …), in the answer of the mode
+// "exercise-list". Each student writes one rând, and all of them share one
+// exercise list, so they need the same items with the same points. The robot
+// reports what the barem gives each rând, and code compares them
+// (versionsProblem). It is not part of the stored list.
+export const versionsAnswerSchema = z.object({
+  versions: z
+    .array(
+      z.object({
+        title: z.string().describe('The rând as the test names it, for example "Rândul 1".'),
+        exercises: z
+          .array(
+            z.object({
+              id: z.string().describe('The id of the item in `exercises` that this item of the rând is.'),
+              maxPoints: z.number().describe("The item's points in this rând's barem."),
+            }),
+          )
+          .describe("Every item that this rând's barem scores on its own, in barem order."),
+      }),
+    )
+    .describe('One entry per rând when the test has two or more; [] when it has one.'),
+});
+
 // What Claude answers in the mode "exercise-list".
-export const exerciseListAnswerSchema = exerciseListSchema.extend(subjectAnswerSchema.shape);
+export const exerciseListAnswerSchema = exerciseListSchema.extend(subjectAnswerSchema.shape).extend(versionsAnswerSchema.shape);
 
 export interface FoundSubject {
   value: DetectedSubject;
@@ -252,7 +275,34 @@ export function checkExerciseList(raw: unknown): Checked<CheckedExerciseList> {
     const message = `Punctajele din barem dau ${formatPoints(sum)}, dar totalul este ${formatPoints(list.totalPoints)}.`;
     return { ok: true, value: { list, status: 'problem', message, subject } };
   }
+  const versions = versionsProblem(raw, list);
+  if (versions) {
+    const message = `Rândurile testului nu au aceleași exerciții și punctaje: ${versions}. Lucrările unui rând pot primi punctaje greșite.`;
+    return { ok: true, value: { list, status: 'problem', message, subject } };
+  }
   return { ok: true, value: { list, status: 'ready', message: null, subject } };
+}
+
+// The first difference between a rând and the shared exercise list, or null
+// when every rând has the list's items with the list's points. An answer with
+// no rânduri, or with one, has nothing to compare (an older robot sends none).
+export function versionsProblem(raw: unknown, list: ExerciseList): string | null {
+  const parsed = versionsAnswerSchema.safeParse(raw);
+  if (!parsed.success || parsed.data.versions.length < 2) return null;
+  const points = new Map(list.exercises.map((exercise) => [exercise.id, exercise.maxPoints]));
+  for (const [index, version] of parsed.data.versions.entries()) {
+    const title = cutText(version.title.trim(), TEXT_LIMITS.label) || `Rândul ${index + 1}`;
+    const own = new Map(version.exercises.map((exercise) => [exercise.id.trim(), round2(exercise.maxPoints)]));
+    for (const [id, maxPoints] of points) {
+      const given = own.get(id);
+      if (given === undefined) return `${title} nu are exercițiul ${id}`;
+      if (given !== maxPoints) return `la ${id}, ${title} are ${formatPoints(given)}p, nu ${formatPoints(maxPoints)}p`;
+    }
+    for (const id of own.keys()) {
+      if (!points.has(id)) return `${title} are în plus exercițiul ${id}`;
+    }
+  }
+  return null;
 }
 
 // Checks the class analysis: it needs an overview, and the lists are cut to
