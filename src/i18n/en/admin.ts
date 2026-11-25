@@ -965,6 +965,7 @@ export const ADMIN = {
   "Indicații la corectare": "Grading instructions",
   "„Indicații la corectare”: dacă pagina testului arată contului secțiunea „Indicații suplimentare pentru corectare”. La un cont nou o văd doar administratorii.": "“Grading instructions”: whether the test page shows the account the section “Extra instructions for grading”. On a new account only administrators see it.",
   "Arată indicațiile suplimentare pentru corectare: {name}": "Show the extra instructions for grading: {name}",
+  "Arată indicațiile": "Show instructions",
   "Se adaugă la baremul CES. Robotul le folosește când dă punctele și când generează baremul.": "They are added to the SEN marking scheme. The robot uses them when it gives points and when it makes the marking scheme.",
   "Se adaugă la barem. Robotul le folosește când dă punctele, ca să corecteze cum vrei tu.": "They are added to the marking scheme. The robot uses them when it gives points, to grade the way you want.",
   "De exemplu: acceptă rezultatul fără justificare la exercițiul 1.": "For example: accept the result without a justification at exercise 1.",

@@ -458,6 +458,25 @@ describe('"Indicații la corectare" on Setări', () => {
     expect(await screen.findByText('Nu am găsit contul.')).toBeInTheDocument();
     expect(await box('Bogdan')).not.toBeChecked();
   });
+  it("puts back only its own account when refused, not another account's save made meanwhile", async () => {
+    const api = withAccounts();
+    let refuse: (error: Error) => void = () => {};
+    api.setShowBaremNotes.mockImplementationOnce(() => new Promise((_resolve, reject) => (refuse = reject)));
+    renderAdmin('/settings', api);
+    await userEvent.click(await box('Bogdan'));
+    await userEvent.click(await box('Mihai'));
+    expect(await box('Mihai')).not.toBeChecked();
+    await vi.waitFor(() => expect(api.setShowBaremNotes).toHaveBeenCalledWith(4, false));
+    refuse(new ApiError(409, 'changed', 'Contul s-a schimbat.'));
+    expect(await screen.findByText('Contul s-a schimbat.')).toBeInTheDocument();
+    expect(await box('Bogdan')).not.toBeChecked();
+    expect(await box('Mihai')).not.toBeChecked();
+  });
+
+  it('shows what the box does in its own words, also where the column heading is hidden', async () => {
+    renderAdmin('/settings', withAccounts());
+    expect((await box('Bogdan')).closest('label')).toHaveTextContent('Arată indicațiile');
+  });
 });
 
 describe('accountKind and accountUse', () => {

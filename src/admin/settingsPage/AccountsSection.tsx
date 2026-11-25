@@ -360,25 +360,29 @@ function AccountRow({ account }: { account: Account }) {
 
 // "Indicații la corectare" of one account: saved as soon as it changes, like
 // the controls of "Corectarea". The box shows the new value at once and a
-// refusal puts back the saved one. The administrator's own account also
+// refusal puts back this account's saved value only, so it never undoes
+// another row's save. The saves of one box run one after the other, so the
+// last click is what the database keeps. The administrator's own account also
 // changes their own test page.
 function BaremNotesSwitch({ account }: { account: Account }) {
   const api = useApi();
   const queryClient = useQueryClient();
+  const setShown = (show: boolean) =>
+    queryClient.setQueryData<Account[]>(['accounts'], (list) =>
+      list?.map((shown) => (shown.id === account.id ? { ...shown, showBaremNotes: show } : shown)),
+    );
   const save = useMutation({
+    scope: { id: `barem-notes-${account.id}` },
     mutationFn: (show: boolean) => api.setShowBaremNotes(account.id, show),
-    onMutate: (show: boolean) => {
-      const before = queryClient.getQueryData<Account[]>(['accounts']);
-      if (before) {
-        queryClient.setQueryData(
-          ['accounts'],
-          before.map((shown) => (shown.id === account.id ? { ...shown, showBaremNotes: show } : shown)),
-        );
-      }
-      return { before };
+    onMutate: async (show: boolean) => {
+      // A read of the list on its way would show the old value again.
+      await queryClient.cancelQueries({ queryKey: ['accounts'] });
+      const saved = queryClient.getQueryData<Account[]>(['accounts'])?.find((shown) => shown.id === account.id)?.showBaremNotes;
+      setShown(show);
+      return { saved };
     },
     onError: (_error, _show, context) => {
-      if (context?.before) queryClient.setQueryData(['accounts'], context.before);
+      if (context?.saved !== undefined) setShown(context.saved);
     },
     onSuccess: (accounts) => {
       queryClient.setQueryData(['accounts'], accounts);
@@ -387,7 +391,7 @@ function BaremNotesSwitch({ account }: { account: Account }) {
   });
   return (
     <>
-      <label className="check-label account-notes">
+      <label className="check-label">
         <input
           type="checkbox"
           aria-label={t('Arată indicațiile suplimentare pentru corectare: {name}', { name: account.name })}
@@ -395,7 +399,7 @@ function BaremNotesSwitch({ account }: { account: Account }) {
           aria-busy={save.isPending}
           onChange={(event) => save.mutate(event.target.checked)}
         />
-        {t('Arată')}
+        {t('Arată indicațiile')}
       </label>
       {save.error && <ErrorMessage error={save.error} />}
     </>
