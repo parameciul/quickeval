@@ -445,6 +445,34 @@ export interface Teacher {
   showBaremNotes: boolean;
 }
 
+// The modes of an administrator's view of a teacher's account; 'act' joins later.
+export const VIEW_MODES = ['view'] as const;
+export type ViewMode = 'view' | 'act';
+export type ViewEndReason = 'exit' | 'expired' | 'replaced' | 'session_gone';
+export const startViewBody = z.object({ mode: z.enum(VIEW_MODES), password: z.string().min(1).max(200) });
+
+// An administrator's live view of a teacher's account.
+export interface Viewing {
+  id: number;
+  teacher: { id: number; name: string };
+  mode: ViewMode;
+  expiresAt: string;
+}
+
+export interface MeAnswer {
+  teacher: Teacher;
+  viewing: Viewing | null;
+}
+
+// One view of an account, as its history lists it; the admin is null once that
+// account is deleted.
+export interface AccountView {
+  admin: { id: number; name: string } | null;
+  startedAt: string;
+  endedAt: string | null;
+  endReason: ViewEndReason | null;
+}
+
 // A teacher account as the administrators see it on Setări.
 export interface Account extends Teacher {
   status: AccountStatus;
