@@ -58,7 +58,7 @@ describe('starting a view', () => {
     expect(res.body).toMatchObject({ viewing: { teacher: { id: anaId, name: 'Alt Profesor' }, mode: 'view' } });
     const setCookie = res.headers.getSetCookie().find((cookie) => cookie.startsWith('qe_view='))!;
     expect(setCookie).toMatch(/^qe_view=[A-Za-z0-9_-]{43};/);
-    expect(setCookie).toContain('Max-Age=3600');
+    expect(setCookie).toContain('Max-Age=7200');
     expect(setCookie).toContain('Path=/api/admin');
     expect(setCookie).toContain('HttpOnly');
     expect(setCookie).toContain('SameSite=Strict');

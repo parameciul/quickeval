@@ -147,7 +147,7 @@ export function Layout() {
 
   return (
     <div className={me.data ? (viewing ? 'shell shell-viewing' : 'shell') : 'shell shell-bare'}>
-      {viewing && <ViewingBar viewing={viewing} />}
+      {viewing && <ViewingBar viewing={viewing} inert={searching} />}
       <header className="topbar" inert={searching}>
         <a className="brand" href="/" aria-label={t('MQGrader by Laura Miron')}>
           <BrandMark />

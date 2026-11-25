@@ -14,7 +14,7 @@
 
 - `/api/auth/login`, `/api/auth/session`, `/api/auth/logout`, `server/auth/session.ts`'s session cookie functions and the `sessions` table do not change.
 - The swap happens in `teacherAuth()` only, never in `loggedInTeacher()` (so `optionalTeacher`, Quick Try's admin check and `/api/auth/session` keep the real person).
-- Cookie: `qe_view`, `Path=/api/admin`, `HttpOnly`, `Secure` on HTTPS, `SameSite=Strict`, `Max-Age=3600`. Token from `newSessionToken()`, stored as `sha256Hex`.
+- Cookie: `qe_view`, `Path=/api/admin`, `HttpOnly`, `Secure` on HTTPS, `SameSite=Strict`, `Max-Age=7200` (twice the view's hour, so the expired view still reaches the server). Token from `newSessionToken()`, stored as `sha256Hex`.
 - A view lasts 1 hour (`VIEW_MS = 3_600_000`); rows are kept 365 days (`VIEW_KEEP_DAYS = 365`).
 - Only `mode: 'view'` is accepted now; the table already allows `'act'`.
 - Rules are checked inside the SQL write (the start's INSERT … SELECT), never only before it.
@@ -164,7 +164,7 @@ git commit -m "Add the impersonations table and its queries"
   - Error codes: `409 impersonation_ended`, `409 cannot_view`, `400 view_needs_login`, `400 wrong_password`, `429 too_many_tries`.
 
 - [ ] **Step 1: Write the failing tests** in `server/routes/impersonation.test.ts`, with `startTestApi({ env: { DEV_TEACHER_EMAIL: undefined } })`, a password for `profesor@example.com` (the admin, as `setPasswordOf` in `server/routes/auth.test.ts`), a real login for the session cookie, and the teacher from `otherTeacherTest(api, 'ana@example.com')` (her test `9Z-26T1`). Helper `cookies(res, ...names)` joins `name=value` parts for the `Cookie` header.
-  - `starts a view and reads the teacher's data`: POST → 201 `{ viewing: { teacher: { id: anaId, name: 'Alt Profesor' }, mode: 'view' } }`; its `Set-Cookie` matches `/^qe_view=[A-Za-z0-9_-]{43};/` and contains `Max-Age=3600`, `Path=/api/admin`, `HttpOnly` and `SameSite=Strict` (the style of the login test in `server/routes/auth.test.ts`); `GET /api/admin/me` with both cookies → `teacher.id === anaId`, `viewing.teacher.id === anaId`; `GET /api/admin/tests/9Z-26T1` → 200 (404 without `qe_view`).
+  - `starts a view and reads the teacher's data`: POST → 201 `{ viewing: { teacher: { id: anaId, name: 'Alt Profesor' }, mode: 'view' } }`; its `Set-Cookie` matches `/^qe_view=[A-Za-z0-9_-]{43};/` and contains `Max-Age=7200`, `Path=/api/admin`, `HttpOnly` and `SameSite=Strict` (the style of the login test in `server/routes/auth.test.ts`); `GET /api/admin/me` with both cookies → `teacher.id === anaId`, `viewing.teacher.id === anaId`; `GET /api/admin/tests/9Z-26T1` → 200 (404 without `qe_view`).
   - `without the view cookie nothing changes`: `/me` → `teacher.email === 'profesor@example.com'`, `viewing === null`.
   - `refuses a wrong password` → 400 `wrong_password`, no row.
   - `counts wrong passwords and stops at the limit` → after the limit, 429 `too_many_tries`.

@@ -166,7 +166,7 @@ CREATE TABLE impersonations (
 ### Cookie and token
 
 - Name `qe_view`, `Path=/api/admin`, `HttpOnly`, `Secure` on HTTPS (as the
-  session cookie), `SameSite=Strict`, `Max-Age=3600`.
+  session cookie), `SameSite=Strict`, `Max-Age=7200`: twice the view's hour, so the browser still sends the cookie when the view expires and the server answers `impersonation_ended`.
 - The token comes from `newSessionToken()` (256 bits) and only its SHA-256 is
   stored. The server enforces `expires_at`; the cookie's lifetime is only a
   courtesy.

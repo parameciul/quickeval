@@ -109,8 +109,8 @@ describe('useDataVersion', () => {
 });
 
 // The view part of the version: a view began or ended, so the page loads anew.
-function Probe({ reload }: { reload: () => void }) {
-  useDataVersion(true, reload);
+function Probe({ reload, leave }: { reload: () => void; leave?: () => void }) {
+  useDataVersion(true, reload, leave);
   const save = useMutation({ mutationFn: async () => 1 });
   return (
     <button type="button" onClick={() => save.mutate()}>
@@ -122,15 +122,16 @@ function Probe({ reload }: { reload: () => void }) {
 describe('useDataVersion and the view part', () => {
   const setup = (api: ReturnType<typeof apiWithOneTest>) => {
     const reload = vi.fn();
+    const leave = vi.fn();
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     render(
       <ApiProvider api={api}>
         <QueryClientProvider client={queryClient}>
-          <Probe reload={reload} />
+          <Probe reload={reload} leave={leave} />
         </QueryClientProvider>
       </ApiProvider>,
     );
-    return { reload, queryClient };
+    return { reload, leave, queryClient };
   };
 
   it('reloads when the view part of the version changes', async () => {
@@ -146,6 +147,34 @@ describe('useDataVersion and the view part', () => {
     });
     await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
     expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('leaves for Setări instead of reloading when the view ended', async () => {
+    const api = apiWithOneTest();
+    api.dataVersion.mockResolvedValue('3|||v7');
+    const { reload, leave, queryClient } = setup(api);
+    await waitFor(() => expect(queryClient.getQueryData(['version'])).toBeDefined());
+    await act(async () => {});
+    api.dataVersion.mockResolvedValue('3||');
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['version'] });
+    });
+    await waitFor(() => expect(leave).toHaveBeenCalledTimes(1));
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('reloads when a view changes to another view', async () => {
+    const api = apiWithOneTest();
+    api.dataVersion.mockResolvedValue('3|||v7');
+    const { reload, leave, queryClient } = setup(api);
+    await waitFor(() => expect(queryClient.getQueryData(['version'])).toBeDefined());
+    await act(async () => {});
+    api.dataVersion.mockResolvedValue('3|||v8');
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['version'] });
+    });
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    expect(leave).not.toHaveBeenCalled();
   });
 
   it('reloads even right after a save', async () => {

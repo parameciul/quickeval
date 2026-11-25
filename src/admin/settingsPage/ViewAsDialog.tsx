@@ -31,7 +31,7 @@ export function ViewAsDialog({
     },
   });
   return (
-    <Modal title={t('Vezi contul lui {name}', { name: account.name })} onClose={onClose} returnFocus={returnFocus}>
+    <Modal title={t('Vezi contul lui {name}', { name: account.name })} onClose={start.isPending ? () => {} : onClose} returnFocus={returnFocus}>
       <form
         className="modal-body"
         onSubmit={(event: FormEvent) => {
@@ -57,7 +57,7 @@ export function ViewAsDialog({
             <ActionIcon name="eye" />
             {t('Vezi contul')}
           </button>
-          <button type="button" className="button-quiet" onClick={onClose}>
+          <button type="button" className="button-quiet" disabled={start.isPending} onClick={onClose}>
             {t('Renunță')}
           </button>
         </div>

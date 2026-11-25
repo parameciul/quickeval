@@ -55,7 +55,8 @@ export function setDeviceCookie(c: Context<AppEnv>, token: string): void {
 }
 
 // The administrator's view of a teacher's account (db/impersonations.ts): a
-// random token that names the view, sent only to /api/admin, for one hour.
+// random token that names the view, sent only to /api/admin, for two hours (twice the view's hour, so the browser still sends it when
+// the view expires and the server can answer that it ended).
 // SameSite=Strict, so no other site's request carries it.
 export const VIEW_COOKIE = 'qe_view';
 const VIEW_PATH = '/api/admin';
@@ -70,7 +71,7 @@ export function setViewCookie(c: Context<AppEnv>, token: string): void {
     httpOnly: true,
     secure: isHttps(c),
     sameSite: 'Strict',
-    maxAge: VIEW_MS / 1000,
+    maxAge: (VIEW_MS * 2) / 1000,
   });
 }
 

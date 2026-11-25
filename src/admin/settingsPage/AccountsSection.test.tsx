@@ -585,6 +585,23 @@ describe('Vezi ca on Setări', () => {
     expect(window.sessionStorage.getItem('quickeval.viewing')).toBeNull();
   });
 
+  it('cannot be closed while the start is pending', async () => {
+    const fake = api();
+    const leave = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
+    let finish: () => void = () => {};
+    fake.startView.mockReturnValueOnce(new Promise<never>((resolve) => { finish = () => resolve(undefined as never); }));
+    renderAdmin('/settings', fake);
+    await pick('Ana Pop', 'Vezi ca Ana Pop');
+    const dialog = await screen.findByRole('dialog', { name: 'Vezi contul lui Ana Pop' });
+    await userEvent.type(within(dialog).getByLabelText('Parola ta'), 'parola');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Vezi contul' }));
+    expect(within(dialog).getByRole('button', { name: 'Renunță' })).toBeDisabled();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.getByRole('dialog', { name: 'Vezi contul lui Ana Pop' })).toBeInTheDocument();
+    finish();
+    await vi.waitFor(() => expect(leave).toHaveBeenCalledWith('/teacher/'));
+  });
+
   it('closes the dialog with Renunță', async () => {
     renderAdmin('/settings', api());
     await pick('Ana Pop', 'Vezi ca Ana Pop');

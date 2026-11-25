@@ -82,7 +82,7 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
       accountActivity(c.env.DB, account.id, nowIso()),
       countRobotWork(c.env.DB, account.id),
       listAccountTests(c.env.DB, account.id),
-      listAccountViews(c.env.DB, account.id),
+      listAccountViews(c.env.DB, account.id, nowIso()),
     ]);
     return c.json({ account, events, counts, activity, robot, tests, views });
   });

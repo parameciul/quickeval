@@ -36,8 +36,19 @@ export async function startView(db: D1Database, view: NewView, now: string): Pro
     db.prepare('UPDATE teachers SET failed_logins = 0, locked_until = NULL WHERE id = ?').bind(view.adminId),
     db.prepare('DELETE FROM impersonations WHERE started_at < ?').bind(oldest),
     db
-      .prepare("UPDATE impersonations SET ended_at = ?, end_reason = 'replaced' WHERE session_hash = ? AND ended_at IS NULL")
-      .bind(now, view.sessionHash),
+      .prepare("UPDATE impersonations SET ended_at = expires_at, end_reason = 'expired' WHERE ended_at IS NULL AND expires_at <= ?")
+      .bind(now),
+    db
+      .prepare(
+        `UPDATE impersonations SET ended_at = ?, end_reason = 'replaced'
+         WHERE session_hash = ? AND ended_at IS NULL
+           AND EXISTS (
+             SELECT 1 FROM teachers a, teachers t
+             WHERE a.id = ? AND a.role = 'admin' AND a.status = 'active'
+               AND t.id = ? AND t.role = 'teacher' AND t.status = 'active' AND t.quick_try = 0
+           )`,
+      )
+      .bind(now, view.sessionHash, view.adminId, view.teacherId),
     db
       .prepare(
         `INSERT INTO impersonations (token_hash, session_hash, admin_id, teacher_id, mode, started_at, expires_at)
@@ -49,7 +60,7 @@ export async function startView(db: D1Database, view: NewView, now: string): Pro
       )
       .bind(view.tokenHash, view.sessionHash, view.mode, now, expiresAt, view.adminId, view.teacherId),
   ]);
-  const id = results[3]?.results[0]?.id;
+  const id = results[4]?.results[0]?.id;
   if (id === undefined) return null;
   const teacher = await db.prepare('SELECT name FROM teachers WHERE id = ?').bind(view.teacherId).first<{ name: string }>();
   return { id, teacher: { id: view.teacherId, name: teacher?.name ?? '' }, mode: view.mode, expiresAt };
@@ -115,14 +126,16 @@ interface ViewRow {
   end_reason: ViewEndReason | null;
 }
 
-export async function listAccountViews(db: D1Database, teacherId: number): Promise<AccountView[]> {
+export async function listAccountViews(db: D1Database, teacherId: number, now: string): Promise<AccountView[]> {
   const { results } = await db
     .prepare(
-      `SELECT i.admin_id, a.name AS admin_name, i.started_at, i.ended_at, i.end_reason
+      `SELECT i.admin_id, a.name AS admin_name, i.started_at,
+         CASE WHEN i.ended_at IS NULL AND i.expires_at <= ? THEN i.expires_at ELSE i.ended_at END AS ended_at,
+         CASE WHEN i.ended_at IS NULL AND i.expires_at <= ? THEN 'expired' ELSE i.end_reason END AS end_reason
        FROM impersonations i LEFT JOIN teachers a ON a.id = i.admin_id
        WHERE i.teacher_id = ? ORDER BY i.started_at DESC, i.id DESC LIMIT ${LIST_LIMIT}`,
     )
-    .bind(teacherId)
+    .bind(now, now, teacherId)
     .all<ViewRow>();
   return results.map((row) => ({
     admin: row.admin_id === null ? null : { id: row.admin_id, name: row.admin_name ?? '' },

@@ -42,6 +42,20 @@ beforeEach(async () => {
 afterEach(() => api.dispose());
 
 describe('startView', () => {
+  it('closes open views past their time when a new one starts', async () => {
+    await startView(db, view({ tokenHash: 'old', sessionHash: 'so' }), NOW);
+    await startView(db, view(), AFTER_HOUR);
+    expect(await row('old')).toMatchObject({ ended_at: '2026-11-25T11:00:00.000Z', end_reason: 'expired' });
+    expect(await row()).toMatchObject({ ended_at: null, end_reason: null });
+  });
+
+  it("leaves the session's live view live when the new start is refused", async () => {
+    await startView(db, view(), NOW);
+    const boss = await api.addTeacher('boss@example.com', 'Boss', { role: 'admin' });
+    expect(await startView(db, view({ teacherId: boss, tokenHash: 'second' }), LATER)).toBeNull();
+    expect(await row()).toMatchObject({ ended_at: null, end_reason: null });
+  });
+
   it('makes a live view of an active teacher', async () => {
     const viewing = await startView(db, view(), NOW);
     expect(viewing).toMatchObject({ teacher: { id: anaId, name: 'Ana Pop' }, mode: 'view', expiresAt: new Date(Date.parse(NOW) + VIEW_MS).toISOString() });
@@ -150,18 +164,25 @@ describe('listAccountViews', () => {
     await endView(db, TOKEN, LATER);
     await startView(db, view({ adminId: boss, sessionHash: 'boss-session', tokenHash: 'second' }), LATER);
 
-    const views = await listAccountViews(db, anaId);
+    const views = await listAccountViews(db, anaId, LATER);
     expect(views).toEqual([
       { admin: { id: boss, name: 'Boss' }, startedAt: LATER, endedAt: null, endReason: null },
       { admin: { id: api.teacherId, name: 'Laura Miron' }, startedAt: NOW, endedAt: LATER, endReason: 'exit' },
     ]);
-    expect(await listAccountViews(db, boss)).toEqual([]);
+    expect(await listAccountViews(db, boss, LATER)).toEqual([]);
   });
 
   it('gives a null admin once the admin row is gone', async () => {
     await startView(db, view(), NOW);
     await db.prepare('UPDATE impersonations SET admin_id = NULL').run();
-    expect(await listAccountViews(db, anaId)).toEqual([{ admin: null, startedAt: NOW, endedAt: null, endReason: null }]);
+    expect(await listAccountViews(db, anaId, LATER)).toEqual([{ admin: null, startedAt: NOW, endedAt: null, endReason: null }]);
+  });
+
+  it('lists an open row past its time as expired at its expiry', async () => {
+    await startView(db, view(), NOW);
+    expect(await listAccountViews(db, anaId, AFTER_HOUR)).toEqual([
+      { admin: { id: api.teacherId, name: 'Laura Miron' }, startedAt: NOW, endedAt: '2026-11-25T11:00:00.000Z', endReason: 'expired' },
+    ]);
   });
 
   it('lists at most 50', async () => {
@@ -171,6 +192,6 @@ describe('listAccountViews', () => {
         .bind(`t${i}`, api.teacherId, anaId, NOW, NOW)
         .run();
     }
-    expect(await listAccountViews(db, anaId)).toHaveLength(50);
+    expect(await listAccountViews(db, anaId, LATER)).toHaveLength(50);
   });
 });
