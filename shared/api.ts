@@ -269,6 +269,10 @@ export const updateAccountBody = z
   })
   .refine((body) => body.demo !== undefined || body.status !== undefined, { message: 'Alege ce schimbi la cont.' });
 
+// An administrator shows or hides the section "Indicații suplimentare pentru
+// corectare" for one account.
+export const baremNotesSettingBody = z.object({ show: z.boolean({ message: 'Alege dacă se arată indicațiile.' }) });
+
 // Approving or refusing names the account the page shows by the time it asked
 // (`Account.createdAt`): a refused account's id comes back for the next sign-up.
 export const shownAccountBody = z.object({ createdAt: z.string({ message: 'Reîncarcă pagina.' }).max(40) });
@@ -435,6 +439,10 @@ export interface Teacher {
   papersGraded: number;
   // Papers on their way to the robot: they use the demo limit too.
   papersWaiting: number;
+  // Whether the test page shows the section "Indicații suplimentare pentru
+  // corectare". An administrator sets it per account on Setări; until then it
+  // shows to administrators only.
+  showBaremNotes: boolean;
 }
 
 // A teacher account as the administrators see it on Setări.

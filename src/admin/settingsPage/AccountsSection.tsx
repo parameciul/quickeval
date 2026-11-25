@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { AccountEventKind } from '../../../shared/accounts.ts';
-import type { Account, AccountDetail, RefusedAccount } from '../../../shared/api.ts';
+import type { Account, AccountDetail, RefusedAccount, Teacher } from '../../../shared/api.ts';
 import { DEMO_PAPER_LIMIT } from '../../../shared/accounts.ts';
 import { countLabel, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
@@ -12,8 +12,10 @@ import { t, locale } from '../../i18n/t.ts';
 
 // "Conturi" of Setări (redesign spec §11.8): the administrators approve or
 // refuse new accounts (one by one, or all that wait at once), make a demo
-// account complete, close an account, and give a teacher who forgot it a new
-// password. Only accounts whose email is confirmed are listed.
+// account complete, close an account, give a teacher who forgot it a new
+// password, and choose for each account whether the test page shows it
+// "Indicații suplimentare pentru corectare". Only accounts whose email is
+// confirmed are listed.
 export function AccountsSection() {
   const api = useApi();
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api.listAccounts() });
@@ -54,6 +56,7 @@ export function AccountsSection() {
                   <th scope="col">{t('Cont')}</th>
                   <th scope="col">{t('Felul')}</th>
                   <th scope="col">{t('Până acum')}</th>
+                  <th scope="col">{t('Indicații la corectare')}</th>
                   <th scope="col">
                     <span className="sr-only">{t('Acțiuni')}</span>
                   </th>
@@ -65,6 +68,9 @@ export function AccountsSection() {
                 ))}
               </tbody>
             </table>
+            <p className="class-card-foot">
+              {t('„Indicații la corectare”: dacă pagina testului arată contului secțiunea „Indicații suplimentare pentru corectare”. La un cont nou o văd doar administratorii.')}
+            </p>
           </section>
           {refused.data && refused.data.length > 0 && <RefusedCard refused={refused.data} />}
         </>
@@ -300,6 +306,9 @@ function AccountRow({ account }: { account: Account }) {
         </td>
         <td>{accountUse(account)}</td>
         <td>
+          <BaremNotesSwitch account={account} />
+        </td>
+        <td>
           <div className="account-actions">
             <button
               type="button"
@@ -325,7 +334,7 @@ function AccountRow({ account }: { account: Account }) {
       </tr>
       {(password || error) && (
         <tr className="accounts-follow">
-          <td colSpan={4}>
+          <td colSpan={5}>
             {password && (
               <div className="warning" role="status">
                 <p>
@@ -340,11 +349,55 @@ function AccountRow({ account }: { account: Account }) {
       )}
       {details && (
         <tr className="accounts-follow">
-          <td colSpan={4} id={detailsId}>
+          <td colSpan={5} id={detailsId}>
             <AccountDetails account={account} />
           </td>
         </tr>
       )}
+    </>
+  );
+}
+
+// "Indicații la corectare" of one account: saved as soon as it changes, like
+// the controls of "Corectarea". The box shows the new value at once and a
+// refusal puts back the saved one. The administrator's own account also
+// changes their own test page.
+function BaremNotesSwitch({ account }: { account: Account }) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: (show: boolean) => api.setShowBaremNotes(account.id, show),
+    onMutate: (show: boolean) => {
+      const before = queryClient.getQueryData<Account[]>(['accounts']);
+      if (before) {
+        queryClient.setQueryData(
+          ['accounts'],
+          before.map((shown) => (shown.id === account.id ? { ...shown, showBaremNotes: show } : shown)),
+        );
+      }
+      return { before };
+    },
+    onError: (_error, _show, context) => {
+      if (context?.before) queryClient.setQueryData(['accounts'], context.before);
+    },
+    onSuccess: (accounts) => {
+      queryClient.setQueryData(['accounts'], accounts);
+      if (queryClient.getQueryData<Teacher>(['me'])?.id === account.id) void queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
+  return (
+    <>
+      <label className="check-label account-notes">
+        <input
+          type="checkbox"
+          aria-label={t('Arată indicațiile suplimentare pentru corectare: {name}', { name: account.name })}
+          checked={account.showBaremNotes}
+          aria-busy={save.isPending}
+          onChange={(event) => save.mutate(event.target.checked)}
+        />
+        {t('Arată')}
+      </label>
+      {save.error && <ErrorMessage error={save.error} />}
     </>
   );
 }

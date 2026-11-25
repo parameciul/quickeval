@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api.ts';
 import { createFakeApi, FAKE_TEMPORARY_PASSWORD, fakeAccount } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import { accountKind, accountUse } from './AccountsSection.tsx';
@@ -415,6 +416,47 @@ describe('the accounts on Setări', () => {
     renderAdmin('/settings', withAccounts());
     const all = await card('Toate conturile');
     expect(within(row(all, 'Mihai')).getByRole('button', { name: 'Detalii pentru Mihai' })).toBeInTheDocument();
+  });
+});
+
+describe('"Indicații la corectare" on Setări', () => {
+  const box = (name: string) => screen.findByRole('checkbox', { name: `Arată indicațiile suplimentare pentru corectare: ${name}` });
+
+  it('shows the section to administrators and hides it from teachers until someone chooses', async () => {
+    renderAdmin('/settings', withAccounts());
+    expect(await box('Laura Miron')).toBeChecked();
+    expect(await box('Mihai')).toBeChecked();
+    expect(await box('Bogdan')).not.toBeChecked();
+    // An account that waits has no such box: it is set once approved.
+    expect(screen.queryByRole('checkbox', { name: /Ana Pop/ })).not.toBeInTheDocument();
+    expect(await card('Toate conturile')).toHaveTextContent('La un cont nou o văd doar administratorii.');
+  });
+
+  it("turns the section on for a teacher and off for an administrator, the administrator's own included", async () => {
+    const api = withAccounts();
+    renderAdmin('/settings', api);
+    await userEvent.click(await box('Bogdan'));
+    expect(api.setShowBaremNotes).toHaveBeenCalledWith(3, true);
+    expect(await box('Bogdan')).toBeChecked();
+    await userEvent.click(await box('Mihai'));
+    expect(api.setShowBaremNotes).toHaveBeenCalledWith(4, false);
+    expect(await box('Mihai')).not.toBeChecked();
+    const meBefore = api.me.mock.calls.length;
+    await userEvent.click(await box('Laura Miron'));
+    expect(api.setShowBaremNotes).toHaveBeenCalledWith(1, false);
+    expect(await box('Laura Miron')).not.toBeChecked();
+    // Her own test page changes too: the page reads her account again.
+    await vi.waitFor(() => expect(api.me.mock.calls.length).toBeGreaterThan(meBefore));
+    expect((await api.me()).showBaremNotes).toBe(false);
+  });
+
+  it('puts back the saved value when the change is refused', async () => {
+    const api = withAccounts();
+    api.setShowBaremNotes.mockRejectedValueOnce(new ApiError(404, 'not_found', 'Nu am găsit contul.'));
+    renderAdmin('/settings', api);
+    await userEvent.click(await box('Bogdan'));
+    expect(await screen.findByText('Nu am găsit contul.')).toBeInTheDocument();
+    expect(await box('Bogdan')).not.toBeChecked();
   });
 });
 

@@ -175,6 +175,72 @@ describe('PATCH /api/admin/accounts/:id', () => {
   });
 });
 
+describe('PUT /api/admin/accounts/:id/marking-scheme-notes', () => {
+  const setNotes = (id: number, show: unknown) => api.request('PUT', `/api/admin/accounts/${id}/marking-scheme-notes`, { show });
+  const meNow = async () => (await api.request('GET', '/api/admin/me')).body.teacher as { showBaremNotes: boolean };
+
+  it('shows the section to administrators and hides it from teachers until someone chooses', async () => {
+    const teacher = await api.addTeacher('bogdan@example.com', 'Bogdan');
+    const admin = await api.addTeacher('admin2@example.com', 'Admin Doi', { role: 'admin' });
+    expect(await meNow()).toMatchObject({ showBaremNotes: true });
+    expect(await accountOf(teacher)).toMatchObject({ showBaremNotes: false });
+    expect(await accountOf(admin)).toMatchObject({ showBaremNotes: true });
+    api.env.DEV_TEACHER_EMAIL = 'bogdan@example.com';
+    expect(await meNow()).toMatchObject({ showBaremNotes: false });
+  });
+
+  it("shows it to a teacher, hides it from an administrator, and changes the teacher's own page", async () => {
+    const teacher = await api.addTeacher('bogdan@example.com', 'Bogdan');
+    const res = await setNotes(teacher, true);
+    expect(res.status).toBe(200);
+    expect(res.body.accounts.find((a: { id: number }) => a.id === teacher)).toMatchObject({ showBaremNotes: true });
+    expect((await setNotes(api.teacherId, false)).status).toBe(200);
+    expect(await meNow()).toMatchObject({ showBaremNotes: false });
+    api.env.DEV_TEACHER_EMAIL = 'bogdan@example.com';
+    expect(await meNow()).toMatchObject({ showBaremNotes: true });
+  });
+
+  it('keeps a choice after the role would say otherwise, and writes no history', async () => {
+    const teacher = await api.addTeacher('bogdan@example.com', 'Bogdan');
+    await setNotes(teacher, true);
+    await setNotes(teacher, false);
+    expect(await accountOf(teacher)).toMatchObject({ showBaremNotes: false });
+    const events = await api.db.prepare('SELECT COUNT(*) AS n FROM account_events WHERE teacher_id = ?').bind(teacher).first<{ n: number }>();
+    const before = events!.n;
+    await setNotes(teacher, true);
+    const after = await api.db.prepare('SELECT COUNT(*) AS n FROM account_events WHERE teacher_id = ?').bind(teacher).first<{ n: number }>();
+    expect(after!.n).toBe(before);
+  });
+
+  it('changes a closed account, but no pending account, no Quick Try guest and no unknown id', async () => {
+    const closed = await api.addTeacher('bogdan@example.com', 'Bogdan');
+    await api.request('PATCH', `/api/admin/accounts/${closed}`, { status: 'disabled' });
+    expect((await setNotes(closed, true)).status).toBe(200);
+    const pending = await signup();
+    expect((await setNotes(pending, true)).status).toBe(404);
+    expect(await accountOf(pending)).toMatchObject({ showBaremNotes: false });
+    const guest = await api.addTeacher('guest@example.com', 'O încercare');
+    await api.db.prepare('UPDATE teachers SET quick_try = 1 WHERE id = ?').bind(guest).run();
+    expect((await setNotes(guest, true)).status).toBe(404);
+    expect((await setNotes(9999, true)).status).toBe(404);
+  });
+
+  it('refuses a value that is not true or false', async () => {
+    const teacher = await api.addTeacher('bogdan@example.com', 'Bogdan');
+    const res = await setNotes(teacher, 'da');
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Alege dacă se arată indicațiile.');
+  });
+
+  it('is only for administrators', async () => {
+    const teacher = await api.addTeacher('bogdan@example.com', 'Bogdan');
+    api.env.DEV_TEACHER_EMAIL = 'bogdan@example.com';
+    const res = await setNotes(teacher, true);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('admin_only');
+  });
+});
+
 describe('POST /api/admin/accounts/:id/password', () => {
   it('makes a new password, shown once, that replaces the old one', async () => {
     const id = await signup();
