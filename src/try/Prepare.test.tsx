@@ -184,7 +184,7 @@ describe("a try's files before the grading", () => {
     setup({ files: { test: null, barem: baremFile } });
     expect(await screen.findByLabelText('Alege testul: Fișierul testului')).toBeInTheDocument();
     expect(screen.getByLabelText('Schimbă: Fișierul baremului')).toBeInTheDocument();
-    expect(screen.getByText('Fără răspunsuri. PDF sau Word.')).toBeInTheDocument();
+    expect(screen.getByText('Fără răspunsuri. PDF, Word sau poze.')).toBeInTheDocument();
   });
 
   it('reads out only the title of the ready line, not each page count', async () => {
@@ -201,6 +201,47 @@ describe("a try's files before the grading", () => {
     const tile = screen.getByText('Alege testul').closest('label')!;
     fireEvent.drop(tile, { dataTransfer: { files: [file], types: ['Files'] } });
     await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledWith(TRY_CODE, 'test', file));
+  });
+
+  describe('photos of the test', () => {
+    const photo = (name: string) => new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], name, { type: 'image/jpeg' });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('sends photos dropped on the tile as one PDF', async () => {
+      // The browser's photo tools: a decoded photo, and a canvas that writes a JPEG.
+      const close = vi.fn();
+      vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 800, height: 600, close })));
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ fillRect: () => undefined, drawImage: () => undefined } as never);
+      vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((done) => done(new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2])], { type: 'image/jpeg' })));
+      const { api } = setup({}, []);
+      await startButton();
+      const tile = screen.getByText('Alege testul').closest('label')!;
+      fireEvent.drop(tile, { dataTransfer: { files: [photo('IMG_2.jpg'), photo('IMG_1.jpg')], types: ['Files'] } });
+      await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalled());
+      const sent = api.uploadTestFile.mock.calls[0]![2] as File;
+      expect(sent.name).toBe('IMG_1.pdf');
+      expect(sent.type).toBe(PDF_TYPE);
+      expect(new TextDecoder().decode((await sent.arrayBuffer()).slice(0, 5))).toBe('%PDF-');
+      expect(close).toHaveBeenCalledTimes(2);
+    });
+
+    it('says which photo it could not read, and sends nothing', async () => {
+      vi.stubGlobal(
+        'createImageBitmap',
+        vi.fn(async () => {
+          throw new Error('HEIC');
+        }),
+      );
+      const { api } = setup({}, []);
+      await startButton();
+      await userEvent.upload(screen.getByLabelText(/Fișierul testului/), [photo('IMG_1.jpg')]);
+      expect(await screen.findByRole('alert')).toHaveTextContent('Nu am putut citi poza IMG_1.jpg. Alege o poză JPG, PNG sau WebP.');
+      expect(api.uploadTestFile).not.toHaveBeenCalled();
+    });
   });
 
   it("never shows the students' link, nor a QR code until the phone's is asked for", async () => {

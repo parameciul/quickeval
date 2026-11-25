@@ -100,14 +100,27 @@ export function NewTestPage() {
   const selected = open.some((item) => String(item.id) === classId) ? classId : '';
 
   // Without the test there is nothing to generate the barem from.
+  // The choice as it is when the file ends, not when it was picked: photos
+  // take a while to become a PDF.
   const pickTest = (file: File | null) => {
     setTestFile(file);
-    if (file === null && barem === 'generate') setBarem('later');
+    if (file === null) setBarem((current) => (current === 'generate' ? 'later' : current));
   };
   const pickCesTest = (file: File | null) => {
     setCesTestFile(file);
-    if (file === null && cesBarem === 'generate') setCesBarem('later');
+    if (file === null) setCesBarem((current) => (current === 'generate' ? 'later' : current));
   };
+  // The drop areas whose photos are being made into a PDF: the test is not
+  // made before they end, or their file would be left out.
+  const [preparing, setPreparing] = useState<ReadonlySet<string>>(new Set());
+  const busyOf = (drop: string) => (busy: boolean) =>
+    setPreparing((current) => {
+      if (current.has(drop) === busy) return current;
+      const next = new Set(current);
+      if (busy) next.add(drop);
+      else next.delete(drop);
+      return next;
+    });
 
   // What the new test would still miss, as the test page will say it.
   const missing = missingParts({
@@ -236,9 +249,9 @@ export function NewTestPage() {
                 <div className={withCes ? 'step-pair' : undefined}>
                   <div>
                     <h2>{t('Testul')}</h2>
-                    <p>{t('Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.')}</p>
+                    <p>{t('Fișierul pe care îl tipărești. PDF, Word sau poze. Poți să-l adaugi și mai târziu.')}</p>
                     <div className="file-frame">
-                      <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} />
+                      <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} onBusy={busyOf('test')} />
                     </div>
                   </div>
                   {withCes && (
@@ -249,7 +262,7 @@ export function NewTestPage() {
                       </h2>
                       <p>{t('Testul elevilor cu CES, tipărit cu același cod QR. Poți să-l adaugi și mai târziu.')}</p>
                       <div className="file-frame">
-                        <FileDrop id="new-ces-test-file" name={t('Fișierul testului CES')} onPick={pickCesTest} />
+                        <FileDrop id="new-ces-test-file" name={t('Fișierul testului CES')} onPick={pickCesTest} onBusy={busyOf('cesTest')} />
                       </div>
                     </div>
                   )}
@@ -264,10 +277,10 @@ export function NewTestPage() {
                     <fieldset className="choices">
                       <legend className="sr-only">{t('Baremul')}</legend>
                       <div className="choice-card">
-                        {choice('upload', t('Încarc baremul acum'), t('PDF sau Word.'))}
+                        {choice('upload', t('Încarc baremul acum'), t('PDF, Word sau poze.'))}
                         {/* Kept while another choice is made, so the file comes back with it. */}
                         <div className="choice-drop" hidden={barem !== 'upload'}>
-                          <FileDrop id="new-barem-file" name={t('Fișierul baremului')} onPick={setBaremFile} />
+                          <FileDrop id="new-barem-file" name={t('Fișierul baremului')} onPick={setBaremFile} onBusy={busyOf('barem')} />
                         </div>
                       </div>
                       {choice(
@@ -289,9 +302,9 @@ export function NewTestPage() {
                       <fieldset className="choices">
                         <legend className="sr-only">{t('Baremul CES')}</legend>
                         <div className="choice-card">
-                          {cesChoice('upload', t('Încarc baremul CES acum'), t('PDF sau Word.'))}
+                          {cesChoice('upload', t('Încarc baremul CES acum'), t('PDF, Word sau poze.'))}
                           <div className="choice-drop" hidden={cesBarem !== 'upload'}>
-                            <FileDrop id="new-ces-barem-file" name={t('Fișierul baremului CES')} onPick={setCesBaremFile} />
+                            <FileDrop id="new-ces-barem-file" name={t('Fișierul baremului CES')} onPick={setCesBaremFile} onBusy={busyOf('cesBarem')} />
                           </div>
                         </div>
                         {cesChoice(
@@ -309,7 +322,7 @@ export function NewTestPage() {
               </li>
             </ol>
             <div className="new-test-foot">
-              <button className="button button-big" type="submit" disabled={create.isPending || selected === ''}>
+              <button className="button button-big" type="submit" disabled={create.isPending || selected === '' || preparing.size > 0}>
                 <ActionIcon name="add" />
                 {create.isPending ? t('Se creează…') : t('Creează testul')}
               </button>

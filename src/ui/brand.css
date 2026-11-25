@@ -5403,6 +5403,10 @@ input[type="file"] {
   overflow-wrap: anywhere;
 }
 
+.file-drop-types {
+  font-size: 0.8125rem;
+}
+
 .file-drop.is-over {
   border-color: var(--ink);
   background: var(--ink-tint);

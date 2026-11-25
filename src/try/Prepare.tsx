@@ -3,17 +3,7 @@ import { useEffect, useState, type ChangeEvent, type DragEvent, type ReactNode }
 import { Link } from 'react-router';
 import type { SubmissionFile, TestDetail } from '../../shared/api.ts';
 import { PHONE_IDLE_TEXT, PHONE_MEDIA } from '../../shared/quickTry.ts';
-import {
-  DOCX_TYPE,
-  fileProblem,
-  MAX_STUDENT_FILES,
-  PDF_TYPE,
-  STUDENT_FILE_TYPES,
-  STUDENT_WRONG_TYPE,
-  TEACHER_FILE_TYPES,
-  TEACHER_WRONG_TYPE,
-  type TestFileKind,
-} from '../../shared/files.ts';
+import { fileProblem, MAX_STUDENT_FILES, STUDENT_FILE_TYPES, STUDENT_WRONG_TYPE, type TestFileKind } from '../../shared/files.ts';
 import { testFileUrl } from '../admin/api.ts';
 import { useApi } from '../admin/ApiContext.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
@@ -21,6 +11,8 @@ import { FileDrop } from '../admin/newTest/FileDrop.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { countLabel, formatFileSize } from '../ui/format.ts';
 import { PhotoViewer } from '../upload/PhotoViewer.tsx';
+import { TEACHER_PICK_ACCEPT } from '../ui/picturesPdf.ts';
+import { useTeacherPick } from '../ui/useTeacherPick.ts';
 import { previewPhoto } from '../upload/shrink.ts';
 import { pageFileUrl, type TryApi } from './api.ts';
 import { fileChangesLeft } from './phase.ts';
@@ -30,7 +22,6 @@ import { t } from '../i18n/t.ts';
 import { translateMessage } from '../../shared/i18n/messages.ts';
 
 const PAGE_ACCEPT = [...STUDENT_FILE_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.pdf'].join(',');
-const FILE_ACCEPT = ['.pdf', '.docx', PDF_TYPE, DOCX_TYPE].join(',');
 // Every upload of the page: a file of the test or a page. The start waits for them.
 const UPLOAD_KEY = ['try', 'upload'];
 
@@ -194,22 +185,27 @@ function FilePick({
   children: ReactNode;
 }) {
   const [over, setOver] = useState(false);
-  const take = (file: File | undefined) => {
-    if (!file || disabled) return;
-    const problem = fileProblem(file, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
-    onProblem(problem);
-    if (problem === null) onPick(file);
+  const { take: takeFiles, busy } = useTeacherPick();
+  const off = disabled || busy;
+  // One PDF or Word file, or photos of the pages made into one PDF.
+  const take = (files: readonly File[]) => {
+    if (files.length === 0 || off) return;
+    onProblem(null);
+    takeFiles(files, (outcome) => {
+      if ('problem' in outcome) onProblem(outcome.problem);
+      else if (outcome.file) onPick(outcome.file);
+    });
   };
   const onDragOver = (event: DragEvent) => {
     event.preventDefault();
-    if (!disabled) setOver(true);
+    if (!off) setOver(true);
   };
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
     setOver(false);
-    take(event.dataTransfer.files[0]);
+    take([...event.dataTransfer.files]);
   };
-  const classes = [className, over && 'is-over', disabled && 'is-disabled'].filter(Boolean).join(' ');
+  const classes = [className, over && 'is-over', off && 'is-disabled'].filter(Boolean).join(' ');
   return (
     <label
       className={classes}
@@ -221,14 +217,20 @@ function FilePick({
       onDrop={onDrop}
     >
       {children}
+      {busy && (
+        <small className="try-tile-busy" role="status">
+          {t('Se pregătesc pozele…')}
+        </small>
+      )}
       <input
         type="file"
         className="sr-only"
-        accept={FILE_ACCEPT}
+        accept={TEACHER_PICK_ACCEPT}
+        multiple
         aria-label={name}
-        disabled={disabled}
+        disabled={off}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          take(event.target.files?.[0]);
+          take([...(event.target.files ?? [])]);
           // Emptied, so picking the same file again is still a change.
           event.target.value = '';
         }}
@@ -282,7 +284,7 @@ function FileSlot({
             </span>
             <span className="try-tile-text">
               <b>{pickText}</b>
-              <small>{upload.isPending ? t('Se trimite…') : kind === 'test' ? t('Fără răspunsuri. PDF sau Word.') : t('PDF sau Word.')}</small>
+              <small>{upload.isPending ? t('Se trimite…') : kind === 'test' ? t('Fără răspunsuri. PDF, Word sau poze.') : t('PDF, Word sau poze.')}</small>
             </span>
           </>,
           'try-tile is-empty',
