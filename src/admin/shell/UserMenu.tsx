@@ -9,7 +9,7 @@ import { t } from '../../i18n/t.ts';
 
 // The teacher's initials in the top bar open a small menu: who is logged in,
 // "Contul meu" and "Ieși din cont".
-export function UserMenu({ teacher }: { teacher: Teacher }) {
+export function UserMenu({ teacher, viewing }: { teacher: Teacher; viewing: boolean }) {
   const { open, toggle, box, button } = useSmallMenu();
   const logout = useLogout();
 
@@ -36,10 +36,13 @@ export function UserMenu({ teacher }: { teacher: Teacher }) {
             <ActionIcon name="person" />
             {t('Contul meu')}
           </Link>
-          <button type="button" disabled={logout.isPending} onClick={() => logout.mutate()}>
-            <ActionIcon name="logout" />
-            {t('Ieși din cont')}
-          </button>
+          {/* While an administrator views the account, the bar above holds the way out. */}
+          {!viewing && (
+            <button type="button" disabled={logout.isPending} onClick={() => logout.mutate()}>
+              <ActionIcon name="logout" />
+              {t('Ieși din cont')}
+            </button>
+          )}
           {logout.error && <ErrorMessage error={logout.error} />}
         </div>
       )}

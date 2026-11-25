@@ -370,7 +370,7 @@ describe('the paper page', () => {
 
   it('tells a demo account with no paper left why a held-back paper waits, on the paper page', async () => {
     const api = apiWith({ ...submission, testStatus: 'evaluating', status: 'uploading', submittedAt: null });
-    api.me.mockResolvedValue(fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 35 }));
+    api.me.mockResolvedValue({ ...fakeTeacher({ role: 'teacher', demo: true, testsEvaluated: 1, papersGraded: 35 }), viewing: null });
     renderAdmin(page, api);
     expect(await screen.findByText('Lucrarea nu a fost trimisă la corectare: contul demo nu mai are lucrări de corectat. Cere unui administrator un cont complet.')).toBeInTheDocument();
     // Reopening the uploads would not send it: no way to Corectare.

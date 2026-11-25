@@ -9,6 +9,45 @@ function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
+describe('createApiClient and the view of an account', () => {
+  it('calls onViewEnded on 409 impersonation_ended and still throws', async () => {
+    const onViewEnded = vi.fn();
+    const fetchImpl = vi.fn(async () => jsonResponse(409, { error: 'impersonation_ended', message: 'Vizualizarea s-a încheiat.' }));
+    const api = createApiClient({ fetchImpl, onViewEnded });
+    const error = await api.listClasses(2026).catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(onViewEnded).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onViewEnded on another 409', async () => {
+    const onViewEnded = vi.fn();
+    const fetchImpl = vi.fn(async () => jsonResponse(409, { error: 'class_exists', message: 'Există.' }));
+    await createApiClient({ fetchImpl, onViewEnded }).listClasses(2026).catch(() => {});
+    expect(onViewEnded).not.toHaveBeenCalled();
+  });
+
+  it('me returns the viewing', async () => {
+    const viewing = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view', expiresAt: '2026-11-25T12:32:00.000Z' };
+    const teacher = { id: 3, email: 'ana@example.com', name: 'Ana Pop', role: 'teacher' };
+    const fetchImpl = vi.fn(async () => jsonResponse(200, { teacher, viewing }));
+    const me = await createApiClient({ fetchImpl }).me();
+    expect(me).toEqual({ ...teacher, viewing });
+  });
+
+  it('starts and ends a view', async () => {
+    const viewing = { id: 1, teacher: { id: 3, name: 'Ana Pop' }, mode: 'view', expiresAt: '2026-11-25T12:32:00.000Z' };
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === 'DELETE' ? jsonResponse(200, { ended: true }) : jsonResponse(201, { viewing }),
+    );
+    const api = createApiClient({ fetchImpl });
+    expect(await api.startView(3, 'parola')).toEqual(viewing);
+    expect(fetchImpl.mock.calls[0]![0]).toBe('/api/admin/accounts/3/impersonation');
+    expect(fetchImpl.mock.calls[0]![1]!.body).toBe(JSON.stringify({ mode: 'view', password: 'parola' }));
+    await api.endView();
+    expect(fetchImpl.mock.calls[1]![0]).toBe('/api/admin/impersonation');
+  });
+});
+
 describe('createApiClient', () => {
   it('asks for the classes of a school year and returns them', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse(200, { classes: [{ id: 1, name: '6E2' }] }));

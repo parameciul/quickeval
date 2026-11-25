@@ -36,11 +36,13 @@ import type {
   StudentHistory,
   StudentRow,
   SubmissionDetail,
+  MeAnswer,
   Teacher,
   TestDetail,
   TestFileAnswer,
   TestSummary,
   UpdateClassInput,
+  Viewing,
 } from '../../shared/api.ts';
 import { CES_PATH, TEST_FILE_PATHS, uploadTypeOf, type TestFileKind, type TestVariant } from '../../shared/files.ts';
 import type { CheckoutAnswer, CheckoutInput, PaymentRow } from '../../shared/payments.ts';
@@ -49,8 +51,14 @@ import type { UsagePeriod, UsageSource, UsageStats } from '../../shared/usage.ts
 import { studentResultPath } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
 import { t } from '../i18n/t.ts';
+import { goToSettings } from './shell/viewing.ts';
 
 export { ApiError };
+
+// The logged-in teacher, with the administrator's view of the account when one is on.
+export interface Me extends Teacher {
+  viewing: Viewing | null;
+}
 
 // Everything the teacher app asks the server. Pages get it from useApi(), so
 // tests can pass a fake.
@@ -58,7 +66,7 @@ export interface AdminApi {
   // The address the calls and the file links start with: /api/admin, or
   // /api/try/<token> for a Quick Try's link.
   base: string;
-  me(): Promise<Teacher>;
+  me(): Promise<Me>;
   // A text that changes with every change the pages show (DataVersion).
   dataVersion(): Promise<string>;
   login(email: string, password: string): Promise<Teacher>;
@@ -71,6 +79,10 @@ export interface AdminApi {
   // The link from the reset email (its token), with the new password.
   setNewPassword(token: string, newPassword: string): Promise<void>;
   logout(): Promise<void>;
+  // Setări, administrators only: "Vezi ca" starts a read only view of a teacher's account.
+  startView(accountId: number, password: string): Promise<Viewing>;
+  // "Ieși" from the view; the administrator's own account shows again.
+  endView(): Promise<void>;
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
   // Setări, administrators only.
   listAccounts(): Promise<Account[]>;
@@ -239,12 +251,16 @@ export interface ApiClientOptions {
   // /api/admin by default; a Quick Try's page passes /api/try/<token>. The
   // login calls keep /api/auth.
   base?: string;
+  // The view of a teacher's account ended (the server answered 409
+  // impersonation_ended); Setări by default.
+  onViewEnded?: () => void;
 }
 
 export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
   const onLoginExpired = options.onLoginExpired ?? reloadForLogin;
   const apiBase = options.base ?? ADMIN_BASE;
+  const onViewEnded = options.onViewEnded ?? (() => goToSettings(true));
 
   // A JSON body, or a file sent raw with its type and URI-encoded name.
   // `base` is the client's base, or /api/auth for the login page.
@@ -278,14 +294,22 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       onLoginExpired();
       throw new LoginExpiredError();
     }
-    return readAnswer<T>(res);
+    try {
+      return await readAnswer<T>(res);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409 && error.code === 'impersonation_ended') onViewEnded();
+      throw error;
+    }
   }
 
   const test = (code: string) => `/tests/${encodeURIComponent(code)}`;
 
   return {
     base: apiBase,
-    me: async () => (await request<{ teacher: Teacher }>('GET', '/me')).teacher,
+    me: async () => {
+      const answer = await request<MeAnswer>('GET', '/me');
+      return { ...answer.teacher, viewing: answer.viewing ?? null };
+    },
     dataVersion: async () => (await request<DataVersion>('GET', '/version')).version,
     login: async (email, password) =>
       (await request<{ teacher: Teacher }>('POST', '/login', { email, password }, undefined, '/api/auth')).teacher,
@@ -300,6 +324,11 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     },
     setNewPassword: async (token, newPassword) => {
       await request('POST', '/reset-password', { token, newPassword }, undefined, '/api/auth');
+    },
+    startView: async (accountId, password) =>
+      (await request<{ viewing: Viewing }>('POST', `/accounts/${accountId}/impersonation`, { mode: 'view', password })).viewing,
+    endView: async () => {
+      await request('DELETE', '/impersonation');
     },
     logout: async () => {
       await request('POST', '/logout', undefined, undefined, '/api/auth');

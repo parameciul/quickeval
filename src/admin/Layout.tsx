@@ -19,6 +19,7 @@ import { PhoneMenu } from './shell/PhoneMenu.tsx';
 import { Rail, type PanelName } from './shell/Rail.tsx';
 import { TodoPanel } from './shell/TodoPanel.tsx';
 import { todoList } from './shell/todo.ts';
+import { ViewingBar } from './shell/ViewingBar.tsx';
 import { useDataVersion } from './shell/refresh.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
 import { YearSelect } from './shell/YearSelect.tsx';
@@ -47,6 +48,7 @@ export function Layout() {
   const { year } = useSchoolYear();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
   // The public pages then show the account link from their first paint.
+  const viewing = me.data?.viewing ?? null;
   const signedIn = Boolean(me.data);
   const loginNeeded = isLoginRequired(me.error);
   useEffect(() => {
@@ -144,7 +146,8 @@ export function Layout() {
   const wayIn = !me.data && (openPage || loggedOut);
 
   return (
-    <div className={me.data ? 'shell' : 'shell shell-bare'}>
+    <div className={me.data ? (viewing ? 'shell shell-viewing' : 'shell') : 'shell shell-bare'}>
+      {viewing && <ViewingBar viewing={viewing} />}
       <header className="topbar" inert={searching}>
         <a className="brand" href="/" aria-label={t('MQGrader by Laura Miron')}>
           <BrandMark />
@@ -162,7 +165,7 @@ export function Layout() {
           {me.data && <YearSelect id="school-year" labelClassName="sr-only" />}
           <LangButton />
           <ThemeButton />
-          {me.data && <UserMenu teacher={me.data} />}
+          {me.data && <UserMenu teacher={me.data} viewing={Boolean(viewing)} />}
         </div>
         {me.data && phone && (
           <button
@@ -193,7 +196,7 @@ export function Layout() {
             {open === 'menu' ? <IconClose /> : <IconMenu />}
           </button>
         )}
-        {me.data && open === 'menu' && <PhoneMenu teacher={me.data} onClose={close} />}
+        {me.data && open === 'menu' && <PhoneMenu teacher={me.data} viewing={Boolean(viewing)} onClose={close} />}
       </header>
       {me.data && (
         <Rail admin={me.data.role === 'admin'} onTests={onTests} onClasses={onClasses} todoCount={todo.length + (approvals > 0 ? 1 : 0)} urgent={approvals > 0} panel={open} onToggle={toggle} inert={searching} />

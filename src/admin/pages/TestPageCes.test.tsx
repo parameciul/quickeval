@@ -86,7 +86,7 @@ describe('Varianta CES in Pregătire', () => {
 
   it('hides the CES barem comments too from an account that does not see the indications', async () => {
     const api = apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES }) });
-    api.me.mockResolvedValue(fakeTeacher({ role: 'teacher' }));
+    api.me.mockResolvedValue({ ...fakeTeacher({ role: 'teacher' }), viewing: null });
     renderAdmin(`${PAGE}#prepare`, api);
     const ces = await block();
     expect(ces.getByLabelText('Înlocuiește baremul CES')).toBeInTheDocument();
