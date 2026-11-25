@@ -21,9 +21,23 @@ export function beginExit(): void {
   exiting = true;
 }
 
+// The view this tab believes it shows (its id, or 'none'), told by the shell
+// when /me loads. The client sends it as X-MQ-View, so the server can refuse a
+// tab whose view ended in another tab. Undefined before the first answer.
+let believedView: number | 'none' | undefined;
+
+export function setBelievedView(view: number | 'none' | undefined): void {
+  believedView = view;
+}
+
+export function believedViewHeader(): string | undefined {
+  return believedView === undefined ? undefined : String(believedView);
+}
+
 export function resetLeavingForTests(): void {
   leaving = false;
   exiting = false;
+  believedView = undefined;
 }
 
 // The page load that leaves the view. An object, so a test can spy on it: jsdom

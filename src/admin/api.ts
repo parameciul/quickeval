@@ -51,7 +51,7 @@ import type { UsagePeriod, UsageSource, UsageStats } from '../../shared/usage.ts
 import { studentResultPath } from '../../shared/api.ts';
 import { ApiError, NETWORK_MESSAGE, readAnswer } from '../ui/ApiError.ts';
 import { t } from '../i18n/t.ts';
-import { goToSettings } from './shell/viewing.ts';
+import { believedViewHeader, goToSettings } from './shell/viewing.ts';
 
 export { ApiError };
 
@@ -248,6 +248,14 @@ export function reloadForLogin(reload: () => void = () => window.location.reload
   reload();
 }
 
+// The view this tab shows, claimed on every admin request: the server answers
+// 409 when that view is no longer the one the cookie carries. Nothing before
+// the first /me.
+function claimHeaders(): Record<string, string> {
+  const claim = believedViewHeader();
+  return claim === undefined ? {} : { 'X-MQ-View': claim };
+}
+
 export interface ApiClientOptions {
   fetchImpl?: typeof fetch;
   onLoginExpired?: () => void;
@@ -268,7 +276,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   // A JSON body, or a file sent raw with its type and URI-encoded name.
   // `base` is the client's base, or /api/auth for the login page.
   async function request<T>(method: string, path: string, body?: unknown, file?: File, base = apiBase): Promise<T> {
-    const headers: Record<string, string> = { Accept: 'application/json', ...langHeaders() };
+    const headers: Record<string, string> = { Accept: 'application/json', ...langHeaders(), ...(base === ADMIN_BASE ? claimHeaders() : {}) };
     let payload: BodyInit | undefined;
     if (file) {
       headers['Content-Type'] = uploadTypeOf(file) || 'application/octet-stream';
@@ -309,7 +317,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
   async function file(path: string): Promise<Blob> {
     let res: Response;
     try {
-      res = await fetchImpl(`${apiBase}${path}`, { method: 'GET', headers: langHeaders(), credentials: 'same-origin', redirect: 'manual' });
+      res = await fetchImpl(`${apiBase}${path}`, { method: 'GET', headers: { ...langHeaders(), ...(apiBase === ADMIN_BASE ? claimHeaders() : {}) }, credentials: 'same-origin', redirect: 'manual' });
     } catch {
       throw new ApiError(0, 'network', NETWORK_MESSAGE);
     }
@@ -318,7 +326,14 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       onLoginExpired();
       throw new LoginExpiredError();
     }
-    if (!res.ok) return readAnswer<never>(res);
+    if (!res.ok) {
+      try {
+        return await readAnswer<never>(res);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409 && error.code === 'impersonation_ended') onViewEnded();
+        throw error;
+      }
+    }
     return res.blob();
   }
 

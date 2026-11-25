@@ -43,10 +43,17 @@ afterEach(() => api.dispose());
 
 describe('startView', () => {
   it('closes open views past their time when a new one starts', async () => {
+    await addSession('so', api.teacherId);
     await startView(db, view({ tokenHash: 'old', sessionHash: 'so' }), NOW);
     await startView(db, view(), AFTER_HOUR);
     expect(await row('old')).toMatchObject({ ended_at: '2026-11-25T11:00:00.000Z', end_reason: 'expired' });
     expect(await row()).toMatchObject({ ended_at: null, end_reason: null });
+  });
+
+  it('closes a past-time row of a gone session as session_gone when a new view starts', async () => {
+    await startView(db, view({ tokenHash: 'old', sessionHash: 'gone' }), NOW);
+    await startView(db, view(), AFTER_HOUR);
+    expect(await row('old')).toMatchObject({ ended_at: '2026-11-25T11:00:00.000Z', end_reason: 'session_gone' });
   });
 
   it("leaves the session's live view live when the new start is refused", async () => {
@@ -184,6 +191,12 @@ describe('listAccountViews', () => {
     expect(await listAccountViews(db, anaId, AFTER_HOUR)).toEqual([
       { admin: { id: api.teacherId, name: 'Laura Miron' }, startedAt: NOW, endedAt: '2026-11-25T11:00:00.000Z', endReason: 'expired' },
     ]);
+  });
+
+  it('labels an open row past its time session_gone when its session is gone', async () => {
+    await startView(db, view(), NOW);
+    await db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(SESSION).run();
+    expect(await listAccountViews(db, anaId, AFTER_HOUR)).toMatchObject([{ endedAt: '2026-11-25T11:00:00.000Z', endReason: 'session_gone' }]);
   });
 
   it('lists at most 50', async () => {

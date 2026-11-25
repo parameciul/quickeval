@@ -42,7 +42,14 @@ export function teacherAuth(): MiddlewareHandler<AppEnv> {
     const real = await loggedInTeacher(c);
     c.set('viewing', null);
     const view = viewToken(c);
+    // The page's claim of the view it shows (X-MQ-View: its id, or "none"). A
+    // tab that still shows a view the cookie no longer carries must not be
+    // served as the administrator under it. No header, "none" or anything else
+    // that is not an id: no claim.
+    const claimed = /^[1-9][0-9]{0,9}$/.test(c.req.header('X-MQ-View') ?? '') ? Number(c.req.header('X-MQ-View')) : null;
+    const ended = () => new ApiError(409, 'impersonation_ended', 'Vizualizarea contului s-a încheiat.');
     if (!view) {
+      if (claimed !== null) throw ended();
       c.set('teacher', real);
       await next();
       return;
@@ -54,7 +61,7 @@ export function teacherAuth(): MiddlewareHandler<AppEnv> {
       const owner = await closeDeadView(c.env.DB, await sha256Hex(view), nowIso());
       clearViewCookie(c);
       // The administrator's own view, left open when they stopped being one.
-      if (owner === real.id) throw new ApiError(409, 'impersonation_ended', 'Vizualizarea contului s-a încheiat.');
+      if (owner === real.id || claimed !== null) throw ended();
       c.set('teacher', real);
       await next();
       return;
@@ -68,8 +75,10 @@ export function teacherAuth(): MiddlewareHandler<AppEnv> {
     if (!found || found.adminId !== real.id) {
       await closeDeadView(c.env.DB, tokenHash, now);
       clearViewCookie(c);
-      throw new ApiError(409, 'impersonation_ended', 'Vizualizarea contului s-a încheiat.');
+      throw ended();
     }
+    // A live view, but not the one this tab shows; the cookie stays.
+    if (claimed !== null && claimed !== found.viewing.id) throw ended();
     c.set('teacher', found.teacher);
     c.set('viewing', { viewing: found.viewing, adminId: found.adminId, tokenHash });
     await next();

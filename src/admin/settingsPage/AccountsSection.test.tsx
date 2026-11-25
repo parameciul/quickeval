@@ -574,7 +574,7 @@ describe('Vezi ca on Setări', () => {
   it('shows the message of the API for a wrong password and keeps the dialog open', async () => {
     const fake = api();
     const leave = vi.spyOn(viewTab, 'leave').mockImplementation(() => {});
-    fake.startView.mockRejectedValueOnce(new ApiError(403, 'wrong_password', 'Parola nu e bună.'));
+    fake.startView.mockRejectedValueOnce(new ApiError(400, 'wrong_password', 'Parola nu e bună.'));
     renderAdmin('/settings', fake);
     await pick('Ana Pop', 'Vezi ca Ana Pop');
     const dialog = await screen.findByRole('dialog', { name: 'Vezi contul lui Ana Pop' });

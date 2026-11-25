@@ -36,7 +36,11 @@ export async function startView(db: D1Database, view: NewView, now: string): Pro
     db.prepare('UPDATE teachers SET failed_logins = 0, locked_until = NULL WHERE id = ?').bind(view.adminId),
     db.prepare('DELETE FROM impersonations WHERE started_at < ?').bind(oldest),
     db
-      .prepare("UPDATE impersonations SET ended_at = expires_at, end_reason = 'expired' WHERE ended_at IS NULL AND expires_at <= ?")
+      .prepare(
+        `UPDATE impersonations SET ended_at = expires_at,
+           end_reason = CASE WHEN NOT EXISTS (SELECT 1 FROM sessions s WHERE s.token_hash = impersonations.session_hash) THEN 'session_gone' ELSE 'expired' END
+         WHERE ended_at IS NULL AND expires_at <= ?`,
+      )
       .bind(now),
     db
       .prepare(
@@ -134,7 +138,9 @@ export async function listAccountViews(db: D1Database, teacherId: number, now: s
     .prepare(
       `SELECT i.admin_id, a.name AS admin_name, i.started_at,
          CASE WHEN i.ended_at IS NULL AND i.expires_at <= ? THEN i.expires_at ELSE i.ended_at END AS ended_at,
-         CASE WHEN i.ended_at IS NULL AND i.expires_at <= ? THEN 'expired' ELSE i.end_reason END AS end_reason
+         CASE WHEN i.ended_at IS NULL AND i.expires_at <= ?
+           THEN CASE WHEN NOT EXISTS (SELECT 1 FROM sessions s WHERE s.token_hash = i.session_hash) THEN 'session_gone' ELSE 'expired' END
+           ELSE i.end_reason END AS end_reason
        FROM impersonations i LEFT JOIN teachers a ON a.id = i.admin_id
        WHERE i.teacher_id = ? ORDER BY i.started_at DESC, i.id DESC LIMIT ${LIST_LIMIT}`,
     )

@@ -265,6 +265,13 @@ describe('the notice of a view that ended', () => {
     expect(window.sessionStorage.getItem('quickeval.viewEnded')).toBeNull();
   });
 
+  it('says it also to a teacher who is no longer an administrator', async () => {
+    window.sessionStorage.setItem('quickeval.viewEnded', 'Ana Pop');
+    renderAdmin('/settings', createFakeApi({ classes: [], students: {}, me: { ...fakeAccount(), role: 'teacher' } }));
+    expect(await screen.findByText('Doar administratorii au acces la Setări.')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Vizualizarea contului lui Ana Pop s-a încheiat.');
+  });
+
   it('shows nothing when no view ended', async () => {
     renderAdmin('/settings', withSettings());
     await screen.findByRole('heading', { name: 'Setări' });

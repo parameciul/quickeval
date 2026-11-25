@@ -20,6 +20,7 @@ import { Rail, type PanelName } from './shell/Rail.tsx';
 import { TodoPanel } from './shell/TodoPanel.tsx';
 import { todoList } from './shell/todo.ts';
 import { ViewingBar } from './shell/ViewingBar.tsx';
+import { setBelievedView } from './shell/viewing.ts';
 import { useDataVersion } from './shell/refresh.ts';
 import { UserMenu } from './shell/UserMenu.tsx';
 import { YearSelect } from './shell/YearSelect.tsx';
@@ -50,6 +51,9 @@ export function Layout() {
   // The public pages then show the account link from their first paint.
   const viewing = me.data?.viewing ?? null;
   const signedIn = Boolean(me.data);
+  useEffect(() => {
+    if (me.data) setBelievedView(me.data.viewing?.id ?? 'none');
+  }, [me.data]);
   const loginNeeded = isLoginRequired(me.error);
   useEffect(() => {
     if (signedIn) rememberSignedIn(true);

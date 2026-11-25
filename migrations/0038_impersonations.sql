@@ -15,3 +15,4 @@ CREATE TABLE impersonations (
 );
 
 CREATE INDEX impersonations_by_teacher ON impersonations (teacher_id, started_at);
+CREATE INDEX impersonations_by_admin ON impersonations (admin_id);

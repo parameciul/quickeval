@@ -1,4 +1,5 @@
 import { act, cleanup, screen, within } from '@testing-library/react';
+import { believedViewHeader } from './shell/viewing.ts';
 import userEvent from '@testing-library/user-event';
 import { useNavigate } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -828,6 +829,16 @@ describe("the view of a teacher's account in the shell", () => {
     expect(within(more).getByRole('link', { name: 'Contul meu' })).toBeInTheDocument();
     expect(within(more).queryByRole('button', { name: 'Ieși din cont' })).not.toBeInTheDocument();
     vi.unstubAllGlobals();
+  });
+
+  it('tells the client which view the tab shows', async () => {
+    renderAdmin('/', viewed());
+    await screen.findByText(/Vezi contul lui Ana Pop/);
+    expect(believedViewHeader()).toBe('1');
+    cleanup();
+    renderAdmin('/', withClasses());
+    await screen.findByRole('button', { name: /contul tău/ });
+    expect(believedViewHeader()).toBe('none');
   });
 
   it('has no bar without a view', async () => {

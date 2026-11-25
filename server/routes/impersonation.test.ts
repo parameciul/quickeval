@@ -175,6 +175,23 @@ describe('ending a view', () => {
     expect((await viewRows()).results[0]!.end_reason).toBe('session_gone');
   });
 
+  it("ends when the administrator changes their password from another device", async () => {
+    const view = cookieOf(await start(session), 'qe_view');
+    const other = await loginAs(ADMIN);
+    const changed = await api.request('POST', '/api/admin/account/password', { currentPassword: PASSWORD, newPassword: 'alta-parola-lunga-2' }, cookies(other));
+    expect(changed.status).toBe(200);
+    // The password change ended the viewing login itself, so the request is a
+    // logged-out one: the login answer comes before any view is looked at.
+    const res = await api.request('GET', '/api/admin/me', undefined, cookies(session, view));
+    expect(res.status).toBe(401);
+    // The login is gone, so the view can no longer be found as live.
+    const found = await api.db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE token_hash = (SELECT session_hash FROM impersonations)').first<{ n: number }>();
+    expect(found!.n).toBe(0);
+    const again = await api.request('GET', '/api/admin/me', undefined, cookies(other, view));
+    expect(again.status).toBe(409);
+    expect((await viewRows()).results[0]!.end_reason).toBe('session_gone');
+  });
+
   it("ends with the administrator's login", async () => {
     const view = cookieOf(await start(session), 'qe_view');
     await api.request('POST', '/api/auth/logout', undefined, cookies(session));
@@ -207,6 +224,38 @@ describe('ending a view', () => {
     const res = await api.request('GET', '/api/admin/me', undefined, { ...cookies(session, view), 'X-MQ-Lang': 'en' });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('The account view has ended.');
+  });
+});
+
+describe("a tab's claim of a view (X-MQ-View)", () => {
+  const claim = (session: string, id: string, ...extra: string[]) =>
+    api.request('GET', '/api/admin/me', undefined, { ...cookies(session, ...extra), 'X-MQ-View': id });
+
+  it('answers 409 to a claim of a view whose cookie is gone, and 200 to none', async () => {
+    const res = await start(session);
+    const id = String(res.body.viewing.id);
+    const view = cookieOf(res, 'qe_view');
+    await api.request('DELETE', '/api/admin/impersonation', undefined, cookies(session, view));
+    const stale = await claim(session, id);
+    expect(stale.status).toBe(409);
+    expect(stale.body.error).toBe('impersonation_ended');
+    const none = await claim(session, 'none');
+    expect(none.status).toBe(200);
+    expect(none.body.teacher.id).toBe(api.teacherId);
+    expect((await claim(session, 'abc')).status).toBe(200);
+  });
+
+  it('answers 409 when the live view has another id, and 200 when it matches', async () => {
+    const res = await start(session);
+    const id = res.body.viewing.id as number;
+    const view = cookieOf(res, 'qe_view');
+    const other = await claim(session, String(id + 1), view);
+    expect(other.status).toBe(409);
+    expect(other.body.error).toBe('impersonation_ended');
+    const same = await claim(session, String(id), view);
+    expect(same.status).toBe(200);
+    expect(same.body.viewing.id).toBe(id);
+    expect((await viewRows()).results[0]!.ended_at).toBeNull();
   });
 });
 

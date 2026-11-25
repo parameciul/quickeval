@@ -61,6 +61,7 @@ export function SettingsPage() {
     return (
       <section>
         <h1>{t('Setări')}</h1>
+        {endedName !== null && <p role="status">{t('Vizualizarea contului lui {name} s-a încheiat.', { name: endedName })}</p>}
         <p>{t('Doar administratorii au acces la Setări.')}</p>
       </section>
     );
