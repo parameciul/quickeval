@@ -30,6 +30,10 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
 
   // Accounts and sign-in.
   'Intră în cont ca să continui.': 'Sign in to continue.',
+  'Vizualizarea contului s-a încheiat.': 'The account view has ended.',
+  'Vizualizarea are nevoie de intrarea cu parola.': 'Viewing needs a login with a password.',
+  'Parola ta nu este corectă.': 'Your password is not correct.',
+  'Poți vedea doar contul activ al unui profesor.': 'You can only view an active teacher account.',
   'Doar administratorii au acces aici.': 'Only administrators have access here.',
   'Contul tău nu are acces la MQGrader.': 'Your account has no access to MQGrader.',
   'Contul tău a fost închis. Scrie unui administrator.': 'Your account was closed. Write to an administrator.',

@@ -22,6 +22,7 @@ import {
 } from '../db/accounts.ts';
 import { emailSender } from '../email.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
+import { startViewHandler } from './impersonation.ts';
 import { ApiError, notFound } from '../errors.ts';
 import { inBackground, nowIso, parseId, readJson } from '../http.ts';
 import { hashPassword, verifyPassword } from '../passwords.ts';
@@ -149,6 +150,9 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
     if (!(await setShowBaremNotes(c.env.DB, id, show))) throw notFound();
     return c.json({ accounts: await listAccounts(c.env.DB) });
   });
+
+  // An administrator starts a view of this account (routes/impersonation.ts).
+  routes.post('/:id/impersonation', startViewHandler);
 
   // A new password for a teacher who forgot theirs, shown this once. The
   // teacher's logins end, and the teacher gets an email, so a password changed

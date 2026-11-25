@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+import { VIEW_MS } from '../db/impersonations.ts';
 import type { AppEnv } from '../env.ts';
 
 // The login cookie: a random token, sent only to /api, never readable by
@@ -9,7 +10,7 @@ export const SESSION_COOKIE = 'qe_session';
 export const SESSION_DAYS = 30;
 const PATH = '/api';
 
-function isHttps(c: Context<AppEnv>): boolean {
+export function isHttps(c: Context<AppEnv>): boolean {
   return new URL(c.req.url).protocol === 'https:';
 }
 
@@ -51,4 +52,28 @@ export function setDeviceCookie(c: Context<AppEnv>, token: string): void {
     sameSite: 'Lax',
     maxAge: DEVICE_DAYS * 24 * 60 * 60,
   });
+}
+
+// The administrator's view of a teacher's account (db/impersonations.ts): a
+// random token that names the view, sent only to /api/admin, for one hour.
+// SameSite=Strict, so no other site's request carries it.
+export const VIEW_COOKIE = 'qe_view';
+const VIEW_PATH = '/api/admin';
+
+export function viewToken(c: Context<AppEnv>): string | undefined {
+  return getCookie(c, VIEW_COOKIE);
+}
+
+export function setViewCookie(c: Context<AppEnv>, token: string): void {
+  setCookie(c, VIEW_COOKIE, token, {
+    path: VIEW_PATH,
+    httpOnly: true,
+    secure: isHttps(c),
+    sameSite: 'Strict',
+    maxAge: VIEW_MS / 1000,
+  });
+}
+
+export function clearViewCookie(c: Context<AppEnv>): void {
+  deleteCookie(c, VIEW_COOKIE, { path: VIEW_PATH, httpOnly: true, secure: isHttps(c), sameSite: 'Strict' });
 }

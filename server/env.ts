@@ -1,5 +1,5 @@
 import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
-import type { Teacher } from '../shared/api.ts';
+import type { Teacher, Viewing } from '../shared/api.ts';
 import type { QuickTryRow } from './db/quickTry.ts';
 import type { EmailMessage } from './email.ts';
 import type { PaidFeatures } from '../shared/payments.ts';
@@ -43,8 +43,17 @@ export interface AppOptions {
   verifyTurnstile?: (env: Env, token: string, ip: string) => Promise<boolean>;
 }
 
+// The administrator's live view of a teacher's account, when a request has one.
+export interface ViewContext {
+  viewing: Viewing;
+  adminId: number;
+  tokenHash: string;
+}
+
 export interface AppEnv {
   Bindings: Env;
   // quickTry: the try of a /api/try/<token> request (routes/quickTry.ts).
-  Variables: { teacher: Teacher; quickTry: QuickTryRow };
+  // viewing: set by teacherAuth() only (null with no view); routers that do not
+  // run it leave it unset, so readers use c.var.viewing?.
+  Variables: { teacher: Teacher; viewing: ViewContext | null; quickTry: QuickTryRow };
 }
