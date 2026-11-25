@@ -3,6 +3,7 @@ import { PHONE_MEDIA, QUICK_TRY_DAYS, quickTryPhonePath } from '../../../shared/
 import { ApiError, messageOf } from '../../ui/ApiError.ts';
 import { phaseOf, scoreOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui/format.ts';
+import { checkPick, picturesToPdf, type MakePdf, type PickCheck } from '../../ui/picturesPdf.ts';
 import { countVisitEvent } from '../../ui/visits.ts';
 import type { LandingApi } from './api.ts';
 import { openPhoneStep, type PhoneStep } from './phone.ts';
@@ -42,6 +43,8 @@ export interface QuickTryDeps {
   signal?: AbortSignal;
   // Asks whether a teacher is logged in, when the availability gave no answer.
   checkAccount?: (root: ParentNode) => Promise<void>;
+  // Makes photos of the test or the barem into one PDF (tests pass a fake).
+  makePdf?: MakePdf;
 }
 
 const onAPhone = () => window.matchMedia?.(PHONE_MEDIA).matches ?? false;
@@ -71,7 +74,8 @@ function show(el: HTMLElement, text?: string): void {
 }
 
 // A file row of the form: what to choose (its data-empty and data-hint), or
-// the chosen file with its size, or the count and names of the chosen pages.
+// the chosen file with its size, or the count and names of the chosen pages
+// (or of the photos of the test or the barem).
 function showPick(input: HTMLInputElement, chosen: File[]): void {
   const row = input.closest<HTMLElement>('[data-try-pick]');
   if (!row) return;
@@ -83,11 +87,13 @@ function showPick(input: HTMLInputElement, chosen: File[]): void {
   if (chosen.length === 0) {
     name.textContent = row.dataset.empty ?? '';
     hint.textContent = row.dataset.hint ?? '';
-    action.textContent = input.multiple ? t('Alege fișierele') : t('Alege fișierul');
+    action.textContent = input.name === 'pages' ? t('Alege fișierele') : t('Alege fișierul');
     return;
   }
-  name.textContent = input.multiple ? countLabel(chosen.length, 'pagină', 'pagini') : chosen[0]!.name;
-  hint.textContent = input.multiple ? chosen.map((file) => file.name).join(', ') : formatFileSize(chosen[0]!.size);
+  const pages = input.name === 'pages';
+  const many = pages || chosen.length > 1;
+  name.textContent = !many ? chosen[0]!.name : pages ? countLabel(chosen.length, 'pagină', 'pagini') : countLabel(chosen.length, 'poză', 'poze');
+  hint.textContent = many ? chosen.map((file) => file.name).join(', ') : formatFileSize(chosen[0]!.size);
   action.textContent = t('Schimbă');
 }
 
@@ -329,10 +335,55 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     void submit();
   });
 
+  // The test and the barem as they are sent: one PDF or Word file each, or
+  // photos made into one PDF. A wrong pick is said at once, as before; only
+  // photos are waited for.
+  type Picked = { test: PickCheck | null; barem: PickCheck | null };
+  function checkTeacherFiles(): Picked | { problem: string } {
+    const list = (name: string) => Array.from((form!.elements.namedItem(name) as HTMLInputElement).files ?? []);
+    const test = checkPick(list('test'));
+    if (test?.kind === 'problem') return { problem: t('Testul: {test}', { test: test.problem }) };
+    const barem = checkPick(list('barem'));
+    if (barem?.kind === 'problem') return { problem: t('Baremul: {barem}', { barem: barem.problem }) };
+    return { test, barem };
+  }
+  async function makeTeacherFiles(picked: Picked): Promise<{ test: File | null; barem: File | null } | { problem: string }> {
+    const makePdf = deps.makePdf ?? picturesToPdf;
+    const fileOf = async (check: PickCheck | null, label: (problem: string) => string): Promise<File | null | { problem: string }> => {
+      if (!check || check.kind === 'problem') return null;
+      if (check.kind === 'document') return check.file;
+      const made = await makePdf(check.pictures, check.name);
+      return 'file' in made ? made.file : { problem: label(made.problem) };
+    };
+    const test = await fileOf(picked.test, (problem) => t('Testul: {test}', { test: problem }));
+    if (test && !(test instanceof File)) return test;
+    const barem = await fileOf(picked.barem, (problem) => t('Baremul: {barem}', { barem: problem }));
+    if (barem && !(barem instanceof File)) return barem;
+    return { test, barem };
+  }
+
+  let preparing = false;
   async function submit(): Promise<void> {
+    if (preparing || sending) return;
     error.hidden = true;
     recover.hidden = true;
-    const values = formValues();
+    const picked = checkTeacherFiles();
+    if ('problem' in picked) return sayError(picked.problem);
+    let files: { test: File | null; barem: File | null };
+    if (picked.test?.kind === 'pictures' || picked.barem?.kind === 'pictures') {
+      preparing = true;
+      sendButton.disabled = true;
+      show(progress, t('Se pregătesc pozele…'));
+      const made = await makeTeacherFiles(picked);
+      preparing = false;
+      sendButton.disabled = false;
+      progress.hidden = true;
+      if ('problem' in made) return sayError(made.problem);
+      files = made;
+    } else {
+      files = { test: picked.test?.kind === 'document' ? picked.test.file : null, barem: picked.barem?.kind === 'document' ? picked.barem.file : null };
+    }
+    const values = { ...formValues(), ...files };
     const problem = formProblem(values);
     if (problem) return sayError(problem);
     const admin = availability?.admin ?? false;
