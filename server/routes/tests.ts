@@ -460,15 +460,16 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
 
   // "Pornește robotul": the teacher starts the robot again for work that a
   // run left when it stopped early (a usage limit, a crash, the time limit),
-  // or for the print PDF or the barem of a draft or open test when the robot
+  // or for the print PDF of a draft, or a barem in any status, when the robot
   // did not start.
   routes.post('/:code/robot', async (c) => {
     const test = await requireTest(c.env.DB, c.var.teacher.id, parseTestCode(c.req.param('code')));
-    // A draft or open test has robot work only while its print PDF or barem
+    // A draft or done test has robot work only while its print PDF or a barem
     // waits; testHasRobotWork decides.
     const status = test.summary.status;
-    const draftWork = status === 'draft' && ((await needsBarem(c.env.DB, test.id)) || (await needsPrint(c.env.DB, test.id)));
-    if (status !== 'evaluating' && status !== 'open' && !draftWork) {
+    const baremWork = (await needsBarem(c.env.DB, test.id)) || (await needsBarem(c.env.DB, test.id, 'ces'));
+    const draftWork = status === 'draft' && (await needsPrint(c.env.DB, test.id));
+    if (status !== 'evaluating' && status !== 'open' && !draftWork && !baremWork) {
       throw new ApiError(409, 'not_evaluating', 'Testul nu se corectează acum.');
     }
     if (!(await testHasRobotWork(c.env.DB, test.id, nowIso()))) {

@@ -102,13 +102,16 @@ export function BaremWaiting({ test }: { test: TestInfo }) {
   if (test.status !== 'evaluating' || test.files.test === null) return null;
   const generating = test.barem.request === 'requested';
   if (!generating && !(test.files.barem !== null && test.barem.unchecked)) return null;
+  const failed = test.barem.request === 'failed';
   return (
     <div className="warning">
       <p>
         <strong>{t('Lucrările așteaptă baremul nou.')}</strong>{' '}
         {generating
           ? t('Se generează acum. După ce îl verifici la Pregătire, corectarea continuă.')
-          : t('Verifică-l la Pregătire și confirmă-l. Apoi corectarea continuă.')}
+          : failed
+            ? t('Nu s-a putut genera. La Pregătire îl generezi din nou sau încarci baremul tău.')
+            : t('Verifică-l la Pregătire și confirmă-l. Apoi corectarea continuă.')}
       </p>
       <MoveOnLink className="button-quiet button-small" stage={'Pregătire'}>
         {t('Mergi la {stage}', { stage: t('Pregătire') })}

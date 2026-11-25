@@ -767,8 +767,11 @@ export async function saveTestFile(
 ): Promise<{ status: TestStatus; clearedPrintKey: string | null; replacedKey: string | null; readAgain: boolean } | null> {
   const c = columns(variant);
   // A generated barem that waits for its check is made again from the new
-  // test file, within the day's generations.
-  const askAgain = `${c('barem_unchecked')} = 1 AND ${mayGenerateBaremSql(variant)} AND (${c('barem_request')} = 'requested' OR ${BAREM_DAY_LEFT})`;
+  // test file, within the day's generations. Past them it is the old test's
+  // barem: its request fails, so it cannot be confirmed, and the page offers to
+  // generate it again (which says why it cannot today) or to upload one.
+  const stale = `${c('barem_unchecked')} = 1 AND ${mayGenerateBaremSql(variant)}`;
+  const askAgain = `${stale} AND (${c('barem_request')} = 'requested' OR ${BAREM_DAY_LEFT})`;
   // A CES file turns the CES switch on.
   const on = variant === 'ces' ? 'ces_off = 0, ' : '';
   // A new class test file is read again for its subject, unless the teacher set it.
@@ -778,7 +781,7 @@ export async function saveTestFile(
       ? `UPDATE tests SET ${on}${subject}${c('test_file_key')} = ?, ${c('test_file_name')} = ?, ${c('test_file_type')} = ?, updated_at = ?,
            ${c('files_version')} = ${c('files_version')} + 1,
            ${c('print_status')} = 'none', ${c('print_attempts')} = 0, ${c('print_file_key')} = NULL, upload_token = COALESCE(upload_token, ?),
-           ${c('barem_request')} = CASE WHEN ${askAgain} THEN 'requested' ELSE ${c('barem_request')} END,
+           ${c('barem_request')} = CASE WHEN ${askAgain} THEN 'requested' WHEN ${stale} THEN 'failed' ELSE ${c('barem_request')} END,
            ${c('barem_request_attempts')} = CASE WHEN ${askAgain} THEN 0 ELSE ${c('barem_request_attempts')} END
          WHERE id = ? AND teacher_id = ? ${noCesGradingSql(variant)} AND ${QUICK_TRY_FILES_LEFT}
          RETURNING status, exercise_list_status AS list_status`

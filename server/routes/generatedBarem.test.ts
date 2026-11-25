@@ -290,10 +290,13 @@ describe('the day limit of generated barems', () => {
     expect((await generate()).status).toBe(200);
   });
 
-  it('keeps a new test file from asking for a barem past the limit', async () => {
+  it('fails the old barem when a new test file cannot ask for one past the limit', async () => {
     await madeToday(BAREM_GENERATIONS_PER_DAY);
-    await setTest('barem_unchecked = 1');
+    await setTest('barem_unchecked = 1, barem_request_attempts = 1');
     expect((await putTestFile('test2.pdf', 'enunț nou')).status).toBe(200);
-    expect(await row()).toMatchObject({ barem_request: 'none', barem_unchecked: 1 });
+    // The barem is the old test's: it cannot be confirmed now.
+    expect(await row()).toMatchObject({ barem_request: 'failed', barem_unchecked: 1, barem_request_attempts: 1 });
+    expect((await checked((await row())!.files_version)).status).toBe(409);
+    expect((await generate()).body.error).toBe('barem_limit');
   });
 });

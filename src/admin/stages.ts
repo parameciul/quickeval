@@ -72,6 +72,8 @@ export function stagesOf(test: TestSummary): TestStages {
   const pregatire = (): Stage => {
     const wait = waits('Pregătire');
     if (wait !== null) return stage('Pregătire', 'wait', wait);
+    // A barem can be generated again after the uploads closed.
+    if (evaluated && test.barem.request === 'requested') return stage('Pregătire', 'now', t('baremul se generează'));
     if (evaluated || (testFile && baremActive)) return stage('Pregătire', 'done');
     if (!testFile) return stage('Pregătire', 'now', t('lipsește testul'));
     if (test.barem.request === 'requested') return stage('Pregătire', 'now', t('baremul se generează'));

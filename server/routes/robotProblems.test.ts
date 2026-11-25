@@ -264,6 +264,21 @@ describe('POST /api/admin/tests/:code/robot', () => {
     expect(dispatchRobot).toHaveBeenCalledTimes(1);
   });
 
+  // A barem can be asked for in any status, so the robot can be started for it.
+  it('starts the robot for a done test whose barem request waits', async () => {
+    await setTest("status = 'done', test_file_key = 'k/test.pdf', barem_request = 'requested'");
+    dispatchRobot.mockResolvedValueOnce(true);
+    const res = await api.request('POST', `/api/admin/tests/${code}/robot`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ robot: 'dispatched' });
+  });
+
+  it('starts the robot for a done test whose CES barem request waits', async () => {
+    await setTest("status = 'done', ces_test_file_key = 'k/ces.pdf', ces_barem_request = 'requested'");
+    dispatchRobot.mockResolvedValueOnce(true);
+    expect((await api.request('POST', `/api/admin/tests/${code}/robot`)).status).toBe(200);
+  });
+
   it('starts the robot for a draft test whose print PDF waits', async () => {
     await setTest("test_file_key = 'k/test.pdf', print_status = 'none'");
     dispatchRobot.mockResolvedValueOnce(true);

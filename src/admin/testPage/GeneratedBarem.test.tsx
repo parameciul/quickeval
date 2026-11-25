@@ -116,6 +116,16 @@ describe('GeneratedBarem', () => {
     expect(screen.queryByText('Testul se corectează acum. Poți schimba fișierele după ce se termină corectarea.')).not.toBeInTheDocument();
   });
 
+  it('tells in Corectare and Pregătire how a new barem made after the grading stands', async () => {
+    const files = { test: TEST_FILE, barem: BAREM_FILE };
+    const { unmount } = renderAdmin('/tests/6E2-26T1#grading', apiWith({ status: 'evaluating', files, barem: { request: 'failed', unchecked: true } }));
+    expect(await screen.findByText(/Nu s-a putut genera\. La Pregătire îl generezi din nou sau încarci baremul tău\./)).toBeInTheDocument();
+    unmount();
+    // A new barem over a checked one: Pregătire says it is being made.
+    renderAdmin('/tests/6E2-26T1#prepare', apiWith({ status: 'done', files, barem: { request: 'requested', unchecked: false } }));
+    expect(await screen.findByText('Se generează baremul')).toBeInTheDocument();
+  });
+
   it('says nothing in Corectare for a checked barem', async () => {
     renderAdmin('/tests/6E2-26T1#grading', apiWith({ status: 'evaluating', files: { test: TEST_FILE, barem: BAREM_FILE } }));
     await screen.findByRole('heading', { name: 'Corectare' });

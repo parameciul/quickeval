@@ -161,7 +161,8 @@ function PrepareNow({ test }: { test: TestInfo }) {
     </>
   ) : undefined;
   const missing = missingNow(test);
-  if (test.barem.request === 'requested' && test.files.barem === null) {
+  // Also a new barem over one that is there, made after the uploads closed.
+  if (test.barem.request === 'requested' && (test.files.barem === null || test.status === 'evaluating' || test.status === 'done')) {
     return (
       <NowBox title={t('Se generează baremul')} next={next}>
         <p className="now-sub">{t('Durează câteva minute. Îl verifici aici, când e gata.')}</p>

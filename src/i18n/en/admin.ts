@@ -886,6 +886,7 @@ export const ADMIN = {
   "Lucrările așteaptă baremul nou.": "The papers wait for the new marking scheme.",
   "Se generează acum. După ce îl verifici la Pregătire, corectarea continuă.": "It is being made now. After you check it at Prepare, grading goes on.",
   "Verifică-l la Pregătire și confirmă-l. Apoi corectarea continuă.": "Check it at Prepare and confirm it. Then grading goes on.",
+  "Nu s-a putut genera. La Pregătire îl generezi din nou sau încarci baremul tău.": "It could not be made. At Prepare, make it again or upload your own.",
   "Testul s-a dat în clasă": "The test was given in class",
   "Fișierele de tipărit rămân aici, de exemplu pentru un elev care a lipsit.": "The files to print stay here, for example for a student who was absent.",
   "Testul nu a avut o variantă cu cod QR făcută aici.": "The test had no version with a QR code made here.",
