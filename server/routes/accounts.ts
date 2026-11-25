@@ -1,6 +1,6 @@
 import { localEmail } from '../i18n.ts';
 import { Hono } from 'hono';
-import { changePasswordBody, rejectAccountsBody, shownAccountBody, updateAccountBody } from '../../shared/api.ts';
+import { baremNotesSettingBody, changePasswordBody, rejectAccountsBody, shownAccountBody, updateAccountBody } from '../../shared/api.ts';
 import { adminOnly } from '../auth/teacherAuth.ts';
 import { sessionToken } from '../auth/session.ts';
 import {
@@ -16,6 +16,7 @@ import {
   listRefusedAccounts,
   rejectAccounts,
   setPassword,
+  setShowBaremNotes,
   takePasswordCheck,
   updateAccount,
 } from '../db/accounts.ts';
@@ -136,6 +137,16 @@ export function accountRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const id = parseId(c.req.param('id'));
     const body = await readJson(c, updateAccountBody, BODY_LIMIT);
     if (!(await updateAccount(c.env.DB, id, body, c.var.teacher.id))) throw notFound();
+    return c.json({ accounts: await listAccounts(c.env.DB) });
+  });
+
+  // Whether the test page shows this account "Indicații suplimentare pentru
+  // corectare". Any account, an administrator's too: a setting of the page,
+  // not of the account's rights. "marking-scheme" is the barem in an address.
+  routes.put('/:id/marking-scheme-notes', async (c) => {
+    const id = parseId(c.req.param('id'));
+    const { show } = await readJson(c, baremNotesSettingBody, BODY_LIMIT);
+    if (!(await setShowBaremNotes(c.env.DB, id, show))) throw notFound();
     return c.json({ accounts: await listAccounts(c.env.DB) });
   });
 

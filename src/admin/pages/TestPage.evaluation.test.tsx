@@ -6,7 +6,7 @@ import { PDF_TYPE } from '../../../shared/files.ts';
 import type { UploadRow } from '../../../shared/api.ts';
 import { unsupportedMessage } from '../../../shared/subjects.ts';
 import { robotStartMessage } from '../../ui/format.ts';
-import { createFakeApi, FAKE_STARTED_AT, FAKE_TOKEN, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
+import { createFakeApi, FAKE_STARTED_AT, FAKE_TOKEN, fakeTeacher, fakeTest, fakeUpload } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 import { uploads, PAGE, openStage, chooseAction, actionNames, chooseInRow } from './testPageTestKit.tsx';
 
@@ -218,6 +218,29 @@ describe('TestPage evaluation', () => {
     expect(await screen.findByText('Salvate')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Salvează indicațiile' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Indicații suplimentare pentru corectare')).toHaveValue('Acceptă și metoda cu proporții.');
+  });
+
+  it('hides the indications from a teacher by default, and keeps the barem row', async () => {
+    const api = evaluationApi({ baremNotes: 'La 2, și proporții.' });
+    api.me.mockResolvedValue(fakeTeacher({ role: 'teacher' }));
+    renderAdmin(`${PAGE}#prepare`, api);
+    expect(await screen.findByLabelText('Înlocuiește baremul')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Indicații suplimentare pentru corectare')).not.toBeInTheDocument();
+    expect(screen.queryByText('La 2, și proporții.')).not.toBeInTheDocument();
+  });
+
+  it('shows the indications to a teacher an administrator chose, and hides them from an administrator who chose not to see them', async () => {
+    const teacherApi = evaluationApi({});
+    teacherApi.me.mockResolvedValue(fakeTeacher({ role: 'teacher', showBaremNotes: true }));
+    const shown = renderAdmin(`${PAGE}#prepare`, teacherApi);
+    expect(await screen.findByLabelText('Indicații suplimentare pentru corectare')).toBeEnabled();
+    shown.unmount();
+
+    const adminApi = evaluationApi({});
+    adminApi.me.mockResolvedValue(fakeTeacher({ showBaremNotes: false }));
+    renderAdmin(`${PAGE}#prepare`, adminApi);
+    expect(await screen.findByLabelText('Înlocuiește baremul')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Indicații suplimentare pentru corectare')).not.toBeInTheDocument();
   });
 
   it('takes the saved indications as they are kept, without the empty lines at the end', async () => {

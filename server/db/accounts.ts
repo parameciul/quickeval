@@ -64,6 +64,7 @@ interface TeacherRow {
   tests_evaluated: number;
   papers_graded: number;
   papers_waiting: number;
+  show_barem_notes: number;
 }
 
 interface AccountRow extends TeacherRow {
@@ -77,7 +78,10 @@ interface AccountRow extends TeacherRow {
   prints_made: number;
 }
 
-const TEACHER_COLUMNS = `t.id, t.email, t.name, t.role, t.demo, t.tests_evaluated, t.papers_graded, ${papersWaitingSql('t.id')} AS papers_waiting`;
+// `show_barem_notes` null follows the role: the notes' section shows to
+// administrators and not to teachers until an administrator says otherwise.
+const TEACHER_COLUMNS = `t.id, t.email, t.name, t.role, t.demo, t.tests_evaluated, t.papers_graded, ${papersWaitingSql('t.id')} AS papers_waiting,
+  COALESCE(t.show_barem_notes, t.role = 'admin') AS show_barem_notes`;
 
 // The columns of an account, beside the teacher's: the history of its state
 // and the robot work it made outside grading.
@@ -94,6 +98,7 @@ function toTeacher(row: TeacherRow): Teacher {
     testsEvaluated: row.tests_evaluated,
     papersGraded: row.papers_graded,
     papersWaiting: row.papers_waiting,
+    showBaremNotes: row.show_barem_notes === 1,
   };
 }
 
@@ -677,6 +682,18 @@ export async function updateAccount(
     db.prepare("DELETE FROM sessions WHERE teacher_id = ? AND EXISTS (SELECT 1 FROM teachers WHERE id = ? AND status = 'disabled')").bind(teacherId, teacherId),
   ]);
   return (updated?.results.length ?? 0) > 0;
+}
+
+// An administrator sets whether the test page shows an account the section
+// "Indicații suplimentare pentru corectare": any account, an administrator's
+// (their own included) too, but not one that waits or a Quick Try's guest
+// teacher. False when no such account.
+export async function setShowBaremNotes(db: D1Database, teacherId: number, show: boolean): Promise<boolean> {
+  const updated = await db
+    .prepare("UPDATE teachers SET show_barem_notes = ? WHERE id = ? AND quick_try = 0 AND status IN ('active', 'disabled') RETURNING id")
+    .bind(show ? 1 : 0, teacherId)
+    .all();
+  return updated.results.length > 0;
 }
 
 export async function getPasswordHash(db: D1Database, teacherId: number): Promise<string | null> {

@@ -73,14 +73,16 @@ export interface FakeData {
   usage?: Pick<UsageStats, 'totals' | 'rows'>;
 }
 
-// The logged-in teacher of the page tests: Laura, an administrator.
+// The logged-in teacher of the page tests: Laura, an administrator. As on the
+// server, the barem notes' section shows to an administrator by default only.
 export function fakeTeacher(overrides: Partial<Teacher> = {}): Teacher {
-  return { id: 1, email: 'profesor@example.com', name: 'Laura Miron', role: 'admin', demo: false, testsEvaluated: 0, papersGraded: 0, papersWaiting: 0, ...overrides };
+  const showBaremNotes = (overrides.role ?? 'admin') === 'admin';
+  return { id: 1, email: 'profesor@example.com', name: 'Laura Miron', role: 'admin', demo: false, testsEvaluated: 0, papersGraded: 0, papersWaiting: 0, showBaremNotes, ...overrides };
 }
 
 export function fakeAccount(overrides: Partial<Account> = {}): Account {
   return {
-    ...fakeTeacher(),
+    ...fakeTeacher(overrides.role ? { role: overrides.role } : {}),
     status: 'active',
     createdAt: '2026-10-06T08:00:00.000Z',
     approvedAt: null,
@@ -522,6 +524,14 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       const account = accounts.find((a) => a.id === teacherId && a.role === 'teacher' && a.status !== 'pending');
       if (!account) throw notFound();
       Object.assign(account, change);
+      return structuredClone(accounts);
+    }),
+    // Like the server: any account that does not wait, an administrator's too.
+    setShowBaremNotes: vi.fn(async (teacherId: number, show: boolean) => {
+      const account = accounts.find((a) => a.id === teacherId && a.status !== 'pending');
+      if (!account) throw notFound();
+      account.showBaremNotes = show;
+      if (teacherId === me.id) me.showBaremNotes = show;
       return structuredClone(accounts);
     }),
     resetPassword: vi.fn(async (teacherId: number) => {

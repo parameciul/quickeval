@@ -161,7 +161,7 @@ export async function findQuickTry(db: D1Database, tokenHash: string): Promise<Q
 // c.var.teacher: only its id names rows; it is never an administrator and
 // never a demo account.
 export function guestTeacher(teacherId: number): Teacher {
-  return { id: teacherId, email: '', name: QUICK_TRY_GUEST, role: 'teacher', demo: false, testsEvaluated: 0, papersGraded: 0, papersWaiting: 0 };
+  return { id: teacherId, email: '', name: QUICK_TRY_GUEST, role: 'teacher', demo: false, testsEvaluated: 0, papersGraded: 0, papersWaiting: 0, showBaremNotes: false };
 }
 
 // The pages of the try's paper, in upload order.

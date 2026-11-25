@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { MAX_BAREM_NOTES_LENGTH, type RobotStart, type TestInfo } from '../../../shared/api.ts';
 import type { TestFileKind, TestVariant } from '../../../shared/files.ts';
@@ -39,7 +39,8 @@ const NAMES: Record<TestVariant, Record<TestFileKind, { title: string; drop: str
 // makes the exercise list again. With `variant` "ces": the CES variant's own
 // test and barem, which may change during the evaluation (the API refuses
 // only while the robot grades a CES paper), and whose barem can be generated
-// until the test is done.
+// until the test is done. The barem's notes show only to an account whose
+// `showBaremNotes` is on (an administrator chooses it on Setări).
 export function TestFiles({
   test,
   variant = 'class',
@@ -56,6 +57,9 @@ export function TestFiles({
   const listBlocked = test.exerciseList.status === 'problem' || test.exerciseList.status === 'failed';
   const locked = variant === 'class' && test.status === 'evaluating' && !listBlocked;
   const generated = useGeneratedBarem({ test, variant, onChanged, onRobot });
+  const api = useApi();
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.me() });
+  const showNotes = me.data?.showBaremNotes === true;
   // Before the uploads close (and, for the CES barem, until the test is done): the barem can be generated.
   const canGenerate = test.status === 'draft' || test.status === 'open' || (variant === 'ces' && test.status === 'evaluating');
   return (
@@ -82,7 +86,7 @@ export function TestFiles({
           locked={locked}
           onChanged={onChanged}
           onRobot={onRobot}
-          baremNotes={parts.baremNotes}
+          baremNotes={showNotes ? parts.baremNotes : undefined}
           actions={canGenerate ? generated.buttons : undefined}
           status={canGenerate ? generated.status : undefined}
         />
@@ -116,6 +120,7 @@ function TestFileRow({
   locked: boolean;
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
+  // The barem's notes; none: the section is hidden for this account.
   baremNotes?: string;
   actions?: ReactNode;
   status?: ReactNode;
@@ -182,15 +187,15 @@ function TestFileRow({
       {upload.isPending && <p role="status">{t('Se încarcă…')}</p>}
       {upload.error && <ErrorMessage error={upload.error} />}
       {status}
-      {kind === 'barem' && (
-        <BaremNotesEditor code={code} variant={variant} notes={baremNotes ?? ''} locked={locked} onChanged={onChanged} onRobot={onRobot} />
+      {kind === 'barem' && baremNotes !== undefined && (
+        <BaremNotesEditor code={code} variant={variant} notes={baremNotes} locked={locked} onChanged={onChanged} onRobot={onRobot} />
       )}
     </li>
   );
 }
 
-// The teacher's notes for the barem ("Indicații suplimentare pentru corectare"), always
-// open: the robot reads them as part of the barem, when it grades and when it
+// The teacher's notes for the barem ("Indicații suplimentare pentru corectare"),
+// open whenever the account may see them: the robot reads them as part of the barem, when it grades and when it
 // generates the barem, so the teacher need not replace the barem file. Like a
 // new barem, saving them clears the exercise list and starts the robot during
 // evaluation, so they are saved only with "Salvează", shown once the text

@@ -84,6 +84,8 @@ export interface AdminApi {
   // "Refuză toate": how many went (those approved meanwhile stay).
   rejectAllAccounts(accounts: { id: number; createdAt: string }[]): Promise<number>;
   updateAccount(teacherId: number, change: { demo?: boolean; status?: 'active' | 'disabled' }): Promise<Account[]>;
+  // Whether the test page shows the account "Indicații suplimentare pentru corectare".
+  setShowBaremNotes(teacherId: number, show: boolean): Promise<Account[]>;
   // A new password for a teacher who forgot theirs: the only time the app sees it.
   resetPassword(teacherId: number): Promise<string>;
   listClasses(schoolYear: number): Promise<ClassSummary[]>;
@@ -317,6 +319,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     rejectAllAccounts: async (accounts) => (await request<{ deleted: number }>('POST', '/accounts/reject-all', { accounts })).deleted,
     updateAccount: async (teacherId, change) =>
       (await request<{ accounts: Account[] }>('PATCH', `/accounts/${teacherId}`, change)).accounts,
+    setShowBaremNotes: async (teacherId, show) =>
+      (await request<{ accounts: Account[] }>('PUT', `/accounts/${teacherId}/marking-scheme-notes`, { show })).accounts,
     resetPassword: async (teacherId) => (await request<{ password: string }>('POST', `/accounts/${teacherId}/password`)).password,
     listClasses: async (schoolYear) =>
       (await request<{ classes: ClassSummary[] }>('GET', `/classes?year=${schoolYear}`)).classes,

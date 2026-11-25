@@ -41,6 +41,7 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   'Alege ce schimbi la cont.': 'Choose what to change in the account.',
   'Alege starea contului.': 'Choose the account status.',
   'Alege tipul contului.': 'Choose the account type.',
+  'Alege dacă se arată indicațiile.': 'Choose whether the instructions show.',
   'Emailul sau parola nu sunt corecte. După 10 încercări greșite, contul se blochează 15 minute.': 'The email or the password is not right. After 10 wrong attempts, the account is locked for 15 minutes.',
   'Din rețeaua ta s-au încercat prea multe parole greșite. Încearcă din nou peste 15 minute, sau din altă rețea (de exemplu datele mobile).': 'Too many wrong passwords were tried from your network. Try again in 15 minutes, or from another network (for example mobile data).',
   'Prea multe încercări greșite. Încearcă din nou peste 15 minute.': 'Too many wrong attempts. Try again in 15 minutes.',

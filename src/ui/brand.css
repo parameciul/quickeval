@@ -5822,7 +5822,7 @@ input[type="file"] {
   background: var(--sheet);
 }
 
-/* "Indicații suplimentare pentru corectare" in the barem's card: a grey box, always open. */
+/* "Indicații suplimentare pentru corectare" in the barem's card: a grey box, open for the accounts that see it. */
 .barem-notes {
   display: grid;
   gap: 0.35rem;
@@ -8954,7 +8954,7 @@ a.ticket-qr {
 
   .accounts-table tbody td:last-child {
     grid-column: 2;
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 4;
   }
 
   .accounts-waiting .accounts-table tbody td:last-child {

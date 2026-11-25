@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PDF_TYPE } from '../../../shared/files.ts';
-import { createFakeApi, FAKE_TOKEN, fakeTest, fakeUpload, noCesVariant } from '../../test/fakeApi.ts';
+import { createFakeApi, FAKE_TOKEN, fakeTeacher, fakeTest, fakeUpload, noCesVariant } from '../../test/fakeApi.ts';
 import { renderAdmin } from '../../test/renderAdmin.tsx';
 
 // The CES variant on the test page (spec: CES variant): its block in
@@ -82,6 +82,16 @@ describe('Varianta CES in Pregătire', () => {
     await userEvent.type(ces.getByLabelText('Indicații suplimentare pentru corectarea CES'), 'Fără depunctări pentru scris.');
     await userEvent.click(ces.getByRole('button', { name: 'Salvează indicațiile' }));
     expect(api.saveBaremNotes).toHaveBeenCalledWith('9R2-26T1', 'Fără depunctări pentru scris.', 'ces');
+  });
+
+  it('hides the CES barem comments too from an account that does not see the indications', async () => {
+    const api = apiWith({ ces: noCesVariant({ studentCount: 1, files: FILES }) });
+    api.me.mockResolvedValue(fakeTeacher({ role: 'teacher' }));
+    renderAdmin(`${PAGE}#prepare`, api);
+    const ces = await block();
+    expect(ces.getByLabelText('Înlocuiește baremul CES')).toBeInTheDocument();
+    expect(ces.queryByLabelText('Indicații suplimentare pentru corectarea CES')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Indicații suplimentare pentru corectare')).not.toBeInTheDocument();
   });
 
   it('warns when the CES barem does not total as much as the class barem', async () => {
