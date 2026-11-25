@@ -291,6 +291,10 @@ export function ReviewPhoto({
         return;
       }
       if (!isReviewKey(event)) return;
+      // A small menu open in the box (the download button's) takes Esc and
+      // the arrows first, also when a click left the focus on the page
+      // (Safari does not focus a clicked button).
+      if (box.current?.querySelector('[aria-expanded="true"]')) return;
       const pressed = event.key.toLowerCase();
       const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       if (event.key === 'Escape') {

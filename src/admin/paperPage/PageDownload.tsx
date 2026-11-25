@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useEffect, useId } from 'react';
 import type { SubmissionDetail } from '../../../shared/api.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { PHONE, useMediaQuery } from '../../ui/useMediaQuery.ts';
@@ -24,6 +24,9 @@ export function PageDownload({ submission, page }: { submission: SubmissionDetai
   // downloads, as a wide one does.
   const touch = useMediaQuery('(pointer: coarse)');
   const menuId = useId();
+  const { forget } = files;
+  // Only a new page clears the line, not a new render.
+  useEffect(() => forget(), [page]);
   const file = submission.files[page];
   if (!file) return null;
   const n = page + 1;
@@ -102,12 +105,20 @@ export function PageDownload({ submission, page }: { submission: SubmissionDetai
   );
 }
 
-// The line of what a choice did, while there is something to say.
+// The line of what a choice did: drawn while there is something to say, and
+// read out through a live region that is always in the page (a screen reader
+// says only a change of one it already knows). A failure is an alert.
 export function FilesNoteLine({ note, className }: { note: FilesNote | null; className: string }) {
-  if (!note) return null;
   return (
-    <span className={`${className} is-${note.kind}`} role={note.kind === 'failed' ? 'alert' : 'status'}>
-      {note.text}
-    </span>
+    <>
+      <span className="sr-only" aria-live="polite">
+        {note && note.kind !== 'failed' ? note.text : ''}
+      </span>
+      {note && (
+        <span className={`${className} is-${note.kind}`} role={note.kind === 'failed' ? 'alert' : undefined} aria-hidden={note.kind === 'failed' ? undefined : true}>
+          {note.text}
+        </span>
+      )}
+    </>
   );
 }

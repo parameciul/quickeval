@@ -297,7 +297,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
       onLoginExpired();
       throw new LoginExpiredError();
     }
-    if (!res.ok || isJson) return readAnswer<never>(res);
+    if (!res.ok) return readAnswer<never>(res);
     return res.blob();
   }
 

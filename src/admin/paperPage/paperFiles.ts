@@ -90,8 +90,9 @@ async function asPng(blob: Blob): Promise<Blob> {
 // What the last choice did, said in a line beside its button.
 export type FilesNote = { kind: 'busy' | 'done' | 'failed'; text: string };
 
-// How long a line of what was done stays.
+// How long a line of what was done stays, and one of what failed.
 const NOTE_MS = 4000;
+const FAILED_MS = 8000;
 
 // The pages of one paper, to save or copy: each read once from the API and
 // kept while the part that asked stays on the page (`prefetch` reads one ahead,
@@ -107,7 +108,7 @@ export function usePaperFiles(submission: SubmissionDetail) {
   const say = (next: FilesNote | null) => {
     clearTimeout(timer.current);
     setNote(next);
-    if (next?.kind === 'done') timer.current = setTimeout(() => setNote(null), NOTE_MS);
+    if (next && next.kind !== 'busy') timer.current = setTimeout(() => setNote(null), next.kind === 'failed' ? FAILED_MS : NOTE_MS);
   };
   const failed = (err: unknown, fallback: string) => say({ kind: 'failed', text: err instanceof ApiError ? err.message : fallback });
 
@@ -128,6 +129,8 @@ export function usePaperFiles(submission: SubmissionDetail) {
   const files = submission.files;
   return {
     note,
+    // Another page on show: what was said of the last one goes.
+    forget: () => say(null),
     prefetch: (index: number) => {
       const file = files[index];
       if (file) void blobOf(file).catch(() => {});

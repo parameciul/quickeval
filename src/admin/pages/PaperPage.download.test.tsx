@@ -111,6 +111,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('the download button of the paper', () => {
@@ -155,12 +156,68 @@ describe('the download button of the paper', () => {
     renderAdmin(page, api);
     const menu = await openDownload();
     await userEvent.click(within(menu).getByRole('menuitem', { name: 'Copiază pagina 1' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('Pagina 1 a fost copiată.');
+    // Read out through the live region that is always in the page.
+    expect(await screen.findByText('Pagina 1 a fost copiată.', { selector: '[aria-live="polite"]' })).toBeInTheDocument();
     expect(write).toHaveBeenCalledTimes(1);
     const item = write.mock.calls[0]![0][0] as unknown as { items: Record<string, Promise<Blob>> };
     expect(Object.keys(item.items)).toEqual(['image/png']);
     expect((await item.items['image/png']!).type).toBe('image/png');
     expect(api.submissionFile).toHaveBeenCalledWith(5, 21);
+  });
+
+  it('copies a photo of another type drawn again as PNG, freeing the canvas', async () => {
+    const write = pictureClipboard();
+    const close = vi.fn();
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 40, height: 30, close })));
+    const drawImage = vi.fn();
+    const canvases: HTMLCanvasElement[] = [];
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement) {
+      canvases.push(this);
+      return { drawImage } as unknown as CanvasRenderingContext2D;
+    } as unknown as HTMLCanvasElement['getContext']);
+    const sizes: [number, number][] = [];
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (this: HTMLCanvasElement, done: BlobCallback) {
+      sizes.push([this.width, this.height]);
+      done(new Blob(['png'], { type: 'image/png' }));
+    });
+    const jpeg: SubmissionDetail = { ...graded, files: [files[1]!, files[0]!] };
+    renderAdmin(page, apiWith(jpeg));
+    const menu = await openDownload();
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Copiază pagina 1' }));
+    expect(await screen.findByText('Pagina 1 a fost copiată.', { selector: '[aria-live="polite"]' })).toBeInTheDocument();
+    const item = write.mock.calls[0]![0][0] as unknown as { items: Record<string, Promise<Blob>> };
+    expect((await item.items['image/png']!).type).toBe('image/png');
+    expect(sizes).toEqual([[40, 30]]);
+    expect(drawImage).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
+    // The canvas gives its memory back.
+    expect(canvases.map((canvas) => [canvas.width, canvas.height])).toEqual([[0, 0]]);
+  });
+
+  it('takes away what failed once another page shows', async () => {
+    pictureClipboard(async () => Promise.reject(new DOMException('Refuzat', 'NotAllowedError')));
+    renderAdmin(page, apiWith(graded));
+    const menu = await openDownload();
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Copiază pagina 1' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Pagina 2' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('over the whole screen, Esc closes the menu first, also with the focus left on the page', async () => {
+    renderAdmin(page, apiWith(graded));
+    await openDownload();
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(screen.getAllByRole('button', { name: 'Pe tot ecranul' })[0]!);
+    expect(document.querySelector('.review-photo.is-full')).not.toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Descarcă sau copiază' }));
+    // As Safari leaves it after a click on a button.
+    (document.activeElement as HTMLElement).blur();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(document.querySelector('.review-photo.is-full')).not.toBeNull();
+    await userEvent.keyboard('{Escape}');
+    expect(document.querySelector('.review-photo.is-full')).toBeNull();
   });
 
   it('says when the browser refuses the copy', async () => {
