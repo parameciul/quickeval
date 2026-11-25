@@ -53,7 +53,7 @@ export function teacherAuth(): MiddlewareHandler<AppEnv> {
     const tokenHash = await sha256Hex(view);
     const now = nowIso();
     const found = session ? await findView(c.env.DB, tokenHash, await sha256Hex(session), now) : null;
-    if (!found) {
+    if (!found || found.adminId !== real.id) {
       await closeDeadView(c.env.DB, tokenHash, now);
       clearViewCookie(c);
       throw new ApiError(409, 'impersonation_ended', 'Vizualizarea contului s-a încheiat.');

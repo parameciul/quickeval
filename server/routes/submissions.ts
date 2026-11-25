@@ -11,6 +11,7 @@ import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError, demoLimit, notFound, notGraded, uploadChanged } from '../errors.ts';
 import { nowIso, parseId, readJson } from '../http.ts';
 import { deleteFilesQuietly, fileResponse } from '../uploads.ts';
+import { readOnlyError, viewOnly } from './impersonation.ts';
 
 // The upload a page names: an unknown upload is 404, and an upload that
 // started at another time is 409. Ids of deleted rows come back, so the id
@@ -42,8 +43,9 @@ export function submissionRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const query = shownUpload.safeParse({ startedAt: c.req.query('startedAt') });
     if (!query.success) throw new ApiError(400, 'invalid', 'Reîncarcă pagina.');
     const shown = await requireShown(c.env.DB, c.var.teacher.id, submissionId, query.data.startedAt);
-    const resultToken = await teacherResultToken(c.env.DB, shown);
-    if (!resultToken) throw uploadChanged();
+    const viewing = viewOnly(c);
+    const resultToken = await teacherResultToken(c.env.DB, shown, { create: !viewing });
+    if (!resultToken) throw viewing ? readOnlyError() : uploadChanged();
     return c.json({ resultToken });
   });
 

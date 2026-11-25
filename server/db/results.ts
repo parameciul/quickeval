@@ -86,8 +86,13 @@ export async function setSubmissionResultsOpen(db: D1Database, shown: ShownUploa
 
 // The result link of an upload, making one for older uploads that have none
 // yet. Null when the upload the page shows is not in one of the teacher's
-// tests, or is another upload now.
-export async function teacherResultToken(db: D1Database, shown: ShownUpload): Promise<string | null> {
+// tests, or is another upload now. With `create: false` an upload that has no
+// link gives null and nothing is written.
+export async function teacherResultToken(
+  db: D1Database,
+  shown: ShownUpload,
+  options: { create?: boolean } = {},
+): Promise<string | null> {
   const { teacherId, submissionId, startedAt } = shown;
   const row = await db
     .prepare(
@@ -98,6 +103,7 @@ export async function teacherResultToken(db: D1Database, shown: ShownUpload): Pr
     .first<{ result_token: string | null }>();
   if (!row) return null;
   if (row.result_token) return row.result_token;
+  if (options.create === false) return null;
   for (let attempt = 0; attempt < 3; attempt++) {
     const token = newResultToken();
     let set: { result_token: string } | null = null;

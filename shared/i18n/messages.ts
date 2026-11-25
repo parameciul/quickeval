@@ -31,6 +31,7 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   // Accounts and sign-in.
   'Intră în cont ca să continui.': 'Sign in to continue.',
   'Vizualizarea contului s-a încheiat.': 'The account view has ended.',
+  'Doar citire: nu poți schimba nimic în contul altui profesor.': "Read only: you cannot change anything in another teacher's account.",
   'Vizualizarea are nevoie de intrarea cu parola.': 'Viewing needs a login with a password.',
   'Parola ta nu este corectă.': 'Your password is not correct.',
   'Poți vedea doar contul activ al unui profesor.': 'You can only view an active teacher account.',

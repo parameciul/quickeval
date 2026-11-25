@@ -5,7 +5,7 @@ import { promoteDue, sameOriginWrites } from '../http.ts';
 import { accountRoutes, ownAccountRoutes } from './accounts.ts';
 import { classRoutes } from './classes.ts';
 import { adminPaymentRoutes } from './payments.ts';
-import { impersonationRoutes } from './impersonation.ts';
+import { impersonationRoutes, viewReadOnly } from './impersonation.ts';
 import { searchRoutes } from './search.ts';
 import { settingsRoutes } from './settings.ts';
 import { studentRoutes } from './students.ts';
@@ -19,7 +19,7 @@ import type { DataVersion, MeAnswer } from '../../shared/api.ts';
 // and the accounts need an administrator.
 export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
-  routes.use('*', sameOriginWrites, teacherAuth(), promoteDue(options));
+  routes.use('*', sameOriginWrites, teacherAuth(), viewReadOnly, promoteDue(options));
   routes.get('/me', (c) => c.json({ teacher: c.var.teacher, viewing: c.var.viewing?.viewing ?? null } satisfies MeAnswer));
   // The teacher app asks this every minute and reads its pages again only when
   // it changed. It also runs promoteDue, which starts the scheduled tests.

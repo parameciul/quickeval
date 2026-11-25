@@ -1,4 +1,4 @@
-import { Hono, type Handler } from 'hono';
+import { Hono, type Context, type Handler, type MiddlewareHandler } from 'hono';
 import { startViewBody } from '../../shared/api.ts';
 import { clearViewCookie, sessionToken, setViewCookie } from '../auth/session.ts';
 import { getPasswordHash, takePasswordCheck } from '../db/accounts.ts';
@@ -11,11 +11,35 @@ import { newSessionToken, sha256Hex } from '../secrets.ts';
 
 const BODY_LIMIT = 4096;
 
+export function readOnlyError(): ApiError {
+  return new ApiError(403, 'impersonation_read_only', 'Doar citire: nu poți schimba nimic în contul altui profesor.');
+}
+
+// True while the request runs in a view that may not change anything. Routers
+// that do not run teacherAuth() leave the view unset.
+export function viewOnly(c: Context<AppEnv>): boolean {
+  return c.var.viewing?.viewing.mode === 'view';
+}
+
+const READ_METHODS = new Set(['GET', 'HEAD']);
+const EXIT_PATH = '/api/admin/impersonation';
+
+// In a view, every method that is not a read is refused before routing, so no
+// route has to know about views. The one exception is leaving the view.
+export const viewReadOnly: MiddlewareHandler<AppEnv> = async (c, next) => {
+  if (viewOnly(c) && !READ_METHODS.has(c.req.method)) {
+    const path = new URL(c.req.url).pathname.replace(/\/+$/, '');
+    if (!(c.req.method === 'DELETE' && path === EXIT_PATH)) throw readOnlyError();
+  }
+  await next();
+};
+
 // POST /api/admin/accounts/:id/impersonation (mounted in routes/accounts.ts,
 // behind adminOnly): the administrator types their own password again and
 // gets a view of an active teacher's account for one hour. The password counts
 // as an attempt of the administrator's account, like the one on "Contul meu".
 export const startViewHandler: Handler<AppEnv> = async (c) => {
+  if (c.var.viewing) throw readOnlyError();
   const session = sessionToken(c);
   if (!session) throw new ApiError(400, 'view_needs_login', 'Vizualizarea are nevoie de intrarea cu parola.');
   const teacherId = parseId(c.req.param('id'));
