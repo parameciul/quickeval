@@ -75,7 +75,7 @@ describe('the grading skill', () => {
   });
 
   it('tells Claude to share one list among the rânduri, report each rând as it is, and grade by the rând the student wrote', () => {
-    expect(skill).toContain('List each item once, in `exercises`, with an `id` and a `label` that do not name a rând');
+    expect(skill).toContain('List each item of the first rând once, in `exercises`, with an `id` and a `label` that do not name a rând');
     expect(skill).toContain('Do not make the rânduri match: the platform compares them and tells the teacher.');
     expect(skill).toContain("Grade every exercise by that rând's statements and that rând's barem");
     expect(skill).toContain('set `needsReview` to true on every exercise');

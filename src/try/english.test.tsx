@@ -104,3 +104,20 @@ describe('a Quick Try in English', () => {
     expect(await screen.findByText('Fractions 6B')).toBeInTheDocument();
   });
 });
+
+describe("a Quick Try's barem problem in English", () => {
+  it("shows the stored Romanian problem in English", async () => {
+    const message = 'Rândurile testului nu au aceleași exerciții și punctaje: la I.1, Rândul 2 are 3p, iar Rândul 1 are 4p. Lucrările unui rând pot primi punctaje greșite.';
+    const test = tryTest({ status: 'evaluating', files, exerciseList: { status: 'problem', message } }, { status: 'submitted' });
+    renderTry('/', createFakeApi({ classes: [], students: {}, tests: [test] }), createFakeTryApi());
+    expect(await screen.findByText('The marking scheme has a problem.')).toBeInTheDocument();
+    expect(screen.getByText(/The versions of the test do not have the same exercises and points: at I\.1, Rândul 2 has 3p and Rândul 1 has 4p\./)).toBeInTheDocument();
+  });
+
+  it('shows the sums problem in English', async () => {
+    const message = 'Punctajele din barem dau 9,5, dar totalul este 10.';
+    const test = tryTest({ status: 'evaluating', files, exerciseList: { status: 'problem', message } }, { status: 'submitted' });
+    renderTry('/', createFakeApi({ classes: [], students: {}, tests: [test] }), createFakeTryApi());
+    expect(await screen.findByText('The points in the marking scheme add up to 9.5, but the total is 10.')).toBeInTheDocument();
+  });
+});

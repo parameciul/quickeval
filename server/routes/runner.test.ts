@@ -461,7 +461,7 @@ describe('POST /api/runner/tests/:id/exercise-list', () => {
     const differ = await saveList({ ok: true, exerciseList: { ...LIST, versions: versions(3) } });
     expect(differ.body.exerciseList).toEqual({
       status: 'problem',
-      message: 'Rândurile testului nu au aceleași exerciții și punctaje: la I.1, Rândul 2 are 3p, nu 4,5p. Lucrările unui rând pot primi punctaje greșite.',
+      message: 'Rândurile testului nu au aceleași exerciții și punctaje: la I.1, Rândul 2 are 3p, iar Rândul 1 are 4,5p. Lucrările unui rând pot primi punctaje greșite.',
     });
     // The stored list stays the shared list, without the rânduri.
     expect(JSON.parse((await listRow())!.exercise_list_json!)).toEqual(LIST);

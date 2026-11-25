@@ -219,7 +219,8 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
     'The versions of the test do not have the same exercises and points: {*}. The papers of one version can get wrong points.',
   '{} nu are exercițiul {}': '{} has no exercise {}',
   '{} are în plus exercițiul {}': '{} has an extra exercise {}',
-  'la {}, {} are {}p, nu {}p': 'at {}, {} has {}p, not {}p',
+  '{} are de două ori exercițiul {}': '{} has exercise {} twice',
+  'la {}, {} are {}p, iar {} are {}p': 'at {}, {} has {}p and {} has {}p',
 
   // The robot.
   'Cheia robotului lipsește sau este greșită.': "The robot's key is missing or wrong.",
