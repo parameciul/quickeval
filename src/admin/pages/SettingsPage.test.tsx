@@ -255,6 +255,23 @@ describe('SettingsPage', () => {
   });
 });
 
+describe('the notice of a view that ended', () => {
+  afterEach(() => window.sessionStorage.clear());
+
+  it('says it once and forgets it', async () => {
+    window.sessionStorage.setItem('quickeval.viewEnded', 'Ana Pop');
+    renderAdmin('/settings', withSettings());
+    expect(await screen.findByRole('status')).toHaveTextContent('Vizualizarea contului lui Ana Pop s-a încheiat.');
+    expect(window.sessionStorage.getItem('quickeval.viewEnded')).toBeNull();
+  });
+
+  it('shows nothing when no view ended', async () => {
+    renderAdmin('/settings', withSettings());
+    await screen.findByRole('heading', { name: 'Setări' });
+    expect(screen.queryByText(/s-a încheiat/)).not.toBeInTheDocument();
+  });
+});
+
 describe('lastRunText', () => {
   it('counts the class analyses only when there were some', () => {
     const robot = fakeSettings().robot;

@@ -6,6 +6,7 @@ import { DEMO_PAPER_LIMIT } from '../../../shared/accounts.ts';
 import { countLabel, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
+import { ViewAsDialog } from './ViewAsDialog.tsx';
 import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { t, locale } from '../../i18n/t.ts';
@@ -658,6 +659,7 @@ function AccountMenu({
     action();
   };
   const active = account.status === 'active';
+  const [viewing, setViewing] = useState(false);
 
   return (
     <div className="class-more account-more" ref={box}>
@@ -716,8 +718,15 @@ function AccountMenu({
               {t('Închide contul')}
             </button>
           )}
+          {active && (
+            <button type="button" role="menuitem" className="class-menu-item has-icon" disabled={busy} onClick={run(() => setViewing(true))}>
+              <ActionIcon name="eye" />
+              {t('Vezi ca {name}', { name: account.name })}
+            </button>
+          )}
         </div>
       )}
+      {viewing && <ViewAsDialog account={account} onClose={() => setViewing(false)} returnFocus={button} />}
     </div>
   );
 }
