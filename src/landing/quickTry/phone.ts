@@ -129,6 +129,7 @@ export function openPhoneStep(
     } else if (options.robotBarem) {
       if (files?.barem) set('barem', 'ok', t('E gata. Îl găsești pe pagina încercării.'), false);
       else if (test?.test.barem.request === 'requested') set('barem', 'work', t('Se face acum din test'), false);
+      else if (test?.test.barem.request === 'failed') set('barem', 'wait', t('Nu s-a putut face din test. Continuă pe pagina încercării.'), false);
       else set('barem', 'wait', t('Se face din test, după ce ajunge testul'), false);
     } else {
       set('barem', 'ok', t('De pe calculator'), false);
@@ -156,7 +157,24 @@ export function openPhoneStep(
   }
 
   // The test is read only while a row waits for it.
-  const rowsWait = () => withRows && !(test?.test.files.test && test.test.files.barem);
+  // A barem the robot could not make ends the wait too: the try's page takes over.
+  const rowsWait = () => withRows && !(test?.test.files.test && (test.test.files.barem || test.test.barem.request === 'failed'));
+  // The barem made from the test is asked for by the phone right after the
+  // test. Should that ask not come (the phone lost its connection), the window
+  // asks itself, once, after it saw the test twice with no request.
+  let testSeen = 0;
+  let askedBarem = false;
+  const askBaremIfLeft = () => {
+    if (!options.robotBarem || askedBarem || !test?.test.files.test || !asksBaremAfterTest(parts, test.test)) {
+      testSeen = 0;
+      return;
+    }
+    testSeen += 1;
+    if (testSeen < 2) return;
+    askedBarem = true;
+    // Refused when the phone asked meanwhile: the next read shows its request.
+    deps.api.generateBarem(stored.token, stored.code).catch(() => {});
+  };
   const watch = watchPages<Seen>({
     read: async () => {
       const pages = await deps.api.listPages(stored.token);
@@ -164,6 +182,7 @@ export function openPhoneStep(
       return { pages, test };
     },
     onPages: (seen) => {
+      askBaremIfLeft();
       showRows();
       showPages(seen.pages);
     },
@@ -269,8 +288,12 @@ export function openPhoneStep(
       progress.hidden = false;
       await deps.api.uploadTestFile(stored.token, stored.code, kind, file);
       if (kind === 'test') {
-        const now = test ?? (await deps.api.getTest(stored.token, stored.code));
-        if (asksBaremAfterTest(parts, now.test)) await deps.api.generateBarem(stored.token, stored.code);
+        // Read now: the last read may be old, and the phone may have asked already.
+        test = await deps.api.getTest(stored.token, stored.code);
+        if (asksBaremAfterTest(parts, test.test)) {
+          askedBarem = true;
+          await deps.api.generateBarem(stored.token, stored.code);
+        }
       }
     } catch (err) {
       if (!closed) sayError(messageOf(err));

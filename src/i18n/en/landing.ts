@@ -57,6 +57,7 @@ export const LANDING = {
   "Scanează codul cu camera telefonului și fotografiază {parts}.": "Scan the code with the phone's camera and photograph {parts}.",
   "Se așteaptă pozele de pe telefon": "Waiting for the photos from the phone",
   "Se face acum din test": "Being made from the test now",
+  "Nu s-a putut face din test. Continuă pe pagina încercării.": "It could not be made from the test. Continue on the try's page.",
   "Se face din test, după ce ajunge testul": "Made from the test, once the test arrives",
   "Telefon": "Phone",
   "Un singur cod QR": "One QR code",

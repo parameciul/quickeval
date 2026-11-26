@@ -49,6 +49,9 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
   const [parts, setParts] = useState<PhonePart[] | null>(() => parsePhoneParts(params.get('parts')));
   if (parts === null && detail.data) setParts(phonePartsOf(detail.data.test));
   const [step, setStep] = useState(0);
+  // A send of this step is on its way: "Înapoi" waits, so no photo is dropped
+  // and no late answer moves the steps.
+  const [busy, setBusy] = useState(false);
 
   const pagesApi = useMemo<PagesApi>(() => {
     // The grading started on the laptop meanwhile: the page turns read only,
@@ -156,9 +159,19 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
     );
   }
 
+  // To another step. The pages step reads the pages again: its uploader
+  // holds the list it was given, and pages went meanwhile.
+  const goTo = async (next: number) => {
+    if (parts[next] === 'pages') {
+      await pages.refetch();
+      setRound((value) => value + 1);
+    }
+    setStep(next);
+  };
+
   const back =
     wizard && step > 0 ? (
-      <button type="button" className="button-quiet button-big phone-back" onClick={() => setStep(step - 1)}>
+      <button type="button" className="button-quiet button-big phone-back" disabled={busy} onClick={() => void goTo(step - 1)}>
         <ActionIcon name="back" />
         {t('Înapoi')}
       </button>
@@ -182,6 +195,7 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
             listTitle={t('Paginile')}
             finishLabel={t('Am terminat')}
             onFinish={(count) => setDone(count)}
+            onBusy={setBusy}
           />
           {back}
         </>
@@ -193,7 +207,8 @@ export function PhonePage({ info, tryApi }: { info: QuickTryInfo; tryApi: TryApi
           detail={detail.data}
           title={title}
           next={last ? null : parts[step + 1]!}
-          onDone={() => (last ? setDone(0) : setStep(step + 1))}
+          onDone={() => (last ? setDone(0) : void goTo(step + 1))}
+          onBusy={setBusy}
           back={back}
         />
       )}
@@ -240,6 +255,7 @@ function TeacherStep({
   title,
   next,
   onDone,
+  onBusy,
   back,
 }: {
   kind: TestFileKind;
@@ -248,6 +264,7 @@ function TeacherStep({
   title: string;
   next: PhonePart | null;
   onDone: () => void;
+  onBusy: (busy: boolean) => void;
   back: ReactNode;
 }) {
   const api = useApi();
@@ -260,6 +277,25 @@ function TeacherStep({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const left = fileChangesLeft(detail);
+  useEffect(() => {
+    onBusy(sending);
+  }, [sending, onBusy]);
+  useEffect(() => () => onBusy(false), [onBusy]);
+  // The test arrived but the barem made from it was not asked for (the
+  // request failed): she asks again here.
+  const baremLeft = kind === 'test' && arrived && asksBaremAfterTest(parts, detail.test);
+  const askBarem = async () => {
+    setError(null);
+    setSending(true);
+    try {
+      await api.generateBarem(detail.test.code);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setSending(false);
+      void queryClient.invalidateQueries({ queryKey: ['test', detail.test.code] });
+    }
+  };
   const heading = kind === 'test' ? t('Testul') : t('Baremul');
   const nextName = next === null ? null : next === 'pages' ? t('lucrarea elevului') : t('baremul');
 
@@ -316,8 +352,15 @@ function TeacherStep({
           <ActionIcon name="check" />
           {kind === 'test' ? t('Testul a ajuns.') : t('Baremul a ajuns.')}
         </p>
+        {error !== null && <ErrorMessage error={error} />}
         <div className="phone-foot">
-          <button type="button" className="button button-big" onClick={onDone}>
+          {baremLeft && (
+            <button type="button" className="button button-big" disabled={sending} onClick={() => void askBarem()}>
+              <ActionIcon name="generate" />
+              {t('Fă baremul din test')}
+            </button>
+          )}
+          <button type="button" className={baremLeft ? 'button-quiet button-big' : 'button button-big'} disabled={sending} onClick={onDone}>
             {nextName ? t('Continuă cu {next}', { next: nextName }) : t('Am terminat')}
             {nextName && <ActionIcon name="arrow" />}
           </button>

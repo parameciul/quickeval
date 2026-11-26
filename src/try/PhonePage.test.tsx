@@ -284,6 +284,45 @@ describe('a phone page that takes the test and the barem too', () => {
     expect(screen.queryByRole('button', { name: 'Mai târziu' })).not.toBeInTheDocument();
   });
 
+  it('reads the pages again when she comes back to the pages step', async () => {
+    const { tryApi } = setup([], tryTest({ title: 'Fracții 6B', files: { test: files.test, barem: null } }), '/phone?parts=test,pages');
+    await userEvent.click(await screen.findByRole('button', { name: 'Continuă cu lucrarea elevului' }));
+    await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 });
+    await pick([jpeg('pagina-1.jpg')]);
+    await waitFor(() => expect(screen.getByText('Încărcat')).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Înapoi' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Continuă cu lucrarea elevului' }));
+    expect(await screen.findByRole('heading', { name: 'Paginile (1)' })).toBeInTheDocument();
+    expect(tryApi.listPages.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it('keeps "Înapoi" off while a send of the step is on its way', async () => {
+    const { api } = setup([], tryTest({ title: 'Fracții 6B', files: { test: files.test, barem: null } }), '/phone?parts=test,marking-scheme');
+    await userEvent.click(await screen.findByRole('button', { name: 'Continuă cu baremul' }));
+    await screen.findByRole('heading', { name: 'Baremul', level: 1 });
+    let finish = () => {};
+    api.uploadTestFile.mockImplementationOnce(() => new Promise((done) => (finish = () => done({ file: { name: 'b.pdf', type: 'application/pdf' }, robot: null }))));
+    await snap(jpeg('a.jpg'));
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite baremul' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Înapoi' })).toBeDisabled());
+    finish();
+    expect(await screen.findByRole('heading', { name: 'Pozele au ajuns' })).toBeInTheDocument();
+  });
+
+  it('asks for the barem again when its first request failed', async () => {
+    const { api } = setup([], empty(), '/phone?parts=test,pages');
+    api.generateBarem.mockRejectedValueOnce(new ApiError(0, 'network', 'Nu mă pot conecta la server.'));
+    await screen.findByRole('heading', { name: 'Testul', level: 1 });
+    await snap(jpeg('a.jpg'));
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite testul și continuă' }));
+    expect(await screen.findByText('Testul a ajuns.')).toBeInTheDocument();
+    expect(screen.getByText('Nu mă pot conecta la server.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Fă baremul din test' }));
+    await waitFor(() => expect(api.generateBarem).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Fă baremul din test' })).not.toBeInTheDocument());
+    expectNoGradingWords();
+  });
+
   it("shows the server's refusal and stays on the step", async () => {
     const { api } = setup([], empty(), '/phone?parts=test,pages');
     api.uploadTestFile.mockRejectedValueOnce(new ApiError(409, 'quick_try_files', 'Într-o încercare rapidă poți încărca testul și baremul de cel mult 6 ori în total.'));

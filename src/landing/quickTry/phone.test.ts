@@ -42,7 +42,7 @@ interface OpenOptions {
   pages?: SubmissionFile[];
   parts?: PhonePart[];
   // What the test reads give: the files the try has.
-  files?: { test: boolean; barem: boolean };
+  files?: { test: boolean; barem: boolean; request?: 'none' | 'requested' | 'failed' };
   makePdf?: MakePdf;
   robotBarem?: boolean;
   drawQr?: (svg: SVGSVGElement, text: string) => Promise<void>;
@@ -57,7 +57,12 @@ function open(options: OpenOptions = {}) {
   const api = fakeApi(options.pages ?? []);
   const has = options.files ?? { test: false, barem: false };
   const named = (name: string) => ({ name, type: PDF_TYPE });
-  api.getTest.mockImplementation(async () => tryTest({ files: { test: has.test ? named('test.pdf') : null, barem: has.barem ? named('barem.pdf') : null } }));
+  api.getTest.mockImplementation(async () =>
+    tryTest({
+      files: { test: has.test ? named('test.pdf') : null, barem: has.barem ? named('barem.pdf') : null },
+      barem: { request: has.request ?? 'none', unchecked: false },
+    }),
+  );
   const drawQr = vi.fn(options.drawQr ?? (async () => {}));
   const onStarted = vi.fn();
   const onClosed = vi.fn();
@@ -319,6 +324,41 @@ describe('the QR window when the test or the barem comes from the phone', () => 
     expect(rowOf(block, 'barem')).toHaveTextContent('Se face din test, după ce ajunge testul');
     expect(view.queryByRole('button', { name: 'Pornește corectarea' })).toBeNull();
     expect(view.getByRole('link', { name: 'Deschide încercarea' })).toBeVisible();
+  });
+
+  it('asks for the barem made from the test itself, once, when the phone did not', async () => {
+    const { api } = open({ parts: ['test', 'pages'], robotBarem: true, files: { test: true, barem: false } });
+    await waitFor(() => expect(api.generateBarem).toHaveBeenCalledWith(TOKEN, 'PROBA-26T1'));
+    await new Promise((done) => setTimeout(done, 40));
+    expect(api.generateBarem).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for nothing when the phone asked already', async () => {
+    const { api, block } = open({ parts: ['test', 'pages'], robotBarem: true, files: { test: true, barem: false, request: 'requested' } });
+    await waitFor(() => expect(rowOf(block, 'barem')).toHaveTextContent('Se face acum din test'));
+    await new Promise((done) => setTimeout(done, 40));
+    expect(api.generateBarem).not.toHaveBeenCalled();
+  });
+
+  it('says when the barem could not be made, and stops reading the test', async () => {
+    const { api, block } = open({ parts: ['test', 'pages'], robotBarem: true, files: { test: true, barem: false, request: 'failed' } });
+    await waitFor(() => expect(rowOf(block, 'barem')).toHaveTextContent('Nu s-a putut face din test. Continuă pe pagina încercării.'));
+    const reads = api.getTest.mock.calls.length;
+    await new Promise((done) => setTimeout(done, 40));
+    expect(api.getTest).toHaveBeenCalledTimes(reads);
+    expect(api.generateBarem).not.toHaveBeenCalled();
+  });
+
+  it('reads the test again after a laptop test is sent, and asks for nothing the phone asked already', async () => {
+    const { api, block, has } = open({ parts: ['test', 'pages'], robotBarem: true });
+    await waitFor(() => expect(api.getTest).toHaveBeenCalled());
+    // The phone sent the test and asked meanwhile; the window has not read it yet.
+    has.test = true;
+    has.request = 'requested';
+    pickPart(block, 'test', new File(['%PDF'], 'test.pdf', { type: PDF_TYPE }));
+    await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalled());
+    await new Promise((done) => setTimeout(done, 40));
+    expect(api.generateBarem).not.toHaveBeenCalled();
   });
 
   it('sends the test picked on the laptop as one PDF, and asks for the barem made from it', async () => {
