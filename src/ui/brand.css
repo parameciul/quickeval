@@ -5808,7 +5808,9 @@ input[type="file"] {
   pointer-events: none;
 }
 
-label.pick-tile:hover,
+/* Under the pointer only while the tile can be picked and shows no state of
+   its own: a chosen (green) or refused (red) tile keeps its colour. */
+.file-drop-field input:enabled + label.pick-tile:not(.is-chosen, .is-problem):hover,
 .pick-tile.is-over {
   border-color: var(--ink);
   background: var(--ink-tint);
@@ -5885,7 +5887,7 @@ label.pick-tile:hover,
   cursor: default;
 }
 
-.file-drop-field > .hint {
+.file-drop-field:has(> .pick-tile) > .hint {
   margin: 0.375rem 0 0;
 }
 

@@ -189,7 +189,7 @@ export function NewTestPage() {
     ];
     const toggle = (
       <fieldset className="seg">
-        <legend className="sr-only">{ces ? t('Baremul CES') : t('Baremul')}</legend>
+        <legend className="sr-only">{ces ? t('Baremul CES') : withCes ? t('Baremul clasei') : t('Baremul')}</legend>
         {labels.map(([value, label]) => (
           <label key={value}>
             <input
@@ -329,22 +329,21 @@ export function NewTestPage() {
                   </h2>
                   {stepMark(1)}
                 </div>
-                {withCes ? (
-                  <>
-                    <div className="step-part">
-                      <h3>{t('Testul clasei')}</h3>
-                      <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} onBusy={busyOf('test')} tile={testTile} />
-                    </div>
-                    <div className="step-part">
-                      <h3>
-                        {t('Testul CES')}
-                        <CesTag />
-                      </h3>
-                      <FileDrop id="new-ces-test-file" name={t('Fișierul testului CES')} onPick={pickCesTest} onBusy={busyOf('cesTest')} tile={cesTestTile} />
-                    </div>
-                  </>
-                ) : (
+                {/* The class part keeps its place whether the CES part shows or not,
+                    so turning CES on or off never redraws its file tile and loses
+                    the file shown in it. */}
+                <div className="step-part">
+                  {withCes && <h3>{t('Testul clasei')}</h3>}
                   <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} onBusy={busyOf('test')} tile={testTile} />
+                </div>
+                {withCes && (
+                  <div className="step-part">
+                    <h3>
+                      {t('Testul CES')}
+                      <CesTag />
+                    </h3>
+                    <FileDrop id="new-ces-test-file" name={t('Fișierul testului CES')} onPick={pickCesTest} onBusy={busyOf('cesTest')} tile={cesTestTile} />
+                  </div>
                 )}
               </li>
               <li className={stepClass(2)}>
@@ -356,34 +355,29 @@ export function NewTestPage() {
                   {stepMark(2)}
                   {!withCes && classBarem.toggle}
                 </div>
-                {withCes ? (
-                  <>
-                    <div className="step-part">
-                      <div className="step-part-head">
-                        <h3>{t('Baremul clasei')}</h3>
-                        {classBarem.toggle}
-                      </div>
-                      {classBarem.note}
-                      {classBarem.body}
+                <div className="step-part">
+                  {withCes && (
+                    <div className="step-part-head">
+                      <h3>{t('Baremul clasei')}</h3>
+                      {classBarem.toggle}
                     </div>
-                    <div className="step-part">
-                      <div className="step-part-head">
-                        <h3>
-                          {t('Baremul CES')}
-                          <CesTag />
-                        </h3>
-                        {cesBaremParts.toggle}
-                      </div>
-                      <p className="step-part-note">{t('Doar pentru corectare: 90 de puncte și 10 din oficiu.')}</p>
-                      {cesBaremParts.note}
-                      {cesBaremParts.body}
+                  )}
+                  {classBarem.note}
+                  {classBarem.body}
+                </div>
+                {withCes && (
+                  <div className="step-part">
+                    <div className="step-part-head">
+                      <h3>
+                        {t('Baremul CES')}
+                        <CesTag />
+                      </h3>
+                      {cesBaremParts.toggle}
                     </div>
-                  </>
-                ) : (
-                  <>
-                    {classBarem.note}
-                    {classBarem.body}
-                  </>
+                    <p className="step-part-note">{t('Doar pentru corectare: 90 de puncte și 10 din oficiu.')}</p>
+                    {cesBaremParts.note}
+                    {cesBaremParts.body}
+                  </div>
                 )}
               </li>
             </ol>

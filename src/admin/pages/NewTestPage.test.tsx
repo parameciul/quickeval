@@ -20,7 +20,8 @@ const pdf = (name: string) => new File(['%PDF-1.7'], name, { type: PDF_TYPE });
 const testField = () => screen.getByLabelText(/^Fișierul testului/);
 const baremField = () => screen.getByLabelText(/^Fișierul baremului/);
 // The barem's switch of the class (the group "Baremul"): Fișier, Din test, Mai târziu.
-const choice = (name: string) => within(screen.getByRole('group', { name: 'Baremul' })).getByRole('radio', { name });
+// With a CES part beside it, the class's group is "Baremul clasei".
+const choice = (name: string) => within(screen.getByRole('group', { name: /^Baremul( clasei)?$/ })).getByRole('radio', { name });
 // The step a heading is in, and where it stands (shown, or for a screen reader).
 const stepOf = (heading: HTMLElement) => heading.closest('li')!;
 const stepTag = (step: HTMLElement) => step.querySelector('.step-head > .step-state')?.textContent;
@@ -481,6 +482,28 @@ describe('NewTestPage, a class with a CES student', () => {
     // Off, the CES parts are not asked for: the class files are enough.
     await userEvent.click(toggle);
     expect([stepTag(second), stepTag(third)]).toEqual(['Gata', 'Gata']);
+  });
+
+  it('keeps the class test and barem shown in their tiles when the CES switch is turned off and on', async () => {
+    renderAdmin('/tests/new', withCes());
+    await fillClassAndTitle('2');
+    const toggle = await screen.findByRole('switch', { name: 'Test separat pentru elevii cu CES' });
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului:/), pdf('Test.pdf'));
+    await userEvent.upload(screen.getByLabelText(/^Fișierul baremului:/), pdf('Barem.pdf'));
+    const tiles = () => [document.querySelector('label[for="new-test-file"]')!, document.querySelector('label[for="new-barem-file"]')!];
+    const before = tiles();
+    for (const turn of ['off', 'on']) {
+      await userEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-checked', turn === 'on' ? 'true' : 'false');
+      // The same tiles, not new empty ones.
+      expect(tiles()[0]).toBe(before[0]);
+      expect(tiles()[1]).toBe(before[1]);
+      expect(tiles()[0]).toHaveClass('is-chosen');
+      expect(tiles()[0]).toHaveTextContent('Test.pdf');
+      expect(tiles()[1]).toHaveClass('is-chosen');
+      expect(tiles()[1]).toHaveTextContent('Barem.pdf');
+    }
+    expect(screen.getByRole('group', { name: 'Baremul clasei' })).toBeInTheDocument();
   });
 
   it('turned off, hides the CES files, asks nothing for them, and creates the test without them', async () => {
