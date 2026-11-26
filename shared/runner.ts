@@ -36,6 +36,12 @@ export const ROBOT_RESTART_MS = LEASE_STALE_MS;
 // long. The teachers' robot waits an hour: the limit comes back after hours.
 // The Quick Try robot tries again sooner, because a person waits for it.
 export const RESTART_AFTER_LIMIT_MS: Record<RobotLane, number> = { main: 60 * 60_000, try: ROBOT_RESTART_MS };
+// After a run that stopped at an error (tasks failed in a row, or the API
+// failed), a page does not start the teachers' robot again: a person looks
+// first, and new work and "Pornește robotul" still start it. The Quick Try
+// robot has no button and its waiting visitor cannot ask, so it tries again
+// after an hour; a try's own attempts bound what that can cost.
+export const RESTART_AFTER_ERROR_MS: Record<RobotLane, number | null> = { main: null, try: 60 * 60_000 };
 
 // The largest body of an exercise list or a result, in bytes. A grading of 60
 // exercises with every text at its limit is far smaller; the saved raw output

@@ -107,7 +107,10 @@ export function openSession(options: RunOptions, maxParallel: number): RunSessio
 
   const finish = async (failure: boolean): Promise<RunReport> => {
     clearInterval(heartbeat);
-    const summary: RunSummary = { ...counts, stop: stop ?? 'done' };
+    // A run that failed with no other reason to stop (a print image that
+    // cannot be built) ends at an error, so no page starts it again every 15
+    // minutes to fail the same way (claimRobotRestart).
+    const summary: RunSummary = { ...counts, stop: stop ?? (failure ? 'error' : 'done') };
     try {
       await api.release(runId, summary);
     } catch (err) {

@@ -342,14 +342,16 @@ describe('runRobot and the print PDFs', () => {
     expect(readdirSync(run.root)).toEqual([]);
   });
 
-  it('stops making prints when the image cannot be built, and exits 1', async () => {
+  it('stops making prints when the image cannot be built, and exits 1 with stop error', async () => {
     await setUp(1, 1);
     const first = await addOpenTest(world!.api, 'pdf');
     const second = await addOpenTest(world!.api, 'docx', '7B2');
     const tools = fakeTools(true);
     const { run, requests } = recorded({ print: { tools, siteUrl: API_URL } });
     const report = await runRobot(run);
-    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, barems: 0, stop: 'done' }, exitCode: 1 });
+    // "error", not "done": a page must not start the robot again every 15
+    // minutes for a container that fails each time (claimRobotRestart).
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, barems: 0, stop: 'error' }, exitCode: 1 });
     expect(tools.prepared).toBe(1);
     expect(tools.runs).toBe(0);
     expect(requests.filter((request) => request.includes('print-failed'))).toEqual([]);

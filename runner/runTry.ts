@@ -5,13 +5,13 @@ import { openSession, type RunOptions, type RunReport } from './session.ts';
 import { gradeSubmission, makeExerciseList } from './tasks.ts';
 
 // One run of the Quick Try robot (the try lane): its own lease, and up to
-// maxParallel slots ("Încercări rapide deodată") that each take the next piece
-// of Quick Try work no other slot has: a barem, an exercise list, or a paper.
+// maxParallel tasks at once ("Încercări rapide deodată"), each the next piece
+// of Quick Try work no other task has: a barem, an exercise list, or a paper.
 // A try's own steps come in order by themselves: its list waits for its barem
 // (and the visitor's check), its paper for its list. A Quick Try has no print,
 // no CES variant and no class analysis, so the run reads none of them.
 
-// How long a free slot waits before it looks for new work again.
+// How long the run waits, while tasks work, before it looks for new work again.
 export const IDLE_POLL_MS = 20_000;
 
 export async function runTryRobot(options: RunOptions): Promise<RunReport> {
@@ -24,19 +24,19 @@ export async function runTryRobot(options: RunOptions): Promise<RunReport> {
   const session = openSession(options, lease.maxParallel);
   const { ctx, canTake, stopTaking, record } = session;
 
-  // The tests a slot works on now. Only one try run works at a time (its
-  // lease), so this list in memory keeps two slots off one barem or list; a
+  // The tests a task works on now. Only one try run works at a time (its
+  // lease), so this list in memory keeps two tasks off one barem or list; a
   // paper is claimed in SQL.
   const busy = new Set<number>();
   // A list is tried once per run, and a barem twice at most: the teachers' run
-  // tries a `retry` barem again a round later, but a free slot here would take
+  // tries a `retry` barem again a round later, but the next look here would take
   // it again at once, use up its attempts in a row and stop the run at an
   // error. Its last attempt is left to a later run.
   const baremsTried = new Set<number>();
   const baremsRetried = new Set<number>();
   const listsTried = new Set<number>();
 
-  // The next task no other slot has, or null when none is left. The pick and
+  // The next task no other task has, or null when none is left. The pick and
   // the mark in `busy` happen with no wait between them.
   const nextTask = async (): Promise<(() => Promise<void>) | null> => {
     const tasks = await api.tasks();
@@ -70,41 +70,75 @@ export async function runTryRobot(options: RunOptions): Promise<RunReport> {
     return claim ? async () => record(await gradeSubmission(ctx, claim), 'graded') : null;
   };
 
-  // A slot that finds no work waits and looks again while another slot works:
-  // a try that comes during the run starts at once on a free slot. The run
-  // ends when a look finds no work and no slot works.
+  // One loop looks for work, one look at a time whatever the setting (each
+  // look reads the task list from D1). A task it finds starts at once while
+  // fewer than maxParallel run, and the loop looks again. With nothing found
+  // and tasks at work, it waits IDLE_POLL_MS or for a task to end, so a try
+  // that comes during the run starts soon. With nothing found and nothing at
+  // work, the run ends.
   const idlePollMs = options.idlePollMs ?? IDLE_POLL_MS;
-  let working = 0;
-  const slot = async () => {
-    try {
-      while (canTake()) {
-        const task = await nextTask();
-        if (!task) {
-          if (working === 0) return;
-          await new Promise((resolve) => setTimeout(resolve, idlePollMs));
-          continue;
-        }
-        working += 1;
-        try {
-          await task();
-        } finally {
-          working -= 1;
-        }
-      }
-    } catch (err) {
-      // The other slots take no new work either.
-      stopTaking(err instanceof RobotApiError && err.code === 'lease_lost' ? 'lease_lost' : 'error');
-      throw err;
-    }
+  const places = Math.max(1, lease.maxParallel);
+  const running = new Set<Promise<void>>();
+  let thrown: unknown = null;
+  const leaseLost = (err: unknown) => err instanceof RobotApiError && err.code === 'lease_lost';
+  const fail = (err: unknown) => {
+    // No new work after this; the tasks at work finish.
+    stopTaking(leaseLost(err) ? 'lease_lost' : 'error');
+    thrown ??= err;
   };
+  // Tasks ended so far: a task that ends during a look may have made new work
+  // (a list makes its paper gradable) that the look read too early.
+  let ended = 0;
+  const start = (task: () => Promise<void>) => {
+    const work: Promise<void> = task()
+      .catch(fail)
+      .finally(() => {
+        running.delete(work);
+        ended += 1;
+      });
+    running.add(work);
+  };
+  const taskEnds = () => Promise.race(running);
 
-  let failure = false;
-  // Every slot ends before the run does: no task runs on after the release.
-  const slots = await Promise.allSettled(Array.from({ length: Math.max(1, lease.maxParallel) }, slot));
-  const thrown = slots.find((result): result is PromiseRejectedResult => result.status === 'rejected');
-  if (thrown && !(thrown.reason instanceof RobotApiError && thrown.reason.code === 'lease_lost')) {
-    failure = true;
-    log('run failed', { run: runId, error: thrown.reason instanceof RobotApiError ? thrown.reason.code : 'unknown' });
+  while (canTake()) {
+    if (running.size >= places) {
+      await taskEnds();
+      continue;
+    }
+    const endedBefore = ended;
+    let task: (() => Promise<void>) | null;
+    try {
+      task = await nextTask();
+    } catch (err) {
+      // A look that fails while tasks work is tried again at the next look:
+      // their own requests stop the run when the API is really down.
+      if (leaseLost(err) || running.size === 0) {
+        fail(err);
+        break;
+      }
+      log('look failed', { run: runId, error: err instanceof RobotApiError ? err.code : 'unknown' });
+      task = null;
+    }
+    if (task) {
+      // A stop that came during the look: the work found waits for a later
+      // run (a claimed paper goes back to the queue at the next check).
+      if (!canTake()) break;
+      start(task);
+      continue;
+    }
+    if (running.size === 0) {
+      // Nothing at work: the run ends, unless a task ended during this look.
+      if (ended !== endedBefore) continue;
+      break;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([new Promise((resolve) => (timer = setTimeout(resolve, idlePollMs))), taskEnds()]);
+    clearTimeout(timer);
   }
+  // Every task ends before the run does: no task runs on after the release.
+  while (running.size > 0) await taskEnds();
+
+  const failure = thrown !== null && !leaseLost(thrown);
+  if (failure) log('run failed', { run: runId, error: thrown instanceof RobotApiError ? thrown.code : 'unknown' });
   return session.finish(failure);
 }

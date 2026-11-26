@@ -5,6 +5,7 @@ import { DOCX_TYPE } from '../../shared/files.ts';
 import {
   LANE_ROW,
   LEASE_STALE_MS,
+  RESTART_AFTER_ERROR_MS,
   RESTART_AFTER_LIMIT_MS,
   ROBOT_RESTART_MS,
   type CheckResult,
@@ -154,8 +155,9 @@ export async function laneHasWork(db: D1Database, scope: RestartScope, now: stri
 // started it in the last ROBOT_RESTART_MS, and the lane's last run, when
 // nothing came after it, did not end at a refused Claude login (that needs a
 // person to renew the token), at an error (three tasks in a row used an
-// attempt, or the API failed: a person looks first, or every start would use
-// three more attempts of the waiting papers) or at the plan's limit less than
+// attempt, or the API failed: every start would use three more attempts of the
+// waiting papers) less than RESTART_AFTER_ERROR_MS ago (the main lane: never,
+// a person looks first), or at the plan's limit less than
 // RESTART_AFTER_LIMIT_MS ago. The time is taken even when the page then finds
 // no work: the look at the work runs at most once in that time, and every new
 // piece of work starts the robot at once anyway.
@@ -170,10 +172,18 @@ export async function claimRobotRestart(db: D1Database, lane: RobotLane, now: st
          AND (last_check_at IS NULL OR last_check_at < ?4)
          AND (restart_at IS NULL OR restart_at < ?4)
          AND NOT (last_run_finished_at IS NOT NULL AND last_run_finished_at >= COALESCE(last_check_at, '') AND (
-           json_extract(last_run_summary, '$.stop') IN ('claude_login', 'error')
+           json_extract(last_run_summary, '$.stop') = 'claude_login'
+           OR (json_extract(last_run_summary, '$.stop') = 'error' AND (?6 IS NULL OR last_run_finished_at >= ?6))
            OR (json_extract(last_run_summary, '$.stop') = 'usage_limit' AND last_run_finished_at >= ?5)))`,
     )
-    .bind(now, LANE_ROW[lane], staleBefore(now), before(ROBOT_RESTART_MS), before(RESTART_AFTER_LIMIT_MS[lane]))
+    .bind(
+      now,
+      LANE_ROW[lane],
+      staleBefore(now),
+      before(ROBOT_RESTART_MS),
+      before(RESTART_AFTER_LIMIT_MS[lane]),
+      RESTART_AFTER_ERROR_MS[lane] === null ? null : before(RESTART_AFTER_ERROR_MS[lane]),
+    )
     // No RETURNING: D1 counts one more row read for it, on every page read.
     .all();
   return result.meta.changes > 0;
@@ -183,7 +193,8 @@ export async function claimRobotRestart(db: D1Database, lane: RobotLane, now: st
 // - an upload of the lane's own tests left in grading by a run that died or
 //   ended goes back to the queue, so no upload is lost when no new run takes
 //   the lease (the other lane's check or lease does that for its own);
-// - scheduled evaluations whose time has come start, and finished tests end;
+// - scheduled evaluations whose time has come start (the main lane only),
+//   and finished tests end;
 // - the time of the check is saved for the robot line;
 // - the counts say whether a run has work.
 export async function runCheck(
@@ -201,7 +212,10 @@ export async function runCheck(
            AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND ${mine})`,
       )
       .bind(staleBefore(now)),
-    ...promoteStatements(db, now),
+    // Only the teachers' check starts scheduled tests: a try never schedules,
+    // and a teachers' test the try check started would wait for no robot.
+    // Both end the tests with nothing left to grade.
+    ...(lane === 'main' ? promoteStatements(db, now) : [askForAnalysis(db), finishTests(db, now)]),
     db.prepare('UPDATE runner_state SET last_check_at = ? WHERE id = ?').bind(now, LANE_ROW[lane]),
     ...configuredStatements(db, now, configured),
     db.prepare(
@@ -311,6 +325,7 @@ export async function releaseLease(db: D1Database, runId: string, summary: RunSu
 }
 
 export async function listTasks(db: D1Database, lane: RobotLane = 'main'): Promise<TasksResult> {
+  if (lane === 'try') return listTryTasks(db);
   const mine = laneWorkSql(lane, 't');
   const [lists, grading, analyses, prints, barems, cesPrints, cesBarems, cesLists] = await db.batch<{ id?: number; count?: number }>([
     db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
@@ -328,6 +343,31 @@ export async function listTasks(db: D1Database, lane: RobotLane = 'main'): Promi
     cesPrints: ids(cesPrints?.results),
     cesBarems: ids(cesBarems?.results),
     cesExerciseLists: ids(cesLists?.results),
+  };
+}
+
+// The Quick Try robot's task list, read on every look of its run while a try
+// is graded (runner/runTry.ts), so its rows must not grow with the teachers'
+// tests. A try has no print, no CES variant and no class analysis. Its barem is
+// asked for only before its grading, so never on a finished test: the status
+// keeps the barem look on the index of tests that are not done.
+async function listTryTasks(db: D1Database): Promise<TasksResult> {
+  const mine = laneWorkSql('try', 't');
+  const [lists, grading, barems] = await db.batch<{ id?: number; count?: number }>([
+    db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
+    db.prepare(`SELECT COUNT(*) AS count FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${mine} AND ${GRADABLE}`),
+    db.prepare(`SELECT t.id FROM tests t WHERE t.status IN ('draft', 'open', 'evaluating') AND ${mine} AND ${NEEDS_BAREM} ORDER BY t.updated_at, t.id`),
+  ]);
+  const ids = (rows: { id?: number }[] | undefined) => (rows ?? []).map((row) => row.id!);
+  return {
+    exerciseLists: ids(lists?.results),
+    pendingGrading: grading?.results[0]?.count ?? 0,
+    analyses: [],
+    prints: [],
+    barems: ids(barems?.results),
+    cesPrints: [],
+    cesBarems: [],
+    cesExerciseLists: [],
   };
 }
 

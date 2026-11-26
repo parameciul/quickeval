@@ -126,11 +126,16 @@ describe('the try robot starts again', () => {
     expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
-  it('does not start the try robot again after a run that stopped at an error', async () => {
+  it('starts the try robot again an hour after a run that stopped at an error', async () => {
+    // A waiting visitor has no button: the try lane waits an hour, then tries.
     const error = JSON.stringify({ exerciseLists: 0, graded: 0, failed: 3, analyses: 0, prints: 0, barems: 0, stop: 'error' });
-    await setRow(2, 'last_check_at = ?, last_run_finished_at = ?, last_run_summary = ?', ago(300), ago(240), error);
+    await setRow(2, 'last_check_at = ?, last_run_finished_at = ?, last_run_summary = ?', ago(300), ago(30), error);
     await readTry();
     expect(dispatchRobot).not.toHaveBeenCalled();
+    vi.setSystemTime(minutes(31));
+    await readTry();
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+    expect(dispatchRobot).toHaveBeenLastCalledWith(expect.anything(), 'try');
   });
 
   it('does not start the try robot for a try with no robot work', async () => {

@@ -141,6 +141,30 @@ describe('robot lanes', () => {
     expect(await paper(tryPaper)).toEqual({ status: 'grading', run_id: TRY_RUN });
   });
 
+  it("a try check leaves a teacher's scheduled test to the teachers' robot", async () => {
+    // A try check that started it would leave it to no robot: nothing would
+    // start the teachers' robot for it.
+    const cls = await makeClass(api, '7A', ['Radu Dan']);
+    const code = await makeTest(api, cls.id);
+    await startTest(api, code);
+    await addTestFiles(api, code);
+    await addSubmission(api, code, cls.studentIds[0]!, { status: 'submitted', files: 1 });
+    const due = await testIdOf(api, code);
+    await api.db.prepare("UPDATE tests SET evaluation_at = '2026-01-01T00:00:00.000Z' WHERE id = ?").bind(due).run();
+    const status = async () => (await api.db.prepare('SELECT status FROM tests WHERE id = ?').bind(due).first<{ status: string }>())!.status;
+    await robot('POST', '/check?lane=try');
+    expect(await status()).toBe('open');
+    await robot('POST', '/check');
+    expect(await status()).toBe('evaluating');
+  });
+
+  it('a try check still ends a try whose paper is graded', async () => {
+    await api.db.prepare("UPDATE submissions SET status = 'graded' WHERE id = ?").bind(tryPaper).run();
+    await robot('POST', '/check?lane=try');
+    const row = await api.db.prepare('SELECT status FROM tests WHERE id = ?').bind(tryTestId).first<{ status: string }>();
+    expect(row!.status).toBe('done');
+  });
+
   it("a check of one lane leaves a dead run of the other lane's paper to that lane", async () => {
     // A main run that died with a class paper in grading: only a main check or
     // lease gives it back, as a try check leaves the main lane alone.

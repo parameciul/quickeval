@@ -75,8 +75,10 @@ async function tryApi(tries: number): Promise<TestApi> {
   return api;
 }
 
-function options(claude: ReturnType<typeof scriptedClaude>, requests: string[] = []): RunOptions {
-  const inner = fetchFrom(api!);
+type Fetch = ReturnType<typeof fetchFrom>;
+
+function options(claude: ReturnType<typeof scriptedClaude>, requests: string[] = [], wrap: (inner: Fetch) => Fetch = (inner) => inner): RunOptions {
+  const inner = wrap(fetchFrom(api!));
   const robot = robotApi(API_URL, ROBOT_KEY, {
     fetch: (url, init) => {
       requests.push(`${init.method} ${url.slice(`${API_URL}/api/runner`.length)}`);
@@ -106,6 +108,28 @@ function together(count: number, outcome: ClaudeOutcome) {
 }
 
 const paperStatus = (id: number) => api!.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(id).first<{ status: string }>();
+
+// A try whose list is ready: its paper waits only for a claim.
+async function readyTry() {
+  const made = await addTry(api!, 'own');
+  await api!.db.prepare("UPDATE tests SET exercise_list_status = 'ready', exercise_list_json = ? WHERE id = ?").bind(JSON.stringify(LIST), made.testId).run();
+  return made;
+}
+
+// A Claude answer that waits, up to a second, for `started` to be called.
+function waitsFor(outcome: ClaudeOutcome, before: () => Promise<void> = async () => {}) {
+  let started: () => void = () => {};
+  const other = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const answerAfter = async () => {
+    await before();
+    const late = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('the other task waited for this one')), 1000));
+    await Promise.race([other, late]);
+    return outcome;
+  };
+  return { answerAfter, started: () => started() };
+}
 
 describe('runTryRobot', () => {
   it("makes a try's barem, and leaves the rest to the visitor's check", async () => {
@@ -174,6 +198,85 @@ describe('runTryRobot', () => {
     });
     const report = await runTryRobot(options(claude));
     expect(report.summary).toMatchObject({ barems: 2, failed: 0, stop: 'done' });
+  });
+
+  it('keeps a free place for a try that comes during a grading, even when its claim answered late', async () => {
+    await tryApi(2);
+    await readyTry();
+    // The claim that wins the paper answers last: no place may end because a
+    // claim that found nothing came back first.
+    let claims = 0;
+    const slowFirstClaim = (inner: Fetch): Fetch => async (url, init) => {
+      const response = await inner(url, init);
+      if (url.includes('/claim') && ++claims === 1) await new Promise((resolve) => setTimeout(resolve, 50));
+      return response;
+    };
+    // B comes during A's grading; its list must start before A's grading ends.
+    const first = waitsFor(answer(GRADING), async () => {
+      await addTry(api!, 'own');
+    });
+    const claude = scriptedClaude(
+      first.answerAfter,
+      async () => {
+        first.started();
+        return answer(LIST);
+      },
+      answer(GRADING),
+    );
+    const report = await runTryRobot(options(claude, [], slowFirstClaim));
+    expect(report.summary).toMatchObject({ exerciseLists: 1, graded: 2, failed: 0, stop: 'done' });
+  });
+
+  it('looks again after a failed look while a task works, and ends well', async () => {
+    await tryApi(2);
+    await readyTry();
+    // While the grading is in Claude, every look at the task list fails.
+    let failing = false;
+    const failingLooks = (inner: Fetch): Fetch => async (url, init) => {
+      if (failing && url.includes('/tasks')) return new Response('{"error":"down","message":"down"}', { status: 503, headers: { 'Content-Type': 'application/json' } });
+      return inner(url, init);
+    };
+    const claude = scriptedClaude(async () => {
+      failing = true;
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      failing = false;
+      return answer(GRADING);
+    });
+    const report = await runTryRobot(options(claude, [], failingLooks));
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 1, failed: 0, analyses: 0, prints: 0, barems: 0, stop: 'done' }, exitCode: 0 });
+  });
+
+  it('looks for work once at a time, whatever the number of places', async () => {
+    await tryApi(4);
+    await readyTry();
+    // Each look reads the task list from D1: never two at the same time.
+    let looking = 0;
+    let most = 0;
+    let looks = 0;
+    let enough: () => void = () => {};
+    const threeLooks = new Promise<void>((resolve) => {
+      enough = resolve;
+    });
+    const countLooks = (inner: Fetch): Fetch => async (url, init) => {
+      if (!url.includes('/tasks')) return inner(url, init);
+      looking += 1;
+      most = Math.max(most, looking);
+      try {
+        return await inner(url, init);
+      } finally {
+        looking -= 1;
+        if (++looks >= 4) enough();
+      }
+    };
+    // The grading works until the run looked a few more times.
+    const claude = scriptedClaude(async () => {
+      await Promise.race([threeLooks, new Promise((resolve) => setTimeout(resolve, 2000))]);
+      return answer(GRADING);
+    });
+    const report = await runTryRobot(options(claude, [], countLooks));
+    expect(report.summary).toMatchObject({ graded: 1, stop: 'done' });
+    expect(looks).toBeGreaterThanOrEqual(4);
+    expect(most).toBe(1);
   });
 
   it('tries a barem that waits for another attempt once more, then leaves it to the next run', async () => {
