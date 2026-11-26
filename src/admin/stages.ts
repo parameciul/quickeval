@@ -25,6 +25,9 @@ export interface Stage {
   // The state in a few words ("3 puncte nesigure"); empty when the stage
   // has nothing to say.
   note: string;
+  // The test's average once its results are published: the note says it in
+  // words, and the Teste page draws it as a grade chip.
+  average?: number;
 }
 
 export interface TestStages {
@@ -122,7 +125,8 @@ export function stagesOf(test: TestSummary): TestStages {
     const published = test.resultsOpen || (test.gradedCount > 0 && test.publishedCount >= test.gradedCount);
     if (done && published) {
       const average = test.averageGrade === null ? '' : ` · ${t('media testului {grade}', { grade: formatPoints(test.averageGrade) })}`;
-      return stage('Rezultate', 'done', `${t('publicate')}${average}`);
+      const shown = stage('Rezultate', 'done', `${t('publicate')}${average}`);
+      return test.averageGrade === null ? shown : { ...shown, average: test.averageGrade };
     }
     if (done && test.gradedCount === 0) return stage('Rezultate', 'later', t('nicio lucrare corectată'));
     // The archive closes the results: closed is the normal end of an archived

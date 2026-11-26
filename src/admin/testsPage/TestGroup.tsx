@@ -1,11 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router';
 import type { TestSummary } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
+import { classToneStyle } from '../../ui/classTone.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { stagesOf } from '../stages.ts';
+import { GradeChip } from '../testPage/GradeChip.tsx';
 import { startedLabel } from './greeting.ts';
 import { nextStep } from './nextStep.ts';
 import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
@@ -92,6 +94,7 @@ function TestRow({
 }) {
   const api = useApi();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   // Publishing or stopping the results on the row (§1, decision 20). The row
   // waits for the list again: its buttons come from it.
   const results = useMutation({
@@ -119,9 +122,19 @@ function TestRow({
   const className = displayClassName(test.className);
   const where = `${test.title}, ${className}`;
   const buttonClass = primary ? 'button button-small' : 'button-quiet button-small';
+  // A click anywhere on the row opens the test, as its name does, but for a
+  // click on a link or a button of the row, a click with a key held (the
+  // browser's own ways to open a link elsewhere), and one that ends a selection
+  // of the row's text. The name stays the link for the keyboard.
+  const openRow = (event: MouseEvent<HTMLTableRowElement>) => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if ((event.target as Element).closest('a, button, input, label')) return;
+    if (window.getSelection()?.toString()) return;
+    void navigate(`/tests/${test.code}`);
+  };
 
   return (
-    <tr className={test.archived ? 'is-muted' : undefined}>
+    <tr className={test.archived ? 'is-muted' : undefined} onClick={openRow}>
       <th scope="row" className="test-name">
         <Link ref={link} to={`/tests/${test.code}`}>
           {test.title}
@@ -129,6 +142,7 @@ function TestRow({
         {test.archived && ' '}
         {test.archived && <span className="tag">{t('Arhivat')}</span>}
         <span className="test-sub">
+          <span className="class-dot" style={classToneStyle(test.classId)} aria-hidden="true" />
           {className} · {startedText(test)}
         </span>
       </th>
@@ -141,7 +155,14 @@ function TestRow({
           </span>
           <span className="stage-text">
             <b>{t(current.name)}</b>
-            {current.note && ` · ${current.note}`}
+            {current.average === undefined ? (
+              current.note && ` · ${current.note}`
+            ) : (
+              <>
+                {` · ${t('publicate')} · ${t('media testului')} `}
+                <GradeChip grade={current.average} small />
+              </>
+            )}
           </span>
         </div>
       </td>
